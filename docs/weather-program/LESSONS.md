@@ -906,11 +906,11 @@ A stored estimate can be estimated again in a browser branch with different sour
 - **L-V52 · Check the premise before the solve: which parts already follow the model, and what "match" means.** The owner:
   "you need to double check all this ... It could be the way it is, or it could not be. It all has to make sense to match dark
   mode, but [in] their colors and maps". For an hour this session solved light onto dark's hues within 8 degrees, a figure taken
-  from its brief, and was heading for a field 4 to 12 L* paler. The check took minutes: dark's code is the ORDER of its hues;
+  from its brief, and was heading for a field 4 to 12 L* paler (against dark's hue as the instruments then read it). The check took minutes: dark's code is the ORDER of its hues;
   light already ran it at calm, 3, 6 and 16 kn and from 33 kn up, and broke it at exactly two stops. Rules: (1) before changing a
   theme, read the MODEL's rules off the model and each theme against them, speed by speed, and say what already holds: that part
   is not touched; (2) "match" is the same logic, not the same numbers: a tolerance in a brief is a hypothesis with a price, so
-  price it (here 8 degrees cost the depth, 20 kept it); (3) ask why a wrong band is wrong before moving it: both of light's were
+  price it (here 8 degrees cost 6 to 7 L* of depth at 6 kn and 2 to 5 from 16 to 21 kn; 20 kept it); (3) ask why a wrong band is wrong before moving it: both of light's were
   bought to avoid a cyan sea that the basemap mute had since greyed, a reason that no longer existed; (4) show the check as a
   sheet a person can read in a glance, with the breaks outlined. (log 2026-10-12-wind-light-path)
 - **L-V53 · A constrained solve needs the authority's own arithmetic, one bar at a time, and a control for the solver itself.**

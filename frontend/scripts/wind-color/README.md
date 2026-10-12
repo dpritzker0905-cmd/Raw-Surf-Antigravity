@@ -133,8 +133,8 @@ D-024): dark's hue ORDER in light's own key. Three files made them, and can re-m
 (`window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`). The checker's legend lines read the bar as the app draws it
 (`resolveLegendRamp`): in light on its path that is no longer the particle ramp.
 
-What the solve found, so the next one starts further on: holding light's hue tight to dark's (about 8 degrees) needs the field
-4 to 12 L\* paler from 6 to 21 kn to keep a 5.2 floor; at 20 degrees the depth nearly holds. A cyan as deep as L\* 60 cannot
+What the solve found, so the next one starts further on: holding light's hue to dark's within 8 degrees (dark by the engine's
+law) keeps a 5.2 floor with 6 kn 6 to 7 L\* lighter and 16 to 21 kn 2 to 5 lighter than at 20 degrees, where the depth holds. A cyan as deep as L\* 60 cannot
 carry more than C\* 30 under the 0.70 multiply tint, so the 10 kn band stays light in every solve. A bar that chroma have ONE
 crest is stricter than dark itself (dark dips through cyan).
 

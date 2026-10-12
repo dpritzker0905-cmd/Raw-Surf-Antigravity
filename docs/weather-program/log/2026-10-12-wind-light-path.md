@@ -385,3 +385,21 @@ beside the instruments' law, per stop, with the steepest step and the colour-bli
 no new violation, none regressed (`WindColorRamp.js` 792 of 800 lines; `MapWeatherControls.js` did not grow). Production build
 exit 0, the two stamped files restored. `check.mjs --strict`: light's lines as in the table above (the tables did not move), exit 1
 for beach's two red lines alone. The films stand: the default's bytes are the ones pinned (`NOW`) and they are the tables filmed.
+
+## 05:37Z · #318 is open; one more correction (what a tight hue match costs); a what-if for the map lane
+
+- **PR #318** opened against dev at 05:30:00Z from `claude/wind-light-path` (ledger seq 1066; the read-back commitment is seq
+  1067, due 2026-10-19). Not merged. The owner had the clip and stills of option 2 at 05:03Z; no verdict on it yet.
+- **CORRECTION: "holding dark's hue tight needs the field 4 to 12 L* paler"** (the frontier table above, the first header, ledger
+  seq 1063's `why`) was solved against dark's hues as `mirror-model.mjs` read them. Re-solved against dark by the engine's law
+  (`--deep --tol 8 --keep 0`, no depth caps, floor 5.2, normal-vision 8.0; two seeds, both feasible): 3 / 6 / 10 / 16 / 21 / 27
+  kn over land read L* 74.8 / 71.0 / 64.8 / 64.8 / 64.8 / 60.6 on one level, or 73.5 / 72.6 / 66.9 / 62.2 / 62.2 / 60.1 on two.
+  Against what is built (65.2 / 64.9 / 60.1 / 60.1 / 60.1 at 6 to 27 kn): **6 kn is 6 to 7 L* lighter and 16 to 21 kn 2 to 5
+  lighter.** An 8-degree match is therefore dearer than 20 at 6 kn and little dearer elsewhere; the header, the README and
+  LESSONS L-V52 say so now. What was built and filmed does not move.
+- **A what-if, asked by the leading session, NOT built anywhere:** the same 8-degree rows read over light's land with its base
+  scaled 0.81 in OKLab lightness (bare land L* 93.4 to 72.6, about the muted sea's 72.4). Ground over that land at 3 / 6 / 10 /
+  16 / 21 / 27 / 33 kn: L* 56.8 / 56.0 / 51.5 / 47.8 / 47.8 / 46.2 / 41.0; over the sea 56.6 / 56.1 / 51.7 / 47.9 / 47.8 / 46.0 /
+  40.8. **Land and sea become one ground.** Colour-blind over that land 5.07 (21-27 kn, protan; the rows were not re-solved for
+  it), over the sea 5.20; hardest edge 6.9 dE00. With the map supplying the depth, a field held to dark's hue within 8 degrees
+  would no longer cost the streaks their ground over land: the two lanes want the same change. A scratch read, one pass.

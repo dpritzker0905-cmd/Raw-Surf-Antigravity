@@ -37,7 +37,7 @@
  *   - 3 kn is a shade less colourful (C* 21.6 against 26.4), which is what separates it from the new 6 kn for a protan viewer;
  *   - the weakest NORMAL-vision neighbours are 8.0 dE00 apart (27 to 33 kn over the sea); the field's weakest was 9.0 (47 to 55 kn,
  *     kept). Dark's own weakest is 5.5 over its land and 5.1 over its sea;
- *   - a hue match about three times as tight was solved too: it needs the field 4 to 12 L* paler from 6 to 21 kn to keep the floor.
+ *   - a hue match held to 8 degrees was solved too: it keeps the floor with 6 kn 6 to 7 L* lighter and 16 to 21 kn 2 to 5 lighter than this.
  * Each streak's colour core follows the field's hue (the rule light's streak row was built by: the field's own hue at full brightness,
  * 14 L* above the field over the land).
  *
