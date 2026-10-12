@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-12 13:00Z: under the wind, light and beach draw the LAND AT THE SEA'S DEPTH, ON BY DEFAULT (client only; a PR against
+- **2026-10-12 13:00Z: under the wind, light and beach draw the LAND AT THE SEA'S DEPTH, ON BY DEFAULT (client only; PR #320 OPEN against
   dev, the owner merges).** The owner, 11:50Z, on a prototype shown moving beside dark: "merge #316 and go with F and the deeper
   land and open the pr" (DECISIONS D-026).
   - **THE OWNER'S VERDICT ON THE DEPLOYED BUILD, 12:28Z, first-hand:** "I just did a visual check for wind on beach and light
@@ -1999,7 +1999,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1078, sha256 72fa2d148955df69eefe5273159ad4708b63f4b9d4d3f3cbe2edbbbf3edc4649**
+  **Ledger head: seq 1080, sha256 a23abc24ed4df6972b28669d202030824222b37b11ce9ef653fdfdbb7ca3eb4a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
