@@ -12,6 +12,9 @@
  * the page in memory; it is never written to disk or printed. Tiles come from Mapbox (a few hundred requests per run).
  * --offline: no token and no network; a synthetic basemap (each theme's measured land and water, a rough coast, a road lattice;
  * map-entry.js OFFLINE). Compare arms within one offline run, not its numbers with a Mapbox run.
+ * --app-sync: the map under the wind is restyled as the APP restyles it while the wind is on (windBasemapMute.js: the mute and the
+ * border ink); the `off` shot stays the theme's own map. Without it map mode draws the wind over the style's own colours, as it
+ * always has: its earlier numbers were taken that way. The borders alone are read by border-run.js.
  * The land mask (dark's rules: a mark picks its streak row by the land under it, windLandMask.js) reads the land file this runner
  * serves: the app's Natural Earth file on the real basemaps, the offline basemap's own coast with --offline. --no-land-file serves
  * none, so the mask fails and every mark draws its land row: the control for the mask. The MARKS table ends with what the mark shader
@@ -64,6 +67,7 @@ function parseArgs(argv) {
     else if (a === '--lng') opts.lng = Number(val());
     else if (a === '--lat') opts.lat = Number(val());
     else if (a === '--offline') opts.offline = true;
+    else if (a === '--app-sync') opts.appSync = true;
     else if (a === '--no-land-file') opts.noLandFile = true;
     else throw new Error(`unknown option ${a}`);
   }
@@ -123,7 +127,7 @@ async function main() {
     for (const theme of opts.themes) {
       for (const z of opts.zooms) {
         for (const [arm, levers] of Object.entries(opts.arms)) {
-          const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: opts.lng == null ? VIEW.lng : opts.lng, lat: opts.lat == null ? VIEW.lat : opts.lat, frames: opts.frames, res: 384, seed: opts.seed, levers, crop: opts.crop });
+          const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: opts.lng == null ? VIEW.lng : opts.lng, lat: opts.lat == null ? VIEW.lat : opts.lat, frames: opts.frames, res: 384, seed: opts.seed, levers, crop: opts.crop, sync: !!opts.appSync });
           if (r.glError) throw new Error(`GL error ${r.glError} at ${theme} z${z} ${arm}`);
           r.arm = arm;
           if (r.crops) {

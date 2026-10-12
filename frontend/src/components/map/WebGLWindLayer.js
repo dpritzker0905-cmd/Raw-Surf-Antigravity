@@ -275,7 +275,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
     };
 
     // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
-    const handleStyleData = () => {
+    const handleStyleData = (ev) => {
       if (!mapInstance || !mapInstance.style) return;
 
       if (!mapInstance.getLayer(LAYER_ID)) {
@@ -297,8 +297,11 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
-      } else if (windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {
+      } else if ((ev && ev.type === 'style.load') || windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {
         // A satellite photo or a weather wash came on (or went) under the wind, or an earlier sync met a style mid-load.
+        // And a style that has just LOADED always syncs: a theme change fetches its style, the theme's idle re-sync below can
+        // run on the OLD style first, and the diff then writes the new style's colours over it. The record still reads "this
+        // theme, muted, inked", so the stale check sees nothing (2026-10-12: light to beach left beach unmuted and un-inked).
         syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
       }
     };
