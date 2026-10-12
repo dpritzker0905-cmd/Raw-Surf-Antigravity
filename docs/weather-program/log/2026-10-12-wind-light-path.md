@@ -428,3 +428,24 @@ lift against dark's at the same crop:
 - **Merge order it is recommending to the owner: #316, #315, #318, #317.** If this PR merges after #316 and #315, its ledger lines
   (seq 1063 to 1068 here) are re-appended after dev's head, D-024 and L-V52 to L-V54 stay, and `windDarkWhite.test.js` and the
   ORTHOGONAL list in `windDarkRules.test.js` are merged by hand (both branches' lines kept).
+
+## 13:15Z · Dev brought in (#316 merged ahead); the ledger lines re-appended; the seq numbers above have moved
+
+- #316 (the border ink) merged into dev at 2026-10-12T11:52:11Z as `74417b5a`, on the owner's word to the session leading this
+  work (relayed). #318 then read CONFLICTING. `origin/dev` was merged into `claude/wind-light-path` here (the app's sync tool
+  stopped at "Committer identity unknown", so the merge was run locally: dev's changes touch no protected path). Conflicts: the
+  four records only. `windDarkRules.test.js` (both kills in the ORTHOGONAL list) and the bench's `map-entry.js` merged cleanly.
+- **Resolution:** DECISIONS and LESSONS keep dev's entries first (D-023; L-V46 to L-V49 and L-V51), then this branch's (D-024;
+  L-V52 to L-V54). STATE: this branch's bullet at the top of Now, then dev's text. The ledger is dev's file through seq 1074,
+  with this branch's six lines re-appended after it, each carrying the time it was first written as its `acted_at`.
+- **THE SEQ NUMBERS CITED ABOVE IN THIS LOG ARE THE BRANCH'S, BEFORE THIS:** 1063 is now **1075** (decision D-024), 1064 is
+  **1076** (flag_flip), 1065 is **1077** (the correction of the sea read), 1066 is **1078** (pr_open #318), 1067 is **1079**
+  (the read-back commitment, due 2026-10-19), 1068 is **1080** (the correction of what a tight hue match costs). On dev, seq
+  1063 to 1074 are the border-ink branch's lines.
+- `pr_merge #316` is NOT written here: the leading session's recommended order puts #315 next, and two branches writing it
+  would fork the chain again. If #318 merges before #315, the line is owed by whichever merges after.
+- The owner's verdict on the DEPLOYED build (`74417b5a`: #314 and #316, none of the palette changes), relayed by the leading
+  session, first-hand to it at 12:28Z: "I just did a visual check for wind on beach and light modes, and I still do not visually
+  see the improvements yet.... notate that"; and 12:36Z: "you need to also compare the amount and density of the animations from
+  beach and light mode to dark mode. And colors, how slower color wind is more transparent than faster color wind". Nothing of
+  #318 is on the site, so this is not a verdict on option 2.
