@@ -79,6 +79,11 @@ export function windTrailVeil(theme, win = (typeof window !== 'undefined' ? wind
  * SCREEN_FS's u_trail_veil for this frame: [the veil's strength (0 = the glow branch alone), 1 / the buffer level of a core].
  * `glow`: whether this theme's composite runs the glow branch at all; `darkOpacity`: dark's own composite opacity at this zoom.
  * The theme's close-zoom factor (WebGLWindUtils.js windCloseLandFactor) is applied here: the veil eases with the streak it belongs to.
+ * THE LEVEL IS THE LOWER OF THE TWO GROUNDS' (the screen pass does not know land from sea: the land mask is in the draw pass). A
+ * streak laid higher than that (the land's, wherever its strength is over the sea's) carries no veil down to that level and
+ * keeps its core to the digit. Measured with the level forced to a lighter land's own (0.866 for a strength of 0.75): the land's
+ * streaks added LESS light (light's: 4.8 / 8.6 / 13.9 L* against 5.5 / 9.6 / 15.2 at 6 / 15 / 26 kn) and their cores fell 0.4
+ * to 1.7 L*, for a dip no more than 0.5 L* shallower: a higher level puts the veil between the two levels as well.
  */
 export function trailVeilUniform(theme, glow, darkOpacity, zoom, win = (typeof window !== 'undefined' ? window : null)) {
   const k = glow ? windTrailVeil(theme, win) : 0;

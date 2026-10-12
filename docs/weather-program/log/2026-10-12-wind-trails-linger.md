@@ -514,11 +514,113 @@ brightness (1029 lines, as on dev; the same statements). `python scripts/loc_rat
 suites, 423 tests), and the GPU proof was run once more on that text: against `origin/dev`'s frames the kill in light and beach, dark by default, and
 the default against the picture measured before, 90 of 90 at the three sea crops (15 of 15).
 
+## 22:22Z · The lead's ten notes arrived in one batch: the fork is closed, and what they asked for is measured
+
+Notes 1 to 10 from the lead session (written from about 19:20Z to 22:15Z) reached this session together at 22:22Z, after PR #324
+was open. None had been delivered before: the section of 21:50Z above, the PR's first body, D-029 and STATE were all written
+without them. What they change:
+
+- **The fork is closed: the veil is the tail's build, the cut is withdrawn.** The lead, note 5: "your veil (commit 6c578875,
+  windTrailVeil.js) IS the tail's build; my prototype cut is withdrawn"; it reads the two-term law as "the law itself, where my
+  cut only approximates its zero crossing and has no dip". The owner's words it rests on, first-hand to the lead and relayed
+  here (not witnessed by this session): 20:54Z, "merge #323 and build the tail, also make sure the other sub agents are getting
+  what they need to do done so we can get this working"; 21:13Z, "merge the tail pr when its ready [...] make sure your sub
+  agents are on the same page here, so we're not just lapping work over work". So #324 is not waiting on a pick: it is marked
+  ready for review, and the lead verifies it against dev and merges it. The default strength of 1 stands (the lead's notes 6, 9
+  and 10, on its own anatomy table: land 0.97 / 0.98, sea 1.11 / 1.11; steer 1.5 over-veils).
+- **What is left is named, and is the lead's, each its own later change:** the near-calm bands (the owner, 21:51Z, to the lead:
+  "The almost still wind needs to be almost still and almost transparent on beach and light modes, as that is how it looks on
+  dark mode"; the veil moves the 1 to 3 kn bands by under 0.1: it is the white streak's own level in near-calm air, not the
+  tail); the sea's remainder (bodies 1.1 to 1.25 of dark's: D-022's 0.55 over the sea); and the land's lightness with the
+  streak's strength over it (the lead's `claude/wind-map-far-zoom`: the land at 0.90 / 0.94 with a streak at 0.75), which merges
+  AFTER this and is re-read with the veil on. The order the lead set: this PR on today's land; its land step; its near-calm term;
+  the colours lane.
+- **Its boundary was kept without knowing it:** nothing here edits `windBasemapMute.js` or `WIND_COASTLINE`.
+
+**Measured for the lead's asks** (its notes 7 to 9: both lands, zooms 2 and 3; note 1: the map's side):
+
+**T7. The veil on BOTH lands** (the LAND crops, 6 / 15.3 / 26 kn, zoom 6; the lighter land is the lead's levers: `__RAW_WIND_BASEMAP_LAND_L__` 0.90 in light and 0.94 in beach with `__RAW_WIND_WHITE_LAND__` 0.75):
+
+| | field L* | darkest moment | share under the field | share lit | light added (x dark's) | core, median (highest tenth) |
+|---|---|---|---|---|---|---|
+| dark, its own land | 30.9 / 38.5 / 38.7 | -1 / -0.6 / +1.3 | 0.07 / 0.08 / 0.03 | 0.44 / 0.63 / 0.79 | 6.8 (1.00) / 10.3 (1.00) / 13.3 (1.00) | +27 (+34.5) / +29.1 (+32.1) / +30.2 (+32.6) |
+| light, today's land, before | 52.9 / 49.4 / 48.3 | 0 / +1.7 / +4.8 | 0.00 / 0.00 / 0.00 | 0.53 / 0.73 / 0.88 | 6.6 (0.97) / 10.3 (1.00) / 14.8 (1.11) | +20.4 (+24.6) / +24.6 (+27.5) / +27.4 (+29.5) |
+| light, today's land, the veil | 52.9 / 49.4 / 48.3 | -3.2 / -2.2 / 0 | 0.27 / 0.18 / 0.07 | 0.35 / 0.54 / 0.75 | 4.5 (0.66) / 7.5 (0.73) / 11.9 (0.89) | +19.7 (+24.5) / +24 (+27.3) / +27 (+29.3) |
+| light, the lighter land, before | 59.5 / 55.6 / 54.1 | +0.3 / +2.1 / +5.8 | 0.00 / 0.00 / 0.00 | 0.53 / 0.75 / 0.89 | 7.1 (1.04) / 11.8 (1.15) / 17.1 (1.29) | +22.1 (+27.6) / +28 (+31.7) / +31.7 (+34.7) |
+| light, the lighter land, the veil | 59.5 / 55.6 / 54.1 | -4.1 / -2.7 / +0.1 | 0.29 / 0.20 / 0.08 | 0.37 / 0.57 / 0.78 | 5.5 (0.81) / 9.6 (0.93) / 15.2 (1.14) | +22.1 (+27.6) / +28 (+31.7) / +31.7 (+34.7) |
+| light, the lighter land, the veil at half strength | 59.5 / 55.6 / 54.1 | -1.3 / -0.2 / +2.9 | 0.10 / 0.01 / 0.00 | 0.43 / 0.65 / 0.83 | 6.1 (0.90) / 10.5 (1.02) / 16.1 (1.21) | +22.1 (+27.6) / +28 (+31.7) / +31.7 (+34.7) |
+| light, the lighter land, the veil's level forced to the land's own | 59.5 / 55.6 / 54.1 | -3.7 / -2.4 / +0.2 | 0.29 / 0.19 / 0.07 | 0.35 / 0.56 / 0.77 | 4.8 (0.71) / 8.6 (0.83) / 13.9 (1.05) | +21.2 (+27.4) / +27.3 (+31.5) / +31.2 (+34.4) |
+| beach, today's land, before | 52.5 / 42.9 / 52.1 | +0.2 / +1.8 / +4.5 | 0.00 / 0.00 / 0.00 | 0.52 / 0.74 / 0.87 | 6.7 (0.99) / 11.7 (1.14) / 13.7 (1.03) | +19.1 (+24.9) / +28 (+31.9) / +25.6 (+28.1) |
+| beach, today's land, the veil | 52.5 / 42.9 / 52.1 | -2.8 / -1.4 / -0.3 | 0.25 / 0.13 / 0.08 | 0.35 / 0.59 / 0.73 | 4.5 (0.66) / 9.1 (0.88) / 10.8 (0.81) | +17.6 (+24.6) / +27.3 (+31.8) / +25.2 (+27.8) |
+| beach, the lighter land, before | 58.3 / 47.8 / 57.6 | +0.2 / +2.3 / +5.4 | 0.00 / 0.00 / 0.00 | 0.53 / 0.76 / 0.88 | 7.4 (1.09) / 14 (1.36) / 15.8 (1.19) | +21 (+28.5) / +33.4 (+38.6) / +29.3 (+33) |
+| beach, the lighter land, the veil | 58.3 / 47.8 / 57.6 | -3.6 / -1.6 / 0 | 0.26 / 0.15 / 0.09 | 0.38 / 0.62 / 0.76 | 5.8 (0.85) / 12 (1.17) / 13.8 (1.04) | +21 (+28.5) / +33.4 (+38.6) / +29.3 (+33) |
+| beach, the lighter land, the veil at half strength | 58.3 / 47.8 / 57.6 | -1 / +0.1 / +2.3 | 0.06 / 0.00 / 0.00 | 0.43 / 0.68 / 0.82 | 6.4 (0.94) / 12.9 (1.25) / 14.7 (1.11) | +21 (+28.5) / +33.4 (+38.6) / +29.3 (+33) |
+| beach, the lighter land, the veil's level forced to the land's own | 58.3 / 47.8 / 57.6 | -3.1 / -1.2 / 0 | 0.26 / 0.14 / 0.08 | 0.36 / 0.61 / 0.74 | 5.1 (0.75) / 11.2 (1.09) / 12.5 (0.94) | +19.3 (+28.1) / +32.7 (+38.4) / +28.9 (+32.7) |
+
+**T8. Zoom 3 (the low ramp built for zoom 3; 200 x 150 crops)**
+
+| crop | darkest: dark | light before | light, veil | beach before | beach, veil | share lit: dark | light before | light, veil | beach before | beach, veil | added: dark | light before | light, veil | beach before | beach, veil | core: dark | light, veil | beach, veil |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| the Gulf, 15.3 kn | -1.1 | +2.6 | -1.5 | +2.7 | -0.5 | 0.59 | 0.74 | 0.58 | 0.74 | 0.61 | 8.1 | 10.9 | 8.3 | 12.1 | 9.7 | +23.6 | +24.4 | +26.7 |
+| the open Atlantic, 25.9 kn | +1 | +7.1 | +1.9 | +6.2 | +0.8 | 0.78 | 0.93 | 0.82 | 0.92 | 0.78 | 11 | 16.2 | 13.3 | 14.6 | 11.5 | +24.7 | +27.7 | +25.2 |
+| the US interior, 12.5 kn | 0 | +1.2 | -1.4 | +1.4 | -1 | 0.53 | 0.60 | 0.45 | 0.62 | 0.49 | 8.2 | 8.2 | 6 | 9.3 | 7.1 | +25 | +20.4 | +22.4 |
+
+**T9. Zoom 2 (the ramp cannot be built that wide: the bench's own world wind, its speed not read; 160 x 120 crops)**
+
+| crop | darkest: dark | light before | light, veil | beach before | beach, veil | share lit: dark | light before | light, veil | beach before | beach, veil | added: dark | light before | light, veil | beach before | beach, veil | core: dark | light, veil | beach, veil |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| the open Atlantic, 30 N 50 W | -2.4 | +0.4 | -3.1 | +0.3 | -2.7 | 0.33 | 0.55 | 0.36 | 0.54 | 0.36 | 4.1 | 6.8 | 4.4 | 6.9 | 4.5 | +24.1 | +22.2 | +20.7 |
+| the US interior | -0.4 | +1.2 | -2.4 | +1.4 | -1.7 | 0.57 | 0.64 | 0.46 | 0.68 | 0.51 | 8.3 | 8.3 | 5.7 | 9.7 | 7.1 | +27.9 | +22.3 | +23.4 |
+
+- **On the lighter land the veil's dip over land is 0.2 to 0.9 L* deeper at 6 and 15 kn than on today's land** (light -4.1 / -2.7
+  / +0.1 against -3.2 / -2.2 / 0.0; beach -3.6 / -1.6 / 0.0 against -2.8 / -1.4 / -0.3) and 1.0 to 3.1 L* deeper than dark's over
+  its own land there (-1.0 / -0.6): the veil takes the ground squared and that land is 5 to 7 L* lighter under the field. With
+  the streak at 0.75 the light added comes back to dark's (light 0.81 / 0.93 / 1.14 of it, beach 0.85 / 1.17 / 1.04, where
+  today's land reads 0.66 to 0.89): the lead's reading, reproduced.
+- **The veil's level stays the sea's (the question in notes 8 and 9), by measurement.** With the level forced to the land's own
+  (`"force": { "screen.u_trail_veil@map": [0.505, 1.1547] }`) the land's streaks add LESS light (light 4.8 / 8.6 / 13.9 against
+  5.5 / 9.6 / 15.2) and their median core falls 0.4 to 1.7 L*, for a dip no more than 0.5 L* shallower: a higher level puts the veil
+  between the sea's core level and the land's as well. As built, a land streak laid above the sea's level carries no veil down
+  to that level, and its core is the unveiled core to the digit (+22.1 / +28.0 / +31.7 with and without the veil). **So: the veil
+  as it is, and the land's strength re-solved on top of it by the land's own lane.** If the land's dip is to be dark's land's,
+  the lever that does it is the veil's STRENGTH over land (half strength reads -1.3 / -0.2 / +2.9, dark's land -1.0 / -0.6 /
+  +1.3), which the screen pass cannot apply by ground today (the land mask is in the draw pass): a later change, not this one.
+- **Zooms 3 and 2 move as zooms 4, 6 and 8 do.** Over the sea light's and beach's darkest moment comes from +0.3 to +7.1 over the
+  field to within 0.9 L* of dark's; over land their tails dip 1.0 to 2.0 L* under dark's and the streaks add 0.69 to 0.87 of
+  dark's light (today's land).
+- **The map's side** (`map-run.js --app-sync --themes dark,light,beach --zooms 4,6,8`, the veil against its kill; the WATER
+  columns; dark's own row is the bar and is the same under both arms):
+
+  | zooms 4 / 6 / 8 | lines' contrast kept under field + streaks (`retP`) | lines left under half (`lostP`) | the streaks' signal (`sal`) |
+  |---|---|---|---|
+  | dark | 0.73 / 0.79 / 0.82 | 0.26 / 0.16 / 0.10 | 6.8 / 7.8 / 4.3 |
+  | light, before | 0.81 / 0.90 / 0.78 | 0.13 / 0.02 / 0.05 | 9.1 / 11.8 / 6.2 |
+  | light, the veil | 0.75 / 0.85 / 0.74 | 0.16 / 0.04 / 0.07 | 6.1 / 8.9 / 4.3 |
+  | beach, before | 1.13 / 1.09 / 1.03 | 0.06 / 0.03 / 0.04 | 9.3 / 10.1 / 4.8 |
+  | beach, the veil | 1.11 / 1.03 / 0.99 | 0.09 / 0.04 / 0.05 | 6.3 / 7.0 / 3.1 |
+
+  The veil does not buy the map's lines anything by this gauge: over water it takes 0.02 to 0.06 of the contrast they kept
+  and leaves 0.01 to 0.03 more of them under half, because the lingering light also lifted the ground beside a dark line. Both
+  stay inside dark's own figures except light's water at zoom 8 (0.74 against dark's 0.82; 0.78 before). What it changes is the
+  streaks' own signal over water, from 1.1 to 1.5 times dark's to 0.9 to 1.1 in light and 0.7 to 0.9 in beach. Over LAND the same
+  column goes from about dark's (0.86 to 1.04) to 0.58 to 0.67 of it in light and 0.63 to 0.76 in beach: the land cost, by a
+  third gauge.
+
+**Records moved with this (22:45Z to 22:55Z):** ledger seq 1143 (the push of 8795c078, recorded late), 1144 (a correction to
+seq 1135: the owner's words for #323's merge and the lead's before / after reads, as its note 6 gave them), 1145 (D-029 amended:
+the cut withdrawn, what is left and whose, the level's choice) and 1146 (a correction to seq 1141: the PR is no longer a draft);
+STATE; the PR's title and body rewritten (`gh pr edit 324`) and the PR marked ready for review (`gh pr ready 324`, 22:52Z; read
+back: OPEN, not a draft). The module's comment now says why the level is the lower of the two grounds' (a comment only: the veil,
+rules, bench, shader and canvas suites, 6 suites and 355 tests, pass after it; `check_eslint.js` and `loc_ratchet.py` exit 0).
+Hosted CI on 8795c078, one read at 22:53Z: 18 pass, 1 skipping, 0 failing. **Not in the ledger:** the push of the commit that
+carries this section (a line cannot record its own push); the next writer of the ledger records it. This session does not merge.
+
 ## Not verified
 
 - **Nothing seen in the app, and not by the owner.** The bench is headless Chromium on a desktop GPU with the real engine, the
   real basemaps and synthetic wind (a speed ramp); the two clips also carry the served wind x0.4.
-- **One seed, one view (Mobile Bay), zooms 4, 6 and 8, speeds 3 to 50 kn.** No storm fixture at full strength, no zoom 9 and
+- **One seed, one view (Mobile Bay), zooms 4, 6 and 8, speeds 3 to 50 kn** (and, in the section of 22:22Z, zoom 3 on a wider
+  ramp and zoom 2 on the bench's own world wind, its speed not read). No storm fixture at full strength, no zoom 9 and
   over, no pan or zoom in motion (the veil is a function of the buffer's level at a pixel; the trail buffer's own camera is not
   touched), no theme switch mid-run on the GPU (the recording-GL test covers the uniform through a kill toggle).
 - **Phones.** `SCREEN_FS` is `mediump`. On a real 16-bit mediump GPU `b * b * op` underflows to 0 below a buffer level of about
@@ -528,7 +630,7 @@ the default against the picture measured before, 90 of 90 at the three sea crops
   rest pull the fit, and that they ARE the map's lines was inferred from the null control (the land differs run to run, the sea
   does not), not masked out.
 - **Light added over 30 kn** stays 1.24 to 1.33 times dark's over the sea in light. Not retuned: one variable at a time.
-- **The veil against the lead's cut has not been seen by anyone.** The cut was read here at two values of k on six crops at
+- (Closed at 22:22Z: the lead withdrew the cut and filmed the veil for the owner itself.) The cut was read here at two values of k on six crops at
   zoom 6; its ramps, zooms 4 and 8 and its land rows (its branch draws the land's field on another commit than the field-alone
   run it was read against: the sea rows are clean, the land rows carry 0.2 to 0.4 L* of that) were not measured.
 - The lead's earlier clips and D-022's strengths were judged on pictures without the veil. With it the streaks add less light

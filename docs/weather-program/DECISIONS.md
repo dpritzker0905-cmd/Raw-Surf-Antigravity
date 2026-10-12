@@ -1050,3 +1050,24 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Reopen if:** the owner picks the cut; or the owner's eye finds the land over-carved or a grey edge in slow wind (steer the
   strength first: `window.__RAW_WIND_TRAIL_VEIL__ = 0.5`); or a phone shows banding in the tails (the shader is `mediump`: not
   measured on a device).
+- **AMENDED 2026-10-12 22:45Z: the veil at its default strength IS the tail's build; the cut is withdrawn; the PR is not waiting
+  on a pick.** This entry and PR #324 were first written as "a draft until the owner picks between the veil and the cut" because
+  ten notes from the lead session had not been delivered to the building session; they arrived together at 22:22Z. The lead,
+  note 5: "your veil [...] IS the tail's build; my prototype cut is withdrawn" (it reads the two-term law as "the law itself,
+  where my cut only approximates its zero crossing and has no dip"). The owner's words, first-hand to the lead and relayed (not
+  witnessed by the building session): 20:54Z, "merge #323 and build the tail, also make sure the other sub agents are getting
+  what they need to do done so we can get this working"; 21:13Z, "merge the tail pr when its ready [...]". So item (a) of "Not
+  decided here" is closed; the lead verifies #324 against dev and merges it. **Still the owner's eye:** the look itself (the lead
+  filmed the veil beside dark for them; no verdict is recorded here).
+  - **What is left, each its own later change, all the lead's:** the near-calm bands (the owner, 21:51Z, to the lead: "The almost
+    still wind needs to be almost still and almost transparent on beach and light modes"; the veil moves the 1 to 3 kn bands by
+    under 0.1); the sea's remainder (a streak's body 1.1 to 1.25 of dark's: D-022's 0.55 over the sea); the land's lightness and
+    the streak's strength over it (the lead's land step, which merges AFTER this and is re-read with the veil on).
+  - **The veil on a lighter land** (the lead's levers, land 0.90 / 0.94 with a streak at 0.75; the land crops at 6 / 15.3 / 26 kn):
+    the dip is -4.1 / -2.7 / +0.1 in light and -3.6 / -1.6 / 0.0 in beach (today's land -3.2 / -2.2 / 0.0 and -2.8 / -1.4 / -0.3;
+    dark's own land -1.0 / -0.6 / +1.3), and the light added comes back to dark's (0.81 to 1.17 of it, where today's land reads
+    0.66 to 0.89). **The veil's level stays the lower of the two grounds'**: forced to the land's own it veils more and trims the
+    core. The veil is not tuned to the land: the land's strength is re-solved on top of it by the land's own change.
+  - **Zooms 2 and 3** move as 4, 6 and 8 do. **The map's side** (`map-run.js --app-sync`, water): the lines' kept contrast moves
+    0.02 to 0.06 down and stays inside dark's own figures but for light at zoom 8 (0.74 against 0.82); the streaks' signal over
+    water comes from 1.1 to 1.5 times dark's to 0.7 to 1.1.

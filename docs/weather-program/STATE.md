@@ -15,10 +15,10 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 22:00Z: WHY LIGHT'S AND BEACH'S TRAILS LINGER IS FOUND (the trail composite runs two different laws), and dark's
-  VEIL is built under their trails, ON BY DEFAULT (client only; PR #324 OPEN as a DRAFT against dev from `claude/wind-trails-linger`; NOT to be
-  merged until the owner has picked between it and the lead's cut; DECISIONS D-029).** The owner, 20:13Z, to the building session,
+  VEIL is built under their trails, ON BY DEFAULT (client only; PR #324 OPEN against dev from `claude/wind-trails-linger`, ready for review; the
+  lead session verifies it against dev and merges it; DECISIONS D-029, amended 22:45Z).** The owner, 21:13Z, to the lead, first-hand there and relayed: "merge the tail pr when its ready". The owner, 20:13Z, to the building session,
   first-hand, as it was building a default-off lever on the lead's brief: "levers to turn on new updates need to be on by default".
-  The owner has not seen this build; the lead has shown them a clip of its own candidate (the cut), not of this one.
+  The owner has not seen this build in the app; the lead filmed the veil beside dark for them (its note 7); no verdict is recorded here.
   - **The finding:** `SCREEN_FS` has two branches. Dark lays the trail buffer's colour at alpha `b x opacity`; light and beach,
     since rule 1 of dark's rules (D-020, "light only adds"), lay it at full brightness at alpha `b^2 x opacity`. As one family,
     `screen - g = p (b c - b^2 g) - q b (1 - b) g`: dark is `p = q = 0.505`, the glow branch `q = 0`. Dark carries a black veil
@@ -41,11 +41,14 @@ is a claim, not a measurement.
     to 2.0 L* further than dark's do over its near-black land, and the streaks add 0.62 to 0.95 of dark's light there (about
     dark's before). Strength 1 sits on dark's sea, 0.5 on its land. A typical pixel's lightest moment falls 0.1 to 2.8 L* at 6
     to 9 kn (the highest tenth of cores 0.6 at most). It breaks rule 1 on purpose.
-  - **OPEN, the owner's: the veil or the cut.** The lead found the same cause the same hour and built another candidate (local
-    `claude/proto-tail-cut`: the glow's alpha cut to zero at a fixed level, never under the field). Where the picture is lit the
-    two agree with each other and with dark (the veil sits on the cut at k 0.38 on both gauges); between streaks the cut leaves a
-    pixel AT the field and the veil takes it under, as dark's is. Clips beside dark, on the merged tree:
-    `frontend/scripts/wind-bench/out/videos/trail-veil-served.webm`, `-ramp`, `-strengths`, `-vs-cut` (not in the repo).
+  - **The veil or the cut: CLOSED at 22:22Z.** The lead found the same cause the same hour and built another candidate (local
+    `claude/proto-tail-cut`: the glow's alpha cut to zero at a fixed level, never under the field); its ten notes reached the
+    building session only at 22:22Z. Its note 5 withdraws the cut: the veil at strength 1 is the build. Clips beside dark, on the
+    merged tree: `frontend/scripts/wind-bench/out/videos/trail-veil-served.webm`, `-ramp`, `-strengths`, `-vs-cut` (not in the repo).
+  - **What is left, each its own later change, all the lead's:** the near-calm bands (the owner, 21:51Z: "The almost still wind
+    needs to be almost still and almost transparent on beach and light modes"); the sea's remainder (D-022's 0.55); the land's
+    lightness with the streak's strength over it (the lead's land step merges AFTER this and is re-read with the veil on: on
+    that lighter land the veil's dip over land is 0.2 to 0.9 L* deeper at 6 and 15 kn; the veil's level stays the sea's).
   - **The instrument, committed:** the wind bench's TRUTH mode (`truth.js`, `truth-run.js`; every pixel and frame against the
     same crop drawn with the field alone; the law's fit), one variable at a time on the real engine (`force-uniforms.js`), several
     crops of one frame and the trail buffer beside each (`motion-run.js --at`, `--trail`).
@@ -53,7 +56,7 @@ is a claim, not a measurement.
     four existing tests, two older kills the veil had to stand down under, and shader tests that pinned text: all fixed, the
     log). The whole frontend suite, the lint ratchet, the palette checker and the build pass on the merged tree.
   - **Not verified:** nothing seen in the app or by the owner; one seed, one view; no phone (the shader is `mediump`); the cut
-    read on six crops only. **Owed:** the owner's pick; then the read-back on the deployed build (ledger seq 1142, due
+    read on six crops only. **Owed:** the read-back on the deployed build once it merges (ledger seq 1142, due
     2026-10-19). Log `2026-10-12-wind-trails-linger`, LESSONS L-V76, L-V77.
 - **2026-10-12 20:36Z: light and beach draw the wind's COASTLINE in the borders' ink, and the coastline survives a theme change, ON BY
   DEFAULT (client only; PR #323 MERGED into dev as e89aaa85, 2026-10-12T21:02:45Z, from `claude/wind-map-shows-through`; DECISIONS D-028).** The owner,
@@ -2238,7 +2241,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1142, sha256 377ecb7e9358dbe0d6ebe077e1321f055e32f91544d4bdeeb05a186c16e385f9**
+  **Ledger head: seq 1146, sha256 f7a34ac6360eb49beece9a272b4362803f95f9295445820838b2e8108a2428e2**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
