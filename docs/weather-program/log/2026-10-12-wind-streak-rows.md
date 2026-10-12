@@ -9,6 +9,8 @@ brief came from the session that built #313, written while #313 was still open.
 the mechanism's size (the "19%" and "23%" are one stamp's, an upper bound), withdrew the fallback in "one recommendation" (the
 sea number times 0.815), corrected "C* 21.5, whichever row", and "visible" is restated arm by arm. The sections above it stand
 as first written, because the correction is part of the record; their tables were recomputed by the reviewer and match.
+**And the last section says which wind each row was read in:** "served" is the bench's fixture, a hurricane, not an everyday
+wind, and "storm" is that fixture's box multiplied by 2.3.
 
 **The brief:** make light's and beach's wind drawing as simple as dark's now that both draw dark's white streak (D-021), by
 removing the streak machinery that no longer changes what is seen, with proof: beach to ONE streak row, the land mask no longer
@@ -317,3 +319,45 @@ storm. It weakens a breeze more than a gale, the direction of the gap #315 measu
 - **The controls' outputs and the bench logs are saved** beside the instruments in the notes folder (`control-*.json`,
   `rows-*.log`, `ring-*.json`, `mirror-*-360.json`), not in the repo.
 - **Nothing was seen in the app.** The owner has two clips (the wind as served; sent before the review) and has not answered.
+
+## 04:23Z · Which wind each row was read in: "served" is not an everyday wind, and "scale 2.3" is not everywhere a storm
+
+The session that leads these lanes pointed it out (it had made the same mistake, its L-V50 on #315), and it checks against the
+bench's own code: the fixture is one served GFS box, 25 to 32 N and 90 to 78 W, holding a hurricane; around it the world base is
+the bench's climatology; and `scale` multiplies the box only (`page/map-entry.js` `init`, `eye.js` `worldBase`). Read from the
+fixture with a scratch script (`scene-wind.js`: 512 px tiles, the offline coast for land and sea; knots, median and quartiles):
+
+| what a row was read on | as served | scale 2.3 | share inside the scaled box |
+|---|---|---|---|
+| motion, the sea crop, zoom 9 | 33 (30-36) | 76 (68-82) | all |
+| motion, the sea crop, zoom 6 | 36 (25-45), up to 76 | 83 (58-104) | all |
+| motion, the sea crop, zoom 5 | 14 (11-17), up to 71 | 15 (12-38) | 29% |
+| motion, the land crop, zoom 9 | 12 (9-14) | 27 (22-32) | all |
+| motion, the land crop, zoom 6 | 8 (5-13) | 13 (7-14) | 7% |
+| motion, the land crop, zoom 5 | 16 (14-19) | 16 (14-19): the same wind | none |
+| whole frame, the sea, zooms 4 / 5 | 9 (7-14) / 12 (9-17) | 10 (7-16) / 15 (10-33) | 12% / 30% |
+| whole frame, the sea, zooms 6 / 8 / 9 / 10 | 24 (12-36) / 38 (33-41) / 32 (27-36) / 26 (23-28) | 56 / 87 / 74 / 60 | 70% / all / all / all |
+| whole frame, the land, zooms 4 / 5 / 6 | 14 / 12 / 9 | 14 / 14 / 13 | 2% / 11% / 27% |
+| whole frame, the land, zooms 8 / 9 / 10 | 10 / 12 / 17 | 22 / 28 / 39 | all |
+
+The crops are the `--size 360` ones; this script reads the zoom 6 sea crop at 36 kn where the leading session reads 39 (another
+crop arithmetic, not reconciled). What it changes in this log:
+
+- **"Served" over the sea is a gale, not an everyday wind.** At zooms 6 to 10 the sea sits at 24 to 38 kn, which is beach's
+  pale band (25-36 kn), where the two rows are furthest apart in colour and in alpha; at zoom 9 as served 70% of the sea is in
+  that band. So the served rows already hold the pale ring, as the time-mean tables show (1.4% and 2.7% of the frame), and
+  "where the eye catches it is the storm" describes the served scene.
+- **"Scale 2.3" over the sea is 56 to 87 kn at zooms 6 to 10:** past the band, into speeds where the rows' alphas are equal and
+  beyond the table's top. That, and not "a storm is less sensitive", is why the land row's effect on the lift fell to 2 to 3%
+  there. At zooms 4 and 5 it changes 12% and 30% of the sea and little of the land; the zoom 5 land crop is the same wind in
+  both scenes.
+- **No row here reads the sea in an everyday wind, in motion, except the zoom 5 sea crop** (14 kn at the median: the land row
+  everywhere lifts it 4% further) and, offline, zoom 4 (9 kn: 29.0% of the sea's pixels over dE00 2.3). "It weakens a breeze
+  more than a gale" (the lanes section) rests on the per-knot table of one stamp, not on a moving picture: withdrawn as a
+  measured statement.
+- **The land rows as served are everyday winds** (8 to 17 kn): "the sea row everywhere dims the land's streaks, lift 3 to 6%
+  less" was read there. At scale 2.3 the land's wind moves mainly in the views at zooms 8 to 10 and in the zoom 9 land crop, to
+  22 to 39 kn: the land's own pale band, where beach's land lifts 1.0 L* (0.09 of dark's) on a ground of L* 69.9.
+- **The verdict does not move:** nothing removed, nothing built. Its wording does: where this log says "in the wind as served"
+  read "in the fixture as served (a hurricane: 24 to 38 kn over the sea at zooms 6 to 10, 8 to 17 kn over land)", and where it
+  says "storm" or "storm strength" read "scale 2.3 (56 to 87 kn over the sea at zooms 6 to 10)".

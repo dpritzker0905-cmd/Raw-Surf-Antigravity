@@ -893,8 +893,10 @@ A stored estimate can be estimated again in a browser branch with different sour
   switch the other off first (D-022's kill), or the test moves both; (3) a brief ages from the minute it is written: at the
   start read what merged SINCE, not only whether the PR it names merged; (4) a number from a model of one pixel is a bound:
   before it is written as "the effect", check it against what accumulates (the buffer's blend) and against the same quantity
-  measured in motion; (5) "visible" is said per arm and per scene, with the region and its size, or not at all.
-  (log 2026-10-12-wind-streak-rows)
+  measured in motion; (5) "visible" is said per arm and per scene, with the region and its size, or not at all; and a scene is
+  named by the WIND in it, not by the lever that made it (this log called the fixture as served and at `scale` 2.3 "served" and
+  "storm": as served it is already a hurricane, 24 to 38 kn over the sea, and the lever multiplies only the fixture's box; the
+  same slip as #315's L-V50, caught by the session leading the lanes). (log 2026-10-12-wind-streak-rows)
 
 - **L-V43 · Read land and sea apart: one number over a mixed view can say "equal" while both grounds are wrong.** D-021's white
   streak was laid at one strength, calibrated on a bench view that is mostly land, and its lift over that view's centre read 1.05
