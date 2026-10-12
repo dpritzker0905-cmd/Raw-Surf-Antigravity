@@ -471,3 +471,22 @@ Ledger seq 1071 (`correction` of 1066: "every zoom"), 1072 (a finding that fulfi
 input); STATE's anchor at 1073. Jest, both trees, after the two comment edits in `windBasemapMute.js` and its test: 306 suites,
 4,101 tests, 0 failed; `check_eslint.js` clean. The production build was not re-run: the source changed by comments only since
 the build of `bf8fd34d`. Commitment 1069 (the read-back on the deployed build by the paint, and the owner's verdict) stays open.
+
+## 05:01Z · A label corrected, and the ground across the wind
+
+- *A correction of two lines of this log (in "The pixel ratio" and "The pixel ratio at zoom 4"), of STATE and of the bench
+  README (ledger `correction`):* I called the fixture scaled 2.3 times "the 90 kn scene". That figure was the lead session's,
+  taken from its message and not read by me; that session has since corrected its own speeds. Read here (`ground-run.js --scale
+  2.3 --zooms 6`): 59.7 kn median over the sea of this view (quartiles 33 and 85.6) and 12.5 over its land. The measurements
+  under that label stand; the label is now the scale and the speed read. STATE and the README are edited in place.
+- **The scenes, by their own wind** (zoom 6, median over the land / over the sea of the view): x0.4 4.9 / 10.5 kn; as served
+  8.2 / 25.9; x2.3 12.5 / 59.7.
+- **The ground under the field moves with the wind, differently a theme** (land / sea, L*): x0.4 dark 29.6 / 44.2, light 68.6 /
+  46.6, beach 64.4 / 45.0; as served dark 33.5 / 42.5, light 63.2 / 45.9, beach 56.8 / 50.2; x2.3 dark 35.3 / 42.8, light 62.4 /
+  29.9, beach 59.4 / 38.8. Dark's sea holds within 2 L* across the three scenes; light's falls 16 L* under the strong field and
+  beach's 11 (both from the served scene). The sea a streak is laid on in light is 13 L* DARKER than dark's at x2.3 and 3 L*
+  lighter as served: a strength that mirrors dark's lift in one scene cannot in the other.
+- **From the lead session, noted and not written here as mine:** it measured the ink's null on its own combined preview and has
+  closed that ask; its numbers are in its own log. This log's null is the one measured here ("The ink and the lift").
+- Bench README: the fixture's box and the lever-leak trap (`clearLevers()` clears `__RAW_` keys only) are now under "Limits",
+  both read from the code here.

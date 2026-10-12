@@ -331,7 +331,7 @@ node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3   
     without the mute, map mode's LAND rows are the same to 0.5 L* (beach's field over land reads C\* 32.5 instead of 23.5) and
     its SEA rows for light and beach sit on a sea 2 to 7 L* too light with a step 1 to 2 L* too small. With the canvas at 2
     instead of 1.5 the lift against dark's is off by 0.00 to 0.03 over the sea in the served wind and below it, by up to 0.09
-    in the 90 kn scene, and by 0.02 to 0.08 over land. The old way read D-022's recorded lifts to the digit.
+    with the fixture scaled 2.3 times, and by 0.02 to 0.08 over land. The old way read D-022's recorded lifts to the digit.
 
 ## Ground mode (`ground-run.js`, `page/ground-probe.js`): what IS the map the wind is laid on?
 
@@ -365,6 +365,11 @@ node scripts/wind-bench/ground-run.js --scale 2.3 --zooms 6  # the ground under 
 
   The mute takes the land's chroma and leaves its lightness; it darkens the sea by 10.7 L\* in light and 6.4 in beach. The wind
   under this view: 8.2 kn over the land (quartiles 5 and 11.5) and 25.9 over the sea (14.1 and 37.2) at zoom 6.
+- **The ground moves with the wind, and not the same way in each theme** (`--scale`, zoom 6, the ground under the field, land /
+  sea, L\*): at x0.4 (4.9 kn over the land, 10.5 over the sea) dark 29.6 / 44.2, light 68.6 / 46.6, beach 64.4 / 45.0; as served
+  dark 33.5 / 42.5, light 63.2 / 45.9, beach 56.8 / 50.2; at x2.3 (12.5 and 59.7 kn; the sea's quartiles 33 and 86) dark 35.3 /
+  42.8, light 62.4 / **29.9**, beach 59.4 / 38.8. Dark's sea holds within 2 L\* across the three; light's falls 16 under the
+  strong field. A scene is its `--scale` AND the speed read under the surface: name both, never a round number of knots.
 - **What it corrects in the other instruments' models (not changed here):** dark's land [18, 20, 26] is this bench's OFFLINE
   basemap, not the style (real L\* 28 to 32, not 6); `windDarkRules.js` `BASE.dark` (land [28, 37, 48], water [11, 29, 46]) is
   neither the style's land nor its water; light's modelled water [168, 214, 222] is 9 L\* lighter and far more chromatic than
@@ -762,6 +767,15 @@ every `__RAW_*` window key between configurations, so levers never leak.
 
 ## Limits
 
+- **The served-grid fixture is a hurricane, and its box is small.** `fixtures/eye-2026-10-09-gfs-native.json` covers 25 to 32 N,
+  90 to 78 W; everything else is the bench's own 2-degree base, which `--scale` does not touch. In the Mobile Bay view the sea
+  is mostly inside the box and the land mostly outside it: as served the wind is 25.9 kn (median) over the sea and 8.2 over the
+  land at zoom 6, and scaling the fixture 2.3 times makes that 59.7 and 12.5. No mode reads the land under a gale. `ground-run.js`
+  and `border-run.js` print the speed under what they score; the other modes do not.
+- **`clearLevers()` in `page/map-entry.js` deletes only `window` keys that start with `__RAW_`.** A lever of any other name set
+  by a run stays set for every later run in the same page (it cost the lead session two runs on 2026-10-12). Name a bench lever
+  `__RAW_...`, or delete it yourself. The read-backs (`__WIND_BASEMAP_MUTE__`, `__WIND_BORDER_INK__`, `__WIND_LAND_MASK__`) are
+  not levers and persist too, until the next sync or mask load rewrites them.
 - Numbers repeat exactly for one browser on one GPU, not across them. On 2026-10-09 the in-app
   browser pane read candidate ink 165 where headless Chromium read 159 for the same commit.
   Compare variants within one run, or two `--ref` runs on the same machine.
