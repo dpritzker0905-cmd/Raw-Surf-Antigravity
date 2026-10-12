@@ -1051,6 +1051,19 @@ A stored estimate can be estimated again in a browser branch with different sour
   that puts several pairs on a bar at once leaves no room for rounding. Rules: (1) when a merge changes a default, list every pinned
   read that names the old default and take each on the new one before reporting; (2) solve to the bar plus the rounding the pipeline
   adds, or say the uploaded number beside the table's. (log `2026-10-12-wind-beach-path`, the entry after the merge)
+- **L-V69 · "As uploaded" is not "as drawn" until the lookup is the GPU's: read the law back from a GPU before quoting a number
+  through a texture.** This lane's first read of beach's field through the engine's 8-bit texture looked the texture up at the
+  table's own index (255 x speed / maximum). The shader samples at speed / maximum with LINEAR filtering, so the GPU reads position
+  256 t - 0.5: up to half a texel away, which at an 80 kn maximum is the colour of a wind 0.16 kn slower at calm and 0.16 kn faster
+  at the top. Three sets of numbers went to the lead in an hour (4.79 and 4.98, then 4.76 and 4.89, then 4.68 and 4.65), each lower
+  than the last, because the model was refined instead of checked; the first set is in #319's records on dev. A 40-line readback of
+  a texture that encodes its own position (`scripts/wind-color/lut-lookup-gpu.cjs`) settled it in a minute on two renderers. L-V60
+  already said it of the composite law; it holds for every stage between a table and a pixel. Rules: (1) before a number "as drawn"
+  is quoted, each stage it passes through (the fill, the lookup, the blend, the canvas) is either read back from a GPU or named as
+  not modelled; (2) sweep what the engine can actually set (the maximum is clamped to 10..80 kn: 90 and 100 kn cannot happen, and
+  10 to 20 kn can); (3) a solve told to reach a target it cannot reach will pay for it with any bar that is not held hard: a capped
+  solve here traded 0.14 L* of one-way lightness for 0.02 of floor until a test read the bar over the candidate's own rows.
+  (log `2026-10-12-wind-beach-path`, the entries after the merge)
 - **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
   tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
   dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower

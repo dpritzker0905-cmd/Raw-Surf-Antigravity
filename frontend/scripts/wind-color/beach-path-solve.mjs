@@ -5,6 +5,11 @@
 //   node beach-path-solve.mjs --audit                         beach as drawn before its path: per knot, per pair, every bar
 //   node beach-path-solve.mjs [--mono 0-21,29-75] [--tol 8] [--free 10,16,21,33,55,75] [--ceil 62] [--cgreen 25] [--aim least|colour|deep] [--seeds 4] [--json out.json]
 //   node beach-path-solve.mjs --score file.json [--emit rows.json]
+//   --maxmove 0.5   a solve: no knot further than that (dE00, over the land) from the reference: with an --upfloor out of reach, the best floor within it
+//   --from-ref   a solve: the reference itself joins the first population (the least change is found from no change)
+//   --upfloor 5.05 [--upsweep 20-80:10]   a solve: the floor AS UPLOADED held as a bar too, at those maxima (verify on the fine sweep after)
+//   --uploaded [10-80:0.25]   with --audit or --score: the colour-blind floor AS UPLOADED (the rows quantised into the engine's 8-bit
+//                             texture), at every maximum of that sweep, over the land as drawn, the sea and the land before PR #320
 // The bands decouple at every kept stop, so the three faults are solved apart and joined: --pairs 27-33,33-40 scores those pairs only,
 // --start file --vary 10,16 moves those stops and takes the other --free stops from the file, --lockl 27 holds a stop's lightness.
 //
@@ -36,7 +41,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { MODEL, groundOf, groundAt, sample, strength, tintOver, drawnField } from './mirror-model.mjs';
+import { MODEL, groundOf, groundAt, sample, strength, tintOver, drawnField, ramps } from './mirror-model.mjs';
 import { lchOf, rgbOfLch, cvdDE, normalDE, de2000, simLab, KINDS } from './light-path-lib.mjs';
 
 const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -130,6 +135,35 @@ export function measure(P, o) {
   m.q = q;
   return m;
 }
+// AS UPLOADED. The engine does not draw the table: it draws a 256-texel, 8-bit texture of it (WindColorRamp.js generateRampData: the
+// table sampled at i / 255 x the frame's maximum, each channel rounded to a byte), read LINEAR between texels. The frame's maximum is the
+// data's strongest wind clamped to 10..80 kn (WebGLWindEngine.js _maxWindSpeed), so it is ANY number in that range, and the rounding
+// falls differently at each. A pair counts at a maximum only when both its stops are drawn there (the faster one at or under it).
+const INDEX255 = args.includes('--index255');
+export function uploaded(P, max) {
+  const data = ramps.generateRampData(max, P.map((r) => [r.kn, ...r.row.slice(0, 3), 1]), null, {});
+  // The GPU's own lookup (WebGLWindShaders.js: texture2D(ramp, vec2(speed / max, 0.5)), LINEAR, CLAMP_TO_EDGE): texel centres sit at
+  // (i + 0.5) / 256, so speed / max = t reads position 256 t - 0.5 between texels. --index255 reads at 255 t instead (the table's own
+  // index, which the first Jest pin used): up to half a texel away.
+  return (kn) => { const t0 = Math.min(1, kn / max), x = Math.min(255, Math.max(0, INDEX255 ? t0 * 255 : t0 * 256 - 0.5)), i = Math.min(254, Math.floor(x)), t = x - i; return [0, 1, 2].map((c) => (data[i * 4 + c] + (data[(i + 1) * 4 + c] - data[i * 4 + c]) * t) / 255); };
+}
+export const SWEEP = (spec) => { const [range, step] = String(spec || '10-80:0.25').split(':'), [a, b] = range.split('-').map(Number), out = []; for (let m = a; m <= b + 1e-9; m += Number(step || 0.25)) out.push(Math.round(m * 1000) / 1000); return out; };
+/** The weakest colour-blind pair as uploaded over ground `bm`, across `maxima`: { de, pair, kind, max, under: { pair kind: lowest } }. */
+export function uploadedFloor(P, bm, maxima, only) {
+  const worst = { de: Infinity, under: {} };
+  for (const max of maxima) { const at = uploaded(P, max), seen = {}, col = (kn) => seen[kn] || (seen[kn] = on(at(kn), kn, bm));
+    for (const [a, b] of PAIRS) { if (b > max || (only && !only.includes(`${a}-${b}`))) continue;
+      KINDS.forEach((kind) => { const d = de2000(simLab(col(a), kind), simLab(col(b), kind)), key = `${a}-${b} ${kind}`;
+        if (d < 5 && !(worst.under[key] <= d)) worst.under[key] = d;
+        if (d < worst.de) Object.assign(worst, { de: d, pair: `${a}-${b}`, kind, max }); }); } }
+  return worst;
+}
+function reportUploaded(P, spec) {
+  const maxima = SWEEP(spec), grounds = [['the land as drawn', LAND], ['the sea', WATER], ['the land before #320', groundAt(THEME, 'land', 1)]];
+  console.log(`AS UPLOADED (256 texels, 8 bits; ${maxima.length} maxima from ${maxima[0]} to ${maxima[maxima.length - 1]} kn):`);
+  for (const [name, bm] of grounds) { const w = uploadedFloor(P, bm, maxima), at = (m) => uploadedFloor(P, bm, [m]).de.toFixed(2), u = Object.entries(w.under).sort((x, y) => x[1] - y[1]), each = maxima.map((m) => uploadedFloor(P, bm, [m]).de);
+    console.log(`  ${name.padEnd(21)} lowest ${w.de.toFixed(2)} (${w.pair} kn, ${w.kind}, at a ${w.max} kn maximum) | at 50 kn ${at(50)}, at 75 kn ${at(75)} | maxima under 5.0: ${each.filter((d) => d < 5).length}, under 4.9: ${each.filter((d) => d < 4.9).length} | under 5: ${u.length ? u.map(([k, d]) => `${k} ${d.toFixed(2)}`).join(', ') : 'none'}`); }
+}
 const TODAY_P = Array.from({ length: TOP + 1 }, (_, kn) => ({ kn, kept: true, row: todayRow(kn).slice(0, 3), over: 0, land: on(todayRow(kn), kn, LAND), water: on(todayRow(kn), kn, WATER) }));
 /** What beach draws today, measured by the same bars (its chroma line's own unevenness is the bar a candidate may not exceed). */
 export const TODAY_M = measure(TODAY_P, { mono: [[0, 21]] });
@@ -145,15 +179,20 @@ export function score(cand, opts) {
   // --ceilgale: no ground from 22 to 46 kn lighter than that over land (the pale gale band brought under a ceiling, not to one-way).
   // flat: how far apart the lightest and the deepest ground sit from 6 to 40 kn over land (dark's own, by the engine's law, is 7.4).
   const gale = Math.max(...m.q.land.slice(22, 47).map((c) => c.L)), span = m.q.land.slice(6, 41).map((c) => c.L), flat = Math.max(...span) - Math.min(...span);
-  const viol = Math.max(0, m.rise - 0.05) * 6 + m.climb * 2 + Math.max(0, hueOff - o.tol) + Math.max(0, m.hueBack - o.turn) * 2 + Math.max(0, m.edge.de - o.edge) * 2 + Math.max(0, o.cmin - cLow)
+  // --upfloor: the floor AS UPLOADED (the GPU's lookup of the 8-bit texture), over the land and the sea, at each maximum of --upsweep
+  const up = o.upfloor ? Math.min(uploadedFloor(P, LAND, o.upsweep, o.pairs).de, uploadedFloor(P, WATER, o.upsweep, o.pairs).de) : null;
+  // With a cap on the move (--maxmove) the as-drawn floor is the AIM, pushed as high as the cap allows, so every other bar is made
+  // hard against it (x 25): a first solve without that traded 0.14 L* of one-way lightness for 0.02 of floor.
+  const bars = (o.maxmove ? Math.max(0, devMax - o.maxmove) * 12 : 0) + Math.max(0, m.rise - 0.05) * 6 + m.climb * 2 + Math.max(0, hueOff - o.tol) + Math.max(0, m.hueBack - o.turn) * 2 + Math.max(0, m.edge.de - o.edge) * 2 + Math.max(0, o.cmin - cLow)
     + Math.max(0, 14 - m.tint.land) + Math.max(0, 14 - m.tint.water) + m.gamut * 60 + Math.max(0, o.floor - m.floor.de) * 6 + Math.max(0, m.stripeC.by - o.stripeC) + Math.max(0, top - o.ceil) * 2 + Math.max(0, o.cgreen - cGreen) + Math.max(0, gale - (o.ceilGale || 99)) * 2;
+  const viol = (up === null ? 0 : Math.max(0, o.upfloor - up) * 6) + bars * (o.maxmove ? 25 : 1);
   // THE STREAK'S GROUND: how far the everyday ground (6 to 21 kn, over land) is LIFTED above what beach draws today, at its worst knot.
   // A white streak stands on its ground, so a lifted ground is lift lost (the owner, of light: "give the streaks their ground back").
   let lift = 0; for (let kn = 6; kn <= 21; kn++) lift = Math.max(lift, m.q.land[kn].L - TODAY_KNOT[kn].L);
   // --aim least: the floor, then the least change from today. --aim colour: the floor, then the most colour the 10-21 kn band can keep.
   // --aim deep: the floor, then the least lift of the streak's ground (the frontier against the hue tolerance).
   const aim = Math.min(m.floor.de, o.cap) * 10 - viol * 40 + (o.aim === 'colour' ? cGreen * 0.5 - dev * 0.01 : o.aim === 'deep' ? -lift * 1.2 - dev * 0.01 : -dev * 0.12) + Math.min(m.normal.de, 9) * 0.05;
-  return { m, P, dev, devMax, hueOff, viol, cGreen, top, lift, gale, flat, aim };
+  return { m, P, dev, devMax, hueOff, viol, bars, cGreen, top, lift, gale, flat, aim, up };
 }
 
 const f1 = (x) => x.toFixed(1).padStart(6);
@@ -177,11 +216,13 @@ export function emit(cand, s) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const o = { mono: arg('--mono', '0-21').split(',').map((r) => r.split('-').map(Number)), tol: Number(arg('--tol', 8)), floor: Number(arg('--floor', 5.0)), cap: Number(arg('--cap', 5.1)), cmin: Number(arg('--cmin', 12)),
-    ...(arg('--stripec') !== undefined ? { stripeC: Number(arg('--stripec')) } : {}), ceil: Number(arg('--ceil', 99)), cgreen: Number(arg('--cgreen', 0)), ceilGale: Number(arg('--ceilgale', 99)), aim: arg('--aim', 'least'), turn: Number(arg('--turn', 0.6)), ...(arg('--edge') !== undefined ? { edge: Number(arg('--edge')) } : {}), ...(arg('--pairs') ? { pairs: arg('--pairs').split(',') } : {}) };
-  if (args.includes('--audit')) { report(TODAY_P, measure(TODAY_P, o), `BEACH as drawn before its path (one way asked over ${arg('--mono', '0-21')} kn)`); process.exit(0); }
+    ...(arg('--stripec') !== undefined ? { stripeC: Number(arg('--stripec')) } : {}), ...(arg('--upfloor') ? { upfloor: Number(arg('--upfloor')), upsweep: SWEEP(arg('--upsweep', '20-80:10')) } : {}), ...(arg('--maxmove') ? { maxmove: Number(arg('--maxmove')) } : {}), ceil: Number(arg('--ceil', 99)), cgreen: Number(arg('--cgreen', 0)), ceilGale: Number(arg('--ceilgale', 99)), aim: arg('--aim', 'least'), turn: Number(arg('--turn', 0.6)), ...(arg('--edge') !== undefined ? { edge: Number(arg('--edge')) } : {}), ...(arg('--pairs') ? { pairs: arg('--pairs').split(',') } : {}) };
+  const upSpec = args.includes('--uploaded') ? (/^\d/.test(arg('--uploaded') || '') ? arg('--uploaded') : '10-80:0.25') : null;
+  if (args.includes('--audit')) { report(TODAY_P, measure(TODAY_P, o), `BEACH as drawn before its path (one way asked over ${arg('--mono', '0-21')} kn)`); if (upSpec) reportUploaded(TODAY_P, upSpec); process.exit(0); }
   if (arg('--score')) {
     const file = JSON.parse(fs.readFileSync(arg('--score'), 'utf8')), cand = Array.isArray(file) ? file[0].cand : file, s = score(cand, o);
     report(s.P, s.m, `candidate (free: ${cand.free.map((i) => STOPS[i]).join(', ')} kn) | moved ${s.dev.toFixed(1)} dE00 summed over the stops and both grounds, worst knot ${s.devMax.toFixed(1)}; hue off today's by at most ${s.hueOff.toFixed(1)} deg | 10-21 kn weakest C* ${s.cGreen.toFixed(1)}, lightest 6-21 kn ground L* ${s.top.toFixed(1)}, the 6-21 kn ground lifted by at most ${s.lift.toFixed(1)} L* over today, the 6-40 kn ground spans ${s.flat.toFixed(1)} L* (dark's 7.4) | violation ${s.viol.toFixed(3)}`);
+    if (upSpec) reportUploaded(s.P, upSpec);
     if (arg('--emit')) fs.writeFileSync(arg('--emit'), JSON.stringify(emit(cand, s), null, 1));
     process.exit(0);
   }
@@ -202,7 +243,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   const seeds = Number(arg('--seeds', 4)), gens = Number(arg('--gens', 1200)), NP = Number(arg('--pop', Math.max(40, vary.length * 12))), found = [];
   const fit = (v) => score(toCand(v), o).aim;
   for (let n = 0; n < seeds; n++) {   // differential evolution (rand/1/bin with a pull to the best): it walks ridges a coordinate climb stalls on
-    const pop = Array.from({ length: NP }, (_, i) => (i === 0 && start && vary.every((j) => start.free.includes(j)) ? fromCand(start) : fresh())), f = pop.map(fit);
+    const pop = Array.from({ length: NP }, (_, i) => (i === 0 && start && vary.every((j) => start.free.includes(j)) ? fromCand(start) : i === 0 && args.includes('--from-ref') ? fromCand(base()) : fresh())), f = pop.map(fit);
     let bi = f.indexOf(Math.max(...f));
     for (let g = 0; g < gens; g++) for (let i = 0; i < NP; i++) {
       let a, b, c; do a = Math.floor(rnd() * NP); while (a === i); do b = Math.floor(rnd() * NP); while (b === i || b === a); do c = Math.floor(rnd() * NP); while (c === i || c === a || c === b);
