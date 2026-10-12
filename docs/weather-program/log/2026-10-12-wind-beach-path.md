@@ -430,3 +430,47 @@ never moved; no cache or aliasing fault; the look key carries `path` exactly whe
 
 After the fixes: the four wind table files 170 passed; both trees, the ratchets and the checker re-run before the push (read from the
 PR's own checks, and below if they differ).
+
+## 13:11Z · After the PR opened: F's colour beside dark's, and F over the deeper land of #320 (model readings; the lead's questions)
+
+**Relayed by the lead at 13:09Z (not first-hand here).** The owner, 12:28Z, on the deployed build (`74417b5a`: #314 and #316 only, so
+NOT F): "I just did a visual check for wind on beach and light modes, and I still do not visually see the improvements yet.... notate
+that"; 12:36Z: "you need to also compare the amount and density of the animations from beach and light mode to dark mode. And colors,
+how slower color wind is more transparent than faster color wind ... Study your research and best practices more". The lead's
+comparison on speed ramps (its log, #320): beach's ground is dark's equal in colour from 4.5 to 12 kn and nearly twice as colourful
+from 15 to 32 kn. It asked what F does to that, and what F reads over the deeper land its PR #320 lays (D-026: the land's lightness
+times 0.85 in beach).
+
+**F's ground chroma over the SEA (C*), by the model** (the palette checker's composite for beach; dark by the engine's law; a scratch
+script, not committed):
+
+| kn | 9 | 12 | 15 | 18 | 21 | 26 | 32 | 39 |
+|---|---|---|---|---|---|---|---|---|
+| beach before | 16.7 | 19.6 | 26.0 | 30.1 | 27.2 | 35.7 | 35.6 | 23.0 |
+| F | 14.0 | 13.1 | 12.3 | 12.6 | 13.3 | 19.4 | 26.8 | 21.3 |
+| dark | 20.9 | 22.8 | 22.3 | 22.4 | 23.2 | 22.2 | 16.4 | 11.9 |
+
+So F takes beach's sea from MORE colourful than dark at 15 to 26 kn to about HALF dark's colour at 12 to 21 kn (12 to 13 against 22
+to 23). That is the price of the depth in one line, and it is larger than "grey-green" says. (The lead reads dark at 23, 24, 26 and 22
+at 15, 18, 26 and 32 kn in motion; its capture of F in the combined build will give the measured row.)
+
+**F's colour-blind line over LAND as the land gets deeper (model: the app's own mute with the land's lightness multiplied by the factor):**
+
+| land factor | land L* | before | F |
+|---|---|---|---|
+| 1 (today) | 83.9 | 3.17 (16-21 kn, protan) | 5.11 (33-40 kn, deutan) |
+| 0.95 | 78.8 | 3.09 | 4.98 |
+| 0.90 | 74.1 | 3.00 | 4.85 |
+| 0.85 (#320, beach) | 68.9 | 2.90 | **4.69** |
+| 0.81 | 64.8 | 2.86 | 4.52 (10-16 kn, deutan) |
+
+**So #319 and #320 do not both hold the bar as they are:** F was solved on today's land, and over #320's deeper land its land line
+reads 4.7 by the model (far above the 2.9 today's rows would read there, and under 5). Any factor below about 0.955 takes it under.
+The definitive read is `node check.mjs --theme beach --strict` on a tree with both changes. Ways out, none taken here: re-solve F's
+rows with the deep land as the constraint ground (this lane's; the default would then no longer be the bytes that were filmed); a
+gentler land factor for beach; or accept 4.7 over land, said plainly. The owner's call with the lead's.
+
+**For the merge with #320 (the lead's note):** it adds an import under the `windDarkRules` import in `WindColorRamp.js`, changes
+`windWhiteStrength`'s return line and adds a `setWindLandDepthGate(...)` line after that function; `check.mjs` and
+`mirror-model.mjs` hand `windLandWhite` and `setWindLandDepthGate` to the ramp source. Keep every import, its line, then the
+switches, then one declaration of `SOLVED`.
