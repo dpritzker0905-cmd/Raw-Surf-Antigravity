@@ -424,3 +424,8 @@ quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence i
   **It also means the owner, comparing themes by switching, may have been looking at an unmuted light or beach.**
 - **The simplification lane** finished with nothing removed (PR #317, docs only): beach's sea streak row carries a lower alpha
   than its land row from 0 to 36 kn (4 to 11% of the sea's lift), a second reduction light does not have.
+- **The sea crop's wind, read three ways (04:30Z):** this log's 39.1 kn (quartiles 31.7 and 45.7) is the median of the fixture's 56 nodes
+  inside the crop's box; sampled per pixel of the crop, bilinear in u and v on the fixture's own 0.5 degree grid, it is 39.8 (32.1 and
+  45.3), with 1% of the crop west of the fixture's box. The simplification lane reads the same crop at 36 (25 and 45) on PR #317. Not
+  reconciled: which grid the engine draws at zoom 6 (the fixture's own, or the bench's 2 degree world base that takes every fourth
+  node) was not checked. Every reading says a storm field, and no conclusion here rests on the difference.
