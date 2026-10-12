@@ -10,6 +10,7 @@
  *   - Pure color math + GL texture creation
  */
 import { DARK_RULES, DARK_WHITE, solveDarkRules } from './windDarkRules';
+import { BEACH_PATH, beachPathRows } from './windBeachPath';
 import { setWindLandDepthGate, windLandWhite } from './windBasemapMute';
 
 /**
@@ -478,6 +479,17 @@ export function windWhiteStrength(theme, win) {
   return k ? { land: windLandWhite(theme, w, k), sea: k.sea } : { land: 1, sea: 1 };   // the land takes the sea's strength where it is drawn at the sea's depth (windBasemapMute.js, D-026)
 }
 setWindLandDepthGate(function (theme, w) { return w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w); });   // the land goes deep only where those strengths are drawn: an older kill draws its old picture
+/**
+ * BEACH'S PATH (windBeachPath.js; owner 2026-10-12, D-025): beach's field with its lightness one way through the green band and its pale gale band under a ceiling.
+ * ON wherever the white streak draws in beach, so everything that stands the white streak down stands it down too.
+ * `__RAW_DISABLE_WIND_BEACH_PATH__ = true` draws beach as before it. The streaks' rows are not touched.
+ * D-022's kill (`__RAW_DISABLE_WIND_DARK_WHITE__`) stands it down as well: that kill is documented to draw PR #313's picture pixel for
+ * pixel, and an older kill keeps its meaning (D-020, amended; the rule the review of light's path, PR #318, applied to its own tables).
+ */
+export function windBeachPathOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  return theme === 'beach' && w.__RAW_DISABLE_WIND_BEACH_PATH__ !== true && w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w);
+}
 var SOLVED = {};
 function darkRulesTables(theme, w) {
   // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike.
@@ -486,9 +498,11 @@ function darkRulesTables(theme, w) {
   // it is given the field's own path, whatever older kill is set, as a light look's tables are.
   var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
   if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
-  return SOLVED[key];
+  if (!windBeachPathOn(theme, w)) return SOLVED[key];
+  if (!SOLVED[key].path) SOLVED[key].path = { field: beachPathRows(SOLVED[key].field, BEACH_PATH.field), land: SOLVED[key].land, water: SOLVED[key].water };   // the path's rows over the solved field; the streaks' rows as solved
+  return SOLVED[key].path;
 }
-/** The field's stops as DRAWN: dark's rules' field when they are on (beach's dimmed one; light's deeper one under the white streak), else resolveFieldRamp's. */
+/** The field's stops as DRAWN: dark's rules' field when they are on (beach's dimmed one, on its path under the white streak; light's deeper one under the white streak), else resolveFieldRamp's. */
 export function resolveDrawnField(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : {});
   return windDarkRulesOn(theme, w) ? copyRows(darkRulesTables(theme, w).field) : resolveFieldRamp(theme, w);
@@ -509,7 +523,7 @@ export function drawnMarkRampData(maxSpeed, theme, win) {
 }
 /** What the marks' and field's tables depend on besides the theme: a change rebuilds them at once (WebGLWindEngine). */
 export function windLookKey(theme, win) {
-  var names = [windLightLook(win), windWhiteStreakOn(theme, win) ? 'white' : null].filter(Boolean);
+  var names = [windLightLook(win), windWhiteStreakOn(theme, win) ? 'white' : null, windBeachPathOn(theme, win) ? 'path' : null].filter(Boolean);
   return names.join('+') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : '');
 }
 

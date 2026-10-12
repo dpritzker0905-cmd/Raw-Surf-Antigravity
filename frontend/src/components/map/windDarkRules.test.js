@@ -302,7 +302,7 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
     for (const w of [KILL, B, { __RAW_WIND_DARK_RULES__: 'beach' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: 'light' }, { __RAW_WIND_THEME_V2__: true }]) expect(windLookKey('light', w)).not.toBe(base);
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).not.toBe(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'ink' }));
     expect(windLookKey('dark', {})).toBe('|');
-    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it
+    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white+path|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it (its own path: windBeachPath.test.js)
     expect(windLookKey('beach', { ...B, __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|dark-rules');
   });
 });
@@ -355,8 +355,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
-      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea, and nothing else; no table reads it
+      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
       '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
+      '__RAW_DISABLE_WIND_BEACH_PATH__',                                                                       // beach's path: which field beach draws UNDER the white streak, and stands down with it (windBeachPath.test.js sweeps every hold)
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
       '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',

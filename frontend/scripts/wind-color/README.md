@@ -46,6 +46,8 @@ node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK
 node check.mjs --today          # the tables before dark's rules (what the kill restores)
 node check.mjs --before-white   # dark's rules before the white streak (window.__RAW_DISABLE_WIND_WHITE_STREAK__: what that kill restores)
 node check.mjs --full-white     # the white streak at full strength on both grounds (window.__RAW_DISABLE_WIND_DARK_WHITE__, D-022's kill)
+node check.mjs --before-path    # beach's field before its path (window.__RAW_DISABLE_WIND_BEACH_PATH__: what that kill restores)
+node beach-path-solve.mjs --audit   # beach before its path: per Beaufort stop and per pair, every bar (see "Beach's path" below)
 node check.mjs --before-depth   # the land as the mute alone leaves it (window.__RAW_DISABLE_WIND_LAND_DEPTH__, D-026's kill); --land-l 0.75: another depth
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
 ```
@@ -74,10 +76,31 @@ muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.2
 left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
 (10-16 kn).
 
-**As drawn, the colour-blind floor holds in light and does NOT hold in beach** (`node check.mjs --strict` exits 1, two
-red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands' lightness together. Light
-drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day) gave it the deeper field
-of its A/B, which was solved to hold the floor:
+**Beach's path (2026-10-12, `src/components/map/windBeachPath.js`, DECISIONS D-025; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__`;
+log `docs/weather-program/log/2026-10-12-wind-beach-path.md`).** With it, `node check.mjs --strict` exits 0: beach's two
+colour-blind lines read 5.0 over the muted water and 5.0 over the muted land (5.05 and 5.02), and one new watch line is
+printed (over the sea the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). The land is the DEEPER
+one that PR #320 lays under the wind (D-026: the land's lightness times 0.85 in beach), the default since that merge;
+`--before-depth` (or `--land-l 1`) reads the land before it: 5.0 and 5.3. The field was solved to hold the bar on either land.
+**The checker reads the TABLE. As uploaded (the 256-entry 8-bit texture) the line is under the bar:** the sea reads 5.01 at a
+75 kn maximum and 4.98 at 50 kn, and the deeper land 4.87 and 4.89 (4.79 at the least; before the path 2.84). No instrument
+here reads the uploaded texture; `windBeachPath.test.js` pins those numbers.
+Beach before its path reads 3.1 and 2.9 (`--before-path`; 3.1 and 3.2 with `--before-depth` as well). `--before-path` prints
+the table below.
+`beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a
+plain-JS port of coloraide's filters and CIEDE2000; `node light-path-lib.mjs --verify` checks it against coloraide) while it
+solves for lightness that never rises through the green band, a gale band under a ceiling, and the least lift of the
+streak's ground, in beach's own hues. What is BUILT is option F with its 6 to 40 kn stops re-solved for the deeper land:
+`--audit --ref built` reads it over the land the app draws (add `--before-depth` or `--land-l 1` for the land before
+PR #320); `--audit` alone reads beach before it.
+`beach-path.json` holds option F's stops as first solved (`--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`). `beach-path-ground.mjs` prints the ground per knot over land and sea
+beside dark's (by the engine's law) and how flat each is from 6 to 40 kn; `beach-path-sheet.mjs out.png` draws the
+speed-by-speed sheet.
+
+**Before beach's path, as drawn, the colour-blind floor held in light and did NOT hold in beach** (`node check.mjs --strict
+--before-path` exits 1, two red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands'
+lightness together. Light drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day)
+gave it the deeper field of its A/B, which was solved to hold the floor:
 
 | Tint over the muted ground | `--today` | `--before-white` | as drawn | weakest pair as drawn |
 |---|---|---|---|---|

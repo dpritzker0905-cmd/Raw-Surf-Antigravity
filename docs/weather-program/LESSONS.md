@@ -990,6 +990,38 @@ A stored estimate can be estimated again in a browser branch with different sour
   never ship. Rules: (1) merge every lane's committed work into a local preview branch (never pushed) and capture from that;
   (2) say in the caption what each pane includes and what is not in yet; (3) show before and combined in the same clip, beside
   the reference. (same log)
+- **L-V63 · A checker that prints the weakest pair hides the others: read every pair before you size the fix.** The palette
+  checker's beach lines read 3.1 and 3.2 (16-21 kn) for a day and a half; FOUR pairs were under the bar (27-33 kn 3.6, 47-55 and
+  63-75 kn 4.6 over the sea). A fix aimed at the printed pair would have left the checker red and looked like a failed fix. Rules:
+  (1) print every pair on every ground and viewer (`beach-path-solve.mjs --audit`); (2) the pairs decouple at every stop a change
+  keeps, so solve them apart and join. (log 2026-10-12-wind-beach-path)
+- **L-V64 · A bar read one step at a time passes a slow reversal: bound the WHOLE, and score a known-bad candidate before trusting
+  "violation 0".** The solver's hue-order bar allowed 0.6 degrees a knot; a candidate set 10 kn 2.9 degrees BEHIND 16 kn across six
+  knots and passed. The bar is now the whole turn back. The same holds for "never rises a knot" (read the whole climb). (same log)
+- **L-V65 · Know what speeds a bench crop holds before you read a lift off it.** The wind bench's default scene is a hurricane: at
+  zoom 6 its sea crop holds about 41 kn, its land about 8. This session reported "the sea barely moves" for a change that does not
+  touch 33 to 47 kn; at 8 kn the sea's lift moved 0.18. Rules: (1) read a field change on a speed ramp, or scale the scene and name
+  the speed; (2) land and sea crops of one view are different speeds as well as different grounds; (3) one run is not a number:
+  where two arms' tables barely differ and their lifts differ by 1 L*, say "one run". (found by the lead and simplification lanes;
+  same log)
+- **L-V66 · The least change is not the best field: name what a constraint can be paid in before you solve.** Under a multiply tint
+  at 0.60 strength, deep AND colourful does not exist over beach's land (C* 33 needs L* 54 or lighter), so one-way lightness is paid
+  in depth (the streak's ground), in colour, or in hue. The first solve minimised the change and lifted the commonest winds' ground
+  8.5 L*; the owner's standing preference, already stated for light, was the streak's ground first. Rules: (1) chart the frontier
+  along each coin (`--aim least | colour | deep`) before recommending; (2) ask which coin the owner has already chosen elsewhere;
+  (3) the looser hue match is what keeps depth (8 degrees: 6.7 L* of lift; 12 degrees: 4.3). (same log)
+- **L-V67 · Show options moving through ONE lever in ONE capture, and make the default the bytes that were shown.** The pick was
+  made on a clip the lead cut from this branch's lab lever (`__RAW_...`, default unchanged), with the branch's own kill and an
+  earlier option in the same capture as controls. The default's field hashes are pinned to what that lever drew at that head, and
+  the lever and the options not taken left with the PR. A sheet of swatches did not show the pale band; motion on a ramp did. (same log)
+- **L-V68 · When the default ground changes, every reading is a reading of the OLD ground until it is taken again: re-run the
+  strict reads too, not only the gate.** Beach's path was solved to hold the colour-blind bar over #320's deeper land, and the gate
+  (the palette checker, on the table) read 5.0 there before and after the merge. The stricter read this lane had added after its
+  review, the table as UPLOADED to the 8-bit texture, was pinned on the land before #320 (over 5.2) and was not taken on the deeper
+  land until a question from the lead, minutes after the merge was pushed: 4.87 to 4.89 at the common maxima, under the bar. A solve
+  that puts several pairs on a bar at once leaves no room for rounding. Rules: (1) when a merge changes a default, list every pinned
+  read that names the old default and take each on the new one before reporting; (2) solve to the bar plus the rounding the pipeline
+  adds, or say the uploaded number beside the table's. (log `2026-10-12-wind-beach-path`, the entry after the merge)
 - **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
   tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
   dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower

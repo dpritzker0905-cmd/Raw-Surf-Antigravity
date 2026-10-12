@@ -61,8 +61,12 @@ const LEVER_VARIANTS = Object.freeze({
   'before-rules': { label: 'the tables before dark\'s rules (their kill)', levers: { __RAW_DISABLE_WIND_DARK_RULES__: true } },
   'before-white': { label: 'dark\'s rules before the white streak (its kill)', levers: { __RAW_DISABLE_WIND_WHITE_STREAK__: true } },
   // Dark's white, ground by ground (D-022): its kill lays the white at full strength over the sea too. The scanner's own page serves
-  // no land file, so every mark reads as land and this arm equals `candidate` there: scan it in map or motion mode, with a land file.
+  // no land file, so every mark reads as land and in light this arm equals `candidate` there: scan it in map or motion mode, with a
+  // land file. In BEACH the kill also stands beach's path down (windBeachPathOn), so there this arm is two things at once: the white
+  // at full strength AND the field before the path. It is not an A/B of the white strength alone on the path's field.
   'full-white': { label: 'the white streak at full strength on both grounds (D-022\'s kill)', levers: { __RAW_DISABLE_WIND_DARK_WHITE__: true } },
+  // Beach's path (D-025): its kill draws beach's field as before it, the arm to scan the default against.
+  'before-path': { label: 'beach\'s field before its path (its kill)', levers: { __RAW_DISABLE_WIND_BEACH_PATH__: true } },
 });
 /** Every variant a configuration may name (the matrix's own, the control's, then the named candidates). */
 const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS, ...LEVER_VARIANTS });
