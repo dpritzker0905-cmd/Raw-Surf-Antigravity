@@ -8,6 +8,8 @@
  * runs.json: [{ name, theme, z, scale?, levers?, frames?, lng?, lat?, behind?, res? }] (res: the particle pool's side, 384; 2 draws the colour field ALONE). Frames go to out/motion/<name>/fNNN.jpg; a run already in
  * --out is skipped. compose-video.js plays several runs side by side as one WebM, and mirror-run.js reads the same frames.
  * --dpr: the device pixel ratio the page renders at (the owner's laptop is 1.5; the other bench modes run at 1).
+ * --fixture <file>: the wind to draw instead of the hurricane (`node scripts/wind-bench/ramp-fixture.js out.json` writes a speed ramp:
+ * every speed in one frame over land and sea, LESSONS L-V61). The result's `fixture` field names it.
  * --map-dpr: the MAP's own device pixels a CSS pixel (default: the bench's 2). With it the frames are drawn and kept but the
  * along-the-wind score is not taken (it is built for 2). --crop WxH (device px) keeps a crop of each frame at device resolution
  * instead of the whole canvas scaled to --width, centred at --at fx,fy of the canvas: a 0.5 px border line keeps its pixels
@@ -29,6 +31,7 @@ const BENCH = __dirname;
 const VIEW = { lng: -88.05, lat: 30.45 };
 const flag = (k, d) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : d; };
 const OUT = path.resolve(flag('--out', path.join(BENCH, 'out', 'motion.json'))), REF = flag('--ref', 'tree'), RUNS_FILE = flag('--runs'), DPR = Number(flag('--dpr', 1)), WIDTH = Number(flag('--width', 1000));
+const FIXTURE = flag('--fixture') ? path.resolve(flag('--fixture')) : path.join(BENCH, 'fixtures', 'eye-2026-10-09-gfs-native.json');   // --fixture: another wind (ramp-fixture.js writes a speed ramp)
 const MAP_DPR = Number(flag('--map-dpr', 0)) || null, CROP = flag('--crop') ? [...flag('--crop').split('x').map(Number), flag('--crop-fmt', 'jpeg')] : null, AT = flag('--at') ? flag('--at').split(',').map(Number) : null;
 const BEHIND = flag('--behind') || null;
 function readToken() {
@@ -52,11 +55,11 @@ function readToken() {
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: true, args: gpuArgs('gpu') });
   const results = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : {};
-  const fine = JSON.parse(fs.readFileSync(path.join(BENCH, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
+  const fine = JSON.parse(fs.readFileSync(FIXTURE, 'utf8')), FIXTURE_ID = `${fine.product_id || 'fixture'}:${path.basename(FIXTURE)}:${fine.provenance || ''}`;
   try {
     let page = null, scaleNow = null;
     for (const run of runs) {
-      if (results[run.name] && results[run.name].ok && results[run.name].page === pageOf(run.theme, run.behind || BEHIND)) { console.log(run.name, 'cached'); continue; }   // a run saved over another page (or before the page was laid at all) is not this run
+      if (results[run.name] && results[run.name].ok && results[run.name].fixture === FIXTURE_ID && results[run.name].page === pageOf(run.theme, run.behind || BEHIND)) { console.log(run.name, 'cached'); continue; }   // a run of the same name on another wind, or saved over another page, is not this run
       const scale = run.scale || 1;
       if (!page || scale !== scaleNow) {   // the grid's strength is set at init: a page per strength
         if (page) await page.close();
@@ -78,7 +81,7 @@ function readToken() {
       const flows = res.rows.map((r) => r.flow).filter((v) => v != null), inks = res.rows.map((r) => r.ink);
       const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
       results[run.name] = { ok: true, ...run, frames: N, secs: Math.round((Date.now() - t0) / 1000), flow: med(flows), ink: med(inks), blocks: med(res.rows.map((r) => r.blocks)),
-        dpr: DPR, mapDpr: MAP_DPR || 2, landMask: res.landMask, mute: res.mute, borderInk: res.ink || null, glError: res.glError, dir: `motion/${run.name}` };
+        dpr: DPR, mapDpr: MAP_DPR || 2, fixture: FIXTURE_ID, landMask: res.landMask, mute: res.mute, borderInk: res.ink || null, glError: res.glError, dir: `motion/${run.name}` };
       fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
       console.log(`${run.name.padEnd(28)} ${N} frames ${results[run.name].secs} s · along-the-wind ${results[run.name].flow} · ink ${results[run.name].ink} · mask ${JSON.stringify(res.landMask)}${res.glError ? ' GL ERROR ' + res.glError : ''}`);
       results[run.name].page = res.page; results[run.name].canvasAlpha = res.canvasAlpha; fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
