@@ -394,3 +394,33 @@ quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence i
   given to the bench is named `__RAW_...`, or it is not a lever.
 - **Also read off the same capture, to be confirmed in a clean run:** with the colours lane's candidate in, light's sea reads
   0.94 / 0.87 at 8 / 16 kn (1.05 / 0.96 without it). The candidate replaces the streak rows from 4 to 32 kn as well as the field.
+
+## 2026-10-12 04:10Z to 04:25Z · The lanes report: the colours candidate's cost, the real map colours, and a caveat on the live read-back
+
+- **The colours lane's candidate, read on the ramp** (one capture, its kill as the control; zoom 6, 110 px crops, lift against
+  dark's, before -> with the path). SEA: 1.05 -> 0.94 at 8 kn, 1.03 -> 0.88 at 12, 0.96 -> 0.87 at 16, 0.94 -> 0.93 at 21, 0.93 ->
+  0.95 at 24, 1.04 -> 1.01 at 32. LAND: 0.83 -> 0.62, 0.79 -> 0.57, 0.70 -> 0.59, 0.63 -> 0.55, 0.58 -> 0.52, 0.88 -> 0.87. The
+  ground is 3 to 5 L* lighter from 8 to 24 kn on both grounds. That lane had read "no loss over the sea" on the hurricane
+  scene, whose sea crop draws rows it did not touch (L-V50 again). Its own report: by the engine's law for dark, dark's own
+  colour-blind line reads 3.1 over its sea and 2.5 over its land (the checker says 5.2); a GPU read is owed before that is
+  called a finding.
+- **The border ink does not move the lift:** the sea reads 1.05 / 0.96 / 0.93 / 1.04 at 8 / 16 / 24 / 32 kn with and without it, to
+  the digit; the land 0.83 / 0.70 / 0.58 / 0.88 with it against 0.85 / 0.74 / 0.58 / 0.88 without (two captures apart).
+- **The map's real colours, measured by the border lane** (the styles as loaded and rendered medians; its `ground-run.js`):
+  dark's water is [93, 117, 126] (L* 47.7) and its land [54 to 66, 68 to 77, 74 to 92] (L* 28 to 32); `[18, 20, 26]` in
+  `check.mjs` and `mirror-model.mjs` is the bench's OFFLINE land, and `windDarkRules.js` BASE.dark matches neither. Light's
+  muted land is [249, 249, 248] (L* 97.9; the models hold 4 L* darker) and its muted sea [174, 184, 189] (L* 74.2; the models
+  hold a cyan 9 L* lighter). Beach's muted land is [230, 231, 226] (L* 91.4, neutral; the models hold a tan at 84.5) and its
+  muted sea [168, 180, 185] (72.5). The mute lowers the SEA by 10.7 L* in light and 6.4 in beach and the LAND by nothing: the
+  land/sea gap under the wind is the mute's own doing as much as the style's. Every layer that colours an area is below the
+  wind, and the mute's plan already touches each.
+- **A CAVEAT ON THE LIVE READ-BACK OF #314 ABOVE (from the border lane, PR #316):** on dev, a theme change whose style arrives
+  after the wind layer's idle re-sync leaves the NEW theme's basemap UNMUTED while `window.__WIND_BASEMAP_MUTE__` still says
+  applied (3 of 3 in that order on the real library). That read-back switched themes in one page and did not read the map's own
+  paint, so the sea under light and beach in it was in an UNKNOWN mute state, and its lifts (light 1.04, beach 1.37 of dark's)
+  carry that doubt. The bench is not touched by it here: the ramp's grounds are the same on this branch and on the preview
+  that holds #316's fix (light's sea 46.4 and 49.3 at 8 and 16 kn in both; beach's 44.3, 48.5, 59.5, 58.5 in both). The next
+  live read reads `map.getPaintProperty('water', 'fill-color')` in each theme (`rgba(...)` when muted, `hsl(...)` when not).
+  **It also means the owner, comparing themes by switching, may have been looking at an unmuted light or beach.**
+- **The simplification lane** finished with nothing removed (PR #317, docs only): beach's sea streak row carries a lower alpha
+  than its land row from 0 to 36 kn (4 to 11% of the sea's lift), a second reduction light does not have.
