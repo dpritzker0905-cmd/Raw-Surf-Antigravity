@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 20:36Z: light and beach draw the wind's COASTLINE in the borders' ink, and the coastline survives a theme change, ON BY
-  DEFAULT (client only; branch `claude/wind-map-shows-through`; the owner merges by their word; DECISIONS D-028).** The owner,
+  DEFAULT (client only; PR #323 OPEN against dev from `claude/wind-map-shows-through`; merged only on the owner's word; DECISIONS D-028).** The owner,
   19:05Z, on the deployed build: "I still cannot see the map as well through the wind animations on light or beach modes. Dark mode
   I can see the map underneath it, better."
   - **What draws:** `windBasemapMute.js` `windCoastInk`: while the borders are inked the layer `wind-coastline` takes the same ink
@@ -29,6 +29,7 @@ is a claim, not a measurement.
     9.9 / 8.2). Under an equal wind dark keeps 0.52 of its own land-sea contrast and light and beach 0.14 and 0.23 (D-026's
     land): recorded, not changed.
   - **Not verified:** nothing seen in the app. The owner has seen clips beside dark and has not said "merge".
+  - **Owed:** the read-back on the deployed build (ledger seq 1134, due 2026-10-19): the read-back in light, the stroke after a theme change, the owner's eye at zoom 4.
   - **Next, the owner's observation of 20:02Z** ("lighter moving air/wind in dark mode is almost transparent, or even smaller
     animations than in beach or light mode"): measured by speed (`anatomy-run.js`): light's and beach's bright streak bodies cover
     1.2 to 2.3 times dark's area and run 1.2 to 2.4 times as long; cores and width match. Cause: dark's trail composite reaches zero
@@ -2196,7 +2197,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1132, sha256 c23f22971c28026e5c1407290696a1c99b28b80ad7de9e90e85d73856bae2801**
+  **Ledger head: seq 1134, sha256 7f82aef9a051ee0325da039ea8db37a73e14fd43a2bd95c0def7daa742358d47**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
