@@ -276,3 +276,16 @@ dark's, and its cores a little under. Whether that is wanted is the owner's eye 
 
 **That prototype and every clip of this change were drawn from clipped frames** (bright cores a few L* darker than the screen).
 They are being filmed again on the corrected bench.
+
+## 15:49Z · The owner's word to merge; brought up to date with dev after #321
+
+The owner, 15:38Z, to this session, first-hand: "merge #321 and #320 and take the re-solved F" and "and merge anything else
+needed as well". #321 was merged at 15:47:44Z (`720b3980`; all of its checks passed, 0 failed). Dev was then merged into this
+branch: the four records keep both sides (D-026 before D-027, L-V70 and L-V71 before L-V72 and L-V73, STATE's newer entry
+first), `scripts/wind-bench/motion-run.js` keeps both changes (the wind's fixture; the page behind the map, the crop's format
+and a run's own particle pool; a cached run is this run only on the same wind AND the same page), and this branch's ledger
+lines are re-appended after dev's head with their first times as `acted_at`: what were seq 1075 to 1082 here are seq 1082 to
+1089, and seq 1090 is `pr_merge #321`. The read-back commitment is seq 1087.
+
+Gates on the merged tree: Jest, both trees, 310 suites, 4,281 tests, 0 failed; `check_eslint.js` exit 0; `loc_ratchet.py` exit 0;
+the production build exit 0. The palette checker prints dev's two red lines (beach's; the beach lane's change is next).

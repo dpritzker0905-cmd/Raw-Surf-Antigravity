@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-12 05:04Z** (logs: `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border, theme-switch and ground instruments; a theme change now leaves the new theme restyled; each theme's ground measured), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-12 15:49Z** (logs: `log/2026-10-12-wind-land-depth.md` (the land at the sea's depth under the wind, D-026; its stated reason corrected), `log/2026-10-12-wind-canvas-alpha.md` (the page behind the map showed through the wind in light: why light never matched its samples; the wind leaves the canvas opaque, ON by default, D-027; the bench lays each frame over the app's page; the probe's ground reads low in dark), `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border, theme-switch and ground instruments; a theme change now leaves the new theme restyled; each theme's ground measured), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,6 +14,38 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-12 14:20Z: LIGHT NEVER MATCHED ITS SAMPLES BECAUSE THE PAGE BEHIND THE MAP SHOWED THROUGH THE WIND. The wind now leaves
+  the map's canvas opaque, ON BY DEFAULT (client only; PR #321 MERGED into dev as 720b3980, 2026-10-12T15:47:44Z; DECISIONS D-027).** The owner, 12:28Z,
+  on the deployed build: "I still do not visually see the improvements yet"; 12:36Z: "This should work after all the agents
+  worked on this." The owner did not name this change and has not seen it.
+  - **The finding:** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`. Two of the wind's passes
+    blended the canvas's ALPHA by the colour's factors and left it at 0.61 / 0.69 (least / mean) in dark and 0.75 / 0.90 in light
+    and beach. `MapPage.js` lays black behind dark AND beach and near white (gray-50) behind light. So only light showed the page:
+    its streaks add 27.3 L* to the picture where dark's add 8.5 (against the field alone), a core reads L* 94 (paper white) where
+    dark's reads 70.
+  - **Why two days of work did not show:** the bench saved frames from the BARE canvas, never over the page: no sample of light's
+    white streak was the picture the app drew (LESSONS L-V72). And a bare-canvas frame held min(channel, alpha): the brightest
+    streak cores clipped darker in EVERY theme, so no saved-frame number before this change is exact, dark's bar included (the
+    independent review). What beach lacks on the site is the open changes, none merged.
+  - **What draws:** `blendIntoMap` (`windCanvasAlpha.js`) sets `blendFuncSeparate(src, dst, ZERO, ONE)` at the two passes bound to
+    the map's framebuffer. No colour the wind writes changes. Kill: `window.__RAW_DISABLE_WIND_OPAQUE_CANVAS__ = true`.
+  - **Measured, built** (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): the canvas's alpha 1 / 1 in three themes; frames
+    against the kill's by hash, at the same run position: dark 90 of 90 the same bytes, beach 90 of 90, light 0 of 90; light's
+    sea beside dark: light added 27.3 -> 12.3 L* (dark 8.5), a core's L* 94 -> 72 (dark 70). The independent review could not break
+    the engine change; its behavioural test (every draw into the map, 20 lever sets) is in the suite.
+  - **The cost:** over land in light air light's streaks add half the light they did (7.5 -> 3.8 L*); dark's add 3.3 there, so it is
+    no shortfall against dark, and #321 does not have to merge with #320 (corrected: first written from the probe's lifts).
+  - **Also found (L-V73), on corrected frames against the field alone, every open change, 6 to 39 kn:** a streak's core stands the
+    same height over the field in all three themes over the sea; light ADDS 1.3 to 1.7 times the light dark does over the sea and
+    beach 1.0 to 1.8 times, both 0.9 to 1.2 times over the deeper land, because their pixels do not come back to the field
+    between streaks (dark's do, and dip a little under it). The probe's own lift read this backwards over land (0.15 to 0.55 where the light added is 1.1
+    to 1.2), and that reading was D-026's stated reason. Not retuned: one visual variable at a time, after this is seen in the app.
+  - **The bench now lays every saved frame over the app's page for the theme and prints the canvas's alpha** (`motion-run.js
+    --behind`); compare two arms at the same run position (a theme's first run on a fresh map is not its second).
+  - **The owner, 15:38Z: "merge #321 and #320 and take the re-solved F" and "and merge anything else needed as well".** #321 is on dev
+    (`720b3980`). Next, in order: #320 (the land's depth), #315 then #319 (beach's sea 0.55; beach's F, re-solved for the deeper
+    land), #318 (light's hue order). #317 (docs) was not named.
+  - **Not verified:** nothing seen in the app; one view, one seed, zoom 6; phones; any page other than `MapPage.js` hosting the map.
 - **2026-10-12 13:00Z: under the wind, light and beach draw the LAND AT THE SEA'S DEPTH, ON BY DEFAULT (client only; PR #320 OPEN against
   dev, the owner merges).** The owner, 11:50Z, on a prototype shown moving beside dark: "merge #316 and go with F and the deeper
   land and open the pr" (DECISIONS D-026).
@@ -2003,7 +2035,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1082, sha256 ab216468ec4f02a0cb2d38cffb1f38e6c52fd1ae1abf6343e4cdf0fd6ff7a43e**
+  **Ledger head: seq 1090, sha256 29c4d06c02a9c7f0fe6e32fb03248b56a70f811b7ad0aa621b167de5f53fa8e1**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
