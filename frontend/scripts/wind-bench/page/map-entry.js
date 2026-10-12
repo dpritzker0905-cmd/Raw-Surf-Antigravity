@@ -270,6 +270,27 @@ async function animate(map, frames) {
   } finally { delete performance.now; }
 }
 
+/** Render `frames` engine frames on ONE virtual 60 Hz clock, calling each(i) after every one (the canvas is readable there). */
+async function animateEach(map, frames, each) {
+  let vms = realNow();
+  performance.now = () => vms;
+  try { for (let i = 0; i < frames; i++) { vms += FRAME_MS; map.triggerRepaint(); await once(map, 'render'); if (each) each(i); } } finally { delete performance.now; }
+}
+
+/**
+ * The coastline stroke as the app would add it NOW: a bench map is made once a theme, before any run's levers exist, and the app
+ * reads the stroke's levers and kills when it adds the layer (WebGLWindLayer.js, on a style load). Called when a run's levers are
+ * set and again when they are cleared, so an arm's coast is the one its levers ask for and nothing outlives the arm.
+ */
+function coastSync(map, theme) {
+  const id = 'wind-coastline';
+  if (!map.getLayer(id)) return null;
+  const spec = windCoastlineLayer(map.getStyle().layers.filter((l) => l.id !== id), theme, true, window);
+  map.setLayoutProperty(id, 'visibility', spec ? 'visible' : 'none');
+  if (spec) for (const k of Object.keys(spec.paint)) map.setPaintProperty(id, k, spec.paint[k]);
+  return spec ? spec.paint : null;
+}
+
 /** Water mask from the style itself: everything hidden but the 'water' fill, painted white. */
 async function waterMask(map) {
   const layers = map.getStyle().layers, saved = [];
@@ -687,6 +708,7 @@ async function flowRun(cfg) {
   state.crop = Array.isArray(cfg.shotCrop) ? cfg.shotCrop : null; state.cropAt = cfg.shotAt || null; state.page = cfg.page || null;   // null: the app's own page for the theme
   if (cfg.page && !(window.CSS && CSS.supports('color', cfg.page))) throw new Error('not a CSS colour for the page behind the map: ' + cfg.page);
   clearLevers(); Object.assign(window, cfg.levers || {});
+  coastSync(map, theme);
   map.jumpTo(camOf(cfg.frames[0]));
   const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
   await idle(map);
@@ -742,6 +764,7 @@ async function flowRun(cfg) {
     syncWindBasemapMute(map, theme, false, WIND_ID);
     Math.random = realRandom;
     clearLevers();
+    coastSync(map, theme);
     state.crop = null; state.cropAt = null; state.page = null;
   }
 }
@@ -817,10 +840,13 @@ function init(fixtures) {
 const speedAt = (lng, lat) => { const v = sampleSpeed(GRIDS.fine, lng, lat); return v == null ? (sampleSpeed(GRIDS.world, lng, lat) ?? null) : v; };
 
 // BORDER mode (2026-10-12, ./border-probe.js): the political borders and place names alone, against the ground under them.
-const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, WIND_ID, speedAt });
+const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, coastSync, WIND_ID, speedAt });
 
 // GROUND mode (2026-10-12, ./ground-probe.js): the map the wind is laid on: the area layers under it, and the land and the sea as drawn.
-const groundRun = require('./ground-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
+const groundRun = require('./ground-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, animateEach, readCanvas, coastSync, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
+
+// ANATOMY mode (2026-10-12, ./anatomy-probe.js): a streak's colour, size and amount by wind speed, on a speed ramp.
+const anatomyRun = require('./anatomy-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, animateEach, readCanvas, coastSync, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
 
 // SWITCH mode (2026-10-12, ./switch-probe.js): the app's own theme-change sequence (setStyle with a diff) on the real library.
 const addWind = (map, theme) => {   // as the app's layer re-adds itself after a rebuilt style: the wind and its coastline, in their slot
@@ -828,7 +854,13 @@ const addWind = (map, theme) => {   // as the app's layer re-adds itself after a
   map.addLayer(windLayer(), before);
   if (coast && !map.getLayer(coast.id)) map.addLayer(coast, before);
 };
-const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, mute: require('wind-bench-mute') });
+const addCoast = (map, theme) => {   // as the app's layer puts the coastline back when a diffed theme change has dropped it (WebGLWindLayer.js handleStyleData)
+  const layers = map.getStyle().layers, coast = windCoastlineLayer(layers, theme, true, {});
+  if (!coast || map.getLayer(coast.id)) return false;
+  map.addLayer(coast, windLayerBeforeId(layers, theme, {}));
+  return true;
+};
+const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, addCoast, mute: require('wind-bench-mute') });
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, groundRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, groundRun, anatomyRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';

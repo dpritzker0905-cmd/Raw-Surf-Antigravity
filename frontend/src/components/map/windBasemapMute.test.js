@@ -9,7 +9,8 @@ import {
   WIND_BASEMAP_MUTE, windBasemapMuteAmount, windBasemapWaterL, parseColor, oklab, muteColor, muteValue, windBasemapMutePlan, syncWindBasemapMute,
   windBasemapImagery, windBasemapMuteStale, WIND_BORDER_INK, windBorderInk, inkColor, inkValue, windBorderInkPlan,
 } from './windBasemapMute';
-import { windLayerBeforeId } from './WebGLWindUtils';
+import { WIND_COASTLINE } from './WebGLWindUtils';
+import { STYLE, fakeMap, APP, zoomed, BORDERS, BORDER_LINES, REAL, INK, STACK } from './basemapStyle.testutil';
 import './WindColorRamp';   // the app's gate on the land's depth (D-026) is set by this module: the mute is tested as the app loads it
 
 const close = (a, b, eps) => Math.abs(a - b) <= eps;
@@ -67,20 +68,6 @@ describe('muteValue walks expressions and legacy functions without changing thei
   });
 });
 
-const STYLE = () => [
-  { id: 'land', type: 'background', paint: { 'background-color': 'hsl(35, 12%, 89%)' } },
-  { id: 'landcover', type: 'fill', paint: { 'fill-color': ['match', ['get', 'class'], 'wood', 'hsl(100, 40%, 70%)', 'hsl(80, 30%, 80%)'], 'fill-opacity': 0.6 } },
-  { id: 'hillshade', type: 'hillshade', paint: { 'hillshade-shadow-color': 'hsl(56, 59%, 22%)' } },
-  { id: 'water', type: 'fill', paint: { 'fill-color': 'hsl(196, 80%, 70%)' } },
-  { id: 'waterway', type: 'line', paint: { 'line-color': 'hsl(196, 80%, 70%)' } },
-  { id: 'road-primary', type: 'line', paint: { 'line-color': 'hsl(45, 90%, 60%)' } },
-  { id: 'building', type: 'fill-extrusion', paint: { 'fill-extrusion-color': 'hsl(35, 8%, 85%)' } },
-  { id: 'wind', type: 'custom' },
-  { id: 'admin-1-boundary', type: 'line', paint: { 'line-color': 'hsl(0, 0%, 60%)' } },
-  { id: 'place-label', type: 'symbol', paint: { 'text-color': 'hsl(0, 0%, 20%)' } },
-  { id: 'water-label', type: 'symbol', paint: { 'text-color': 'hsl(196, 60%, 40%)' } },
-];
-
 describe('windBasemapMutePlan: the area colours under the wind, nothing above it', () => {
   const plan = windBasemapMutePlan(STYLE(), 'wind', 0.85, 0.92), byId = (id) => plan.filter((p) => p.id === id);
   it('mutes background, fills, hillshade, extrusions and the water lines', () => {
@@ -124,48 +111,6 @@ describe('levers and defaults', () => {
   });
 });
 
-/**
- * A map that keeps a live style (paint values as set) and counts writes. Like MapLibre (5.24 _serializedAllLayers),
- * getStyle() LEAVES CUSTOM LAYERS OUT: the wind layer's own slot is only in style._order.
- */
-function fakeMap(layers = STYLE()) {
-  const live = new Map(layers.map((l) => [l.id, JSON.parse(JSON.stringify(l))]));
-  const map = {
-    style: { _order: layers.map((l) => l.id) }, writes: 0, failOn: null,
-    getLayer: (id) => live.get(id),
-    getStyle: () => ({ layers: [...live.values()].filter((l) => l.type !== 'custom').map((l) => JSON.parse(JSON.stringify(l))) }),
-    getPaintProperty: (id, p) => (live.get(id).paint || {})[p],
-    getLayoutProperty: (id, p) => (live.get(id).layout || {})[p],
-    setLayoutProperty: (id, p, v) => { const l = live.get(id); l.layout = { ...(l.layout || {}), [p]: v }; },
-    setPaintProperty: (id, p, v) => {
-      if (map.failOn === id) { map.failOn = null; throw new Error('style mid-load'); }
-      if (map.refuse && map.refuse(id, p, v)) return;              // MapLibre: an invalid value is an error EVENT, and no write (style_layer.ts)
-      map.writes++; const l = live.get(id); l.paint = l.paint || {}; if (v === undefined) delete l.paint[p]; else l.paint[p] = JSON.parse(JSON.stringify(v));
-    },
-    paint: () => JSON.stringify([...live.values()].map((l) => l.paint)),
-  };
-  return map;
-}
-
-/**
- * THE APP'S STACK around the basemap (MapWebGL.js, OceanMask.js; pinned by the wiring tests below). The app keeps its
- * satellite photo and 18 weather-wash slots MOUNTED AND HIDDEN under the wind layer, the ocean mask's own fills too, and
- * draws radar frames above it. `on` shows layers by id prefix (visibility), `opacity` gives the shown ones an opacity.
- */
-const WASHES = ['rain', 'satellite', 'pressure', 'temperature', 'water_temp', 'fog'];
-function APP({ on = [], opacity = ['interpolate', ['linear'], ['zoom'], 2, 0.6, 12, 0.78] } = {}) {
-  const shown = (id) => on.some((p) => id.startsWith(p));
-  const raster = (id, op) => ({ id, type: 'raster', layout: { visibility: shown(id) ? 'visible' : 'none' }, paint: { 'raster-opacity': shown(id) ? op : 0 } });
-  const S = STYLE(), out = [];
-  for (const l of S) {
-    if (l.id === 'landcover') out.push(raster('esri-satellite-layer', 1), { id: 'ocean-mask-fill', type: 'fill', layout: { visibility: 'none' }, paint: { 'fill-color': 'hsl(40, 30%, 85%)' } }, { id: 'ocean-mask-inland-water', type: 'fill', layout: { visibility: 'none' }, paint: { 'fill-color': 'hsl(196, 80%, 70%)' } });
-    if (l.id === 'wind') out.push(...WASHES.flatMap((k) => [0, 1, 2].map((s) => raster(`${k}-slot-${s}-layer`, s === 1 ? opacity : 0))));
-    out.push(l);
-    if (l.id === 'wind') out.push({ id: 'park-above', type: 'fill', paint: { 'fill-color': 'hsl(100, 45%, 80%)' } });
-  }
-  out.push({ id: 'rv-radar-frame', type: 'raster', paint: { 'raster-opacity': 0.8 } }, { id: 'spot-geofences-layer', type: 'circle', paint: { 'circle-color': '#06b6d4' } });
-  return out;
-}
 const BASEMAP_AREAS = ['land', 'landcover', 'hillshade', 'water', 'waterway', 'building'];
 
 describe('THE APP\'S STACK (live dev 2026-10-09: __WIND_BASEMAP_MUTE__ read { applied: true, layers: 0 }; nothing was muted)', () => {
@@ -341,32 +286,6 @@ describe('wiring', () => {
  * 98-120, navigation-night-v1 96-117), over the mute's own ground, with the wind layer and its coastline added where the app
  * adds them (WebGLWindLayer.js: just before the style's first admin-* layer).
  */
-const zoomed = (...stops) => ['interpolate', ['linear'], ['zoom'], ...stops];
-const BORDERS = {
-  light: { casing: ['hsl(60, 0%, 99%)', 'hsl(250, 100%, 100%)'], state: ['hsl(250, 53%, 75%)', 'hsl(250, 90%, 85%)'], country: 'hsl(250, 90%, 80%)', text: 'hsl(230, 20%, 5%)', halo: 'hsl(60, 5%, 100%)' },
-  beach: { casing: ['hsl(35, 12%, 89%)', 'hsl(230, 49%, 90%)'], state: ['hsl(230, 14%, 77%)', 'hsl(230, 8%, 62%)'], country: 'hsl(230, 8%, 51%)', text: 'hsl(0, 0%, 0%)', halo: 'hsl(0, 0%, 100%)' },
-  dark: { casing: ['hsl(214, 17%, 31%)', 'hsl(250, 30%, 46%)'], state: ['hsl(250, 6%, 60%)', 'hsl(250, 10%, 70%)'], country: 'hsl(250, 10%, 65%)', text: 'hsl(215, 30%, 75%)', halo: 'hsl(214, 24%, 30%)' },
-};
-const BORDER_LINES = ['admin-1-boundary', 'admin-0-boundary', 'admin-0-boundary-disputed'];
-function REAL(theme, { windOnTop = false } = {}) {
-  const c = BORDERS[theme];
-  const top = [
-    { id: 'admin-1-boundary-bg', type: 'line', paint: { 'line-color': zoomed(8, c.casing[0], 16, c.casing[1]), 'line-opacity': zoomed(7, 0, 8, 0.75), 'line-width': zoomed(7, 3.75, 12, 5.5), 'line-dasharray': [1, 0], 'line-blur': zoomed(3, 0, 8, 3) } },
-    { id: 'admin-0-boundary-bg', type: 'line', paint: { 'line-color': zoomed(6, c.casing[0], 8, c.casing[1]), 'line-opacity': zoomed(3, 0, 4, 0.5), 'line-width': zoomed(3, 3.5, 10, 8), 'line-blur': zoomed(3, 0, 10, 2) } },
-    { id: 'admin-1-boundary', type: 'line', paint: { 'line-color': zoomed(3, c.state[0], 7, c.state[1]), 'line-opacity': zoomed(2, 0, 3, 1), 'line-width': zoomed(7, 0.75, 12, 1.5), 'line-dasharray': ['step', ['zoom'], ['literal', [2, 0]], 7, ['literal', [2, 2, 6, 2]]] } },
-    { id: 'admin-0-boundary', type: 'line', paint: { 'line-color': c.country, 'line-width': zoomed(3, 0.5, 10, 2), 'line-dasharray': [10, 0] } },
-    { id: 'admin-0-boundary-disputed', type: 'line', paint: { 'line-color': c.country, 'line-width': zoomed(3, 0.5, 10, 2), 'line-dasharray': ['step', ['zoom'], ['literal', [3.25, 3.25]], 6, ['literal', [2.5, 2.5]]] } },
-    { id: 'settlement-major-label', type: 'symbol', paint: { 'text-color': c.text, 'text-halo-color': c.halo, 'text-halo-width': 1, 'text-halo-blur': 1 } },
-    { id: 'state-label', type: 'symbol', paint: { 'text-color': c.text, 'text-halo-color': c.halo, 'text-halo-width': 1 } },
-    { id: 'country-label', type: 'symbol', paint: { 'text-color': c.text, 'text-halo-color': zoomed(2, 'hsla(60, 5%, 100%, 0.75)', 3, c.halo), 'text-halo-width': 1.25 } },
-  ];
-  const style = [...STYLE().filter((l) => !['wind', 'admin-1-boundary', 'place-label', 'water-label'].includes(l.id)), ...top];
-  const wind = [{ id: 'wind', type: 'custom' }, { id: 'wind-coastline', type: 'line', paint: { 'line-color': 'rgb(45, 58, 72)', 'line-opacity': 0.42 } }];
-  if (windOnTop) return [...style, ...wind];                                  // the under-labels kill: the wind above every style layer
-  style.splice(style.findIndex((l) => l.id === windLayerBeforeId(style, theme, {})), 0, ...wind);
-  return style;
-}
-const INK = 'rgba(27, 30, 45, 0.85)';
 const inked = (theme, ink = WIND_BORDER_INK.color[theme]) => ({ 'admin-1-boundary': zoomed(3, ink, 7, ink), 'admin-0-boundary': ink, 'admin-0-boundary-disputed': ink });
 
 describe('inkColor / inkValue: every colour literal becomes the ink, and the expression around it stays', () => {
@@ -479,16 +398,22 @@ describe('syncWindBasemapMute lays the border ink with the mute: one record, one
     expect(syncWindBasemapMute(lev, 'dark', true, 'wind', { __RAW_WIND_BORDER_INK__: INK, __RAW_WIND_BASEMAP_MUTE__: 0.5 })).toMatchObject({ applied: true, layers: 6, ink: { applied: false, reason: 'theme' } });
     expect(lineColors(lev)).toEqual(lineColors(fakeMap(REAL('dark'))));
   });
-  it('only line-color moves: widths, opacities, dashes, the casings, the coastline and the names keep the style\'s own values', () => {
+  it('only the borders\' line-color and the coast stroke\'s colour and opacity move (D-028): widths, dashes, the casings and the names keep the style\'s own values', () => {
     const map = fakeMap(REAL('light')), fresh = fakeMap(REAL('light')), style = REAL('light'), above = style.slice(style.findIndex((l) => l.id === 'wind') + 1);
     syncWindBasemapMute(map, 'light', true, 'wind', {});
     expect(above.map((l) => l.id)).toEqual(['wind-coastline', 'admin-1-boundary-bg', 'admin-0-boundary-bg', ...BORDER_LINES, 'settlement-major-label', 'state-label', 'country-label']);
+    let moved = 0;
     for (const l of above) {
       for (const prop of Object.keys(l.paint)) {
-        if (BORDER_LINES.includes(l.id) && prop === 'line-color') continue;
+        if ((BORDER_LINES.includes(l.id) && prop === 'line-color') || l.id === 'wind-coastline') { moved += map.getPaintProperty(l.id, prop) !== fresh.getPaintProperty(l.id, prop) ? 1 : 0; continue; }
         expect(map.getPaintProperty(l.id, prop)).toEqual(fresh.getPaintProperty(l.id, prop));
       }
     }
+    expect(moved).toBe(5);   // three border colours, the coast's colour and its opacity: the control for the loop above
+    // and under the coast's own kill the old pin holds to the letter: nothing above the wind moves but the three border colours
+    const killed = fakeMap(REAL('light'));
+    syncWindBasemapMute(killed, 'light', true, 'wind', { __RAW_DISABLE_WIND_COAST_INK__: true });
+    for (const l of above) for (const prop of Object.keys(l.paint)) if (!(BORDER_LINES.includes(l.id) && prop === 'line-color')) expect(killed.getPaintProperty(l.id, prop)).toEqual(fresh.getPaintProperty(l.id, prop));
   });
   it('the mute\'s own answer keeps its shape: `layers` counts the muted areas, never the inked lines', () => {
     const map = fakeMap(REAL('light')), win = {};
@@ -628,10 +553,6 @@ describe('BORDER INK ON THE APP\'S STACK: it stands down with the mute when imag
   // The app's hidden satellite photo and weather-wash slots under the wind, its radar frame above (APP(), pinned to MapWebGL.js by the
   // wiring test above), around the real styles' border block. A dark line on a satellite photo's dark ground would be the old problem
   // turned over, and the picture under a weather wash is unmeasured: today's borders are kept there.
-  function STACK(theme, opts) {
-    const app = APP(opts).filter((l) => !['admin-1-boundary', 'place-label', 'water-label'].includes(l.id)), real = REAL(theme), at = real.findIndex((l) => l.id === 'wind-coastline');
-    return [...app.filter((l) => l.id !== 'rv-radar-frame' && l.id !== 'spot-geofences-layer'), ...real.slice(at), ...app.filter((l) => l.id === 'rv-radar-frame' || l.id === 'spot-geofences-layer')];
-  }
   const colour = (map) => map.getPaintProperty('admin-0-boundary', 'line-color');
   it('hidden satellite and weather slots under the wind do NOT stand it down: the borders are inked in the app\'s stack', () => {
     for (const theme of ['light', 'beach']) {
@@ -672,6 +593,17 @@ describe('BORDER INK ON THE APP\'S STACK: it stands down with the mute when imag
     const map = fakeMap(STACK('light'));
     expect(STACK('light').some((l) => l.id === 'rv-radar-frame' && l.type === 'raster')).toBe(true);
     expect(syncWindBasemapMute(map, 'light', true, 'wind', {}).ink).toMatchObject({ applied: true, layers: 3 });
+  });
+  it('THE COAST STROKE (D-028) stands down with the ink under imagery (a dark line on a photo is the old problem turned over), and returns with it', () => {
+    const map = fakeMap(STACK('beach')), stroke = () => [map.getPaintProperty('wind-coastline', 'line-color'), map.getPaintProperty('wind-coastline', 'line-opacity')];
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {}).coast).toEqual({ applied: true, opacity: 1 });
+    expect(stroke()).toEqual([WIND_BORDER_INK.color.beach, 1]);
+    map.setLayoutProperty('esri-satellite-layer', 'visibility', 'visible');
+    map.setPaintProperty('esri-satellite-layer', 'raster-opacity', 1);
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {}).coast).toEqual({ applied: false, opacity: 0, reason: 'imagery:esri-satellite-layer' });
+    expect(stroke()).toEqual([WIND_COASTLINE.color.beach, WIND_COASTLINE.opacity.beach]);
+    map.setLayoutProperty('esri-satellite-layer', 'visibility', 'none');
+    expect(syncWindBasemapMute(map, 'beach', true, 'wind', {}).coast).toEqual({ applied: true, opacity: 1 });
   });
   it('THE ORDER THESE TESTS ASSUME IS THE APP\'S: the wind layer is added just before the first admin-* layer, the coastline with it', () => {
     const layer = fs.readFileSync(path.join(__dirname, 'WebGLWindLayer.js'), 'utf8');

@@ -17,7 +17,7 @@
  * differ by lightness (plus the wind's coastline stroke), and the wind's hue is the only hue left on the ground. Labels
  * are not touched: they sit above the wind. Roads were left alone too (thin, and the map's navigation colour) until the land was
  * drawn at the sea's depth (2026-10-12, below): on a deeper land they are restyled with it. The
- * borders sit above it too and take the BORDER INK (below). Satellite is not touched either: a style with imagery under the wind keeps its photo. The palette, the field, the particles and every served number are unchanged. Off again when the wind is
+ * borders sit above it too and take the BORDER INK (below), and so does the wind's own coastline stroke (THE COAST IN THE BORDERS' INK). Satellite is not touched either: a style with imagery under the wind keeps its photo. The palette, the field, the particles and every served number are unchanged. Off again when the wind is
  * off; a theme change loads a fresh style, and the layer re-applies it.
  *
  * THE APP'S STACK (2026-10-09, live dev read { applied: true, layers: 0 }: nothing had ever been muted). The first build
@@ -44,7 +44,10 @@ export function windBasemapWaterL(theme, win = (typeof window !== 'undefined' ? 
 /**
  * THE LAND AT THE SEA'S DEPTH (2026-10-12, owner, on a prototype shown moving beside dark: "go with F and the deeper land"; DECISIONS
  * D-026). Dark's land and sea carry nearly one ground under the wind (L* 33.5 and 42.5 on the real basemaps): one streak fits both,
- * and the coast is drawn by lines. Light's and beach's land sat 12 to 17 L* ABOVE their sea, partly by this file's own doing: the
+ * and the coast is drawn by lines. (READ WITH D-028, 2026-10-12: those 9 L* are half of dark's own land-sea step, the part of its
+ * map one sees through the wind; with the land at the sea's depth light keeps 0.14 of its own land-sea contrast and beach 0.23, and
+ * the line meant here was a slate hairline solved for a pale ground. The depth stands, the owner's pick; the coast is drawn in the
+ * borders' ink, below.) Light's and beach's land sat 12 to 17 L* ABOVE their sea, partly by this file's own doing: the
  * mute darkens the sea (waterL) and left the land as the style draws it. No white can lift a ground that pale as far as dark's lifts
  * dark's land (0.38 to 0.93 of it on a speed ramp), and two grounds needed two streak strengths, whose seam (the land mask's 20 km
  * texel) drew a pale halo along every coast.
@@ -219,6 +222,41 @@ export function windBorderInk(theme, win = (typeof window !== 'undefined' ? wind
 }
 
 /**
+ * THE COAST IN THE BORDERS' INK (2026-10-12, owner, on the live build with every change of the week on it: "I still cannot see the
+ * map as well through the wind animations on light or beach modes. Dark mode I can see the map underneath it, better. The map is
+ * glowing through?"; DECISIONS D-028).
+ *
+ * What dark keeps of its map under the wind is two things: its land stays 9 L* under its sea (18 on the bare map), and the
+ * coastline stroke the wind layer lays above itself (WebGLWindUtils.js WIND_COASTLINE) is a PALE line on a deep ground. Light and
+ * beach keep neither. Their land was drawn at the sea's depth (D-026: 2 to 3 L* apart as restyled, 0 under an equal wind), and
+ * their coast stroke is a dark slate at 0.42 / 0.28 that was solved on the bench when their ground was pale, before the deep field,
+ * the white streak and the land's depth: a hairline of the streaks' own width, darker than a ground that is now dark itself. Its
+ * best pixels still read level with dark's (scripts/wind-bench/border-run.js --lines coast, L* against the ground beside it under
+ * field + streaks, zooms 4 / 6: dark 17.1 / 24.5, light 16.9 / 21.0, beach 11.8 at zoom 4), and at zoom 4 Florida is a shape in
+ * dark and is not there in light or beach: a light hairline on a dark ground carries, a dark one among white streaks does not.
+ *
+ * While the borders are inked, the coast stroke is drawn in the SAME ink at the ink's own strength: its line-color takes the ink
+ * and its line-opacity, set for the pale ground, goes to 1. One ink for the map's linework above the wind, the mirror of dark's
+ * one pale line. Measured with the stroke at 0.55 / 0.75 / 0.95 of that ink's colour (the ink is 0.7): light 26.2 / 33.8 / 41.2 at
+ * zoom 4 and 32.9 / 41.0 / 47.4 at zoom 6, beach 24.7 / 31.4 / 37.8 at zoom 4; the borders it joins read 35 to 40. A pale line as
+ * dark's (0.45) reads 9.8 / 13.0 in light: it has the white streaks to compete with. The land's depth is NOT changed: lifting it to
+ * the sea's own factor (0.90 / 0.94) moved the coast 3 to 4 L* and paled the streaks over land.
+ * It rides the border ink: no ink (dark, the ink's kill, the mute off, imagery under the wind) leaves the stroke as the layer drew it.
+ * Read-back: window.__WIND_COAST_INK__ = { applied, opacity, theme, at, reason? } ('kill', 'no coastline above the wind', 'no border
+ * line took the ink', 'the style refused the ink', or the border ink's own reason).
+ * Lever: window.__RAW_WIND_COAST_INK__ (0.1 to 1: the stroke's line-opacity under the ink; 1 is the ink's own strength).
+ * Kill: window.__RAW_DISABLE_WIND_COAST_INK__ = true (the coast as before; the borders stay inked). Both are read at the next sync.
+ */
+export const WIND_COAST_LINE = 'wind-coastline';   // WebGLWindUtils.js WIND_COASTLINE.id (this file has no imports; pinned in its test)
+/** The coast stroke's line-opacity under the border ink (1 = the ink's own strength), or 0: no ink here, or the coast's own kill. */
+export function windCoastInk(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_COAST_INK__ === true || !windBorderInk(theme, w)) return 0;
+  const lev = w.__RAW_WIND_COAST_INK__;
+  return typeof lev === 'number' && lev >= 0.1 && lev <= 1 ? lev : 1;
+}
+
+/**
  * `str` drawn in `ink`: the ink's colour at the ink's alpha times the colour's own (a clear literal stays clear), as an
  * rgba() string; anything that is not a colour comes back as is, and so does everything when `ink` is not a colour.
  */
@@ -282,16 +320,26 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
  * The ink's paint changes for one style: the line-color of every border line drawn ABOVE the wind layer (after `windId`
  * in the order; none when it is absent, where "above the wind" has no meaning). A border under the wind is tinted and
  * crossed by streaks: unmeasured, left as the style draws it. [{ id, prop, from, to }] for lines the style colours.
+ * `coast` > 0 (windCoastInk): the wind's own coastline stroke above the wind takes the ink too, and that line-opacity; its two
+ * entries carry `coast: true`.
  */
-export function windBorderInkPlan(layers, windId, ink) {
+export function windBorderInkPlan(layers, windId, ink, coast = 0) {
   const at = Array.isArray(layers) && parseColor(ink) ? layers.findIndex((l) => l && l.id === windId) : -1, plan = [];
   if (at < 0) return plan;
   for (const l of layers.slice(at + 1)) {
-    if (!l || l.type !== 'line' || typeof l.id !== 'string' || !BORDER_LINE.test(l.id) || BORDER_CASING.test(l.id) || !l.paint || l.paint['line-color'] === undefined) continue;
+    if (!l || l.type !== 'line' || typeof l.id !== 'string' || !l.paint || l.paint['line-color'] === undefined) continue;
+    if (l.id === WIND_COAST_LINE) {
+      if (!(coast > 0)) continue;
+      const inkTo = inkValue(l.paint['line-color'], ink);
+      if (!same(inkTo, l.paint['line-color'])) plan.push({ id: l.id, prop: 'line-color', from: l.paint['line-color'], to: inkTo, coast: true });
+      if (l.paint['line-opacity'] !== undefined && !same(l.paint['line-opacity'], coast)) plan.push({ id: l.id, prop: 'line-opacity', from: l.paint['line-opacity'], to: coast, coast: true });
+      continue;
+    }
+    if (!BORDER_LINE.test(l.id) || BORDER_CASING.test(l.id)) continue;
     const to = inkValue(l.paint['line-color'], ink);
     if (!same(to, l.paint['line-color'])) plan.push({ id: l.id, prop: 'line-color', from: l.paint['line-color'], to });
   }
-  return plan;
+  return plan.some((p) => !p.coast) ? plan : [];   // the coast RIDES the borders' ink: where no border above the wind takes it (the under-labels kill), neither does the coast
 }
 
 const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map -> { theme, amount, waterL, landL, ink, plan, layers, lines }
@@ -302,16 +350,18 @@ const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map 
  * one into the same style object, and either way a colour that is no longer the one this wrote belongs to someone else
  * and is left alone (writing back a stale 'from' would paint the old theme's colour). Never mutes while the wind layer
  * is missing (the plan is "everything below it"). The border ink (above) is laid and lifted by the same record.
- * Returns { applied, layers, amount, landLines, ink: { applied, layers, color | reason } }: `layers` counts the muted areas only
- * (the lines that went down with a deeper land are `landLines`).
+ * Returns { applied, layers, amount, landLines, ink: { applied, layers, color | reason }, coast: { applied, opacity | reason } }:
+ * `layers` counts the muted areas only (the lines that went down with a deeper land are `landLines`); `coast` is the wind's own
+ * coastline stroke in that ink (THE COAST IN THE BORDERS' INK, above).
  */
 export function syncWindBasemapMute(map, theme, active, windId, win = (typeof window !== 'undefined' ? window : null)) {
-  const { ink, ...r } = syncOnce(map, theme, active, windId, win), at = Date.now();
+  const { ink, coast, ...r } = syncOnce(map, theme, active, windId, win), at = Date.now();
   if (win) {
     win.__WIND_BASEMAP_MUTE__ = { ...r, waterL: r.applied ? windBasemapWaterL(theme, win) : 1, theme, at };
     win.__WIND_BORDER_INK__ = { ...ink, theme, at };
+    win.__WIND_COAST_INK__ = { ...coast, theme, at };
   }
-  return { ...r, ink };
+  return { ...r, ink, coast };
 }
 /** The answer of a sync that muted nothing: the land is the style's own. */
 const UNMUTED = { applied: false, layers: 0, amount: 0, landL: 1, landLines: 0 };
@@ -342,7 +392,8 @@ function liveRasters(map, windId) {
 
 /**
  * What this map should have now: { amount (0 = unmuted), waterL, imagery (the id standing it down, or null), ink (the
- * border ink, or null), inkWhy (why there is none, or null) }. The ink is laid only on a map the mute is restyling:
+ * border ink, or null), inkWhy (why there is none, or null), coast (the coast stroke's opacity under that ink, 0 = not inked) }.
+ * The ink is laid only on a map the mute is restyling:
  * wherever the map under the wind is left the style's own (the mute's kill, its lever at 0, imagery), so are its borders.
  */
 function wanted(map, theme, active, windId, win) {
@@ -351,7 +402,7 @@ function wanted(map, theme, active, windId, win) {
   const imagery = base > 0 ? windBasemapImagery(liveRasters(map, windId), windId) : null;
   const own = on ? windBorderInk(theme, win) : null;
   const inkWhy = !active ? 'wind off' : !on ? 'no wind layer' : typeof WIND_BORDER_INK.color[theme] !== 'string' ? 'theme' : !own ? 'kill' : !(base > 0) ? 'mute off' : imagery ? `imagery:${imagery}` : null;
-  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), landL: windBasemapLandL(theme, win), imagery, ink: inkWhy ? null : own, inkWhy };
+  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), landL: windBasemapLandL(theme, win), imagery, ink: inkWhy ? null : own, inkWhy, coast: inkWhy ? 0 : windCoastInk(theme, win) };
 }
 
 /**
@@ -365,13 +416,14 @@ export function windBasemapMuteStale(map, theme, active, windId, win = (typeof w
   try {
     const w = wanted(map, theme, active, windId, win), prev = APPLIED.get(map);
     if (!(w.amount > 0)) return !!prev;
-    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.landL !== w.landL || prev.ink !== w.ink;
+    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.landL !== w.landL || prev.ink !== w.ink || (prev.coast || 0) !== w.coast || (w.coast > 0 && coastThere(map) !== !!prev.coastThere);   // the stroke arrived, or went, after the record (a diffed theme change drops it and the layer puts it back)
   } catch (e) {
     return false;
   }
 }
 
-const NO_INK = { applied: false, layers: 0 };
+const NO_INK = { applied: false, layers: 0 }, NO_COAST = { applied: false, opacity: 0 };
+const coastThere = (map) => !!map.getLayer(WIND_COAST_LINE);
 const countIds = (plan) => new Set(plan.map((p) => p.id)).size;
 /**
  * What a record did, as the two read-backs say it: the mute's { applied, layers, amount }, and the ink's under `ink`.
@@ -379,30 +431,43 @@ const countIds = (plan) => new Set(plan.map((p) => p.id)).size;
  */
 const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, amount: rec.amount, landL: rec.onLand ? rec.landL : 1, landLines: rec.landLines,   // landL: what the LAND was written with, 1 when no land colour took it
   ink: rec.lines > 0 ? { applied: true, layers: rec.lines, color: rec.ink }
-    : { ...NO_INK, reason: !rec.ink ? inkWhy : rec.asked > 0 ? 'the style refused the ink' : 'no border lines above the wind' } });
+    : { ...NO_INK, reason: !rec.ink ? inkWhy : rec.asked > 0 ? 'the style refused the ink' : 'no border lines above the wind' },
+  coast: rec.shore ? { applied: true, opacity: rec.coast }
+    : { ...NO_COAST, reason: !rec.ink ? inkWhy : !(rec.coast > 0) ? 'kill' : !(rec.lines > 0) ? 'no border line took the ink' : rec.shoreAsked > 0 ? 'the style refused the ink' : 'no coastline above the wind' } });
 
 function syncOnce(map, theme, active, windId, win) {
-  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { ...UNMUTED, ink: { ...NO_INK, reason: 'no map' } };
+  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { ...UNMUTED, ink: { ...NO_INK, reason: 'no map' }, coast: { ...NO_COAST, reason: 'no map' } };
   try {
-    const { amount, waterL, landL, ink, imagery, inkWhy } = wanted(map, theme, active, windId, win);
+    const { amount, waterL, landL, ink, imagery, inkWhy, coast } = wanted(map, theme, active, windId, win);
     const prev = APPLIED.get(map);
     if (prev) {
       const mine = prev.plan.filter((p) => map.getLayer(p.id) && same(map.getPaintProperty(p.id, p.prop), p.to));
-      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.landL === landL && prev.ink === ink) return answer(prev, inkWhy);
-      for (const p of mine) map.setPaintProperty(p.id, p.prop, p.from);   // restore only what is still ours
+      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.landL === landL && prev.ink === ink && (prev.coast || 0) === coast
+        && !(coast > 0 && coastThere(map) !== !!prev.coastThere)) return answer(prev, inkWhy);
+      // The coast stroke is ours only as a WHOLE: a stroke re-added with one value that happens to equal ours (its own opacity 1) is
+      // the new layer's, and writing our old `from` over it would leave it at the last layer's opacity.
+      const shoreOurs = mine.filter((p) => p.coast).length === prev.plan.filter((p) => p.coast).length;
+      for (const p of mine) if (!p.coast || shoreOurs) map.setPaintProperty(p.id, p.prop, p.from);   // restore only what is still ours
       APPLIED.delete(map);
     }
-    if (!(amount > 0)) return { ...UNMUTED, ...(imagery ? { reason: `imagery:${imagery}` } : {}), ink: { ...NO_INK, reason: inkWhy } };
-    const ordered = orderedLayers(map), mute = windBasemapMutePlan(ordered, windId, amount, waterL, landL), lines = ink ? windBorderInkPlan(ordered, windId, ink) : [];
-    const rec = { theme, amount, waterL, landL, ink, plan: [...mute, ...lines], layers: countIds(mute.filter((p) => !p.landLine)), landLines: countIds(mute.filter((p) => p.landLine)),
-      onLand: landL !== 1 && mute.some((p) => !p.landLine && !/^water/.test(p.id)), asked: lines.length, lines: 0 };
+    if (!(amount > 0)) return { ...UNMUTED, ...(imagery ? { reason: `imagery:${imagery}` } : {}), ink: { ...NO_INK, reason: inkWhy }, coast: { ...NO_COAST, reason: inkWhy || 'mute off' } };
+    const ordered = orderedLayers(map), mute = windBasemapMutePlan(ordered, windId, amount, waterL, landL), inkPlan = ink ? windBorderInkPlan(ordered, windId, ink, coast) : [];
+    const lines = inkPlan.filter((p) => !p.coast), shore = inkPlan.filter((p) => p.coast);   // the borders' entries, and the coast stroke's two
+    const rec = { theme, amount, waterL, landL, ink, coast, plan: [...mute, ...inkPlan], layers: countIds(mute.filter((p) => !p.landLine)), landLines: countIds(mute.filter((p) => p.landLine)),
+      onLand: landL !== 1 && mute.some((p) => !p.landLine && !/^water/.test(p.id)), asked: lines.length, lines: 0, shoreAsked: shore.length, shore: false, coastThere: coastThere(map) };
     APPLIED.set(map, rec);   // recorded BEFORE the writes: one that throws is undone by the next sync
     for (const p of rec.plan) map.setPaintProperty(p.id, p.prop, p.to);
-    rec.lines = countIds(lines.filter((p) => same(map.getPaintProperty(p.id, p.prop), p.to)));
+    const took = (q) => same(map.getPaintProperty(q.id, q.prop), q.to);
+    rec.lines = countIds(lines.filter(took));
+    rec.shore = shore.length > 0 && rec.lines > 0 && shore.every(took);
+    if (shore.length && !rec.shore) {   // it rides the ink that TOOK, and whole: no border inked, or one of its two values refused, and the stroke goes back to the layer's own
+      for (const q of shore) if (took(q)) map.setPaintProperty(q.id, q.prop, q.from);
+      rec.plan = rec.plan.filter((q) => !q.coast);
+    }
     return answer(rec, inkWhy);
   } catch (e) {
     // A style that is not loaded throws before the record is written: the next style change finds no record and retries.
     // A throw part-way through the writes leaves a record, which the next sync (a toggle, a theme, a style.load) undoes.
-    return { ...UNMUTED, error: e.message, ink: { ...NO_INK, reason: `error: ${e.message}` } };
+    return { ...UNMUTED, error: e.message, ink: { ...NO_INK, reason: `error: ${e.message}` }, coast: { ...NO_COAST, reason: `error: ${e.message}` } };
   }
 }

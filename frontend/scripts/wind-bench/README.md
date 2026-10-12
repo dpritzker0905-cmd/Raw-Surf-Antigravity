@@ -441,6 +441,26 @@ node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3   
     instead of 1.5 the lift against dark's is off by 0.00 to 0.03 over the sea in the served wind and below it, by up to 0.09
     with the fixture scaled 2.3 times, and by 0.02 to 0.08 over land. The old way read D-022's recorded lifts to the digit.
 
+### The coastline stroke (`--lines coast`, 2026-10-12, D-028)
+
+```bash
+node scripts/wind-bench/border-run.js --lines coast --zooms 4,6,8,10                                         # dark is the bar
+node scripts/wind-bench/border-run.js --lines coast --themes light,beach --arms '{"ink":{},"kill":{"levers":{"__RAW_DISABLE_WIND_COAST_INK__":true}}}'
+```
+
+The wind layer lays a coastline stroke above itself (`WebGLWindUtils.js` `WIND_COASTLINE`, layer `wind-coastline`). `--lines coast`
+runs the same probe on that one layer instead of the `admin-*` lines. A ridge pixel may lie on the sea and its ground is the ring on
+BOTH sides of the line, so a land-sea step under the stroke is part of what it is read against. An arm's `paint` can restyle the
+stroke before any product code does (`{"id":"wind-coastline","prop":"line-opacity","value":0.75}`); the `drawn` column is the
+stroke's own read-back, `window.__WIND_COAST_INK__`.
+
+- **Read, 2026-10-12** (L\* under field + streaks, zooms 4 / 6 / 8 / 10): dark 17.1 / 24.5 / 23.9 / 21.1 (a pale line). Light and
+  beach in the borders' ink: 31.8 / 39.1 / 32.2 / 28.4 and 29.7 / 37.1 / 29.4 / 25.0; under the kill (the slate stroke of
+  2026-10-09) 16.9 / 21.0 / 15.5 / 12.6 and 11.8 / 14.9 / 9.9 / 8.2.
+- **This column alone would have kept the old stroke** (LESSONS L-V74): light's slate line read level with dark's pale one and
+  Florida was not on the map at zoom 4. A dark hairline among white streaks does not carry like a pale one. Read `--crop` beside
+  dark, on a land the eye has to find, before the number.
+
 ## Speed ramp (`ramp-fixture.js`, `motion-run.js --fixture`): one scene with clean axes
 
 ```bash
@@ -510,6 +530,60 @@ node scripts/wind-bench/ground-run.js --scale 2.3 --zooms 6  # the ground under 
   neither the style's land nor its water; light's modelled water [168, 214, 222] is 9 L\* lighter and far more chromatic than
   the muted sea; beach's modelled land [222, 208, 180] is a tan 7 L\* darker than the muted land of this view.
 
+### How much of the map comes through (`--fixture`, `--strips`, `--full`, `--arms`; 2026-10-12, D-028)
+
+```bash
+node scripts/wind-bench/ramp-fixture.js scripts/wind-bench/out/ramp-low.json --from 2 --to 30
+node scripts/wind-bench/ground-run.js --fixture scripts/wind-bench/out/ramp-low.json --strips 12 --full 60 --zooms 6
+node scripts/wind-bench/ground-run.js --fixture <ramp> --strips 12 --arms '{"now":{},"before":{"__RAW_DISABLE_WIND_LAND_DEPTH__":true}}' --crop 900x640:jpeg
+```
+
+The owner, 2026-10-12: "I still cannot see the map as well through the wind animations on light or beach modes. Dark mode I can see
+the map underneath it, better." A layer is seen through when the map's own contrasts survive under it with their sign (Metelli 1974;
+Singh and Anderson 2002), and the map's largest is the land against the sea.
+
+- **`--fixture <ramp>` and `--strips n`:** on the hurricane the sea is windier than the land, so the field's own difference reads
+  as the map's. On a ramp a column is one speed over land and over sea: the picture is cut into n column bands and the land is read
+  against the sea INSIDE each. The `equal wind` line gives the median over the bands (and the least and the most) as L\*, and
+  `kept`: the share of the own map's land-sea Michelson contrast (on luminance) still there.
+- **`--full N`:** also the picture WITH the streaks, the mean of N frames at 60 Hz in linear light; `adds` is its L\* over the
+  field alone (the light the streaks add to that ground, LESSONS L-V73).
+- **`--arms`:** a row set an arm; a lever is a `window.__RAW_...__` name. `--crop` saves own | muted | field | full an arm.
+- **Read, 2026-10-12** (zoom 6, 3.2 to 28.8 kn; land minus sea): dark own -18.4, under the field -9.4 (kept 0.52), with the streaks
+  -5.4 (0.25). Light own +12.7, as restyled +2.1 (0.19), under the field +1.1 (0.14); beach +12.7, +2.7 (0.24), +1.9 (0.23). With
+  the land depth killed: light +23.7 restyled and +16.0 under the field (1.83), beach +18.9 and +12.3 (1.43). Light's and beach's
+  field is a multiply and passes the map through: it is the restyle (the sea darkened, then the land to it, D-026) that flattens it.
+
+## Anatomy mode (`anatomy-run.js`, `page/anatomy-probe.js`): what IS a streak at each wind speed?
+
+```bash
+node scripts/wind-bench/anatomy-run.js --fixture scripts/wind-bench/out/ramp-low.json                       # dark, light, beach at zoom 6
+node scripts/wind-bench/anatomy-run.js --fixture <ramp> --themes light --arms '{"now":{},"try":{"__RAW_X__":1}}' --json out/anatomy.json
+```
+
+The owner, 2026-10-12, watching dark beside light and beach: "lighter moving air/wind in dark mode is almost transparent, or even
+smaller animations than in beach or light mode. You need to really compare deeply each aspect". The other modes read a streak one
+way each and as medians over a view that mixes every speed. This reads every aspect the eye uses, by speed, with dark's beside it.
+
+- **It needs a speed ramp:** the wind due north, one speed a column. A MARK pixel is one the particles moved by more than 4 dE76
+  against the field-only frame (map mode's definition). The CORE is the top tenth of a band's mark pixels by lift; a streak's BODY
+  is every mark pixel at least half the core's lift.
+- **Tables, a row a theme and a column a band:** the field under the marks (L\*, C\*); `COVER` (share of the surface a mark
+  touches), `BODY` (share in a bright body), `STREAKS met` per 1000 CSS px along the wind; the `MEDIAN` mark pixel's and the
+  `CORE`'s L\* over the field; the core's chroma minus the field's (0 = the colour made lighter, negative = white laid over it);
+  the body's length along the wind (median and 90th percentile) and width across it; the whole mark's length with its tail. Each
+  `vs dark` row is the ratio (for chroma, the difference) to dark's same band: the mirror is read there.
+- **Read, 2026-10-12** (dev `b764797b`, zoom 6, 3.2 to 28.8 kn): light's and beach's cores stand 0.73 to 1.13 of dark's over the sea
+  and their width is dark's to 24 kn; their bright bodies cover 1.2 to 2.3 times dark's area and run 1.2 to 2.4 times as long (90th
+  percentile), most in light air and in a gale; at 3.2 kn twice as many are met. Dark's shape over land at 3.2 / 5.5 / 7.8 kn: a core
+  38 / 32 / 29 L\* over the field against a median mark pixel of 9 / 14 / 14: a bright head and a tail that is gone.
+- **Why** (`WebGLWindShaders.js` `SCREEN_FS`): dark lays a trail as `rgb x a` over `(1 - a) x map` with the trail's own faded rgb,
+  which is zero once the trail's brightness falls to the ground's level and negative under it; the glow composite of light and
+  beach lays full-light colour at the brightness squared and never reaches zero.
+- **Limits:** the size columns assume the wind due north (a ramp); the body's threshold is half the band's own core, so a theme
+  with a lower core is measured against its own; no null control is wired in (run it on a 2 x 2 pool by hand before trusting a
+  new column).
+
 ## Switch mode (`switch-run.js`, `page/switch-probe.js`): after a theme change, is the new theme restyled?
 
 Every other mode builds a fresh map a theme, so none of them can see a theme change, and a theme change is how the owner compares
@@ -539,6 +613,13 @@ node scripts/wind-bench/switch-run.js --ref origin/dev --wirings dev   # dev as 
 - **The handler in the probe is the app's**, pinned to `WebGLWindLayer.js` by `windBasemapMute.test.js` ("a style that has just
   LOADED ..."). It is not React: the order in a real browser depends on its cache and its connection.
 - In the fetched-style order, dark to light restyles DARK's map as light for the length of the fetch (about 100 ms here).
+
+- **The coastline through a theme change (2026-10-12, D-028).** The `coastline` column says whether the wind's coastline stroke is
+  still on the map after the change and, in light and beach, whether it is in the borders' ink. Wiring `nocoast` is the layer's
+  handler before D-028: the stroke was added only together with the wind layer, and a diffed theme change keeps the custom wind
+  layer and drops the stroke (a style layer the new style does not name). `node scripts/wind-bench/switch-run.js --wirings
+  nocoast,app`: GONE in 8 of 8 changes under `nocoast` (into dark too), there in 8 of 8 under `app`. Exit 1 also when the stroke is
+  gone or un-inked under the last wiring.
 
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 

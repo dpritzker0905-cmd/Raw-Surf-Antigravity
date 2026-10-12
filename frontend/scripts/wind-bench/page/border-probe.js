@@ -38,7 +38,7 @@
  * while the arm's wind was on (the control: an arm that restyles nothing has nothing to restore).
  */
 const RIDGE = 0.3, WHOLE = 255, WEAK_L = 5, WCAG = 3;
-const BORDER_ID = /^admin-/, CASING_ID = /-bg$/, PLACE_ID = /^(state|country|settlement)[a-z-]*-label$/;
+const BORDER_ID = /^admin-/, COAST_ID = /^wind-coastline$/, CASING_ID = /-bg$/, PLACE_ID = /^(state|country|settlement)[a-z-]*-label$/;
 
 const LIN = new Float32Array(256).map((_, i) => { const v = i / 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
 const lum = (px, i) => 0.2126729 * LIN[px[i * 4]] + 0.7151522 * LIN[px[i * 4 + 1]] + 0.072175 * LIN[px[i * 4 + 2]];
@@ -59,9 +59,9 @@ function aboveWind(map, windId) {
  * The lines and names this mode reads, from the style: line layers above the wind named admin-* (the casings, *-bg, apart), and the
  * symbol layers that name states, countries and settlements. Each with its paint, for the report.
  */
-function inventory(map, windId) {
+function inventory(map, windId, coast) {
   const above = new Set(aboveWind(map, windId)), layers = map.getStyle().layers, pick = (l, props) => Object.fromEntries(props.filter((p) => (l.paint || {})[p] !== undefined).map((p) => [p, l.paint[p]]));
-  const lines = layers.filter((l) => l.type === 'line' && BORDER_ID.test(l.id));
+  const lines = layers.filter((l) => l.type === 'line' && (coast ? COAST_ID : BORDER_ID).test(l.id));   // coast: the stroke the app lays above the wind (WebGLWindUtils.js WIND_COASTLINE)
   const names = layers.filter((l) => l.type === 'symbol' && PLACE_ID.test(l.id));
   const row = (l, props) => ({ id: l.id, aboveWind: above.has(l.id), minzoom: l.minzoom, maxzoom: l.maxzoom, paint: pick(l, props) });
   return {
@@ -73,7 +73,7 @@ function inventory(map, windId) {
 }
 
 module.exports = function makeBorderRun(h) {
-  const { state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync, WIND_ID, speedAt } = h;
+  const { state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync, coastSync, WIND_ID, speedAt } = h;
 
   /** The served speed (kn) under the ridge pixels: the wind the lines were read in (a streak's strength over a line moves with it). */
   function ridgeWind(map, rd, W, H, dpr) {
@@ -106,7 +106,7 @@ module.exports = function makeBorderRun(h) {
   }
 
   /** The ridge pixels of the border lines on land, away from labels, each with the ring of ground pixels around it. */
-  function ridges(border, label, wet, W, H, dpr) {
+  function ridges(border, label, wet, W, H, dpr, anyGround) {   // anyGround (the coast): a ridge and its ring may lie on the sea; the ring is then the land AND the sea beside the line
     const r1 = Math.max(2, Math.round(1.5 * dpr)), r2 = Math.max(r1 + 1, Math.round(2.75 * dpr)), keep = Math.round(4 * dpr), min = Math.round(RIDGE * 255);
     const near = new Uint8Array(W * H);                                  // a label (its halo too) within `keep` px
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { if (label[y * W + x] < 26) continue; for (let j = Math.max(0, y - keep); j <= Math.min(H - 1, y + keep); j++) near.fill(1, j * W + Math.max(0, x - keep), j * W + Math.min(W - 1, x + keep) + 1); }
@@ -114,12 +114,12 @@ module.exports = function makeBorderRun(h) {
     for (let y = r2 + 1; y < H - r2 - 1; y++) {
       for (let x = r2 + 1; x < W - r2 - 1; x++) {
         const i = y * W + x, c = border[i];
-        if (c < min || wet[i] || near[i]) continue;
+        if (c < min || (!anyGround && wet[i]) || near[i]) continue;
         let top = true;
         for (let j = -1; j <= 1 && top; j++) for (let k = -1; k <= 1; k++) if (border[i + j * W + k] > c) { top = false; break; }
         if (!top) continue;
         const g = [];
-        for (let j = -r2; j <= r2; j++) for (let k = -r2; k <= r2; k++) { if (Math.max(Math.abs(j), Math.abs(k)) < r1) continue; const q = i + j * W + k; if (border[q] < 6 && !near[q] && !wet[q]) g.push(q); }
+        for (let j = -r2; j <= r2; j++) for (let k = -r2; k <= r2; k++) { if (Math.max(Math.abs(j), Math.abs(k)) < r1) continue; const q = i + j * W + k; if (border[q] < 6 && !near[q] && (anyGround || !wet[q])) g.push(q); }
         if (g.length < 6) continue;
         idx.push(i); ring.push(Int32Array.from(g));
       }
@@ -167,6 +167,7 @@ module.exports = function makeBorderRun(h) {
 
   /**
    * cfg: { theme, z, lng, lat, frames, samples, gap, res, seed, crop: [w, h, fmt], cropAt: [fx, fy],
+   *        lines: 'coast' reads the coastline stroke above the wind instead of the borders (its ground: both sides of it),
    *        arms: [{ name, levers, paint: [{ id, prop, value }], windOnTop }] }. `paint` is the bench's own override, laid AFTER the app's sync: a
    *        candidate can be measured before any product code draws it. Returns the style's inventory and one row an arm.
    */
@@ -177,13 +178,13 @@ module.exports = function makeBorderRun(h) {
     sync(map, cfg.theme, false, WIND_ID);
     map.jumpTo({ center: [cfg.lng, cfg.lat], zoom: cfg.z });
     await idle(map);
-    const inv = inventory(map, WIND_ID);
+    const coast = cfg.lines === 'coast', inv = inventory(map, WIND_ID, coast);
     // Every paint value of every layer of the style, as the library holds it with the wind off: an arm that leaves one changed
     // has not restored the map (the real library's answer to "byte for byte", which a fake map can only assume).
     const stylePaint = () => JSON.stringify(map.getStyle().layers.map((l) => [l.id, l.paint || null])), paintStart = stylePaint();
     const bare = await animate(map, 0);
     const border = await coverage(map, inv.borders.map((b) => b.id), 'line'), label = await coverage(map, inv.labels.map((l) => l.id), 'symbol');
-    const wet = await settledWaterMask(map), { W, H } = bare, rd = ridges(border, label, wet, W, H, dpr);
+    const wet = await settledWaterMask(map), { W, H } = bare, rd = ridges(border, label, wet, W, H, dpr, coast);
     const paint0 = stylePaint(), masksExact = paint0 === paintStart;   // the probe's own masks put every value back (its self-check)
     const wind = ridgeWind(map, rd, W, H, dpr);
     const rows = [];
@@ -191,6 +192,7 @@ module.exports = function makeBorderRun(h) {
     try {
       for (const arm of cfg.arms) {
         clearLevers(); Object.assign(window, arm.levers || {});
+        if (coastSync) coastSync(map, cfg.theme);              // the coastline stroke as the layer would add it under this arm's levers
         const synced = sync(map, cfg.theme, true, WIND_ID), saved = [];
         for (const p of arm.paint || []) { if (!map.getLayer(p.id)) continue; saved.push([p.id, p.prop, map.getPaintProperty(p.id, p.prop)]); map.setPaintProperty(p.id, p.prop, p.value); }
         const home = arm.windOnTop ? map.style._order[map.style._order.indexOf(WIND_ID) + 1] : null;   // the layer the wind sits under
@@ -209,18 +211,20 @@ module.exports = function makeBorderRun(h) {
         const c = { bare: contrasts(bare.px, rd), off: contrasts(off.px, rd), field: contrasts(field.px, rd), full: fulls.map((f) => contrasts(f.px, rd)) };
         rows.push({ arm: arm.name, theme: cfg.theme, z: cfg.z, synced, landMask, wind, border: borderStats(c, rd),
           labels: untouched(label, WHOLE, off.px, fulls.map((f) => f.px)), solid: untouched(border, WHOLE, off.px, fulls.map((f) => f.px)),
-          readBack: window.__WIND_BORDER_INK__ || null, glError: state.gl.getError() || 0,
+          readBack: window.__WIND_BORDER_INK__ || null, coastBack: window.__WIND_COAST_INK__ || null, glError: state.gl.getError() || 0,
           crops: state.crop ? { off: off.crop, field: field.crop, full: fulls[0].crop } : null });
         const inked = stylePaint() !== paint0;                // the positive control: with the wind on the style's paint HAD moved
         sync(map, cfg.theme, false, WIND_ID);
+        clearLevers(); if (coastSync) coastSync(map, cfg.theme);   // the arm's levers gone, the stroke the layer's own again: only then is the style's paint the start's
         await idle(map);
         rows[rows.length - 1].restore = { moved: inked, exact: stylePaint() === paint0 };
       }
       return { theme: cfg.theme, z: cfg.z, dpr, canvas: [W, H], inventory: inv, masksExact, bareCrop: bare.crop, rows };
     } finally {
-      state.active = false; disposeEngine(); clearLevers();
+      state.active = false; disposeEngine();
       if (undo) { try { undo(); } catch (e) { /* an arm that threw: the map may be gone */ } }
       sync(map, cfg.theme, false, WIND_ID);
+      clearLevers(); if (coastSync) coastSync(map, cfg.theme);
       state.crop = null; state.cropAt = null;
     }
   };

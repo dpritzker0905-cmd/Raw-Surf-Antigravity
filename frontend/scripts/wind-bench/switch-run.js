@@ -55,19 +55,19 @@ async function main() {
     await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
     const fine = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
     await page.evaluate((fx) => window.__MAP_BENCH__.init(fx), { fine, scale: 1, offline: false });
-    console.log(`engine: ${source.label}\n\nchange         wiring order        | style    wind layer | re-sync            | inked muted | read-back`);
+    console.log(`engine: ${source.label}\n\nchange         wiring order        | style    wind layer | re-sync            | inked muted | coastline       | read-back`);
     const yn = (v) => (v == null ? ' -  ' : v ? 'yes ' : 'NO  ');
     for (const wiring of wirings) for (const order of orders) for (const [from, to] of pairs) {
       const r = await page.evaluate((c) => window.__MAP_BENCH__.switchRun(c), { from, to, wiring, order });
       r.order = order;
       rows.push(r);
       const ink = r.readBack.ink, mute = r.readBack.mute;
-      console.log(`${`${from} > ${to}`.padEnd(14)} ${wiring.padEnd(6)} ${order.padEnd(12)} | ${(r.loaded ? (r.diffed ? 'diff' : 'rebuild') : 'NO LOAD').padEnd(8)} ${(r.windKept ? 'kept' : 're-added').padEnd(10)} | ${(r.idleFirst == null ? 'never ran' : r.idleFirst ? 'BEFORE the style' : 'after the style').padEnd(18)} | ${yn(r.inked)}  ${yn(r.muted)}  | ink ${ink ? (ink.applied ? `applied ${ink.layers} (${ink.theme})` : `off: ${ink.reason}`) : '-'} · mute ${mute ? `${mute.applied ? 'applied' : 'off'} ${mute.layers} (${mute.theme})` : '-'}`);
+      console.log(`${`${from} > ${to}`.padEnd(14)} ${wiring.padEnd(6)} ${order.padEnd(12)} | ${(r.loaded ? (r.diffed ? 'diff' : 'rebuild') : 'NO LOAD').padEnd(8)} ${(r.windKept ? 'kept' : 're-added').padEnd(10)} | ${(r.idleFirst == null ? 'never ran' : r.idleFirst ? 'BEFORE the style' : 'after the style').padEnd(18)} | ${yn(r.inked)}  ${yn(r.muted)}  | ${(!r.coast.there ? 'GONE' : r.coast.inked == null ? 'there (own)' : r.coast.inked ? 'there, inked' : 'there, NOT INKED').padEnd(15)} | ink ${ink ? (ink.applied ? `applied ${ink.layers} (${ink.theme})` : `off: ${ink.reason}`) : '-'} · mute ${mute ? `${mute.applied ? 'applied' : 'off'} ${mute.layers} (${mute.theme})` : '-'}`);
       if (showEvents) for (const e of r.events) console.log(`    ${e}`);
     }
     if (flag('--json')) fs.writeFileSync(path.resolve(flag('--json')), JSON.stringify({ engine: source.label, rows }, null, 1));
     const last = wirings[wirings.length - 1];
-    return rows.some((r) => r.wiring === last && (r.inked === false || r.muted === false)) ? 1 : 0;
+    return rows.some((r) => r.wiring === last && (r.inked === false || r.muted === false || !r.coast.there || r.coast.inked === false)) ? 1 : 0;
   } finally {
     await browser.close();
     server.close();
