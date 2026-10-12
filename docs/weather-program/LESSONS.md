@@ -949,6 +949,47 @@ A stored estimate can be estimated again in a browser branch with different sour
   true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
   them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
   compare themes by switching, and nothing switched. (same log)
+- **L-V50 · A look calibrated at one wind speed does not hold at another: sweep the wind as well as the zoom, and read the
+  scene variable WHERE THE CROP SITS.** D-022's sea strengths were solved on one view of one fixture: beach 0.77 read 1.01 of
+  dark's lift. On the deployed build it read 1.37, and this session recommended 0.55 from that one read. It then called the
+  bench's scene "the wind as served, a median near 13 kn" from the fixture's whole box, measured one stronger wind beside it,
+  and wrote that 0.55 was right in a storm and short in a breeze. The fixture is a hurricane: the zoom 6 sea crop holds a 42 kn
+  field, and the "stronger wind" was 95 kn. Swept properly (the crop's median 8 / 17 / 42 / 95 kn) beach at 0.55 reads 1.10 /
+  0.96 / 0.80 / 1.07: the one low reading is the band where beach's own field is pale, which is the band 0.77 had been solved
+  in. Two points at one end of a range had been read as its two ends. Rules: (1) a per-theme strength is read at four wind
+  speeds at least, everyday winds among them (`motion-run.js` runs take `scale`), as it is at three zooms; (2) the speed that
+  labels a scene is read from the fixture inside the crop, never from the fixture's summary or a README; (3) when the bench and
+  a live read disagree, reproduce the live read on the bench (its wind, its pixel ratio, one at a time) BEFORE recommending a
+  number from either; (4) a number goes to the owner with the scene it is true in. L-S10 again (sweep the interior of a range,
+  not its ends): cited in this lesson's first version an hour before it was broken. (log 2026-10-11-wind-dark-white, "Beach's
+  sea at 0.55" and its correction)
+- **L-V60 · An instrument's model of the reference must be the engine's own law, in one place: check a model against a GPU
+  read before anything is solved on it.** Two models of DARK's ground lived side by side. The engine lays dark's field at its
+  alpha SQUARED (`HEATMAP_FS` returns it premultiplied and the engine blends it `SRC_ALPHA, ONE_MINUS_SRC_ALPHA`), and
+  `windDarkRules.js` models that. `check.mjs` and `mirror-model.mjs` (written for D-022 by this session) lay it at its alpha,
+  which reads dark's sea about 20 L* too light (66 against 45 at 13 kn), and the two hold different dark map colours as well.
+  A whole-picture table built on the second model disagreed with the bench, which is how it was found; a solver in another
+  lane had already been built on it. Rules: (1) one composite law is written once and imported, never copied into a second
+  script; (2) a model is read against the GPU at three speeds on each ground before a number is solved on it; (3) when a model
+  and the bench disagree, the model is the suspect. Not yet fixed: the checker's dark lines and their pins move with it, so it
+  is its own change. (log 2026-10-11-wind-dark-white, "The lead")
+- **L-V61 · Give the scene clean axes: one variable a direction, and nothing else changing along it.** D-022 read "zoom 4, 6, 9"
+  on a hurricane fixture, where each zoom's crop holds a different wind and the land crop lies outside the fixture: zoom, speed
+  and place moved together, and three lanes each found a number that failed in the next scene. A SPEED RAMP (the wind blows
+  due north everywhere and its speed rises with longitude, 7 to 61 kn across the view) puts every speed over land and sea in
+  one frame, and a column of the picture is one speed. Read that way in one capture: light's sea is dark's lift at every speed
+  (0.93 to 1.05, read from 13 to 51 kn); beach's sea is short only from 26 to 38 kn (0.60 to 0.68), where its field is pale; the LAND is short in both
+  (light 0.58 to 0.93 below 45 kn, beach 0.38 to 0.53 from 26 to 38 kn) because its ground is 25 to 35 L* paler than dark's
+  land; and dark's land and sea grounds are within about 6 L* of each other where light's and beach's are 12 to 15 apart. Dark
+  is one picture; they are two. Rules: (1) before tuning a number, build the scene in which only its variable moves; (2) read
+  every output along that axis in one capture, the reference included; (3) a result that changes with "zoom" is checked for
+  what else changed with the zoom. (same log)
+- **L-V62 · While lanes are open, the lead's sample is the COMBINED build.** The owner, on two clips cut from this session's
+  own branch: "we have to keep in mind the work the subtrees are doing. For example, one is working on borders and labels of
+  the maps. I dont see those reflections in your samples above". A sample from one branch shows the owner a picture that will
+  never ship. Rules: (1) merge every lane's committed work into a local preview branch (never pushed) and capture from that;
+  (2) say in the caption what each pane includes and what is not in yet; (3) show before and combined in the same clip, beside
+  the reference. (same log)
 - **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
   tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
   dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower

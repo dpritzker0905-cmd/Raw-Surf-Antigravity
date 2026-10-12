@@ -467,6 +467,58 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   and side-by-side sheets); the bench in motion, before and after beside dark, land and sea read apart (`motion-run.js`,
   `mirror-run.js --at`; two clips sent to the owner); tables hashed equal to D-021's with and without the kill; the palette
   checker's red lines unchanged (beach's two colour-blind lines, as under D-021).
+- **Amended 2026-10-12 02:27Z (the owner, first-hand, after the read-back of the deployed build): beach's sea strength is 0.55,
+  not 0.77.** The owner: "make the beach sea strength change to 0.55". Read on the deployed build (`ec8f46a2`) in the owner's
+  Chrome at zoom 6 over open sea, in a field reaching 67 kn: light at 0.55 lifted the picture 1.04 times as far as dark's (1.60
+  with the kill set), beach at 0.77 lifted it 1.37 times. This session recommended 0.55 from that one read; the owner took it.
+  - **What the bench then said, and why the two reads had differed: the WIND'S SPEED in the scene.** Built and captured in
+    motion on the same view and crops as before (dark's lift, light's and the kill arm repeat the earlier run to the digit):
+    over the sea beach at 0.55 reads 0.80 / 1.19 / 0.74 of dark's lift at zooms 6 / 4 / 9 (1.01 / 1.34 / 0.91 at 0.77). That
+    looked like "under dark's" until the fixture was read where the crop sits: the bench's wind is a hurricane, and the zoom 6
+    sea crop holds a 42 kn field (quartiles 36 and 47). Swept with the run's `scale` (zoom 6, the sea crop's median wind):
+
+    | the sea crop's wind | 8 kn | 17 kn | 42 kn (as served) | 95 kn |
+    |---|---|---|---|---|
+    | beach at 0.55 | 1.10 | 0.96 | 0.80 | 1.07 |
+    | beach, the kill (1.0) | | 1.57 | 1.23 | 1.70 |
+    | beach at 0.77 (between the two) | | about 1.26 | 1.01 (measured) | about 1.38 |
+    | light at 0.55 | 1.11 | 1.05 | 1.03 | 1.23 |
+
+    0.77 was solved in the one band of speed, 27 to 40 kn, where beach's own field is pale (by the colour model its ground over
+    the sea is L* 51 to 58 there and 38 to 44 at everyday speeds), so it wanted more white there than anywhere else. The
+    deployed read (1.37) is the 95 kn column. At device pixel ratio 3 the 42 kn column reads 0.84: the screen was not the cause.
+    (LESSONS L-V50.)
+  - **What 0.55 is, plainly:** within 0.96 to 1.10 of dark's lift over the sea at 8 and 17 kn and at 95 kn, and short of it
+    (0.80) in beach's pale band near 42 kn. 0.77 was dark's lift in that band and 1.26 to 1.38 times it elsewhere. What is left
+    is the shape of beach's field along speed (it dips at 10 kn and goes pale at 27 to 33), not the number: a strength that
+    follows the wind's speed would take it out and is NOT built: the owner's call. **Corrected the same night:** this entry
+    first said "dark's lift in a storm and a quieter streak than dark's in a breeze", from two bench scenes this session had
+    called a breeze and a storm; they were a storm and a stronger one.
+  - **Its cost, read per knot (the model in `windDarkWhite.test.js`):** at beach's 29 kn band, held pale, a streak's core now
+    stands 22.7 L* off its ground (31.5 at 0.77); the cores keep at least 0.376 of the sea's colour (0.183). The palette
+    checker's red lines are the two before; two of its lines move, neither a floor: the core against its own tint over water,
+    weakest at 8 kn, 12.3 to 8.8 L* (watched below 3), and the marks' own colour-blind separation, weakest at 3 to 6 kn, 2.0 to
+    0.8 dE00 (a watch line: a white streak does not carry the speed by its colour; the field does, and its floor did not move).
+    Land is unchanged. Light is unchanged.
+  - **The kill is unchanged** (`window.__RAW_DISABLE_WIND_DARK_WHITE__ = true`: full strength on both grounds).
+- **Corrected 2026-10-12 (an independent review of the merged change; no code defect found, four errors in this record):**
+  - **The read-back above is wrong as written.** On the deployed build `kept` over a sea view reads about 0.5 with the change
+    and about 0.1 with the kill set, not "above about 0.9" (0.9 is the bench's view; the live field was stronger and its piles
+    denser). The check that holds: the mark program's `u_white` uniform reads `[1, 0.7416]` in light (the square roots of 1 and
+    0.55; beach the same from this amendment, `[1, 0.8775]` before it) and `[1, 1]` in dark and under the kill; and over one sea
+    crop `lift`, `peakL` fall and `kept` rises when the kill is unset (light, zoom 6: lift 24.8 to 16.1, core 98.7 to 87.8, kept
+    0.12 to 0.54). Ledger commitment 1062's `check` text carries the same error; the ledger is append-only, so it is corrected
+    by the finding that closes it.
+  - **Every lift recorded for this decision was read with `mirror-run.js --size 360`**; the default is 420 and the bench's
+    README named no size. The README now says so.
+  - **The README's example paths** (`out/motion.json`) resolved to `frontend/out/`. Written out now.
+  - **Two colour-blind watch lines moved with D-022 and were not reported** (the marks' own colours: light 3.6 to 2.5 dE00,
+    beach 2.6 to 2.0). Watch lines, not floors; they belonged in the log's checker paragraph.
+  - **Limits the review named, standing:** near a coast or in a bay the sea strength is mostly not applied (the mask's texel is
+    about 20 km; light's zoom 9 centre crop over Mobile Bay reads 2.14 of dark's lift); zoom 4 over the sea is the least
+    corrected; `bindLandMask` returns before it sets `u_white` when it has no context, no program or no weak-map state
+    (`if (!gl || !prog || !STATE) return;`), which would leave the mark's light at zero where it used to fall back (not
+    reachable from the engine today; a one-line guard would close it; not built).
 
 ### D-023 · Under the wind, light and beach draw the map's border lines in dark ink; ON by default
 - **Decided:** by the owner's request, 2026-10-12 01:02Z, said to the session that built D-022 after its side-by-side clips and
