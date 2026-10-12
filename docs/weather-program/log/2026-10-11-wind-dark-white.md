@@ -453,3 +453,20 @@ above stands; the wind speed written beside it does not.**
   and of this change (the border lane's `--map-dpr` is the fix). The lesson is L-V50's second rule, broken a second time by the
   session that wrote it: the scene variable is read where the crop sits, and where the crop sits is read from the instrument's
   own geometry, not assumed.
+
+## 16:10Z, 2026-10-12 · The owner's word to merge; brought up to date with dev after #321 and #320
+
+The owner, 2026-10-12 15:38Z, to this session, first-hand: "merge #321 and #320 and take the re-solved F" and "and merge anything
+else needed as well". This session reads "anything else needed" as the open changes the re-filmed combined clip showed them:
+this one (#315), #319 and #318; #317 (docs) was not named. #321 merged at 15:47:44Z (`720b3980`) and #320 at 2026-10-12T16:10:09Z
+(`9061ad1d`). Dev was then merged into this branch: the four records keep both sides, and this branch's ledger lines are
+re-appended after dev's head with their first times as `acted_at`: what were seq 1063 to 1069 here are seq 1091 to 1097, and
+seq 1098 is `pr_merge #320`. The read-back commitment is seq 1095.
+
+Gates on the merged tree: Jest, both trees, 310 suites, 4,281 tests, 0 failed; check_eslint.js exit 0; loc_ratchet.py exit 0; the production build exit 0 (run on a trial of this merge whose frontend tree is the same, byte for byte).
+
+**Read with today's corrections (#321's log, "After the independent review"):** this change's numbers in this log are the
+mirror probe's lift on frames that clipped bright streak cores, against dark's lift, which reads high. As light ADDED over the
+field alone, on corrected frames with every open change, beach at 0.55 adds 1.0 to 1.8 times what dark does over the sea (6 to
+39 kn); at 0.77 (dev before this change) it added 1.9 times at the one crop read. So this change moves beach's sea toward dark;
+it does not reach it. The strength was the owner's own number ("make the beach sea strength change to 0.55").

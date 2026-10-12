@@ -14,7 +14,7 @@
 
 import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
-import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk';
+import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
@@ -587,7 +587,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.enable(gl.BLEND);
-  if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply
+  if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply
   gl.useProgram(this.heatmapProgram); gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_tint'), _ft);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
@@ -966,7 +966,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0); if (_ink.on) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); bindInk(gl, this.screenProgram, _ink.mode);
+  blendIntoMap(gl, _premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0); if (_ink.on) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); bindInk(gl, this.screenProgram, _ink.mode);
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_ink_cap'), _ink.on && _ink.cap > 0 && _ink.cap < 1 ? _ink.cap : 1); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_ink_px'), 1 / screenWidth, 1 / screenHeight);   // ink's cover cap (windInk.js)
   bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, _trail.view, _trail.viewLinear);
   if (this.screenVAO) {

@@ -519,3 +519,197 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
     corrected; `bindLandMask` returns before it sets `u_white` when it has no context, no program or no weak-map state
     (`if (!gl || !prog || !STATE) return;`), which would leave the mark's light at zero where it used to fall back (not
     reachable from the engine today; a one-line guard would close it; not built).
+
+### D-023 · Under the wind, light and beach draw the map's border lines in dark ink; ON by default
+- **Decided:** by the owner's request, 2026-10-12 01:02Z, said to the session that built D-022 after its side-by-side clips and
+  recorded first-hand in that session's log (`2026-10-11-wind-dark-white`): "The animations do look better. The map below, I
+  think the labels and borders need to be more visible. In dark mode they are white boarders and labels. So in beach and light
+  mode, there maybe needs to be black borders and labels? This would be for the maps land mass below. What do you think?" That
+  session answered yes and showed the three border layers in dark ink live in the owner's tab. **The owner did not name the ink,
+  its strength or this rule, and has not seen this build.** The building session was started with a written brief and was given
+  no word of the owner's directly. That a visual change the owner asked to see ships ON with a kill is D-020's standing rule;
+  applying it here is the building session's reading.
+- **Rule:** while the wind is on in light and beach, the border lines the style draws ABOVE the wind layer (line layers named
+  `admin-*`: the state line, the country line, the disputed line; their pale casings `*-bg` apart) take one dark ink,
+  `rgba(27, 30, 45, 0.7)` (`WIND_BORDER_INK`, `windBasemapMute.js`): the colour the owner was shown, `hsl(230, 25%, 14%)`, at
+  0.7. Only `line-color` moves, and a zoom interpolation keeps its stops; width, opacity, dashes, the casings and the names are
+  the style's own. It is laid and lifted by the basemap mute's own record, so it comes off exactly with the wind, on a theme
+  change, and wherever the mute stands down (a satellite photo or a weather wash showing under the wind; the mute's own kill or
+  its lever at 0). Dark never changes, by a lever either. Client only; no served number moves.
+- **Why (measured before anything was built; log 2026-10-12-wind-border-ink):**
+  - **The order was already right.** All three styles keep every `admin-*` line and every place name after the layer the wind is
+    inserted before. A pixel a glyph covers whole moves 0.00 to 0.27 L* under the wind in its slot and 23 to 98 L* with the wind
+    forced on top: no streak cuts a border or a name. The fault was the lines' colour.
+  - **The colour was the ground's.** Dark draws these lines a light grey on a near-black land, and the wind only adds light.
+    Light draws them pale lavender (`hsl(250, 90%, 80-85%)`) and beach mid grey (`hsl(230, 8%, 51-62%)`): once the field is on a
+    pale land, about the land's own lightness. A line's L* against the ground beside it, under field and particles, at zooms 4 /
+    6 / 8 (the real basemaps, in motion, device pixel ratio 1.5): dark 11.9 / 20.9 / 28.5; light 7.6 / 2.8 / 5.8; beach 4.0 / 4.7
+    / 3.0, with 28 to 76% of the line under 5 L* at any moment. Beach is the worse of the two at zooms 4 and 8.
+  - **The names need none.** Light and beach already draw state, country and settlement names near-black on a white halo, above
+    the wind. Nothing of theirs is changed.
+- **How the number was determined:** the ink was measured at 0.70, 0.85 and 1.00 before any product code (the bench's own paint
+  override): light 39.9 / 36.5 / 35.1, 49.2 / 44.8 / 46.4 and 58.9 / 53.6 / 58.4; beach 38.9 / 34.4 / 31.7, 47.9 / 42.3 / 41.7
+  and 57.2 / 50.5 / 52.1. **0.70 is the lightest strength measured and is at or above dark's line at every zoom in both themes**
+  (1.11 to 3.35 times dark's); it is the low end of the range the owner was shown (0.7 to 0.9). By extrapolation below the three
+  measured, the line would meet dark's at zoom 8 near 0.62 (light) and 0.65 (beach); that was not measured and not chosen.
+- **What it reads, built:** light 39.9 / 36.5 / 35.0 and beach 38.9 / 34.4 / 31.6, no (pixel, moment) pair under half its bare
+  contrast, under 0.5% under 5 L*. Map mode's own columns over every line of the map, over land: `retP` 0.68 / 0.70 / 0.66 to
+  1.05 / 0.76 / 0.73 in light and 0.62 / 0.68 / 0.63 to 1.07 / 0.74 / 0.67 in beach (dark 0.60 / 0.65 / 0.67).
+- **What it gives up, said plainly:**
+  - **The lines stay thin** (0.5 to 0.75 px at zooms 4 to 7, by the styles' own widths; the same as dark's). Read at device
+    resolution they are clear; a bolder line is a width change, a second variable, not made here.
+  - **It is stronger than dark's line, not equal to it:** 3.3 times dark's contrast at zoom 4, 1.7 at zoom 6, 1.1 to 1.2 at zoom
+    8. A dark line gains from a white streak under it and dark's light line loses to one, so no single strength mirrors dark at
+    every zoom; the floor was chosen (never below dark), not the match.
+  - **One ink for both themes.** Beach's own names are pure black and its map is warm; the slate ink was not tuned to it.
+  - **The mute's kill takes the ink off too.** An older kill keeps its meaning ("the map keeps its own colours", LESSONS L-V25);
+    the ink's own kill leaves the mute.
+  - **With the wind layer on top of the style** (the under-labels kill) the borders are under the wind and are left as the style
+    draws them: unmeasured.
+- **Kill:** `window.__RAW_DISABLE_WIND_BORDER_INK__ = true` (the style's own border colours). Lever:
+  `window.__RAW_WIND_BORDER_INK__ = 'rgba(27, 30, 45, 0.85)'` (any CSS colour; light and beach only). Both are read at the next
+  sync: a wind toggle, a theme change, or the map's next style change; they are not uniforms and do not act mid-frame.
+  Read-back: `window.__WIND_BORDER_INK__` (`applied` is true only with `layers` above 0, counted from the lines that took the
+  ink as the library holds them; otherwise `reason` says why).
+- **Also in this change, NOT asked for by the owner and said plainly: a theme change with the wind on now leaves the new theme
+  restyled.** An independent review of this change found, and a replay on the real library confirmed (`switch-run.js`), that
+  with the layer's handler as dev has had it since #299 the new theme is left UNMUTED (and would have been left un-inked) when
+  its style arrives after the layer's re-sync, which is what a style fetched over the network does: 3 of 3 changes in that
+  order, the read-back saying `applied`. The owner compares themes by switching them, so the ink would have been missing exactly
+  there. The layer now syncs on every `style.load` (two lines in `WebGLWindLayer.js`): 3 of 3 restyled in both orders. **Its
+  visible effect is the mute's, not the ink's: after a theme switch the ground under the wind is muted where it may not have
+  been.** That is the mute as #299 described it, not a new look, and it has no kill of its own (the mute's kill stands it
+  down). If the owner prefers the map they have been seeing after a switch, that is the mute's strength or kill to
+  move, not this line.
+- **Amended 2026-10-12 04:40Z (a correction by the session that wrote it; ledger `correction` of seq 1066):** "at or above
+  dark's line at every zoom in both themes" was true of the three zooms measured (4, 6, 8, in the served wind) and is NOT true
+  of zoom 9, which was read afterwards on a grid of wind and zoom (`border-run.js --scale 0.4 | 1 | 2.3 --zooms 4,6,9`): at
+  zoom 9 beach's inked line reads 0.96 of dark's in the served wind and 0.85 in near-calm air (4.7 kn under the lines); light's
+  1.11 and 0.95. Dark's own line is at its strongest there (31 to 42 L*: wide, on a dark land, under few streaks) and at its
+  weakest far out and in strong wind (12 at zoom 4, 15 at zoom 6 under 17 kn). The inked line holds 30 to 46 L* in every one
+  of the 18 cells: it does not move with the wind as dark's does. The number is not changed; whether beach should be laid
+  stronger to clear dark's line at zoom 9 (about 0.72 in the served wind and 0.8 in near-calm air, by the slope measured at
+  zoom 8; not measured at zoom 9) is the owner's, with the strength.
+- **Not decided (the owner's, once it has been seen in the app):** keep, turn off, or tune (the knobs: the strength, the ink's
+  colour a theme, the line's width). Not decided either, and not built: ink for the lesser labels the styles draw in mid grey
+  or blue (natural features, water names, points of interest); a casing of its own under the line.
+- **Evidence (log 2026-10-12-wind-border-ink):** the three style documents as served (layer order and paint); `border-run.js`
+  on the real basemaps before and after, beside dark, with the layer-order control; the built code against the candidate and its
+  kill; 18 of 18 offline crops under the kill the same PNG as `origin/dev`, dark's 9 of 9; map mode's columns with the app's
+  restyle run; before and after crops and two side-by-side clips at the owner's pixel ratio. Nothing has been seen in the app.
+
+### D-026 · Under the wind, light and beach draw the land at the sea's depth, and a streak over it takes the sea's strength; ON by default
+
+- **Decided:** by the owner, 2026-10-12 11:50Z, first-hand to the session that leads the lanes, on a prototype shown moving
+  beside dark and today's look: "merge #316 and go with F and the deeper land and open the pr". That a visual change the owner
+  asked for ships ON with a kill is D-020's standing rule. The depth and the strength rule below are the arm that was shown.
+- **Rule:** while the basemap mute is restyling the map (light and beach, the wind on, no imagery under it), the land's own
+  area colours take a factor on their OKLab lightness: **0.81 in light, 0.85 in beach** (`windBasemapMute.js`
+  `WIND_BASEMAP_MUTE.landL`), the muted sea's lightness. The lines drawn on the land under the wind (roads, contours) are muted
+  and deepened with it; a border line under the wind stays the style's own (D-023); the water, and everything above the wind,
+  are not touched. **Where the land is drawn deep, a streak over land is laid at the SEA's strength** (`windLandWhite`; D-022's
+  land strength, full, stands everywhere else): one ground, one strength.
+- **Why (measured; log 2026-10-12-wind-land-depth):** dark's land and sea carry nearly one ground under the wind (L* 33.5 and
+  42.5), so one streak fits both and the coast is drawn by lines. Light's and beach's land sat 12 to 17 L* ABOVE their sea,
+  half of it by the mute's own doing (it darkens the sea by 10.7 and 6.4 L* and left the land alone). On a speed ramp the land
+  was the largest gap to dark in both themes: under 10 kn light's streaks lifted the picture 0.14 to 0.56 of what dark's do
+  over land, and above 15 kn they flickered 1.1 to 1.2 times as hard (full white on a pale ground). Two grounds needed two
+  strengths, and their seam (the land mask's 20 km texel) drew a pale halo along every coast.
+- **What it reads, built** (dev + this change; lift against dark's at the same crop, before -> built): light's land 0.14-0.61 ->
+  0.39-0.74 under 12 kn and 0.58-0.92 -> 0.70-0.82 from 15 to 45 kn; beach's 0.27-0.91 -> 0.55-1.03 under 12 kn; the land's
+  flicker above 15 kn 1.1-1.2 -> 0.8-0.9 of dark's; the streak cores over land keep the ground's colour (0.88 to 1.03 of its
+  chroma; 0.73 to 0.97 before) at L* 64 to 73 (79 to 94); land and sea are one ground within 2 L*. The sea reads the same with
+  and without it, to the digit. Against dark's SEA, light's land now carries the same streak at every speed read (0.85 to 1.09
+  from 1.8 to 45 kn).
+- **What it gives up, said plainly:**
+  - **It does not reach dark's lift over LAND.** Dark's land is near black and its streaks there are 1.3 to 2 times its own
+    sea's. Light's land reads 0.39 to 0.82 of that. From 30 kn up it is a little LOWER than before (0.89-0.92 -> 0.77-0.82):
+    the ground gained room and the strength gave more back.
+  - **The land is visibly darker while the wind is on** (light's bare land L* 98 -> about 79; its ground under the field 60 to
+    77 -> 42 to 59), and the road network no longer stands out.
+  - **Light's colour-blind line over land goes from 5.6 to 5.1** (floor 5.0). It is the reason the land is not deeper: at a
+    factor of 0.76 it reads 4.9 and at 0.70, 4.4.
+  - **Beach's pale band is still pale over land** (0.47 to 0.54 of dark's lift from 26 to 39 kn): the field's own shape (the
+    beach lane's change).
+  - **The colours lane's rows (#318) and the beach lane's F were solved on the land before this.** Read together only in a
+    local preview, on a prototype of this change.
+- **Kill:** `window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true`: the land as the mute alone leaves it, the streaks' strengths
+  D-022's; under it the paint writes and the strengths are dev's, byte for byte. Lever: `window.__RAW_WIND_BASEMAP_LAND_L__`
+  (0.5 to 1.2). Both are read at the next sync (a wind toggle, a theme change, a style change), as the mute's are. The mute's
+  own kill, its lever at 0, dark, and imagery under the wind leave the land the style's own. **An older kill draws its old
+  picture, the land included:** the land goes deep only where the white streak is laid by the ground, so under D-022's kill,
+  the white streak's, dark's rules' and every hold the land is the mute's alone and the strengths are full on both grounds
+  (an independent review found the first build left the land deep under them).
+- **Read-back:** `window.__WIND_BASEMAP_MUTE__.landL` is 0.81 or 0.85 (1 when the land is the style's own) and `.landLines` the
+  count of lines that went down with it; `.layers` is unchanged (9 in light, 17 in beach on the real styles);
+  `map.getPaintProperty('land', 'background-color')` is an `rgba(...)` darker than the mute alone writes. The mark program's
+  `u_white` reads equal components where the land is deep (`[0.7416, 0.7416]` in light).
+- **Not decided (the owner's, with these numbers):**
+  - **The rest of the land's gap.** Two tunings were measured and neither is built: the land's streak at 0.77 on this depth
+    reads 0.86 to 1.02 of dark's land from 9 to 18 kn in light, and brings a seam back along the coast (a streak 40% stronger
+    than the sea's on equal grounds); a land DEEPER than the sea, as dark's is (0.70), reads 0.87 to 0.95 with no seam, and
+    breaks light's colour-blind floor over land (4.4) with today's palette. A darker mark over a pale ground is what the
+    reference maps do on light basemaps; not built.
+  - **The pace of light's build-up** (its full depth and its strongest colour are reached by 10 kn; dark's picture builds to
+    about 26 kn) and **beach's colour from 15 to 32 kn** (nearly twice dark's): the field's, nobody's change yet.
+- **CORRECTED 2026-10-12, after the independent review of #321 (the wind's see-through canvas; D-027 on its own branch):
+  the "Why" and "What it reads" above are the mirror probe's LIFT, read on frames that clipped bright streak cores, and that
+  number does not compare themes.** The probe takes each pixel's darkest moment as the ground; dark's streaks dip under their
+  field and light's and beach's never come back to theirs, so its lift read dark high and the other two low at once. Measured
+  again on corrected frames as light ADDED (the mean picture minus the same crop drawn with the colour field alone), with every
+  open change, 3 to 39 kn: **over land light's streaks were never weaker than dark's.** Without this change light's land adds
+  1.1 to 1.55 times what dark's does and beach's 1.15 to 1.84 times; with it, light 1.0 to 1.2 and beach 0.9 to 1.2. So what
+  this change does to the streaks is bring them DOWN to dark's added light, on one ground with the sea; a streak's core over
+  land then stands 1.4 to 3.4 L* under dark's from 6 to 18.5 kn on the 1000 px frames (15 against 18 at 5.9 kn) and 4.7 under
+  on lossless crops at 15.3 kn (24.4 against 29.1), and light's line contrast over land is 0.57 of dark's (its land, deep as it is, is still 11 L* lighter than dark's). The
+  owner's pick was of the LOOK, from a prototype moving beside dark; that stands. The stated reason does not. The seam at the
+  coast and the one ground are as measured. (This session's log, the dated correction; #321's log, "After the independent
+  review", holds the tables.)
+- **Evidence (log 2026-10-12-wind-land-depth):** three speed ramps read at 14 speeds, land and sea, the three themes, cover,
+  flicker, lift, ground lightness and chroma; the build against its kill in the same capture; the two tunings; the palette
+  checker at three depths; `windLandDepth.test.js` (the tests first), `windBenchRamp.test.js`.
+### D-027 · The wind leaves the map's canvas opaque; ON by default
+- **Decided:** by the lead session of the light/beach wind lanes, 2026-10-12, on the owner's standing instruction and their
+  verdict of the same day. The owner, 02:58Z: "We need to make light mode wind animations & beach mode wind animations equivalent
+  to dark modes." The owner, 12:28Z, on the deployed build: "I just did a visual check for wind on beach and light modes, and I
+  still do not visually see the improvements yet." The owner, 12:36Z: "This should work after all the agents worked on this.
+  Study your research and best practices more." **The owner did not name this change and has not seen this build.** That it ships
+  ON with a kill is D-020's standing rule as this session reads it: the picture it draws in light is CLOSE TO the samples of
+  light's white streak the owner chose from, not the same (corrected after the review, below): those samples were clipped at the
+  brightest streak cores, so the app's cores will be brighter and more coloured than any sample showed.
+- **Rule:** a pass the wind draws into the map's own framebuffer blends the colour as it did and leaves the canvas's alpha as the
+  map drew it (`blendIntoMap`, `windCanvasAlpha.js`: `blendFuncSeparate(src, dst, ZERO, ONE)`). Two passes: dark's colour field,
+  and the trail composite that dark, and since dark's rules (D-020) light and beach, are drawn with. No colour the wind writes
+  changes. Kill: `window.__RAW_DISABLE_WIND_OPAQUE_CANVAS__ = true` (read each frame; dev's blends, call for call). Client only;
+  no served number moves.
+- **Why (log 2026-10-12-wind-canvas-alpha):** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`.
+  Both passes used `blendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)`, which blends the alpha by the colour's factors and leaves
+  `1 - a + a x a` in an opaque canvas. Read on the bench: 0.61 at the least and 0.69 on average in dark, 0.75 and 0.90 in light
+  and beach. Behind the map `MapPage.js` lays black in dark AND beach and near white (gray-50) in light. So dark and beach showed
+  the colours as drawn, and light showed the page's white through every streak. Light on dev, over its own page, against dark at
+  the same sea crop (corrected frames; the mean picture minus the same crop drawn with the field alone): the streaks add 27.3 L*
+  where dark's add 8.5, and a streak's core reads L* 94 (paper white) where dark's reads 70. With the fix: 12.3 and 72.
+- **Why two days of work did not show in the app:** the wind bench saved every frame from the BARE canvas, never over the page.
+  So no measurement and no sample of a light look that runs dark's composite (the glow of 2026-10-10 by the code's path, not
+  re-measured; dark's rules and the white streak from 2026-10-11 on, measured) was the picture the app drew. **And a bare-canvas
+  frame is not the canvas's own colour either (the review):** the encoder un-premultiplies a pixel (clamped at 255) and fills with
+  black, so a pixel held min(channel, alpha). That clipped the brightest streak cores darker in EVERY theme (the review, one scene:
+  6% to 26% of pixels, 1.7 to 3.6 L* each on average; this session's own older lossless crops: 29% of dark's sea pixels, 15% of
+  dark's land, 7% of light's). So beach's and dark's samples were not exact either, and no number read from a saved frame with
+  streaks on it before this change is exact, dark's bar included. What IS exact: on the corrected bench light with the fix is dev's
+  light over a true black page, 90 of 90 frames. What beach lacks on the site is the open changes (#315, #319, #320), none merged.
+- **What it costs:** over LAND in light air light's streaks add about half the light they did: 7.5 L* on dev's page, 3.8 with the
+  fix (corrected frames, against the field alone). Dark's add 3.3 there, so this is not a shortfall against dark. (As first
+  written this said "0.70 of dark's lift, 0.42 with the fix; merge with #320": those were the probe's lifts, which are not
+  comparable across themes, LESSONS L-V73. The two changes do not have to merge together.)
+- **Not decided here, the owner's:** the streaks' strengths. D-022 set them by a ratio of the probe's lifts, on clipped frames.
+  On corrected frames, against the field alone, with every open change (6 to 39 kn): a streak's CORE stands the same height over
+  the field over the sea (light within 1 L* of dark to 18.5 kn, beach within 4); light adds 1.3 to 1.7 times the light dark does
+  over the sea and beach 1.0 to 1.8 times, and both 0.9 to 1.2 times over the deeper land, because their pixels do not come back
+  to the field between streaks (from 12 kn up the darkest moment sits 1 to 12 L* over the field, where dark's sits 2 to 3 under it
+  to 18.5 kn). Not retuned: one visual variable at a time, after this is seen in the app.
+- **Evidence (the log):** the canvas's alpha with and under the kill in three themes; frames with and under the kill at the same
+  run position, by hash (dark 90 of 90 the same bytes, beach 90 of 90, light 0 of 90); the null control and the order control;
+  real browser screenshots of one light frame over the two page colours; the probe beside dark on both; the independent review
+  (it could not break the engine change; its behavioural test, now `windCanvasAlphaTrace.test.js`, checks every draw into the map
+  on 20 lever sets) and the re-measure on corrected frames it led to. Nothing seen in the app.

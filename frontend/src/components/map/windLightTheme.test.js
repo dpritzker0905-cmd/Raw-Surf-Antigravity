@@ -77,13 +77,13 @@ describe('wiring', () => {
     expect(HEATMAP_FS).toContain('gl_FragColor = u_field_tint > 0.0 ? vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0) : vec4(fieldRgb * alpha, alpha);');
   });
   it('the field pass multiplies (keeping the destination alpha) only when tinting', () => {
-    expect(src).toContain('if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');
+    expect(src).toContain('if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');   // untinted: the colour's blend as before, the canvas's alpha kept too (windCanvasAlpha.js, D-027)
     expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_tint'), _ft);");
   });
   it('every premultiplied site follows _premul (the fade, the composite blend, the clean-buffer flip), never _v2.theme alone', () => {
     expect(src).toContain('if (this._v2Premul !== _premul) { this._v2Premul = _premul;');
     expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _premul ? 1 : 0)");
-    expect(src).toContain("gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);");
+    expect(src).toContain("blendIntoMap(gl, _premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);");
     expect(src).toContain("_v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z))");
     expect(src).not.toMatch(/u_premul'\), _v2\.theme \?/);
   });

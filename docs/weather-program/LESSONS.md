@@ -903,6 +903,52 @@ A stored estimate can be estimated again in a browser branch with different sour
   colour-blind passes bought, and the legend had moved with them. Rules: (1) a colour table is changed with the checker in the
   loop, not after the screenshot; (2) the field and the legend move together or not at all; (3) when a look and a floor pull
   apart, solve with the floor as a constraint (here: 5.1, within 4 degrees of dark's hue) and bring the owner both. (same log)
+- **L-V46 · Read where a thing is drawn before choosing how to fix it, and prove the reading with a control.** The brief for the
+  border ink carried a fair hypothesis: a full-strength streak is opaque at its core, so a border under the wind is cut whatever
+  its colour, and the layer ORDER might matter more than the ink. The style documents and `windLayerBeforeId` said the borders
+  and the names were already above the wind in all three themes; the probe then showed it in pixels (a pixel a glyph covers whole
+  moves 0.00 to 0.27 L* under the wind) and showed it could have seen the opposite (23 to 98 L* with the wind forced on top). The
+  whole fault was the colour, and no layer was moved. Rules: (1) a hypothesis in a brief is a thing to measure first, not a
+  design; (2) "it does not happen" needs the control in which it does; (3) read the style's order from the style, as served,
+  for EVERY theme: beach's lines were a mid grey, not the pale tint read on light. (log 2026-10-12-wind-border-ink)
+- **L-V47 · A column over everything cannot see a few things: score the object the owner named.** Map mode's line columns read
+  light and beach level with dark over land (`retP` 0.62 to 0.70 against 0.60 to 0.67) while their borders stood 2.8 to 7.6 L*
+  off the ground and the owner could not see them: map mode scored 75,000 to 148,000 edge pixels over land in a view (roads,
+  coasts, rivers, label strokes), and the border lines' centres were 440 to 4,704 pixels of it. Read alone (the lines found from
+  the style as a coverage mask, each scored against the ground beside it) the same pictures said 0.10 to 0.64 of dark's. Rules: (1) when the owner names a thing, the instrument's unit is that thing; (2) find it from the
+  source that draws it (the style), not from the picture, so a line that has vanished is still counted; (3) keep the general
+  column beside it: it moved too, and it is what says nothing else was harmed. (same log)
+- **L-V48 · An older kill's meaning is written in its tests: run the neighbours' tests before designing a new kill beside it.**
+  The ink was first built with a kill independent of the mute's, and the mute's own test ("the kill switch restores on the next
+  sync") failed: with `__RAW_DISABLE_WIND_BASEMAP_MUTE__` set, a border was still inked, and that kill is documented as "the map
+  keeps its own colours". L-V25 already says an older kill steps back past what was built on it; I had read the lesson and still
+  designed past it. Rules: (1) a new restyle that rides an older one's machinery is laid only where the older one is drawing;
+  (2) the first run after the first green is the WHOLE file the code lives in; (3) the newer kill may leave the older feature
+  on, never the reverse. (same log)
+- **L-V49 · A bench mode is the app only in what it runs: write down what each mode skips, at the mode.** Two were found while
+  building border mode, and neither had a line in the README. Map mode never ran the app's restyle: the basemap mute went into
+  path mode and then flow and motion modes, and `shoot` drew the wind over the style's own colours for every light and beach
+  number taken there since 2026-10-09. And the engine sizes a mark by the PAGE's device pixel ratio while the bench map's canvas
+  was always 2: at the default a mark is half its app size in CSS pixels, at `--dpr 1.5` three quarters, and no frame was the
+  owner's 1.5 in both. The kin of L-V21 (give the instrument the app's layer stack) and L-V44 (the instrument runs on the owner's
+  screen). Rules: (1) an instrument change is opt-in when recorded numbers were taken the old way, and the README says which
+  way each number was taken; (2) a ratio is one number in the page AND in the canvas, or it is two; (3) what such a gap did to
+  earlier numbers is a measurement owed, not a guess. (same log)
+- **L-V51 · Test the CALLER's order of events, not only the module's states; and a read-back that counts the plan cannot see a
+  write that was overwritten.** With the handler dev has had since #299, the basemap mute is left OFF after a theme change when
+  the new style arrives after the layer's re-sync, which is what a style fetched over the network does (replayed on the real
+  library and styles with dev's module and handler: 3 of 3 in that order; not observed in the app): the layer re-synced a frame
+  after the change, on the old style under the new theme's name; the new style was then diffed in over the restyle; and the
+  stale check, which compares the record and not the paint, answered "nothing to do". `__WIND_BASEMAP_MUTE__` said `applied`
+  throughout, so a read-back taken after a theme change would agree with a map that was not muted. Three things hid it: the module's own tests ran the order that works (the diff, then a sync); every bench mode
+  built a fresh map a theme, so the owner's own way of comparing themes had no instrument; and the read-back reported what was
+  planned. It was found by an independent reviewer walking the caller by hand, and then observed in the first run of a short
+  replay (19 ms to the re-sync, 121 ms to the style). Rules: (1) for code driven by events, write the test in the order the
+  caller fires them, and find that order by reading the caller and the library, not the module; (2) an asynchronous step between
+  "the name changed" and "the thing arrived" is a race until proved otherwise: force both orders; (3) a read-back that can be
+  true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
+  them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
+  compare themes by switching, and nothing switched. (same log)
 - **L-V50 · A look calibrated at one wind speed does not hold at another: sweep the wind as well as the zoom, and read the
   scene variable WHERE THE CROP SITS.** D-022's sea strengths were solved on one view of one fixture: beach 0.77 read 1.01 of
   dark's lift. On the deployed build it read 1.37, and this session recommended 0.55 from that one read. It then called the
@@ -944,3 +990,54 @@ A stored estimate can be estimated again in a browser branch with different sour
   never ship. Rules: (1) merge every lane's committed work into a local preview branch (never pushed) and capture from that;
   (2) say in the caption what each pane includes and what is not in yet; (3) show before and combined in the same clip, beside
   the reference. (same log)
+- **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
+  tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
+  dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower
+  color wind is more transparent than faster", a profile of cover, flicker, lift, ground lightness and ground chroma at 14
+  speeds from 1.8 to 45 kn, land and sea, took one afternoon and showed three things no tuned number had: over land under 10 kn
+  light's streaks lift the picture a seventh to a half as far as dark's (most land, most days); light spends its whole
+  lightness range by 10 kn and lays its strongest colour in its lightest winds, where dark builds to 26 kn; and beach is twice
+  as colourful as dark from 15 to 32 kn. D-022's "no white can lift a pale land" had been read at one speed. Rules: (1) the
+  first instrument on a "make X look like Y" task is the profile of every visible quantity along every scene axis, X beside Y;
+  (2) a conclusion about a ground or a speed names the range it was read on; (3) when the owner's eye and a tuned number
+  disagree, the number is measuring the wrong thing: widen the profile before defending it. (log 2026-10-12-wind-land-depth)
+- **L-V71 · Before choosing between two designs, run the bars each must clear at the candidate values.** Two depths for the
+  land were on the table: the sea's (0.81) and dark's own relation, deeper than the sea (0.70). The second matched dark's lift
+  with no seam and was the better mirror on every picture measured; one run of the palette checker at that depth read light's
+  colour-blind line over land at 4.4 against a floor of 5.0 (5.1 at 0.81, 4.9 at 0.76). The choice was made by a bar nobody
+  had run until both arms were filmed. Rule: the checker (and any other floor) is run across the candidate values at the
+  START of a design choice, as cheaply as it is run on a finished one. (same log)
+- **L-V72 · An instrument that reads a canvas must lay behind it what the app lays behind it. The bench drew light over black
+  for two days; the app's light page is near white.** The map's canvas is premultiplied: the screen shows `rgb + (1 - alpha) x
+  page`. Two of the wind's passes left the canvas's alpha at 0.61 to 0.90, the bench saved frames from the bare canvas, and
+  `MapPage.js` lays black behind dark and beach but gray-50 behind light. So in light every bench number and every sample of a
+  look that runs dark's composite (the glow, 2026-10-10; dark's rules and the white streak, 10-11 on) showed a picture the app
+  did not draw. A bare-canvas frame is not "the canvas over black" either: the encoder un-premultiplies (clamped at 255) and then
+  fills, so a pixel held min(channel, alpha) and the brightest streak cores were clipped darker in every theme, dark's bar
+  included (found by the independent review, after this lesson's first wording had called the old frames "over black"); the owner found light "washed out" live on 10-10 (as that session's memory records it) and said
+  "I still do not visually see the improvements yet" on 10-12, and both times the tuning went on against the bench. One
+  real screenshot of the page over each colour settled it in an afternoon. Rules: (1) an instrument's frame is the canvas LAID
+  OVER the page behind it (drawn onto an opaque canvas of the page's colour, never exported bare), and it prints the canvas's
+  alpha, on every read it scores, not only on the frames it saves; (2) the app's fact the instrument copies (here the
+  page's class) is pinned by a test beside the copy; (3) **when the owner's eye and the instrument disagree a second time, the
+  instrument is the suspect: before another round of tuning, compare one real screenshot of the app's own composition with the
+  instrument's frame of the same thing;** (4) a pass drawn into a canvas someone else owns sets the alpha's blend on purpose
+  (`blendFuncSeparate`), never by the colour's factors; (5) compare two arms at the same run position (a theme's first run on a
+  fresh map differed from its second in 15 of 90 frames, whichever arm was which). (log 2026-10-12-wind-canvas-alpha)
+- **L-V73 · A level measured as "the darkest moment of the thing present" is not the level with the thing absent; and a
+  measure that reads two themes differently cannot rank them.** The mirror probe takes each pixel's darkest moment as the ground
+  a streak is laid on, and its `lift` is the mean picture over that. Beside the same crop drawn with the colour field ALONE (a
+  2 x 2 particle pool), on corrected frames (L-V72) with every open change, 3 to 39 kn: in DARK the darkest moment sits 2 to 4 L*
+  UNDER the field over the sea to 18.5 kn (lossless at 15.3 kn: 19% of pixel-instants are 1.5 to 3 L* under it; dark's marks carry
+  the legend's colour and take a little from the field beside their core); in LIGHT and BEACH it sits 1 to 12 L* OVER the field
+  from 12 kn up (their pixels do not come back to the field between streaks). So the probe's lift over-read dark and under-read
+  light and beach at once: over land in light air it said light lifts 0.15 to 0.55 of what dark does where the light actually
+  added is 1.1 to 1.2 times dark's, and that reading was the stated reason for a change (D-026). By light added over the field
+  alone, light and beach are at or above dark nearly everywhere (0.9 at the least); what differs is that dark's streaks return
+  to the field and theirs linger. Rules: (1) a reference level is measured with the thing absent, not inferred from the minimum of the thing present;
+  (2) before a number ranks two arms, check it reads both the same way: here, compare the probe's ground with the field alone in
+  each theme; (3) a claim about a 1 px line is read on lossless crops at device resolution (the JPEG at 1000 px rings: at
+  15.3 kn over land it read dark's dip as 2.0 L* where lossless reads 0.6); (4) when a ratio set a strength or justified a change, the
+  bar is re-derived before either is trusted again. (As first written, on clipped frames and one ramp, this lesson gave "3.4 to
+  5.5 L* low in dark, true in light" and "light at 1.6 to 1.7 times dark": the direction stood, the numbers did not. Log
+  2026-10-12-wind-canvas-alpha, "After the review".)
