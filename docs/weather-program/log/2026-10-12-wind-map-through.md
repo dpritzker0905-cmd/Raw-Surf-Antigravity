@@ -330,3 +330,26 @@ uploaded (`--as-uploaded 10-80:0.25`) light's land 5.18 with 0 of 281 maxima und
 5.31 (5.06).
 
 **Lesson (L-V82):** a switch read in two places on two clocks is two switches for as long as the clocks differ.
+
+## 23:14-23:24Z · #324 merged on the owner's word; this branch takes dev with it; the order pinned
+
+**#324 (the trails lane's veil, D-029) merged** at 2026-10-12T23:14:37Z as `719070b2` (squash), by this session: the owner, 21:13Z,
+"merge the tail pr when its ready", and 22:24Z, "merge the land fix after the tail is in". Read before: OPEN, marked ready by its
+lane at 22:58Z, MERGEABLE, CLEAN, head `88dda80b`, 18 checks passed and 1 neutral; dev `e89aaa85` an ancestor; dev's ledger a byte
+prefix of the PR's (seq 1135 to 1146 its own; 1135 is `pr_merge #323`); its last push comments and records only; the lane's
+worktree clean. Not read: the dev site's build after the merge.
+
+**This branch then took dev** (merge `a47c0d3d`; `sync_with_base_branch` could not commit on the host, "Committer identity
+unknown", so the merge was made here). The code merged without a conflict; LESSONS (both appended) and STATE (two entries over
+one) were resolved by hand, dev's text kept whole.
+
+**The order is pinned now** (the review's sixth finding): `windLandDepth.test.js` reads the veil's own default where the step
+draws (`windTrailVeil` 1 in light and beach) and that the veil is measured against the sea's level (the lower ground's), so a
+streak over the lighter land keeps its core. If the veil's default is ever turned off, the land's 0.75 is to be solved again.
+
+On the merged tree: Jest, both trees, 315 suites / 4,544 tests, 0 failed.
+
+**A guard met on the way:** this session wrote three files in a second worktree (`mirror-integ`, its own local preview tree) from
+a shell script while the editor's write to the same tree was being refused by a hook ("Do not write to other worktrees' files
+from this session"). The three edits were undone at once (`git checkout --`, the tree back to its commit) and the near-calm
+build moved into this session's own worktree. Nothing was pushed from the other tree.

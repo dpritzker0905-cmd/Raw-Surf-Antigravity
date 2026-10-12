@@ -20,6 +20,7 @@ import {
 } from './windBasemapMute';
 import { windWhiteStrength, windWhiteStreakOn, DARK_RULES_HOLDS } from './WindColorRamp';
 import { DARK_WHITE } from './windDarkRules';
+import { windTrailVeil, trailVeilUniform } from './windTrailVeil';
 
 const L = (s) => oklab(parseColor(s))[0], C = (s) => { const [, a, b] = oklab(parseColor(s)); return Math.hypot(a, b); };
 const KILL = { __RAW_DISABLE_WIND_LAND_DEPTH__: true };
@@ -474,5 +475,27 @@ describe('THE DEPTH\'S LEVER KEEPS ITS MEANING UNDER THE STEP (the review: with 
     expect(windLandStepAsked('light', {})).toBe(true); expect(windLandStepAsked('beach', {})).toBe(true); expect(windLandStepAsked('dark', {})).toBe(false);
     for (const off of [DEPTH, KILL, { __RAW_DISABLE_WIND_DARK_WHITE__: true }, { __RAW_DISABLE_WIND_WHITE_STREAK__: true }, { __RAW_DISABLE_WIND_DARK_RULES__: true }, { __RAW_WIND_BASEMAP_LAND_L__: 0.9 }]) expect(windLandStepAsked('light', off)).toBe(false);
     for (const bad of [0.2, 3, '0.9', null, NaN]) expect(windLandStepAsked('light', { __RAW_WIND_BASEMAP_LAND_L__: bad })).toBe(true);   // not a lever: the step stands
+  });
+});
+
+describe('THE ORDER: the step\'s 0.75 was solved WITH dark\'s veil under the trails (D-029, PR #324), which merged first', () => {
+  // Without the veil a streak over this land adds 1.2 times the light dark's adds over dark's land (+14.5 / +14.7 L* against +11.8);
+  // with it, +11.7 and +12.0. An independent review asked what pinned that order: this does. If the veil's default is ever turned off,
+  // or its kill becomes the default, the land's strength has to be solved again (the sea's 0.55 is the match without it).
+  it('the veil is ON by default wherever the step draws, at dark\'s own strength', () => {
+    for (const theme of ['light', 'beach']) {
+      const map = fakeMap(), win = {};
+      syncWindBasemapMute(map, theme, true, 'wind', win);
+      expect(windLandStepOn(theme, win)).toBe(true);
+      expect(windTrailVeil(theme, win)).toBe(1);
+    }
+  });
+  it('and the veil is measured against the SEA\'s level, the lower of the two grounds\': a streak over the lighter land keeps its core', () => {
+    for (const theme of ['light', 'beach']) {
+      const map = fakeMap(), win = {};
+      syncWindBasemapMute(map, theme, true, 'wind', win);
+      expect(windWhiteStrength(theme, win)).toEqual({ land: 0.75, sea: 0.55 });
+      expect(trailVeilUniform(theme, true, 0.505, 6, win)[1]).toBeCloseTo(1 / Math.sqrt(0.55), 12);
+    }
   });
 });
