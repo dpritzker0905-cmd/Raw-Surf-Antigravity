@@ -643,3 +643,49 @@ pass 800 lines. Single-file three-way merges in a scratch folder (dev `74417b5a`
   #319 CONFLICTING; #320 MERGEABLE. Dev is brought into this branch once, at the leading session's signal after #319, so this
   branch's ledger lines are re-appended once and not after each of the four merges. The gates in this section were run on the
   tree with dev `74417b5a` merged in.
+
+## 17:20Z · A TRIAL merge of dev (#321, #320, #315) into this branch, local only: light's colour-blind line over #320's land reads 5.006
+
+Asked by the leading session (its message, 17:05Z): work the rebase out on a trial so the real one is minutes, and say what the
+checker prints for light on a tree that holds #320. Local branch `scratch/light-path-trial` (`453a5a42` = this branch `576ed6f4`
++ dev `89f0dc33`), never pushed. Nothing on this branch or on the PR moved.
+
+- **The reading the trial was for.** `node check.mjs --strict` on the trial tree, light: no red line. Colour-blind, the weakest
+  neighbouring tints, unrounded (coloraide in the checker's own `.venv`, the checker's JSON):
+
+  | light, on the trial tree | over the sea | over the land |
+  |---|---|---|
+  | as it will draw (this change + #320's land) | 5.130 (21-27 kn, protan) | **5.006** (21-27 kn, protan); then 5.039 (27-33 kn), 5.053 (40-47 kn) |
+  | under this change's kill (`--before-path`) | 5.511 (40-47 kn, tritan) | 5.053 (40-47 kn, deutan) |
+  | under #320's kill (`--before-depth`) | 5.130 | 5.503 (21-27 kn, protan) |
+
+  **Not under the floor of 5.0, and no margin: 0.006.** The checker prints "5.0" and "[ ok ]" (it gates on the unrounded value).
+  This session's model said 5.01 (14:28Z). Dev without this change reads 5.053 there, so the deep land takes most of the
+  margin (5.50 to 5.05) and this change the rest (5.05 to 5.01). The legend's lines are unchanged (11.7; 5.4 colour-blind).
+  `--strict` exits 1 for beach's two red lines alone, dev's own (3.1 over the sea, 2.9 over the land).
+- **No test in CI holds this line on the deep land.** This change's own floor tests score the land as the mute alone leaves
+  it (they pass at 5.4 and above), and `windLandDepth.test.js` scores no colour-blind distance. Only the checker reads it. Not
+  fixed here; listed for the leading session.
+- **What the trial needed, file by file** (scripts kept in this session's scratch folder for the real merge):
+  - `WindColorRamp.js`: both imports; dev's `setWindLandDepthGate(...)` line after `windWhiteStrength`, then `windLightPathOn`.
+    782 lines with #320 (the cap is 800; #319 adds 14 at its head today).
+  - `windDarkRules.test.js`: the ORTHOGONAL list holds dev's `__RAW_DISABLE_WIND_LAND_DEPTH__` and this change's kill.
+  - `check.mjs`, `mirror-model.mjs`: dev's loader (the basemap mute first, `windLandWhite` and `setWindLandDepthGate` handed
+    to the ramp source, `--before-depth`, `--land-l`) with `LIGHT_PATH` and `lightTables` handed in too, `resolveLegendRamp`
+    handed out, and `--before-path` beside `--before-depth`.
+  - `windLightPath.test.js`: ONE test failed on the merged tree and was re-pinned there: it pinned the engine's source line
+    `else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply`, which #321 rewrote as
+    `else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); ...`. Read in `windCanvasAlpha.js`: `blendIntoMap` hands the
+    colour's two factors through in both of its arms and keeps only the canvas's own alpha, so dark's field still lands at
+    alpha squared. The re-pin also pins those two lines of `windCanvasAlpha.js`.
+  - The bench's `page/map-entry.js`, the README and `windDarkWhite.test.js` merged with no conflict.
+  - The records: D-024 before dev's D-026 and D-027; L-V52 to L-V54 between dev's L-V50 and L-V60; STATE's Now bullets with
+    dev's newer ones first; dev's ledger taken and this branch's seven lines re-appended after its head (seq 1075-1081 became
+    1099-1105 on the trial; they will move again once #319 is on dev).
+- **Gates on the trial tree:** Jest on both trees 311 suites, 4,349 tests, 0 failed (after the re-pin; 1 failed before it);
+  `check_eslint.js` exit 0; `loc_ratchet.py` New 0, Regressed 0; the production build exit 0; `action_ledger.py verify` OK
+  (1105 entries); `memory_audit.py --docs-only` 0 FAIL; `mirror-model.mjs` runs with `--before-path` and `--before-depth`.
+- **Left for the real merge** (after #319 is on dev, at the leading session's signal): #319's edits to `WindColorRamp.js`
+  and to the two loaders; the `pr_merge #319` line; STATE's ledger head and the seq numbers cited in STATE (the read-back
+  commitment); the same gates and the same checker read again, on that tree.
+- **Not checked:** nothing was seen in the app; the trial's bench was not run (no frame was made).
