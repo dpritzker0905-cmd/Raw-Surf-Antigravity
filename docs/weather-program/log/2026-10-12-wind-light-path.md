@@ -498,3 +498,22 @@ Relayed by the session leading this work (its message, about 14:16Z; its branch 
   5.13). The what-if above shows it is not needed if the ground may be lighter: with the sea's chroma held to 26 all the way to
   27 kn the floor reads 6.0.
 - #318 at this time: head `12d8748e`, MERGEABLE, checks clean, dev still at `74417b5a`.
+
+## 14:28Z · A model read for the land lane: this change's rows over a land at PR #320's depth (NOT built, not measured in motion)
+
+Asked by the leading session, because beach's new field (#319) reads 4.69 over its deeper land against the bar of 5.0. The
+built tables as they are, the checker's composite and colour-blind models, light's muted land with its lightness scaled 0.81
+(the app's own `muteColor`, the factor PR #320 sets for light; bare land L* 93.4 to 72.5):
+
+| | over today's land | over the 0.81 land | over the sea (unchanged) |
+|---|---|---|---|
+| this change (#318), colour-blind | 5.50 (21-27 kn, protan) | **5.01** (21-27 kn, protan) | 5.13 (21-27 kn, protan) |
+| before it, colour-blind | 5.60 (55-63 kn, tritan) | 5.05 (40-47 kn, deutan) | 5.51 (40-47 kn, tritan) |
+| this change, normal-vision | 9.6 | 8.2 | 8.0 |
+
+- **Not under the floor, and no margin:** 5.01 on the deep land, with 27-33 kn at 5.04 and the kept 40-47 kn rows at 5.05. The
+  rows before this change read 5.05 there too, so the land's depth is what takes the margin, in both.
+- Ground this change lays over the 0.81 land at 3 / 6 / 10 / 16 / 21 / 27 / 33 kn: L* 55.5 / 50.1 / 49.9 / 46.1 / 46.1 / 46.1 /
+  41.0: the sea's own levels (50.2 / 46.2 from 6 and 16 kn): one ground.
+- If #320 and #318 are both on dev, light's rows want re-solving with that land in the loop to get the margin back. Held, at
+  the leading session's word, until the owner has seen the canvas fix (#321) and the deep land (#320) in the app.
