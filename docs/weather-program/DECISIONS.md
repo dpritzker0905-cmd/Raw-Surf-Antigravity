@@ -708,6 +708,14 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
     gale band's 27, 33 and 40 kn are 8.9, 6.2 and 2.6 L* deeper. The same in kind as stated above, a little smaller in size.
   - **The palette checker, water / land:** 5.0 / 5.0 as drawn (exit 0); 5.0 / 5.3 with `--before-depth`; before the path 3.1 / 2.9
     (what dev draws from #320's merge until #319's) and 3.1 / 3.2.
+  - **Found 17:23Z, after the merge, and not known when the owner picked: as UPLOADED the deeper land's line is under the bar.**
+    The checker reads the table (5.02 over the deeper land; no pair under 5). Quantised into the 256-entry 8-bit texture the engine
+    uploads, the same line reads 4.89 at a 50 kn maximum and 4.87 at a 75 kn maximum, between 4.79 (65 kn) and 5.00 (20 kn) across
+    maxima from 20 to 100 kn; the pairs under 5 are 16-21 kn (protan, the weakest), 27-33 kn (protan), 6-10 kn and 10-16 kn
+    (deutan). Beach before its path reads 2.84 there. The re-solve put five of the land's pairs on the bar at once, so rounding
+    tips some under; the sea has one pair near the bar (5.05; as uploaded 5.01 and 4.98). The as-uploaded read of the land had
+    been taken only on the land before #320 (over 5.2). **Not changed here:** a re-solve with margin (the table at about 5.2 on
+    both lands) would put the uploaded read over 5; it would move the bytes the owner picked from the film. The owner's call.
 
 ### D-026 · Under the wind, light and beach draw the land at the sea's depth, and a streak over it takes the sea's strength; ON by default
 

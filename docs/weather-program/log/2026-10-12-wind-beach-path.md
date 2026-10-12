@@ -738,3 +738,42 @@ sea (5.05 on the table; as uploaded 5.01 at a 75 kn maximum and 4.98 at a 50 kn 
 **Not done, not verified.** No frame was taken of the merged tree by this session (the lead's combined-build captures stand for the
 motion). Nothing of this build has been seen in the app. The read-back on the deployed build is still owed (the commitment,
 due 2026-10-19).
+
+## 17:23Z · FOUND after the push: as uploaded, the deeper land's colour-blind line is under the bar (the table holds it)
+
+**What prompted it.** A message from the lead (written before it had this lane's reply) repeated the sea's as-uploaded numbers for
+its report to the owner. Re-reading the test that pins them: its land read ("the land holds 5.2") is taken on the land the mute alone
+leaves, which stopped being the default when #320 merged. The read had never been taken on the deeper land. The entry above and the
+message that reported the merge said "5.0 over land" with no such caveat, while giving one for the sea. That was an omission of
+this lane's, in the trial and in the merge.
+
+**Measured** (the method of the pinned sea read: `buildFieldRampTexture` at a given maximum, the 256 texels read back as 8-bit,
+linear between texels, each Beaufort stop composed over the land times 0.85 by beach's law, then the three colour-blind views and
+CIEDE2000):
+
+| | The weakest neighbouring pair |
+| --- | --- |
+| The table (what the palette checker reads) | 5.02 (33-40 kn, deutan); no pair under 5 |
+| As uploaded, 50 kn maximum | 4.89 (16-21 kn, protan); also under 5: 27-33 kn protan 4.95, 6-10 kn deutan 4.99 |
+| As uploaded, 75 kn maximum | 4.87 (16-21 kn, protan); also 6-10 kn deutan 4.94, 27-33 kn protan 4.95, 10-16 kn deutan 4.98 |
+| As uploaded, maxima from 20 to 100 kn | 5.00, 4.95, 4.98, 4.88, 4.95, 4.88, 4.89, 4.96, 4.96, 4.79, 4.91, 4.87, 4.94, 4.83, 4.88 (20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 100 kn) |
+| Control: beach before its path, as uploaded at 50 kn, the same land | 2.84 (16-21 kn, protan) |
+
+For comparison, already recorded: the sea reads 5.05 on the table and 5.01 / 4.98 as uploaded (75 / 50 kn); the land before #320
+reads 5.31 on the table and over 5.2 as uploaded.
+
+**Why the land more than the sea.** The re-solve for the deeper land put five of the land's pairs on the bar at once (5.0x each on
+the table: 6-10, 10-16, 16-21, 27-33, 33-40 kn), so 8-bit rounding tips several under. The sea has one pair near the bar.
+
+**What it means.** The gate of record, the palette checker on the table, holds (exit 0, 5.0 / 5.0). As drawn on screen the land's
+line goes from 2.8 to about 4.9: up to 0.2 under the owner's bar of 5. A difference of 0.1 to 0.2 dE00 is not one an eye can see,
+but the bar is the owner's and the number is under it, so it is said.
+
+**Done here** (no table, switch or default moved): `windBeachPath.test.js` pins the numbers above with the control (30 tests; the
+older as-uploaded test's title now says its land is the land before #320); the source header, the README, STATE, D-025 (a dated
+line in today's amendment) and #319's description say it; LESSONS L-V68; a ledger correction. The lead session was told at once and
+asked to hold the merge until this is pushed.
+
+**Not done.** A re-solve with margin (the table at about 5.2 on both lands) would put the uploaded read over 5. It moves the bytes
+the owner picked from the film, by a little per knot, and costs a little more depth or colour. Not built; the owner's call, through
+the lead. No instrument reads the uploaded texture outside the Jest file; `check.mjs` does not.

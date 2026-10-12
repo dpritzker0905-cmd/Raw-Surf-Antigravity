@@ -41,9 +41,11 @@
  *   - neighbouring Beaufort stops from 3 kn are 5.0 dE2000 or more apart for protan, deutan and tritan viewers: by the palette checker
  *     5.0 over the sea and 5.0 over the deeper land that draws by default (5.05 and 5.02), and 5.3 over the land before PR #320
  *     (`node check.mjs --strict` and `--strict --before-depth` both exit 0). The checker's two red lines, red on dev since D-020 (3.1
- *     and 3.2; 3.1 and 2.9 once the land was laid deeper), are gone. THERE IS NO MARGIN OVER THE
- *     SEA: 5.05 on the table, and once the table is quantised into the 256-entry texture the engine uploads, 5.01 at a 75 kn maximum
- *     and 4.98 at a 50 kn maximum;
+ *     and 3.2; 3.1 and 2.9 once the land was laid deeper), are gone. THERE IS NO MARGIN, AND AS UPLOADED THE LINE IS UNDER THE BAR:
+ *     the table reads 5.05 over the sea and 5.02 over the deeper land, and once it is quantised into the 256-entry 8-bit texture the
+ *     engine uploads, the sea reads 5.01 at a 75 kn maximum and 4.98 at a 50 kn maximum, and THE DEEPER LAND 4.87 AND 4.89 (4.79 at
+ *     the least, a 65 kn maximum; 16-21 kn for protan viewers the weakest pair, with 27-33, 6-10 and 10-16 kn beside it). Beach
+ *     before its path reads 2.84 there. The solve put five of the land's pairs on the bar at once, and rounding tips some under;
  *   - over the LAND every stop keeps its hue within 13.5 degrees (16 kn; 12.6 at 10 kn), and beach's order is kept to 0.6 degrees.
  *     Not eight: the looser hue match is what keeps the ground deep (at 8 degrees the everyday ground must lift 6.7 L*). Over the SEA
  *     the same rows move 10 kn by 14.2 degrees and 16 kn by 18.2;

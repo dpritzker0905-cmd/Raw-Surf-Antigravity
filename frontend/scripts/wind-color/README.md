@@ -82,6 +82,9 @@ colour-blind lines read 5.0 over the muted water and 5.0 over the muted land (5.
 printed (over the sea the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). The land is the DEEPER
 one that PR #320 lays under the wind (D-026: the land's lightness times 0.85 in beach), the default since that merge;
 `--before-depth` (or `--land-l 1`) reads the land before it: 5.0 and 5.3. The field was solved to hold the bar on either land.
+**The checker reads the TABLE. As uploaded (the 256-entry 8-bit texture) the line is under the bar:** the sea reads 5.01 at a
+75 kn maximum and 4.98 at 50 kn, and the deeper land 4.87 and 4.89 (4.79 at the least; before the path 2.84). No instrument
+here reads the uploaded texture; `windBeachPath.test.js` pins those numbers.
 Beach before its path reads 3.1 and 2.9 (`--before-path`; 3.1 and 3.2 with `--before-depth` as well). `--before-path` prints
 the table below.
 `beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a

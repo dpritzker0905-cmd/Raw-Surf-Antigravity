@@ -1014,6 +1014,14 @@ A stored estimate can be estimated again in a browser branch with different sour
   made on a clip the lead cut from this branch's lab lever (`__RAW_...`, default unchanged), with the branch's own kill and an
   earlier option in the same capture as controls. The default's field hashes are pinned to what that lever drew at that head, and
   the lever and the options not taken left with the PR. A sheet of swatches did not show the pale band; motion on a ramp did. (same log)
+- **L-V68 · When the default ground changes, every reading is a reading of the OLD ground until it is taken again: re-run the
+  strict reads too, not only the gate.** Beach's path was solved to hold the colour-blind bar over #320's deeper land, and the gate
+  (the palette checker, on the table) read 5.0 there before and after the merge. The stricter read this lane had added after its
+  review, the table as UPLOADED to the 8-bit texture, was pinned on the land before #320 (over 5.2) and was not taken on the deeper
+  land until a question from the lead, minutes after the merge was pushed: 4.87 to 4.89 at the common maxima, under the bar. A solve
+  that puts several pairs on a bar at once leaves no room for rounding. Rules: (1) when a merge changes a default, list every pinned
+  read that names the old default and take each on the new one before reporting; (2) solve to the bar plus the rounding the pipeline
+  adds, or say the uploaded number beside the table's. (log `2026-10-12-wind-beach-path`, the entry after the merge)
 - **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
   tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
   dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower

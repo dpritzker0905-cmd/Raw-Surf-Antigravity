@@ -236,10 +236,24 @@ describe('over a DEEPER land: the lightness of the land times 0.85, as PR #320 l
     let rise = 0, lo = Infinity; for (let kn = 0; kn <= 21; kn++) { const L = lch(onDeep(NOW, kn)).L; lo = Math.min(lo, L); rise = Math.max(rise, L - lo); }
     expect(rise).toBeLessThan(0.05);                                                                           // and lightness still runs one way through the green band
   });
+  it('AS UPLOADED over the deeper land (the 256-entry 8-bit texture) the line is UNDER 5: 4.89 at a 50 kn maximum, 4.87 at 75 kn, 4.79 at the least; the table reads 5.02 and beach before its path 2.84', () => {
+    const lut = (max, win, ref) => { const gl = rampGl(); buildFieldRampTexture(gl, max, 'beach', win); const texel = (i) => [0, 1, 2].map((c) => gl.uploaded[i * 4 + c] / 255);
+      return KNOTS.map((kn) => { const x = Math.min(255, (kn / max) * 255), i = Math.min(254, Math.floor(x)), t = x - i, a = texel(i), b = texel(i + 1); return kn <= max ? [kn, ...a.map((v, c) => v + (b[c] - v) * t)] : ref[kn]; }); };
+    const pairs = (field) => { const out = []; for (const kind of ['protan', 'deutan', 'tritan']) for (let i = 2; i < BEAUFORT.length; i++) out.push({ d: de2000(seen(onDeep(field, BEAUFORT[i - 1]), kind), seen(onDeep(field, BEAUFORT[i]), kind)), pair: `${BEAUFORT[i - 1]}-${BEAUFORT[i]}`, kind }); return out.sort((p, q) => p.d - q.d); };
+    const table = pairs(NOW), at50 = pairs(lut(50, {}, NOW)), at75 = pairs(lut(75, {}, NOW));
+    expect(table[0].d).toBeCloseTo(5.02, 2); expect([table[0].pair, table[0].kind]).toEqual(['33-40', 'deutan']);   // the table, which the palette checker reads: the bar holds, no pair under it
+    expect(at50[0].d).toBeCloseTo(4.89, 2); expect(at75[0].d).toBeCloseTo(4.87, 2);                                 // UNDER 5 as drawn, by 0.11 and 0.13: said, not hidden
+    expect([at50[0].pair, at50[0].kind]).toEqual(['16-21', 'protan']);
+    expect(at50.filter((p) => p.d < 5).map((p) => `${p.pair} ${p.kind}`)).toEqual(['16-21 protan', '27-33 protan', '6-10 deutan']);
+    expect(at75.filter((p) => p.d < 5).map((p) => `${p.pair} ${p.kind}`)).toEqual(['16-21 protan', '6-10 deutan', '27-33 protan', '10-16 deutan']);
+    const sweep = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 100].map((max) => pairs(lut(max, {}, NOW))[0].d);   // the frame's strongest wind sets the texture's scale
+    expect(Math.min(...sweep)).toBeCloseTo(4.79, 2); expect(Math.max(...sweep)).toBeLessThan(5.01);                // 65 kn the lowest; never over the bar by more than rounding
+    expect(pairs(lut(50, KILL, WAS))[0].d).toBeCloseTo(2.84, 2);                                                   // the control: beach before its path, as uploaded over the same land
+  });
 });
 
 describe('read as the engine uploads it, and by a normal eye', () => {
-  it('AS UPLOADED (the 256-entry 8-bit texture) the sea has NO margin: 5.01 at a 75 kn maximum and 4.98 at a 50 kn maximum (the table reads 5.05); the land holds 5.2', () => {
+  it('AS UPLOADED (the 256-entry 8-bit texture) the sea has NO margin: 5.01 at a 75 kn maximum and 4.98 at a 50 kn maximum (the table reads 5.05); the land BEFORE #320 holds 5.2 (the deeper land does not: the test above)', () => {
     const lutFloor = (max, surface) => { const gl = rampGl(); buildFieldRampTexture(gl, max, 'beach', {});
       const texel = (i) => [0, 1, 2].map((c) => gl.uploaded[i * 4 + c] / 255);
       const lut = KNOTS.map((kn) => { const x = Math.min(255, (kn / max) * 255), i = Math.min(254, Math.floor(x)), t = x - i, a = texel(i), b = texel(i + 1); return kn <= max ? [kn, ...a.map((v, c) => v + (b[c] - v) * t)] : NOW[kn]; });
