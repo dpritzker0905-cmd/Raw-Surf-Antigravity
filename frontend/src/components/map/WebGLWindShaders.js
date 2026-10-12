@@ -1013,7 +1013,7 @@ void main() {
   vec4 color = trailTexel(u_screen);   // through the trail buffer's camera; it declares v_uv (windTrailAnchor.js)
   // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness: black = transparent, bright = opaque.
   float brightness = max(color.r, max(color.g, color.b));
-  if (u_glow > 0.5 && u_trail_veil.x > 0.0) { gl_FragColor = trailVeilOf(color.rgb, brightness, u_opacity); return; }   // light's and beach's white streak: the glow branch's light and dark's veil (windTrailVeil.js, D-028); the line below is every other path's, and theirs under the kill
+  if (u_glow > 0.5 && u_trail_veil.x > 0.0) { gl_FragColor = trailVeilOf(color.rgb, brightness, u_opacity); return; }   // light's and beach's white streak: the glow branch's light and dark's veil (windTrailVeil.js, D-029); the line below is every other path's, and theirs under the kill
   gl_FragColor = u_ink > 0.5 ? vec4(mix(vec3(1.0), color.rgb, u_opacity * inkCapOf(u_screen)), 1.0) : (u_premul > 0.5 ? color * u_opacity : vec4(u_glow > 0.5 ? color.rgb / max(brightness, 0.004) : color.rgb, brightness * (u_glow > 0.5 ? brightness : 1.0) * u_opacity));   // ink: multiplied into the map; glow: a tail loses strength, not colour
 }`;
 

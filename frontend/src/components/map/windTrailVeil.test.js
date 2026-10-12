@@ -1,5 +1,5 @@
 /**
- * Dark's veil under light's and beach's trails (windTrailVeil.js, DECISIONS D-028): ON BY DEFAULT wherever the white streak is
+ * Dark's veil under light's and beach's trails (windTrailVeil.js, DECISIONS D-029): ON BY DEFAULT wherever the white streak is
  * laid ground by ground; kill window.__RAW_DISABLE_WIND_TRAIL_VEIL__.
  *
  * What this file holds: under the kill the composite is sent no veil and the shader's line for every other path is untouched, so

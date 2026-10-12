@@ -368,8 +368,15 @@ node scripts/wind-bench/truth-run.js --diff "low-light@0.475_0.2:again-light@0.4
   (the white streak's kill also moves the field, the land's depth and both paths). `"force": { "screen.u_glow@map": 0 }` holds
   the real engine, its shaders and every default as they are and replaces ONE uniform on its way to the GPU: `<program>.<uniform>`
   with an optional `@map` (only while the map's framebuffer is bound: the composite, not the buffer's copy) or `@buffer`; a
-  number, or two to four. The result keeps how often each fired, and a force that never fired stops the run (a misspelt uniform
-  would otherwise be a run that measured the default). Bench only: nothing under `src/` reads it.
+  number, or two to four. The result keeps how often each fired, and a force that never fired stops the run and removes its
+  frames (a misspelt uniform would otherwise be a run that measured the default). Bench only: nothing under `src/` reads it.
+  Two limits: the pass is judged when the value is SENT (true of the screen, fade and draw programs; the advect program sends its
+  uniforms before it binds its buffer, so it takes no suffix), and a forced value stays in its program until the engine sends that
+  uniform again (the buffer's copy re-sends `u_opacity`, `u_glow` and `u_ink_cap`, not `u_premul`, `u_ink` or `u_trail_veil`).
+- **Compare runs of EQUAL length.** `darkest`, `core`, `back` and `reach` are extremes over a run: a longer run reads a deeper
+  darkest moment. `truth-run.js` says so when the runs it is given differ, and `--diff` when one run is longer than the other.
+- **A saved run is reused only if it is this run** (`crops.js` `sameRun`): the same wind, page, levers, forced uniforms and crop,
+  with the trail buffer if it is asked for. Where a crop is, and which crop of a frame goes to which run, is `crops.js` too.
 - **Compare arms at the same run position, with a null control.** A second invocation of the same arm is the same bytes over
   the sea (90 of 90) and NOT over land: the map does not place its names to the bit (mean 0.04 to 0.10 CIE76 a pixel, 1% to 3%
   of pixels over 1). Read a claim of "the same picture" over the sea by hash, and over land by `--diff` beside that null.
@@ -378,7 +385,8 @@ node scripts/wind-bench/truth-run.js --diff "low-light@0.475_0.2:again-light@0.4
   a buffer one pixel off and a map line above the wind as positive controls; the forced uniforms on a recording context.
 - Baseline, 2026-10-12, dev `a022b398` (the low ramp, zoom 6, the sea; `darkest` / `over` / `added` at 6, 15.3 and 26 kn):
   dark -2.1, -2.2, -0.2 / 0.38, 0.58, 0.78 / 5.2, 8.2, 11.5; the law by `--law`: dark p 0.505, q 0.505; light and beach
-  p 0.999, q 0.000, each to 0.3 to 0.45 of a level. Light, beach and the veil that followed: log `2026-10-12-wind-trails-linger`.
+  p 0.999, q 0.000, each to 0.3 to 0.45 of a level. Light, beach and the veil that followed (D-029: with it light and beach read
+  p 0.999, q 0.505 at `--level 0.7416`): log `2026-10-12-wind-trails-linger`.
 
 ## Border mode (`border-run.js`, `page/border-probe.js`): can the borders and place names be read under the wind?
 

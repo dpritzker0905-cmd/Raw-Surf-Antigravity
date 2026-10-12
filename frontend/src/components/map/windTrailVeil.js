@@ -1,5 +1,5 @@
 /**
- * windTrailVeil.js: DARK'S VEIL UNDER LIGHT'S AND BEACH'S TRAILS (2026-10-12; DECISIONS D-028). ON BY DEFAULT wherever the white
+ * windTrailVeil.js: DARK'S VEIL UNDER LIGHT'S AND BEACH'S TRAILS (2026-10-12; DECISIONS D-029). ON BY DEFAULT wherever the white
  * streak is laid ground by ground. The owner, 2026-10-12 20:13Z, as it was being built behind a default-off lever: "levers to turn on
  * new updates need to be on by default". Kill: window.__RAW_DISABLE_WIND_TRAIL_VEIL__ = true (the picture before it, to the byte).
  * Log: docs/weather-program/log/2026-10-12-wind-trails-linger.md. Bench: scripts/wind-bench/truth-run.js.

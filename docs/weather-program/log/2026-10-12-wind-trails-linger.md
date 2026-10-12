@@ -1,8 +1,8 @@
-# 2026-10-12 · Why light's and beach's wind trails linger over the field and dark's come back to it: the composite's law (D-028)
+# 2026-10-12 · Why light's and beach's wind trails linger over the field and dark's come back to it: the composite's law (D-029)
 
 Local session (Windows, the lead's machine: headless Chromium, D3D11), started by the session that leads the light and beach wind
 lanes. Branch `claude/wind-trails-linger`, cut from `origin/dev` at `b764797b` (#318's merge) and merged with `origin/dev`
-`a022b398` (#322's merge) at 20:35Z. Times are UTC.
+twice as it moved: `a022b398` (#322) at 20:35Z and `e89aaa85` (#323) at 21:35Z. Times are UTC.
 
 **The brief this session was started with** (the lead session, 19:02Z; not the owner's words): "Find out WHY light's and beach's
 wind trails linger above the colour field between streak cores while dark's come back to it, commit the instrument that measures
@@ -11,7 +11,7 @@ default." Its background said of the mechanism: "NOT established: all three them
 
 **The owner's words, first-hand in this session's chat, 20:13Z,** while the candidate was being built behind a default-off lever
 as that brief asked: "levers to turn on new updates need to be on by default". So the candidate is built ON with a kill
-(DECISIONS D-028). The owner has not seen it; no clip had been shown to them when this was written.
+(DECISIONS D-029). The owner has not seen it; no clip had been shown to them when this was written.
 
 ## The finding, in three sentences
 
@@ -46,7 +46,7 @@ statistics file and a test:
   kill also moves the field, the land's depth and both paths). A run's `"force": { "screen.u_glow@map": 0 }` holds the real
   engine, its shaders and every default as they are and replaces ONE uniform on its way to the GPU, optionally only while the map's
   framebuffer is bound (the composite, not the buffer's copy). A force that never fires stops the run.
-- `src/components/map/windBenchTruth.test.js` (30 tests): the statistics on synthetic frames with a known answer (a streak that
+- `src/components/map/windBenchTruth.test.js`: the statistics on synthetic frames with a known answer (a streak that
   lingers and one that darkens, each alone and together; the expected numbers worked from the CIE definition, not from
   `truth.js`), the law's fit on screens drawn by each branch, a buffer one pixel off and a map line above the wind as positive
   controls, the forced uniforms on a recording context.
@@ -286,7 +286,7 @@ level never falls below `g / C` (dark from about 25 kn: +2.7 to +3.5).
 Fade and trail count are not nothing: they set HOW FAR over the field the glow branch's pixels sit. They cannot give it a pixel
 under the field.
 
-## 20:13Z · The owner: on by default. What draws (DECISIONS D-028)
+## 20:13Z · The owner: on by default. What draws (DECISIONS D-029)
 
 `frontend/src/components/map/windTrailVeil.js`: light and beach, wherever the white streak is laid ground by ground (D-021,
 D-022), draw the glow branch's light UNCHANGED plus dark's veil, measured against the level a streak's core is laid at:
@@ -304,8 +304,10 @@ positions, count, size, lifetime and the buffer's fade are the engine's.
   `window.__RAW_WIND_TRAIL_VEIL__` = a number over 0 up to 2 (that multiple of dark's strength) or `false`.
 - **Every older kill keeps its picture:** the veil draws only where `windWhiteStreakOn` is true and D-022's kill is not set, so
   every key of `DARK_RULES_HOLDS` and `DARK_RULES_STEERS`, the ink, glow and light-look levers, the neutral-body theme and D-022's
-  kill stand it down. Dark never reads it. The kill is classified in `windDarkRules.test.js` (ORTHOGONAL: the alpha the white
-  streak's composite lays, never a table, the field or the ground).
+  kill stand it down; and (after the review, below) so do the land's depth kill (D-026: the land is pale again there) and the
+  opaque canvas's kill (D-027: there the veil's alpha would lighten). The paths' kills (D-024, D-025) leave it drawn. Dark never
+  reads it. The kill is classified in `windDarkRules.test.js` (ORTHOGONAL: the alpha the white streak's composite lays, never a
+  table, the field or the ground).
 - **Strength 1 is dark's own number, not a fitted one, and it is the SEA's.** Light at 0.5 and 0.75 was measured too (the six
   crops, before the flip; a pixel's darkest moment at 6 / 15.3 / 26 kn):
 
@@ -381,7 +383,125 @@ capture). Beach's one-variable arms were re-run with the kill set and one thing 
 host ("Committer identity unknown") and left nothing in progress; the merge was made in the session's checkout (`3736ebb7`), no
 conflict (the two changes share no file).
 
-<<REVIEW>>
+## 21:08Z · The independent review: the veil held; four things around it did not
+
+A fresh agent reviewed the diff at `3736ebb7` with the code and no conclusion (42 mutants, a GPU harness of its own, 129,864
+lever states). **What it could not break:** under the kill the shader's output is `origin/dev`'s to the byte on a GPU (0 differing
+bytes over 256 levels x 4 colours x 5 grounds x 2 blends, the buffer's copy and the premultiplied and ink composites included);
+the veil draws only in the white streak's glow branch (never in dark, with ink, premultiplied, under a hold, a steer or a kill);
+the shader compiles in WebGL 1 and 2 and its GPU output is within half a level of the mirror; emulated in 16-bit floats it is
+within one level of exact, as the old glow branch is; the uniform is sent before the composite draws and the copy sets `u_glow`
+0; the least-squares algebra, residuals, flicker and quantiles in `truth.js` are right.
+
+**What it found, and what was done with each:**
+
+1. **The commit was red on existing tests (high).** The new engine line took `WebGLWindEngine.js` one line over its ratchet
+   (1076 against 1075) and added a second `windCloseLandFactor(` where two tests pin one; `motion-run.js`'s cache line no longer
+   matched its pin. This session had run its own two suites and not the whole tree. **Done:** the veil's uniform is sent on the
+   opacity's own line and the close-zoom factor moved into `trailVeilUniform` (the engine is 1074 lines, as on dev, and names the
+   factor once); the cache pin follows the multi-crop line. The whole frontend suite is run before the push (below).
+2. **Under the opaque canvas's kill the veil LIGHTENED light's trails (medium).** That kill blends the canvas's alpha by the
+   colour's factors, so the veil's extra alpha let light's near-white page through: +4.8 to +9.6 levels where the built blend
+   gives -6 to -15 (its GPU read). **Done:** the veil stands down under `__RAW_DISABLE_WIND_OPAQUE_CANVAS__`.
+3. **Under the land's depth kill the veil stayed on over land that kill makes pale again (low).** The dip grows with the ground
+   squared: -6.6 levels at ground 118, -17.5 at 190 (by the law). **Done:** it stands down under
+   `__RAW_DISABLE_WIND_LAND_DEPTH__` too. Both are in the module's "IT STANDS DOWN" list; the paths' kills (D-024, D-025) leave it
+   drawn and that is said there.
+4. **Nothing ran the GLSL; the tests pinned its text (medium).** Five mutants survived: the include above `precision`, a
+   statement added between two pinned lines, the uniform declared `vec3`, the uniform sent after the composite's draw, `u_glow`
+   set to 1 during the buffer's copy. **Done:** `windTrailVeil.test.js` now RUNS `trailVeilOf` (its statements turned to
+   JavaScript a line at a time, so an added or changed statement changes the result; four positive controls), checks the layout a
+   compiler needs (`precision` first, the uniform declared once as `vec2`, only `.x` and `.y` read, two `gl_FragColor`
+   assignments), and drives the real engine on a recording GL that keeps every program's uniforms AS THEY STAND AT EACH DRAW: the
+   composite's draw holds the veil expected on 17 off paths in three themes and on 23 lever sets, a veil over 0 is only ever held beside `u_glow` 1,
+   `u_premul` 0 and `u_ink` 0, and the buffer's copy always draws with `u_glow` 0.
+5. **The bench (low).** A run stopped for a forced uniform that never fired left its frames on disk under the arm's name
+   (**done:** removed before the stop). The cache key ignored `force`, `--trail` and levers (**done:** `crops.js` `sameRun`).
+   `@map` / `@buffer` are judged when a value is SENT, and a forced value persists until the engine sends that uniform again
+   (**said** in `force-uniforms.js` and the README, with the advect program as the case that breaks it). The row flip and the
+   crop index were untested (**done:** `crops.js`, tested by what it does). `watch`'s extremes depend on a run's length
+   (**done:** `truth-run.js` says so when arms differ, and `--diff` when one run is longer).
+6. **Records (low).** The decision, the lesson and this log were cited by the code before they existed (they are in this commit,
+   as D-029 and L-V76: #323 took D-028, L-V74 and L-V75 while this was being written). L-V73
+   gives the mark's colour as the cause of dark's dip; that was the lead's guess and the ring arm rules it out. **Done:** a dated
+   note under L-V73.
+
+**Proved again after the fixes** (the engine line and the resolver moved; the tree at `3736ebb7` with them, then at `0e2150b8`
+with #323 merged in, each against `origin/dev`'s own engine at the same run position, the three sea crops, by hash): under the
+kill light and beach are dev's bytes, 90 of 90 at every crop, both times; dark by default the same; the default is the picture
+measured before the fixes, 90 of 90. **And the two kills the veil now stands down under:** with
+`__RAW_DISABLE_WIND_LAND_DEPTH__` set, and with `__RAW_DISABLE_WIND_OPAQUE_CANVAS__` set, this tree draws `origin/dev`'s frames
+under the same kill, light and beach, 90 of 90 at every crop (12 of 12 comparisons).
+
+**The whole frontend suite** (both trees, the Windows `--testMatch` form): 314 suites, 4501 tests, 0 failed at `3736ebb7` with
+the fixes; run again after #323 was merged in (the last section). `node scripts/check_eslint.js` exits 0 (no rule over its
+baseline).
+
+## 21:50Z · Dev moved again (#323), and the lead's own candidate beside this one
+
+PR #323 (the coast in the borders' ink) merged at 21:02Z. Its log (`2026-10-12-wind-map-through.md`, the lead session's) holds
+two things this session had not been told: **the lead read the same cause in `SCREEN_FS` between 20:02Z and 20:30Z** ("dark's trail composite
+reaches zero once the trail fades to the ground's level, the glow composite never does"), on the owner's observation of 20:02Z
+("lighter moving air/wind in dark mode is almost transparent, or even smaller animations than in beach or light mode"), with a new
+gauge of its own (`anatomy-run.js`: a streak's bright body by speed); and **it built a different candidate, local only**
+(`claude/proto-tail-cut`, lever `__RAW_WIND_GLOW_CUT__` = k): the glow laid at alpha `b max(0, b - k) / (1 - k)`, the mark's level
+re-solved for its strength. It says the trails lane (this branch) builds it, that a preview clip of it was shown to the owner, and
+"no PR until the owner has picked". No message about it reached this session.
+
+**The two candidates are the same law with and without its negative part.** Dark's branch for a white tail is
+`op b (b - g)`: over the ground above `b = g`, under it below. The CUT is that with the ground fixed at a number k and clamped at
+zero: the tail ends at `b = k` and never dims anything (rule 1 of dark's rules, "light only adds", still holds). The VEIL is that
+with the ground the pixel actually has, unclamped: the tail ends where dark's does on that ground and then dips under it as dark's
+does. Measured beside each other:
+
+**By truth mode, the sea, 6 / 15.3 / 26 kn** (the cut is the lead's local branch `claude/proto-tail-cut`, read with `--ref`; its field alone is `origin/dev`'s):
+
+| | darkest moment | share under the field | share lit (3 L* or more over) | share at the field | light added | core | flicker |
+|---|---|---|---|---|---|---|---|
+| dark | -2.1 / -2.2 / -0.2 | 0.21 / 0.19 / 0.08 | 0.38 / 0.58 / 0.78 | 0.37 / 0.18 / 0.10 | 5.2 / 8.2 / 11.5 | +24.2 / +25.3 / +26.4 | 1.30 / 1.37 / 1.85 |
+| light, before | 0 / +1.8 / +5.6 | 0.00 / 0.00 / 0.00 | 0.53 / 0.76 / 0.93 | 0.40 / 0.18 / 0.04 | 6.8 / 10.9 / 16.2 | +21.7 / +25.4 / +28.4 | 0.79 / 1.09 / 1.56 |
+| light, the veil (this change) | -3.2 / -2.5 / +0.1 | 0.28 / 0.20 / 0.08 | 0.35 / 0.56 / 0.80 | 0.34 / 0.19 / 0.09 | 4.7 / 7.9 / 13.1 | +21.1 / +24.9 / +28 | 0.97 / 1.36 / 1.98 |
+| light, the cut at 0.38 | 0 / 0 / 0 | 0.00 / 0.00 / 0.00 | 0.39 / 0.56 / 0.78 | 0.57 / 0.39 / 0.18 | 5 / 8 / 12.8 | +21.2 / +24.9 / +28.1 | 0.87 / 1.30 / 2.00 |
+| light, the cut at 0.46 | 0 / 0 / 0 | 0.00 / 0.00 / 0.00 | 0.35 / 0.50 / 0.72 | 0.61 / 0.46 / 0.24 | 4.5 / 7.1 / 11.6 | +20.9 / +24.6 / +27.9 | 0.90 / 1.37 / 2.16 |
+| beach, before | 0 / +1.8 / +4.9 | 0.00 / 0.00 / 0.00 | 0.53 / 0.76 / 0.92 | 0.41 / 0.18 / 0.05 | 7 / 12.1 / 14.6 | +20.2 / +28.3 / +26.1 | 0.64 / 1.19 / 1.41 |
+| beach, the veil (this change) | -2.7 / -1.6 / -0.7 | 0.25 / 0.14 / 0.10 | 0.36 / 0.60 / 0.76 | 0.36 / 0.22 / 0.10 | 4.7 / 9.4 / 11.3 | +18.6 / +27.5 / +25.6 | 0.78 / 1.39 / 1.81 |
+| beach, the cut at 0.38 | 0 / 0 / 0 | 0.00 / 0.00 / 0.00 | 0.37 / 0.55 / 0.76 | 0.59 / 0.40 / 0.20 | 4.9 / 8.6 / 11.2 | +18.8 / +27.2 / +25.6 | 0.71 / 1.40 / 1.78 |
+| beach, the cut at 0.46 | 0 / 0 / 0 | 0.00 / 0.00 / 0.00 | 0.33 / 0.49 / 0.70 | 0.65 / 0.48 / 0.27 | 4.3 / 7.5 / 10.1 | +18.1 / +26.7 / +25.4 | 0.73 / 1.46 / 1.90 |
+
+**By the lead's own gauge** (`anatomy-run.js` on the low ramp, zoom 6: the mean over its 12 bands of each ratio to dark, light / beach; the cut's columns are the lead's, from `log/2026-10-12-wind-map-through.md`):
+
+| | before (this session) | before (the lead) | the cut at 0.38 (the lead) | the cut at 0.46 (the lead) | the veil (this session) |
+|---|---|---|---|---|---|
+| land, body share | 1.29 / 1.28 | 1.30 / 1.28 | 0.97 / 0.95 | 0.88 / 0.85 | 0.97 / 0.97 |
+| land, body length (90th pct) | 1.39 / 1.44 | 1.39 / 1.43 | 0.98 / 1.01 | 0.87 / 0.89 | 0.96 / 1.02 |
+| sea, body share | 1.45 / 1.42 | 1.47 / 1.45 | 1.11 / 1.05 | 1.00 / 0.94 | 1.10 / 1.08 |
+| sea, body length (90th pct) | 1.80 / 1.82 | 1.78 / 1.74 | 1.18 / 1.17 | 1.04 / 1.05 | 1.19 / 1.26 |
+| land, core L* | 0.83 / 0.87 | 0.83 / 0.87 | 0.82 / 0.86 | 0.82 / 0.86 | 0.82 / 0.85 |
+
+- **Where the picture is LIT, the two agree with each other and with dark:** the share lit, the light added, the cores and the
+  bodies' size (the veil sits on the cut at 0.38 on the lead's gauge: land 0.97 / 0.97 against 0.97 / 0.95, sea 1.10 / 1.08
+  against 1.11 / 1.05).
+- **Where it is not lit, they differ in kind:** under the cut a pixel between streaks is AT the field (0.39 to 0.40 of
+  pixel-instants at 15.3 kn, where dark has 0.18) and never under it; under the veil it is under it as often as dark's is (0.20
+  and 0.14 at 15.3 kn against dark's 0.19) and at it as often (0.19 and 0.22 against 0.18).
+- **What each costs.** The veil's dip grows with the ground squared: over land and in light air it is deeper than dark's own
+  (above), and it is the one thing here that can read as a grey edge. The cut costs nothing of that kind, needs one number for
+  two grounds (the lead: 0.38 matches the land, 0.46 the sea) and re-solves the mark's level; it does not give light and beach
+  the darker moment dark has between streaks.
+- **Not decided here.** This branch builds the veil ON, because it is dark's whole law and this session's brief asked for tails
+  that "behave as dark's"; the owner has been shown the cut by the lead, not the veil. **Which of the two is the owner's pick is
+  open, and the PR is a draft until it is made.** Either is one module here: the cut's alpha in place of the veil's term is a
+  change to `trailVeilOf` and `trailVeilUniform`, no engine line.
+
+**Proof on the merged tree** (`0e2150b8`, #323 in, against `origin/dev` at `e89aaa85`): the kill is dev's bytes in light and
+beach, dark by default the same, the default the picture measured before, 90 of 90 at the three sea crops (15 of 15). The whole
+frontend suite after the merge: 315 suites, 4522 tests, 0 failed; `check_eslint.js` exits 0; `check.mjs --strict` exits 0 with 0
+red lines and 0 red colour-blind lines; the production build compiles (run as `NODE_OPTIONS=--openssl-legacy-provider npx craco
+build`: `npm run build` cannot start on Windows, its script sets the variable the POSIX way).
+
+**The clips were filmed again on the merged tree** (#323's coast is on dev now): `trail-veil-served.webm`, `trail-veil-ramp.webm`,
+`trail-veil-strengths.webm`, and `trail-veil-vs-cut.webm` (dark | the lead's cut at 0.38 | the veil, light above beach).
+
 
 ## Not verified
 
@@ -397,6 +517,9 @@ conflict (the two changes share no file).
   rest pull the fit, and that they ARE the map's lines was inferred from the null control (the land differs run to run, the sea
   does not), not masked out.
 - **Light added over 30 kn** stays 1.24 to 1.33 times dark's over the sea in light. Not retuned: one variable at a time.
+- **The veil against the lead's cut has not been seen by anyone.** The cut was read here at two values of k on six crops at
+  zoom 6; its ramps, zooms 4 and 8 and its land rows (its branch draws the land's field on another commit than the field-alone
+  run it was read against: the sea rows are clean, the land rows carry 0.2 to 0.4 L* of that) were not measured.
 - The lead's earlier clips and D-022's strengths were judged on pictures without the veil. With it the streaks add less light
   (0.6 to 0.9 of what they did); whether 0.55 is still the right strength, and whether the land wants a weaker veil than the
   sea, is the owner's eye's, after this is seen.
@@ -410,6 +533,9 @@ conflict (the two changes share no file).
 - Changed: `WebGLWindShaders.js` (one import, the GLSL, one guarded line in `SCREEN_FS`), `WebGLWindEngine.js` (one import, dark's
   opacity kept, one uniform), `windDarkRules.test.js` (the kill classified), `scripts/wind-bench/motion-run.js`,
   `page/map-entry.js`, `README.md` (Truth mode).
+- New after the review: `frontend/scripts/wind-bench/crops.js` (where a crop is; which crop goes to which run; when a saved run
+  is this run). `windCanvasAlpha.test.js`: one pinned line of `motion-run.js` follows the multi-crop form.
 - Clips (not in the repo; `frontend/scripts/wind-bench/out/videos/`): `trail-veil-served.webm` (the served wind x0.4, zoom 6:
-  dark | before | with the veil, light above beach), `trail-veil-ramp.webm` (the low ramp, the same panes) and
-  `trail-veil-strengths.webm` (the served wind: before | the veil at half strength | at dark's own, light above beach).
+  dark | before | with the veil, light above beach), `trail-veil-ramp.webm` (the low ramp, the same panes),
+  `trail-veil-strengths.webm` (the served wind: before | the veil at half strength | at dark's own) and `trail-veil-vs-cut.webm`
+  (dark | the lead's cut at 0.38 | the veil).

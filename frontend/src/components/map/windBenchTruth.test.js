@@ -1,5 +1,5 @@
 /**
- * The wind bench's TRUTH mode (scripts/wind-bench/truth.js, truth-run.js; LESSONS L-V73, L-V74): what the streaks do to the picture
+ * The wind bench's TRUTH mode (scripts/wind-bench/truth.js, truth-run.js; LESSONS L-V73, L-V76): what the streaks do to the picture
  * against the same crop drawn with the field alone, and the composite's law fitted from the screen and the trail buffer.
  *
  * The statistics are pure, so they are tested on synthetic frames with a KNOWN answer: a streak that LINGERS over the field and one
