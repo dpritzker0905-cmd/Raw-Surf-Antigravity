@@ -302,7 +302,7 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
     for (const w of [KILL, B, { __RAW_WIND_DARK_RULES__: 'beach' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: 'light' }, { __RAW_WIND_THEME_V2__: true }]) expect(windLookKey('light', w)).not.toBe(base);
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).not.toBe(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'ink' }));
     expect(windLookKey('dark', {})).toBe('|');
-    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it
+    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white+path|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it (its own path: windBeachPath.test.js)
     expect(windLookKey('beach', { ...B, __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|dark-rules');
   });
 });
@@ -350,12 +350,14 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(generateRampData(75, null, 'light', w)));
   });
   it('EVERY kill named in the wind sources is classified: it holds the old tables, or it is listed here as not touching what the rules assume', () => {
-    // A new kill that changes the tables, the field's blend or strength, the marks' composite or the ground MUST join DARK_RULES_HOLDS.
+    // A new kill that changes the tables, the COLOUR the field's blend or strength lays, the colour of the marks' composite, or the ground MUST join DARK_RULES_HOLDS.
     // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
-      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea, and nothing else; no table reads it
+      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
+      '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
+      '__RAW_DISABLE_WIND_BEACH_PATH__',                                                                       // beach's path: which field beach draws UNDER the white streak, and stands down with it (windBeachPath.test.js sweeps every hold)
       '__RAW_DISABLE_WIND_LIGHT_PATH__',                                                                       // light's path (D-024): which rows light's field, streak row and legend bar draw from 1 to 32 kn under the white streak; it stands down with it
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
@@ -371,6 +373,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // the layer's place in the map's stack, and the lines the map draws over it: the coastline, and the borders' ink (2026-10-12:
       // the border lines sit ABOVE the wind, so their colour is no part of the ground the rules were solved on)
       '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__', '__RAW_DISABLE_WIND_BORDER_INK__',
+      // the map canvas's ALPHA, never its colour (D-027): what the page behind the map adds on screen. The rules were solved on frames laid over
+      // black, which is the picture this change draws; under its kill the picture is dev's, the rules still on
+      '__RAW_DISABLE_WIND_OPAQUE_CANVAS__',
     ];
     const files = fs.readdirSync(__dirname).filter((f) => /^(WebGLWind|wind|WindColorRamp)/.test(f) && f.endsWith('.js') && !f.endsWith('.test.js'));
     expect(files.length).toBeGreaterThan(12);

@@ -74,7 +74,7 @@ module.exports = function makeGroundRun(h) {
       const layers = map.getStyle().layers, order = map.style._order, at = order.indexOf(WIND_ID), byId = new Map(layers.map((l) => [l.id, l]));
       const ordered = order.map((id) => byId.get(id) || { id, type: 'custom' });
       const amount = mute.windBasemapMuteAmount(cfg.theme, window), waterL = mute.windBasemapWaterL(cfg.theme, window);
-      const plan = mute.windBasemapMutePlan(ordered, WIND_ID, amount > 0 ? amount : 0.85, amount > 0 ? waterL : 1);   // dark: what a mute WOULD touch
+      const plan = mute.windBasemapMutePlan(ordered, WIND_ID, amount > 0 ? amount : 0.85, amount > 0 ? waterL : 1, amount > 0 ? mute.windBasemapLandL(cfg.theme, window) : 1);   // dark: what a mute WOULD touch; the land at its depth (D-026)
       const planned = new Map(plan.map((p) => [`${p.id}|${p.prop}`, p.to]));
       const row = (l) => ({ id: l.id, type: l.type, minzoom: l.minzoom, maxzoom: l.maxzoom, visibility: (l.layout || {}).visibility || 'visible', opacity: (l.paint || {})[OPACITY[l.type]],
         colours: (AREA[l.type] || []).filter((p) => (l.paint || {})[p] !== undefined).map((p) => ({ prop: p, own: l.paint[p], [amount > 0 ? 'muted' : 'wouldMute']: planned.has(`${l.id}|${p}`) ? planned.get(`${l.id}|${p}`) : null })) });

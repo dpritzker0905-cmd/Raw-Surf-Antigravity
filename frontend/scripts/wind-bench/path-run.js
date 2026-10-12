@@ -48,6 +48,7 @@ const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { serveDir, gpuArgs } = require('./serve');
+const { alphaWarning } = require('./page-colour');
 const { PATH_NAMES, FLOW_PATH_NAMES, pathFrames, sampleIndexes } = require('./paths');
 const { pops } = require('./ambiguity');
 const { motionOf } = require('./flow');
@@ -261,6 +262,7 @@ async function main() {
             const t0 = Date.now();
             const res = await page.evaluate((c) => window.__MAP_BENCH__.pathRun(c), { theme, frames, samples, res: opts.res, seed, levers, warm: 120, shots: true, fieldOnly: opts.field });
             if (res.glError) throw new Error(`GL error ${res.glError} at ${theme} ${name} ${arm}`);
+            { const w = alphaWarning(res.canvasAlpha, theme, `${name} ${arm}`); if (w) console.warn(w); }
             const sum = summarize(res.rows);
             console.log(`${theme.padEnd(6)} ${name.padEnd(8)} ${arm.padEnd(8)} ${String(seed).padStart(4)} | ${line(sum, opts.field)} | ${sum.convSwaps.join(' · ')}  [${((Date.now() - t0) / 1000).toFixed(0)} s${res.landMask && res.landMask.on != null ? `, mask ${res.landMask.on}${res.landMask.status === 'failed' ? ' (land file failed)' : ''}` : ''}${res.mute && res.mute.applied ? `, muted ${res.mute.layers} layers` : ''}${res.mute && res.mute.reason ? `, NOT muted (${res.mute.reason})` : ''}]`);
             runs.push({ theme, path: name, arm, seed, mute: res.mute, landMask: res.landMask, sum, rows: res.rows });

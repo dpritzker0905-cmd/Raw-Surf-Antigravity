@@ -4,7 +4,7 @@
 // departs from it, and by how much.
 //
 //   node mirror-model.mjs                 the three themes as drawn
-//   node mirror-model.mjs --before-path   light before its path (window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true)
+//   node mirror-model.mjs --before-path   light and beach, each before its path (window.__RAW_DISABLE_WIND_LIGHT_PATH__ / __RAW_DISABLE_WIND_BEACH_PATH__ = true)
 //   node mirror-model.mjs --json out.json
 //
 // What it prints, per theme and ground, at each knot: the field's colour ON SCREEN (L*, C*, hue), how far that is from the bare map
@@ -23,11 +23,14 @@ const MAP = path.join(HERE, '..', '..', 'src', 'components', 'map');
 const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(MAP, 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
-const LEVERS = args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true } : {};   // --before-path: light before its path (windLightPath.js)
+const LEVERS = { ...(args.includes('--before-depth') ? { __RAW_DISABLE_WIND_LAND_DEPTH__: true } : {}), ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true, __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}) };   // --before-depth: the land as the mute alone leaves it (D-026's kill); --before-path: each theme before its path (windLightPath.js, windBeachPath.js)
+const { BEACH_PATH, beachPathRows } = new Function(source(path.join(MAP, 'windBeachPath.js')) + '; return { BEACH_PATH, beachPathRows };')();   // beach's path (no imports)
 const { LIGHT_PATH, lightTables } = new Function(source(path.join(MAP, 'windLightPath.js')) + '; return { LIGHT_PATH, lightTables };')();
-export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'LIGHT_PATH', 'lightTables',
-  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, resolveLegendRamp, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, LIGHT_PATH, lightTables);
-const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(fs.readFileSync(path.join(MAP, 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '') + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
+const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate } = new Function(fs.readFileSync(path.join(MAP, 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '') + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate };')();
+export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
+  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, resolveLegendRamp, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
+/** The window a sync would leave for `theme`: the mute's read-back, which the land's streak strength reads (D-026). */
+const winOf = (theme) => { const amount = windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1 } }; };
 
 // The composite law, per theme (check.mjs MODEL; dark's land is the wind bench's own offline colour).
 export const MODEL = {
@@ -36,11 +39,13 @@ export const MODEL = {
   dark: { kind: 'over', op: 0.48, baseA: 0.44, end: 5, k: 1, surfaces: { land: [18, 20, 26], water: [93, 117, 126] } },
 };
 export const groundOf = (theme, surf) => {
-  const c = MODEL[theme].surfaces[surf], amount = windBasemapMuteAmount(theme, {});
+  const c = MODEL[theme].surfaces[surf], amount = windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c.map((x) => x / 255);
-  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, {}) : 1));
+  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, LEVERS) : windBasemapLandL(theme, LEVERS)));
   return [+m[1] / 255, +m[2] / 255, +m[3] / 255];
 };
+/** A theme's muted ground with its lightness multiplied by `l` (the basemap mute's own factor: the sea's today, and the land's on PR #320). */
+export const groundAt = (theme, surf, l) => { const c = MODEL[theme].surfaces[surf], m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, windBasemapMuteAmount(theme, {}), l)); return [+m[1] / 255, +m[2] / 255, +m[3] / 255]; };
 const toLab = converter('lab65'), toRgb = converter('rgb');
 export const lch = (a) => { const c = toLab({ mode: 'rgb', r: a[0], g: a[1], b: a[2] }); return { L: c.l, C: Math.hypot(c.a, c.b), h: (Math.atan2(c.b, c.a) * 180 / Math.PI + 360) % 360, a: c.a, b: c.b }; };
 export const fromLch = (L, C, h) => { const r = toRgb({ mode: 'lab65', l: L, a: C * Math.cos(h * Math.PI / 180), b: C * Math.sin(h * Math.PI / 180) }); return [r.r, r.g, r.b]; };
@@ -66,7 +71,7 @@ export function table(theme, field) {
     const bm = groundOf(theme, surf), g = lch(bm);
     for (const v of KNOTS) {
       const out = tintOver(theme, v, sample(F, v), bm), c = lch(out);
-      rows.push({ theme, surf, kn: v, L: c.L, C: c.C, h: c.h, offMap: de(out, bm), mapL: g.L, mapC: g.C, wispStep: lch(wisp(out, theme === 'dark' ? DARK_OWN : ramps.windWhiteStrength(theme, LEVERS)[surf === 'water' ? 'sea' : 'land'])).L - c.L, rgb: out });
+      rows.push({ theme, surf, kn: v, L: c.L, C: c.C, h: c.h, offMap: de(out, bm), mapL: g.L, mapC: g.C, wispStep: lch(wisp(out, theme === 'dark' ? DARK_OWN : ramps.windWhiteStrength(theme, winOf(theme))[surf === 'water' ? 'sea' : 'land'])).L - c.L, rgb: out });
     }
   }
   return rows;

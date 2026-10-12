@@ -46,6 +46,9 @@ node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK
 node check.mjs --today          # the tables before dark's rules (what the kill restores)
 node check.mjs --before-white   # dark's rules before the white streak (window.__RAW_DISABLE_WIND_WHITE_STREAK__: what that kill restores)
 node check.mjs --full-white     # the white streak at full strength on both grounds (window.__RAW_DISABLE_WIND_DARK_WHITE__, D-022's kill)
+node check.mjs --before-path    # each theme before ITS path: beach's field (window.__RAW_DISABLE_WIND_BEACH_PATH__) and light's rows (window.__RAW_DISABLE_WIND_LIGHT_PATH__); each kill is read by its own theme only
+node beach-path-solve.mjs --audit   # beach before its path: per Beaufort stop and per pair, every bar (see "Beach's path" below)
+node check.mjs --before-depth   # the land as the mute alone leaves it (window.__RAW_DISABLE_WIND_LAND_DEPTH__, D-026's kill); --land-l 0.75: another depth
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
 ```
 
@@ -73,10 +76,31 @@ muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.2
 left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
 (10-16 kn).
 
-**As drawn, the colour-blind floor holds in light and does NOT hold in beach** (`node check.mjs --strict` exits 1, two
-red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands' lightness together. Light
-drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day) gave it the deeper field
-of its A/B, which was solved to hold the floor:
+**Beach's path (2026-10-12, `src/components/map/windBeachPath.js`, DECISIONS D-025; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__`;
+log `docs/weather-program/log/2026-10-12-wind-beach-path.md`).** With it, `node check.mjs --strict` exits 0: beach's two
+colour-blind lines read 5.0 over the muted water and 5.0 over the muted land (5.05 and 5.02), and one new watch line is
+printed (over the sea the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). The land is the DEEPER
+one that PR #320 lays under the wind (D-026: the land's lightness times 0.85 in beach), the default since that merge;
+`--before-depth` (or `--land-l 1`) reads the land before it: 5.0 and 5.3. The field was solved to hold the bar on either land.
+**The checker reads the TABLE. As uploaded (the 256-entry 8-bit texture) the line is under the bar:** the sea reads 5.01 at a
+75 kn maximum and 4.98 at 50 kn, and the deeper land 4.87 and 4.89 (4.79 at the least; before the path 2.84). No instrument
+here reads the uploaded texture; `windBeachPath.test.js` pins those numbers.
+Beach before its path reads 3.1 and 2.9 (`--before-path`; 3.1 and 3.2 with `--before-depth` as well). `--before-path` prints
+the table below.
+`beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a
+plain-JS port of coloraide's filters and CIEDE2000; `node light-path-lib.mjs --verify` checks it against coloraide) while it
+solves for lightness that never rises through the green band, a gale band under a ceiling, and the least lift of the
+streak's ground, in beach's own hues. What is BUILT is option F with its 6 to 40 kn stops re-solved for the deeper land:
+`--audit --ref built` reads it over the land the app draws (add `--before-depth` or `--land-l 1` for the land before
+PR #320); `--audit` alone reads beach before it.
+`beach-path.json` holds option F's stops as first solved (`--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`). `beach-path-ground.mjs` prints the ground per knot over land and sea
+beside dark's (by the engine's law) and how flat each is from 6 to 40 kn; `beach-path-sheet.mjs out.png` draws the
+speed-by-speed sheet.
+
+**Before beach's path, as drawn, the colour-blind floor held in light and did NOT hold in beach** (`node check.mjs --strict
+--before-path` exits 1, two red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands'
+lightness together. Light drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day)
+gave it the deeper field of its A/B, which was solved to hold the floor:
 
 | Tint over the muted ground | `--today` | `--before-white` | as drawn | weakest pair as drawn |
 |---|---|---|---|---|
@@ -130,8 +154,17 @@ D-024): dark's hue ORDER in light's own key. Three files made them, and can re-m
   checker's own bars (9 dE00 normal, 5.0 colour-blind, the bar within 30 degrees of the field at every half knot).
 
 `check.mjs --before-path` and `mirror-model.mjs --before-path` read light as it drew before the path
-(`window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`). The checker's legend lines read the bar as the app draws it
-(`resolveLegendRamp`): in light on its path that is no longer the particle ramp.
+(`window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`; the same flag sets beach's path's kill, and each theme reads its own). The
+checker's legend lines read the bar as the app draws it (`resolveLegendRamp`): in light on its path that is no longer the
+particle ramp.
+
+**On the deeper land (PR #320) light has NO margin, and as uploaded it dips under the bar.** The checker reads light's
+colour-blind line at 5.0 over the deeper land (5.006; 5.1 over the sea; 5.5 over the land before PR #320, `--before-depth`).
+Read from the 256-entry 8-bit texture the engine uploads, the deeper land reads 5.03 at a 50 kn maximum, 4.99 at 75 kn and
+4.86 at the least: under 5.0 at 151 of the 281 maxima from 10 to 80 kn, a quarter knot apart (light before its path: 21 of
+281; the land before PR #320: never). The owner took it as shown (D-024, amended 2026-10-12: "option 1, merge as shown and
+add the pin"); `windLightPath.test.js` pins those numbers, and light's rows are to be re-solved on the deeper land. No
+instrument in this folder reads the uploaded texture: a margin under about 0.15 on the table does not survive the upload.
 
 What the solve found, so the next one starts further on: holding light's hue to dark's within 8 degrees (dark by the engine's
 law) keeps a 5.2 floor with 6 kn 6 to 7 L\* lighter and 16 to 21 kn 2 to 5 lighter than at 20 degrees, where the depth holds. A cyan as deep as L\* 60 cannot

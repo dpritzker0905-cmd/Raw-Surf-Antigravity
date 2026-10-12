@@ -23,7 +23,7 @@ import { windLightPathOn, windWhiteStreakOn, windDarkRulesOn, DARK_RULES_HOLDS, 
   windLookKey, resolveThemeRamp, resolveLegendRamp, windLegendGradientCSS, generateRampData, huePathStops, sampleRamp } from './WindColorRamp';
 import { windInk } from './windInk';
 import { resolveWindParticlesV2 } from './WebGLWindUtils';
-import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasemapMute';
+import { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL } from './windBasemapMute';
 
 const V2 = resolveWindParticlesV2({});
 const KILL = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };
@@ -118,7 +118,9 @@ describe('the switch: on where the white streak draws in light, and the kill res
     expect(now[0]).toBe(now[1]);                                                                     // still one streak row over land and sea
   });
   it('beach and dark are not touched: their tables are what they were, with and without the kill', () => {
-    for (const w of [{}, KILL]) { expect(hashes('beach', w, 50)).toEqual(BEFORE.beach[50]); expect(hashes('beach', w, 75)).toEqual(BEFORE.beach[75]); expect(hashes('dark', w, 50)).toEqual(BEFORE.dark[50]); }
+    const B = { __RAW_DISABLE_WIND_BEACH_PATH__: true };   // beach's own path (windBeachPath.js, D-025) has since moved beach's field: BEFORE.beach is what beach draws under ITS kill
+    for (const w of [{}, KILL]) { expect(hashes('beach', { ...w, ...B }, 50)).toEqual(BEFORE.beach[50]); expect(hashes('beach', { ...w, ...B }, 75)).toEqual(BEFORE.beach[75]); expect(hashes('dark', w, 50)).toEqual(BEFORE.dark[50]); }
+    for (const max of [50, 75]) expect(hashes('beach', {}, max)).toEqual(hashes('beach', KILL, max));   // and beach on its path does not read this kill
     for (const theme of ['beach', 'dark']) { expect(windLookKey(theme, {})).toBe(windLookKey(theme, KILL)); expect(windLegendGradientCSS(theme, {})).toBe(windLegendGradientCSS(theme, KILL)); expect(windInk(theme, V2, {})).toEqual(windInk(theme, V2, KILL)); }
   });
   it.each(STAND_DOWN.map((w) => [JSON.stringify(w), w]))('whatever stands the white streak down stands this down, and draws exactly what it drew: %s', (_, w) => {
@@ -136,7 +138,7 @@ describe('the switch: on where the white streak draws in light, and the kill res
   it('the look key names the path, so the engine rebuilds its tables the moment the kill is set; the mark model does not move', () => {
     expect(windLookKey('light', {})).toBe('white+path|dark-rules');
     expect(windLookKey('light', KILL)).toBe('white|dark-rules');
-    expect(windLookKey('beach', {})).toBe('white|dark-rules');
+    expect(windLookKey('beach', {})).toBe('white+path|dark-rules'); expect(windLookKey('beach', KILL)).toBe('white+path|dark-rules');   // beach's own path names its key (D-025); this kill does not move it
     expect(windLookKey('dark', {})).toBe('|');
     expect(windInk('light', V2, {})).toEqual(windInk('light', V2, KILL));   // the streak is drawn the same way: this change is its tables
     const ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
@@ -215,7 +217,10 @@ describe('the order is dark\'s: the hue runs one way with speed', () => {
   it('dark is read by the engine\'s own law: its field is written premultiplied and blended with SRC_ALPHA, so it lands at alpha squared', () => {
     const SHADERS = fs.readFileSync(path.join(__dirname, 'WebGLWindShaders.js'), 'utf8'), ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
     expect(SHADERS).toMatch(/: vec4\(fieldRgb \* alpha, alpha\);/);
-    expect(ENGINE).toMatch(/else gl\.blendFunc\(gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\); \/\/ field tint: multiply/);
+    expect(ENGINE).toMatch(/else blendIntoMap\(gl, gl\.SRC_ALPHA, gl\.ONE_MINUS_SRC_ALPHA\); \/\/ field tint: multiply/);
+    // blendIntoMap (windCanvasAlpha.js, D-027) hands the COLOUR's two factors through in both of its arms; only the canvas's own alpha is kept
+    const ALPHA = fs.readFileSync(path.join(__dirname, 'windCanvasAlpha.js'), 'utf8');
+    expect(ALPHA).toMatch(/gl\.blendFuncSeparate\(src, dst, gl\.ZERO, gl\.ONE\);/); expect(ALPHA).toMatch(/else gl\.blendFunc\(src, dst\);/);
   });
   it('the hue never turns back from calm to 60 kn; before, it turned back four times; dark, read by the same instrument, never does', () => {
     expect(reversals((kn) => onScreen('now', kn))).toBe(0);
@@ -259,11 +264,52 @@ describe('the lightness runs one way, on two levels for the white streak', () =>
 });
 
 describe('the colour-blind floor holds, with the bands in order', () => {
-  it('neighbouring Beaufort stops from 3 kn are 5.0 dE2000 or more apart for protan, deutan and tritan, over land AND sea', () => {
+  it('neighbouring Beaufort stops from 3 kn are 5.0 dE2000 or more apart for protan, deutan and tritan, over the sea AND over the land as the mute alone leaves it (the deeper land of PR #320: the pin below)', () => {
     expect(weakest(colourBlind, 'now', 'water')).toBeGreaterThanOrEqual(5.0);   // 5.1: 21-27 kn, protan
     expect(weakest(colourBlind, 'now', 'land')).toBeGreaterThanOrEqual(5.4);
     expect(weakest(colourBlind, 'was', 'water')).toBeGreaterThanOrEqual(5.4);   // what the reversals bought: 5.5 and 5.6
     expect(weakest(colourBlind, 'was', 'land')).toBeGreaterThanOrEqual(5.5);
+  });
+  // AS UPLOADED. The engine draws the field from a 256-entry, 8-bit texture built for the data's own maximum (held between 10 and 80 kn,
+  // WebGLWindEngine.js), not from the table the palette checker reads. The beach lane's read (windBeachPath.test.js), applied to light: a
+  // stop at `kn` is read at kn / max * 255, linear between two texels; a pair wholly above the maximum is not drawn and not scored. A
+  // model, not a read of the canvas: the shader's own sampling may sit half a texel off, and the framebuffer rounds to 8 bits again.
+  const NO_DEPTH = { __RAW_DISABLE_WIND_LAND_DEPTH__: true };   // the land as the mute alone leaves it (PR #320's kill): the land every test above scores
+  const groundOf = (surface, win) => { const c = surface === 'water' ? [168, 214, 222] : [236, 236, 232];
+    const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, windBasemapMuteAmount('light', win), surface === 'water' ? windBasemapWaterL('light', win) : windBasemapLandL('light', win)));
+    return [+m[1], +m[2], +m[3]].map((v) => v / 255); };
+  const tableOf = (win) => { const T = huePathStops(resolveDrawnField('light', win), {}); return (kn) => sampleRamp(T, kn); };
+  const uploadedOf = (win, max) => { const gl = rampGl(), tab = tableOf(win); buildFieldRampTexture(gl, max, 'light', win); const texel = (i) => [0, 1, 2].map((c) => gl.uploaded[i * 4 + c] / 255);
+    return (kn) => { if (kn > max) return tab(kn); const x = Math.min(255, (kn / max) * 255), i = Math.min(254, Math.floor(x)), t = x - i, a = texel(i), b = texel(i + 1); return a.map((v, c) => v + (b[c] - v) * t); }; };
+  const tint = (ground, at, kn) => { const F = at(kn), s = strength(kn); return ground.map((v, c) => v * (1 - s * (1 - F[c]))); };
+  /** The weakest pair of neighbouring Beaufort stops for a colour-blind viewer, over `ground`, the field read through `at`. */
+  const line = (ground, at, max = Infinity) => { let w = Infinity; for (let i = 1; i < BEAUFORT.length; i++) if (BEAUFORT[i - 1] < max) w = Math.min(w, colourBlind(tint(ground, at, BEAUFORT[i - 1]), tint(ground, at, BEAUFORT[i]))); return w; };
+  /** Every maximum the engine can pick, a quarter knot apart: the least the line reads, and at how many of them it is under 5. */
+  const sweep = (surface, win) => { const g = groundOf(surface, win); let least = Infinity, under = 0, n = 0;
+    for (let max = 10; max <= 80; max += 0.25) { const d = line(g, uploadedOf(win, max), max); n++; if (d < 5) under++; least = Math.min(least, d); }
+    return { least, under, n }; };
+  it('ON THE DEEPER LAND (PR #320) THERE IS NO MARGIN, and AS UPLOADED the line dips UNDER 5: the table reads 5.01; the 8-bit texture 5.03 at a 50 kn maximum, 4.99 at 75 kn, 4.86 at the least', () => {
+    // The owner, 2026-10-12 17:43Z, shown these numbers and two options: "option 1, merge as shown and add the pin" (DECISIONS D-024, amended).
+    // THIS IS A KNOWN SHORTFALL, PINNED SO A GREEN RUN NEVER READS AS "THE FLOOR HOLDS". The bar is still 5.0: light's rows are re-solved on the
+    // deeper land next (ledger commitment), and these numbers are re-pinned then.
+    const DEEP = groundOf('land', {}), PALE = groundOf('land', NO_DEPTH), SEA = groundOf('water', {});
+    expect(windBasemapLandL('light', {})).toBeLessThan(1); expect(windBasemapLandL('light', NO_DEPTH)).toBe(1);   // the deeper land is what draws with no lever
+    // the table, as the palette checker reads it (`node check.mjs --strict` prints 5.0 and no red line)
+    expect(line(DEEP, tableOf({}))).toBeGreaterThanOrEqual(5.0); expect(line(DEEP, tableOf({}))).toBeCloseTo(5.006, 2);
+    expect(line(PALE, tableOf(NO_DEPTH))).toBeCloseTo(5.503, 2); expect(line(SEA, tableOf({}))).toBeCloseTo(5.130, 2);
+    // as uploaded
+    expect(line(DEEP, uploadedOf({}, 50), 50)).toBeCloseTo(5.033, 2);
+    expect(line(DEEP, uploadedOf({}, 75), 75)).toBeCloseTo(4.987, 2);                                                // under the bar
+    const deep = sweep('land', {});
+    expect(deep.n).toBe(281); expect(deep.least).toBeCloseTo(4.859, 2); expect(deep.under).toBe(151);                // under 5 at about half of the maxima, by up to 0.14
+    const sea = sweep('water', {});
+    expect(sea.least).toBeCloseTo(4.960, 2); expect(sea.under).toBe(12);
+    // the controls. Light before its path on the same land (dev's own light): the deeper land takes most of the margin, this change the rest.
+    const was = sweep('land', KILL);
+    expect(line(DEEP, tableOf(KILL))).toBeCloseTo(5.053, 2); expect(was.least).toBeCloseTo(4.928, 2); expect(was.under).toBe(21);
+    // And the land before PR #320: never under, read either way.
+    const pale = sweep('land', NO_DEPTH);
+    expect(pale.least).toBeCloseTo(5.364, 2); expect(pale.under).toBe(0);
   });
   it('THE COST, said plainly: the weakest normal-vision neighbours are 8.0 apart (9.0 before), and 6 to 16 kn carry a third less colour', () => {
     expect(weakest(normal, 'now', 'water')).toBeGreaterThanOrEqual(7.9); expect(weakest(normal, 'now', 'water')).toBeLessThan(8.3);
@@ -333,7 +379,7 @@ describe('the legend bar moves with the field; the particle ramp does not move',
 describe('the wind bench can name the kill', () => {
   it('`candidate` draws the default; `before-path` is the arm to film it against', () => {
     const { ALL_VARIANTS } = require('../../../scripts/wind-bench/matrix');
-    expect(ALL_VARIANTS['before-path'].levers).toEqual(KILL);
+    expect(ALL_VARIANTS['before-path'].levers).toMatchObject(KILL);   // the variant also holds beach's path's kill, which light does not read
     expect(ALL_VARIANTS.candidate.levers).toEqual({});
   });
 });

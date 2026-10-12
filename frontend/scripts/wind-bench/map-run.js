@@ -35,6 +35,7 @@ const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { serveDir, gpuArgs } = require('./serve');
+const { alphaWarning } = require('./page-colour');
 const { styleCell, STYLE_HEADER } = require('./style');
 
 const VIEW = { lng: -88.05, lat: 30.45 };
@@ -129,6 +130,7 @@ async function main() {
         for (const [arm, levers] of Object.entries(opts.arms)) {
           const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: opts.lng == null ? VIEW.lng : opts.lng, lat: opts.lat == null ? VIEW.lat : opts.lat, frames: opts.frames, res: 384, seed: opts.seed, levers, crop: opts.crop, sync: !!opts.appSync });
           if (r.glError) throw new Error(`GL error ${r.glError} at ${theme} z${z} ${arm}`);
+          { const w = alphaWarning(r.canvasAlpha, theme, `z${z} ${arm}`); if (w) console.warn(w); }
           r.arm = arm;
           if (r.crops) {
             const dir = path.join(opts.out, `${opts.tag}-crops`);

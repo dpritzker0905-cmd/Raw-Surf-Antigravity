@@ -762,3 +762,32 @@ session's scratch folder):
   this branch has dev in it and hosted CI is green (its plan, 15:41Z and 17:21Z). This session does not merge.
 - **Recorded:** DECISIONS D-024 (amended), STATE, the ledger (a decision and a commitment for the re-solve).
 - At this time: #319 OPEN and MERGEABLE (head `732d6ebe`), dev at `89f0dc33`, #318 at `81d941a3` before this commit.
+
+## 17:55Z · Dev brought in for the merge (#321, #320, #315 and #319 are on it); the as-uploaded pin added; the seq numbers above have moved again
+
+- **Why now.** #319 was merged at 2026-10-12T17:46:09Z (dev `11fb734d`; `git diff origin/dev origin/claude/wind-beach-path` is
+  empty: dev's tree is the beach branch's head `732d6ebe`). That is the tree the second trial ran on, one beach commit later.
+  The leading session's signal had not arrived as a message; this session read #319's merge from GitHub and went on, on the
+  owner's first-hand word of 17:43Z. This session does not merge #318.
+- **The merge:** `git merge origin/dev` (local; no protected path), resolved by the scripts the two trials left, with nothing
+  resolved by hand: the same 11 conflicted files and the same resolutions as the second trial (17:38Z).
+- **The pin (the owner: "add the pin").** One test in `windLightPath.test.js`, "ON THE DEEPER LAND (PR #320) THERE IS NO MARGIN,
+  and AS UPLOADED the line dips UNDER 5". It holds: the table's line on the deeper land at 5.0 or above and 5.006; as uploaded
+  5.033 at a 50 kn maximum and 4.987 at 75 kn; over the 281 maxima from 10 to 80 kn the least 4.859, under 5.0 at 151; the sea
+  4.960 and 12; and two controls: under this change's kill on the same land 5.053, 4.928 and 21, and on the land before #320
+  5.364 and never under. The test's own colour code and the standalone script (`light-path-lib.mjs`) are two implementations;
+  they agree on all twelve numbers at first run. Mutation: one channel of the 21 kn row moved 0.01 turns it red (the table's
+  line reads 4.9925). The floor test above it now says in its title which land it scores (the land before #320).
+- **The records:** D-024 before D-025 to D-027; L-V52 to L-V54 before L-V60; STATE (#319 MERGED; this branch's base; the
+  ledger head). **The ledger: dev's file taken; this branch's nine lines re-appended after its head (1109) as seq 1110 to 1118,
+  each with its first time as `acted_at`; then `pr_merge #319` as seq 1119.** Where this log says seq 1075 to 1083, read 1110
+  to 1118: the decision is 1110, the read-back commitment 1114, the owner's choice of 17:43Z 1117, the re-solve commitment 1118.
+- **README (`scripts/wind-color`):** `--before-path` now sets both paths' kills (each theme reads its own); a paragraph on
+  light's line on the deeper land, by the table and as uploaded.
+- **Gates on the merged tree:** Jest on both trees 312 suites, 4,380 tests, 0 failed. `check_eslint.js` exit 0.
+  `loc_ratchet.py` New 0, Regressed 0 (`WindColorRamp.js` 796 of 800 lines). The production build exit 0.
+  `node check.mjs --strict` exit 0, no red line in any theme: light's legend 5.4, over the sea 5.1 (5.130), over the land 5.0
+  (5.006); `--strict --before-path` exits 1 for beach's two red lines alone (3.1 and 2.9), as before either path.
+  `action_ledger.py verify` OK (1119 entries). `memory_audit.py --docs-only` 0 FAIL.
+- **Not verified:** nothing of this build has been seen in the app by this session; the as-uploaded numbers are a model with a
+  control, not a read of the canvas; hosted CI had not run on this head when this was written.
