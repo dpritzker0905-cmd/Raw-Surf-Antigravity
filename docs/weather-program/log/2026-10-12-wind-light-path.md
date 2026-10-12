@@ -403,3 +403,28 @@ for beach's two red lines alone. The films stand: the default's bytes are the on
   40.8. **Land and sea become one ground.** Colour-blind over that land 5.07 (21-27 kn, protan; the rows were not re-solved for
   it), over the sea 5.20; hardest edge 6.9 dE00. With the map supplying the depth, a field held to dark's hue within 8 degrees
   would no longer cost the streaks their ground over land: the two lanes want the same change. A scratch read, one pass.
+
+## 05:44Z · A second, independent ramp read of option 2 (the leading session's), and the merge order it recommends
+
+Relayed by the session leading this work (its message, about 05:43Z; its capture, not this session's): the combined local preview
+(this branch at `dc1f1881`, the border ink, #315's beach strength), a ramp of its own (wind due north, 2 kn at the view's west edge
+to 30 kn at its east, zoom 6), dark | light | beach | light under this change's kill in ONE capture, `mirror-run.js --size 110`,
+lift against dark's at the same crop:
+
+| kn | 5 | 9 | 12 | 15 | 18 | 22 | 25 |
+|---|---|---|---|---|---|---|---|
+| sea, under the kill | 1.04 | 1.03 | 1.06 | 1.09 | 1.04 | 0.98 | 0.96 |
+| sea, option 2 | 1.01 | 0.99 | 0.99 | 1.01 | 1.00 | 0.97 | 1.00 |
+| land, under the kill | 0.73 | 0.52 | 0.62 | 0.81 | 0.70 | 0.62 | 0.71 |
+| land, option 2 | 0.69 | 0.44 | 0.42 | 0.67 | 0.63 | 0.63 | 0.74 |
+
+- **It agrees with this session's ramp read above** (a different fixture and capture): the sea within 3% of dark's lift from 5 to 25
+  kn, flatter than before; the land 0.04 to 0.20 lower from 5 to 18 kn and unchanged from 22 kn.
+- Its caution, taken: along a ramp the place changes with the speed (its 9 kn land crop sits over the Mississippi valley), so each
+  land row is read as one arm against the other at the same crop, never as a curve along speed. That holds for this session's
+  table too.
+- Its reading of the land, recorded as its own: the land's ground is 25 to 35 L* paler than dark's in every theme, so that part
+  of the gap is the map's, not the palette's.
+- **Merge order it is recommending to the owner: #316, #315, #318, #317.** If this PR merges after #316 and #315, its ledger lines
+  (seq 1063 to 1068 here) are re-appended after dev's head, D-024 and L-V52 to L-V54 stay, and `windDarkWhite.test.js` and the
+  ORTHOGONAL list in `windDarkRules.test.js` are merged by hand (both branches' lines kept).
