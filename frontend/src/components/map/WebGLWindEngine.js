@@ -14,7 +14,7 @@
 
 import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
-import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha';
+import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
   resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
@@ -984,8 +984,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var finalOpacity = 0.48;
   if (z >= 4.0 && z <= 9.0) {
     finalOpacity = 0.505;
-  } if (_ink.glow) finalOpacity = _ink.opacity;   // glow (windInk.js) runs this brightness-alpha path at its own strength
+  } var darkOpacity = finalOpacity; if (_ink.glow) finalOpacity = _ink.opacity;   // glow (windInk.js) runs this brightness-alpha path at its own strength
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z)); // close-zoom land
+  var _veil = trailVeilUniform(effectiveTheme, _ink.glow, darkOpacity * windCloseLandFactor(effectiveTheme, z)); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_trail_veil'), _veil[0], _veil[1]);   // dark's veil under light's and beach's trails (windTrailVeil.js, D-028); [0, 1] in dark, under its kill and wherever the white streak does not draw
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 

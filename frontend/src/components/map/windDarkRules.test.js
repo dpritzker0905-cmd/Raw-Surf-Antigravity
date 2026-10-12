@@ -376,6 +376,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // the map canvas's ALPHA, never its colour (D-027): what the page behind the map adds on screen. The rules were solved on frames laid over
       // black, which is the picture this change draws; under its kill the picture is dev's, the rules still on
       '__RAW_DISABLE_WIND_OPAQUE_CANVAS__',
+      // dark's veil under the trails (D-028): the ALPHA the white streak's composite lays between a streak's cores, never a table, the field or the ground.
+      // It draws only where the white streak does, so every hold stands it down; under its kill the picture is dev's of 2026-10-12, the rules still on
+      '__RAW_DISABLE_WIND_TRAIL_VEIL__',
     ];
     const files = fs.readdirSync(__dirname).filter((f) => /^(WebGLWind|wind|WindColorRamp)/.test(f) && f.endsWith('.js') && !f.endsWith('.test.js'));
     expect(files.length).toBeGreaterThan(12);

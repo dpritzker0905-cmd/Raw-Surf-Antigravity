@@ -94,6 +94,7 @@ const state = { map: null, theme: null, gl: null, engine: null, rng: null, activ
 // THE PAGE BEHIND THE MAP (../page-colour.js): every frame saved here is the map's canvas laid over the page the app lays behind it, so it is
 // what the screen shows whatever alpha the wind left in the canvas. state.page is a run's own page (`--behind`); null is the app's for the theme.
 const { pageOf, alphaOf, foldAlpha } = require('../page-colour');
+const { forceUniforms } = require('../force-uniforms');   // one variable at a time: a run's forced uniforms (truth mode's arms)
 /** A 2D canvas of w x h already filled with the page behind the map: draw the map's canvas onto it and it is what the screen shows. */
 function pageCanvas(w, h) {
   const t = document.createElement('canvas'); t.width = w; t.height = h;
@@ -229,12 +230,38 @@ function thumb(map) {
 }
 
 /** A crop at DEVICE resolution (what the screen shows, pixel for pixel; the centre, or centred at state.cropAt = [fx, fy] of the canvas), as a PNG data URL; null when no crop is asked for. */
-function cropShot(map) {
+function cropShot(map, centre) {
   if (!state.crop) return null;
   const c = map.getCanvas(), t = pageCanvas(Math.min(state.crop[0], c.width), Math.min(state.crop[1], c.height));
-  const [fx, fy] = state.cropAt || [0.5, 0.5], at = (f, full, part) => Math.max(0, Math.min(full - part, Math.round(full * f - part / 2)));
-  t.getContext('2d').drawImage(c, at(fx, c.width, t.width), at(fy, c.height, t.height), t.width, t.height, 0, 0, t.width, t.height);
+  const [fx, fy] = centre || state.cropAt || [0.5, 0.5];
+  t.getContext('2d').drawImage(c, cropEdge(fx, c.width, t.width), cropEdge(fy, c.height, t.height), t.width, t.height, 0, 0, t.width, t.height);
   return state.crop[2] === 'jpeg' ? t.toDataURL('image/jpeg', 0.92) : t.toDataURL('image/png');
+}
+/** A crop's first pixel along one axis: centred at fraction `f` of `full`, kept inside it. */
+function cropEdge(f, full, part) { return Math.max(0, Math.min(full - part, Math.round(full * f - part / 2))); }
+
+/**
+ * The SAME crop of the engine's own trail buffer (the ink this frame laid on the map, before it met the map), as a PNG data URL:
+ * truth mode fits the composite's law from it (../truth.js lawFit). A still camera reads the buffer one to one (windTrailAnchor.js),
+ * so a texel is the screen pixel under it. Rows are turned to run from the top, as the canvas's do; the alpha is written opaque
+ * (the composite reads the buffer's colour only).
+ */
+function trailShot(centre) {
+  const gl = state.gl, e = state.engine;
+  if (!state.crop || !e || !e.screenB) return null;
+  const W = e._screenW, H = e._screenH, w = Math.min(state.crop[0], W), h = Math.min(state.crop[1], H), [fx, fy] = centre || state.cropAt || [0.5, 0.5];
+  const x0 = cropEdge(fx, W, w), y0 = cropEdge(fy, H, h), px = new Uint8Array(w * h * 4), prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, e.screenB.fbo);
+  gl.readPixels(x0, H - y0 - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prev);
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const im = new ImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    const src = (h - 1 - y) * w * 4, dst = y * w * 4;
+    for (let i = 0; i < w * 4; i += 4) { im.data[dst + i] = px[src + i]; im.data[dst + i + 1] = px[src + i + 1]; im.data[dst + i + 2] = px[src + i + 2]; im.data[dst + i + 3] = 255; }
+  }
+  t.getContext('2d').putImageData(im, 0, 0);
+  return t.toDataURL('image/png');
 }
 
 /** Render `frames` engine frames on a virtual 60 Hz clock, then read the canvas back. */
@@ -639,6 +666,11 @@ async function pathRun(cfg) {
  * shotCrop: [w, h, fmt] device px (and shotAt: [fx, fy]) makes each shot a crop at device resolution instead of the whole canvas
  * scaled down: a thin line keeps its pixels. Off the bench's own pixel ratio (init { pixelRatio }) the frames are drawn and kept but
  * not scored: the scoring image is built for 2 device px a CSS px.
+ * shotAts: [[fx, fy], ...] takes SEVERAL crops of each frame (row.shot is then a list, in that order): the same particles read at
+ * several places. trailShots: each crop also carries the engine's own trail buffer under it (row.trail, as row.shot). sink: the name
+ * of a function the runner exposed; each sample's { i, shot, trail } is handed to it as it is taken and left out of the rows (a run
+ * of lossless crops does not fit one reply). force: uniforms held at a value for the run (../force-uniforms.js); the result's
+ * `forced` counts how often each was.
  */
 /**
  * FNV-1a over the engine's own trail buffer (the ink, before it meets the map): two runs laid the same ink exactly when
@@ -671,7 +703,8 @@ async function flowRun(cfg) {
   state.active = true;
   newEngine(cfg.res, cfg.seed);
   delete window.__WIND_TRAIL_ANCHOR__;
-  const rows = [];
+  const rows = [], ats = Array.isArray(cfg.shotAts) && cfg.shotAts.length ? cfg.shotAts : null;
+  const forced = cfg.force && Object.keys(cfg.force).length ? forceUniforms(state.gl, state.engine, cfg.force) : null;
   let landMask = 'off', alpha = null;
   let vms = realNow();
   performance.now = () => vms;
@@ -686,8 +719,11 @@ async function flowRun(cfg) {
       vms += FRAME_MS;
       await frame();
       if (!S.has(i)) continue;
-      const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? (state.crop ? cropShot(map) : smallShot(map, cfg.shotWidth)) : null;
+      const tiles = map.areTilesLoaded(), compRaw = readCanvas(map);
+      let shot = cfg.shots ? (state.crop ? (ats ? ats.map((a) => cropShot(map, a)) : cropShot(map)) : smallShot(map, cfg.shotWidth)) : null;
+      const trail = cfg.trailShots && state.crop ? (ats ? ats.map((a) => trailShot(a)) : trailShot()) : null;
       alpha = foldAlpha(alpha, compRaw.alpha);
+      if (cfg.sink) { await window[cfg.sink]({ i, shot, trail }); shot = null; }
       const hash = i < (cfg.hashBefore || 0) ? trailHash() : null;
       state.active = false;
       await frame();                                    // same camera, wind layer skipped, clock not advanced
@@ -702,11 +738,12 @@ async function flowRun(cfg) {
         return uv && t.toScreen(uv[0], uv[1]);
       };
       const f = cam.pitch || state.dpr !== DPR ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
-      rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot });
+      rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot, trail: cfg.sink ? null : trail });
     }
     return { theme, mute, ink: window.__WIND_BORDER_INK__ || null, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0,
-      page: pageOf(theme, state.page), canvasAlpha: alpha };   // the page laid behind every saved frame, and the map canvas's own alpha over every sampled frame
+      page: pageOf(theme, state.page), canvasAlpha: alpha, forced: forced ? forced.hits : null };   // the page laid behind every saved frame, and the map canvas's own alpha over every sampled frame
   } finally {
+    if (forced) forced.restore();
     delete performance.now;
     state.active = false;
     disposeEngine();
