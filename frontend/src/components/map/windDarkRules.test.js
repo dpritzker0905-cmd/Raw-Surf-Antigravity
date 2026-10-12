@@ -350,7 +350,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(generateRampData(75, null, 'light', w)));
   });
   it('EVERY kill named in the wind sources is classified: it holds the old tables, or it is listed here as not touching what the rules assume', () => {
-    // A new kill that changes the tables, the field's blend or strength, the marks' composite or the ground MUST join DARK_RULES_HOLDS.
+    // A new kill that changes the tables, the COLOUR the field's blend or strength lays, the colour of the marks' composite, or the ground MUST join DARK_RULES_HOLDS.
     // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill

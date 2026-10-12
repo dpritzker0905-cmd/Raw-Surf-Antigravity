@@ -1,15 +1,18 @@
 /**
- * The wind leaves the map's canvas opaque (windCanvasAlpha.js, D-027).
+ * The wind leaves the map canvas's alpha as the map drew it (windCanvasAlpha.js, D-027).
  *
  * Found 2026-10-12: two of the wind's passes lowered the alpha of the map's own canvas, and the browser fills what a premultiplied
  * canvas leaves with the page behind it. MapPage.js lays that page black in dark and beach and near white in light, so light alone
- * showed the page's white through every streak, and the wind bench (which reads the canvas over black) had never drawn that picture.
- * This file pins the blend, the law, the two facts the finding rests on (the page's colours, the bench's own copy of them) and the
- * engine's use of the helper.
+ * showed the page's white through every streak, and the wind bench (which saved the bare canvas) had never drawn that picture.
+ * This file pins the helper's blend, the facts the finding rests on (the page's colours and that nothing between the page and the
+ * canvas has a colour of its own; the bench's own copy of the page) and the engine's two edited lines. What the engine DOES to
+ * the canvas's alpha, on every path, is windCanvasAlphaTrace.test.js.
  */
 import fs from 'fs';
 import path from 'path';
-import { WIND_OPAQUE_CANVAS_KILL, windKeepsCanvasOpaque, blendIntoMap, canvasAlphaAfter, shownOverPage } from './windCanvasAlpha';
+import { WIND_OPAQUE_CANVAS_KILL, windKeepsCanvasOpaque, blendIntoMap } from './windCanvasAlpha';
+
+const { APP_PAGE, pageOf, alphaOf, foldAlpha, alphaWarning } = require('../../../scripts/wind-bench/page-colour');
 
 const MAP = __dirname, FRONTEND = path.join(__dirname, '..', '..', '..');
 const read = (...p) => fs.readFileSync(path.join(...p), 'utf8');
@@ -50,46 +53,71 @@ describe('the blend of a pass drawn into the map\'s own framebuffer', () => {
   });
 });
 
-describe('the law: what a pass leaves in the canvas\'s alpha, and what the screen then shows', () => {
-  it('SRC_ALPHA / ONE_MINUS_SRC_ALPHA over an opaque map leaves 1 - a + a x a: three quarters at a = 0.5, and never 1 between 0 and 1', () => {
-    expect(canvasAlphaAfter(0.5, false)).toBeCloseTo(0.75, 10);
-    expect(canvasAlphaAfter(0.25, false)).toBeCloseTo(0.8125, 10);
-    for (const a of [0.05, 0.2, 0.48, 0.8, 0.95]) expect(canvasAlphaAfter(a, false)).toBeLessThan(1);
-    expect(canvasAlphaAfter(0, false)).toBe(1); expect(canvasAlphaAfter(1, false)).toBe(1);
-  });
-  it('kept, the canvas stays at 1 whatever the pass\'s alpha', () => {
-    for (const a of [0, 0.05, 0.5, 0.95, 1]) expect(canvasAlphaAfter(a, true)).toBe(1);
-  });
-  it('over a BLACK page the screen shows the colour as drawn at any alpha: dark and beach do not change', () => {
-    const rgb = [0.21, 0.45, 0.42];
-    for (const a of [0.61, 0.75, 0.87, 1]) expect(shownOverPage(rgb, a, [0, 0, 0])).toEqual(rgb);
-  });
-  it('over light\'s page a canvas at 0.75 shows a quarter of the page: the white the streaks carried', () => {
-    const page = [249 / 255, 250 / 255, 251 / 255], rgb = [0.23, 0.49, 0.44];
-    const leaked = shownOverPage(rgb, 0.75, page), kept = shownOverPage(rgb, 1, page);
-    expect(kept).toEqual(rgb);
-    leaked.forEach((c, i) => expect(c - rgb[i]).toBeCloseTo(0.25 * page[i], 10));
-    expect(leaked[0] - rgb[0]).toBeGreaterThan(0.24);
-  });
-});
-
 describe('the facts the finding rests on', () => {
   it('MapPage.js lays the page behind the map near white in light and black in dark AND beach', () => {
     const page = read(FRONTEND, 'src', 'components', 'MapPage.js');
     expect(page).toContain('const isLight = theme === \'light\';');
     expect(page).toContain('${isLight ? \'bg-gray-50\' : \'bg-black\'} z-[50]');
-    expect(page).toMatch(/<div className="absolute inset-0 z-0" data-testid="map-container">\s*<MapWebGL/);   // nothing with a colour of its own between that page and the map
   });
-  it('the wind bench carries the same page colours, and every frame it saves is laid over the page first', () => {
-    const entry = read(FRONTEND, 'scripts', 'wind-bench', 'page', 'map-entry.js');
-    expect(entry).toContain('const APP_PAGE = { light: \'#f9fafb\', dark: \'#000000\', beach: \'#000000\' };');   // Tailwind gray-50 is #f9fafb
+  it('nothing between that page and the canvas has a colour of its own: the wrapper in MapPage.js, MapWebGL\'s root, the map\'s own style', () => {
+    const page = read(FRONTEND, 'src', 'components', 'MapPage.js'), webgl = read(MAP, 'MapWebGL.js');
+    expect(page).toMatch(/<div className="absolute inset-0 z-0" data-testid="map-container">\s*<MapWebGL/);
+    expect(page.match(/<MapWebGL\b/g)).toHaveLength(1);                                             // one host of the map, so one page
+    expect(webgl).toMatch(/return \(\s*<div style=\{\{ position: 'relative', width: '100%', height: '100%' \}\}>\s*<TruthOverlay/);
+    const map = webgl.slice(webgl.search(/<Map\r?\n/));
+    expect(map.slice(0, map.indexOf('>'))).toContain('style={{ width: \'100%\', height: \'100%\' }}');
+    expect(map.slice(0, map.indexOf('>'))).not.toMatch(/background/i);
+  });
+});
+
+describe('the wind bench lays every saved frame over the page the app lays (scripts/wind-bench/page-colour.js)', () => {
+  it('carries MapPage.js\'s page colours: gray-50 behind light, black behind dark and beach', () => {
+    expect(APP_PAGE).toEqual({ light: '#f9fafb', dark: '#000000', beach: '#000000' });   // Tailwind gray-50 is #f9fafb
+    expect(Object.isFrozen(APP_PAGE)).toBe(true);
+  });
+  it('a theme takes the app\'s page unless another is asked for; an unknown theme takes black', () => {
+    expect(pageOf('light')).toBe('#f9fafb'); expect(pageOf('dark')).toBe('#000000'); expect(pageOf('beach')).toBe('#000000');
+    expect(pageOf('light', '#000000')).toBe('#000000'); expect(pageOf('dark', 'rgb(1, 2, 3)')).toBe('rgb(1, 2, 3)');
+    expect(pageOf('light', null)).toBe('#f9fafb'); expect(pageOf('light', '')).toBe('#f9fafb'); expect(pageOf('neon')).toBe('#000000');
+  });
+  it('reads a canvas\'s alpha from the ALPHA bytes: the least and the mean', () => {
+    expect(alphaOf(Uint8Array.from([9, 9, 9, 255, 9, 9, 9, 255]))).toEqual({ min: 1, mean: 1 });
+    expect(alphaOf(Uint8Array.from([255, 0, 0, 191, 0, 255, 0, 255]))).toEqual({ min: 0.749, mean: 0.875 });   // not the red, not the green
+    expect(alphaOf(Uint8Array.from([0, 0, 0, 155]))).toEqual({ min: 0.608, mean: 0.608 });
+    expect(alphaOf(new Uint8Array(0))).toEqual({ min: 1, mean: 1 });
+  });
+  it('a run\'s alpha is the LEAST of its frames\' minima and the mean of their means', () => {
+    let a = foldAlpha(null, { min: 1, mean: 1 });
+    a = foldAlpha(a, { min: 0.749, mean: 0.9 }); a = foldAlpha(a, { min: 0.8, mean: 0.8 });
+    expect(a).toEqual({ min: 0.749, mean: 0.9, frames: 3 });
+    expect(foldAlpha(a, null)).toBe(a); expect(foldAlpha(null, null)).toBeNull();
+  });
+  it('warns only when a scored read was taken on a see-through canvas, and names the page the app lays', () => {
+    expect(alphaWarning({ min: 1, mean: 1 }, 'light', 'z6 now')).toBeNull();
+    expect(alphaWarning(null, 'light', 'z6 now')).toBeNull();
+    const w = alphaWarning({ min: 0.749, mean: 0.9 }, 'light', 'z6 kill');
+    expect(w).toContain('WARNING z6 kill'); expect(w).toContain('0.749'); expect(w).toContain('#f9fafb'); expect(w).toContain('BLACK page');
+  });
+  it('the page uses it: every frame it saves is drawn onto a canvas already filled with the page, and every canvas read carries its alpha', () => {
+    const entry = read(FRONTEND, 'scripts', 'wind-bench', 'page', 'map-entry.js').replace(/\r\n/g, '\n');
+    expect(entry).toContain('const { pageOf, alphaOf, foldAlpha } = require(\'../page-colour\');');
     for (const fn of ['thumb', 'cropShot', 'smallShot']) {
-      const body = entry.slice(entry.indexOf(`function ${fn}(`)); const end = body.indexOf('\n}\n');
-      expect(body.slice(0, end)).toContain('pageCanvas(');
-      expect(body.slice(0, end)).not.toContain('document.createElement(\'canvas\')');
+      const from = entry.slice(entry.indexOf(`function ${fn}(`)), body = from.slice(0, from.indexOf('\n}\n'));
+      expect(body).toContain('pageCanvas(');
+      expect(body).not.toContain('document.createElement(\'canvas\')');
+      expect(body.indexOf('pageCanvas(')).toBeLessThan(body.indexOf('drawImage('));   // filled first, then the map laid on it
     }
     const pc = entry.slice(entry.indexOf('function pageCanvas('));
-    expect(pc.slice(0, pc.indexOf('\n}\n'))).toMatch(/fillRect\(0, 0, w, h\)/);
+    expect(pc.slice(0, pc.indexOf('\n}\n'))).toContain('x.fillStyle = state.page || pageOf(state.theme); x.fillRect(0, 0, w, h);');
+    expect(entry).toContain('return { px, W, H, alpha: alphaOf(px) };');
+    expect(entry.match(/alpha = foldAlpha\(alpha, compRaw\.alpha\);/g)).toHaveLength(2);        // the path run and the motion run: every sampled frame
+    expect(entry).toContain('CSS.supports(\'color\', cfg.page)');                                // a page that is not a colour stops the run: a 2D canvas would fill black and say nothing
+  });
+  it('the runners use it: a cached motion run is this run only on the same page, and the scored runners warn', () => {
+    const motion = read(FRONTEND, 'scripts', 'wind-bench', 'motion-run.js');
+    expect(motion).toContain('results[run.name].page === pageOf(run.theme, run.behind || BEHIND)');
+    expect(motion).toContain('page: run.behind || BEHIND });');
+    for (const f of ['map-run.js', 'path-run.js']) expect(read(FRONTEND, 'scripts', 'wind-bench', f)).toMatch(/alphaWarning\((r|res)\.canvasAlpha, theme, /);
   });
 });
 
