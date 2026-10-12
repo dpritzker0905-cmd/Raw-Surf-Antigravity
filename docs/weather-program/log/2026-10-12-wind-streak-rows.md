@@ -5,6 +5,11 @@ Local side session (Windows, AMD Radeon 890M, D3D11), the "simplification pass" 
 this session: it measured, and the measurement says do not build.** No word of the owner reached this session first-hand; the
 brief came from the session that built #313, written while #313 was still open.
 
+**Read the sections from "An independent review of this log" down before quoting anything above them.** The review corrected
+the mechanism's size (the "19%" and "23%" are one stamp's, an upper bound), withdrew the fallback in "one recommendation" (the
+sea number times 0.815), corrected "C* 21.5, whichever row", and "visible" is restated arm by arm. The sections above it stand
+as first written, because the correction is part of the record; their tables were recomputed by the reviewer and match.
+
 **The brief:** make light's and beach's wind drawing as simple as dark's now that both draw dark's white streak (D-021), by
 removing the streak machinery that no longer changes what is seen, with proof: beach to ONE streak row, the land mask no longer
 bound or fetched for either theme, the streak half of `solveDarkRules` no longer called by default, all behind one kill. Measure
@@ -189,3 +194,126 @@ a breeze and in a storm (#315's L-V50).
 - `video-frame.js`: one frame of a WebM as a PNG, through Playwright's Chromium (the ffmpeg Playwright installs cannot write an
   image).
 - `one-row-prototype.patch`: the two scratch lines.
+
+## 03:32-03:37Z · The lift gap against D-022's record, explained: the crop's size
+
+`mirror-run.js` reads a 420 px crop by default; D-022's numbers were read with `--size 360` (its README is corrected in #315).
+At 360 this session's frames read the record's numbers: beach's sea at zoom 6 at 1.01 of dark's lift (dark 12.6, beach 12.7;
+the record: 1.01 and 12.6), at zoom 9 at 0.92 (0.91); the land at zoom 6 at 0.93 (0.93) and at zoom 9 at 0.71 (0.69). The
+bullet above that called the gap "not explained" is answered: the same instrument on another crop. At 360 the one-row arms
+read: the land row everywhere over the sea, lift 6.6 to 7.3 at zoom 9, 12.7 to 13.3 at zoom 6, 14.5 to 15.1 at zoom 5 (against
+dark's: 0.92 to 1.01, 1.01 to 1.06, 1.34 to 1.40); the sea row everywhere over land, 6.4 to 6.1, 8.1 to 7.9, 9.9 to 9.5 (0.71
+to 0.68, 0.93 to 0.91, 0.97 to 0.93).
+
+## 03:38Z · An independent review of this log, and what it corrects
+
+A reviewer was given the diff, the data files and the source, and asked for problems only. It recomputed about 290 numbers:
+the alpha table, both GPU tables and both motion tables match, as do the PNG decoder, the CIEDE2000 and the shares'
+denominators; the solver was re-evaluated and gives the rows' alphas exactly. Nine statements did not hold. Each correction
+names what it corrects:
+
+1. **"a row's alpha sets how strongly the white is laid, as its square", and the "about 19% weaker" and "23% stronger" built on
+   it: true of ONE stamp of a mark on a clear buffer, and an upper bound for a trail.** The mark is blended into the trail
+   buffer with `(ONE, ONE_MINUS_SRC_ALPHA)` and `color.a` is its cover as well as the scale of its light, so stamps that
+   overlap saturate. At 13 kn the sea row's strength against the land row's is 0.82 for one stamp, 0.91 for two, 0.96 for
+   three, 0.99 for five. `u_white` scales the light only and stays an exact square at any overlap. Measured in motion the
+   sea's lift moves 4 to 11% in the wind as served and 2 to 3% in a storm, not 23%.
+2. **The fallback in "one recommendation" (keep the land row, the sea number times 0.815) is WITHDRAWN.** Alpha and `u_white`
+   are not interchangeable (1); it was never rendered; its "-5.0% to +2.1%" had the sign turned (the proposal against today is
+   -2.1% to +5.3%); the same algebra gives +7 to +21% at 30-33 kn and -18.5% at 37-58 and 65-75 kn; and it keeps the pale land
+   row over the sea, which is the ring the verdict rejects.
+3. **"C* 21.5 or less, whichever row":** the test's pin holds for each row over its OWN ground at full white (21.2 over the
+   sea, 20.2 over land). Today's head over the sea at 0.77 reads up to 24.4 (27.6 at 0.55), and the sea row over land 24.9.
+4. **"The difference is visible" was said of both arms** from still-frame pixel shares and one still. It is restated per arm
+   and per scene in the next section, from the time-mean of the moving picture.
+5. **"the lift understates it, because ... a pixel's darkest moment rises too":** the numbers are right (the picture +0.5 to
+   +2.2 L*, the probe's ground 0 to +1.5, the lift +0.6); the "because" was not shown.
+6. **"by 1 from 37 kn up", "rises with the wind", "less from 25 to 36 kn"** (the lanes section): the squared ratio is 1.00
+   from 37 to 58 and from 65 to 75 kn and 0.88 to 1.00 from 59 to 64; it is not monotone (0.83 at 10 kn, 0.67 at 31 kn, 1.00
+   at 40 kn); from 25 to 36 kn it is 0.67 to 0.95, above 0.815 at 4 of the 12 knots.
+7. **In the notes this change adds elsewhere:** "6 to 29%" of the land's pixels is 5.8 to 28.5%, "6 to 28%"; "light's two
+   equal rows: 16 of 16" counted dark's 8 as light's. Both were fixed in STATE, D-021 and L-P35 before the PR, with (1) and
+   (2); this branch's first commit (`b6dbd750`) keeps the first wording.
+8. **"The probe's noise inside one run is about 0.1" was not measured.** Measured since: the same run captured twice in one
+   session (beach, zoom 6, served, 180 frames) gives the same time-mean picture, 0.0 L* apart at every pixel.
+9. **Limits that were missing** are at the end.
+
+## 03:40-03:57Z · Per arm and per scene: the time-mean of the moving picture
+
+`ring-probe.js` (scratch): two runs of one camera, each averaged over time in linear light (every third frame) on a 250 x 250
+reduction of the whole frame, then compared in CIELAB. Real basemaps, pixel ratio 1.5. Storm strength is a second capture
+(`motion-run.js`, `scale` 2.3, 180 frames a run, zooms 5, 6, 9; the two-line prototype re-applied for it and reverted again).
+One row minus today:
+
+| the LAND row everywhere | zoom 5 | zoom 6 | zoom 9 |
+|---|---|---|---|
+| served: the frame's mean / 99th percentile / largest dL* | +0.37 / +3.1 / +5.6 | +0.68 / +3.5 / +5.3 | +0.29 / +1.3 / +1.7 |
+| served: the part lighter by more than 3 L* | 1.4% of the frame: L* 62.8 to 66.2, C* 25.9 to 18.0 | 2.7%: 59.4 to 62.9, 27.0 to 18.7 | none |
+| storm: mean / 99th percentile / largest | +0.56 / +4.4 / +6.1 | +0.95 / +4.9 / +6.3 | +0.48 / +2.0 / +2.7 |
+| storm: the part lighter by more than 3 L* | 4.5%: 59.3 to 63.0, 28.8 to 19.9 | 9.7%: 55.6 to 59.5, 30.9 to 21.1 | none |
+
+| the SEA row everywhere | zoom 5 | zoom 6 | zoom 9 |
+|---|---|---|---|
+| served: the frame's mean / 1st percentile / largest dL* | -0.27 / -1.3 / -2.4 | -0.22 / -0.9 / -3.4 | -0.14 / -0.4 / -0.6 |
+| served: the part darker by more than 3 L* | none | one cell of 62,500 | none |
+| storm: mean / 1st percentile / largest | -0.34 / -2.3 / -4.3 | -0.41 / -2.7 / -5.0 | -0.44 / -1.5 / -2.2 |
+| storm: the part darker by more than 3 L* | 0.4%: L* 75.7 to 72.4, C* 16.7 to 27.1 | 0.6%: 70.7 to 67.3, 17.4 to 24.9 | none |
+
+Lift at storm strength, against dark's (`--size 360`, zooms 5 / 6 / 9). Over the sea: today 1.35 / 1.41 / 1.46 (#315 reads 1.38
+at zoom 6), the land row everywhere 1.37 / 1.46 / 1.51, the sea row everywhere 1.35 / 1.40 / 1.45. Over land: today and the land
+row everywhere 0.92 / 0.97 / 0.09, the sea row everywhere 0.88 / 0.92 / 0.09, with 8% less flicker at zooms 5 and 6.
+
+- **The land row everywhere is seen in a storm.** One part of the picture, the 25-36 kn band over the sea, is 3.4 to 3.9 L*
+  lighter with about 30% less chroma: 1.4 to 2.7% of the frame in the wind as served and 4.5 to 9.7% at storm strength, at
+  zooms 5 and 6. That is the pale ring of the still. At zoom 9 nothing moves more than 2.7 L*.
+- **The sea row everywhere is the far smaller change, and this session cannot call it seen.** The time-mean stays within 1.3
+  L* over 99% of the frame in the wind as served and 2.7 at storm strength. In a storm 0.4 to 0.6% of the frame goes 3.3 L*
+  darker with MORE chroma (16.7 to 27.1): the land's pale gale band, where the sea row holds the full colour and the land row
+  the pale one.
+
+## The verdict, restated (this replaces "The verdict, and one recommendation" above)
+
+**Nothing is removed and nothing is built.**
+
+- **The land mask stays:** it is D-022's.
+- **The solver's streak half stays:** it makes beach's rows, whichever of them is kept. Light does not call it.
+- **So the brief's three removals come down to one table row and one shader line (the row mix), and behind a kill not even
+  those:** the kill has to draw both rows.
+- **If one row, the sea row.** The land row rings a storm over the sea. The sea row dims the land's streaks (lift 3 to 6% less
+  in the wind as served, 5 to 6% at storm strength at zooms 5 and 6, flicker 6 to 8% less), where beach is already short of
+  dark's and white cannot add more.
+
+**Recommendation: leave the streak code as it is.** Not because one row is proved visible (the sea row everywhere is not), but
+because nothing is left for it to simplify, and its one measured effect is a small loss over land. If the owner wants it
+tried, it is a look change with its own kill and the owner's eye, and this session will build it on that word.
+
+## For the other lanes (this replaces the paragraph on beach's "0.55" above)
+
+This lane changed no source file, so it moves nothing in the other lanes' outputs. Read on ground {land, sea} x wind {served,
+x 2.3} x zooms {4, 6, 8, 10} offline and zooms {5, 6, 9} in motion.
+
+One thing for the sea number: beach's sea streaks carry a second, smaller reduction that light's do not, the sea row's lower
+alpha. One stamp is 17 to 23% weaker than the land row's at 6-24 kn, 5 to 33% at 25-36 kn and equal at 37-58 kn; less where
+stamps overlap; in motion the sea's lift is 4 to 11% under what the land row would give in the wind as served and 2 to 3% in a
+storm. It weakens a breeze more than a gale, the direction of the gap #315 measured. It is not a factor on the sea number.
+
+**Seen in passing, out of this lane's scope, not acted on:**
+- **Beach's land at zoom 9 at storm strength lifts 1.0 L* where dark's lifts 11.0 (0.09 of it):** the ground there is L* 69.9,
+  the pale gale band (D-021's stated cost), with no room above it.
+- **Drawn over that band, the sea row keeps the streak's colour** (the probe's `kept` 0.84 to 1.02 at zoom 9; C* 16.7 to 27.1
+  where the picture changes most at zoom 5). It may bear on "beach's gale band". The owner's call; not judged by eye.
+
+## Not verified, and limits (added after the review)
+
+- **One seed, one view, one wind field** (as served, and scaled 2.3 times).
+- **The offline crops file a pixel by the basemap's colour; the shader picks a row per MARK from a 2048 px mask that eases
+  across about 20 km.** Near a coast, and across most of the view at zoom 10, the two grounds are not separated: in the
+  sea-row arm 4.5% (zoom 4, served) to 7.8% (zoom 10, storm) of SEA pixels also move by more than dE00 2.3. The largest dL*
+  and dC* in the tables are single pixels.
+- **Zoom 6 in motion, served, was 120 frames where the other runs were 180.** Repeated at 180 for the sea-row arm: the same
+  numbers (mean -0.22, 1st percentile -0.9).
+- **A time-mean hides flicker:** a change in how a streak flashes that leaves the mean alone is not in it. The mirror probe's
+  flicker column is the only read of that here (6 to 8% less over land with the sea row).
+- **The controls' outputs and the bench logs are saved** beside the instruments in the notes folder (`control-*.json`,
+  `rows-*.log`, `ring-*.json`, `mirror-*-360.json`), not in the repo.
+- **Nothing was seen in the app.** The owner has two clips (the wind as served; sent before the review) and has not answered.

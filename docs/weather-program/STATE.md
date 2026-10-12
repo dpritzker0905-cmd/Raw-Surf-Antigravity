@@ -68,13 +68,17 @@ is a claim, not a measurement.
     colour-blind floor is unchanged, under 5 (3.2 / 3.1). A streak no longer carries a speed colour of its own.
   - **Not built, each the owner's call:** each theme's palette under this look; beach's gale band; removing the land and sea streak
     rows, the land mask and the streak solver, which now do little (light binds the mask for two equal rows).
-    **Measured 2026-10-12 03:20Z (log `2026-10-12-wind-streak-rows`): "do little" is wrong for beach, and the mask has a second job
-    since #314.** The land mask is what D-022 lays the white by. Beach's sea row carries a lower ALPHA than its land row, and a
-    trail is laid at its brightness squared, so that row lays the white about 19% weaker over the sea at the everyday winds. One
-    row instead of two, at the default, offline bench, pixel for pixel, zooms 4 to 8: the land row everywhere moves 29 to 67% of
-    the SEA's pixels by more than dE00 2.3 and puts a pale ring on a storm over the sea; the sea row everywhere moves 6 to 29% of
-    the LAND's and dims it. Light already draws one row. **Nothing was removed and nothing built**; if one row is still wanted it
-    is a look change for the owner's eye (the sea row's share, 0.815, folded into the sea number), not a cleanup. LESSONS L-P35.
+    **Measured 2026-10-12 03:20Z, corrected 03:55Z after an independent review (log `2026-10-12-wind-streak-rows`): none of the
+    three is idle.** The land mask is what D-022 lays the white by (#314). The streak solver makes beach's rows. And beach's two
+    rows are not one row twice: a row carries the mark's alpha as well as its colour, and the sea row's is lower (ONE stamp of a
+    mark is laid 17 to 23% weaker than the land row's at the everyday winds; less where stamps overlap). One row instead of two,
+    at the default: the LAND row everywhere moves 29 to 67% of the sea's pixels by more than dE00 2.3 on the offline bench (zooms
+    4 to 8, served) and, in motion on the real basemaps, turns a storm's 25-36 kn band over the sea into a pale ring (the
+    time-mean picture 3.4 to 3.5 L* lighter with 30% less chroma, over 1.4 to 2.7% of the frame at zooms 5 and 6); the SEA row
+    everywhere is the smaller change (6 to 28% of the land's pixels on the bench; in motion the time-mean picture stays within
+    1.3 L* over 99% of the frame, served) and dims the land's streaks. Light already draws one row. **Nothing was removed and
+    nothing built:** with the mask and the solver both needed, one row would delete a table row and one shader line.
+    LESSONS L-P35.
   - **Seen in the app 2026-10-11 23:36Z** (this entry said "nothing has been seen in the app" until then): on the deployed build
     `_lookKey` is `white|dark-rules` and the land mask `ready`; the owner's verdict is quoted in the entry above. Ledger
     commitment 1056 is closed by the line that fulfils it. Log

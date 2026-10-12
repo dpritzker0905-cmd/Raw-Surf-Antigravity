@@ -395,13 +395,14 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   theme, the streak's strength, the ring). Not decided either, and not built: each theme's palette under this look; whether
   beach's gale band keeps its pale ground; whether the land and sea rows, the land mask and the streak solver are removed now
   that a white streak takes its colour from what is under it.
-- **Measured 2026-10-12, a note and not a decision (log 2026-10-12-wind-streak-rows; no word of the owner):** the last item
-  above is not a cleanup the eye cannot see, and "machinery that now does little" (above) holds for the rows' COLOUR at the head
-  only. A row also carries the mark's alpha, and a trail is laid at its brightness squared: beach's sea row lays the white about
-  19% weaker than its land row at the everyday winds (6-24 kn). With one row instead of two, at the default, 29 to 67% of the
-  sea's pixels (the land row kept) or 6 to 29% of the land's (the sea row kept) move by more than dE00 2.3 at zooms 4 to 8 on
-  the offline bench. The land mask has been D-022's since #314. Light draws one row already. Still the owner's call; nothing
-  was removed.
+- **Measured 2026-10-12, a note and not a decision (log 2026-10-12-wind-streak-rows; no word of the owner; corrected the same
+  day after an independent review):** none of the three in the last item above is idle, and "machinery that now does little"
+  (above) holds for the rows' COLOUR at the head only. The land mask has been D-022's since #314. The solver makes beach's rows.
+  A row also carries the mark's alpha, and beach's sea row's is lower: ONE stamp of a mark is laid 17 to 23% weaker than the
+  land row's at 6-24 kn, and less where stamps overlap. With one row instead of two, at the default, 29 to 67% of the sea's
+  pixels (the land row kept) or 6 to 28% of the land's (the sea row kept) move by more than dE00 2.3 at zooms 4 to 8, served,
+  on the offline bench; in motion the land row kept turns a storm's 25-36 kn band over the sea pale. Light draws one row
+  already. Still the owner's call; nothing was removed.
 - **Evidence (log 2026-10-11-wind-pale-band, "The white streak, built"):** the tables with no lever set hash the same as dev's
   own code through the watched levers (captured before the default moved); on the bench's fixed basemap every crop of the built
   default is the same PNG as dev with those levers, and every crop under the kill the same as dev with none; on the real Mapbox
