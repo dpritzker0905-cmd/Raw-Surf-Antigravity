@@ -15,9 +15,8 @@
  *   - its LIGHTNESS through the green band ran both ways: over the land L* 67 at calm, 46.7 at 10 kn (its darkest band below 47 kn),
  *     back up to 53.0 at 16 kn and 54.2 at 21 kn. A gentle breeze drew deeper than a fresh one;
  *   - its GALE BAND was as light as calm (L* 70.8 at 27 kn, 67.5 at 33 kn; the name guard of dark's rules holds yellows pale). Dark's own
- *     ground, by the engine's law, spans 7.4 L* from 6 to 40 kn; beach's spanned 26.2. A white streak stands on its ground, so on a
- *     speed ramp beach's streaks lifted the picture 0.60 to 0.68 times as far as dark's over the sea from 26 to 39 kn and 0.38 to 0.52
- *     over the land, where even full white only just reaches dark's: the one place no white strength repairs;
+ *     ground, by the engine's law, spans 7.4 L* from 6 to 40 kn; beach's spanned 26.2. A white streak stands on its ground, and there
+ *     is little room for white light above a ground that pale;
  *   - its colour-blind floor: neighbouring Beaufort bands read 3.1 (sea) and 3.2 (land) dE2000 against the project's bar of 5 since
  *     dark's rules dimmed the field (D-020). FOUR pairs were under the bar, not one (the checker prints the weakest): 16-21 kn 3.1,
  *     27-33 kn 3.6, 47-55 kn 4.6 (sea) and 63-75 kn 4.6 (sea).
@@ -44,21 +43,21 @@
  *   - the steepest knot is 3.1 dE00 (3.9 before; dark's own hardest is 8.9), and the chroma line is as even as it was (within 0.1).
  * Rows between two moved stops run on straight lines in lightness, chroma and hue from 6 to 47 kn; elsewhere a moved row is the colour
  * beach drew at that knot, moved by what its two stops moved.
- * WHAT IT BUYS, MEASURED (the lead session's capture: the real engine on the real basemaps, wind due north on a speed ramp, every wind
- * lane merged, beach's sea white at 0.55 AS ON PR #315; the streaks' lift against dark's at the same crop, before -> now). It was NOT
- * measured on the 0.77 this file's neighbour windDarkRules.js DARK_WHITE holds until #315 merges: on 0.77 the sea already read 1.3 to
- * 1.4 times dark's at 8 to 17 kn, and this field's deeper 16 to 21 kn sea would read further over. #315 belongs before or with this:
- *   the gale band, 26 / 32 / 39 kn   sea 0.68 / 0.60 / 0.62 -> 0.86 / 0.82 / 0.75      land 0.38 / 0.52 / 0.49 -> 0.63 / 0.60 / 0.62
- *   everyday, 9 / 12 / 15 / 18 kn    sea 0.99 / 1.04 / 0.98 / 0.97 -> 0.95 / 1.01 / 1.09 / 1.12
- *                                    land 0.86 / 0.91 / 0.88 / 0.82 -> 0.74 / 0.86 / 1.08 / 1.12
+ * WHAT IT RESTS ON is the FIELD, which no captured frame touches: the three faults above, read off the tables through the composite
+ * model and the palette checker. (Streak-lift sizes "against dark's" quoted for this change on 2026-10-12 were read from bench frames
+ * that under-read bright cores, in every theme, and are withdrawn: log 2026-10-12-wind-beach-path, the correction entries.) On true
+ * frames, with every open wind change merged and beach's sea white at 0.55, the lead session reads this field's streaks adding 1.5 to
+ * 1.8 times the light dark's add over the sea from 6 to 18 kn, and 0.9 to 1.2 times over a land laid at the sea's depth (PR #320):
+ * beach's streaks are not weaker than dark's anywhere. A before-and-after of this field ALONE on true frames does not exist.
  * WHAT IT COSTS, said plainly:
  *   - THE GREENS GO GREY-GREEN: 16 and 21 kn keep C* 14.1 and 16.4 of 33.6 and 32.7, and sit 8.5 and 9.8 L* deeper. Deep AND colourful
  *     does not exist under a multiply tint at 0.60 strength (over beach's land C* 33 needs L* 54 or lighter);
  *   - the gale band's lime, gold and apricot are 10.8, 7.5 and 3.2 L* deeper, and 27 kn keeps C* 25.2 of 44.0: a sage, not a lime;
- *   - the land at 9 to 12 kn loses lift (0.74 and 0.86 of dark's from 0.86 and 0.91): the 10 kn ground is 4.3 L* lighter;
- *   - at 15 to 18 kn the streaks lift 8 to 12% FURTHER than dark's on both grounds (the ground there is the deepest beach draws). The
- *     sea's share is the white strength's to trim (windDarkRules.js DARK_WHITE; not changed here);
- *   - the land's gale band is still pale on screen (rendered L* 68 to 72 against dark's 34 to 39): the rest of that gap is the map's;
+ *   - the 10 kn ground is 4.3 L* LIGHTER over land (3.6 over the sea): the streak has that much less to stand on at the commonest wind;
+ *   - from 13 kn up the ground is the deepest beach draws, and over the sea the streaks add more light than dark's do there. That is the
+ *     white strength's to trim (windDarkRules.js DARK_WHITE; not changed here);
+ *   - the land's gale band is still pale on screen (rendered L* 68 to 72 against dark's 34 to 39): the rest of that gap is the map's
+ *     (PR #320 lays the land at the sea's depth);
  *   - the everyday neighbours are told apart about half as well by a NORMAL eye: 6-10 kn 6.3 dE00 over land and 5.2 over the sea (10.8
  *     and 8.5 before), 10-16 kn 6.8 and 5.2 (10.0 and 8.8). A grey-green band is closer to its neighbours than an emerald was;
  *   - a bar of D-021 is crossed at 7 and 8 kn: there the head of a streak stands 18.6 L* off its ground at the least, where D-021 held

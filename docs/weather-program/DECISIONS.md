@@ -611,3 +611,16 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
     into the 256-entry texture the engine uploads.** Above the bar; by 0.01.
   - **D-022's kill now moves beach's field and look key as well as the white** (it returns beach to #313's picture, which is what that
     kill is documented to draw). It can no longer A/B the white strength alone on this field.
+- **Amended 2026-10-12 15:39Z (this session; a correction, not the owner's words): the measured rows under "What it buys" are WITHDRAWN.**
+  Every bench frame saved before 2026-10-12 was darker than the screen at bright streak cores, in every theme, and the probe's lift
+  read dark high and beach low at once (found by the independent review of #321 and by the lead session). So the before-to-now
+  lifts "against dark's" above, and the two costs stated from them (the land's lift at 9 to 12 kn; "8 to 12% further than dark's" at
+  15 to 18 kn), are not measurements of this change. What the lead session reads on true frames, with every open wind change merged
+  and the sea white at 0.55: beach's streaks on this field add 1.5 to 1.8 times the light dark's add over the sea from 6 to 18 kn
+  (1.25 at 25.6 kn, 1.04 at 38.5), and 0.9 to 1.2 times over #320's deeper land; their cores stand as high as dark's; what beach
+  lacks is that its trails do not come back to the field between cores. **No before-and-after of this field alone exists on true
+  frames.** The decision stands on the field: lightness one way through the green band, the gale band under a ceiling, the
+  colour-blind lines above 5, at the costs in colour listed above. Also since the first amendment: over the sea F's field is about
+  half as colourful as dark's from 12 to 21 kn (C* 12 to 13 against 22 to 23), where it was more colourful; and over #320's deeper
+  land (the land's lightness times 0.85) F's land line reads 4.7 by the palette checker, for which a re-solve within 0.4 dE00 of F
+  that holds 5.0 on either land waits for the owner's word (log, 14:36Z).
