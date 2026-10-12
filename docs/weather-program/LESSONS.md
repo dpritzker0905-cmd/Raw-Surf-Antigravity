@@ -1115,6 +1115,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   bar is re-derived before either is trusted again. (As first written, on clipped frames and one ramp, this lesson gave "3.4 to
   5.5 L* low in dark, true in light" and "light at 1.6 to 1.7 times dark": the direction stood, the numbers did not. Log
   2026-10-12-wind-canvas-alpha, "After the review".)
+  - *2026-10-12 22:00Z, a note on the cause given above (log `2026-10-12-wind-trails-linger`):* "dark's marks carry the legend's
+    colour and take a little from the field beside their core" is not why dark's pixels sit under the field. With dark's white
+    inner ring off it still dips, with its marks laid at light's level it still dips, and with its composite's branch alone
+    swapped for the glow branch it stops: the cause is the composite's own veil (L-V76). The measurement above stands (lossless,
+    the same crops: -2.2 L* at 15.3 kn over the sea, -0.6 over land); the parenthesis was a guess.
 
 - **L-V74 · When the ground moves, everything laid on it is re-solved; and a line is checked by a shape the eye must find, not
   by its best pixels.** The wind's coastline stroke was solved on 2026-10-09 on light's and beach's pale ground (dark slate at
@@ -1135,6 +1140,39 @@ A stored estimate can be estimated again in a browser branch with different sour
   (2) measure a see-through on a speed ramp, the land against the sea inside one band of speed (`ground-run.js --fixture <ramp>
   --strips 12`): on the hurricane the sea is windier than the land and the field's own difference reads as the map's; (3) a
   theme is compared with dark by what it KEEPS of its own map, not by its level.
+- **L-V76 · Before asking why two arms behave differently, read which code path each one RUNS; write the composite out as
+  arithmetic; and then let a fit name the path.** For two days this program measured "the gap between light and beach and dark"
+  (the probe's lift, D-022's strengths, D-026's land) round a difference nobody had read: `SCREEN_FS` has two branches, and light
+  and beach had run the other one since dark's rules (D-020, rule 1). The lead's brief to the session that found it said "all
+  three themes use the same trail composite" and listed six candidate causes; none was the cause. Written as one family,
+  `screen - g = p (b c - b^2 g) - q b (1 - b) g`, dark is `p = q = 0.505` and the glow branch `q = 0`: the missing term is a black
+  veil that dims the ground under every fading tail, and it predicts dark's dip (`op g^2 / 4C`: 2.5 L* over its 15 kn sea) to a
+  few tenths of what was measured (2.2). (Note under L-V73: the cause it gave was a guess.) **Do:** (1) for each arm, read the
+  uniforms and the branch that DRAW it before designing a measurement (a recording GL that keeps the uniforms at each draw, or
+  one value forced on the real engine: `scripts/wind-bench/force-uniforms.js`); (2) write the composite for a fading tail and look
+  for a term one arm lacks; (3) fit the law from the screen and the buffer (`truth-run.js --law`): a coefficient names the path
+  without anyone's reading of the code, to 0.3 of a level; (4) isolate with ONE value changed, BOTH ways: a cause moves the
+  behaviour with it in both directions (dark on the glow branch reads as light; light on dark's branch dips), a modulator (the
+  fade, the trail count, the ground) moves its size and never its sign; (5) when a rule was written against a cost on one ground
+  ("light only adds", for the pale fields of 2026-10-11), re-read it when the ground changes: D-021 and D-026 made the grounds
+  deep, the rule's reason went, and its own cost (the trails linger) had never been measured as motion. And two lanes found this
+  within the hour of each other with two instruments and two candidates (a cut and a veil): a finding goes into the shared record
+  when it is made, not when its PR is opened. Log `2026-10-12-wind-trails-linger`.
+- **L-V77 · A change that is ON by default is checked against every older kill by what the new thing RESTS ON, and the whole test
+  tree is run before a review is asked for.** The veil (D-029) was first gated on the kills that share its tables (dark's rules,
+  the white streak, D-022's strengths). An independent review found two more it rests on and was not gated on: under the opaque
+  canvas's kill (D-027) the canvas's alpha is blended by the colour's factors, so the veil's alpha let light's page through and
+  the veil LIGHTENED the trails it exists to dim (+5 to +10 levels, read on a GPU); under the land's depth kill (D-026) the land
+  is pale again and the veil's dip is two to three times deeper. The same review found the commit red on four tests in files
+  the session had not run (a line-count ratchet and three text pins of lines it had changed), and five mutants of the shader
+  alive under tests that pinned its text. **Do:** (1) for a new default, write the list "this rests on ..." (the ground's depth,
+  the canvas's opacity, the strengths, the branch) and test it under every kill that takes one of those away, not only the kills
+  that share its tables; (2) run the WHOLE frontend tree before the review, not the suites you wrote (a change to one line of a
+  shared file can break a ratchet two files away); (3) a shader's test RUNS its arithmetic (its statements turned to JavaScript,
+  with a statement added as a positive control) and a GL trace keeps each program's uniforms as they stand AT EACH DRAW, not a
+  log of what was sent; (4) a brief to a sub-session carries the owner's standing rules: this one asked for a default-off lever
+  and the owner corrected it within the hour ("levers to turn on new updates need to be on by default"). Log
+  `2026-10-12-wind-trails-linger`, "The independent review".
 
 - **L-V80 · A fix is read at EVERY zoom the app can show before it is called a fix, and at the far end a land is carried by its
   tone, not by a line.** The coast in the borders' ink (D-028) was measured and filmed at zooms 4, 6, 8 and 10 and merged; the

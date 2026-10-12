@@ -115,7 +115,7 @@ describe('the wind bench lays every saved frame over the page the app lays (scri
   });
   it('the runners use it: a cached motion run is this run only on the same page, and the scored runners warn', () => {
     const motion = read(FRONTEND, 'scripts', 'wind-bench', 'motion-run.js');
-    expect(motion).toContain('results[run.name].page === pageOf(run.theme, run.behind || BEHIND)');
+    expect(motion).toContain('results[q.name].page === pageOf(run.theme, run.behind || BEHIND)');   // every crop of the run (motion-run.js --at with several centres)
     expect(motion).toContain('page: run.behind || BEHIND });');
     for (const f of ['map-run.js', 'path-run.js']) expect(read(FRONTEND, 'scripts', 'wind-bench', f)).toMatch(/alphaWarning\((r|res)\.canvasAlpha, theme, /);
   });

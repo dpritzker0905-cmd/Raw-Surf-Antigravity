@@ -1020,3 +1020,84 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   measured, the build with the trails lane. One visual variable a change.
 - **Evidence:** `log/2026-10-12-wind-map-through.md` (the three reads of dev, the candidates, the built numbers, the independent
   review and its six findings, the real-library read of the theme change, 14 mutations red).
+
+### D-029 · Light's and beach's trails carry dark's veil: their pixels come back to the field between streaks; ON by default
+- **Decided:** built ON on the owner's word to the building session, 2026-10-12 20:13Z, first-hand in its chat: "levers to turn on
+  new updates need to be on by default" (said while the change was being built behind a default-off lever, as the lead session's
+  brief of 19:02Z had asked: "one candidate that makes light's and beach's tails behave as dark's"). **The owner did not name this
+  change and has not seen it.** That it ships ON with a kill is D-020's standing rule, said again. **Which arithmetic draws the
+  tail is NOT yet the owner's pick** (below): the PR is a draft until it is.
+- **Rule:** wherever the white streak is laid ground by ground (D-021, D-022), the trail composite draws the glow branch's light
+  unchanged plus dark's veil: `screen - g = opacity (b c - b^2 g) - veil b' (1 - b') g`, `b' = min(1, b / level)`; `level` is the
+  buffer level of a streak's core (the square root of the white's strength), so the veil is nothing at a full core; `veil` is
+  dark's own composite opacity at the zoom times the theme's close-zoom factor. `windTrailVeil.js`; one guarded line in
+  `SCREEN_FS`. Kill: `window.__RAW_DISABLE_WIND_TRAIL_VEIL__ = true` (read each frame). Steer:
+  `window.__RAW_WIND_TRAIL_VEIL__` (a number over 0 up to 2: that multiple of dark's strength; or `false`). It stands down under
+  every kill, hold and bench lever that stands dark's rules or the white streak down, under D-022's kill, under the land's depth
+  kill (D-026) and under the opaque canvas's kill (D-027). Dark never reads it. Client only; no served number, table, particle
+  count, lifetime or fade moves.
+- **Why (log 2026-10-12-wind-trails-linger):** `SCREEN_FS` lays the trail buffer in two ways. Dark lays the buffer's colour at
+  alpha `b x opacity`; light and beach, since rule 1 of dark's rules ("light only adds"), lay the colour at full brightness at
+  alpha `b^2 x opacity`. As one family, `screen - g = p (b c - b^2 g) - q b (1 - b) g`, dark is `p = q = 0.505` and the glow branch
+  `q = 0`: dark carries a black veil of alpha `q b (1 - b)` under every fading tail and the glow branch none. So dark's pixels come
+  back to the field and sit a little under it between streaks (2 L* over its sea from 6 to 18 kn; a fifth of pixel-instants 1.5
+  L* or more under), and light's and beach's never went under and from 12 kn up never came back (1.2 to 11.4 L* over the field at
+  their darkest; 0.76 of the picture lit at 15 kn where dark lights 0.58). Fitted from the screen and the trail buffer: dark
+  p 0.505, q 0.505; light and beach p 0.999, q 0.000; each to 0.3 to 0.45 of an 8-bit level. With the branch alone swapped on the
+  real engine the behaviour moves with it, both ways; the mark's ring, its light level, the fade, the number of trails and the
+  ground's lightness move its size and never its sign. Rule 1 dropped the veil when light's and beach's grounds were pale (a veil
+  takes the ground squared); D-021 and D-026 have since drawn them near the depth of dark's sea.
+- **Measured** (the low ramp and two more, zoom 6, lossless crops at pixel ratio 1.5, against the same crop drawn with the field
+  alone; "before" is `origin/dev`): over the SEA at 15.3 kn, dark / before / with the veil: a pixel's darkest moment -2.2 / +1.8
+  / -2.5 in light and -2.2 / +1.8 / -1.6 in beach; the share lit 0.58 / 0.76 / 0.56 and 0.60; the share under the field
+  0.19 / 0.00 / 0.20 and 0.14; flicker 1.37 / 1.09 / 1.36 and 1.39. Along ten speeds light's darkest moment is within 1.1 L* of
+  dark's from 6 to 26 kn and beach's within 1.5 at every speed; the light added went from 1.30 to 1.56 times dark's to 0.85 to
+  1.33 (light) and from 1.04 to 1.53 to 0.87 to 1.18 (beach). Zooms 4 and 8 move the same way. By the lead's own gauge
+  (`anatomy-run.js`) a streak's bright body went from 1.3 to 1.8 times dark's size to 0.96 to 1.26. With the veil drawn the GPU
+  reads back p 0.999, q 0.505.
+- **What it costs:** (1) **the land.** Light and beach have ONE ground depth (D-026) and dark has two, and a veil takes more from
+  a lighter ground: over land from 6 to 18 kn their tails dip 0.4 to 2.0 L* further than dark's do over its near-black land, and
+  the streaks add 0.62 to 0.95 of dark's light there where they added about dark's before. Strength 1 sits on dark's SEA; 0.5
+  sits on dark's land; 0.75 is nearest over both. (2) At 6 to 9 kn over the sea the dip is 0.3 to 1.1 L* deeper than dark's
+  (their field is 4 to 13 L* lighter there). (3) A streak laid by one stamp sits under the core's level and is veiled a little: a
+  typical pixel's lightest moment falls 0.1 to 1.9 L* in light and 0.1 to 2.8 in beach, most at 6 to 9 kn; the highest tenth of
+  cores by 0.6 at most from 6 kn up. (4) Above 30 kn light still sits further over the field than dark (+5.0 to +7.1 against +2.2
+  to +3.5). (5) It breaks rule 1 of dark's rules on purpose: between streaks light and beach now go under the field, as dark does.
+- **Not decided here, the owner's:** (a) **the veil or the cut.** The lead session found the same cause the same hour and built a
+  different candidate (local branch `claude/proto-tail-cut`): the glow's alpha cut to zero at a fixed level k, never under the
+  field. Where the picture is lit the two agree with each other and with dark (the veil sits on the cut at k 0.38 on the lead's
+  gauge and on this one). Where it is not lit they differ in kind: under the cut a pixel between streaks is AT the field (0.39
+  of pixel-instants at 15 kn; dark 0.18) and never under it; under the veil it is under it as often as dark's is. The cut keeps
+  rule 1 and cannot draw a grey edge; the veil is dark's whole law. The owner has been shown the cut's clip by the lead and not
+  the veil's. (b) the veil's strength (above). (c) whether D-022's 0.55 still stands: with either tail the streaks add 0.6 to 0.9
+  of the light they did.
+- **Evidence (the log):** the fit in three themes at three speeds and with the veil drawn; nine one-variable arms on the real
+  engine (a forced uniform or one existing lever each); ten speeds over land and sea, zooms 4 and 8; the palette checker
+  unchanged (`check.mjs --strict` exits 0, 0 red colour-blind lines: no table moves); `origin/dev`'s own engine against this tree
+  under the kill and under the two older kills it stands down under, by hash (90 of 90 frames at every sea crop); the
+  independent review (it could not break the veil or its kill; what it found round them is fixed and listed); the cut read with
+  the same instrument. Nothing seen in the app.
+- **Reopen if:** the owner picks the cut; or the owner's eye finds the land over-carved or a grey edge in slow wind (steer the
+  strength first: `window.__RAW_WIND_TRAIL_VEIL__ = 0.5`); or a phone shows banding in the tails (the shader is `mediump`: not
+  measured on a device).
+- **AMENDED 2026-10-12 22:45Z: the veil at its default strength IS the tail's build; the cut is withdrawn; the PR is not waiting
+  on a pick.** This entry and PR #324 were first written as "a draft until the owner picks between the veil and the cut" because
+  ten notes from the lead session had not been delivered to the building session; they arrived together at 22:22Z. The lead,
+  note 5: "your veil [...] IS the tail's build; my prototype cut is withdrawn" (it reads the two-term law as "the law itself,
+  where my cut only approximates its zero crossing and has no dip"). The owner's words, first-hand to the lead and relayed (not
+  witnessed by the building session): 20:54Z, "merge #323 and build the tail, also make sure the other sub agents are getting
+  what they need to do done so we can get this working"; 21:13Z, "merge the tail pr when its ready [...]". So item (a) of "Not
+  decided here" is closed; the lead verifies #324 against dev and merges it. **Still the owner's eye:** the look itself (the lead
+  filmed the veil beside dark for them; no verdict is recorded here).
+  - **What is left, each its own later change, all the lead's:** the near-calm bands (the owner, 21:51Z, to the lead: "The almost
+    still wind needs to be almost still and almost transparent on beach and light modes"; the veil moves the 1 to 3 kn bands by
+    under 0.1); the sea's remainder (a streak's body 1.1 to 1.25 of dark's: D-022's 0.55 over the sea); the land's lightness and
+    the streak's strength over it (the lead's land step, which merges AFTER this and is re-read with the veil on).
+  - **The veil on a lighter land** (the lead's levers, land 0.90 / 0.94 with a streak at 0.75; the land crops at 6 / 15.3 / 26 kn):
+    the dip is -4.1 / -2.7 / +0.1 in light and -3.6 / -1.6 / 0.0 in beach (today's land -3.2 / -2.2 / 0.0 and -2.8 / -1.4 / -0.3;
+    dark's own land -1.0 / -0.6 / +1.3), and the light added comes back to dark's (0.81 to 1.17 of it, where today's land reads
+    0.66 to 0.89). **The veil's level stays the lower of the two grounds'**: forced to the land's own it veils more and trims the
+    core. The veil is not tuned to the land: the land's strength is re-solved on top of it by the land's own change.
+  - **Zooms 2 and 3** move as 4, 6 and 8 do. **The map's side** (`map-run.js --app-sync`, water): the lines' kept contrast moves
+    0.02 to 0.06 down and stays inside dark's own figures but for light at zoom 8 (0.74 against 0.82); the streaks' signal over
+    water comes from 1.1 to 1.5 times dark's to 0.7 to 1.1.

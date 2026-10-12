@@ -263,7 +263,7 @@ node scripts/wind-bench/compose-video.js scripts/wind-bench/out/videos/side.webm
   `out/motion/<name>/`). **Every number recorded from this mode was read with `--size 360`** (the crop's side in CSS pixels;
   the default is 420, and a different crop reads a different lift): pass it to compare with a recorded number.
 
-- `runs.json`: `[{ name, theme, z, scale?, levers?, frames?, lng?, lat? }]`; frames land in `out/motion/<name>/`. `--dpr` is the device
+- `runs.json`: `[{ name, theme, z, scale?, levers?, frames?, lng?, lat?, behind?, res?, force? }]` (`res` and `force`: Truth mode, below); frames land in `out/motion/<name>/`. `--dpr` is the device
   pixel ratio the page renders at: the owner's laptop is 1.5, every other mode here runs at 1. Needs the Mapbox token as map mode does.
 - **`page/mirror-probe.js` is ONE file with two entries:** `capture()` on a live canvas (paste the file into the deployed app's
   console, or run it through a browser connector, then `await __mirrorProbe.capture({ at: [0.3, 0.6] })`) and `fromImages()` on saved
@@ -321,6 +321,72 @@ node scripts/wind-bench/compose-video.js scripts/wind-bench/out/videos/side.webm
   `--crop WxH --crop-fmt png` keeps the crops lossless: read a claim about a 1 px line there, the JPEG rings.
 - `mirror-probe.js` `capture()` on a live canvas was not checked for this. On a build whose canvas alpha is under 1 (every
   deployed build before D-027) treat its light-mode numbers as unverified: the screen showed the page through the canvas.
+
+## Truth mode (`truth-run.js`, `truth.js`, `force-uniforms.js`): what do the streaks do to the picture, against the field alone?
+
+The mirror probe guesses the ground from the picture itself (each pixel's darkest moment). That reads a theme whose trails
+DARKEN the field low and a theme whose trails never leave it high, both at once (LESSONS L-V73). Truth mode guesses nothing:
+the ground is the SAME crop drawn with the colour field alone, and every pixel of every frame is read against it.
+
+```bash
+# runs.json: the streaks first (the first run on a fresh map), then the field alone ("res": 2) on the same map
+#   [ { "name": "low-light", "theme": "light", "z": 6 }, { "name": "low-light-field", "theme": "light", "z": 6, "frames": 12, "res": 2 } ]
+node scripts/wind-bench/ramp-fixture.js scripts/wind-bench/out/ramp-low.json --from 2 --to 30
+node scripts/wind-bench/motion-run.js --runs runs.json --fixture scripts/wind-bench/out/ramp-low.json --dpr 1.5 --map-dpr 1.5 \
+  --crop 240x330 --crop-fmt png --at "0.143,0.85;0.475,0.85;0.857,0.85;0.143,0.2;0.475,0.2;0.857,0.2" --trail --out scripts/wind-bench/out/truth.json
+node scripts/wind-bench/truth-run.js "sea15=low-light@0.475_0.85:low-light-field@0.475_0.85" "land15=low-light@0.475_0.2:low-light-field@0.475_0.2"
+node scripts/wind-bench/truth-run.js --law --level 0.7416 --check 1,0.505 "sea15=low-light@0.475_0.85:low-light-field@0.475_0.85"
+node scripts/wind-bench/truth-run.js --same "low-light@0.475_0.85:again-light@0.475_0.85"     # the null control: the same bytes?
+node scripts/wind-bench/truth-run.js --diff "low-light@0.475_0.2:again-light@0.475_0.2"       # or how far apart, CIE76 a pixel
+```
+
+- **Take the frames lossless, at device resolution, with the page and the map at the owner's pixel ratio** (`--crop WxH
+  --crop-fmt png --dpr 1.5 --map-dpr 1.5`). A JPEG rings round a 1 px streak: on 1000 px JPEG frames dark's dip under its field over land at
+  15.3 kn read 2.0 L* where the lossless crop reads 0.6 (log `2026-10-12-wind-canvas-alpha`). `truth-run.js` refuses a see-through frame (one an older bench
+  saved from the bare canvas; `--clamp` counts what such frames lost, L-V72).
+- **`--at` takes several centres** (`"fx,fy;fx,fy"`): every centre is cropped from the SAME frames, so the same particles are
+  read at each place, and each crop is a run of its own named `<name>@<fx>_<fy>` for every reader of `out/motion/`. On a speed
+  ramp a crop's centre is a speed: `from + (to - from) x fx` (the ramp spans the view's own edges; these crops are in canvas
+  pixels, not the 1000 px frame's, so `ramp-fixture.js` `speedAt` does not apply). At zoom 6 `fy` 0.85 is the open Gulf and 0.2 is land.
+- **The columns** (`truth.js` `watch`; all in CIELAB L* against the field alone; a pixel-instant is one pixel in one frame):
+  `added` and `taken` (the light the streaks add, and take where a pixel is under the field), `over` (share of pixel-instants
+  3 L* or more over the field: how much of the picture is lit at an instant), `under` (1.5 or more under it), `at field` (within
+  1.5 of it), `back` (share of PIXELS that came back to the field at least once), **`darkest`** (a pixel's darkest moment
+  against the field, median and the deepest tenth: under 0 means the trails dip under the field between streaks, over 0 means
+  they never come back to it), `core` (its lightest moment: a streak's height), `weber`, `flicker`.
+- **`--law` reads the composite's own arithmetic off the screen.** `motion-run.js --trail` saves, beside each frame's crop, the
+  same crop of the engine's own trail buffer (`tNNN.png`: the ink before it met the map). With c the buffer's colour, b its
+  strongest channel and g the field alone, a channel at a time, both branches of `SCREEN_FS` are members of one family:
+  `screen - g = p x (b c - b^2 g) - q x b' (1 - b') g`, `b' = min(1, b / level)`. The first term is LIGHT, the second a VEIL
+  (a black of alpha `q b' (1 - b')`). `truth-run.js --law` fits p and q by least squares and prints the residual in 8-bit
+  levels beside each pure law at its own best strength. Dark's branch is `p = q = its opacity`; the glow branch is `q = 0`.
+  `empty` is the screen's distance from the field where the buffer holds nothing: 0 says the three crops are the same pixels.
+  **Read the law over the SEA.** Over land the map draws its own lines and names ABOVE the wind, and a pixel under one obeys no
+  law of the wind's: `--check p,q` prints the share of pixel-channels a given law explains to 1.5 levels (88% to 93% over land,
+  99.9% over the sea).
+- **One variable at a time: a run's `force`** (`force-uniforms.js`). A lever in the app usually moves several things together
+  (the white streak's kill also moves the field, the land's depth and both paths). `"force": { "screen.u_glow@map": 0 }` holds
+  the real engine, its shaders and every default as they are and replaces ONE uniform on its way to the GPU: `<program>.<uniform>`
+  with an optional `@map` (only while the map's framebuffer is bound: the composite, not the buffer's copy) or `@buffer`; a
+  number, or two to four. The result keeps how often each fired, and a force that never fired stops the run and removes its
+  frames (a misspelt uniform would otherwise be a run that measured the default). Bench only: nothing under `src/` reads it.
+  Two limits: the pass is judged when the value is SENT (true of the screen, fade and draw programs; the advect program sends its
+  uniforms before it binds its buffer, so it takes no suffix), and a forced value stays in its program until the engine sends that
+  uniform again (the buffer's copy re-sends `u_opacity`, `u_glow` and `u_ink_cap`, not `u_premul`, `u_ink` or `u_trail_veil`).
+- **Compare runs of EQUAL length.** `darkest`, `core`, `back` and `reach` are extremes over a run: a longer run reads a deeper
+  darkest moment. `truth-run.js` says so when the runs it is given differ, and `--diff` when one run is longer than the other.
+- **A saved run is reused only if it is this run** (`crops.js` `sameRun`): the same wind, page, levers, forced uniforms and crop,
+  with the trail buffer if it is asked for. Where a crop is, and which crop of a frame goes to which run, is `crops.js` too.
+- **Compare arms at the same run position, with a null control.** A second invocation of the same arm is the same bytes over
+  the sea (90 of 90) and NOT over land: the map does not place its names to the bit (mean 0.04 to 0.10 CIE76 a pixel, 1% to 3%
+  of pixels over 1). Read a claim of "the same picture" over the sea by hash, and over land by `--diff` beside that null.
+- **The statistics are tested on frames with a known answer** (`src/components/map/windBenchTruth.test.js`): a streak that
+  lingers over the field and one that comes back and dips under it, each alone; the law's fit on screens drawn by each branch;
+  a buffer one pixel off and a map line above the wind as positive controls; the forced uniforms on a recording context.
+- Baseline, 2026-10-12, dev `a022b398` (the low ramp, zoom 6, the sea; `darkest` / `over` / `added` at 6, 15.3 and 26 kn):
+  dark -2.1, -2.2, -0.2 / 0.38, 0.58, 0.78 / 5.2, 8.2, 11.5; the law by `--law`: dark p 0.505, q 0.505; light and beach
+  p 0.999, q 0.000, each to 0.3 to 0.45 of a level. Light, beach and the veil that followed (D-029: with it light and beach read
+  p 0.999, q 0.505 at `--level 0.7416`): log `2026-10-12-wind-trails-linger`.
 
 ## Border mode (`border-run.js`, `page/border-probe.js`): can the borders and place names be read under the wind?
 
