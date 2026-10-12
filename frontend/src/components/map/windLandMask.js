@@ -31,7 +31,7 @@ export const GLSL_LAND_FS = `
 #else
 #define LAND_HP mediump
 #endif
-uniform sampler2D u_land_mask; uniform float u_land_on; varying LAND_HP vec2 v_world;   // windLandMask.js
+uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; varying LAND_HP vec2 v_world;   // windLandMask.js; u_white: the mark's light level over land (x) and over sea (y)
 `;
 
 const STATE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
@@ -118,7 +118,7 @@ function load(gl, st, win) {
  * The bind goes through the engine's own bindTexture, which keeps a record of the active unit: a raw activeTexture here would leave
  * that record wrong, and the engine's next bind would land on another unit.
  */
-export function bindLandMask(gl, prog, unit, on, win) {
+export function bindLandMask(gl, prog, unit, on, win, white) {
   if (!gl || !prog || !STATE) return;
   let st = STATE.get(gl);
   // A restored context keeps its object and loses its textures, and the engine rebuilds its programs then: a new program is the
@@ -131,4 +131,7 @@ export function bindLandMask(gl, prog, unit, on, win) {
   bindTexture(gl, ready ? st.tex : st.blank, unit);
   gl.uniform1i(gl.getUniformLocation(prog, 'u_land_mask'), unit);
   gl.uniform1f(gl.getUniformLocation(prog, 'u_land_on'), ready ? 1 : 0);
+  // DARK'S WHITE (windDarkRules.js DARK_WHITE): the mark's light level over land and over sea. The screen pass lays a trail at its
+  // level SQUARED, so a strength (the share of full) is carried as its square root. Without a ready mask every mark reads as land.
+  gl.uniform2f(gl.getUniformLocation(prog, 'u_white'), Math.sqrt(white ? white.land : 1), Math.sqrt(white ? white.sea : 1));
 }

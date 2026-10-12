@@ -9,7 +9,7 @@
  *   - NO DOM or React dependency
  *   - Pure color math + GL texture creation
  */
-import { DARK_RULES, solveDarkRules } from './windDarkRules';
+import { DARK_RULES, DARK_WHITE, solveDarkRules } from './windDarkRules';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -470,6 +470,11 @@ export function windDarkRulesOn(theme, win) {
 export function windWhiteStreakOn(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {};
   return w.__RAW_DISABLE_WIND_WHITE_STREAK__ !== true && windDarkRulesOn(theme, w);
+}
+/** How strongly the white streak is laid over land and over sea, as shares of full strength (windDarkRules.js DARK_WHITE, D-022): { land: 1, sea: 1 }, as before it, under `__RAW_DISABLE_WIND_DARK_WHITE__ = true` and wherever the white streak does not draw. */
+export function windWhiteStrength(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {}, k = w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w) ? DARK_WHITE[theme] : null;
+  return k ? { land: k.land, sea: k.sea } : { land: 1, sea: 1 };
 }
 var SOLVED = {};
 function darkRulesTables(theme, w) {

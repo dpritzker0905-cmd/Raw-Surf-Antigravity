@@ -43,6 +43,7 @@ describe('the land mask (rule 4): the mark picks its row by the ground under it'
     gl.getUniformLocation = (prog, name) => name;
     gl.uniform1i = (loc, v) => { gl.uniforms[loc] = v; };
     gl.uniform1f = (loc, v) => { gl.uniforms[loc] = v; };
+    gl.uniform2f = (loc, x, y) => { gl.uniforms[loc] = [x, y]; };
     gl.isContextLost = () => gl.lost;
     gl.isTexture = (t) => { gl.isTextureCalls++; return !gl.dead.has(t); };
     gl.uploads = () => gl.calls.filter((c) => c[0] === 'texImage2D').map((c) => c[1]);
@@ -91,7 +92,7 @@ describe('the land mask (rule 4): the mark picks its row by the ground under it'
     const gl = maskGl(), win = page();
     for (let f = 0; f < 3; f++) bindLandMask(gl, 'prog', 5, false, win);
     expect(win.fetch).not.toHaveBeenCalled();
-    expect(gl.uniforms).toEqual({ u_land_mask: 5, u_land_on: 0 });
+    expect(gl.uniforms).toEqual({ u_land_mask: 5, u_land_on: 0, u_white: [1, 1] });
     expect(gl.uploads()).toHaveLength(1);
     expect(gl.uploads()[0]).toMatchObject({ w: 1, h: 1, format: 'LUM' });
     expect(Array.from(gl.uploads()[0].bytes)).toEqual([255]);                                 // land: with no mask every mark draws its land row
@@ -105,7 +106,7 @@ describe('the land mask (rule 4): the mark picks its row by the ground under it'
     expect(gl.uniforms.u_land_on).toBe(0);
     await settle();
     bindLandMask(gl, 'prog', 5, true, win);
-    expect(gl.uniforms).toEqual({ u_land_mask: 5, u_land_on: 1 });
+    expect(gl.uniforms).toEqual({ u_land_mask: 5, u_land_on: 1, u_white: [1, 1] });
     const big = gl.uploads().filter((u) => u.w === LAND_MASK_SIZE);
     expect(big).toHaveLength(1);
     expect(big[0]).toMatchObject({ h: LAND_MASK_SIZE, format: 'LUM', align: 1 });
@@ -117,6 +118,15 @@ describe('the land mask (rule 4): the mark picks its row by the ground under it'
     expect(gl.uniforms.u_land_on).toBe(0);
     expect(gl.units[105]).toBe(gl.uploads()[0].tex);
     expect(win.fetch).toHaveBeenCalledTimes(1);
+  });
+  it('the white\'s strength over land and over sea reaches the shader as LIGHT LEVELS, their square roots; none passed is full on both (dark\'s white, D-022)', () => {
+    const gl = maskGl(), win = page();
+    bindLandMask(gl, 'prog', 5, true, win, { land: 1, sea: 0.55 });                         // the screen pass lays a trail at its level squared
+    expect(gl.uniforms.u_white[0]).toBe(1); expect(gl.uniforms.u_white[1]).toBeCloseTo(Math.sqrt(0.55), 12);
+    bindLandMask(gl, 'prog', 5, true, win);                                                  // a caller with nothing to say: as before the uniform existed
+    expect(gl.uniforms.u_white).toEqual([1, 1]);
+    bindLandMask(gl, 'prog', 5, false, win, { land: 1, sea: 0.25 });                        // bound whatever the mask\'s state: with no mask every mark reads as land, so x is what draws
+    expect(gl.uniforms.u_land_on).toBe(0); expect(gl.uniforms.u_white).toEqual([1, 0.5]);
   });
   it('uploads north-up whatever unpack state the page left, and leaves that state and the map\'s binding as it found them', async () => {
     const gl = maskGl(), win = page();

@@ -62,6 +62,26 @@ export const DARK_RULES = Object.freeze({
  */
 export const WHITE_STREAK = Object.freeze({ opacity: 1.0, ring: 1, white: 0 });
 
+/**
+ * DARK'S WHITE, GROUND BY GROUND (owner, 2026-10-11; DECISIONS D-022). ON BY DEFAULT wherever the white streak draws.
+ *
+ * The owner, on the deployed white streak: "I dont see the wind for light mode or beach mode mirroring the dark mode", then, watching
+ * the three themes: "close up zoom ... looks somewhat okay ... Its when you start zooming out that the contrast in theme modes
+ * happens", and "you should be able to mathmatically determine".
+ * Read frame by frame on the owner's screen and on the bench with one probe (scripts/wind-bench/page/mirror-probe.js): how far the
+ * streaks LIFT the whole picture above its ground. Dark's map is light's and beach's turned over: dark's land is near black and its
+ * sea is slate, theirs a pale land and a deep sea. The white streak was laid at one strength on both. Over the pale land that lifted
+ * the picture 0.30 to 0.93 times as far as dark's streaks lift dark's land: no room above. Over the deep sea it lifted it 1.06 to 1.64
+ * times as far, and a zoomed-out view is mostly sea: the streaks' cores went paper white and buried the colour field.
+ * So the white is laid by the ground under the mark (the land mask, windLandMask.js): at full strength over land, and over the sea
+ * at the share of it at which a streak lifts the picture as far as dark's lifts dark's sea (the median over zooms 4, 6 and 9 on the
+ * bench, the real basemaps, the owner's pixel ratio). Each number is a STRENGTH: the share of full. The mark carries its square root
+ * as its light level, because the screen pass lays a trail at its level squared.
+ * Kill: window.__RAW_DISABLE_WIND_DARK_WHITE__ = true (full strength on both grounds, as PR #313 drew, pixel for pixel).
+ * No table moves. WindColorRamp.js windWhiteStrength decides; without a land mask every mark is laid as over land (PR #313's look).
+ */
+export const DARK_WHITE = Object.freeze({ light: Object.freeze({ land: 1, sea: 0.55 }), beach: Object.freeze({ land: 1, sea: 0.77 }) });
+
 const BASE = {
   dark: { land: [28, 37, 48], water: [11, 29, 46] },
   light: { land: [236, 236, 232], water: [168, 214, 222] },

@@ -355,6 +355,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
+      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea, and nothing else; no table reads it
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
       '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',
@@ -586,17 +587,17 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
   it('DRAW_FS declares the mask at the best precision the device has, and mixes the LUT\'s rows by it', () => {
     expect(DRAW_FS).toContain(GLSL_LAND_FS);
     expect(GLSL_LAND_FS).toContain('#ifdef GL_FRAGMENT_PRECISION_HIGH\n#define LAND_HP highp\n#else\n#define LAND_HP mediump\n#endif');
-    expect(live(GLSL_LAND_FS)).toContain('uniform sampler2D u_land_mask; uniform float u_land_on; varying LAND_HP vec2 v_world;');
+    expect(live(GLSL_LAND_FS)).toContain('uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; varying LAND_HP vec2 v_world;');   // u_white: dark's white, ground by ground (D-022; windDarkWhite.test.js)
     expect(GLSL_LAND_FS.startsWith('\n#ifdef')).toBe(true);                                   // a preprocessor line must start its own line
     // row 0 (v 0.25) is the land row, row 1 (v 0.75) the sea row; with no mask every mark reads 1.0 = land
-    expect(live(DRAW_FS)).toContain('vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0);');
+    expect(live(DRAW_FS)).toContain('float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);');
     expect(DRAW_FS.match(/texture2D\(u_color_ramp/g)).toHaveLength(2);
   });
   it('the engine builds a two-row marks table, binds the mask on a unit of its own and rebuilds on the look key', () => {
     expect(ENGINE.match(/drawnMarkRampData\(this\._maxWindSpeed, activeTheme\)/g)).toHaveLength(2);   // render and setTheme
     expect(ENGINE.match(/createTexture\(gl, gl\.LINEAR, rampData, 256, 2\)/g)).toHaveLength(2);
     expect(ENGINE.match(/lookKey !== this\._lookKey/g)).toHaveLength(2);
-    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme));');
+    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme));');   // since D-022 the same call carries the white's strengths
     expect(ENGINE).not.toMatch(/bindTexture\(gl, [^)]*, 5\)/);                                 // unit 5 is the mask's alone (0-3 are the engine's; the state isolation restores 0-6)
     expect(ENGINE).not.toContain('resolveMarkRamp');                                           // the engine reads the drawn tables, never the rollback ones
   });
