@@ -517,3 +517,38 @@ built tables as they are, the checker's composite and colour-blind models, light
   41.0: the sea's own levels (50.2 / 46.2 from 6 and 16 kn): one ground.
 - If #320 and #318 are both on dev, light's rows want re-solving with that land in the loop to get the margin back. Held, at
   the leading session's word, until the owner has seen the canvas fix (#321) and the deep land (#320) in the app.
+
+## 15:13Z · CORRECTION to point 1 of the 14:18Z section: the saved frames were darker than the screen, in every theme (relayed; not re-measured here)
+
+Relayed by the leading session (its message, about 15:10Z), from the independent review of its PR #321. The measurements are
+the review's (one scene, the offline basemap), not this session's.
+
+- **What 14:18Z said, and is wrong in:** that this log's pictures of light with streaks are "light over a black page: what the
+  app will draw once that fix is on dev". They are not that either.
+- **What the review found:** a frame saved from the bare canvas is un-premultiplied by the encoder (clamped at 255) and then
+  laid over black. Wherever a channel was brighter than the alpha the wind had left, the saved pixel held min(channel, alpha).
+  Under dev's blends: light 21% to 26% of pixels with a clamped channel (a third of the wind-touched ones), 1.7 to 2.0 L*
+  darker each on average, up to 13.0 (canvas 239,226,234 saved as 193,193,193); dark 6.1% to 8.6%, 2.0 to 2.8 L*; beach 11.5%
+  to 25.6%, 3.1 to 3.6 L*.
+- **Checked here, in the code only:** this branch's bench saves through that path. `scripts/wind-bench/page/map-entry.js`
+  (`cropShot`, `thumb`) draws the map's canvas into a 2D canvas and calls `toDataURL`, with no page behind it, and
+  `mirror-probe.js` reads those frames. So it applies to every frame this log made.
+- **What stands:** every number that reads no frame: the field's tables and their on-screen colours by the composite model,
+  the checker's lines, the colour-blind and normal-vision distances, the hue order, the hashes, the tests.
+- **What does not stand as a number:** every streak lift in this log, in STATE's bullet, in D-024 and in the PR's text (the
+  hurricane reads and the ramp reads; the lifts themselves and their ratios to dark's), and every still and clip with streaks
+  as a picture of the app. With #321 light's streak cores will be brighter and more coloured than in any sample made here; the
+  review puts the samples at "about 2 L* at up to a quarter of the pixels", not to the byte.
+- **Before against now, in light:** both arms went through the same clamp, but the clamp depends on the colour under the
+  streak, so the two arms were not darkened equally. The DIRECTION does not rest on the frames: the tables put the ground 5.8
+  L* lighter at 10 kn and 3.0 lighter at 16 kn, and a white streak lifts less off a lighter ground. The SIZES (0.68 -> 0.52,
+  0.78 -> 0.56, 0.90 -> 0.77 over land; the sea's 0.03 to 0.09) are owed a re-read on the corrected bench.
+- **The leading session's first re-measure on corrected frames** (its numbers; dev's engine with the fix, the hurricane x 0.4,
+  zoom 6, one sea and one land crop; the mean picture minus the same crop drawn with the field alone): dark adds 8.5 L* over
+  the sea and 3.3 over land; light on dev's strengths adds 12.3 and 3.8; beach on dev adds 16.3 and 4.1. Dark's marks take a
+  pixel BELOW the field at their darkest moment (2.7 L* over the sea, 6.4 over land); light's and beach's never do. Its
+  reading: by added light, light is not behind dark anywhere, and dark differs in kind. That is dev's light, not this change's
+  rows; it is re-measuring every open change by speed, with and without #320's land.
+- **Owed:** this change's streak lift by speed on the corrected bench (the leading session's table, or this session's when
+  asked). Nothing was rebuilt or re-measured for this section; the re-solve stays held.
+- #318 at this time: head `25db110d` before this commit, MERGEABLE, dev still at `74417b5a`.

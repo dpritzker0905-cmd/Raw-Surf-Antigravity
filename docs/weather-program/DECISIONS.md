@@ -584,6 +584,9 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   - **Streaks over the sea:** 0.96 to 1.06 of dark's lift at every speed from 6 to 30 kn (0.95 to 1.11 before): from 8 to 16 kn
     it comes DOWN 0.03 to 0.09, from a little above dark's to dark's. (On the hurricane scene the sea crops read 1.03 / 1.13 /
     1.14 at zooms 6 / 4 / 9 against 1.03 / 1.22 / 1.14: those crops hold about 41 kn wind, rows this change does not touch.)
+  - **Qualified 2026-10-12 15:13Z:** both streak reads above were taken on frames the bench saved darker than the screen at
+    bright streak cores (found by the review of PR #321; this session's log, 15:13Z). The direction stands on the tables (a
+    lighter ground at 10 and 16 kn); the sizes are owed a re-read on the corrected bench.
   - **Normal-vision neighbours:** the weakest are 8.0 dE00 apart (27 to 33 kn over the sea); the field's weakest was 9.0.
     Dark's own is 5.1 to 5.5.
   - **3 kn** is a shade less colourful (C* 21.6 against 26.4): what separates it from the new 6 kn for a protan viewer.

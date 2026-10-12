@@ -33,6 +33,8 @@ is a claim, not a measurement.
     normal and 5.4 colour-blind (9.3 / 5.2); under the kill, dev's lines. In motion on a speed ramp (3 to 33 kn, zoom 6; page
     pixel ratio 1.5, the bench's map at 2), lift against dark's, before -> now: over the SEA 0.95 to 1.11 -> 0.96 to 1.06 (dark's
     at every speed); over LAND 10 kn 0.68 -> 0.52, 13 kn 0.78 -> 0.56, 16 kn 0.90 -> 0.77, every other speed within 0.04.
+    **These lifts were read on frames the bench saved darker than the screen (the log's 15:13Z correction; the bench fix is
+    PR #321's): the direction stands on the tables, the sizes are owed a re-read on the corrected bench.**
   - **What it costs:** 6 to 16 kn a third less colourful (still above dark's own field on screen); 10 kn 5.8 L* lighter; streaks
     over land fainter in 10 to 16 kn winds; the weakest normal-vision neighbours 8.0 (9.0); the floor's margin 5.1 (5.5).
   - **Stands down with:** every lever and kill that stands the white streak down, D-022's kill (it restores D-021's picture),
