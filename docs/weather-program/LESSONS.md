@@ -1115,3 +1115,23 @@ A stored estimate can be estimated again in a browser branch with different sour
   bar is re-derived before either is trusted again. (As first written, on clipped frames and one ramp, this lesson gave "3.4 to
   5.5 L* low in dark, true in light" and "light at 1.6 to 1.7 times dark": the direction stood, the numbers did not. Log
   2026-10-12-wind-canvas-alpha, "After the review".)
+
+- **L-V74 · When the ground moves, everything laid on it is re-solved; and a line is checked by a shape the eye must find, not
+  by its best pixels.** The wind's coastline stroke was solved on 2026-10-09 on light's and beach's pale ground (dark slate at
+  0.42 and 0.28). The deep field, the white streak and the land's depth then put a deep ground under it, and each of those
+  changes re-solved the streaks and the borders and left the stroke. By its best-covered pixels it still read level with dark's
+  (16.9 against 17.1 L\* at zoom 4), and the owner could not see the map: at zoom 4 Florida was drawn in dark and absent in light
+  and beach. A pale hairline on a deep ground carries; a dark hairline of the streaks' own width, among white streaks, does not,
+  at the same number. **Do:** (1) a change that moves the ground under the wind lists what is drawn ON that ground (the coast
+  stroke, the border lines, the names, the streak rows) and re-reads each; (2) read a line where the eye reads it: a land the
+  viewer must find at the zoom they use (Florida at zoom 4), on a crop at device resolution, beside dark, before any number is
+  believed; (3) when the eye and a number disagree, it is the number that has to explain itself (L-V72).
+- **L-V75 · A map is seen THROUGH a layer when its own contrasts survive under it with their sign. "Nearly one ground" was dark's
+  map.** D-026 drew light's and beach's land at the sea's depth on the reading that dark's land and sea "carry nearly one ground
+  under the wind (L\* 33.5 and 42.5)". Those 9 L\* are what is left of dark's own 18: half of its land-sea contrast, with its
+  sign, which is the condition for seeing a film rather than paint (Metelli 1974; Singh and Anderson 2002). Light and beach were
+  left with 0.14 and 0.23 of theirs, and their field is a multiply, which passes the map through whole: it was the restyle that
+  flattened the map, not the wind. **Do:** (1) before a difference is removed as "nearly nothing", ask what the eye uses it for;
+  (2) measure a see-through on a speed ramp, the land against the sea inside one band of speed (`ground-run.js --fixture <ramp>
+  --strips 12`): on the hurricane the sea is windier than the land and the field's own difference reads as the map's; (3) a
+  theme is compared with dark by what it KEEPS of its own map, not by its level.

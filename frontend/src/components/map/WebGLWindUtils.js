@@ -557,12 +557,17 @@ export function windLayerBeforeId(layers, theme, win = (typeof window !== 'undef
 export var WIND_COASTLINE = { id: 'wind-coastline', themes: ['light', 'beach', 'dark'],
   color: { light: 'rgb(45, 58, 72)', beach: 'rgb(45, 58, 72)', dark: 'rgb(200, 214, 228)' }, opacity: { light: 0.42, beach: 0.28, dark: 0.45 },
   width: ['interpolate', ['linear'], ['zoom'], 3, 0.4, 6, 0.7, 9, 1.1, 12, 1.4] };
+/** Does this theme draw the coastline stroke at all (its kill, its themes lever)? Cheap: the layer asks on every style event. */
+export function windCoastlineWanted(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_COASTLINE__ === true) return false;
+  const themes = typeof w.__RAW_WIND_COASTLINE_THEMES__ === 'string' ? w.__RAW_WIND_COASTLINE_THEMES__.split(',') : WIND_COASTLINE.themes;
+  return themes.includes(theme);
+}
 /** The coastline line-layer spec for this style + theme, or null (theme off, kill, or no 'water' fill to trace). */
 export function windCoastlineLayer(layers, theme, visible, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
-  if (w.__RAW_DISABLE_WIND_COASTLINE__ === true || !Array.isArray(layers)) return null;
-  const themes = typeof w.__RAW_WIND_COASTLINE_THEMES__ === 'string' ? w.__RAW_WIND_COASTLINE_THEMES__.split(',') : WIND_COASTLINE.themes;
-  if (!themes.includes(theme)) return null;
+  if (!windCoastlineWanted(theme, w) || !Array.isArray(layers)) return null;
   const water = layers.find((l) => l && l.id === 'water' && l.type === 'fill' && l.source && l['source-layer']);
   if (!water) return null;
   const op = w.__RAW_WIND_COASTLINE_OPACITY__;
