@@ -474,3 +474,32 @@ gentler land factor for beach; or accept 4.7 over land, said plainly. The owner'
 `windWhiteStrength`'s return line and adds a `setWindLandDepthGate(...)` line after that function; `check.mjs` and
 `mirror-model.mjs` hand `windLandWhite` and `setWindLandDepthGate` to the ramp source. Keep every import, its line, then the
 switches, then one declaration of `SOLVED`.
+
+## 14:17Z · The step that remains at 21 to 27 kn is F's own gale band (the lead's question), and what its canvas finding means here
+
+**Relayed by the lead at 14:17Z.** It found why light never matched its samples in the app (a see-through canvas over a near-white
+page; D-027 on its branch). Beach is NOT affected: the app lays a black page behind beach, and beach's frames are byte-identical with
+and without that fix, so this lane's samples and numbers are what the app draws. It also found the mirror probe reads dark's ground
+3.4 to 5.5 L* low, so "lift against dark's" in every table above overstates dark: against the field alone, in its preview with F
+and sea white 0.55, beach lifts the sea 8.4 / 9.7 / 10.4 L* at 11.8 / 15.3 / 18.5 kn where dark lifts it 5.1 / 5.2 / 5.4. The
+ratios in this log (and in #319's description) are therefore ratios to an overstated dark; the strength is the lead's to retune.
+
+**Its question:** in that preview beach's ground over the sea reads L* 38 at 18.5 kn and 53 to 57 from 25.6 to 38.5 kn with F. Is
+that step F's intended gale band or a remainder of the pale band?
+
+**Answer: it is F's own band, by design, and the step is what F could not remove in beach's own hues.**
+- F puts the gale band under a ceiling (L* 60 over the model's land, about 49 over its sea) AND deepens 16 and 21 kn. By the model
+  the sea reads 36.0 / 35.9 at 16 / 21 kn and 48.9 / 48.6 / 48.4 at 27 / 33 / 40 kn; before F, 43.2 / 44.1 and 57.9 / 54.9 / 51.0.
+  So the whole 16 to 40 kn range came down 3 to 9 L*, and the step from 21 to 27 kn is 13.0 L* over the sea where it was 13.8
+  (15.5 over land, from 16.6). The band is no longer as light as calm; the step into it is as tall as it was.
+- Why the step stays: 21 kn and 27 kn are the SAME hue in beach (123 degrees; palm green and palm gold-green). What tells them
+  apart, for every viewer, is lightness and colour. The solver holds that pair above the colour-blind bar with lightness.
+- What removing it costs: the solve allowed 20 degrees of hue (06:20Z entry, "D" at 20 degrees) laid 21 and 27 kn LEVEL (L* 61.8 and
+  61.5 over land) by turning 27 kn's hue 20 degrees toward yellow (to 102) and 6 kn's 20 degrees toward cyan. So a flat ground from
+  16 to 40 kn exists, at 20 degrees of hue instead of 12 and with the everyday ground lifted to L* 62 to 63. Not built.
+- The rendered sea is lighter than the model's (the lead's 53 to 57 against the model's 48 to 49; its rendered muted sea is L* 72.5
+  against the model's 68.8), so the rendered step is 15 to 19 L* where the model says 13.
+
+**The merge order the lead is recommending to the owner:** the canvas fix, #320, #319, #315, #318, #317. With #320 before #319, F's
+land line reads 4.7 over the deeper land by the model (13:11Z entry): #319 needs F re-solved on that land, a gentler land factor, or
+4.7 accepted, BEFORE it merges second. And with #319 before #315 the sea is over-lifted until #315 lands.
