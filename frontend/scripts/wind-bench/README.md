@@ -333,6 +333,33 @@ node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3   
     instead of 1.5 the lift against dark's is off by 0.00 to 0.03 over the sea in the served wind and below it, by up to 0.09
     with the fixture scaled 2.3 times, and by 0.02 to 0.08 over land. The old way read D-022's recorded lifts to the digit.
 
+## Speed ramp (`ramp-fixture.js`, `motion-run.js --fixture`): one scene with clean axes
+
+```bash
+node scripts/wind-bench/ramp-fixture.js scripts/wind-bench/out/ramp-low.json --from 2 --to 30        # everyday winds
+node scripts/wind-bench/ramp-fixture.js scripts/wind-bench/out/ramp-high.json --from 6.85 --to 60.6  # to a storm
+node scripts/wind-bench/motion-run.js --fixture scripts/wind-bench/out/ramp-low.json --runs runs.json --out scripts/wind-bench/out/ramp.json --dpr 1.5
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/ramp.json --at 0.33,0.2 --size 110     # land, 11.8 kn
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/ramp.json --at 0.33,0.85 --size 110    # sea, the same speed
+```
+
+The hurricane fixture moves the wind's speed, the place and the zoom together: on it three lanes each solved a number that
+failed in the next scene (DECISIONS D-022 and its amendment, LESSONS L-V50, L-V61). The ramp fixture blows due north everywhere
+with a speed that rises with longitude, `--from` knots at the view's west edge to `--to` at its east edge (Mobile Bay, zoom 6), so
+a column of the picture is ONE speed over land and over sea, a streak stays in its column, and every speed is on screen at once.
+
+- **Where a crop sits is the bench's geometry, not the frame's.** The map is 897 CSS px wide and a frame is that view scaled to
+  1000: the zoom 6 view spans 92.98 to 83.12 W. `ramp-fixture.js` prints the speed at the centre of each `--at x --size 110` crop
+  (`speedAt`; the probe puts the crop's left edge at `round((1000 - size) * x)`), and `src/components/map/windBenchRamp.test.js`
+  pins it against `page/map-entry.js` and `page/mirror-probe.js`. With the two fixtures above a 110 px crop spans 3.1 and 5.9 kn.
+- **Along a ramp the place changes with the speed.** Compare two arms at the SAME crop; read a row along speed only over the
+  open sea, where one crop is like the next. Land crops are different land (the 8.5 kn crop of the low ramp is the Mississippi
+  valley).
+- **A lever given to a run is named `__RAW_...`.** `page/map-entry.js` `clearLevers()` deletes only `window` keys that start with
+  `__RAW_`; any other name leaks into every later run in the same page (found 2026-10-12: two "before" runs drew a prototype arm).
+- Baseline, 2026-10-12, the land at the sea's depth built (D-026; this branch: light's sea strength 0.55, beach's 0.77, no other
+  lane merged; lift against dark's at the same crop): see the log `2026-10-12-wind-land-depth` for the table.
+
 ## Ground mode (`ground-run.js`, `page/ground-probe.js`): what IS the map the wind is laid on?
 
 Every lane's arithmetic starts from a land colour and a water colour a theme, and on 2026-10-12 the instruments held three

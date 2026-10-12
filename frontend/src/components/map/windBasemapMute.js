@@ -15,7 +15,8 @@
  * While the wind is on, this lowers the chroma of the basemap's AREA colours under the wind layer (fills, background,
  * extrusions, hillshade, and the water's own lines) in OKLab, keeping each colour's lightness. Land and water still
  * differ by lightness (plus the wind's coastline stroke), and the wind's hue is the only hue left on the ground. Labels
- * and roads are not touched: roads are thin and carry the map's navigation colour, and labels sit above the wind. The
+ * are not touched: they sit above the wind. Roads were left alone too (thin, and the map's navigation colour) until the land was
+ * drawn at the sea's depth (2026-10-12, below): on a deeper land they are restyled with it. The
  * borders sit above it too and take the BORDER INK (below). Satellite is not touched either: a style with imagery under the wind keeps its photo. The palette, the field, the particles and every served number are unchanged. Off again when the wind is
  * off; a theme change loads a fresh style, and the layer re-applies it.
  *
@@ -26,18 +27,66 @@
  * raster SHOWING under the wind (visible, opacity not 0) is imagery; the slot comes from the style's draw order; the ocean
  * mask's own layers are left to OceanMask; and the layer re-syncs when imagery appears or goes (windBasemapMuteStale).
  *
- * Read-back: window.__WIND_BASEMAP_MUTE__ = { applied, layers, amount, waterL, theme, at, reason? } after every sync;
+ * Read-back: window.__WIND_BASEMAP_MUTE__ = { applied, layers, amount, waterL, landL, landLines, theme, at, reason? } after every sync;
  * applied is true only when layers > 0, and reason names the imagery that stood it down ('imagery:<layer id>').
  * Lever: window.__RAW_WIND_BASEMAP_MUTE__ (0-1, the share of chroma removed, any theme).
  * Kill: window.__RAW_DISABLE_WIND_BASEMAP_MUTE__ (the map keeps its own colours under the wind).
  */
-export const WIND_BASEMAP_MUTE = Object.freeze({ amount: Object.freeze({ light: 0.85, beach: 0.85 }), waterL: Object.freeze({ light: 0.9, beach: 0.94 }) });
+export const WIND_BASEMAP_MUTE = Object.freeze({ amount: Object.freeze({ light: 0.85, beach: 0.85 }), waterL: Object.freeze({ light: 0.9, beach: 0.94 }), landL: Object.freeze({ light: 0.81, beach: 0.85 }) });
 
 /** OKLab lightness factor for the water's own colours while muted (1 = as is; < 1 darker water, the coast's cue). */
 export function windBasemapWaterL(theme, win = (typeof window !== 'undefined' ? window : null)) {
   const lev = (win || {}).__RAW_WIND_BASEMAP_WATER_L__;
   if (typeof lev === 'number' && lev >= 0.5 && lev <= 1.2) return lev;
   return WIND_BASEMAP_MUTE.waterL[theme] || 1;
+}
+
+/**
+ * THE LAND AT THE SEA'S DEPTH (2026-10-12, owner, on a prototype shown moving beside dark: "go with F and the deeper land"; DECISIONS
+ * D-026). Dark's land and sea carry nearly one ground under the wind (L* 33.5 and 42.5 on the real basemaps): one streak fits both,
+ * and the coast is drawn by lines. Light's and beach's land sat 12 to 17 L* ABOVE their sea, partly by this file's own doing: the
+ * mute darkens the sea (waterL) and left the land as the style draws it. No white can lift a ground that pale as far as dark's lifts
+ * dark's land (0.38 to 0.93 of it on a speed ramp), and two grounds needed two streak strengths, whose seam (the land mask's 20 km
+ * texel) drew a pale halo along every coast.
+ * While the mute is restyling the map, the land's own colours take this factor on their OKLab lightness: 0.81 in light and 0.85 in
+ * beach, the muted sea's lightness, so the two grounds are one. The lines drawn on the land (roads, contours) are muted and deepened
+ * with it: a pale road on a deeper land was a bright line, and a yellow one under a green field a vivid green one (measured: the first
+ * build kept the roads' hue and the road network outshone the wind). The water is not touched, and nothing above the wind is.
+ * It rides the mute: the mute's kill, its lever at 0, dark, and imagery under the wind leave the land the style's own.
+ * AND IT RIDES THE WHITE STREAK LAID BY THE GROUND (D-022): the depth and that streak's strengths were measured together, so
+ * under D-022's kill, the white streak's, dark's rules' and every hold the land is the mute's alone again, and each older kill
+ * still draws its old picture (an independent review, before the PR: with D-022's kill alone the streaks were full white over
+ * a deep land). WindColorRamp.js, which knows those kills, hands the question in (setWindLandDepthGate): this file has no imports.
+ * Kill: window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true (the land as the mute alone leaves it; the streaks' strengths as D-022 set them).
+ * Lever: window.__RAW_WIND_BASEMAP_LAND_L__ (0.5 to 1.2). Both are read at the next sync, as the mute's are.
+ * Read-back: window.__WIND_BASEMAP_MUTE__.landL (1 when the land is the style's own).
+ */
+let LAND_GATE = null;
+/** WindColorRamp.js sets this once: (theme, win) => is the white streak laid by the ground (D-022) here, now? Unset (this file loaded alone), the gate is open. */
+export function setWindLandDepthGate(fn) { LAND_GATE = typeof fn === 'function' ? fn : null; }
+export function windBasemapLandL(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_LAND_DEPTH__ === true || (LAND_GATE && !LAND_GATE(theme, w))) return 1;
+  const lev = w.__RAW_WIND_BASEMAP_LAND_L__;
+  if (typeof lev === 'number' && lev >= 0.5 && lev <= 1.2) return lev;
+  return WIND_BASEMAP_MUTE.landL[theme] || 1;
+}
+
+/** True when the last sync drew THIS theme's land deeper (its read-back, not the lever: a kill, imagery or a theme change in flight says no). */
+export function windLandDepthOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const r = (win || {}).__WIND_BASEMAP_MUTE__;
+  return !!r && r.applied === true && r.theme === theme && typeof r.landL === 'number' && r.landL < 1;
+}
+
+/**
+ * The white streak's strength over LAND, given the theme's { land, sea } (windDarkRules.js DARK_WHITE). ONE GROUND, ONE STRENGTH:
+ * where the land is drawn at the sea's depth a streak over it is laid at the SEA's strength, so the land mask's seam has nothing to
+ * show; anywhere else the land keeps its own (D-022: full). Bench lever: window.__RAW_WIND_WHITE_LAND__ (0.2 to 1) on a deep land.
+ */
+export function windLandWhite(theme, win, k) {
+  if (!windLandDepthOn(theme, win)) return k.land;
+  const lev = (win || {}).__RAW_WIND_WHITE_LAND__;
+  return typeof lev === 'number' && lev >= 0.2 && lev <= 1 ? lev : k.sea;
 }
 
 /** Share of chroma to remove under the wind for this theme (0 = off). */
@@ -114,6 +163,8 @@ export function muteColor(str, amount, lScale = 1) {
 /** A paint value (literal, expression array or legacy {stops} function) with `f` applied to every string in it; its shape kept. */
 function mapStrings(value, f) {
   if (typeof value === 'string') return f(value);
+  // ['match', input, label, output, ..., fallback]: a label named 'white' or 'black' is a label, and only the outputs are colours.
+  if (Array.isArray(value) && value[0] === 'match') return value.map((v, i) => (i >= 3 && (i % 2 === 1 || i === value.length - 1) ? mapStrings(v, f) : v));
   if (Array.isArray(value)) return value.map((v) => mapStrings(v, f));
   if (value && typeof value === 'object') { const o = {}; for (const k of Object.keys(value)) o[k] = mapStrings(value[k], f); return o; }
   return value;
@@ -203,22 +254,26 @@ export function windBasemapImagery(layers, windId) {
 /**
  * The paint changes for one style: every area colour of the layers BELOW the wind layer (before `windId` in the order;
  * the whole list when it is absent), plus the colours of line layers named water* (rivers and the water's own outlines).
- * Layers named water* also take `waterL` on their lightness. With imagery showing under the wind (windBasemapImagery)
- * the style is left alone: the photo is the map. [{ id, prop, from, to }] for properties the style sets.
+ * Layers named water* also take `waterL` on their lightness; every other one (the land) takes `landL`, and with `landL` off 1
+ * the other line layers under the wind, the borders apart, are restyled with it (roads, contours: what is drawn on the land takes the
+ * land's mute and its depth). With imagery showing under the wind (windBasemapImagery) the style is left alone: the photo is the map.
+ * [{ id, prop, from, to }] for properties the style sets.
  */
-export function windBasemapMutePlan(layers, windId, amount, waterL = 1) {
+export function windBasemapMutePlan(layers, windId, amount, waterL = 1, landL = 1) {
   if (!Array.isArray(layers) || !(amount > 0) || windBasemapImagery(layers, windId)) return [];
-  const plan = [];
+  const plan = [], onLand = [];
   for (const l of belowWind(layers, windId)) {
     if (!l || !l.paint || APP_OWNED.test(l.id)) continue;
-    const props = AREA_COLOR_PROPS[l.type] || (l.type === 'line' && /^water/.test(l.id) ? ['line-color'] : []);
+    const water = /^water/.test(l.id), landLine = l.type === 'line' && !water && !BORDER_LINE.test(l.id) && !/^ferry/.test(l.id);   // a border under the wind stays the style's own (D-023); a ferry runs on the sea
+    const props = AREA_COLOR_PROPS[l.type] || (water && l.type === 'line' ? ['line-color'] : landLine && landL !== 1 ? ['line-color'] : []);
     for (const prop of props) {
       if (l.paint[prop] === undefined) continue;
-      const to = muteValue(l.paint[prop], amount, /^water/.test(l.id) ? waterL : 1);
-      if (JSON.stringify(to) !== JSON.stringify(l.paint[prop])) plan.push({ id: l.id, prop, from: l.paint[prop], to });
+      const to = muteValue(l.paint[prop], amount, water ? waterL : landL);
+      if (JSON.stringify(to) !== JSON.stringify(l.paint[prop])) (landLine ? onLand : plan).push({ id: l.id, prop, from: l.paint[prop], to, ...(landLine ? { landLine: true } : {}) });
     }
   }
-  return plan;
+  // A line on the land goes down only where the land itself does: a style with no land area under the wind is left alone.
+  return onLand.length && plan.some((p) => !/^water/.test(p.id)) ? [...plan, ...onLand] : plan;
 }
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -239,7 +294,7 @@ export function windBorderInkPlan(layers, windId, ink) {
   return plan;
 }
 
-const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map -> { theme, amount, waterL, ink, plan, layers, lines }
+const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map -> { theme, amount, waterL, landL, ink, plan, layers, lines }
 
 /**
  * Mute (active) or restore (inactive) the basemap under the wind layer `windId`. Idempotent. The record is kept per MAP
@@ -247,7 +302,8 @@ const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map 
  * one into the same style object, and either way a colour that is no longer the one this wrote belongs to someone else
  * and is left alone (writing back a stale 'from' would paint the old theme's colour). Never mutes while the wind layer
  * is missing (the plan is "everything below it"). The border ink (above) is laid and lifted by the same record.
- * Returns { applied, layers, amount, ink: { applied, layers, color | reason } }: `layers` counts the muted areas only.
+ * Returns { applied, layers, amount, landLines, ink: { applied, layers, color | reason } }: `layers` counts the muted areas only
+ * (the lines that went down with a deeper land are `landLines`).
  */
 export function syncWindBasemapMute(map, theme, active, windId, win = (typeof window !== 'undefined' ? window : null)) {
   const { ink, ...r } = syncOnce(map, theme, active, windId, win), at = Date.now();
@@ -257,6 +313,8 @@ export function syncWindBasemapMute(map, theme, active, windId, win = (typeof wi
   }
   return { ...r, ink };
 }
+/** The answer of a sync that muted nothing: the land is the style's own. */
+const UNMUTED = { applied: false, layers: 0, amount: 0, landL: 1, landLines: 0 };
 
 /**
  * The style's layers in DRAW order. getStyle() leaves custom layers out (MapLibre's _serializedAllLayers), so the wind
@@ -293,7 +351,7 @@ function wanted(map, theme, active, windId, win) {
   const imagery = base > 0 ? windBasemapImagery(liveRasters(map, windId), windId) : null;
   const own = on ? windBorderInk(theme, win) : null;
   const inkWhy = !active ? 'wind off' : !on ? 'no wind layer' : typeof WIND_BORDER_INK.color[theme] !== 'string' ? 'theme' : !own ? 'kill' : !(base > 0) ? 'mute off' : imagery ? `imagery:${imagery}` : null;
-  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), imagery, ink: inkWhy ? null : own, inkWhy };
+  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), landL: windBasemapLandL(theme, win), imagery, ink: inkWhy ? null : own, inkWhy };
 }
 
 /**
@@ -307,7 +365,7 @@ export function windBasemapMuteStale(map, theme, active, windId, win = (typeof w
   try {
     const w = wanted(map, theme, active, windId, win), prev = APPLIED.get(map);
     if (!(w.amount > 0)) return !!prev;
-    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.ink !== w.ink;
+    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.landL !== w.landL || prev.ink !== w.ink;
   } catch (e) {
     return false;
   }
@@ -319,24 +377,25 @@ const countIds = (plan) => new Set(plan.map((p) => p.id)).size;
  * What a record did, as the two read-backs say it: the mute's { applied, layers, amount }, and the ink's under `ink`.
  * The ink counts the lines that TOOK it: the library refuses an invalid paint value with an error event and no write.
  */
-const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, amount: rec.amount,
+const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, amount: rec.amount, landL: rec.onLand ? rec.landL : 1, landLines: rec.landLines,   // landL: what the LAND was written with, 1 when no land colour took it
   ink: rec.lines > 0 ? { applied: true, layers: rec.lines, color: rec.ink }
     : { ...NO_INK, reason: !rec.ink ? inkWhy : rec.asked > 0 ? 'the style refused the ink' : 'no border lines above the wind' } });
 
 function syncOnce(map, theme, active, windId, win) {
-  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { applied: false, layers: 0, amount: 0, ink: { ...NO_INK, reason: 'no map' } };
+  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { ...UNMUTED, ink: { ...NO_INK, reason: 'no map' } };
   try {
-    const { amount, waterL, ink, imagery, inkWhy } = wanted(map, theme, active, windId, win);
+    const { amount, waterL, landL, ink, imagery, inkWhy } = wanted(map, theme, active, windId, win);
     const prev = APPLIED.get(map);
     if (prev) {
       const mine = prev.plan.filter((p) => map.getLayer(p.id) && same(map.getPaintProperty(p.id, p.prop), p.to));
-      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.ink === ink) return answer(prev, inkWhy);
+      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.landL === landL && prev.ink === ink) return answer(prev, inkWhy);
       for (const p of mine) map.setPaintProperty(p.id, p.prop, p.from);   // restore only what is still ours
       APPLIED.delete(map);
     }
-    if (!(amount > 0)) return { applied: false, layers: 0, amount: 0, ...(imagery ? { reason: `imagery:${imagery}` } : {}), ink: { ...NO_INK, reason: inkWhy } };
-    const ordered = orderedLayers(map), mute = windBasemapMutePlan(ordered, windId, amount, waterL), lines = ink ? windBorderInkPlan(ordered, windId, ink) : [];
-    const rec = { theme, amount, waterL, ink, plan: [...mute, ...lines], layers: countIds(mute), asked: lines.length, lines: 0 };
+    if (!(amount > 0)) return { ...UNMUTED, ...(imagery ? { reason: `imagery:${imagery}` } : {}), ink: { ...NO_INK, reason: inkWhy } };
+    const ordered = orderedLayers(map), mute = windBasemapMutePlan(ordered, windId, amount, waterL, landL), lines = ink ? windBorderInkPlan(ordered, windId, ink) : [];
+    const rec = { theme, amount, waterL, landL, ink, plan: [...mute, ...lines], layers: countIds(mute.filter((p) => !p.landLine)), landLines: countIds(mute.filter((p) => p.landLine)),
+      onLand: landL !== 1 && mute.some((p) => !p.landLine && !/^water/.test(p.id)), asked: lines.length, lines: 0 };
     APPLIED.set(map, rec);   // recorded BEFORE the writes: one that throws is undone by the next sync
     for (const p of rec.plan) map.setPaintProperty(p.id, p.prop, p.to);
     rec.lines = countIds(lines.filter((p) => same(map.getPaintProperty(p.id, p.prop), p.to)));
@@ -344,6 +403,6 @@ function syncOnce(map, theme, active, windId, win) {
   } catch (e) {
     // A style that is not loaded throws before the record is written: the next style change finds no record and retries.
     // A throw part-way through the writes leaves a record, which the next sync (a toggle, a theme, a style.load) undoes.
-    return { applied: false, layers: 0, amount: 0, error: e.message, ink: { ...NO_INK, reason: `error: ${e.message}` } };
+    return { ...UNMUTED, error: e.message, ink: { ...NO_INK, reason: `error: ${e.message}` } };
   }
 }

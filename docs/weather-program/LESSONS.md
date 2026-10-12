@@ -949,3 +949,20 @@ A stored estimate can be estimated again in a browser branch with different sour
   true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
   them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
   compare themes by switching, and nothing switched. (same log)
+- **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
+  tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
+  dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower
+  color wind is more transparent than faster", a profile of cover, flicker, lift, ground lightness and ground chroma at 14
+  speeds from 1.8 to 45 kn, land and sea, took one afternoon and showed three things no tuned number had: over land under 10 kn
+  light's streaks lift the picture a seventh to a half as far as dark's (most land, most days); light spends its whole
+  lightness range by 10 kn and lays its strongest colour in its lightest winds, where dark builds to 26 kn; and beach is twice
+  as colourful as dark from 15 to 32 kn. D-022's "no white can lift a pale land" had been read at one speed. Rules: (1) the
+  first instrument on a "make X look like Y" task is the profile of every visible quantity along every scene axis, X beside Y;
+  (2) a conclusion about a ground or a speed names the range it was read on; (3) when the owner's eye and a tuned number
+  disagree, the number is measuring the wrong thing: widen the profile before defending it. (log 2026-10-12-wind-land-depth)
+- **L-V71 · Before choosing between two designs, run the bars each must clear at the candidate values.** Two depths for the
+  land were on the table: the sea's (0.81) and dark's own relation, deeper than the sea (0.70). The second matched dark's lift
+  with no seam and was the better mirror on every picture measured; one run of the palette checker at that depth read light's
+  colour-blind line over land at 4.4 against a floor of 5.0 (5.1 at 0.81, 4.9 at 0.76). The choice was made by a bar nobody
+  had run until both arms were filmed. Rule: the checker (and any other floor) is run across the candidate values at the
+  START of a design choice, as cheaply as it is run on a finished one. (same log)

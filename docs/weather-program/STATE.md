@@ -14,6 +14,32 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-12 13:00Z: under the wind, light and beach draw the LAND AT THE SEA'S DEPTH, ON BY DEFAULT (client only; a PR against
+  dev, the owner merges).** The owner, 11:50Z, on a prototype shown moving beside dark: "merge #316 and go with F and the deeper
+  land and open the pr" (DECISIONS D-026).
+  - **THE OWNER'S VERDICT ON THE DEPLOYED BUILD, 12:28Z, first-hand:** "I just did a visual check for wind on beach and light
+    modes, and I still do not visually see the improvements yet.... notate that". The dev site then served `74417b5a` (#314 and
+    #316; read from its static files): NOT on it were #315 (beach's sea 0.55), #318 (light's hue order), the beach lane's F, or
+    this change. No change to the wind's look has reached the site since #314. The owner then asked (12:36Z) for the amount and
+    density of the animation and the colours' transparency by speed to be compared with dark's, and for the research to be read
+    again.
+  - **What that comparison found** (three speed ramps, 14 speeds from 1.8 to 45 kn, land and sea; LESSONS L-V70): over the SEA
+    light is dark's equal in cover, flicker and lift at every speed (lift 0.93 to 1.13). **Over LAND under 10 kn light's streaks
+    lift the picture 0.14 to 0.56 of what dark's do** (beach 0.27 to 1.00): most land, most days. Above 15 kn over land light
+    flickers 1.1 to 1.2 times as hard as dark. **Light spends its whole lightness range by 10 kn and lays its strongest colour
+    there** (C* 37 to 40 against dark's 19 to 23); dark builds to about 26 kn. Beach is twice as colourful as dark from 15 to 32
+    kn and pale from 26 to 39.
+  - **What draws:** the land's area colours take 0.81 (light) or 0.85 (beach) of their lightness inside the mute's plan
+    (`WIND_BASEMAP_MUTE.landL`), the lines on the land are muted and deepened with it, and where the land is deep a streak over
+    it is laid at the sea's strength. Kill `window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true`; the mute's kill, dark and imagery
+    leave the land alone.
+  - **Measured, built** (lift against dark's, before -> built): light's land 0.14-0.61 -> 0.39-0.74 under 12 kn, beach's
+    0.27-0.91 -> 0.55-1.03; the land's flicker above 15 kn 1.1-1.2 -> 0.8-0.9; land and sea one ground within 2 L*; the sea
+    unchanged to the digit. Light's colour-blind line over land 5.6 -> 5.1 (floor 5.0): the reason the land is not deeper.
+  - **Not solved by anything built or open:** the land in light air (still 0.39 to 0.66 of dark's under 9 kn in light), the pace
+    of light's build-up, beach's colour from 15 to 32 kn. **Waiting on the owner:** the merges (#315, #318, this, the beach
+    lane's F when it opens, #317 last), then their eye on the deployed build. **#316 MERGED** 2026-10-12T11:52:11Z as
+    `74417b5a`. Log `2026-10-12-wind-land-depth`, LESSONS L-V70, L-V71.
 - **2026-10-12 03:50Z: under the wind, light and beach draw the map's BORDER LINES in dark ink, ON BY DEFAULT (client only; PR
   #316 OPEN against dev, the owner merges).** Owner, 2026-10-12 01:02Z, to the session that built #314 (its log): "The map below, I
   think the labels and borders need to be more visible. In dark mode they are white boarders and labels. So in beach and light

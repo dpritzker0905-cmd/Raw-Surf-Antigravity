@@ -356,6 +356,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
       '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea, and nothing else; no table reads it
+      '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
       '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',
