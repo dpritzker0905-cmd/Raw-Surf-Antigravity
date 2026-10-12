@@ -747,3 +747,18 @@ session's scratch folder):
 - The beach branch moved to `732d6ebe` while this ran (its as-uploaded pins); the three lines of its test that this merge
   re-pins are still there.
 - **Not checked:** nothing seen in the app; no frame made; the as-uploaded read is a model, not a read of the canvas.
+
+## 17:45Z · The owner's choice, first-hand: "option 1, merge as shown and add the pin"
+
+- **Asked** (this session's message, 17:40Z): by the checker light holds 5.0 over the deeper land (5.006); read from the
+  texture the engine uploads it is under 5.0 at about half of the engine's maxima, by up to 0.14. Two ways were put: (1)
+  merge #318 as it was shown, with this stated and pinned in a test, and re-solve light's rows on the deeper land next; (2)
+  hold #318 until that re-solve is done and shown. This session recommended the first.
+- **The owner, 2026-10-12 17:43Z, in this session's chat:** "option 1, merge as shown and add the pin".
+- **What that settles:** #318 merges with the rows that were filmed; light's as-uploaded line is pinned in
+  `windLightPath.test.js` on the merged tree (the pin needs #320's land, which this branch does not hold until dev is brought
+  in); light's rows are re-solved on the deeper land next, and shown before they replace these.
+- **What it does not change:** who merges and when. The leading session merges #318, last of the queue, once #319 is on dev,
+  this branch has dev in it and hosted CI is green (its plan, 15:41Z and 17:21Z). This session does not merge.
+- **Recorded:** DECISIONS D-024 (amended), STATE, the ledger (a decision and a commitment for the re-solve).
+- At this time: #319 OPEN and MERGEABLE (head `732d6ebe`), dev at `89f0dc33`, #318 at `81d941a3` before this commit.

@@ -621,3 +621,12 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   named in the owner's words: that they cover it is the leading session's reading. The decision itself does not change. Before
   that merge the checker is run on the merged tree; if light's colour-blind line over PR #320's land prints under 5.0 the
   merge waits and the owner is shown, and no row is adjusted quietly.
+- **Amended 2026-10-12 17:43Z (the owner, first-hand in the building session's chat): "option 1, merge as shown and add the
+  pin".** What was put to them: on a trial of the tree dev will be after PR #319, the checker reads light's colour-blind line
+  over PR #320's deeper land at 5.006 (it prints 5.0; no red line), and read from the 256-entry 8-bit texture the engine
+  uploads the same line is 5.033 at a 50 kn maximum, 4.987 at 75 kn and 4.859 at the least: under 5.0 at 151 of the 281 maxima
+  from 10 to 80 kn (dev's own light on that land: 21 of 281; on the land before PR #320: never). Option 1: this decision's rows
+  merge as they were filmed, that line is stated and PINNED in `windLightPath.test.js` so a green test run never reads as "the
+  floor holds", and light's rows are re-solved on the deeper land next and shown before they replace these. Option 2 was to
+  hold the merge for that re-solve. The colour-blind floor of 5.0 stays the bar; this is a known shortfall on the uploaded
+  texture, taken by the owner's word, not a lower bar.
