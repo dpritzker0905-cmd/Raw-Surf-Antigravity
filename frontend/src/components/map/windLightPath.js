@@ -12,26 +12,27 @@
  *   21 kn  a teal (162) behind 16 kn's green (129), and LIGHTER than it (L* 61.4 against 57.1): a fresh breeze read as less wind.
  * Both were chosen to keep the wind off the colour of light's cyan sea, before the map was greyed under the wind (windBasemapMute.js),
  * and were then held in place by the colour-blind passes. Between them the field swung through 190 degrees of hue in six knots, the
- * hardest edge any theme draws (16.0 dE00 from 11 to 12 kn; dark's hardest is 11.0).
+ * hardest edge any theme draws (16.0 dE00 from 11 to 12 kn; dark's hardest is 8.9).
  *
  * WHAT THIS DRAWS. Rows 4 to 32 kn of light's field under the white streak (WindColorRamp.js LIGHT_LOOK_FIELD.deep) are replaced by a
  * row a knot, solved with the colour-blind floor as a constraint (scripts/wind-color/light-path-solve.mjs; LESSONS L-V45). The field ON
- * SCREEN over light's muted land, L* / C* / hue (dark's hue at that speed):
- *    6 kn  64.2 / 30.0 / 279  blue-violet    (259)        10 kn  63.8 / 30.2 / 192  cyan          (172)
- *   16 kn  63.8 / 30.4 / 154  green          (149)        21 kn  63.8 / 36.6 / 127  yellow-green  (130)
- *   27 kn  60.1 / 42.6 / 106  yellow-green   ( 95)        33 kn  53.6 / 33.0 /  92  gold, as before (80)
- *   - the hue never turns back from calm to 60 kn (it did four times), and sits within 20 degrees of dark's at every Beaufort stop
- *     from 3 to 21 kn (dark's own field differs by 6 to 11 degrees between its land and its sea);
+ * SCREEN over light's muted land, L* / C* / hue (dark's hue at that speed, over dark's land, by the engine's own law: its field
+ * lands at alpha SQUARED over its map):
+ *    6 kn  64.2 / 30.0 / 279  blue-violet    (256)        10 kn  63.8 / 30.2 / 192  cyan          (177)
+ *   16 kn  63.8 / 30.4 / 154  green          (153)        21 kn  63.8 / 36.6 / 127  yellow-green  (132)
+ *   27 kn  60.1 / 42.6 / 106  yellow-green   ( 97)        33 kn  53.6 / 33.0 /  92  gold, as before (82)
+ *   - the hue never turns back from calm to 60 kn (it did four times), and sits within 24 degrees of dark's at every Beaufort stop
+ *     from 3 to 21 kn (dark's own field differs by 8 to 13 degrees between its land and its sea);
  *   - lightness never rises from calm to 33 kn, and from 6 kn the ground is as deep as before (L* 65.2 or deeper over land);
  *   - neighbouring Beaufort stops stay 5.2 dE2000 or more apart for protan, deutan and tritan viewers, over land AND sea (5.5 before);
- *   - no knot steps further than 9.0 dE00 (16.0 before).
+ *   - no knot steps further than 9.0 dE00 (16.0 before; dark's hardest is 8.9).
  * WHAT IT COSTS, said plainly:
  *   - the 6 to 16 kn bands are less colourful (C* 30 against 45 to 47): a cyan or a blue this deep cannot hold more under a multiply
- *     tint, and that is dark's own strength there (C* 31 to 40);
+ *     tint. It is still more colour than dark's own field shows there (C* 18 to 21 on screen);
  *   - 10 and 16 kn are 4.7 and 6.7 L* lighter than before (the 6 to 21 kn ground is one level, L* 64, where it stepped 65, 59, 57, 61);
  *   - the weakest NORMAL-vision neighbours are 8.0 dE00 apart (16 to 21 kn over the sea); the field's weakest was 9.0 (47 to 55 kn, kept).
- *     Dark's own weakest is 7.4;
- *   - holding dark's hue to 8 degrees instead of 20 was solved too: it needs the field 6 to 9 L* paler from 6 to 21 kn to keep the floor.
+ *     Dark's own weakest is 5.5 over its land and 5.1 over its sea;
+ *   - a hue match about three times as tight was solved too: it needs the field 4 to 12 L* paler from 6 to 21 kn to keep the floor.
  * Each streak's colour core follows the field's hue (the same rule its row was built by: the field's own hue at full brightness, 14 L*
  * above the field over the land).
  *

@@ -17,27 +17,33 @@
 //   hue        within --tol degrees of dark's at every stop from 3 to 21 kn; never turning back from calm to 33 kn;
 //   lightness  never rising with speed, over land and over water;
 //   room       from 6 kn up the ground over land is --room L* or deeper (white light needs a ground deeper than itself: D-021);
-//   edge       no knot steps further than dark's own steepest over land (11.0 dE00 a knot);
+//   edge       no knot steps further than dark's own steepest over land (8.9 dE00 a knot, by the engine's law);
 //   colour     C* >= 18 over land and 15 over water at every knot from 3 kn (no grey on the path);
 //   calm       a nameable tint (>= 5 dE00 off the bare ground, both grounds), weaker than 3 kn's, and nearer the map than today's.
 // THE AIM, in order: the floor (to 5.2, no credit beyond), then the weakest NORMAL-vision neighbour, then a smooth chroma line.
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { groundOf, sample, strength, tintOver, drawnField } from './mirror-model.mjs';
+import { MODEL, groundOf, sample, strength, tintOver, drawnField } from './mirror-model.mjs';
 import { lchOf, rgbOfLch, cvdDE, normalDE } from './light-path-lib.mjs';
 
 const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 export const STOPS = [0, 3, 6, 10, 16, 21, 27], LAST = 33;
 const LAND = groundOf('light', 'land'), WATER = groundOf('light', 'water');
-const DARK_F = drawnField('dark'), DARK_LAND = groundOf('dark', 'land');
-export const darkAt = (kn) => lchOf(tintOver('dark', kn, sample(DARK_F, kn), DARK_LAND));
+// DARK BY THE ENGINE'S LAW (found by the session leading this work, 2026-10-12, read from the code; a GPU read is owed there). HEATMAP_FS
+// writes dark's field premultiplied, vec4(fieldRgb * alpha, alpha), and the engine blends it with SRC_ALPHA, ONE_MINUS_SRC_ALPHA: on
+// screen it is field x alpha SQUARED + map x (1 - alpha). mirror-model.mjs and check.mjs lay it at alpha, twice as strong from 5 kn,
+// so dark is NOT read through them here. (Over land the hue moves 2 to 5 degrees; dark's steepest knot reads 8.9 dE00, not 11.0.)
+const DARK_F = drawnField('dark'), DARK_LAND = groundOf('dark', 'land'), DM = MODEL.dark;
+const darkAlpha = (kn) => { const t = Math.min(1, Math.max(0, kn / DM.end)); return DM.op * (DM.baseA + (1 - DM.baseA) * t * t * (3 - 2 * t)); };
+export const darkOn = (kn) => { const a = darkAlpha(kn), F = sample(DARK_F, kn); return F.map((f, c) => f * a * a + DARK_LAND[c] * (1 - a)); };
+export const darkAt = (kn) => lchOf(darkOn(kn));
 const TODAY = drawnField('light', { __RAW_DISABLE_WIND_LIGHT_PATH__: true });   // what light drew before its path (its calm, 3 kn and 33 kn rows up are kept)
 const todayOn = (kn, bm) => tintOver('light', kn, sample(TODAY, kn), bm);
 const T33 = lchOf(todayOn(LAST, LAND));
 const arc = (a, b) => { let d = (b - a) % 360; if (d > 180) d -= 360; if (d < -180) d += 360; return d; };
 const lerp = (a, b, t) => a + (b - a) * t;
-const DARK_STEEPEST = 11.0;
+let DARK_STEEPEST = 0; for (let kn = 1; kn <= 60; kn++) DARK_STEEPEST = Math.max(DARK_STEEPEST, normalDE(darkOn(kn - 1), darkOn(kn)));   // dark's own hardest edge over its land
 
 /** The path a candidate draws: a row a knot from calm to 33 kn. cand = { L: [7], C: [7], dh: [7] } at STOPS (dh: hue offset from dark's; at 27 kn the hue itself is cand.h27). */
 export function pathOf(cand) {

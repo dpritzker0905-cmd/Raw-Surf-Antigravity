@@ -145,3 +145,54 @@ today | candidate at zooms 6, 4, 9). Files: `frontend/scripts/wind-bench/out/sho
   stop that moves only.
 - A table module written through a shell heredoc lost its backticks, and a patch passed inline failed to parse: the known
   hazard, again. Both were redone from files.
+
+## 03:55Z · CORRECTION: every DARK number above was read through the wrong law
+
+Found by the session leading this work (its message, about 03:40Z) and checked here in the code: `WebGLWindShaders.js` line 992
+writes dark's field premultiplied, `vec4(fieldRgb * alpha, alpha)`, and `WebGLWindEngine.js` line 590 blends it with
+`gl.blendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)`. On screen dark is **field x alpha squared + map x (1 - alpha)**.
+`mirror-model.mjs` and `check.mjs` lay it at alpha: twice as strong from 5 kn. A GPU read is owed by that session;
+`mirror-model.mjs` and `check.mjs` are NOT changed on this branch (their dark lines and pins are that session's change). The
+solver now takes dark through its own function (`light-path-solve.mjs` `darkOn`), and a scratch `_dark-law.mjs` prints both laws.
+
+**What stands:** everything read about light and beach (the multiply law): their tables, their turn-backs, their lightness
+lines, their colour-blind lines, the candidate's rows, the motion bench. Dark's hue ORDER: over its land it never turns back
+by either law, and its hue at a stop moves 2 to 5 degrees.
+
+**What is wrong above, and the reading by the engine's law** (style grounds: land [18, 20, 26], sea [93, 117, 126]):
+
+| said above | by the engine's law |
+|---|---|
+| dark's field over land, L* 13 to 50, C* 31 to 47 | L* 5.6 to 26.5, C* 18 to 25: dimmer, and about half as colourful |
+| "its lightness is one arc, lightest at 16 to 27 kn" | nearly FLAT from 6 to 40 kn: 19.1 to 26.5 over land, 39.6 to 46.8 over sea |
+| dark's hardest edge 11.0 dE00 a knot (land), 12.1 (sea) | 8.9 and 8.2 |
+| dark's weakest normal-vision neighbours 7.4 to 7.6 | 5.5 over land, 5.1 over sea (16-21 kn) |
+| dark's colour-blind line 5.2 (the checker's, over its sea) | 3.1 over sea (47-55 kn tritan), 2.5 over land (33-40 kn deutan): **under the 5.0 floor** |
+| the candidate's hue within 20 degrees of dark's at the stops | within 23.5 (6 kn; 14.8 at 10 kn, 1.2 at 16, 5.0 at 21) |
+| the candidate's steepest knot 9.0, under dark's 11.0 | 9.0 against dark's 8.9: **0.1 over, not under** |
+| the candidate's 6 to 16 kn colour (C* 30) "is dark's own strength there" | it is above dark's (C* 18 to 21 on screen) |
+| dark over its sea never turns back | one turn under 3 kn (hue 276 at calm, 286 at 3 kn), where its veil is weakest |
+
+The frontier table's first two rows held hue to 8 degrees of dark's hue by the OLD law; against the engine's law those solves sit
+within about 12. The conclusion drawn from them (a tight hue match costs depth) rests on light's own rows and stands.
+
+**For the lightness along speed** (the leading session's question): from 6 to 27 kn the candidate's ground is as flat as dark's
+(64.2 to 60.1 over land, 49.5 to 46.0 over sea; today's light 57.1 to 65.1 and 43.8 to 50.1, running both ways). From 27 to 40 kn
+it slides darker with the rows that were kept (60.1 to 46.8 over land), so over 6 to 40 kn its span is 17.4 L* against dark's 7.4.
+Sign: dark's ground gets LIGHTER from 3 to 21 kn (+21 L*) where light's gets darker (-8); from 21 to 55 kn both get darker.
+The per-knot table (dark, light today, the candidate; land and sea; 0 to 60 kn) is in the shared notes folder,
+`wind-light-path-ground-per-knot.md`.
+
+**What the colour-science sources say** (searched 03:50Z; the last inference is this session's, not theirs):
+- Schloss, Gramazio, Silverman, Parker and Wang, "Mapping Color to Meaning in Colormap Data Visualizations", IEEE TVCG 2019:
+  readers assume darker means more (dark-is-more), and where a colour map looks as if it varies in opacity, that the more opaque
+  end means more (opaque-is-more). The two agree on a light background and pull against each other on a dark one. So light's
+  field getting DARKER with speed and dark's getting lighter is each right for its own map: the opposite sign is the correct
+  mirror, not a fault to remove.
+- Kovesi, "Good Colour Maps: How to Design Them", arXiv 1509.03700 (2015): an even step in perceived LIGHTNESS is the first
+  requirement; flat spots hide features and discontinuities invent them; CIELAB is uniform only at low spatial frequency. So a
+  band carried by hue alone on one lightness level (the candidate's 6 to 21 kn, and dark's own plateau) reads weaker at fine
+  scale than the same step in lightness, and light's 16.0 edge was a feature that is not in the data.
+- Whittle, "Brightness, discriminability and the crispening effect", Vision Research 1992 (PubMed 1455722); Kane and Bertalmio
+  2016: a lightness difference is seen best near the background's own luminance. An equal L* step is therefore NOT the same
+  visible step on a near-black map and on a pale one; equal lift in L* between themes is a first approximation.
