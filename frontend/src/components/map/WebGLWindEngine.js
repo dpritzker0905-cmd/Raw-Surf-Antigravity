@@ -832,7 +832,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.useProgram(this.drawProgram);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
-  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2); bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme); bindCalmAir(gl, this.drawProgram, effectiveTheme);   // dark's rules: land and sea rows, and the white's strength over each (D-022), and its fall in near-calm air (D-030)
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2); bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme); bindCalmAir(gl, this.drawProgram, effectiveTheme, z);   // dark's rules: land and sea rows, and the white's strength over each (D-022), and its fall in near-calm air (D-030)
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
