@@ -14,8 +14,8 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR open against
-  dev, see the ledger's `pr_open` line; the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
+- **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 OPEN against
+  dev, the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
   dont see the wind for light mode or beach mode mirroring the dark mode"; "close up zoom ... looks somewhat okay ... Its when you
   start zooming out that the contrast in theme modes happens"; "light could use a lot of improvement, and beach can use
   improvement, just a little milder. you should be able to mathmatically determine" (DECISIONS D-022).
@@ -41,8 +41,8 @@ is a claim, not a measurement.
     light style draws state and country lines in pale lavender; the owner asked at 01:02Z, shown live in their tab at about 01:04Z,
     not built).
   - **Not verified:** nothing of this build has been seen in the app; zoom 4 over the sea still reads 1.2 to 1.3 of dark's lift.
-    **Waiting on the owner:** the merge, then their eye. **Owed:** the read-back on the deployed build (the ledger's commitment
-    line, due 2026-10-19). Log `2026-10-11-wind-dark-white`, LESSONS L-V43 to L-V45.
+    **Waiting on the owner:** the merge, then their eye. **Owed:** the read-back on the deployed build (ledger seq 1062, due
+    2026-10-19). Log `2026-10-11-wind-dark-white`, LESSONS L-V43 to L-V45.
 - **2026-10-11 21:08Z: light and beach draw dark's own WHITE streak, ON BY DEFAULT (client only; PR #313 MERGED 2026-10-11T23:14:33Z as `0173f365`; the owner's verdict on it is in, see the entry above).** Owner, 20:09Z, after watching dark, the deployed light and beach and two candidates each side by side in motion:
   "middle row for both, build it" (DECISIONS D-021). It replaces the LOOK of #312, which the owner rejected at 18:29Z ("beach mode
   isn't right. Nor is light mode. But dark mode is good. Its the model to use"); #312's switch, kill and hold lists stand.
@@ -1919,7 +1919,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1049, sha256 6e8810ddfb52cf5b0017f3900eeca621973c532feba9445a2c1fcfa4002c6318**
+  **Ledger head: seq 1062, sha256 95ab5665056ec1bfd4f8066450c645d5b254e4906ca711c34555199ed8153dd0**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
