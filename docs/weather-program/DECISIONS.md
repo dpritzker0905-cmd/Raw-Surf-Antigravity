@@ -500,16 +500,23 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   - **Colour at 6 to 16 kn:** C* 28 to 32 against 45 to 47. A cyan or a blue this deep cannot hold more under the 0.70 multiply
     tint. It is still more than dark's own field shows on screen there (C* 18 to 21).
   - **Depth at 10 and 16 kn:** 5.8 and 3.0 L* lighter (21 kn is 1.3 deeper). The cyan band stays light in every solve.
-  - **Streaks over land:** lift against dark's 0.71 / 0.74 / 0.19 at zooms 6 / 4 / 9 (0.89 / 0.78 / 0.30 before; the first
-    candidate, one level, read 0.74 / 0.68 / 0.02). Over the sea 1.03 / 1.13 / 1.14 (1.03 / 1.22 / 1.14 before). Option 2 gave
-    back the ground from 16 kn; under 6 to 13 kn winds over land the streaks are fainter than before.
+  - **Streaks over land, 10 to 16 kn:** read speed by speed on a ramp scene (wind due north, 3 to 33 kn across the view, zoom
+    6; lift against dark's, before -> now): 6 kn 0.78 -> 0.75 · 8 kn 0.60 -> 0.56 · **10 kn 0.68 -> 0.52 · 13 kn 0.78 -> 0.56 ·
+    16 kn 0.90 -> 0.77** · 19 kn 0.77 -> 0.74 · 21 kn 0.74 -> 0.74 · 24 kn 0.73 -> 0.75 · 27 kn 0.70 -> 0.70 · 30 kn 0.84 -> 0.81.
+    Option 2 gave the ground back from 19 kn; the first candidate (one level) lost it to 26 kn.
+  - **Streaks over the sea:** 0.96 to 1.06 of dark's lift at every speed from 6 to 30 kn (0.95 to 1.11 before): from 8 to 16 kn
+    it comes DOWN 0.03 to 0.09, from a little above dark's to dark's. (On the hurricane scene the sea crops read 1.03 / 1.13 /
+    1.14 at zooms 6 / 4 / 9 against 1.03 / 1.22 / 1.14: those crops hold about 41 kn wind, rows this change does not touch.)
   - **Normal-vision neighbours:** the weakest are 8.0 dE00 apart (27 to 33 kn over the sea); the field's weakest was 9.0.
     Dark's own is 5.1 to 5.5.
   - **3 kn** is a shade less colourful (C* 21.6 against 26.4): what separates it from the new 6 kn for a protan viewer.
   - **The floor's margin:** 5.1 where it was 5.5. With lightness allowed to rise 0.1 L* at 27 kn the solve reads 5.2; not taken.
 - **Kill:** `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`: light's field, streak row and legend bar as before, byte for byte
-  (the tables hash to D-021's; the engine rebuilds at once, the bar at its next render). D-020's, D-021's and every older kill
-  and lever still stand the whole thing down and draw exactly what they drew.
+  (the tables hash to D-021's; the engine rebuilds at once, the bar at its next render: the controls key the legend's memo on
+  the look key). D-020's, D-021's and every older kill and lever still stand the whole thing down and draw exactly what they
+  drew, **and so does D-022's kill** (`__RAW_DISABLE_WIND_DARK_WHITE__`): it restores D-021's picture, full white over the
+  tables that picture was drawn on. Under the Canvas2D fallback (`WindParticleOverlay.js`, drawn when the WebGL wind fails) the
+  path and its bar stand down too: that overlay samples the particle ramp, and the bar must be the ramp its marks draw.
 - **Read-back:** `window.__WIND_ENGINE__._lookKey` is `white+path|dark-rules` in light (`white|dark-rules` under the kill and in
   beach; `|` in dark).
 - **Not decided, and not built here:**
@@ -520,5 +527,6 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   - **The 6 to 13 kn ground over land,** and the land in general (D-022: white cannot lift a pale land further).
 - **Evidence (log 2026-10-12-wind-light-path):** the check, speed by speed (a still sheet sent to the owner); the frontier (what
   each bar costs); `check.mjs --strict` before and after, and under the kill line for line; `motion-run.js --dpr 1.5` and
-  `mirror-run.js --at`, land and sea apart, dark beside light before and both candidates; `windLightPath.test.js` (62 tests, each
-  with the table before as its control; 5 of 5 mutations red); an independent review.
+  `mirror-run.js --at`, land and sea apart, dark beside light before and both candidates, on the hurricane scene and on a speed
+  ramp; `windLightPath.test.js` (66 tests, each with the table before as its control; 9 of 9 mutations red); an independent
+  review (13,693 lever sets against dev: 0 mismatches under the kill, 0 mixes; four should-fix findings, all fixed).

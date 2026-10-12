@@ -29,16 +29,19 @@ is a claim, not a measurement.
   - **Kill:** `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true` (light as before, byte for byte). Read-back: the look key is
     `white+path|dark-rules` in light. Every older kill and lever still stands it down.
   - **Measured:** palette checker, light: no red line; tint 5.1 over sea / 5.5 over land colour-blind (5.5 / 5.6), legend 11.7
-    normal and 5.4 colour-blind (9.3 / 5.2); under the kill, dev's lines. In motion at pixel ratio 1.5, lift against dark's: sea
-    1.03 / 1.13 / 1.14 at zooms 6 / 4 / 9 (1.03 / 1.22 / 1.14 before); land 0.71 / 0.74 / 0.19 (0.89 / 0.78 / 0.30 before).
+    normal and 5.4 colour-blind (9.3 / 5.2); under the kill, dev's lines. In motion on a speed ramp (3 to 33 kn, zoom 6; page
+    pixel ratio 1.5, the bench's map at 2), lift against dark's, before -> now: over the SEA 0.95 to 1.11 -> 0.96 to 1.06 (dark's
+    at every speed); over LAND 10 kn 0.68 -> 0.52, 13 kn 0.78 -> 0.56, 16 kn 0.90 -> 0.77, every other speed within 0.04.
   - **What it costs:** 6 to 16 kn a third less colourful (still above dark's own field on screen); 10 kn 5.8 L* lighter; streaks
-    over land fainter in 6 to 13 kn winds; the weakest normal-vision neighbours 8.0 (9.0); the floor's margin 5.1 (5.5).
+    over land fainter in 10 to 16 kn winds; the weakest normal-vision neighbours 8.0 (9.0); the floor's margin 5.1 (5.5).
+  - **Stands down with:** every lever and kill that stands the white streak down, D-022's kill (it restores D-021's picture),
+    and the Canvas2D fallback (its marks sample the particle ramp).
   - **FOUND, not fixed here (the leading session's change):** `mirror-model.mjs` and `check.mjs` lay DARK's field at alpha; the
     engine lays it at alpha squared. Every dark number read through them is about twice too strong; by the engine's law this
     model reads dark's own colour-blind line at 2.5 to 3.1, where the checker prints 5.2.
   - **Not verified:** nothing of this build has been seen in the app; the owner chose option 2 from its description and has not
     judged it moving; phones not measured. **Waiting on the owner:** their eye, then the merge. Log `2026-10-12-wind-light-path`,
-    LESSONS L-V51 to L-V53.
+    LESSONS L-V52 to L-V54.
 - **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 OPEN against
   dev, the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
   dont see the wind for light mode or beach mode mirroring the dark mode"; "close up zoom ... looks somewhat okay ... Its when you

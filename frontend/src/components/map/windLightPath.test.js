@@ -30,6 +30,8 @@ const KILL = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };
 const STEERS = { __RAW_WIND_FIELD_TINT__: 0.9, __RAW_WIND_FIELD_TINT_THEMES__: 'beach', __RAW_WIND_PREMUL_THEMES__: 'light', __RAW_WIND_BASEMAP_MUTE__: 0.5, __RAW_WIND_BASEMAP_WATER_L__: 0.95 };
 // Everything that stands the white streak down in light (windDarkRules.test.js and windWhiteStreak.test.js sweep these for the layers under this one).
 const STAND_DOWN = [{ __RAW_DISABLE_WIND_WHITE_STREAK__: true }, { __RAW_DISABLE_WIND_DARK_RULES__: true }, { __RAW_WIND_DARK_RULES__: false }, { __RAW_WIND_DARK_RULES__: 'beach' },
+  { __RAW_DISABLE_WIND_DARK_WHITE__: true },   // D-022's kill restores D-021's picture: full white over the tables IT was drawn on (an older kill keeps its meaning; independent review, 2026-10-12)
+  { __WIND_CANVAS_FALLBACK__: true },          // the Canvas2D fallback is the wind's renderer: it samples the particle ramp, so the bar stays that ramp
   ...DARK_RULES_HOLDS.map((k) => ({ [k]: true })), ...Object.entries(STEERS).map(([k, v]) => ({ [k]: v })),
   { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: true }, { __RAW_WIND_THEME_V2__: true }, { __RAW_WIND_LIGHT_LOOK__: 'moderate' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_LIGHT_LOOK__: 'ink' }];
 
@@ -43,6 +45,9 @@ const hashes = (theme, w, max) => { const marks = drawnMarkRampData(max, theme, 
 // from the running code before D-021 moved the default and verified green on the unedited tree before this change (LESSONS L-V25).
 const BEFORE = { light: { 50: ['71ea0097', '71ea0097', 'f73f7078'], 75: ['a49922ce', 'a49922ce', 'f9ffc9c2'] },
   beach: { 50: ['6e75db94', '72b4bd7f', '7c248d5f'], 75: ['be558fd8', 'cd4835ed', 'b9db3bb2'] }, dark: { 50: ['c2ebc33e', 'c2ebc33e', null] } };
+// What light draws on its path with no lever: the tables that were filmed beside dark (the wind bench's runs light-2lvl-z4, -z6, -z9 and
+// ramp-light-now, 2026-10-12) and the legend bar's CSS. Any edit to LIGHT_PATH moves these: re-film and re-check before re-pinning.
+const NOW = { 50: ['b9cf6f25', 'b9cf6f25', '7c17c193'], 75: ['ad6b7fa5', 'ad6b7fa5', 'be9bf367'], bar: '580b7236' };
 
 // ── colour: CIELAB D65 and the checker's colour-blind distance (coloraide 8.13's Vienot protan/deutan and Brettel tritan, as windPaletteCvd.test.js) ──
 const dec = (c) => (Math.abs(c) <= 0.04045 ? c / 12.92 : Math.sign(c) * Math.pow((Math.abs(c) + 0.055) / 1.055, 2.4));
@@ -101,12 +106,14 @@ describe('the switch: on where the white streak draws in light, and the kill res
     expect(windLightPathOn('light', KILL)).toBe(false);
     for (const v of [1, 'true', 'yes', {}, null, undefined, false]) expect(windLightPathOn('light', { __RAW_DISABLE_WIND_LIGHT_PATH__: v })).toBe(true);
     for (const theme of ['beach', 'dark', undefined]) for (const w of [{}, KILL]) expect(windLightPathOn(theme, w)).toBe(false);
-    expect(windLightPathOn('light', { __RAW_DISABLE_WIND_DARK_WHITE__: true })).toBe(true);   // the white's strength is another variable: it does not stand the path down
+    expect(windLightPathOn('light', { __RAW_DISABLE_WIND_DARK_WHITE__: true })).toBe(false);  // D-022's kill is D-021's picture, tables and all: it steps back past the path first (LESSONS L-V25)
+    expect(hashes('light', { __RAW_DISABLE_WIND_DARK_WHITE__: true }, 50)).toEqual(BEFORE.light[50]);
     expect(windWhiteStreakOn('light', KILL)).toBe(true); expect(windDarkRulesOn('light', KILL)).toBe(true);   // and this kill steps back ONE layer, no further
   });
   it.each([50, 75])('the kill draws the field and the streak row light drew before, byte for byte; the default draws others (%i kn)', (max) => {
     expect(hashes('light', KILL, max)).toEqual(BEFORE.light[max]);
     const now = hashes('light', {}, max);
+    expect(now).toEqual(NOW[max]);                                                                   // THE DEFAULT'S OWN BYTES: the tables that were filmed
     expect(now[0]).not.toBe(BEFORE.light[max][0]); expect(now[2]).not.toBe(BEFORE.light[max][2]);   // the positive control: both tables moved
     expect(now[0]).toBe(now[1]);                                                                     // still one streak row over land and sea
   });
@@ -124,7 +131,7 @@ describe('the switch: on where the white streak draws in light, and the kill res
   });
   it('the sweep above covers every hold and every steering lever dark\'s rules name', () => {
     expect(Object.keys(STEERS).sort()).toEqual([...DARK_RULES_STEERS].sort());
-    expect(STAND_DOWN.length).toBe(4 + DARK_RULES_HOLDS.length + DARK_RULES_STEERS.length + 6);
+    expect(STAND_DOWN.length).toBe(6 + DARK_RULES_HOLDS.length + DARK_RULES_STEERS.length + 6);
   });
   it('the look key names the path, so the engine rebuilds its tables the moment the kill is set; the mark model does not move', () => {
     expect(windLookKey('light', {})).toBe('white+path|dark-rules');
@@ -154,8 +161,10 @@ describe('the switch: on where the white streak draws in light, and the kill res
     expect(resolveDrawnField('light', {})[5][1]).not.toBe(9);
     const m = resolveDrawnMarks('light', {}); m.land[5][1] = 9;
     expect(resolveDrawnMarks('light', {}).land[5][1]).not.toBe(9);
-    const l = resolveLegendRamp('light', {}); l[2][1] = 9;
-    expect(resolveLegendRamp('light', {})[2][1]).not.toBe(9);
+    const l = resolveLegendRamp('light', {}); l[2][1] = 9; l[0][1] = 9; l[8][1] = 9;                  // a row the path replaced, and two it kept
+    for (const i of [0, 2, 8]) expect(resolveLegendRamp('light', {})[i][1]).not.toBe(9);
+    expect(resolveThemeRamp('light')[0][1]).not.toBe(9); expect(resolveThemeRamp('light')[8][1]).not.toBe(9);   // and the particle ramp behind it is not reached
+    for (const r of [...LIGHT_PATH.field, ...LIGHT_PATH.marks, ...Object.values(LIGHT_PATH.legend)]) expect(Object.isFrozen(r)).toBe(true);
   });
 });
 
@@ -163,7 +172,7 @@ describe('the engine\'s own call shape: no lever object, the kill on the real wi
   const fieldHash = (max) => { const gl = rampGl(); buildFieldRampTexture(gl, max, 'light'); return fnv(gl.uploaded); };
   const asTheEngineReads = (max) => { const marks = drawnMarkRampData(max, 'light'); return [fnv(marks.subarray(0, 1024)), fnv(marks.subarray(1024)), fieldHash(max)]; };
   afterEach(() => { delete window.__RAW_DISABLE_WIND_LIGHT_PATH__; });
-  it('with nothing on the window it draws the path; the kill on the window flips the key, the tables and the bar at once, and clearing it flips them back', () => {
+  it('with nothing on the window it draws the path; the kill on the window flips the key, the tables and the bar\'s ramp at once, and clearing it flips them back', () => {
     const now = asTheEngineReads(50), bar = windLegendGradientCSS('light');
     expect(windLightPathOn('light')).toBe(true); expect(windLookKey('light')).toBe('white+path|dark-rules');
     expect(now).toEqual(hashes('light', {}, 50)); expect(now).not.toEqual(BEFORE.light[50]);
@@ -173,6 +182,23 @@ describe('the engine\'s own call shape: no lever object, the kill on the real wi
     expect(windLegendGradientCSS('light')).not.toBe(bar);
     delete window.__RAW_DISABLE_WIND_LIGHT_PATH__;
     expect(windLookKey('light')).toBe('white+path|dark-rules'); expect(asTheEngineReads(50)).toEqual(now); expect(windLegendGradientCSS('light')).toBe(bar);
+  });
+  it('the RENDERED bar follows at its next render: the controls key the legend\'s memo on the look key (it was [theme, heightUnit]: a kill set after first paint left the path\'s bar beside the old field)', () => {
+    const CONTROLS = fs.readFileSync(path.join(__dirname, 'MapWeatherControls.js'), 'utf8');
+    expect(CONTROLS).toMatch(/\}, \[theme, heightUnit, windLookKey\(theme\)\]\);/);
+    expect(windLookKey('light', {})).not.toBe(windLookKey('light', KILL));   // so the key the memo watches does move with the kill
+  });
+  it('the Canvas2D fallback says it is the wind\'s renderer, and the bar is then the particle ramp its marks sample', () => {
+    const OVERLAY = fs.readFileSync(path.join(__dirname, 'WindParticleOverlay.js'), 'utf8');
+    expect(OVERLAY).toMatch(/window\.__WIND_CANVAS_FALLBACK__ = true; return function\(\) \{ delete window\.__WIND_CANVAS_FALLBACK__; \}; \}, \[\]\);/);
+    expect(OVERLAY).toMatch(/var ramp = THEME_RAMPS\[theme\] \|\| THEME_RAMPS\.dark;/);            // the fallback's marks: the particle ramp
+    try {
+      window.__WIND_CANVAS_FALLBACK__ = true;
+      expect(windLightPathOn('light')).toBe(false);
+      expect(resolveLegendRamp('light')).toEqual(resolveThemeRamp('light'));
+      expect(windLegendGradientCSS('light')).toBe(windLegendGradientCSS('light', KILL));
+    } finally { delete window.__WIND_CANVAS_FALLBACK__; }
+    expect(windLightPathOn('light')).toBe(true);
   });
 });
 
@@ -245,6 +271,7 @@ describe('each streak\'s colour core follows the field', () => {
       expect(Math.max(...r.slice(1, 4))).toBe(1);
       expect(Math.abs(arc(field.h, core.h))).toBeLessThan(3);
       expect(core.L).toBeGreaterThanOrEqual(field.L + 13.8);
+      if (r[0] >= 6) expect(core.C).toBeGreaterThan(30);            // and it keeps its colour: as colourful as its hue allows (a core washed toward white fails here and on the bytes above)
       expect(r[4]).toBe(LIGHT_PATH.field[r[0] - 1][4]);              // and the field's own alpha, knot for knot
     }
     const m = resolveDrawnMarks('light', {}); expect(m.land).toEqual(m.water);
@@ -286,6 +313,7 @@ describe('the legend bar moves with the field; the particle ramp does not move',
   it('the bar in the UI is this ramp: 13 stops, none walked (no pair of its rows runs through grey); under the kill, the particle ramp\'s 18', () => {
     const stops = (css) => css.split('rgba(').length - 1;
     expect(stops(windLegendGradientCSS('light', {}))).toBe(13);
+    expect(fnv(Array.from(windLegendGradientCSS('light', {})).map((c) => c.charCodeAt(0)))).toBe(NOW.bar);   // the bar's own bytes
     expect(stops(windLegendGradientCSS('light', KILL))).toBe(18);
     expect(windLegendGradientCSS('light', {})).toContain('rgba(1,189,196,0.8) 13.3%');   // 10 kn: a cyan where the bar before drew a light violet
     expect(windLegendGradientCSS('light', KILL)).toContain('rgba(190,166,254,0.8) 13.3%');

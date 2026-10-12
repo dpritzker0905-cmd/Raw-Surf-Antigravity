@@ -297,11 +297,11 @@ Exit 1 before and now, for beach's two red lines alone. No bar was lowered.
 ### This stretch's own slips
 
 - A trailing comment added to the solver's penalty line commented out four bars; one run returned a table 0.8 L* over its depth
-  cap with "violation 0.000". Caught on the printed bars, fixed, re-run (LESSONS L-V52).
+  cap with "violation 0.000". Caught on the printed bars, fixed, re-run (LESSONS L-V53).
 - A write of the two-level tables was refused (the file had changed under an earlier patch) and went unnoticed for one bench
   run: the first "two-level" film was the one-level tables. Caught because its ink read the first candidate's to two decimals;
   re-filmed under new run names.
-- The first legend build (above) changed a shared table at the table instead of at the reader (LESSONS L-V53).
+- The first legend build (above) changed a shared table at the table instead of at the reader (LESSONS L-V54).
 
 ### Not verified, and what it costs
 
@@ -313,3 +313,75 @@ Exit 1 before and now, for beach's two red lines alone. No bar was lowered.
 - **The bench's `hue30` line was not run** on this build (the bar is now read through `resolveLegendRamp` there).
 - **Phones:** not measured. **The legend bar** was checked as a ramp and as CSS, not looked at in the three layouts.
 - **No served number moves** (client only): no SCOREBOARD row.
+
+## 05:23Z · CORRECTIONS before the push: the sea and the land read on a speed ramp; the independent review; lesson ids
+
+**1. "Over the sea nothing is lost" was read where this change does not draw.** From the session leading this work (checked here):
+the hurricane scene's sea crops hold about 41 kn wind, and this change's rows run 1 to 32 kn. Its own ramp read of the FIRST
+candidate found the sea 9 to 15% under its "before" at 13 to 19 kn and the land 0.06 to 0.22 lower. So the built tables were
+filmed on a ramp of their own: wind due north, 3 kn at 93 W to 33 kn at 83 W (a synthetic fixture run through a scratch copy of
+`motion-run.js`; neither is committed, the leading session is committing a ramp fixture), zoom 6, dark | light under the kill |
+light, 120 frames each, 110 px crops (about 3.3 kn each) read with `mirror-run.js --size 110 --at`. Lift against dark's:
+
+| kn | land, before -> now | sea, before -> now | ground over land, before -> now (L*, the probe's) |
+|---|---|---|---|
+| 6 | 0.78 -> 0.75 | 1.08 -> 1.06 | 65.9 -> 67.3 |
+| 8 | 0.60 -> 0.56 | 1.03 -> 1.00 | 63.1 -> 66.1 |
+| 10 | **0.68 -> 0.52** | 1.05 -> 0.99 | 61.2 -> 66.6 |
+| 13 | **0.78 -> 0.56** | 1.07 -> 0.99 | 60.5 -> 65.0 |
+| 16 | **0.90 -> 0.77** | 1.11 -> 1.02 | 60.2 -> 62.6 |
+| 19 | 0.77 -> 0.74 | 1.00 -> 0.97 | 61.6 -> 62.0 |
+| 21 | 0.74 -> 0.74 | 0.97 -> 0.96 | 62.5 -> 62.0 |
+| 24 | 0.73 -> 0.75 | 0.96 -> 0.99 | 63.7 -> 64.1 |
+| 27 | 0.70 -> 0.70 | 0.95 -> 0.99 | 64.9 -> 65.6 |
+| 30 | 0.84 -> 0.81 | 1.02 -> 1.01 | 65.1 -> 65.3 |
+
+- **The sea:** 0.96 to 1.06 of dark's at every speed (0.95 to 1.11 before). From 8 to 16 kn it comes down 0.03 to 0.09, from a
+  little above dark's to dark's. Not a loss against the model; lower than before.
+- **The land:** the cost sits at **10 to 16 kn** (not "6 to 13" as written above): 0.68, 0.78, 0.90 become 0.52, 0.56, 0.77.
+  From 19 kn the two-level ground gives everything back.
+- The probe's ground reads 1 to 3 L* lighter than the table's (it is each pixel's darkest moment under a dense field, and the
+  real land is lighter than the model's): trust the differences more than the levels.
+- **"Pixel ratio 1.5" was the PAGE's.** `motion-run.js --dpr` sets the page's ratio; the bench's map canvas is drawn at 2 unless
+  `--map-dpr` is passed (a flag on PR #316's branch, not on dev). Every lift in this log was taken that way.
+- A still of the ramp (dark | light before | light now) is the clearest single picture of the change: light's old rows open
+  lilac, periwinkle, a pink band at 10 kn, blue, teal, green, a lighter teal band at 21 kn; the new ones run lilac, blue, cyan,
+  sea green, green, yellow-green, as dark's do.
+
+**2. The independent review** (a read-only agent with no part in the work; it loaded dev's and this branch's `WindColorRamp.js`
+as text and compared 13,693 lever sets across three themes and two call shapes: the look key, the drawn field and streak rows,
+both LUTs at 50 and 75 kn, the field texture, the legend CSS and stops, the particle LUT and the mark model). **Under the kill:
+0 mismatches against dev. Beach and dark: 0. Light with the path off (21,294 cases): 0. No partial mix of field, streak row and
+legend.** It recomputed the header's numbers (floor 5.13 over the sea and 5.50 over land, hardest step 7.85 dE00, the legend
+12.05 normal and 5.41 colour-blind, 0 hue reversals, largest lightness rise 0.02). Four should-fix findings, all fixed:
+
+- **D-022's kill no longer restored PR #313's look in light:** with `__RAW_DISABLE_WIND_DARK_WHITE__` alone light drew the path's
+  tables under full-strength white, a picture nobody built (and the test here had pinned it as intended). Fixed: that kill
+  stands the path down; under it light's tables hash to D-021's again, and `windDarkWhite.test.js` asserts so for both themes.
+- **The Canvas2D fallback** (`WindParticleOverlay.js`, drawn when the WebGL wind fails or `__FORCE_WIND_FALLBACK__` is set) samples
+  the particle ramp, so its 10 kn marks would have sat under a bar showing the path's cyan. Fixed: the overlay publishes
+  `window.__WIND_CANVAS_FALLBACK__` while it is mounted, and the path (and its bar) stand down.
+- **The rendered bar did not follow a kill set after first paint:** `MapWeatherControls.js` memoised the legend on `[theme,
+  heightUnit]`. Fixed: the memo is keyed on the look key too (two lines changed in place; the file did not grow). The header and
+  a test title that said "at once" now say what is true: the engine at once, the bar at its next render.
+- **The default arm's bytes were not pinned:** two mutants of the tables passed every suite. Fixed: the default's field, streak
+  and legend-bar hashes are pinned (`NOW`), with a chroma floor on the streak cores.
+- Notes taken: two comments said "4 to 32 kn" (the code replaces 1 to 32); "the legend within 6 degrees" is 6.1 over land and
+  12.5 over the sea (the header now says 6.5 and 13); the legend rows handed out are copies and `LIGHT_PATH`'s rows are frozen;
+  a streak's colour core steps 12.8 dE00 from calm to 1 kn and 8.1 from 32 to 33 kn, where the path meets the rows it keeps
+  (4.2 and 4.8 before): recorded in the header, not changed.
+- Not checked by it: the GPU, the bench and a rendered legend.
+
+After the fixes: `windLightPath.test.js` 66 tests; mutations 9 of 9 red (the five before, the reviewer's two, D-022's kill no
+longer standing the path down, the fallback no longer standing it down).
+
+**3. Lesson ids.** The border-ink branch (#316) holds L-V51 and #315 holds L-V50 and L-V60 to L-V62 (their notes, 05:05Z). This
+branch's three lessons are L-V52, L-V53 and L-V54; D-024 stands.
+
+**4. `_dark-law.mjs` is kept** on the branch at the leading session's request (it cites it): dark's field by the engine's law
+beside the instruments' law, per stop, with the steepest step and the colour-blind line each law gives.
+
+**5. Gates re-run after the fixes:** Jest, both trees: 307 suites, 4,127 tests, 0 failed. `check_eslint.js` exit 0. `loc_ratchet.py`:
+no new violation, none regressed (`WindColorRamp.js` 792 of 800 lines; `MapWeatherControls.js` did not grow). Production build
+exit 0, the two stamped files restored. `check.mjs --strict`: light's lines as in the table above (the tables did not move), exit 1
+for beach's two red lines alone. The films stand: the default's bytes are the ones pinned (`NOW`) and they are the tables filmed.

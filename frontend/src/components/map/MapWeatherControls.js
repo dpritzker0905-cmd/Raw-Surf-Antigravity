@@ -6,7 +6,7 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
-import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
+import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 import TimelineStatus from './TimelineStatus';
@@ -263,7 +263,7 @@ export var MapWeatherControls = ({
     // NOTE: no eslint-disable here — this project's eslint config does NOT register the
     // react-hooks plugin, and naming an unknown rule in a disable comment is itself a
     // compile-failing error on the Netlify build (deploy 6a540b87, 2026-07-12).
-  }, [theme, heightUnit]);
+  }, [theme, heightUnit, windLookKey(theme)]);   // the wind look (WindColorRamp.js): light's bar follows its field, so a kill or lever that changes the look redraws the bar at the next render
 
   // Surf-quality RATING legend: 7 discrete bands (very_poor -> epic) as a hard-stop gradient, mirroring the
   // shader getRatingColor palette. Fixed colors (not theme-dependent); coarse tick labels under the bar.

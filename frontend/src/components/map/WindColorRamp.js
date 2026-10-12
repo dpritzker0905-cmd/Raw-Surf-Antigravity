@@ -340,7 +340,7 @@ export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
 // LIGHT'S LOOK, AN A/B (2026-10-10; owner: "We really just need to replicate dark mode, but with proper setup for the colors for each
 // modes schema", "we need to replicate our science from dark mode"). The LEVER is default off. SINCE 2026-10-11 (D-021, the white
 // streak) the 'deep' tables below ARE light's default: dark's rules draw them with dark's own white ring (darkRulesTables), so a
-// change to LIGHT_LOOK_FIELD.deep or LIGHT_LOOK_MARKS.deep changes what light draws with no lever set (windWhiteStreak.test.js pins the bytes).
+// change to LIGHT_LOOK_FIELD.deep or LIGHT_LOOK_MARKS.deep changes what light draws with no lever set (windWhiteStreak.test.js pins the bytes). SINCE 2026-10-12 (D-024) rows 1 to 32 kn of both are windLightPath.js's wherever light's path draws (windLightPath.test.js pins those bytes).
 // Dark's look, measured (log 2026-10-10-dark-style-light-beach): every streak pixel is a brighter shade of the colour under it (+9.5 to
 // +14.5 L* at the median, chroma kept), and the colour under it is DARK (a dark map under a vivid veil). Dark's streak method moved onto
 // light washed out (D-019, amended): light's ground under the streaks is L* 74-88, and a mark that can only lighten has no room there.
@@ -478,17 +478,19 @@ export function windWhiteStrength(theme, win) {
   return k ? { land: k.land, sea: k.sea } : { land: 1, sea: 1 };
 }
 /**
- * LIGHT'S PATH (windLightPath.js; owner 2026-10-12): light's 4 to 32 kn in dark's hue ORDER. ON wherever the white streak draws in light,
- * so everything that stands the white streak down stands it down too. `__RAW_DISABLE_WIND_LIGHT_PATH__ = true` draws light as before it.
+ * LIGHT'S PATH (windLightPath.js; owner 2026-10-12, D-024): light's 1 to 32 kn in dark's hue ORDER. ON wherever the white streak draws in
+ * light AS D-022 LAYS IT, so everything that stands the white streak down stands it down too, and so does D-022's own kill (it restores
+ * D-021's picture, full white over the tables that picture was drawn on: an older kill keeps its meaning). Never under the Canvas2D
+ * fallback (WindParticleOverlay.js draws the particle ramp, so the bar must stay that ramp). `__RAW_DISABLE_WIND_LIGHT_PATH__ = true` draws light as before it.
  */
 export function windLightPathOn(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {};
-  return theme === 'light' && w.__RAW_DISABLE_WIND_LIGHT_PATH__ !== true && windWhiteStreakOn(theme, w);
+  return theme === 'light' && w.__RAW_DISABLE_WIND_LIGHT_PATH__ !== true && w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && w.__WIND_CANVAS_FALLBACK__ !== true && windWhiteStreakOn(theme, w);
 }
 var SOLVED = {}, PATH_TABLES = null;
 function darkRulesTables(theme, w) {
   // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike; on light's path,
-  // those two tables with their 4 to 32 kn rows replaced by the path's.
+  // those two tables with their 1 to 32 kn rows replaced by the path's.
   if (theme === 'light' && windWhiteStreakOn(theme, w)) {
     if (!windLightPathOn(theme, w)) return { field: LIGHT_LOOK_FIELD.deep, land: LIGHT_LOOK_MARKS.deep, water: LIGHT_LOOK_MARKS.deep };
     if (!PATH_TABLES) { var m = lightPathRows(LIGHT_LOOK_MARKS.deep, LIGHT_PATH.marks); PATH_TABLES = { field: lightPathRows(LIGHT_LOOK_FIELD.deep, LIGHT_PATH.field), land: m, water: m }; }
@@ -563,7 +565,7 @@ export function resolveThemeRamp(theme) {
  */
 export function resolveLegendRamp(theme, win) {
   var ramp = resolveThemeRamp(theme);
-  return theme === 'light' && windLightPathOn(theme, win) ? revertRows(ramp, LIGHT_PATH.legend) : ramp;
+  return theme === 'light' && windLightPathOn(theme, win) ? copyRows(revertRows(ramp, LIGHT_PATH.legend)) : ramp;
 }
 
 /**

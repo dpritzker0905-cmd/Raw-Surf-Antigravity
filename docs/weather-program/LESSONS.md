@@ -903,7 +903,7 @@ A stored estimate can be estimated again in a browser branch with different sour
   colour-blind passes bought, and the legend had moved with them. Rules: (1) a colour table is changed with the checker in the
   loop, not after the screenshot; (2) the field and the legend move together or not at all; (3) when a look and a floor pull
   apart, solve with the floor as a constraint (here: 5.1, within 4 degrees of dark's hue) and bring the owner both. (same log)
-- **L-V51 · Check the premise before the solve: which parts already follow the model, and what "match" means.** The owner:
+- **L-V52 · Check the premise before the solve: which parts already follow the model, and what "match" means.** The owner:
   "you need to double check all this ... It could be the way it is, or it could not be. It all has to make sense to match dark
   mode, but [in] their colors and maps". For an hour this session solved light onto dark's hues within 8 degrees, a figure taken
   from its brief, and was heading for a field 4 to 12 L* paler. The check took minutes: dark's code is the ORDER of its hues;
@@ -913,7 +913,7 @@ A stored estimate can be estimated again in a browser branch with different sour
   price it (here 8 degrees cost the depth, 20 kept it); (3) ask why a wrong band is wrong before moving it: both of light's were
   bought to avoid a cyan sea that the basemap mute had since greyed, a reason that no longer existed; (4) show the check as a
   sheet a person can read in a glance, with the breaks outlined. (log 2026-10-12-wind-light-path)
-- **L-V52 · A constrained solve needs the authority's own arithmetic, one bar at a time, and a control for the solver itself.**
+- **L-V53 · A constrained solve needs the authority's own arithmetic, one bar at a time, and a control for the solver itself.**
   L-V45 said to solve with the floor as a constraint. What made that workable: (1) port the checker's scoring to the solver's
   language and VERIFY it against the checker (4,000 random pairs, 2e-12 here), so a candidate costs 0.1 ms and the floor is a bar
   inside the search; the checker still judges every table that comes out; (2) map the frontier before choosing: drop one bar at a
@@ -924,7 +924,7 @@ A stored estimate can be estimated again in a browser branch with different sour
   every solution. Print them all, and score a known-bad candidate before trusting a zero; (5) a candidate stored as OFFSETS from
   a reference moves when the reference is corrected: when dark's law changed, the saved vector no longer described the table
   that was filmed. Store what is drawn. (same log)
-- **L-V53 · When two readers share a table and only one should move, split at the reader, not in the table.** Light's legend bar
+- **L-V54 · When two readers share a table and only one should move, split at the reader, not in the table.** Light's legend bar
   and its particle marks read one ramp. Under the white streak the marks no longer take their colour from it, so only the bar
   had to follow the field. Overlaying the new rows inside the shared resolver broke 28 tests in states the change never draws
   (every older look, kill and bench that reads the particle ramp), and would have fed new rows to marks nobody built. Giving the

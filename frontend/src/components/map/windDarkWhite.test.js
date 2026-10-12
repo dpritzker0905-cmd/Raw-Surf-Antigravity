@@ -91,13 +91,15 @@ describe('the numbers: a strength for each ground, a theme', () => {
 
 describe('it is the strength alone: no table, no key and no mark model moves', () => {
   it.each([50, 75])('the fields and the streak rows are PR #313\'s, byte for byte, with and without the kill (%i kn)', (max) => {
-    for (const theme of THEMES) { const w = theme === 'light' ? NO_PATH : {}; expect(hashes(theme, w, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, { ...w, ...KILL }, max)).toEqual(TABLES[theme][max]); }
-    expect(hashes('light', {}, max)).not.toEqual(TABLES.light[max]);                         // light's default has moved on (D-024) ...
-    expect(hashes('light', KILL, max)).toEqual(hashes('light', {}, max));                    // ... and the strength's kill moves no table there either
+    // Light's default has moved on to light's path (D-024). PR #313's bytes are what light draws under the path's kill AND under this
+    // kill: D-022's kill restores D-021's picture, the tables it was drawn on included (it stands the path down; independent review).
+    for (const theme of THEMES) { expect(hashes(theme, theme === 'light' ? NO_PATH : {}, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }
+    expect(hashes('light', {}, max)).not.toEqual(TABLES.light[max]);
+    expect(hashes('light', { ...NO_PATH, ...KILL }, max)).toEqual(TABLES.light[max]);
     expect(hashes('dark', {}, max)).toEqual(hashes('dark', KILL, max));
   });
   it('the mark model and the look key are D-021\'s (the strength is a uniform the engine binds every frame)', () => {
-    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, w)).toBe(theme === 'light' ? 'white+path|dark-rules' : 'white|dark-rules'); }
+    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, w)).toBe(theme === 'light' && w !== KILL ? 'white+path|dark-rules' : 'white|dark-rules'); }
     expect(windInk('dark', V2, {}).mode).toBe(0);
   });
 });
