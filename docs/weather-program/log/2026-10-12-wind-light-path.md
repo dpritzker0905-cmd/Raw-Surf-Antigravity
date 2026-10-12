@@ -601,3 +601,39 @@ branch.
 - **Owed, changed:** the 15:13Z section's "streak lift by speed on the corrected bench" is met against dark by this table.
   Before against now in light stays unread. The re-solve on the deep land stays held, at the leading session's word.
 - #318 at this time: head `206661f3` before this commit, MERGEABLE, dev still at `74417b5a`. Not merged.
+
+## 15:58Z · The owner's go-ahead to merge, RELAYED by the leading session; the ramp file trimmed so the merged file fits its 800-line cap
+
+**The go-ahead, as relayed (the leading session's message, about 15:41Z).** The owner's words to IT, first-hand there, 2026-10-12
+15:38Z: "merge #321 and #320 and take the re-solved F" and "and merge anything else needed as well". It reads "anything else
+needed" as the open changes its re-filmed combined clip showed the owner: #315, #319 and this change (#318).
+**This session did not hear those words, and #318 is not named in them: that they cover #318 is the leading session's reading.**
+The leading session merges; this session does not.
+
+- **Its order:** #321, #320, #315, #319 (with beach's re-solved F), then #318 last.
+- **On its signal** (dev's head once #319 is on it): dev merged into this branch; `WindColorRamp.js`, `windDarkRules.test.js`'s
+  ORTHOGONAL list, the `check.mjs` / `mirror-model.mjs` loaders and the four records resolved; dev's ledger taken and this
+  branch's lines re-appended after it; the `pr_merge #319` line the next PR owes; then Jest on both trees, the lint and line
+  ratchets, the build, and `check.mjs --strict` on the merged tree. The checker there is the authority for light's
+  colour-blind line over #320's land (this log's model read 5.01, 14:28Z). **If it prints under 5.0: stop and say so; no row
+  is adjusted without showing the owner.**
+
+**The line cap, found by a dry run before the signal.** `WindColorRamp.js` is not in the line ratchet's baseline, so it may never
+pass 800 lines. Single-file three-way merges in a scratch folder (dev `74417b5a` as the base; #320 at `ccd23463`, #319 at
+`0ed6694f`): dev 767 lines; this branch 792 (+25); #320 +2; #319 +14: **808 once resolved.** It would not have fitted.
+
+- **The trim (this branch only; nothing drawn changes):** the path's built-once tables moved to `windLightPath.js`
+  (`lightTables(onPath, field, marks)`; the two base tables are passed in, so the module still imports nothing); two doc
+  comments in the ramp file shortened to pointers, their reasons moved to `windLightPath.js`'s "Kill" paragraph.
+  `WindColorRamp.js` 792 -> 780 lines; `windLightPath.js` 86 -> 107. `var SOLVED = {};` is dev's line again, so one conflict
+  with #319 is gone. `check.mjs` and `mirror-model.mjs` hand the ramp source `lightTables` where they handed `lightPathRows`.
+- **Expected size after the merges:** 780 + 2 + 14 = 796. #319's count is its head today; its form with the re-solved F may differ.
+- **Checked after the trim:** Jest on both trees 307 suites, 4,169 tests, 0 failed (one new test, `lightTables`; the first
+  version of that test was wrong, it expected the built-once tables to be rebuilt from toy inputs, and was corrected); the
+  byte pins of the default and of the kill unchanged and green; `check.mjs --strict`: light's lines as before (tint 5.1 over the
+  sea and 5.5 over land, legend 11.7 and 5.4 colour-blind), exit 1 for beach's two red lines alone, as on dev;
+  `mirror-model.mjs` runs through its changed loader; `check_eslint.js` exit 0; `loc_ratchet.py` New 0, Regressed 0; the
+  production build exit 0.
+- **Not checked:** the two loaders' output against the previous output byte for byte (the Jest byte pins and the checker's
+  unchanged lines stand in for it). Nothing of this build has been seen in the app by this session.
+- #318 at this time: head `05100f28` before this commit, MERGEABLE, dev still at `74417b5a`. Not merged.

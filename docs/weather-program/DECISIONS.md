@@ -614,3 +614,10 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   `mirror-run.js --at`, land and sea apart, dark beside light before and both candidates, on the hurricane scene and on a speed
   ramp; `windLightPath.test.js` (66 tests, each with the table before as its control; 9 of 9 mutations red); an independent
   review (13,693 lever sets against dev: 0 mismatches under the kill, 0 mixes; four should-fix findings, all fixed).
+- **Amended 2026-10-12 15:58Z (the owner's go-ahead to merge, RELAYED; not heard by the session that wrote this decision):** the
+  leading session reports the owner's words to it, first-hand there, 2026-10-12 15:38Z: "merge #321 and #320 and take the
+  re-solved F" and "and merge anything else needed as well". It reads "anything else needed" as the open changes its re-filmed
+  combined clip showed the owner, PR #318 among them, and merges #318 last (after #321, #320, #315 and #319). PR #318 is not
+  named in the owner's words: that they cover it is the leading session's reading. The decision itself does not change. Before
+  that merge the checker is run on the merged tree; if light's colour-blind line over PR #320's land prints under 5.0 the
+  merge waits and the owner is shown, and no row is adjusted quietly.

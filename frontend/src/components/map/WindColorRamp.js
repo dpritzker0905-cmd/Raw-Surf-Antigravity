@@ -10,7 +10,7 @@
  *   - Pure color math + GL texture creation
  */
 import { DARK_RULES, DARK_WHITE, solveDarkRules } from './windDarkRules';
-import { LIGHT_PATH, lightPathRows } from './windLightPath';
+import { LIGHT_PATH, lightTables } from './windLightPath';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -477,25 +477,16 @@ export function windWhiteStrength(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {}, k = w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w) ? DARK_WHITE[theme] : null;
   return k ? { land: k.land, sea: k.sea } : { land: 1, sea: 1 };
 }
-/**
- * LIGHT'S PATH (windLightPath.js; owner 2026-10-12, D-024): light's 1 to 32 kn in dark's hue ORDER. ON wherever the white streak draws in
- * light AS D-022 LAYS IT, so everything that stands the white streak down stands it down too, and so does D-022's own kill (it restores
- * D-021's picture, full white over the tables that picture was drawn on: an older kill keeps its meaning). Never under the Canvas2D
- * fallback (WindParticleOverlay.js draws the particle ramp, so the bar must stay that ramp). `__RAW_DISABLE_WIND_LIGHT_PATH__ = true` draws light as before it.
- */
+/** LIGHT'S PATH (D-024): on in light wherever the white streak draws as D-022 lays it, never under the Canvas2D fallback. Why each term is there: windLightPath.js, "Kill". */
 export function windLightPathOn(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {};
   return theme === 'light' && w.__RAW_DISABLE_WIND_LIGHT_PATH__ !== true && w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && w.__WIND_CANVAS_FALLBACK__ !== true && windWhiteStreakOn(theme, w);
 }
-var SOLVED = {}, PATH_TABLES = null;
+var SOLVED = {};
 function darkRulesTables(theme, w) {
   // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike; on light's path,
-  // those two tables with their 1 to 32 kn rows replaced by the path's.
-  if (theme === 'light' && windWhiteStreakOn(theme, w)) {
-    if (!windLightPathOn(theme, w)) return { field: LIGHT_LOOK_FIELD.deep, land: LIGHT_LOOK_MARKS.deep, water: LIGHT_LOOK_MARKS.deep };
-    if (!PATH_TABLES) { var m = lightPathRows(LIGHT_LOOK_MARKS.deep, LIGHT_PATH.marks); PATH_TABLES = { field: lightPathRows(LIGHT_LOOK_FIELD.deep, LIGHT_PATH.field), land: m, water: m }; }
-    return PATH_TABLES;
-  }
+  // those two tables with their 1 to 32 kn rows replaced by the path's (windLightPath.js builds them once).
+  if (theme === 'light' && windWhiteStreakOn(theme, w)) return lightTables(windLightPathOn(theme, w), LIGHT_LOOK_FIELD.deep, LIGHT_LOOK_MARKS.deep);
   // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
   // it is given the field's own path, whatever older kill is set, as a light look's tables are.
   var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
@@ -558,11 +549,8 @@ export function resolveThemeRamp(theme) {
   var legacy = LEGACY_LOW_STOPS[theme] || LEGACY_LOW_STOPS.dark;
   return ramp.map(function(stop, i) { return legacy[i] ? legacy[i].slice() : stop; });
 }
-/**
- * The stops the LEGEND BAR draws: the particle ramp, except in light on light's path (windLightPath.js). There the streaks are white
- * light over the field and take no colour from this ramp, so the bar follows the hues the FIELD draws (its 3 to 27 kn rows); the
- * particle ramp itself (resolveThemeRamp) never moves, which is what every older kill and lever draws its marks from.
- */
+/** The stops the LEGEND BAR draws: the particle ramp, except in light on light's path, where the bar follows the hues the FIELD draws (windLightPath.js,
+ *  "THE LEGEND MOVES WITH IT"). The particle ramp itself (resolveThemeRamp) never moves: every older kill and lever draws its marks from it. */
 export function resolveLegendRamp(theme, win) {
   var ramp = resolveThemeRamp(theme);
   return theme === 'light' && windLightPathOn(theme, win) ? copyRows(revertRows(ramp, LIGHT_PATH.legend)) : ramp;

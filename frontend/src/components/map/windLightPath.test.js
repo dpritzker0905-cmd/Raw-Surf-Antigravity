@@ -18,7 +18,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { LIGHT_PATH, lightPathRows } from './windLightPath';
+import { LIGHT_PATH, lightPathRows, lightTables } from './windLightPath';
 import { windLightPathOn, windWhiteStreakOn, windDarkRulesOn, DARK_RULES_HOLDS, DARK_RULES_STEERS, resolveDrawnField, resolveDrawnMarks, drawnMarkRampData, buildFieldRampTexture,
   windLookKey, resolveThemeRamp, resolveLegendRamp, windLegendGradientCSS, generateRampData, huePathStops, sampleRamp } from './WindColorRamp';
 import { windInk } from './windInk';
@@ -155,6 +155,15 @@ describe('the switch: on where the white streak draws in light, and the kill res
     expect(outside(resolveDrawnField('light', {})).map((r) => r[0])).toEqual([0, 33, 40, 47, 55, 63, 75]);
     for (const kn of [0, 33, 40, 55, 75]) for (const surface of SURFACES) expect(onScreen('now', kn, surface)).toEqual(onScreen('was', kn, surface));
     expect(lightPathRows([[0, 9], [3, 9], [16, 9], [33, 9], [75, 9]], [[1, 7], [32, 7]])).toEqual([[0, 9], [1, 7], [32, 7], [33, 9], [75, 9]]);
+  });
+  it('lightTables: off the path, the tables handed in; on it, their 1 to 32 kn rows replaced, one streak row for land and sea, built once', () => {
+    const field = [[0, 9], [3, 9], [33, 9]], marks = [[0, 8], [16, 8], [75, 8]];
+    const off = lightTables(false, field, marks);
+    expect(off.field).toBe(field); expect(off.land).toBe(marks); expect(off.water).toBe(marks);
+    const on = lightTables(true, field, marks), owned = (rows) => rows.filter((r) => r[0] >= LIGHT_PATH.from && r[0] <= LIGHT_PATH.to);
+    expect(owned(on.field)).toEqual(LIGHT_PATH.field); expect(owned(on.land)).toEqual(LIGHT_PATH.marks); expect(on.water).toBe(on.land);
+    expect(lightTables(true, field, marks)).toBe(on);                                                // built once (the app hands in the same two constants every time)
+    expect(lightTables(false, field, marks).field).toBe(field);                                      // and it never leaks into the kill's arm
   });
   it('the tables handed out are the caller\'s own copies', () => {
     const f = resolveDrawnField('light', {}); f[5][1] = 9;

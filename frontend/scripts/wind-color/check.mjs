@@ -34,9 +34,9 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // solver of dark's rules (windDarkRules.js, which has no imports): it is loaded first and handed in.
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
-const { LIGHT_PATH, lightPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windLightPath.js')) + '; return { LIGHT_PATH, lightPathRows };')();   // light's path (no imports)
-const { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'LIGHT_PATH', 'lightPathRows',
-  source(RAMP_SRC) + '; return { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, LIGHT_PATH, lightPathRows);
+const { LIGHT_PATH, lightTables } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windLightPath.js')) + '; return { LIGHT_PATH, lightTables };')();   // light's path (no imports)
+const { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'LIGHT_PATH', 'lightTables',
+  source(RAMP_SRC) + '; return { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, LIGHT_PATH, lightTables);
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();

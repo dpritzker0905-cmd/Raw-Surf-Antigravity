@@ -24,9 +24,9 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(MAP, 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
 const LEVERS = args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true } : {};   // --before-path: light before its path (windLightPath.js)
-const { LIGHT_PATH, lightPathRows } = new Function(source(path.join(MAP, 'windLightPath.js')) + '; return { LIGHT_PATH, lightPathRows };')();
-export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'LIGHT_PATH', 'lightPathRows',
-  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, resolveLegendRamp, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, LIGHT_PATH, lightPathRows);
+const { LIGHT_PATH, lightTables } = new Function(source(path.join(MAP, 'windLightPath.js')) + '; return { LIGHT_PATH, lightTables };')();
+export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'LIGHT_PATH', 'lightTables',
+  source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, resolveLegendRamp, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, LIGHT_PATH, lightTables);
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(fs.readFileSync(path.join(MAP, 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '') + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
 
 // The composite law, per theme (check.mjs MODEL; dark's land is the wind bench's own offline colour).

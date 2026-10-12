@@ -55,6 +55,10 @@
  * engine rebuilds its tables at once, the legend bar at its next render: MapWeatherControls keys its memo on the look key). ON only
  * where the white streak draws as D-022 lays it (WindColorRamp.js windLightPathOn), so every lever and older kill that stands the
  * white streak down, and D-022's own kill, still draw exactly what they drew. Not under the Canvas2D fallback. Beach and dark are not touched.
+ *   - D-022's kill (__RAW_DISABLE_WIND_DARK_WHITE__) restores D-021's picture: full white over the tables THAT picture was drawn on. An
+ *     older kill keeps its meaning (LESSONS L-V25), so it steps back past the path first.
+ *   - The Canvas2D fallback (WindParticleOverlay.js) draws its marks from the particle ramp, so the bar must stay that ramp there. The
+ *     streaks under the path are white light over the field and take no colour from the particle ramp, which is why the bar can follow the field.
  */
 const rows = (list) => Object.freeze(list.map((r) => Object.freeze(r)));
 export const LIGHT_PATH = Object.freeze({
@@ -88,4 +92,16 @@ export const LIGHT_PATH = Object.freeze({
 /** `base` (rows of [kn, r, g, b, a]) with every row from LIGHT_PATH.from to LIGHT_PATH.to replaced by `rows`; the rows outside that span are base's own. */
 export function lightPathRows(base, rows) {
   return base.filter(function(s) { return s[0] < LIGHT_PATH.from; }).concat(rows, base.filter(function(s) { return s[0] > LIGHT_PATH.to; }));
+}
+
+let TABLES = null;
+/**
+ * What light draws under the white streak (WindColorRamp.js darkRulesTables): `field` and `marks` as they are, or, on the path, with their
+ * 1 to 32 kn rows replaced by LIGHT_PATH's. One streak row over land and sea alike. The path's tables are built once: the caller always
+ * hands in the same two module constants (LIGHT_LOOK_FIELD.deep, LIGHT_LOOK_MARKS.deep).
+ */
+export function lightTables(onPath, field, marks) {
+  if (!onPath) return { field: field, land: marks, water: marks };
+  if (!TABLES) { const m = lightPathRows(marks, LIGHT_PATH.marks); TABLES = { field: lightPathRows(field, LIGHT_PATH.field), land: m, water: m }; }
+  return TABLES;
 }
