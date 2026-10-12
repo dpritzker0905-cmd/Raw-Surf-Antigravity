@@ -43,33 +43,48 @@
  * that has not been laid to its full level is veiled a little at its own core (a typical pixel's lightest moment falls 0.1 to 1.9
  * L* in light and 0.1 to 2.8 in beach, most at 6 to 9 kn; the highest tenth of cores by 0.5 at most).
  *
+ * Over LAND the same veil takes more than dark's does from dark's near-black land, so there the streaks add less light than dark's
+ * up to 18 kn (light 0.62 to 0.79 of it, beach 0.62 to 0.95, where both added about dark's before): light and beach have ONE
+ * ground depth, dark has two, and one strength sits on dark's sea (1, the default) or on dark's land (0.5), not both.
+ *
  * Kill: window.__RAW_DISABLE_WIND_TRAIL_VEIL__ = true. Steer (bench and A/B): window.__RAW_WIND_TRAIL_VEIL__ = a number over 0 up
- * to 2 (that multiple of dark's own strength) or false (off for the session). Both are read each frame. The veil draws only where
- * the white streak is laid ground by ground (D-021, D-022): every kill, hold and bench lever that stands dark's rules or the white
- * streak down, and D-022's own kill, stand it down too, so each still draws exactly its old picture. Dark never reads either
- * (dark IS the law).
+ * to 2 (that multiple of dark's own strength) or false (off for the session). Both are read each frame.
+ * IT STANDS DOWN wherever what it rests on is not drawn, so every older kill still draws its old picture:
+ *   - where the white streak is not laid ground by ground (D-021, D-022): every kill, hold and bench lever that stands dark's rules
+ *     or the white streak down, and D-022's own kill;
+ *   - under the land's depth kill (D-026, __RAW_DISABLE_WIND_LAND_DEPTH__): the land is pale again there, and a veil's dimming grows
+ *     with the ground squared (the grey ghost rule 1 was written against);
+ *   - under the opaque canvas's kill (D-027, __RAW_DISABLE_WIND_OPAQUE_CANVAS__): that kill blends the canvas's ALPHA by the
+ *     colour's factors, so a veil's alpha would let light's near-white page through and LIGHTEN the trail it is meant to dim
+ *     (the independent review measured +5 to +10 levels where the built blend gives -6 to -15).
+ * Dark never reads either (dark IS the law). The kills of light's and beach's paths (D-024, D-025) leave it drawn: they move the
+ * field's colours, not the composite, the grounds' depth or the canvas.
  */
 import { windWhiteStreakOn, windWhiteStrength } from './WindColorRamp';
+import { windKeepsCanvasOpaque } from './windCanvasAlpha';
+import { windCloseLandFactor } from './WebGLWindUtils';
 
 export const TRAIL_VEIL = Object.freeze({ kill: '__RAW_DISABLE_WIND_TRAIL_VEIL__', steer: '__RAW_WIND_TRAIL_VEIL__', strength: 1, max: 2 });
 
 /** The veil's strength for this theme as a multiple of dark's own: 1 where the white streak is laid ground by ground, 0 elsewhere and under its kill. */
 export function windTrailVeil(theme, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {}, v = w[TRAIL_VEIL.steer];
-  if (w[TRAIL_VEIL.kill] === true || v === false || w.__RAW_DISABLE_WIND_DARK_WHITE__ === true || !windWhiteStreakOn(theme, w)) return 0;
+  if (w[TRAIL_VEIL.kill] === true || v === false || !windWhiteStreakOn(theme, w)) return 0;
+  // The grounds and the canvas the veil rests on (STANDS DOWN, above): D-022's strengths, the land at the sea's depth, an opaque canvas.
+  if (w.__RAW_DISABLE_WIND_DARK_WHITE__ === true || w.__RAW_DISABLE_WIND_LAND_DEPTH__ === true || !windKeepsCanvasOpaque(w)) return 0;
   return typeof v === 'number' && v > 0 && v <= TRAIL_VEIL.max ? v : TRAIL_VEIL.strength;
 }
 
 /**
  * SCREEN_FS's u_trail_veil for this frame: [the veil's strength (0 = the glow branch alone), 1 / the buffer level of a core].
- * `glow`: whether this theme's composite runs the glow branch at all; `darkOpacity`: dark's own composite opacity at this zoom,
- * already times this theme's close-zoom factor (the veil eases with the streak it belongs to).
+ * `glow`: whether this theme's composite runs the glow branch at all; `darkOpacity`: dark's own composite opacity at this zoom.
+ * The theme's close-zoom factor (WebGLWindUtils.js windCloseLandFactor) is applied here: the veil eases with the streak it belongs to.
  */
-export function trailVeilUniform(theme, glow, darkOpacity, win = (typeof window !== 'undefined' ? window : null)) {
+export function trailVeilUniform(theme, glow, darkOpacity, zoom, win = (typeof window !== 'undefined' ? window : null)) {
   const k = glow ? windTrailVeil(theme, win) : 0;
   if (!k) return [0, 1];
   const s = windWhiteStrength(theme, win);
-  return [k * darkOpacity, 1 / Math.sqrt(Math.max(0.01, Math.min(s.land, s.sea)))];
+  return [k * darkOpacity * windCloseLandFactor(theme, zoom, win || {}), 1 / Math.sqrt(Math.max(0.01, Math.min(s.land, s.sea)))];
 }
 
 /** SCREEN_FS's declarations and the veiled composite. The colour is scaled so the light added is the glow branch's own, to the byte at a core. */

@@ -13,6 +13,7 @@ import { glowComposite } from './windInk';
 
 const T = require('../../../scripts/wind-bench/truth');
 const { parseForce, forceUniforms } = require('../../../scripts/wind-bench/force-uniforms');
+const { cropEdge, cropRect, rowsFromTop, partsOf, partOf, sameRun } = require('../../../scripts/wind-bench/crops');
 const BENCH = path.join(__dirname, '..', '..', '..', 'scripts', 'wind-bench');
 
 // CIELAB L* of an sRGB grey byte, from the definition (IEC 61966-2-1 and CIE 15), written out again on purpose.
@@ -273,9 +274,20 @@ describe('one variable at a time: a forced uniform on the real engine (force-uni
     gl.uniform1f(gl.getUniformLocation(engine.screenProgram, 'u_glow'), 1);
     expect(st.sent).toEqual([['screen', 'u_glow', 1], ['screen', 'u_glow', 1]]);
   });
-  it('the runner stops a run whose forced uniform never fired, and the page hands every forced run its counts', () => {
+  it('before the trail buffers exist (the first frame) a pass is the map\'s unless the advect buffer is bound', () => {
+    const { gl, st, engine } = makeGl();
+    delete engine.screenA; delete engine.screenB;
+    const f = forceUniforms(gl, engine, { 'screen.u_glow@map': 0, 'screen.u_opacity@buffer': 0.25 });
+    const send = () => { gl.uniform1f(gl.getUniformLocation(engine.screenProgram, 'u_glow'), 1); gl.uniform1f(gl.getUniformLocation(engine.screenProgram, 'u_opacity'), 1); };
+    st.fbo = null; send(); st.fbo = engine.advFBO; send();
+    expect(st.sent.map((x) => x[2])).toEqual([0, 1, 1, 0.25]);
+    expect(f.hits).toEqual({ 'screen.u_glow@map': 1, 'screen.u_opacity@buffer': 1 });
+  });
+  it('the runner stops a run whose forced uniform never fired AND removes its frames, and the page hands every forced run its counts', () => {
     const run = fs.readFileSync(path.join(BENCH, 'motion-run.js'), 'utf8'), page = fs.readFileSync(path.join(BENCH, 'page', 'map-entry.js'), 'utf8');
-    expect(run).toContain('a forced uniform never fired');
+    const stop = run.indexOf('if (idle.length) {'), thrown = run.indexOf('a forced uniform never fired');
+    expect(stop).toBeGreaterThan(0); expect(thrown).toBeGreaterThan(stop);
+    expect(run.slice(stop, thrown)).toContain('for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });');   // frames taken under the default must not stay under the arm's name
     expect(page).toContain('forced: forced ? forced.hits : null');
     expect(page).toContain('if (forced) forced.restore();');
   });
@@ -287,12 +299,48 @@ describe('the bench mode as it is run', () => {
     expect(run).toContain('fs.copyFileSync(path.join(BENCH, \'truth.js\'), path.join(OUT, \'motion\', \'truth-stats.js\'));');
     expect(run).toContain('a see-through frame');
   });
-  it('the trail buffer\'s crop is the screen\'s crop: the same edge arithmetic, rows turned to run from the top', () => {
+  it('a crop is centred where it is asked and kept inside the image; its rows counted from the bottom are the same rows', () => {
+    expect(cropEdge(0.5, 1000, 240)).toBe(380); expect(cropEdge(0, 1000, 240)).toBe(0); expect(cropEdge(1, 1000, 240)).toBe(760);
+    expect(cropEdge(0.143, 1346, 240)).toBe(72);
+    const r = cropRect(1346, 1371, [240, 330, 'png'], [0.475, 0.85]);
+    expect(r).toEqual({ x: 519, y: 1000, w: 240, h: 330, glY: 41 });
+    expect(r.glY + r.h).toBe(1371 - r.y);                                      // the top row of the crop, from the bottom
+    expect(cropRect(100, 80, [240, 330], null)).toEqual({ x: 0, y: 0, w: 100, h: 80, glY: 0 });   // a crop larger than the image is the image
+    expect(cropRect(200, 100, [50, 20])).toMatchObject({ x: 75, y: 40 });       // the centre when no place is asked
+  });
+  it('THE TRAIL BUFFER\'S CROP IS THE SCREEN\'S CROP: read from the bottom as GL reads, its rows are turned to run from the top', () => {
+    // A 3 x 4 image whose pixel (x, y from the top) holds [10 x, 20 y, 7]. GL hands its rows over bottom first.
+    const W = 3, H = 4, top = (x, y) => [10 * x, 20 * y, 7, 99];
+    const gl = new Uint8Array(W * H * 4);
+    for (let row = 0; row < H; row++) for (let x = 0; x < W; x++) gl.set(top(x, H - 1 - row), (row * W + x) * 4);
+    const out = rowsFromTop(gl, W, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) expect(Array.from(out.slice((y * W + x) * 4, (y * W + x) * 4 + 4))).toEqual([10 * x, 20 * y, 7, 255]);   // and opaque
+    // and a crop of it: the rectangle the page asks GL for is the rectangle a canvas crop takes
+    const r = cropRect(W, H, [2, 2], [1, 0]), read = new Uint8Array(r.w * r.h * 4);
+    for (let row = 0; row < r.h; row++) for (let x = 0; x < r.w; x++) read.set(gl.slice(((r.glY + row) * W + r.x + x) * 4, ((r.glY + row) * W + r.x + x) * 4 + 4), (row * r.w + x) * 4);
+    const crop = rowsFromTop(read, r.w, r.h);
+    for (let y = 0; y < r.h; y++) for (let x = 0; x < r.w; x++) expect(Array.from(crop.slice((y * r.w + x) * 4, (y * r.w + x) * 4 + 3))).toEqual([10 * (r.x + x), 20 * (r.y + y), 7]);
     const page = fs.readFileSync(path.join(BENCH, 'page', 'map-entry.js'), 'utf8');
-    expect(page).toContain('function cropEdge(f, full, part) { return Math.max(0, Math.min(full - part, Math.round(full * f - part / 2))); }');
-    expect(page).toContain('cropEdge(fx, c.width, t.width), cropEdge(fy, c.height, t.height)');
-    expect(page).toContain('const x0 = cropEdge(fx, W, w), y0 = cropEdge(fy, H, h)');
-    expect(page).toContain('gl.readPixels(x0, H - y0 - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);');
+    expect(page).toContain('gl.readPixels(r.x, r.glY, r.w, r.h, gl.RGBA, gl.UNSIGNED_BYTE, px);');
+    expect(page).toContain('drawImage(c, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);');
+    expect(page.match(/cropRect\(/g)).toHaveLength(2);                           // both crops, one rectangle
+  });
+  it('several crops of one frame: each is a run of its own, and crop k goes to run k', () => {
+    expect(partsOf('low-light', null)).toEqual([{ name: 'low-light', at: null }]);
+    expect(partsOf('low-light', [[0.5, 0.3]])).toEqual([{ name: 'low-light', at: [0.5, 0.3] }]);     // one centre: the run keeps its name, as before
+    expect(partsOf('low-light', [[0.143, 0.85], [0.475, 0.2]])).toEqual([{ name: 'low-light@0.143_0.85', at: [0.143, 0.85] }, { name: 'low-light@0.475_0.2', at: [0.475, 0.2] }]);
+    expect(partOf(['a', 'b', 'c'], 2, true)).toBe('c'); expect(partOf(['a', 'b', 'c'], 0, true)).toBe('a');
+    expect(partOf('only', 0, false)).toBe('only');
+  });
+  it('a saved result is this run only on the same wind, page, levers, forced uniforms and crop, with the trail buffer if it is asked for', () => {
+    const want = { fixture: 'ramp', page: '#000000', levers: { __RAW_X__: true }, force: { 'screen.u_glow@map': 0 }, crop: [240, 330, 'png'], trail: true };
+    const saved = { ok: true, fixture: 'ramp', page: '#000000', levers: { __RAW_X__: true }, force: { 'screen.u_glow@map': 0 }, crop: [240, 330, 'png'], trail: true };
+    expect(sameRun(saved, want)).toBe(true);
+    expect(sameRun({ ...saved, trail: false }, { ...want, trail: false })).toBe(true);
+    expect(sameRun(saved, { ...want, trail: false })).toBe(true);              // frames saved with the trail buffer serve a run that does not ask for it
+    for (const other of [{ ok: false }, { fixture: 'hurricane' }, { page: '#f9fafb' }, { levers: {} }, { levers: { __RAW_X__: false } }, { force: null }, { force: { 'screen.u_glow@map': 1 } }, { crop: [120, 330, 'png'] }, { trail: false }]) expect(sameRun({ ...saved, ...other }, want)).toBe(false);
+    expect(sameRun(undefined, want)).toBe(false);
+    expect(sameRun({ ok: true, fixture: 'ramp', page: '#000000' }, { fixture: 'ramp', page: '#000000' })).toBe(true);   // a plain run saved before these fields existed
   });
   it('the README says how to run it and what it must be compared against', () => {
     const readme = fs.readFileSync(path.join(BENCH, 'README.md'), 'utf8');

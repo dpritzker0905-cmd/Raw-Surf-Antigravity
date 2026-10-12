@@ -32,7 +32,8 @@
  * (light and beach under dark's rules) is q = 0. --level is the buffer level a streak's core is laid at (the veil is nothing at it).
  * --check p,q also prints the share of pixel-channels THAT law explains to within 1.5 levels: over land the map's own lines and names
  * are drawn above the wind and pull a fit, and this says how much of the crop they are.
- * Compare arms at the SAME run position (a theme's first run on a fresh map differs from its second), with a null control.
+ * Compare arms at the SAME run position (a theme's first run on a fresh map differs from its second), with a null control, and
+ * between runs of EQUAL length: darkest, core, back and reach are extremes over a run.
  * Scratch on 2026-10-12 (log 2026-10-12-wind-canvas-alpha, "After the independent review"); committed with the trails-linger finding.
  */
 const fs = require('fs');
@@ -103,7 +104,7 @@ async function inPage([mode, a, b, t, level, check]) {
   const server = await serveDir(OUT, undefined, {});
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: true });
-  const results = {};
+  const results = {}, lengths = new Set();
   try {
     const page = await browser.newPage();
     await page.goto(`http://127.0.0.1:${server.address().port}/motion/truth.html`);
@@ -120,6 +121,8 @@ async function inPage([mode, a, b, t, level, check]) {
       if (!a || !b || (MODE !== '--diff' && eq < 1)) throw new Error(`not ${MODE === '--diff' ? '<run a>:<run b>' : '<label>=<run with streaks>:<field alone>'}: ${arg}`);
       const s = await page.evaluate(inPage, [MODE, urlsOf(a, /^f\d+\.jpg$/), urlsOf(b, /^f\d+\.jpg$/), MODE === '--law' ? urlsOf(a, /^t\d+\.png$/) : null, LEVEL, CHECK]);
       results[label] = Object.assign({ runs: [a, b] }, s);
+      if (MODE === '--diff' && s.framesA !== s.framesB) console.log(`NOTE ${a} has ${s.framesA} frames and ${b} has ${s.framesB}: the first ${s.frames} of each were compared`);
+      if (MODE === '--truth') { lengths.add(s.frames); if (lengths.size === 2) console.log('NOTE these runs are not of one length: darkest, core, back and reach are extremes over a run, so compare them only between runs of equal length'); }
       if (MODE === '--diff') console.log(`${(a + ' vs ' + b).padEnd(44)} mean dE76 a pixel ${s.mean} (worst frame ${s.worstFrame}) · share of pixels over 1 dE: ${s.over1}, over 2 dE: ${s.over2} · largest ${s.max} · ${s.frames} frames`);
       else if (MODE === '--law') console.log(`${label.padEnd(22)} ${pad(s.p, 6)} ${pad(s.q, 7)} ${pad(s.rms, 5)} | ${pad(s.dark && s.dark.opacity, 19)} ${pad(s.dark && s.dark.rms, 5)} | ${pad(s.glow && s.glow.opacity, 21)} ${pad(s.glow && s.glow.rms, 5)} | ${pad(s.empty, 12)} | ${s.n}${s.obeys == null ? '' : ` · ${s.obeys} of them obey p ${CHECK[0]}, q ${CHECK[1]} to 1.5 levels`}`);
       else console.log(`${label.padEnd(22)} ${pad(s.groundL, 6)} ${pad(s.groundC, 4)} | ${pad(s.added, 6)} ${pad(s.taken, 6)} | ${pad(s.over3, 5)} ${pad(s.under15, 6)} ${pad(s.atField, 9)} ${pad(s.back, 5)} | ${pad(signed(s.darkest), 6)} (${pad(signed(s.darkestP10), 5)}) | ${pad(signed(s.lightest), 6)} (${pad(signed(s.lightestP90), 5)}) | ${pad(s.weber, 5)} | ${pad(s.flicker, 6)}`);

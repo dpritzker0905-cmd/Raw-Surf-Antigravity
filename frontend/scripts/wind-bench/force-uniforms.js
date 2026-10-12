@@ -14,6 +14,15 @@
  *
  * Bench only, never the app: nothing under src/ reads this. `hits` in the result counts how often each key replaced a value; a key
  * that never fired stops the run (a misspelt uniform would otherwise be a run that silently measured the default).
+ *
+ * TWO LIMITS (the independent review, 2026-10-12):
+ *   - `@map` and `@buffer` are judged when the value is SENT, not when a draw uses it. The screen, fade and draw programs send
+ *     their uniforms with their own framebuffer already bound; the advect program sends its before it binds its buffer, so an
+ *     advect uniform takes no suffix (`advect.u_speed_scale@buffer` never fires and stops the run).
+ *   - A forced value stays in its program until the engine sends that uniform again. The buffer's copy re-sends `u_opacity`, `u_glow`,
+ *     `u_ink_cap` and the trail's camera each frame, so `screen.u_glow@map` is the composite's alone; it does not re-send
+ *     `u_premul`, `u_ink` or `u_trail_veil`, so one of those forced `@map` would be read by the next frame's copy too. Check that the
+ *     pass you do not mean to touch re-sends the uniform.
  */
 const SETTERS = ['uniform1f', 'uniform2f', 'uniform3f', 'uniform4f'];
 
@@ -42,7 +51,8 @@ function forceUniforms(gl, engine, spec) {
   const real = { getUniformLocation: gl.getUniformLocation };
   const own = () => {   // is one of the engine's own framebuffers bound?
     const fb = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-    return !!fb && (fb === (engine.screenA && engine.screenA.fbo) || fb === (engine.screenB && engine.screenB.fbo) || fb === engine.advFBO);
+    const mine = [engine.screenA && engine.screenA.fbo, engine.screenB && engine.screenB.fbo, engine.advFBO].filter(Boolean);   // the trail buffers exist only after the first frame
+    return !!fb && mine.includes(fb);
   };
   gl.getUniformLocation = function (prog, name) {
     const loc = real.getUniformLocation.call(gl, prog, name), named = byProgram.get(prog);

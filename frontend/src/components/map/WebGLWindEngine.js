@@ -985,8 +985,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   if (z >= 4.0 && z <= 9.0) {
     finalOpacity = 0.505;
   } var darkOpacity = finalOpacity; if (_ink.glow) finalOpacity = _ink.opacity;   // glow (windInk.js) runs this brightness-alpha path at its own strength
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z)); // close-zoom land
-  var _veil = trailVeilUniform(effectiveTheme, _ink.glow, darkOpacity * windCloseLandFactor(effectiveTheme, z)); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_trail_veil'), _veil[0], _veil[1]);   // dark's veil under light's and beach's trails (windTrailVeil.js, D-028); [0, 1] in dark, under its kill and wherever the white streak does not draw
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z)); var _veil = trailVeilUniform(effectiveTheme, _ink.glow, darkOpacity, z); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_trail_veil'), _veil[0], _veil[1]);   // close-zoom land; dark's veil under light's and beach's trails (windTrailVeil.js, D-028): [0, 1] in dark, under its kill and wherever the white streak does not draw
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 

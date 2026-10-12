@@ -95,6 +95,7 @@ const state = { map: null, theme: null, gl: null, engine: null, rng: null, activ
 // what the screen shows whatever alpha the wind left in the canvas. state.page is a run's own page (`--behind`); null is the app's for the theme.
 const { pageOf, alphaOf, foldAlpha } = require('../page-colour');
 const { forceUniforms } = require('../force-uniforms');   // one variable at a time: a run's forced uniforms (truth mode's arms)
+const { cropRect, rowsFromTop } = require('../crops');     // where a crop is: the screen's and the trail buffer's are the same pixels
 /** A 2D canvas of w x h already filled with the page behind the map: draw the map's canvas onto it and it is what the screen shows. */
 function pageCanvas(w, h) {
   const t = document.createElement('canvas'); t.width = w; t.height = h;
@@ -232,13 +233,10 @@ function thumb(map) {
 /** A crop at DEVICE resolution (what the screen shows, pixel for pixel; the centre, or centred at state.cropAt = [fx, fy] of the canvas), as a PNG data URL; null when no crop is asked for. */
 function cropShot(map, centre) {
   if (!state.crop) return null;
-  const c = map.getCanvas(), t = pageCanvas(Math.min(state.crop[0], c.width), Math.min(state.crop[1], c.height));
-  const [fx, fy] = centre || state.cropAt || [0.5, 0.5];
-  t.getContext('2d').drawImage(c, cropEdge(fx, c.width, t.width), cropEdge(fy, c.height, t.height), t.width, t.height, 0, 0, t.width, t.height);
+  const c = map.getCanvas(), r = cropRect(c.width, c.height, state.crop, centre || state.cropAt), t = pageCanvas(r.w, r.h);
+  t.getContext('2d').drawImage(c, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
   return state.crop[2] === 'jpeg' ? t.toDataURL('image/jpeg', 0.92) : t.toDataURL('image/png');
 }
-/** A crop's first pixel along one axis: centred at fraction `f` of `full`, kept inside it. */
-function cropEdge(f, full, part) { return Math.max(0, Math.min(full - part, Math.round(full * f - part / 2))); }
 
 /**
  * The SAME crop of the engine's own trail buffer (the ink this frame laid on the map, before it met the map), as a PNG data URL:
@@ -249,18 +247,12 @@ function cropEdge(f, full, part) { return Math.max(0, Math.min(full - part, Math
 function trailShot(centre) {
   const gl = state.gl, e = state.engine;
   if (!state.crop || !e || !e.screenB) return null;
-  const W = e._screenW, H = e._screenH, w = Math.min(state.crop[0], W), h = Math.min(state.crop[1], H), [fx, fy] = centre || state.cropAt || [0.5, 0.5];
-  const x0 = cropEdge(fx, W, w), y0 = cropEdge(fy, H, h), px = new Uint8Array(w * h * 4), prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  const r = cropRect(e._screenW, e._screenH, state.crop, centre || state.cropAt), px = new Uint8Array(r.w * r.h * 4), prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
   gl.bindFramebuffer(gl.FRAMEBUFFER, e.screenB.fbo);
-  gl.readPixels(x0, H - y0 - h, w, h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.readPixels(r.x, r.glY, r.w, r.h, gl.RGBA, gl.UNSIGNED_BYTE, px);
   gl.bindFramebuffer(gl.FRAMEBUFFER, prev);
-  const t = document.createElement('canvas'); t.width = w; t.height = h;
-  const im = new ImageData(w, h);
-  for (let y = 0; y < h; y++) {
-    const src = (h - 1 - y) * w * 4, dst = y * w * 4;
-    for (let i = 0; i < w * 4; i += 4) { im.data[dst + i] = px[src + i]; im.data[dst + i + 1] = px[src + i + 1]; im.data[dst + i + 2] = px[src + i + 2]; im.data[dst + i + 3] = 255; }
-  }
-  t.getContext('2d').putImageData(im, 0, 0);
+  const t = document.createElement('canvas'); t.width = r.w; t.height = r.h;
+  t.getContext('2d').putImageData(new ImageData(rowsFromTop(px, r.w, r.h), r.w, r.h), 0, 0);
   return t.toDataURL('image/png');
 }
 
