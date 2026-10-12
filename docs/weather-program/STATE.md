@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-12 03:10Z: beach's SEA strength for the white streak is 0.55, not 0.77 (client only; the owner's word; a PR against
+- **2026-10-12 03:10Z: beach's SEA strength for the white streak is 0.55, not 0.77 (client only; the owner's word; PR #315 OPEN against
   dev, the owner merges).** After the read-back of #314 on the deployed build (`ec8f46a2`; light at 0.55 lifted the picture 1.04
   times as far as dark's over open sea at zoom 6, beach at 0.77 lifted it 1.37 times, in a field reaching 67 kn) the owner:
   "make the beach sea strength change to 0.55" (DECISIONS D-022, amended 2026-10-12).
@@ -30,7 +30,8 @@ is a claim, not a measurement.
     same in the three themes: 147,456 particles, the same share kept at each zoom), and four errors in D-022's record are
     corrected there (the read-back criterion, `--size 360`, the README's paths, two unreported watch lines).
   - **Not verified:** 0.55 has not been seen in the app. **Not built, the owner's calls:** a sea strength that follows the
-    wind's speed (it would fit a breeze and a storm both); the `bindLandMask` guard the review named.
+    wind's speed (it would fit a breeze and a storm both); the `bindLandMask` guard the review named. **Owed:** the read-back of 0.55 on
+    the deployed build and the owner's verdict (ledger seq 1067, due 2026-10-19); #314's read-back is closed (seq 1063 fulfils 1062).
   - **This session now LEADS the light/beach-mirror-dark work across three sub-sessions** (the owner, 2026-10-12 02:58Z: "lead
     those subtrees ... the map needs to be taken into account ... use the jacobian lens to help see everything as a whole"):
     border ink under the wind (branch `claude/wind-border-ink`, D-023, L-V46 to L-V49), light's colours on dark's hue path
@@ -1942,7 +1943,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1062, sha256 95ab5665056ec1bfd4f8066450c645d5b254e4906ca711c34555199ed8153dd0**
+  **Ledger head: seq 1067, sha256 5881bfd9276c88793094ef53eaa6fd37f9eeb42c5c8a6cef7ee7a8d198155925**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
