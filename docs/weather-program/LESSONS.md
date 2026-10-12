@@ -903,3 +903,49 @@ A stored estimate can be estimated again in a browser branch with different sour
   colour-blind passes bought, and the legend had moved with them. Rules: (1) a colour table is changed with the checker in the
   loop, not after the screenshot; (2) the field and the legend move together or not at all; (3) when a look and a floor pull
   apart, solve with the floor as a constraint (here: 5.1, within 4 degrees of dark's hue) and bring the owner both. (same log)
+- **L-V46 · Read where a thing is drawn before choosing how to fix it, and prove the reading with a control.** The brief for the
+  border ink carried a fair hypothesis: a full-strength streak is opaque at its core, so a border under the wind is cut whatever
+  its colour, and the layer ORDER might matter more than the ink. The style documents and `windLayerBeforeId` said the borders
+  and the names were already above the wind in all three themes; the probe then showed it in pixels (a pixel a glyph covers whole
+  moves 0.00 to 0.27 L* under the wind) and showed it could have seen the opposite (23 to 98 L* with the wind forced on top). The
+  whole fault was the colour, and no layer was moved. Rules: (1) a hypothesis in a brief is a thing to measure first, not a
+  design; (2) "it does not happen" needs the control in which it does; (3) read the style's order from the style, as served,
+  for EVERY theme: beach's lines were a mid grey, not the pale tint read on light. (log 2026-10-12-wind-border-ink)
+- **L-V47 · A column over everything cannot see a few things: score the object the owner named.** Map mode's line columns read
+  light and beach level with dark over land (`retP` 0.62 to 0.70 against 0.60 to 0.67) while their borders stood 2.8 to 7.6 L*
+  off the ground and the owner could not see them: map mode scored 75,000 to 148,000 edge pixels over land in a view (roads,
+  coasts, rivers, label strokes), and the border lines' centres were 440 to 4,704 pixels of it. Read alone (the lines found from
+  the style as a coverage mask, each scored against the ground beside it) the same pictures said 0.10 to 0.64 of dark's. Rules: (1) when the owner names a thing, the instrument's unit is that thing; (2) find it from the
+  source that draws it (the style), not from the picture, so a line that has vanished is still counted; (3) keep the general
+  column beside it: it moved too, and it is what says nothing else was harmed. (same log)
+- **L-V48 · An older kill's meaning is written in its tests: run the neighbours' tests before designing a new kill beside it.**
+  The ink was first built with a kill independent of the mute's, and the mute's own test ("the kill switch restores on the next
+  sync") failed: with `__RAW_DISABLE_WIND_BASEMAP_MUTE__` set, a border was still inked, and that kill is documented as "the map
+  keeps its own colours". L-V25 already says an older kill steps back past what was built on it; I had read the lesson and still
+  designed past it. Rules: (1) a new restyle that rides an older one's machinery is laid only where the older one is drawing;
+  (2) the first run after the first green is the WHOLE file the code lives in; (3) the newer kill may leave the older feature
+  on, never the reverse. (same log)
+- **L-V49 · A bench mode is the app only in what it runs: write down what each mode skips, at the mode.** Two were found while
+  building border mode, and neither had a line in the README. Map mode never ran the app's restyle: the basemap mute went into
+  path mode and then flow and motion modes, and `shoot` drew the wind over the style's own colours for every light and beach
+  number taken there since 2026-10-09. And the engine sizes a mark by the PAGE's device pixel ratio while the bench map's canvas
+  was always 2: at the default a mark is half its app size in CSS pixels, at `--dpr 1.5` three quarters, and no frame was the
+  owner's 1.5 in both. The kin of L-V21 (give the instrument the app's layer stack) and L-V44 (the instrument runs on the owner's
+  screen). Rules: (1) an instrument change is opt-in when recorded numbers were taken the old way, and the README says which
+  way each number was taken; (2) a ratio is one number in the page AND in the canvas, or it is two; (3) what such a gap did to
+  earlier numbers is a measurement owed, not a guess. (same log)
+- **L-V51 · Test the CALLER's order of events, not only the module's states; and a read-back that counts the plan cannot see a
+  write that was overwritten.** With the handler dev has had since #299, the basemap mute is left OFF after a theme change when
+  the new style arrives after the layer's re-sync, which is what a style fetched over the network does (replayed on the real
+  library and styles with dev's module and handler: 3 of 3 in that order; not observed in the app): the layer re-synced a frame
+  after the change, on the old style under the new theme's name; the new style was then diffed in over the restyle; and the
+  stale check, which compares the record and not the paint, answered "nothing to do". `__WIND_BASEMAP_MUTE__` said `applied`
+  throughout, so a read-back taken after a theme change would agree with a map that was not muted. Three things hid it: the module's own tests ran the order that works (the diff, then a sync); every bench mode
+  built a fresh map a theme, so the owner's own way of comparing themes had no instrument; and the read-back reported what was
+  planned. It was found by an independent reviewer walking the caller by hand, and then observed in the first run of a short
+  replay (19 ms to the re-sync, 121 ms to the style). Rules: (1) for code driven by events, write the test in the order the
+  caller fires them, and find that order by reading the caller and the library, not the module; (2) an asynchronous step between
+  "the name changed" and "the thing arrived" is a race until proved otherwise: force both orders; (3) a read-back that can be
+  true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
+  them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
+  compare themes by switching, and nothing switched. (same log)

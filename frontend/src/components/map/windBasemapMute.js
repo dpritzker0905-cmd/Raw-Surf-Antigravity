@@ -14,9 +14,9 @@
  *
  * While the wind is on, this lowers the chroma of the basemap's AREA colours under the wind layer (fills, background,
  * extrusions, hillshade, and the water's own lines) in OKLab, keeping each colour's lightness. Land and water still
- * differ by lightness (plus the wind's coastline stroke), and the wind's hue is the only hue left on the ground. Borders,
- * labels and roads are not touched: roads are thin and carry the map's navigation colour, and borders and labels sit
- * above the wind. Satellite is not touched either: a style with imagery under the wind keeps its photo. The palette, the field, the particles and every served number are unchanged. Off again when the wind is
+ * differ by lightness (plus the wind's coastline stroke), and the wind's hue is the only hue left on the ground. Labels
+ * and roads are not touched: roads are thin and carry the map's navigation colour, and labels sit above the wind. The
+ * borders sit above it too and take the BORDER INK (below). Satellite is not touched either: a style with imagery under the wind keeps its photo. The palette, the field, the particles and every served number are unchanged. Off again when the wind is
  * off; a theme change loads a fresh style, and the layer re-applies it.
  *
  * THE APP'S STACK (2026-10-09, live dev read { applied: true, layers: 0 }: nothing had ever been muted). The first build
@@ -52,8 +52,16 @@ export function windBasemapMuteAmount(theme, win = (typeof window !== 'undefined
 const NAMED = { white: [255, 255, 255, 1], black: [0, 0, 0, 1], transparent: [0, 0, 0, 0] };
 const num = (s, pct, scale) => { const v = parseFloat(s); return pct.test(s) ? v / 100 * scale : v; };
 
-/** [r, g, b, a] (0-255, alpha 0-1) of a CSS colour string the styles use (hex, rgb[a], hsl[a], three names); else null. */
+/**
+ * [r, g, b, a] (0-255, alpha 0-1) of a CSS colour string the styles use (hex, rgb[a], hsl[a], three names); else null.
+ * A string whose numbers do not parse is not a colour: 'rgb(0 0 0 / 50%)' once read as alpha NaN, was written as
+ * 'rgba(0, 0, 0, NaN)', and the library refused it without a word.
+ */
 export function parseColor(str) {
+  const c = parseColorRaw(str);
+  return c && c.every(Number.isFinite) ? c : null;
+}
+function parseColorRaw(str) {
   if (typeof str !== 'string') return null;
   const s = str.trim().toLowerCase();
   if (NAMED[s]) return NAMED[s].slice();
@@ -71,6 +79,7 @@ export function parseColor(str) {
   const a = parts.length > 3 ? num(parts[3], pct, 1) : 1;
   if (m[1].startsWith('rgb')) return [num(parts[0], pct, 255), num(parts[1], pct, 255), num(parts[2], pct, 255), a];
   const H = (((parseFloat(parts[0]) % 360) + 360) % 360) / 360, S = parseFloat(parts[1]) / 100, L = parseFloat(parts[2]) / 100;
+  if (!Number.isFinite(H) || !Number.isFinite(S)) return null;   // a NaN hue or saturation falls through `ch` as a grey
   const q = L < 0.5 ? L * (1 + S) : L + S - L * S, p = 2 * L - q;
   const ch = (t) => { t = (t + 1) % 1; return 255 * (t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p); };
   return [ch(H + 1 / 3), ch(H), ch(H - 1 / 3), a];
@@ -102,12 +111,73 @@ export function muteColor(str, amount, lScale = 1) {
   return `rgba(${out[0]}, ${out[1]}, ${out[2]}, ${+c[3].toFixed(3)})`;
 }
 
+/** A paint value (literal, expression array or legacy {stops} function) with `f` applied to every string in it; its shape kept. */
+function mapStrings(value, f) {
+  if (typeof value === 'string') return f(value);
+  if (Array.isArray(value)) return value.map((v) => mapStrings(v, f));
+  if (value && typeof value === 'object') { const o = {}; for (const k of Object.keys(value)) o[k] = mapStrings(value[k], f); return o; }
+  return value;
+}
+
 /** A paint value (literal, expression array or legacy {stops} function) with every colour literal muted. */
 export function muteValue(value, amount, lScale = 1) {
-  if (typeof value === 'string') return muteColor(value, amount, lScale);
-  if (Array.isArray(value)) return value.map((v) => muteValue(v, amount, lScale));
-  if (value && typeof value === 'object') { const o = {}; for (const k of Object.keys(value)) o[k] = muteValue(value[k], amount, lScale); return o; }
-  return value;
+  return mapStrings(value, (s) => muteColor(s, amount, lScale));
+}
+
+/**
+ * BORDER INK UNDER THE WIND (2026-10-12, owner: "The map below, I think the labels and borders need to be more visible. In
+ * dark mode they are white boarders and labels. So in beach and light mode, there maybe needs to be black borders and labels?").
+ *
+ * Dark's state and country lines are a light grey on a near-black land, and the wind only adds light: nothing erases them.
+ * Light draws the same lines in pale lavender (hsl(250, 90%, 80-85%)) and beach in mid grey (hsl(230, 8%, 51-62%)): about
+ * the lightness of a pale map once the wind's field is on it. Measured on the real basemaps, in motion, at the owner's pixel
+ * ratio (scripts/wind-bench/border-run.js; a line's L* against the ground beside it, under field + particles, zooms 4 / 6 / 8):
+ * dark 11.9 / 20.9 / 28.5; light 7.6 / 2.8 / 5.8; beach 4.0 / 4.7 / 3.0. The lines were there and could not be seen.
+ *
+ * While the wind is on, the border lines drawn ABOVE the wind layer (line layers named admin-*, their pale casings *-bg
+ * apart) are drawn in dark ink: the mirror of dark's light line. Only their line-color moves; a zoom interpolation keeps its
+ * stops, and width, opacity and dashes are the style's own. With the ink: light 39.9 / 36.5 / 35.0, beach 38.9 / 34.4 / 31.6.
+ * 0.7 is the lightest strength measured (0.7, 0.85, 1) and is at or above dark's line at every zoom in both themes; thin
+ * lines stay thin (a second variable, not changed here). The place names need none: the styles already draw them near-black
+ * on a white halo, above the wind, and no streak touches a glyph (measured: 0.3 L* at most, one 8-bit step).
+ *
+ * It rides the mute's own sync: one record a map, one restore, and it is laid only on a map the mute is restyling. Where
+ * the map under the wind is left the style's own, so are its borders: imagery showing under the wind (a dark line on a
+ * satellite photo would be the old problem turned over; the picture under a weather wash is unmeasured), and the mute's own
+ * kill or its lever at 0 (an older kill keeps its meaning, "the map keeps its own colours": LESSONS L-V25). The ink's own
+ * kill leaves the mute. Dark is never inked.
+ * Read-back: window.__WIND_BORDER_INK__ = { applied, layers, color, theme, at, reason? }; applied is true only when
+ * layers > 0 (the lines that TOOK the ink, read back from the library), and reason says why not: 'wind off', 'no wind
+ * layer', 'theme', 'kill', 'mute off', 'imagery:<layer id>', 'the style refused the ink', 'no border lines above the wind'
+ * (the under-labels kill puts the wind on top: unmeasured, today's lines are kept).
+ * Lever: window.__RAW_WIND_BORDER_INK__ (a CSS colour, e.g. 'rgba(27, 30, 45, 0.85)'; light and beach only).
+ * Kill: window.__RAW_DISABLE_WIND_BORDER_INK__ = true (the style's own border colours). Like the mute's, the kill and the
+ * lever are read at the next sync: a wind toggle, a theme change, or the map's next style change.
+ */
+export const WIND_BORDER_INK = Object.freeze({ color: Object.freeze({ light: 'rgba(27, 30, 45, 0.7)', beach: 'rgba(27, 30, 45, 0.7)' }) });
+const BORDER_LINE = /^admin-/, BORDER_CASING = /-bg$/;
+
+/** The ink this theme's border lines take under the wind (a CSS colour), or null: dark, a theme without one, the kill. */
+export function windBorderInk(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {}, own = WIND_BORDER_INK.color[theme];
+  if (typeof own !== 'string' || w.__RAW_DISABLE_WIND_BORDER_INK__ === true) return null;
+  const lev = w.__RAW_WIND_BORDER_INK__;
+  return typeof lev === 'string' && parseColor(lev) ? lev : own;
+}
+
+/**
+ * `str` drawn in `ink`: the ink's colour at the ink's alpha times the colour's own (a clear literal stays clear), as an
+ * rgba() string; anything that is not a colour comes back as is, and so does everything when `ink` is not a colour.
+ */
+export function inkColor(str, ink) {
+  const c = parseColor(str), k = parseColor(ink);
+  if (!c || !k) return str;
+  return `rgba(${Math.round(k[0])}, ${Math.round(k[1])}, ${Math.round(k[2])}, ${+(k[3] * c[3]).toFixed(3)})`;
+}
+
+/** A paint value (literal, expression array or legacy {stops} function) with every colour literal drawn in `ink`. */
+export function inkValue(value, ink) {
+  return mapStrings(value, (s) => inkColor(s, ink));
 }
 
 const AREA_COLOR_PROPS = {
@@ -149,20 +219,41 @@ export function windBasemapMutePlan(layers, windId, amount, waterL = 1) {
   return plan;
 }
 
-const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map -> { theme, amount, waterL, plan, layers }
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * The ink's paint changes for one style: the line-color of every border line drawn ABOVE the wind layer (after `windId`
+ * in the order; none when it is absent, where "above the wind" has no meaning). A border under the wind is tinted and
+ * crossed by streaks: unmeasured, left as the style draws it. [{ id, prop, from, to }] for lines the style colours.
+ */
+export function windBorderInkPlan(layers, windId, ink) {
+  const at = Array.isArray(layers) && parseColor(ink) ? layers.findIndex((l) => l && l.id === windId) : -1, plan = [];
+  if (at < 0) return plan;
+  for (const l of layers.slice(at + 1)) {
+    if (!l || l.type !== 'line' || typeof l.id !== 'string' || !BORDER_LINE.test(l.id) || BORDER_CASING.test(l.id) || !l.paint || l.paint['line-color'] === undefined) continue;
+    const to = inkValue(l.paint['line-color'], ink);
+    if (!same(to, l.paint['line-color'])) plan.push({ id: l.id, prop: 'line-color', from: l.paint['line-color'], to });
+  }
+  return plan;
+}
+
+const APPLIED = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // map -> { theme, amount, waterL, ink, plan, layers, lines }
 
 /**
  * Mute (active) or restore (inactive) the basemap under the wind layer `windId`. Idempotent. The record is kept per MAP
  * and checked against the live paint before anything is restored: a theme change may load a new style or diff the new
  * one into the same style object, and either way a colour that is no longer the one this wrote belongs to someone else
  * and is left alone (writing back a stale 'from' would paint the old theme's colour). Never mutes while the wind layer
- * is missing (the plan is "everything below it"). Returns { applied, layers, amount }.
+ * is missing (the plan is "everything below it"). The border ink (above) is laid and lifted by the same record.
+ * Returns { applied, layers, amount, ink: { applied, layers, color | reason } }: `layers` counts the muted areas only.
  */
 export function syncWindBasemapMute(map, theme, active, windId, win = (typeof window !== 'undefined' ? window : null)) {
-  const r = syncOnce(map, theme, active, windId, win);
-  if (win) win.__WIND_BASEMAP_MUTE__ = { ...r, waterL: r.applied ? windBasemapWaterL(theme, win) : 1, theme, at: Date.now() };
-  return r;
+  const { ink, ...r } = syncOnce(map, theme, active, windId, win), at = Date.now();
+  if (win) {
+    win.__WIND_BASEMAP_MUTE__ = { ...r, waterL: r.applied ? windBasemapWaterL(theme, win) : 1, theme, at };
+    win.__WIND_BORDER_INK__ = { ...ink, theme, at };
+  }
+  return { ...r, ink };
 }
 
 /**
@@ -189,47 +280,68 @@ function liveRasters(map, windId) {
   return out;
 }
 
-/** What this map should have now: { amount (0 = unmuted), waterL, imagery (the id standing it down, or null) }. */
+/**
+ * What this map should have now: { amount (0 = unmuted), waterL, imagery (the id standing it down, or null), ink (the
+ * border ink, or null), inkWhy (why there is none, or null) }. The ink is laid only on a map the mute is restyling:
+ * wherever the map under the wind is left the style's own (the mute's kill, its lever at 0, imagery), so are its borders.
+ */
 function wanted(map, theme, active, windId, win) {
-  const base = active && map.getLayer(windId) ? windBasemapMuteAmount(theme, win) : 0;   // 0: wind off, dark, the kill
+  const on = !!(active && map.getLayer(windId));
+  const base = on ? windBasemapMuteAmount(theme, win) : 0;                              // 0: wind off, dark, the kill
   const imagery = base > 0 ? windBasemapImagery(liveRasters(map, windId), windId) : null;
-  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), imagery };
+  const own = on ? windBorderInk(theme, win) : null;
+  const inkWhy = !active ? 'wind off' : !on ? 'no wind layer' : typeof WIND_BORDER_INK.color[theme] !== 'string' ? 'theme' : !own ? 'kill' : !(base > 0) ? 'mute off' : imagery ? `imagery:${imagery}` : null;
+  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), imagery, ink: inkWhy ? null : own, inkWhy };
 }
 
 /**
- * True when a sync would change something: the wind is on and the basemap is not muted, or the reverse (the wind went
- * off, a satellite photo or a weather wash came on under it), or the theme or a lever moved. Cheap (no getStyle()), for
- * the layer's styledata handler. It does not ask whether someone repainted a muted colour: a writer that re-asserts its
- * colour on every style change would then trade writes with this one for ever.
+ * True when a sync would change something: the wind is on and the basemap is not muted or its borders not inked, or the
+ * reverse (the wind went off, a satellite photo or a weather wash came on under it), or the theme, a lever or a kill
+ * moved. Cheap (no getStyle()), for the layer's styledata handler. It does not ask whether someone repainted a muted
+ * colour: a writer that re-asserts its colour on every style change would then trade writes with this one for ever.
  */
 export function windBasemapMuteStale(map, theme, active, windId, win = (typeof window !== 'undefined' ? window : null)) {
   if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return false;
   try {
     const w = wanted(map, theme, active, windId, win), prev = APPLIED.get(map);
     if (!(w.amount > 0)) return !!prev;
-    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL;
+    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.ink !== w.ink;
   } catch (e) {
     return false;
   }
 }
 
+const NO_INK = { applied: false, layers: 0 };
+const countIds = (plan) => new Set(plan.map((p) => p.id)).size;
+/**
+ * What a record did, as the two read-backs say it: the mute's { applied, layers, amount }, and the ink's under `ink`.
+ * The ink counts the lines that TOOK it: the library refuses an invalid paint value with an error event and no write.
+ */
+const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, amount: rec.amount,
+  ink: rec.lines > 0 ? { applied: true, layers: rec.lines, color: rec.ink }
+    : { ...NO_INK, reason: !rec.ink ? inkWhy : rec.asked > 0 ? 'the style refused the ink' : 'no border lines above the wind' } });
+
 function syncOnce(map, theme, active, windId, win) {
-  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { applied: false, layers: 0, amount: 0 };
+  if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { applied: false, layers: 0, amount: 0, ink: { ...NO_INK, reason: 'no map' } };
   try {
-    const { amount, waterL, imagery } = wanted(map, theme, active, windId, win);
+    const { amount, waterL, ink, imagery, inkWhy } = wanted(map, theme, active, windId, win);
     const prev = APPLIED.get(map);
     if (prev) {
       const mine = prev.plan.filter((p) => map.getLayer(p.id) && same(map.getPaintProperty(p.id, p.prop), p.to));
-      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL) return { applied: prev.layers > 0, layers: prev.layers, amount };
+      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.ink === ink) return answer(prev, inkWhy);
       for (const p of mine) map.setPaintProperty(p.id, p.prop, p.from);   // restore only what is still ours
       APPLIED.delete(map);
     }
-    if (!(amount > 0)) return { applied: false, layers: 0, amount: 0, ...(imagery ? { reason: `imagery:${imagery}` } : {}) };
-    const plan = windBasemapMutePlan(orderedLayers(map), windId, amount, waterL), layers = new Set(plan.map((p) => p.id)).size;
-    APPLIED.set(map, { theme, amount, waterL, plan, layers });   // recorded BEFORE the writes: one that throws is undone by the next sync
-    for (const p of plan) map.setPaintProperty(p.id, p.prop, p.to);
-    return { applied: layers > 0, layers, amount };
+    if (!(amount > 0)) return { applied: false, layers: 0, amount: 0, ...(imagery ? { reason: `imagery:${imagery}` } : {}), ink: { ...NO_INK, reason: inkWhy } };
+    const ordered = orderedLayers(map), mute = windBasemapMutePlan(ordered, windId, amount, waterL), lines = ink ? windBorderInkPlan(ordered, windId, ink) : [];
+    const rec = { theme, amount, waterL, ink, plan: [...mute, ...lines], layers: countIds(mute), asked: lines.length, lines: 0 };
+    APPLIED.set(map, rec);   // recorded BEFORE the writes: one that throws is undone by the next sync
+    for (const p of rec.plan) map.setPaintProperty(p.id, p.prop, p.to);
+    rec.lines = countIds(lines.filter((p) => same(map.getPaintProperty(p.id, p.prop), p.to)));
+    return answer(rec, inkWhy);
   } catch (e) {
-    return { applied: false, layers: 0, amount: 0, error: e.message };   // a style mid-load: the next styledata retries
+    // A style that is not loaded throws before the record is written: the next style change finds no record and retries.
+    // A throw part-way through the writes leaves a record, which the next sync (a toggle, a theme, a style.load) undoes.
+    return { applied: false, layers: 0, amount: 0, error: e.message, ink: { ...NO_INK, reason: `error: ${e.message}` } };
   }
 }

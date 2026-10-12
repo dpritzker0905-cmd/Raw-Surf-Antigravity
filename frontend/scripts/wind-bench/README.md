@@ -272,6 +272,86 @@ node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title"
 - Baseline, 2026-10-12, D-022 built (Mobile Bay, served wind, dpr 1.5; lift against dark's at zooms 6 / 4 / 9): over the sea light
   1.03 / 1.22 / 1.07 and beach 1.01 / 1.34 / 0.91; over land light 0.85 / 0.74 / 0.26 and beach 0.93 / 0.80 / 0.69.
 
+## Border mode (`border-run.js`, `page/border-probe.js`): can the borders and place names be read under the wind?
+
+The owner, 2026-10-12: "the labels and borders need to be more visible. In dark mode they are white boarders and labels." Dark is
+the bar. Map mode's line columns score every edge of the bare basemap (roads, coasts, rivers, label strokes); the political
+borders are a few of them, and a theme whose borders had vanished read level with dark there. This mode reads the borders alone.
+
+```bash
+node scripts/wind-bench/border-run.js                                   # dark, light, beach at zooms 4, 6, 8; the tree as it is
+node scripts/wind-bench/border-run.js --themes light,beach --arms '{"before":{"levers":{"__RAW_DISABLE_WIND_BORDER_INK__":true}},"ink":{}}'
+node scripts/wind-bench/border-run.js --arms '{"now":{},"try":{"ink":"rgba(27, 30, 45, 0.85)"}}'    # a candidate before any code draws it
+node scripts/wind-bench/border-run.js --arms '{"now":{},"top":{"windOnTop":true}}'                  # the control for the layer order
+node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3                       # each style's layers and paint; PNG crops
+```
+
+- **The lines come from the style, not from the picture.** Every layer is hidden but the border lines (line layers named `admin-*`,
+  their casings `*-bg` apart), painted white on black: each device pixel then carries the line's own coverage. The place names
+  (`state-`, `country-`, `settlement-*-label`) are found the same way. A RIDGE pixel is a land pixel on a line's centre, away from
+  any label; its GROUND is the ring 1.5 to 2.75 CSS px from it that no border covers (the pale casing the styles draw under a
+  border included: it is what the line sits on).
+- **Four pictures of one camera:** `bare` (the theme's own map, wind off), `off` (the map as the app restyles it under the wind:
+  the mute, the border ink; wind hidden), `field` (a 2 x 2 particle pool), `full` (field and particles, at 6 moments 0.2 s apart).
+- **Columns**, medians over the ridge pixels: `dL bare / off / field / full` = |L*| of the line against its ground; `p25`; `sign`
+  (+1 the line is lighter than its ground, dark's; -1 darker, ink); `retF` / `retP` / `lostP` = map mode's own columns over the
+  border lines (each line's BARE contrast kept; above 1 = more than the bare map had); `weak` = share of (pixel, moment) pairs under
+  5 L*; `3:1` = share at 3:1 or better against the ground (a new line counts, unlike map mode's `3:1P`).
+- **`names moved` / `solid moved`** = the largest L* change of a pixel a glyph (or a border) covers whole, between the map alone
+  and any moment under the wind. 0 means it is drawn ABOVE the wind. `windOnTop` is the control: 2026-10-12, dark at zoom 6 read
+  0.00 in the app's slot and 41.0 with the wind forced on top, and the border's contrast fell from 20.9 to 10.4.
+- **`--dpr`** (default 1.5, the owner's laptop) is the MAP's device pixels a CSS pixel as well as the page's: a 0.5 px border is
+  0.75 of a device pixel there, and this mode scores at device resolution. An arm is `{ levers, paint, ink, windOnTop }`; `paint` and
+  `ink` are laid after the app's own sync and lifted after the arm.
+- **Baseline, 2026-10-12** (Mobile Bay, served wind, pixel ratio 1.5; `dL full` at zooms 4 / 6 / 8): dark 11.9 / 20.9 / 28.5.
+  Before the ink: light 7.6 / 2.8 / 5.8 (`weak` 0.28 / 0.73 / 0.39), beach 4.0 / 4.7 / 3.0 (`weak` 0.59 / 0.51 / 0.76). With it
+  (`rgba(27, 30, 45, 0.7)`): light 39.9 / 36.5 / 35.0, beach 38.9 / 34.4 / 31.6, `weak` 0.000 to 0.005. The kill arm reads the
+  numbers before, to the digit. Names moved 0.00 (dark) to 0.27 L* (one 8-bit step) in every arm.
+- **The last column is the restore, read from the library:** every paint value of every layer of the style (`getStyle()`), with
+  the wind off before the arms and again after each. `exact` or `NOT EXACT` (exit 2); `(nothing moved)` when the arm restyled
+  nothing. A fake map can only assume this; 2026-10-12, exact in all six rows at zoom 6.
+- **Read the numbers as they are.** A ridge pixel is a local maximum of the line's coverage, so `dL` is the line at its
+  best-covered pixels: an upper estimate of a typical pixel of it. Arms and themes compare fairly (the styles draw these lines
+  the same width). Only state, country and settlement names are masked. A `windOnTop` arm lays the arm's restyle first and moves
+  the wind after: it is the control for the order, not a picture of the app under its under-labels kill.
+- **Two limits of the older modes, found here and NOT changed in them** (their numbers were taken this way):
+  - `map-run.js` draws the wind over the style's OWN colours: its `shoot` never ran the app's restyle (the mute of #296 went into
+    path and motion modes only). `--app-sync` runs it; the default is as it was.
+  - The engine sizes a mark by the PAGE's device pixel ratio, and the map's canvas was always 2 device px a CSS px: at the default
+    (page ratio 1) and at `motion-run.js --dpr 1.5` alike a mark is drawn smaller against the canvas than on any real screen.
+    `motion-run.js --map-dpr 1.5` (with `--dpr 1.5`) draws the map at the owner's ratio; `--crop WxH --at fx,fy` keeps device
+    pixels, so a 0.5 px line is not scaled away. The along-the-wind score is not taken off the canvas's own 2.
+
+## Switch mode (`switch-run.js`, `page/switch-probe.js`): after a theme change, is the new theme restyled?
+
+Every other mode builds a fresh map a theme, so none of them can see a theme change, and a theme change is how the owner compares
+themes. The app does not build a fresh map: react-maplibre calls `map.setStyle(url, { diff: true })`, which FETCHES the new style
+and diffs it into the old one, while the wind keeps the map repainting. This mode replays the app's own sequence on the real
+library and styles: the `setStyle`, the layer's `once('idle')` re-sync, its `styledata` / `style.load` handler.
+
+```bash
+node scripts/wind-bench/switch-run.js                                  # light>beach, beach>light, dark>light, light>dark; both orders
+node scripts/wind-bench/switch-run.js --wirings dev,app                # the layer's handler before 2026-10-12, then the app's
+node scripts/wind-bench/switch-run.js --pairs "light>beach" --events   # one change, with every event and its time
+node scripts/wind-bench/switch-run.js --ref origin/dev --wirings dev   # dev as it was: its module and its handler
+```
+
+- **Columns:** `style` (a diff: the style object survived; or a rebuild), `wind layer` (kept or re-added), `re-sync` (whether the
+  layer's idle re-sync ran BEFORE the new style arrived), `inked` / `muted` (the border's and the water's paint as the library
+  holds them once the map has settled: the new theme's own colours restyled, or left as the style draws them), and what the two
+  read-backs claim at that moment. Exit 1 when a theme that should be restyled is not, under the last wiring named.
+- **Two orders, and both must end restyled.** `natural` leaves the re-sync to the map's own idle: a style already in the
+  browser's cache arrives first, one fetched over the network arrives after the re-sync. `resync-first` forces the order a
+  fetched style gives.
+- **What it found, 2026-10-12** (an independent review read it in the code first): with the handler dev had, a change into a
+  restyled theme in the fetched-style order ended UNMUTED and un-inked in 3 of 3, the read-backs saying `applied` (once with the
+  other theme's layer count). The re-sync had restyled the OLD style under the new theme's name, the diff wrote the new style's
+  colours over it, and the stale check compares the record, not the paint. On `origin/dev` the same for the mute alone, since
+  #299. The layer now syncs on every `style.load`: 3 of 3 in both orders.
+- **The handler in the probe is the app's**, pinned to `WebGLWindLayer.js` by `windBasemapMute.test.js` ("a style that has just
+  LOADED ..."). It is not React: the order in a real browser depends on its cache and its connection.
+- In the fetched-style order, dark to light restyles DARK's map as light for the length of the fetch (about 100 ms here).
+
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 
 ```bash

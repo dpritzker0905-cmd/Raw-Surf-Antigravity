@@ -467,3 +467,72 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   and side-by-side sheets); the bench in motion, before and after beside dark, land and sea read apart (`motion-run.js`,
   `mirror-run.js --at`; two clips sent to the owner); tables hashed equal to D-021's with and without the kill; the palette
   checker's red lines unchanged (beach's two colour-blind lines, as under D-021).
+
+### D-023 · Under the wind, light and beach draw the map's border lines in dark ink; ON by default
+- **Decided:** by the owner's request, 2026-10-12 01:02Z, said to the session that built D-022 after its side-by-side clips and
+  recorded first-hand in that session's log (`2026-10-11-wind-dark-white`): "The animations do look better. The map below, I
+  think the labels and borders need to be more visible. In dark mode they are white boarders and labels. So in beach and light
+  mode, there maybe needs to be black borders and labels? This would be for the maps land mass below. What do you think?" That
+  session answered yes and showed the three border layers in dark ink live in the owner's tab. **The owner did not name the ink,
+  its strength or this rule, and has not seen this build.** The building session was started with a written brief and was given
+  no word of the owner's directly. That a visual change the owner asked to see ships ON with a kill is D-020's standing rule;
+  applying it here is the building session's reading.
+- **Rule:** while the wind is on in light and beach, the border lines the style draws ABOVE the wind layer (line layers named
+  `admin-*`: the state line, the country line, the disputed line; their pale casings `*-bg` apart) take one dark ink,
+  `rgba(27, 30, 45, 0.7)` (`WIND_BORDER_INK`, `windBasemapMute.js`): the colour the owner was shown, `hsl(230, 25%, 14%)`, at
+  0.7. Only `line-color` moves, and a zoom interpolation keeps its stops; width, opacity, dashes, the casings and the names are
+  the style's own. It is laid and lifted by the basemap mute's own record, so it comes off exactly with the wind, on a theme
+  change, and wherever the mute stands down (a satellite photo or a weather wash showing under the wind; the mute's own kill or
+  its lever at 0). Dark never changes, by a lever either. Client only; no served number moves.
+- **Why (measured before anything was built; log 2026-10-12-wind-border-ink):**
+  - **The order was already right.** All three styles keep every `admin-*` line and every place name after the layer the wind is
+    inserted before. A pixel a glyph covers whole moves 0.00 to 0.27 L* under the wind in its slot and 23 to 98 L* with the wind
+    forced on top: no streak cuts a border or a name. The fault was the lines' colour.
+  - **The colour was the ground's.** Dark draws these lines a light grey on a near-black land, and the wind only adds light.
+    Light draws them pale lavender (`hsl(250, 90%, 80-85%)`) and beach mid grey (`hsl(230, 8%, 51-62%)`): once the field is on a
+    pale land, about the land's own lightness. A line's L* against the ground beside it, under field and particles, at zooms 4 /
+    6 / 8 (the real basemaps, in motion, device pixel ratio 1.5): dark 11.9 / 20.9 / 28.5; light 7.6 / 2.8 / 5.8; beach 4.0 / 4.7
+    / 3.0, with 28 to 76% of the line under 5 L* at any moment. Beach is the worse of the two at zooms 4 and 8.
+  - **The names need none.** Light and beach already draw state, country and settlement names near-black on a white halo, above
+    the wind. Nothing of theirs is changed.
+- **How the number was determined:** the ink was measured at 0.70, 0.85 and 1.00 before any product code (the bench's own paint
+  override): light 39.9 / 36.5 / 35.1, 49.2 / 44.8 / 46.4 and 58.9 / 53.6 / 58.4; beach 38.9 / 34.4 / 31.7, 47.9 / 42.3 / 41.7
+  and 57.2 / 50.5 / 52.1. **0.70 is the lightest strength measured and is at or above dark's line at every zoom in both themes**
+  (1.11 to 3.35 times dark's); it is the low end of the range the owner was shown (0.7 to 0.9). By extrapolation below the three
+  measured, the line would meet dark's at zoom 8 near 0.62 (light) and 0.65 (beach); that was not measured and not chosen.
+- **What it reads, built:** light 39.9 / 36.5 / 35.0 and beach 38.9 / 34.4 / 31.6, no (pixel, moment) pair under half its bare
+  contrast, under 0.5% under 5 L*. Map mode's own columns over every line of the map, over land: `retP` 0.68 / 0.70 / 0.66 to
+  1.05 / 0.76 / 0.73 in light and 0.62 / 0.68 / 0.63 to 1.07 / 0.74 / 0.67 in beach (dark 0.60 / 0.65 / 0.67).
+- **What it gives up, said plainly:**
+  - **The lines stay thin** (0.5 to 0.75 px at zooms 4 to 7, by the styles' own widths; the same as dark's). Read at device
+    resolution they are clear; a bolder line is a width change, a second variable, not made here.
+  - **It is stronger than dark's line, not equal to it:** 3.3 times dark's contrast at zoom 4, 1.7 at zoom 6, 1.1 to 1.2 at zoom
+    8. A dark line gains from a white streak under it and dark's light line loses to one, so no single strength mirrors dark at
+    every zoom; the floor was chosen (never below dark), not the match.
+  - **One ink for both themes.** Beach's own names are pure black and its map is warm; the slate ink was not tuned to it.
+  - **The mute's kill takes the ink off too.** An older kill keeps its meaning ("the map keeps its own colours", LESSONS L-V25);
+    the ink's own kill leaves the mute.
+  - **With the wind layer on top of the style** (the under-labels kill) the borders are under the wind and are left as the style
+    draws them: unmeasured.
+- **Kill:** `window.__RAW_DISABLE_WIND_BORDER_INK__ = true` (the style's own border colours). Lever:
+  `window.__RAW_WIND_BORDER_INK__ = 'rgba(27, 30, 45, 0.85)'` (any CSS colour; light and beach only). Both are read at the next
+  sync: a wind toggle, a theme change, or the map's next style change; they are not uniforms and do not act mid-frame.
+  Read-back: `window.__WIND_BORDER_INK__` (`applied` is true only with `layers` above 0, counted from the lines that took the
+  ink as the library holds them; otherwise `reason` says why).
+- **Also in this change, NOT asked for by the owner and said plainly: a theme change with the wind on now leaves the new theme
+  restyled.** An independent review of this change found, and a replay on the real library confirmed (`switch-run.js`), that
+  with the layer's handler as dev has had it since #299 the new theme is left UNMUTED (and would have been left un-inked) when
+  its style arrives after the layer's re-sync, which is what a style fetched over the network does: 3 of 3 changes in that
+  order, the read-back saying `applied`. The owner compares themes by switching them, so the ink would have been missing exactly
+  there. The layer now syncs on every `style.load` (two lines in `WebGLWindLayer.js`): 3 of 3 restyled in both orders. **Its
+  visible effect is the mute's, not the ink's: after a theme switch the ground under the wind is muted where it may not have
+  been.** That is the mute as #299 described it, not a new look, and it has no kill of its own (the mute's kill stands it
+  down). If the owner prefers the map they have been seeing after a switch, that is the mute's strength or kill to
+  move, not this line.
+- **Not decided (the owner's, once it has been seen in the app):** keep, turn off, or tune (the knobs: the strength, the ink's
+  colour a theme, the line's width). Not decided either, and not built: ink for the lesser labels the styles draw in mid grey
+  or blue (natural features, water names, points of interest); a casing of its own under the line.
+- **Evidence (log 2026-10-12-wind-border-ink):** the three style documents as served (layer order and paint); `border-run.js`
+  on the real basemaps before and after, beside dark, with the layer-order control; the built code against the candidate and its
+  kill; 18 of 18 offline crops under the kill the same PNG as `origin/dev`, dark's 9 of 9; map mode's columns with the app's
+  restyle run; before and after crops and two side-by-side clips at the owner's pixel ratio. Nothing has been seen in the app.

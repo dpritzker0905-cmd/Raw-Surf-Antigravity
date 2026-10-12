@@ -61,9 +61,9 @@ function transformRequest(url) {   // mirrors mapUtils.mapboxTransformRequest (t
 // the real styles: the mute (background and fill), the water mask, the style columns, the crops. No labels, no coastline stroke (a
 // GeoJSON fill has no source-layer), no terrain: compare arms WITHIN it, not its numbers with a Mapbox run.
 const OFFLINE = {
-  light: { land: 'rgb(236, 236, 232)', water: 'rgb(168, 214, 222)', road: 'rgb(165, 165, 162)' },
-  beach: { land: 'rgb(222, 208, 180)', water: 'rgb(150, 190, 200)', road: 'rgb(155, 146, 126)' },
-  dark: { land: 'rgb(18, 20, 26)', water: 'rgb(93, 117, 126)', road: 'rgb(77, 87, 102)' },
+  light: { land: 'rgb(236, 236, 232)', water: 'rgb(168, 214, 222)', road: 'rgb(165, 165, 162)', border: 'hsl(250, 90%, 85%)' },
+  beach: { land: 'rgb(222, 208, 180)', water: 'rgb(150, 190, 200)', road: 'rgb(155, 146, 126)', border: 'hsl(230, 8%, 62%)' },
+  dark: { land: 'rgb(18, 20, 26)', water: 'rgb(93, 117, 126)', road: 'rgb(77, 87, 102)', border: 'hsl(250, 10%, 70%)' },
 };
 const { GULF, ATLANTIC } = require('./offline-coast');   // shared with the runner: the engine's land mask reads the same coast
 function offlineStyle(theme) {
@@ -81,12 +81,14 @@ function offlineStyle(theme) {
       { id: 'water', type: 'fill', source: 'bench', filter: ['==', ['get', 'kind'], 'water'], paint: { 'fill-color': c.water } },
       { id: 'road', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'road'], paint: { 'line-color': c.road, 'line-width': 1.5 } },
       { id: 'admin-1-boundary-bg', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'admin'], paint: { 'line-color': c.road, 'line-width': 1 } },
+      // the state line itself, in each real style's own colour at zoom 7 and its own width (2026-10-12): what the border ink restyles
+      { id: 'admin-1-boundary', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'admin'], paint: { 'line-color': c.border, 'line-width': 0.75 } },
     ],
   };
 }
 
 let GRIDS = null;
-const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null, offline: false };
+const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null, cropAt: null, offline: false, dpr: DPR };
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
 
@@ -132,7 +134,7 @@ async function ensureMap(theme) {
   state.theme = theme;
   const map = new maplibregl.Map({
     container: 'map', style: state.offline ? offlineStyle(theme) : `mapbox://styles/mapbox/${STYLES[theme]}`, transformRequest, center: [-88, 30.5], zoom: 6,
-    pixelRatio: DPR, fadeDuration: 0, interactive: false, attributionControl: false,
+    pixelRatio: state.dpr, fadeDuration: 0, interactive: false, attributionControl: false,
     canvasContextAttributes: { antialias: false, preserveDrawingBuffer: true },
   });
   state.map = map;
@@ -216,12 +218,13 @@ function thumb(map) {
   return t.toDataURL('image/jpeg', 0.82);
 }
 
-/** A centre crop at DEVICE resolution (what the screen shows, pixel for pixel), as a PNG data URL; null when no crop is asked for. */
+/** A crop at DEVICE resolution (what the screen shows, pixel for pixel; the centre, or centred at state.cropAt = [fx, fy] of the canvas), as a PNG data URL; null when no crop is asked for. */
 function cropShot(map) {
   if (!state.crop) return null;
   const c = map.getCanvas(), t = document.createElement('canvas');
   t.width = Math.min(state.crop[0], c.width); t.height = Math.min(state.crop[1], c.height);
-  t.getContext('2d').drawImage(c, Math.round((c.width - t.width) / 2), Math.round((c.height - t.height) / 2), t.width, t.height, 0, 0, t.width, t.height);
+  const [fx, fy] = state.cropAt || [0.5, 0.5], at = (f, full, part) => Math.max(0, Math.min(full - part, Math.round(full * f - part / 2)));
+  t.getContext('2d').drawImage(c, at(fx, c.width, t.width), at(fy, c.height, t.height), t.width, t.height, 0, 0, t.width, t.height);
   return state.crop[2] === 'jpeg' ? t.toDataURL('image/jpeg', 0.92) : t.toDataURL('image/png');
 }
 
@@ -364,7 +367,11 @@ function particleSignal(full, field, mask) {
 
 const SAMPLES = 5, SAMPLE_GAP = 12;   // the full layer is scored at 5 moments 0.2 s apart; medians are reported
 
-/** cfg: {theme, z, lng, lat, frames, res, seed, levers, crop: [w, h] device px}. Returns metrics plus three thumbnails (and crops). */
+/**
+ * cfg: {theme, z, lng, lat, frames, res, seed, levers, crop: [w, h] device px, sync}. Returns metrics plus three thumbnails (and crops).
+ * sync: the map under the wind is restyled as the app restyles it while the wind is on (windBasemapMute.js: the mute, the border ink);
+ * the `off` frame stays the theme's own map. Off by default: the numbers of the runs before it were taken without.
+ */
 async function shoot(cfg) {
   state.crop = Array.isArray(cfg.crop) ? cfg.crop : null;
   const map = await ensureMap(cfg.theme);
@@ -375,6 +382,7 @@ async function shoot(cfg) {
   const offRaw = await animate(map, 0);
   clearLevers(); Object.assign(window, cfg.levers || {});
   try {
+    if (cfg.sync) { syncWindBasemapMute(map, cfg.theme, true, WIND_ID); await idle(map); }
     state.active = true;
     newEngine(2, cfg.seed);
     const fieldRaw = await animate(map, cfg.frames);
@@ -415,6 +423,7 @@ async function shoot(cfg) {
     Math.random = realRandom;
     clearLevers();
     state.crop = null;
+    if (cfg.sync) syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
   }
 }
 
@@ -616,6 +625,9 @@ async function pathRun(cfg) {
  * cfg: {theme, frames: [{lng, lat, z, bearing?, pitch?}], samples: [frame index], res, seed, levers, warm, shots, shotWidth,
  * hashBefore: samples before this frame also carry a hash of the engine's trail buffer}.
  * A turned map is scored (flow.js `turned`); a TILTED one is drawn and captured but not scored (its ground is in perspective).
+ * shotCrop: [w, h, fmt] device px (and shotAt: [fx, fy]) makes each shot a crop at device resolution instead of the whole canvas
+ * scaled down: a thin line keeps its pixels. Off the bench's own pixel ratio (init { pixelRatio }) the frames are drawn and kept but
+ * not scored: the scoring image is built for 2 device px a CSS px.
  */
 /**
  * FNV-1a over the engine's own trail buffer (the ink, before it meets the map): two runs laid the same ink exactly when
@@ -637,6 +649,7 @@ function trailHash() {
 async function flowRun(cfg) {
   const map = await ensureMap(cfg.theme), theme = cfg.theme, S = new Set(cfg.samples);
   state.active = false;
+  state.crop = Array.isArray(cfg.shotCrop) ? cfg.shotCrop : null; state.cropAt = cfg.shotAt || null;
   clearLevers(); Object.assign(window, cfg.levers || {});
   map.jumpTo(camOf(cfg.frames[0]));
   const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
@@ -661,7 +674,7 @@ async function flowRun(cfg) {
       vms += FRAME_MS;
       await frame();
       if (!S.has(i)) continue;
-      const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? smallShot(map, cfg.shotWidth) : null;
+      const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? (state.crop ? cropShot(map) : smallShot(map, cfg.shotWidth)) : null;
       const hash = i < (cfg.hashBefore || 0) ? trailHash() : null;
       state.active = false;
       await frame();                                    // same camera, wind layer skipped, clock not advanced
@@ -675,10 +688,10 @@ async function flowRun(cfg) {
         const uv = sampleWind(GRIDS.fine, lng, lat) || sampleWind(GRIDS.world, lng, lat);
         return uv && t.toScreen(uv[0], uv[1]);
       };
-      const f = cam.pitch ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
+      const f = cam.pitch || state.dpr !== DPR ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
       rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot });
     }
-    return { theme, mute, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0 };
+    return { theme, mute, ink: window.__WIND_BORDER_INK__ || null, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0 };
   } finally {
     delete performance.now;
     state.active = false;
@@ -686,6 +699,7 @@ async function flowRun(cfg) {
     syncWindBasemapMute(map, theme, false, WIND_ID);
     Math.random = realRandom;
     clearLevers();
+    state.crop = null; state.cropAt = null;
   }
 }
 
@@ -741,15 +755,31 @@ async function muteImagery(cfg) {
   return { staleOff, on, staleOn, staleShown, shown, shownMaxDE: max, staleHidden, hidden };
 }
 
-/** fixtures: {fine, scale}. scale multiplies u and v (1 = as served; 2.3 puts Mobile Bay's median at ~30 kn, the owner's case). */
+/**
+ * fixtures: {fine, scale, pixelRatio}. scale multiplies u and v (1 = as served; 2.3 puts Mobile Bay's median at ~30 kn, the owner's
+ * case). pixelRatio: the map's device pixels a CSS pixel (default 2, which every scored column assumes; the owner's laptop is 1.5,
+ * for pictures and for border mode, which scores at device resolution).
+ */
 function init(fixtures) {
   state.bare = fixtures.bare === true;
   state.offline = fixtures.offline === true;
+  state.dpr = fixtures.pixelRatio > 0 ? fixtures.pixelRatio : DPR;
   const k = fixtures.scale || 1, fx = { ...fixtures.fine, u: fixtures.fine.u.map((u) => u * k), v: fixtures.fine.v.map((v) => v * k) };
   const fine = gridFromFixture(fx, 'served_fine');
   GRIDS = { fine, world: worldBase([fine]) };
   return { fine: `${fine.cols}x${fine.rows}`, bounds: fixtures.fine.bounds };
 }
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+// BORDER mode (2026-10-12, ./border-probe.js): the political borders and place names alone, against the ground under them.
+const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, WIND_ID });
+
+// SWITCH mode (2026-10-12, ./switch-probe.js): the app's own theme-change sequence (setStyle with a diff) on the real library.
+const addWind = (map, theme) => {   // as the app's layer re-adds itself after a rebuilt style: the wind and its coastline, in their slot
+  const layers = map.getStyle().layers, before = windLayerBeforeId(layers, theme, {}), coast = windCoastlineLayer(layers, theme, true, {});
+  map.addLayer(windLayer(), before);
+  if (coast && !map.getLayer(coast.id)) map.addLayer(coast, before);
+};
+const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, mute: require('wind-bench-mute') });
+
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';
