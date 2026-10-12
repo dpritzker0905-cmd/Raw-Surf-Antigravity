@@ -503,6 +503,17 @@ build`: `npm run build` cannot start on Windows, its script sets the variable th
 `trail-veil-strengths.webm`, and `trail-veil-vs-cut.webm` (dark | the lead's cut at 0.38 | the veil, light above beach).
 
 
+## 22:15Z · PR #324 opened as a DRAFT; what hosted CI caught on the first push
+
+The branch was pushed at `d3f8b851` and PR #324 opened as a draft (ledger seq 1140 to 1142). **Hosted CI's File Size Governance
+failed on that head:** `WebGLWindShaders.js` is a grandfathered file over the 800-line limit and may only shrink, and the change
+had added three lines to it (1029 to 1032). `scripts/loc_ratchet.py` is not among the checks this session had run (the frontend
+suite, the lint ratchet, the build, the palette checker): it is one more for the list in L-V77. **Fixed:** the import joins the
+import line, the GLSL include joins the line of the include before it, and the guarded branch joins the line that computes the
+brightness (1029 lines, as on dev; the same statements). `python scripts/loc_ratchet.py` exits 0. The shader's suites pass (9
+suites, 423 tests), and the GPU proof was run once more on that text: against `origin/dev`'s frames the kill in light and beach, dark by default, and
+the default against the picture measured before, 90 of 90 at the three sea crops (15 of 15).
+
 ## Not verified
 
 - **Nothing seen in the app, and not by the owner.** The bench is headless Chromium on a desktop GPU with the real engine, the

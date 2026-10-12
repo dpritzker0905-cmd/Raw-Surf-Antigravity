@@ -2,8 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
-import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask';
-import { GLSL_TRAIL_VEIL } from './windTrailVeil';
+import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -1004,16 +1003,14 @@ void main() {
 export const SCREEN_FS = `
 precision mediump float;
 ${GLSL_TRAIL_UV}
-${GLSL_INK_COVER}
+${GLSL_INK_COVER}\n${GLSL_TRAIL_VEIL}
 uniform sampler2D u_screen;
 uniform float u_opacity;
 uniform float u_premul; uniform float u_glow;   // V2 theme: premultiplied trails (dark marks show). GLOW: dark's composite with the colour renormalised (windInk.js)
-${GLSL_TRAIL_VEIL}
 void main() {
   vec4 color = trailTexel(u_screen);   // through the trail buffer's camera; it declares v_uv (windTrailAnchor.js)
   // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness: black = transparent, bright = opaque.
-  float brightness = max(color.r, max(color.g, color.b));
-  if (u_glow > 0.5 && u_trail_veil.x > 0.0) { gl_FragColor = trailVeilOf(color.rgb, brightness, u_opacity); return; }   // light's and beach's white streak: the glow branch's light and dark's veil (windTrailVeil.js, D-029); the line below is every other path's, and theirs under the kill
+  float brightness = max(color.r, max(color.g, color.b)); if (u_glow > 0.5 && u_trail_veil.x > 0.0) { gl_FragColor = trailVeilOf(color.rgb, brightness, u_opacity); return; }   // light's and beach's white streak: the glow branch's light and dark's veil (windTrailVeil.js, D-029); the line below is every other path's, and theirs under the kill
   gl_FragColor = u_ink > 0.5 ? vec4(mix(vec3(1.0), color.rgb, u_opacity * inkCapOf(u_screen)), 1.0) : (u_premul > 0.5 ? color * u_opacity : vec4(u_glow > 0.5 ? color.rgb / max(brightness, 0.004) : color.rgb, brightness * (u_glow > 0.5 ? brightness : 1.0) * u_opacity));   // ink: multiplied into the map; glow: a tail loses strength, not colour
 }`;
 

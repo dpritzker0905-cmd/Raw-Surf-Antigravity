@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 22:00Z: WHY LIGHT'S AND BEACH'S TRAILS LINGER IS FOUND (the trail composite runs two different laws), and dark's
-  VEIL is built under their trails, ON BY DEFAULT (client only; a DRAFT PR against dev from `claude/wind-trails-linger`; NOT to be
+  VEIL is built under their trails, ON BY DEFAULT (client only; PR #324 OPEN as a DRAFT against dev from `claude/wind-trails-linger`; NOT to be
   merged until the owner has picked between it and the lead's cut; DECISIONS D-029).** The owner, 20:13Z, to the building session,
   first-hand, as it was building a default-off lever on the lead's brief: "levers to turn on new updates need to be on by default".
   The owner has not seen this build; the lead has shown them a clip of its own candidate (the cut), not of this one.
@@ -53,8 +53,8 @@ is a claim, not a measurement.
     four existing tests, two older kills the veil had to stand down under, and shader tests that pinned text: all fixed, the
     log). The whole frontend suite, the lint ratchet, the palette checker and the build pass on the merged tree.
   - **Not verified:** nothing seen in the app or by the owner; one seed, one view; no phone (the shader is `mediump`); the cut
-    read on six crops only. **Owed:** the owner's pick; then the read-back on the deployed build (a ledger commitment once it
-    merges). Log `2026-10-12-wind-trails-linger`, LESSONS L-V76, L-V77.
+    read on six crops only. **Owed:** the owner's pick; then the read-back on the deployed build (ledger seq 1142, due
+    2026-10-19). Log `2026-10-12-wind-trails-linger`, LESSONS L-V76, L-V77.
 - **2026-10-12 20:36Z: light and beach draw the wind's COASTLINE in the borders' ink, and the coastline survives a theme change, ON BY
   DEFAULT (client only; PR #323 MERGED into dev as e89aaa85, 2026-10-12T21:02:45Z, from `claude/wind-map-shows-through`; DECISIONS D-028).** The owner,
   19:05Z, on the deployed build: "I still cannot see the map as well through the wind animations on light or beach modes. Dark mode
@@ -2238,7 +2238,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1139, sha256 7f4d170723d813a62d4198a94bb4f6f5fa9d179bf5a1405121ed0ada65032754**
+  **Ledger head: seq 1142, sha256 377ecb7e9358dbe0d6ebe077e1321f055e32f91544d4bdeeb05a186c16e385f9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
