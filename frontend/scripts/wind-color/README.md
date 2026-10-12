@@ -45,6 +45,8 @@ node check.mjs --mute-amount 0.7 --water-l 0.95   # explore other mute settings 
 node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK__: moderate | deep | ink)
 node check.mjs --today          # the tables before dark's rules (what the kill restores)
 node check.mjs --before-white   # dark's rules before the white streak (window.__RAW_DISABLE_WIND_WHITE_STREAK__: what that kill restores)
+node check.mjs --full-white     # the white streak at full strength on both grounds (window.__RAW_DISABLE_WIND_DARK_WHITE__, D-022's kill)
+node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
 ```
 
 `--look` resolves the field and the marks as the app does with that lever set (`resolveFieldRamp`, `resolveMarkRamp` in
@@ -92,6 +94,16 @@ The mark lines judge a streak's colour CORE. Under the white streak the core sit
 motion, which this checker does not model (the wind bench's style columns read it). One known unevenness: the same light
 tables read through `--look deep` and through the default give different mark lines (the look path lays the core at its
 alpha, the default by the engine's own law, alpha squared); both are watch lines, never gates.
+
+## The mirror model (`mirror-model.mjs`): where a theme's colours leave dark's
+
+Dark is the model (owner, 2026-10-11). The model prints each theme's field as it is drawn over its own land and sea at every
+knot: L*, C*, hue, the distance from the bare map, and the step of a piled-up streak at the strength drawn over that ground
+(`windDarkRules.js` `DARK_WHITE`; the checker's mark lines use the same strengths). Read dark's rows first: its hue sweeps ONE way
+with speed and its lightness climbs to a plateau. On 2026-10-11 light's hue turned back four times (blue at 6 kn, orchid at 10,
+green at 16, teal at 21; 146 degrees from dark at 10 kn) and beach's lightness dipped to L* 46.7 at 10 kn. **Do not straighten
+either without this checker in the loop:** a prototype that did read 2.9 for light's colour-blind floor (5.5 before) and 1.3 for
+beach's (3.1), and left light's field off its legend bar. Those turns are what the colour-blind passes bought (LESSONS L-V45).
 
 ## Why coloraide and not culori for colour blindness
 

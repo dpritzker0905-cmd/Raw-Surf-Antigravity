@@ -227,6 +227,12 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   `--arms '{"before":{"__RAW_DISABLE_WIND_WHITE_STREAK__":true},"white":{}}'` in map mode, `--variants candidate,before-white` for
   the scanner. On dev's own code the same look is `{"__RAW_WIND_LIGHT_LOOK__":"deep","__RAW_WIND_GLOW_RING__":1}` (light) and
   `{"__RAW_WIND_GLOW_RING__":1}` (beach).
+- **Since dark's white by the ground (2026-10-12, D-022) `candidate` and an empty arm lay the white streak at full strength over land
+  and at a share of it over the sea** (`DARK_WHITE`: 0.55 in light, 0.77 in beach), picked by the land mask. The arm to compare
+  against is its kill: `--arms '{"full":{"__RAW_DISABLE_WIND_DARK_WHITE__":true},"now":{}}'` in map and motion mode. **It needs a land
+  file:** with none (the scanner's page, `--no-land-file`) every mark is laid as over land and the two arms are the same picture, by
+  construction (`--variants candidate,full-white` in the scanner reads equal for that reason, not because the change is safe).
+  Read it with `mirror-run.js --at`, land and sea apart (below).
 - **To ask "are these two arms the same pixels", use `--offline --crop WxH:png` and compare the crops by hash.** The offline
   basemap is the same pixels every run (2026-10-11: 108 of 108 crops identical between dev's code with those levers and the
   built default, zooms 4 to 10 and storm strength). The Mapbox basemap is not: its bare-map shot, with no wind at all, differed
@@ -238,6 +244,33 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   (D-019; kill `__RAW_DISABLE_WIND_GLOW__` draws the marks before it); ink is a lever (`__RAW_WIND_INK__`), default
   off. The artifact scanner can name them: `node scripts/wind-bench/run.js --seeds 3 --themes light,beach --variants candidate,glow,ink`.
   They stay out of the default matrix.
+
+## Motion and mirror modes (`motion-run.js`, `compose-video.js`, `mirror-run.js`, `page/mirror-probe.js`): how far is a theme from dark, in motion?
+
+Dark is the model (owner, 2026-10-11). Two looks passed the still-frame columns above and were rejected on the owner's screen
+(DECISIONS D-020, D-021), so these modes read the MOVING picture, and read it with a probe that also runs in the deployed app.
+
+```bash
+node scripts/wind-bench/motion-run.js --runs runs.json --out out/motion.json --dpr 1.5     # every 60 Hz frame, a still camera
+node scripts/wind-bench/mirror-run.js --motion out/motion.json --at 0.5,0.12               # each run beside dark's: here, the land
+node scripts/wind-bench/mirror-run.js --motion out/motion.json --at 0.5,0.9                # and the sea
+node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title" "DARK=run-a" "BEFORE=run-b" "NOW=run-c"
+```
+
+- `runs.json`: `[{ name, theme, z, scale?, levers?, frames?, lng?, lat? }]`; frames land in `out/motion/<name>/`. `--dpr` is the device
+  pixel ratio the page renders at: the owner's laptop is 1.5, every other mode here runs at 1. Needs the Mapbox token as map mode does.
+- **`page/mirror-probe.js` is ONE file with two entries:** `capture()` on a live canvas (paste the file into the deployed app's
+  console, or run it through a browser connector, then `await __mirrorProbe.capture({ at: [0.3, 0.6] })`) and `fromImages()` on saved
+  frames (`mirror-run.js`). Per pixel it keeps the darkest moment (the ground), the lightest (a streak's core) and the mean. Columns:
+  `ground`, `picture` and **`lift`** = picture - ground (how far the streaks raise the whole picture; dark's lift is the bar), `peak` and
+  `step` (a core against the ground under the same pixel), `kept` (core chroma / ground chroma: 1.0 is the ground's own colour made
+  lighter, dark's relation; near 0 with `peak` 100 is paper white), `cover` and `reach`, `flicker`.
+- **Read land and sea apart** (`--at`). Dark's map is light's and beach's turned over (a near-black land and a slate sea; theirs a
+  pale land and a deep sea), so one number over a mixed crop can read "equal to dark" while both grounds are wrong: on 2026-10-11
+  the centre crop read 1.05 of dark's lift where the land read 0.85 and the sea 1.62 (LESSONS L-V43).
+- `compose-video.js` plays runs side by side as one WebM through the ffmpeg Playwright installs (there is no system ffmpeg).
+- Baseline, 2026-10-12, D-022 built (Mobile Bay, served wind, dpr 1.5; lift against dark's at zooms 6 / 4 / 9): over the sea light
+  1.03 / 1.22 / 1.07 and beach 1.01 / 1.34 / 0.91; over land light 0.85 / 0.74 / 0.26 and beach 0.93 / 0.80 / 0.69.
 
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 

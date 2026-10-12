@@ -877,3 +877,29 @@ A stored estimate can be estimated again in a browser branch with different sour
   amendment and its STATE bullet were not. Rules: (1) check the base PR's state again immediately before the first push, not only
   at the start; (2) when the owner's word overtakes unpushed work, say so in the log where the work is recorded and name what was
   carried and what was dropped; (3) never open a PR for work the owner has already moved past, however green its gates. (same log)
+
+- **L-V43 · Read land and sea apart: one number over a mixed view can say "equal" while both grounds are wrong.** D-021's white
+  streak was laid at one strength, calibrated on a bench view that is mostly land, and its lift over that view's centre read 1.05
+  of dark's. Read apart, it was 0.30 to 0.93 of dark's over land and 1.06 to 1.64 over the sea: a model theme's map can be the
+  test theme's turned over (dark: a near-black land and a slate sea; light and beach: a pale land and a deep sea), so the two
+  errors cancel in a median. The owner looks at a surf map, which is mostly sea, and saw the half the number hid. Rules: (1) when a
+  look is copied across themes, compare it per GROUND, never over a crop that mixes them; (2) the bench's view must contain what
+  the owner's view contains, in the owner's proportions, or the comparison is of a different picture; (3) a fix that is "one
+  number" is suspect until it has been read on each ground it touches: this session told the owner one would ship, then measured.
+  (log 2026-10-11-wind-dark-white)
+- **L-V44 · The instrument runs on the owner's screen, or it measures something else.** Two looks passed the bench and were
+  rejected in the app (D-020, D-021). The bench rendered at device pixel ratio 1 on its own view; the owner's laptop is 1.5, on
+  their own view, with the live wind. One probe now reads both (`mirror-probe.js`: the deployed canvas through a browser
+  connector, and the bench's saved frames), so a number means the same thing in both places, and the first thing it showed was the
+  owner's own sentence ("close up ... somewhat okay ... when you start zooming out"): streaks cover 9 to 18% of the view at zoom 9
+  and 43 to 87% at zooms 6 and 4. Rules: (1) before a look ships, read it where the owner will, with the instrument that read the
+  bench; (2) levers and even whole tables can be tried LIVE in the owner's tab through the engine's handle, with the owner
+  watching, before a line of product code is written; (3) say on the page what a live prototype is, and leave nothing set that the
+  owner did not ask to keep. (same log)
+- **L-V45 · A palette's zigzag may be a floor's doing: run the colour-blind check before straightening a colour path.** Light's
+  field hue turns back four times along speed and beach's lightness dips at 10 kn; dark's does neither, and a prototype that
+  straightened both looked like dark's side by side. The palette checker then read light's colour-blind floor at 2.9 (5.5 before)
+  and beach's at 1.3 (3.1), and light's field 30 degrees and more off its own legend bar: the reversals and the dip are what the
+  colour-blind passes bought, and the legend had moved with them. Rules: (1) a colour table is changed with the checker in the
+  loop, not after the screenshot; (2) the field and the legend move together or not at all; (3) when a look and a floor pull
+  apart, solve with the floor as a constraint (here: 5.1, within 4 degrees of dark's hue) and bring the owner both. (same log)

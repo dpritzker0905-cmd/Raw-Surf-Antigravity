@@ -385,6 +385,12 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   the change. D-020's kill and every hold still work as before and win over this.
 - **Read-back:** `window.__WIND_ENGINE__._lookKey` is `white|dark-rules` in light and beach (`|dark-rules` under this kill;
   `|` under D-020's kill, under any hold, and always in dark).
+- **Amended 2026-10-12 (the owner's verdict, first-hand, on the deployed build; and D-022):** seen in the app, 2026-10-11 23:23Z
+  to 23:45Z: "I dont see the wind for light mode or beach mode mirroring the dark mode"; "close up zoom ... looks somewhat okay
+  ... Its when you start zooming out that the contrast in theme modes happens"; "light mode is definitely a lot worse than dark
+  mode, and beach mode is better than light mode, but not as good as dark mode". Not turned off: the streak's STRENGTH is
+  answered by D-022 (by the ground under the mark). The field's depth and each theme's palette are still open (D-022, "Not
+  decided").
 - **Not decided (the owner's, once it has been seen in the app):** keep, turn off, or tune (the knobs: the field's depth a
   theme, the streak's strength, the ring). Not decided either, and not built: each theme's palette under this look; whether
   beach's gale band keeps its pale ground; whether the land and sea rows, the land mask and the streak solver are removed now
@@ -395,3 +401,69 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   basemaps beach's 732 numbers are equal and light's and dark's differ only where the bare basemap itself differed between the
   two runs. Step over land, zoom 6, real basemaps: light +13.0 (62.0 to 76.5), beach +15.0 (55.5 to 73.5), dark +13.0 (35.0 to
   48.0). Nothing has been seen in the app.
+
+### D-022 · Light and beach lay the white streak by the ground under it: full over land, dark's lift over the sea; ON by default
+- **Decided:** by the owner's direction, 2026-10-11, first-hand in the building session's chat, on the deployed build of D-021
+  (`0173f365`): 23:23Z "I dont see the wind for light mode or beach mode mirroring the dark mode. You need to do a deeper dive
+  into making this work right. Create special instruments to help. Use video ... Do a side by side comparison"; 23:35Z, watching
+  the three themes on the deployed app: "light mode and beach mode close up zoom that you're in looks somewhat okay. The slowest
+  speeds of wind should be closer in color to the color of the map, which seems like they are. Its when you start zooming out that
+  the contrast in theme modes happens"; 23:43Z "light mode is definitely a lot worse than dark mode, and beach mode is better than
+  light mode, but not as good as dark mode, overall"; 23:45Z "light could use a lot of improvement, and beach can use improvement,
+  just a little milder. you should be able to mathmatically determine". The owner did not name this rule or its numbers. That a
+  visual change the owner asked to see ships ON with a kill is D-020's standing rule; applying it here is this session's reading.
+- **Rule:** wherever the white streak draws (D-021), its strength depends on the ground under the mark (the land mask of D-020):
+  full over land, and over the sea the share of full at which the streaks lift the picture as far as dark's streaks lift dark's
+  sea: **0.55 in light, 0.77 in beach** (`DARK_WHITE`, `windDarkRules.js`). No table moves: the fields, the streak rows, the mark
+  model and the look key are D-021's, byte for byte. Dark never changes. Client only; no served number moves.
+- **Why (measured with one probe on the owner's screen and on the bench; log 2026-10-11-wind-dark-white):** the quantity is the
+  LIFT: how far the moving streaks raise the whole picture above its ground. Dark's map is light's and beach's turned over: dark
+  has a near-black land and a slate sea, they have a pale land and a deep sea. D-021 laid the white at one strength on both
+  grounds, calibrated on a view that is mostly land. Read apart on the bench (the real basemaps, the owner's pixel ratio, zooms 4,
+  6 and 9): over land the white lifted the picture 0.30 to 0.85 times as far as dark's lifts dark's land in light and 0.70 to 0.93
+  in beach (there is no room above a pale land; even full white falls short), and over the sea 1.53 to 1.64 times as far in light
+  and 1.06 to 1.46 in beach, with the cores near paper white. On the owner's screen at zoom 6 and 4 the streaks covered 43 to 87%
+  of the view at any instant, and a zoomed-out surf map is mostly sea: the white buried the colour field there.
+- **How the numbers were determined:** a first build laid the white at dark's own 0.505 on both grounds. Against dark's lift that
+  read 0.91 to 1.05 over light's sea and 0.64 to 1.01 over beach's, and 0.01 to 0.67 over land: right over the sea, far too
+  little over land. Each sea number is the median, over zooms 4, 6 and 9, of the strength at which the lift equals dark's,
+  interpolated between the two strengths measured (0.505 and 1). Land stays at 1, its ceiling.
+- **What it reads, built (the same bench, lift against dark's):** over the sea, light 1.03 / 1.22 / 1.07 at zooms 6 / 4 / 9
+  (it was 1.62 / 1.53 / 1.64) and beach 1.01 / 1.34 / 0.91 (it was 1.23 / 1.46 / 1.06); a streak's core over the sea at zoom 6
+  peaks at L* 67.1 in light (88.5 before) and 78.6 in beach (87.9). Over land every number is the one before, to the digit, at
+  zooms 6 and 4.
+- **How it reaches the pixel:** the mark shader already samples the land mask to pick its streak row; the same sample now scales
+  the mark's LIGHT (never its cover) by a level for that ground (`u_white`, set by `bindLandMask`). The screen pass lays a trail
+  at its level squared, so a strength is carried as its square root. Two shader lines and two engine lines changed in place; both
+  files are at their size limits and did not grow.
+- **What it gives up, said plainly:**
+  - **At zoom 4 the sea still lifts 1.2 to 1.3 times as far as dark's.** One number a theme cannot fit every zoom; the median was
+    taken.
+  - **The land is not helped, and cannot be by white:** over a pale land light's streaks lift the picture 0.26 to 0.85 times as
+    far as dark's, as before. More would need a deeper land or a darker mark; neither is this change.
+  - **It does not make light's COLOURS dark's** (see "Not decided"), which is much of what the owner sees in a zoomed-out light
+    view.
+  - **Near a coast the strength eases across the mask's texel** (about 20 km), and inland lakes are laid as land.
+  - **Without a land mask** (still loading, or failed after three tries) every mark is laid as over land: D-021's look.
+- **Kill:** `window.__RAW_DISABLE_WIND_DARK_WHITE__ = true` lays the white at full strength on both grounds, as D-021 did. It is a
+  uniform bound every frame, so it acts at once. D-020's and D-021's kills and every hold still win: under any of them the marks
+  are laid as they were before this.
+- **Read-back:** the look key is unchanged (`white|dark-rules`); `window.__WIND_LAND_MASK__.status` must be `ready`. The strength
+  is read on the picture: paste `scripts/wind-bench/page/mirror-probe.js` into the console over a sea view and
+  `await __mirrorProbe.capture()`: `peakL` under about 80 in light with `kept` above about 0.9 (near 100 and under 0.2 with the
+  kill set).
+- **Not decided, and not built here (the owner's calls):**
+  - **Light's colours.** Read knot by knot (`scripts/wind-color/mirror-model.mjs`), dark's field hue sweeps one way with speed
+    (violet, blue by 6 kn, teal by 10, green, gold, red) and its lightness climbs to a plateau. Light's hue turns back four times
+    (blue at 6 kn, orchid at 10, green at 16, teal at 21) and sits 146 degrees from dark at 10 kn: the pastel banding of a
+    zoomed-out light view. A prototype on dark's hue path was loaded live into the owner's own tab and sent side by side. As first
+    solved it drops light's colour-blind floor from 5.5 to 2.9 and leaves light's legend bar off its map (the palette checker's red
+    lines), so it is NOT in this change. A solve that holds the floor (5.1, within 4 degrees of dark's hue from 3 to 21 kn) exists;
+    it needs light's legend moved with it. Kept on the branch `claude/wind-dark-path-wip`. Next change, the owner's eye first.
+  - **Beach's 8 to 14 kn band.** Beach's lightness falls to L* 46.7 at 10 kn and returns to 53.0 at 16, a dark grey-teal band
+    where dark only climbs. That dip is what separates 10 from 16 kn for a colour-blind reader: filling it took beach's floor
+    from 3.1 to 1.3. Left as drawn.
+- **Evidence (log 2026-10-11-wind-dark-white):** the owner's screen at zooms 9, 6 and 4 in the three themes (the probe's numbers
+  and side-by-side sheets); the bench in motion, before and after beside dark, land and sea read apart (`motion-run.js`,
+  `mirror-run.js --at`; two clips sent to the owner); tables hashed equal to D-021's with and without the kill; the palette
+  checker's red lines unchanged (beach's two colour-blind lines, as under D-021).

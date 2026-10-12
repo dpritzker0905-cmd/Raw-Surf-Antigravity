@@ -723,7 +723,7 @@ void main() {
   float soft = smoothstep(0.5, 0.2, dist);
   
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
-  vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0);   // LUT row 0 over land, row 1 over sea (dark's rules; windLandMask.js)
+  float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);   // LUT row 0 over land, row 1 over sea (dark's rules; windLandMask.js)
   
   // CASING (dual-tone, theme-aware rim; 2026-07-18 rounds 2-6): rationale relocated verbatim to
   // docs/architecture/RATIONALE-WebGLWindEngine.md "DRAW_FS casing". Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__.
@@ -776,7 +776,7 @@ void main() {
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
   float alpha = v_alpha * soft * (u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a);
-  gl_FragColor = vec4(rgb * alpha, alpha);
+  gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land), alpha);   // dark's white, ground by ground (windLandMask.js u_white): the light level, never the cover; exactly 1 when both are
 }`;
 
 export const HEATMAP_VS = `
