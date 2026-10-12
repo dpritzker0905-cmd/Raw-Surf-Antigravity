@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 19:40Z: beach's wind field holds the colour-blind bar AS THE GPU DRAWS IT (the margin), ON BY DEFAULT (client only; PR
-  OPEN against dev from `claude/wind-beach-margin`, the lead session merges on the owner's word).** Owner, 2026-10-12 19:01Z, to the
+  #322 OPEN against dev from `claude/wind-beach-margin`, the lead session merges on the owner's word).** Owner, 2026-10-12 19:01Z, to the
   session leading the light and beach wind work, first-hand there and relayed to the building session: "take the margin and merge it" (DECISIONS D-025,
   its last amendment). They had seen the lead's clip of the option beside what dev drew.
   - **What draws:** `windBeachPath.js` `BEACH_PATH.field` with the margin's 58 rows at 4 to 46 and 48 to 62 kn; the bytes the lead
@@ -40,7 +40,7 @@ is a claim, not a measurement.
     the local branch `claude/wind-beach-path-margin-capped`: their own later choice.
   - **Not verified:** no frame taken by the building session; no pixel of the wind layer read from a GPU (the lookup law was; the
     composite and the canvas's rounding were not); nothing seen in the app. **Owed:** the live half of #319's read-back (`_lookKey`
-    in a signed-in browser; ledger commitment, due 2026-10-19) and this change's own. Log `2026-10-12-wind-beach-path`, LESSONS L-V69.
+    in a signed-in browser; ledger commitment, due 2026-10-19) and this change's own (a second commitment, same date). Log `2026-10-12-wind-beach-path`, LESSONS L-V69.
 - **2026-10-12 14:20Z: LIGHT NEVER MATCHED ITS SAMPLES BECAUSE THE PAGE BEHIND THE MAP SHOWED THROUGH THE WIND. The wind now leaves
   the map's canvas opaque, ON BY DEFAULT (client only; PR #321 MERGED into dev as 720b3980, 2026-10-12T15:47:44Z; DECISIONS D-027).** The owner, 12:28Z,
   on the deployed build: "I still do not visually see the improvements yet"; 12:36Z: "This should work after all the agents
@@ -2175,7 +2175,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1124, sha256 b708fe9e120687c65fdeb6756cabeade206dd4db243ff51944c1e44a6ce24652**
+  **Ledger head: seq 1126, sha256 486e4f5db2fc519d8ec438c2f82f55015ce00e3aadb91506d71066d4c6d9aea3**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
