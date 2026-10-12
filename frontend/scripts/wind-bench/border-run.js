@@ -74,7 +74,8 @@ const HEADER = 'theme  z  arm          |    n | dL bare   off field  full   p25 
 /** What the `drawn` column says: the arm's own override when it laid one (the app's read-back is not the picture then), else the app's. */
 function drawnBy(row) {
   if (row.bench) return `the bench's own ${row.bench}`;
-  const rb = row.readBack;
+  const rb = row.readBack, cb = row.coastBack;
+  if (row.coastLines) return `coast ${cb ? (cb.applied ? `in the borders' ink at ${cb.opacity}` : `the layer's own (${cb.reason || 'no reason given'})`) : 'no read-back'}`;   // --lines coast: the stroke's own read-back (D-028)
   if (!rb) return 'no ink read-back';
   return `ink ${rb.applied ? `${rb.layers} lines ${rb.color || ''}` : `off${rb.reason ? ` (${rb.reason})` : ''}`}`;
 }
@@ -126,6 +127,7 @@ async function main() {
         for (const row of res.rows) {
           const arm = arms.find((a) => a.name === row.arm);
           if (arm && arm.paint.length) row.bench = opts.arms[arm.name].ink ? `ink ${opts.arms[arm.name].ink}` : `paint (${arm.paint.length} values)`;
+          if (opts.lines === 'coast') row.coastLines = true;
           if (row.glError) glError = row.glError;
           if (row.restore && !row.restore.exact) notRestored.push(`${theme} z${z} ${row.arm}`);
           for (const [kind, url] of Object.entries(row.crops || {})) save(`${theme}-z${z}-${row.arm}-${kind}`, url);

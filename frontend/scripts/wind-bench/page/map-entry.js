@@ -811,7 +811,7 @@ function init(fixtures) {
 const speedAt = (lng, lat) => { const v = sampleSpeed(GRIDS.fine, lng, lat); return v == null ? (sampleSpeed(GRIDS.world, lng, lat) ?? null) : v; };
 
 // BORDER mode (2026-10-12, ./border-probe.js): the political borders and place names alone, against the ground under them.
-const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, WIND_ID, speedAt });
+const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, coastSync, WIND_ID, speedAt });
 
 // GROUND mode (2026-10-12, ./ground-probe.js): the map the wind is laid on: the area layers under it, and the land and the sea as drawn.
 const groundRun = require('./ground-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, animateEach, readCanvas, coastSync, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
@@ -825,7 +825,13 @@ const addWind = (map, theme) => {   // as the app's layer re-adds itself after a
   map.addLayer(windLayer(), before);
   if (coast && !map.getLayer(coast.id)) map.addLayer(coast, before);
 };
-const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, mute: require('wind-bench-mute') });
+const addCoast = (map, theme) => {   // as the app's layer puts the coastline back when a diffed theme change has dropped it (WebGLWindLayer.js handleStyleData)
+  const layers = map.getStyle().layers, coast = windCoastlineLayer(layers, theme, true, {});
+  if (!coast || map.getLayer(coast.id)) return false;
+  map.addLayer(coast, windLayerBeforeId(layers, theme, {}));
+  return true;
+};
+const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, addCoast, mute: require('wind-bench-mute') });
 
 window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, groundRun, anatomyRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';

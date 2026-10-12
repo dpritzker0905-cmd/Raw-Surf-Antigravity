@@ -73,7 +73,7 @@ function inventory(map, windId, coast) {
 }
 
 module.exports = function makeBorderRun(h) {
-  const { state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync, WIND_ID, speedAt } = h;
+  const { state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync, coastSync, WIND_ID, speedAt } = h;
 
   /** The served speed (kn) under the ridge pixels: the wind the lines were read in (a streak's strength over a line moves with it). */
   function ridgeWind(map, rd, W, H, dpr) {
@@ -192,6 +192,7 @@ module.exports = function makeBorderRun(h) {
     try {
       for (const arm of cfg.arms) {
         clearLevers(); Object.assign(window, arm.levers || {});
+        if (coastSync) coastSync(map, cfg.theme);              // the coastline stroke as the layer would add it under this arm's levers
         const synced = sync(map, cfg.theme, true, WIND_ID), saved = [];
         for (const p of arm.paint || []) { if (!map.getLayer(p.id)) continue; saved.push([p.id, p.prop, map.getPaintProperty(p.id, p.prop)]); map.setPaintProperty(p.id, p.prop, p.value); }
         const home = arm.windOnTop ? map.style._order[map.style._order.indexOf(WIND_ID) + 1] : null;   // the layer the wind sits under
@@ -210,18 +211,20 @@ module.exports = function makeBorderRun(h) {
         const c = { bare: contrasts(bare.px, rd), off: contrasts(off.px, rd), field: contrasts(field.px, rd), full: fulls.map((f) => contrasts(f.px, rd)) };
         rows.push({ arm: arm.name, theme: cfg.theme, z: cfg.z, synced, landMask, wind, border: borderStats(c, rd),
           labels: untouched(label, WHOLE, off.px, fulls.map((f) => f.px)), solid: untouched(border, WHOLE, off.px, fulls.map((f) => f.px)),
-          readBack: window.__WIND_BORDER_INK__ || null, glError: state.gl.getError() || 0,
+          readBack: window.__WIND_BORDER_INK__ || null, coastBack: window.__WIND_COAST_INK__ || null, glError: state.gl.getError() || 0,
           crops: state.crop ? { off: off.crop, field: field.crop, full: fulls[0].crop } : null });
         const inked = stylePaint() !== paint0;                // the positive control: with the wind on the style's paint HAD moved
         sync(map, cfg.theme, false, WIND_ID);
+        clearLevers(); if (coastSync) coastSync(map, cfg.theme);   // the arm's levers gone, the stroke the layer's own again: only then is the style's paint the start's
         await idle(map);
         rows[rows.length - 1].restore = { moved: inked, exact: stylePaint() === paint0 };
       }
       return { theme: cfg.theme, z: cfg.z, dpr, canvas: [W, H], inventory: inv, masksExact, bareCrop: bare.crop, rows };
     } finally {
-      state.active = false; disposeEngine(); clearLevers();
+      state.active = false; disposeEngine();
       if (undo) { try { undo(); } catch (e) { /* an arm that threw: the map may be gone */ } }
       sync(map, cfg.theme, false, WIND_ID);
+      clearLevers(); if (coastSync) coastSync(map, cfg.theme);
       state.crop = null; state.cropAt = null;
     }
   };

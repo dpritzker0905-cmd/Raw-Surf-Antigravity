@@ -138,9 +138,10 @@ module.exports = function makeGroundRun(h) {
         strips, canvasAlpha: alpha, crops: state.crop ? { own: own.crop, muted: muted.crop, field: fieldCrop, full: full ? full.shot : null } : null,
         areas, areasAbove, land: pick(0), sea: pick(1), wind: { land: speeds(map, wet, W, H, dpr, 0), sea: speeds(map, wet, W, H, dpr, 1) }, glError: state.gl.getError() || 0 };
     } finally {
-      state.active = false; disposeEngine(); clearLevers();
+      state.active = false; disposeEngine();
+      mute.syncWindBasemapMute(map, cfg.theme, false, WIND_ID);   // the app's restyle is lifted FIRST (it restores the stroke it inked), then the run's levers go and the stroke is the layer's own again
+      clearLevers();
       if (coastSync) coastSync(map, cfg.theme);
-      mute.syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
       state.crop = null; state.cropAt = null;
     }
   };

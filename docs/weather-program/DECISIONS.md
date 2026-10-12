@@ -901,6 +901,15 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Evidence (log 2026-10-12-wind-land-depth):** three speed ramps read at 14 speeds, land and sea, the three themes, cover,
   flicker, lift, ground lightness and chroma; the build against its kill in the same capture; the two tunings; the palette
   checker at three depths; `windLandDepth.test.js` (the tests first), `windBenchRamp.test.js`.
+- **READ WITH D-028 (2026-10-12 20:45Z): what this decision costs the map, measured after it was live.** This entry reads dark's land and sea as "nearly
+  one ground under the wind (L\* 33.5 and 42.5)" with "the coast drawn by lines". Those 9 L\* are half of dark's own land-sea step
+  (9.4 of 18.4 under an equal wind: 0.52 of its Michelson contrast, with its sign), which is what lets the map be seen through
+  the wind; and the line that was to draw light's and beach's coast was a slate hairline solved for a pale ground. With the land
+  at the sea's depth light keeps 0.14 of its own land-sea contrast and beach 0.23 (1.1 and 1.9 of 12.7 L\*), and at zoom 4 the
+  owner could not find the land (19:05Z: "I still cannot see the map as well through the wind"). D-028 draws the coast in the
+  borders' ink; **this decision's depth is not changed** (the owner's pick), and its cost is on the record for when it is weighed
+  again. LESSONS L-V75; `log/2026-10-12-wind-map-through.md`.
+
 ### D-027 · The wind leaves the map's canvas opaque; ON by default
 - **Decided:** by the lead session of the light/beach wind lanes, 2026-10-12, on the owner's standing instruction and their
   verdict of the same day. The owner, 02:58Z: "We need to make light mode wind animations & beach mode wind animations equivalent
@@ -946,3 +955,38 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   real browser screenshots of one light frame over the two page colours; the probe beside dark on both; the independent review
   (it could not break the engine change; its behavioural test, now `windCanvasAlphaTrace.test.js`, checks every draw into the map
   on 20 lever sets) and the re-measure on corrected frames it led to. Nothing seen in the app.
+
+### D-028 · Light and beach draw the wind's coastline in the borders' ink, and the coastline survives a theme change; ON by default
+
+- **Date:** 2026-10-12. **Decided by:** the owner's report, and their standing rule that a visual change they asked for is built
+  ON with a kill. 19:05Z, to the session leading the light and beach wind work, first-hand, on the deployed build with every
+  change of the week on it: "I still cannot see the map as well through the wind animations on light or beach modes. Dark mode I
+  can see the map underneath it, better. The map is glowing through? [...] Lets use all we've learned over the past few days,
+  study the maps and make this work". They have seen clips of it beside dark and beside today (zooms 4 and 6); **they have not
+  said "merge"**, and nothing of it has been seen in the app.
+- **What:** while the borders are inked (D-023), the coastline stroke the wind layer lays above itself (`wind-coastline`) takes
+  the same ink (`rgba(27, 30, 45, 0.7)`) with its `line-opacity` at 1: `windBasemapMute.js` `windCoastInk`, laid and lifted by the
+  mute's one record. And the layer's style handler puts the stroke back when a theme change has dropped it
+  (`WebGLWindLayer.js`): on dev a diffed theme change left NO coastline in any theme, dark included, until a reload.
+- **Kill:** `window.__RAW_DISABLE_WIND_COAST_INK__ = true` (the stroke as the layer draws it: slate at 0.42 / 0.28; the borders
+  stay inked). Lever: `window.__RAW_WIND_COAST_INK__` (0.1 to 1). Read-back: `window.__WIND_COAST_INK__`. Both are read at the
+  next sync. The ink's own kill, the mute's kill, imagery under the wind and dark leave the stroke the layer's own.
+- **Why:** what dark keeps of its map under the wind is two things. Its land stays under its sea (9.4 of 18.4 L\* under an equal
+  wind: 0.52 of its own land-sea contrast), and its coastline is a pale line on a deep ground. Light and beach kept neither: their
+  land is at the sea's depth by D-026 (1.1 and 1.9 of 12.7 L\*: 0.14 and 0.23), and their stroke was solved on a pale ground three
+  changes ago. At zoom 4 Florida is a shape in dark and was not on the map in light or beach.
+- **Measured** (`border-run.js --lines coast`, the stroke's best pixels against the ground beside them under field + streaks,
+  L\*, zooms 4 / 6 / 8 / 10): dark 17.1 / 24.5 / 23.9 / 21.1; light 31.8 / 39.1 / 32.2 / 28.4 (under the kill 16.9 / 21.0 /
+  15.5 / 12.6); beach 29.7 / 37.1 / 29.4 / 25.0 (11.8 / 14.9 / 9.9 / 8.2). The borders it joins read 35 to 40. Through a theme
+  change (`switch-run.js`): the stroke was gone in 8 of 8 changes under dev's handler and is there in 8 of 8 with this one.
+- **Rejected, with their numbers:** a pale line as dark's (9.8 / 13.0 in light at dark's 0.45: it competes with the white
+  streaks); lifting the land back toward the sea's own factor (the stroke moves 3 to 4 L\*, the land's streaks pale, and it would
+  undo the owner's pick of D-026); the land depth's kill (the coast returns as a tone, 16.0 L\* under an equal wind, and the land
+  washes out).
+- **Not decided here, and not changed:** the land's depth (D-026 stands as the owner picked it; this log holds what it costs the
+  map, for when they want it weighed again), the field, the streaks. The streak's shape along the wind is the owner's observation
+  of 20:02Z ("lighter moving air/wind in dark mode is almost transparent, or even smaller animations"): measured in the same log
+  (bright bodies 1.2 to 2.3 times dark's area, 1.2 to 2.4 times as long), its cause read in the screen shader, a prototype
+  measured, the build with the trails lane. One visual variable a change.
+- **Evidence:** `log/2026-10-12-wind-map-through.md` (the three reads of dev, the candidates, the built numbers, the independent
+  review and its six findings, the real-library read of the theme change, 14 mutations red).

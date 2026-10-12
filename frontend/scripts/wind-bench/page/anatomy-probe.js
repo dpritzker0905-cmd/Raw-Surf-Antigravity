@@ -119,9 +119,10 @@ module.exports = function makeAnatomyRun(h) {
       };
       return { theme: cfg.theme, z: cfg.z, dpr, landMask, samples: K, glError: state.gl.getError() || 0, bands: acc.map((c, b) => ({ speed: speeds[b], land: out(c[0]), sea: out(c[1]) })) };
     } finally {
-      state.active = false; disposeEngine(); clearLevers();
+      state.active = false; disposeEngine();
+      mute.syncWindBasemapMute(map, cfg.theme, false, WIND_ID);   // the app's restyle lifted first, then the run's levers, then the stroke as the layer draws it
+      clearLevers();
       coastSync(map, cfg.theme);
-      mute.syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
     }
   };
 };
