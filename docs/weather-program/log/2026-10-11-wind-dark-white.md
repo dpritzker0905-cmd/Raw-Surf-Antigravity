@@ -372,3 +372,25 @@ quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence i
 - **Not done:** the instrument fixes (dark's law in the checker and the mirror model; a `--fixture` flag and the ramp fixture
   in the bench; `mirror-jacobian.mjs` committed) are their own change after the border lane's bench edits land. Nothing was
   built for the land's ground or the coastal halo: both are the owner's calls, with a moving sample first.
+
+## 2026-10-12 03:50Z to 04:10Z · A prototype of the map's term: the land deepened under the wind (local preview only)
+
+- **What:** in the preview worktree only (`claude/mirror-integ-preview`, commit `182104ae`, never pushed), two prototype levers:
+  a lightness factor for the basemap's LAND area colours inside the mute's plan (the water already has one), and a white
+  strength for land. Arm A: land factor 0.81 in light and 0.85 in beach (the land brought to the muted water's lightness), the
+  land's white at the sea's 0.55. Nothing of it is in any PR.
+- **What it looks like (the clip sent to the owner, dark | combined with today's land | combined with the deeper land):** light
+  becomes one continuous picture, as dark is; the coast is drawn by the border lane's ink; the pale halo offshore is gone,
+  because the land's and the sea's strengths are the same and the mask's edge no longer shows. Beach's pale band (24 to 40 kn)
+  is still pale over land. The style's roads are not area colours, so they stay pale and now read as bright lines.
+- **What it reads (the ramp, 110 px crops over land, lift against dark's; arm A):** light 0.71 / 0.63 / 0.67 / 0.77 at 8 / 16 / 24 /
+  40 kn on a ground of L* 53 to 55 (45 at 40 kn); beach 0.81 / 0.77 / 0.45 / 0.41 on 47 to 63. **Not better than today's lift
+  below 24 kn** (light 0.85 / 0.74 / 0.58 / 0.93 with full white on the pale land): the ground gained room and the white gave
+  more of it back. The arm is untuned: the land's depth and the land's white are two inputs and need one sweep together.
+- **A trap in the bench, found by it:** `page/map-entry.js` `clearLevers()` deletes only `window` keys that start with
+  `__RAW_`. The prototype's levers were named `__PROTO_...`, so they LEAKED into every later run in the same page: the two runs
+  meant as "today" drew arm B's values (beach's "today" read identical to arm B to the last digit, which is how it showed).
+  Those two columns were thrown away, and the clip's "today" panes are the captures taken before the prototype existed. A lever
+  given to the bench is named `__RAW_...`, or it is not a lever.
+- **Also read off the same capture, to be confirmed in a clean run:** with the colours lane's candidate in, light's sea reads
+  0.94 / 0.87 at 8 / 16 kn (1.05 / 0.96 without it). The candidate replaces the streak rows from 4 to 32 kn as well as the field.
