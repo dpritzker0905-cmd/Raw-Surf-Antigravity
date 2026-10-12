@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 04:58Z: light's wind field runs dark's hue ORDER on two lightness levels, and its legend bar moves with it, ON BY DEFAULT
-  (client only; PR open against dev from `claude/wind-light-path`, the owner merges).** Owner, 2026-10-12 02:48Z: "you need to
+  (client only; PR #318 OPEN against dev from `claude/wind-light-path`, the owner merges).** Owner, 2026-10-12 02:48Z: "you need to
   double check all this. The light and beach modes need to make sense logically. It could be the way it is, or it could not be";
   03:48Z, on three options after a first candidate filmed beside dark: "option 2, give the streaks their ground back"
   (DECISIONS D-024). #314 is MERGED (`ec8f46a2`, 2026-10-12T01:48:08Z); its `pr_merge` line is the border-ink branch's (#316).
@@ -40,7 +40,8 @@ is a claim, not a measurement.
     engine lays it at alpha squared. Every dark number read through them is about twice too strong; by the engine's law this
     model reads dark's own colour-blind line at 2.5 to 3.1, where the checker prints 5.2.
   - **Not verified:** nothing of this build has been seen in the app; the owner chose option 2 from its description and has not
-    judged it moving; phones not measured. **Waiting on the owner:** their eye, then the merge. Log `2026-10-12-wind-light-path`,
+    judged it moving; phones not measured. **Waiting on the owner:** their eye, then the merge. **Owed:** the read-back on the
+    deployed build (ledger seq 1067, due 2026-10-19). Log `2026-10-12-wind-light-path`,
     LESSONS L-V52 to L-V54.
 - **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 OPEN against
   dev, the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
@@ -1947,7 +1948,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1062, sha256 95ab5665056ec1bfd4f8066450c645d5b254e4906ca711c34555199ed8153dd0**
+  **Ledger head: seq 1067, sha256 1fae93325be28a9dd3468e39b31e743f23ad1c0362885a9628164b9c45248a10**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
