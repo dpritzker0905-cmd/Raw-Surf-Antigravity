@@ -41,7 +41,8 @@ import { lchOf, rgbOfLch, cvdDE, normalDE, de2000, simLab, KINDS } from './light
 
 const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 export const THEME = 'beach', STOPS = [0, 3, 6, 10, 16, 21, 27, 33, 40, 47, 55, 63, 75], TOP = 75;
-// --land-l 0.85: solve and read over a DEEPER land (the land's lightness times that factor in the basemap mute, as PR #320 lays it).
+// --land-l X: solve and read over the land at that lightness factor of the basemap mute (1: the land before PR #320). With no flag
+// the land is the one the app draws (D-026: 0.85 in beach); --before-depth is the mute's own land, as in check.mjs.
 // --ref built: the reference a candidate is held to is what beach draws NOW (its path), not what it drew before it.
 export const LAND = arg('--land-l') ? groundAt(THEME, 'land', Number(arg('--land-l'))) : groundOf(THEME, 'land'), WATER = groundOf(THEME, 'water');
 /** The reference field: beach BEFORE its path (windDarkRules.js solveDarkRules: the dusk factor and the name guard), or with --ref built, on it. A row a knot, 0 to 75 kn. */

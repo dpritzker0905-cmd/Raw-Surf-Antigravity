@@ -26,9 +26,10 @@
  *
  * WHAT THIS DRAWS. Nine of beach's 13 Beaufort stops move, solved with the colour-blind floor as a CONSTRAINT (LESSONS L-V45), the gale
  * band under a ceiling of L* 60 over the land, and the streak's ground FIRST: the everyday ground (6 to 21 kn) lifted as little as
- * the floor allows. Solved twice: option F on today's land, then the seven stops from 6 to 40 kn again with the DEEPER land of PR #320
- * (the land's lightness times 0.85) as the land's constraint, moving no knot of F more than 0.4 dE00, so the floor holds on EITHER
- * land. The field ON SCREEN over beach's muted land as it is today, L* / C* / hue (before):
+ * the floor allows. Solved twice: option F on the land as the basemap mute alone leaves it (the land before PR #320; D-026's kill
+ * draws it), then the seven stops from 6 to 40 kn again with the DEEPER land of PR #320 (the land's lightness times 0.85, the default
+ * since D-026) as the land's constraint, moving no knot of F more than 0.4 dE00, so the floor holds on EITHER land. The field ON
+ * SCREEN over the land as the mute alone leaves it, L* / C* / hue (before); the land numbers of the notes under it are that land's:
  *    6 kn  57.6 / 17.6 / 177  (56.8 / 21.6 / 170)        10 kn  51.5 / 15.6 / 169  (46.7 / 18.2 / 156)
  *   16 kn  44.8 / 14.3 / 160  (53.0 / 33.6 / 146)        21 kn  44.7 / 16.7 / 123  (54.2 / 32.7 / 124)
  *   27 kn  60.1 / 24.7 / 123  (70.8 / 44.0 / 122)        33 kn  60.1 / 35.2 /  92  (67.5 / 44.5 /  92)
@@ -38,14 +39,24 @@
  *     band that is level at L* 60 from 27 to 40 kn (it peaked at 72.9). From 6 to 40 kn the ground spans 15.4 L* over the land and
  *     12.9 over the sea (26.2 and 21.7 before; dark 7.4 and 7.2);
  *   - neighbouring Beaufort stops from 3 kn are 5.0 dE2000 or more apart for protan, deutan and tritan viewers: by the palette checker
- *     5.0 over the sea and 5.3 over today's land, and 5.0 over both with the deeper land of PR #320 (`node check.mjs --strict` and
- *     `--strict --land-l 0.85` both exit 0). The checker's two red lines, red on dev since D-020, are gone. THERE IS NO MARGIN OVER THE
+ *     5.0 over the sea and 5.0 over the deeper land that draws by default (5.05 and 5.02), and 5.3 over the land before PR #320
+ *     (`node check.mjs --strict` and `--strict --before-depth` both exit 0). The checker's two red lines, red on dev since D-020 (3.1
+ *     and 3.2; 3.1 and 2.9 once the land was laid deeper), are gone. THERE IS NO MARGIN OVER THE
  *     SEA: 5.05 on the table, and once the table is quantised into the 256-entry texture the engine uploads, 5.01 at a 75 kn maximum
  *     and 4.98 at a 50 kn maximum;
  *   - over the LAND every stop keeps its hue within 13.5 degrees (16 kn; 12.6 at 10 kn), and beach's order is kept to 0.6 degrees.
  *     Not eight: the looser hue match is what keeps the ground deep (at 8 degrees the everyday ground must lift 6.7 L*). Over the SEA
  *     the same rows move 10 kn by 14.2 degrees and 16 kn by 18.2;
  *   - the steepest knot is 3.1 dE00 (3.9 before; dark's own hardest is 8.9), and the chroma line is as even as it was (within 0.1).
+ * OVER THE DEEPER LAND, which is what draws by default since PR #320 (D-026: the land at the sea's depth), the same rows read in
+ * lightness as they do over the sea, within 0.5 L* at every Beaufort stop. L* / C* / hue (before the path, over that land):
+ *    6 kn  46.9 / 14.8 / 176  (46.2 / 18.2 / 169)        10 kn  41.8 / 13.2 / 168  (37.8 / 15.4 / 156)
+ *   16 kn  36.2 / 12.0 / 159  (43.0 / 28.2 / 146)        21 kn  36.1 / 14.1 / 122  (44.1 / 27.5 / 124)
+ *   27 kn  49.0 / 20.9 / 123  (57.9 / 37.0 / 121)        33 kn  49.0 / 29.7 /  92  (55.2 / 37.5 /  92)
+ *   40 kn  48.9 / 23.5 /  50  (51.5 / 25.6 /  51)
+ * There the gale band is level at L* 49 (it peaked at 59.7), the ground from 6 to 40 kn spans 12.9 L* (21.9 before), and the 10 kn
+ * ground is 4.0 L* lighter than it was. The costs below are stated on the land before #320; over the deeper land each is the same
+ * in kind and a little smaller in L* and C* (this table).
  * Rows between two moved stops run on straight lines in lightness, chroma and hue from 6 to 47 kn; elsewhere a moved row is the colour
  * beach drew at that knot, moved by what its two stops moved.
  * WHAT IT RESTS ON is the FIELD, which no captured frame touches: the three faults above, read off the tables through the composite
@@ -62,8 +73,8 @@
  *   - the 10 kn ground is 4.7 L* LIGHTER over land (4.0 over the sea): the streak has that much less to stand on at the commonest wind;
  *   - from 13 kn up the ground is the deepest beach draws, and over the sea the streaks add more light than dark's do there. That is the
  *     white strength's to trim (windDarkRules.js DARK_WHITE; not changed here);
- *   - the land's gale band is still pale on screen (rendered L* 68 to 72 against dark's 34 to 39): the rest of that gap is the map's
- *     (PR #320 lays the land at the sea's depth);
+ *   - over the land as the mute alone left it the gale band was still pale on screen (rendered L* 68 to 72 against dark's 34 to 39):
+ *     the rest of that gap was the map's, and PR #320 lays the land at the sea's depth (the table above);
  *   - the everyday neighbours are told apart about half as well by a NORMAL eye: 6-10 kn 6.2 dE00 over land and 5.2 over the sea (10.8
  *     and 8.5 before), 10-16 kn 7.0 and 5.3 (10.0 and 8.8). A grey-green band is closer to its neighbours than an emerald was;
  *   - a bar of D-021 is crossed at 7 and 8 kn: there the head of a streak stands 18.5 L* off its ground at the least, where D-021 held

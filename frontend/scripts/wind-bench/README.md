@@ -228,7 +228,8 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   the scanner. On dev's own code the same look is `{"__RAW_WIND_LIGHT_LOOK__":"deep","__RAW_WIND_GLOW_RING__":1}` (light) and
   `{"__RAW_WIND_GLOW_RING__":1}` (beach).
 - **Since dark's white by the ground (2026-10-12, D-022) `candidate` and an empty arm lay the white streak at full strength over land
-  and at a share of it over the sea** (`DARK_WHITE`: 0.55 in light, 0.77 in beach), picked by the land mask. The arm to compare
+  and at a share of it over the sea** (`DARK_WHITE`: 0.55 in light and in beach; beach's was 0.77 until 2026-10-12), picked by the
+  land mask. The arm to compare
   against is its kill: `--arms '{"full":{"__RAW_DISABLE_WIND_DARK_WHITE__":true},"now":{}}'` in map and motion mode. **It needs a land
   file:** with none (the scanner's page, `--no-land-file`) every mark is laid as over land and the two arms are the same picture, by
   construction (`--variants candidate,full-white` in the scanner reads equal for that reason, not because the change is safe).
@@ -251,11 +252,16 @@ Dark is the model (owner, 2026-10-11). Two looks passed the still-frame columns 
 (DECISIONS D-020, D-021), so these modes read the MOVING picture, and read it with a probe that also runs in the deployed app.
 
 ```bash
-node scripts/wind-bench/motion-run.js --runs runs.json --out out/motion.json --dpr 1.5     # every 60 Hz frame, a still camera
-node scripts/wind-bench/mirror-run.js --motion out/motion.json --at 0.5,0.12               # each run beside dark's: here, the land
-node scripts/wind-bench/mirror-run.js --motion out/motion.json --at 0.5,0.9                # and the sea
-node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title" "DARK=run-a" "BEFORE=run-b" "NOW=run-c"
+node scripts/wind-bench/motion-run.js --runs runs.json --out scripts/wind-bench/out/motion.json --dpr 1.5     # every 60 Hz frame, a still camera
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/motion.json --at 0.5,0.12 --size 360   # each run beside dark's: here, the land
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/motion.json --at 0.5,0.9 --size 360    # and the sea
+node scripts/wind-bench/compose-video.js scripts/wind-bench/out/videos/side.webm 3 500 60 2 "title" "DARK=run-a" "BEFORE=run-b" "NOW=run-c"
 ```
+
+- **Paths are read from where you stand** (`frontend/`), so write them out as above: the first version of this block said
+  `out/motion.json`, which is `frontend/out/`, not the bench's own `out/` (the frames always go to the bench's
+  `out/motion/<name>/`). **Every number recorded from this mode was read with `--size 360`** (the crop's side in CSS pixels;
+  the default is 420, and a different crop reads a different lift): pass it to compare with a recorded number.
 
 - `runs.json`: `[{ name, theme, z, scale?, levers?, frames?, lng?, lat? }]`; frames land in `out/motion/<name>/`. `--dpr` is the device
   pixel ratio the page renders at: the owner's laptop is 1.5, every other mode here runs at 1. Needs the Mapbox token as map mode does.
@@ -271,6 +277,50 @@ node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title"
 - `compose-video.js` plays runs side by side as one WebM through the ffmpeg Playwright installs (there is no system ffmpeg).
 - Baseline, 2026-10-12, D-022 built (Mobile Bay, served wind, dpr 1.5; lift against dark's at zooms 6 / 4 / 9): over the sea light
   1.03 / 1.22 / 1.07 and beach 1.01 / 1.34 / 0.91; over land light 0.85 / 0.74 / 0.26 and beach 0.93 / 0.80 / 0.69.
+- **Baseline since beach's sea strength is 0.55** (2026-10-12, D-022 amended; same view, same crops): over the sea beach
+  0.80 / 1.19 / 0.74 (its kill 1.23 / 1.46 / 1.06, light 1.03 at zoom 6, dark's lift 12.6 / 10.4 / 6.9: the numbers before, to the
+  digit); over land 0.93 / 0.80 / 0.69, unchanged.
+- **THE FIXTURE IS A HURRICANE, and a crop's wind is read from the fixture, not from this page** (LESSONS L-V50). At zoom 6 the
+  sea crop (`--at 0.5,0.9 --size 360`: 26.6 to 29.7 N, 89.8 to 86.3 W) holds a 42 kn field (quartiles 36 and 47, top 77); the land crop
+  (`--at 0.5,0.12`) lies mostly NORTH of the fixture's box (25 to 32 N), where the bench draws its own light climatology, which a
+  run's `scale` does not touch. `"scale": 2.3` is a 95 kn sea (`map-entry.js` describes it by the bay's own median).
+  **Sweep the wind with `scale`:** the lift against dark's is not one number per theme. Zoom 6, the sea, the crop's median
+  8 / 17 / 42 / 95 kn (`scale` 0.2 / 0.4 / 1 / 2.3): beach at 0.55 reads 1.10 / 0.96 / 0.80 / 1.07 (its kill 1.57 / 1.23 / 1.70 from
+  17 kn), light at 0.55 1.11 / 1.05 / 1.03 / 1.23 (its kill 1.72 at 17 kn), dark's own lift 7.3 / 9.6 / 12.6 / 11.8. The low reading is
+  the band where beach's field is pale (27 to 40 kn). The device pixel ratio moves it little (`--dpr 3` at 42 kn: beach 0.84,
+  its kill 1.35, light 0.98).
+- **A frame pixel is not a map pixel.** The bench's map is 897 x 914 CSS px (`page/map.html`), drawn at a map pixel ratio of 2
+  whatever `--dpr` says (that flag sets the PAGE's ratio; `--map-dpr` sets the map's), and a motion frame is that view scaled to
+  1000 x 1019. To turn a crop into a place, multiply frame pixels by 0.897 before Mercator: the zoom 6 view spans 92.98 to 83.12 W,
+  not 11 degrees. The first reading of this page's crops skipped that and placed every crop about 11% too wide (the sea crop
+  read 39 kn where it holds 42; found by the simplification lane, PR #317).
+
+### The page behind the map, and the canvas's alpha (2026-10-12, D-027)
+
+- **Every frame these modes save is laid over the page the app lays behind the map:** near white (`#f9fafb`, Tailwind gray-50) in
+  light, black in dark and beach (`page/map-entry.js` `APP_PAGE`, pinned against `MapPage.js` by `windCanvasAlpha.test.js`).
+  `motion-run.js --behind <css colour>` (or a run's own `behind`) lays another; a string that is not a CSS colour stops the run.
+  Until this date every saved frame was taken from the BARE canvas. That is not the screen over any page: an encoder
+  un-premultiplies a pixel (clamped at 255) and fills with black, so a pixel held min(channel, alpha): the brightest streak cores
+  clipped darker in every theme, and in light the page's white left out (`page-colour.js`; LESSONS L-V72). Numbers read from
+  saved frames before this date are not exact, the D-022 baseline above included.
+- **Each motion run prints the map canvas's own alpha** (`canvas alpha min .. mean .. over N frames`: the least over every sampled
+  frame). 1 and 1 means the page cannot matter. Every canvas read carries its alpha, and `map-run.js` and `path-run.js` print a
+  WARNING when a scored read was taken on a see-through canvas (an older `--ref`, or the kill): their scored columns read the
+  canvas's own colour, which is the screen over a BLACK page. `run.js`, `ladder-run.js` and `lane-run.js` (`page/bench-entry.js`)
+  still save the bare canvas: right on a built engine, clipped on an older `--ref` or under the kill. Baseline (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): built, 1 / 1 in
+  all three themes; under `__RAW_DISABLE_WIND_OPAQUE_CANVAS__` (dev's blends) dark 0.608 / 0.685, light 0.749 / 0.900, beach
+  0.749 / 0.895.
+- **Compare two arms at the same position in runs files that are otherwise alike.** A theme's first run on a fresh map and its second differ in 15 of
+  90 frames (frames 1 to 39, beach; the same 15 on a repeat), whichever arm is which; two runs at the same position are the same
+  bytes, 90 of 90 (the null control). What the page ran before counts too: light after two dark runs and light alone in a page
+  differed in all 90. Read with a hash of each frame.
+- **A run may draw the colour field ALONE:** `"res": 2` in runs.json (the particle pool's side; 384 by default). The mean
+  picture minus the same crop drawn with the field alone is the light a streak ADDS, and it is the measure to compare themes by:
+  the probe's own `lift` (the mean over each pixel's darkest moment) reads dark high and light and beach low (LESSONS L-V73).
+  `--crop WxH --crop-fmt png` keeps the crops lossless: read a claim about a 1 px line there, the JPEG rings.
+- `mirror-probe.js` `capture()` on a live canvas was not checked for this. On a build whose canvas alpha is under 1 (every
+  deployed build before D-027) treat its light-mode numbers as unverified: the screen showed the page through the canvas.
 
 ## Border mode (`border-run.js`, `page/border-probe.js`): can the borders and place names be read under the wind?
 
@@ -332,6 +382,33 @@ node scripts/wind-bench/border-run.js --inventory --crop 900x600 --at 0.5,0.3   
     its SEA rows for light and beach sit on a sea 2 to 7 L* too light with a step 1 to 2 L* too small. With the canvas at 2
     instead of 1.5 the lift against dark's is off by 0.00 to 0.03 over the sea in the served wind and below it, by up to 0.09
     with the fixture scaled 2.3 times, and by 0.02 to 0.08 over land. The old way read D-022's recorded lifts to the digit.
+
+## Speed ramp (`ramp-fixture.js`, `motion-run.js --fixture`): one scene with clean axes
+
+```bash
+node scripts/wind-bench/ramp-fixture.js scripts/wind-bench/out/ramp-low.json --from 2 --to 30        # everyday winds
+node scripts/wind-bench/ramp-fixture.js scripts/wind-bench/out/ramp-high.json --from 6.85 --to 60.6  # to a storm
+node scripts/wind-bench/motion-run.js --fixture scripts/wind-bench/out/ramp-low.json --runs runs.json --out scripts/wind-bench/out/ramp.json --dpr 1.5
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/ramp.json --at 0.33,0.2 --size 110     # land, 11.8 kn
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/ramp.json --at 0.33,0.85 --size 110    # sea, the same speed
+```
+
+The hurricane fixture moves the wind's speed, the place and the zoom together: on it three lanes each solved a number that
+failed in the next scene (DECISIONS D-022 and its amendment, LESSONS L-V50, L-V61). The ramp fixture blows due north everywhere
+with a speed that rises with longitude, `--from` knots at the view's west edge to `--to` at its east edge (Mobile Bay, zoom 6), so
+a column of the picture is ONE speed over land and over sea, a streak stays in its column, and every speed is on screen at once.
+
+- **Where a crop sits is the bench's geometry, not the frame's.** The map is 897 CSS px wide and a frame is that view scaled to
+  1000: the zoom 6 view spans 92.98 to 83.12 W. `ramp-fixture.js` prints the speed at the centre of each `--at x --size 110` crop
+  (`speedAt`; the probe puts the crop's left edge at `round((1000 - size) * x)`), and `src/components/map/windBenchRamp.test.js`
+  pins it against `page/map-entry.js` and `page/mirror-probe.js`. With the two fixtures above a 110 px crop spans 3.1 and 5.9 kn.
+- **Along a ramp the place changes with the speed.** Compare two arms at the SAME crop; read a row along speed only over the
+  open sea, where one crop is like the next. Land crops are different land (the 8.5 kn crop of the low ramp is the Mississippi
+  valley).
+- **A lever given to a run is named `__RAW_...`.** `page/map-entry.js` `clearLevers()` deletes only `window` keys that start with
+  `__RAW_`; any other name leaks into every later run in the same page (found 2026-10-12: two "before" runs drew a prototype arm).
+- Baseline, 2026-10-12, the land at the sea's depth built (D-026; this branch: light's sea strength 0.55, beach's 0.77, no other
+  lane merged; lift against dark's at the same crop): see the log `2026-10-12-wind-land-depth` for the table.
 
 ## Ground mode (`ground-run.js`, `page/ground-probe.js`): what IS the map the wind is laid on?
 

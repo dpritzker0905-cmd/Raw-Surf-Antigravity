@@ -16,7 +16,7 @@
 // drew before it (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true). The mark lines below judge the streak's colour CORE; its white
 // ring, which carries the motion, is not modelled here (the GPU bench's style columns read it).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--land-l 0.85]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--before-depth] [--land-l 0.75]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
@@ -34,25 +34,28 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 // solver of dark's rules (windDarkRules.js, which has no imports): it is loaded first and handed in.
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
-const { BEACH_PATH, beachPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windBeachPath.js')) + '; return { BEACH_PATH, beachPathRows };')();   // beach's path (no imports)
-const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'BEACH_PATH', 'beachPathRows',
-  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, BEACH_PATH, beachPathRows);
-// The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
+// The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on. Loaded
+// before the ramps: WindColorRamp.js reads the land's streak strength from it (windLandWhite, D-026).
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
-const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
+const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate };')();
+const { BEACH_PATH, beachPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windBeachPath.js')) + '; return { BEACH_PATH, beachPathRows };')();   // beach's path (no imports)
+const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows',
+  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows);
 const NO_MUTE = args.includes('--no-mute');
 // --mute-amount / --water-l: explore other mute settings (the app's own lever names, passed as levers).
 const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}),
   ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}),
   ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}), ...(args.includes('--full-white') ? { __RAW_DISABLE_WIND_DARK_WHITE__: true } : {}),   // --full-white: the white at full strength on both grounds (D-022's kill)
-  ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}) };   // --before-path: beach's field before its path (windBeachPath.js's kill)
-const LAND_L = arg('--land-l') ? Number(arg('--land-l')) : 1;   // --land-l 0.85: read over a DEEPER land (the land's lightness times that factor, as PR #320 lays it)   // --before-path: beach's field before its path (windBeachPath.js's kill)
+  ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}),   // --before-path: beach's field before its path (windBeachPath.js's kill)
+  ...(args.includes('--before-depth') ? { __RAW_DISABLE_WIND_LAND_DEPTH__: true } : {}), ...(arg('--land-l') ? { __RAW_WIND_BASEMAP_LAND_L__: Number(arg('--land-l')) } : {}) };   // --before-depth: the land as the mute alone leaves it (D-026's kill); --land-l: another depth
 const groundOf = (theme, surf, c) => {
   const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c;
-  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, LEVERS) : LAND_L));
+  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, LEVERS) : windBasemapLandL(theme, LEVERS)));
   return [+m[1], +m[2], +m[3]];
 };
+/** The window a sync would leave for `theme`: the levers plus the mute's read-back, which is what the land's streak strength reads (D-026). */
+const winOf = (theme) => { const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1 } }; };
 
 // Composite model — keep in sync with HEATMAP_FS / DRAW_FS and windFieldLut.test.js (TINT, SURFACES, BASEMAP).
 const MODEL = {
@@ -93,7 +96,7 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   // laid over it; dark's rules by the engine's own law (the colour at full light, laid at alpha^2 x opacity).
   const look = theme === 'light' ? LEVERS.__RAW_WIND_LIGHT_LOOK__ : null, LOOK_OP = { ink: 0.9, moderate: 1.0, deep: 1.0 };
   const markOn = (k, T, surf) => {   // the white streak is laid by the ground under it (D-022: windWhiteStrength; --full-white = 1 on both)
-    if (rules) { const w = k[3] * k[3] * (windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK.opacity * windWhiteStrength(theme, LEVERS)[surf === 'water' ? 'sea' : 'land'] : DARK_RULES.opacity); return T.map((x, j) => k[j] * w + x * (1 - w)); }
+    if (rules) { const w = k[3] * k[3] * (windWhiteStreakOn(theme, LEVERS) ? WHITE_STREAK.opacity * windWhiteStrength(theme, winOf(theme))[surf === 'water' ? 'sea' : 'land'] : DARK_RULES.opacity); return T.map((x, j) => k[j] * w + x * (1 - w)); }
     return look === 'ink' ? T.map((x, j) => x * (1 - LOOK_OP.ink * (1 - k[j]))) : T.map((x, j) => k[j] * LOOK_OP[look] + x * (1 - LOOK_OP[look]));
   };
   const isBand = (s) => P.some((p) => p[0] === s[0]);   // the 13 Beaufort bands (a row a knot, or A's 11-15 kn waypoints, is a path, not bands)

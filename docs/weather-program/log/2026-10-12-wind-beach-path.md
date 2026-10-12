@@ -668,3 +668,73 @@ The build was not re-run for this step (a table and comments changed; it ran on 
 **The lead's filmed read of the two, for the record** (corrected bench, frame for frame, F as picked against the option): mean dE76
 0.92 on the 2 to 30 kn ramp and 0.62 on the 7 to 60 kn ramp, null control 0.08; the probe's ground L* moves 0.1 to 0.4 at four crops;
 the streak numbers the same.
+
+## 17:10Z · Dev merged into #319's branch (#321, #320 and #315 are on dev); what the field draws now that the deeper land is the default
+
+**Why now.** The owner, 2026-10-12 15:38Z, to the session leading this work, first-hand there and relayed here: "merge #321 and
+#320 and take the re-solved F" and "and merge anything else needed as well". The lead read "anything else needed" as the open
+changes its re-filmed combined clip showed: #315, #319 and #318. Its signal came at 17:05Z: #315 merged into dev as `89f0dc33` at
+2026-10-12T17:04:44Z (the lead's facts, read back here with `gh pr view 315`: MERGED, the same time and commit), after a GitHub incident held
+#315's checks for 35 minutes (the lead's account). #319 had conflicted with dev since #320 merged at 16:10Z. This is step 2 of the
+lead's two. The lead merges #319 when hosted CI is green; this session does not.
+
+**A trial first (16:11Z to 16:30Z, the lead's ask).** On a local branch that was never pushed (`scratch/beach-path-trial`) this
+branch's head `e00534d1` was merged with `eb0382b8` (dev `9061ad1d` plus #315), every conflict resolved and every gate run, before
+`claude/wind-beach-path` was touched. The merge here repeats those resolutions on `origin/dev` at `89f0dc33`.
+
+**The nine conflicts.**
+- `WindColorRamp.js`: both imports (`windBeachPath`, and `setWindLandDepthGate`, `windLandWhite` from `windBasemapMute`); dev's
+  `setWindLandDepthGate(...)` line stays under `windWhiteStrength`, then `windBeachPathOn`. 783 lines (the ratchet's bar is 800).
+- `windDarkRules.test.js`: the list of kills that leave dark's rules alone keeps every entry (D-022's, the land depth's, the path's).
+- `check.mjs`, `mirror-model.mjs`: dev's loaders (the mute first; `windLandWhite` and `setWindLandDepthGate` handed to the ramp's
+  source) plus `BEACH_PATH` and `beachPathRows`. **There is one `--land-l` now, dev's lever** (`__RAW_WIND_BASEMAP_LAND_L__`); this
+  lane's own constant is gone. `--before-path` sits beside dev's `--before-depth`. `mirror-model.mjs` keeps `groundAt` and
+  `drawnField(theme, levers)`, which the solver uses.
+- `scripts/wind-color/README.md`: both usage lines.
+- `DECISIONS.md`: D-025, then D-026 and D-027. `LESSONS.md`: number order (dev's L-V50 to L-V62, L-V63 to L-V67, dev's L-V70 up).
+  `STATE.md`: both sides, dev's newer entries first.
+- `ACTIONS.jsonl`: dev's file, then this lane's eight lines re-appended after dev's head (the write protocol: a later merge
+  re-chains). They were seq 1075 to 1082 on the branch and are seq 1099 to 1106 now, each with its first time as
+  `acted_at`; the correction's `corrects` text moved to the new numbers. The tool is the lead session's `reappend.py`, read before it
+  was run. `pr_merge #315` is seq 1107 (the lead's facts; this session did not see the merge happen), and the correction for the land
+  numbers (the next section) is seq 1108.
+
+**What the merge changes in what DRAWS: the land.** With #320 (D-026) the land under the wind is laid at the sea's depth by default
+(beach: the land's lightness times 0.85), so every land number this lane recorded before now is the land's BEFORE #320. By the
+composite model on the merged tree (`beach-path-solve.mjs --audit --ref built`, and `--audit` for the before):
+
+| | Over the land as drawn (D-026) | Over the sea | Over the land before #320 (`--before-depth`) |
+| --- | --- | --- | --- |
+| The bare muted ground, L* | 68.9 | 68.8 | 83.9 |
+| The gale band's peak, L* (before the path) | 49.0 (59.7) | 48.9 (59.6) | 60.1 (72.9) |
+| The ground's span from 6 to 40 kn, L* (before) | 12.9 (21.9) | 12.9 (21.7) | 15.4 (26.2) |
+| The 10 kn ground is lifted by, L* | 4.0 | 4.0 | 4.7 |
+| The colour-blind floor (before) | 5.02 (2.90) | 5.05 (3.1) | 5.31 (3.2) |
+
+The field on screen over the land as drawn, L* / C* / hue (before the path): 6 kn 46.9 / 14.8 / 176 (46.2 / 18.2 / 169), 10 kn 41.8 /
+13.2 / 168 (37.8 / 15.4 / 156), 16 kn 36.2 / 12.0 / 159 (43.0 / 28.2 / 146), 21 kn 36.1 / 14.1 / 122 (44.1 / 27.5 / 124), 27 kn 49.0 /
+20.9 / 123 (57.9 / 37.0 / 121), 33 kn 49.0 / 29.7 / 92 (55.2 / 37.5 / 92), 40 kn 48.9 / 23.5 / 50 (51.5 / 25.6 / 51). In lightness it
+reads as it does over the sea, within 0.5 L* at every Beaufort stop. "A gale band under a ceiling of L* 60 over the land" was the
+solve's bar on the land before #320; as drawn it is L* 49.
+
+**The palette checker on the merged tree (coloraide), water / land.** `--strict`: exit 0, 5.0 / 5.0. `--before-depth` and
+`--land-l 1`: exit 0, 5.0 / 5.3. `--land-l 0.85`: the default (beach's `landL` is 0.85). `--before-path`: exit 1, 3.1 / 2.9, which is
+what dev draws from #320's merge until #319's. `--before-path --before-depth`: exit 1, 3.1 / 3.2. The watch line is unchanged
+(over the sea the field sits more than 30 degrees off the legend's hue across 1 kn, 15.5 to 16 kn).
+
+**Wording corrected, because "today's land" stopped being true** (comments and prose; no table, switch or test value moved): the
+header of `windBeachPath.js` (which land its first table is on, and a second table for the deeper land), the README's path
+paragraph (`--before-depth` reads the other land now, not `--land-l 0.85`), one comment in `beach-path-solve.mjs`. DECISIONS D-025
+carries an amendment with the table above; STATE's "What draws", "Measured" and "What it costs" lines name both lands.
+
+**Gates on the merged tree.** Jest from `frontend/` with `--testMatch`: map tree 288 suites / 4056 tests, `src/tests` 23 suites / 254 tests, 0 failed.
+`check_eslint.js` exit 0 (new 0, regressed 0). `loc_ratchet.py` exit 0. The production build (`CI=false
+NODE_OPTIONS=--openssl-legacy-provider npx craco build`) exit 0. `action_ledger.py verify` OK; `memory_audit.py --docs-only` 0 FAIL.
+
+**Unchanged.** The default field's bytes (`e434f0bf` at a 50 kn maximum, `cbfec18a` at 75 kn; pinned, passing). No margin over the
+sea (5.05 on the table; as uploaded 5.01 at a 75 kn maximum and 4.98 at a 50 kn maximum). Nothing of `DARK_WHITE`,
+`windWhiteStrength` or the `u_white` shader lines is touched by this lane or by the resolutions.
+
+**Not done, not verified.** No frame was taken of the merged tree by this session (the lead's combined-build captures stand for the
+motion). Nothing of this build has been seen in the app. The read-back on the deployed build is still owed (the commitment,
+due 2026-10-19).

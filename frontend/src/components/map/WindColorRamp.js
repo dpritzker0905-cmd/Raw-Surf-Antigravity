@@ -11,6 +11,7 @@
  */
 import { DARK_RULES, DARK_WHITE, solveDarkRules } from './windDarkRules';
 import { BEACH_PATH, beachPathRows } from './windBeachPath';
+import { setWindLandDepthGate, windLandWhite } from './windBasemapMute';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -475,8 +476,9 @@ export function windWhiteStreakOn(theme, win) {
 /** How strongly the white streak is laid over land and over sea, as shares of full strength (windDarkRules.js DARK_WHITE, D-022): { land: 1, sea: 1 }, as before it, under `__RAW_DISABLE_WIND_DARK_WHITE__ = true` and wherever the white streak does not draw. */
 export function windWhiteStrength(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {}, k = w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w) ? DARK_WHITE[theme] : null;
-  return k ? { land: k.land, sea: k.sea } : { land: 1, sea: 1 };
+  return k ? { land: windLandWhite(theme, w, k), sea: k.sea } : { land: 1, sea: 1 };   // the land takes the sea's strength where it is drawn at the sea's depth (windBasemapMute.js, D-026)
 }
+setWindLandDepthGate(function (theme, w) { return w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w); });   // the land goes deep only where those strengths are drawn: an older kill draws its old picture
 /**
  * BEACH'S PATH (windBeachPath.js; owner 2026-10-12, D-025): beach's field with its lightness one way through the green band and its pale gale band under a ceiling.
  * ON wherever the white streak draws in beach, so everything that stands the white streak down stands it down too.

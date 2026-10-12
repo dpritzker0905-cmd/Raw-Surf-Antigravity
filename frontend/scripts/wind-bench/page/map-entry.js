@@ -88,7 +88,16 @@ function offlineStyle(theme) {
 }
 
 let GRIDS = null;
-const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null, cropAt: null, offline: false, dpr: DPR };
+const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null, cropAt: null, offline: false, dpr: DPR, page: null };
+// THE PAGE BEHIND THE MAP (../page-colour.js): every frame saved here is the map's canvas laid over the page the app lays behind it, so it is
+// what the screen shows whatever alpha the wind left in the canvas. state.page is a run's own page (`--behind`); null is the app's for the theme.
+const { pageOf, alphaOf, foldAlpha } = require('../page-colour');
+/** A 2D canvas of w x h already filled with the page behind the map: draw the map's canvas onto it and it is what the screen shows. */
+function pageCanvas(w, h) {
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const x = t.getContext('2d'); x.fillStyle = state.page || pageOf(state.theme); x.fillRect(0, 0, w, h);
+  return t;
+}
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
 
@@ -208,12 +217,11 @@ function readCanvas(map) {
   const gl = state.gl, W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
-  return { px, W, H };
+  return { px, W, H, alpha: alphaOf(px) };   // alpha: the canvas's own, least and mean; under 1 the page behind the map shows on screen
 }
 
 function thumb(map) {
-  const t = document.createElement('canvas');
-  t.width = THUMB; t.height = Math.round(THUMB * CSS_H / CSS_W);
+  const t = pageCanvas(THUMB, Math.round(THUMB * CSS_H / CSS_W));
   t.getContext('2d').drawImage(map.getCanvas(), 0, 0, t.width, t.height);
   return t.toDataURL('image/jpeg', 0.82);
 }
@@ -221,8 +229,7 @@ function thumb(map) {
 /** A crop at DEVICE resolution (what the screen shows, pixel for pixel; the centre, or centred at state.cropAt = [fx, fy] of the canvas), as a PNG data URL; null when no crop is asked for. */
 function cropShot(map) {
   if (!state.crop) return null;
-  const c = map.getCanvas(), t = document.createElement('canvas');
-  t.width = Math.min(state.crop[0], c.width); t.height = Math.min(state.crop[1], c.height);
+  const c = map.getCanvas(), t = pageCanvas(Math.min(state.crop[0], c.width), Math.min(state.crop[1], c.height));
   const [fx, fy] = state.cropAt || [0.5, 0.5], at = (f, full, part) => Math.max(0, Math.min(full - part, Math.round(full * f - part / 2)));
   t.getContext('2d').drawImage(c, at(fx, c.width, t.width), at(fy, c.height, t.height), t.width, t.height, 0, 0, t.width, t.height);
   return state.crop[2] === 'jpeg' ? t.toDataURL('image/jpeg', 0.92) : t.toDataURL('image/png');
@@ -418,6 +425,7 @@ async function shoot(cfg) {
       landMask: { status: landMask, on: landOn },
       glError: state.gl.getError() || 0, shots: { off: offRaw.shot, field: fieldRaw.shot, full: shotFull },
       crops: state.crop ? { off: offRaw.crop, field: fieldRaw.crop, full: cropFull } : null,
+      page: pageOf(cfg.theme, state.page), canvasAlpha: foldAlpha(foldAlpha(null, fieldRaw.alpha), fullRaw.alpha),   // the field pass and the last full frame
     };
   } finally {
     Math.random = realRandom;
@@ -447,8 +455,7 @@ const OPACITY_PROPS = { fill: ['fill-opacity'], line: ['line-opacity'], symbol: 
   circle: ['circle-opacity', 'circle-stroke-opacity'], raster: ['raster-opacity'], heatmap: ['heatmap-opacity'], hillshade: ['hillshade-exaggeration'] };
 
 function smallShot(map, width = 300) {
-  const t = document.createElement('canvas');
-  t.width = width; t.height = Math.round(width * CSS_H / CSS_W);
+  const t = pageCanvas(width, Math.round(width * CSS_H / CSS_W));
   t.getContext('2d').drawImage(map.getCanvas(), 0, 0, t.width, t.height);
   return t.toDataURL('image/jpeg', 0.8);
 }
@@ -564,6 +571,7 @@ async function pathRun(cfg) {
     ref.set(i, { orig: binImage(o.px, o.W, o.H, ANALYSIS), wet: binMask(maskDev, o.W, o.H, ANALYSIS), lines: lineRef(oCss, cssMask(maskDev, o.W, o.H)) });
   }
   const legend = legendBins(theme), legendAt = legendLab(theme), rows = [];
+  let alpha = null;   // the canvas's own alpha over every sampled frame (../page-colour.js)
   map.jumpTo(camOf(cfg.frames[0]));
   const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
   await idle(map);
@@ -584,6 +592,7 @@ async function pathRun(cfg) {
       await frame();
       if (!S.has(i)) continue;
       const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? smallShot(map, cfg.shotWidth) : null;
+      alpha = foldAlpha(alpha, compRaw.alpha);
       state.active = false;
       await frame();                                    // same camera, wind layer skipped, clock not advanced
       const offRaw = readCanvas(map);
@@ -607,7 +616,7 @@ async function pathRun(cfg) {
         retLand: r(lines[0].retain), retWater: r(lines[1].retain),
         warp: warp && Object.fromEntries(Object.entries(warp).map(([k, v]) => [k, r(v, 3)])), shot });
     }
-    return { theme, mute, landMask: { status: landMask, on: landMaskOn() }, stylePal: stylePal.length, rows, glError: state.gl.getError() || 0 };
+    return { theme, mute, landMask: { status: landMask, on: landMaskOn() }, stylePal: stylePal.length, rows, glError: state.gl.getError() || 0, page: pageOf(theme, state.page), canvasAlpha: alpha };
   } finally {
     delete performance.now;
     state.active = false;
@@ -649,7 +658,8 @@ function trailHash() {
 async function flowRun(cfg) {
   const map = await ensureMap(cfg.theme), theme = cfg.theme, S = new Set(cfg.samples);
   state.active = false;
-  state.crop = Array.isArray(cfg.shotCrop) ? cfg.shotCrop : null; state.cropAt = cfg.shotAt || null;
+  state.crop = Array.isArray(cfg.shotCrop) ? cfg.shotCrop : null; state.cropAt = cfg.shotAt || null; state.page = cfg.page || null;   // null: the app's own page for the theme
+  if (cfg.page && !(window.CSS && CSS.supports('color', cfg.page))) throw new Error('not a CSS colour for the page behind the map: ' + cfg.page);
   clearLevers(); Object.assign(window, cfg.levers || {});
   map.jumpTo(camOf(cfg.frames[0]));
   const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
@@ -660,7 +670,7 @@ async function flowRun(cfg) {
   newEngine(cfg.res, cfg.seed);
   delete window.__WIND_TRAIL_ANCHOR__;
   const rows = [];
-  let landMask = 'off';
+  let landMask = 'off', alpha = null;
   let vms = realNow();
   performance.now = () => vms;
   const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
@@ -675,6 +685,7 @@ async function flowRun(cfg) {
       await frame();
       if (!S.has(i)) continue;
       const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? (state.crop ? cropShot(map) : smallShot(map, cfg.shotWidth)) : null;
+      alpha = foldAlpha(alpha, compRaw.alpha);
       const hash = i < (cfg.hashBefore || 0) ? trailHash() : null;
       state.active = false;
       await frame();                                    // same camera, wind layer skipped, clock not advanced
@@ -691,7 +702,8 @@ async function flowRun(cfg) {
       const f = cam.pitch || state.dpr !== DPR ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
       rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot });
     }
-    return { theme, mute, ink: window.__WIND_BORDER_INK__ || null, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0 };
+    return { theme, mute, ink: window.__WIND_BORDER_INK__ || null, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0,
+      page: pageOf(theme, state.page), canvasAlpha: alpha };   // the page laid behind every saved frame, and the map canvas's own alpha over every sampled frame
   } finally {
     delete performance.now;
     state.active = false;
@@ -699,7 +711,7 @@ async function flowRun(cfg) {
     syncWindBasemapMute(map, theme, false, WIND_ID);
     Math.random = realRandom;
     clearLevers();
-    state.crop = null; state.cropAt = null;
+    state.crop = null; state.cropAt = null; state.page = null;
   }
 }
 
