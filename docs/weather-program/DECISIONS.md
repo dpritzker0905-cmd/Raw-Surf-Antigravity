@@ -545,3 +545,38 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   on the real basemaps before and after, beside dark, with the layer-order control; the built code against the candidate and its
   kill; 18 of 18 offline crops under the kill the same PNG as `origin/dev`, dark's 9 of 9; map mode's columns with the app's
   restyle run; before and after crops and two side-by-side clips at the owner's pixel ratio. Nothing has been seen in the app.
+
+### D-027 · The wind leaves the map's canvas opaque; ON by default
+- **Decided:** by the lead session of the light/beach wind lanes, 2026-10-12, on the owner's standing instruction and their
+  verdict of the same day. The owner, 02:58Z: "We need to make light mode wind animations & beach mode wind animations equivalent
+  to dark modes." The owner, 12:28Z, on the deployed build: "I just did a visual check for wind on beach and light modes, and I
+  still do not visually see the improvements yet." The owner, 12:36Z: "This should work after all the agents worked on this.
+  Study your research and best practices more." **The owner did not name this change and has not seen this build.** That it ships
+  ON with a kill is D-020's standing rule as this session reads it: the picture it draws in light is the picture every sample the
+  owner chose from since 2026-10-10 was drawn with.
+- **Rule:** a pass the wind draws into the map's own framebuffer blends the colour as it did and leaves the canvas's alpha as the
+  map drew it (`blendIntoMap`, `windCanvasAlpha.js`: `blendFuncSeparate(src, dst, ZERO, ONE)`). Two passes: dark's colour field,
+  and the trail composite that dark, and since D-021 light's and beach's white streak, are drawn with. No colour the wind writes
+  changes. Kill: `window.__RAW_DISABLE_WIND_OPAQUE_CANVAS__ = true` (read each frame; dev's blends, call for call). Client only;
+  no served number moves.
+- **Why (log 2026-10-12-wind-canvas-alpha):** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`.
+  Both passes used `blendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)`, which blends the alpha by the colour's factors and leaves
+  `1 - a + a x a` in an opaque canvas. Read on the bench: 0.61 at the least and 0.69 on average in dark, 0.75 and 0.90 in light
+  and beach. Behind the map `MapPage.js` lays black in dark AND beach and near white (gray-50) in light. So dark and beach showed
+  the colours as drawn, and light showed the page's white through every streak. Light on dev, over its own page, against dark at
+  the same sea crop: the streaks lift the picture 19.7 L* where dark's lift it 11.2, and a streak's core reads L* 94 (paper
+  white) where dark's reads 70. With the fix: 10.3 and 72.
+- **Why two days of work did not show in the app:** the wind bench saved every frame as a JPEG of the bare canvas, which is the
+  canvas over BLACK. So every measurement and every sample of a light look that runs dark's composite (the glow of 2026-10-10 by
+  the code's path, not re-measured; the white streak from 2026-10-11 on, measured) was the picture WITH this fix, which the app
+  did not draw. Beach's page is black, so beach's samples were true; what beach lacks on the site is the open changes (#315,
+  #319, #320), none merged.
+- **What it costs:** over LAND in light air light's streaks get fainter until D-026 (#320) lands: 0.70 of dark's lift on dev's
+  page, 0.42 with the fix (the page's white was the only thing lifting a white streak off a pale land). #320 was measured on
+  the fixed picture. Merge them together.
+- **Not decided here, the owner's:** D-022's sea strengths (0.55) were set by a ratio to dark's lift, and the probe's ground
+  reads dark's lift too high (LESSONS L-V73): against the field alone light and beach at 0.55 lift the sea 1.6 to 1.9 times
+  what dark does at 12 to 18 kn. Not retuned: one visual variable at a time, after this is seen in the app.
+- **Evidence (the log):** the canvas's alpha with and under the kill in three themes; frames with and under the kill at the same
+  run position, by hash (dark 90 of 90 the same bytes, beach 90 of 90, light 0 of 90); the null control and the order control;
+  real browser screenshots of one light frame over the two page colours; the probe beside dark on both. Nothing seen in the app.

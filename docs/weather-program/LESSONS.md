@@ -949,3 +949,29 @@ A stored estimate can be estimated again in a browser branch with different sour
   true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
   them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
   compare themes by switching, and nothing switched. (same log)
+- **L-V72 · An instrument that reads a canvas must lay behind it what the app lays behind it. The bench drew light over black
+  for two days; the app's light page is near white.** The map's canvas is premultiplied: the screen shows `rgb + (1 - alpha) x
+  page`. Two of the wind's passes left the canvas's alpha at 0.61 to 0.90, the bench saved frames as JPEGs of the bare canvas (a
+  JPEG fills with black), and `MapPage.js` lays black behind dark and beach but gray-50 behind light. So in light every bench
+  number and every sample of a look that runs dark's composite (the glow, 2026-10-10; the white streak, 10-11 on) showed a
+  picture the app did not draw; the owner found light "washed out" live on 10-10 (as that session's memory records it) and said
+  "I still do not visually see the improvements yet" on 10-12, and both times the tuning went on against the bench. One
+  real screenshot of the page over each colour settled it in an afternoon. Rules: (1) an instrument's frame is the canvas AND
+  the page behind it, or it asserts the canvas's alpha is 1 and prints it; (2) the app's fact the instrument copies (here the
+  page's class) is pinned by a test beside the copy; (3) **when the owner's eye and the instrument disagree a second time, the
+  instrument is the suspect: before another round of tuning, compare one real screenshot of the app's own composition with the
+  instrument's frame of the same thing;** (4) a pass drawn into a canvas someone else owns sets the alpha's blend on purpose
+  (`blendFuncSeparate`), never by the colour's factors; (5) compare two arms at the same run position (a theme's first run on a
+  fresh map differed from its second in 15 of 90 frames, whichever arm was which). (log 2026-10-12-wind-canvas-alpha)
+- **L-V73 · A level measured as "the darkest moment of the thing present" is not the level with the thing absent.** The mirror
+  probe takes each pixel's darkest moment as the ground a streak is laid on. Beside the same crop drawn with the colour field
+  alone (no particles), that ground read 3.4 to 5.5 L* LOW in dark and within 0.3 in light over the sea: dark's marks carry the
+  legend's colour and take the picture below the field beside their core (on lossless frames, 19% of pixel-instants over the sea
+  sit 1.5 L* or more under the field; light's and beach's marks were solved to be the ground's colour made lighter, and none do).
+  So dark's lift, the bar every strength since D-022 was set against, read 8.6 to 12.4 where it is 5.1 to 8.1 against the field
+  alone, and "light equals dark over the sea" was light at 1.6 to 1.7 times dark (read on the local preview that carries every
+  open change, 12 to 18 kn; dev's own engine was not read this way). Rules: (1) a reference level is measured with
+  the thing absent (the field with a 2 x 2 particle pool), not inferred from the minimum of the thing present; (2) a claim about
+  a 1 px line is read on lossless frames at device resolution (the JPEG at 1000 px blurs and rings); (3) when a ratio set a
+  strength, the bar is re-derived before the strength is trusted again. One scene, one crop each: recorded, not yet a retune.
+  (same log)
