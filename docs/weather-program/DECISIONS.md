@@ -545,3 +545,49 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   on the real basemaps before and after, beside dark, with the layer-order control; the built code against the candidate and its
   kill; 18 of 18 offline crops under the kill the same PNG as `origin/dev`, dark's 9 of 9; map mode's columns with the app's
   restyle run; before and after crops and two side-by-side clips at the owner's pixel ratio. Nothing has been seen in the app.
+
+### D-027 · The wind leaves the map's canvas opaque; ON by default
+- **Decided:** by the lead session of the light/beach wind lanes, 2026-10-12, on the owner's standing instruction and their
+  verdict of the same day. The owner, 02:58Z: "We need to make light mode wind animations & beach mode wind animations equivalent
+  to dark modes." The owner, 12:28Z, on the deployed build: "I just did a visual check for wind on beach and light modes, and I
+  still do not visually see the improvements yet." The owner, 12:36Z: "This should work after all the agents worked on this.
+  Study your research and best practices more." **The owner did not name this change and has not seen this build.** That it ships
+  ON with a kill is D-020's standing rule as this session reads it: the picture it draws in light is CLOSE TO the samples of
+  light's white streak the owner chose from, not the same (corrected after the review, below): those samples were clipped at the
+  brightest streak cores, so the app's cores will be brighter and more coloured than any sample showed.
+- **Rule:** a pass the wind draws into the map's own framebuffer blends the colour as it did and leaves the canvas's alpha as the
+  map drew it (`blendIntoMap`, `windCanvasAlpha.js`: `blendFuncSeparate(src, dst, ZERO, ONE)`). Two passes: dark's colour field,
+  and the trail composite that dark, and since dark's rules (D-020) light and beach, are drawn with. No colour the wind writes
+  changes. Kill: `window.__RAW_DISABLE_WIND_OPAQUE_CANVAS__ = true` (read each frame; dev's blends, call for call). Client only;
+  no served number moves.
+- **Why (log 2026-10-12-wind-canvas-alpha):** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`.
+  Both passes used `blendFunc(SRC_ALPHA, ONE_MINUS_SRC_ALPHA)`, which blends the alpha by the colour's factors and leaves
+  `1 - a + a x a` in an opaque canvas. Read on the bench: 0.61 at the least and 0.69 on average in dark, 0.75 and 0.90 in light
+  and beach. Behind the map `MapPage.js` lays black in dark AND beach and near white (gray-50) in light. So dark and beach showed
+  the colours as drawn, and light showed the page's white through every streak. Light on dev, over its own page, against dark at
+  the same sea crop (corrected frames; the mean picture minus the same crop drawn with the field alone): the streaks add 27.3 L*
+  where dark's add 8.5, and a streak's core reads L* 94 (paper white) where dark's reads 70. With the fix: 12.3 and 72.
+- **Why two days of work did not show in the app:** the wind bench saved every frame from the BARE canvas, never over the page.
+  So no measurement and no sample of a light look that runs dark's composite (the glow of 2026-10-10 by the code's path, not
+  re-measured; dark's rules and the white streak from 2026-10-11 on, measured) was the picture the app drew. **And a bare-canvas
+  frame is not the canvas's own colour either (the review):** the encoder un-premultiplies a pixel (clamped at 255) and fills with
+  black, so a pixel held min(channel, alpha). That clipped the brightest streak cores darker in EVERY theme (the review, one scene:
+  6% to 26% of pixels, 1.7 to 3.6 L* each on average; this session's own older lossless crops: 29% of dark's sea pixels, 15% of
+  dark's land, 7% of light's). So beach's and dark's samples were not exact either, and no number read from a saved frame with
+  streaks on it before this change is exact, dark's bar included. What IS exact: on the corrected bench light with the fix is dev's
+  light over a true black page, 90 of 90 frames. What beach lacks on the site is the open changes (#315, #319, #320), none merged.
+- **What it costs:** over LAND in light air light's streaks add about half the light they did: 7.5 L* on dev's page, 3.8 with the
+  fix (corrected frames, against the field alone). Dark's add 3.3 there, so this is not a shortfall against dark. (As first
+  written this said "0.70 of dark's lift, 0.42 with the fix; merge with #320": those were the probe's lifts, which are not
+  comparable across themes, LESSONS L-V73. The two changes do not have to merge together.)
+- **Not decided here, the owner's:** the streaks' strengths. D-022 set them by a ratio of the probe's lifts, on clipped frames.
+  On corrected frames, against the field alone, with every open change (6 to 39 kn): a streak's CORE stands the same height over
+  the field over the sea (light within 1 L* of dark to 18.5 kn, beach within 4); light adds 1.3 to 1.7 times the light dark does
+  over the sea and beach 1.0 to 1.8 times, and both 0.9 to 1.2 times over the deeper land, because their pixels do not come back
+  to the field between streaks (from 12 kn up the darkest moment sits 1 to 12 L* over the field, where dark's sits 2 to 3 under it
+  to 18.5 kn). Not retuned: one visual variable at a time, after this is seen in the app.
+- **Evidence (the log):** the canvas's alpha with and under the kill in three themes; frames with and under the kill at the same
+  run position, by hash (dark 90 of 90 the same bytes, beach 90 of 90, light 0 of 90); the null control and the order control;
+  real browser screenshots of one light frame over the two page colours; the probe beside dark on both; the independent review
+  (it could not break the engine change; its behavioural test, now `windCanvasAlphaTrace.test.js`, checks every draw into the map
+  on 20 lever sets) and the re-measure on corrected frames it led to. Nothing seen in the app.

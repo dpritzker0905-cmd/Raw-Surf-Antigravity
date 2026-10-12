@@ -949,3 +949,37 @@ A stored estimate can be estimated again in a browser branch with different sour
   true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
   them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
   compare themes by switching, and nothing switched. (same log)
+- **L-V72 · An instrument that reads a canvas must lay behind it what the app lays behind it. The bench drew light over black
+  for two days; the app's light page is near white.** The map's canvas is premultiplied: the screen shows `rgb + (1 - alpha) x
+  page`. Two of the wind's passes left the canvas's alpha at 0.61 to 0.90, the bench saved frames from the bare canvas, and
+  `MapPage.js` lays black behind dark and beach but gray-50 behind light. So in light every bench number and every sample of a
+  look that runs dark's composite (the glow, 2026-10-10; dark's rules and the white streak, 10-11 on) showed a picture the app
+  did not draw. A bare-canvas frame is not "the canvas over black" either: the encoder un-premultiplies (clamped at 255) and then
+  fills, so a pixel held min(channel, alpha) and the brightest streak cores were clipped darker in every theme, dark's bar
+  included (found by the independent review, after this lesson's first wording had called the old frames "over black"); the owner found light "washed out" live on 10-10 (as that session's memory records it) and said
+  "I still do not visually see the improvements yet" on 10-12, and both times the tuning went on against the bench. One
+  real screenshot of the page over each colour settled it in an afternoon. Rules: (1) an instrument's frame is the canvas LAID
+  OVER the page behind it (drawn onto an opaque canvas of the page's colour, never exported bare), and it prints the canvas's
+  alpha, on every read it scores, not only on the frames it saves; (2) the app's fact the instrument copies (here the
+  page's class) is pinned by a test beside the copy; (3) **when the owner's eye and the instrument disagree a second time, the
+  instrument is the suspect: before another round of tuning, compare one real screenshot of the app's own composition with the
+  instrument's frame of the same thing;** (4) a pass drawn into a canvas someone else owns sets the alpha's blend on purpose
+  (`blendFuncSeparate`), never by the colour's factors; (5) compare two arms at the same run position (a theme's first run on a
+  fresh map differed from its second in 15 of 90 frames, whichever arm was which). (log 2026-10-12-wind-canvas-alpha)
+- **L-V73 · A level measured as "the darkest moment of the thing present" is not the level with the thing absent; and a
+  measure that reads two themes differently cannot rank them.** The mirror probe takes each pixel's darkest moment as the ground
+  a streak is laid on, and its `lift` is the mean picture over that. Beside the same crop drawn with the colour field ALONE (a
+  2 x 2 particle pool), on corrected frames (L-V72) with every open change, 3 to 39 kn: in DARK the darkest moment sits 2 to 4 L*
+  UNDER the field over the sea to 18.5 kn (lossless at 15.3 kn: 19% of pixel-instants are 1.5 to 3 L* under it; dark's marks carry
+  the legend's colour and take a little from the field beside their core); in LIGHT and BEACH it sits 1 to 12 L* OVER the field
+  from 12 kn up (their pixels do not come back to the field between streaks). So the probe's lift over-read dark and under-read
+  light and beach at once: over land in light air it said light lifts 0.15 to 0.55 of what dark does where the light actually
+  added is 1.1 to 1.2 times dark's, and that reading was the stated reason for a change (D-026). By light added over the field
+  alone, light and beach are at or above dark nearly everywhere (0.9 at the least); what differs is that dark's streaks return
+  to the field and theirs linger. Rules: (1) a reference level is measured with the thing absent, not inferred from the minimum of the thing present;
+  (2) before a number ranks two arms, check it reads both the same way: here, compare the probe's ground with the field alone in
+  each theme; (3) a claim about a 1 px line is read on lossless crops at device resolution (the JPEG at 1000 px rings: at
+  15.3 kn over land it read dark's dip as 2.0 L* where lossless reads 0.6); (4) when a ratio set a strength or justified a change, the
+  bar is re-derived before either is trusted again. (As first written, on clipped frames and one ramp, this lesson gave "3.4 to
+  5.5 L* low in dark, true in light" and "light at 1.6 to 1.7 times dark": the direction stood, the numbers did not. Log
+  2026-10-12-wind-canvas-alpha, "After the review".)
