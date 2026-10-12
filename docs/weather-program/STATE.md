@@ -68,6 +68,13 @@ is a claim, not a measurement.
     colour-blind floor is unchanged, under 5 (3.2 / 3.1). A streak no longer carries a speed colour of its own.
   - **Not built, each the owner's call:** each theme's palette under this look; beach's gale band; removing the land and sea streak
     rows, the land mask and the streak solver, which now do little (light binds the mask for two equal rows).
+    **Measured 2026-10-12 03:20Z (log `2026-10-12-wind-streak-rows`): "do little" is wrong for beach, and the mask has a second job
+    since #314.** The land mask is what D-022 lays the white by. Beach's sea row carries a lower ALPHA than its land row, and a
+    trail is laid at its brightness squared, so that row lays the white about 19% weaker over the sea at the everyday winds. One
+    row instead of two, at the default, offline bench, pixel for pixel, zooms 4 to 8: the land row everywhere moves 29 to 67% of
+    the SEA's pixels by more than dE00 2.3 and puts a pale ring on a storm over the sea; the sea row everywhere moves 6 to 29% of
+    the LAND's and dims it. Light already draws one row. **Nothing was removed and nothing built**; if one row is still wanted it
+    is a look change for the owner's eye (the sea row's share, 0.815, folded into the sea number), not a cleanup. LESSONS L-P35.
   - **Seen in the app 2026-10-11 23:36Z** (this entry said "nothing has been seen in the app" until then): on the deployed build
     `_lookKey` is `white|dark-rules` and the land mask `ready`; the owner's verdict is quoted in the entry above. Ledger
     commitment 1056 is closed by the line that fulfils it. Log

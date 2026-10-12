@@ -877,6 +877,19 @@ A stored estimate can be estimated again in a browser branch with different sour
   amendment and its STATE bullet were not. Rules: (1) check the base PR's state again immediately before the first push, not only
   at the start; (2) when the owner's word overtakes unpushed work, say so in the log where the work is recorded and name what was
   carried and what was dropped; (3) never open a PR for work the owner has already moved past, however green its gates. (same log)
+- **L-P35 · "It now does little" is a claim: before removing machinery called idle, list every number it writes and pull it out
+  as a lever.** D-021's record said beach's land and sea streak rows, the land mask and the streak solver "now do little" under
+  dark's white ring, and a cleanup was briefed on it: one row, no mask, no solver, identical pixels as the proof. The check behind
+  the claim had read the head's CHROMA (near-white, whichever row). A row is four numbers a knot, and the fourth, the mark's
+  alpha, sets how strongly the white is laid (a trail is laid at its brightness squared): beach's sea row lays it about 19% weaker
+  at the everyday winds, and with the land row alone 29 to 67% of the sea's pixels moved by more than dE00 2.3. And the PR that
+  merged after the brief was written (#314) had given the mask a second job, so a third of the brief was void before a line was
+  measured. Rules: (1) before calling a table, a texture or a sample idle, list every channel it carries and every line that
+  reads it (`color.a` and `u_white` were one search away); (2) test "idle" by taking it out as a lever with everything else held,
+  on the GPU, with a case where it IS idle as the null control (light's two equal rows: 16 of 16 PNGs the same), and when two
+  things read one sample switch the other off first (D-022's kill), or the test moves both; (3) a brief ages from the minute it
+  is written: at the start read what merged SINCE, not only whether the PR it names merged; (4) "the difference is visible" ends
+  a cleanup: what is left is a look change, and it goes to the owner as one. (log 2026-10-12-wind-streak-rows)
 
 - **L-V43 · Read land and sea apart: one number over a mixed view can say "equal" while both grounds are wrong.** D-021's white
   streak was laid at one strength, calibrated on a bench view that is mostly land, and its lift over that view's centre read 1.05
