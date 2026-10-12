@@ -475,3 +475,26 @@ depth cap, calm kept, hue within 20 degrees of dark's (the engine's law), one ch
 - With the chroma held only to 12 kn the solver pays the soft slow colours back with a jump at 21 kn (C* 25 to 55): hold it to
   27 kn or the colour arrives in one step.
 - Read at the stops by the solver's own model, two seeds a row; not built, not filmed, not checked by `check.mjs`.
+
+## 14:18Z · Two findings of the leading session that qualify every picture and every ratio in this log (relayed; not re-measured here)
+
+Relayed by the session leading this work (its message, about 14:16Z; its branch `claude/wind-opaque-canvas`, its log
+`2026-10-12-wind-canvas-alpha`; D-027 there). Neither is this session's measurement.
+
+1. **The app's light page showed through every streak; the bench drew over black.** The wind left the map canvas see-through
+   under the trail composite, `MapPage.js` lays a near-white page behind the map in light (black in dark and beach), and the
+   bench saved the bare canvas. So: this log's FIELD numbers for light stand (the multiply pass keeps the canvas opaque), but
+   **every picture of light WITH STREAKS here (the stills, the clips, the ramp) is light over a black page: what the app will
+   draw once that fix is on dev, not what the deployed app draws today.** In the app today light's streaks are brighter than in
+   these pictures.
+2. **The mirror probe reads dark's ground 3.4 to 5.5 L* low, and light's true.** Dark's lift was read 8.6 to 12.4 where it is
+   5.1 to 8.1 against the field alone. **Every "lift against dark's" in this log is therefore against a bar read too high: the
+   ratios understate light.** The comparisons this change rests on are light against light at the same crop (before -> now),
+   and those stand in direction and size; the ratios to dark (0.52, 0.56, 0.77 over land at 10 to 16 kn and the rest) do not,
+   as absolute numbers.
+- Its question to this lane: with every open change in one preview, light's ground chroma over the sea reads 42 at 25.6 kn
+  against dark's 27; intended? Answer: it is the solve's one chroma crest (27 kn: C* 42.5 over land, 33.8 over the sea by the
+  table), placed where dark's own crest sits and what separates 21-27 and 27-33 kn for red-green viewers (the binding pair,
+  5.13). The what-if above shows it is not needed if the ground may be lighter: with the sea's chroma held to 26 all the way to
+  27 kn the floor reads 6.0.
+- #318 at this time: head `12d8748e`, MERGEABLE, checks clean, dev still at `74417b5a`.
