@@ -228,7 +228,8 @@ its mark pixels are darker than the ground (`style.js`). Two live anchors make i
   the scanner. On dev's own code the same look is `{"__RAW_WIND_LIGHT_LOOK__":"deep","__RAW_WIND_GLOW_RING__":1}` (light) and
   `{"__RAW_WIND_GLOW_RING__":1}` (beach).
 - **Since dark's white by the ground (2026-10-12, D-022) `candidate` and an empty arm lay the white streak at full strength over land
-  and at a share of it over the sea** (`DARK_WHITE`: 0.55 in light, 0.77 in beach), picked by the land mask. The arm to compare
+  and at a share of it over the sea** (`DARK_WHITE`: 0.55 in light and in beach; beach's was 0.77 until 2026-10-12), picked by the
+  land mask. The arm to compare
   against is its kill: `--arms '{"full":{"__RAW_DISABLE_WIND_DARK_WHITE__":true},"now":{}}'` in map and motion mode. **It needs a land
   file:** with none (the scanner's page, `--no-land-file`) every mark is laid as over land and the two arms are the same picture, by
   construction (`--variants candidate,full-white` in the scanner reads equal for that reason, not because the change is safe).
@@ -251,11 +252,16 @@ Dark is the model (owner, 2026-10-11). Two looks passed the still-frame columns 
 (DECISIONS D-020, D-021), so these modes read the MOVING picture, and read it with a probe that also runs in the deployed app.
 
 ```bash
-node scripts/wind-bench/motion-run.js --runs runs.json --out out/motion.json --dpr 1.5     # every 60 Hz frame, a still camera
-node scripts/wind-bench/mirror-run.js --motion out/motion.json --at 0.5,0.12               # each run beside dark's: here, the land
-node scripts/wind-bench/mirror-run.js --motion out/motion.json --at 0.5,0.9                # and the sea
-node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title" "DARK=run-a" "BEFORE=run-b" "NOW=run-c"
+node scripts/wind-bench/motion-run.js --runs runs.json --out scripts/wind-bench/out/motion.json --dpr 1.5     # every 60 Hz frame, a still camera
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/motion.json --at 0.5,0.12 --size 360   # each run beside dark's: here, the land
+node scripts/wind-bench/mirror-run.js --motion scripts/wind-bench/out/motion.json --at 0.5,0.9 --size 360    # and the sea
+node scripts/wind-bench/compose-video.js scripts/wind-bench/out/videos/side.webm 3 500 60 2 "title" "DARK=run-a" "BEFORE=run-b" "NOW=run-c"
 ```
+
+- **Paths are read from where you stand** (`frontend/`), so write them out as above: the first version of this block said
+  `out/motion.json`, which is `frontend/out/`, not the bench's own `out/` (the frames always go to the bench's
+  `out/motion/<name>/`). **Every number recorded from this mode was read with `--size 360`** (the crop's side in CSS pixels;
+  the default is 420, and a different crop reads a different lift): pass it to compare with a recorded number.
 
 - `runs.json`: `[{ name, theme, z, scale?, levers?, frames?, lng?, lat? }]`; frames land in `out/motion/<name>/`. `--dpr` is the device
   pixel ratio the page renders at: the owner's laptop is 1.5, every other mode here runs at 1. Needs the Mapbox token as map mode does.
@@ -271,6 +277,14 @@ node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title"
 - `compose-video.js` plays runs side by side as one WebM through the ffmpeg Playwright installs (there is no system ffmpeg).
 - Baseline, 2026-10-12, D-022 built (Mobile Bay, served wind, dpr 1.5; lift against dark's at zooms 6 / 4 / 9): over the sea light
   1.03 / 1.22 / 1.07 and beach 1.01 / 1.34 / 0.91; over land light 0.85 / 0.74 / 0.26 and beach 0.93 / 0.80 / 0.69.
+- **Baseline since beach's sea strength is 0.55** (2026-10-12, D-022 amended; same view, same crops): over the sea beach
+  0.80 / 1.19 / 0.74 (its kill 1.23 / 1.46 / 1.06, light 1.03 at zoom 6, dark's lift 12.6 / 10.4 / 6.9: the numbers before, to the
+  digit); over land 0.93 / 0.80 / 0.69, unchanged.
+- **Sweep the wind's strength too** (a run's `scale`; LESSONS L-V50). The lift against dark's is not one number per theme: at
+  zoom 6 over the sea with `"scale": 2.3` (Mobile Bay's median near 30 kn) beach at 0.55 reads 1.07, its kill 1.70 and light 1.23,
+  where the served wind reads 0.80, 1.23 and 1.03. A stronger wind brightens dark's own ground (36.7 to 43.9 L*) and deepens
+  beach's (49.6 to 42.0), so the same white lifts beach further and dark less. The device pixel ratio moves it little (`--dpr 3`,
+  served wind: beach 0.84, its kill 1.35, light 0.98).
 
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 

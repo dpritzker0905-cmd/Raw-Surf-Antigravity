@@ -77,10 +77,16 @@ export const WHITE_STREAK = Object.freeze({ opacity: 1.0, ring: 1, white: 0 });
  * at the share of it at which a streak lifts the picture as far as dark's lifts dark's sea (the median over zooms 4, 6 and 9 on the
  * bench, the real basemaps, the owner's pixel ratio). Each number is a STRENGTH: the share of full. The mark carries its square root
  * as its light level, because the screen pass lays a trail at its level squared.
+ * BEACH'S SEA IS 0.55 BY THE OWNER'S WORD (2026-10-12: "make the beach sea strength change to 0.55"). The bench's median for beach
+ * was 0.77, taken in the wind as served (Mobile Bay, a median near 13 kn). Read on the deployed build on the owner's screen in a
+ * 67 kn field (zoom 6, open sea) 0.77 lifted the picture 1.37 times as far as dark's, and the bench with its wind scaled 2.3 times
+ * reads the same (1.38, between its two measured strengths). At 0.55 beach reads 1.07 of dark's in that strong wind and 0.80 / 1.19 /
+ * 0.74 at zooms 6 / 4 / 9 in the wind as served: ONE NUMBER DOES NOT FIT EVERY WIND STRENGTH (LESSONS L-V50), and this one is
+ * dark's lift in a storm, a quieter streak than dark's in a breeze.
  * Kill: window.__RAW_DISABLE_WIND_DARK_WHITE__ = true (full strength on both grounds, as PR #313 drew, pixel for pixel).
  * No table moves. WindColorRamp.js windWhiteStrength decides; without a land mask every mark is laid as over land (PR #313's look).
  */
-export const DARK_WHITE = Object.freeze({ light: Object.freeze({ land: 1, sea: 0.55 }), beach: Object.freeze({ land: 1, sea: 0.77 }) });
+export const DARK_WHITE = Object.freeze({ light: Object.freeze({ land: 1, sea: 0.55 }), beach: Object.freeze({ land: 1, sea: 0.55 }) });
 
 const BASE = {
   dark: { land: [28, 37, 48], water: [11, 29, 46] },

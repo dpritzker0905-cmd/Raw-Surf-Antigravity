@@ -14,6 +14,29 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-12 03:10Z: beach's SEA strength for the white streak is 0.55, not 0.77 (client only; the owner's word; a PR against
+  dev, the owner merges).** After the read-back of #314 on the deployed build (`ec8f46a2`; light at 0.55 lifted the picture 1.04
+  times as far as dark's over open sea at zoom 6, beach at 0.77 lifted it 1.37 times, in a field reaching 67 kn) the owner:
+  "make the beach sea strength change to 0.55" (DECISIONS D-022, amended 2026-10-12).
+  - **What draws:** `DARK_WHITE.beach.sea` 0.55 (`windDarkRules.js`). Nothing else: no table, key, shader or engine line; land,
+    light and dark as before. Kill unchanged: `window.__RAW_DISABLE_WIND_DARK_WHITE__ = true`.
+  - **Measured, and the finding (LESSONS L-V50): the right strength depends on the WIND'S STRENGTH.** On the bench's view in the
+    wind as served (a median near 13 kn) beach at 0.55 reads 0.80 / 1.19 / 0.74 of dark's lift over the sea at zooms 6 / 4 / 9
+    (1.01 / 1.34 / 0.91 at 0.77): UNDER dark's. With the bench's wind scaled 2.3 times it reads 1.07 (0.77 works out to 1.38, the
+    deployed read). A stronger wind brightens dark's ground and deepens beach's. 0.55 is dark's lift in a storm and a quieter
+    streak than dark's in a breeze; 0.77 was the reverse; one number is not both. Its cost per knot: at beach's 29 kn band a core
+    stands 22.7 L* off its ground (31.5 at 0.77). Palette checker: the same two red lines as dev; two watch lines move.
+  - **#314's read-back is done** (the mark program's `u_white` as built; the kill acts at once; the count of moving marks is the
+    same in the three themes: 147,456 particles, the same share kept at each zoom), and four errors in D-022's record are
+    corrected there (the read-back criterion, `--size 360`, the README's paths, two unreported watch lines).
+  - **Not verified:** 0.55 has not been seen in the app. **Not built, the owner's calls:** a sea strength that follows the
+    wind's speed (it would fit a breeze and a storm both); the `bindLandMask` guard the review named.
+  - **This session now LEADS the light/beach-mirror-dark work across three sub-sessions** (the owner, 2026-10-12 02:58Z: "lead
+    those subtrees ... the map needs to be taken into account ... use the jacobian lens to help see everything as a whole"):
+    border ink under the wind (branch `claude/wind-border-ink`, D-023, L-V46 to L-V49), light's colours on dark's hue path
+    (`claude/wind-light-path`, D-024, L-V51 up), and a simplification pass (`claude/stoic-heisenberg-bbe771`). Each lane reports
+    what it moves in the others' outputs on one grid: ground {land, sea} x wind {served, scaled 2.3} x zoom {4, 6, 9}.
+    Log `2026-10-11-wind-dark-white` ("Beach's sea at 0.55").
 - **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 OPEN against
   dev, the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
   dont see the wind for light mode or beach mode mirroring the dark mode"; "close up zoom ... looks somewhat okay ... Its when you

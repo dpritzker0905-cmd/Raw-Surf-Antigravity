@@ -190,3 +190,87 @@ The centre crop (land and sea together): light 0.84 of dark's at zooms 6 and 4 (
 - **Left in the owner's Chrome:** one tab of this session, open on the dev site, showing two PROTOTYPES and not this build: light's
   field on dark's hue path with a global 0.505 white (`mirror(false)` / `mirror(true)` in its console) and the borders in dark ink
   (`borderInk(false)` / `borderInk(true)`). Nothing in it persists past a reload.
+
+## 2026-10-12 01:48Z to 02:20Z · #314 merged; the read-back on the deployed build; the count of moving marks
+
+- **Merged:** the owner, "merge #314 and start the borders and light colours follow-ups". Squash-merged 2026-10-12T01:48:08Z as
+  dev `ec8f46a2`. Two sessions were started for the follow-ups (border ink under the wind; light's colours on dark's hue path).
+- **Read back** in the owner's Chrome on the dev site (build `ec8f46a2` by its `service-worker.js`; one map load, made after the
+  backend had been up 15 minutes and `/api/health` answered in 0.46 to 0.75 s; the window's device pixel ratio was 3, canvas
+  3240 x 1725, not the owner's usual 1.5; the live field reached 67.1 kn): the mark program's `u_white` reads `[1, 0.7416]` in
+  light, `[1, 0.8775]` in beach, `[1, 1]` in dark and under the kill; the look key is `white|dark-rules`; the land mask is ready
+  (68 ms). With `page/mirror-probe.js` over one open-sea crop at zoom 6:
+
+  | zoom 6, open sea | ground L* | lift | core L* | kept | lift / dark's |
+  |---|---|---|---|---|---|
+  | dark | 59.8 | 15.5 | 93.6 | | the model |
+  | light, as built (0.55) | | 16.1 | 87.8 | 0.54 | 1.04 |
+  | light, the kill set | | 24.8 | 98.7 | 0.12 | 1.60 |
+  | beach, as built (0.77) | 43.8 | 21.2 | 92.8 | | 1.37 |
+
+- **What the read cost (the warm-box rule was kept and was not enough):** `/api/health` answered in 6.6 to 8.1 s at 02:16:19Z,
+  right after the read, and in 0.36 to 0.67 s at 02:19:33Z; no 5xx. The page had been taken from zoom 9 to 6 and back, and each
+  zoom band asks for new 48-frame wind series pages (`GET /api/weather/grid_series`: 33 requests, median 10 s, longest 21.5 s).
+  A live read keeps the zoom it loaded at; the bench is for several zooms.
+- **The owner asked:** "double check that the animations counts are near the dark mode settings for beach mode and light mode, in
+  terms of density of animations moving". Read on the same deployed page: the engine draws the same marks in all three themes
+  (147,456 particles; the share kept 0.2972 at zoom 6 and 0.0322 at zoom 9; the thinning and the close-zoom density both 1).
+  Head arrivals per presented frame at zoom 9 (13.8 frames a second in both): dark 0.035 over the sea and 0.025 over land, light
+  the same. The share of the view lit at one instant, sea / land: zoom 6 dark 0.777 / 0.528, light 0.771 / 0.576, beach 0.791 /
+  0.569; zoom 9 dark 0.171 / 0.089, light 0.151 / 0.127, beach 0.170 / 0.136. The count is equal; over land at zoom 9 light and
+  beach light about 1.4 to 1.5 times as much of the view as dark at one instant; over the sea the three are within 12%.
+- **An independent review of the merged change** (a fresh agent, the diff and the records, after the merge): no code defect
+  (under the kill and in dark nothing differs from the code before across 6,093 lever combinations). Four errors in these
+  records, corrected in DECISIONS D-022 ("Corrected 2026-10-12") and in the bench's README: the lifts above were all read with
+  `mirror-run.js --size 360` and no size was named; D-022's read-back criterion (`kept` above about 0.9) is the bench's, not the
+  deployed page's; the README's example paths resolved to `frontend/out/`; and **the checker paragraph above omitted two watch
+  lines that moved with D-022** (the marks' own colours, colour-blind: light 3.6 to 2.5 dE00, beach 2.6 to 2.0; watch lines,
+  not floors).
+
+## 2026-10-12 02:27Z to 03:10Z · Beach's sea at 0.55 (the owner's word), and why the bench and the screen had disagreed
+
+- **The owner, 2026-10-12 02:27Z, after the read-back above:** "make the beach sea strength change to 0.55". This session had
+  recommended it from the one live row above (beach 1.37 of dark's lift at 0.77; light 1.04 at 0.55).
+- **Built, tests first:** the three pins in `windDarkWhite.test.js` moved to 0.55 and failed on the unedited code (3 of 13), then
+  `DARK_WHITE.beach.sea` 0.77 to 0.55 (`windDarkRules.js`, one number and its comment). The per-knot thresholds were re-read from
+  the model, not guessed: over the sea at 0.55 a beach core keeps at least 0.376 of its ground's colour (47 kn; 0.183 at 0.77),
+  peaks at L* 82.1 (29 kn; 90.9) and stands 22.7 to 36.8 L* off its ground (31.5 to 50.4): **the cost is beach's 29 kn band, held
+  pale, where a core is now 22.7 L* off its ground.** No table, key, shader or engine line moves.
+- **The bench, the same view and crops as D-022's** (`motion-run.js --dpr 1.5`, 120 frames a run, `mirror-run.js --size 360`).
+  Controls first: dark's lift 12.6 / 10.4 / 6.9, the kill arm 1.23 / 1.46 / 1.06, light 1.03 at zoom 6 and the inks (dark 34.48,
+  the kill 64.72) are the earlier run's, to the digit.
+
+  | beach, lift / dark's lift | sea z6 | sea z4 | sea z9 | land z6 | land z4 | land z9 |
+  |---|---|---|---|---|---|---|
+  | the kill (1.0 on both grounds) | 1.23 | 1.46 | 1.06 | 0.93 | 0.80 | 0.71 |
+  | 0.77 over the sea (D-022 as merged) | 1.01 | 1.34 | 0.91 | 0.93 | 0.80 | 0.69 |
+  | **0.55 over the sea (this change)** | **0.80** | **1.19** | **0.74** | 0.93 | 0.80 | 0.69 |
+
+  At zoom 6 over the sea the streak core's L* is 70.9 (78.6 at 0.77, 87.9 under the kill; dark's 63.1) and the cover 0.896 (dark
+  0.922). **On the bench's view 0.55 puts beach UNDER dark's lift at zooms 6 and 9.**
+- **Why the deployed read said 1.37 where the bench said 1.01: the wind's strength.** Two more captures, one variable each, zoom
+  6 over the sea:
+
+  | zoom 6, sea | dark's ground L* / lift | beach's ground L* | beach 0.55 | beach, the kill | light 0.55 |
+  |---|---|---|---|---|---|
+  | the wind as served, dpr 1.5 | 36.7 / 12.6 | 49.6 | 0.80 | 1.23 | 1.03 |
+  | the wind x 2.3 (`scale`), dpr 1.5 | 43.9 / 11.8 | 42.0 | 1.07 | 1.70 | 1.23 |
+  | the wind as served, dpr 3 | 41.3 / 13.5 | 52.7 | 0.84 | 1.35 | 0.98 |
+
+  With the wind scaled, beach at 0.77 works out to 1.38 of dark's lift (between the two measured strengths): the deployed read.
+  A stronger wind brightens dark's own ground and deepens beach's, so the same white lifts beach further and dark less. The
+  pixel ratio moves it by 0.04. **So 0.55 is dark's lift in a storm and a quieter streak than dark's in a breeze; 0.77 was the
+  reverse; no one number is both.** The recommendation was made before this was known (LESSONS L-V50). Light reads 1.23 in the
+  scaled wind on the bench and read 1.04 in the live 67 kn field: the two strong-wind scenes do not agree for light, and that
+  is not explained here.
+- **Palette checker** (`check.mjs --strict`): exit 1 with the same two red lines as dev (beach's colour-blind tint lines, 3.1
+  over water, 3.2 over land). Two lines move, neither a floor: `water: speed-colour core vs its own tint` weakest at 8 kn, 12.3
+  to 8.8 L* (watched below 3); `beach marks (the look's own colours), colour-blind` weakest at 3 to 6 kn, 2.0 to 0.8 dE00
+  (protan; a watch line).
+- **Gates:** Jest, both trees: 306 suites, 4,060 tests, 0 failed. `check_eslint.js` exit 0. `scripts/loc_ratchet.py`: 0 new, 0
+  regressed. The production build (`node update-sw-version.js && NODE_OPTIONS=--openssl-legacy-provider CI=false npx craco
+  build`, Git Bash): exit 0; the two stamped files restored.
+- **Not verified:** nothing of 0.55 has been seen in the app. The 3-seed scanner was not rerun (its page serves no land file,
+  so it cannot see a sea strength: L-V40). Zooms 4 and 9 were not read in the scaled wind. Phones: not measured.
+- **Not built, the owner's calls:** a sea strength that follows the wind's speed (the mark shader holds the speed; it would
+  fit a breeze and a storm both); the `bindLandMask` guard the review named.
