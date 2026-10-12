@@ -801,6 +801,35 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
     tips some under; the sea has one pair near the bar (5.05; as uploaded 5.01 and 4.98). The as-uploaded read of the land had
     been taken only on the land before #320 (over 5.2). **Not changed here:** a re-solve with margin (the table at about 5.2 on
     both lands) would put the uploaded read over 5; it would move the bytes the owner picked from the film. The owner's call.
+- **Amended 2026-10-12 19:40Z: the owner took THE MARGIN; beach's default field holds the colour-blind bar as the GPU draws it.** The
+  owner, 2026-10-12 19:01Z, said to the session leading this work, first-hand there and relayed by it to the building session
+  (not first-hand here): "take the margin and merge it". What they saw was the lead's clip of the option beside what dev drew (the lever `'margin'` at
+  `957d4ed5`); its 58 rows (4 to 46 and 48 to 62 kn) replace #319's in `BEACH_PATH.field`; the lever is gone; the default's field
+  hashes are the bytes that were filmed (`67bfe560` at 50 kn, `b0931ff3` at 75 kn). The kill is unchanged.
+  - **Why (and a CORRECTION of the as-drawn numbers recorded above at 17:23Z):** the palette checker reads the TABLE, and #319's
+    field held 5.0 there with none to spare. The engine draws a 256-texel, 8-bit TEXTURE of the table, and the shader reads it at
+    speed / maximum with LINEAR filtering, half a texel from the table's own index (read back from a GPU:
+    `scripts/wind-color/lut-lookup-gpu.cjs`); the maximum is the data's strongest wind, clamped to 10..80 kn. The numbers recorded
+    above (4.89 / 4.87 over the deeper land, 4.98 / 5.01 over the sea, "4.79 at the least", "maxima from 20 to 100 kn") were read
+    at the table's index and over a range the engine cannot set. **By the GPU's lookup #319's field read 4.64 to 5.0 as drawn:**
+    lowest 4.67 over the land as drawn and 4.64 over the sea (3 to 6 kn, when a storm sets the scale), 4.87 and 4.85 at a 50 kn
+    maximum, under 5.0 at nearly every maximum; before the path 2.78 and 2.93.
+  - **Before and after, as drawn** (1401 maxima, 10 to 80 kn every 0.05 kn; land as drawn / sea / land before #320): 4.67 / 4.64 /
+    4.89 becomes **5.04 / 5.04 / 5.46**, under 5.0 at none. On the table (the checker's lines, sea / land as drawn): 5.05 / 5.02
+    becomes 5.12 / 5.15. The margin is 0.04: a floor, not a cushion. Not modelled: the canvas's own 8-bit rounding.
+  - **What it moves:** no knot more than 1.2 dE00 from #319's field (10 kn; 6 kn 1.0; 27 and 40 kn 0.7); the largest hue move is
+    4.9 degrees (6 kn, toward the aqua); the 21 to 27 kn step goes from 12.9 to 12.4 L*; the 10 kn ground is 0.7 L* lighter than
+    #319's (so 5.5 L* lighter than before the path over the land before #320, and 4.6 over the land as drawn and the sea); 3 kn,
+    47 kn and 63 kn, which the path keeps, do not move. Against what beach drew before the path the hue is now up to 14.4 degrees
+    over land (13.5) and 18.9 over the sea (18.2); the legend's watch line reads 32.0 degrees at 16 kn over the sea (31.2); the head
+    of a streak stands 18.3 L* off its ground at the least (18.5). In the lead's film the two fields differ by 1.13 and 0.89
+    CIE76 a pixel on its two ramps (null 0.023), the ground 0.2 to 0.6 L* lighter at four crops, the streak numbers unchanged.
+  - **Rejected, and why:** (a) two CAPPED solves made after the film, which reach the same bar with no knot more than 1.0 dE00, or
+    a bar of 4.9 with none more than 0.5: not what the owner saw, so not what merged; kept on a local branch as their own later
+    choice. (b) The engine's lookup: sampling at texel centres of the table's index would remove half of the gap in every theme,
+    dark's included; "dark never changes" is the owner's standing rule, so it is a finding for them, not part of this.
+  - **The as-drawn line is NOT a gate.** `check.mjs --as-uploaded` is an opt-in read: by it light reads 4.85 and dark 4.97 on dev,
+    and the owner has not set a bar for it. The checker's gate stays the table's 5.0.
 
 ### D-026 · Under the wind, light and beach draw the land at the sea's depth, and a streak over it takes the sea's strength; ON by default
 

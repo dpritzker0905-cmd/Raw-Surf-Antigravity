@@ -777,3 +777,296 @@ asked to hold the merge until this is pushed.
 **Not done.** A re-solve with margin (the table at about 5.2 on both lands) would put the uploaded read over 5. It moves the bytes
 the owner picked from the film, by a little per knot, and costs a little more depth or colour. Not built; the owner's call, through
 the lead. No instrument reads the uploaded texture outside the Jest file; `check.mjs` does not.
+
+## 18:06Z · After the merge: the as-drawn read settled against a GPU, and a margin option behind a lever (LOCAL branch, not pushed, no PR)
+
+**Where this stands.** #319 merged into dev as `11fb734d` at 2026-10-12T17:46:09Z (read with `gh pr view 319`; the lead session
+merged it, on the owner's relayed "and merge anything else needed as well"). This entry is on the local branch
+`claude/wind-beach-path-margin`, cut from dev at `11fb734d`. Nothing here is on dev. The lead asked for it (17:29Z): a version with
+margin behind a lever, default off, every kill and hold winning, for the owner to SEE before any PR; and an as-uploaded read in
+`check.mjs`. The lead's words to the owner, as it relayed them: "A version with margin is being prepared for you to see."
+
+### 1. What "as uploaded" was missing: the lookup (CORRECTION of the numbers in the two entries above and in #319's records)
+
+The numbers pinned at `732d6ebe` (4.89 / 4.87 over the deeper land, 4.98 / 5.01 over the sea) were read at the table's own index,
+255 x speed / maximum. The engine does not read there. `WebGLWindShaders.js` samples `texture2D(ramp, vec2(speed / max, 0.5))` with
+LINEAR filtering, texel centres sit at half-integers, so the GPU reads position 256 t - 0.5: up to half a texel from the index the
+texture was filled by (`generateRampData`: texel i holds the table at i / 255 x the maximum). **Read back from a GPU**
+(`scripts/wind-color/lut-lookup-gpu.cjs`: a 256-texel texture that encodes its own position, the engine's own lookup line): on an
+AMD Radeon 890M (ANGLE, D3D11) the rule fits to 0.9 of 255 and the index misses by 126.6 of 255; on SwiftShader 0.5 and 126.6. So
+the engine draws the colour of speed x 256/255 - maximum/510 kn: at an 80 kn maximum, 0.16 kn slow at calm and 0.16 kn fast at
+the top. Every theme, for as long as the ramp has been 256 texels.
+
+Two more things the earlier read had wrong: the maximum is the data's strongest wind clamped to **10..80 kn** (`WebGLWindEngine.js`),
+so 90 and 100 kn cannot happen and 10 to 20 kn can; and a pair is drawn at a maximum only when both its stops are at or under it.
+
+**By the GPU's lookup** (`check.mjs --as-uploaded 10-80:0.25`, coloraide, 281 maxima; `--index255` reproduces the earlier read):
+
+| Colour-blind line as drawn | Lowest | At which maximum, pair | Under 5 at | By the index (the earlier read) |
+| --- | --- | --- | --- | --- |
+| beach, the sea | 4.65 | 79.5 kn, 3-6 kn protan | 265 of 281 maxima | 4.89 |
+| beach, the land as drawn | 4.68 | 79.5 kn, 3-6 kn protan | 270 of 281 | 4.76 |
+| beach, the land before #320 | 4.90 | 79.5 kn, 3-6 kn protan | 48 of 281 | 5.14 |
+| beach before its path (what dev drew until 17:46Z): sea / land | 2.93 / 2.78 | 21 kn, 16-21 kn protan | 240 / 239 | 2.93 / 2.78 |
+| light, the water | 5.17 | 78 kn, 21-27 kn protan | 0 | 5.24 |
+| light, the land | 4.96 | 73.75 kn, 40-47 kn deutan | 8 of 281 | 4.93 |
+| dark, the water | 4.97 | 73.5 kn, 27-33 kn deutan | 1 of 281 | 4.99 |
+
+At a 50 kn maximum beach reads 4.87 over the land and 4.85 over the sea; at 75 kn 4.79 and 4.77. The weakest pair is 3 to 6 kn
+when a storm sets the scale: 3 kn is a stop the path keeps, and the lookup pulls both colours toward calm. **No theme holds 5.0 as
+drawn at every maximum.** The table, which is the gate of record, holds 5.0 in all three. `cvd_check.py`'s docstring names "the
+windFieldLut design floor" as 4.9; no test pins that.
+
+**Not modelled, still:** the canvas is 8-bit too, so the composite over the map is rounded once more; and no pixel of the wind
+layer itself was read. The lookup law was.
+
+**Two causes, two fixes.** (a) The lookup offset is the engine's, in every theme: sampling at `(t * 255.0 + 0.5) / 256.0` would
+read the texture at the table's index. It is the lead's lane and was not touched. (b) Rounding is the table's: margin.
+
+### 2. The instruments (in this branch)
+
+- `check.mjs --as-uploaded [10-80:1]`: one line a theme and ground, the weakest colour-blind pair over the sweep through the
+  texture and the GPU's lookup; red under 5.0 with `--strict`. **Without the flag the checker is unchanged** (`--strict` exits 0).
+  `--index255` reads at the table's index. `--beach-option margin` reads the lab option.
+- `beach-path-solve.mjs`: `--uploaded [10-80:0.25]` prints the same read for a candidate over the land as drawn, the sea and the
+  land before #320; `--upfloor 5.10 --upsweep 20-80:10` holds it as a bar during a solve; `--from-ref` starts the search from the
+  reference itself. Checked first: with `--index255` it reproduces the Jest pins of `732d6ebe` exactly (4.89 / 4.87, 4.98 / 5.01,
+  5.23 / 5.26, 2.84 before).
+- `lut-lookup-gpu.cjs`: the readback above.
+
+### 3. The margin option (a CANDIDATE: `window.__RAW_WIND_BEACH_PATH__ = 'margin'`, default off)
+
+**The solve.** Reference: what is built. Free: 6, 10, 16, 21, 27, 33, 40 and 55 kn (the pairs 3-6 and 47-55 kn dip under too, so
+6 and 55 kn move; 3, 47, 63 and 75 kn stay the path's). Bars: every bar of the path (lightness one way from calm to 21 kn and from
+33 to 75 kn, the gale band's ceiling, the hue order, hue within 5 degrees of the path), the table's floor, and the floor AS DRAWN
+at 5.10 on seven maxima (20 to 80 kn). The aim: the least change from the path. Nine seeds at three margins; a uniform floor on
+the table alone stalls at 5.21 (the kept stops bound it) and moved knots further, so the as-drawn read is in the solve. Each
+candidate was then checked on **1401 maxima, 10 to 80 kn every 0.05 kn**; the one taken moves least among those that hold.
+
+**What it holds** (the option / the path as built):
+
+| | The land as drawn | The sea | The land before #320 |
+| --- | --- | --- | --- |
+| The table (the checker's line) | 5.15 / 5.02 | 5.12 / 5.05 | over 5.3 / 5.31 |
+| As drawn, lowest over 1401 maxima | **5.04** / 4.67 | **5.04** / 4.64 | **5.46** / 4.89 |
+| As drawn at a 50 kn maximum | 5.21 / 4.87 | 5.19 / 4.85 | 5.70 / 5.10 |
+| As drawn at a 75 kn maximum | 5.11 / 4.79 | 5.12 / 4.77 | 5.64 / 5.02 |
+
+By coloraide (`check.mjs --theme beach --strict --beach-option margin --as-uploaded 10-80:0.25`): exit 0; the table 5.1 and 5.1;
+as drawn 5.04 over water and 5.06 over land, under the bar at 0 of 281 maxima. The margin is 0.04: it is a floor, not a cushion.
+
+**What it moves against the bytes on dev** (L* / C* / hue on screen, built -> option, and dE00):
+
+| kn | The land as drawn | moved | The sea | moved |
+| --- | --- | --- | --- | --- |
+| 6 | 46.9 / 14.8 / 176 -> 47.1 / 14.6 / 180 | 1.0 | 47.0 / 15.3 / 184 -> 47.3 / 15.2 / 189 | 1.0 |
+| 10 | 41.8 / 13.2 / 168 -> 42.4 / 12.2 / 164 | 1.2 | 41.9 / 13.5 / 177 -> 42.5 / 12.6 / 174 | 1.1 |
+| 16 | 36.2 / 12.0 / 159 -> 36.5 / 12.2 / 160 | 0.3 | 36.3 / 12.2 / 168 -> 36.6 / 12.3 / 168 | 0.3 |
+| 21 | 36.1 / 14.1 / 122 -> 36.3 / 14.4 / 121 | 0.3 | 36.1 / 13.6 / 130 -> 36.3 / 13.8 / 129 | 0.3 |
+| 27 | 49.0 / 20.9 / 123 -> 48.7 / 19.9 / 122 | 0.7 | 48.9 / 20.3 / 130 -> 48.7 / 19.3 / 129 | 0.6 |
+| 33 | 49.0 / 29.7 / 92 -> 49.1 / 29.4 / 92 | 0.2 | 48.7 / 28.1 / 97 -> 48.8 / 27.8 / 97 | 0.2 |
+| 40 | 48.9 / 23.5 / 50 -> 48.3 / 22.9 / 49 | 0.7 | 48.4 / 19.8 / 50 -> 47.9 / 19.2 / 49 | 0.7 |
+| 55 | 35.9 / 11.5 / 24 -> 35.9 / 11.3 / 24 | 0.1 | 35.6 / 9.2 / 16 -> 35.6 / 9.1 / 15 | 0.2 |
+
+No knot from calm to 75 kn moves more than 1.2 dE00 over the land (1.1 over the sea), both at 10 kn. The largest hue move is 4.9
+degrees (6 kn, toward the aqua). The everyday ground is lifted 0.7 L* at most (10 kn). **The 21 to 27 kn step: 12.9 -> 12.4 L*** on
+both grounds. The ground from 6 to 40 kn spans 12.7 L* over land and 12.5 over the sea (12.9 and 12.9). The gale band's peak:
+49.1 over land (49.0). 10 kn gives up 1.0 C* and 27 kn 1.0 C*. The legend's watch line is as it was (over the sea, 15.5 to 16 kn).
+
+**How it is drawn.** `BEACH_PATH_LAB.margin` in `windBeachPath.js`: 58 rows (4 to 46 and 48 to 62 kn; 57 differ, 48 kn rounds to
+the path's own row), laid over the path's where the path draws. With the lever unset, or set to anything else, beach draws the
+path byte for byte (`e434f0bf` / `cbfec18a`). Under the path's kill, D-022's, the white streak's, dark's rules' and every hold the
+lever changes nothing. The look key reads `white+path-margin|dark-rules`. Light, dark and beach's streak rows are byte for byte.
+
+**Tests** (`windBeachPath.test.js`, 36): the two as-drawn tests now read by the GPU's lookup and pin 4.87 / 4.79 / 4.68 over the
+deeper land, 4.85 / 4.77 / 4.65 over the sea and 5.10 / 5.02 / 4.90 over the land before #320, with the before as control (2.78,
+2.93); six tests for the option (default byte for byte, one visual variable, every kill winning, the as-drawn floor on three
+grounds with the path as control, the table's bars, what it moves).
+
+**Gates on this branch:** Jest map tree 288 suites / 4063 tests, `src/tests` 23 / 254, 0 failed; `check_eslint.js` exit 0 (new 0,
+regressed 0); `loc_ratchet.py` exit 0 (`WindColorRamp.js` 785 of 800); `check.mjs --strict` exit 0 with the lever unset (5.0 / 5.0,
+the gate unchanged); the production build exit 0.
+
+**Owed when this goes to a PR, whatever the owner picks** (not done here, so that nothing on dev is claimed early): a ledger
+correction for the as-drawn numbers in #319's records; D-025's amendment and STATE's line corrected to the GPU's read; the PR.
+If the owner declines the margin, the option's rows leave and the instruments, the re-pinned tests and the correction go alone.
+
+**Not verified.** No frame was taken: the lead films it on #321's bench (dark | on dev | with margin). At 1.2 dE00 a knot at
+most, I do not expect an eye to tell the two fields apart in motion; that is a prediction, not a measurement.
+
+## 18:20Z · #319 on the deployed build: the STATIC half of the read-back (commitment seq 1103); the live half is still owed
+
+**The commitment's check, as written:** the dev site's bundle carries the merge SHA (a static read); then ONE live map load at
+most, on a warm box, for `window.__WIND_ENGINE__._lookKey` in beach and its flip under the kill; whether #315 was on dev at that
+moment; and the owner's verdict in their words.
+
+**Read (static files only; no map was loaded and the backend was asked for one health line):**
+- 18:10:35Z: `https://dev--rawsurf.netlify.app/service-worker.js` reads `BUILD_VERSION = '11fb734d'`, #319's squash on dev.
+- The deployed chunk `/static/js/7419.886e5d95.chunk.js` (1,476,510 bytes; found by searching all 101 JS files of the asset
+  manifest) carries the switch as built: `"beach"===e&&!0!==n.__RAW_DISABLE_WIND_BEACH_PATH__&&!0!==n.__RAW_DISABLE_WIND_DARK_WHITE__&&qt(e,n)`,
+  and the path's own rows once each (`[6,.119,.49,.421]`, `[27,.396,.534,.21]`, `[40,.807,.384,.214]`: the re-solved F's bytes).
+  The same chunk carries #320's and #321's kills. The lab lever of the margin branch (`__RAW_WIND_BEACH_PATH__`) is not in it,
+  as it should not be.
+- **#315 (beach's sea white at 0.55) WAS on dev at that moment:** dev `11fb734d` sits on `89f0dc33`.
+- 18:17Z: `/api/health` answered in 0.49 s, healthy, version ending `11fb734d...`, uptime 28 min 41 s (the box restarted with the
+  merge and is warm).
+
+**A slip in the reading, caught:** my first search of the chunks found no kill at all, the older ones included. The site sends
+the files gzip-encoded and a shell pipe into grep read the bytes as they came; decoding them first found all five names in one
+chunk. A search that finds nothing is checked against a string that must be there before it is believed.
+
+**NOT read, still owed (due 2026-10-19):** `_lookKey` on a live map in beach and its flip under the kill (it needs a signed-in
+browser on the dev site; this session has none and was not asked to use the owner's), and the owner's verdict on the gale band
+and on 9 to 18 kn over the sea, in their words. Nothing of this build has been seen in the app by this session.
+
+## 19:19Z · Two options by the LARGEST move at a knot: A (as drawn at or over 5.0) and B (at or over 4.9); the first margin option is replaced
+
+**Asked by the lead (18:09Z and 18:10Z, two messages):** solve both against the GPU's lookup as it is today, every maximum from 10
+to 80 kn, both lands; report each one's cost; keep `--as-uploaded` opt-in; do not touch the shader (the lookup offset is a finding
+for the owner, not on this path). The lead's recommendation to the owner, as it relayed it: hold the as-drawn line to what dark
+itself meets, 4.9, with the table's 5.0 kept as the checker's gate. The owner has not set that bar.
+
+**The first margin option minimised the wrong thing.** It took the least SUMMED move, which put 1.2 dE00 on 10 kn and 1.0 on 6 kn.
+The lead's measure is the largest move at any knot, so the solve was posed again: cap the largest move (`--maxmove`), then reach
+the highest as-drawn line inside the cap.
+
+**A slip in that second solve, caught by a test.** With the as-drawn target set out of reach, every other bar of the path became
+something the search could trade against it, and a 0.4-cap solve gave up 0.14 L* of one-way lightness between 16 and 21 kn for
+0.02 of floor. The new lab test (lightness one way, read over the option's own rows) failed on it. The solver now makes every
+other bar hard against the floor when a cap is set, and each candidate below is scored again with no target at all: its own
+violation is 0.000.
+
+**What a cap buys** (every bar of the path held; the lowest colour-blind pair AS DRAWN over 1401 maxima, land as drawn / sea):
+
+| Largest move at a knot (dE00) | Lowest as drawn | |
+| --- | --- | --- |
+| 0 (what is on dev) | 4.67 / 4.64 | |
+| 0.4 | 4.83 / 4.82 | under 4.9 at 117 and 22 of the 1401 maxima: B is not held |
+| **0.5** | **4.91 / 4.92** | **B held** (under 4.9 at none) |
+| 0.8 | 4.96 / 5.02 at best | under 5.0 at 8 maxima over the land |
+| 0.9 | 5.01 / 5.06 in one solve, 4.94 to 4.98 in the others | no margin where it holds |
+| **1.0** | **5.03 / 5.04** | **A held** |
+| (the first option, least summed move: 1.2) | 5.04 / 5.04 | replaced by the row above |
+
+**The two options as built** (`BEACH_PATH_LAB` in `windBeachPath.js`; the lever `window.__RAW_WIND_BEACH_PATH__`, default off):
+
+| | A: `'margin'` | B: `'margin-b'` | On dev (the lever unset) |
+| --- | --- | --- | --- |
+| Field hashes, 50 / 75 kn maximum | `e9b485ad` / `1678a7b8` | `30410531` / `6f962260` | `e434f0bf` / `cbfec18a` |
+| Rows laid | 58 (4 to 46, 48 to 62 kn) | 43 (4 to 46 kn) | |
+| Largest move at any knot, land / sea (dE00) | 1.0 / 1.0 (6 kn) | 0.5 / 0.5 (6 kn) | |
+| Moved at 6, 10, 16, 21, 27, 33, 40, 55 kn (land) | 1.0, 0.7, 0.2, 0.3, 0.4, 0.1, 0.3, 0.1 | 0.5, 0.2, 0.1, 0.2, 0.4, 0.0, 0.2, 0.0 | |
+| Largest hue move | 4.9 degrees (6 kn) | 2.5 degrees (6 kn) | |
+| Everyday ground (6 to 21 kn) lifted by at most | 0.3 L* (10 kn) | 0.1 L* | |
+| The 21 to 27 kn step, L* | 12.9 | 13.1 | 12.9 |
+| The ground's span, 6 to 40 kn, land / sea | 12.9 / 12.9 | 13.1 / 13.1 | 12.9 / 12.9 |
+| The gale band's peak over land (the solve's ceiling is 49.6) | 49.2 | 49.3 | 49.0 |
+| The table (the checker's lines), water / land | 5.1 / 5.1 | 5.1 / 5.0 | 5.0 / 5.0 |
+| As drawn, lowest over 1401 maxima: land / sea / land before #320 | 5.03 / 5.04 / 5.39 | 4.91 / 4.92 / 5.20 | 4.67 / 4.64 / 4.89 |
+| As drawn at a 50 kn maximum: land / sea | 5.15 / 5.20 | 5.10 / 5.14 | 4.87 / 4.85 |
+| Maxima under 5.0 (of 1401): land / sea | 0 / 0 | 302 / 52 | nearly all |
+| Maxima under 4.9 (of 1401): land / sea | 0 / 0 | 0 / 0 | most |
+| By coloraide, 281 maxima, as drawn: water / land | 5.07 / 5.05 | 4.92 / 4.91 | 4.65 / 4.68 |
+| `check.mjs --strict --as-uploaded 10-80:0.25`, bar 5.0 | exit 0 | exit 1 (land under at 58, water at 9 of 281) | exit 1 |
+| the same with `--as-uploaded-floor 4.9` | exit 0 | exit 0 | exit 1 |
+
+On screen, built to option, L* / C* / hue over the land as drawn (the sea is within 0.1 of each move):
+- A: 6 kn 46.9 / 14.8 / 176 to 47.1 / 14.6 / 180; 10 kn 41.8 / 13.2 / 168 to 42.1 / 12.4 / 167; 16 kn 36.2 / 12.0 / 159 to 36.3 /
+  12.1 / 160; 21 kn 36.1 / 14.1 / 122 to 36.3 / 14.4 / 123; 27 kn 49.0 / 20.9 / 123 to 49.2 / 20.1 / 123; 33 kn 49.0 / 29.7 / 92 to
+  49.1 / 29.7 / 91; 40 kn 48.9 / 23.5 / 50 to 48.8 / 23.1 / 49; 55 kn 35.9 / 11.5 / 24 to 35.9 / 11.3 / 24.
+- B: 6 kn to 46.9 / 14.7 / 178; 10 kn to 41.8 / 12.9 / 168; 16 kn unchanged to the first decimal; 21 kn to 36.2 / 14.3 / 123;
+  27 kn to 49.3 / 20.6 / 123; 33 kn to 49.0 / 29.6 / 92; 40 kn to 48.8 / 23.1 / 49; 55 kn not moved.
+
+**Does 3 kn have to move? No, in neither.** 3 kn is a stop the path keeps; 6 kn carries the largest part of both, because when a
+storm sets the scale the lookup pulls 3 and 6 kn toward calm and that pair reads lowest (4.65 on dev). Moving 3 kn as well would
+share the move; it was not solved, because 3 kn is beach's own colour kept byte for byte.
+
+**B is not a 5.0 option and says so:** as drawn it is under 5.0 at about a fifth of the maxima over the land and at a few over the
+sea. It holds what dark (4.97) and light (4.96) hold by the same read. B's step from 21 to 27 kn is 0.2 L* larger than the path's.
+
+**With both, as before:** the lever unset, or set to anything else, draws the path byte for byte; every kill and hold wins; light,
+dark and beach's streak rows are byte for byte; the look key reads `white+path-margin|dark-rules` or `white+path-margin-b|dark-rules`.
+
+**Instruments added since the last entry:** `beach-path-solve.mjs --maxmove 0.5` (the cap; bars hard against the floor);
+`check.mjs --as-uploaded-floor 4.9` (a bar for the as-drawn lines only; the table's lines keep 5.0); `--uploaded` now prints how
+many maxima sit under 5.0 and under 4.9. The plain checker, with no flag, is as it was (exit 0, beach 5.0 / 5.0).
+
+**Tests:** `windBeachPath.test.js`, 39. The lab describe covers both options (default byte for byte, one visual variable, every
+kill winning, A at or over 5.0 and B at or over 4.9 as drawn on three grounds with the path as control, what each moves, the
+table's bars with one-way lightness read over the option's own rows). The index read stays as one test, named as the computation
+it is.
+
+**Gates:** Jest map tree 288 suites / 4066 tests, `src/tests` 23 suites / 254 tests, 0 failed; `check_eslint.js` exit 0; `loc_ratchet.py` exit 0 (`WindColorRamp.js` 785 of
+800); `check.mjs --strict` exit 0 with the lever unset; the production build exit 0.
+
+**Not verified.** No frame of either option was taken; the lead films them (dark | on dev | A | B). At 1.0 and 0.5 dE00 a knot I do
+not expect an eye to tell either from what is on dev in motion: a prediction. The canvas's own 8-bit rounding is not modelled.
+
+## 19:40Z · The owner took the margin; it is beach's default (a PR against dev; the lead merges)
+
+**The three entries above this one were written on a local branch and reach dev with this change.** They are kept as written,
+times and all: the correction of the as-drawn numbers, the static half of #319's read-back, and the two capped options.
+
+**The pick (relayed, not first-hand here).** The lead session, 19:21Z: the owner said to it at 19:01Z, first-hand, "take the margin and merge it". What
+the owner saw is the lead's clip of the lever `'margin'` at `957d4ed5` beside what dev drew (field hashes `67bfe560` at a 50 kn
+maximum and `b0931ff3` at 75). So THOSE bytes are the default: the first margin option, the least summed move, not the capped
+variants solved afterwards. The owner was told (the lead's words to them, as relayed) that the two beach panes measure as
+near-identical and that the option holds the as-drawn line at 5.04 at every maximum from 10 to 80 kn where dev reads 4.64 to 5.0.
+
+**The lead's film of it, as relayed** (the corrected bench of #321, its preview worktree at dev `11fb734d` plus this lane's three
+commits; two speed ramps at zoom 6, 2 to 30 kn and 6.85 to 60.6 kn; page and map at 1.5; 90 frames; beach the second run after dark
+in its own invocation; the canvas's alpha 1 / 1 in every run; no page error). Beach on dev against the lever:
+- frame for frame, CIE76 a pixel (every third frame and pixel): mean 1.13 on the low ramp and 0.89 on the high ramp; 54% and 43% of
+  pixels differ by more than 1, 14% and 9.5% by more than 2. Null control (dark against dark across the two invocations): 0.023
+  mean, 0.9% over 1;
+- the mirror probe, 110 px crops on the low ramp, dev to margin: sea at 11.8 kn ground L* 44.2 to 44.8, a core 65.1 to 65.4, cover
+  0.777 to 0.772, flicker 1.357 to 1.344; sea at 18.5 kn 41.5 to 41.7, 64.8 to 64.9, 0.781 to 0.778, 1.554 to 1.549; land at
+  11.8 kn 46.5 to 47.0, 66.9 to 67.1, 0.750 to 0.744, 1.434 to 1.420; land at 18.5 kn 43.0 to 43.3, 67.1 to 67.3, 0.802 to 0.800,
+  1.697 to 1.688.
+The lead's reading: an even shift of the field, nothing in the streaks. None of this was measured here.
+
+**What was built** (branch `claude/wind-beach-margin`, from dev `b764797b`, which holds #318):
+- `windBeachPath.js`: `BEACH_PATH.field` takes the margin's 58 rows at 4 to 46 and 48 to 62 kn (57 differ; 48 kn rounds to the row
+  it had). 64 to 75 kn, and the stops the path keeps, are as #319 laid them. The default's field hashes are `67bfe560` / `b0931ff3`,
+  read through the lever at `957d4ed5` BEFORE the swap and equal after it. Under the kill beach's field is `7c248d5f` / `b9db3bb2`,
+  as before. The lever (`window.__RAW_WIND_BEACH_PATH__`) and its lab plumbing are NOT in this change: the look key is
+  `white+path|dark-rules`.
+- `WindColorRamp.js` is not touched (796 of 800 lines on dev). `mirror-model.mjs` is not touched.
+- The capped options of the entry above (A at 1.0 dE00, B at 0.5) are NOT in it. They stay on the local branch
+  `claude/wind-beach-path-margin-capped` (`8e89a099`); the lead knows. If either is wanted it is its own choice for the owner.
+- Kept: `check.mjs --as-uploaded` (opt-in; `--as-uploaded-floor`, `--index255`), `lut-lookup-gpu.cjs`, the solver's as-drawn read
+  (`--uploaded`, `--upfloor`, `--maxmove`, `--from-ref`). `check.mjs --beach-option` left with the lever.
+
+**The palette checker on this branch (coloraide), water / land:**
+- `--strict` (the gate, the table): exit 0, 5.1 / 5.1 (5.12 and 5.15). `--before-depth`: 5.1 / 5.7.
+- `--theme beach --strict --as-uploaded 10-80:0.25`: exit 0; as drawn 5.04 over water and 5.06 over land, under 5.0 at 0 of 281
+  maxima; with `--before-depth` 5.04 / 5.47. By the solver on 1401 maxima: 5.04 / 5.04 / 5.46 (land as drawn / sea / land before #320).
+- The same read on dev's other tables, for the record: light 4.93 over water and 4.85 over land (its path of #318; under 5.0 at
+  32 and 123 of 281 maxima), dark 4.97 (1 of 281). So with the flag and `--strict` the checker is red for light and dark: it is
+  an opt-in read, not the gate, until the owner sets an as-drawn bar.
+
+**What the margin moves in the path's own numbers** (the tests of `windBeachPath.test.js`, re-read; #319's field in brackets):
+- on the table: the sea 5.12 (5.05), the land as drawn 5.15 (5.02), the land before #320 5.73 (5.31);
+- no knot more than 1.2 dE00 from #319's field (10 kn; 6 kn 1.0; 27 and 40 kn 0.7); hue within 4.9 degrees of it (6 kn, toward
+  the aqua);
+- the 10 kn ground is 0.7 L* lighter than #319's: 5.5 L* lighter than before the path over the land before #320 (4.7), 4.6 over
+  the land as drawn and over the sea (4.0);
+- hue from what beach drew before the path: up to 14.4 degrees over land (13.5) and 18.9 over the sea (18.2), both at 16 kn;
+- the legend's watch line: over the sea the field at 16 kn sits 32.0 degrees off the legend's hue (31.2); still 1 kn wide;
+- the head of a streak stands 18.3 L* off its ground at the least (18.5): D-021's 19.5 is crossed at 7 and 8 kn, as it was;
+- 10 kn and 27 kn give up 1.0 C* each over the land as drawn;
+- and three small gains: the 21 to 27 kn step is 12.4 L* (12.9); a normal eye tells 6-10 kn apart at 6.6 dE00 over land and 5.6
+  over the sea (6.2 and 5.2); the gale band over the land before #320 peaks at 60.1 as it did.
+
+**Tests.** `windBeachPath.test.js` (32): every pin of the path re-read on the new default; the as-drawn reads by the GPU's lookup
+(5.07 / 5.05 / 5.47 at the least on a half-knot sweep, 5.21 and 5.11 over the land as drawn at 50 and 75 kn); **the field before
+the margin kept row for row as the control** (its hash is #319's `e434f0bf` / `cbfec18a`; it reads 4.68 / 4.65 / 4.90); the index
+read kept as the computation it is; what the margin moved. `windWhiteStreak.test.js`: beach's default hashes.
+
+**Gates:** Jest map tree 289 suites / 4127 tests, `src/tests` 23 suites / 255 tests, 0 failed; `check_eslint.js` exit 0; `loc_ratchet.py` exit 0; `check.mjs
+--strict` exit 0; `check.mjs --theme beach --strict --as-uploaded 10-80:0.25` exit 0; the production build exit 0.
+
+**Not verified.** No frame was taken here. No pixel of the wind layer was read from a GPU: the texture's lookup law was, the
+composite over the map and the canvas's own 8-bit rounding were not. Nothing of this build has been seen in the app. The live half
+of #319's read-back (`_lookKey` in a signed-in browser, with and without the kill) is still owed; this change does not move the
+look key.
