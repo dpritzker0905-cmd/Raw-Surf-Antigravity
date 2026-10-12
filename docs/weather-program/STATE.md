@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 14:20Z: LIGHT NEVER MATCHED ITS SAMPLES BECAUSE THE PAGE BEHIND THE MAP SHOWED THROUGH THE WIND. The wind now leaves
-  the map's canvas opaque, ON BY DEFAULT (client only; PR not yet opened against dev, the owner merges; DECISIONS D-027).** The owner, 12:28Z,
+  the map's canvas opaque, ON BY DEFAULT (client only; PR #321 OPEN against dev, the owner merges; DECISIONS D-027).** The owner, 12:28Z,
   on the deployed build: "I still do not visually see the improvements yet"; 12:36Z: "This should work after all the agents
   worked on this." The owner did not name this change and has not seen it.
   - **The finding:** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`. Two of the wind's passes
@@ -1999,7 +1999,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1077, sha256 980f793a1fa587d44e653b60bf1bf19d71d8cddf5c4fffd11354f356c3cd614c**
+  **Ledger head: seq 1079, sha256 cd50dfde82b26ab8e26c3b9bc43c2968d0ebce4d021e5ce803e2757d7ebaf815**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
