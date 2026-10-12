@@ -402,7 +402,7 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   land row's at 6-24 kn, and less where stamps overlap. With one row instead of two, at the default, 29 to 67% of the sea's
   pixels (the land row kept) or 6 to 28% of the land's (the sea row kept) move by more than dE00 2.3 at zooms 4 to 8, served,
   on the offline bench; in motion the land row kept turns a storm's 25-36 kn band over the sea pale. ("Served" is the bench's
-  fixture, a hurricane: 24 to 38 kn over the sea at zooms 6 to 10, 8 to 17 kn over land.) Light draws one row already. Still
+  fixture, a hurricane: 23 to 42 kn over the sea at zooms 6 to 10, 7 to 20 kn over land.) Light draws one row already. Still
   the owner's call; nothing was removed.
 - **Evidence (log 2026-10-11-wind-pale-band, "The white streak, built"):** the tables with no lever set hash the same as dev's
   own code through the watched levers (captured before the default moved); on the bench's fixed basemap every crop of the built

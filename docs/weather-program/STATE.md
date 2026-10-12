@@ -78,8 +78,8 @@ is a claim, not a measurement.
     everywhere is the smaller change (6 to 28% of the land's pixels on the bench; in motion the time-mean picture stays within
     1.3 L* over 99% of the frame, served) and dims the land's streaks. Light already draws one row. **Nothing was removed and
     nothing built:** with the mask and the solver both needed, one row would delete a table row and one shader line.
-    "Served" names the bench's fixture, not an everyday wind: a hurricane, 24 to 38 kn over the sea at zooms 6 to 10 and 8 to
-    17 kn over land. LESSONS L-P35.
+    "Served" names the bench's fixture, not an everyday wind: a hurricane, 23 to 42 kn over the sea at zooms 6 to 10 and 7 to
+    20 kn over land. LESSONS L-P35.
   - **Seen in the app 2026-10-11 23:36Z** (this entry said "nothing has been seen in the app" until then): on the deployed build
     `_lookKey` is `white|dark-rules` and the land mask `ready`; the owner's verdict is quoted in the entry above. Ledger
     commitment 1056 is closed by the line that fulfils it. Log

@@ -361,3 +361,46 @@ crop arithmetic, not reconciled). What it changes in this log:
 - **The verdict does not move:** nothing removed, nothing built. Its wording does: where this log says "in the wind as served"
   read "in the fixture as served (a hurricane: 24 to 38 kn over the sea at zooms 6 to 10, 8 to 17 kn over land)", and where it
   says "storm" or "storm strength" read "scale 2.3 (56 to 87 kn over the sea at zooms 6 to 10)".
+
+## 04:36Z · The wind table above was read on the wrong view; recomputed, and what else that uncovered
+
+The leading session re-read its zoom 6 sea crop per pixel (39.8 kn) against this log's 36, and asked which grid this session
+had sampled. The grid was the fixture's own; the VIEW was wrong. `scene-wind.js` assumed a square view of 1000 CSS px and put a
+crop's centre at `at`. Read from the bench's code: the map is 897 x 914 CSS px (`page/map-entry.js`, `page/map.html`); a motion
+frame is that view scaled to 1000 x 1019; and the mirror probe puts a crop's CORNER at `at` of the free travel
+(`page/mirror-probe.js`). Recomputed on that (knots, median and quartiles; `--size 360` for the crops):
+
+| what a row was read on | as served | scale 2.3 | share inside the scaled box |
+|---|---|---|---|
+| motion, the sea crop, zoom 9 | 30 (27-33) | 69 (62-76) | all |
+| motion, the sea crop, zoom 6 (26.6-29.7 N, 89.8-86.3 W) | 42 (36-47), up to 77 | 96 (83-107) | all |
+| motion, the sea crop, zoom 5 | 14 (10-31), up to 73 | 32 (12-71) | 49% |
+| motion, the land crop, zoom 9 | 14 (12-16) | 33 (28-38) | all |
+| motion, the land crop, zoom 6 | 7 (4-8) | 12 (6-17) | 32% |
+| motion, the land crop, zoom 5 | 14 (7-16) | 14 (11-17) | 5% |
+| the whole view (the time-mean probe), the sea, zooms 5 / 6 / 9 | 13 (9-18) / 27 (17-38) / 31 (26-35) | 15 / 62 / 71 | 35% / 73% / all |
+| the whole view, the land, zooms 5 / 6 / 9 | 12 / 9 / 13 | 14 / 13 / 29 | 14% / 29% / all |
+| an offline crop, the sea, zooms 4 / 6 / 8 / 10 | 12 (9-17) / 39 (33-43) / 32 (27-36) / 23 (21-25) | 15 / 89 / 74 / 52 | 30% / 92% / all / all |
+| an offline crop, the land, zooms 4 / 6 / 8 / 10 | 12 / 8 / 12 / 20 | 14 / 19 / 28 / 46 | 11% / 57% / all / all |
+
+- **The 36 against 39 is answered, and it was this session's error.** On the right view the zoom 6 sea crop reads 42 kn
+  (quartiles 36 and 47, top 77), wholly inside the fixture's box. The leading session's 39.8 has 1% of its crop west of the box:
+  it reads the 1000 x 1019 frame as if a frame pixel were a map pixel, where it is 0.897 of one. Told to that session; its
+  number is its to correct.
+- **An "offline crop" is not the whole frame.** `--crop 1000x1000` cuts 1000 x 1000 DEVICE pixels from the middle of a canvas
+  the bench draws at pixel ratio 2 (`pixelRatio: DPR` in `map-entry.js`): the centre 500 x 500 CSS px of the view. The shares
+  in the offline tables are shares of that crop's land and sea.
+- **The pixel ratios named in this log are the page's, not the map's.** The offline runs were called "pixel ratio 1" and the
+  motion runs "pixel ratio 1.5" (`motion-run.js --dpr 1.5`). The bench creates the map at pixel ratio 2 in both, so the canvas
+  is 1794 x 1828 either way; what the engine itself reads at a page ratio of 1.5 was not checked here. The same holds for
+  every number recorded from these modes on dev's bench, D-022's included; the border-ink lane's PR (#316) adds a `--map-dpr`
+  flag for exactly this (the map's own pixel ratio, default the bench's 2).
+- **The bullets of the section above, on the right view:** over the sea as served the wind is 23 to 42 kn at zooms 6 to 10
+  (at zoom 9, 74% of the sea is in the 25-36 kn band), and 52 to 96 kn at scale 2.3. Over land as served it is 7 to 20 kn; at
+  scale 2.3 it reaches 19 to 46 kn in the offline crops at zooms 6 to 10 and 29 to 33 kn at zoom 9 in motion. The zoom 5 land
+  crop is 5% inside the box: nearly, not exactly, the same wind in both scenes.
+- **"No row reads the sea in an everyday wind in motion except the zoom 5 sea crop" is too generous to that crop:** half of it
+  is inside the storm's box (upper quartile 31 kn, top 73). The nearest thing here to an everyday-wind sea is the offline
+  crop at zoom 4 (12 kn at the median, three quarters of it under 17 kn): the land row everywhere moves 29.0% of its sea
+  pixels by more than dE00 2.3.
+- **The verdict does not move.**
