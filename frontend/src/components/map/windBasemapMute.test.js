@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   WIND_BASEMAP_MUTE, windBasemapMuteAmount, windBasemapWaterL, parseColor, oklab, muteColor, muteValue, windBasemapMutePlan, syncWindBasemapMute,
-  windBasemapImagery, windBasemapMuteStale, WIND_BORDER_INK, windBorderInk, inkColor, inkValue, windBorderInkPlan,
+  windBasemapImagery, windBasemapMuteStale, windBasemapLandL, WIND_BORDER_INK, windBorderInk, inkColor, inkValue, windBorderInkPlan,
 } from './windBasemapMute';
 import { WIND_COASTLINE } from './WebGLWindUtils';
 import { STYLE, fakeMap, APP, zoomed, BORDERS, BORDER_LINES, REAL, INK, STACK } from './basemapStyle.testutil';
@@ -177,7 +177,7 @@ describe('THE APP\'S STACK (live dev 2026-10-09: __WIND_BASEMAP_MUTE__ read { ap
     map.failOn = 'water';
     expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ applied: false, error: 'style mid-load' });
     expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ applied: true, layers: 6 });
-    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(35, 12%, 89%)', 0.85, WIND_BASEMAP_MUTE.landL.light));   // muted once and deepened once (D-026), not twice
+    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(35, 12%, 89%)', 0.85, windBasemapLandL('light', {})));   // muted once and deepened once (D-026; the factor the default draws), not twice
     expect(map.getPaintProperty('water', 'fill-color')).toBe(muteColor('hsl(196, 80%, 70%)', 0.85, 0.9));
   });
 });

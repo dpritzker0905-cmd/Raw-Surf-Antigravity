@@ -288,28 +288,39 @@ describe('the colour-blind floor holds, with the bands in order', () => {
   const sweep = (surface, win) => { const g = groundOf(surface, win); let least = Infinity, under = 0, n = 0;
     for (let max = 10; max <= 80; max += 0.25) { const d = line(g, uploadedOf(win, max), max); n++; if (d < 5) under++; least = Math.min(least, d); }
     return { least, under, n }; };
-  it('ON THE DEEPER LAND (PR #320) THERE IS NO MARGIN, and AS UPLOADED the line dips UNDER 5: the table reads 5.01; the 8-bit texture 5.03 at a 50 kn maximum, 4.99 at 75 kn, 4.86 at the least', () => {
+  const DEEPER = { __RAW_DISABLE_WIND_LAND_STEP__: true };   // the land at the sea's depth, as PR #320 merged it: since the land a step above the sea (D-026 amended, 2026-10-12) it is that step's kill
+  it('ON THE DEEPER LAND (PR #320, now the land step\'s kill) THERE IS NO MARGIN, and AS UPLOADED the line dips UNDER 5: the table reads 5.01; the 8-bit texture 5.03 at a 50 kn maximum, 4.99 at 75 kn, 4.86 at the least', () => {
     // The owner, 2026-10-12 17:43Z, shown these numbers and two options: "option 1, merge as shown and add the pin" (DECISIONS D-024, amended).
     // THIS IS A KNOWN SHORTFALL, PINNED SO A GREEN RUN NEVER READS AS "THE FLOOR HOLDS". The bar is still 5.0: light's rows are re-solved on the
     // deeper land next (ledger commitment), and these numbers are re-pinned then.
-    const DEEP = groundOf('land', {}), PALE = groundOf('land', NO_DEPTH), SEA = groundOf('water', {});
-    expect(windBasemapLandL('light', {})).toBeLessThan(1); expect(windBasemapLandL('light', NO_DEPTH)).toBe(1);   // the deeper land is what draws with no lever
+    const DEEP = groundOf('land', DEEPER), PALE = groundOf('land', NO_DEPTH), SEA = groundOf('water', {});
+    expect(windBasemapLandL('light', DEEPER)).toBe(0.81); expect(windBasemapLandL('light', NO_DEPTH)).toBe(1);   // the deeper land: what drew with no lever until the land step
     // the table, as the palette checker reads it (`node check.mjs --strict` prints 5.0 and no red line)
     expect(line(DEEP, tableOf({}))).toBeGreaterThanOrEqual(5.0); expect(line(DEEP, tableOf({}))).toBeCloseTo(5.006, 2);
     expect(line(PALE, tableOf(NO_DEPTH))).toBeCloseTo(5.503, 2); expect(line(SEA, tableOf({}))).toBeCloseTo(5.130, 2);
     // as uploaded
     expect(line(DEEP, uploadedOf({}, 50), 50)).toBeCloseTo(5.033, 2);
     expect(line(DEEP, uploadedOf({}, 75), 75)).toBeCloseTo(4.987, 2);                                                // under the bar
-    const deep = sweep('land', {});
+    const deep = sweep('land', DEEPER);
     expect(deep.n).toBe(281); expect(deep.least).toBeCloseTo(4.859, 2); expect(deep.under).toBe(151);                // under 5 at about half of the maxima, by up to 0.14
     const sea = sweep('water', {});
     expect(sea.least).toBeCloseTo(4.960, 2); expect(sea.under).toBe(12);
     // the controls. Light before its path on the same land (dev's own light): the deeper land takes most of the margin, this change the rest.
-    const was = sweep('land', KILL);
+    const was = sweep('land', { ...KILL, ...DEEPER });
     expect(line(DEEP, tableOf(KILL))).toBeCloseTo(5.053, 2); expect(was.least).toBeCloseTo(4.928, 2); expect(was.under).toBe(21);
     // And the land before PR #320: never under, read either way.
     const pale = sweep('land', NO_DEPTH);
     expect(pale.least).toBeCloseTo(5.364, 2); expect(pale.under).toBe(0);
+  });
+  it('ON THE LAND AS IT DRAWS NOW (a step above the sea, D-026 amended) the line holds 5.0 over land, read from the table and as uploaded at every maximum', () => {
+    // The land took the sea's own factor (0.90) on 2026-10-12 so the map shows through at the far-out zooms; a lighter ground gives the tint more room.
+    // The SEA's line is not moved by it and still dips (the pin above): light's re-solve is for the sea.
+    const STEP = groundOf('land', {});
+    expect(windBasemapLandL('light', {})).toBe(0.9);
+    expect(line(STEP, tableOf({}))).toBeGreaterThanOrEqual(5.0);
+    const step = sweep('land', {});
+    expect(step.n).toBe(281); expect(step.under).toBe(0); expect(step.least).toBeGreaterThanOrEqual(5.0);
+    expect(step.least).toBeGreaterThan(sweep('land', DEEPER).least + 0.2);            // and by a margin the deeper land did not have
   });
   it('THE COST, said plainly: the weakest normal-vision neighbours are 8.0 apart (9.0 before), and 6 to 16 kn carry a third less colour', () => {
     expect(weakest(normal, 'now', 'water')).toBeGreaterThanOrEqual(7.9); expect(weakest(normal, 'now', 'water')).toBeLessThan(8.3);

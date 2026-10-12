@@ -60,10 +60,37 @@ export function windBasemapWaterL(theme, win = (typeof window !== 'undefined' ? 
  * under D-022's kill, the white streak's, dark's rules' and every hold the land is the mute's alone again, and each older kill
  * still draws its old picture (an independent review, before the PR: with D-022's kill alone the streaks were full white over
  * a deep land). WindColorRamp.js, which knows those kills, hands the question in (setWindLandDepthGate): this file has no imports.
+ * SINCE THE SAME DAY THE DEFAULT IS ONE STEP LIGHTER (THE LAND A STEP ABOVE THE SEA, below): these 0.81 / 0.85 are what its kill draws.
  * Kill: window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true (the land as the mute alone leaves it; the streaks' strengths as D-022 set them).
  * Lever: window.__RAW_WIND_BASEMAP_LAND_L__ (0.5 to 1.2). Both are read at the next sync, as the mute's are.
  * Read-back: window.__WIND_BASEMAP_MUTE__.landL (1 when the land is the style's own).
  */
+/**
+ * THE LAND A STEP ABOVE THE SEA (2026-10-12, D-026 amended). The owner, on the deployed build with the coast in the borders' ink
+ * (D-028) live: "it needs to be checked at all zooms, because I don't see the fix at higher out zooms, cannot see the land below the
+ * wind animations in beach or light modes well".
+ * At zooms 2 and 3 (the app's far end is 2) dark's continents are SHAPES: its land stays under its sea, 9.4 of its own 18.4 L* under
+ * an equal wind. Light's and beach's were not: with the land at the sea's depth (above) they kept 1.1 and 1.7 of their own 12.7,
+ * and a coastline 0.4 px wide cannot carry a continent, in ink or not (its best pixels already read 1.6 times dark's line there).
+ * A land is seen by its TONE.
+ * So the land takes the SEA'S OWN factor (waterL: 0.90 in light, 0.94 in beach) in place of the deeper 0.81 / 0.85: the mute darkens
+ * the map as a whole and the map's own land-sea step survives it. Measured on a speed ramp (scripts/wind-bench/ground-run.js
+ * --fixture <ramp> --strips 12 --full 60, zoom 6, land minus sea under the field): light +8.3 L* (1.03 of its own contrast), beach
+ * +8.0 (0.97); dark -9.4 (0.52). And a streak over that land is laid at 0.75, between the sea's 0.55 and D-022's full: there it adds
+ * the light dark's streaks add over dark's land (the 60-frame mean over the field alone: light +14.5 L*, beach +14.7, dark +14.8; at
+ * the sea's 0.55 they added 11.1 and 10.8, at full 19.1 and 19.9).
+ * What it moves besides: the colour-blind line as the GPU draws it over land RISES (light 4.85 to 5.18, under 5.0 at 123 and then 0
+ * of 281 maxima; beach 5.06 to 5.31), and the land mask's seam now parts 0.75 from 0.55 (D-022 parted 1 from 0.55).
+ * It is the depth's own switch one step further, and rides everything the depth rides.
+ * Kill: window.__RAW_DISABLE_WIND_LAND_STEP__ = true (the land at the sea's depth and a streak over it at the sea's strength: D-026
+ * as it merged, to the byte). The depth's own kill and lever (above) keep their meaning.
+ */
+export const WIND_LAND_STEP = Object.freeze({ landL: Object.freeze({ light: 0.90, beach: 0.94 }), white: Object.freeze({ light: 0.75, beach: 0.75 }) });
+/** Is the land drawn a step above the sea for this theme (the default), or at the sea's depth (the step's kill)? */
+export function windLandStep(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  return (win || {}).__RAW_DISABLE_WIND_LAND_STEP__ !== true && typeof WIND_LAND_STEP.landL[theme] === 'number';
+}
+
 let LAND_GATE = null;
 /** WindColorRamp.js sets this once: (theme, win) => is the white streak laid by the ground (D-022) here, now? Unset (this file loaded alone), the gate is open. */
 export function setWindLandDepthGate(fn) { LAND_GATE = typeof fn === 'function' ? fn : null; }
@@ -72,7 +99,7 @@ export function windBasemapLandL(theme, win = (typeof window !== 'undefined' ? w
   if (w.__RAW_DISABLE_WIND_LAND_DEPTH__ === true || (LAND_GATE && !LAND_GATE(theme, w))) return 1;
   const lev = w.__RAW_WIND_BASEMAP_LAND_L__;
   if (typeof lev === 'number' && lev >= 0.5 && lev <= 1.2) return lev;
-  return WIND_BASEMAP_MUTE.landL[theme] || 1;
+  return windLandStep(theme, w) ? WIND_LAND_STEP.landL[theme] : (WIND_BASEMAP_MUTE.landL[theme] || 1);
 }
 
 /** True when the last sync drew THIS theme's land deeper (its read-back, not the lever: a kill, imagery or a theme change in flight says no). */
@@ -82,14 +109,16 @@ export function windLandDepthOn(theme, win = (typeof window !== 'undefined' ? wi
 }
 
 /**
- * The white streak's strength over LAND, given the theme's { land, sea } (windDarkRules.js DARK_WHITE). ONE GROUND, ONE STRENGTH:
- * where the land is drawn at the sea's depth a streak over it is laid at the SEA's strength, so the land mask's seam has nothing to
- * show; anywhere else the land keeps its own (D-022: full). Bench lever: window.__RAW_WIND_WHITE_LAND__ (0.2 to 1) on a deep land.
+ * The white streak's strength over LAND, given the theme's { land, sea } (windDarkRules.js DARK_WHITE). Where the mute leaves the
+ * land the style's own, D-022's (full). Where the land is drawn a step above the sea (the default, WIND_LAND_STEP), that step's own
+ * strength. Where it is drawn AT the sea's depth (the step's kill), the SEA's: one ground, one strength, no seam.
+ * Bench lever: window.__RAW_WIND_WHITE_LAND__ (0.2 to 1) on a deepened land.
  */
 export function windLandWhite(theme, win, k) {
   if (!windLandDepthOn(theme, win)) return k.land;
   const lev = (win || {}).__RAW_WIND_WHITE_LAND__;
-  return typeof lev === 'number' && lev >= 0.2 && lev <= 1 ? lev : k.sea;
+  if (typeof lev === 'number' && lev >= 0.2 && lev <= 1) return lev;
+  return windLandStep(theme, win) ? WIND_LAND_STEP.white[theme] : k.sea;
 }
 
 /** Share of chroma to remove under the wind for this theme (0 = off). */
