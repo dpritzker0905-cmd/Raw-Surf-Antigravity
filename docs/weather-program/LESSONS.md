@@ -903,13 +903,17 @@ A stored estimate can be estimated again in a browser branch with different sour
   colour-blind passes bought, and the legend had moved with them. Rules: (1) a colour table is changed with the checker in the
   loop, not after the screenshot; (2) the field and the legend move together or not at all; (3) when a look and a floor pull
   apart, solve with the floor as a constraint (here: 5.1, within 4 degrees of dark's hue) and bring the owner both. (same log)
-- **L-V50 · A look calibrated in one wind strength does not hold in another: sweep the wind as well as the zoom, and explain a
-  bench-against-screen gap before acting on it.** D-022's sea strengths were solved on one view in the wind as served (a median
-  near 13 kn): beach 0.77 read 1.01 of dark's lift. Read on the deployed build in a 67 kn field it read 1.37, and this session
-  recommended 0.55 from that one read, calling it "the owner's screen". The bench with its wind scaled 2.3 times reads the same
-  1.38: the gap was the wind, not the screen (a pixel ratio of 3 moved it by 0.04). A stronger wind brightens dark's own ground
-  and deepens beach's, so the same white lifts beach further and dark less; at 0.55 beach is dark's lift in a storm (1.07) and
-  0.74 to 0.80 of it in a breeze. Rules: (1) a per-theme strength is read at two wind strengths at least (`motion-run.js` runs
-  take `scale`), as it is at three zooms; (2) when the bench and a live read disagree, reproduce the live read on the bench
-  (its wind, its pixel ratio, one at a time) BEFORE recommending a number from either; (3) say which scene a number is true in.
-  The same shape as L-S10 (sweep the interior of a range, not its ends). (log 2026-10-11-wind-dark-white, "Beach's sea at 0.55")
+- **L-V50 · A look calibrated at one wind speed does not hold at another: sweep the wind as well as the zoom, and read the
+  scene variable WHERE THE CROP SITS.** D-022's sea strengths were solved on one view of one fixture: beach 0.77 read 1.01 of
+  dark's lift. On the deployed build it read 1.37, and this session recommended 0.55 from that one read. It then called the
+  bench's scene "the wind as served, a median near 13 kn" from the fixture's whole box, measured one stronger wind beside it,
+  and wrote that 0.55 was right in a storm and short in a breeze. The fixture is a hurricane: the zoom 6 sea crop holds a 39 kn
+  field, and the "stronger wind" was 90 kn. Swept properly (the crop's median 8 / 16 / 39 / 90 kn) beach at 0.55 reads 1.10 /
+  0.96 / 0.80 / 1.07: the one low reading is the band where beach's own field is pale, which is the band 0.77 had been solved
+  in. Two points at one end of a range had been read as its two ends. Rules: (1) a per-theme strength is read at four wind
+  speeds at least, everyday winds among them (`motion-run.js` runs take `scale`), as it is at three zooms; (2) the speed that
+  labels a scene is read from the fixture inside the crop, never from the fixture's summary or a README; (3) when the bench and
+  a live read disagree, reproduce the live read on the bench (its wind, its pixel ratio, one at a time) BEFORE recommending a
+  number from either; (4) a number goes to the owner with the scene it is true in. L-S10 again (sweep the interior of a range,
+  not its ends): cited in this lesson's first version an hour before it was broken. (log 2026-10-11-wind-dark-white, "Beach's
+  sea at 0.55" and its correction)

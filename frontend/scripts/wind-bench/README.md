@@ -280,11 +280,15 @@ node scripts/wind-bench/compose-video.js scripts/wind-bench/out/videos/side.webm
 - **Baseline since beach's sea strength is 0.55** (2026-10-12, D-022 amended; same view, same crops): over the sea beach
   0.80 / 1.19 / 0.74 (its kill 1.23 / 1.46 / 1.06, light 1.03 at zoom 6, dark's lift 12.6 / 10.4 / 6.9: the numbers before, to the
   digit); over land 0.93 / 0.80 / 0.69, unchanged.
-- **Sweep the wind's strength too** (a run's `scale`; LESSONS L-V50). The lift against dark's is not one number per theme: at
-  zoom 6 over the sea with `"scale": 2.3` (Mobile Bay's median near 30 kn) beach at 0.55 reads 1.07, its kill 1.70 and light 1.23,
-  where the served wind reads 0.80, 1.23 and 1.03. A stronger wind brightens dark's own ground (36.7 to 43.9 L*) and deepens
-  beach's (49.6 to 42.0), so the same white lifts beach further and dark less. The device pixel ratio moves it little (`--dpr 3`,
-  served wind: beach 0.84, its kill 1.35, light 0.98).
+- **THE FIXTURE IS A HURRICANE, and a crop's wind is read from the fixture, not from this page** (LESSONS L-V50). At zoom 6 the
+  sea crop (`--at 0.5,0.9 --size 360`: 26.2 to 29.7 N) holds a 39 kn field (quartiles 32 and 46, top 78); the land crop
+  (`--at 0.5,0.12`) lies mostly NORTH of the fixture's box (25 to 32 N), where the bench draws its own light climatology, which a
+  run's `scale` does not touch. `"scale": 2.3` is a 90 kn sea (`map-entry.js` describes it by the bay's own median).
+  **Sweep the wind with `scale`:** the lift against dark's is not one number per theme. Zoom 6, the sea, the crop's median
+  8 / 16 / 39 / 90 kn (`scale` 0.2 / 0.4 / 1 / 2.3): beach at 0.55 reads 1.10 / 0.96 / 0.80 / 1.07 (its kill 1.57 / 1.23 / 1.70 from
+  16 kn), light at 0.55 1.11 / 1.05 / 1.03 / 1.23 (its kill 1.72 at 16 kn), dark's own lift 7.3 / 9.6 / 12.6 / 11.8. The low reading is
+  the band where beach's field is pale (27 to 40 kn). The device pixel ratio moves it little (`--dpr 3` at 39 kn: beach 0.84,
+  its kill 1.35, light 0.98).
 
 ## Path mode (`path-run.js`): wind colour vs map colour, through every kind of camera move
 

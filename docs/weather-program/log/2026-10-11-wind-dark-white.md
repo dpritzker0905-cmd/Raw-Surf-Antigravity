@@ -274,3 +274,37 @@ The centre crop (land and sea together): light 0.84 of dark's at zooms 6 and 4 (
   so it cannot see a sea strength: L-V40). Zooms 4 and 9 were not read in the scaled wind. Phones: not measured.
 - **Not built, the owner's calls:** a sea strength that follows the wind's speed (the mark shader holds the speed; it would
   fit a breeze and a storm both); the `bindLandMask` guard the review named.
+
+## 2026-10-12 03:20Z · CORRECTION to the section above: the bench's two scenes were a storm and a stronger storm
+
+The section above says the bench's view "in the wind as served" is a breeze and concludes "0.55 is dark's lift in a storm and a
+quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence is wrong.** Its numbers stand; its labels do not.
+
+- **How it was found:** the owner asked this session to lead the lanes and to "use the jacobian lens to help see everything as
+  a whole. To not miss any clues." A first table of the whole picture from the colour model (`mirror-jacobian.mjs`, a streak's
+  step off its ground at every knot, land and sea, beside dark's) did not agree with the bench's "breeze" row, so the fixture
+  was read where the crop sits: `eye-2026-10-09-gfs-native.json` is a hurricane. The zoom 6 sea crop (26.2 to 29.7 N, 90 to 86
+  W) holds 56 nodes, median 39.1 kn, quartiles 31.7 and 45.7, top 78.4. "A median near 13 kn" had been taken from the README's
+  line about Mobile Bay. So the two scenes measured were 39 kn and 90 kn.
+- **Measured then, the everyday winds** (`scale` 0.4 and 0.2: the crop's median 16 and 8 kn; zoom 6, the sea, `--size 360`):
+
+  | the sea crop's wind | 8 kn | 16 kn | 39 kn | 90 kn |
+  |---|---|---|---|---|
+  | dark's lift (L*) | 7.3 | 9.6 | 12.6 | 11.8 |
+  | beach at 0.55 | 1.10 | 0.96 | 0.80 | 1.07 |
+  | beach, the kill | | 1.57 | 1.23 | 1.70 |
+  | light at 0.55 | 1.11 | 1.05 | 1.03 | 1.23 |
+  | light, the kill | | 1.72 | 1.62 | |
+
+- **What it means:** 0.77 was solved in the one band of speed (27 to 40 kn) where beach's own field is pale, so it wanted more
+  white there than anywhere else; at 16 kn it works out to about 1.26 of dark's lift and at 90 kn to 1.38. At 0.55 beach reads
+  0.96 to 1.10 at everyday winds: the owner's number is dark's lift where most of the sea is, most days. The records in this
+  change were corrected in place before any merge (the code's comment, D-022's amendment, L-V50, STATE, the bench's README, the
+  PR's description); the ledger's lines 1064 and 1065 carry only the numbers, which stand; a `correction` line records this.
+- **Also read there, not yet acted on:** the land crop at zoom 6 lies mostly north of the fixture's box, over the bench's own
+  climatology, which `scale` does not touch: every land number of D-022 was read at about 8 kn and no other speed. And two of
+  this repo's instruments model dark's ground differently: `windDarkRules.js` lays dark's field at its alpha SQUARED (the
+  engine's law: `HEATMAP_FS` returns the field premultiplied and the engine blends it `SRC_ALPHA, ONE_MINUS_SRC_ALPHA`), while
+  `check.mjs` and `mirror-model.mjs` lay it at its alpha, which reads dark's sea about 20 L* too light (45 against 66 at 13
+  kn); they also hold different dark map colours. The bench's dark ground (36.7 to 43.9 L* over the sea) fits the squared law
+  over the style's colours. Not fixed here: its own change, with a GPU read first.

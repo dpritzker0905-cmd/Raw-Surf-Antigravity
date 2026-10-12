@@ -471,16 +471,29 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   not 0.77.** The owner: "make the beach sea strength change to 0.55". Read on the deployed build (`ec8f46a2`) in the owner's
   Chrome at zoom 6 over open sea, in a field reaching 67 kn: light at 0.55 lifted the picture 1.04 times as far as dark's (1.60
   with the kill set), beach at 0.77 lifted it 1.37 times. This session recommended 0.55 from that one read; the owner took it.
-  - **What the bench then said, and why the two reads differed: the wind's strength.** Built and captured in motion on the same
-    view and crops as before (dark's lift, light's and the kill arm repeat the earlier run to the digit): over the sea beach at
-    0.55 reads 0.80 / 1.19 / 0.74 of dark's lift at zooms 6 / 4 / 9 (1.01 / 1.34 / 0.91 at 0.77). With the bench's wind scaled 2.3
-    times (Mobile Bay's median near 30 kn) the same crop at zoom 6 reads 1.07 at 0.55, 1.70 under the kill, and 1.38 at 0.77 by
-    interpolation between the two: the deployed read. At device pixel ratio 3 with the wind as served it reads 0.84. So the
-    live read was not the screen disagreeing with the bench; it was a stronger wind, in which dark's own ground is brighter and
-    beach's deeper. **One number per theme cannot equal dark's lift at every wind strength** (LESSONS L-V50).
-  - **What 0.55 is, plainly:** dark's lift over the sea in a storm (1.07), and a quieter streak than dark's in a breeze (0.74 to
-    0.80 at zooms 6 and 9). 0.77 was the reverse. The owner's eye on the deployed build decides which they want; a strength that
-    follows the wind's speed (the mark shader already holds it) would fit both and is NOT built: the owner's call.
+  - **What the bench then said, and why the two reads had differed: the WIND'S SPEED in the scene.** Built and captured in
+    motion on the same view and crops as before (dark's lift, light's and the kill arm repeat the earlier run to the digit):
+    over the sea beach at 0.55 reads 0.80 / 1.19 / 0.74 of dark's lift at zooms 6 / 4 / 9 (1.01 / 1.34 / 0.91 at 0.77). That
+    looked like "under dark's" until the fixture was read where the crop sits: the bench's wind is a hurricane, and the zoom 6
+    sea crop holds a 39 kn field (quartiles 32 and 46). Swept with the run's `scale` (zoom 6, the sea crop's median wind):
+
+    | the sea crop's wind | 8 kn | 16 kn | 39 kn (as served) | 90 kn |
+    |---|---|---|---|---|
+    | beach at 0.55 | 1.10 | 0.96 | 0.80 | 1.07 |
+    | beach, the kill (1.0) | | 1.57 | 1.23 | 1.70 |
+    | beach at 0.77 (between the two) | | about 1.26 | 1.01 (measured) | about 1.38 |
+    | light at 0.55 | 1.11 | 1.05 | 1.03 | 1.23 |
+
+    0.77 was solved in the one band of speed, 27 to 40 kn, where beach's own field is pale (by the colour model its ground over
+    the sea is L* 51 to 58 there and 38 to 44 at everyday speeds), so it wanted more white there than anywhere else. The
+    deployed read (1.37) is the 90 kn column. At device pixel ratio 3 the 39 kn column reads 0.84: the screen was not the cause.
+    (LESSONS L-V50.)
+  - **What 0.55 is, plainly:** within 0.96 to 1.10 of dark's lift over the sea at 8 and 16 kn and at 90 kn, and short of it
+    (0.80) in beach's pale band near 39 kn. 0.77 was dark's lift in that band and 1.26 to 1.38 times it elsewhere. What is left
+    is the shape of beach's field along speed (it dips at 10 kn and goes pale at 27 to 33), not the number: a strength that
+    follows the wind's speed would take it out and is NOT built: the owner's call. **Corrected the same night:** this entry
+    first said "dark's lift in a storm and a quieter streak than dark's in a breeze", from two bench scenes this session had
+    called a breeze and a storm; they were a storm and a stronger one.
   - **Its cost, read per knot (the model in `windDarkWhite.test.js`):** at beach's 29 kn band, held pale, a streak's core now
     stands 22.7 L* off its ground (31.5 at 0.77); the cores keep at least 0.376 of the sea's colour (0.183). The palette
     checker's red lines are the two before; two of its lines move, neither a floor: the core against its own tint over water,

@@ -20,12 +20,13 @@ is a claim, not a measurement.
   "make the beach sea strength change to 0.55" (DECISIONS D-022, amended 2026-10-12).
   - **What draws:** `DARK_WHITE.beach.sea` 0.55 (`windDarkRules.js`). Nothing else: no table, key, shader or engine line; land,
     light and dark as before. Kill unchanged: `window.__RAW_DISABLE_WIND_DARK_WHITE__ = true`.
-  - **Measured, and the finding (LESSONS L-V50): the right strength depends on the WIND'S STRENGTH.** On the bench's view in the
-    wind as served (a median near 13 kn) beach at 0.55 reads 0.80 / 1.19 / 0.74 of dark's lift over the sea at zooms 6 / 4 / 9
-    (1.01 / 1.34 / 0.91 at 0.77): UNDER dark's. With the bench's wind scaled 2.3 times it reads 1.07 (0.77 works out to 1.38, the
-    deployed read). A stronger wind brightens dark's ground and deepens beach's. 0.55 is dark's lift in a storm and a quieter
-    streak than dark's in a breeze; 0.77 was the reverse; one number is not both. Its cost per knot: at beach's 29 kn band a core
-    stands 22.7 L* off its ground (31.5 at 0.77). Palette checker: the same two red lines as dev; two watch lines move.
+  - **Measured, and the finding (LESSONS L-V50): a strength is read ACROSS THE WIND'S SPEEDS.** The bench's fixture is a
+    hurricane: its zoom 6 sea crop holds a 39 kn field, the one band (27 to 40 kn) where beach's own field is pale, and 0.77
+    had been solved there. Swept (the crop's median 8 / 16 / 39 / 90 kn; zoom 6, the sea): beach at 0.55 reads 1.10 / 0.96 /
+    0.80 / 1.07 of dark's lift (0.77: about 1.26 at 16 kn, 1.01 at 39, 1.38 at 90, the deployed read); light's 0.55 reads 1.11 /
+    1.05 / 1.03 / 1.23. So 0.55 is dark's lift in everyday wind and short only in beach's pale band. Its cost per knot: at
+    beach's 29 kn band a core stands 22.7 L* off its ground (31.5 at 0.77). Palette checker: the same two red lines as dev; two
+    watch lines move.
   - **#314's read-back is done** (the mark program's `u_white` as built; the kill acts at once; the count of moving marks is the
     same in the three themes: 147,456 particles, the same share kept at each zoom), and four errors in D-022's record are
     corrected there (the read-back criterion, `--size 360`, the README's paths, two unreported watch lines).
@@ -1943,7 +1944,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1067, sha256 5881bfd9276c88793094ef53eaa6fd37f9eeb42c5c8a6cef7ee7a8d198155925**
+  **Ledger head: seq 1068, sha256 882ee71fb9f649779bb10ad3da17ac89f0272b4c69dbbd2ebd94c544b8b5a25b**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
