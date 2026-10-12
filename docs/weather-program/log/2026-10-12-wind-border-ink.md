@@ -311,3 +311,14 @@ All on the final code (the local commit `bf8fd34d`, squashed into the PR's commi
 - **A duplicate key in `motion-run.js`** (my new `ink` read-back overwrote the run's `ink` metric in its JSON, and the console
   line printed `[object Object]`). The frames were not affected; the field is now `borderInk`. The ten runs' JSON carries the
   read-back under `ink`.
+
+## 03:55Z · PR #316 is open
+
+`gh pr create` returned https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/316 at 2026-10-12T03:55Z, against dev,
+from `claude/wind-border-ink` (one commit, `266e9be6`, then this line and the ledger's in a second). Not merged; the owner
+merges. Ledger seq 1063 to 1070: `pr_merge #314` (1063), two findings (1064 the borders, 1065 the theme change), D-023 (1066),
+the default (1067), `pr_open` (1068), and two commitments due 2026-10-19: the read-back on the deployed build by the paint, with
+the owner's verdict (1069), and what the bench's two gaps did to D-020 to D-022's numbers (1070).
+
+Sent to the owner at about 03:00Z, before the review returned (so of the border ink alone): two contact sheets (dark | today |
+with the ink, zooms 4, 6, 8, device pixels at 1.5) and two 2-second clips (zooms 6 and 4). No reply yet.

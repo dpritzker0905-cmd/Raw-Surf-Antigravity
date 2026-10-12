@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-12 03:50Z: under the wind, light and beach draw the map's BORDER LINES in dark ink, ON BY DEFAULT (client only; PR
-  OPEN against dev, the owner merges).** Owner, 2026-10-12 01:02Z, to the session that built #314 (its log): "The map below, I
+  #316 OPEN against dev, the owner merges).** Owner, 2026-10-12 01:02Z, to the session that built #314 (its log): "The map below, I
   think the labels and borders need to be more visible. In dark mode they are white boarders and labels. So in beach and light
   mode, there maybe needs to be black borders and labels?" (DECISIONS D-023). The owner has not seen this build.
   - **The finding:** the borders and the place names are already drawn ABOVE the wind in all three themes; no streak cuts them
@@ -56,7 +56,7 @@ is a claim, not a measurement.
   - **Not verified:** nothing of this build has been seen in the app or by the owner; one view, one wind field, zooms 4 to 8;
     phones; the theme-change repair is read on the bench's replay of the app's sequence, not in the app. **Waiting on the
     owner:** the merge, then their eye. **Owed:** the read-back on the deployed build, by the PAINT and not only the read-back
-    (the ledger's commitment for this PR). Log `2026-10-12-wind-border-ink`, LESSONS L-V46 to L-V49 and L-V51 (L-V50 is
+    (ledger seq 1069, due 2026-10-19), and what the bench's two gaps did to earlier numbers (seq 1070). Log `2026-10-12-wind-border-ink`, LESSONS L-V46 to L-V49 and L-V51 (L-V50 is
     #315's).
 - **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 MERGED
   2026-10-12T01:48:08Z as `ec8f46a2`).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
@@ -1963,7 +1963,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1067, sha256 2a9af3af4c9175997bf86cd6c096e7af574fd78c914c212d78e4b0c103a5a80e**
+  **Ledger head: seq 1070, sha256 c5c2a924d7feb4658571873d2b25d5fc3318bdf7f073c491dca2c891558efc2c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
