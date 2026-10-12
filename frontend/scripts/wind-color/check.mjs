@@ -35,8 +35,8 @@ const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); re
 const source = (file) => fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
 const { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windDarkRules.js')) + '; return { DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules };')();
 const { LIGHT_PATH, lightPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windLightPath.js')) + '; return { LIGHT_PATH, lightPathRows };')();   // light's path (no imports)
-const { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'LIGHT_PATH', 'lightPathRows',
-  source(RAMP_SRC) + '; return { THEME_RAMPS, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, LIGHT_PATH, lightPathRows);
+const { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'LIGHT_PATH', 'lightPathRows',
+  source(RAMP_SRC) + '; return { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, solveDarkRules, LIGHT_PATH, lightPathRows);
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on.
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
 const { muteColor, windBasemapMuteAmount, windBasemapWaterL } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL };')();
@@ -87,7 +87,8 @@ for (const theme of (arg('--theme') ? [arg('--theme')] : ['light', 'beach', 'dar
   // Dark's rules: beach draws a row a knot, and its marks' rows differ over land and over sea; light under the white streak draws its
   // deeper field's stops and ONE marks row for both grounds. --today or a look lever: the tables before dark's rules (FIELD_RAMPS /
   // THEME_RAMPS, or the look's own), one marks table for both grounds.
-  const rules = windDarkRulesOn(theme, LEVERS), m = MODEL[theme], P = THEME_RAMPS[theme], F = resolveDrawnField(theme, LEVERS) || P, KS = resolveDrawnMarks(theme, LEVERS), K = KS.land, rows = [];
+  const rules = windDarkRulesOn(theme, LEVERS), m = MODEL[theme], P = resolveLegendRamp(theme, LEVERS), F = resolveDrawnField(theme, LEVERS) || P,   // P: the legend as the BAR draws it (light's follows its field onto its path)
+    KS = resolveDrawnMarks(theme, LEVERS), K = KS.land, rows = [];
   // How the marks are laid (keep in sync with windInk.js WIND_LIGHT_LOOK and DARK_RULES): ink multiplied into the tint, A's lifted colour
   // laid over it; dark's rules by the engine's own law (the colour at full light, laid at alpha^2 x opacity).
   const look = theme === 'light' ? LEVERS.__RAW_WIND_LIGHT_LOOK__ : null, LOOK_OP = { ink: 0.9, moderate: 1.0, deep: 1.0 };

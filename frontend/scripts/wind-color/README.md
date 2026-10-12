@@ -105,6 +105,39 @@ green at 16, teal at 21; 146 degrees from dark at 10 kn) and beach's lightness d
 either without this checker in the loop:** a prototype that did read 2.9 for light's colour-blind floor (5.5 before) and 1.3 for
 beach's (3.1), and left light's field off its legend bar. Those turns are what the colour-blind passes bought (LESSONS L-V45).
 
+**Dark is NOT laid by the engine's law here (2026-10-12; not fixed in this file yet).** `mirror-model.mjs` and `check.mjs` lay
+dark's field as `field × α + map × (1 − α)`. The engine writes it premultiplied and blends with `SRC_ALPHA`, so on screen it is
+`field × α² + map × (1 − α)`: about half as strong from 5 kn. Dark's hue over its land moves 2 to 5 degrees between the two
+laws; its lightness, chroma, hardest edge and colour-blind line move a lot (by the engine's law: L\* 19 to 27 from 6 to 40 kn,
+nearly flat; hardest edge 8.9 dE00 a knot; colour-blind 2.5 to 3.1). Light and beach (the multiply law) are not affected.
+`light-path-solve.mjs` reads dark through its own `darkOn`.
+
+## Light's path: solving a table with the floor as a constraint (`light-path-*.mjs`)
+
+Light's field, streak row and legend bar from 1 to 32 kn are solved tables (`src/components/map/windLightPath.js`, DECISIONS
+D-024): dark's hue ORDER in light's own key. Three files made them, and can re-make them:
+
+- **`light-path-lib.mjs`**: the colour-blind distance `cvd_check.py` scores, in plain JS (coloraide 8.13's Viénot protan and
+  deutan, Brettel tritan, CIEDE2000 in CIELAB D65). `node light-path-lib.mjs --verify` scores 4,000 random pairs both ways and
+  prints the largest disagreement (2e-12 dE2000 when written). A search scores a candidate in about 0.1 ms, so the floor is a
+  bar INSIDE the solve, not a reading after it. The checker stays the authority: every table is still run through it.
+- **`light-path-solve.mjs`**: the field. Differential evolution over the colour ON SCREEN over light's muted land at the
+  Beaufort stops; a row a knot between; every bar scored on the rows as they are written (3 decimals). The bars and what each
+  flag sets are in its header. `--deep` holds the floor and the normal-vision distance as bars and aims for the deepest ground
+  (a white streak needs a ground deeper than itself); `--keep N` keeps today's rows up to N kn; `--score cand.json --emit
+  tables.json` prints every bar of a saved candidate and writes its field and streak rows.
+- **`light-path-legend.mjs`**: the legend bar's 3 to 27 kn rows, each on the hue the field draws at that stop, with the
+  checker's own bars (9 dE00 normal, 5.0 colour-blind, the bar within 30 degrees of the field at every half knot).
+
+`check.mjs --before-path` and `mirror-model.mjs --before-path` read light as it drew before the path
+(`window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`). The checker's legend lines read the bar as the app draws it
+(`resolveLegendRamp`): in light on its path that is no longer the particle ramp.
+
+What the solve found, so the next one starts further on: holding light's hue tight to dark's (about 8 degrees) needs the field
+4 to 12 L\* paler from 6 to 21 kn to keep a 5.2 floor; at 20 degrees the depth nearly holds. A cyan as deep as L\* 60 cannot
+carry more than C\* 30 under the 0.70 multiply tint, so the 10 kn band stays light in every solve. A bar that chroma have ONE
+crest is stricter than dark itself (dark dips through cyan).
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models

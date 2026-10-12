@@ -24,7 +24,9 @@ const EngineModule = require('wind-bench-engine');
 const { windLayerBeforeId, windCoastlineLayer } = require('wind-bench-utils');
 const { gridFromFixture, worldBase } = require('../eye');
 const { mulberry32 } = require('../scanner');
-const { resolveThemeRamp, sampleRamp } = require('wind-bench-ramp');
+const RAMP = require('wind-bench-ramp'), { sampleRamp } = RAMP;
+// The legend as the BAR draws it (light's follows its field onto light's path); a tree before that has only the particle ramp.
+const resolveThemeRamp = (theme) => (RAMP.resolveLegendRamp || RAMP.resolveThemeRamp)(theme);
 const { syncWindBasemapMute } = require('wind-bench-mute');
 const { labTable, binOf, binImage, binMask, stylePalette, frameMetrics, coastMetrics, colourEdges, warpDiff, hueFidelity, labOf } = require('../ambiguity');
 const { sampleSpeed, sampleWind } = require('../field');

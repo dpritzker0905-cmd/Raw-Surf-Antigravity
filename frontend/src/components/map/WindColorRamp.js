@@ -556,6 +556,15 @@ export function resolveThemeRamp(theme) {
   var legacy = LEGACY_LOW_STOPS[theme] || LEGACY_LOW_STOPS.dark;
   return ramp.map(function(stop, i) { return legacy[i] ? legacy[i].slice() : stop; });
 }
+/**
+ * The stops the LEGEND BAR draws: the particle ramp, except in light on light's path (windLightPath.js). There the streaks are white
+ * light over the field and take no colour from this ramp, so the bar follows the hues the FIELD draws (its 3 to 27 kn rows); the
+ * particle ramp itself (resolveThemeRamp) never moves, which is what every older kill and lever draws its marks from.
+ */
+export function resolveLegendRamp(theme, win) {
+  var ramp = resolveThemeRamp(theme);
+  return theme === 'light' && windLightPathOn(theme, win) ? revertRows(ramp, LIGHT_PATH.legend) : ramp;
+}
 
 /**
  * LEGEND, DERIVED FROM THE SHIPPED RAMP (2026-08-09, R11-11 item 2).
@@ -575,8 +584,8 @@ export function resolveThemeRamp(theme) {
  * Positions are VALUE-PROPORTIONAL (kn / max), because the bar is drawn with equal-width CSS stops
  * otherwise — R11-11 item 3, the same defect one level down.
  */
-export function windLegendGradientCSS(theme) {
-  var ramp = huePathStops(resolveThemeRamp(theme));   // the bar draws the path the map draws
+export function windLegendGradientCSS(theme, win) {
+  var ramp = huePathStops(resolveLegendRamp(theme, win));   // the bar draws the path the map draws
   var max = ramp[ramp.length - 1][0] || 1;
   var css = ramp.map(function (s) {
     return 'rgba(' + Math.round(s[1] * 255) + ',' + Math.round(s[2] * 255) + ','

@@ -30,6 +30,7 @@ import { GLSL_LAND_FS } from './windLandMask';
 
 const V2 = resolveWindParticlesV2({});
 const KILL = { __RAW_DISABLE_WIND_DARK_WHITE__: true };   // full strength on both grounds, as PR #313 laid it
+const NO_PATH = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };   // light's path (windLightPath.js, D-024) re-ordered light's 1 to 32 kn rows since: PR #313's bytes are what light draws under ITS kill
 const FULL = { land: 1, sea: 1 };
 const THEMES = ['light', 'beach'];
 const WHITE_MARKS = { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: 1.0, spine: 1, white: 0 };   // D-021's mark model: this change leaves it alone
@@ -90,11 +91,13 @@ describe('the numbers: a strength for each ground, a theme', () => {
 
 describe('it is the strength alone: no table, no key and no mark model moves', () => {
   it.each([50, 75])('the fields and the streak rows are PR #313\'s, byte for byte, with and without the kill (%i kn)', (max) => {
-    for (const theme of THEMES) { expect(hashes(theme, {}, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }
+    for (const theme of THEMES) { const w = theme === 'light' ? NO_PATH : {}; expect(hashes(theme, w, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, { ...w, ...KILL }, max)).toEqual(TABLES[theme][max]); }
+    expect(hashes('light', {}, max)).not.toEqual(TABLES.light[max]);                         // light's default has moved on (D-024) ...
+    expect(hashes('light', KILL, max)).toEqual(hashes('light', {}, max));                    // ... and the strength's kill moves no table there either
     expect(hashes('dark', {}, max)).toEqual(hashes('dark', KILL, max));
   });
   it('the mark model and the look key are D-021\'s (the strength is a uniform the engine binds every frame)', () => {
-    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, w)).toBe('white|dark-rules'); }
+    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, w)).toBe(theme === 'light' ? 'white+path|dark-rules' : 'white|dark-rules'); }
     expect(windInk('dark', V2, {}).mode).toBe(0);
   });
 });

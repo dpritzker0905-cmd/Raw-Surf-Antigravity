@@ -298,7 +298,7 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
   });
   it('the engine rebuilds its tables at once when any of them flips (the look key)', () => {
     const base = windLookKey('light', {});
-    expect(base).toBe('white|dark-rules');
+    expect(base).toBe('white+path|dark-rules');   // light's path (D-024) names itself in the key: its kill rebuilds the tables at once
     for (const w of [KILL, B, { __RAW_WIND_DARK_RULES__: 'beach' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: 'light' }, { __RAW_WIND_THEME_V2__: true }]) expect(windLookKey('light', w)).not.toBe(base);
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).not.toBe(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'ink' }));
     expect(windLookKey('dark', {})).toBe('|');
@@ -356,6 +356,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
       '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea, and nothing else; no table reads it
+      '__RAW_DISABLE_WIND_LIGHT_PATH__',                                                                       // light's path (D-024): which rows light's field, streak row and legend bar draw from 1 to 32 kn under the white streak; it stands down with it
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
       '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',

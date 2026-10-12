@@ -66,7 +66,7 @@ export function pathOf(cand) {
 
 /** Every bar and aim of a candidate, as numbers. */
 export function score(cand, opts) {
-  const o = Object.assign({ room: 65.2, room10: 65.2, calmL: 82, cLand: 18, cWater: 15, calmC: 6, h27: 20, normal: 9.0, floor: 5.0, crest: 99, c6: 0, cmid: 0, calmMax: 99, c16: 0, c21: 0 }, opts || {}), P = pathOf(cand), q = { land: P.map((r) => lchOf(r.land)), water: P.map((r) => lchOf(r.water)) };
+  const o = Object.assign({ room: 65.2, room10: 65.2, room16: 99, calmL: 82, cLand: 18, cWater: 15, calmC: 6, h27: 20, normal: 9.0, floor: 5.0, crest: 99, c6: 0, cmid: 0, calmMax: 99, c16: 0, c21: 0 }, opts || {}), P = pathOf(cand), q = { land: P.map((r) => lchOf(r.land)), water: P.map((r) => lchOf(r.water)) };
   const pairs = [3, 6, 10, 16, 21, 27, 33].map((kn, i, a) => (i ? [a[i - 1], kn] : null)).filter(Boolean);
   let floor = { de: Infinity }, normal = { de: Infinity };
   for (const surf of ['land', 'water']) for (const [a, b] of pairs) {
@@ -80,7 +80,7 @@ export function score(cand, opts) {
   bars.hueBack = back; bars.hueTurns = turns;
   bars.hueGap = Math.max(...[3, 6, 10, 16, 21].map((kn) => Math.abs(arc(darkAt(kn).h, q.land[kn].h))));
   bars.hueGapKnot = Math.max(...P.filter((r) => r.kn >= 3 && r.kn <= 21).map((r) => Math.abs(arc(darkAt(r.kn).h, q.land[r.kn].h))));
-  bars.room = Math.max(q.land[6].L - o.room, Math.max(...q.land.filter((c, k) => k >= 10).map((c) => c.L)) - o.room10);   // 6 kn, and from 10 kn up
+  bars.room = Math.max(q.land[6].L - o.room, Math.max(...q.land.filter((c, k) => k >= 10 && k < 16).map((c) => c.L)) - o.room10, Math.max(...q.land.filter((c, k) => k >= 16).map((c) => c.L)) - o.room16);   // 6 kn; 10 to 15 kn; from 16 kn up
   let edge = { de: 0 }; for (const surf of ['land', 'water']) for (let k = 1; k <= LAST; k++) { const d = normalDE(P[k - 1][surf], P[k][surf]); if (d > edge.de) edge = { de: d, kn: k, surf }; }
   bars.edge = edge;
   bars.cLand = Math.min(...q.land.filter((c, k) => k >= 3).map((c) => c.C)); bars.cWater = Math.min(...q.water.filter((c, k) => k >= 3).map((c) => c.C));
@@ -95,7 +95,8 @@ export function score(cand, opts) {
   for (let p = 0; p < cs.length; p++) { let v = 0; for (let i = 1; i < cs.length; i++) v += Math.max(0, i <= p ? cs[i - 1] - cs[i] : cs[i] - cs[i - 1]); uni = Math.min(uni, v); }
   bars.unimodal = uni; bars.calmC = q.land[0].C;
   bars.h27gap = Math.abs(arc(darkAt(27).h, q.land[27].h));
-  const viol = Math.max(0, bars.rise - 0.1) * 5 + Math.max(0, back) + Math.max(0, bars.room) * 2 + Math.max(0, edge.de - DARK_STEEPEST) * 2
+  // a rise under 0.02 L* is the table's own rounding (3 decimals)
+  const viol = Math.max(0, bars.rise - 0.02) * 40 + Math.max(0, back) + Math.max(0, bars.room) * 2 + Math.max(0, edge.de - DARK_STEEPEST) * 2
     + Math.max(0, o.cLand - bars.cLand) + Math.max(0, o.cWater - bars.cWater) + Math.max(0, 5 - calm.land) * 3 + Math.max(0, 5 - calm.water) * 3
     + Math.max(0, calm.land - three.land + 1) + Math.max(0, calm.water - three.water + 1) + Math.max(0, o.calmL - bars.calmL) * 2
     + (o.nouni ? 0 : uni) + Math.max(0, o.c16 - q.land[16].C) + Math.max(0, o.c21 - q.land[21].C) + Math.max(0, stripe - o.crest) + Math.max(0, o.c6 - q.land[6].C) + Math.max(0, o.cmid - Math.min(...[10, 16, 21, 27].map((kn) => q.land[kn].C))) + Math.max(0, bars.calmL - o.calmMax) + Math.max(0, o.calmC - bars.calmC) * 2 + Math.max(0, bars.h27gap - o.h27) + Math.max(0, o.normal - normal.de) * 3 + Math.max(0, o.floor - floor.de) * 6;
@@ -104,7 +105,7 @@ export function score(cand, opts) {
 // --deep: with the floor and the normal-vision distance held as BARS, the aim is the deepest field (the white streak needs a ground deeper
 // than itself), weighted to the winds a surf map mostly shows (6 and 10 kn twice 16 and 21, 27 kn half). Ties go to the candidate nearest
 // dark's hue, with 3 kn midway between calm and 6 kn in lightness and the smoothest chroma line.
-const DEPTH = [[6, 2], [10, 2], [16, 1], [21, 1], [27, 0.5]];
+const DEPTH = (arg('--depth', '6:2,10:2,16:1,21:1,27:0.5')).split(',').map((x) => x.split(':').map(Number));
 function aim(s, o) {
   if (!o.deep) return Math.min(s.floor.de, o.floorCap) * 10 + Math.min(s.normal.de, 14) * (o.wNormal ?? 1) - s.bars.stripe * (o.wStripe ?? 0.15) - s.viol * 40;
   const L = (kn) => s.q.land[kn].L, C = [...STOPS, LAST].map((kn) => s.q.land[kn].C);
@@ -155,7 +156,7 @@ function report(cand, s) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const o = { room: Number(arg('--room', 65.2)), room10: Number(arg('--room10', 65.2)), calmL: Number(arg('--calm', 82)), tol: Number(arg('--tol', 6)), floorCap: Number(arg('--cap', 5.2)), wNormal: Number(arg('--wn', 1)), wStripe: Number(arg('--ws', 0.15)),
+  const o = { room: Number(arg('--room', 65.2)), room10: Number(arg('--room10', 65.2)), room16: Number(arg('--room16', arg('--room10', 65.2))), calmL: Number(arg('--calm', 82)), tol: Number(arg('--tol', 6)), floorCap: Number(arg('--cap', 5.2)), wNormal: Number(arg('--wn', 1)), wStripe: Number(arg('--ws', 0.15)),
     cLand: Number(arg('--cland', 18)), cWater: Number(arg('--cwater', 15)), calmC: Number(arg('--calmc', 6)), h27: Number(arg('--h27', 20)), normal: Number(arg('--normal', 9.0)), floor: Number(arg('--floor', 5.0)), crest: Number(arg('--crest', 99)), c6: Number(arg('--c6', 0)), cmid: Number(arg('--cmid', 0)), calmMax: Number(arg('--calmmax', 99)), deep: args.includes('--deep'), nouni: args.includes('--nouni'), c16: Number(arg('--c16', 0)), c21: Number(arg('--c21', 0)) };
   if (arg('--score')) {
     const file = JSON.parse(fs.readFileSync(arg('--score'), 'utf8')), cand = Array.isArray(file) ? file[0].cand : file, s = score(cand, o);
