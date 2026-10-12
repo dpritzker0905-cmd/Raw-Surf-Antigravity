@@ -77,12 +77,16 @@ left and pinned: over light's own cyan water, which shows only with the basemap 
 
 **Beach's path (2026-10-12, `src/components/map/windBeachPath.js`, DECISIONS D-025; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__`;
 log `docs/weather-program/log/2026-10-12-wind-beach-path.md`).** With it, `node check.mjs --strict` exits 0: beach's two
-colour-blind lines read 5.1 over the muted water and 5.1 over the muted land. `--before-path` prints the table below.
+colour-blind lines read 5.0 over the muted water and 5.3 over the muted land, and one new watch line is printed (over the sea
+the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). `--land-l 0.85` reads a DEEPER land (the
+land's lightness times that factor, as PR #320 lays it under the wind): there the lines read 5.0 and 5.0, and beach before
+its path (`--before-path --land-l 0.85`) reads 3.1 and 2.9. `--before-path` prints the table below.
 `beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a
 plain-JS port of coloraide's filters and CIEDE2000; `node light-path-lib.mjs --verify` checks it against coloraide) while it
 solves for lightness that never rises through the green band, a gale band under a ceiling, and the least lift of the
-streak's ground, in beach's own hues. `--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60` re-reads what is
-built (option F); `--audit` reads beach before it. `beach-path-ground.mjs` prints the ground per knot over land and sea
+streak's ground, in beach's own hues. What is BUILT is option F with its 6 to 40 kn stops re-solved for the deeper land:
+`--audit --ref built` reads it (add `--land-l 0.85` for the deeper land); `--audit` alone reads beach before it.
+`beach-path.json` holds option F's stops as first solved (`--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`). `beach-path-ground.mjs` prints the ground per knot over land and sea
 beside dark's (by the engine's law) and how flat each is from 6 to 40 kn; `beach-path-sheet.mjs out.png` draws the
 speed-by-speed sheet.
 

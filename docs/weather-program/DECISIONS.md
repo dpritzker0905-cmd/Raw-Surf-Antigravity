@@ -624,3 +624,22 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   half as colourful as dark's from 12 to 21 kn (C* 12 to 13 against 22 to 23), where it was more colourful; and over #320's deeper
   land (the land's lightness times 0.85) F's land line reads 4.7 by the palette checker, for which a re-solve within 0.4 dE00 of F
   that holds 5.0 on either land waits for the owner's word (log, 14:36Z).
+- **Amended 2026-10-12 15:54Z: the owner took F RE-SOLVED for the deeper land; it is the default.** The owner, 2026-10-12 15:38Z, said
+  to the session leading this work and relayed by it to the building session (not first-hand here): "merge #321 and #320 and take the re-solved F" and "and merge anything else needed as well". "The re-solved F" is the
+  option the lead filmed beside F and dark on the combined build: F with its seven stops from 6 to 40 kn solved again with the
+  deeper land of #320 (the land's lightness times 0.85 in beach) as the land's constraint ground, moving no knot of F more than 0.4
+  dE00 over that land or the sea. Its 43 rows (4 to 46 kn) replace F's in `BEACH_PATH.field`; the lab lever that drew it is gone;
+  the default's field hashes are the bytes that were filmed (`e434f0bf` at 50 kn, `cbfec18a` at 75 kn).
+  - **Why:** F was solved on today's land and read 4.7 over #320's deeper land by the palette checker (one red line). The re-solve
+    reads 5.0 over the sea and 5.3 over today's land, and 5.0 over both with the deeper land: it holds on either land, whichever
+    of #319 and #320 merges first.
+  - **What the numbers above become** (the field on screen over today's land, L* / C* / hue): 6 kn 57.6 / 17.6 / 177, 10 kn 51.5 /
+    15.6 / 169, 16 kn 44.8 / 14.3 / 160, 21 kn 44.7 / 16.7 / 123, 27 kn 60.1 / 24.7 / 123, 33 kn 60.1 / 35.2 / 92, 40 kn 59.9 / 27.8 /
+    49; the ground from 6 to 40 kn spans 15.4 L* over land and 12.9 over the sea; the everyday ground is lifted 4.7 L* at most over
+    land (10 kn) and 4.0 over the sea.
+  - **What it gives up beyond F, said plainly:** the sea's colour-blind margin (5.05 on the table where F read 5.10; once quantised
+    into the texture the engine uploads, 5.01 at a 75 kn maximum and **4.98 at a 50 kn maximum**: under the bar by 0.02 as drawn
+    there); hue over land up to 13.5 degrees from what beach drew (16 kn; 12.6 at 10 kn) and 18.2 over the sea, where F kept 12.0
+    and 16.7; and over the sea the field at 16 kn now sits 31.2 degrees off the unmoved legend's hue (F: 29.8), past the palette
+    checker's 30 for 1 kn, which the checker prints as a watch line, not a red one. In motion the lead's capture reads the two as
+    the same in every streak number and 0.1 to 0.4 L* apart in the ground.

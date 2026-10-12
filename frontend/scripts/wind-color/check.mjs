@@ -16,7 +16,7 @@
 // drew before it (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true). The mark lines below judge the streak's colour CORE; its white
 // ring, which carries the motion, is not modelled here (the GPU bench's style columns read it).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--land-l 0.85]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
@@ -45,11 +45,12 @@ const NO_MUTE = args.includes('--no-mute');
 const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(arg('--mute-amount')) } : {}), ...(arg('--water-l') ? { __RAW_WIND_BASEMAP_WATER_L__: Number(arg('--water-l')) } : {}),
   ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}),
   ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}), ...(args.includes('--full-white') ? { __RAW_DISABLE_WIND_DARK_WHITE__: true } : {}),   // --full-white: the white at full strength on both grounds (D-022's kill)
-  ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}) };   // --before-path: beach's field before its path (windBeachPath.js's kill)   // --before-path: beach's field before its path (windBeachPath.js's kill)
+  ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}) };   // --before-path: beach's field before its path (windBeachPath.js's kill)
+const LAND_L = arg('--land-l') ? Number(arg('--land-l')) : 1;   // --land-l 0.85: read over a DEEPER land (the land's lightness times that factor, as PR #320 lays it)   // --before-path: beach's field before its path (windBeachPath.js's kill)
 const groundOf = (theme, surf, c) => {
   const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c;
-  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, LEVERS) : 1));
+  const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, LEVERS) : LAND_L));
   return [+m[1], +m[2], +m[3]];
 };
 

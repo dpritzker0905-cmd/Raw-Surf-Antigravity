@@ -36,14 +36,16 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { MODEL, groundOf, sample, strength, tintOver, drawnField } from './mirror-model.mjs';
+import { MODEL, groundOf, groundAt, sample, strength, tintOver, drawnField } from './mirror-model.mjs';
 import { lchOf, rgbOfLch, cvdDE, normalDE, de2000, simLab, KINDS } from './light-path-lib.mjs';
 
 const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 export const THEME = 'beach', STOPS = [0, 3, 6, 10, 16, 21, 27, 33, 40, 47, 55, 63, 75], TOP = 75;
-export const LAND = groundOf(THEME, 'land'), WATER = groundOf(THEME, 'water');
-/** Beach's field as it draws BEFORE its path: a row a knot, 0 to 75 kn (windDarkRules.js solveDarkRules: the dusk factor and the name guard). */
-export const TODAY = drawnField(THEME, { __RAW_DISABLE_WIND_BEACH_PATH__: true });
+// --land-l 0.85: solve and read over a DEEPER land (the land's lightness times that factor in the basemap mute, as PR #320 lays it).
+// --ref built: the reference a candidate is held to is what beach draws NOW (its path), not what it drew before it.
+export const LAND = arg('--land-l') ? groundAt(THEME, 'land', Number(arg('--land-l'))) : groundOf(THEME, 'land'), WATER = groundOf(THEME, 'water');
+/** The reference field: beach BEFORE its path (windDarkRules.js solveDarkRules: the dusk factor and the name guard), or with --ref built, on it. A row a knot, 0 to 75 kn. */
+export const TODAY = drawnField(THEME, arg('--ref') === 'built' ? {} : { __RAW_DISABLE_WIND_BEACH_PATH__: true });
 const todayRow = (kn) => sample(TODAY, kn);
 export const on = (row, kn, bm) => tintOver(THEME, kn, row, bm);
 export const TODAY_LCH = STOPS.map((kn) => lchOf(on(todayRow(kn), kn, LAND)));

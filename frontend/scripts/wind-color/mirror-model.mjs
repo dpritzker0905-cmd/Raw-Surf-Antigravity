@@ -41,6 +41,8 @@ export const groundOf = (theme, surf) => {
   const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, amount, surf === 'water' ? windBasemapWaterL(theme, {}) : 1));
   return [+m[1] / 255, +m[2] / 255, +m[3] / 255];
 };
+/** A theme's muted ground with its lightness multiplied by `l` (the basemap mute's own factor: the sea's today, and the land's on PR #320). */
+export const groundAt = (theme, surf, l) => { const c = MODEL[theme].surfaces[surf], m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, windBasemapMuteAmount(theme, {}), l)); return [+m[1] / 255, +m[2] / 255, +m[3] / 255]; };
 const toLab = converter('lab65'), toRgb = converter('rgb');
 export const lch = (a) => { const c = toLab({ mode: 'rgb', r: a[0], g: a[1], b: a[2] }); return { L: c.l, C: Math.hypot(c.a, c.b), h: (Math.atan2(c.b, c.a) * 180 / Math.PI + 360) % 360, a: c.a, b: c.b }; };
 export const fromLch = (L, C, h) => { const r = toRgb({ mode: 'lab65', l: L, a: C * Math.cos(h * Math.PI / 180), b: C * Math.sin(h * Math.PI / 180) }); return [r.r, r.g, r.b]; };

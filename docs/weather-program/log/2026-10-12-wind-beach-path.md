@@ -632,3 +632,39 @@ to the field between cores. A retune of the strengths, or of how tails fade, is 
 - **What F rests on now is the field, which no frame touches:** lightness one way through the green band; the gale band under a
   ceiling (the ground from 6 to 40 kn spanning 15.5 L* over land where it spanned 26.2); the colour-blind lines back above 5; and its
   costs in colour. The claim that a deeper gale band gives the streak more to stand on is a direction, not a measured size.
+
+## 15:54Z · The owner took the re-solved F; it is #319's default (step 1 of the lead's two)
+
+**The pick (relayed, not first-hand here).** The lead session, 15:41Z: the owner said to it at 15:38Z, first-hand, "merge #321 and #320 and take the re-solved F" and "and merge anything else needed as well". The lead asked
+for two steps: this one now (the option becomes the default on #319's branch, pushed, not rebased), and a merge of `origin/dev` into
+the branch on its signal once #321, #320 and #315 are on dev. At the time of this entry GitHub shows those three still open.
+
+**What was done on `claude/wind-beach-path`.**
+- The 43 rows of the deep-land option (4 to 46 kn) replace F's in `BEACH_PATH.field` (70 rows in all, as before). The lab lever and
+  its plumbing (`BEACH_PATH_LAB`, `beachPathPick`, `window.__RAW_WIND_BEACH_PATH__`, `check.mjs --beach-option`) are gone; the look
+  key is `white+path|dark-rules`. The lever's commit never reaches the PR's history (squashed away before the push).
+- **The default is the bytes that were filmed:** field hashes `e434f0bf` (50 kn) and `cbfec18a` (75 kn), read through the lever at
+  `584cfa62` BEFORE the swap and equal after it. Under the kill beach's field is `7c248d5f` / `b9db3bb2`, the before. Beach's two
+  streak rows, light and dark are byte for byte.
+- Kept as instruments: `check.mjs --land-l` (a deeper land), `beach-path-solve.mjs --ref built` and `--land-l`, `mirror-model.mjs`
+  `groundAt`. `beach-path.json` still holds F's stops as first solved; what is built is read with `--audit --ref built`.
+
+**The palette checker (coloraide), water / land:** today's land 5.0 / 5.3, exit 0; `--land-l 0.85` 5.0 / 5.0, exit 0; the control
+`--before-path --land-l 0.85` 3.1 / 2.9, exit 1. One NEW watch line with the option: over the sea the field sits more than 30 degrees
+off the legend's hue across 1 kn (15.5 to 16 kn; 31.2 degrees at 16 kn where F read 29.8). Not red (2 kn would be).
+
+**What the re-pin found that the candidate's own entry (14:36Z) did not say** (all pinned in `windBeachPath.test.js`):
+- As uploaded (the 256-entry 8-bit texture) the sea's weakest pair reads 5.01 at a 75 kn maximum and **4.98 at a 50 kn maximum**;
+  the table reads 5.05. F read 5.01 at the least. The bar is the checker's, on the table, and it holds; as drawn at 50 kn it is 0.02 under.
+- Hue from what beach drew before: up to 13.5 degrees over land (16 kn; 12.6 at 10 kn) and 18.2 over the sea (16 kn; 14.2 at 10 kn).
+  The option's "1.8 degrees" was from F; F itself sat 12.0 and 16.7 from the before.
+- The everyday ground is lifted 4.7 L* at most over land and 4.0 over the sea (F: 4.3 and 3.6); the head of a streak stands 18.5 L*
+  off its ground at the least (F 18.6; before 19.6), under D-021's 19.5 at 7 and 8 kn on both grounds, as with F.
+
+**Gates on the new default:** Jest from `frontend/` with `--testMatch`: map tree 284 suites / 3876 tests, `src/tests` 23 / 254, 0
+failed (the four wind table files 171). `check_eslint.js` exit 0; `loc_ratchet.py` new 0, regressed 0 (`WindColorRamp.js` 781 lines).
+The build was not re-run for this step (a table and comments changed; it ran on `d7f597c2`); it runs again in step 2.
+
+**The lead's filmed read of the two, for the record** (corrected bench, frame for frame, F as picked against the option): mean dE76
+0.92 on the 2 to 30 kn ramp and 0.62 on the 7 to 60 kn ramp, null control 0.08; the probe's ground L* moves 0.1 to 0.4 at four crops;
+the streak numbers the same.

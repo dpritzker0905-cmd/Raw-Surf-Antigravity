@@ -44,7 +44,7 @@ const WATCHED = {   // through the levers of the arm the owner picked
 // SINCE BEACH'S PATH (windBeachPath.js, 2026-10-12) beach's FIELD under the white streak is its own solved table: the arm the owner
 // watched is drawn through that change's kill (P), and the default is DRAWN: the same two streak rows, the path's field.
 const P = { __RAW_DISABLE_WIND_BEACH_PATH__: true };
-const DRAWN = { light: WATCHED.light, beach: { 50: ['6e75db94', '72b4bd7f', '682f16ac'], 75: ['be558fd8', 'cd4835ed', '4026fb5f'] } };
+const DRAWN = { light: WATCHED.light, beach: { 50: ['6e75db94', '72b4bd7f', 'e434f0bf'], 75: ['be558fd8', 'cd4835ed', 'cbfec18a'] } };
 const KEY = { light: 'white|dark-rules', beach: 'white+path|dark-rules' };
 const BEFORE = {    // with no lever: what dev drew, and what the kill must restore
   light: { 50: ['46e55dbb', '177f0c5b', 'f03b4ab5'], 75: ['6d6d01df', 'f1f3ef88', 'bf0b2134'] },
