@@ -477,7 +477,7 @@ export function windWhiteStreakOn(theme, win) {
 /** How strongly the white streak is laid over land and over sea, as shares of full strength (windDarkRules.js DARK_WHITE, D-022): { land: 1, sea: 1 }, as before it, under `__RAW_DISABLE_WIND_DARK_WHITE__ = true` and wherever the white streak does not draw. */
 export function windWhiteStrength(theme, win) {
   var w = win || (typeof window !== 'undefined' ? window : null) || {}, k = w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w) ? DARK_WHITE[theme] : null;
-  return k ? { land: windLandWhite(theme, w, k), sea: k.sea } : { land: 1, sea: 1 };   // the land takes the sea's strength where it is drawn at the sea's depth (windBasemapMute.js, D-026)
+  return k ? { land: windLandWhite(theme, w, k), sea: k.sea } : { land: 1, sea: 1 };   // the land's strength is the one its drawn tone was solved with (windBasemapMute.js windLandWhite: D-026 and its step)
 }
 setWindLandDepthGate(function (theme, w) { return w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w); });   // the land goes deep only where those strengths are drawn: an older kill draws its old picture
 /**

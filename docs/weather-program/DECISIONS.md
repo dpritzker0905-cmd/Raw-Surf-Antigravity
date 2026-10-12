@@ -910,6 +910,36 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   borders' ink; **this decision's depth is not changed** (the owner's pick), and its cost is on the record for when it is weighed
   again. LESSONS L-V75; `log/2026-10-12-wind-map-through.md`.
 
+- **AMENDED 2026-10-12 21:50Z: the land is drawn a STEP ABOVE the sea, not at its depth; ON by default.** The owner, 21:13Z, to
+  the lead session, first-hand, on the deployed build with D-028 live: "it needs to be checked at all zooms, because I don't see
+  the fix at higher out zooms, cannot see the land below the wind animations in beach or light modes well". They have not seen
+  this build in the app, and have not said "merge".
+  - **What:** `WIND_LAND_STEP` (`windBasemapMute.js`): the land takes the SEA's own factor, 0.90 in light and 0.94 in beach, in
+    place of 0.81 / 0.85, and a streak over it is laid at 0.75 in place of the sea's 0.55. Kill
+    `window.__RAW_DISABLE_WIND_LAND_STEP__ = true`: this decision as it first merged, to the byte. Its own kill
+    (`__RAW_DISABLE_WIND_LAND_DEPTH__`) and levers keep their meaning.
+  - **Why:** at zooms 2 and 3 a land is seen by its tone. Dark's land stays 9.4 L\* under its sea under an equal wind; at the
+    sea's depth light's stood 1.1 above and beach's 1.7, and a coastline 0.4 px wide cannot carry a continent (in the ink it
+    already read 1.6 times dark's line there). With the sea's own factor the mute darkens the map as a whole and its own step
+    survives: +8.3 L\* in light, +8.0 in beach. At 0.75, WITH dark's veil under the trails (the trails lane's change, which
+    merges before this one), a streak over that land adds the light dark's adds over dark's land: +11.7 and +12.0 L\* against
+    +11.8. (Without the veil 0.75 reads +14.5 and +14.7 and the sea's 0.55 reads +11.1 and +10.8. As first drafted this entry gave
+    dark's bar as +14.8: that was its field's chroma, a column off; corrected before anything was committed, LESSONS L-V81.)
+  - **What it moves besides, measured:** the colour-blind line as the GPU draws it over land rises (light 4.85 to 5.18, under 5.0
+    at 123 and then 0 of 281 maxima; beach 5.06 to 5.31); over the sea nothing. The land mask's seam parts 0.75 from 0.55.
+  - **What this gives back of the first build:** half of the depth. The owner picked "the deeper land" for the streaks over
+    land; those now stand on a land 7 L\* lighter under the field (55.8 for 48.8 in light) at a strength set to keep their light.
+  - **Order:** after the tail's change (dark's veil). Before it, this land would draw its streaks 1.2 times dark's. The owner,
+    22:24Z, first-hand: "merge the land fix after the tail is in, the push everything turned on switch, so I can test all the
+    changes right away".
+  - **Its switch moves at the SYNC, whole (an independent review, before the PR):** the sync records which rule set the land's
+    factor and says it in the read-back (`__WIND_BASEMAP_MUTE__.landStep`); the streak's strength reads that, never the flag, so
+    a kill typed in the console changes nothing drawn until the next sync and then changes the land and its streak together. A
+    land set by the depth's LEVER keeps the sea's strength, as before the step. Until the land mask is ready both grounds take
+    the sea's strength (the land's 0.75 is not laid over the sea).
+  - **Not verified:** nothing seen in the app; the seam is not measured (none seen on the zoom 6 crops).
+  - **Evidence:** `log/2026-10-12-wind-map-through.md`, "The owner at the far-out zooms" and the correction after it.
+
 ### D-027 · The wind leaves the map's canvas opaque; ON by default
 - **Decided:** by the lead session of the light/beach wind lanes, 2026-10-12, on the owner's standing instruction and their
   verdict of the same day. The owner, 02:58Z: "We need to make light mode wind animations & beach mode wind animations equivalent

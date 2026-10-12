@@ -84,6 +84,11 @@ colour-blind lines read 5.1 over the muted water and 5.1 over the muted land (5.
 printed (over the sea the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). The land is the DEEPER
 one that PR #320 lays under the wind (D-026: the land's lightness times 0.85 in beach), the default since that merge;
 `--before-depth` (or `--land-l 1`) reads the land before it: 5.1 and 5.7. The field was solved to hold the bar on either land.
+**Since the land's step (D-026 amended, 2026-10-12; `windBasemapMute.js` WIND_LAND_STEP) a flagless run reads a LIGHTER land:**
+the land at the sea's own factor (0.94 in beach, 0.90 in light), a streak over it at 0.75. There beach reads 5.1 over the
+water and 5.5 over the land, light 5.1 and 5.3. Every number in this section that says "the deeper land" or "the default"
+without a date is PR #320's land: read it now with `--before-step` (the step's kill: beach 5.1 and 5.1, light 5.1 and 5.0).
+`--land-l X` is still the depth's lever, and a land it sets keeps the sea's streak strength, as before the step.
 **The checker reads the TABLE; the engine draws a TEXTURE of it.** The table is sampled into 256 texels of 8 bits
 (`generateRampData`), and the shader reads that texture at speed / maximum with LINEAR filtering, so the GPU reads half a
 texel from the table's own index (`node lut-lookup-gpu.cjs` reads the law back from a GPU: the rule fits to 1/255 of a
@@ -174,6 +179,9 @@ Read from the 256-entry 8-bit texture the engine uploads, the deeper land reads 
 281; the land before PR #320: never). The owner took it as shown (D-024, amended 2026-10-12: "option 1, merge as shown and
 add the pin"); `windLightPath.test.js` pins those numbers, and light's rows are to be re-solved on the deeper land. No
 instrument in this folder reads the uploaded texture: a margin under about 0.15 on the table does not survive the upload.
+(Since the land's step, 2026-10-12, the deeper land is what `--before-step` reads, and the land the app draws is the lighter
+one: 5.3 by the table, and as uploaded 5.18 at the least with no maximum under 5.0. The line with no margin is now the SEA's:
+4.93 as uploaded. `check.mjs --as-uploaded [10-80:0.25]` is the instrument this paragraph says did not exist.)
 
 What the solve found, so the next one starts further on: holding light's hue to dark's within 8 degrees (dark by the engine's
 law) keeps a 5.2 floor with 6 kn 6 to 7 L\* lighter and 16 to 21 kn 2 to 5 lighter than at 20 degrees, where the depth holds. A cyan as deep as L\* 60 cannot

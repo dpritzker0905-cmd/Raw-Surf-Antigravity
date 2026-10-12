@@ -177,7 +177,7 @@ describe('THE APP\'S STACK (live dev 2026-10-09: __WIND_BASEMAP_MUTE__ read { ap
     map.failOn = 'water';
     expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ applied: false, error: 'style mid-load' });
     expect(syncWindBasemapMute(map, 'light', true, 'wind', {})).toMatchObject({ applied: true, layers: 6 });
-    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(35, 12%, 89%)', 0.85, WIND_BASEMAP_MUTE.landL.light));   // muted once and deepened once (D-026), not twice
+    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(35, 12%, 89%)', 0.85, 0.9));   // muted once and deepened once (D-026 as amended: light's land at the sea's own 0.90), not twice
     expect(map.getPaintProperty('water', 'fill-color')).toBe(muteColor('hsl(196, 80%, 70%)', 0.85, 0.9));
   });
 });

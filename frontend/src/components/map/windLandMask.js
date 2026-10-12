@@ -8,7 +8,8 @@
  * The mask is the app's own Natural Earth 1:50m land (public/ne_50m_land.json, the fallback basemap's), drawn once into a
  * 2048 x 2048 Web Mercator texture: a texel is 20 km at the equator, so the hand-over between rows sits within a few device
  * pixels of the coast at zoom 6 and spreads to about 30 px at zoom 8 (a known limit; the coast is drawn by the basemap, not this).
- * It loads only when a theme draws dark's rules; until it is ready, or if it cannot load, every mark draws its land row.
+ * It loads only when a theme draws dark's rules; until it is ready, or if it cannot load, every mark draws its land row
+ * (at the SEA's strength where the land is drawn a step above the sea: bindLandMask).
  * WHAT THE BUILD COSTS: no frame waits for it (a 1 x 1 stand-in is bound until it is ready), but the build itself is ONE task on the
  * main thread, started in an idle period where the browser has them: 1,420 polygons drawn into a 2048 px canvas, 16.8 MB read back,
  * 4.2 M texels copied and uploaded. `ms` in the read-back says how long it held the thread on this device. It reuses the land the
@@ -20,6 +21,7 @@
  * changes (never per frame). 'ready' is the only state in which a mark over the sea draws its sea row.
  */
 import { bindTexture } from './WebGLWindUtils';
+import { windLandStepOn } from './windBasemapMute';
 
 export const LAND_MASK_SIZE = 2048;
 const MAX_TRIES = 3, RETRY_MS = 20000;
@@ -118,7 +120,7 @@ function load(gl, st, win) {
  * The bind goes through the engine's own bindTexture, which keeps a record of the active unit: a raw activeTexture here would leave
  * that record wrong, and the engine's next bind would land on another unit.
  */
-export function bindLandMask(gl, prog, unit, on, win, white) {
+export function bindLandMask(gl, prog, unit, on, win, white, theme) {
   if (!gl || !prog || !STATE) return;
   let st = STATE.get(gl);
   // A restored context keeps its object and loses its textures, and the engine rebuilds its programs then: a new program is the
@@ -132,6 +134,9 @@ export function bindLandMask(gl, prog, unit, on, win, white) {
   gl.uniform1i(gl.getUniformLocation(prog, 'u_land_mask'), unit);
   gl.uniform1f(gl.getUniformLocation(prog, 'u_land_on'), ready ? 1 : 0);
   // DARK'S WHITE (windDarkRules.js DARK_WHITE): the mark's light level over land and over sea. The screen pass lays a trail at its
-  // level SQUARED, so a strength (the share of full) is carried as its square root. Without a ready mask every mark reads as land.
-  gl.uniform2f(gl.getUniformLocation(prog, 'u_white'), Math.sqrt(white ? white.land : 1), Math.sqrt(white ? white.sea : 1));
+  // level SQUARED, so a strength (the share of full) is carried as its square root. Without a ready mask every mark reads as land:
+  // where the land is drawn a STEP above the sea (windBasemapMute.js WIND_LAND_STEP) that would lay the land's stronger streak over
+  // the sea, most of a view, until the mask is in, so both grounds take the sea's until then (as they did at the sea's depth).
+  const blind = !ready && !!white && windLandStepOn(theme, win || (typeof window !== 'undefined' ? window : null));
+  gl.uniform2f(gl.getUniformLocation(prog, 'u_white'), Math.sqrt(white ? (blind ? white.sea : white.land) : 1), Math.sqrt(white ? white.sea : 1));
 }

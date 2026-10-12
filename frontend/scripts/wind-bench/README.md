@@ -562,6 +562,20 @@ Singh and Anderson 2002), and the map's largest is the land against the sea.
   the land depth killed: light +23.7 restyled and +16.0 under the field (1.83), beach +18.9 and +12.3 (1.43). Light's and beach's
   field is a multiply and passes the map through: it is the restyle (the sea darkened, then the land to it, D-026) that flattens it.
 
+- **Read after the land a step above the sea** (D-026 amended, 2026-10-12; the same ramp; `--arms '{"now":{},"before":{"__RAW_DISABLE_WIND_LAND_STEP__":true}}'`):
+  light +12.5 restyled and +8.3 under the field (kept 1.03), a streak adding +14.5 L\* over land; beach +12.2, +8.0 (0.97), +14.7.
+  Under the kill the lines above (+1.1 and +12.8; +1.7 and +12.2). Dark: -9.4, and its streaks add +11.8 over land and +8.4 over
+  the sea. With the tail's veil on, light and beach add +11.7 and +12.0 over land.
+- **The step's kill is read at the next SYNC, land and streak together** (`__WIND_BASEMAP_MUTE__.landStep` says which rule drew
+  the land): a bench arm that sets `__RAW_DISABLE_WIND_LAND_STEP__` after the map is up must sync before it reads
+  (`map-entry.js` syncs each arm; `--app-sync` runs the layer's own handler). `__RAW_WIND_BASEMAP_LAND_L__` sets a land that
+  keeps the SEA's streak strength at every factor; pair it with `__RAW_WIND_WHITE_LAND__` to try another.
+- **Read `adds` from `--json`** (`rows[].land.full.L - rows[].land.field.L`), not from a printed row by column: dark's row ends in
+  a shorter mute cell, and its field's chroma (14.8) was once taken for its `adds` (LESSONS L-V81).
+- **The far-out zooms are read with this mode, not with the coast's line:** at zooms 2 and 3 (the app's far end is 2) the inked
+  coast stroke read 1.6 times dark's (`border-run.js --lines coast --zooms 2,3`: dark 15.4 / 16.9, light 25.9 / 27.4) and the
+  continents could not be found. A stroke is 0.4 px wide there; a land is seen by its tone (LESSONS L-V80).
+
 ## Anatomy mode (`anatomy-run.js`, `page/anatomy-probe.js`): what IS a streak at each wind speed?
 
 ```bash

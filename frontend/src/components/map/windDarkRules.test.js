@@ -357,6 +357,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
       '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
       '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
+      '__RAW_DISABLE_WIND_LAND_STEP__',                                                                        // the land a step above the sea (D-026 amended): SET, the land is at the sea's depth again and a streak over it at the sea's strength; no table reads it
       '__RAW_DISABLE_WIND_BEACH_PATH__',                                                                       // beach's path: which field beach draws UNDER the white streak, and stands down with it (windBeachPath.test.js sweeps every hold)
       '__RAW_DISABLE_WIND_LIGHT_PATH__',                                                                       // light's path (D-024): which rows light's field, streak row and legend bar draw from 1 to 32 kn under the white streak; it stands down with it
       // how many marks, where, how long, how fast (the particles' motion and density)
@@ -609,7 +610,7 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
     expect(ENGINE.match(/drawnMarkRampData\(this\._maxWindSpeed, activeTheme\)/g)).toHaveLength(2);   // render and setTheme
     expect(ENGINE.match(/createTexture\(gl, gl\.LINEAR, rampData, 256, 2\)/g)).toHaveLength(2);
     expect(ENGINE.match(/lookKey !== this\._lookKey/g)).toHaveLength(2);
-    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme));');   // since D-022 the same call carries the white's strengths
+    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme);');   // since D-022 the same call carries the white's strengths, and since the land's step the theme (whose read-back says what a missing mask means)
     expect(ENGINE).not.toMatch(/bindTexture\(gl, [^)]*, 5\)/);                                 // unit 5 is the mask's alone (0-3 are the engine's; the state isolation restores 0-6)
     expect(ENGINE).not.toContain('resolveMarkRamp');                                           // the engine reads the drawn tables, never the rollback ones
   });

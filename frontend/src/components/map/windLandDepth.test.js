@@ -15,14 +15,18 @@
  * over land is laid at the SEA's strength (one ground, one strength, no seam), and nowhere else.
  */
 import {
-  WIND_BASEMAP_MUTE, windBasemapLandL, windBasemapWaterL, windLandDepthOn, muteColor, muteValue, parseColor, oklab,
+  WIND_BASEMAP_MUTE, WIND_LAND_STEP, windLandStep, windLandStepAsked, windLandStepOn, windBasemapLandL, windBasemapWaterL, windLandDepthOn, muteColor, muteValue, parseColor, oklab,
   windBasemapMutePlan, syncWindBasemapMute, windBasemapMuteStale,
 } from './windBasemapMute';
 import { windWhiteStrength, windWhiteStreakOn, DARK_RULES_HOLDS } from './WindColorRamp';
 import { DARK_WHITE } from './windDarkRules';
+import { windTrailVeil, trailVeilUniform } from './windTrailVeil';
 
 const L = (s) => oklab(parseColor(s))[0], C = (s) => { const [, a, b] = oklab(parseColor(s)); return Math.hypot(a, b); };
 const KILL = { __RAW_DISABLE_WIND_LAND_DEPTH__: true };
+// D-026 AS IT MERGED (the land at the sea's depth, a streak over it at the sea's strength) is, since the land a step above the sea
+// (D-026 amended, 2026-10-12), what that step's kill draws. Every pin of the depth below is kept to the letter under it.
+const DEPTH = { __RAW_DISABLE_WIND_LAND_STEP__: true };
 const STYLE = () => [
   { id: 'land', type: 'background', paint: { 'background-color': 'hsl(60, 0%, 99%)' } },
   { id: 'landcover', type: 'fill', paint: { 'fill-color': ['match', ['get', 'class'], 'wood', 'hsl(100, 40%, 70%)', 'hsl(82, 40%, 92%)'] } },
@@ -53,21 +57,22 @@ describe('the numbers, the switch, the kill and the lever', () => {
   it('the land takes 0.81 of its own lightness in light and 0.85 in beach: the muted sea\'s lightness, as the prototype the owner chose drew it', () => {
     expect(WIND_BASEMAP_MUTE.landL).toEqual({ light: 0.81, beach: 0.85 });
     expect(Object.isFrozen(WIND_BASEMAP_MUTE.landL)).toBe(true);
-    expect(windBasemapLandL('light', {})).toBe(0.81); expect(windBasemapLandL('beach', {})).toBe(0.85);
-    expect(windBasemapLandL('dark', {})).toBe(1);                                         // dark's map is the model: not touched
+    expect(windBasemapLandL('light', DEPTH)).toBe(0.81); expect(windBasemapLandL('beach', DEPTH)).toBe(0.85);
+    expect(windBasemapLandL('dark', {})).toBe(1); expect(windBasemapLandL('dark', DEPTH)).toBe(1);   // dark's map is the model: not touched
   });
   it('the kill draws the land as the style does; the lever sets any factor from 0.5 to 1.2, and nothing outside it', () => {
     for (const t of ['light', 'beach', 'dark']) expect(windBasemapLandL(t, KILL)).toBe(1);
     expect(windBasemapLandL('light', { __RAW_WIND_BASEMAP_LAND_L__: 0.7 })).toBe(0.7);
     expect(windBasemapLandL('dark', { __RAW_WIND_BASEMAP_LAND_L__: 0.7 })).toBe(1);       // dark is never touched, lever or not
     expect(windBasemapLandL('light', { __RAW_WIND_BASEMAP_LAND_L__: 1.1 })).toBe(1.1);    // above 1 the land is drawn LIGHTER: not deep (below)
-    for (const bad of [0.2, 3, '0.7', null, NaN]) expect(windBasemapLandL('light', { __RAW_WIND_BASEMAP_LAND_L__: bad })).toBe(0.81);
+    for (const bad of [0.2, 3, '0.7', null, NaN]) { expect(windBasemapLandL('light', { ...DEPTH, __RAW_WIND_BASEMAP_LAND_L__: bad })).toBe(0.81); expect(windBasemapLandL('light', { __RAW_WIND_BASEMAP_LAND_L__: bad })).toBe(0.9); }
     expect(windBasemapLandL('light', { ...KILL, __RAW_WIND_BASEMAP_LAND_L__: 0.7 })).toBe(1);   // the kill wins over the lever
     expect(windBasemapWaterL('light', KILL)).toBe(0.9);                                   // and is the land's alone
   });
   it('the real window is read when no lever object is passed', () => {
     try { window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true; expect(windBasemapLandL('light')).toBe(1); } finally { delete window.__RAW_DISABLE_WIND_LAND_DEPTH__; }
-    expect(windBasemapLandL('light')).toBe(0.81);
+    expect(windBasemapLandL('light')).toBe(0.9);
+    try { window.__RAW_DISABLE_WIND_LAND_STEP__ = true; expect(windBasemapLandL('light')).toBe(0.81); } finally { delete window.__RAW_DISABLE_WIND_LAND_STEP__; }
   });
 });
 
@@ -118,8 +123,8 @@ describe('the plan: the land and what is drawn on it go deeper; the water, and e
 
 describe('the sync: one record, an exact restore, and a read-back that says what the land is', () => {
   it('light and beach are drawn deeper by default, and the read-back names the factor', () => {
-    for (const [theme, f] of [['light', 0.81], ['beach', 0.85]]) {
-      const map = fakeMap(), win = {};
+    for (const [theme, f, lev] of [['light', 0.81, DEPTH], ['beach', 0.85, DEPTH], ['light', 0.9, {}], ['beach', 0.94, {}]]) {
+      const map = fakeMap(), win = { ...lev };
       syncWindBasemapMute(map, theme, true, 'wind', win);
       expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(60, 0%, 99%)', 0.85, f));
       expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ applied: true, theme, landL: f, layers: 4, landLines: 2 });   // `layers` counts what it always did (land, landcover, water and the water's line); the road and the contour are `landLines`
@@ -175,7 +180,7 @@ describe('one ground, one strength: over a land drawn at the sea\'s depth a stre
   const deep = (theme, f) => ({ __WIND_BASEMAP_MUTE__: { applied: true, theme, landL: f } });
   it('where the land is deep, the land\'s strength is the sea\'s (whatever the sea\'s is), so the land mask\'s seam has nothing to show', () => {
     for (const theme of ['light', 'beach']) {
-      const s = windWhiteStrength(theme, deep(theme, WIND_BASEMAP_MUTE.landL[theme]));
+      const s = windWhiteStrength(theme, { ...deep(theme, WIND_BASEMAP_MUTE.landL[theme]), ...DEPTH });
       expect(s).toEqual({ land: DARK_WHITE[theme].sea, sea: DARK_WHITE[theme].sea });
       expect(s.land).toBeLessThan(1);
     }
@@ -194,7 +199,8 @@ describe('one ground, one strength: over a land drawn at the sea\'s depth a stre
   });
   it('a bench lever names another strength for the deep land (0.2 to 1), and is nothing where the land is not deep', () => {
     expect(windWhiteStrength('light', { ...deep('light', 0.81), __RAW_WIND_WHITE_LAND__: 0.7 }).land).toBe(0.7);
-    expect(windWhiteStrength('light', { ...deep('light', 0.81), __RAW_WIND_WHITE_LAND__: 7 }).land).toBe(DARK_WHITE.light.sea);
+    expect(windWhiteStrength('light', { ...deep('light', 0.81), ...DEPTH, __RAW_WIND_WHITE_LAND__: 7 }).land).toBe(DARK_WHITE.light.sea);
+    expect(windWhiteStrength('light', { __WIND_BASEMAP_MUTE__: { applied: true, theme: 'light', landL: 0.9, landStep: true }, __RAW_WIND_WHITE_LAND__: 7 }).land).toBe(0.75);
     expect(windWhiteStrength('light', { __RAW_WIND_WHITE_LAND__: 0.7 }).land).toBe(1);
   });
 });
@@ -209,7 +215,8 @@ describe('AN OLDER KILL DRAWS ITS OLD PICTURE, the land included (an independent
       expect(windBasemapLandL(theme, { [k]: true, __RAW_WIND_BASEMAP_LAND_L__: 0.7 })).toBe(1);   // and no lever brings it back under one
     }
     for (const look of ['moderate', 'deep', 'ink']) expect(windBasemapLandL('light', { __RAW_WIND_LIGHT_LOOK__: look })).toBe(1);   // a steered light look draws its own way
-    expect(windBasemapLandL('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe(0.85);                                           // and steers light only
+    expect(windBasemapLandL('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep', ...DEPTH })).toBe(0.85);                                 // and steers light only
+    expect(windBasemapLandL('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe(0.94);
     for (const theme of ['light', 'beach']) expect(windWhiteStreakOn(theme, {})).toBe(true);                                      // the control: with nothing set the gate is open
   });
   it('and the map under each is the map dev draws under it, write for write (the land the mute\'s alone, the roads the style\'s own)', () => {
@@ -251,15 +258,17 @@ describe('the read-back says what the MAP is, not what was asked for', () => {
 describe('THE ENGINE\'S OWN CALL: windWhiteStrength(theme) with no window passed reads the real one (a mutation that never read it passed every other test)', () => {
   it('the read-back on the real window decides, and its removal takes the land back to full at once', () => {
     try {
-      window.__WIND_BASEMAP_MUTE__ = { applied: true, theme: 'light', landL: 0.81 };
+      window.__WIND_BASEMAP_MUTE__ = { applied: true, theme: 'light', landL: 0.81 }; window.__RAW_DISABLE_WIND_LAND_STEP__ = true;
       expect(windWhiteStrength('light')).toEqual({ land: DARK_WHITE.light.sea, sea: DARK_WHITE.light.sea });
+      delete window.__RAW_DISABLE_WIND_LAND_STEP__; window.__WIND_BASEMAP_MUTE__ = { applied: true, theme: 'light', landL: 0.9, landStep: true };
+      expect(windWhiteStrength('light')).toEqual({ land: WIND_LAND_STEP.white.light, sea: DARK_WHITE.light.sea });   // the default: the land a step above the sea, its own strength
       expect(windWhiteStrength('beach').land).toBe(DARK_WHITE.beach.land);                // the read-back is light's, not beach's
       expect(windLandDepthOn('light')).toBe(true);
-    } finally { delete window.__WIND_BASEMAP_MUTE__; }
+    } finally { delete window.__WIND_BASEMAP_MUTE__; delete window.__RAW_DISABLE_WIND_LAND_STEP__; }
     expect(windWhiteStrength('light').land).toBe(1);
   });
   it('the bench lever\'s range is closed at both ends', () => {
-    const deep = { __WIND_BASEMAP_MUTE__: { applied: true, theme: 'light', landL: 0.81 } };
+    const deep = { __WIND_BASEMAP_MUTE__: { applied: true, theme: 'light', landL: 0.81 }, ...DEPTH };
     for (const bad of [0.1, 1.01, '0.7', null]) expect(windWhiteStrength('light', { ...deep, __RAW_WIND_WHITE_LAND__: bad }).land).toBe(DARK_WHITE.light.sea);
     for (const ok of [0.2, 1]) expect(windWhiteStrength('light', { ...deep, __RAW_WIND_WHITE_LAND__: ok }).land).toBe(ok);
   });
@@ -287,5 +296,206 @@ describe('what the plan must not break', () => {
     const plan = windBasemapMutePlan(layers, 'wind', 0.85, 0.9, 0.81);
     expect(plan.map((p) => `${p.id}.${p.prop}`)).toEqual(['hillshade.hillshade-shadow-color', 'hillshade.hillshade-highlight-color', 'building.fill-extrusion-color', 'park.fill-color', 'park.fill-outline-color']);
     for (const e of plan) expect(e.to).toBe(muteColor(e.from, 0.85, 0.81));
+  });
+});
+
+describe('THE LAND A STEP ABOVE THE SEA (D-026 amended, 2026-10-12): the land takes the sea\'s own factor, and a streak over it its own strength', () => {
+  // The owner, on the deployed build with the coast in the borders' ink live: "it needs to be checked at all zooms, because I don't see
+  // the fix at higher out zooms, cannot see the land below the wind animations in beach or light modes well". Bench: ground-run.js on a
+  // speed ramp (land minus sea under the field: light +8.3 L*, beach +8.0, dark -9.4; at the sea's depth light kept 1.1 and beach 1.7).
+  const read = (theme, f, landStep = f === WIND_LAND_STEP.landL[theme]) => ({ __WIND_BASEMAP_MUTE__: { applied: true, theme, landL: f, landStep } });   // what a default sync leaves
+  it('the numbers: the land\'s factor IS the sea\'s (0.90 light, 0.94 beach), a streak over it is laid at 0.75, between the sea\'s and full', () => {
+    expect(WIND_LAND_STEP).toEqual({ landL: { light: 0.9, beach: 0.94 }, white: { light: 0.75, beach: 0.75 } });
+    expect(Object.isFrozen(WIND_LAND_STEP)).toBe(true); expect(Object.isFrozen(WIND_LAND_STEP.landL)).toBe(true); expect(Object.isFrozen(WIND_LAND_STEP.white)).toBe(true);
+    for (const theme of ['light', 'beach']) {
+      expect(WIND_LAND_STEP.landL[theme]).toBe(WIND_BASEMAP_MUTE.waterL[theme]);                 // one factor for the land and the sea: the map's own step survives the mute
+      expect(WIND_LAND_STEP.landL[theme]).toBeGreaterThan(WIND_BASEMAP_MUTE.landL[theme]);       // lighter than the depth of PR #320
+      expect(WIND_LAND_STEP.white[theme]).toBeGreaterThan(DARK_WHITE[theme].sea); expect(WIND_LAND_STEP.white[theme]).toBeLessThan(DARK_WHITE[theme].land);
+      expect(windBasemapLandL(theme, {})).toBe(WIND_LAND_STEP.landL[theme]);
+      expect(windLandStep(theme, {})).toBe(true); expect(windLandStep(theme, DEPTH)).toBe(false);
+    }
+    expect(windLandStep('dark', {})).toBe(false); expect(windBasemapLandL('dark', {})).toBe(1);   // dark is the model
+  });
+  it('the map keeps its own land-sea step: as restyled the land is as far above the sea in OKLab lightness as on the style\'s own map (to a rounding)', () => {
+    for (const [theme, land, sea] of [['light', 'hsl(60, 0%, 99%)', 'hsl(197, 98%, 78%)'], ['beach', 'hsl(35, 32%, 91%)', 'hsl(196, 80%, 70%)']]) {
+      const k = WIND_BASEMAP_MUTE.waterL[theme], own = L(land) / L(sea);
+      const step = L(muteColor(land, 0.85, windBasemapLandL(theme, {}))) / L(muteColor(sea, 0.85, k));
+      const depth = L(muteColor(land, 0.85, windBasemapLandL(theme, DEPTH))) / L(muteColor(sea, 0.85, k));
+      expect(step / own).toBeGreaterThan(0.98); expect(step / own).toBeLessThan(1.02);          // the ratio the map draws is the ratio under the wind
+      expect(depth / own).toBeLessThan(0.93);                                                    // at the sea's depth it was not: the positive control
+    }
+  });
+  it('a streak over that land takes the step\'s strength; the sea keeps its own', () => {
+    for (const theme of ['light', 'beach']) {
+      expect(windWhiteStrength(theme, read(theme, WIND_LAND_STEP.landL[theme]))).toEqual({ land: 0.75, sea: DARK_WHITE[theme].sea });
+      expect(windWhiteStrength(theme, { ...read(theme, WIND_LAND_STEP.landL[theme]), __RAW_WIND_WHITE_LAND__: 0.6 }).land).toBe(0.6);   // the bench lever still names another
+      expect(windWhiteStrength(theme, read(theme, 1))).toEqual({ land: DARK_WHITE[theme].land, sea: DARK_WHITE[theme].sea });           // a land the mute did not deepen: D-022's, full
+    }
+  });
+  it('its kill draws D-026 as it merged, write for write: the land at the sea\'s depth, the roads with it, a streak over it at the sea\'s strength', () => {
+    for (const theme of ['light', 'beach']) {
+      const map = fakeMap(), win = { ...DEPTH }, f = WIND_BASEMAP_MUTE.landL[theme];
+      syncWindBasemapMute(map, theme, true, 'wind', win);
+      const want = fakeMap(); syncWindBasemapMute(want, theme, true, 'wind', { __RAW_WIND_BASEMAP_LAND_L__: f });   // the depth's own lever at PR #320's factor: the same writes
+      expect(map.paint()).toBe(want.paint());
+      for (const p of windBasemapMutePlan(STYLE(), 'wind', 0.85, WIND_BASEMAP_MUTE.waterL[theme], f)) expect(map.getPaintProperty(p.id, p.prop)).toEqual(p.to);   // and they are the plan at that factor, land, roads and water
+      expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ applied: true, landL: f, landStep: false });
+      expect(windWhiteStrength(theme, win)).toEqual({ land: DARK_WHITE[theme].sea, sea: DARK_WHITE[theme].sea });
+      // The same, by the numbers PR #320 merged (not by this file's own functions): the land's colour at 0.81 / 0.85, a streak at 0.55.
+      expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(60, 0%, 99%)', 0.85, theme === 'light' ? 0.81 : 0.85));
+      expect(map.getPaintProperty('water', 'fill-color')).toBe(muteColor('hsl(197, 98%, 78%)', 0.85, theme === 'light' ? 0.9 : 0.94));
+      expect(windWhiteStrength(theme, win)).toEqual({ land: 0.55, sea: 0.55 });
+    }
+  });
+  it('only `true` is the kill: 1, a string, an object or false leave the step on (the house rule for every kill)', () => {
+    for (const not of [1, 'true', {}, false, null, undefined]) {
+      expect(windLandStep('light', { __RAW_DISABLE_WIND_LAND_STEP__: not })).toBe(true);
+      expect(windBasemapLandL('light', { __RAW_DISABLE_WIND_LAND_STEP__: not })).toBe(0.9);
+    }
+    expect(windLandStep('light', { __RAW_DISABLE_WIND_LAND_STEP__: true })).toBe(false);
+  });
+  it('the kill, set while the wind is on, is stale and takes the land down to the sea\'s depth; unset, the land rises again; the restore is exact either way', () => {
+    const map = fakeMap(), was = map.paint(), win = {};
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(60, 0%, 99%)', 0.85, 0.9));
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(false);
+    win.__RAW_DISABLE_WIND_LAND_STEP__ = true;
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(map.getPaintProperty('land', 'background-color')).toBe(muteColor('hsl(60, 0%, 99%)', 0.85, 0.81));
+    expect(map.getPaintProperty('road-primary', 'line-color')[4]).toBe(muteColor('hsl(45, 90%, 80%)', 0.85, 0.81));
+    delete win.__RAW_DISABLE_WIND_LAND_STEP__;
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(win.__WIND_BASEMAP_MUTE__.landL).toBe(0.9);
+    expect(map.getPaintProperty('road-primary', 'line-color')[4]).toBe(muteColor('hsl(45, 90%, 80%)', 0.85, 0.9));   // what is drawn on the land rises with it
+    syncWindBasemapMute(map, 'light', false, 'wind', win);
+    expect(map.paint()).toBe(was);
+  });
+  it('it rides everything the depth rides: the depth\'s kill, every older kill and hold, the mute\'s kill and dark leave the land the style\'s, step or no step', () => {
+    const OLDER = ['__RAW_DISABLE_WIND_LAND_DEPTH__', '__RAW_DISABLE_WIND_DARK_WHITE__', '__RAW_DISABLE_WIND_WHITE_STREAK__', '__RAW_DISABLE_WIND_DARK_RULES__', ...DARK_RULES_HOLDS];
+    for (const theme of ['light', 'beach']) for (const k of OLDER) for (const step of [{}, DEPTH]) {
+      expect(windBasemapLandL(theme, { [k]: true, ...step })).toBe(1);
+      const map = fakeMap(), win = { [k]: true, ...step };
+      syncWindBasemapMute(map, theme, true, 'wind', win);
+      expect(windLandDepthOn(theme, win)).toBe(false);
+      if (k !== '__RAW_DISABLE_WIND_LAND_DEPTH__') expect(windWhiteStrength(theme, win)).toEqual({ land: 1, sea: 1 });
+    }
+    const dark = fakeMap(), was = dark.paint();
+    syncWindBasemapMute(dark, 'dark', true, 'wind', {});
+    expect(dark.paint()).toBe(was);
+  });
+  it('the depth\'s lever still sets any factor, over the step and under its kill alike', () => {
+    expect(windBasemapLandL('light', { __RAW_WIND_BASEMAP_LAND_L__: 0.7 })).toBe(0.7);
+    expect(windBasemapLandL('light', { ...DEPTH, __RAW_WIND_BASEMAP_LAND_L__: 0.7 })).toBe(0.7);
+  });
+});
+
+describe('BOTH HALVES OF THE STEP MOVE AT THE SYNC (an independent review, before the PR: the kill set in the console drew 0.55 over the lighter land, or 0.75 over the deeper one, until a style event)', () => {
+  const land = (map) => map.getPaintProperty('land', 'background-color'), AT = (f) => muteColor('hsl(60, 0%, 99%)', 0.85, f);
+  it('the default sync says so: landStep true, the land at the sea\'s factor, a streak over it at 0.75', () => {
+    for (const [theme, f] of [['light', 0.9], ['beach', 0.94]]) {
+      const map = fakeMap(), win = {};
+      expect(syncWindBasemapMute(map, theme, true, 'wind', win)).toMatchObject({ landL: f, landStep: true });
+      expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ applied: true, landL: f, landStep: true });
+      expect(windLandStepOn(theme, win)).toBe(true);
+      expect(windWhiteStrength(theme, win)).toEqual({ land: 0.75, sea: 0.55 });
+    }
+  });
+  it('the kill SET with no sync yet changes nothing drawn: the land is still the lighter one and its streak still 0.75; the sync then moves both', () => {
+    const map = fakeMap(), win = {};
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    win.__RAW_DISABLE_WIND_LAND_STEP__ = true;                                           // typed in the console: the engine reads the strength on its next frame
+    expect(land(map)).toBe(AT(0.9)); expect(windWhiteStrength('light', win).land).toBe(0.75);   // not 0.55 over the 0.90 land
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(land(map)).toBe(AT(0.81)); expect(windWhiteStrength('light', win).land).toBe(0.55);
+    expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ landL: 0.81, landStep: false });
+  });
+  it('and the kill LIFTED with no sync yet: the land is still the deeper one and its streak still the sea\'s; the sync then moves both', () => {
+    const map = fakeMap(), win = { __RAW_DISABLE_WIND_LAND_STEP__: true };
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    delete win.__RAW_DISABLE_WIND_LAND_STEP__;
+    expect(land(map)).toBe(AT(0.81)); expect(windWhiteStrength('light', win).land).toBe(0.55);  // not 0.75 over the 0.81 land
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(land(map)).toBe(AT(0.9)); expect(windWhiteStrength('light', win).land).toBe(0.75);
+  });
+  it('a read-back without landStep (an older build\'s, a hand-made one) is not the step: the sea\'s strength, as before it', () => {
+    for (const r of [{ applied: true, theme: 'light', landL: 0.9 }, { applied: true, theme: 'light', landL: 0.9, landStep: 1 }, { applied: true, theme: 'light', landL: 0.9, landStep: 'true' }]) {
+      expect(windLandStepOn('light', { __WIND_BASEMAP_MUTE__: r })).toBe(false);
+      expect(windWhiteStrength('light', { __WIND_BASEMAP_MUTE__: r }).land).toBe(0.55);
+    }
+    expect(windLandStepOn('beach', { __WIND_BASEMAP_MUTE__: { applied: true, theme: 'light', landL: 0.9, landStep: true } })).toBe(false);   // another theme's read-back
+    expect(windLandStepOn('light', { __WIND_BASEMAP_MUTE__: { applied: false, theme: 'light', landL: 0.9, landStep: true } })).toBe(false);  // a map the mute did not take
+    expect(windLandStepOn('light', {})).toBe(false); expect(windLandStepOn('light', null)).toBe(false);
+  });
+  it('a style with no land to restyle is not a step, whatever was asked', () => {
+    const map = fakeMap([STYLE()[2], { id: 'wind', type: 'custom' }]), win = {};
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ applied: true, landL: 1, landStep: false });
+    expect(windWhiteStrength('light', win).land).toBe(1);
+  });
+  it('an answer that muted nothing carries landStep: false (never undefined)', () => {
+    const map = fakeMap(), win = {};
+    expect(syncWindBasemapMute(map, 'light', false, 'wind', win).landStep).toBe(false);
+    expect(syncWindBasemapMute(map, 'dark', true, 'wind', win).landStep).toBe(false);
+    expect(win.__WIND_BASEMAP_MUTE__.landStep).toBe(false);
+  });
+});
+
+describe('THE DEPTH\'S LEVER KEEPS ITS MEANING UNDER THE STEP (the review: with the lever the map was dev\'s and the streak over it 0.75 where dev laid 0.55)', () => {
+  it('a land set by the lever is drawn as dev drew it under that lever, the streak over it included: the sea\'s strength, at every factor', () => {
+    for (const theme of ['light', 'beach']) for (const lev of [0.5, 0.6, 0.7, 0.81, 0.85, 0.9, 0.94, 0.99]) {
+      const map = fakeMap(), win = { __RAW_WIND_BASEMAP_LAND_L__: lev };
+      const dev = fakeMap(), devWin = { __RAW_WIND_BASEMAP_LAND_L__: lev, __RAW_DISABLE_WIND_LAND_STEP__: true };   // the step's kill is dev
+      syncWindBasemapMute(map, theme, true, 'wind', win); syncWindBasemapMute(dev, theme, true, 'wind', devWin);
+      expect(map.paint()).toBe(dev.paint());
+      expect(windLandStepAsked(theme, win)).toBe(false);
+      expect(win.__WIND_BASEMAP_MUTE__).toMatchObject({ landL: lev, landStep: false });
+      expect(windWhiteStrength(theme, win)).toEqual({ land: 0.55, sea: 0.55 });
+      expect(windWhiteStrength(theme, win)).toEqual(windWhiteStrength(theme, devWin));
+    }
+  });
+  it('the lever at exactly the step\'s own factor, set over a step already drawn, is seen as stale (the land is the same, the rule is not) and the streak follows at the sync', () => {
+    const map = fakeMap(), win = {};
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    win.__RAW_WIND_BASEMAP_LAND_L__ = 0.9;
+    expect(windWhiteStrength('light', win).land).toBe(0.75);                             // nothing has been drawn by the lever yet
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    const was = map.paint();
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(map.paint()).toBe(was); expect(windWhiteStrength('light', win).land).toBe(0.55);
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(false);
+    delete win.__RAW_WIND_BASEMAP_LAND_L__;
+    expect(windBasemapMuteStale(map, 'light', true, 'wind', win)).toBe(true);
+    syncWindBasemapMute(map, 'light', true, 'wind', win);
+    expect(windWhiteStrength('light', win).land).toBe(0.75);
+  });
+  it('windLandStepAsked: the step\'s own rule only (not under its kill, the depth\'s kill, an older kill, the lever, or dark)', () => {
+    expect(windLandStepAsked('light', {})).toBe(true); expect(windLandStepAsked('beach', {})).toBe(true); expect(windLandStepAsked('dark', {})).toBe(false);
+    for (const off of [DEPTH, KILL, { __RAW_DISABLE_WIND_DARK_WHITE__: true }, { __RAW_DISABLE_WIND_WHITE_STREAK__: true }, { __RAW_DISABLE_WIND_DARK_RULES__: true }, { __RAW_WIND_BASEMAP_LAND_L__: 0.9 }]) expect(windLandStepAsked('light', off)).toBe(false);
+    for (const bad of [0.2, 3, '0.9', null, NaN]) expect(windLandStepAsked('light', { __RAW_WIND_BASEMAP_LAND_L__: bad })).toBe(true);   // not a lever: the step stands
+  });
+});
+
+describe('THE ORDER: the step\'s 0.75 was solved WITH dark\'s veil under the trails (D-029, PR #324), which merged first', () => {
+  // Without the veil a streak over this land adds 1.2 times the light dark's adds over dark's land (+14.5 / +14.7 L* against +11.8);
+  // with it, +11.7 and +12.0. An independent review asked what pinned that order: this does. If the veil's default is ever turned off,
+  // or its kill becomes the default, the land's strength has to be solved again (the sea's 0.55 is the match without it).
+  it('the veil is ON by default wherever the step draws, at dark\'s own strength', () => {
+    for (const theme of ['light', 'beach']) {
+      const map = fakeMap(), win = {};
+      syncWindBasemapMute(map, theme, true, 'wind', win);
+      expect(windLandStepOn(theme, win)).toBe(true);
+      expect(windTrailVeil(theme, win)).toBe(1);
+    }
+  });
+  it('and the veil is measured against the SEA\'s level, the lower of the two grounds\': a streak over the lighter land keeps its core', () => {
+    for (const theme of ['light', 'beach']) {
+      const map = fakeMap(), win = {};
+      syncWindBasemapMute(map, theme, true, 'wind', win);
+      expect(windWhiteStrength(theme, win)).toEqual({ land: 0.75, sea: 0.55 });
+      expect(trailVeilUniform(theme, true, 0.505, 6, win)[1]).toBeCloseTo(1 / Math.sqrt(0.55), 12);
+    }
   });
 });

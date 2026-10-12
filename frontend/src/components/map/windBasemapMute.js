@@ -27,7 +27,7 @@
  * raster SHOWING under the wind (visible, opacity not 0) is imagery; the slot comes from the style's draw order; the ocean
  * mask's own layers are left to OceanMask; and the layer re-syncs when imagery appears or goes (windBasemapMuteStale).
  *
- * Read-back: window.__WIND_BASEMAP_MUTE__ = { applied, layers, amount, waterL, landL, landLines, theme, at, reason? } after every sync;
+ * Read-back: window.__WIND_BASEMAP_MUTE__ = { applied, layers, amount, waterL, landL, landStep, landLines, theme, at, reason? } after every sync;
  * applied is true only when layers > 0, and reason names the imagery that stood it down ('imagery:<layer id>').
  * Lever: window.__RAW_WIND_BASEMAP_MUTE__ (0-1, the share of chroma removed, any theme).
  * Kill: window.__RAW_DISABLE_WIND_BASEMAP_MUTE__ (the map keeps its own colours under the wind).
@@ -60,19 +60,61 @@ export function windBasemapWaterL(theme, win = (typeof window !== 'undefined' ? 
  * under D-022's kill, the white streak's, dark's rules' and every hold the land is the mute's alone again, and each older kill
  * still draws its old picture (an independent review, before the PR: with D-022's kill alone the streaks were full white over
  * a deep land). WindColorRamp.js, which knows those kills, hands the question in (setWindLandDepthGate): this file has no imports.
+ * SINCE THE SAME DAY THE DEFAULT IS ONE STEP LIGHTER (THE LAND A STEP ABOVE THE SEA, below): these 0.81 / 0.85 are what its kill draws.
  * Kill: window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true (the land as the mute alone leaves it; the streaks' strengths as D-022 set them).
  * Lever: window.__RAW_WIND_BASEMAP_LAND_L__ (0.5 to 1.2). Both are read at the next sync, as the mute's are.
  * Read-back: window.__WIND_BASEMAP_MUTE__.landL (1 when the land is the style's own).
  */
+/**
+ * THE LAND A STEP ABOVE THE SEA (2026-10-12, D-026 amended). The owner, on the deployed build with the coast in the borders' ink
+ * (D-028) live: "it needs to be checked at all zooms, because I don't see the fix at higher out zooms, cannot see the land below the
+ * wind animations in beach or light modes well".
+ * At zooms 2 and 3 (the app's far end is 2) dark's continents are SHAPES: its land stays under its sea, 9.4 of its own 18.4 L* under
+ * an equal wind. Light's and beach's were not: with the land at the sea's depth (above) they kept 1.1 and 1.7 of their own 12.7,
+ * and a coastline 0.4 px wide cannot carry a continent, in ink or not (its best pixels already read 1.6 times dark's line there).
+ * A land is seen by its TONE.
+ * So the land takes the SEA'S OWN factor (waterL: 0.90 in light, 0.94 in beach) in place of the deeper 0.81 / 0.85: the mute darkens
+ * the map as a whole and the map's own land-sea step survives it. Measured on a speed ramp (scripts/wind-bench/ground-run.js
+ * --fixture <ramp> --strips 12 --full 60, zoom 6, land minus sea under the field): light +8.3 L* (1.03 of its own contrast), beach
+ * +8.0 (0.97); dark -9.4 (0.52). And a streak over that land is laid at 0.75, between the sea's 0.55 and D-022's full. THAT NUMBER IS
+ * SOLVED WITH DARK'S VEIL UNDER THE TRAILS (the tail's change, which merges before this one): with it a streak over the land adds the
+ * light dark's adds over dark's land (the 60-frame mean over the field alone: light +11.7 L*, beach +12.0, dark +11.8). Without the
+ * veil 0.75 reads +14.5 and +14.7 (1.2 times dark's), the sea's 0.55 reads +11.1 and +10.8, and full +19.1 and +19.9.
+ * What it moves besides: the colour-blind line as the GPU draws it over land RISES (light 4.85 to 5.18, under 5.0 at 123 and then 0
+ * of 281 maxima; beach 5.06 to 5.31), and the land mask's seam now parts 0.75 from 0.55 (D-022 parted 1 from 0.55).
+ * It is the depth's own switch one step further, and rides everything the depth rides.
+ * Kill: window.__RAW_DISABLE_WIND_LAND_STEP__ = true (the land at the sea's depth and a streak over it at the sea's strength: D-026
+ * as it merged, to the byte). The depth's own kill and lever (above) keep their meaning: a land set by the LEVER is a bench's land and
+ * keeps the strength it had before the step (the sea's), whatever factor it names.
+ * BOTH HALVES MOVE AT THE SYNC (an independent review, before the PR: the strength read the flag on every frame and the land waited
+ * for the next style event, so a kill set in the console drew 0.55 over the lighter land, or 0.75 over the deeper one, a picture nobody
+ * built and the first thing an A/B of the kill would show). The sync records which rule set the land's factor and the read-back says
+ * it (landStep); the streak's strength reads the read-back, never the flag.
+ * And until the land mask is ready every mark is laid as over land (windLandMask.js): with this step that would lay the land's 0.75
+ * over the sea, most of a view; both grounds take the sea's strength until the mask is in, as they did at the sea's depth.
+ */
+export const WIND_LAND_STEP = Object.freeze({ landL: Object.freeze({ light: 0.90, beach: 0.94 }), white: Object.freeze({ light: 0.75, beach: 0.75 }) });
+/** Is the land drawn a step above the sea for this theme (the default), or at the sea's depth (the step's kill)? */
+export function windLandStep(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  return (win || {}).__RAW_DISABLE_WIND_LAND_STEP__ !== true && typeof WIND_LAND_STEP.landL[theme] === 'number';
+}
+
 let LAND_GATE = null;
 /** WindColorRamp.js sets this once: (theme, win) => is the white streak laid by the ground (D-022) here, now? Unset (this file loaded alone), the gate is open. */
 export function setWindLandDepthGate(fn) { LAND_GATE = typeof fn === 'function' ? fn : null; }
+const landOwn = (theme, w) => w.__RAW_DISABLE_WIND_LAND_DEPTH__ === true || !!(LAND_GATE && !LAND_GATE(theme, w));   // the land is the mute's alone
+const landLever = (w) => { const lev = w.__RAW_WIND_BASEMAP_LAND_L__; return typeof lev === 'number' && lev >= 0.5 && lev <= 1.2 ? lev : null; };
 export function windBasemapLandL(theme, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
-  if (w.__RAW_DISABLE_WIND_LAND_DEPTH__ === true || (LAND_GATE && !LAND_GATE(theme, w))) return 1;
-  const lev = w.__RAW_WIND_BASEMAP_LAND_L__;
-  if (typeof lev === 'number' && lev >= 0.5 && lev <= 1.2) return lev;
-  return WIND_BASEMAP_MUTE.landL[theme] || 1;
+  if (landOwn(theme, w)) return 1;
+  const lev = landLever(w);
+  if (lev !== null) return lev;
+  return windLandStep(theme, w) ? WIND_LAND_STEP.landL[theme] : (WIND_BASEMAP_MUTE.landL[theme] || 1);
+}
+/** Would a sync now set the land's factor by THE STEP'S OWN RULE (not the depth's kill or gate, not the step's kill, not the lever)? */
+export function windLandStepAsked(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  return windLandStep(theme, w) && !landOwn(theme, w) && landLever(w) === null;
 }
 
 /** True when the last sync drew THIS theme's land deeper (its read-back, not the lever: a kill, imagery or a theme change in flight says no). */
@@ -81,15 +123,22 @@ export function windLandDepthOn(theme, win = (typeof window !== 'undefined' ? wi
   return !!r && r.applied === true && r.theme === theme && typeof r.landL === 'number' && r.landL < 1;
 }
 
+/** True when the last sync drew THIS theme's land by the step's own rule (its read-back: the flag set since then has drawn nothing yet). */
+export function windLandStepOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  return windLandDepthOn(theme, win) && (win || {}).__WIND_BASEMAP_MUTE__.landStep === true;
+}
+
 /**
- * The white streak's strength over LAND, given the theme's { land, sea } (windDarkRules.js DARK_WHITE). ONE GROUND, ONE STRENGTH:
- * where the land is drawn at the sea's depth a streak over it is laid at the SEA's strength, so the land mask's seam has nothing to
- * show; anywhere else the land keeps its own (D-022: full). Bench lever: window.__RAW_WIND_WHITE_LAND__ (0.2 to 1) on a deep land.
+ * The white streak's strength over LAND, given the theme's { land, sea } (windDarkRules.js DARK_WHITE). Where the mute leaves the
+ * land the style's own, D-022's (full). Where the land was drawn a step above the sea (the default, WIND_LAND_STEP), that step's own
+ * strength. Where it was drawn at the sea's depth (the step's kill) or by the lever, the SEA's: one ground, one strength, no seam.
+ * Bench lever: window.__RAW_WIND_WHITE_LAND__ (0.2 to 1) on a deepened land.
  */
 export function windLandWhite(theme, win, k) {
   if (!windLandDepthOn(theme, win)) return k.land;
   const lev = (win || {}).__RAW_WIND_WHITE_LAND__;
-  return typeof lev === 'number' && lev >= 0.2 && lev <= 1 ? lev : k.sea;
+  if (typeof lev === 'number' && lev >= 0.2 && lev <= 1) return lev;
+  return windLandStepOn(theme, win) ? WIND_LAND_STEP.white[theme] : k.sea;
 }
 
 /** Share of chroma to remove under the wind for this theme (0 = off). */
@@ -364,7 +413,7 @@ export function syncWindBasemapMute(map, theme, active, windId, win = (typeof wi
   return { ...r, ink, coast };
 }
 /** The answer of a sync that muted nothing: the land is the style's own. */
-const UNMUTED = { applied: false, layers: 0, amount: 0, landL: 1, landLines: 0 };
+const UNMUTED = { applied: false, layers: 0, amount: 0, landL: 1, landStep: false, landLines: 0 };
 
 /**
  * The style's layers in DRAW order. getStyle() leaves custom layers out (MapLibre's _serializedAllLayers), so the wind
@@ -402,7 +451,7 @@ function wanted(map, theme, active, windId, win) {
   const imagery = base > 0 ? windBasemapImagery(liveRasters(map, windId), windId) : null;
   const own = on ? windBorderInk(theme, win) : null;
   const inkWhy = !active ? 'wind off' : !on ? 'no wind layer' : typeof WIND_BORDER_INK.color[theme] !== 'string' ? 'theme' : !own ? 'kill' : !(base > 0) ? 'mute off' : imagery ? `imagery:${imagery}` : null;
-  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), landL: windBasemapLandL(theme, win), imagery, ink: inkWhy ? null : own, inkWhy, coast: inkWhy ? 0 : windCoastInk(theme, win) };
+  return { amount: imagery ? 0 : base, waterL: windBasemapWaterL(theme, win), landL: windBasemapLandL(theme, win), step: windLandStepAsked(theme, win), imagery, ink: inkWhy ? null : own, inkWhy, coast: inkWhy ? 0 : windCoastInk(theme, win) };
 }
 
 /**
@@ -416,7 +465,7 @@ export function windBasemapMuteStale(map, theme, active, windId, win = (typeof w
   try {
     const w = wanted(map, theme, active, windId, win), prev = APPLIED.get(map);
     if (!(w.amount > 0)) return !!prev;
-    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.landL !== w.landL || prev.ink !== w.ink || (prev.coast || 0) !== w.coast || (w.coast > 0 && coastThere(map) !== !!prev.coastThere);   // the stroke arrived, or went, after the record (a diffed theme change drops it and the layer puts it back)
+    return !prev || prev.theme !== theme || prev.amount !== w.amount || prev.waterL !== w.waterL || prev.landL !== w.landL || prev.step !== w.step || prev.ink !== w.ink || (prev.coast || 0) !== w.coast || (w.coast > 0 && coastThere(map) !== !!prev.coastThere);   // the stroke arrived, or went, after the record (a diffed theme change drops it and the layer puts it back)
   } catch (e) {
     return false;
   }
@@ -429,7 +478,7 @@ const countIds = (plan) => new Set(plan.map((p) => p.id)).size;
  * What a record did, as the two read-backs say it: the mute's { applied, layers, amount }, and the ink's under `ink`.
  * The ink counts the lines that TOOK it: the library refuses an invalid paint value with an error event and no write.
  */
-const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, amount: rec.amount, landL: rec.onLand ? rec.landL : 1, landLines: rec.landLines,   // landL: what the LAND was written with, 1 when no land colour took it
+const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, amount: rec.amount, landL: rec.onLand ? rec.landL : 1, landStep: rec.onLand && rec.step, landLines: rec.landLines,   // landL: what the LAND was written with, 1 when no land colour took it; landStep: and by the step's own rule
   ink: rec.lines > 0 ? { applied: true, layers: rec.lines, color: rec.ink }
     : { ...NO_INK, reason: !rec.ink ? inkWhy : rec.asked > 0 ? 'the style refused the ink' : 'no border lines above the wind' },
   coast: rec.shore ? { applied: true, opacity: rec.coast }
@@ -438,11 +487,11 @@ const answer = (rec, inkWhy) => ({ applied: rec.layers > 0, layers: rec.layers, 
 function syncOnce(map, theme, active, windId, win) {
   if (!map || !map.style || !APPLIED || typeof map.getPaintProperty !== 'function') return { ...UNMUTED, ink: { ...NO_INK, reason: 'no map' }, coast: { ...NO_COAST, reason: 'no map' } };
   try {
-    const { amount, waterL, landL, ink, imagery, inkWhy, coast } = wanted(map, theme, active, windId, win);
+    const { amount, waterL, landL, step, ink, imagery, inkWhy, coast } = wanted(map, theme, active, windId, win);
     const prev = APPLIED.get(map);
     if (prev) {
       const mine = prev.plan.filter((p) => map.getLayer(p.id) && same(map.getPaintProperty(p.id, p.prop), p.to));
-      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.landL === landL && prev.ink === ink && (prev.coast || 0) === coast
+      if (mine.length === prev.plan.length && prev.theme === theme && prev.amount === amount && prev.waterL === waterL && prev.landL === landL && prev.step === step && prev.ink === ink && (prev.coast || 0) === coast
         && !(coast > 0 && coastThere(map) !== !!prev.coastThere)) return answer(prev, inkWhy);
       // The coast stroke is ours only as a WHOLE: a stroke re-added with one value that happens to equal ours (its own opacity 1) is
       // the new layer's, and writing our old `from` over it would leave it at the last layer's opacity.
@@ -453,7 +502,7 @@ function syncOnce(map, theme, active, windId, win) {
     if (!(amount > 0)) return { ...UNMUTED, ...(imagery ? { reason: `imagery:${imagery}` } : {}), ink: { ...NO_INK, reason: inkWhy }, coast: { ...NO_COAST, reason: inkWhy || 'mute off' } };
     const ordered = orderedLayers(map), mute = windBasemapMutePlan(ordered, windId, amount, waterL, landL), inkPlan = ink ? windBorderInkPlan(ordered, windId, ink, coast) : [];
     const lines = inkPlan.filter((p) => !p.coast), shore = inkPlan.filter((p) => p.coast);   // the borders' entries, and the coast stroke's two
-    const rec = { theme, amount, waterL, landL, ink, coast, plan: [...mute, ...inkPlan], layers: countIds(mute.filter((p) => !p.landLine)), landLines: countIds(mute.filter((p) => p.landLine)),
+    const rec = { theme, amount, waterL, landL, step, ink, coast, plan: [...mute, ...inkPlan], layers: countIds(mute.filter((p) => !p.landLine)), landLines: countIds(mute.filter((p) => p.landLine)),
       onLand: landL !== 1 && mute.some((p) => !p.landLine && !/^water/.test(p.id)), asked: lines.length, lines: 0, shoreAsked: shore.length, shore: false, coastThere: coastThere(map) };
     APPLIED.set(map, rec);   // recorded BEFORE the writes: one that throws is undone by the next sync
     for (const p of rec.plan) map.setPaintProperty(p.id, p.prop, p.to);

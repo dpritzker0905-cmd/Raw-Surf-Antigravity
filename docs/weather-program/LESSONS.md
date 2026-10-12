@@ -1173,3 +1173,33 @@ A stored estimate can be estimated again in a browser branch with different sour
   log of what was sent; (4) a brief to a sub-session carries the owner's standing rules: this one asked for a default-off lever
   and the owner corrected it within the hour ("levers to turn on new updates need to be on by default"). Log
   `2026-10-12-wind-trails-linger`, "The independent review".
+
+- **L-V80 · A fix is read at EVERY zoom the app can show before it is called a fix, and at the far end a land is carried by its
+  tone, not by a line.** The coast in the borders' ink (D-028) was measured and filmed at zooms 4, 6, 8 and 10 and merged; the
+  app's far end is zoom 2, and the owner looked there first: "I don't see the fix at higher out zooms". At zooms 2 and 3 the inked
+  stroke read 1.6 times dark's line by its best pixels and the continents were not there, because a stroke is 0.4 px wide at that
+  zoom in every theme: dark's continents are seen by a land 9 L\* under its sea. **Do:** (1) take the zoom list from the app
+  (`minZoom`, the zoom it opens at, the closest it is used at), not from the last bench run; (2) at each zoom ask what CARRIES the
+  thing being judged (a tone at the far end, a line in the middle, labels and roads close in) and measure that; (3) a number that
+  says "stronger than dark's" beside a picture where the thing cannot be found is the wrong number for that zoom (L-V74).
+
+- **L-V81 · A bar is read from the instrument's data, never by its position in a printed row; and a bar that sets a number is
+  read by two routes before the number is written.** The land's streak strength (0.75) was picked to match "dark adds +14.8 L\*
+  over land". 14.8 was dark's field CHROMA: an `awk` field counted from the end of the runner's line, and dark's line ends in a
+  shorter cell than light's and beach's, so every field sat one place off for dark alone. The true bar, from the same run's JSON,
+  is +11.8. The number survived only because the build it goes onto (with the tail's veil) happens to read +11.7 there; on dev as
+  it stood it was 1.23 times dark's. Caught before any commit, by re-reading the row beside its header. **Do:** (1) take every
+  number that will be compared across themes from the runner's `--json`; (2) when a row is printed for the eye, print the name
+  with the value (`adds +11.8`), so a shifted column cannot pass for another; (3) a bar that sets a strength is read a second
+  way (another script, another run, the header line) before the strength is written anywhere.
+
+- **L-V82 · A switch read in two places on two clocks is two switches for as long as the clocks differ.** The land step's kill
+  was read by the map's restyle at the next style event and by the streak's strength on every frame, so setting it in the
+  console drew the new land with the old strength (or the reverse) until something touched the style: a picture nobody built,
+  and exactly what the owner would see first when A/B-ing the kill. The depth's own kill never had this because its second
+  reader read the sync's READ-BACK, not the flag. An independent review found it by flipping the flag with no sync; no test did,
+  because every test synced after setting it. **Do:** (1) when a switch has two readers, one of them reads the other's
+  record of what it DID, never the flag again; (2) test a kill three ways: set before the first sync, set after it with no
+  sync, and set then synced; (3) while a resource a rule depends on is loading (a mask, a texture), say in code which side
+  the rule falls to, and pin it: "every mark reads as land" was harmless while land and sea shared a strength and was a brighter
+  sea the moment they did not.
