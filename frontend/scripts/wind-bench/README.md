@@ -276,16 +276,26 @@ node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title"
 
 - **Every frame these modes save is laid over the page the app lays behind the map:** near white (`#f9fafb`, Tailwind gray-50) in
   light, black in dark and beach (`page/map-entry.js` `APP_PAGE`, pinned against `MapPage.js` by `windCanvasAlpha.test.js`).
-  `motion-run.js --behind <css colour>` (or a run's own `behind`) lays another. Until this date every saved frame was a JPEG of the
-  bare canvas, and a JPEG fills what a canvas leaves with BLACK: in light that was a picture the app did not draw (LESSONS L-V72).
-- **Each motion run prints the map canvas's own alpha** (`canvas alpha min .. mean ..`, read from the default framebuffer on the
-  last frame). 1 and 1 means the page cannot matter. Baseline (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): built, 1 / 1 in
+  `motion-run.js --behind <css colour>` (or a run's own `behind`) lays another; a string that is not a CSS colour stops the run.
+  Until this date every saved frame was taken from the BARE canvas. That is not the screen over any page: an encoder
+  un-premultiplies a pixel (clamped at 255) and fills with black, so a pixel held min(channel, alpha): the brightest streak cores
+  clipped darker in every theme, and in light the page's white left out (`page-colour.js`; LESSONS L-V72). Numbers read from
+  saved frames before this date are not exact, the D-022 baseline above included.
+- **Each motion run prints the map canvas's own alpha** (`canvas alpha min .. mean .. over N frames`: the least over every sampled
+  frame). 1 and 1 means the page cannot matter. Every canvas read carries its alpha, and `map-run.js` and `path-run.js` print a
+  WARNING when a scored read was taken on a see-through canvas (an older `--ref`, or the kill): their scored columns read the
+  canvas's own colour, which is the screen over a BLACK page. `run.js`, `ladder-run.js` and `lane-run.js` (`page/bench-entry.js`)
+  still save the bare canvas: right on a built engine, clipped on an older `--ref` or under the kill. Baseline (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): built, 1 / 1 in
   all three themes; under `__RAW_DISABLE_WIND_OPAQUE_CANVAS__` (dev's blends) dark 0.608 / 0.685, light 0.749 / 0.900, beach
   0.749 / 0.895.
 - **Compare two arms at the same position in runs files that are otherwise alike.** A theme's first run on a fresh map and its second differ in 15 of
   90 frames (frames 1 to 39, beach; the same 15 on a repeat), whichever arm is which; two runs at the same position are the same
   bytes, 90 of 90 (the null control). What the page ran before counts too: light after two dark runs and light alone in a page
   differed in all 90. Read with a hash of each frame.
+- **A run may draw the colour field ALONE:** `"res": 2` in runs.json (the particle pool's side; 384 by default). The mean
+  picture minus the same crop drawn with the field alone is the light a streak ADDS, and it is the measure to compare themes by:
+  the probe's own `lift` (the mean over each pixel's darkest moment) reads dark high and light and beach low (LESSONS L-V73).
+  `--crop WxH --crop-fmt png` keeps the crops lossless: read a claim about a 1 px line there, the JPEG rings.
 - `mirror-probe.js` `capture()` on a live canvas was not checked for this. On a build whose canvas alpha is under 1 (every
   deployed build before D-027) treat its light-mode numbers as unverified: the screen showed the page through the canvas.
 

@@ -176,3 +176,128 @@ only the colour moves. The colour under the field over the sea, by speed (the pr
 - **Nothing here has been seen in the app.** The deploy preview's map is behind the sign-in.
 - One view, one seed, zoom 6, a laptop's pixel ratio. The lossless table is one crop a row.
 - The glow look of 2026-10-10 ran the same composite in light by the code's path; its alpha was not re-measured.
+
+## 15:26Z · After the independent review: the engine change stands; three things this log said do not
+
+A fresh agent reviewed the diff after the PR was opened (it had not returned when #321 was opened; the PR said so). It ran the
+real engine on a recording GL over 20 lever sets, 31 mutants, a compositor check in a plain page, and the bench under the kill.
+
+**Its verdict: the engine change is correct and it could not break it.** No other draw lowers the canvas's alpha, nothing leaks
+into the engine's own buffers or back into MapLibre, the kill is dev call for call, `MapPage.js` is the map's only host, and its
+own GPU read agrees (built 1 / 1; under the kill dark 0.608 / 0.682, light 0.749 / 0.912, beach 0.749 / 0.909 on the offline
+basemap).
+
+**What it found, and what was done with each:**
+
+1. **The old saved frames were not "the canvas over black"** (medium). A bare 2D canvas is un-premultiplied by the encoder
+   (clamped at 255) and then filled with black, so a pixel held min(channel, alpha). Its read under the kill: dark 6.1% to 8.6% of
+   pixels with a clamped channel, 2.0 to 2.8 L* darker each on average; light 21% to 26%, 1.7 to 2.0 L*, up to 13.0; beach 11.5% to
+   25.6%, 3.1 to 3.6 L*. **Checked on this session's own older lossless crops** (the old bench, every open change, 15.3 kn): 29% of
+   dark's sea pixels carry the clamp's mark (a channel at 255 under an alpha below 1), 15% of dark's land, 7% of light's, none of
+   beach's at that crop. **So three things this log says above are wrong or too strong, and are corrected where they were also
+   written (D-027, L-V72, the README, STATE, `windCanvasAlpha.js`):** "the bench has always laid its frames over black"; "over
+   black it is the bench's picture" and "it is dev's light over a black page to the byte, which is the picture the bench has
+   always drawn" (the byte comparison is true of the CORRECTED bench only); and "for dark and beach the bench's frame is the
+   screen". Light with the fix is close to its old samples, with brighter and more coloured streak cores. The lossless table
+   above ("How it was found") was read from such clipped crops: its direction stands (gray-50 far over black), its numbers do not.
+2. **The tests pinned text** (medium): four ways of re-opening the bug passed every committed test (a draw with blending off, a
+   later blend call, a clear on an existing line, the field with blending off), and the "law" tests exercised two functions
+   nothing in the app called. **Done:** the review's instrument is adopted as `windCanvasAlphaTrace.test.js` (the real `render()`
+   on a recording GL: every draw and clear on the map's framebuffer, on 20 lever sets, three themes, with and without a fine
+   grid; the kept-alpha factors never reach the engine's own buffers; MapLibre gets its blend back; the kill as positive
+   control). Checked here with its mutant E5 (blending off before the composite): 122 tests fail. The two uncalled functions are
+   removed.
+3. **The scored columns still read the canvas without the page** (medium, bench). **Done:** every canvas read carries its alpha
+   (`page-colour.js` `alphaOf`); the motion run reports the least over every sampled frame; `map-run.js` and `path-run.js` print a
+   warning when a scored read was on a see-through canvas. Not done: laying the page into the scored reads themselves.
+4. **The motion run's cache and an invalid `--behind`** (low to medium). **Done:** a cached run is this run only on the same page;
+   a string that is not a CSS colour stops the run.
+5. **What the bench pin did not see** (low). **Done:** the page's colours, the alpha read, the fold and the warning are one
+   CommonJS module tested by what it does. Not done, said in the README: `run.js`, `ladder-run.js` and `lane-run.js` still save
+   the bare canvas (right on a built engine, clipped on an older `--ref` or under the kill).
+6. **The page pin covered one of three elements** (low). **Done:** `MapWebGL.js`'s root and the map's own style are pinned too.
+7. **`windCanvasAlpha.js`'s comment** (low). **Done:** D-020, not D-021; "opaque wherever the map drew it opaque"; the samples
+   sentence narrowed.
+8. **Ship notes.** Two older kills (the field tint's; dark's rules' with the premultiplied composite's) send light to one of the
+   two passes: under this change they draw dev's colours but not the page showing through them. Said in the module's comment:
+   for dev's exact screen under such a kill, set this kill with it. And "merge with #320" is withdrawn, below.
+
+### Measured again, on corrected frames, against the field alone
+
+"Added" is the mean picture minus the same crop drawn with the colour field alone (a run with a 2 x 2 particle pool); it is the
+light the streaks add. The probe's own lift (the mean over each pixel's darkest moment) is beside it, because it is what every
+earlier table in this program carried.
+
+**This branch (dev's engine and this change), the fixture wind x0.4, zoom 6, 220 px crops:**
+
+| | field alone L* | darkest moment | mean picture | added | the probe's lift | a core L* |
+|---|---|---|---|---|---|---|
+| dark, sea | 46.3 | 43.6 | 54.8 | 8.5 | 11.2 | 70.1 |
+| light built, sea | 46.6 | 48.6 | 58.9 | 12.3 | 10.3 | 72.0 |
+| light on dev's page, sea | 46.6 | 54.2 | 73.9 | 27.3 | 19.7 | 94.4 |
+| beach, sea | 46.4 | 49.4 | 62.7 | 16.3 | 13.4 | 79.6 |
+| dark, land | 25.3 | 18.9 | 28.6 | 3.3 | 9.7 | 32.3 |
+| light built, land | 72.3 | 72.0 | 76.1 | 3.8 | 4.1 | 83.0 |
+| light on dev's page, land | 72.3 | 73.0 | 79.8 | 7.5 | 6.8 | 87.4 |
+| beach, land | 67.4 | 66.8 | 71.5 | 4.1 | 4.7 | 76.8 |
+
+So "the cost" as first written (light's land at 0.70 of dark's lift, 0.42 with the fix) was the probe reading dark high: by
+light added, light's land streaks go from 7.5 to 3.8 where dark's add 3.3.
+
+**The local preview (every open change and this one; speed ramps, zoom 6, 110 px crops; `light-flat` and `beach-flat` have #320
+killed), light added and its ratio to dark's at the same crop:**
+
+| kn | sea: dark | light | beach | land: dark | light | light, #320 off | beach | beach, #320 off |
+|---|---|---|---|---|---|---|---|---|
+| 3.2 | 1.1 | 2.6 (2.36) | 2.4 (2.18) | 2.3 | 2.8 (1.22) | 2.7 (1.17) | 2.4 (1.04) | 2.9 (1.26) |
+| 5.9 | 3.4 | 5.1 (1.50) | 5.3 (1.56) | 5.0 | 5.1 (1.02) | 5.5 (1.10) | 4.9 (0.98) | 6.6 (1.32) |
+| 8.6 | 3.0 | 5.0 (1.67) | 5.5 (1.83) | 4.4 | 4.7 (1.07) | 5.1 (1.16) | 5.3 (1.20) | 7.6 (1.73) |
+| 11.8 | 6.7 | 9.7 (1.45) | 10.3 (1.54) | 7.9 | 8.1 (1.03) | 9.3 (1.18) | 8.9 (1.13) | 12.8 (1.62) |
+| 15.3 | 7.7 | 10.9 (1.42) | 12.3 (1.60) | 10.4 | 10.6 (1.02) | 12.8 (1.23) | 11.5 (1.11) | 17.0 (1.63) |
+| 18.5 | 8.2 | 11.3 (1.38) | 13.3 (1.62) | 10.8 | 10.9 (1.01) | 13.1 (1.21) | 13.4 (1.24) | 19.9 (1.84) |
+| 25.6 | 14.3 | 19.0 (1.33) | 17.9 (1.25) | 15.2 | 15.6 (1.03) | 19.6 (1.29) | 15.6 (1.03) | 21.4 (1.41) |
+| 38.5 | 14.9 | 21.9 (1.47) | 15.5 (1.04) | 17.5 | 19.9 (1.14) | 27.2 (1.55) | 15.9 (0.91) | 20.2 (1.15) |
+
+- **A core's height over the field, the sea:** dark 4.5, 14.7, 14.7, 20.8, 22.2, 22.7, 25.0, 26.0; light 4.5, 14.9, 15.5, 21.9,
+  22.9, 23.0, 28.0, 31.4; beach 4.3, 14.1, 15.9, 22.6, 25.3, 26.5, 26.6, 23.5. The cores match; what differs is between them.
+- **The darkest moment against the field, the sea** (under is positive): dark 3.9, 3.5, 3.6, 2.7, 2.5, 2.3, then 3.0 and 3.9 OVER
+  it at 25.6 and 38.5 kn; light 2.1, 1.7, 1.5 under, then 1.3, 1.9, 2.5, 9.2, 11.7 over; beach 1.8, 1.0, 1.1 under, then 1.6, 2.5,
+  3.3, 8.9, 7.5 over. From 12 kn up light's and beach's pixels do not come back to the field between streaks.
+- **Flicker against dark's:** the sea, light 0.74 to 0.86 and beach 0.65 to 0.90; the land with #320, light 0.65 to 0.82 and
+  beach 0.58 to 0.87; with #320 off, light 0.68 to 1.13 and beach 0.69 to 1.27.
+- **The probe's lift, the land, #320 off, light against dark:** 0.15, 0.55, 0.48, 0.55 at 3.2 to 11.8 kn, where the light added is
+  1.17, 1.10, 1.16, 1.18. That backwards reading is what #320's log and D-026 give as their reason (corrected on that branch).
+
+**Lossless, device resolution, the same preview, 15.3 kn, every pixel and frame against the field alone** (`truth-run.js`,
+scratch; the corrected bench, so nothing is clipped):
+
+| | added | 3 L* or more over the field, share of pixel-instants | 1.5 L* or more under it | darkest moment | a pixel's lightest | line contrast (Weber) |
+|---|---|---|---|---|---|---|
+| dark, sea | 7.7 | 0.58 | 0.19 | -2.2 | +25.3 | 1.82 |
+| light, sea | 10.8 | 0.75 | 0.00 | +1.8 | +25.3 | 1.70 |
+| beach, sea | 12.2 | 0.76 | 0.00 | +1.9 | +28.4 | 2.46 |
+| dark, land | 9.9 | 0.62 | 0.07 | -0.6 | +29.1 | 2.86 |
+| light, land | 10.1 | 0.71 | 0.00 | +1.5 | +24.4 | 1.62 |
+| beach, land | 11.6 | 0.73 | 0.00 | +1.7 | +28.0 | 2.35 |
+
+Dark's dip under its field is real and small (no pixel 3 L* under); the JPEG frames overstate it over land (2.0 at 15.3 kn where
+this reads 0.6). Light and beach light 9 to 18 points more of the picture at an instant than dark does, with cores as high.
+
+### What this changes
+
+- **The gap to dark is not strength.** With every open change, light's and beach's streak cores stand as high as dark's over
+  the sea, and they add as much light as dark's over the deeper land and more over the sea. What dark has and they do not: its
+  streaks come back to the field (and a little under it) between cores; theirs linger 1 to 12 L* over it. Over land light's line
+  contrast is 0.57 of dark's (1.62 against 2.86): its land, deep as it now is, is still 11 L* lighter than dark's.
+- **#320's stated reason was this gauge's error; its effect is still toward dark:** with it light's land adds 1.0 to 1.2 times
+  dark's light (1.1 to 1.55 without it) and beach's 0.9 to 1.2 (1.15 to 1.84 without it), on one ground with the sea.
+- **D-022's strengths were set on the probe's lift.** By light added, light at 0.55 adds 1.3 to 1.7 times what dark does over
+  the sea, and beach at 0.55 adds 1.0 to 1.8 times.
+- **Every clip sent before this section was drawn from clipped frames** except the two taken on this branch
+  (`light-canvas-fix-alone.webm` and the two stills). The others are being filmed again on the corrected bench.
+
+### Not verified
+
+- Still nothing seen in the app. One view, one seed, zoom 6; the by-speed rows are JPEG frames at 1000 px (means are sound, the
+  darkest moments carry ringing); the lossless table is one speed. Why light's and beach's trails linger and dark's do not is
+  not established: the composite is the same, the marks' colours are not.

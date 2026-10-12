@@ -21,20 +21,25 @@ is a claim, not a measurement.
   - **The finding:** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`. Two of the wind's passes
     blended the canvas's ALPHA by the colour's factors and left it at 0.61 / 0.69 (least / mean) in dark and 0.75 / 0.90 in light
     and beach. `MapPage.js` lays black behind dark AND beach and near white (gray-50) behind light. So only light showed the page:
-    its streaks lift the picture 19.7 L* where dark's lift it 11.2, a core reads L* 94 (paper white) where dark's reads 70.
-  - **Why two days of work did not show:** the bench saved frames as JPEGs of the bare canvas, which is the canvas over BLACK. Every
-    measurement and sample of light's white streak was the picture with this fix, which the app did not draw (LESSONS L-V72).
-    Beach's page is black: its samples were true, and what it lacks on the site is the open changes, none merged.
+    its streaks add 27.3 L* to the picture where dark's add 8.5 (against the field alone), a core reads L* 94 (paper white) where
+    dark's reads 70.
+  - **Why two days of work did not show:** the bench saved frames from the BARE canvas, never over the page: no sample of light's
+    white streak was the picture the app drew (LESSONS L-V72). And a bare-canvas frame held min(channel, alpha): the brightest
+    streak cores clipped darker in EVERY theme, so no saved-frame number before this change is exact, dark's bar included (the
+    independent review). What beach lacks on the site is the open changes, none merged.
   - **What draws:** `blendIntoMap` (`windCanvasAlpha.js`) sets `blendFuncSeparate(src, dst, ZERO, ONE)` at the two passes bound to
     the map's framebuffer. No colour the wind writes changes. Kill: `window.__RAW_DISABLE_WIND_OPAQUE_CANVAS__ = true`.
   - **Measured, built** (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): the canvas's alpha 1 / 1 in three themes; frames
     against the kill's by hash, at the same run position: dark 90 of 90 the same bytes, beach 90 of 90, light 0 of 90; light's
-    sea beside dark: lift 19.7 -> 10.3 (dark 11.2), a core's L* 94 -> 72 (dark 70).
-  - **The cost:** over land in light air light's streaks get fainter until #320 lands (6.8 -> 4.1 at the land crop; dark 9.7): the
-    page's white was all that lifted a white streak off a pale land. #320 was measured on the fixed picture. Merge them together.
-  - **Also found:** the probe's ground (a pixel's darkest moment) reads 3.4 to 5.5 L* low in dark and true in light, so dark's
-    lift, the bar D-022's strengths were set against, was read 8.6 to 12.4 where it is 5.1 to 8.1 against the field alone
-    (L-V73). Not retuned: one visual variable at a time, after this is seen in the app.
+    sea beside dark: light added 27.3 -> 12.3 L* (dark 8.5), a core's L* 94 -> 72 (dark 70). The independent review could not break
+    the engine change; its behavioural test (every draw into the map, 20 lever sets) is in the suite.
+  - **The cost:** over land in light air light's streaks add half the light they did (7.5 -> 3.8 L*); dark's add 3.3 there, so it is
+    no shortfall against dark, and #321 does not have to merge with #320 (corrected: first written from the probe's lifts).
+  - **Also found (L-V73), on corrected frames against the field alone, every open change, 6 to 39 kn:** a streak's core stands the
+    same height over the field in all three themes over the sea; light ADDS 1.3 to 1.7 times the light dark does over the sea and
+    beach 1.0 to 1.8 times, both 0.9 to 1.2 times over the deeper land, because their pixels do not come back to the field
+    between streaks (dark's do, and dip a little under it). The probe's own lift read this backwards over land (0.15 to 0.55 where the light added is 1.1
+    to 1.2), and that reading was D-026's stated reason. Not retuned: one visual variable at a time, after this is seen in the app.
   - **The bench now lays every saved frame over the app's page for the theme and prints the canvas's alpha** (`motion-run.js
     --behind`); compare two arms at the same run position (a theme's first run on a fresh map is not its second).
   - **Open, the owner's merges:** this, then #320 (the land's depth), #319 (beach's F), #315 (beach's sea 0.55), #318 (light's hue
@@ -1999,7 +2004,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1079, sha256 cd50dfde82b26ab8e26c3b9bc43c2968d0ebce4d021e5ce803e2757d7ebaf815**
+  **Ledger head: seq 1081, sha256 b918491a73951c839aca9ca35c10a26b46d2a9f9816ef68db0c315e29518402c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
