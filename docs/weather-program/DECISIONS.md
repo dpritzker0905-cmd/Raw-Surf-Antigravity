@@ -600,6 +600,19 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
     reference maps do on light basemaps; not built.
   - **The pace of light's build-up** (its full depth and its strongest colour are reached by 10 kn; dark's picture builds to
     about 26 kn) and **beach's colour from 15 to 32 kn** (nearly twice dark's): the field's, nobody's change yet.
+- **CORRECTED 2026-10-12, after the independent review of #321 (the wind's see-through canvas; D-027 on its own branch):
+  the "Why" and "What it reads" above are the mirror probe's LIFT, read on frames that clipped bright streak cores, and that
+  number does not compare themes.** The probe takes each pixel's darkest moment as the ground; dark's streaks dip under their
+  field and light's and beach's never come back to theirs, so its lift read dark high and the other two low at once. Measured
+  again on corrected frames as light ADDED (the mean picture minus the same crop drawn with the colour field alone), with every
+  open change, 3 to 39 kn: **over land light's streaks were never weaker than dark's.** Without this change light's land adds
+  1.1 to 1.55 times what dark's does and beach's 1.15 to 1.84 times; with it, light 1.0 to 1.2 and beach 0.9 to 1.2. So what
+  this change does to the streaks is bring them DOWN to dark's added light, on one ground with the sea; a streak's core over
+  land then stands 1.4 to 3.4 L* under dark's from 6 to 18.5 kn on the 1000 px frames (15 against 18 at 5.9 kn) and 4.7 under
+  on lossless crops at 15.3 kn (24.4 against 29.1), and light's line contrast over land is 0.57 of dark's (its land, deep as it is, is still 11 L* lighter than dark's). The
+  owner's pick was of the LOOK, from a prototype moving beside dark; that stands. The stated reason does not. The seam at the
+  coast and the one ground are as measured. (This session's log, the dated correction; #321's log, "After the independent
+  review", holds the tables.)
 - **Evidence (log 2026-10-12-wind-land-depth):** three speed ramps read at 14 speeds, land and sea, the three themes, cover,
   flicker, lift, ground lightness and chroma; the build against its kill in the same capture; the two tunings; the palette
   checker at three depths; `windLandDepth.test.js` (the tests first), `windBenchRamp.test.js`.

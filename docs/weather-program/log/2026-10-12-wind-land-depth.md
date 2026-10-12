@@ -234,3 +234,45 @@ the files the work left: the reviewer's report was written at 12:52:29Z, the fix
 12:59:04Z, the one capture after the fixes at 13:01:24Z and the production build at 13:03:12Z. The section's work ran from the
 review's return, 12:52Z, to 13:03Z. Nothing else in it changes. Hosted CI's `Weather Program Ledger` check found it on #320's
 first head (LESSONS L-P10: a header's time is a clock reading, never an estimate).
+
+## 15:29Z · Correction: this change's stated reason was read from a gauge that does not compare themes
+
+The independent review of #321 (the wind's see-through canvas, found after this PR was opened) showed that every frame the
+bench saved was clipped at the brightest streak cores, and the re-measure it led to showed that the mirror probe's `lift` (the
+mean picture over each pixel's darkest moment) reads dark high and light and beach low at once: dark's streaks dip under their
+field between cores, light's and beach's never come back to theirs. So the numbers this log, D-026, STATE and #320's description
+give as the reason ("over land under 10 kn light's streaks lift the picture 0.14 to 0.56 of what dark's do") are that gauge's
+error, and so are the before -> built rows.
+
+Measured again on the corrected bench (#321's branch merged into the local preview of every open change), as light ADDED: the
+mean picture minus the same crop drawn with the colour field alone (a run with a 2 x 2 particle pool). Speed ramps, zoom 6,
+110 px crops, page and map at 1.5. Land; the ratio to dark's at the same crop in brackets:
+
+| kn | dark adds | light, this change | light, this change killed | beach, this change | beach, this change killed |
+|---|---|---|---|---|---|
+| 3.2 | 2.3 | 2.8 (1.22) | 2.7 (1.17) | 2.4 (1.04) | 2.9 (1.26) |
+| 5.9 | 5.0 | 5.1 (1.02) | 5.5 (1.10) | 4.9 (0.98) | 6.6 (1.32) |
+| 8.6 | 4.4 | 4.7 (1.07) | 5.1 (1.16) | 5.3 (1.20) | 7.6 (1.73) |
+| 11.8 | 7.9 | 8.1 (1.03) | 9.3 (1.18) | 8.9 (1.13) | 12.8 (1.62) |
+| 15.3 | 10.4 | 10.6 (1.02) | 12.8 (1.23) | 11.5 (1.11) | 17.0 (1.63) |
+| 18.5 | 10.8 | 10.9 (1.01) | 13.1 (1.21) | 13.4 (1.24) | 19.9 (1.84) |
+| 25.6 | 15.2 | 15.6 (1.03) | 19.6 (1.29) | 15.6 (1.03) | 21.4 (1.41) |
+| 38.5 | 17.5 | 19.9 (1.14) | 27.2 (1.55) | 15.9 (0.91) | 20.2 (1.15) |
+
+- **Over land light's streaks were never weaker than dark's.** With this change they add what dark's add (1.0 to 1.2 times; beach
+  0.9 to 1.2); without it more (light 1.1 to 1.55, beach 1.15 to 1.84). The probe's lift read the same rows as 0.15, 0.55, 0.48,
+  0.55 for light without this change at 3.2 to 11.8 kn.
+- A core's height over the field, land: dark 4.3, 18.0, 17.0, 21.3, 25.7, 25.9, 26.7, 28.6; light with this change 6.6, 15.1, 15.2,
+  19.9, 22.3, 23.3, 25.9, 30.5; killed 8.4, 17.4, 18.3, 26.0, 28.6, 30.2, 34.8, 43.1. With the change a core stands 1.4 to 3.4 L*
+  under dark's from 6 to 18.5 kn; without it, at or over dark's.
+- Flicker against dark's, land: light 0.65 to 0.82 with this change, 0.68 to 1.13 without; beach 0.58 to 0.87 and 0.69 to 1.27.
+- Lossless at 15.3 kn (device resolution, every pixel and frame against the field alone), land, with this change: dark adds 9.9,
+  light 10.1, beach 11.6; a pixel's lightest moment +29.1, +24.4, +28.0; line contrast (Weber) 2.86, 1.62, 2.35.
+
+**What stands:** the owner picked the look, from a prototype moving beside dark; the land and the sea are one ground within 2 L*;
+the seam at the coast goes; the sea is the same with and without the change. **What does not:** "the land was the largest gap to
+dark in strength". By light added there was no gap; this change takes the land's streaks from somewhat over dark's down to
+dark's, and its cores a little under. Whether that is wanted is the owner's eye on the corrected frames.
+
+**That prototype and every clip of this change were drawn from clipped frames** (bright cores a few L* darker than the screen).
+They are being filmed again on the corrected bench.

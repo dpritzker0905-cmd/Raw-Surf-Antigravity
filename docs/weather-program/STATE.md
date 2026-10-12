@@ -40,6 +40,10 @@ is a claim, not a measurement.
     of light's build-up, beach's colour from 15 to 32 kn. **Waiting on the owner:** the merges (#315, #318, this, the beach
     lane's F when it opens, #317 last), then their eye on the deployed build. **#316 MERGED** 2026-10-12T11:52:11Z as
     `74417b5a`. Log `2026-10-12-wind-land-depth`, LESSONS L-V70, L-V71.
+  - **CORRECTED 2026-10-12 (after #321's review): the reason above was read from a gauge that does not compare themes.** As light
+    ADDED over the field alone, on corrected frames, light's land streaks were never weaker than dark's: 1.1 to 1.55 times dark's
+    without this change, 1.0 to 1.2 with it (beach 1.15 to 1.84, then 0.9 to 1.2). The owner's pick of the look stands; "the land
+    was the largest gap in strength" does not (D-026's correction; this log's dated correction).
 - **2026-10-12 03:50Z: under the wind, light and beach draw the map's BORDER LINES in dark ink, ON BY DEFAULT (client only; PR
   #316 OPEN against dev, the owner merges).** Owner, 2026-10-12 01:02Z, to the session that built #314 (its log): "The map below, I
   think the labels and borders need to be more visible. In dark mode they are white boarders and labels. So in beach and light
@@ -1999,7 +2003,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1081, sha256 8960c81c611444cd21edec9c0042f5a4bde9774ad849bd38427305ba0da18574**
+  **Ledger head: seq 1082, sha256 ab216468ec4f02a0cb2d38cffb1f38e6c52fd1ae1abf6343e4cdf0fd6ff7a43e**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
