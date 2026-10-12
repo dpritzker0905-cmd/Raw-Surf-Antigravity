@@ -272,6 +272,23 @@ node scripts/wind-bench/compose-video.js out/videos/side.webm 3 500 60 2 "title"
 - Baseline, 2026-10-12, D-022 built (Mobile Bay, served wind, dpr 1.5; lift against dark's at zooms 6 / 4 / 9): over the sea light
   1.03 / 1.22 / 1.07 and beach 1.01 / 1.34 / 0.91; over land light 0.85 / 0.74 / 0.26 and beach 0.93 / 0.80 / 0.69.
 
+### The page behind the map, and the canvas's alpha (2026-10-12, D-027)
+
+- **Every frame these modes save is laid over the page the app lays behind the map:** near white (`#f9fafb`, Tailwind gray-50) in
+  light, black in dark and beach (`page/map-entry.js` `APP_PAGE`, pinned against `MapPage.js` by `windCanvasAlpha.test.js`).
+  `motion-run.js --behind <css colour>` (or a run's own `behind`) lays another. Until this date every saved frame was a JPEG of the
+  bare canvas, and a JPEG fills what a canvas leaves with BLACK: in light that was a picture the app did not draw (LESSONS L-V72).
+- **Each motion run prints the map canvas's own alpha** (`canvas alpha min .. mean ..`, read from the default framebuffer on the
+  last frame). 1 and 1 means the page cannot matter. Baseline (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): built, 1 / 1 in
+  all three themes; under `__RAW_DISABLE_WIND_OPAQUE_CANVAS__` (dev's blends) dark 0.608 / 0.685, light 0.749 / 0.900, beach
+  0.749 / 0.895.
+- **Compare two arms at the same position in runs files that are otherwise alike.** A theme's first run on a fresh map and its second differ in 15 of
+  90 frames (frames 1 to 39, beach; the same 15 on a repeat), whichever arm is which; two runs at the same position are the same
+  bytes, 90 of 90 (the null control). What the page ran before counts too: light after two dark runs and light alone in a page
+  differed in all 90. Read with a hash of each frame.
+- `mirror-probe.js` `capture()` on a live canvas was not checked for this. On a build whose canvas alpha is under 1 (every
+  deployed build before D-027) treat its light-mode numbers as unverified: the screen showed the page through the canvas.
+
 ## Border mode (`border-run.js`, `page/border-probe.js`): can the borders and place names be read under the wind?
 
 The owner, 2026-10-12: "the labels and borders need to be more visible. In dark mode they are white boarders and labels." Dark is

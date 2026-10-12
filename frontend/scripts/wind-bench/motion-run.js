@@ -14,6 +14,9 @@
  * (border mode's clips, 2026-10-12).
  * Needs REACT_APP_MAPBOX_TOKEN (the app's public token) in the environment or in frontend/.env; it is passed to the page in memory,
  * never written to disk or printed. Tiles come from Mapbox; nothing asks the Raw Surf backend.
+ * --behind <css colour>: the page behind the map (a run's own `behind` wins). Default: the app's own page for the theme (near white
+ * in light, black in dark and beach; page/map-entry.js APP_PAGE). The map's canvas is premultiplied, so a pass that leaves its alpha
+ * under 1 shows that page; each run prints the canvas's alpha, and 1 means the page cannot matter (D-027, LESSONS L-V72).
  * First written as a scratch instrument on 2026-10-11 (log 2026-10-11-wind-pale-band, "Dark watched in motion"); committed with D-022.
  */
 const fs = require('fs');
@@ -25,6 +28,7 @@ const VIEW = { lng: -88.05, lat: 30.45 };
 const flag = (k, d) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : d; };
 const OUT = path.resolve(flag('--out', path.join(BENCH, 'out', 'motion.json'))), REF = flag('--ref', 'tree'), RUNS_FILE = flag('--runs'), DPR = Number(flag('--dpr', 1)), WIDTH = Number(flag('--width', 1000));
 const MAP_DPR = Number(flag('--map-dpr', 0)) || null, CROP = flag('--crop') ? [...flag('--crop').split('x').map(Number), 'jpeg'] : null, AT = flag('--at') ? flag('--at').split(',').map(Number) : null;
+const BEHIND = flag('--behind') || null;
 function readToken() {
   if (process.env.REACT_APP_MAPBOX_TOKEN) return process.env.REACT_APP_MAPBOX_TOKEN;
   const env = path.join(FRONTEND, '.env');
@@ -65,7 +69,7 @@ function readToken() {
       const N = run.frames || 90, cam = { lng: run.lng == null ? VIEW.lng : run.lng, lat: run.lat == null ? VIEW.lat : run.lat, z: run.z };
       const t0 = Date.now();
       const res = await page.evaluate((c) => window.__MAP_BENCH__.flowRun(c), { theme: run.theme, frames: Array.from({ length: N }, () => cam), samples: Array.from({ length: N }, (_, i) => i),
-        res: 384, seed: 1, levers: run.levers || {}, warm: 180, shots: true, shotWidth: WIDTH, shotCrop: CROP, shotAt: AT });
+        res: 384, seed: 1, levers: run.levers || {}, warm: 180, shots: true, shotWidth: WIDTH, shotCrop: CROP, shotAt: AT, page: run.behind || BEHIND });
       const dir = path.join(outDir, 'motion', run.name);
       fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
       res.rows.forEach((r, i) => fs.writeFileSync(path.join(dir, `f${String(i).padStart(3, '0')}.jpg`), Buffer.from(r.shot.split(',')[1], 'base64')));
@@ -75,6 +79,8 @@ function readToken() {
         dpr: DPR, mapDpr: MAP_DPR || 2, landMask: res.landMask, mute: res.mute, borderInk: res.ink || null, glError: res.glError, dir: `motion/${run.name}` };
       fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
       console.log(`${run.name.padEnd(28)} ${N} frames ${results[run.name].secs} s · along-the-wind ${results[run.name].flow} · ink ${results[run.name].ink} · mask ${JSON.stringify(res.landMask)}${res.glError ? ' GL ERROR ' + res.glError : ''}`);
+      results[run.name].page = res.page; results[run.name].canvasAlpha = res.canvasAlpha; fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
+      console.log(`${''.padEnd(28)} behind the map ${res.page} · canvas alpha min ${res.canvasAlpha ? res.canvasAlpha.min : '-'} mean ${res.canvasAlpha ? res.canvasAlpha.mean : '-'}`);
     }
   } finally { await browser.close(); server.close(); }
   console.log('engine:', source.label);

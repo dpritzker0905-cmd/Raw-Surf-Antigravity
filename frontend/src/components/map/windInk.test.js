@@ -321,7 +321,7 @@ describe('the engine wiring', () => {
     expect(ENGINE.slice(ENGINE.indexOf('WebGLWindEngine.prototype.clearBuffers'))).toContain('this._inkWas = null;');                     // so is a layer switch's clear
   });
   it('composites by multiply, after the older blend line it overrides, at the ink opacity and the close-zoom land factor', () => {
-    const older = "gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);";
+    const older = "blendIntoMap(gl, _premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);";
     const at = ENGINE.indexOf(older);
     expect(at).toBeGreaterThan(0);
     expect(ENGINE.slice(at + older.length, at + older.length + 120)).toContain('if (_ink.on) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE);');
