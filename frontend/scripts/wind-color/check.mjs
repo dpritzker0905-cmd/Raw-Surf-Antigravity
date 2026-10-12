@@ -16,7 +16,7 @@
 // drew before it (window.__RAW_DISABLE_WIND_WHITE_STREAK__ = true). The mark lines below judge the streak's colour CORE; its white
 // ring, which carries the motion, is not modelled here (the GPU bench's style columns read it).
 // Usage (from this folder):  npm i; py -3.12 -m venv .venv; .venv/Scripts/python -m pip install coloraide==8.13
-//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--before-depth] [--land-l 0.75] [--as-uploaded [10-80:1]] [--as-uploaded-floor 4.9] [--index255]
+//                            node check.mjs [--theme light|beach|dark] [--json out.json] [--strict] [--no-mute] [--today] [--before-white] [--full-white] [--before-path] [--before-depth] [--before-step] [--land-l 0.75] [--as-uploaded [10-80:1]] [--as-uploaded-floor 4.9] [--index255]
 //                            node check.mjs --look moderate|deep|ink   (light's look A/B, window.__RAW_WIND_LIGHT_LOOK__)
 // Exit code 1 with --strict when any RED line is printed (here or in the colour-blind check).
 import fs from 'fs';
@@ -38,7 +38,7 @@ const { LIGHT_PATH, lightTables } = new Function(source(path.join(path.dirname(R
 // The app's basemap mute, from its source (no imports; export keywords stripped): the ground the wind actually sits on. Loaded
 // before the ramps: WindColorRamp.js reads the land's streak strength from it (windLandWhite, D-026).
 const muteSrc = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'windBasemapMute.js'), 'utf8').replace(/^export /gm, '');
-const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandWhite, setWindLandDepthGate };')();
+const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandStepAsked, windLandWhite, setWindLandDepthGate } = new Function(muteSrc + '; return { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, windLandStepAsked, windLandWhite, setWindLandDepthGate };')();
 const { BEACH_PATH, beachPathRows } = new Function(source(path.join(path.dirname(RAMP_SRC), 'windBeachPath.js')) + '; return { BEACH_PATH, beachPathRows };')();   // beach's path (no imports)
 const { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength, generateRampData } = new Function('DARK_RULES', 'DARK_WHITE', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
   source(RAMP_SRC) + '; return { resolveLegendRamp, huePathStops, resolveFieldRamp, resolveDrawnField, resolveDrawnMarks, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength, generateRampData };')(DARK_RULES, DARK_WHITE, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
@@ -48,7 +48,7 @@ const LEVERS = { ...(arg('--mute-amount') ? { __RAW_WIND_BASEMAP_MUTE__: Number(
   ...(arg('--look') ? { __RAW_WIND_LIGHT_LOOK__: arg('--look') } : {}), ...(args.includes('--today') ? { __RAW_DISABLE_WIND_DARK_RULES__: true } : {}),
   ...(args.includes('--before-white') ? { __RAW_DISABLE_WIND_WHITE_STREAK__: true } : {}), ...(args.includes('--full-white') ? { __RAW_DISABLE_WIND_DARK_WHITE__: true } : {}),   // --full-white: the white at full strength on both grounds (D-022's kill)
   ...(args.includes('--before-path') ? { __RAW_DISABLE_WIND_LIGHT_PATH__: true, __RAW_DISABLE_WIND_BEACH_PATH__: true } : {}),   // --before-path: each theme before its path (windLightPath.js's kill in light, windBeachPath.js's in beach)
-  ...(args.includes('--before-depth') ? { __RAW_DISABLE_WIND_LAND_DEPTH__: true } : {}), ...(arg('--land-l') ? { __RAW_WIND_BASEMAP_LAND_L__: Number(arg('--land-l')) } : {}) };   // --before-depth: the land as the mute alone leaves it (D-026's kill); --land-l: another depth
+  ...(args.includes('--before-depth') ? { __RAW_DISABLE_WIND_LAND_DEPTH__: true } : {}), ...(args.includes('--before-step') ? { __RAW_DISABLE_WIND_LAND_STEP__: true } : {}), ...(arg('--land-l') ? { __RAW_WIND_BASEMAP_LAND_L__: Number(arg('--land-l')) } : {}) };   // --before-depth: the land as the mute alone leaves it (D-026's kill); --before-step: the land at the sea's depth, PR #320's (the land step's kill); --land-l: another depth, a streak over it at the sea's strength
 const groundOf = (theme, surf, c) => {
   const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS);
   if (!(amount > 0)) return c;
@@ -56,7 +56,7 @@ const groundOf = (theme, surf, c) => {
   return [+m[1], +m[2], +m[3]];
 };
 /** The window a sync would leave for `theme`: the levers plus the mute's read-back, which is what the land's streak strength reads (D-026). */
-const winOf = (theme) => { const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1 } }; };
+const winOf = (theme) => { const amount = NO_MUTE ? 0 : windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1, landStep: amount > 0 && windLandStepAsked(theme, LEVERS) } }; };
 
 // Composite model — keep in sync with HEATMAP_FS / DRAW_FS and windFieldLut.test.js (TINT, SURFACES, BASEMAP).
 const MODEL = {

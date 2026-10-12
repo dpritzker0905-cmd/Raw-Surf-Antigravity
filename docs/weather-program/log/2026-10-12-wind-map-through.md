@@ -186,3 +186,147 @@ Before: `gh pr view 322` read OPEN, MERGEABLE, CLEAN, head `84369074`, 18 checks
 the merge: dev an ancestor of its head; dev's ledger a byte prefix of its ledger (1119 lines of 1126) and `action_ledger.py verify`
 clean; the field hashes `67bfe560` / `b0931ff3` pinned in `windBeachPath.test.js`; its `pr_merge #318` line. Squash-merged at
 2026-10-12T20:01:35Z as `a022b398`; `origin/dev` read `a022b398` after.
+
+## 20:54-21:10Z · #323 merged on the owner's word; the tail is the trails lane's build
+
+The owner, 20:54Z, first-hand: "merge #323 and build the tail, also make sure the other sub agents are getting what they need to do
+done so we can get this working". `gh pr view 323` read OPEN, MERGEABLE, CLEAN, head `95c36e1c`, 18 checks passed, 1 skipped, 0
+failed; squash-merged at 2026-10-12T21:02:45Z as `e89aaa85`; `origin/dev` read `e89aaa85` after. The dev site's `service-worker.js`
+read BUILD_VERSION `e89aaa85` at 21:04:15Z, and the deployed chunk `153.794415bb.chunk.js` holds `__RAW_DISABLE_WIND_COAST_INK__`
+and `__WIND_COAST_INK__` (all 101 JS files of the asset manifest read): the static half of commitment 1134. Nothing seen in the app.
+
+"Build the tail": read-only, the trails lane's branch (`claude/wind-trails-linger`, `6c578875`) already held a build, and a truer
+one than this session's cut: `windTrailVeil.js` reads `SCREEN_FS` as light `p x (b c - b^2 g)` minus a VEIL `q x b (1 - b) g`
+(dark: p = q = its opacity; the glow branch: q = 0) and lays dark's veil under light's and beach's trails. Read here on the anatomy
+table (`--ref claude/wind-trails-linger`, the mean over 12 bands of each ratio to dark, light / beach): land body share 0.97 / 0.98
+(under its kill 1.30 / 1.28), land long bodies 0.96 / 1.02 (1.38 / 1.42), sea body share 1.11 / 1.11 (1.47 / 1.45), sea long bodies
+1.18 / 1.24 (1.78 / 1.74), cores unmoved; at 1.5 times its strength the median mark falls to half of dark's. This session's cut
+(`claude/proto-tail-cut`) is withdrawn. The lane was sent that, the facts for its `pr_merge` line, the table, and what is left
+before its PR. The colours lane was released to re-solve light's field to 5.0 as the GPU draws it.
+
+## 21:13-21:50Z · The owner at the far-out zooms: the land a step above the sea (D-026 amended)
+
+The owner, 21:13Z, first-hand: "merge the tail pr when its ready, also if the coastline fix is live on dev, then it needs to be
+checked at all zooms, because I don't see the fix at higher out zooms, cannot see the land below the wind animations in beach or
+light modes well" and "make sure your sub agents are on the same page here, so we're not just lapping work over work".
+
+**They were right, and #323 had been read at zooms 4, 6, 8 and 10 only.** The app's far end is zoom 2 (`MapWebGL.js` `minZoom`).
+On dev `e89aaa85` at zooms 2 and 3 dark's continents are shapes and light's and beach's are not.
+
+**It is not the stroke.** `border-run.js --lines coast` at zooms 2 / 3, L\* under field + streaks: dark 15.4 / 16.9; light, in
+the ink, 25.9 / 27.4 (at 0.4 px as drawn; 33.3 / 34.7 at 0.7 px, 34.3 / 35.9 at 1.0); beach 24.6 at zoom 2 (31.3, 32.5). By its
+best pixels the inked stroke already reads 1.6 times dark's there, and the land cannot be found: a coastline 0.4 px wide does not
+carry a continent, and dark's does not either. Dark's land is seen by its TONE (9.4 L* under its sea).
+
+**So the land's lightness, with the streak over it** (`ground-run.js --fixture <ramp 2 to 30 kn> --strips 12 --full 60`, zoom 6;
+land minus sea under the field with the share of the own map's contrast kept; then the 60-frame mean the streaks add over land):
+
+| | land - sea under the field | streaks add over land |
+|---|---|---|
+| dark (the bar) | -9.4 (0.52) | +11.8 |
+| light, dev (landL 0.81, land strength 0.55) | +1.1 (0.14) | +12.8 |
+| light, landL 0.90, strength 0.55 | +8.3 (1.03) | +11.1 |
+| light, landL 0.90, strength 0.75 | +8.3 (1.03) | +14.5 |
+| light, landL 0.90, strength 1 | +8.3 (1.03) | +19.1 |
+| light, landL 0.95, strength 0.85 | +12.2 (1.45) | +14.8 |
+| beach, dev (0.85, 0.55) | +1.7 (0.21) | +12.2 |
+| beach, landL 0.94, strength 0.55 | +8.0 (0.97) | +10.8 |
+| beach, landL 0.94, strength 0.75 | +8.0 (0.97) | +14.7 |
+| beach, landL 0.94, strength 1 | +8.0 (0.97) | +19.9 |
+| beach, landL 0.98, strength 0.85 | +10.7 (1.28) | +15.4 |
+
+0.90 and 0.94 are the SEA's own factors (`waterL`): the mute then darkens land and sea alike and the map's own step survives it,
+8 L* where dark's is 9. These rows are WITHOUT the trails lane's veil. (As first written this table gave dark's bar as +14.8 and
+called 0.75 the match: see the correction below.)
+
+**What else it moves** (`check.mjs --strict --as-uploaded 10-80:0.25`, the colour-blind line as the GPU draws it, 281 maxima):
+light over land 4.85 (under 5.0 at 123) to 5.18 (under at 0); beach over land 5.06 to 5.31; over the sea nothing (light 4.93, under at
+32; beach 5.04). `check.mjs --strict` exit 0 with no red line (light's land 5.0 to 5.3 by the table, beach's 5.1 to 5.5). The land
+mask's seam now parts 0.75 from 0.55; no halo was seen on the zoom 6 crops, and it is not measured.
+
+**Built** (`windBasemapMute.js` `WIND_LAND_STEP`, `windLandStep`; `windBasemapLandL` and `windLandWhite` read it): ON by default;
+kill `window.__RAW_DISABLE_WIND_LAND_STEP__` (D-026 as it merged, to the byte). The depth's own kill and levers keep their meaning,
+and it rides the depth's gate (every older kill and hold still leaves the land the style's own). On the built code the default reads
+the lever arms above to the digit (light +8.3 and +14.5; beach +8.0 and +14.7) and the kill reads dev (+1.1 and +12.8; +1.7 and
++12.2). Filmed at zooms 2, 3, 4, 6 and 9 beside dev and dark.
+
+**Tests.** `windLandDepth.test.js`: every pin of the depth kept to the letter under the step's kill, and a new block for the step
+(the numbers; the land's factor IS the sea's; the map's own lightness ratio survives to 2% and did not at the sea's depth; the
+streak's strength; the kill write for write; stale both ways; it rides the gate; dark untouched). `windLightPath.test.js`: the
+pinned shortfall "on the deeper land" is now the step's kill's, unchanged, and a new test holds 5.0 over the land as it draws.
+6 mutations, 6 red. Jest, both trees: 313 suites / 4411 tests. `check_eslint.js`, `loc_ratchet.py`, `check.mjs --strict` exit 0.
+
+**The lanes, told at 21:20Z and 21:45Z:** the map (the coast stroke, the land) is this session's; the tail is the trails lane's and
+its veil is read on this land too; the colours lane's re-solve is now for the sea alone (the land holds). The lines changed in a
+file a lane is editing (`windLightPath.test.js`) were sent to it one by one.
+
+## 22:05Z · CORRECTION: dark's bar for the light a streak adds over land is +11.8 L*, not +14.8
+
+Written at 21:50Z, in this log, in D-026's amendment, in STATE, in the bench README and in `windBasemapMute.js`: "a streak over
+that land adds +14.5 / +14.7 L\* (dark +14.8)". **+14.8 was dark's field CHROMA over land, read one column off** from the runner's
+printed row (an `awk` field counted from the line's end, and dark's row ends in a shorter "mute" cell than light's and beach's).
+Read from the runner's JSON, on the same ramp: dark's streaks add **+11.8 L\* over land and +8.4 over the sea**. None of it had
+been committed or pushed; two notes to the lanes carried the wrong bar and were corrected.
+
+What it changes: against +11.8, WITHOUT the veil, the land at the sea's own factor with the sea's strength (0.55) already reads
++11.1 and +10.8 (0.94 and 0.92 of dark's), and 0.75 reads 1.23 and 1.25 times dark's. So 0.75 is NOT the match on dev as it is.
+It is the match on the build this is going onto: **with the trails lane's veil on** (a local combined preview: dev `e89aaa85` +
+`claude/wind-trails-linger` at `0e2150b8` + this change; `ground-run.js --ref`), light / beach:
+
+| land strength | adds over land | adds over the sea |
+|---|---|---|
+| dark (the bar) | +11.8 | +8.4 |
+| 0.75 (this change) | +11.7 / +12.0 | +9.6 / +10.1 |
+| 0.85 | +13.9 / +14.4 | |
+| 1 | +17.2 / +18.2 | |
+| 0.75 with the veil killed | +14.5 / +14.7 | +13.2 / +12.8 |
+| the land at the sea's depth, 0.55 (dev's land, with the veil) | +9.3 / +9.2 | +9.5 / +10.0 |
+
+So: the number stands, for the state it will be drawn in, and **this change merges AFTER the veil's**, not before. With the veil
+the sea reads 1.14 and 1.20 times dark's: the sea's strength (D-022's 0.55) is the next small thing, not changed here. And on
+dev's land the veil alone takes the land's streaks to 0.79 of dark's: the lighter land with 0.75 is what puts them back.
+
+**The lesson (LESSONS L-V81):** a bar is read from the instrument's JSON, never by its position in a printed row; and a bar
+that sets a number is read by two routes before the number is written down.
+
+## 22:24-22:50Z · The owner's order, and the land step's independent review (six findings, all taken)
+
+The owner, 22:24Z, first-hand: "merge the land fix after the tail is in, the push everything turned on switch, so I can test all
+the changes right away". Read as: the tail (PR #324, the trails lane's veil) merges first, this change after it, and nothing ships
+behind a default-off lever. Sent to the trails lane word for word (lead note 11).
+
+**The review** (a fresh agent, given the commit and no conclusion; 46 tool calls; evidence under its `review2-landstep/`). What it
+could NOT break: the kill is dev for a map synced under it (3,060,000 pure states and 12,852 sync sequences on 9 stacks, 0
+differences); stale sees the kill set and unset; dark has 0 writes; the older kills and holds still give the land full strength.
+What it found, and what was done:
+
+1. **The kill flipped mid-session drew a hybrid.** The streak's strength read the flag on every frame; the land waited for the
+   next style event. A kill typed in the console drew 0.55 over the 0.90 land (or 0.75 over the 0.81 one): neither dev nor the
+   new look, and the first thing an A/B of the kill shows. **Fixed:** the sync records which rule set the land's factor
+   (`windLandStepAsked`), the read-back says it (`__WIND_BASEMAP_MUTE__.landStep`), and `windLandWhite` reads the read-back
+   (`windLandStepOn`), never the flag. Both halves move at the sync, as the depth's own kill always did.
+2. **The sea was laid at the land's 0.75 until the land mask was ready** (`u_land_on` 0 reads every mark as land): on a first
+   wind-on of a page, or for good if the mask fails its three tries. On dev both grounds were 0.55. **Fixed:** `bindLandMask`
+   takes the theme, and where the step is drawn both grounds take the SEA's strength until the mask is in. D-022 alone (the
+   depth's kill: land 1, sea 0.55) still lays every mark as over land, as before.
+3. **The lever `__RAW_WIND_BASEMAP_LAND_L__` had changed meaning:** the same map writes as dev, a streak over it at 0.75 where
+   dev laid 0.55. **Fixed:** a land set by the lever is a bench's land and keeps the sea's strength at every factor (the step is
+   "asked" only with no lever), so `check.mjs --land-l 0.81` reads PR #320's picture again; and `--before-step` is new in
+   `check.mjs` and `mirror-model.mjs` (the step's kill). The lever at exactly the step's own factor over a step already drawn is
+   seen as stale (the land is the same, the rule is not).
+4. **Three mutants survived all 20 wind test files; two pins were self-referential.** Killed now: any truthy value as the kill
+   (`=== true` pinned with 1, 'true', {}), the read-back deciding the strength, a lever-deep land keeping the sea's strength.
+   `windBasemapMute.test.js` named its expectation with the function under test (now the literal 0.9), and "its kill draws D-026
+   write for write" compared new code with new code (now also the literal 0.81 / 0.85 colours and 0.55).
+5. **Scripts and docs meant the deeper land.** `wind-color/README.md` now says which land a flagless run reads (5.3 light, 5.5
+   beach over land by the table; `--before-step`: 5.0 and 5.1) and that the line with no margin is the sea's (light 4.93 as
+   uploaded); `beach-path-solve.mjs` and `WindColorRamp.js` comments corrected. `mirror-jacobian.mjs` (untracked, mine) is not in
+   this change.
+6. **Nothing pinned the merge order** (0.75 is solved WITH the veil: without it 1.2 times dark's). The order is the owner's word
+   now; a test that reads the veil's own default is added when this branch takes dev with #324 on it.
+
+`check.mjs --strict`: exit 0 flagless (light 5.1 / 5.3, beach 5.1 / 5.5) and with `--before-step` (5.1 / 5.0, 5.1 / 5.1); as
+uploaded (`--as-uploaded 10-80:0.25`) light's land 5.18 with 0 of 281 maxima under 5.0 (4.85 and 123 under the kill), beach's
+5.31 (5.06).
+
+**Lesson (L-V82):** a switch read in two places on two clocks is two switches for as long as the clocks differ.

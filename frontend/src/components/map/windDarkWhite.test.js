@@ -134,7 +134,7 @@ describe('how it reaches the pixel: the mark\'s light level, picked by the land 
     }
   });
   it('the engine hands the theme\'s strengths to the land mask\'s bind, every frame, on the draw program', () => {
-    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme));');
+    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme);');
     expect(ENGINE).toMatch(/import \{[^}]*windWhiteStrength[^}]*\} from '\.\/WindColorRamp';/);
   });
 });
