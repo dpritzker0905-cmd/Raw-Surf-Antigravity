@@ -39,6 +39,12 @@ is a claim, not a measurement.
     (`claude/wind-light-path`, D-024, L-V51 up), and a simplification pass (`claude/stoic-heisenberg-bbe771`). Each lane reports
     what it moves in the others' outputs on one grid: ground {land, sea} x wind {served, scaled 2.3} x zoom {4, 6, 9}.
     Log `2026-10-11-wind-dark-white` ("Beach's sea at 0.55").
+    **What the whole-picture read found so far (LESSONS L-V60 to L-V62; log, "The lead"):** on a speed-ramp scene light's sea
+    equals dark's lift at every speed (0.93 to 1.05); beach's sea is short only from 24 to 40 kn, where its field is pale; the
+    LAND is short in both because its ground is 25 to 35 L* paler than dark's (no white can fix that: the map's own term);
+    the land mask's coarse edge shows as a pale halo offshore; and `check.mjs` / `mirror-model.mjs` model dark's field at its
+    alpha where the engine lays it at the alpha squared (not yet fixed). A local preview of all lanes combined
+    (`claude/mirror-integ-preview`, never pushed) was shown to the owner in motion.
 - **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 OPEN against
   dev, the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
   dont see the wind for light mode or beach mode mirroring the dark mode"; "close up zoom ... looks somewhat okay ... Its when you

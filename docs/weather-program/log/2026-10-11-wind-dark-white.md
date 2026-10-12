@@ -308,3 +308,67 @@ quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence i
   `check.mjs` and `mirror-model.mjs` lay it at its alpha, which reads dark's sea about 20 L* too light (45 against 66 at 13
   kn); they also hold different dark map colours. The bench's dark ground (36.7 to 43.9 L* over the sea) fits the squared law
   over the style's colours. Not fixed here: its own change, with a GPU read first.
+
+## 2026-10-12 02:58Z to 03:50Z · The lead: the Jacobian lens, the speed ramp, the combined preview
+
+- **The owner, 02:58Z:** "I asked other subtrees to do this, but I want you to lead those subtrees in researching our data and
+  best practices online, using skills , plugins, mcp servers, memory, art science, animation, everything we can throw at this...
+  We need to make light mode wind animations & beach mode wind animations equivalent to dark modes. We possibly solved issues
+  why, but we have a lot open here and need to put it to lessons and memory. Look at all the subs and talk to them too. We need
+  this to work all this work we're doing now. We got this" and "the map needs to be taken into account... use the jacobian lens
+  to help see everything as a whole. To not miss any clues." Then "I believe in you =)". At 03:36Z, on two clips: "we have to
+  keep in mind the work the subtrees are doing. For example, one is working on borders and labels of the maps. I dont see those
+  reflections in your samples above".
+- **The lanes** (read from their worktrees and branches; two reads of their transcripts were declined, so nothing here is from
+  their chats): border ink under the wind (`claude/wind-border-ink`: D-023, L-V46 to L-V49, the kill
+  `__RAW_DISABLE_WIND_BORDER_INK__`; it found the borders and names are already ABOVE the wind, and two bench gaps); light's
+  colours in dark's hue order (`claude/wind-light-path`: `windLightPath.js`, a candidate ON behind
+  `__RAW_DISABLE_WIND_LIGHT_PATH__`, the colour-blind floor held at 5.2); a simplification pass
+  (`claude/stoic-heisenberg-bbe771`: a docs commit, "nothing removed"). Each was sent the frame below, an assignment and the
+  shared numbering (D-023 / L-V46-49 borders; D-024 / L-V51 up colours; D-025 / L-V55 up simplify; L-V50 and L-V60 up here).
+  The messages are queued; no reply had come when this was written.
+- **The frame:** the picture is one function. Outputs per ground (the ground under the wind, a streak's step and lift, the
+  colour a core keeps, cover, border and label contrast, legend match, the colour-blind floors) of inputs (the map, the field,
+  the marks) across scenes (speed, zoom, pixel ratio, land or sea), with dark's outputs the target, moving with the scene.
+  `scripts/wind-color/mirror-jacobian.mjs` (new, not in this change) prints it from the colour model: per knot and ground, the
+  step beside dark's, the white strength that would equal it, and where none can, how deep the ground would have to be.
+- **What the lens turned up, in order:** (1) the model disagreed with the bench, and dark's law in `mirror-model.mjs` and
+  `check.mjs` was found to be the plain alpha where the engine's is the alpha squared (LESSONS L-V60); (2) with the engine's
+  law the model fitted the bench only if the bench's "served" sea was near 39 kn, and the fixture said it was (the correction
+  above, L-V50); (3) a speed-ramp fixture then gave every speed in one frame (L-V61). The ramp, zoom 6, 110 px crops, lift
+  against dark's:
+
+  | kn | dark land / sea ground L* | light land | light sea | beach land | beach sea | beach sea, the kill |
+  |---|---|---|---|---|---|---|
+  | 8 | 35.8 / 42.3 | 0.85 | 1.05 | 0.93 | 0.97 | 1.65 |
+  | 16 | 37.8 / 44.1 | 0.74 | 0.96 | 0.85 | 0.93 | 1.54 |
+  | 24 | 38.6 / 44.8 | 0.58 | 0.93 | 0.38 | 0.68 | 1.12 |
+  | 32 | 37.1 / 43.1 | 0.88 | 1.04 | 0.53 | 0.60 | 0.98 |
+  | 40 | 33.8 / 39.7 | 0.93 | 1.01 | 0.49 | 0.62 | 1.14 |
+  | 48 | 30.3 / 36.1 | 0.93 | 0.98 | 0.81 | 0.85 | 1.35 |
+  | 56 | 27.0 / 33.2 | 1.08 | 0.99 | 0.99 | 0.93 | 1.45 |
+
+  Grounds under the wind, land / sea: light 62 to 67 / 46 to 52 from 8 to 32 kn; beach 58 to 75 / 44 to 63. Light's kill reads
+  1.53 to 1.74 over the sea; over land the kill is the default (both full white).
+- **What that says, as one picture:** light's sea is done (0.93 to 1.05 at every speed). Beach's sea is done except its pale
+  band (24 to 40 kn), where even full white only just reaches dark's (0.98 to 1.14): that is the field's shape, not the
+  strength. The LAND is short in both, and no white can fix it: its ground is 25 to 35 L* paler than dark's land. In dark the
+  land and the sea carry nearly one ground (within about 6 L*), so one streak fits both and the coast is drawn by lines; in
+  light and beach they are two grounds, which is why D-022 needed a land mask, and the mask's coarse edge shows as a pale halo
+  offshore along the coast (visible in the ramp frames near the Florida panhandle). The multiply tint passes the map's own
+  land/sea step straight through; dark's field nearly replaces its map. The map is the largest term.
+- **Research, first pass** (the lanes hold the deeper assignments): Mapbox's own wind-particle example runs on a monochrome
+  night style; third-party Windy-style layers keep separate light and dark presets; long-exposure trail components offer an
+  additive mode for dark grounds and an "ink" mode for light ones. Vision science: increments and decrements are not seen
+  alike (darks are detected faster at high contrast; light lines on dark look larger; the asymmetry grows with fine detail), so
+  an equal L* step is not an equal visible step across polarities; nothing found tests CIELAB for thin lines. The installed
+  Mapbox cartography skill: mute the base map and let the data stand out; outdoors, more contrast, no subtle greys.
+- **The combined preview (the owner's 03:36Z word; LESSONS L-V62):** a local worktree `../mirror-integ` on the branch
+  `claude/mirror-integ-preview` (never pushed) = this branch + `claude/wind-border-ink` at `eebef515` + `claude/wind-light-path`
+  at `7b647d8f`. Captured at the page's and the map's pixel ratio both 1.5 with device-resolution crops (the border lane's new
+  flags), on the ramp and on an everyday wind at zoom 5; the border ink read back applied on 3 layers in light and beach
+  (`rgba(27, 30, 45, 0.7)`). Two clips and three stills were sent to the owner (`out/videos/combined-ramp-before-after.webm`,
+  `combined-everyday-wind-zoom5.webm`).
+- **Not done:** the instrument fixes (dark's law in the checker and the mirror model; a `--fixture` flag and the ramp fixture
+  in the bench; `mirror-jacobian.mjs` committed) are their own change after the border lane's bench edits land. Nothing was
+  built for the land's ground or the coastal halo: both are the owner's calls, with a moving sample first.
