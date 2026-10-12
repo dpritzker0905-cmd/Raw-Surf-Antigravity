@@ -20,6 +20,12 @@
  * --behind <css colour>: the page behind the map (a run's own `behind` wins). Default: the app's own page for the theme (near white
  * in light, black in dark and beach; page/map-entry.js APP_PAGE). The map's canvas is premultiplied, so a pass that leaves its alpha
  * under 1 shows that page; each run prints the canvas's alpha, and 1 means the page cannot matter (D-027, LESSONS L-V72).
+ * --at with SEVERAL centres ("0.14,0.85;0.47,0.85;0.86,0.2", needs --crop): every centre is cropped from the SAME frames, so the same
+ * particles are read at each place; each crop is a run of its own, named `<name>@<fx>_<fy>`, for every reader of out/motion/.
+ * --trail (needs --crop): beside each frame's crop, the same crop of the engine's own trail buffer (tNNN.png): the ink before it met
+ * the map. truth-run.js --law fits the composite's law from the two.
+ * A run's `force`: uniforms held at a value for that run ({ "screen.u_glow@map": 0 }; force-uniforms.js): one variable at a time on
+ * the real engine. The result keeps it, and how often each fired.
  * First written as a scratch instrument on 2026-10-11 (log 2026-10-11-wind-pale-band, "Dark watched in motion"); committed with D-022.
  */
 const fs = require('fs');
@@ -27,13 +33,15 @@ const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { serveDir, gpuArgs } = require('./serve');
 const { pageOf } = require('./page-colour');
+const { partsOf, partOf, sameRun } = require('./crops');
 const BENCH = __dirname;
 const VIEW = { lng: -88.05, lat: 30.45 };
 const flag = (k, d) => { const i = process.argv.indexOf(k); return i >= 0 ? process.argv[i + 1] : d; };
 const OUT = path.resolve(flag('--out', path.join(BENCH, 'out', 'motion.json'))), REF = flag('--ref', 'tree'), RUNS_FILE = flag('--runs'), DPR = Number(flag('--dpr', 1)), WIDTH = Number(flag('--width', 1000));
 const FIXTURE = flag('--fixture') ? path.resolve(flag('--fixture')) : path.join(BENCH, 'fixtures', 'eye-2026-10-09-gfs-native.json');   // --fixture: another wind (ramp-fixture.js writes a speed ramp)
-const MAP_DPR = Number(flag('--map-dpr', 0)) || null, CROP = flag('--crop') ? [...flag('--crop').split('x').map(Number), flag('--crop-fmt', 'jpeg')] : null, AT = flag('--at') ? flag('--at').split(',').map(Number) : null;
-const BEHIND = flag('--behind') || null;
+const MAP_DPR = Number(flag('--map-dpr', 0)) || null, CROP = flag('--crop') ? [...flag('--crop').split('x').map(Number), flag('--crop-fmt', 'jpeg')] : null;
+const ATS = flag('--at') ? flag('--at').split(';').map((a) => a.split(',').map(Number)) : null, AT = ATS && ATS.length === 1 ? ATS[0] : null, MANY = ATS && ATS.length > 1 ? ATS : null;
+const BEHIND = flag('--behind') || null, TRAIL = process.argv.includes('--trail');
 function readToken() {
   if (process.env.REACT_APP_MAPBOX_TOKEN) return process.env.REACT_APP_MAPBOX_TOKEN;
   const env = path.join(FRONTEND, '.env');
@@ -44,6 +52,7 @@ function readToken() {
 
 (async () => {
   if (!RUNS_FILE) throw new Error('--runs <file.json> is required');
+  if ((MANY || TRAIL) && !CROP) throw new Error('several --at centres and --trail need --crop WxH');
   const runs = JSON.parse(fs.readFileSync(RUNS_FILE, 'utf8'));
   const token = readToken();
   if (!token) throw new Error('REACT_APP_MAPBOX_TOKEN not in the environment or frontend/.env');
@@ -57,15 +66,17 @@ function readToken() {
   const results = fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : {};
   const fine = JSON.parse(fs.readFileSync(FIXTURE, 'utf8')), FIXTURE_ID = `${fine.product_id || 'fixture'}:${path.basename(FIXTURE)}:${fine.provenance || ''}`;
   try {
-    let page = null, scaleNow = null;
+    let page = null, scaleNow = null, sink = () => {};
     for (const run of runs) {
-      if (results[run.name] && results[run.name].ok && results[run.name].fixture === FIXTURE_ID && results[run.name].page === pageOf(run.theme, run.behind || BEHIND)) { console.log(run.name, 'cached'); continue; }   // a run of the same name on another wind, or saved over another page, is not this run
+      const parts = partsOf(run.name, ATS), want = { fixture: FIXTURE_ID, page: pageOf(run.theme, run.behind || BEHIND), levers: run.levers, force: run.force, crop: CROP, trail: TRAIL };
+      if (parts.every((q) => sameRun(results[q.name], want) && results[q.name].page === pageOf(run.theme, run.behind || BEHIND))) { console.log(run.name, 'cached'); continue; }   // a run of the same name on another wind, saved over another page, or under other levers or forced uniforms, is not this run (crops.js sameRun)
       const scale = run.scale || 1;
       if (!page || scale !== scaleNow) {   // the grid's strength is set at init: a page per strength
         if (page) await page.close();
         page = await browser.newPage({ viewport: { width: 1000, height: 1000 }, deviceScaleFactor: DPR });
         await page.addInitScript((t) => { window.__MAPBOX_TOKEN__ = t; }, token);
         page.on('pageerror', (e) => console.error('page error:', e.message));
+        await page.exposeFunction('__benchFrame', (f) => sink(f));   // each frame is written as it is taken: a run of lossless crops does not fit one reply
         await page.goto(`http://127.0.0.1:${server.address().port}/${tag}/map.html`);
         await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
         await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, offline: false, pixelRatio: fx.mapDpr }), { fine, scale, mapDpr: MAP_DPR });
@@ -73,18 +84,33 @@ function readToken() {
       }
       const N = run.frames || 90, cam = { lng: run.lng == null ? VIEW.lng : run.lng, lat: run.lat == null ? VIEW.lat : run.lat, z: run.z };
       const t0 = Date.now();
+      const dirs = parts.map((q) => path.join(outDir, 'motion', q.name));
+      for (const dir of dirs) { fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true }); }
+      const bytes = (url) => Buffer.from(url.split(',')[1], 'base64'), nnn = (i) => String(i).padStart(3, '0');
+      sink = (f) => dirs.forEach((dir, k) => {   // the frame's crop (still named .jpg, whatever --crop-fmt: every reader lists fNNN.jpg), and the trail buffer's
+        fs.writeFileSync(path.join(dir, `f${nnn(f.i)}.jpg`), bytes(partOf(f.shot, k, !!MANY)));
+        if (f.trail) fs.writeFileSync(path.join(dir, `t${nnn(f.i)}.png`), bytes(partOf(f.trail, k, !!MANY)));
+      });
       const res = await page.evaluate((c) => window.__MAP_BENCH__.flowRun(c), { theme: run.theme, frames: Array.from({ length: N }, () => cam), samples: Array.from({ length: N }, (_, i) => i),
-        res: run.res || 384, seed: 1, levers: run.levers || {}, warm: 180, shots: true, shotWidth: WIDTH, shotCrop: CROP, shotAt: AT, page: run.behind || BEHIND });
-      const dir = path.join(outDir, 'motion', run.name);
-      fs.rmSync(dir, { recursive: true, force: true }); fs.mkdirSync(dir, { recursive: true });
-      res.rows.forEach((r, i) => fs.writeFileSync(path.join(dir, `f${String(i).padStart(3, '0')}.jpg`), Buffer.from(r.shot.split(',')[1], 'base64')));
+        res: run.res || 384, seed: 1, levers: run.levers || {}, warm: 180, shots: true, shotWidth: WIDTH, shotCrop: CROP, shotAt: AT, shotAts: MANY, trailShots: TRAIL, sink: '__benchFrame',
+        force: run.force || null, page: run.behind || BEHIND });
+      const idle = Object.entries(res.forced || {}).filter(([, n]) => !n).map(([k]) => k);
+      if (idle.length) {   // its frames are the default's under this run's name: none is left for a reader of out/motion/ to take for the arm
+        for (const dir of dirs) fs.rmSync(dir, { recursive: true, force: true });
+        throw new Error(`${run.name}: a forced uniform never fired (${idle.join(', ')}): this run measured the default`);
+      }
       const flows = res.rows.map((r) => r.flow).filter((v) => v != null), inks = res.rows.map((r) => r.ink);
       const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : null; };
-      results[run.name] = { ok: true, ...run, frames: N, secs: Math.round((Date.now() - t0) / 1000), flow: med(flows), ink: med(inks), blocks: med(res.rows.map((r) => r.blocks)),
-        dpr: DPR, mapDpr: MAP_DPR || 2, fixture: FIXTURE_ID, landMask: res.landMask, mute: res.mute, borderInk: res.ink || null, glError: res.glError, dir: `motion/${run.name}` };
+      parts.forEach((q) => {
+        results[q.name] = { ok: true, ...run, name: q.name, levers: run.levers || {}, force: run.force || null, frames: N, secs: Math.round((Date.now() - t0) / 1000), flow: med(flows), ink: med(inks), blocks: med(res.rows.map((r) => r.blocks)),
+          dpr: DPR, mapDpr: MAP_DPR || 2, fixture: FIXTURE_ID, landMask: res.landMask, mute: res.mute, borderInk: res.ink || null, glError: res.glError, dir: `motion/${q.name}`,
+          page: res.page, canvasAlpha: res.canvasAlpha };
+        if (CROP) Object.assign(results[q.name], { crop: CROP, at: q.at || [0.5, 0.5], trail: TRAIL });
+        if (res.forced) results[q.name].forced = res.forced;   // how often each forced uniform replaced a value
+      });
       fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
-      console.log(`${run.name.padEnd(28)} ${N} frames ${results[run.name].secs} s · along-the-wind ${results[run.name].flow} · ink ${results[run.name].ink} · mask ${JSON.stringify(res.landMask)}${res.glError ? ' GL ERROR ' + res.glError : ''}`);
-      results[run.name].page = res.page; results[run.name].canvasAlpha = res.canvasAlpha; fs.writeFileSync(OUT, JSON.stringify(results, null, 1));
+      const first = results[parts[0].name];
+      console.log(`${run.name.padEnd(28)} ${N} frames ${first.secs} s · along-the-wind ${first.flow} · ink ${first.ink} · mask ${JSON.stringify(res.landMask)}${res.glError ? ' GL ERROR ' + res.glError : ''}${MANY ? ` · ${parts.length} crops` : ''}${res.forced ? ' · forced ' + JSON.stringify(res.forced) : ''}`);
       console.log(`${''.padEnd(28)} behind the map ${res.page} · canvas alpha min ${res.canvasAlpha ? res.canvasAlpha.min : '-'} mean ${res.canvasAlpha ? res.canvasAlpha.mean : '-'} over ${res.canvasAlpha ? res.canvasAlpha.frames : 0} frames`);
     }
   } finally { await browser.close(); server.close(); }
