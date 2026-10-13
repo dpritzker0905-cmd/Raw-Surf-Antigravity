@@ -115,7 +115,7 @@ describe('how it reaches the pixel: the mark\'s light level, picked by the land 
   it('the mark shader reads the land under the mark once, picks its row by it, and scales its LIGHT by the level for that ground (never its cover)', () => {
     expect(GLSL_LAND_FS).toMatch(/uniform vec2 u_white;/);
     expect(DRAW_FS).toContain('float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);');
-    expect(DRAW_FS).toContain('gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land), alpha);');
+    expect(DRAW_FS).toContain('gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land) * (1.0 - (u_calm_air.y + (u_calm_air.x - u_calm_air.y) * land) * (1.0 - smoothstep(u_calm_air.z, u_calm_air.w, v_speed))), alpha);');   // since near-calm air (windCalmAir.js, D-030) the level also falls below 5.5 kn; that factor is exactly 1.0 where nothing dims
     expect(DRAW_FS.match(/u_white\.[xy]/g)).toHaveLength(3);                              // read on that one line and nowhere else
     expect(DRAW_FS.match(/texture2D\(u_land_mask/g)).toHaveLength(1);
     // with equal levels the factor is exactly the level whatever the mask says (y + 0 * land): dark, the kill and every hold draw as before, bit for bit

@@ -1203,3 +1203,23 @@ A stored estimate can be estimated again in a browser branch with different sour
   sync, and set then synced; (3) while a resource a rule depends on is loading (a mask, a texture), say in code which side
   the rule falls to, and pin it: "every mark reads as land" was harmless while land and sea shared a strength and was a brighter
   sea the moment they did not.
+
+- **L-V83 · A gauge that counts by a threshold cannot set a level near that threshold; where it and the eye disagree about what
+  is VISIBLE, the level is set by the eye, beside the model, at three zooms, on the visible side.** Near-calm air: by streaks met
+  and body share (a mark = a pixel more than 4 dE76 off the field) light's and beach's streaks matched dark's at a light level
+  near 0.70 at zoom 6. A few hundredths under that the same gauge fell off a cliff (0.96 of dark's at 0.69, 0.38 at 0.66), at
+  zoom 8 the matched level left 0.1 to 0.6 of dark's count, and on films beside dark 0.70 and 0.75 read fainter than dark's
+  stipple: dark's near-calm mark is a speck with a core 29 to 37 L\* over a near-black ground, the dimmed white one stands 4 to
+  6 L\* over L\* 65. Equal counts of marks at a threshold are not equal marks. And the cliff had a cause the gauge could not
+  name: the veil under the trails is measured against a core at the full level, so under a level of about 0.65 it takes as much
+  as the mark adds (found by the independent review, in the composite's own arithmetic). This is L-V74 (a line the eye must find) met again
+  from the other side. **Do:** (1) when a metric has a threshold in it, sweep the parameter across the cliff and write down
+  where the cliff is before picking a value; (2) pick on the far side from the cliff; (3) read the pick at every zoom the app
+  shows, not at the zoom the fixture was built for (the ramp fixture reaches zooms 6 to 10 only); (4) say in the decision which
+  instrument set the number, and what the other one reads there.
+- **L-V84 · An identity check that finds "the same bytes" proves nothing until its positive control has been seen to differ.**
+  `map-run.js --offline --crop` read 54 of 54 crops identical between the near-calm build and the build before it, in dark,
+  under the kill AND at the default: the default should have differed. The bench had not run the app's basemap sync (no
+  `--app-sync`), so the read-back the change rides on was never written and the change never drew, in any arm. The control was
+  in the run and was read only because the table was looked at arm by arm. **Do:** every identity run carries an arm that MUST
+  differ, and the report states it did; a change that rides a read-back is benched with the sync that writes it.
