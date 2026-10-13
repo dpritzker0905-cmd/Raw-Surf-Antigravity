@@ -15,7 +15,7 @@ is a claim, not a measurement.
 ## Now
 
 - **2026-10-13 00:41Z: in light and beach a streak in NEAR-CALM AIR is laid at a lower light level, ON BY DEFAULT (client
-  only; branch `claude/wind-calm-air`; DECISIONS D-030).** The owner, 2026-10-12 21:51Z: "The almost still wind needs to be
+  only; PR #326 OPEN against dev from `claude/wind-calm-air`; it merges on the owner's word of 2026-10-13 00:14Z, "merge the calm wind pr when its ready"; DECISIONS D-030).** The owner, 2026-10-12 21:51Z: "The almost still wind needs to be
   almost still and almost transparent on beach and light modes, as that is how it looks on dark mode."
   - **What draws:** `windCalmAir.js` and the last statement of `DRAW_FS`: below 2.5 kn a mark's light level is 0.80 of itself
     over land and 0.78 over sea, full by 5.5 kn; the dim eases to half of itself by zoom 8. No particle is removed, moved or
@@ -2278,7 +2278,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1157, sha256 1416ca37c130a051fdcbded1afd86f92815784cedbbcdea460a431bd073d6136**
+  **Ledger head: seq 1159, sha256 745107b22a804264ebe8d3d071969828c04728e004b3dc543b0678133fa7ad4f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
