@@ -877,6 +877,28 @@ A stored estimate can be estimated again in a browser branch with different sour
   amendment and its STATE bullet were not. Rules: (1) check the base PR's state again immediately before the first push, not only
   at the start; (2) when the owner's word overtakes unpushed work, say so in the log where the work is recorded and name what was
   carried and what was dropped; (3) never open a PR for work the owner has already moved past, however green its gates. (same log)
+- **L-P35 · "It now does little" is a claim: before removing machinery called idle, list every number it writes and pull it out
+  as a lever.** D-021's record said beach's land and sea streak rows, the land mask and the streak solver "now do little" under
+  dark's white ring, and a cleanup was briefed on it: one row, no mask, no solver, identical pixels as the proof. The check behind
+  the claim had read the head's CHROMA. A row is four numbers a knot, and the fourth, the mark's alpha, is the mark's cover and
+  the scale of its light: with the land row alone 29 to 67% of the sea's pixels moved by more than dE00 2.3 (offline bench, zooms
+  4 to 8, served) and a storm over the sea turned pale. The PR that merged after the brief was written (#314) had given the mask
+  a second job, so a third of the brief was void before a line was measured. **Then this session's own write-up made the mirror
+  error:** it took its model of ONE stamp (laid at its alpha squared: "19% weaker") for the trail's law. An independent review
+  read the buffer's blend (stamps overlap and saturate; at 13 kn: 0.82 of the land row's strength for one stamp, 0.91 for
+  two, 0.96 for three) and the motion data (4 to 9%), and a fallback built on that percentage was withdrawn before the PR. Rules: (1) before
+  calling a table, a texture or a sample idle, list every channel it carries and every line that reads it (`color.a` and
+  `u_white` were one search away); (2) test "idle" by taking it out as a lever with everything else held, on the GPU, with a case
+  where it IS idle as the null control (light's equal rows and dark: 16 of 16 PNGs the same), and when two things read one sample
+  switch the other off first (D-022's kill), or the test moves both; (3) a brief ages from the minute it is written: at the
+  start read what merged SINCE, not only whether the PR it names merged; (4) a number from a model of one pixel is a bound:
+  before it is written as "the effect", check it against what accumulates (the buffer's blend) and against the same quantity
+  measured in motion; (5) "visible" is said per arm and per scene, with the region and its size, or not at all; and a scene is
+  named by the WIND in it, not by the lever that made it (this log called the fixture as served and at `scale` 2.3 "served" and
+  "storm": as served it is already a hurricane, 23 to 42 kn over the sea, and the lever multiplies only the fixture's box; the
+  same slip as #315's L-V50, caught by the session leading the lanes), read on the region the instrument really cuts (this
+  session's first wind table sat on a view 11% too wide with the crop misplaced: the bench's map is 897 x 914 CSS px at pixel
+  ratio 2, a motion frame is that scaled to 1000 px, and a crop is placed by its corner). (log 2026-10-12-wind-streak-rows)
 
 - **L-V43 · Read land and sea apart: one number over a mixed view can say "equal" while both grounds are wrong.** D-021's white
   streak was laid at one strength, calibrated on a bench view that is mostly land, and its lift over that view's centre read 1.05

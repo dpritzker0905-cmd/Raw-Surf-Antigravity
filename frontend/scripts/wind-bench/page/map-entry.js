@@ -38,6 +38,7 @@ const { parseColor } = require('../../../src/components/map/windBasemapMute');
 
 const Engine = EngineModule.default || EngineModule.WebGLWindEngine || EngineModule;
 const CSS_W = 897, CSS_H = 914, DPR = 2, FRAME_MS = 1000 / 60, THUMB = 448;
+let VIEW_W = CSS_W, VIEW_H = CSS_H;   // the map's CSS size: the bench's pane (the owner's desktop map), or a phone's (init { css: [w, h] }; the runners' --css WxH)
 const STYLES = { light: 'navigation-day-v1', beach: 'outdoors-v11', dark: 'navigation-night-v1' };
 const WIND_ID = 'bench-wind';
 const realNow = performance.now.bind(performance);
@@ -225,7 +226,7 @@ function readCanvas(map) {
 }
 
 function thumb(map) {
-  const t = pageCanvas(THUMB, Math.round(THUMB * CSS_H / CSS_W));
+  const t = pageCanvas(THUMB, Math.round(THUMB * VIEW_H / VIEW_W));
   t.getContext('2d').drawImage(map.getCanvas(), 0, 0, t.width, t.height);
   return t.toDataURL('image/jpeg', 0.82);
 }
@@ -497,7 +498,7 @@ const OPACITY_PROPS = { fill: ['fill-opacity'], line: ['line-opacity'], symbol: 
   circle: ['circle-opacity', 'circle-stroke-opacity'], raster: ['raster-opacity'], heatmap: ['heatmap-opacity'], hillshade: ['hillshade-exaggeration'] };
 
 function smallShot(map, width = 300) {
-  const t = pageCanvas(width, Math.round(width * CSS_H / CSS_W));
+  const t = pageCanvas(width, Math.round(width * VIEW_H / VIEW_W));
   t.getContext('2d').drawImage(map.getCanvas(), 0, 0, t.width, t.height);
   return t.toDataURL('image/jpeg', 0.8);
 }
@@ -508,9 +509,9 @@ const camOf = (f) => ({ center: [f.lng, f.lat], zoom: f.z, bearing: f.bearing ||
 function speedsAt(cam, w, h) {
   const k = 1 / (TILE_PX * Math.pow(2, cam.z)), cx = (cam.lng + 180) / 360, cy = mercY(cam.lat), px = ANALYSIS / DPR, out = new Float32Array(w * h);
   for (let r = 0; r < h; r++) {
-    const lat = latOf(cy + (CSS_H / 2 - (r + 0.5) * px) * k);
+    const lat = latOf(cy + (VIEW_H / 2 - (r + 0.5) * px) * k);
     for (let x = 0; x < w; x++) {
-      const lng = (cx + ((x + 0.5) * px - CSS_W / 2) * k) * 360 - 180, v = sampleSpeed(GRIDS.fine, lng, lat);
+      const lng = (cx + ((x + 0.5) * px - VIEW_W / 2) * k) * 360 - 180, v = sampleSpeed(GRIDS.fine, lng, lat);
       out[r * w + x] = v == null ? (sampleSpeed(GRIDS.world, lng, lat) ?? NaN) : v;
     }
   }
@@ -619,7 +620,7 @@ async function pathRun(cfg) {
   await idle(map);
   state.active = true;
   newEngine(cfg.fieldOnly ? 2 : cfg.res, cfg.seed);
-  const geom = { cssW: CSS_W, cssH: CSS_H, px: ANALYSIS / DPR };
+  const geom = { cssW: VIEW_W, cssH: VIEW_H, px: ANALYSIS / DPR };
   let prev = null, landMask = 'off';
   let vms = realNow();
   performance.now = () => vms;
@@ -747,7 +748,7 @@ async function flowRun(cfg) {
       const k = 1 / (TILE_PX * Math.pow(2, cam.z)), cx = (cam.lng + 180) / 360, cy = mercY(cam.lat);
       const t = turned(cam.bearing || 0);   // image rows run from the screen's bottom, so +row is up the screen
       const windAt = (x, y) => {
-        const [east, north] = t.toGround(x - CSS_W / 2, y - CSS_H / 2), lng = ((((cx + east * k) * 360) % 360) + 360) % 360 - 180, lat = latOf(cy - north * k);
+        const [east, north] = t.toGround(x - VIEW_W / 2, y - VIEW_H / 2), lng = ((((cx + east * k) * 360) % 360) + 360) % 360 - 180, lat = latOf(cy - north * k);
         const uv = sampleWind(GRIDS.fine, lng, lat) || sampleWind(GRIDS.world, lng, lat);
         return uv && t.toScreen(uv[0], uv[1]);
       };
@@ -830,6 +831,10 @@ function init(fixtures) {
   state.bare = fixtures.bare === true;
   state.offline = fixtures.offline === true;
   state.dpr = fixtures.pixelRatio > 0 ? fixtures.pixelRatio : DPR;
+  // css: [w, h]: the map's size in CSS px (a phone held upright is about 390 x 844 at a pixel ratio of 3). Set before any map is made.
+  if (Array.isArray(fixtures.css) && fixtures.css[0] > 0 && fixtures.css[1] > 0) { VIEW_W = Math.round(fixtures.css[0]); VIEW_H = Math.round(fixtures.css[1]); }
+  const pane = typeof document !== 'undefined' ? document.getElementById('map') : null;
+  if (pane) { pane.style.width = `${VIEW_W}px`; pane.style.height = `${VIEW_H}px`; }
   const k = fixtures.scale || 1, fx = { ...fixtures.fine, u: fixtures.fine.u.map((u) => u * k), v: fixtures.fine.v.map((v) => v * k) };
   const fine = gridFromFixture(fx, 'served_fine');
   GRIDS = { fine, world: worldBase([fine]) };

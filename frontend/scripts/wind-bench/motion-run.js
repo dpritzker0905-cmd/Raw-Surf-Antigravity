@@ -79,7 +79,7 @@ function readToken() {
         await page.exposeFunction('__benchFrame', (f) => sink(f));   // each frame is written as it is taken: a run of lossless crops does not fit one reply
         await page.goto(`http://127.0.0.1:${server.address().port}/${tag}/map.html`);
         await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
-        await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, offline: false, pixelRatio: fx.mapDpr }), { fine, scale, mapDpr: MAP_DPR });
+        await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, offline: false, pixelRatio: fx.mapDpr, css: fx.css }), { fine, scale, mapDpr: MAP_DPR, css: (/^(\d+)x(\d+)$/.exec(flag('--css', '')) || []).slice(1).map(Number) });   // --css 390x844: the map at a phone's CSS size
         scaleNow = scale;
       }
       const N = run.frames || 90, cam = { lng: run.lng == null ? VIEW.lng : run.lng, lat: run.lat == null ? VIEW.lat : run.lat, z: run.z };

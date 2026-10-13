@@ -570,6 +570,11 @@ Singh and Anderson 2002), and the map's largest is the land against the sea.
   the land): a bench arm that sets `__RAW_DISABLE_WIND_LAND_STEP__` after the map is up must sync before it reads
   (`map-entry.js` syncs each arm; `--app-sync` runs the layer's own handler). `__RAW_WIND_BASEMAP_LAND_L__` sets a land that
   keeps the SEA's streak strength at every factor; pair it with `__RAW_WIND_WHITE_LAND__` to try another.
+- **A phone's size and pixel ratio:** `--css 390x844 --dpr 3` in `anatomy-run.js` and `ground-run.js` (`--css 390x844 --map-dpr 3`
+  in `motion-run.js`). The map is by default the owner's desktop pane, 897 x 914 CSS px, which every scored column and the ramp
+  fixture's geometry assume: at 390 px wide a zoom-6 view spans 8.6 degrees, so a ramp shows a slice of its speeds (move the
+  view with `--lng` for the slow end). It is the size and the pixel ratio only: the GPU and its shader precision are the bench
+  machine's, not a phone's.
 - **Near-calm air** (`windCalmAir.js`, D-030): read it on a slow ramp, `ramp-fixture.js <out> --from 0.4 --to 9`, then
   `anatomy-run.js --fixture <ramp> --arms '{"now":{},"off":{"__RAW_DISABLE_WIND_CALM_AIR__":true}}'` at zoom 6 (the ramp spans
   1 to 8.6 kn across the view there); at zooms 8 and 10 the view is one speed, so move it (`--lng -94.9 --lat 29.3` is a coast

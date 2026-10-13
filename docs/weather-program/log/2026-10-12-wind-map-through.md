@@ -421,3 +421,41 @@ to ask for after they have looked.
 
 Films sent to the owner at 00:01Z: `calm-air-final-zoom6.webm`, `-zoom4`, `-zoom8` (dark; light before and now; beach before and
 now; not in the repo).
+
+## 01:03-01:34Z (2026-10-13) · #326 merged and live; the owner's verdict; the bench at a phone's size; #317 brought up to dev
+
+**#326 (near-calm air, D-030) merged** at 2026-10-13T01:03:09Z as `f6310516` (squash), on the owner's word of 00:14Z, "merge
+the calm wind pr when its ready". Read before: OPEN, MERGEABLE, CLEAN, head `94c47731`, 18 checks passed and 1 neutral. The dev
+site, read statically at 01:06:30Z: `BUILD_VERSION` `f6310516`, with `__RAW_DISABLE_WIND_CALM_AIR__`, `_TRAIL_VEIL__`,
+`_LAND_STEP__` and `_COAST_INK__` in `/static/js/8400.2b8a5f0f.chunk.js`.
+
+**The owner's verdict.** 01:02Z: "I do like what I saw from the deploy at 8:43" (that deploy was #326's own Netlify preview).
+01:09Z, with #326 on the dev site: **"Ok I like this"**. 01:17Z: "does this work for both mobile and desktop? I'm only checking on
+my desktop at the moment". So: accepted on a desktop; not looked at on a phone.
+
+**The owner's instructions, and how they were read.** 01:13Z: "push it to main and also merge anything left". 01:19Z: "run the
+bench at phone size and pixel ratio, and also merge 325, 316. And the small colour-blind tweak to lights colors".
+
+- **Main: not pushed.** BRAIN_RULES section 22 asks for a confirmation question first, with what the push carries. Asked at
+  01:17Z: `main` last moved on 2026-09-02; dev is 880 commits and about 1,800 files ahead (700 frontend, 470 backend); `main`
+  holds three squash "promote" commits dev lacks and a plain merge shows 25 conflicts (to be resolved by making main's content
+  dev's, as a "Promote dev to main" PR); by the note of 2026-09-29 the production site is frozen on an older build with
+  auto-publish locked, which was not re-read today. No affirmative reply yet.
+- **"merge 325, 316":** both were already in dev (#325 at 2026-10-12T23:47:40Z, #316 at 11:52:11Z). Read as the two things this
+  session had just listed as waiting for a go: #317 and the records owed. #264 (a draft of backend weather repairs of
+  2026-10-08, not this program's) is not merged.
+- **The colour-blind tweak to light's colours:** the colours lane was asked at 01:21Z to rebase it onto dev, make it ON by
+  default with a kill, and open its PR as a draft without ledger lines; it is merged on this word once it is ready.
+
+**The bench at a phone's size and pixel ratio** (dev `f6310516`; `anatomy-run.js` and `ground-run.js` with the new `--css 390x844`
+and `--dpr 3`; speed ramps; read from `--json`). At 390 x 844 CSS px and a pixel ratio of 3, each theme against dark at the same settings, zoom 6 unless said. STREAKS from 10 to 22 kn: the bright body's share of the picture 0.94 to 1.02 of dark's in light and 0.98 to 1.09 in beach, streaks met 0.82 to 1.17, the median mark pixel within 1 L* of dark's in light. On the bench's own 897 x 914 pane at pixel ratio 3, 3 to 29 kn: body share 0.94 to 1.34 (the high end at 3 kn), streaks met 0.65 to 1.06. NEAR-CALM AIR at 1 kn: streaks met 0.88 to 1.20 of dark's (1.00 to 1.27 with the calm level killed) and body share 0.98 to 1.89 (1.41 to 2.21 killed): the marks are there and a quarter less of them is bright, as on the desktop. THE LAND under an equal wind: land minus sea +7.4 / +8.1 / +8.7 L* in light and +10.5 / +7.4 / +6.7 in beach at zooms 4 / 6 / 9 (dark -10.2 / -9.4 / -8.0): the desktop's numbers. THE LIGHT THE STREAKS ADD at zoom 6: light +17.3 over land and +14.7 over sea against dark's +18.4 and +14.0; beach +22.4 and +17.8, 1.2 to 1.3 times dark's (at the desktop's pixel ratio beach read 1.0 over land and 1.2 over sea). At zoom 9 light's streaks over land add +2.2 against dark's +5.4. Nothing vanished and nothing broke at these settings.
+
+What that is NOT: a phone. The bench's GPU is a desktop's and ran the shader at its precision, not a phone's `mediump`; one
+seed. It says the size and the pixel ratio do not break the four changes; a real phone is the owner's look.
+
+**The bench's `--css WxH`** (new: `page/map-entry.js` `init { css }`, `anatomy-run.js`, `ground-run.js`, `motion-run.js`): the
+map's CSS size, by default the 897 x 914 pane every scored column assumes (the constant the ramp fixture's test pins is kept).
+
+**#317 brought up to dev by this session** (the streak-rows measurement of 2026-10-12, docs only, opened by the session that
+measured it and left for last): dev merged into it; its two ledger lines (seq 1063 and 1064 on its branch) re-appended after
+dev's head word for word with a note (now seq 1160 and 1161); this session's records after them.
