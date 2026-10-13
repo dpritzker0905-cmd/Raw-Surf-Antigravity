@@ -16,8 +16,8 @@ import path from 'path';
 import { DRAW_FS } from './WebGLWindShaders';
 import { GLSL_LAND_FS } from './windLandMask';
 import { WIND_CALM_AIR, windCalmAirOn, windCalmAir, calmZoomShare, bindCalmAir, calmAirFactor } from './windCalmAir';
-import { windTrailVeil } from './windTrailVeil';
-import { DARK_RULES_HOLDS } from './WindColorRamp';
+import { windTrailVeil, trailVeilUniform, trailVeilComposite } from './windTrailVeil';
+import { DARK_RULES_HOLDS, windWhiteStrength } from './WindColorRamp';
 
 const ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
 const KILL = '__RAW_DISABLE_WIND_CALM_AIR__', LEVER = '__RAW_WIND_CALM_LEVEL__';
@@ -108,7 +108,8 @@ describe('the lever: [land level, sea level, from kn, full kn], closed at both e
   it('a valid lever sets all four; an invalid one is not a lever', () => {
     near(windCalmAir('light', synced('light', { [LEVER]: [0.8, 0.6, 1, 4] }), 6), [0.2, 0.4, 1, 4]);
     near(windCalmAir('beach', synced('beach', { [LEVER]: [1, 0.2, 0, 15] }), 6), [0, 0.8, 0, 15]);
-    for (const bad of [[0.8, 0.6, 1], [0.8, 0.6, 1, 4, 5], [0.19, 0.6, 1, 4], [0.8, 1.01, 1, 4], [0.8, 0.6, 4, 4], [0.8, 0.6, 5, 4], [0.8, 0.6, -1, 4], [0.8, 0.6, 1, 15.1], ['0.8', 0.6, 1, 4], [0.8, NaN, 1, 4], [0.8, 0.6, 1, Infinity], 0.7, null, 'x', {}]) {
+    near(windCalmAir('light', synced('light', { [LEVER]: [0.8, 0.8, 5, 5.25] }), 6), [0.2, 0.2, 5, 5.25]);   // a narrow window is still a lever; under 0.1 kn it is not (one edge twice in the GPU's floats)
+    for (const bad of [[0.8, 0.6, 1], [0.8, 0.6, 1, 4, 5], [0.19, 0.6, 1, 4], [0.8, 1.01, 1, 4], [0.8, 0.6, 4, 4], [0.8, 0.6, 5, 4], [0.8, 0.8, 5, 5 + 1e-7], [0.8, 0.8, 5, 5.09], [0.8, 0.6, -1, 4], [0.8, 0.6, 1, 15.1], ['0.8', 0.6, 1, 4], [0.8, NaN, 1, 4], [0.8, 0.6, 1, Infinity], 0.7, null, 'x', {}]) {
       near(windCalmAir('light', synced('light', { [LEVER]: bad }), 6), OWN);
     }
   });
@@ -128,7 +129,7 @@ describe('THE SHADER\'S OWN STATEMENT, cut out of DRAW_FS and run', () => {
   // gl_FragColor = vec4(rgb * alpha * (<white>) * (<calm>), alpha);
   const m = /gl_FragColor = vec4\(rgb \* alpha \* \((u_white\.y \+ \(u_white\.x - u_white\.y\) \* land)\) \* (\(1\.0 - .*\)), alpha\);/.exec(DRAW_FS);
   const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const calm = m && new Function('u_calm_air', 'land', 'v_speed', 'smoothstep', `return ${m[2]};`);   // eslint-disable-line no-new-func
+  const calm = m && new Function('u_calm_air', 'land', 'v_speed', 'smoothstep', `return ${m[2]};`);
   const run = (u, land, kn) => calm({ x: u[0], y: u[1], z: u[2], w: u[3] }, land, kn, smoothstep);
   it('the mark\'s last line multiplies its LIGHT by the white\'s level and the calm factor, and leaves its cover (alpha) alone', () => {
     expect(m).not.toBeNull();
@@ -157,7 +158,7 @@ describe('THE SHADER\'S OWN STATEMENT, cut out of DRAW_FS and run', () => {
     }
     expect(run(windCalmAir('beach', synced('beach'), 6), 1, 1)).toBeCloseTo(0.8, 12); expect(run(windCalmAir('beach', synced('beach'), 6), 0, 1)).toBeCloseTo(0.78, 12);
   });
-  it('calmAirFactor is that statement in plain JS (the bench and the checker read it)', () => {
+  it('calmAirFactor is that statement in plain JS', () => {
     const us = [windCalmAir('light', synced('light'), 6), windCalmAir('beach', synced('beach'), 9), [0.2, 0.4, 1, 4], [0, 0.8, 0, 15], [0, 0, 0, 1]];
     for (const u of us) for (let kn = 0; kn <= 16; kn += 0.37) for (const land of [0, 0.3, 1]) expect(calmAirFactor(u, land, kn)).toBeCloseTo(run(u, land, kn), 12);
   });
@@ -184,6 +185,37 @@ describe('the engine sets it every frame, on the draw program, beside the land m
     expect(() => bindCalmAir(null, 'draw', 'light', 6)).not.toThrow(); expect(() => bindCalmAir(gl, null, 'light', 6)).not.toThrow();
     expect(gl.sent).toHaveLength(4);
   });
+  it('THE ENGINE\'S OWN CALL passes no window: bindCalmAir then reads the real one (a review, 2026-10-13: with `win || null` there the change was dead in the app and every test passed)', () => {
+    const gl = fakeGl();
+    try {
+      window.__WIND_BASEMAP_MUTE__ = synced('light').__WIND_BASEMAP_MUTE__;
+      bindCalmAir(gl, 'draw', 'light', 6);
+      near(gl.sent[0].slice(1), OWN);
+      expect(window.__WIND_CALM_AIR__).toMatchObject({ on: true, theme: 'light', land: 0.8, sea: 0.78 });
+      bindCalmAir(gl, 'draw', 'light', 8, null);                                         // and an explicit null is no window either
+      near(gl.sent[1].slice(1), [0.1, 0.11, 2.5, 5.5]);
+    } finally { delete window.__WIND_BASEMAP_MUTE__; delete window.__WIND_CALM_AIR__; }
+  });
+  it('the read-back is each window\'s own: a theme change rewrites it, a second window gets its own, and one that was cleared is written again', () => {
+    const gl = fakeGl(), w = { ...synced('light') };
+    bindCalmAir(gl, 'draw', 'light', 6, w);
+    const light = w.__WIND_CALM_AIR__;
+    w.__WIND_BASEMAP_MUTE__ = synced('beach').__WIND_BASEMAP_MUTE__;                      // the theme changed and its sync ran: the same numbers, another theme
+    bindCalmAir(gl, 'draw', 'beach', 6, w);
+    expect(w.__WIND_CALM_AIR__).not.toBe(light); expect(w.__WIND_CALM_AIR__).toMatchObject({ on: true, theme: 'beach', land: 0.8, sea: 0.78 });
+    const other = synced('beach');                                                       // another page's window, the same theme and numbers
+    bindCalmAir(gl, 'draw', 'beach', 6, other);
+    expect(other.__WIND_CALM_AIR__).toMatchObject({ on: true, theme: 'beach' });
+    delete other.__WIND_CALM_AIR__;                                                      // cleared by hand in a console
+    bindCalmAir(gl, 'draw', 'beach', 6, other);
+    expect(other.__WIND_CALM_AIR__).toMatchObject({ on: true, theme: 'beach' });
+    const one = synced('light'), two = synced('light', { [KILL]: true });               // two pages in two states, drawn turn about
+    bindCalmAir(gl, 'draw', 'light', 6, one); bindCalmAir(gl, 'draw', 'light', 6, two);
+    const first = one.__WIND_CALM_AIR__, second = two.__WIND_CALM_AIR__;
+    for (let f = 0; f < 3; f++) { bindCalmAir(gl, 'draw', 'light', 6, one); bindCalmAir(gl, 'draw', 'light', 6, two); }
+    expect(one.__WIND_CALM_AIR__).toBe(first); expect(two.__WIND_CALM_AIR__).toBe(second);   // neither is rewritten because the other drew
+    expect(first.on).toBe(true); expect(second.on).toBe(false);
+  });
   it('the read-back says the levels as laid to zoom 6, when they change: not per frame, and not per step of a zoom gesture', () => {
     const gl = fakeGl(), w = synced('light');
     bindCalmAir(gl, 'draw', 'light', 6, w);
@@ -195,5 +227,48 @@ describe('the engine sets it every frame, on the draw program, beside the land m
     expect(w.__WIND_CALM_AIR__).toMatchObject({ on: false, theme: 'light', land: 1, sea: 1 });
     expect(w.__WIND_CALM_AIR__).not.toBe(first);
     expect(gl.sent).toHaveLength(9);                                                     // the uniform itself IS sent every frame
+  });
+});
+
+describe('THE CLIFF, by the trail composite\'s own arithmetic: the level sits well over the one at which a mark adds NOTHING', () => {
+  // The level is the trail BUFFER's. The screen pass lays a trail at its level squared, and dark's veil (windTrailVeil.js) is measured
+  // against a core laid at the FULL level: a calm core, laid lower, is veiled a little too. Under a level of about 0.65 the veil takes
+  // as much as the mark adds, and the mark is gone: the cliff the bench's gauge met near 0.66 (the log). An independent review, 2026-10-13.
+  const G = 0.66;   // a ground of about L* 70 as the canvas holds it: the lightest near-calm ground either theme draws
+  /** What a FILLED core adds over the ground (0 to 1), its buffer laid at `calm` of the white's own level over `ground`. */
+  const added = (theme, ground, calm, zoom) => {
+    const win = synced(theme), b = Math.sqrt(windWhiteStrength(theme, win)[ground]) * calm, [veil, inv] = trailVeilUniform(theme, true, 0.505, zoom, win);
+    return trailVeilComposite([G, G, G], [b, b, b], 1, veil, inv)[0] - G;
+  };
+  const cliff = (theme, ground) => { let lo = 0.3, hi = 1; for (let i = 0; i < 40; i++) { const mid = (lo + hi) / 2; if (added(theme, ground, mid, 6) > 0) hi = mid; else lo = mid; } return hi; };
+  it('the control: with no calm level a filled core adds the light it always did, and there is a veil to speak of', () => {
+    for (const theme of ['light', 'beach']) {
+      expect(windWhiteStrength(theme, synced(theme))).toEqual({ land: 0.75, sea: 0.55 });
+      expect(trailVeilUniform(theme, true, 0.505, 6, synced(theme))[0]).toBeCloseTo(0.505, 6);
+      expect(added(theme, 'sea', 1, 6)).toBeCloseTo(0.55 * (1 - G), 6);                  // a core at the veil's own level is not veiled: the white's strength over what is left of the ground
+      expect(added(theme, 'land', 1, 6)).toBeCloseTo(0.75 * (1 - G), 6);
+    }
+  });
+  it('at the levels this change lays, a filled calm core still ADDS light on both grounds, at zoom 6 and at close zoom', () => {
+    for (const theme of ['light', 'beach']) for (const [zoom, land, sea] of [[6, 0.8, 0.78], [7, 0.85, 0.835], [8, 0.9, 0.89], [10, 0.9, 0.89]]) {
+      expect(added(theme, 'land', land, zoom)).toBeGreaterThan(0.1);                     // over a tenth of the scale (26 of 255 levels)
+      expect(added(theme, 'sea', sea, zoom)).toBeGreaterThan(0.04);
+    }
+  });
+  it('what 0.8 does to the picture is more than 0.8: a filled core keeps about 0.57 of its light over land and 0.29 to 0.40 over sea at zoom 6', () => {
+    for (const theme of ['light', 'beach']) {
+      const land = added(theme, 'land', 0.8, 6) / added(theme, 'land', 1, 6), sea = added(theme, 'sea', 0.78, 6) / added(theme, 'sea', 1, 6);
+      expect(land).toBeGreaterThan(0.5); expect(land).toBeLessThan(0.64);                // 0.64 is the level squared: the veil takes the rest
+      expect(sea).toBeGreaterThan(0.25); expect(sea).toBeLessThan(0.45);
+    }
+  });
+  it('THE CLIFF: over the sea a mark adds nothing at a level of about 0.65, and the level laid stands at least 0.1 over it; over land the cliff is lower still', () => {
+    for (const theme of ['light', 'beach']) {
+      const sea = cliff(theme, 'sea'), land = cliff(theme, 'land');
+      expect(sea).toBeGreaterThan(0.6); expect(sea).toBeLessThan(0.7);                   // where the bench's gauge fell off (0.96 of dark's at 0.69, 0.38 at 0.66)
+      expect(WIND_CALM_AIR.level.sea - sea).toBeGreaterThan(0.1);
+      expect(land).toBeLessThan(sea); expect(WIND_CALM_AIR.level.land - land).toBeGreaterThan(0.15);
+      expect(added(theme, 'sea', sea - 0.03, 6)).toBeLessThan(0);                        // under it the mark DARKENS the ground: it has not faded, it has turned over
+    }
   });
 });

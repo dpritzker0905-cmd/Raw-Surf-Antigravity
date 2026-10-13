@@ -1101,3 +1101,46 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   - **Zooms 2 and 3** move as 4, 6 and 8 do. **The map's side** (`map-run.js --app-sync`, water): the lines' kept contrast moves
     0.02 to 0.06 down and stays inside dark's own figures but for light at zoom 8 (0.74 against 0.82); the streaks' signal over
     water comes from 1.1 to 1.5 times dark's to 0.7 to 1.1.
+
+### D-030 · In light and beach a streak in near-calm air is laid at a lower light level, so it is nearly still and nearly clear as dark's is; ON by default
+- **Decided:** by the lead session of the light/beach wind lanes, 2026-10-12, on the owner's words. The owner, 20:02Z, first-hand,
+  on films of the three themes side by side: "I can see in your screenhot videos, that lighter moving air/wind in dark mode is
+  almost transparent, or even smaller animations than in beach or light mode. You need to really compare deeply each aspect to
+  make this work perfectly". The owner, 21:51Z, first-hand: "The almost still wind needs to be almost still and almost transparent
+  on beach and light modes, as that is how it looks on dark mode. Make sure you're not overlooking that part." The owner, 22:24Z,
+  first-hand: "merge the land fix after the tail is in, the push everything turned on switch, so I can test all the changes right
+  away". **The owner has not seen this build in the app.**
+- **Rule:** in `DRAW_FS` a mark's light level (D-022's `u_white`) is multiplied by `1 - dim x (1 - smoothstep(from, full, speed))`,
+  the dim a ground: below 2.5 kn a streak is laid at 0.80 of its level over land and 0.78 over sea, by 5.5 kn at the level it
+  always had, and above that nothing moves. The dim is whole to zoom 6 and eases to half of itself by zoom 8 (0.90 and 0.89 from
+  there in). Only the LIGHT falls: no particle is removed, moved, shortened or slowed, and the cover the trail buffer keeps is the
+  engine's. `windCalmAir.js`; the one statement at the end of `DRAW_FS`; uniform `u_calm_air`.
+  Kill: `window.__RAW_DISABLE_WIND_CALM_AIR__ = true` (read each frame; the factor is then exactly 1.0 and the bytes are the ones
+  before it). Lever: `window.__RAW_WIND_CALM_LEVEL__ = [land level, sea level, from kn, full kn]` (laid as given at every zoom).
+  Read-back: `window.__WIND_CALM_AIR__`. It stands down wherever what it was solved on is not drawn: no veil under the trails
+  (D-029's kill and steer, and everything the veil stands down for) and a land the last sync did not draw a step above the sea
+  (D-026 as amended: its kill, the depth's lever, imagery under the wind), read from the sync's read-back. Dark never reads it.
+- **Why:** dark draws its streak on a ground near black, and in air that barely moves a mark there is a speck 1.3 px long. Light
+  and beach draw dark's WHITE streak at one strength for every speed (D-021, D-022), and a mark that hardly moves keeps laying
+  that white on the same texels until the trail buffer is full of it: from 1 to 3 kn their streaks were met 1.5 to 4 times as
+  often as dark's and their bright bodies covered 1.7 to 2.2 times the share of the picture (`anatomy-run.js` on a 0.4 to 9 kn
+  ramp, zoom 6, every other change of the day on). Fading the mark's alpha in the table does little (tried: a still mark
+  saturates the buffer whatever its alpha); the level sets how bright a full buffer is.
+- **THE LEVEL IS THE EYE'S, NOT THE GAUGE'S, and that is the decision's weak point.** By the gauge (streaks met, body share) the
+  match with dark at zoom 6 is a level near 0.70, and a few hundredths under it the marks go OUT (beach's sea at zoom 6: 0.96 of
+  dark's body share at 0.69, 0.38 at 0.66; light's sea at zoom 8: 1.0 at 0.75, 0.1 at 0.67). The gauge counts a mark by a
+  threshold (4 dE76 off the field), and a white mark dimmed to 0.70 stands 4 to 6 L\* over a ground of L\* 60 to 70 where dark's
+  speck stands 29 to 37 over L\* 23. On films beside dark (zooms 4, 6 and 8, the hurricane at 0.3 of its strength) 0.70 and 0.75
+  read fainter than dark's stipple, 0.80 reads as it does at zoom 6, and at zoom 8 0.80 still loses the land's marks where dark's
+  specks are plain. So the level sits on the visible side (the owner's standing rule, 2026-10-10: no change takes the animation
+  away), eased at close zoom. **The cliff is the composite's own, not only the gauge's** (the independent review): the level is
+  the trail buffer's, the screen pass lays a trail at its level squared, and D-029's veil is measured against a core laid at the
+  FULL level, so a calm core is veiled a little too; at about 0.65 over a ground of L\* 70 the veil takes as much as the mark adds
+  and the mark adds nothing, and under that it darkens the ground. At 0.80 / 0.78 a filled core keeps about 0.57 of its light
+  over land and 0.29 to 0.40 over sea (pinned in `windCalmAir.test.js` with `trailVeilComposite`). **At 0.80 the gauge still reads light and beach 1.3 to 1.8 times dark's body share at zoom 6**: if
+  the owner's eye asks for more, the lever is `[0.74, 0.71, 2.5, 5.5]`, and under about 0.70 marks begin to disappear.
+- **Not changed:** dark; the field; the sea's general strength (D-022's 0.55, which with the veil on reads 1.14 to 1.20 times
+  dark's light from 6 kn up: a later, separate change); the count, size, lifetime and speed of the particles.
+- **Not verified:** nothing seen in the app; the far-out zooms (2 to 4) were read by eye on one film and not by the gauge (the
+  ramp fixture does not reach a far view); one seed; no phone (the shader is `mediump`).
+- **Evidence:** `log/2026-10-12-wind-map-through.md`, "Near-calm air"; LESSONS L-V83, L-V84.

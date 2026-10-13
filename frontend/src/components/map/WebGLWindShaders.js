@@ -776,7 +776,7 @@ void main() {
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
   float alpha = v_alpha * soft * (u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a);
-  gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land) * (1.0 - (u_calm_air.y + (u_calm_air.x - u_calm_air.y) * land) * (1.0 - smoothstep(u_calm_air.z, u_calm_air.w, v_speed))), alpha);   // dark's white, ground by ground (windLandMask.js u_white), and its fall in near-calm air (windCalmAir.js u_calm_air: exactly 1.0 when both dims are 0): the light level, never the cover; exactly 1 when both are
+  gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land) * (1.0 - (u_calm_air.y + (u_calm_air.x - u_calm_air.y) * land) * (1.0 - smoothstep(u_calm_air.z, u_calm_air.w, v_speed))), alpha);   // dark's white, ground by ground (windLandMask.js u_white), and its fall in near-calm air (windCalmAir.js u_calm_air: exactly 1.0 when both dims are 0): the light level, never the cover
 }`;
 
 export const HEATMAP_VS = `

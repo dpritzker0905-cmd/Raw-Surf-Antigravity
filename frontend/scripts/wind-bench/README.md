@@ -570,6 +570,16 @@ Singh and Anderson 2002), and the map's largest is the land against the sea.
   the land): a bench arm that sets `__RAW_DISABLE_WIND_LAND_STEP__` after the map is up must sync before it reads
   (`map-entry.js` syncs each arm; `--app-sync` runs the layer's own handler). `__RAW_WIND_BASEMAP_LAND_L__` sets a land that
   keeps the SEA's streak strength at every factor; pair it with `__RAW_WIND_WHITE_LAND__` to try another.
+- **Near-calm air** (`windCalmAir.js`, D-030): read it on a slow ramp, `ramp-fixture.js <out> --from 0.4 --to 9`, then
+  `anatomy-run.js --fixture <ramp> --arms '{"now":{},"off":{"__RAW_DISABLE_WIND_CALM_AIR__":true}}'` at zoom 6 (the ramp spans
+  1 to 8.6 kn across the view there); at zooms 8 and 10 the view is one speed, so move it (`--lng -94.9 --lat 29.3` is a coast
+  at 1 kn). At zoom 4 and out the ramp does not fill the view: film the hurricane slowed instead (`motion-run.js`, a run's
+  `"scale": 0.3`). The lever `__RAW_WIND_CALM_LEVEL__ = [land, sea, from kn, full kn]` is laid as given at every zoom. **Its
+  gauge has a cliff:** under a level of about 0.70 the marks fall under the 4 dE76 that makes a pixel a mark, and the count
+  drops to a tenth; a count that matches dark's near that cliff is not a match (LESSONS L-V83).
+- **A change that rides the mute's read-back does not draw in `map-run.js` without `--app-sync`** (the land's step and its
+  streak strength, near-calm air): the plain run never syncs the basemap, so `__WIND_BASEMAP_MUTE__` is never written. An
+  identity run without it compares two pictures of the build before (LESSONS L-V84).
 - **Read `adds` from `--json`** (`rows[].land.full.L - rows[].land.field.L`), not from a printed row by column: dark's row ends in
   a shorter mute cell, and its field's chroma (14.8) was once taken for its `adds` (LESSONS L-V81).
 - **The far-out zooms are read with this mode, not with the coast's line:** at zooms 2 and 3 (the app's far end is 2) the inked

@@ -353,3 +353,71 @@ On the merged tree: Jest, both trees, 315 suites / 4,544 tests, 0 failed.
 a shell script while the editor's write to the same tree was being refused by a hook ("Do not write to other worktrees' files
 from this session"). The three edits were undone at once (`git checkout --`, the tree back to its commit) and the near-calm
 build moved into this session's own worktree. Nothing was pushed from the other tree.
+
+## 23:47-00:41Z (the end is on 2026-10-13) · #325 merged and live; near-calm air built (D-030)
+
+**#325 (the land a step above the sea) merged** at 2026-10-12T23:47:40Z as `f1e4ebc1` (squash), on the owner's word of 22:24Z.
+Read before: OPEN, MERGEABLE, CLEAN, head `1f0f1d63`, 18 checks passed and 1 neutral; #324 already in dev. After: `origin/dev`
+at `f1e4ebc1`, its tree the PR head's. **The dev site, read statically at 23:50:19Z** (no backend call): `BUILD_VERSION`
+`f1e4ebc1`, with `__RAW_DISABLE_WIND_TRAIL_VEIL__`, `__RAW_DISABLE_WIND_LAND_STEP__` and `__RAW_DISABLE_WIND_COAST_INK__` in
+`/static/js/2507.99312da7.chunk.js`. The owner was told at 23:51Z, with the three kills to compare by. Nothing seen in the app.
+
+### Near-calm air
+
+The owner, 21:51Z: "The almost still wind needs to be almost still and almost transparent on beach and light modes, as that is
+how it looks on dark mode. Make sure you're not overlooking that part." (It had been set aside here as "a later step".)
+
+**Measured** (`anatomy-run.js --fixture <ramp 0.4 to 9 kn>`, zoom 6, on dev + the veil + the land step; each cell light or beach
+against dark's same band, land / sea; a MARK is a pixel more than 4 dE76 off the field, a BODY one at half its band's core lift):
+
+| 1.0 / 1.5 / 2.2 / 2.9 kn | light, before | light, now | beach, before | beach, now |
+|---|---|---|---|---|
+| body share, land | 1.86 / 2.05 / 1.85 / 1.98 | 1.40 / 1.55 / 1.49 / 1.45 | 1.66 / 1.82 / 1.68 / 1.82 | 1.10 / 1.20 / 1.27 / 1.30 |
+| body share, sea | 1.96 / 2.21 / 2.00 / 2.00 | 1.57 / 1.82 / 1.76 / 1.50 | 1.77 / 1.95 / 1.84 / 1.80 | 1.34 / 1.45 / 1.55 / 1.43 |
+| streaks met, land | 1.72 / 2.38 / 3.05 / 2.01 | 1.38 / 1.84 / 2.74 / 1.51 | 1.52 / 2.15 / 2.84 / 1.86 | 1.13 / 1.42 / 2.42 / 1.40 |
+| the median mark pixel over the field, L\*, land (dark: +6.5 / +5.6 / +4.5 / +4.1) | +10.7 / +11.4 / +11.8 / +10.7 | +4.4 / +4.7 / +5.1 / +4.7 | +6.3 / +6.8 / +8.7 / +6.3 | +0.9 / +1.0 / +2.7 / +1.6 |
+| the same, sea (dark: -1.6 / -0.9 / -1.8 / -1.1) | +13.8 / +14.9 / +14.6 / +13.8 | +5.4 / +5.8 / +5.6 / +6.1 | +10.2 / +10.8 / +11.6 / +11.4 | +3.0 / +3.7 / +4.5 / +4.9 |
+
+From 3.6 kn up the three themes already agree (0.8 to 1.3) and nothing moves from 5.5 kn. On a coast at 1 kn: zoom 8, body
+share 1.47 to 1.67 (before 1.68 to 1.85), streaks met 1.37 to 1.80 (1.52 to 1.98); zoom 10, body 1.27 to 2.00 (1.53 to 2.22),
+streaks met 0.73 to 1.02 (0.82 to 1.09: at zoom 10 the count was already dark's).
+
+**Why the level and not the alpha.** A mark that hardly moves lays its colour on the same texels every frame, and the trail
+buffer runs to `c x a / (a + 1 - fade)`: with the fade near 0.97 an alpha of 0.5 fills it to 0.94 of the colour and 0.1 still
+to 0.77. A fade of the table's alpha (a local prototype, 22:00Z) moved the picture little. The colour's LEVEL scales the
+filled buffer directly, and it is the number D-022 already carries a ground (`u_white`).
+
+**The sweep, and where the gauge misleads.** Levels from 0.64 to 0.80, land and sea apart, zooms 6, 8 and 10:
+
+- zoom 6: body share and streaks met equal dark's at about 0.70 over land and 0.67 over sea in light, 0.75 and 0.69 in beach;
+- a few hundredths under that the marks go OUT: beach's sea reads 0.96 of dark's body share at 0.69, 0.38 at 0.66, 0.32 at 0.64;
+- zoom 8, a coast at 1 kn: at light's zoom-6 match (0.70 / 0.67) the land reads 0.26 to 0.70 of dark's body share and the sea
+  0.00 to 0.18; at 0.75 / 0.72, 0.74 to 0.92 and 0.67 to 0.82; at 0.78 / 0.75, 0.95 to 1.14 and 0.92 to 1.05;
+- zoom 10: streaks met are already 0.82 to 1.09 of dark's with nothing dimmed.
+
+That gauge counts a mark by a threshold. Dark's near-calm mark is a speck 1.3 px long whose core stands 29 to 37 L\* over a
+ground of L\* 23; a white mark dimmed to 0.70 stands 4 to 6 L\* over a ground of L\* 60 to 70, and half of its footprint has
+fallen under the 4 dE76 that makes a pixel a mark (cover 0.5 to 0.8 of dark's). **On films beside dark** (`motion-run.js`, the
+hurricane at 0.3 of its strength, zooms 4, 6 and 8, levels 0.70, 0.75, 0.80 and off): 0.70 and 0.75 read FAINTER than dark's
+stipple at zoom 6; 0.80 reads as dark does there and in beach; at zoom 8 0.80 loses the land's marks where dark's specks are
+plain, and 0.90 reads as dark does. The eye and the instrument disagreed for the third time this week (L-V74, L-V80), and
+the owner's standing rule is that no change takes the animation away.
+
+**Built** (`windCalmAir.js`; the last statement of `DRAW_FS`; `u_calm_air`): below 2.5 kn a streak is laid at 0.80 of its
+level over land and 0.78 over sea, at its full level by 5.5 kn; the dim whole to zoom 6 and half of itself from zoom 8 in
+(0.90 / 0.89). ON by default in light and beach; kill `window.__RAW_DISABLE_WIND_CALM_AIR__`; lever
+`window.__RAW_WIND_CALM_LEVEL__ = [land, sea, from kn, full kn]`; read-back `window.__WIND_CALM_AIR__`. It stands down where
+the veil does not draw and where the last sync did not draw the land a step above the sea. Dark never reads it.
+
+**What it does NOT reach:** by the gauge light and beach still show 1.1 to 1.8 times dark's body share at zoom 6 from 1 to 3 kn.
+The lever `[0.74, 0.71, 2.5, 5.5]` takes that to about 1.0 to 1.3 at zoom 6 and thins the marks at zoom 8; it is the owner's
+to ask for after they have looked.
+
+**Identity.** `map-run.js --offline --app-sync --crop 640x640:png --scale 0.25`, zooms 4, 6 and 8, this build against the build before it (`1f0f1d63`, the tree of dev `f1e4ebc1`), each crop by its SHA-256: dark, at the default and under the kill, 18 of 18 crops identical; light and beach under the kill, 18 of 18 identical; light's and beach's DEFAULT differs in every with-wind crop (9 to 22% of the pixels, the largest step 44 of 255 levels; 11 to 13 at zoom 8, where the dim is halved) and in none of the no-wind crops: the positive control. Their field-only crops differ by 2 to 30 pixels of 409,600 at zooms 4 and 6: the four particles of the bench's field-only pool. **A first run WITHOUT `--app-sync` read 54 of 54 crops identical, the default included:** the bench had never synced the basemap, so the read-back the change rides on was never written and it never drew (LESSONS L-V84). The shader's statement is the one of these runs; what changed after them is JS only (the read-back's key, the lever's least window) and comments.
+
+**The independent review.** A fresh agent, given the commits and no conclusion (66 tool calls; mutants and temp tests on a scratch copy, never in place). **Could not break:** the factor with nothing to dim is 1 in a float32 and a half-float model at every speed and ground; one compiler of `DRAW_FS`, one use of the draw program, the bind unconditional after `useProgram`; 127 wind switches swept with none of the calm-on survivors a hold; stale read-backs all read off. **Found, all taken:** (1) the lint ratchet failed on an unused `eslint-disable` in the new test (removed); (2) the engine's own call was untested: `win || null` in `bindCalmAir` killed the change in the app and 269 tests passed (now pinned on the real window); (3) the read-back's key was one module-level string: a theme change with the same numbers was not written, a second window never got one, a cleared one was never rewritten (now a key a window, and four tests); (4) the records the code cites did not exist yet (D-030, L-V83: written with this PR); (5) two comments the code did not back: nothing but the test reads `calmAirFactor`, and "only the light falls" understated it, because the level is the buffer's, the screen lays it squared and the veil reaches a calm core, which is the CLIFF (now in the header and pinned with `trailVeilComposite`: a mark adds nothing at about 0.65 over a ground of L\* 70; the level laid stands at least 0.1 over it); (6) a lever window narrower than float32 can tell apart was accepted (now at least 0.1 kn). Its 46 mutants: 41 killed, 2 equivalent, 1 on a line this change did not write, 2 real (findings 2 and 3); after the fixes 6 further mutants, 6 red.
+
+**Gates.** On dev `f1e4ebc1` + this change: Jest, the map tree and `src/tests`, 316 suites / 4,570 tests, 0 failed; `check_eslint.js`, `loc_ratchet.py` (`WebGLWindShaders.js` 1,029 and `WebGLWindEngine.js` 1,074 lines, both unchanged), `check.mjs --strict` and the production build exit 0.
+
+Films sent to the owner at 00:01Z: `calm-air-final-zoom6.webm`, `-zoom4`, `-zoom8` (dark; light before and now; beach before and
+now; not in the repo).

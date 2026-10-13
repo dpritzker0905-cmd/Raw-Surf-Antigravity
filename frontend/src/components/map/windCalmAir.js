@@ -25,9 +25,15 @@
  *
  * so below `from` a streak is laid at the calm level, by `full` at the level it always had, and above it nothing moves. Only the
  * LIGHT falls: no particle is removed, moved, shortened or slowed, and the cover (alpha) the trail buffer keeps is the engine's.
+ * WHAT A LEVEL OF 0.8 DOES TO THE PICTURE IS MORE THAN 0.8. The level is the trail BUFFER's; the screen pass lays a trail at its
+ * level squared (0.64 and 0.61 of the light), and dark's veil under the trails (windTrailVeil.js) is measured against a core laid
+ * at the FULL level, so a calm core, laid lower, is veiled a little too. By that composite's own arithmetic (trailVeilComposite,
+ * zoom 6, a ground of L* 70) a filled core over land keeps about 0.57 of the light it added and one over the sea 0.29 to 0.40.
+ * AND THAT IS THE CLIFF: at a level of about 0.65 the veil takes as much as the mark adds and the mark adds NOTHING (pinned in the
+ * test with the composite itself).
  * THE LEVEL IS SET BY THE EYE, ON THE VISIBLE SIDE, AND EASES AT CLOSE ZOOM. The gauge's count and body share match dark's at a
  * level near 0.70 at zoom 6, and a few hundredths under that the marks go OUT (measured: at zoom 6 beach's sea reads 0.96 of dark's
- * body share at 0.69 and 0.38 at 0.66; at zoom 8 light's sea reads 1.0 at 0.75 and 0.1 at 0.67). But that gauge counts a mark by a
+ * body share at 0.69 and 0.38 at 0.66; at zoom 8 light's sea reads 1.0 at 0.75 and 0.1 at 0.67). The gauge also counts a mark by a
  * threshold: dark's near-calm marks are specks 1.3 px long with a core 29 to 37 L* over a near-black ground, and a white mark dimmed
  * to 0.70 stands 4 to 6 L* over a ground of L* 60 to 70. On films beside dark (zooms 4, 6 and 8, the hurricane at 0.3 of its
  * strength) 0.70 and 0.75 read FAINTER than dark's stipple, 0.80 reads as it does at zoom 6, and at zoom 8 even 0.80 loses the land's
@@ -44,7 +50,9 @@
  * Until the land mask is ready every mark reads as land (windLandMask.js), so the sea's marks take the land's calm level until then.
  *
  * Read-back: window.__WIND_CALM_AIR__ = { on, theme, land, sea, from, full, at }: the levels as laid to zoom 6, set when they change (never per frame).
- * Lever (bench and A/B): window.__RAW_WIND_CALM_LEVEL__ = [land level, sea level, from kn, full kn] (levels 0.2 to 1; 0 <= from < full <= 15).
+ * Two wind engines in two themes on one page would trade that one read-back every frame; the app mounts one wind layer.
+ * Lever (bench and A/B): window.__RAW_WIND_CALM_LEVEL__ = [land level, sea level, from kn, full kn] (levels 0.2 to 1; from 0 up, full
+ * at least 0.1 kn over it and no more than 15).
  */
 import { windTrailVeil } from './windTrailVeil';
 import { windLandStepOn } from './windBasemapMute';
@@ -57,7 +65,7 @@ export const WIND_CALM_AIR = Object.freeze({
 const OFF = Object.freeze([0, 0, 0, 1]);   // dim 0 on both grounds: the factor is exactly 1.0
 
 const lever = (v) => (Array.isArray(v) && v.length === 4 && v.every((x) => typeof x === 'number' && Number.isFinite(x))
-  && v[0] >= 0.2 && v[0] <= 1 && v[1] >= 0.2 && v[1] <= 1 && v[2] >= 0 && v[2] < v[3] && v[3] <= 15 ? v : null);
+  && v[0] >= 0.2 && v[0] <= 1 && v[1] >= 0.2 && v[1] <= 1 && v[2] >= 0 && v[3] - v[2] >= 0.1 && v[3] <= 15 ? v : null);   // a window narrower than 0.1 kn is one edge twice in the GPU's floats: smoothstep(e, e, x) is undefined
 
 /** Does this theme lay its streaks at the calm level in near-calm air, here and now? */
 export function windCalmAirOn(theme, win = (typeof window !== 'undefined' ? window : null)) {
@@ -83,17 +91,20 @@ export function windCalmAir(theme, win = (typeof window !== 'undefined' ? window
   return [(1 - own.land) * k, (1 - own.sea) * k, WIND_CALM_AIR.from, WIND_CALM_AIR.full];
 }
 
-let SAID = '';
+const SAID = typeof WeakMap !== 'undefined' ? new WeakMap() : null;   // window -> the key of the read-back last written on it
 /** Set u_calm_air on the draw program (every frame, beside the land mask's bind), and say what is laid when that changes. */
 export function bindCalmAir(gl, prog, theme, zoom, win) {
   if (!gl || !prog) return;
   const w = win || (typeof window !== 'undefined' ? window : null), u = windCalmAir(theme, w, zoom);
   gl.uniform4f(gl.getUniformLocation(prog, 'u_calm_air'), u[0], u[1], u[2], u[3]);
+  if (!w || !SAID) return;
   const at6 = windCalmAir(theme, w), key = `${theme}|${at6.join(',')}`;   // the read-back says the levels to zoom 6: a zoom gesture must not write an object a frame
-  if (w && key !== SAID) { SAID = key; w.__WIND_CALM_AIR__ = { on: at6 !== OFF, theme, land: +(1 - at6[0]).toFixed(4), sea: +(1 - at6[1]).toFixed(4), from: at6[2], full: at6[3], at: Date.now() }; }
+  if (SAID.get(w) === key && w.__WIND_CALM_AIR__) return;                 // each window has its own (a second map's page, a test's), and one that was cleared is written again
+  SAID.set(w, key);
+  w.__WIND_CALM_AIR__ = { on: at6 !== OFF, theme, land: +(1 - at6[0]).toFixed(4), sea: +(1 - at6[1]).toFixed(4), from: at6[2], full: at6[3], at: Date.now() };
 }
 
-/** The factor DRAW_FS multiplies a mark's light level by (plain JS, the shader's own arithmetic). `land`: 0 to 1 from the mask. */
+/** The factor DRAW_FS multiplies a mark's light level by, in plain JS (the shader's own arithmetic; this file's test runs the two side by side). `land`: 0 to 1 from the mask. */
 export function calmAirFactor(u, land, speedKn) {
   const t = Math.max(0, Math.min(1, (speedKn - u[2]) / (u[3] - u[2]))), s = t * t * (3 - 2 * t);
   return 1 - (u[1] + (u[0] - u[1]) * land) * (1 - s);
