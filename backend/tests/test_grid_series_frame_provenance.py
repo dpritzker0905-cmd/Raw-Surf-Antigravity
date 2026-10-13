@@ -63,6 +63,43 @@ def test_series_frames_carry_run_and_upstream_identity():
         assert "estimate_basis" in f and f["estimate_basis"] is None
 
 
+def test_cycle_identity_survives_product_manifest_sampler_and_series():
+    from services.weather_pipeline.store_helpers import _build_manifest_item
+    from services.weather_pipeline.sampler import PointSampler
+    from services.weather_pipeline.schemas import ManifestProduct, NormalizedPointResponse
+    from services.weather_pipeline.grid_series_helper import _frame_provenance
+    p = _product(_BASE_RUN)
+    p.model_run_time = _BASE_RUN.replace(hour=0)
+    p.model_run_time_status = 'known'
+    p.ingested_at = _BASE_RUN.replace(hour=8)
+    p = NormalizedProduct.model_validate_json(p.model_dump_json())
+    manifest = _build_manifest_item(p, 'p.json', .25, False)
+    manifest = ManifestProduct.model_validate_json(manifest.model_dump_json())
+    sampler = PointSampler()
+    responses = [sampler.sample_point(p, 27, -80), sampler.sample_point(p, 80, 0),
+                 sampler._build_unavailable_response(p, 27, -80, 'test')]
+    for item in [manifest, *responses]:
+        assert item.model_run_time == p.model_run_time
+        assert item.ingested_at == p.ingested_at
+        assert item.model_run_time_status == 'known'
+        assert item.run_time == _BASE_RUN, 'legacy storage time must not change during this migration'
+    for response in responses:
+        assert NormalizedPointResponse.model_validate_json(response.model_dump_json()).model_run_time == p.model_run_time
+    frame = _frame_provenance(p)
+    assert datetime.fromisoformat(frame['model_run_time']) == p.model_run_time
+    assert datetime.fromisoformat(frame['ingested_at']) == p.ingested_at
+    async def resolve(**kw):
+        return p
+    assert all(f['model_run_time_status'] == 'known' for f in _build(resolve)['frames'])
+
+
+def test_legacy_product_does_not_promote_storage_time_into_a_model_cycle():
+    from services.weather_pipeline.grid_series_helper import _frame_provenance
+    result = _frame_provenance(_product(_BASE_RUN))
+    assert result['model_run_time'] is None
+    assert result['model_run_time_status'] == 'missing'
+
+
 def test_run_census_flags_a_mixed_run_page():
     calls = {"n": 0}
 

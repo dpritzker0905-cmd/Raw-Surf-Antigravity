@@ -1,0 +1,19 @@
+{
+  "head": "eb715a150ba59499aad3c675d50130fa3cfef6ad",
+  "tracked_working_patch_sha256": "d91f0581eae397df9402286abc389eef5789b0ae9ffffb6a941dbe6b061fa31e",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "selection": [
+    "tests/test_rating_composition_parity.py",
+    "tests/test_spot_conditions_batch_bounds.py",
+    "tests/test_spot_conditions_surf_transform.py",
+    "tests/test_spot_hub_forecast_confidence.py",
+    "tests/test_spot_hub_local_size_reference.py",
+    "tests/test_spot_hub_rating_parity.py",
+    "tests/test_surf_point_land_bit.py",
+    "tests/test_surf_point_parity.py"
+  ],
+  "selector": "backend/scripts/ci_test_lanes.py --lane guards, then bounded named subset",
+  "full_guard_selection_count": 160,
+  "subset_files": 8,
+  "limit": "Not the full guards lane, hosted CI, live production, or independent scientific skill verification."
+}

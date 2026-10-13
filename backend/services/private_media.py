@@ -40,6 +40,16 @@ def _storage_settings() -> tuple[str, str]:
     )
 
 
+def _storage_auth_headers(service_key: str) -> dict[str, str]:
+    """Storage auth that works for BOTH key generations.
+
+    A new-style ``sb_secret_`` key is only accepted on the ``apikey`` header — sent as Bearer
+    alone, Storage rejects it ("Invalid Compact JWS"). The Bearer copy keeps legacy JWT keys
+    working until they are disabled.
+    """
+    return {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
+
+
 def make_private_media_ref(bucket: str, object_key: str) -> str:
     """Create a durable reference for one explicitly private bucket."""
     bucket = bucket.strip()
@@ -102,7 +112,7 @@ async def upload_private_media(
             response = await client.post(
                 f"{supabase_url}/storage/v1/object/{bucket}/{encoded_key}",
                 headers={
-                    "Authorization": f"Bearer {service_key}",
+                    **_storage_auth_headers(service_key),
                     "Content-Type": content_type or "application/octet-stream",
                     "x-upsert": "false",
                 },
@@ -140,7 +150,7 @@ async def upload_private_media_stream(
             response = await client.post(
                 f"{supabase_url}/storage/v1/object/{bucket}/{encoded_key}",
                 headers={
-                    "Authorization": f"Bearer {service_key}",
+                    **_storage_auth_headers(service_key),
                     "Content-Type": content_type or "application/octet-stream",
                     "x-upsert": "false",
                 },
@@ -171,7 +181,7 @@ async def signed_private_media_url(
         async with httpx.AsyncClient(timeout=15.0) as client:
             response = await client.post(
                 f"{supabase_url}/storage/v1/object/sign/{reference.bucket}/{encoded_key}",
-                headers={"Authorization": f"Bearer {service_key}"},
+                headers=_storage_auth_headers(service_key),
                 json={"expiresIn": expires_in},
             )
         response.raise_for_status()

@@ -29,7 +29,6 @@ async def ai_health_check():
     openai_status = {
         "service": "openai_gpt4o",
         "key_configured": bool(openai_key),
-        "key_preview": f"{openai_key[:8]}..." if openai_key else None,
         "role": "premium_fallback"
     }
     

@@ -1,0 +1,363 @@
+UNKNOWN STEP	﻿2026-09-20T03:44:59.0911749Z Current runner version: '2.337.0'
+UNKNOWN STEP	2026-09-20T03:44:59.0945711Z ##[group]Runner Image Provisioner
+UNKNOWN STEP	2026-09-20T03:44:59.0947438Z Hosted Compute Agent
+UNKNOWN STEP	2026-09-20T03:44:59.0948503Z Version: 20260828.587
+UNKNOWN STEP	2026-09-20T03:44:59.0949541Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+UNKNOWN STEP	2026-09-20T03:44:59.0950870Z Build Date: 2026-08-28T16:44:25Z
+UNKNOWN STEP	2026-09-20T03:44:59.0952041Z Worker ID: {3fc3ed88-c2bd-4807-b2cf-e7463c7be707}
+UNKNOWN STEP	2026-09-20T03:44:59.0953324Z Azure Region: eastus
+UNKNOWN STEP	2026-09-20T03:44:59.0954314Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.0956495Z ##[group]Operating System
+UNKNOWN STEP	2026-09-20T03:44:59.0958022Z Ubuntu
+UNKNOWN STEP	2026-09-20T03:44:59.0958904Z 24.04.5
+UNKNOWN STEP	2026-09-20T03:44:59.0959877Z LTS
+UNKNOWN STEP	2026-09-20T03:44:59.0960718Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.0961669Z ##[group]Runner Image
+UNKNOWN STEP	2026-09-20T03:44:59.0962766Z Image: ubuntu-24.04
+UNKNOWN STEP	2026-09-20T03:44:59.0963674Z Version: 20260907.300.1
+UNKNOWN STEP	2026-09-20T03:44:59.0965824Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+UNKNOWN STEP	2026-09-20T03:44:59.0968811Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+UNKNOWN STEP	2026-09-20T03:44:59.0970714Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.0972659Z ##[group]GITHUB_TOKEN Permissions
+UNKNOWN STEP	2026-09-20T03:44:59.0975443Z Contents: read
+UNKNOWN STEP	2026-09-20T03:44:59.0976342Z Metadata: read
+UNKNOWN STEP	2026-09-20T03:44:59.0977757Z Packages: read
+UNKNOWN STEP	2026-09-20T03:44:59.0978712Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.0981748Z Secret source: Actions
+UNKNOWN STEP	2026-09-20T03:44:59.0983237Z Cache mode: write
+UNKNOWN STEP	2026-09-20T03:44:59.0984354Z Prepare workflow directory
+UNKNOWN STEP	2026-09-20T03:44:59.1464309Z Prepare all required actions
+UNKNOWN STEP	2026-09-20T03:44:59.1536379Z Getting action download info
+UNKNOWN STEP	2026-09-20T03:44:59.3621948Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+UNKNOWN STEP	2026-09-20T03:44:59.4662956Z Download action repository 'actions/setup-node@v5' (SHA:a0853c24544627f65ddf259abe73b1d18a591444)
+UNKNOWN STEP	2026-09-20T03:44:59.6554136Z Complete job name: frontend-lint
+UNKNOWN STEP	2026-09-20T03:44:59.7312604Z ##[group]Run actions/checkout@v5
+UNKNOWN STEP	2026-09-20T03:44:59.7313532Z with:
+UNKNOWN STEP	2026-09-20T03:44:59.7314057Z   repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.7318409Z   token: ***
+UNKNOWN STEP	2026-09-20T03:44:59.7318863Z   ssh-strict: true
+UNKNOWN STEP	2026-09-20T03:44:59.7319316Z   ssh-user: git
+UNKNOWN STEP	2026-09-20T03:44:59.7319774Z   persist-credentials: true
+UNKNOWN STEP	2026-09-20T03:44:59.7320273Z   clean: true
+UNKNOWN STEP	2026-09-20T03:44:59.7320719Z   sparse-checkout-cone-mode: true
+UNKNOWN STEP	2026-09-20T03:44:59.7321239Z   fetch-depth: 1
+UNKNOWN STEP	2026-09-20T03:44:59.7321673Z   fetch-tags: false
+UNKNOWN STEP	2026-09-20T03:44:59.7322107Z   show-progress: true
+UNKNOWN STEP	2026-09-20T03:44:59.7322553Z   lfs: false
+UNKNOWN STEP	2026-09-20T03:44:59.7322961Z   submodules: false
+UNKNOWN STEP	2026-09-20T03:44:59.7323411Z   set-safe-directory: true
+UNKNOWN STEP	2026-09-20T03:44:59.7323925Z   allow-unsafe-pr-checkout: false
+UNKNOWN STEP	2026-09-20T03:44:59.7324761Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.8349656Z Syncing repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.8351687Z ##[group]Getting Git version info
+UNKNOWN STEP	2026-09-20T03:44:59.8352586Z Working directory is '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.8353976Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:44:59.8408909Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:44:59.8438811Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.8453847Z Temporarily overriding HOME='/home/runner/work/_temp/6794b345-5fe2-4587-8876-658ed60175a4' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:44:59.8456527Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:44:59.8460132Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.8514654Z Deleting the contents of '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.8520779Z ##[group]Initializing the repository
+UNKNOWN STEP	2026-09-20T03:44:59.8524544Z [command]/usr/bin/git init /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.8635756Z hint: Using 'master' as the name for the initial branch. This default branch name
+UNKNOWN STEP	2026-09-20T03:44:59.8637663Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+UNKNOWN STEP	2026-09-20T03:44:59.8639555Z hint: to use in all of your new repositories, which will suppress this warning,
+UNKNOWN STEP	2026-09-20T03:44:59.8641046Z hint: call:
+UNKNOWN STEP	2026-09-20T03:44:59.8642163Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.8643520Z hint: 	git config --global init.defaultBranch <name>
+UNKNOWN STEP	2026-09-20T03:44:59.8645024Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.8646562Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+UNKNOWN STEP	2026-09-20T03:44:59.8648816Z hint: 'development'. The just-created branch can be renamed via this command:
+UNKNOWN STEP	2026-09-20T03:44:59.8650422Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.8651562Z hint: 	git branch -m <name>
+UNKNOWN STEP	2026-09-20T03:44:59.8652831Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.8654280Z hint: Disable this message with "git config set advice.defaultBranchName false"
+UNKNOWN STEP	2026-09-20T03:44:59.8656671Z Initialized empty Git repository in /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/.git/
+UNKNOWN STEP	2026-09-20T03:44:59.8661086Z [command]/usr/bin/git remote add origin https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.8704009Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.8705290Z ##[group]Disabling automatic garbage collection
+UNKNOWN STEP	2026-09-20T03:44:59.8707594Z [command]/usr/bin/git config --local gc.auto 0
+UNKNOWN STEP	2026-09-20T03:44:59.8748354Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.8750483Z ##[group]Setting up auth
+UNKNOWN STEP	2026-09-20T03:44:59.8756593Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:44:59.8799992Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:44:59.9157371Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:44:59.9201785Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:44:59.9429542Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:44:59.9465867Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:44:59.9689493Z [command]/usr/bin/git config --local http.https://github.com/.extraheader [REDACTED] ***
+UNKNOWN STEP	2026-09-20T03:44:59.9728126Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.9729103Z ##[group]Fetching the repository
+UNKNOWN STEP	2026-09-20T03:44:59.9739224Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +21feff6f3b4b225191120201cca9cc0f0157d54c:refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:09.5577796Z From https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:09.5580401Z  * [new ref]         21feff6f3b4b225191120201cca9cc0f0157d54c -> pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:09.5585388Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:09.5587738Z ##[group]Determining the checkout info
+UNKNOWN STEP	2026-09-20T03:45:09.5590107Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:09.5591864Z [command]/usr/bin/git sparse-checkout disable
+UNKNOWN STEP	2026-09-20T03:45:09.5650090Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+UNKNOWN STEP	2026-09-20T03:45:09.5690737Z ##[group]Checking out the ref
+UNKNOWN STEP	2026-09-20T03:45:09.5693907Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:10.5851956Z Updating files:  48% (2156/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5900905Z Updating files:  49% (2171/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5954020Z Updating files:  50% (2215/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6005334Z Updating files:  51% (2260/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6052205Z Updating files:  52% (2304/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6097886Z Updating files:  53% (2348/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6279557Z Updating files:  54% (2393/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6445136Z Updating files:  55% (2437/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6483732Z Updating files:  56% (2481/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6527346Z Updating files:  57% (2526/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6563177Z Updating files:  58% (2570/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6853065Z Updating files:  59% (2614/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6894970Z Updating files:  60% (2658/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6938188Z Updating files:  61% (2703/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6984379Z Updating files:  62% (2747/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7029608Z Updating files:  63% (2791/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7070216Z Updating files:  64% (2836/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7106667Z Updating files:  65% (2880/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7139326Z Updating files:  66% (2924/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7177662Z Updating files:  67% (2969/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7221308Z Updating files:  68% (3013/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7271755Z Updating files:  69% (3057/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7309719Z Updating files:  70% (3101/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7348313Z Updating files:  71% (3146/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7384445Z Updating files:  72% (3190/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7423344Z Updating files:  73% (3234/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7460058Z Updating files:  74% (3279/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7500338Z Updating files:  75% (3323/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7543877Z Updating files:  76% (3367/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7565180Z Updating files:  77% (3412/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7591923Z Updating files:  78% (3456/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7623825Z Updating files:  79% (3500/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7652214Z Updating files:  80% (3544/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7681457Z Updating files:  81% (3589/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7708490Z Updating files:  82% (3633/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7841667Z Updating files:  83% (3677/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.7905268Z Updating files:  84% (3722/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8185245Z Updating files:  85% (3766/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8284418Z Updating files:  86% (3810/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8329048Z Updating files:  87% (3855/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8748329Z Updating files:  88% (3899/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8772905Z Updating files:  89% (3943/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8798079Z Updating files:  90% (3987/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8824437Z Updating files:  91% (4032/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8850734Z Updating files:  92% (4076/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8877238Z Updating files:  93% (4120/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8904416Z Updating files:  94% (4165/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8925931Z Updating files:  95% (4209/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8945165Z Updating files:  96% (4253/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8966145Z Updating files:  97% (4298/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.8986162Z Updating files:  98% (4342/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.9145961Z Updating files:  99% (4386/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.9146579Z Updating files: 100% (4430/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.9147258Z Updating files: 100% (4430/4430), done.
+UNKNOWN STEP	2026-09-20T03:45:10.9192773Z Note: switching to 'refs/remotes/pull/47/merge'.
+UNKNOWN STEP	2026-09-20T03:45:10.9193072Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9193303Z You are in 'detached HEAD' state. You can look around, make experimental
+UNKNOWN STEP	2026-09-20T03:45:10.9193845Z changes and commit them, and you can discard any commits you make in this
+UNKNOWN STEP	2026-09-20T03:45:10.9194710Z state without impacting any branches by switching back to a branch.
+UNKNOWN STEP	2026-09-20T03:45:10.9195221Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9195578Z If you want to create a new branch to retain commits you create, you may
+UNKNOWN STEP	2026-09-20T03:45:10.9196392Z do so (now or later) by using -c with the switch command. Example:
+UNKNOWN STEP	2026-09-20T03:45:10.9197124Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9197328Z   git switch -c <new-branch-name>
+UNKNOWN STEP	2026-09-20T03:45:10.9197660Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9197839Z Or undo this operation with:
+UNKNOWN STEP	2026-09-20T03:45:10.9198112Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9198262Z   git switch -
+UNKNOWN STEP	2026-09-20T03:45:10.9198463Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9198819Z Turn off this advice by setting config variable advice.detachedHead to false
+UNKNOWN STEP	2026-09-20T03:45:10.9199335Z 
+UNKNOWN STEP	2026-09-20T03:45:10.9199904Z HEAD is now at 21feff6 Merge d82032f5cd5978967622721b8c9638da36a87f7d into 607af934e74fa87f3b8e58698ef68fdce919ea54
+UNKNOWN STEP	2026-09-20T03:45:10.9270728Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:10.9324938Z [command]/usr/bin/git log -1 --format=%H
+UNKNOWN STEP	2026-09-20T03:45:10.9354532Z 21feff6f3b4b225191120201cca9cc0f0157d54c
+UNKNOWN STEP	2026-09-20T03:45:10.9701737Z ##[group]Run actions/setup-node@v5
+UNKNOWN STEP	2026-09-20T03:45:10.9702048Z with:
+UNKNOWN STEP	2026-09-20T03:45:10.9702254Z   node-version: 18.20.2
+UNKNOWN STEP	2026-09-20T03:45:10.9702482Z   cache: npm
+UNKNOWN STEP	2026-09-20T03:45:10.9702739Z   cache-dependency-path: frontend/package-lock.json
+UNKNOWN STEP	2026-09-20T03:45:10.9703071Z   always-auth: false
+UNKNOWN STEP	2026-09-20T03:45:10.9703289Z   check-latest: false
+UNKNOWN STEP	2026-09-20T03:45:10.9705685Z   token: ***
+UNKNOWN STEP	2026-09-20T03:45:10.9705909Z   package-manager-cache: true
+UNKNOWN STEP	2026-09-20T03:45:10.9706162Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:11.1229420Z Attempting to download 18.20.2...
+UNKNOWN STEP	2026-09-20T03:45:11.1338824Z (node:2248) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+UNKNOWN STEP	2026-09-20T03:45:11.1342416Z (Use `node --trace-deprecation ...` to show where the warning was created)
+UNKNOWN STEP	2026-09-20T03:45:11.5822058Z Acquiring 18.20.2 - x64 from https://github.com/actions/node-versions/releases/download/18.20.2-8647739097/node-18.20.2-linux-x64.tar.gz
+UNKNOWN STEP	2026-09-20T03:45:11.9045210Z Extracting ...
+UNKNOWN STEP	2026-09-20T03:45:11.9153295Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/174984f0-6c3f-4515-b085-56e6e4092a58 -f /home/runner/work/_temp/845283e6-3392-4c04-98cf-56e251707cee
+UNKNOWN STEP	2026-09-20T03:45:12.9439299Z Adding to the cache ...
+UNKNOWN STEP	2026-09-20T03:45:16.3262140Z ##[group]Environment details
+UNKNOWN STEP	2026-09-20T03:45:16.5900139Z node: v18.20.2
+UNKNOWN STEP	2026-09-20T03:45:16.5900570Z npm: 10.5.0
+UNKNOWN STEP	2026-09-20T03:45:16.5900797Z yarn: 1.22.22
+UNKNOWN STEP	2026-09-20T03:45:16.5901293Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:16.5924799Z [command]/opt/hostedtoolcache/node/18.20.2/x64/bin/npm config get cache
+UNKNOWN STEP	2026-09-20T03:45:16.8494608Z /home/runner/.npm
+UNKNOWN STEP	2026-09-20T03:45:16.9234044Z Cache hit for: node-cache-Linux-x64-npm-795e1029cbf2a200e93a2fe94700929de46e4d56aef910dcf09f19859a52f1a7
+UNKNOWN STEP	2026-09-20T03:45:16.9357343Z (node:2248) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+UNKNOWN STEP	2026-09-20T03:45:17.4073696Z Received 109918669 of 109918669 (100.0%), 233.5 MBs/sec
+UNKNOWN STEP	2026-09-20T03:45:17.4075154Z Cache Size: ~105 MB (109918669 B)
+UNKNOWN STEP	2026-09-20T03:45:17.4194106Z [command]/usr/bin/tar -xf /home/runner/work/_temp/a59183f1-d214-4ae9-931b-d29cfeaece0a/cache.tzst -P -C /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity --use-compress-program unzstd
+UNKNOWN STEP	2026-09-20T03:45:17.9080435Z Cache restored successfully
+UNKNOWN STEP	2026-09-20T03:45:17.9136128Z Cache restored from key: node-cache-Linux-x64-npm-795e1029cbf2a200e93a2fe94700929de46e4d56aef910dcf09f19859a52f1a7
+UNKNOWN STEP	2026-09-20T03:45:17.9334925Z ##[group]Run npm ci
+UNKNOWN STEP	2026-09-20T03:45:17.9335273Z ^[[36;1mnpm ci^[[0m
+UNKNOWN STEP	2026-09-20T03:45:17.9377665Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:17.9377964Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:19.2632413Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2633029Z npm WARN EBADENGINE   package: 'commander@14.0.3',
+UNKNOWN STEP	2026-09-20T03:45:19.2633543Z npm WARN EBADENGINE   required: { node: '>=20' },
+UNKNOWN STEP	2026-09-20T03:45:19.2634049Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2634449Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2636438Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2637468Z npm WARN EBADENGINE   package: '@supabase/auth-js@2.105.4',
+UNKNOWN STEP	2026-09-20T03:45:19.2638262Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2639068Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2639653Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2642652Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2643438Z npm WARN EBADENGINE   package: '@supabase/functions-js@2.105.4',
+UNKNOWN STEP	2026-09-20T03:45:19.2644187Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2644701Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2645128Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2647905Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2648692Z npm WARN EBADENGINE   package: '@supabase/postgrest-js@2.105.4',
+UNKNOWN STEP	2026-09-20T03:45:19.2649462Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2650017Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2650402Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2652399Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2653181Z npm WARN EBADENGINE   package: '@supabase/realtime-js@2.105.4',
+UNKNOWN STEP	2026-09-20T03:45:19.2653962Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2654457Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2654983Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2655495Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2656278Z npm WARN EBADENGINE   package: '@supabase/storage-js@2.105.4',
+UNKNOWN STEP	2026-09-20T03:45:19.2657292Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2657862Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2658315Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2658835Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2659590Z npm WARN EBADENGINE   package: '@supabase/supabase-js@2.105.4',
+UNKNOWN STEP	2026-09-20T03:45:19.2660347Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2660832Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2661217Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2668650Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2669429Z npm WARN EBADENGINE   package: 'eslint-visitor-keys@5.0.1',
+UNKNOWN STEP	2026-09-20T03:45:19.2670236Z npm WARN EBADENGINE   required: { node: '^20.19.0 || ^22.13.0 || >=24' },
+UNKNOWN STEP	2026-09-20T03:45:19.2670793Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2671161Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2672834Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2673593Z npm WARN EBADENGINE   package: 'eslint-visitor-keys@5.0.1',
+UNKNOWN STEP	2026-09-20T03:45:19.2674453Z npm WARN EBADENGINE   required: { node: '^20.19.0 || ^22.13.0 || >=24' },
+UNKNOWN STEP	2026-09-20T03:45:19.2675012Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2675391Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2677224Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2678145Z npm WARN EBADENGINE   package: 'eslint-visitor-keys@5.0.1',
+UNKNOWN STEP	2026-09-20T03:45:19.2679042Z npm WARN EBADENGINE   required: { node: '^20.19.0 || ^22.13.0 || >=24' },
+UNKNOWN STEP	2026-09-20T03:45:19.2679890Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2680313Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2710600Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2711634Z npm WARN EBADENGINE   package: 'iceberg-js@0.8.1',
+UNKNOWN STEP	2026-09-20T03:45:19.2712680Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2713738Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2714668Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2746376Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2747855Z npm WARN EBADENGINE   package: 'ora@9.4.0',
+UNKNOWN STEP	2026-09-20T03:45:19.2748884Z npm WARN EBADENGINE   required: { node: '>=20' },
+UNKNOWN STEP	2026-09-20T03:45:19.2749708Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2750114Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2752304Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2753255Z npm WARN EBADENGINE   package: 'string-width@8.2.1',
+UNKNOWN STEP	2026-09-20T03:45:19.2754186Z npm WARN EBADENGINE   required: { node: '>=20' },
+UNKNOWN STEP	2026-09-20T03:45:19.2755172Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2756034Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2770149Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2771092Z npm WARN EBADENGINE   package: 'react-router@7.15.0',
+UNKNOWN STEP	2026-09-20T03:45:19.2772292Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2773175Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2773899Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2774511Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2775316Z npm WARN EBADENGINE   package: 'react-router-dom@7.15.0',
+UNKNOWN STEP	2026-09-20T03:45:19.2776146Z npm WARN EBADENGINE   required: { node: '>=20.0.0' },
+UNKNOWN STEP	2026-09-20T03:45:19.2777284Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2778007Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:19.2778608Z npm WARN EBADENGINE Unsupported engine {
+UNKNOWN STEP	2026-09-20T03:45:19.2779358Z npm WARN EBADENGINE   package: 'commander@14.0.3',
+UNKNOWN STEP	2026-09-20T03:45:19.2780104Z npm WARN EBADENGINE   required: { node: '>=20' },
+UNKNOWN STEP	2026-09-20T03:45:19.2780942Z npm WARN EBADENGINE   current: { node: 'v18.20.2', npm: '10.5.0' }
+UNKNOWN STEP	2026-09-20T03:45:19.2781648Z npm WARN EBADENGINE }
+UNKNOWN STEP	2026-09-20T03:45:24.3609047Z npm WARN deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+UNKNOWN STEP	2026-09-20T03:45:24.4638548Z npm WARN deprecated stable@0.1.8: Modern JS already guarantees Array#sort() is a stable sort, so this library is deprecated. See the compatibility table on MDN: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort#browser_compatibility
+UNKNOWN STEP	2026-09-20T03:45:24.5618785Z npm WARN deprecated @babel/plugin-proposal-private-methods@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-methods instead.
+UNKNOWN STEP	2026-09-20T03:45:24.5622273Z npm WARN deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
+UNKNOWN STEP	2026-09-20T03:45:24.5625829Z npm WARN deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+UNKNOWN STEP	2026-09-20T03:45:24.5629505Z npm WARN deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+UNKNOWN STEP	2026-09-20T03:45:24.7260596Z npm WARN deprecated rollup-plugin-terser@7.0.2: This package has been deprecated and is no longer maintained. Please use @rollup/plugin-terser
+UNKNOWN STEP	2026-09-20T03:45:24.7923901Z npm WARN deprecated @humanwhocodes/config-array@0.13.0: Use @eslint/config-array instead
+UNKNOWN STEP	2026-09-20T03:45:24.8185038Z npm WARN deprecated whatwg-encoding@1.0.5: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+UNKNOWN STEP	2026-09-20T03:45:24.8324590Z npm WARN deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+UNKNOWN STEP	2026-09-20T03:45:24.8832354Z npm WARN deprecated abab@2.0.6: Use your platform's native atob() and btoa() methods instead
+UNKNOWN STEP	2026-09-20T03:45:24.9019687Z npm WARN deprecated @babel/plugin-proposal-private-property-in-object@7.21.11: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-property-in-object instead.
+UNKNOWN STEP	2026-09-20T03:45:24.9023443Z npm WARN deprecated @babel/plugin-proposal-optional-chaining@7.21.0: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
+UNKNOWN STEP	2026-09-20T03:45:25.1474091Z npm WARN deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+UNKNOWN STEP	2026-09-20T03:45:25.1707224Z npm WARN deprecated @humanwhocodes/object-schema@2.0.3: Use @eslint/object-schema instead
+UNKNOWN STEP	2026-09-20T03:45:25.2204836Z npm WARN deprecated domexception@2.0.1: Use your platform's native DOMException instead
+UNKNOWN STEP	2026-09-20T03:45:25.2677271Z npm WARN deprecated w3c-hr-time@1.0.2: Use your platform's native performance.now() and performance.timeOrigin.
+UNKNOWN STEP	2026-09-20T03:45:25.3419625Z npm WARN deprecated q@1.5.1: You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+UNKNOWN STEP	2026-09-20T03:45:25.3421544Z npm WARN deprecated 
+UNKNOWN STEP	2026-09-20T03:45:25.3422111Z npm WARN deprecated (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
+UNKNOWN STEP	2026-09-20T03:45:25.3960015Z npm WARN deprecated sourcemap-codec@1.4.8: Please use @jridgewell/sourcemap-codec instead
+UNKNOWN STEP	2026-09-20T03:45:26.2776373Z npm WARN deprecated workbox-cacheable-response@6.6.0: workbox-background-sync@6.6.0
+UNKNOWN STEP	2026-09-20T03:45:26.4307512Z npm WARN deprecated source-map@0.8.0-beta.0: The work that was done in this beta branch won't be included in future versions
+UNKNOWN STEP	2026-09-20T03:45:26.4375680Z npm WARN deprecated workbox-google-analytics@6.6.0: It is not compatible with newer versions of GA starting with v4, as long as you are using GAv3 it should be ok, but the package is not longer being maintained
+UNKNOWN STEP	2026-09-20T03:45:27.7102118Z npm WARN deprecated uuid@8.3.2: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
+UNKNOWN STEP	2026-09-20T03:45:28.0001940Z npm WARN deprecated svgo@1.3.2: This SVGO version is no longer supported. Upgrade to v2.x.x.
+UNKNOWN STEP	2026-09-20T03:45:31.5827292Z npm WARN deprecated eslint@8.57.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+UNKNOWN STEP	2026-09-20T03:45:38.7757274Z 
+UNKNOWN STEP	2026-09-20T03:45:38.7758398Z added 1714 packages, and audited 1715 packages in 21s
+UNKNOWN STEP	2026-09-20T03:45:38.7758895Z 
+UNKNOWN STEP	2026-09-20T03:45:38.7759197Z 320 packages are looking for funding
+UNKNOWN STEP	2026-09-20T03:45:38.7759843Z   run `npm fund` for details
+UNKNOWN STEP	2026-09-20T03:45:38.8466267Z 
+UNKNOWN STEP	2026-09-20T03:45:38.8467533Z 54 vulnerabilities (14 low, 12 moderate, 24 high, 4 critical)
+UNKNOWN STEP	2026-09-20T03:45:38.8468036Z 
+UNKNOWN STEP	2026-09-20T03:45:38.8468343Z To address issues that do not require attention, run:
+UNKNOWN STEP	2026-09-20T03:45:38.8468772Z   npm audit fix
+UNKNOWN STEP	2026-09-20T03:45:38.8468936Z 
+UNKNOWN STEP	2026-09-20T03:45:38.8469594Z To address all issues (including breaking changes), run:
+UNKNOWN STEP	2026-09-20T03:45:38.8470044Z   npm audit fix --force
+UNKNOWN STEP	2026-09-20T03:45:38.8470237Z 
+UNKNOWN STEP	2026-09-20T03:45:38.8470388Z Run `npm audit` for details.
+UNKNOWN STEP	2026-09-20T03:45:38.9429599Z ##[group]Run node scripts/check_eslint.js
+UNKNOWN STEP	2026-09-20T03:45:38.9429987Z ^[[36;1mnode scripts/check_eslint.js^[[0m
+UNKNOWN STEP	2026-09-20T03:45:38.9469087Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:38.9469357Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:55.5962542Z ESLint gate — 1101 files linted, 154 errors, 923 warnings.
+UNKNOWN STEP	2026-09-20T03:45:55.5966108Z ✅ No never-zero rule fired and no rule exceeded its baseline.
+UNKNOWN STEP	2026-09-20T03:45:55.5967052Z 
+UNKNOWN STEP	2026-09-20T03:45:55.5967652Z 🎉 Debt reduced since the baseline was recorded:
+UNKNOWN STEP	2026-09-20T03:45:55.5968826Z     unused-imports/no-unused-imports: 128 → 126 (-2) [warnings]
+UNKNOWN STEP	2026-09-20T03:45:55.5969401Z 
+UNKNOWN STEP	2026-09-20T03:45:55.5969859Z     Lock it in:  node scripts/check_eslint.js --write-baseline
+UNKNOWN STEP	2026-09-20T03:45:55.6806351Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:45:55.8100842Z (node:2379) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+UNKNOWN STEP	2026-09-20T03:45:55.8101829Z (Use `node --trace-deprecation ...` to show where the warning was created)
+UNKNOWN STEP	2026-09-20T03:45:55.8105002Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-795e1029cbf2a200e93a2fe94700929de46e4d56aef910dcf09f19859a52f1a7, not saving cache.
+UNKNOWN STEP	2026-09-20T03:45:55.8255872Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:45:55.9115282Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:45:55.9159527Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:45:55.9197960Z Temporarily overriding HOME='/home/runner/work/_temp/c6a71308-e6bf-49df-9799-66e18ffd7ed9' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:45:55.9199465Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:45:55.9204786Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:55.9244139Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:45:55.9280686Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:45:55.9547924Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:45:55.9576360Z http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:45:55.9589177Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:45:55.9624065Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:45:55.9906270Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:45:55.9948325Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:45:56.0414541Z Cleaning up orphan processes

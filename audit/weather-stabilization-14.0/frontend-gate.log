@@ -1,0 +1,33 @@
+PASS src/components/map/marineGlobalPrewarm.seriesReuse.test.js
+  ● Console
+
+    console.log
+      [WEATHER_TRUTH] Stage: seriesFrameMint | TraceID: 102fc659 | Product: series_GFS_waves_h0 | Status: OK
+
+      at recordTruthStage (src/components/map/weatherTruthTracker.js:353:13)
+
+    console.log
+      [WEATHER_TRUTH] Stage: cacheRead | TraceID: 102fc659 | Product: series_GFS_waves_h0 | Status: OK
+
+      at recordTruthStage (src/components/map/weatherTruthTracker.js:353:13)
+
+PASS src/tests/marine-card-matrix-closure.test.js
+PASS src/components/map/useMarineOrchestratorScrubCache.timeline.test.js
+  ● Console
+
+    console.log
+      [SCRUB] [BACKEND CACHE] Instant re-index: +0h model=GFS layer=waves
+
+      at src/components/map/useMarineOrchestratorScrubCache.js:167:21
+
+PASS src/components/map/marineTimelineCoverage.test.js
+PASS src/components/map/ForecastTimeStatus.test.js
+PASS src/components/map/backendWeatherServiceClient.readOnly.test.js
+PASS src/tests/forecast-card-swell-vs-surf.test.js
+
+Test Suites: 7 passed, 7 total
+Tests:       96 passed, 96 total
+Snapshots:   0 total
+Time:        3.136 s, estimated 4 s
+Ran all test suites matching /marine-card-matrix-closure|forecast-card-swell-vs-surf|marineGlobalPrewarm.seriesReuse|marineTimelineCoverage|useMarineOrchestratorScrubCache.timeline|backendWeatherServiceClient.readOnly|ForecastTimeStatus/i.
+Test results written to: ..\audit\weather-stabilization-14.0\frontend-gate.json

@@ -33,9 +33,7 @@ const HairStyleCard = ({ style, isSelected, onSelect, colors }) => (
         : `${colors.buttonBg} border border-transparent hover:border-yellow-500/30`
     }`}
   >
-    <div className={`text-2xl ${isSelected ? 'scale-110' : ''} transition-transform`}>
-      {style.emoji}
-    </div>
+    <Scissors className={`w-6 h-6 ${isSelected ? 'scale-110 text-yellow-400' : colors.secondaryText} transition-transform`} aria-hidden="true" />
     <span className={`text-[10px] font-medium leading-tight text-center ${
       isSelected ? 'text-yellow-400' : colors.primaryText
     }`}>

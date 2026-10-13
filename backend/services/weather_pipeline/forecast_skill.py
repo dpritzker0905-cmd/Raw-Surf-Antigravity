@@ -43,7 +43,14 @@ PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy g
 # demand plus two more compare models (6 lanes -> 25,920) and bounds the object at ~3.6 MB; if it
 # ever binds, that is itself a pathology signal, and `merge_pending`'s keep-earliest order confines
 # the damage to the farthest lead instead of zeroing all three.
-PENDING_MAX_ENTRIES = 30000
+# ⬆ 30,000 -> 54,000 (2026-09-30 audit). It BOUND: production's armed lanes are ours, ICON, EURO, the CONSENSUS
+# shadow (armed 2026-09-29), Open-Meteo marine, the Open-Meteo same-model control and persistence = 7, i.e.
+# 59 buoys x 7 x 12 runs/day x 6 lead-days = 29,736 rows of demand; the live report read pending_kept 29,477 of
+# 30,000. The headroom test counted only the code-default lanes (5) and missed both. Two switch-added lanes are
+# queued behind it: GFS_RAW (added automatically by the CONSENSUS_SERVE flip) and GFS_SCALAR, which would have
+# started evicting every lane's +72 h rows. 9 lanes x 60 x 72 = 38,880; x1.3 = 50,544 <= 54,000 (~6.5 MB object,
+# read and written only in the Actions lanes).
+PENDING_MAX_ENTRIES = 54000
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
@@ -119,7 +126,27 @@ def compare_models(primary: str) -> List[str]:
         m = m.strip().upper()
         if m and m != (primary or "").strip().upper() and m not in out:
             out.append(m)
+    # THE CONSENSUS SHADOW LANE (2026-09-29, D-009): the switch that builds the shadow product also grades it,
+    # so the ledger scores `raw_surf:CONSENSUS` on the same buoys, hours and leads as every member.
+    from services.weather_pipeline.consensus_ingest import CONSENSUS_MODEL, enabled as consensus_enabled
+    if consensus_enabled() and CONSENSUS_MODEL not in out and CONSENSUS_MODEL != (primary or "").strip().upper():
+        out.append(CONSENSUS_MODEL)
+    # THE RAW GFS BASELINE while the consensus is SERVED (consensus_serve, D-009): the primary lane then scores the
+    # served consensus, so raw GFS keeps its own lane, resolved under serve_raw().
+    if os.environ.get("CONSENSUS_SERVE", "0") == "1" and (primary or "").strip().upper() == "GFS":
+        out.append(GFS_RAW)
+    # THE SCALAR-HEIGHT SHADOW (2026-09-30 audit): while SAMPLER_SCALAR_HEIGHT is dark, SAMPLER_SCALAR_LEDGER grades
+    # the served GFS product sampled with a SCALAR height (sampler.force_scalar_height) on the same buoys, hours and
+    # leads as the served lane, so the flip is decided on paired buoy truth. Once the switch serves, the primary lane
+    # IS the scalar answer and the shadow would count it twice, so it retires itself.
+    if (os.environ.get("SAMPLER_SCALAR_LEDGER", "0") == "1" and os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") != "1"
+            and (primary or "").strip().upper() == "GFS"):
+        out.append(GFS_SCALAR)
     return out
+
+
+GFS_RAW = "GFS_RAW"
+GFS_SCALAR = "GFS_SCALAR"
 
 
 def source_for(model: str, primary: str) -> str:
@@ -162,8 +189,21 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         if bid is None or bid in seen or hs in (None, 0.0):
             continue
         seen.add(bid)
-        rows.append({"source": source, "buoy_id": bid, "target_time": target_time,
-                     "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s")})
+        # WHICH product, frame and cycle answered (skill_attribution): the paired gap to the same-model
+        # control can only be split by what the row records. Absent keys = unknown, never guessed.
+        from services.weather_pipeline.skill_attribution import serving_provenance
+        served = entry.get("served") or {}
+        row = {"source": source, "buoy_id": bid, "target_time": target_time,
+               "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
+               **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)}
+        if res.get("model_dir_deg") is not None:    # S8 (skill_direction_period); absent = not recorded
+            row["dir_deg"] = res["model_dir_deg"]
+        wres = entry.get("wind_residual") or {}      # S9: the lane's forecast wind at the target hour (knots)
+        if wres.get("model_wspd_kt") is not None:
+            row["wind_kt"] = wres["model_wspd_kt"]
+        if wres.get("model_wdir_deg") is not None:
+            row["wind_from_deg"] = wres["model_wdir_deg"]
+        rows.append(row)
     return rows
 
 
@@ -178,11 +218,20 @@ def persistence_rows_from_report(report, now: datetime, leads_h=LEADS_H) -> List
         if bid is None or bid in seen or not isinstance(obs, (int, float)):
             continue
         seen.add(bid)
+        mwd = (entry.get("residual") or {}).get("buoy_mwd_deg")
+        wres = entry.get("wind_residual") or {}
         for lead in leads_h:
             target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
-            rows.append({"source": SOURCE_PERSISTENCE, "buoy_id": bid, "target_time": target,
-                         "lead_h": float(lead), "hs_m": obs,
-                         "tp_s": (entry.get("residual") or {}).get("buoy_dpd_s")})
+            row = {"source": SOURCE_PERSISTENCE, "buoy_id": bid, "target_time": target,
+                   "lead_h": float(lead), "hs_m": obs,
+                   "tp_s": (entry.get("residual") or {}).get("buoy_dpd_s")}
+            if mwd is not None:                        # persistence is S8's no-skill reference too
+                row["dir_deg"] = mwd
+            if wres.get("buoy_wspd_kt") is not None:   # ... and S9's
+                row["wind_kt"] = wres["buoy_wspd_kt"]
+                if wres.get("buoy_wdir_deg") is not None:
+                    row["wind_from_deg"] = wres["buoy_wdir_deg"]
+            rows.append(row)
     return rows
 
 
@@ -296,37 +345,63 @@ def merge_pending(existing, incoming, now: Optional[datetime] = None,
     return kept
 
 
-def score_pending(pending, report, now: Optional[datetime] = None):
+def score_pending(pending, report, now: Optional[datetime] = None, stats: Optional[dict] = None):
     """Split pending into (still_pending, scored): a row scores when THIS run's report holds a
-    buoy observation within tolerance of its target hour."""
+    finite nonnegative buoy observation within tolerance of its target hour.
+
+    Invalid forecast heights cannot be recovered by waiting and are rejected, with optional
+    counts for the operator report. Valid forecasts retain the existing expiry policy when
+    this report has no eligible observation. Explicit calm zero is distinct from missing.
+    """
     now = now or datetime.now(timezone.utc)
     obs = {}
+    invalid_forecasts = invalid_observations = 0
     for entry in (report or {}).get("spots") or []:
         bid = entry.get("buoy_id")
         res = entry.get("residual") or {}
         bt = _parse_iso(entry.get("buoy_time"))
-        if bid is None or bt is None or res.get("buoy_wvht_m") is None:
+        if bid is None or bt is None:
             continue
-        obs.setdefault(bid, []).append((bt, res.get("buoy_wvht_m"), res.get("buoy_dpd_s")))
+        height = res.get("buoy_wvht_m")
+        if not _finite_number(height) or height < 0.0:
+            invalid_observations += 1
+            continue
+        wres = entry.get("wind_residual") or {}         # fresh anemometer reading (age-gated upstream), S9
+        obs.setdefault(bid, []).append((bt, height, res.get("buoy_dpd_s"), res.get("buoy_mwd_deg"), res.get("buoy_apd_s"),
+                                        wres.get("buoy_wspd_kt"), wres.get("buoy_wdir_deg")))
     still, scored = [], []
     for row in pending or []:
         t = _parse_iso(row.get("target_time"))
         if t is None:
             continue
+        height = row.get("hs_m")
+        if not _finite_number(height) or height < 0.0:
+            invalid_forecasts += 1
+            continue
         candidates = obs.get(row.get("buoy_id")) or []
         best = None
-        for bt, wvht, dpd in candidates:
+        for bt, wvht, dpd, mwd, apd, wkt, wdir in candidates:
             dt_s = abs((bt - t).total_seconds())
             if dt_s <= SCORE_JOIN_TOLERANCE_S and (best is None or dt_s < best[0]):
-                best = (dt_s, bt, wvht, dpd)
+                best = (dt_s, bt, wvht, dpd, mwd, apd, wkt, wdir)
         if best is not None:
-            scored.append({**row,
-                           "obs_time": best[1].isoformat(),
-                           "obs_hs_m": best[2], "obs_dpd_s": best[3],
-                           "err_m": round((row.get("hs_m") or 0.0) - best[2], 4)})
+            done = {**row, "obs_time": best[1].isoformat(),
+                    "obs_hs_m": best[2], "obs_dpd_s": best[3],
+                    "err_m": round(height - best[2], 4)}
+            if best[4] is not None:                    # S8's verifying direction and the bimodal flag's APD
+                done["obs_mwd_deg"] = best[4]
+            if best[5] is not None:
+                done["obs_apd_s"] = best[5]
+            if best[6] is not None:                    # S9's verifying wind (knots, direction FROM)
+                done["obs_wind_kt"] = best[6]
+                if best[7] is not None:
+                    done["obs_wind_from_deg"] = best[7]
+            scored.append(done)
         elif t > now - timedelta(hours=PENDING_EXPIRY_H):
             still.append(row)
         # else: expired unmatched — dropped
+    if stats is not None:
+        stats.update(invalid_forecasts=invalid_forecasts, invalid_observations=invalid_observations)
     return still, scored
 
 
@@ -372,13 +447,16 @@ def obs_band(obs_m) -> Optional[str]:
     return None
 
 
+def _finite_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
+
 def verification_metrics(pairs) -> Optional[dict]:
     """Operational wave-verification metrics over (forecast_m, observed_m) pairs, or None if empty.
 
     Shape metrics (si/corr/sym_slope) are None rather than a number whenever they would be
     unstable or undefined — see MIN_N_FOR_SHAPE above for why that matters more than coverage."""
-    fo = [(f, o) for f, o in (pairs or [])
-          if isinstance(f, (int, float)) and isinstance(o, (int, float))]
+    fo = [(f, o) for f, o in (pairs or []) if _finite_number(f) and _finite_number(o)]
     n = len(fo)
     if n == 0:
         return None
@@ -411,9 +489,15 @@ def verification_metrics(pairs) -> Optional[dict]:
     return out
 
 
-def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
+def head_to_head(scored_rows, primary: str = SOURCE_OURS,
+                 diagnostics: Optional[dict] = None) -> List[dict]:
     """PAIRED comparison of `primary` against every other source, on the EXACT SAME
-    (buoy_id, target_time, lead-bucket) keys.
+    (buoy_id, target_time, lead-bucket) keys AND the same verifying observation.
+
+    Matching target hours alone does not establish observation parity: score_pending allows
+    observations within 90 minutes, and different scoring runs can select different ones.
+    Missing observation identity is ungradeable. Optional diagnostics expose exclusions even
+    when no valid comparison survives; existing callers still receive a list of scored pairs.
 
     ⛔⛔ WHY THIS EXISTS — IT CAUGHT A FALSE ALARM, MINE, ON 2026-08-10. `skill_summary` groups each
     source INDEPENDENTLY, so its MAE column compares DIFFERENT POPULATIONS. Read across that column
@@ -431,28 +515,50 @@ def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
     `win_rate` is the fraction of paired keys where our absolute error is strictly smaller — a
     median-free view, because one storm can move an MAE and cannot move a win rate.
     """
-    by_source: Dict[str, Dict[tuple, float]] = {}
+    by_source: Dict[str, Dict[tuple, dict]] = {}
+    invalid_errors = 0
     for r in scored_rows or []:
         e = r.get("err_m")
-        if not isinstance(e, (int, float)):
+        if not _finite_number(e):
+            invalid_errors += 1
             continue
         key = (r.get("buoy_id"), r.get("target_time"), _lead_bucket(r.get("lead_h") or 0))
-        by_source.setdefault(r.get("source"), {})[key] = abs(e)
+        by_source.setdefault(r.get("source"), {})[key] = r
 
     ours = by_source.get(primary) or {}
     out = []
+    exclusions = []
     for source in sorted(k for k in by_source if k != primary):
         theirs = by_source[source]
         for bucket in sorted({k[2] for k in ours} | {k[2] for k in theirs}):
-            common = [k for k in ours if k[2] == bucket and k in theirs]
-            if not common:
+            candidates = [k for k in ours if k[2] == bucket and k in theirs]
+            if not candidates:
                 continue
+            common = []
+            missing = mismatched = 0
+            for key in candidates:
+                our_obs, their_obs = ours[key], theirs[key]
+                our_time, their_time = _parse_iso(our_obs.get("obs_time")), _parse_iso(their_obs.get("obs_time"))
+                our_h, their_h = our_obs.get("obs_hs_m"), their_obs.get("obs_hs_m")
+                if (our_time is None or their_time is None
+                        or not _finite_number(our_h) or not _finite_number(their_h)):
+                    missing += 1
+                elif our_time != their_time or our_h != their_h:
+                    mismatched += 1
+                else:
+                    common.append(key)
             n = len(common)
-            mo = sum(ours[k] for k in common) / n
-            mt = sum(theirs[k] for k in common) / n
-            wins = sum(1 for k in common if ours[k] < theirs[k])
+            excluded = {"source": source, "lead_h": bucket * 24,
+                        "n_target_matched": len(candidates), "n_paired": n,
+                        "n_observation_mismatch": mismatched, "n_observation_missing": missing}
+            exclusions.append(excluded)
+            if not n:
+                continue
+            mo = sum(abs(ours[k]["err_m"]) for k in common) / n
+            mt = sum(abs(theirs[k]["err_m"]) for k in common) / n
+            wins = sum(1 for k in common if abs(ours[k]["err_m"]) < abs(theirs[k]["err_m"]))
             out.append({
-                "source": source, "lead_h": bucket * 24, "n_paired": n,
+                **excluded,
                 "n_ours_total": sum(1 for k in ours if k[2] == bucket),
                 "n_theirs_total": sum(1 for k in theirs if k[2] == bucket),
                 "mae_ours_m": round(mo, 4), "mae_theirs_m": round(mt, 4),
@@ -460,6 +566,8 @@ def head_to_head(scored_rows, primary: str = SOURCE_OURS) -> List[dict]:
                 "win_rate": round(wins / n, 4),
                 "we_lose": mo > mt,
             })
+    if diagnostics is not None:
+        diagnostics.update(invalid_error_rows=invalid_errors, comparisons=exclusions)
     return out
 
 
@@ -472,7 +580,7 @@ def skill_summary(scored_rows) -> List[dict]:
     error a surfer notices most while contributing least to the average."""
     groups: Dict[tuple, List[dict]] = {}
     for r in scored_rows or []:
-        if not isinstance(r.get("err_m"), (int, float)):
+        if not _finite_number(r.get("err_m")):
             continue
         groups.setdefault((r.get("source"), _lead_bucket(r.get("lead_h") or 0)), []).append(r)
     out = []
@@ -508,7 +616,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     if os.environ.get("FORECAST_SKILL", "1") == "0":
         return None
     from services.weather_pipeline.buoy_calibration import (
-        calibrate_spots, fetch_ndbc_station_coords, load_calibration_l2, upload_calibration_l2,
+        calibrate_spots, fetch_ndbc_station_coords, load_calibration_rows_l2, upload_calibration_l2,
     )
     now = now or datetime.now(timezone.utc)
     incoming: List[dict] = []
@@ -519,7 +627,16 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
         for lead in LEADS_H:
             target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
             try:
-                lead_report = await calibrate_spots(resolver, spots, mdl, target)
+                if mdl == GFS_RAW:                   # raw GFS, not the served consensus (compare_models)
+                    from services.weather_pipeline.consensus_serve import serve_raw
+                    with serve_raw():
+                        lead_report = await calibrate_spots(resolver, spots, "GFS", target)
+                elif mdl == GFS_SCALAR:              # the served GFS, sampled with a scalar height (compare_models)
+                    from services.weather_pipeline.sampler import force_scalar_height
+                    with force_scalar_height():
+                        lead_report = await calibrate_spots(resolver, spots, "GFS", target)
+                else:
+                    lead_report = await calibrate_spots(resolver, spots, mdl, target)
                 incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
             except Exception as e:
                 logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
@@ -544,11 +661,12 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     except Exception as e:
         logger.warning("[forecast-skill] competitor lane failed (%s)", e)
 
-    pending = load_calibration_l2(SKILL_PENDING_L2_KEY) or []
+    pending, pending_exists = load_calibration_rows_l2(SKILL_PENDING_L2_KEY)
     merge_stats: Dict[str, int] = {}
     pending = merge_pending(pending, incoming, now=now, stats=merge_stats)
-    still, scored = score_pending(pending, report, now=now)
-    upload_calibration_l2(store, still, SKILL_PENDING_L2_KEY)
+    score_stats: Dict[str, int] = {}
+    still, scored = score_pending(pending, report, now=now, stats=score_stats)
+    archives = []
     if scored:
         month_groups: Dict[str, List[dict]] = {}
         for r in scored:
@@ -556,20 +674,67 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             month_groups.setdefault(t.strftime("%Y-%m"), []).append(r)
         for month, rows in month_groups.items():
             key = f"{SKILL_SCORED_PREFIX}{month}.json"
-            existing = load_calibration_l2(key) or []
+            existing, exists = load_calibration_rows_l2(key)
             seen = {dedupe_key(r) for r in existing}
             fresh = [r for r in rows if dedupe_key(r) not in seen]
             if fresh:
-                upload_calibration_l2(store, existing + fresh, key)
+                archives.append((key, existing + fresh, exists))
+    # Preflight every touched month before any write. A partial archive write is
+    # safe to retry by dedupe; consume pending only after every archive acknowledges.
+    # This is not CAS: concurrent successful read/modify/write updates remain separate.
+    for key, rows, exists in archives:
+        upload_calibration_l2(store, rows, key, strict=True, overwrite=exists)
+    upload_calibration_l2(store, still, SKILL_PENDING_L2_KEY,
+                          strict=True, overwrite=pending_exists)
     summary = skill_summary(scored)
     # ⚠️ The `ledgered=%d scored=%d` prefix is an operator surface: it is the string the Actions-log
     # grep dated the 08-04 outage with. Append fields, never reorder it.
-    logger.info("[forecast-skill] ledgered=%d scored=%d pending=%d evicted_cap=%d %s",
+    logger.info("[forecast-skill] ledgered=%d scored=%d pending=%d evicted_cap=%d invalid_forecasts=%d invalid_observations=%d %s",
                 len(incoming), len(scored), len(still), merge_stats.get("cap_evicted", 0),
+                score_stats["invalid_forecasts"], score_stats["invalid_observations"],
                 summary if summary else "")
+    # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
+    # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
+    # the shadow block and nothing else. See skill_mos.py.
+    mos = attribution = consensus = dirper = None
+    if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
+        try:
+            from services.weather_pipeline.skill_attribution import same_model_attribution
+            from services.weather_pipeline.skill_mos import shadow_report
+            history = mos_history_rows(now, archives, load_calibration_rows_l2)
+            mos = shadow_report(history, now)
+            # WHERE the paired same-model gap comes from (tier / frame snap / cycle age). Same history,
+            # same guard: a failure costs these two blocks and nothing else.
+            attribution = same_model_attribution(history)
+            # The three-model consensus (stage 5) on the same scored history: measurement only.
+            from services.weather_pipeline.skill_consensus import consensus_report, shadow_report as consensus_shadow
+            consensus = consensus_report(history, now)
+            # The BUILT shadow (D-009) beside what it was built from: published inside the same block.
+            consensus["shadow"] = consensus_shadow(history, now)
+            # S7/S8: period and direction on the same history (skill_direction_period); its own guard.
+            try:
+                from services.weather_pipeline.skill_direction_period import direction_period_report
+                dirper = direction_period_report(history, now)
+            except Exception as e:
+                logger.warning("[forecast-skill] direction/period block skipped (%s)", e)
+        except Exception as e:
+            logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
-            "summary": summary}
+            "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos,
+            "same_model_attribution": attribution, "consensus": consensus, "direction_period": dirper}
+
+
+def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
+    """The scored rows of this month and the previous one: the shadow MOS's training and held-out
+    window. A month this run just wrote is taken from `archives` rather than read back."""
+    prev = now.replace(day=1) - timedelta(days=1)
+    written = {key: rows for key, rows, _ in archives}
+    rows: List[dict] = []
+    for month in (prev, now):
+        key = f"{SKILL_SCORED_PREFIX}{month:%Y-%m}.json"
+        rows.extend(written[key] if key in written else load_rows(key)[0])
+    return rows
 
 
 def attach_to_report(report, skill) -> None:
@@ -583,3 +748,13 @@ def attach_to_report(report, skill) -> None:
     report["forecast_skill"] = skill.get("summary") or []
     report["forecast_skill_ops"] = {k: skill.get(k) for k in
                                     ("ledgered", "scored", "pending_kept", "pending_evicted_cap")}
+    if "scoring_rejections" in skill:
+        report["forecast_skill_ops"]["scoring_rejections"] = skill["scoring_rejections"]
+    if skill.get("mos_shadow") is not None:
+        report["forecast_skill_mos_shadow"] = skill["mos_shadow"]
+    if skill.get("same_model_attribution") is not None:
+        report["forecast_skill_same_model"] = skill["same_model_attribution"]
+    if skill.get("consensus") is not None:
+        report["forecast_skill_consensus"] = skill["consensus"]
+    if skill.get("direction_period") is not None:
+        report["forecast_skill_direction_period"] = skill["direction_period"]

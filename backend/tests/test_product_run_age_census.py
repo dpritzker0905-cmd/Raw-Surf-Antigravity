@@ -218,3 +218,36 @@ def test_thresholds_are_ordered_and_cover_every_tier_tier_of_can_return():
                 list(prac.FLAGSHIP_REGIONS) + list(prac.WORLDWIDE_REGIONS)
                 + ["global_coarse", "global_mid", None, "unknown"]}
     assert produced <= set(prac.THRESHOLDS)
+
+
+# ── GATED lanes (2026-09-23, audit 14.1) ──────────────────────────────────────────────────────────
+# The island lane was switched off 2026-09-19; its listed-but-unserved products paged the monitor on
+# 4 consecutive runs (86.2 h, EURO swell_1 @ island_*). A gated lane must be REPORTED, never paged —
+# and only when the audited box itself says the gate is disarmed.
+
+def test_island_lane_is_gated_when_the_box_reports_serving_disarmed():
+    rows = prac.census([_p("EURO", "marine", "swell_1", "island_azores", 86.2)], NOW, gates={"island": False})
+    assert rows[0]["verdict"] == "GATED"
+
+
+def test_gated_outranks_expired_so_the_lane_does_not_page_again_when_it_ages_out():
+    rows = prac.census([_p("EURO", "marine", "swell_1", "island_azores", 200.0, horizon_h=-5)], NOW,
+                       gates={"island": False})
+    assert rows[0]["verdict"] == "GATED"
+
+
+@pytest.mark.parametrize("gates", [None, {}, {"island": True}, {"island": None}, "garbage"])
+def test_unknown_or_armed_gate_grades_the_island_lane_exactly_as_before(gates):
+    rows = prac.census([_p("EURO", "marine", "swell_1", "island_azores", 86.2)], NOW, gates=gates)
+    assert rows[0]["verdict"] == "CRITICAL"
+
+
+def test_a_disarmed_gate_never_hides_a_non_island_lane():
+    rows = prac.census([_p("GFS", "marine", "waves", "uk_ireland", 447.5)], NOW, gates={"island": False})
+    assert rows[0]["verdict"] == "CRITICAL"
+
+
+def test_gate_for_matches_only_the_island_prefix():
+    assert prac.gate_for("island_madeira") == "island"
+    assert prac.gate_for("iberia_west") is None
+    assert prac.gate_for(None) is None

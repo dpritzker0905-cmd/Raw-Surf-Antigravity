@@ -1,0 +1,10 @@
+{
+  "source": "frontend\\src\\components\\map\\marineGlobalPrewarm.js",
+  "sourceSha256": "0d63a161fb5aab685cfdd90b178f6133fccf1be813e915844f497fd327d38e5f",
+  "variants": {
+    "baseline": "ad31f7d6ee4aa272b9679be5bbf083aae6526722c0994b60d6ff1df3e0884183",
+    "candidate-control": "7f75e56c894e1842b3a9e2384aa996ba1d7f61bab71150d6e0bc576db2fecd06",
+    "unsafe-time": "0bc0113c4bdc8f12b42072480c7933921c440cd0f0e0e435fa30512b44a06055"
+  },
+  "testSha256": "1cf8e25f08588dd3476a9a4dae56f2495435336806971784f47edefd8ea86e51"
+}

@@ -94,7 +94,7 @@ const LineupCard = ({
     setLoading(true);
     try {
       await onJoin(lineup.id);
-      toast.success('Joined the lineup! ??');
+      toast.success('Joined the lineup!');
       onRefresh?.();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to join lineup');

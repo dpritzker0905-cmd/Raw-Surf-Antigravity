@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timezone
 from models import (
     Gallery, GalleryItem, Profile,
@@ -14,9 +15,53 @@ from models import (
 from .claims import SelectPhotosRequest
 router = APIRouter()
 
+
+def quota_scope(quota):
+    """Which single scope identifies this quota's photos: 'booking', 'live', 'gallery' or None.
+
+    On-demand (dispatch) quotas carry only a gallery_id, so they are scoped by gallery. A quota
+    naming both a booking and a live session is ambiguous, and one naming nothing would match every
+    eligible photo the surfer has: both are refused (None).
+    """
+    if quota.booking_id and quota.live_session_id:
+        return None
+    if quota.booking_id:
+        return 'booking'
+    if quota.live_session_id:
+        return 'live'
+    return 'gallery' if quota.gallery_id else None
+
+
+def in_quota_gallery(quota):
+    """SurferGalleryItem rows whose parent gallery item belongs to the quota's gallery."""
+    return SurferGalleryItem.gallery_item_id.in_(
+        select(GalleryItem.id).where(GalleryItem.gallery_id == quota.gallery_id)
+    )
+
+
+def quota_items_query(quota, scope):
+    """Use the same owner, photographer and scope boundary on every selection surface."""
+    query = select(SurferGalleryItem).where(
+        SurferGalleryItem.surfer_id == quota.surfer_id,
+        SurferGalleryItem.photographer_id == quota.photographer_id,
+    )
+    if scope == 'booking':
+        return query.where(SurferGalleryItem.booking_id == quota.booking_id)
+    if scope == 'live':
+        return query.where(SurferGalleryItem.live_session_id == quota.live_session_id)
+    if scope == 'gallery':
+        return query.where(
+            SurferGalleryItem.booking_id.is_(None),
+            SurferGalleryItem.live_session_id.is_(None),
+            in_quota_gallery(quota),
+        )
+    raise HTTPException(status_code=400, detail="Selection quota needs exactly one session")
+
+
 @router.get("/selection-queue/{surfer_id}")
 async def get_selection_queue(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -24,6 +69,9 @@ async def get_selection_queue(
     Returns sessions where the surfer has photos to select from their "included" allocation.
     """
     
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection queue belongs to another surfer")
+
     # Get all pending quotas
     result = await db.execute(
         select(SurferSelectionQuota)
@@ -40,21 +88,18 @@ async def get_selection_queue(
     
     response_quotas = []
     for quota in quotas:
+        scope = quota_scope(quota)
+        if scope is None:
+            continue
         # Determine session type and ID
-        session_type = 'booking' if quota.booking_id else 'live_session'
-        session_id = quota.booking_id or quota.live_session_id
+        session_type = {'booking': 'booking', 'live': 'live_session', 'gallery': 'on_demand'}[scope]
+        session_id = quota.booking_id or quota.live_session_id or quota.gallery_id
         
         # Get eligible gallery items for this session that haven't been selected yet
-        items_query = select(SurferGalleryItem).where(
-            SurferGalleryItem.surfer_id == surfer_id,
+        items_query = quota_items_query(quota, scope).where(
             SurferGalleryItem.selection_eligible == True,
             SurferGalleryItem.access_type == 'pending_selection'
         )
-        
-        if quota.booking_id:
-            items_query = items_query.where(SurferGalleryItem.booking_id == quota.booking_id)
-        else:
-            items_query = items_query.where(SurferGalleryItem.live_session_id == quota.live_session_id)
         
         items_result = await db.execute(
             items_query.options(selectinload(SurferGalleryItem.gallery_item))
@@ -115,6 +160,7 @@ async def get_selection_queue(
 async def select_included_photos(
     quota_id: str,
     request: SelectPhotosRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -125,13 +171,22 @@ async def select_included_photos(
     
     # Get the quota
     result = await db.execute(
-        select(SurferSelectionQuota).where(SurferSelectionQuota.id == quota_id)
+        select(SurferSelectionQuota).where(SurferSelectionQuota.id == quota_id).with_for_update()
     )
     quota = result.scalar_one_or_none()
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
+    if len(request.item_ids) != len(set(request.item_ids)):
+        raise HTTPException(status_code=400, detail="Select each photo only once")
+    scope = quota_scope(quota)
+    if scope is None:
+        raise HTTPException(status_code=400, detail="Selection quota needs exactly one session")
+
     if quota.status != 'pending_selection':
         raise HTTPException(status_code=400, detail="Selection already completed or expired")
     
@@ -148,9 +203,9 @@ async def select_included_photos(
     for item_id in request.item_ids:
         # Get the surfer gallery item
         item_result = await db.execute(
-            select(SurferGalleryItem)
+            quota_items_query(quota, scope)
             .where(SurferGalleryItem.id == item_id)
-            .where(SurferGalleryItem.surfer_id == quota.surfer_id)
+            .where(SurferGalleryItem.access_type == 'pending_selection')
             .options(selectinload(SurferGalleryItem.gallery_item))
         )
         item = item_result.scalar_one_or_none()
@@ -161,13 +216,9 @@ async def select_included_photos(
         if not item.selection_eligible:
             continue
         
-        # Check if from the same session
-        if quota.booking_id and item.booking_id != quota.booking_id:
-            continue
-        if quota.live_session_id and item.live_session_id != quota.live_session_id:
-            continue
-        
         gi = item.gallery_item
+        if gi is None:
+            continue
         if gi.media_type == 'video':
             video_items.append(item)
         else:
@@ -210,13 +261,11 @@ async def select_included_photos(
         quota.completed_at = datetime.now(timezone.utc)
         
         # Mark remaining eligible items as 'pending' (purchasable)
-        remaining_result = await db.execute(
-            select(SurferGalleryItem).where(
-                SurferGalleryItem.surfer_id == quota.surfer_id,
-                SurferGalleryItem.selection_eligible == True,
-                SurferGalleryItem.access_type == 'pending_selection'
-            )
+        remaining_query = quota_items_query(quota, scope).where(
+            SurferGalleryItem.selection_eligible == True,
+            SurferGalleryItem.access_type == 'pending_selection',
         )
+        remaining_result = await db.execute(remaining_query)
         remaining_items = remaining_result.scalars().all()
         
         for item in remaining_items:
@@ -238,6 +287,7 @@ async def select_included_photos(
 @router.get("/selection-queue/{quota_id}/items")
 async def get_selection_eligible_items(
     quota_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -254,16 +304,11 @@ async def get_selection_eligible_items(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
-    # Get items query
-    items_query = select(SurferGalleryItem).where(
-        SurferGalleryItem.surfer_id == quota.surfer_id
-    )
-    
-    if quota.booking_id:
-        items_query = items_query.where(SurferGalleryItem.booking_id == quota.booking_id)
-    else:
-        items_query = items_query.where(SurferGalleryItem.live_session_id == quota.live_session_id)
+    items_query = quota_items_query(quota, quota_scope(quota))
     
     items_result = await db.execute(
         items_query.options(selectinload(SurferGalleryItem.gallery_item))
@@ -318,6 +363,7 @@ class UpdateSelectionPreferenceRequest(BaseModel):
 async def update_selection_preference(
     quota_id: str,
     request: UpdateSelectionPreferenceRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -334,6 +380,9 @@ async def update_selection_preference(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
     if quota.status != 'pending_selection':
         raise HTTPException(status_code=400, detail="Cannot change preference - selection already completed or expired")
@@ -355,6 +404,7 @@ async def update_selection_preference(
 @router.get("/selection-queue/{quota_id}/deadline-info")
 async def get_selection_deadline_info(
     quota_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -371,6 +421,9 @@ async def get_selection_deadline_info(
     
     if not quota:
         raise HTTPException(status_code=404, detail="Selection quota not found")
+
+    if quota.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Selection quota belongs to another surfer")
     
     now = datetime.now(timezone.utc)
     time_remaining = None

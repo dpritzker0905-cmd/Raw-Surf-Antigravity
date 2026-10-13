@@ -32,7 +32,7 @@ if backend_dir not in sys.path:
 
 from services.weather_pipeline.schemas import NormalizedPointDetail, NormalizedPointResponse
 from services.weather_pipeline.surf_rating import rating_score
-from services.weather_pipeline.surf_transform import reconcile_partitions
+from services.weather_pipeline.surf_partitions import reconcile_partitions
 
 # The same real production sea state test_surf_partitions_wiring pins (Mavericks, 2026-07-29):
 # windsea-DOMINATED — 86% of the energy is 6.69 s chop — which is exactly the regime the
@@ -355,7 +355,7 @@ async def test_a_raising_reconcile_never_costs_the_conditions_read(monkeypatch):
     regression there must degrade to the total field — pre-umbrella it killed the entire hub
     payload where the same breakage used to cost only the height transform."""
     monkeypatch.setenv("SURF_PARTITIONS", "1")
-    from services.weather_pipeline import spot_conditions, surf_rating, surf_transform
+    from services.weather_pipeline import spot_conditions, surf_partitions, surf_rating
     seen = {}
 
     def recorder(*args, **kwargs):
@@ -366,7 +366,7 @@ async def test_a_raising_reconcile_never_costs_the_conditions_read(monkeypatch):
         raise RuntimeError("reconcile regression")
 
     monkeypatch.setattr(surf_rating, "compute_surf_rating", recorder)
-    monkeypatch.setattr(surf_transform, "reconcile_partitions", exploding_reconcile)
+    monkeypatch.setattr(surf_partitions, "reconcile_partitions", exploding_reconcile)
     hub = _FakeHub(dict(_HUB_LAYERS))
     out = await spot_conditions.resolve_spot_conditions_impl(hub, "GFS", MAVS_LAT, MAVS_LNG)
     assert "current_conditions" in out
@@ -531,7 +531,7 @@ def test_partitions_represent_rejects_degenerate_coverage():
     """The shared supply-side gate: trains carrying under half the total Hs in quadrature do not
     represent the sea (the dominant train is missing). Both measured LEGITIMATE deviations pass;
     the lone-minority-train case and garbage totals fail."""
-    from services.weather_pipeline.surf_transform import partitions_represent
+    from services.weather_pipeline.surf_partitions import partitions_represent
     assert partitions_represent(MAVS, MAVS_TOTAL)                      # over-total: legitimate
     bondi = [{"h": 0.20, "tp": 8.85, "dir": 173.0, "kind": "swell"},
              {"h": 0.18, "tp": 3.00, "dir": 4.0, "kind": "swell"},

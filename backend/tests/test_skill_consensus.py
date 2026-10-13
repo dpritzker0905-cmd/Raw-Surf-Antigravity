@@ -1,0 +1,404 @@
+"""The three-model consensus, scored at the buoys (roadmap stage 5, measurement only, 2026-09-28).
+
+The skill ledger forecasts every buoy from all three of our lanes on the same target hours; a consensus of them
+should beat the best single model if their errors are partly independent. Measured on rows the ledger already
+scored: pairs where all three were scored, a plain mean and a mean with each member's training-window bias
+removed, graded on the held-out week against each member. These pin the pairing, the time split, the
+debiasing, the refusal on thin data, and the wiring onto the calibration report.
+"""
+import asyncio
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
+
+import pytest
+
+from services.weather_pipeline import buoy_calibration as bc
+from services.weather_pipeline import forecast_skill as fs
+from services.weather_pipeline.skill_consensus import MEMBERS, PAIR, consensus_report, region_of
+
+NOW = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+ERR = {"raw_surf": (0.3, -0.3, 0.0), "raw_surf:ICON": (-0.3, 0.0, 0.3), "raw_surf:EURO": (0.0, 0.3, -0.3)}
+
+
+def _rows(days, n, bias=None, errs=ERR, lead=48.0, members=MEMBERS, buoy="46232"):
+    """n target hours per day list; each member's error cycles through its tuple (+ a constant bias), so the
+    three errors cancel exactly in the mean while every member alone is off by 0.2 m on average."""
+    bias = bias or {}
+    out = []
+    for i in range(n):
+        t = NOW - timedelta(days=days[i % len(days)], hours=i % 24)
+        obs = 1.0 + 0.1 * (i % 7)
+        for m in members:
+            out.append({"source": m, "buoy_id": buoy, "target_time": t.strftime("%Y-%m-%dT%H:00:00Z"),
+                        "lead_h": lead, "hs_m": obs + errs[m][i % 3] + bias.get(m, 0.0), "obs_hs_m": obs})
+    return out
+
+
+def _lead(report, lead=48):
+    return next(e for e in report["by_lead"] if e["lead_h"] == lead)
+
+
+def test_errors_that_cancel_make_the_consensus_beat_every_member():
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30), NOW))
+    assert e["status"] == "scored" and (e["n_train"], e["n_test"]) == (90, 30)
+    assert all(v["mae_m"] == pytest.approx(0.2, abs=1e-3) for v in e["members"].values())
+    assert e["equal"]["mae_m"] == pytest.approx(0.0, abs=1e-3) and e["equal_beats_best"]
+
+
+def test_a_members_bias_is_learned_on_the_older_rows_and_removed():
+    bias = {"raw_surf": 0.0, "raw_surf:ICON": 0.3, "raw_surf:EURO": 0.15}
+    e = _lead(consensus_report(_rows(range(8, 40), 90, bias) + _rows(range(0, 7), 30, bias), NOW))
+    assert e["member_bias_train_m"] == {"raw_surf": 0.0, "raw_surf:ICON": 0.3, "raw_surf:EURO": 0.15}
+    assert e["equal"]["bias_m"] == pytest.approx(0.15, abs=1e-3)       # the plain mean inherits them
+    assert e["debiased"]["bias_m"] == pytest.approx(0.0, abs=1e-3)     # the debiased mean does not
+    assert e["debiased_beats_best"]
+
+
+def test_a_noisy_member_counts_for_less_in_the_weighted_consensus():
+    """ICON-like: one member's errors are six times the others' (the held-out week read ICON ~40% worse)."""
+    errs = {"raw_surf": (0.1, -0.1, 0.0), "raw_surf:EURO": (0.0, 0.1, -0.1), "raw_surf:ICON": (0.6, -0.6, 0.0)}
+    bias = {"raw_surf:ICON": 0.3, "raw_surf:EURO": 0.1}
+    e = _lead(consensus_report(_rows(range(8, 40), 90, bias, errs) + _rows(range(0, 7), 30, bias, errs), NOW))
+    w = e["member_weight"]
+    assert w["raw_surf:ICON"] < 0.05 and w["raw_surf"] == pytest.approx(w["raw_surf:EURO"], abs=1e-3)
+    assert e["weighted"]["mae_m"] < e["equal"]["mae_m"] and e["weighted"]["mae_m"] < e["debiased"]["mae_m"]
+    assert e["weighted_beats_best"] and not e["equal_beats_best"]
+    assert abs(e["weighted"]["bias_m"]) < 0.02, "the weighted mean is of the DEBIASED members"
+
+
+def test_members_of_equal_skill_get_equal_weight():
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30), NOW))
+    assert sum(e["member_weight"].values()) == pytest.approx(1.0, abs=1e-3)
+    assert all(v == pytest.approx(1 / 3, abs=1e-3) for v in e["member_weight"].values())
+
+
+def test_the_held_out_week_never_trains_the_bias():
+    bias = {"raw_surf:ICON": 0.3}
+    wild = {"raw_surf:ICON": 5.0}
+    a = _lead(consensus_report(_rows(range(8, 40), 90, bias) + _rows(range(0, 7), 30, bias), NOW))
+    b = _lead(consensus_report(_rows(range(8, 40), 90, bias) + _rows(range(0, 7), 30, wild), NOW))
+    assert a["member_bias_train_m"] == b["member_bias_train_m"]
+    assert a["member_weight"] == b["member_weight"], "weights are learned on the older rows only"
+
+
+def test_a_pair_missing_a_member_is_not_compared():
+    rows = _rows(range(8, 40), 90) + _rows(range(0, 7), 30)
+    rows += _rows(range(0, 7), 40, members=("raw_surf", "raw_surf:ICON"), buoy="41009")   # no EURO row
+    e = _lead(consensus_report(rows, NOW))
+    assert (e["n_train"], e["n_test"]) == (90, 30)
+
+
+def test_thin_leads_refuse_instead_of_printing_a_number():
+    e = _lead(consensus_report(_rows(range(8, 40), 30) + _rows(range(0, 7), 5), NOW))
+    assert e["status"] == "insufficient" and "equal" not in e
+
+
+def _big_rows(n, errs, obs=3.5, buoy="46086"):
+    """n held-out BIG hours (obs >= 3 m) with a FIXED error per member (no rotation)."""
+    out = []
+    for i in range(n):
+        t = NOW - timedelta(days=i % 7, hours=3 + i % 20)
+        for m in MEMBERS:
+            out.append({"source": m, "buoy_id": buoy, "target_time": t.strftime("%Y-%m-%dT%H:00:00Z"),
+                        "lead_h": 48.0, "hs_m": obs + errs[m], "obs_hs_m": obs})
+    return out
+
+
+def test_a_consensus_that_wins_overall_but_shaves_the_big_days_is_caught():
+    """Small days: errors cancel (the mean is exact). Big days: GFS and EURO are right, ICON reads 0.9 m low, so the
+    mean reads 0.3 m low exactly where surf matters. The all-sea grade says 'consensus wins'; the big-swell grade
+    must say it loses to the best member."""
+    shave = {"raw_surf": 0.0, "raw_surf:ICON": -0.9, "raw_surf:EURO": 0.0}
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30) + _big_rows(12, shave), NOW))
+    assert e["weighted_beats_best"], "overall, the mean still wins"
+    b = e["big_swell"]
+    assert b["paired_n"] == 12 and b["paired_best_member"] in ("raw_surf", "raw_surf:EURO")
+    assert b["paired"]["weighted"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert b["paired"]["raw_surf:ICON"]["mae_m"] == pytest.approx(0.9, abs=1e-3)
+    assert b["weighted_beats_best"] is False
+
+
+def test_big_swell_by_forecast_selects_each_forecasts_own_big_calls():
+    """ICON over-calls: it says >= 3 m on 12 hours the others (and the sea) put at ~2.6 m."""
+    over = {"raw_surf": 0.0, "raw_surf:ICON": 0.9, "raw_surf:EURO": 0.0}
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30) + _big_rows(12, over, obs=2.6), NOW))
+    bf = e["big_swell"]["by_forecast"]
+    assert bf["raw_surf:ICON"]["n"] == 12 and bf["raw_surf:ICON"]["bias_m"] == pytest.approx(0.9, abs=1e-3)
+    assert bf["raw_surf"]["n"] == 0 and "bias_m" not in bf["raw_surf"]
+    assert bf["equal"]["n"] == 0, "the mean (2.9 m) does not call it big"
+    assert e["big_swell"]["paired_n"] == 0 and e["big_swell"]["status"] == "insufficient"
+
+
+def test_thin_big_swell_refuses_the_paired_grade():
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30)
+                               + _big_rows(4, {m: 0.0 for m in MEMBERS}), NOW))
+    assert e["big_swell"]["paired_n"] == 4 and "paired" not in e["big_swell"]
+
+
+@pytest.mark.parametrize("bad", [{"hs_m": float("nan")}, {"obs_hs_m": None}, {"hs_m": 0.0},
+                                 {"target_time": "not a time"}, {"source": "open_meteo_marine"}])
+def test_unusable_rows_are_ignored(bad):
+    rows = _rows(range(8, 40), 60) + _rows(range(0, 7), 20)
+    base = consensus_report(rows, NOW)["paired_keys"]
+    extra = [{**r, **bad} for r in _rows(range(0, 7), 5, buoy="51201")]
+    assert consensus_report(rows + extra, NOW)["paired_keys"] == base
+
+
+@pytest.fixture
+def ledger(monkeypatch):
+    months = {fs.SKILL_SCORED_PREFIX + "2026-08.json": [],
+              fs.SKILL_SCORED_PREFIX + "2026-09.json": _rows(range(8, 26), 60) + _rows(range(0, 7), 20),
+              fs.SKILL_PENDING_L2_KEY: []}
+    monkeypatch.setenv("FORECAST_SKILL_COMPARE_MODELS", "")
+    monkeypatch.setenv("FORECAST_SKILL", "1")
+    monkeypatch.setenv("FORECAST_SKILL_PERSISTENCE", "0")
+    monkeypatch.setenv("FORECAST_SKILL_OM_CONTROL", "0")
+    monkeypatch.delenv("FORECAST_SKILL_MOS", raising=False)
+    monkeypatch.setattr(bc, "calibrate_spots", AsyncMock(return_value={}))
+    monkeypatch.setattr(bc, "fetch_ndbc_station_coords", AsyncMock(return_value={}))
+    monkeypatch.setattr(bc, "load_calibration_rows_l2", lambda key: (list(months.get(key, [])), key in months))
+    monkeypatch.setattr(bc, "upload_calibration_l2", lambda *a, **k: True)
+    monkeypatch.setattr(fs, "fetch_om_forecast_rows", lambda *a, **k: [])
+    return lambda: asyncio.run(fs.run_skill_ledger(None, None, [], "GFS", {"spots": []}, now=NOW))
+
+
+def test_the_ledger_run_publishes_the_consensus_on_the_report(ledger):
+    skill = ledger()
+    assert _lead(skill["consensus"])["status"] == "scored"
+    report = {}
+    fs.attach_to_report(report, skill)
+    assert report["forecast_skill_consensus"]["members"] == list(MEMBERS)
+
+
+def test_the_gfs_euro_pair_is_graded_on_the_same_pairs_as_the_equal_mean():
+    """ICON-like noise (the nearshore judge's #155 finding: ICON 0.203 m vs EURO 0.102 on identical hours): the pair
+    without ICON must be scored on exactly the equal mean's pairs and must beat it when ICON is the noisy member."""
+    errs = {"raw_surf": (0.1, -0.1, 0.0), "raw_surf:EURO": (-0.1, 0.1, 0.0), "raw_surf:ICON": (0.9, 0.9, 0.9)}
+    e = _lead(consensus_report(_rows(range(8, 40), 90, errs=errs) + _rows(range(0, 7), 30, errs=errs), NOW))
+    assert PAIR == ("raw_surf", "raw_surf:EURO")
+    assert e["pair_gfs_euro"]["mae_m"] == pytest.approx(0.0, abs=1e-3), "GFS and EURO errors cancel exactly"
+    assert e["equal"]["bias_m"] == pytest.approx(0.3, abs=1e-3), "ICON drags the three-model mean high"
+    assert e["pair_beats_equal"] and e["pair_beats_best"]
+    missing = _rows(range(0, 7), 30, errs=errs, members=("raw_surf", "raw_surf:EURO"))   # no ICON: not paired
+    e2 = _lead(consensus_report(_rows(range(8, 40), 90, errs=errs) + _rows(range(0, 7), 30, errs=errs) + missing, NOW))
+    assert e2["n_test"] == 30, "hours without ICON are not scored, so pair and equal share every pair"
+
+
+def test_the_pair_is_graded_on_the_big_swell_days_too():
+    shave = {"raw_surf": 0.0, "raw_surf:ICON": -0.9, "raw_surf:EURO": 0.0}
+    e = _lead(consensus_report(_rows(range(8, 40), 90) + _rows(range(0, 7), 30) + _big_rows(12, shave), NOW))
+    b = e["big_swell"]
+    assert b["paired"]["pair_gfs_euro"]["bias_m"] == pytest.approx(0.0, abs=1e-3), "no ICON, no shaved peak"
+    assert b["paired"]["equal"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert b["pair_beats_best"] is False, "ties the best member (GFS/EURO are exact), never beats it"
+    assert b["by_forecast"]["pair_gfs_euro"]["n"] == 12
+
+
+@pytest.mark.parametrize("bid,region", [("41113", "atlantic_se"), ("42035", "gulf"), ("44025", "atlantic_ne"),
+                                        ("46232", "pacific_ne"), ("51201", "hawaii"), ("52200", "other"),
+                                        ("LJPC1", "other"), ("4623", "other"), (None, "other"), (46232, "pacific_ne")])
+def test_a_buoy_region_comes_from_its_ndbc_id(bid, region):
+    assert region_of(bid) == region
+
+
+def test_a_bias_that_changes_sign_by_coast_is_reported_per_coast_not_averaged_away():
+    """GFS-Wave reads HIGH on Florida's east coast and LOW in SoCal (2026-09-28): pooled, the two cancel and GFS looks
+    unbiased; per coast each sign stands, and the member that wins can differ."""
+    east = {"raw_surf": (0.3, 0.3, 0.3), "raw_surf:ICON": (0.0, 0.1, -0.1), "raw_surf:EURO": (0.1, 0.1, 0.1)}
+    west = {"raw_surf": (-0.3, -0.3, -0.3), "raw_surf:ICON": (0.0, 0.1, -0.1), "raw_surf:EURO": (-0.1, -0.1, -0.1)}
+    rows = (_rows(range(8, 40), 90, errs=east, buoy="41113") + _rows(range(0, 7), 30, errs=east, buoy="41113")
+            + _rows(range(8, 40), 90, errs=west, buoy="46232") + _rows(range(0, 7), 30, errs=west, buoy="46232"))
+    rep = consensus_report(rows, NOW)
+    reg = rep["by_region"]
+    assert _lead(rep)["members"]["raw_surf"]["bias_m"] == pytest.approx(0.0, abs=1e-3), "pooled, the signs cancel"
+    assert reg["atlantic_se"]["members"]["raw_surf"]["bias_m"] == pytest.approx(0.3, abs=1e-3)
+    assert reg["pacific_ne"]["members"]["raw_surf"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert reg["atlantic_se"]["n"] == reg["pacific_ne"]["n"] == 30, "held-out pairs only, never the training weeks"
+    assert reg["atlantic_se"]["best_member"] == "raw_surf:ICON"
+    assert reg["pacific_ne"]["pair_gfs_euro"]["bias_m"] == pytest.approx(-0.2, abs=1e-3)
+
+
+def test_a_thin_region_refuses_instead_of_printing_a_number():
+    rows = (_rows(range(8, 40), 90) + _rows(range(0, 7), 30)
+            + _rows(range(0, 7), 4, buoy="42035"))
+    reg = consensus_report(rows, NOW)["by_region"]
+    assert reg["gulf"] == {"n": 4, "status": "insufficient"}
+    assert reg["pacific_ne"]["status"] == "scored"
+
+
+def test_big_calls_whose_bias_changes_sign_by_coast_are_split_per_coast_not_averaged_away():
+    """Commitment 188: pooled, the equal mean's own >= 3 m calls read unbiased while Florida's east coast reads +0.4 m
+    and the NE Pacific -0.4 m; per coast each sign stands, for the served lane and the equal mean. The Gulf rows are
+    training weeks listed FIRST: counted, they would shift every held-out pair onto the wrong coast."""
+    east = {"raw_surf": 0.3, "raw_surf:ICON": 0.6, "raw_surf:EURO": 0.3}      # equal +0.4
+    west = {"raw_surf": -0.3, "raw_surf:ICON": -0.6, "raw_surf:EURO": -0.3}   # equal -0.4 (3.1 m: still a big call)
+    rows = _rows(range(8, 40), 90, buoy="42035") + _big_rows(12, east, buoy="41113") + _big_rows(12, west)
+    b = _lead(consensus_report(rows, NOW))["big_swell"]
+    assert b["by_forecast"]["equal"]["n"] == 24 and b["by_forecast"]["equal"]["bias_m"] == pytest.approx(0.0, abs=1e-3)
+    reg = b["by_forecast_by_region"]
+    assert set(reg) == {"atlantic_se", "pacific_ne"}, "held-out pairs only, each on its own coast"
+    assert reg["atlantic_se"]["equal"] == {"n": 12, "mae_m": 0.4, "bias_m": 0.4}
+    assert reg["pacific_ne"]["equal"]["bias_m"] == pytest.approx(-0.4, abs=1e-3)
+    assert reg["atlantic_se"]["raw_surf"]["bias_m"] == pytest.approx(0.3, abs=1e-3)
+    assert reg["pacific_ne"]["raw_surf"]["bias_m"] == pytest.approx(-0.3, abs=1e-3)
+    assert set(reg["pacific_ne"]) == {"raw_surf", "equal"}, "the served lane and the equal mean, the rule's two choices"
+
+
+def test_a_coast_lists_both_candidates_and_a_thin_cell_prints_no_number():
+    """In the Gulf the served lane calls big 12 times where the mean (and the sea) do not; in Hawaii only 4 hours are
+    big at all; the NE Pacific buoy's small seas make no big call, so that coast is absent."""
+    over = {"raw_surf": 0.9, "raw_surf:ICON": 0.0, "raw_surf:EURO": 0.0}      # GFS 3.5 m on a 2.6 m sea; mean 2.9
+    rows = (_rows(range(0, 7), 30) + _big_rows(12, over, obs=2.6, buoy="42035")
+            + _big_rows(4, {m: 0.0 for m in MEMBERS}, buoy="51201"))
+    reg = _lead(consensus_report(rows, NOW))["big_swell"]["by_forecast_by_region"]
+    assert set(reg) == {"gulf", "hawaii"}
+    assert reg["gulf"]["raw_surf"] == {"n": 12, "mae_m": 0.9, "bias_m": 0.9}
+    assert reg["gulf"]["equal"] == {"n": 0}, "listed beside the served lane, at n 0: the mean never calls it big"
+    assert reg["hawaii"] == {"raw_surf": {"n": 4}, "equal": {"n": 4}}
+
+
+# ── THE PER-REGION SERVE RULE: graded on the weeks that did not choose it ──────────────────────────────
+from services.weather_pipeline.skill_consensus import RULE_GFS_REGIONS  # noqa: E402
+
+GFS_EXACT = {"raw_surf": (0.0, 0.0, 0.0), "raw_surf:ICON": (0.6, 0.6, 0.6), "raw_surf:EURO": (0.3, 0.3, 0.3)}
+
+
+def _rule(report, lead=48):
+    return next(e for e in report["regional_rule"]["by_lead"] if e["lead_h"] == lead)
+
+
+def test_the_rule_takes_gfs_on_its_coasts_and_the_mean_elsewhere_on_both_windows():
+    """Hawaii: GFS exact, the mean +0.3 m (EURO and ICON high, as on 2026-09-30). The NE Pacific: the mean exact, GFS
+    off by 0.2 m. The rule takes each coast's winner, on the held-out week and on the older weeks alike."""
+    rows = (_rows(range(8, 40), 90, errs=GFS_EXACT, buoy="51201") + _rows(range(0, 7), 30, errs=GFS_EXACT, buoy="51201")
+            + _rows(range(8, 40), 90) + _rows(range(0, 7), 30))
+    rep = consensus_report(rows, NOW)
+    assert rep["regional_rule"]["gfs_regions"] == list(RULE_GFS_REGIONS) == ["hawaii", "atlantic_se"]
+    r = _rule(rep)
+    for part, n in (("held_out", 60), ("train", 180)):
+        g = r[part]
+        assert g["n"] == n and g["n_rule_regions"] == n // 2
+        assert g["rule"]["mae_m"] == pytest.approx(0.0, abs=1e-3)
+        assert g["equal"]["mae_m"] == pytest.approx(0.15, abs=1e-3)
+        assert g["served"]["mae_m"] == pytest.approx(0.1, abs=1e-3)
+        assert g["rule_beats_equal"] and g["rule_beats_served"]
+
+
+def test_a_coast_the_older_weeks_contradict_is_caught_out_of_sample():
+    """The held-out week says GFS wins in Hawaii; the older weeks say the mean does. The rule wins in sample and loses
+    out of sample: the overfit a choice made on one week can be."""
+    rows = (_rows(range(8, 40), 90, buoy="51201") + _rows(range(0, 7), 30, errs=GFS_EXACT, buoy="51201")
+            + _rows(range(8, 40), 90) + _rows(range(0, 7), 30))
+    rep = consensus_report(rows, NOW)
+    r = _rule(rep)
+    assert r["held_out"]["rule_beats_equal"] is True
+    assert r["train"]["rule_beats_equal"] is False
+    assert r["train"]["rule"]["mae_m"] == pytest.approx(0.1, abs=1e-3), "GFS's 0.2 m on the Hawaii half"
+    train, held = rep["by_region_train"]["hawaii"], rep["by_region"]["hawaii"]
+    assert train["n"] == 90 and train["equal_beats_best"], "the older weeks, by coast"
+    assert held["n"] == 30 and held["best_member"] == "raw_surf" and not held["equal_beats_best"]
+
+
+def test_a_thin_window_of_the_rule_refuses():
+    r = _rule(consensus_report(_rows(range(8, 40), 5, buoy="51201") + _rows(range(0, 7), 30), NOW))
+    assert r["train"] == {"n": 5, "status": "insufficient"}
+    assert r["held_out"]["status"] == "scored" and r["held_out"]["n_rule_regions"] == 0
+
+
+def _band_rows(obs, fc, n, days=range(0, 7), buoy="46232"):
+    """n held-out target hours at one observed height, each member forecasting its fixed value."""
+    out = []
+    for i in range(n):
+        t = NOW - timedelta(days=days[i % len(days)], hours=1 + i % 20)
+        for m, x in fc.items():
+            out.append({"source": m, "buoy_id": buoy, "target_time": t.strftime("%Y-%m-%dT%H:00:00Z"),
+                        "lead_h": 24.0, "hs_m": x, "obs_hs_m": obs})
+    return out
+
+
+def test_pairs_are_graded_by_the_observed_sea_state():
+    calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}      # GFS low, ICON high, obs 0.4
+    big = {"raw_surf": 3.0, "raw_surf:EURO": 3.4, "raw_surf:ICON": 3.2}       # everyone low, obs 3.8
+    rep = consensus_report(_band_rows(0.4, calm, 12) + _band_rows(3.8, big, 12, buoy="46086"), NOW)
+    bands = rep["by_band"]
+    assert set(bands) == {"flat <0.5m", "big >3m"}, "grouped by the OBSERVED height, not the forecast"
+    flat = bands["flat <0.5m"]
+    assert flat["n"] == 12 and flat["members"]["raw_surf"]["bias_m"] == pytest.approx(-0.1)
+    assert flat["equal"]["bias_m"] == pytest.approx(0.1) and flat["best_member"] == "raw_surf"
+    assert bands["big >3m"]["equal"]["bias_m"] == pytest.approx(-0.6)
+
+
+def test_the_band_reports_how_far_the_served_height_would_move():
+    """The equal mean is 0.5 m where the served lane said 0.3 m: x1.667 on a flat day, which an all-sea MAE hides."""
+    calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}
+    flat = consensus_report(_band_rows(0.4, calm, 12), NOW)["by_band"]["flat <0.5m"]
+    assert flat["equal_over_primary"] == {"p10": 1.667, "median": 1.667, "p90": 1.667}
+    assert "equal_over_primary" in consensus_report(_band_rows(0.4, calm, 12), NOW)["by_region"]["pacific_ne"]
+
+
+def test_a_thin_band_refuses():
+    calm = {"raw_surf": 0.3, "raw_surf:EURO": 0.5, "raw_surf:ICON": 0.7}
+    bands = consensus_report(_band_rows(0.4, calm, 12) + _band_rows(2.0, calm, 3), NOW)["by_band"]
+    assert bands["rideable 1.5-3m"] == {"n": 3, "status": "insufficient"}
+
+
+# ── THE BUILT SHADOW (D-009): graded beside the computed mean it was built from ─────────────────────────
+from services.weather_pipeline.skill_consensus import SHADOW, shadow_report  # noqa: E402
+
+
+def _with_shadow(rows, offset=0.0, drop_every=0):
+    """Add a raw_surf:CONSENSUS row per key: the members' equal mean (+ `offset`), as a correct build would be."""
+    by_key = {}
+    for r in rows:
+        by_key.setdefault((r["buoy_id"], r["target_time"], r["lead_h"]), []).append(r)
+    out = list(rows)
+    for i, (k, rs) in enumerate(sorted(by_key.items())):
+        if drop_every and i % drop_every == 0:
+            continue                                            # no shadow product covers this buoy-hour
+        mean = sum(r["hs_m"] for r in rs) / len(rs)
+        out.append({**rs[0], "source": SHADOW, "hs_m": mean + offset})
+    return out
+
+
+def test_a_correct_build_matches_the_computed_mean__the_construction_control():
+    e = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 30)), NOW))
+    assert e["status"] == "scored" and e["n"] == 30
+    assert e["shadow_minus_equal_m"] == {"median": 0.0, "p90": 0.0}
+    assert e["shadow"]["mae_m"] == pytest.approx(e["equal"]["mae_m"], abs=1e-6)
+    assert e["shadow_beats_served"] and e["shadow_over_served"]["median"] == pytest.approx(1.0, abs=0.35)
+
+
+def test_a_wrong_build_shows_as_a_gap_not_as_skill():
+    e = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 30), offset=0.4), NOW))
+    assert e["shadow_minus_equal_m"]["median"] == pytest.approx(0.4, abs=1e-6)
+    assert e["shadow"]["mae_m"] > e["equal"]["mae_m"]
+
+
+def test_only_pairs_with_all_three_members_and_the_shadow_count():
+    e = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 30), drop_every=3), NOW))
+    assert e["n"] == 20                                      # 10 of 30 buoy-hours had no shadow product
+
+
+def test_older_than_the_holdout_and_thin_leads_refuse():
+    old = shadow_report(_with_shadow(_rows(range(8, 20), 30)), NOW)
+    assert old["by_lead"] == []                              # nothing held out
+    thin = _lead(shadow_report(_with_shadow(_rows(range(0, 7), 5)), NOW))
+    assert thin["status"] == "insufficient" and thin["n"] == 5
+
+
+def test_the_built_shadow_is_graded_per_coast():
+    """The rule's question asked of the product that would be served: in Hawaii the build (= the mean, +0.3 m) loses
+    to GFS; in the NE Pacific it wins; a coast with 4 pairs refuses."""
+    rows = _with_shadow(_rows(range(0, 7), 30, errs=GFS_EXACT, buoy="51201") + _rows(range(0, 7), 30)
+                        + _rows(range(0, 7), 4, buoy="41113"))
+    reg = shadow_report(rows, NOW)["by_region"]
+    assert reg["hawaii"]["n"] == 30 and reg["hawaii"]["shadow"]["mae_m"] == pytest.approx(0.3, abs=1e-3)
+    assert reg["hawaii"]["served"]["mae_m"] == pytest.approx(0.0, abs=1e-3) and not reg["hawaii"]["shadow_beats_served"]
+    assert reg["pacific_ne"]["shadow_beats_served"]
+    assert reg["atlantic_se"] == {"n": 4, "status": "insufficient"}
+
+
+def test_the_shadow_block_is_published_inside_the_consensus_report():
+    import inspect
+    src = inspect.getsource(fs)
+    assert 'consensus["shadow"] = consensus_shadow(history, now)' in src

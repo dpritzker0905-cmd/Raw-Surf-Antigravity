@@ -1,5 +1,8 @@
 import { servedResolutionNotice, ServedResolutionRow } from './servedResolutionNotice';
+import { marineFallbackNotice, MarineFallbackRow, useMarineFallbackState } from './marineFallbackNotice';
+import { useDrawnGridResolution } from './drawnGridResolution';
 import React from 'react';
+import { readMarineSurfMode } from './marineSurfMode';
 
 /**
  * legendTicks.js — put a legend's NUMBERS where its COLOURS are (2026-08-09, report R11-11 item 3).
@@ -83,10 +86,24 @@ export function tickTransform(pct) {
 // MapWeatherControls (grandfathered over the 800-LOC ratchet, shrink-only) from growing at all.
 // Opt-in because the surf-RATING band renders its own LegendTicks; the grid coarseness belongs to
 // the data layer's key, not to the rating key, and showing it twice would be noise.
+// The raster-fallback disclosure rides the SAME opt-in as the resolution notice, for the same
+// reason: it is a fact about the DATA LAYER, so it belongs on the data layer's key and would be
+// noise repeated under the rating key. Riding `showResolution` also makes it appear exactly once
+// across all three layouts. It stays silent unless the fallback is actually engaged.
 export function LegendTicks({ ticks, className, showResolution = false }) {
+  // Hooks must run before any early return, or the hook order changes with `ticks` (React rule).
+  const marineFailed = useMarineFallbackState();
+  const drawnDeg = useDrawnGridResolution(showResolution && !marineFailed);
+  const ratingOn = readMarineSurfMode();
   if (!Array.isArray(ticks) || ticks.length === 0) return null;
-  const d = (showResolution && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
-  const notice = d ? servedResolutionNotice(d.resolution, d.resolutionSource) : null;
+  // Native metadata cannot describe the replacement raster's grid, including during disposal/recovery.
+  const d = (showResolution && !marineFailed && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) || null;
+  // The notice describes the grid DRAWN, not the last fetch (see drawnGridResolution.js): a thinned far-zoom frame
+  // is an 8° lattice while the diag can still say 0.25° (silent) or 2° (an exact frame fetched but not drawn).
+  const notice = d
+    ? (drawnDeg != null ? servedResolutionNotice(drawnDeg, 'derived_from_served_grid') : servedResolutionNotice(d.resolution, d.resolutionSource))
+    : null;
+  const fallback = showResolution ? marineFallbackNotice(marineFailed, ratingOn) : null;
   return (
     <>
     <div className={`relative w-full ${className || ''}`} style={{ height: '0.85rem' }}>
@@ -101,6 +118,7 @@ export function LegendTicks({ ticks, className, showResolution = false }) {
       ))}
     </div>
     <ServedResolutionRow notice={notice} className={className} />
+    <MarineFallbackRow notice={fallback} className={className} />
     </>
   );
 }

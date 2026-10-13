@@ -570,7 +570,7 @@ export const LocationStep = ({ booking, photographer }) => {
                         {geocodingAddress
                           ? String.fromCodePoint(0x1F4CD) + ' Finding location...'
                           : customLocationCoords
-                            ? '? Address found - photographer will be directed here'
+                            ? 'Address found - photographer will be directed here'
                             : customLocationAddress && customLocationAddress.trim().length >= 5
                               ? String.fromCodePoint(0x1F4CD) + ' Could not find address - photographer will use your GPS'
                               : 'Optional: add a street address for more precise directions'}

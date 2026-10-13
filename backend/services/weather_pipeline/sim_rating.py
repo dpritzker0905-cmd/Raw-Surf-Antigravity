@@ -215,6 +215,7 @@ def calculate_surf_rating(
     valid_time=None,
     allow_reference_lookup: bool = False,
     served_reference_size_m: Optional[float] = None,
+    served_tide: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Breaking wave height and 0-100 surf quality for a spot under a given weather vector.
 
@@ -236,6 +237,12 @@ def calculate_surf_rating(
     Unlike ``partitions`` it survives a what-if override: the reference is the spot's own yardstick,
     a property of the PLACE, not of the hypothesised sea, so hypothesising a swell must not silently
     re-scale the curve that swell is graded against.
+
+    ``served_tide`` (W-30) is the tide state THE GLYPH graded this spot-hour with, from
+    `sim_observed.served_tide` (which owns the SIM_SERVED_TIDE gate and the sanity checks). With it,
+    the rating applies `tide_fit` exactly as `rate_one_spot` does: the served `norm` against this
+    spot's `best_tide` prior. None (the default, a what-if, or a lane without tide) keeps tide neutral,
+    byte-identical to before. It is a property of the HOUR, so only the live forecast carries it.
     """
     shore_normal = shore_normal_for(spot)
     geo = spot_geometry(spot)
@@ -302,6 +309,9 @@ def calculate_surf_rating(
     # a positional call is how `9b808d05` silently dropped `break_depth_m` at the spot hub.
     # `tests/test_rating_composition_parity.py` pins this call against the other two surfaces.
     _break_depth = geo.break_depth_m if geo is not None else None
+    # W-30: the glyph's own tide level against this spot's prior (see `served_tide` above).
+    _tide_norm = served_tide.get("norm") if isinstance(served_tide, dict) else None
+    _best_tide = spot.get("best_tide") if _tide_norm is not None else None
     quality_score = rating_score(
         breaking_height,                      # nearshore BREAKING height, metres
         swell_p,
@@ -309,6 +319,8 @@ def calculate_surf_rating(
         wind_from_deg=wind_dir,
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,
+        tide_norm=_tide_norm,
+        best_tide=_best_tide,
         reference_size_m=reference_size_for(spot, allow_reference_lookup,
                                             served=served_reference_size_m),
         partitions=partitions,
@@ -378,6 +390,8 @@ def calculate_surf_rating(
         reference_size_m=_ref,
         partitions=partitions,
         break_depth_m=_break_depth,
+        tide_norm=_tide_norm,
+        best_tide=_best_tide,
         # ⛔⛔ RECONCILE AGAINST THE PHYSICS, NOT THE DISPLAY. This used to pass `quality_score`,
         # which the observation gate has already capped — so on every gated hour `sim_explain`
         # compared a nine-factor product against a clipped number, reported a 27.4-point
@@ -417,6 +431,9 @@ def calculate_surf_rating(
     _conflict = wave_physics.directional_conflict(swell_dir, shore_normal)
     if _conflict is not None:
         out["directional_conflict"] = _conflict
+    # W-30: say which tide graded this hour. ABSENT when none did, as a what-if never has one.
+    if _tide_norm is not None:
+        out["tide"] = {**served_tide, "best_tide": _best_tide}
 
     # ★ NAME THE RAW->DISPLAY STEP, and reconcile it numerically. A cap that is applied silently
     #   turns the explanation into a liar; a cap that says so is just a second, honest fact.

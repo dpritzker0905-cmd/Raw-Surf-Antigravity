@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timezone
 from typing import List, Optional
 import json
@@ -18,12 +19,16 @@ router = APIRouter()
 @router.get("/claim-queue-count/{surfer_id}")
 async def get_claim_queue_count(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Lightweight endpoint to get just the pending AI match count
     Used for navigation badge display (TICKET-007)
     """
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     
     result = await db.execute(
         select(func.count(SurferGalleryClaimQueue.id))
@@ -42,6 +47,7 @@ async def get_claim_queue_count(
 async def process_claim_action(
     queue_item_id: str,
     request: ClaimActionRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -59,6 +65,9 @@ async def process_claim_action(
     if not queue_item:
         raise HTTPException(status_code=404, detail="Queue item not found")
     
+    if queue_item.surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Claim belongs to another surfer")
+
     if queue_item.status != 'pending':
         raise HTTPException(status_code=400, detail="Item already processed")
     
@@ -175,6 +184,7 @@ async def patch_item_visibility(
     item_id: str,
     request: VisibilityUpdateRequest,
     surfer_id: str = Query(...),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -182,6 +192,9 @@ async def patch_item_visibility(
     Public mirrors to the surfer's public Sessions Tab
     Private keeps it in the Locker only
     """
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     result = await db.execute(
         select(SurferGalleryItem).where(
             SurferGalleryItem.id == item_id,
@@ -210,6 +223,7 @@ async def get_download_url(
     item_id: str,
     surfer_id: str = Query(...),
     quality_tier: str = Query('standard', description="Quality tier: web, standard, high, 720p, 1080p, 4k"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -218,6 +232,9 @@ async def get_download_url(
     - Standard tier: Max 1080p for video, standard for photo
     - Pro tier: Full resolution access
     """
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     result = await db.execute(
         select(SurferGalleryItem).where(
             SurferGalleryItem.id == item_id,
@@ -288,12 +305,16 @@ async def get_download_url(
 async def add_items_from_booking(
     booking_id: str,
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Add all tagged gallery items from a booking to surfer's gallery
     Automatically applies correct tier based on booking type
     """
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     # Get booking
     booking_result = await db.execute(
         select(Booking).where(Booking.id == booking_id)

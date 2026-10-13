@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timezone
 from typing import List, Optional
 import json
@@ -24,20 +25,16 @@ async def scan_locker(
     data: ScanLockerRequest,
     background_tasks: BackgroundTasks,
     surfer_id: str = Query(...),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Triggered by the Locker "Scan Photos" button.
-    Receives current selfie, passes to background worker to prevent UI freezing,
-    Returns success boolean so UI can start polling the ClaimQueue.
+    Authenticated compatibility endpoint while automatic photo matching is unavailable.
+    No matching work or claim-queue writes are scheduled.
     """
-    surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
-    if not surfer_result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Surfer not found")
-        
-    background_tasks.add_task(async_global_scan, surfer_id, data.selfie_url, data.spot_id, data.photographer_id)
-    
-    return {"success": True, "message": "Neural scan initiated. Processing recent galleries..."}
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+    raise HTTPException(status_code=503, detail="Photo matching is unavailable. Browse galleries or review existing photos manually.")
 
 # ============ PYDANTIC MODELS ============
 
@@ -159,9 +156,13 @@ def get_download_url_for_tier(gallery_item: GalleryItem, tier: GalleryTierEnum, 
 @router.get("/")
 async def get_surfer_gallery_main(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Main gallery endpoint with stats and all items"""
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     # Verify surfer
     surfer = await db.execute(select(Profile).where(Profile.id == surfer_id))
     surfer = surfer.scalar_one_or_none()
@@ -256,9 +257,13 @@ async def get_surfer_gallery_main(
 @router.get("/claim-queue")
 async def get_claim_queue(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get AI-suggested photos for the surfer to claim"""
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     queue_result = await db.execute(
         select(SurferGalleryClaimQueue, GalleryItem, Profile, SurfSpot)
         .join(GalleryItem, SurferGalleryClaimQueue.gallery_item_id == GalleryItem.id)
@@ -290,9 +295,13 @@ async def get_claim_queue(
 @router.get("/pending-selections")
 async def get_pending_selections_count(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get count of sessions with pending photo selections"""
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     count_result = await db.execute(
         select(func.count())
         .select_from(SurferSelectionQuota)
@@ -309,9 +318,13 @@ async def update_item_visibility(
     item_id: str,
     surfer_id: str,
     is_public: bool,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update visibility of a gallery item"""
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     item = await db.execute(
         select(SurferGalleryItem)
         .where(SurferGalleryItem.id == item_id)
@@ -335,9 +348,13 @@ class FavoriteRequest(BaseModel):
 async def toggle_item_favorite(
     item_id: str,
     request: FavoriteRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle favorite status of a gallery item"""
+    if current_user_id != request.surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     from websocket_manager import ws_manager
     
     item = await db.execute(
@@ -387,9 +404,13 @@ async def toggle_item_favorite(
 async def get_purchase_history(
     surfer_id: str,
     limit: int = 50,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get purchase history for a surfer"""
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     purchases_result = await db.execute(
         select(GalleryPurchase, GalleryItem, Profile)
         .join(GalleryItem, GalleryPurchase.gallery_item_id == GalleryItem.id)
@@ -420,9 +441,13 @@ async def request_edit(
     item_id: str,
     surfer_id: str,
     message: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Send an edit request to the photographer"""
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     from models import Notification
 
 
@@ -464,12 +489,16 @@ async def get_surfer_gallery(
     surfer_id: str,
     visibility_filter: Optional[str] = Query(None, description="Filter by 'public' or 'private'"),
     service_type_filter: Optional[str] = Query(None, description="Filter by service type"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get surfer's personal gallery ("The Locker")
     Returns all media items with tier-appropriate access controls
     """
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     # Build query
     query = select(SurferGalleryItem).where(
         SurferGalleryItem.surfer_id == surfer_id
@@ -571,12 +600,16 @@ async def get_surfer_gallery(
 @router.get("/claim-queue/{surfer_id}")
 async def get_claim_queue_by_path(
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get surfer's AI "Review & Claim" queue
     Returns pending items that AI has suggested belong to this surfer
     """
+    if current_user_id != surfer_id:
+        raise HTTPException(status_code=403, detail="Locker belongs to another surfer")
+
     query = select(SurferGalleryClaimQueue).where(
         SurferGalleryClaimQueue.surfer_id == surfer_id,
         SurferGalleryClaimQueue.status == 'pending'

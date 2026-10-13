@@ -13,6 +13,7 @@ import json
 import logging
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from deps.admin_auth import get_current_admin
 from models import Profile, AdConfig as AdConfigModel, CreditTransaction, Notification
 
@@ -419,8 +420,8 @@ async def get_public_ad_config(
 
 @router.post("/ads/submit")
 async def submit_user_ad(
-    user_id: str,
     data: UserAdSubmission,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

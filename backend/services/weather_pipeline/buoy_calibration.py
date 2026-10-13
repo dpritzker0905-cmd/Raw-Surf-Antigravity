@@ -224,13 +224,15 @@ def compare_wind_to_model(obs: dict, model_wind_kt, model_wind_from_deg=None) ->
     return out
 
 
-def compare_obs_to_model(obs: dict, model_hs_m, model_tp_s) -> Optional[dict]:
+def compare_obs_to_model(obs: dict, model_hs_m, model_tp_s, model_dir_deg=None) -> Optional[dict]:
     """PURE: residuals (model − buoy) for one spot. Returns None when the buoy has no wave height to compare.
-    height_err_m / period_err_s are signed (model minus observed); abs_* are the magnitudes for MAE."""
+    height_err_m / period_err_s are signed (model minus observed); abs_* are the magnitudes for MAE. The ledger's S7/S8
+    lanes (skill_direction_period) also read the model direction and the buoy's MWD and APD (APD flags bimodal seas)."""
     if not obs or obs.get("wvht_m") is None:
         return None
     out = {"buoy_wvht_m": obs["wvht_m"], "model_hs_m": model_hs_m,
-           "buoy_dpd_s": obs.get("dpd_s"), "model_tp_s": model_tp_s,
+           "buoy_dpd_s": obs.get("dpd_s"), "model_tp_s": model_tp_s, "buoy_apd_s": obs.get("apd_s"),
+           "buoy_mwd_deg": obs.get("mwd_deg"), "model_dir_deg": model_dir_deg,
            "height_err_m": None, "abs_height_err_m": None, "period_err_s": None, "abs_period_err_s": None}
     if model_hs_m is not None:
         out["height_err_m"] = round(model_hs_m - obs["wvht_m"], 3)
@@ -321,6 +323,13 @@ async def fetch_ndbc_station_coords(client=None) -> dict:
         return {}
 
 
+def parse_ndbc_obs(text: str, now: Optional[datetime] = None) -> Optional[dict]:
+    """PURE: the wave obs plus the newest FRESH wind obs from ONE realtime2 payload; `time` stays the WAVE row's (the
+    ledger scores on it), the wind row's is `wind_time`. Until 2026-09-30 the fetch parsed waves only: wind_n read 0."""
+    obs, wind = parse_ndbc_realtime(text), parse_ndbc_wind(text, now=now)
+    return obs if obs is None or not wind else {**obs, **{k: v for k, v in wind.items() if k != "time"}, "wind_time": wind["time"]}
+
+
 async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
     """Fetch + parse the latest NDBC observation for a station. Uses an injected httpx-like async client when
     given (tests), else a short-lived httpx.AsyncClient. Returns the obs dict or None (missing/error)."""
@@ -336,7 +345,7 @@ async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
             async with httpx.AsyncClient(timeout=15) as c:
                 resp = await c.get(url)
                 text = resp.text if resp.status_code == 200 else None
-        return parse_ndbc_realtime(text) if text else None
+        return parse_ndbc_obs(text) if text else None
     except Exception as e:
         logger.debug(f"[buoy-calibration] NDBC fetch failed for {station_id}: {e}")
         return None
@@ -432,7 +441,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
             station = coords.get(bid)
             lat, lng, at = ((station[0], station[1], "buoy") if station
                             else (spot.get("latitude"), spot.get("longitude"), "spot"))
-            model_hs = model_tp = None
+            model_hs = model_tp = model_dir = served = None
             wind_kt = wind_from = None
             try:
                 marine = await resolver.resolve_point(
@@ -441,6 +450,8 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                 if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
                     model_hs = marine.point.speed      # offshore significant wave height (m)
                     model_tp = marine.point.period
+                    model_dir = marine.point.direction   # mean wave direction FROM (deg), graded by S8
+                    served = {"product": marine.product_id, "cycle": marine.model_run_time.strftime("%Y-%m-%dT%H:%M:%SZ") if marine.model_run_time else None}  # WHICH product/cycle answered (skill_attribution)
             except Exception as e:
                 logger.debug(f"[buoy-calibration] resolve failed for buoy {bid}: {e}")
             # WIND residual (2026-08-09): same coordinates, same per-buoy cache, zero upstream
@@ -458,14 +469,14 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                         wind_from = wind.point.direction
                 except Exception as e:
                     logger.debug(f"[buoy-calibration] wind resolve failed for buoy {bid}: {e}")
-            _resolved[bid] = (model_hs, model_tp, wind_kt, wind_from, at)
-        model_hs, model_tp, wind_kt, wind_from, resolved_at = _resolved[bid]
-        residual = compare_obs_to_model(obs, model_hs, model_tp) if obs else None
+            _resolved[bid] = (model_hs, model_tp, model_dir, wind_kt, wind_from, at, served)
+        model_hs, model_tp, model_dir, wind_kt, wind_from, resolved_at, served = _resolved[bid]
+        residual = compare_obs_to_model(obs, model_hs, model_tp, model_dir) if obs else None
         wind_residual = (compare_wind_to_model(obs, wind_kt, wind_from)
                          if obs and os.environ.get("BUOY_WIND_RESIDUAL", "1") != "0" else None)
         rows.append({
             "spot_id": str(spot.get("id")), "name": spot.get("name"), "buoy_id": bid,
-            "buoy_time": obs.get("time") if obs else None, "resolved_at": resolved_at,
+            "buoy_time": obs.get("time") if obs else None, "resolved_at": resolved_at, "served": served,
             "residual": residual,
             "wind_residual": wind_residual,
         })
@@ -488,29 +499,87 @@ def fetch_buoy_spots_via_rest(limit: int = 5000) -> list:
     return resp.json()
 
 
-def upload_calibration_l2(store, obj, key: str = None) -> None:
-    """Persist the calibration report to Supabase Storage L2 (same REST upload path as the grid products)."""
+class CalibrationReadError(RuntimeError):
+    """L2 history could not be read reliably; it must not be replaced as empty."""
+
+
+class CalibrationWriteError(RuntimeError):
+    """L2 persistence was not acknowledged; pending evidence must remain retryable."""
+
+
+def upload_calibration_l2(store, obj, key: str = None, *, strict: bool = False,
+                          overwrite: bool = True) -> None:
+    """Persist to L2; strict callers require acknowledgment before consuming evidence."""
     import json
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
-    store._upload_to_supabase(key or BUOY_CALIBRATION_L2_KEY, data)
+    if not strict:
+        options = {} if overwrite else {"overwrite": False}
+        store._upload_to_supabase(key or BUOY_CALIBRATION_L2_KEY, data, **options)
+        return
+    try:
+        acknowledged = store._upload_to_supabase(
+            key or BUOY_CALIBRATION_L2_KEY, data, strict=True, overwrite=overwrite)
+        if acknowledged is not True:
+            raise RuntimeError("upload did not acknowledge persistence")
+    except Exception as exc:
+        raise CalibrationWriteError(f"L2 write failed for {key or BUOY_CALIBRATION_L2_KEY}") from exc
 
 
-def load_calibration_l2(l2_key: str = None):
+def load_calibration_l2(l2_key: str = None, *, strict: bool = False):
     """Read a calibration object back from L2 via a self-contained Storage REST GET (mirrors the upload).
-    Returns the parsed object or None (missing / not configured / error)."""
+    Legacy reads return None on failure. Strict reads reserve None for object-not-found;
+    callers must create-only on that result because an unseen object may exist."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
+        if strict:
+            raise CalibrationReadError("L2 storage is not configured")
         return None
     try:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or BUOY_CALIBRATION_L2_KEY}"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
-        return resp.json() if resp.status_code == 200 else None
+        headers = {"Authorization": f"Bearer {key}", "apikey": key}
+        if strict:
+            # A15-19 (audit 15.0): the precompute job reads calibration/skill/pending.json (~20k rows)
+            # while its own prefetch is being throttled (429 too_many_connections), and one
+            # unretried rejection skipped the whole skill ledger: 2 of the last 3 precompute runs
+            # uploaded a report without forecast_skill_ops and the accuracy monitor paged
+            # "SKILL LEDGER DEAD". A GET is idempotent, so transient answers are retried with the
+            # same jittered backoff the upload path uses (l2_retry.py), with room for a large object.
+            from services.weather_pipeline.l2_retry import is_missing_object, post_with_retry
+            resp, _retries = post_with_retry(lambda: requests.get(url, headers=headers, timeout=30),
+                                             l2_key or BUOY_CALIBRATION_L2_KEY)
+        else:
+            resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code == 200:
+            obj = resp.json()
+            if strict and obj is None:
+                raise CalibrationReadError("L2 object contains JSON null")
+            return obj
+        if not strict:
+            return None
+        if is_missing_object(resp):  # Supabase answers a missing object with HTTP 400 (l2_retry.py)
+            return None
+        raise CalibrationReadError(f"L2 read returned HTTP {resp.status_code}")
     except Exception as e:
+        if strict:
+            # Name the cause in the message: the skip log prints only str(e), and "L2 read failed"
+            # alone made this outage undiagnosable from the Actions log (A15-19).
+            raise CalibrationReadError(f"L2 read failed for {l2_key or BUOY_CALIBRATION_L2_KEY}: "
+                                       f"{type(e).__name__}: {str(e)[:200]}") from e
         logger.debug(f"[buoy-calibration] L2 load failed: {e}")
         return None
+
+
+def load_calibration_rows_l2(key: str):
+    """Strict archive read as (rows, exists); absent objects require create-only writes."""
+    rows = load_calibration_l2(key, strict=True)
+    if rows is None:
+        return [], False
+    if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+        raise CalibrationReadError(f"L2 archive object is not a list of rows: {key}")
+    return rows, True
 
 
 # ── THE RESIDUAL ARCHIVE — the evidence a calibration curve needs and did not have ────────────
@@ -697,9 +766,10 @@ def run_buoy_calibration() -> tuple:
     # hiccup here must never cost the calibration report itself.
     if os.environ.get("BUOY_RESIDUAL_ARCHIVE", "1") != "0":
         try:
-            existing = load_calibration_l2(BUOY_RESIDUAL_ARCHIVE_KEY) or []
+            existing, exists = load_calibration_rows_l2(BUOY_RESIDUAL_ARCHIVE_KEY)
             merged = merge_residual_archive(existing, archive_rows_from_report(report))
-            upload_calibration_l2(store, merged, BUOY_RESIDUAL_ARCHIVE_KEY)
+            upload_calibration_l2(store, merged, BUOY_RESIDUAL_ARCHIVE_KEY,
+                                  strict=True, overwrite=exists)
             report["archive"] = build_archive_summary(merged)
             logger.info("[buoy-calibration] residual archive: %d entries across %d buoys.",
                         len(merged), report["archive"]["n_buoys"])

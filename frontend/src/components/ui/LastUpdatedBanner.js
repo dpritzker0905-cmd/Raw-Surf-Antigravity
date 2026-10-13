@@ -58,8 +58,8 @@ const LastUpdatedBanner = ({
       )}
       <span>
         {isOffline
-          ? `You're offline -+ Showing cached data${elapsed != null ? ` from ${formatElapsed(elapsed)}` : ''}`
-          : `Last updated ${formatElapsed(elapsed)} -+ Tap to refresh`
+          ? `You're offline \u00B7 Showing cached data${elapsed != null ? ` from ${formatElapsed(elapsed)}` : ''}`
+          : `Last updated ${formatElapsed(elapsed)} \u00B7 Tap to refresh`
         }
       </span>
     </button>

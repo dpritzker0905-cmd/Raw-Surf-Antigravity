@@ -301,7 +301,7 @@ const ViolationBanner = () => {
 
               {isPending && (
                 <p className={`text-xs mt-2 ${isLight ? 'text-yellow-600' : 'text-yellow-400/80'}`}>
-                  ? Your appeal is under review. You'll be notified of the decision.
+                  Your appeal is under review. You'll be notified of the decision.
                 </p>
               )}
             </div>
@@ -312,10 +312,10 @@ const ViolationBanner = () => {
         <div className={`p-2.5 rounded-lg text-xs ${isLight ? 'bg-gray-100 text-gray-500' : 'bg-zinc-800/30 text-gray-500'}`}>
           <p className="font-medium mb-1">Strike System</p>
           <div className="grid grid-cols-2 gap-1">
-            <span>1 strike ? Warning</span>
-            <span>2 ? 7-day suspension</span>
-            <span>3 ? 30-day suspension</span>
-            <span>4+ ? Permanent ban</span>
+            <span>1 strike &rarr; Warning</span>
+            <span>2 &rarr; 7-day suspension</span>
+            <span>3 &rarr; 30-day suspension</span>
+            <span>4+ &rarr; Permanent ban</span>
           </div>
         </div>
       </div>

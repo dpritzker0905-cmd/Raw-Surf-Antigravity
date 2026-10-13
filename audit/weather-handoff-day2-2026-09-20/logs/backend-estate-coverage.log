@@ -1,0 +1,878 @@
+UNKNOWN STEP	﻿2026-09-20T03:44:59.1558554Z Current runner version: '2.337.0'
+UNKNOWN STEP	2026-09-20T03:44:59.1582958Z ##[group]Runner Image Provisioner
+UNKNOWN STEP	2026-09-20T03:44:59.1583846Z Hosted Compute Agent
+UNKNOWN STEP	2026-09-20T03:44:59.1584620Z Version: 20260828.587
+UNKNOWN STEP	2026-09-20T03:44:59.1585269Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+UNKNOWN STEP	2026-09-20T03:44:59.1586027Z Build Date: 2026-08-28T16:44:25Z
+UNKNOWN STEP	2026-09-20T03:44:59.1586771Z Worker ID: {99c3f86e-be71-4369-9ecd-30e78a13540e}
+UNKNOWN STEP	2026-09-20T03:44:59.1587524Z Azure Region: westus3
+UNKNOWN STEP	2026-09-20T03:44:59.1588602Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.1590115Z ##[group]Operating System
+UNKNOWN STEP	2026-09-20T03:44:59.1590748Z Ubuntu
+UNKNOWN STEP	2026-09-20T03:44:59.1591372Z 24.04.5
+UNKNOWN STEP	2026-09-20T03:44:59.1591916Z LTS
+UNKNOWN STEP	2026-09-20T03:44:59.1592504Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.1593063Z ##[group]Runner Image
+UNKNOWN STEP	2026-09-20T03:44:59.1593640Z Image: ubuntu-24.04
+UNKNOWN STEP	2026-09-20T03:44:59.1594267Z Version: 20260907.300.1
+UNKNOWN STEP	2026-09-20T03:44:59.1595515Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+UNKNOWN STEP	2026-09-20T03:44:59.1597203Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+UNKNOWN STEP	2026-09-20T03:44:59.1598385Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.1599829Z ##[group]GITHUB_TOKEN Permissions
+UNKNOWN STEP	2026-09-20T03:44:59.1601728Z Contents: read
+UNKNOWN STEP	2026-09-20T03:44:59.1602448Z Metadata: read
+UNKNOWN STEP	2026-09-20T03:44:59.1603022Z Packages: read
+UNKNOWN STEP	2026-09-20T03:44:59.1603677Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.1605730Z Secret source: Actions
+UNKNOWN STEP	2026-09-20T03:44:59.1606774Z Cache mode: write
+UNKNOWN STEP	2026-09-20T03:44:59.1607491Z Prepare workflow directory
+UNKNOWN STEP	2026-09-20T03:44:59.1970098Z Prepare all required actions
+UNKNOWN STEP	2026-09-20T03:44:59.2040309Z Getting action download info
+UNKNOWN STEP	2026-09-20T03:44:59.5184002Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+UNKNOWN STEP	2026-09-20T03:44:59.6476228Z Download action repository 'actions/setup-python@v6' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+UNKNOWN STEP	2026-09-20T03:44:59.8231882Z Complete job name: backend-estate-coverage
+UNKNOWN STEP	2026-09-20T03:44:59.8990275Z ##[group]Run actions/checkout@v5
+UNKNOWN STEP	2026-09-20T03:44:59.8991158Z with:
+UNKNOWN STEP	2026-09-20T03:44:59.8991685Z   repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.8995630Z   token: ***
+UNKNOWN STEP	2026-09-20T03:44:59.8996063Z   ssh-strict: true
+UNKNOWN STEP	2026-09-20T03:44:59.8996517Z   ssh-user: git
+UNKNOWN STEP	2026-09-20T03:44:59.8997033Z   persist-credentials: true
+UNKNOWN STEP	2026-09-20T03:44:59.8997516Z   clean: true
+UNKNOWN STEP	2026-09-20T03:44:59.8998175Z   sparse-checkout-cone-mode: true
+UNKNOWN STEP	2026-09-20T03:44:59.8998704Z   fetch-depth: 1
+UNKNOWN STEP	2026-09-20T03:44:59.8999148Z   fetch-tags: false
+UNKNOWN STEP	2026-09-20T03:44:59.8999590Z   show-progress: true
+UNKNOWN STEP	2026-09-20T03:44:59.9000041Z   lfs: false
+UNKNOWN STEP	2026-09-20T03:44:59.9000448Z   submodules: false
+UNKNOWN STEP	2026-09-20T03:44:59.9000906Z   set-safe-directory: true
+UNKNOWN STEP	2026-09-20T03:44:59.9001415Z   allow-unsafe-pr-checkout: false
+UNKNOWN STEP	2026-09-20T03:44:59.9002207Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.9980272Z Syncing repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.9982417Z ##[group]Getting Git version info
+UNKNOWN STEP	2026-09-20T03:44:59.9983714Z Working directory is '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.9985706Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:45:00.0064068Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:45:00.0088079Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.0103990Z Temporarily overriding HOME='/home/runner/work/_temp/a5180d17-5362-470f-a5bc-e8b48973de00' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:45:00.0106125Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:45:00.0109785Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.0173067Z Deleting the contents of '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:45:00.0178760Z ##[group]Initializing the repository
+UNKNOWN STEP	2026-09-20T03:45:00.0186247Z [command]/usr/bin/git init /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.0300533Z hint: Using 'master' as the name for the initial branch. This default branch name
+UNKNOWN STEP	2026-09-20T03:45:00.0303838Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+UNKNOWN STEP	2026-09-20T03:45:00.0305416Z hint: to use in all of your new repositories, which will suppress this warning,
+UNKNOWN STEP	2026-09-20T03:45:00.0306631Z hint: call:
+UNKNOWN STEP	2026-09-20T03:45:00.0307259Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.0308453Z hint: 	git config --global init.defaultBranch <name>
+UNKNOWN STEP	2026-09-20T03:45:00.0309446Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.0310357Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+UNKNOWN STEP	2026-09-20T03:45:00.0311857Z hint: 'development'. The just-created branch can be renamed via this command:
+UNKNOWN STEP	2026-09-20T03:45:00.0313058Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.0313700Z hint: 	git branch -m <name>
+UNKNOWN STEP	2026-09-20T03:45:00.0314437Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.0315431Z hint: Disable this message with "git config set advice.defaultBranchName false"
+UNKNOWN STEP	2026-09-20T03:45:00.0317329Z Initialized empty Git repository in /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/.git/
+UNKNOWN STEP	2026-09-20T03:45:00.0321029Z [command]/usr/bin/git remote add origin https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.0368168Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.0369219Z ##[group]Disabling automatic garbage collection
+UNKNOWN STEP	2026-09-20T03:45:00.0381106Z [command]/usr/bin/git config --local gc.auto 0
+UNKNOWN STEP	2026-09-20T03:45:00.0404338Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.0405093Z ##[group]Setting up auth
+UNKNOWN STEP	2026-09-20T03:45:00.0412469Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:45:00.0445740Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:45:00.0870543Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:45:00.0914387Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:45:00.1143691Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:45:00.1181688Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:45:00.1423864Z [command]/usr/bin/git config --local http.https://github.com/.extraheader [REDACTED] ***
+UNKNOWN STEP	2026-09-20T03:45:00.1462814Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.1463694Z ##[group]Fetching the repository
+UNKNOWN STEP	2026-09-20T03:45:00.1472924Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +21feff6f3b4b225191120201cca9cc0f0157d54c:refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:11.0190783Z From https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:11.0193376Z  * [new ref]         21feff6f3b4b225191120201cca9cc0f0157d54c -> pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:11.0197599Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:11.0199386Z ##[group]Determining the checkout info
+UNKNOWN STEP	2026-09-20T03:45:11.0200923Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:11.0205248Z [command]/usr/bin/git sparse-checkout disable
+UNKNOWN STEP	2026-09-20T03:45:11.0258855Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+UNKNOWN STEP	2026-09-20T03:45:11.0293678Z ##[group]Checking out the ref
+UNKNOWN STEP	2026-09-20T03:45:11.0296202Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:12.0398546Z Updating files:  48% (2156/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0446927Z Updating files:  49% (2171/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0500759Z Updating files:  50% (2215/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0552733Z Updating files:  51% (2260/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0600131Z Updating files:  52% (2304/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0645050Z Updating files:  53% (2348/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0826970Z Updating files:  54% (2393/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.0991853Z Updating files:  55% (2437/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1030473Z Updating files:  56% (2481/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1068997Z Updating files:  57% (2526/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1094296Z Updating files:  58% (2570/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1366193Z Updating files:  59% (2614/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1407178Z Updating files:  60% (2658/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1448672Z Updating files:  61% (2703/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1492631Z Updating files:  62% (2747/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1536224Z Updating files:  63% (2791/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1574851Z Updating files:  64% (2836/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1610639Z Updating files:  65% (2880/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1642003Z Updating files:  66% (2924/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1679284Z Updating files:  67% (2969/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1721571Z Updating files:  68% (3013/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1770089Z Updating files:  69% (3057/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1806973Z Updating files:  70% (3101/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1845694Z Updating files:  71% (3146/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1881410Z Updating files:  72% (3190/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1918763Z Updating files:  73% (3234/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1954757Z Updating files:  74% (3279/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.1986946Z Updating files:  75% (3323/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2019061Z Updating files:  76% (3367/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2039851Z Updating files:  77% (3412/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2068706Z Updating files:  78% (3456/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2100629Z Updating files:  79% (3500/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2128592Z Updating files:  80% (3544/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2157663Z Updating files:  81% (3589/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2185280Z Updating files:  82% (3633/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2313767Z Updating files:  83% (3677/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2377412Z Updating files:  84% (3722/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2647216Z Updating files:  85% (3766/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2713578Z Updating files:  86% (3810/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.2743261Z Updating files:  87% (3855/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3144534Z Updating files:  88% (3899/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3168873Z Updating files:  89% (3943/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3193680Z Updating files:  90% (3987/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3220278Z Updating files:  91% (4032/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3247066Z Updating files:  92% (4076/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3274088Z Updating files:  93% (4120/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3301533Z Updating files:  94% (4165/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3323102Z Updating files:  95% (4209/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3342282Z Updating files:  96% (4253/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3363172Z Updating files:  97% (4298/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3383116Z Updating files:  98% (4342/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3541516Z Updating files:  99% (4386/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3542474Z Updating files: 100% (4430/4430)
+UNKNOWN STEP	2026-09-20T03:45:12.3543197Z Updating files: 100% (4430/4430), done.
+UNKNOWN STEP	2026-09-20T03:45:12.3585918Z Note: switching to 'refs/remotes/pull/47/merge'.
+UNKNOWN STEP	2026-09-20T03:45:12.3586284Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3586571Z You are in 'detached HEAD' state. You can look around, make experimental
+UNKNOWN STEP	2026-09-20T03:45:12.3587261Z changes and commit them, and you can discard any commits you make in this
+UNKNOWN STEP	2026-09-20T03:45:12.3588342Z state without impacting any branches by switching back to a branch.
+UNKNOWN STEP	2026-09-20T03:45:12.3588957Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3589368Z If you want to create a new branch to retain commits you create, you may
+UNKNOWN STEP	2026-09-20T03:45:12.3590347Z do so (now or later) by using -c with the switch command. Example:
+UNKNOWN STEP	2026-09-20T03:45:12.3590892Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3591152Z   git switch -c <new-branch-name>
+UNKNOWN STEP	2026-09-20T03:45:12.3591555Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3591784Z Or undo this operation with:
+UNKNOWN STEP	2026-09-20T03:45:12.3592125Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3592354Z   git switch -
+UNKNOWN STEP	2026-09-20T03:45:12.3592640Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3593123Z Turn off this advice by setting config variable advice.detachedHead to false
+UNKNOWN STEP	2026-09-20T03:45:12.3593770Z 
+UNKNOWN STEP	2026-09-20T03:45:12.3594564Z HEAD is now at 21feff6 Merge d82032f5cd5978967622721b8c9638da36a87f7d into 607af934e74fa87f3b8e58698ef68fdce919ea54
+UNKNOWN STEP	2026-09-20T03:45:12.3665327Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.3719791Z [command]/usr/bin/git log -1 --format=%H
+UNKNOWN STEP	2026-09-20T03:45:12.3753229Z 21feff6f3b4b225191120201cca9cc0f0157d54c
+UNKNOWN STEP	2026-09-20T03:45:12.4101167Z ##[group]Run actions/setup-python@v6
+UNKNOWN STEP	2026-09-20T03:45:12.4101491Z with:
+UNKNOWN STEP	2026-09-20T03:45:12.4101700Z   python-version: 3.12
+UNKNOWN STEP	2026-09-20T03:45:12.4101929Z   check-latest: false
+UNKNOWN STEP	2026-09-20T03:45:12.4104527Z   token: ***
+UNKNOWN STEP	2026-09-20T03:45:12.4104765Z   update-environment: true
+UNKNOWN STEP	2026-09-20T03:45:12.4105023Z   allow-prereleases: false
+UNKNOWN STEP	2026-09-20T03:45:12.4105261Z   freethreaded: false
+UNKNOWN STEP	2026-09-20T03:45:12.4105480Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.5341534Z ##[group]Installed versions
+UNKNOWN STEP	2026-09-20T03:45:12.5439684Z Successfully set up CPython (3.12.14)
+UNKNOWN STEP	2026-09-20T03:45:12.5440598Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.5604197Z ##[group]Run pip install -q -r requirements.txt
+UNKNOWN STEP	2026-09-20T03:45:12.5604875Z ^[[36;1mpip install -q -r requirements.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:12.5605432Z ^[[36;1mpip install -q -r requirements-dev.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:12.5670045Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:12.5670498Z env:
+UNKNOWN STEP	2026-09-20T03:45:12.5670924Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.5671659Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:12.5672386Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.5673022Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.5673662Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:12.5674311Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:12.5674851Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:50.0348889Z ##[group]Run python scripts/ci_test_lanes.py --assert-partition
+UNKNOWN STEP	2026-09-20T03:45:50.0349433Z ^[[36;1mpython scripts/ci_test_lanes.py --assert-partition^[[0m
+UNKNOWN STEP	2026-09-20T03:45:50.0388720Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:50.0388980Z env:
+UNKNOWN STEP	2026-09-20T03:45:50.0389249Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.0389700Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:50.0390174Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.0390569Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.0390965Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.0391373Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:50.0391705Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:50.2586843Z tracked 528  guards 160  chain 99  estate 266  fastmcp-excluded 2  quarantined 1
+UNKNOWN STEP	2026-09-20T03:45:50.2588121Z   quarantined: tests/test_debug_consciousness.py -- needs a local Event Bus DB that a fresh checkout lacks
+UNKNOWN STEP	2026-09-20T03:45:50.2589038Z partition OK: every tracked backend test file is claimed by exactly one lane.
+UNKNOWN STEP	2026-09-20T03:45:50.2674632Z ##[group]Run python scripts/ci_test_lanes.py --lane estate > /tmp/estate_files.txt
+UNKNOWN STEP	2026-09-20T03:45:50.2675268Z ^[[36;1mpython scripts/ci_test_lanes.py --lane estate > /tmp/estate_files.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:50.2675729Z ^[[36;1msed 's/^/  estate: /' /tmp/estate_files.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:50.2676078Z ^[[36;1mFILES=$(tr '\n' ' ' < /tmp/estate_files.txt)^[[0m
+UNKNOWN STEP	2026-09-20T03:45:50.2676482Z ^[[36;1mpython -m pytest $FILES -q --timeout=120 --junitxml=estate.xml^[[0m
+UNKNOWN STEP	2026-09-20T03:45:50.2715019Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:50.2715284Z env:
+UNKNOWN STEP	2026-09-20T03:45:50.2715559Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.2716020Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:50.2716455Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.2716838Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.2717255Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:50.2717650Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:50.2718272Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:50.4154864Z   estate: tests/test_account_billing_hub_iter123.py
+UNKNOWN STEP	2026-09-20T03:45:50.4156418Z   estate: tests/test_active_duty_iter93.py
+UNKNOWN STEP	2026-09-20T03:45:50.4157230Z   estate: tests/test_ad_approval_queue_iter141.py
+UNKNOWN STEP	2026-09-20T03:45:50.4158026Z   estate: tests/test_ad_approval_queue_iter142.py
+UNKNOWN STEP	2026-09-20T03:45:50.4158547Z   estate: tests/test_ad_submission_media_iter143.py
+UNKNOWN STEP	2026-09-20T03:45:50.4158913Z   estate: tests/test_admin_analytics_iter140.py
+UNKNOWN STEP	2026-09-20T03:45:50.4159246Z   estate: tests/test_admin_api_metrics_honesty.py
+UNKNOWN STEP	2026-09-20T03:45:50.4159640Z   estate: tests/test_admin_impersonation_test_accounts_iter256.py
+UNKNOWN STEP	2026-09-20T03:45:50.4160050Z   estate: tests/test_admin_pricing_config_iter126.py
+UNKNOWN STEP	2026-09-20T03:45:50.4160375Z   estate: tests/test_admin_spot_stats.py
+UNKNOWN STEP	2026-09-20T03:45:50.4160684Z   estate: tests/test_ai_moderation_leaderboard.py
+UNKNOWN STEP	2026-09-20T03:45:50.4161064Z   estate: tests/test_ai_sessions_identity_matching_iter262.py
+UNKNOWN STEP	2026-09-20T03:45:50.4161478Z   estate: tests/test_approved_pro_verification_queue_iter282.py
+UNKNOWN STEP	2026-09-20T03:45:50.4161877Z   estate: tests/test_architecture_audit_e2e_iter286.py
+UNKNOWN STEP	2026-09-20T03:45:50.4162230Z   estate: tests/test_architecture_audit_iter286.py
+UNKNOWN STEP	2026-09-20T03:45:50.4162543Z   estate: tests/test_auth_signup.py
+UNKNOWN STEP	2026-09-20T03:45:50.4162821Z   estate: tests/test_availability_iter89.py
+UNKNOWN STEP	2026-09-20T03:45:50.4163167Z   estate: tests/test_booking_invite_admin_console_iter136.py
+UNKNOWN STEP	2026-09-20T03:45:50.4163506Z   estate: tests/test_bookings_crud.py
+UNKNOWN STEP	2026-09-20T03:45:50.4163828Z   estate: tests/test_bookings_jump_in_photo_upload.py
+UNKNOWN STEP	2026-09-20T03:45:50.4164168Z   estate: tests/test_bookings_manager_iter88.py
+UNKNOWN STEP	2026-09-20T03:45:50.4164473Z   estate: tests/test_bug_fixes_238.py
+UNKNOWN STEP	2026-09-20T03:45:50.4164744Z   estate: tests/test_bulk_update.py
+UNKNOWN STEP	2026-09-20T03:45:50.4165036Z   estate: tests/test_capture_session_iter83.py
+UNKNOWN STEP	2026-09-20T03:45:50.4165361Z   estate: tests/test_career_hub_stoke_sponsor.py
+UNKNOWN STEP	2026-09-20T03:45:50.4165695Z   estate: tests/test_career_stoke_sponsor_v89.py
+UNKNOWN STEP	2026-09-20T03:45:50.4166052Z   estate: tests/test_census_artifact_json_purity.py
+UNKNOWN STEP	2026-09-20T03:45:50.4166377Z   estate: tests/test_census_transport.py
+UNKNOWN STEP	2026-09-20T03:45:50.4166676Z   estate: tests/test_challenge_mode_watermark.py
+UNKNOWN STEP	2026-09-20T03:45:50.4167001Z   estate: tests/test_check_floor_before_push.py
+UNKNOWN STEP	2026-09-20T03:45:50.4167316Z   estate: tests/test_ci_floor_staleness.py
+UNKNOWN STEP	2026-09-20T03:45:50.4167611Z   estate: tests/test_clear_cache_tmp.py
+UNKNOWN STEP	2026-09-20T03:45:50.4168408Z   estate: tests/test_client_diagnostics_bounds.py
+UNKNOWN STEP	2026-09-20T03:45:50.4168789Z   estate: tests/test_comment_reaction_contract.py
+UNKNOWN STEP	2026-09-20T03:45:50.4169115Z   estate: tests/test_comment_reactions_iter203.py
+UNKNOWN STEP	2026-09-20T03:45:50.4169433Z   estate: tests/test_comment_replies_iter204.py
+UNKNOWN STEP	2026-09-20T03:45:50.4169738Z   estate: tests/test_comments.py
+UNKNOWN STEP	2026-09-20T03:45:50.4170286Z   estate: tests/test_competition_verification_iter64.py
+UNKNOWN STEP	2026-09-20T03:45:50.4170675Z   estate: tests/test_compliance_endpoints_iter249.py
+UNKNOWN STEP	2026-09-20T03:45:50.4171032Z   estate: tests/test_conditions_route_wire_contract.py
+UNKNOWN STEP	2026-09-20T03:45:50.4171382Z   estate: tests/test_conditions_status_honesty.py
+UNKNOWN STEP	2026-09-20T03:45:50.4171738Z   estate: tests/test_create_flow_ad_center_iter144.py
+UNKNOWN STEP	2026-09-20T03:45:50.4172071Z   estate: tests/test_credit_refund_redundancy.py
+UNKNOWN STEP	2026-09-20T03:45:50.4172425Z   estate: tests/test_credit_subscription_payment_iter139.py
+UNKNOWN STEP	2026-09-20T03:45:50.4172782Z   estate: tests/test_credits_gallery_pricing.py
+UNKNOWN STEP	2026-09-20T03:45:50.4173114Z   estate: tests/test_credits_messages_notifications.py
+UNKNOWN STEP	2026-09-20T03:45:50.4173467Z   estate: tests/test_credits_pricing_system.py
+UNKNOWN STEP	2026-09-20T03:45:50.4173779Z   estate: tests/test_crew_chat_media_iter132.py
+UNKNOWN STEP	2026-09-20T03:45:50.4174101Z   estate: tests/test_crew_chat_reactions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4174448Z   estate: tests/test_crew_chat_scheduler_iter131.py
+UNKNOWN STEP	2026-09-20T03:45:50.4174768Z   estate: tests/test_crew_hub_iter128.py
+UNKNOWN STEP	2026-09-20T03:45:50.4175079Z   estate: tests/test_crew_leaderboard_iter192.py
+UNKNOWN STEP	2026-09-20T03:45:50.4175423Z   estate: tests/test_crew_payment_atomicity_iter286.py
+UNKNOWN STEP	2026-09-20T03:45:50.4175763Z   estate: tests/test_crew_payment_flow_iter284.py
+UNKNOWN STEP	2026-09-20T03:45:50.4176206Z   estate: tests/test_crew_payment_iter130.py
+UNKNOWN STEP	2026-09-20T03:45:50.4176513Z   estate: tests/test_crew_split_endpoints.py
+UNKNOWN STEP	2026-09-20T03:45:50.4176803Z   estate: tests/test_cross_pollination.py
+UNKNOWN STEP	2026-09-20T03:45:50.4177125Z   estate: tests/test_cross_profile_tagging_iter111.py
+UNKNOWN STEP	2026-09-20T03:45:50.4177453Z   estate: tests/test_delta_features_iter113.py
+UNKNOWN STEP	2026-09-20T03:45:50.4177913Z   estate: tests/test_dev_identity_gate.py
+UNKNOWN STEP	2026-09-20T03:45:50.4178202Z   estate: tests/test_dispatch_matching.py
+UNKNOWN STEP	2026-09-20T03:45:50.4178508Z   estate: tests/test_dispatch_selfie_mobile_selfie.py
+UNKNOWN STEP	2026-09-20T03:45:50.4178832Z   estate: tests/test_dispatch_transitions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4179155Z   estate: tests/test_e2e_safety_rbac_iter119.py
+UNKNOWN STEP	2026-09-20T03:45:50.4179462Z   estate: tests/test_elite_tier_iter122.py
+UNKNOWN STEP	2026-09-20T03:45:50.4179770Z   estate: tests/test_env_parity_instrument.py
+UNKNOWN STEP	2026-09-20T03:45:50.4180081Z   estate: tests/test_event_bus.py
+UNKNOWN STEP	2026-09-20T03:45:50.4180371Z   estate: tests/test_event_spine.py
+UNKNOWN STEP	2026-09-20T03:45:50.4180668Z   estate: tests/test_featured_ai_messaging.py
+UNKNOWN STEP	2026-09-20T03:45:50.4181011Z   estate: tests/test_feed_lineup_integration_iter209.py
+UNKNOWN STEP	2026-09-20T03:45:50.4181341Z   estate: tests/test_feed_privacy.py
+UNKNOWN STEP	2026-09-20T03:45:50.4181616Z   estate: tests/test_feedback_loop.py
+UNKNOWN STEP	2026-09-20T03:45:50.4181912Z   estate: tests/test_financial_backbone_iter90.py
+UNKNOWN STEP	2026-09-20T03:45:50.4182226Z   estate: tests/test_find_missing_spots.py
+UNKNOWN STEP	2026-09-20T03:45:50.4182539Z   estate: tests/test_gallery_admin_subscriptions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4182870Z   estate: tests/test_gallery_delete_map_fab.py
+UNKNOWN STEP	2026-09-20T03:45:50.4183189Z   estate: tests/test_gallery_pricing_iter77.py
+UNKNOWN STEP	2026-09-20T03:45:50.4183491Z   estate: tests/test_gallery_smoke.py
+UNKNOWN STEP	2026-09-20T03:45:50.4183784Z   estate: tests/test_gallery_sync_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4184102Z   estate: tests/test_gallery_ux_tickets_iter287.py
+UNKNOWN STEP	2026-09-20T03:45:50.4184440Z   estate: tests/test_gamification_gallery_iter55.py
+UNKNOWN STEP	2026-09-20T03:45:50.4184775Z   estate: tests/test_gear_hub_shaka_revenue.py
+UNKNOWN STEP	2026-09-20T03:45:50.4185080Z   estate: tests/test_god_mode_session_join.py
+UNKNOWN STEP	2026-09-20T03:45:50.4185434Z   estate: tests/test_gold_pass_credits_elite_groms_iter125.py
+UNKNOWN STEP	2026-09-20T03:45:50.4185803Z   estate: tests/test_gold_pass_feature_iter245.py
+UNKNOWN STEP	2026-09-20T03:45:50.4186113Z   estate: tests/test_google_calendar.py
+UNKNOWN STEP	2026-09-20T03:45:50.4186394Z   estate: tests/test_google_maps.py
+UNKNOWN STEP	2026-09-20T03:45:50.4186687Z   estate: tests/test_gps_autocentering_iter148.py
+UNKNOWN STEP	2026-09-20T03:45:50.4186992Z   estate: tests/test_gps_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4187270Z   estate: tests/test_grib_range_integrity.py
+UNKNOWN STEP	2026-09-20T03:45:50.4187563Z   estate: tests/test_grom_hq_iter114.py
+UNKNOWN STEP	2026-09-20T03:45:50.4188113Z   estate: tests/test_grom_hq_manage_iter107.py
+UNKNOWN STEP	2026-09-20T03:45:50.4188458Z   estate: tests/test_grom_hq_role_permissions_iter109.py
+UNKNOWN STEP	2026-09-20T03:45:50.4188791Z   estate: tests/test_grom_media_policy.py
+UNKNOWN STEP	2026-09-20T03:45:50.4189088Z   estate: tests/test_grom_safety_gate_iter108.py
+UNKNOWN STEP	2026-09-20T03:45:50.4189419Z   estate: tests/test_grom_zone_messaging_iter110.py
+UNKNOWN STEP	2026-09-20T03:45:50.4189754Z   estate: tests/test_hashtag_autocomplete_iter260.py
+UNKNOWN STEP	2026-09-20T03:45:50.4190120Z   estate: tests/test_hobbyist_funnel_ad_toggle_iter127.py
+UNKNOWN STEP	2026-09-20T03:45:50.4190460Z   estate: tests/test_impact_dashboard.py
+UNKNOWN STEP	2026-09-20T03:45:50.4190761Z   estate: tests/test_import_reviewed_spots.py
+UNKNOWN STEP	2026-09-20T03:45:50.4191059Z   estate: tests/test_invite_lifecycle.py
+UNKNOWN STEP	2026-09-20T03:45:50.4191341Z   estate: tests/test_iter62_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4191632Z   estate: tests/test_iteration_133_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4191941Z   estate: tests/test_iteration_147_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4192244Z   estate: tests/test_iteration_149_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4192558Z   estate: tests/test_iteration_150_global_spots.py
+UNKNOWN STEP	2026-09-20T03:45:50.4192943Z   estate: tests/test_iteration_151_forecast_search.py
+UNKNOWN STEP	2026-09-20T03:45:50.4193268Z   estate: tests/test_iteration_152_spots.py
+UNKNOWN STEP	2026-09-20T03:45:50.4193739Z   estate: tests/test_iteration_153_precision_coordinates.py
+UNKNOWN STEP	2026-09-20T03:45:50.4194139Z   estate: tests/test_iteration_154_offshore_coordinates.py
+UNKNOWN STEP	2026-09-20T03:45:50.4194536Z   estate: tests/test_iteration_155_authoritative_coordinates.py
+UNKNOWN STEP	2026-09-20T03:45:50.4194958Z   estate: tests/test_iteration_156_florida_surgical_coordinates.py
+UNKNOWN STEP	2026-09-20T03:45:50.4195388Z   estate: tests/test_iteration_157_florida_visual_verification.py
+UNKNOWN STEP	2026-09-20T03:45:50.4195769Z   estate: tests/test_iteration_158_deep_zoom_peaks.py
+UNKNOWN STEP	2026-09-20T03:45:50.4196126Z   estate: tests/test_iteration_159_multistate_rollout.py
+UNKNOWN STEP	2026-09-20T03:45:50.4196512Z   estate: tests/test_iteration_160_brevard_county_surgical_fix.py
+UNKNOWN STEP	2026-09-20T03:45:50.4196903Z   estate: tests/test_iteration_161_florida_final_sync.py
+UNKNOWN STEP	2026-09-20T03:45:50.4197265Z   estate: tests/test_iteration_162_ny_central_america.py
+UNKNOWN STEP	2026-09-20T03:45:50.4197635Z   estate: tests/test_iteration_163_caribbean_asia_pacific.py
+UNKNOWN STEP	2026-09-20T03:45:50.4198150Z   estate: tests/test_iteration_164_global_mega_expansion.py
+UNKNOWN STEP	2026-09-20T03:45:50.4198535Z   estate: tests/test_iteration_165_global_expansion_phase2.py
+UNKNOWN STEP	2026-09-20T03:45:50.4198923Z   estate: tests/test_iteration_166_global_expansion_phase3.py
+UNKNOWN STEP	2026-09-20T03:45:50.4199302Z   estate: tests/test_iteration_167_global_expansion_phase4.py
+UNKNOWN STEP	2026-09-20T03:45:50.4199721Z   estate: tests/test_iteration_168_global_expansion_phase5_passport.py
+UNKNOWN STEP	2026-09-20T03:45:50.4200140Z   estate: tests/test_iteration_170_passport_checkin.py
+UNKNOWN STEP	2026-09-20T03:45:50.4200467Z   estate: tests/test_iteration_172.py
+UNKNOWN STEP	2026-09-20T03:45:50.4200771Z   estate: tests/test_iteration_173_admin_queue.py
+UNKNOWN STEP	2026-09-20T03:45:50.4201106Z   estate: tests/test_iteration_174_admin_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4201445Z   estate: tests/test_iteration_175_avatar_spots.py
+UNKNOWN STEP	2026-09-20T03:45:50.4201763Z   estate: tests/test_iteration_179_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4202081Z   estate: tests/test_iteration_180_notes_europe.py
+UNKNOWN STEP	2026-09-20T03:45:50.4202441Z   estate: tests/test_iteration_181_caribbean_central_america.py
+UNKNOWN STEP	2026-09-20T03:45:50.4202830Z   estate: tests/test_iteration_182_notes_spots_offline.py
+UNKNOWN STEP	2026-09-20T03:45:50.4203204Z   estate: tests/test_iteration_183_notes_forecast_offline.py
+UNKNOWN STEP	2026-09-20T03:45:50.4203563Z   estate: tests/test_iteration_184_messages_notes.py
+UNKNOWN STEP	2026-09-20T03:45:50.4203905Z   estate: tests/test_iteration_185_booking_credits.py
+UNKNOWN STEP	2026-09-20T03:45:50.4204232Z   estate: tests/test_iteration_187_p1_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4204547Z   estate: tests/test_iteration_188_p2_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4204861Z   estate: tests/test_iteration_189_p2_remaining.py
+UNKNOWN STEP	2026-09-20T03:45:50.4205174Z   estate: tests/test_jump_in_session_flow.py
+UNKNOWN STEP	2026-09-20T03:45:50.4205481Z   estate: tests/test_leaderboard_live_session.py
+UNKNOWN STEP	2026-09-20T03:45:50.4205908Z   estate: tests/test_legacy_combined_time.py
+UNKNOWN STEP	2026-09-20T03:45:50.4206259Z   estate: tests/test_legacy_swell_quantity.py
+UNKNOWN STEP	2026-09-20T03:45:50.4206553Z   estate: tests/test_like_toggle.py
+UNKNOWN STEP	2026-09-20T03:45:50.4206832Z   estate: tests/test_lineup.py
+UNKNOWN STEP	2026-09-20T03:45:50.4207090Z   estate: tests/test_lineup_seats.py
+UNKNOWN STEP	2026-09-20T03:45:50.4207383Z   estate: tests/test_lineup_settings_iter270.py
+UNKNOWN STEP	2026-09-20T03:45:50.4207804Z   estate: tests/test_lineup_status.py
+UNKNOWN STEP	2026-09-20T03:45:50.4208292Z   estate: tests/test_live_session_features_iter281.py
+UNKNOWN STEP	2026-09-20T03:45:50.4208653Z   estate: tests/test_livekit_integration_iter102.py
+UNKNOWN STEP	2026-09-20T03:45:50.4208974Z   estate: tests/test_livekit_security.py
+UNKNOWN STEP	2026-09-20T03:45:50.4209293Z   estate: tests/test_local_size_gonogo_exit_contract.py
+UNKNOWN STEP	2026-09-20T03:45:50.4209623Z   estate: tests/test_location_filtering.py
+UNKNOWN STEP	2026-09-20T03:45:50.4209921Z   estate: tests/test_location_session_nav.py
+UNKNOWN STEP	2026-09-20T03:45:50.4210278Z   estate: tests/test_measure_or_refuse_last_two_surfaces.py
+UNKNOWN STEP	2026-09-20T03:45:50.4210635Z   estate: tests/test_media_privacy_contracts.py
+UNKNOWN STEP	2026-09-20T03:45:50.4210965Z   estate: tests/test_mentions_replies_ads_iter135.py
+UNKNOWN STEP	2026-09-20T03:45:50.4211280Z   estate: tests/test_message_threads.py
+UNKNOWN STEP	2026-09-20T03:45:50.4211756Z   estate: tests/test_messaging_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4212041Z   estate: tests/test_meta_sharing.py
+UNKNOWN STEP	2026-09-20T03:45:50.4212321Z   estate: tests/test_moderation_reports.py
+UNKNOWN STEP	2026-09-20T03:45:50.4212602Z   estate: tests/test_n8n.py
+UNKNOWN STEP	2026-09-20T03:45:50.4212883Z   estate: tests/test_nearshore_workflow_eligibility.py
+UNKNOWN STEP	2026-09-20T03:45:50.4213226Z   estate: tests/test_new_features_iter241.py
+UNKNOWN STEP	2026-09-20T03:45:50.4213524Z   estate: tests/test_new_features_iter250.py
+UNKNOWN STEP	2026-09-20T03:45:50.4213813Z   estate: tests/test_notes_api.py
+UNKNOWN STEP	2026-09-20T03:45:50.4214097Z   estate: tests/test_on_demand_photos_included.py
+UNKNOWN STEP	2026-09-20T03:45:50.4214409Z   estate: tests/test_on_demand_topnav.py
+UNKNOWN STEP	2026-09-20T03:45:50.4214687Z   estate: tests/test_operator.py
+UNKNOWN STEP	2026-09-20T03:45:50.4214974Z   estate: tests/test_orm_mapper_configuration.py
+UNKNOWN STEP	2026-09-20T03:45:50.4215294Z   estate: tests/test_p0_alerts_push_tides.py
+UNKNOWN STEP	2026-09-20T03:45:50.4215581Z   estate: tests/test_p1_p2_features.py
+UNKNOWN STEP	2026-09-20T03:45:50.4215868Z   estate: tests/test_p2_dispatch_pricing.py
+UNKNOWN STEP	2026-09-20T03:45:50.4216163Z   estate: tests/test_password_auth.py
+UNKNOWN STEP	2026-09-20T03:45:50.4216450Z   estate: tests/test_password_hashing_py313.py
+UNKNOWN STEP	2026-09-20T03:45:50.4216755Z   estate: tests/test_password_reset_admin.py
+UNKNOWN STEP	2026-09-20T03:45:50.4217062Z   estate: tests/test_payments_push_iter35.py
+UNKNOWN STEP	2026-09-20T03:45:50.4217376Z   estate: tests/test_persona_messaging_iter43.py
+UNKNOWN STEP	2026-09-20T03:45:50.4217853Z   estate: tests/test_photo_tagging_session_pricing.py
+UNKNOWN STEP	2026-09-20T03:45:50.4218228Z   estate: tests/test_photographer_availability_iter194.py
+UNKNOWN STEP	2026-09-20T03:45:50.4218574Z   estate: tests/test_photographer_bookings.py
+UNKNOWN STEP	2026-09-20T03:45:50.4218920Z   estate: tests/test_photographer_workflow_notifications.py
+UNKNOWN STEP	2026-09-20T03:45:50.4219288Z   estate: tests/test_pin_post_edit_comment_iter253.py
+UNKNOWN STEP	2026-09-20T03:45:50.4219626Z   estate: tests/test_post_delete_iwasthere_iter198.py
+UNKNOWN STEP	2026-09-20T03:45:50.4219953Z   estate: tests/test_post_edit_delete_iter200.py
+UNKNOWN STEP	2026-09-20T03:45:50.4220311Z   estate: tests/test_post_menu_noaa_wave_direction_iter197.py
+UNKNOWN STEP	2026-09-20T03:45:50.4220666Z   estate: tests/test_post_reactions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4220965Z   estate: tests/test_post_reactions_save_iter288.py
+UNKNOWN STEP	2026-09-20T03:45:50.4221322Z   estate: tests/test_privacy_shield_global_spots_iter145.py
+UNKNOWN STEP	2026-09-20T03:45:50.4221657Z   estate: tests/test_private_media.py
+UNKNOWN STEP	2026-09-20T03:45:50.4221943Z   estate: tests/test_pro_zone_restrictions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4222246Z   estate: tests/test_production_lock.py
+UNKNOWN STEP	2026-09-20T03:45:50.4222528Z   estate: tests/test_profile_content.py
+UNKNOWN STEP	2026-09-20T03:45:50.4222808Z   estate: tests/test_profile_navigation.py
+UNKNOWN STEP	2026-09-20T03:45:50.4223101Z   estate: tests/test_push_payloads.py
+UNKNOWN STEP	2026-09-20T03:45:50.4223370Z   estate: tests/test_qa_agent.py
+UNKNOWN STEP	2026-09-20T03:45:50.4223775Z   estate: tests/test_raw_surf_features_iter112.py
+UNKNOWN STEP	2026-09-20T03:45:50.4224124Z   estate: tests/test_reactions_notifications_iter34.py
+UNKNOWN STEP	2026-09-20T03:45:50.4224469Z   estate: tests/test_recent_locations_iter199.py
+UNKNOWN STEP	2026-09-20T03:45:50.4224780Z   estate: tests/test_recommendation.py
+UNKNOWN STEP	2026-09-20T03:45:50.4225088Z   estate: tests/test_request_telemetry_percentiles.py
+UNKNOWN STEP	2026-09-20T03:45:50.4225419Z   estate: tests/test_residual_accrual_census.py
+UNKNOWN STEP	2026-09-20T03:45:50.4225745Z   estate: tests/test_resolution_pricing_iter78.py
+UNKNOWN STEP	2026-09-20T03:45:50.4226055Z   estate: tests/test_reviews_xp_system.py
+UNKNOWN STEP	2026-09-20T03:45:50.4226382Z   estate: tests/test_richtext_hashtag_mention_iter263.py
+UNKNOWN STEP	2026-09-20T03:45:50.4226721Z   estate: tests/test_role_audit_iter121.py
+UNKNOWN STEP	2026-09-20T03:45:50.4227023Z   estate: tests/test_run_nearshore_validation.py
+UNKNOWN STEP	2026-09-20T03:45:50.4227349Z   estate: tests/test_safety_gate_prozone_iter120.py
+UNKNOWN STEP	2026-09-20T03:45:50.4227664Z   estate: tests/test_saved_crews_iter129.py
+UNKNOWN STEP	2026-09-20T03:45:50.4228104Z   estate: tests/test_scheduler_dispatch_offload.py
+UNKNOWN STEP	2026-09-20T03:45:50.4228435Z   estate: tests/test_search_hashtags_notif.py
+UNKNOWN STEP	2026-09-20T03:45:50.4228740Z   estate: tests/test_seat_reservation.py
+UNKNOWN STEP	2026-09-20T03:45:50.4229065Z   estate: tests/test_selfie_facial_recognition_iter280.py
+UNKNOWN STEP	2026-09-20T03:45:50.4229571Z   estate: tests/test_semantic_memory.py
+UNKNOWN STEP	2026-09-20T03:45:50.4229878Z   estate: tests/test_sensitive_route_auth_contracts.py
+UNKNOWN STEP	2026-09-20T03:45:50.4230207Z   estate: tests/test_service_area_pricing.py
+UNKNOWN STEP	2026-09-20T03:45:50.4230528Z   estate: tests/test_session_collaboration_iter193.py
+UNKNOWN STEP	2026-09-20T03:45:50.4230852Z   estate: tests/test_session_join_selfie_fix.py
+UNKNOWN STEP	2026-09-20T03:45:50.4231157Z   estate: tests/test_session_management.py
+UNKNOWN STEP	2026-09-20T03:45:50.4231458Z   estate: tests/test_session_metadata_iter196.py
+UNKNOWN STEP	2026-09-20T03:45:50.4231771Z   estate: tests/test_session_pricing_savings.py
+UNKNOWN STEP	2026-09-20T03:45:50.4232070Z   estate: tests/test_sessions_dashboard.py
+UNKNOWN STEP	2026-09-20T03:45:50.4232381Z   estate: tests/test_sessions_payments_rollback.py
+UNKNOWN STEP	2026-09-20T03:45:50.4232703Z   estate: tests/test_shaka_sticky_reactions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4233014Z   estate: tests/test_share_to_feed.py
+UNKNOWN STEP	2026-09-20T03:45:50.4233299Z   estate: tests/test_signup_redirect_iter283.py
+UNKNOWN STEP	2026-09-20T03:45:50.4233600Z   estate: tests/test_single_request.py
+UNKNOWN STEP	2026-09-20T03:45:50.4233915Z   estate: tests/test_social_live_auth_and_mux_failure.py
+UNKNOWN STEP	2026-09-20T03:45:50.4234267Z   estate: tests/test_social_live_conditions_iter101.py
+UNKNOWN STEP	2026-09-20T03:45:50.4234602Z   estate: tests/test_social_live_delta_iter105.py
+UNKNOWN STEP	2026-09-20T03:45:50.4234923Z   estate: tests/test_social_live_emoji_iter104.py
+UNKNOWN STEP	2026-09-20T03:45:50.4235225Z   estate: tests/test_spine_resolution.py
+UNKNOWN STEP	2026-09-20T03:45:50.4235522Z   estate: tests/test_sprint_features_iter94.py
+UNKNOWN STEP	2026-09-20T03:45:50.4235841Z   estate: tests/test_sprint_features_iter95.py
+UNKNOWN STEP	2026-09-20T03:45:50.4236148Z   estate: tests/test_sprint_features_iter96.py
+UNKNOWN STEP	2026-09-20T03:45:50.4236450Z   estate: tests/test_sprint_features_iter97.py
+UNKNOWN STEP	2026-09-20T03:45:50.4236767Z   estate: tests/test_startup_config_hardening.py
+UNKNOWN STEP	2026-09-20T03:45:50.4237077Z   estate: tests/test_stoked_tab_iter106.py
+UNKNOWN STEP	2026-09-20T03:45:50.4237364Z   estate: tests/test_stories_scheduler.py
+UNKNOWN STEP	2026-09-20T03:45:50.4237644Z   estate: tests/test_stripe.py
+UNKNOWN STEP	2026-09-20T03:45:50.4238022Z   estate: tests/test_stripe_checkout.py
+UNKNOWN STEP	2026-09-20T03:45:50.4238310Z   estate: tests/test_stripe_identity_live.py
+UNKNOWN STEP	2026-09-20T03:45:50.4256519Z   estate: tests/test_subscription_checkout.py
+UNKNOWN STEP	2026-09-20T03:45:50.4257152Z   estate: tests/test_subscription_plan_sync_iter124.py
+UNKNOWN STEP	2026-09-20T03:45:50.4257582Z   estate: tests/test_subscriptions.py
+UNKNOWN STEP	2026-09-20T03:45:50.4258178Z   estate: tests/test_surfer_gallery_iter246.py
+UNKNOWN STEP	2026-09-20T03:45:50.4258536Z   estate: tests/test_surfer_gallery_review_iter261.py
+UNKNOWN STEP	2026-09-20T03:45:50.4258868Z   estate: tests/test_system_sync.py
+UNKNOWN STEP	2026-09-20T03:45:50.4259166Z   estate: tests/test_tagged_photo_workflow.py
+UNKNOWN STEP	2026-09-20T03:45:50.4259487Z   estate: tests/test_theme_badges_iter60.py
+UNKNOWN STEP	2026-09-20T03:45:50.4260029Z   estate: tests/test_tide_caller_comment_is_not_stale.py
+UNKNOWN STEP	2026-09-20T03:45:50.4260399Z   estate: tests/test_trevec_index_gc.py
+UNKNOWN STEP	2026-09-20T03:45:50.4260721Z   estate: tests/test_triage_duplicate_spots.py
+UNKNOWN STEP	2026-09-20T03:45:50.4261065Z   estate: tests/test_unified_photo_hub_iter84.py
+UNKNOWN STEP	2026-09-20T03:45:50.4261383Z   estate: tests/test_uptime_probe.py
+UNKNOWN STEP	2026-09-20T03:45:50.4261714Z   estate: tests/test_username_display.py
+UNKNOWN STEP	2026-09-20T03:45:50.4262015Z   estate: tests/test_username_management.py
+UNKNOWN STEP	2026-09-20T03:45:50.4262319Z   estate: tests/test_video_photo_upload.py
+UNKNOWN STEP	2026-09-20T03:45:50.4262626Z   estate: tests/test_watermark_gallery_tier.py
+UNKNOWN STEP	2026-09-20T03:45:50.4262931Z   estate: tests/test_waves_feature.py
+UNKNOWN STEP	2026-09-20T03:45:50.4263209Z   estate: tests/test_websocket_auth.py
+UNKNOWN STEP	2026-09-20T03:45:50.4263513Z   estate: tests/test_websocket_earnings_iter118.py
+UNKNOWN STEP	2026-09-20T03:45:50.4263850Z   estate: tests/test_websocket_endpoints_auth.py
+UNKNOWN STEP	2026-09-20T03:45:50.4264179Z   estate: tests/test_woocommerce.py
+UNKNOWN STEP	2026-09-20T03:45:50.4264451Z   estate: tests/test_world_model.py
+UNKNOWN STEP	2026-09-20T03:45:50.4264721Z   estate: tests/test_xp_rewards_iter56.py
+UNKNOWN STEP	2026-09-20T03:46:34.1144369Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss...sss [  2%]
+UNKNOWN STEP	2026-09-20T03:46:34.1668170Z ssssssssssssssssssssssssss.....sssssssssssssssssssssssssssssssssssssssss [  4%]
+UNKNOWN STEP	2026-09-20T03:46:34.2147316Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [  6%]
+UNKNOWN STEP	2026-09-20T03:46:34.2727635Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [  8%]
+UNKNOWN STEP	2026-09-20T03:46:34.3867365Z ssssssssssssssssssss........................sssssssssssss............... [ 10%]
+UNKNOWN STEP	2026-09-20T03:46:34.4813576Z .................sssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 12%]
+UNKNOWN STEP	2026-09-20T03:46:34.6051060Z ss.............sssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 14%]
+UNKNOWN STEP	2026-09-20T03:46:34.6484466Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 17%]
+UNKNOWN STEP	2026-09-20T03:46:34.6914650Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 19%]
+UNKNOWN STEP	2026-09-20T03:46:34.7497517Z sssssssssssssss............................sssssssssssssssssssssssssssss [ 21%]
+UNKNOWN STEP	2026-09-20T03:46:35.2018922Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4399022Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4441912Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4478655Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:35.4479836Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:35.4480975Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:35.4532327Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:35.4558592Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4559955Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4610917Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:35.4617033Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:35.4630858Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4633283Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:35.4724022Z ssssssssssssssssssssssssssss......................ssssssssssssssssssssss [ 23%]
+UNKNOWN STEP	2026-09-20T03:46:35.5686662Z sssssssss.....ssssssssssssss.................sssssssssssssssssssssssssss [ 25%]
+UNKNOWN STEP	2026-09-20T03:46:38.1843684Z ssssssss.......................sssssssssssssssssssssssssssssssssssssssss [ 27%]
+UNKNOWN STEP	2026-09-20T03:46:38.2611512Z ssssssssssssssssssssssssssssssssssssssssssssssssss................ssssss [ 29%]
+UNKNOWN STEP	2026-09-20T03:46:38.4125547Z ssssssssssssss....................................ssssssssssssssssssssss [ 32%]
+UNKNOWN STEP	2026-09-20T03:46:38.4569796Z sssssssssssss.........ssssssssssssssssssssssssssssssssssssssssssssssssss [ 34%]
+UNKNOWN STEP	2026-09-20T03:46:38.5016089Z ssssssssssssssssss...........sssssssssssssssssssssssssssssssssssssssssss [ 36%]
+UNKNOWN STEP	2026-09-20T03:46:38.5441854Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 38%]
+UNKNOWN STEP	2026-09-20T03:46:38.5895759Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 40%]
+UNKNOWN STEP	2026-09-20T03:46:38.6346462Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 42%]
+UNKNOWN STEP	2026-09-20T03:46:38.6795181Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 44%]
+UNKNOWN STEP	2026-09-20T03:46:38.7244517Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 47%]
+UNKNOWN STEP	2026-09-20T03:46:38.7692096Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 49%]
+UNKNOWN STEP	2026-09-20T03:46:38.8117244Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 51%]
+UNKNOWN STEP	2026-09-20T03:46:38.8551162Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 53%]
+UNKNOWN STEP	2026-09-20T03:46:38.8985501Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 55%]
+UNKNOWN STEP	2026-09-20T03:46:38.9417839Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 57%]
+UNKNOWN STEP	2026-09-20T03:46:39.0123640Z ssssssssssssssssssssssssss.............................sssssssssssssssss [ 59%]
+UNKNOWN STEP	2026-09-20T03:46:39.1253387Z ssssssssssssssssssssssssssssssssssssssssssssssssssss...............sssss [ 62%]
+UNKNOWN STEP	2026-09-20T03:46:39.2483834Z sssssssssss.............ssssssssssssssssssssssssssssssssssssssssssssssss [ 64%]
+UNKNOWN STEP	2026-09-20T03:46:39.3367568Z sssssssssssssssssssssss......................sssssssssssssssssssssssssss [ 66%]
+UNKNOWN STEP	2026-09-20T03:46:39.4569230Z sssssssssssssssssssssssssssssssssssssssssssss.......ssssssssssssssssssss [ 68%]
+UNKNOWN STEP	2026-09-20T03:46:39.4618086Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:39.4708606Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:39.4836584Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:39.4894191Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:39.4895629Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:43.6295263Z ssssssssssssssssssssssssssssssssssssss..........ssssssssssssssssssssssss [ 70%]
+UNKNOWN STEP	2026-09-20T03:46:43.6752558Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 72%]
+UNKNOWN STEP	2026-09-20T03:46:43.7203207Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 74%]
+UNKNOWN STEP	2026-09-20T03:46:43.9278759Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:43.9338596Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:43.9453896Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:43.9498738Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:43.9538503Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:43.9568604Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:43.9600471Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:43.9639359Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:43.9676547Z ssssssssssssssssssssssssssssssss.............sssssssssssssssssssssssssss [ 77%]
+UNKNOWN STEP	2026-09-20T03:46:44.0990760Z ss............ssssssssssssssssssssssssssssssssssssssssss................ [ 79%]
+UNKNOWN STEP	2026-09-20T03:46:44.1437075Z ....ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss.... [ 81%]
+UNKNOWN STEP	2026-09-20T03:46:44.5944389Z .sssssssssssssssssssssssss....ssssssssssssssssssssssssssssssssssssssssss [ 83%]
+UNKNOWN STEP	2026-09-20T03:46:44.9137311Z sss...........ssssssssssssssssssssssssssssssssssssssssssssssssssssssssss [ 85%]
+UNKNOWN STEP	2026-09-20T03:46:45.0752829Z ssssssssssssss...sssssssssssssssssssssssssssssssss........ssssssssssssss [ 87%]
+UNKNOWN STEP	2026-09-20T03:46:45.1435313Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:46.5395145Z sssssssssssss...sssssssssssssssssssssssssssssssssssss...ssssssssssssssss [ 89%]
+UNKNOWN STEP	2026-09-20T03:46:46.6060123Z sssssssssssssss..........sssssssssssssssssssssssssssssssssssssssssssssss [ 91%]
+UNKNOWN STEP	2026-09-20T03:46:46.7108630Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0068959Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0219764Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0293027Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0488578Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0589639Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0633134Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0652748Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0668682Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0669674Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0670648Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0683661Z sssssssssssssssssssssssssssssssssssssssssssssss....sssssssssssssssssssss [ 94%]
+UNKNOWN STEP	2026-09-20T03:46:47.0698676Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0779071Z Warning: Cloud Supabase bridge sync failed: [Errno -2] Name or service not known
+UNKNOWN STEP	2026-09-20T03:46:47.0782038Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.0819057Z Warning: WebSocket broadcast webhook failed: [Errno 111] Connection refused
+UNKNOWN STEP	2026-09-20T03:46:47.1290967Z ssssss.....................sssssss.............sssssssssssssssssssssssss [ 96%]
+UNKNOWN STEP	2026-09-20T03:46:47.1796317Z ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss...... [ 98%]
+UNKNOWN STEP	2026-09-20T03:46:49.1416243Z .sssssssssssssss.........................sssssssssssss                   [100%]
+UNKNOWN STEP	2026-09-20T03:46:49.1417114Z =============================== warnings summary ===============================
+UNKNOWN STEP	2026-09-20T03:46:49.1418236Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:41
+UNKNOWN STEP	2026-09-20T03:46:49.1420232Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:41: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+UNKNOWN STEP	2026-09-20T03:46:49.1421391Z     [], typing.ContextManager[anyio.abc.BlockingPortal]
+UNKNOWN STEP	2026-09-20T03:46:49.1421658Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1421789Z routes/profiles/username.py:44
+UNKNOWN STEP	2026-09-20T03:46:49.1423623Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/profiles/username.py:44: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T03:46:49.1425502Z     @validator('username')
+UNKNOWN STEP	2026-09-20T03:46:49.1425653Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1425759Z routes/profiles/username.py:63
+UNKNOWN STEP	2026-09-20T03:46:49.1427678Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/profiles/username.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T03:46:49.1430388Z     @validator('new_username')
+UNKNOWN STEP	2026-09-20T03:46:49.1430564Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1430912Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_config.py:295
+UNKNOWN STEP	2026-09-20T03:46:49.1432473Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T03:46:49.1433815Z     warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+UNKNOWN STEP	2026-09-20T03:46:49.1434058Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1434389Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+UNKNOWN STEP	2026-09-20T03:46:49.1435375Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+UNKNOWN STEP	2026-09-20T03:46:49.1436358Z     from crypt import crypt as _crypt
+UNKNOWN STEP	2026-09-20T03:46:49.1436542Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1436860Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/supabase/_async/auth_client.py:3
+UNKNOWN STEP	2026-09-20T03:46:49.1438234Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/supabase/_async/auth_client.py:3: DeprecationWarning: The `gotrue` package is deprecated, is not going to receive updates in the future. Please, use `supabase_auth` instead.
+UNKNOWN STEP	2026-09-20T03:46:49.1439179Z     from gotrue import (
+UNKNOWN STEP	2026-09-20T03:46:49.1439319Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1439425Z tests/test_websocket_auth.py: 2 warnings
+UNKNOWN STEP	2026-09-20T03:46:49.1439738Z tests/test_websocket_endpoints_auth.py: 10 warnings
+UNKNOWN STEP	2026-09-20T03:46:49.1440891Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/jose/jwt.py:311: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+UNKNOWN STEP	2026-09-20T03:46:49.1442037Z     now = timegm(datetime.utcnow().utctimetuple())
+UNKNOWN STEP	2026-09-20T03:46:49.1442251Z 
+UNKNOWN STEP	2026-09-20T03:46:49.1442449Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+UNKNOWN STEP	2026-09-20T03:46:49.1442856Z 502 passed, 2865 skipped, 18 warnings in 55.36s
+UNKNOWN STEP	2026-09-20T03:46:50.9647221Z ##[group]Run python - <<'PY'
+UNKNOWN STEP	2026-09-20T03:46:50.9648437Z ^[[36;1mpython - <<'PY'^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9648802Z ^[[36;1mimport os, subprocess, sys, xml.etree.ElementTree as ET^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9649164Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9649565Z ^[[36;1m# Files that legitimately yield NO testcases on the runner. NAMED with the reason, never^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9650195Z ^[[36;1m# achieved by narrowing a selector, and each asserted below to still exist.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9650615Z ^[[36;1mMAY_BE_EMPTY = {^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9650995Z ^[[36;1m    # Contains no test functions at all — measured 2026-08-06, `no tests ran`.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9651529Z ^[[36;1m    'tests/test_clear_cache_tmp.py': 'no test functions in the file',^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9652063Z ^[[36;1m    # ⚠️ CAUGHT BY THIS GATE ON ITS FIRST REAL RUN (31065337094), which is the point of^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9652711Z ^[[36;1m    # checking PER FILE rather than against a total. It passes locally (41 s, the slowest^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9653290Z ^[[36;1m    # file in the estate) and yields nothing on the runner because lines 18-19 are^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9653885Z ^[[36;1m    # module-level `pytest.importorskip("pyarrow")` / `("lance")`, and NEITHER is declared^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9654513Z ^[[36;1m    # in requirements.txt or requirements-dev.txt. That skip is CORRECT — this file drives^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9655140Z ^[[36;1m    # `scripts/trevec_index_gc.py`, the retention policy whose absence let `.trevec/lance`^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9655737Z ^[[36;1m    # reach 437 GB — so the fix is to name it here, not to ship pylance into the runner.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9656397Z ^[[36;1m    'tests/test_trevec_index_gc.py': 'module-level importorskip on pyarrow/lance, undeclared by design',^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9656888Z ^[[36;1m}^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9657068Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9657393Z ^[[36;1m# ✅ SET FROM THE GATE'S OWN RUN, AGAIN — this lane's reading on the PR that added^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9658146Z ^[[36;1m# tests/test_password_hashing_py313.py:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9658587Z ^[[36;1m#     "estate: 246 files selected, 244 produced results, 297 passed, 0 silent."^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9659123Z ^[[36;1m# Reconciles exactly against the 287 below: +10 from that file's 10 cases.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9659617Z ^[[36;1m# 246 selected - 2 named MAY_BE_EMPTY = 244 producing results.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9660153Z ^[[36;1m# ★ THE FLOOR IS SHIPPED PROVISIONAL AND RAISED FROM THE READING, every time — that is the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9660672Z ^[[36;1m#   discipline the 250 entry below exists to enforce.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9661202Z ^[[36;1m#^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9661532Z ^[[36;1m# ⚠️ THE EARLIER VALUES ARE KEPT BECAUSE THE MISTAKE IS THE INSTRUCTIVE PART.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9662110Z ^[[36;1m#   287 — the reading with tests/test_env_parity_instrument.py added; the floor was 285.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9662695Z ^[[36;1m#   277 — the reading with tests/test_dev_identity_gate.py added (run 31100797143);^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9663110Z ^[[36;1m#         the floor was 275.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9663537Z ^[[36;1m#   249 — the reading with tests/test_websocket_endpoints_auth.py released from the estate^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9664119Z ^[[36;1m#         quarantine (run 31072786555): "243 files selected, 241 produced results, 249^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9664669Z ^[[36;1m#         passed, 0 silent." That release made the lane FASTER, not slower — 29.06 s^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9665202Z ^[[36;1m#         against 624.76 s — because 600 s of the old figure was five unauthorized-^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9665713Z ^[[36;1m#         websocket cases sitting on a handshake the server never answered.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9666280Z ^[[36;1m#   238 — the first green reading, with both files quarantined (run 31066816129 @ 1e00bbcc).^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9666859Z ^[[36;1m#   250 — set off a LOCAL 266. CI's real figure with the same file set was 244, so the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9667587Z ^[[36;1m#         floor sat ABOVE the achievable number and would have failed the lane with zero^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9668550Z ^[[36;1m#         test failures. A local count is not this gate's count: different OS, fastmcp^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9669124Z ^[[36;1m#         present, a populated dev DB and hand-installed packages all inflate it.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9669718Z ^[[36;1m#   235 — deliberately below the predicted post-quarantine range (238-243) while the true^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9670341Z ^[[36;1m#         figure was unknown. Ship a floor PROVISIONAL, then set it from the gate itself.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9670761Z ^[[36;1m#^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9671132Z ^[[36;1m# 295 sits two below the observed 297: tight enough that a mass-skip or a deleted module^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9671733Z ^[[36;1m# is red, loose enough that ordinary churn in a 246-file heterogeneous estate does not^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9672335Z ^[[36;1m# pin CI to a total. Raise it when the estate grows — it is shrink-only, and lowering it^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9672827Z ^[[36;1m# is a deliberate act that must appear in a diff.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9673303Z ^[[36;1m# ⚠️ KEEP THIS PROSE IN STEP WITH THE NUMBER. Two floors ago the value was bumped with a^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9673904Z ^[[36;1m#   sed while these lines still described the previous reading, so the comment said "275^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9674499Z ^[[36;1m#   sits two below 277" above `MIN_PASSED = 285` — a stale explanation is worse than none,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9674956Z ^[[36;1m#   because the next reader trusts it.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9675400Z ^[[36;1m# ★ A file COUNT floor is deliberately absent: the per-file "silent" check below is^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9676003Z ^[[36;1m#   strictly stronger, and the estate is a COMPLEMENT, so moving a file into another lane^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9676495Z ^[[36;1m#   legitimately shrinks it and must not be red.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9676997Z ^[[36;1m# ⬆ 295→320 on 2026-08-11. A RAISE, despite this lane LOSING a file — because the 297 the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9677604Z ^[[36;1m#   prose above describes was long stale. The gate's OWN run on origin/dev @ 1b447f44^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9678479Z ^[[36;1m#   (run 31509178910) reads: "estate: 253 files selected, 251 produced results, 331^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9679045Z ^[[36;1m#   passed, 0 silent." So the floor sat 36 below achievable and would have absorbed a^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9679539Z ^[[36;1m#   mass-skip of an entire module without a word.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9680006Z ^[[36;1m# ⚠️ I FIRST SET THIS TO 286 BY PREDICTION (295 minus the 9 tests moving out) and it was^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9680590Z ^[[36;1m#   wrong by 34 — in the SAFE direction, which is exactly what makes it insidious: a floor^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9681326Z ^[[36;1m#   too low never goes red, so nothing would ever have corrected it. Predicting from a^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9681901Z ^[[36;1m#   stale number inherits the staleness. READ THE GATE; this block's own 250-over-244^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9682395Z ^[[36;1m#   entry is the same lesson from the opposite side.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9682886Z ^[[36;1m# THE SUBTRACTION, from the real reading: `tests/test_health_peak_memory.py` was dealt to^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9683502Z ^[[36;1m#   THIS lane by the complement while ALSO being matched by the composition lane's `ls`^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9684067Z ^[[36;1m#   glob — it ran in BOTH, so 331 includes passes this lane had no business owning.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9684650Z ^[[36;1m#   Returning the memory-safety family to COMPOSITION (where the 2026-08-10 census put it)^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9685260Z ^[[36;1m#   removes them. The file is 9 tests, 7 passed / 2 skipped locally, so this lane drops by^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9685872Z ^[[36;1m#   7-9 — and gains 8 from tests/test_ci_floor_staleness.py, which the complement claims.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9686352Z ^[[36;1m#   Net expectation: 331 - (7..9) + 8 = 330-332.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9686945Z ^[[36;1m# ⬆ 320→328 on 2026-08-11 — the provisional floor RESOLVED against its first post-merge^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9687538Z ^[[36;1m#   reading, which is exactly what the entry it replaces instructed. From the gate's OWN^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9688468Z ^[[36;1m#   run on origin/dev @ 9857a325 (run 31514754043): "estate: 253 files selected, 251^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9689033Z ^[[36;1m#   produced results, 330 passed, 0 silent." 328 is the customary two below.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9689598Z ^[[36;1m# ★★ THE DERIVATION HELD, AND ITS UNCERTAINTY RESOLVED THE OPPOSITE WAY FROM LOCAL.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9690157Z ^[[36;1m#   331 - 9 + 8 = 330 means ALL NINE of test_health_peak_memory's tests passed on the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9690733Z ^[[36;1m#   runner — including the 2 that SKIP on a workstation. 320 was shipped as the lower^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9691314Z ^[[36;1m#   bound of a 330-332 range precisely because that split was unknown; a point estimate^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9691915Z ^[[36;1m#   taken from the local 7-passed/2-skipped reading would have put this floor at 332, TWO^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9692521Z ^[[36;1m#   ABOVE achievable, failing the lane with zero test failures (the 250-over-244 shape).^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9693103Z ^[[36;1m#   ⇒ WHEN A PREDICTION HAS A LOCAL BRANCH AND A CI BRANCH, SHIP THE LOWER BOUND AND^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9693640Z ^[[36;1m#     RESOLVE IT FROM THE GATE. This pair of entries is the worked example.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9694209Z ^[[36;1m# ⬆ 328→334 IN THE SAME COMMIT THAT CAUSES IT, which is the whole point. Tightening the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9694802Z ^[[36;1m#   staleness budgets took tests/test_ci_floor_staleness.py from 8 to 14, and that file^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9695394Z ^[[36;1m#   lives in THIS lane (the complement claims it). 330 - 8 + 14 = 336; 334 is two below.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9695989Z ^[[36;1m# ★ AND THE LOOSE-FLOOR ESCAPE IS NOW CLOSED, DELIBERATELY. 320 was shipped slack against^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9696596Z ^[[36;1m#   an unobserved bound and the old global budget of 25 hid it; with this lane's budget at^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9697431Z ^[[36;1m#   its own stated 2, a floor set loose is flagged on the next commit exactly like a floor^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9698603Z ^[[36;1m#   forgotten. So this number must be PREDICTED EXACTLY rather than shipped low —^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9699446Z ^[[36;1m#   the tightening bought enforcement and spent the ability to hedge.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9700075Z ^[[36;1m# ⚠️ 336 is therefore a prediction, and the 14 tests are pure file-parsing (no network, no^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9701133Z ^[[36;1m#   DB, no fastmcp), so the local count should hold on the runner. If this lane comes back^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9702271Z ^[[36;1m#   red, THIS is the cause and 334 is the one line to correct — not the lane.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9702999Z ^[[36;1m# ⬆ 334→347 (2026-08-12, WS-CAN-0025). `tests/test_uptime_probe.py` added 13 tests and the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9703850Z ^[[36;1m#   complement claims it: 336 + 13 = 349, and 347 is the customary two below.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9704857Z ^[[36;1m# ★ THIS ONE IS MEASURED, NOT PREDICTED — the distinction the entries above were written^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9705712Z ^[[36;1m#   to teach. The gate's OWN run on f8825291 (run 31649898143) reports verbatim:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9706288Z ^[[36;1m#   "estate: 254 files selected, 252 produced results, 349 passed, 0 silent."^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9706872Z ^[[36;1m#   The probe's tests are stdlib-only and monkeypatch their one network call, so there is^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9707469Z ^[[36;1m#   no local/CI branch to resolve here — but the reading was taken rather than assumed.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9708252Z ^[[36;1m# ⚠️ WHY THIS LANDS ONE COMMIT LATE, AND WHY THAT IS NOT A MISS. The staleness gate grades^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9708901Z ^[[36;1m#   the floor against the LAST OBSERVED reading, and that observation cannot exist until^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9709509Z ^[[36;1m#   the growing commit has run. So `f8825291` was green on this lane (it produced the 349)^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9710248Z ^[[36;1m#   while the gate still compared 334 against the stale 336. The debt then reddens the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9710843Z ^[[36;1m#   NEXT commit, which is usually innocent — `55f2c068`, docs-only, ate exactly that for^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9711423Z ^[[36;1m#   the guards lane. ⇒ A GREEN CI ON THE COMMIT THAT ADDS TESTS DOES NOT MEAN THE FLOORS^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9711932Z ^[[36;1m#   ARE CURRENT. Read the staleness table, not the job's colour.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9712430Z ^[[36;1m# ⬆ estate MIN_PASSED 347→351 on 2026-08-13, and THE PRE-PUSH HOOK IS WHY. It^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9712985Z ^[[36;1m# caught this commit's own 4 new tests (test_check_floor_before_push.py, which falls^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9713579Z ^[[36;1m# to the estate COMPLEMENT, not guards) before the push -- the 5th instance of this^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9714147Z ^[[36;1m# trap and the first not discovered by a red build. Run 31664846960 observed 349, so^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9714642Z ^[[36;1m# 349 + 4 = 353 next, and 353 - 2 (this lane's budget) = 351.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9715102Z ^[[36;1m# ⬆ estate MIN_PASSED 351→358 on 2026-08-13 (WS-CAN-0010/0063). This commit adds^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9715657Z ^[[36;1m# test_measure_or_refuse_last_two_surfaces.py — 7 tests — which falls to the estate^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9716244Z ^[[36;1m# COMPLEMENT, so the projection stacks on the previous one: 353 (itself projected, not^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9716818Z ^[[36;1m# yet observed) + 7 = 360, and 360 - 2 = 358. Arithmetic shown so the next green run can^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9717358Z ^[[36;1m# falsify it; if 353 was wrong, that run says so and both numbers move together.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9718033Z ^[[36;1m# ⬆ estate MIN_PASSED 358→380 on 2026-08-14 (WS-CAN-0009). +10 tests in^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9718574Z ^[[36;1m# test_conditions_status_honesty.py, which the estate COMPLEMENT claims (checked with^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9719168Z ^[[36;1m# `--lane estate`, 256→257 files, not inferred). MEASURED at `382 passed, 2864 skipped`^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9719760Z ^[[36;1m# in 2:31 — the projection 372 + 10 agreed for once. 382 - 2 (this lane's budget) = 380.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9720277Z ^[[36;1m# ⬆ estate MIN_PASSED 380→396 on 2026-08-14 (WS-CAN-0017). +16 tests in^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9720797Z ^[[36;1m# test_grib_range_integrity.py (estate complement, checked with `--lane estate`,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9721341Z ^[[36;1m# 257→258 files). MEASURED at `398 passed, 2864 skipped` in 3:29; 398 - 2 = 396.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9721887Z ^[[36;1m# ⬇⬇ CORRECTED 396→386 on 2026-08-15. BOTH RAISES ABOVE WERE SET FROM A LOCAL READING,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9722422Z ^[[36;1m# AND A LOCAL READING OF THIS LANE IS STRUCTURALLY ~10 HIGHER THAN CI'S.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9723117Z ^[[36;1m# `test_trevec_index_gc.py` opens with a module-level `pytest.importorskip("pyarrow")` +^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9723718Z ^[[36;1m# `importorskip("lance")`. Both are installed on a dev box (trevec is local tooling) and^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9724322Z ^[[36;1m# are pinned in NEITHER requirements file, so CI never installs them — the module's TEN^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9724883Z ^[[36;1m# tests are then never collected and ONE skip is recorded in their place.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9725397Z ^[[36;1m# The signature is exact and is how this was diagnosed rather than guessed:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9725896Z ^[[36;1m#     local 400 passed / 2864 skipped   ->   CI 388 passed / 2865 skipped^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9726373Z ^[[36;1m#     same 258 files selected on both sides; -12 passed, +1 skipped^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9726883Z ^[[36;1m# ⇒ NOT a regression and NOT a mass-skip: the floor was simply read off the wrong^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9727368Z ^[[36;1m# instrument. 388 (CI) - 2 (this lane's budget) = 386.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9728170Z ^[[36;1m# ★ SET THIS LANE'S FLOOR FROM THE CI READING, NEVER A LOCAL ONE. The comment history^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9728752Z ^[[36;1m#   above already quotes CI output lines ("estate: 254 files selected, 252 produced^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9729480Z ^[[36;1m#   results, 349 passed, 0 silent") — that was the convention and I broke it twice in one^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9730085Z ^[[36;1m#   day. The guards and chain lanes do not carry this bias (no local-only importorskip),^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9730550Z ^[[36;1m#   which is why only estate went red.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9730957Z ^[[36;1m# ⬆ 386→411 on 2026-08-15: +25 tests (+18 in test_grib_range_integrity.py, the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9731517Z ^[[36;1m# WS-CAN-0017 extract-or-refuse hatch; +7 in the new test_client_diagnostics_bounds.py,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9732112Z ^[[36;1m# WS-CAN-0074). CI-anchored per the rule five lines up: last green 31864807822 observed^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9732653Z ^[[36;1m# 388; 388 + 25 = 413; 413 - 2 = 411. (Local read 425 = 413 + this lane's structural^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9733140Z ^[[36;1m# ~10-12 local-high bias, consistent with the L-2 decomposition.)^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9733647Z ^[[36;1m# ⬆ 411→423 on 2026-08-15 (same day, second batch): +12 tests (+9 test_config_env.py,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9734220Z ^[[36;1m# +3 test_startup_config_hardening.py — WS-CAN-0075's contract + class guard, both new^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9734785Z ^[[36;1m# files land in this lane). CI-anchored: last green observed 413; 413 + 12 = 425;^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9735185Z ^[[36;1m# 425 - 2 = 423.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9735558Z ^[[36;1m# ⛔ 423→414, SAME DAY: that raise was a PREDICTION, not a reading, and it reddened both^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9736128Z ^[[36;1m# lanes. "413 + 12" assumed all twelve new tests land here; CI read **416**, i.e. **+3** —^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9736704Z ^[[36;1m# nine of them are selected by another lane (estate is a COMPLEMENT). ⚠️ And 425 is the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9737300Z ^[[36;1m# number four lines up that this file itself labels the LOCAL read — the exact quantity^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9738036Z ^[[36;1m# the rule above forbids. THIS value is CI's own output, identical on both lanes of^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9738569Z ^[[36;1m# `be6a705a`: runs 31900011802 (push) and 31900014330 (PR) each printed^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9739068Z ^[[36;1m# `416 passed, 2865 skipped` and each failed `only 416 passed, floor is 423`.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9739461Z ^[[36;1m# 416 - 2 = 414.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9739834Z ^[[36;1m# ★ THIRD estate over-raise, and the staleness checker still cannot see one: it is^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9740426Z ^[[36;1m# deliberately one-sided, so at 423-vs-413 it printed "every floor is current" (verified^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9741004Z ^[[36;1m# by running it at HEAD, exit 0). Only the lane itself fails, and only after the raise^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9741425Z ^[[36;1m# ships. See register L-2.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9741899Z ^[[36;1m# ⬆ 414→433 on 2026-08-16 (C4-SC-04 + PR #10 rebase). This commit adds^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9742417Z ^[[36;1m# test_local_size_gonogo_exit_contract.py — 14 tests — and the ESTATE lane claims it^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9743002Z ^[[36;1m# (checked, not inferred: `ci_test_lanes.py --lane estate` goes 260→261 files with the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9743589Z ^[[36;1m# file staged; guards and chain both return 0). CI-ANCHORED, per the ★ rule above: the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9744128Z ^[[36;1m# last green run on this lane (31930196097, `8a7234aa`) printed verbatim^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9745038Z ^[[36;1m#     `estate: 260 files selected, 258 produced results, 416 passed, 0 silent.`^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9746052Z ^[[36;1m# ⛔ CORRECTED: 428 was set from the PRE-rebase reading 416 and CI rejected it -- not on the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9747136Z ^[[36;1m# count, but on `test_each_lane_budget_matches_the_margin_that_lane_actually_uses[estate]`,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9748430Z ^[[36;1m# because the floor moved WITHOUT its `_FLOOR_SET_FROM` entry. The budget and the floor are^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9749490Z ^[[36;1m# one fact; neither can be edited alone. Re-anchored to the RE-MEASURED reading on the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9750489Z ^[[36;1m# rebased branch (run 31955394911): `estate: 262 files selected, 260 produced results,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9751626Z ^[[36;1m# 434 passed` -- that run had this very test FAILING, and it is 1 of 3 parametrized cases^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9752581Z ^[[36;1m# in the estate lane, so repairing it flips exactly one case to pass: 434 + 1 = 435.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9753488Z ^[[36;1m# 435 - 2 (this lane's budget) = 433, and _FLOOR_SET_FROM[estate] moves to 435 with it.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9754169Z ^[[36;1m# A LOCAL reading was NOT used^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9754826Z ^[[36;1m# — this lane reads ~10-12 higher locally because test_trevec_index_gc.py's^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9755714Z ^[[36;1m# `importorskip("pyarrow"/"lance")` collects on a dev box and never in CI.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9756674Z ^[[36;1m# ⚠️ The arithmetic is shown so the next green run can falsify it. If 416 was not the^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9757686Z ^[[36;1m# figure this lane actually carries forward, that run says so and the number moves.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9758489Z ^[[36;1m# September 9: run 34418519128 at cfcd0168 observed 459 passed,^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9758996Z ^[[36;1m# 2865 skipped, 263 selected / 261 producing results, zero silent files.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9759518Z ^[[36;1m# This includes all 19 new census transport controls. Margin stays two.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9760320Z ^[[36;1m# September 16: PR35 run35038920152 job104614181006 observed488 passes;^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9761082Z ^[[36;1m# retain the estate lane's two-test deletion margin.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9761695Z ^[[36;1m# September 20 second check: PR46 run35482845900/job106003630843 read 488.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9762242Z ^[[36;1m# Full local estate reads 514: subtract the 12 undeclared optional trevec tests^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9762828Z ^[[36;1m# (hosted importorskip), leaving 502 expected hosted passes including 14 new gate^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9763388Z ^[[36;1m# controls. Preserve THIS lane's two-test margin, not the other lanes' six.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9763794Z ^[[36;1mMIN_PASSED = 500^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9764015Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9764195Z ^[[36;1mtry:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9764444Z ^[[36;1m    root = ET.parse('estate.xml').getroot()^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9764759Z ^[[36;1mexcept Exception as e:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9765170Z ^[[36;1m    print(f"::error::No parseable estate.xml — the estate suite did not run ({e}).")^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9765598Z ^[[36;1m    sys.exit(1)^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9765809Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9766171Z ^[[36;1m# ⚠️ classname is the DOTTED module path, `tests.test_foo[.TestBar]`, and pytest 9 emits^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9766770Z ^[[36;1m# NO `file` attribute. Splitting on '.' and taking [0] yields "tests" for every case and^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9767520Z ^[[36;1m# counts ONE module — measured, and it would have made this gate meaningless.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9768411Z ^[[36;1msuites = [root] if root.tag == 'testsuite' else root.findall('testsuite')^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9768823Z ^[[36;1mmods, passed = set(), 0^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9769076Z ^[[36;1mfor s in suites:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9769337Z ^[[36;1m    for tc in s.findall('testcase'):^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9769678Z ^[[36;1m        parts = (tc.get('classname') or '').split('.')^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9770040Z ^[[36;1m        if len(parts) > 1 and parts[0] == 'tests':^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9770353Z ^[[36;1m            mods.add(parts[1])^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9770667Z ^[[36;1m        elif parts and parts[0].startswith('test_'):^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9770993Z ^[[36;1m            mods.add(parts[0])^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9771251Z ^[[36;1m        if not len(tc):^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9771488Z ^[[36;1m            passed += 1^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9771708Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9772025Z ^[[36;1mselected = [l.strip() for l in open('/tmp/estate_files.txt') if l.strip()]^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9772411Z ^[[36;1mbad = []^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9772615Z ^[[36;1mfor f in MAY_BE_EMPTY:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9772866Z ^[[36;1m    if not os.path.exists(f):^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9773373Z ^[[36;1m        bad.append(f"exemption names a file that no longer exists: {f}")^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9773749Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9774089Z ^[[36;1m# Per-file, not a total: a count floor can be met by coincidence while a file silently^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9774555Z ^[[36;1m# stops being collected. This cannot.^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9774879Z ^[[36;1msilent = sorted(f for f in selected^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9775281Z ^[[36;1m                if os.path.basename(f)[:-3] not in mods and f not in MAY_BE_EMPTY)^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9775666Z ^[[36;1mif silent:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9775994Z ^[[36;1m    bad.append(f"{len(silent)} selected file(s) produced NO test result: "^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9776405Z ^[[36;1m               + ", ".join(silent[:8]))^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9776692Z ^[[36;1mif passed < MIN_PASSED:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9777098Z ^[[36;1m    bad.append(f"only {passed} passed, floor is {MIN_PASSED} — mass-skip or deletion")^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9777526Z ^[[36;1m^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9777879Z ^[[36;1mif bad:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9778095Z ^[[36;1m    for b in bad:^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9778367Z ^[[36;1m        print(f"::error::Estate coverage: {b}")^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9778671Z ^[[36;1m    sys.exit(1)^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9779036Z ^[[36;1mprint(f"estate: {len(selected)} files selected, {len(mods)} produced results, "^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9779483Z ^[[36;1m      f"{passed} passed, 0 silent.")^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9779761Z ^[[36;1mPY^[[0m
+UNKNOWN STEP	2026-09-20T03:46:50.9818951Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:46:50.9819211Z env:
+UNKNOWN STEP	2026-09-20T03:46:50.9819494Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:46:50.9819964Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:46:50.9820414Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:46:50.9820802Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:46:50.9821192Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:46:50.9821594Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:46:50.9821918Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:46:51.0306257Z estate: 266 files selected, 264 produced results, 502 passed, 0 silent.
+UNKNOWN STEP	2026-09-20T03:46:51.0465300Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:46:51.2115473Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:46:51.3056129Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:46:51.3100356Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:46:51.3144337Z Temporarily overriding HOME='/home/runner/work/_temp/4a900486-fdd2-4414-ab2c-63c68f82c0df' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:46:51.3147535Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:46:51.3160750Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:46:51.3195580Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:46:51.3249366Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:46:51.3540498Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:46:51.3570457Z http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:46:51.3582536Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:46:51.3616716Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:46:51.3934910Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:46:51.3966143Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:46:51.4366760Z Cleaning up orphan processes

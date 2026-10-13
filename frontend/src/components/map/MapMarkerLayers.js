@@ -9,7 +9,9 @@
  *   - Friends on map
  */
 import React, { useState, useEffect } from 'react';
-import { Marker } from 'react-map-gl/maplibre';
+// ContentMarker, not react-map-gl's Marker: the wrapper is positioning, the inner <button> is the control
+// (MapLibre's wrapper role=button around it was axe nested-interactive, W-10 R5).
+import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
 import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
 

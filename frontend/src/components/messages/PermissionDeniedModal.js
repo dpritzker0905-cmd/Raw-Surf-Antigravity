@@ -126,7 +126,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white font-medium text-sm">1. Click the lock icon</p>
-              <p className="text-gray-500 text-xs">In your browser's address bar, click the ?? or ? icon</p>
+              <p className="text-gray-500 text-xs">In your browser's address bar, click the lock or info icon</p>
             </div>
           </div>
 

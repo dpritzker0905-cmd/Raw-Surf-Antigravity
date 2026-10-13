@@ -65,7 +65,7 @@ export const DirectionCompass = ({
     <div className={`flex items-center gap-1.5 ${className}`}>
       <div 
         className={`${sizeConfig.container} ${colorConfig.bg} ${colorConfig.border} border rounded-full flex items-center justify-center relative`}
- title={`${type === 'wave' ? 'Wave' : 'Wind'} direction: ${direction || `${rotationDegrees}-`}`}
+        title={`${type === 'wave' ? 'Wave' : 'Wind'} direction: ${direction || `${rotationDegrees}\u00B0`}`}
       >
         {/* Compass ring markers */}
         <div className="absolute inset-0">

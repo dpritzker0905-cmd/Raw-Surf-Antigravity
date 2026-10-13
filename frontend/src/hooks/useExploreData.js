@@ -3,7 +3,7 @@
  * Extracted data fetching handlers from Explore.js
  * Covers: trending, hashtags, waves, posts, search, leaderboard/sponsors
  */
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
@@ -21,6 +21,7 @@ const useExploreData = ({
   setSponsorDetails, setSelectedSponsor,
 }) => {
   const navigate = useNavigate();
+  const [trendingError, setTrendingError] = useState(false);
 
   // Fetch batch conditions for popular spots
   const fetchSpotConditions = useCallback(async (spotIds) => {
@@ -51,6 +52,8 @@ const useExploreData = ({
 
   // Fetch trending data (main explore page)
   const fetchTrending = useCallback(async () => {
+    setLoading(true);
+    setTrendingError(false);
     try {
       const response = await apiClient.get(`/explore/trending`);
       setTrending(response.data);
@@ -65,6 +68,7 @@ const useExploreData = ({
       fetchTrendingHashtags();
     } catch (error) {
       logger.error('Error fetching trending:', error);
+      setTrendingError(true);
     } finally {
       setLoading(false);
     }
@@ -213,6 +217,7 @@ const useExploreData = ({
   }, [setSelectedSponsor, setSponsorDetails]);
 
   return {
+    trendingError,
     fetchTrending,
     fetchTrendingHashtags,
     fetchHashtagPosts,

@@ -34,7 +34,9 @@ os.environ.setdefault("L2_WRITER", "1")
 # ("calibration") AND anything under it ("calibration/..."), since list() returns both.
 # "manifests" = the S2 run-keyed manifest ring (manifest_pointer.py) — self-pruned by the
 # publisher's KEEP_RUN_KEYED retention, never referenced by the manifest's product list.
-RESERVED_BASES = ("manifest.json", "health.json", "spot_ratings", "calibration", "reports", "manifests")
+# "point_cache" = the per-bulletin CMEMS spot-series blob (services/cmems_spot_series_cache.py).
+RESERVED_BASES = ("manifest.json", "health.json", "spot_ratings", "calibration", "reports", "manifests",
+                  "point_cache")
 
 
 def is_orphan(name: str, manifest_names: set, created_at, now, margin_h: float) -> bool:

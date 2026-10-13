@@ -91,6 +91,14 @@ except ImportError:
                                         energy_mean_height_block, energy_mean_scalar_block)  # package context
     from services._fetch_blockmean_vec import (direction_block_batch, height_block_batch,
                                                multi_dir_conf_batch, scalar_block_batch)
+# Module top, in the script/package idiom: production spawns this file by path (hotfix 2026-09-29; see the GFS
+# fetcher's note and tests/test_fetcher_script_imports.py).
+try:
+    from _fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native, multi_conf_at,  # script
+                                    native_multi, native_reduce, views)
+except ImportError:
+    from services._fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native,  # package
+                                             multi_conf_at, native_multi, native_reduce, views)
 
 
 def _vector_blockmean() -> bool:
@@ -222,6 +230,12 @@ def fetch_global_coarse(payload):
     # Height/period block-mean (enclosed-sea dropout fix, see HEIGHT_VARS note). Default ON.
     scalar_blockmean = os.environ.get("DWD_GWAM_SCALAR_BLOCKMEAN", "1") != "0"
     half = max(1, int(round(resolution / 0.25 / 2.0)))
+    # ⛔ NATIVE-CELL REGRID (2026-09-29, REGRID_NATIVE_CELL, default off). At the native 0.25 deg the line above yields
+    # half=1: the block is the 2x2 of native cells NORTH-WEST of the node, a mean placed half a cell south-east of its
+    # water (same_model_parity_probe; services/_fetch_native_cell.py). With the flag on, a native-resolution call
+    # reads its EXACT cell through the SAME reductions (doubled views for the batch forms, 1x1 slices for the scalar
+    # ones), so the direction confidence keeps its meaning. The GFS lane has the same switch.
+    nat = _native_enabled() and is_native(resolution)
     # The confidence series is initialized WITH the variables so failed steps keep it time-aligned.
     series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
     series_by = {rid: [{om: [] for om in series_keys} for _ in range(len(la) * len(lo))]
@@ -277,11 +291,30 @@ def fetch_global_coarse(payload):
                         # the INTERIOR points and DELEGATES clamped edge rows to the scalar function
                         # handed to it — which is what makes the result identical rather than close.
                         # The scalar loop below is the permanent oracle, not dead code.
+                        _reduces = h_arr is not None or is_height or p_h_arr is not None
+                        # A native cell whose total sea height is missing is LAND (swh decodes first in VAR_MAP).
+                        _hs = height_arrs.get("wave_height")
+                        if nat and _reduces:   # this variable's own batch + scalar pair, for _fetch_native_cell
+                            _multi = h_arr is not None and _conf_here
+                            _bt, _fn, _gr = ((direction_block_batch, energy_mean_direction_block, (arr, h_arr))
+                                             if h_arr is not None else
+                                             (height_block_batch, energy_mean_height_block, (arr,)) if is_height else
+                                             (scalar_block_batch, energy_mean_scalar_block, (arr, p_h_arr)))
+
+                            def _land(rs_, cs_):
+                                return (~np.isfinite(_hs[rs_, cs_]) if _hs is not None
+                                        else np.zeros(np.shape(rs_), dtype=bool))
                         if _vector_blockmean() and im:
                             _rs = np.fromiter((p[0] for p in im), dtype=np.intp, count=len(im))
                             _cs = np.fromiter((p[1] for p in im), dtype=np.intp, count=len(im))
                             _vals = _confs = _present = None
-                            if h_arr is not None and _conf_here:
+                            if nat and _reduces and _multi:  # the exact native cell; LAND: its centred 3x3
+                                _vals, _confs, _present = native_multi(
+                                    multi_dir_conf_batch, energy_mean_direction_block_multi_conf, [(arr, h_arr)], arr,
+                                    None, _rs, _cs, _land(_rs, _cs))
+                            elif nat and _reduces:
+                                _vals = native_reduce(_bt, _fn, _gr, _rs, _cs, _land(_rs, _cs))[0]
+                            elif h_arr is not None and _conf_here:
                                 _vals, _confs, _present = multi_dir_conf_batch(
                                     [(arr, h_arr)], arr, _rs, _cs, half, True,
                                     lambda _r, _c, _h=half: energy_mean_direction_block_multi_conf(
@@ -325,7 +358,16 @@ def fetch_global_coarse(payload):
                                     series[pi][om].append(_sanitize_om(om, _x))
                                 continue
                         for pi, (r, c) in enumerate(im):
-                            if h_arr is not None and _conf_here:
+                            if nat and _reduces:  # the exact native cell, or a LAND cell's centred 3x3
+                                _hb = LAND_HALF if bool(_land(r, c)) else 1
+                                if _multi:
+                                    x, conf = multi_conf_at(energy_mean_direction_block_multi_conf, r, c, _hb,
+                                                            [(arr, h_arr)], arr)
+                                    series[pi][DIR_CONFIDENCE_OM].append(
+                                        round(float(conf), 4) if conf is not None else None)
+                                else:
+                                    x = _fn(*views(r, c, _hb, *_gr), True)
+                            elif h_arr is not None and _conf_here:
                                 x, conf = energy_mean_direction_block_multi_conf([(arr, h_arr)], arr, r, c, half, True)
                                 series[pi][DIR_CONFIDENCE_OM].append(round(float(conf), 4) if conf is not None else None)
                             elif h_arr is not None:
@@ -388,7 +430,7 @@ def fetch_global_coarse(payload):
                     "latitude": float(la), "longitude": float(lo),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                    "__provider": "dwd",
+                    "__provider": "dwd", "__model_run_time": cycle_dt.isoformat(),
                     "hourly_units": {"time": "iso8601", **OM_UNITS,
                                      **({DIR_CONFIDENCE_OM: "fraction"} if export_confidence else {})},
                     "hourly": hourly,

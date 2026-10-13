@@ -201,7 +201,7 @@ async def get_gallery_item_pricing(
         "booking_discount_pct": 0, "on_demand_discount_pct": 0,
     }
     if viewer_id and item.photographer_id:
-        from routes.photo_subscriptions import check_quota_inline
+        from routes.subscriptions_billing.photo_sub_helpers import check_quota_inline
         quota_type = 'video' if item.media_type == 'video' else 'photo'
         subscription_info = await check_quota_inline(
             db, viewer_id, item.photographer_id, quota_type

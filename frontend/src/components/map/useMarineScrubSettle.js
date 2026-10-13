@@ -3,6 +3,9 @@ import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { isTerminalNoCoverage } from './marineControllerCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
+import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
+import { frameServesSelectedHour } from './marineHourInstant';
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -276,7 +279,9 @@ export function runScrubSettleCheck(ctx) {
   if (window.isScrubbingTimeline) return;
   const currentHour = timeOffsetRef.current;
   const renderedHour = marineData?.grid?.hourOffset ?? marineData?.hourOffset;
-  const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
+  // A label is not the data: at 3-hourly range a frame labelled 15 IS offset 16's product (the paused churn, marineHourInstant.js).
+  const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour
+    && !frameServesSelectedHour(marineData, currentHour, activeModelRef.current, activeMarineLayerRef.current || 'waves');
   const noData = !marineData || !marineData.grid?.vectors?.length;
 
   // Heatmap CLAMP: the engine grid does NOT cover the viewport at a regional zoom — a coarse-GLOBAL
@@ -352,6 +357,9 @@ export function runScrubSettleCheck(ctx) {
     } catch (e) { /* map/series not ready — defer */ }
     return;
   }
+
+  // EXACT UPGRADE (2026-10-01): a thinned world frame (an 8° lattice) is a placeholder — fetch and draw the exact one.
+  if (tryExactUpgrade(ctx)) return;
 
   // ZOOM-OUT CLEAR RECOVERY (§2b, 2026-07-01): on zoom-out the display gate rejects the resident
   // regional grid (isZoomedOutRegionalReject in useMarineWindData) and WebGLMarineLayer CLEARS the
@@ -459,6 +467,8 @@ export function runScrubSettleCheck(ctx) {
       const vp = { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() };
       const sf = getMarineSeriesFrame(activeModelRef.current, activeMarineLayerRef.current || 'waves', vp, currentHour);
       if (sf && sf.grid && sf.grid.vectors && sf.grid.vectors.length > 0 && setMarineData) {
+        // A THINNED world frame must not replace an EXACT one of the same valid time (the hour LABELS differ at 3-hourly range).
+        if (keepExactResident(marineData, sf)) return;
         if (typeof window !== 'undefined') window.__MARINE_SCRUBSETTLE_SERIESHIT__ = (window.__MARINE_SCRUBSETTLE_SERIESHIT__ || 0) + 1;
         console.log(`[SCRUB-SETTLE] Series hit for hour=${currentHour} — committing warmed frame (no fetch).`);
         // Stamped clone for the same reason as the clamp sharpen above: an unstamped series frame
@@ -504,6 +514,8 @@ export function useMarineScrubSettle({
   // blank streak before it ever reaches the threshold).
   const checkScrubSettleRef = useRef(checkScrubSettle);
   checkScrubSettleRef.current = checkScrubSettle;
+  useMarineExactUpgrade(marineData, checkScrubSettleRef, timeOffsetRef);   // re-drives the check shortly after a thinned world frame lands
+  useMarineWorldWarmOnSettle({ marineData, mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef });   // F-21: the base follows the selected hour
 
   // Drive checkScrubSettle when scrubbing ends.
   useEffect(() => {

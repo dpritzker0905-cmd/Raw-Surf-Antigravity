@@ -1,0 +1,293 @@
+{
+  "noise": [
+    {
+      "rafCalls": 6477,
+      "rafOwnerSites": 2,
+      "rafTop": [
+        [
+          "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+          6476
+        ],
+        [
+          "/static/js/bundle.js:33208:9",
+          1
+        ]
+      ],
+      "workerCount": 18,
+      "workersEver": 18,
+      "glContexts": 1,
+      "texLive": 67,
+      "texCreate": 72,
+      "bufLive": 504,
+      "fbLive": 4,
+      "programs": 24,
+      "intervalsLive": 20,
+      "fetches": 42,
+      "gridFetches": 5,
+      "heapMB": 132.56,
+      "canvases": 4,
+      "domNodes": 625,
+      "map": {
+        "zoom": 8,
+        "lng": -80.607,
+        "lat": 28.361,
+        "bearing": 0,
+        "pitch": 0,
+        "styleLoaded": true,
+        "layers": 138,
+        "sources": 23,
+        "marineLayers": [
+          "water_temp-slot-0-layer",
+          "water_temp-slot-1-layer",
+          "water_temp-slot-2-layer",
+          "fog-slot-0-layer",
+          "fog-slot-1-layer",
+          "fog-slot-2-layer"
+        ],
+        "canvasW": 1080,
+        "canvasH": 800
+      },
+      "hud": {
+        "modelLayer": "GFS / wind",
+        "renderMode": "Wind",
+        "rasterSource": "LOADED",
+        "provider": "UNKNOWN",
+        "klass": "NO DATA",
+        "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 2 5 7 16 Live Map 0 shooting All Surf Sp"
+      },
+      "legend": "Air Temp",
+      "pressed": [
+        "GFS",
+        "Wind"
+      ]
+    },
+    {
+      "rafCalls": 7410,
+      "rafOwnerSites": 2,
+      "rafTop": [
+        [
+          "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+          7409
+        ],
+        [
+          "/static/js/bundle.js:33208:9",
+          1
+        ]
+      ],
+      "workerCount": 18,
+      "workersEver": 18,
+      "glContexts": 1,
+      "texLive": 67,
+      "texCreate": 72,
+      "bufLive": 504,
+      "fbLive": 4,
+      "programs": 24,
+      "intervalsLive": 20,
+      "fetches": 43,
+      "gridFetches": 6,
+      "heapMB": 132.56,
+      "canvases": 2,
+      "domNodes": 552,
+      "map": {
+        "zoom": 8,
+        "lng": -80.607,
+        "lat": 28.361,
+        "bearing": 0,
+        "pitch": 0,
+        "styleLoaded": true,
+        "layers": 138,
+        "sources": 23,
+        "marineLayers": [
+          "water_temp-slot-0-layer",
+          "water_temp-slot-1-layer",
+          "water_temp-slot-2-layer",
+          "fog-slot-0-layer",
+          "fog-slot-1-layer",
+          "fog-slot-2-layer"
+        ],
+        "canvasW": 1080,
+        "canvasH": 800
+      },
+      "hud": {
+        "modelLayer": "GFS / none",
+        "renderMode": "None",
+        "rasterSource": "OFF",
+        "provider": "UNKNOWN",
+        "klass": "NO DATA",
+        "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 2 5 7 16 Live Map 0 shooting All Surf Sp"
+      },
+      "legend": "Air Temp",
+      "pressed": [
+        "GFS"
+      ]
+    },
+    {
+      "rafCalls": 7725,
+      "rafOwnerSites": 2,
+      "rafTop": [
+        [
+          "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+          7724
+        ],
+        [
+          "/static/js/bundle.js:33208:9",
+          1
+        ]
+      ],
+      "workerCount": 18,
+      "workersEver": 18,
+      "glContexts": 1,
+      "texLive": 67,
+      "texCreate": 72,
+      "bufLive": 504,
+      "fbLive": 4,
+      "programs": 24,
+      "intervalsLive": 20,
+      "fetches": 44,
+      "gridFetches": 7,
+      "heapMB": 132.56,
+      "canvases": 4,
+      "domNodes": 625,
+      "map": {
+        "zoom": 8,
+        "lng": -80.607,
+        "lat": 28.361,
+        "bearing": 0,
+        "pitch": 0,
+        "styleLoaded": true,
+        "layers": 138,
+        "sources": 23,
+        "marineLayers": [
+          "water_temp-slot-0-layer",
+          "water_temp-slot-1-layer",
+          "water_temp-slot-2-layer",
+          "fog-slot-0-layer",
+          "fog-slot-1-layer",
+          "fog-slot-2-layer"
+        ],
+        "canvasW": 1080,
+        "canvasH": 800
+      },
+      "hud": {
+        "modelLayer": "GFS / wind",
+        "renderMode": "Wind",
+        "rasterSource": "LOADED",
+        "provider": "UNKNOWN",
+        "klass": "NO DATA",
+        "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 2 5 7 16 Live Map 0 shooting All Surf Sp"
+      },
+      "legend": "Air Temp",
+      "pressed": [
+        "GFS",
+        "Wind"
+      ]
+    },
+    {
+      "rafCalls": 8674,
+      "rafOwnerSites": 2,
+      "rafTop": [
+        [
+          "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+          8673
+        ],
+        [
+          "/static/js/bundle.js:33208:9",
+          1
+        ]
+      ],
+      "workerCount": 18,
+      "workersEver": 18,
+      "glContexts": 1,
+      "texLive": 67,
+      "texCreate": 72,
+      "bufLive": 504,
+      "fbLive": 4,
+      "programs": 24,
+      "intervalsLive": 20,
+      "fetches": 44,
+      "gridFetches": 7,
+      "heapMB": 132.56,
+      "canvases": 2,
+      "domNodes": 552,
+      "map": {
+        "zoom": 8,
+        "lng": -80.607,
+        "lat": 28.361,
+        "bearing": 0,
+        "pitch": 0,
+        "styleLoaded": true,
+        "layers": 138,
+        "sources": 23,
+        "marineLayers": [
+          "water_temp-slot-0-layer",
+          "water_temp-slot-1-layer",
+          "water_temp-slot-2-layer",
+          "fog-slot-0-layer",
+          "fog-slot-1-layer",
+          "fog-slot-2-layer"
+        ],
+        "canvasW": 1080,
+        "canvasH": 800
+      },
+      "hud": {
+        "modelLayer": "GFS / none",
+        "renderMode": "None",
+        "rasterSource": "OFF",
+        "provider": "UNKNOWN",
+        "klass": "NO DATA",
+        "truth": "? NOT VERIFIED — source parity not established (heatmap: diagnostic not initialised · heatmap: vector count unreadable) 2 5 7 16 Live Map 0 shooting All Surf Sp"
+      },
+      "legend": "Air Temp",
+      "pressed": [
+        "GFS"
+      ]
+    }
+  ],
+  "NOISE": {
+    "texLive": {
+      "min": 67,
+      "max": 67,
+      "spread": 0
+    },
+    "bufLive": {
+      "min": 504,
+      "max": 504,
+      "spread": 0
+    },
+    "rafOwnerSites": {
+      "min": 2,
+      "max": 2,
+      "spread": 0
+    },
+    "workerCount": {
+      "min": 18,
+      "max": 18,
+      "spread": 0
+    },
+    "glContexts": {
+      "min": 1,
+      "max": 1,
+      "spread": 0
+    },
+    "intervalsLive": {
+      "min": 20,
+      "max": 20,
+      "spread": 0
+    },
+    "canvases": {
+      "min": 2,
+      "max": 4,
+      "spread": 2
+    },
+    "programs": {
+      "min": 24,
+      "max": 24,
+      "spread": 0
+    },
+    "layers": {
+      "min": 138,
+      "max": 138,
+      "spread": 0
+    }
+  }
+}

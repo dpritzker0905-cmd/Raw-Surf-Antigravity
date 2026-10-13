@@ -11,8 +11,16 @@ import React, { useState, useEffect, useCallback } from 'react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { ChallengeCardSkeleton } from '../ui/SkeletonVariants';
+import { Trophy, Waves } from 'lucide-react';
 
-const TROPHY_EMOJI = ['=', '=', '='];
+// Gold, silver, bronze. The rank NUMBER is always rendered too: colour alone never carries it.
+const PODIUM_COLORS = ['#fbbf24', '#cbd5e1', '#d97706'];
+const PodiumRank = ({ rank }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: PODIUM_COLORS[rank - 1] }}>
+    <Trophy size={14} aria-hidden="true" />
+    <span className="sr-only">Rank </span>{rank}
+  </span>
+);
 
 const formatTime = (seconds) => {
   if (seconds <= 0) return 'Ended';
@@ -82,7 +90,7 @@ const ChallengesTab = ({ userId }) => {
         textAlign: 'center',
         color: '#94a3b8'
       }}>
- <div style={{ fontSize: 48, marginBottom: 12 }}>=</div>
+        <Waves size={48} aria-hidden="true" style={{ marginBottom: 12 }} />
         <p>{error}</p>
         <button
           onClick={fetchData}
@@ -128,7 +136,7 @@ const ChallengesTab = ({ userId }) => {
           }} />
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
- <span style={{ fontSize: 36 }}>{challenge.badge_emoji || '='}</span>
+            <span style={{ fontSize: 36 }}>{challenge.badge_emoji || <Trophy size={36} aria-hidden="true" />}</span>
             <div>
               <h3 style={{
                 margin: 0,
@@ -154,7 +162,7 @@ const ChallengesTab = ({ userId }) => {
             borderRadius: 8,
             marginBottom: 8
           }}>
- <span style={{ fontSize: 12, color: '#94a3b8' }}>G Time remaining</span>
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>Time remaining</span>
             <span style={{
               fontSize: 14,
               fontWeight: 700,
@@ -215,7 +223,7 @@ const ChallengesTab = ({ userId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {leaderboard.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
- <div style={{ fontSize: 40, marginBottom: 8 }}>=</div>
+              <Waves size={40} aria-hidden="true" style={{ marginBottom: 8 }} />
               <p style={{ margin: 0, fontSize: 14 }}>No participants yet this week</p>
               <p style={{ margin: '4px 0 0', fontSize: 12 }}>Support a Grom to climb the leaderboard!</p>
             </div>
@@ -245,11 +253,11 @@ const ChallengesTab = ({ userId }) => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: entry.rank <= 3 ? 20 : 14,
+                  fontSize: 14,
                   fontWeight: 700,
                   color: entry.rank <= 3 ? '#fbbf24' : '#64748b'
                 }}>
-                  {entry.rank <= 3 ? TROPHY_EMOJI[entry.rank - 1] : `#${entry.rank}`}
+                  {entry.rank <= 3 ? <PodiumRank rank={entry.rank} /> : `#${entry.rank}`}
                 </div>
 
                 {/* Avatar */}
@@ -312,7 +320,7 @@ const ChallengesTab = ({ userId }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {history.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 32, color: '#64748b' }}>
- <div style={{ fontSize: 40, marginBottom: 8 }}>=</div>
+              <Waves size={40} aria-hidden="true" style={{ marginBottom: 8 }} />
               <p style={{ margin: 0, fontSize: 14 }}>No completed challenges yet</p>
             </div>
           ) : (
@@ -358,7 +366,7 @@ const ChallengesTab = ({ userId }) => {
                         fontSize: 12
                       }}
                     >
-                      <span>{TROPHY_EMOJI[winner.rank - 1] || ''}</span>
+                      {winner.rank <= 3 ? <PodiumRank rank={winner.rank} /> : <span>#{winner.rank}</span>}
                       <span style={{ color: '#f1f5f9', fontWeight: 500 }}>
                         {winner.full_name}
                       </span>

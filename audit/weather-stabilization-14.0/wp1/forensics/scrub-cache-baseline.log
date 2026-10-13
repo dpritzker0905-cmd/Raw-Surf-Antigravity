@@ -1,0 +1,60 @@
+{
+  "mode": "baseline",
+  "baselineRevision": "91b90ae9",
+  "note": "Controlled dependency experiment against actual hook. Not a browser or network test. Mutations are in-memory only.",
+  "cases": [
+    {
+      "pass": true,
+      "scrubbing": false,
+      "series": false,
+      "ownerHour": 0,
+      "committedHours": [],
+      "enqueued": [
+        "timeline_scrub_deferred"
+      ],
+      "events": [],
+      "timeline": {
+        "timeOffsetHours": 18,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-21T15:00:00Z",
+        "coverage_status": "full_coverage"
+      }
+    },
+    {
+      "pass": true,
+      "scrubbing": true,
+      "series": false,
+      "ownerHour": 0,
+      "committedHours": [],
+      "enqueued": [],
+      "events": [],
+      "timeline": {
+        "timeOffsetHours": 18,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-21T15:00:00Z",
+        "coverage_status": "full_coverage"
+      }
+    },
+    {
+      "pass": true,
+      "scrubbing": false,
+      "series": true,
+      "ownerHour": 0,
+      "committedHours": [
+        0
+      ],
+      "enqueued": [],
+      "events": [
+        "local_cache_remap_timeline"
+      ],
+      "timeline": {
+        "timeOffsetHours": 18,
+        "selectedValidTime": "2026-09-21T15:00:00Z",
+        "requestedValidTime": "2026-09-21T15:00:00Z",
+        "coverage_status": "full_coverage"
+      }
+    }
+  ],
+  "passed": 3,
+  "failed": 0
+}

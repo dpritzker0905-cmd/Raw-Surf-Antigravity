@@ -12,6 +12,8 @@
  */
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
+import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
+import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
@@ -82,6 +84,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
           }
         }
         // Convert Float64Array → Float32Array for gl.uniformMatrix4fv compatibility
+        var _matrix64 = _matrix;   // kept whole for the trail buffer's camera (windTrailAnchor.js): its whole-pixel shifts stay exact at any zoom
         if (_matrix && _matrix instanceof Float64Array) {
           _matrix = new Float32Array(_matrix);
         }
@@ -167,6 +170,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
           // Fallback: global bounds
         }
 
+        engine._trailMatrix = _matrix64 || _matrix;
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets, viewportBounds);
       } catch (e) {
         errorCount++;
@@ -215,9 +219,22 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
+  // The coastline line (if this theme has one) and the basemap mute (windBasemapMute.js) follow the wind toggle.
+  useEffect(() => {
+    try { if (mapInstance && mapInstance.getLayer(WIND_COASTLINE.id)) mapInstance.setLayoutProperty(WIND_COASTLINE.id, 'visibility', active ? 'visible' : 'none'); } catch (e) { /* style mid-load */ }
+    syncWindBasemapMute(mapInstance, themeRef.current, active, LAYER_ID);
+  }, [active, mapInstance]);
   useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
+  // A theme change brings new basemap colours (a fresh style, or one diffed into this style, where the wind layer stays
+  // and is not re-added): re-sync the basemap mute once the map settles.
+  useEffect(() => {
+    if (!mapInstance) return undefined;
+    const resync = () => syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
+    mapInstance.once('idle', resync);
+    return () => { try { mapInstance.off('idle', resync); } catch (e) { /* map disposed */ } };
+  }, [theme, mapInstance]);
   useEffect(() => { dataRef.current = data; }, [data]);
   useEffect(() => { deliveryQueueRef.current = deliveryQueue; }, [deliveryQueue]);
 
@@ -258,18 +275,46 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
     };
 
     // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
-    const handleStyleData = () => {
+    const handleStyleData = (ev) => {
       if (!mapInstance || !mapInstance.style) return;
+
+      // THE COASTLINE IS A STYLE LAYER; THE WIND LAYER IS NOT (2026-10-12, the independent review of D-028). A theme change that
+      // diffs the new style into this one keeps the custom wind layer and DROPS the coastline (the library's diff removes every
+      // layer the new style does not name), and the branch below adds it only together with the wind layer: after any theme
+      // change in a session the map had no coastline stroke at all. Put it back in its slot; the mute's stale check (below)
+      // then finds a stroke it has not inked and syncs.
+      if (mapInstance.getLayer(LAYER_ID) && !mapInstance.getLayer(WIND_COASTLINE.id) && windCoastlineWanted(themeRef.current) && mapInstance.getLayer('water')) {
+        try {
+          const styleLayers = mapInstance.getStyle()?.layers, coast = windCoastlineLayer(styleLayers, themeRef.current, activeRef.current);
+          if (coast) mapInstance.addLayer(coast, windLayerBeforeId(styleLayers, themeRef.current));
+        } catch (e) { /* a style mid-load: the next style event tries again */ }
+      }
 
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
         try {
-          mapInstance.addLayer(customLayer);
+          // Under the basemap's borders + labels where enabled (WebGLWindUtils.windLayerBeforeId); on top otherwise.
+          let beforeId, styleLayers;
+          try { styleLayers = mapInstance.getStyle()?.layers; beforeId = windLayerBeforeId(styleLayers, themeRef.current); } catch (e) { beforeId = undefined; }
+          mapInstance.addLayer(customLayer, beforeId);
           layerAddedRef.current = true;
+          // The basemap's own coastline, just above the wind (WebGLWindUtils.windCoastlineLayer); shown only while wind is on.
+          try {
+            const coast = windCoastlineLayer(styleLayers, themeRef.current, activeRef.current);
+            if (coast && !mapInstance.getLayer(coast.id)) mapInstance.addLayer(coast, beforeId);
+          } catch (e) { /* cosmetic: the wind layer stands without it */ }
+          // A new style (first load, theme change) starts unmuted: mute its colours under the wind while the wind is on.
+          syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
           console.log(`[WebGLWind] Layer added (${engine.particleRes}^2 = ${engine.particleRes ** 2} particles)`);
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
+      } else if ((ev && ev.type === 'style.load') || windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {
+        // A satellite photo or a weather wash came on (or went) under the wind, or an earlier sync met a style mid-load.
+        // And a style that has just LOADED always syncs: a theme change fetches its style, the theme's idle re-sync below can
+        // run on the OLD style first, and the diff then writes the new style's colours over it. The record still reads "this
+        // theme, muted, inked", so the stale check sees nothing (2026-10-12: light to beach left beach unmuted and un-inked).
+        syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
       }
     };
 
@@ -281,9 +326,11 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
       try {
         mapInstance.off('styledata', handleStyleData);
         mapInstance.off('style.load', handleStyleData);
+        syncWindBasemapMute(mapInstance, themeRef.current, false, LAYER_ID);
         if (layerAddedRef.current && mapInstance.getLayer(LAYER_ID)) {
           mapInstance.removeLayer(LAYER_ID);
         }
+        if (mapInstance.getLayer(WIND_COASTLINE.id)) mapInstance.removeLayer(WIND_COASTLINE.id);
       } catch (e) { /* map may be disposed */ }
       layerAddedRef.current = false;
       unregisterWindEngine();

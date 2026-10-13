@@ -1,0 +1,768 @@
+UNKNOWN STEP	﻿2026-09-20T03:44:59.3872923Z Current runner version: '2.337.0'
+UNKNOWN STEP	2026-09-20T03:44:59.3896689Z ##[group]Runner Image Provisioner
+UNKNOWN STEP	2026-09-20T03:44:59.3897604Z Hosted Compute Agent
+UNKNOWN STEP	2026-09-20T03:44:59.3898603Z Version: 20260828.587
+UNKNOWN STEP	2026-09-20T03:44:59.3899407Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+UNKNOWN STEP	2026-09-20T03:44:59.3900209Z Build Date: 2026-08-28T16:44:25Z
+UNKNOWN STEP	2026-09-20T03:44:59.3900935Z Worker ID: {636b1793-cb7e-4dcc-a461-05c4f5e1f81b}
+UNKNOWN STEP	2026-09-20T03:44:59.3901779Z Azure Region: westus
+UNKNOWN STEP	2026-09-20T03:44:59.3902385Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.3903983Z ##[group]Operating System
+UNKNOWN STEP	2026-09-20T03:44:59.3904760Z Ubuntu
+UNKNOWN STEP	2026-09-20T03:44:59.3905331Z 24.04.5
+UNKNOWN STEP	2026-09-20T03:44:59.3905950Z LTS
+UNKNOWN STEP	2026-09-20T03:44:59.3906500Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.3907149Z ##[group]Runner Image
+UNKNOWN STEP	2026-09-20T03:44:59.3907812Z Image: ubuntu-24.04
+UNKNOWN STEP	2026-09-20T03:44:59.3908627Z Version: 20260907.300.1
+UNKNOWN STEP	2026-09-20T03:44:59.3910078Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+UNKNOWN STEP	2026-09-20T03:44:59.3911840Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+UNKNOWN STEP	2026-09-20T03:44:59.3912892Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.3914193Z ##[group]GITHUB_TOKEN Permissions
+UNKNOWN STEP	2026-09-20T03:44:59.3916064Z Contents: read
+UNKNOWN STEP	2026-09-20T03:44:59.3916680Z Metadata: read
+UNKNOWN STEP	2026-09-20T03:44:59.3917379Z Packages: read
+UNKNOWN STEP	2026-09-20T03:44:59.3918172Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.3920322Z Secret source: Actions
+UNKNOWN STEP	2026-09-20T03:44:59.3921282Z Cache mode: write
+UNKNOWN STEP	2026-09-20T03:44:59.3921988Z Prepare workflow directory
+UNKNOWN STEP	2026-09-20T03:44:59.4288598Z Prepare all required actions
+UNKNOWN STEP	2026-09-20T03:44:59.4353392Z Getting action download info
+UNKNOWN STEP	2026-09-20T03:44:59.7748555Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+UNKNOWN STEP	2026-09-20T03:44:59.9097123Z Download action repository 'actions/setup-python@v6' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+UNKNOWN STEP	2026-09-20T03:45:00.1273697Z Complete job name: backend-sim-composition-guards
+UNKNOWN STEP	2026-09-20T03:45:00.2063975Z ##[group]Run actions/checkout@v5
+UNKNOWN STEP	2026-09-20T03:45:00.2064889Z with:
+UNKNOWN STEP	2026-09-20T03:45:00.2065427Z   repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.2069783Z   token: ***
+UNKNOWN STEP	2026-09-20T03:45:00.2070230Z   ssh-strict: true
+UNKNOWN STEP	2026-09-20T03:45:00.2070675Z   ssh-user: git
+UNKNOWN STEP	2026-09-20T03:45:00.2071121Z   persist-credentials: true
+UNKNOWN STEP	2026-09-20T03:45:00.2071616Z   clean: true
+UNKNOWN STEP	2026-09-20T03:45:00.2072064Z   sparse-checkout-cone-mode: true
+UNKNOWN STEP	2026-09-20T03:45:00.2072593Z   fetch-depth: 1
+UNKNOWN STEP	2026-09-20T03:45:00.2073036Z   fetch-tags: false
+UNKNOWN STEP	2026-09-20T03:45:00.2073483Z   show-progress: true
+UNKNOWN STEP	2026-09-20T03:45:00.2073929Z   lfs: false
+UNKNOWN STEP	2026-09-20T03:45:00.2074337Z   submodules: false
+UNKNOWN STEP	2026-09-20T03:45:00.2074788Z   set-safe-directory: true
+UNKNOWN STEP	2026-09-20T03:45:00.2075299Z   allow-unsafe-pr-checkout: false
+UNKNOWN STEP	2026-09-20T03:45:00.2076078Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.3104283Z Syncing repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.3106205Z ##[group]Getting Git version info
+UNKNOWN STEP	2026-09-20T03:45:00.3107096Z Working directory is '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:45:00.3108495Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:45:00.3231599Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:45:00.3258384Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.3274949Z Temporarily overriding HOME='/home/runner/work/_temp/37c96557-7b7e-4b9d-b55d-b3d38f6ed583' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:45:00.3276901Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:45:00.3280968Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.3338142Z Deleting the contents of '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:45:00.3344008Z ##[group]Initializing the repository
+UNKNOWN STEP	2026-09-20T03:45:00.3349178Z [command]/usr/bin/git init /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.3481638Z hint: Using 'master' as the name for the initial branch. This default branch name
+UNKNOWN STEP	2026-09-20T03:45:00.3484749Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+UNKNOWN STEP	2026-09-20T03:45:00.3488417Z hint: to use in all of your new repositories, which will suppress this warning,
+UNKNOWN STEP	2026-09-20T03:45:00.3490665Z hint: call:
+UNKNOWN STEP	2026-09-20T03:45:00.3501401Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.3510086Z hint: 	git config --global init.defaultBranch <name>
+UNKNOWN STEP	2026-09-20T03:45:00.3511610Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.3513275Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+UNKNOWN STEP	2026-09-20T03:45:00.3515905Z hint: 'development'. The just-created branch can be renamed via this command:
+UNKNOWN STEP	2026-09-20T03:45:00.3518015Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.3520798Z hint: 	git branch -m <name>
+UNKNOWN STEP	2026-09-20T03:45:00.3521909Z hint:
+UNKNOWN STEP	2026-09-20T03:45:00.3523371Z hint: Disable this message with "git config set advice.defaultBranchName false"
+UNKNOWN STEP	2026-09-20T03:45:00.3526320Z Initialized empty Git repository in /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/.git/
+UNKNOWN STEP	2026-09-20T03:45:00.3530529Z [command]/usr/bin/git remote add origin https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:00.3565388Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.3567081Z ##[group]Disabling automatic garbage collection
+UNKNOWN STEP	2026-09-20T03:45:00.3570689Z [command]/usr/bin/git config --local gc.auto 0
+UNKNOWN STEP	2026-09-20T03:45:00.3609803Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.3611249Z ##[group]Setting up auth
+UNKNOWN STEP	2026-09-20T03:45:00.3619942Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:45:00.3664499Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:45:00.4094077Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:45:00.4134142Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:45:00.4373525Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:45:00.4418101Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:45:00.4671342Z [command]/usr/bin/git config --local http.https://github.com/.extraheader [REDACTED] ***
+UNKNOWN STEP	2026-09-20T03:45:00.4713716Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:00.4715253Z ##[group]Fetching the repository
+UNKNOWN STEP	2026-09-20T03:45:00.4725744Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +21feff6f3b4b225191120201cca9cc0f0157d54c:refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:12.0945305Z From https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:12.0946831Z  * [new ref]         21feff6f3b4b225191120201cca9cc0f0157d54c -> pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:12.0950841Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.0952200Z ##[group]Determining the checkout info
+UNKNOWN STEP	2026-09-20T03:45:12.0954709Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:12.0963341Z [command]/usr/bin/git sparse-checkout disable
+UNKNOWN STEP	2026-09-20T03:45:12.1033714Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+UNKNOWN STEP	2026-09-20T03:45:12.1067304Z ##[group]Checking out the ref
+UNKNOWN STEP	2026-09-20T03:45:12.1071111Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:13.1591948Z Updating files:  48% (2152/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.1637467Z Updating files:  49% (2171/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.1691991Z Updating files:  50% (2215/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.1745825Z Updating files:  51% (2260/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.1794018Z Updating files:  52% (2304/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.1839291Z Updating files:  53% (2348/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2023121Z Updating files:  54% (2393/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2190168Z Updating files:  55% (2437/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2228829Z Updating files:  56% (2481/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2268699Z Updating files:  57% (2526/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2294200Z Updating files:  58% (2570/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2570662Z Updating files:  59% (2614/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2612698Z Updating files:  60% (2658/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2655064Z Updating files:  61% (2703/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2699765Z Updating files:  62% (2747/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2743404Z Updating files:  63% (2791/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2784465Z Updating files:  64% (2836/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2821007Z Updating files:  65% (2880/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2853664Z Updating files:  66% (2924/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2892087Z Updating files:  67% (2969/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2934822Z Updating files:  68% (3013/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.2984707Z Updating files:  69% (3057/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3022120Z Updating files:  70% (3101/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3061381Z Updating files:  71% (3146/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3096940Z Updating files:  72% (3190/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3134894Z Updating files:  73% (3234/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3171212Z Updating files:  74% (3279/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3203744Z Updating files:  75% (3323/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3236680Z Updating files:  76% (3367/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3257163Z Updating files:  77% (3412/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3284309Z Updating files:  78% (3456/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3318413Z Updating files:  79% (3500/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3347973Z Updating files:  80% (3544/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3378431Z Updating files:  81% (3589/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3407562Z Updating files:  82% (3633/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3538147Z Updating files:  83% (3677/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3605394Z Updating files:  84% (3722/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3877386Z Updating files:  85% (3766/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3943245Z Updating files:  86% (3810/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.3973662Z Updating files:  87% (3855/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4381923Z Updating files:  88% (3899/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4405555Z Updating files:  89% (3943/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4432694Z Updating files:  90% (3987/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4459431Z Updating files:  91% (4032/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4485999Z Updating files:  92% (4076/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4513356Z Updating files:  93% (4120/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4542071Z Updating files:  94% (4165/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4564610Z Updating files:  95% (4209/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4584634Z Updating files:  96% (4253/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4606331Z Updating files:  97% (4298/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4626444Z Updating files:  98% (4342/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4832736Z Updating files:  99% (4386/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4833903Z Updating files: 100% (4430/4430)
+UNKNOWN STEP	2026-09-20T03:45:13.4834960Z Updating files: 100% (4430/4430), done.
+UNKNOWN STEP	2026-09-20T03:45:13.4883695Z Note: switching to 'refs/remotes/pull/47/merge'.
+UNKNOWN STEP	2026-09-20T03:45:13.4884147Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4884487Z You are in 'detached HEAD' state. You can look around, make experimental
+UNKNOWN STEP	2026-09-20T03:45:13.4885378Z changes and commit them, and you can discard any commits you make in this
+UNKNOWN STEP	2026-09-20T03:45:13.4886221Z state without impacting any branches by switching back to a branch.
+UNKNOWN STEP	2026-09-20T03:45:13.4886701Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4887025Z If you want to create a new branch to retain commits you create, you may
+UNKNOWN STEP	2026-09-20T03:45:13.4888080Z do so (now or later) by using -c with the switch command. Example:
+UNKNOWN STEP	2026-09-20T03:45:13.4888402Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4888527Z   git switch -c <new-branch-name>
+UNKNOWN STEP	2026-09-20T03:45:13.4888725Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4888835Z Or undo this operation with:
+UNKNOWN STEP	2026-09-20T03:45:13.4889026Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4889134Z   git switch -
+UNKNOWN STEP	2026-09-20T03:45:13.4889280Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4889587Z Turn off this advice by setting config variable advice.detachedHead to false
+UNKNOWN STEP	2026-09-20T03:45:13.4889927Z 
+UNKNOWN STEP	2026-09-20T03:45:13.4890299Z HEAD is now at 21feff6 Merge d82032f5cd5978967622721b8c9638da36a87f7d into 607af934e74fa87f3b8e58698ef68fdce919ea54
+UNKNOWN STEP	2026-09-20T03:45:13.5003184Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:13.5068322Z [command]/usr/bin/git log -1 --format=%H
+UNKNOWN STEP	2026-09-20T03:45:13.5097132Z 21feff6f3b4b225191120201cca9cc0f0157d54c
+UNKNOWN STEP	2026-09-20T03:45:13.5467454Z ##[group]Run actions/setup-python@v6
+UNKNOWN STEP	2026-09-20T03:45:13.5467786Z with:
+UNKNOWN STEP	2026-09-20T03:45:13.5468369Z   python-version: 3.12
+UNKNOWN STEP	2026-09-20T03:45:13.5468636Z   check-latest: false
+UNKNOWN STEP	2026-09-20T03:45:13.5471353Z   token: ***
+UNKNOWN STEP	2026-09-20T03:45:13.5471601Z   update-environment: true
+UNKNOWN STEP	2026-09-20T03:45:13.5471886Z   allow-prereleases: false
+UNKNOWN STEP	2026-09-20T03:45:13.5472154Z   freethreaded: false
+UNKNOWN STEP	2026-09-20T03:45:13.5472398Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:13.6781561Z ##[group]Installed versions
+UNKNOWN STEP	2026-09-20T03:45:13.6886827Z Successfully set up CPython (3.12.14)
+UNKNOWN STEP	2026-09-20T03:45:13.6887758Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:13.7086250Z ##[group]Run pip install -q -r requirements.txt
+UNKNOWN STEP	2026-09-20T03:45:13.7086956Z ^[[36;1mpip install -q -r requirements.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:13.7087544Z ^[[36;1mpip install -q -r requirements-dev.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:13.7158019Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:13.7158578Z env:
+UNKNOWN STEP	2026-09-20T03:45:13.7159110Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:13.7160017Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:13.7160947Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:13.7161742Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:13.7162443Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:13.7163153Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:13.7163742Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:51.9606469Z ##[group]Run set -o pipefail
+UNKNOWN STEP	2026-09-20T03:45:51.9606940Z ^[[36;1mset -o pipefail^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9607555Z ^[[36;1m# ⭐ THE FILE LIST IS NOT HERE. It is `COMPOSITION` in backend/scripts/ci_test_lanes.py,^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9608657Z ^[[36;1m# which ALL THREE lanes read: this one selects it, the chain lane subtracts it, the estate^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9609539Z ^[[36;1m# lane is its complement. That file carries the rationale for every pattern in it.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9610177Z ^[[36;1m#^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9610691Z ^[[36;1m# ⛔⛔ DO NOT INLINE A GLOB HERE, NOT EVEN TO ADD ONE PATTERN. This step carried its own^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9611591Z ^[[36;1m# `ls` copy until 2026-08-11 and the chain step below carried a second, so the repo ran^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9612459Z ^[[36;1m# THREE lists while `test_flag_lane_parity.py` pinned only the ci.yml pair. That pair^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9613386Z ^[[36;1m# therefore stayed honest and the script's tuple silently fell six patterns behind when^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9614197Z ^[[36;1m# the memory-safety family was adopted on 2026-08-10 — after which^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9614945Z ^[[36;1m# tests/test_health_peak_memory.py ran in THIS lane AND the estate lane, while^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9615730Z ^[[36;1m# `--assert-partition` printed "partition OK". The guard whose model feeds the estate^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9616367Z ^[[36;1m# executor was the copy that went stale.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9617033Z ^[[36;1m# ⇒ `test_flag_lane_parity.py` now fails if any lane stops delegating or a copy returns.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9617622Z ^[[36;1m#^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9618238Z ^[[36;1m# ⚠️ The two fastmcp modules are excluded by the script (FASTMCP_EXCLUDED), not by a grep^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9619044Z ^[[36;1m# here — and not by pytest's --ignore, which is silently overridden for paths passed^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9619843Z ^[[36;1m# explicitly on the command line. That override is how a first attempt at this "excluded"^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9620544Z ^[[36;1m# four modules that in fact still collected and still ran.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9621162Z ^[[36;1mpython scripts/ci_test_lanes.py --lane guards > /tmp/guard_files.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9621901Z ^[[36;1m# ⛔ AN EMPTY SELECTOR MUST REFUSE, NEVER FALL THROUGH. `pytest $FILES` with FILES unset^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9622709Z ^[[36;1m# collects the WHOLE tests/ tree — which would sail past the MIN_FILES floor below on the^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9623747Z ^[[36;1m# wrong suite entirely, reporting the broadest possible green for zero selection. A check^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9624546Z ^[[36;1m# that cannot tell "selected nothing" from "selected everything" is not a check.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9625315Z ^[[36;1mtest -s /tmp/guard_files.txt || { echo "::error::--lane guards selected NO files"; exit 1; }^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9625902Z ^[[36;1msed 's/^/  guard: /' /tmp/guard_files.txt^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9626305Z ^[[36;1mFILES=$(tr '\n' ' ' < /tmp/guard_files.txt)^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9626839Z ^[[36;1m# Retain slow-phase evidence to distinguish test cost from job setup time.^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9627471Z ^[[36;1mpython -m pytest $FILES -q --durations=30 --junitxml=guards.xml^[[0m
+UNKNOWN STEP	2026-09-20T03:45:51.9668685Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:51.9669020Z env:
+UNKNOWN STEP	2026-09-20T03:45:51.9669373Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:51.9669968Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:51.9670557Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:51.9671088Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:51.9671618Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:51.9672139Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:51.9672570Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:52.0273743Z   guard: tests/test_calibration_census.py
+UNKNOWN STEP	2026-09-20T03:45:52.0274705Z   guard: tests/test_ci_lane_single_source.py
+UNKNOWN STEP	2026-09-20T03:45:52.0275968Z   guard: tests/test_climatology_inbox.py
+UNKNOWN STEP	2026-09-20T03:45:52.0276937Z   guard: tests/test_coarse_dir_confidence_export.py
+UNKNOWN STEP	2026-09-20T03:45:52.0278270Z   guard: tests/test_coarse_fill_layers.py
+UNKNOWN STEP	2026-09-20T03:45:52.0279169Z   guard: tests/test_coarse_gulf_fill.py
+UNKNOWN STEP	2026-09-20T03:45:52.0280052Z   guard: tests/test_cold_start_series_warming.py
+UNKNOWN STEP	2026-09-20T03:45:52.0280619Z   guard: tests/test_data_health.py
+UNKNOWN STEP	2026-09-20T03:45:52.0281144Z   guard: tests/test_dominant_swell_anim.py
+UNKNOWN STEP	2026-09-20T03:45:52.0281734Z   guard: tests/test_dyncache_prefer_fine_regional.py
+UNKNOWN STEP	2026-09-20T03:45:52.0282331Z   guard: tests/test_ecmwf_euro.py
+UNKNOWN STEP	2026-09-20T03:45:52.0282865Z   guard: tests/test_enclosed_sea_height_survival.py
+UNKNOWN STEP	2026-09-20T03:45:52.0283487Z   guard: tests/test_era5_campaign_instance_guard.py
+UNKNOWN STEP	2026-09-20T03:45:52.0284073Z   guard: tests/test_era5_interrupt_shield.py
+UNKNOWN STEP	2026-09-20T03:45:52.0284628Z   guard: tests/test_era5_liveness_reaper.py
+UNKNOWN STEP	2026-09-20T03:45:52.0285184Z   guard: tests/test_era5_peer_from_marker.py
+UNKNOWN STEP	2026-09-20T03:45:52.0285741Z   guard: tests/test_era5_scope_selection.py
+UNKNOWN STEP	2026-09-20T03:45:52.0286254Z   guard: tests/test_fetch_common.py
+UNKNOWN STEP	2026-09-20T03:45:52.0286690Z   guard: tests/test_flag_lane_parity.py
+UNKNOWN STEP	2026-09-20T03:45:52.0287166Z   guard: tests/test_forecast_accuracy_monitor.py
+UNKNOWN STEP	2026-09-20T03:45:52.0287667Z   guard: tests/test_forecast_skill.py
+UNKNOWN STEP	2026-09-20T03:45:52.0288289Z   guard: tests/test_forecast_skill_per_model.py
+UNKNOWN STEP	2026-09-20T03:45:52.0288783Z   guard: tests/test_frame_honesty.py
+UNKNOWN STEP	2026-09-20T03:45:52.0289272Z   guard: tests/test_geometry_provenance_envelope.py
+UNKNOWN STEP	2026-09-20T03:45:52.0289827Z   guard: tests/test_geometry_shore_normal_census.py
+UNKNOWN STEP	2026-09-20T03:45:52.0290391Z   guard: tests/test_gfs_fill_masked_waves.py
+UNKNOWN STEP	2026-09-20T03:45:52.0290888Z   guard: tests/test_grid_clip_to_data_extent.py
+UNKNOWN STEP	2026-09-20T03:45:52.0291385Z   guard: tests/test_grid_route_resilience.py
+UNKNOWN STEP	2026-09-20T03:45:52.0291869Z   guard: tests/test_grid_series_euro_merge.py
+UNKNOWN STEP	2026-09-20T03:45:52.0292395Z   guard: tests/test_grid_series_frame_provenance.py
+UNKNOWN STEP	2026-09-20T03:45:52.0292949Z   guard: tests/test_grid_series_provider_ownership.py
+UNKNOWN STEP	2026-09-20T03:45:52.0293486Z   guard: tests/test_grid_size_climatology.py
+UNKNOWN STEP	2026-09-20T03:45:52.0293990Z   guard: tests/test_grid_surf_overlay_copies.py
+UNKNOWN STEP	2026-09-20T03:45:52.0294507Z   guard: tests/test_health_peak_memory.py
+UNKNOWN STEP	2026-09-20T03:45:52.0294977Z   guard: tests/test_height_anchors.py
+UNKNOWN STEP	2026-09-20T03:45:52.0295605Z   guard: tests/test_local_size_preview.py
+UNKNOWN STEP	2026-09-20T03:45:52.0296084Z   guard: tests/test_manifest_cdn_policy.py
+UNKNOWN STEP	2026-09-20T03:45:52.0296548Z   guard: tests/test_manifest_concurrent_merge.py
+UNKNOWN STEP	2026-09-20T03:45:52.0297010Z   guard: tests/test_manifest_pointer.py
+UNKNOWN STEP	2026-09-20T03:45:52.0297492Z   guard: tests/test_manifest_reconcile_prefers_newer_run.py
+UNKNOWN STEP	2026-09-20T03:45:52.0299797Z   guard: tests/test_manifest_restore_identity_skip.py
+UNKNOWN STEP	2026-09-20T03:45:52.0300318Z   guard: tests/test_map_spots_to_ndbc_buoys.py
+UNKNOWN STEP	2026-09-20T03:45:52.0300782Z   guard: tests/test_marine_coarse_preview.py
+UNKNOWN STEP	2026-09-20T03:45:52.0301286Z   guard: tests/test_marine_ensemble_cost_probe.py
+UNKNOWN STEP	2026-09-20T03:45:52.0301762Z   guard: tests/test_marine_intersect_prefer.py
+UNKNOWN STEP	2026-09-20T03:45:52.0302207Z   guard: tests/test_marine_mid_res_tier.py
+UNKNOWN STEP	2026-09-20T03:45:52.0302661Z   guard: tests/test_marine_multi_bbox_fetch.py
+UNKNOWN STEP	2026-09-20T03:45:52.0303128Z   guard: tests/test_marine_zero_is_no_coverage.py
+UNKNOWN STEP	2026-09-20T03:45:52.0303590Z   guard: tests/test_noaa_coarse_axis.py
+UNKNOWN STEP	2026-09-20T03:45:52.0304084Z   guard: tests/test_noaa_coverage_floor_fires_on_failures.py
+UNKNOWN STEP	2026-09-20T03:45:52.0304609Z   guard: tests/test_noaa_fetch_soft_deadline.py
+UNKNOWN STEP	2026-09-20T03:45:52.0305050Z   guard: tests/test_noaa_gfs_marine.py
+UNKNOWN STEP	2026-09-20T03:45:52.0305468Z   guard: tests/test_noaa_gfs_pressure.py
+UNKNOWN STEP	2026-09-20T03:45:52.0305874Z   guard: tests/test_noaa_gfs_wind.py
+UNKNOWN STEP	2026-09-20T03:45:52.0306249Z   guard: tests/test_noaa_multi_resolution.py
+UNKNOWN STEP	2026-09-20T03:45:52.0306642Z   guard: tests/test_noaa_wave_blockmean.py
+UNKNOWN STEP	2026-09-20T03:45:52.0307259Z   guard: tests/test_observation_gate_single_model_surfaces.py
+UNKNOWN STEP	2026-09-20T03:45:52.0307741Z   guard: tests/test_owner_calibration_anchors.py
+UNKNOWN STEP	2026-09-20T03:45:52.0308332Z   guard: tests/test_parity_unification.py
+UNKNOWN STEP	2026-09-20T03:45:52.0308749Z   guard: tests/test_partition_band_closure_probe.py
+UNKNOWN STEP	2026-09-20T03:45:52.0309191Z   guard: tests/test_partition_band_composition.py
+UNKNOWN STEP	2026-09-20T03:45:52.0309630Z   guard: tests/test_partition_direction_coverage.py
+UNKNOWN STEP	2026-09-20T03:45:52.0310103Z   guard: tests/test_partition_exposure_energy_share.py
+UNKNOWN STEP	2026-09-20T03:45:52.0310549Z   guard: tests/test_partition_fabrication_gate.py
+UNKNOWN STEP	2026-09-20T03:45:52.0310966Z   guard: tests/test_partition_period_bands.py
+UNKNOWN STEP	2026-09-20T03:45:52.0311383Z   guard: tests/test_point_coarse_gap.py
+UNKNOWN STEP	2026-09-20T03:45:52.0311805Z   guard: tests/test_point_manifest_view.py
+UNKNOWN STEP	2026-09-20T03:45:52.0312231Z   guard: tests/test_point_reference_prefers_the_spot.py
+UNKNOWN STEP	2026-09-20T03:45:52.0312697Z   guard: tests/test_point_resolution_is_stamped.py
+UNKNOWN STEP	2026-09-20T03:45:52.0313145Z   guard: tests/test_point_skip_native_copernicus.py
+UNKNOWN STEP	2026-09-20T03:45:52.0313578Z   guard: tests/test_point_tiebreak_resolution.py
+UNKNOWN STEP	2026-09-20T03:45:52.0314004Z   guard: tests/test_product_cache_vector_budget.py
+UNKNOWN STEP	2026-09-20T03:45:52.0314423Z   guard: tests/test_product_run_age_census.py
+UNKNOWN STEP	2026-09-20T03:45:52.0314820Z   guard: tests/test_provenance_labeling.py
+UNKNOWN STEP	2026-09-20T03:45:52.0315223Z   guard: tests/test_rating_composition_parity.py
+UNKNOWN STEP	2026-09-20T03:45:52.0315675Z   guard: tests/test_rating_confirmation.py
+UNKNOWN STEP	2026-09-20T03:45:52.0316148Z   guard: tests/test_rating_cycle_roundtrip.py
+UNKNOWN STEP	2026-09-20T03:45:52.0316580Z   guard: tests/test_rating_factors.py
+UNKNOWN STEP	2026-09-20T03:45:52.0317028Z   guard: tests/test_rating_non_finite_guard.py
+UNKNOWN STEP	2026-09-20T03:45:52.0317433Z   guard: tests/test_rating_partitions_composition.py
+UNKNOWN STEP	2026-09-20T03:45:52.0318081Z   guard: tests/test_rating_report_transport.py
+UNKNOWN STEP	2026-09-20T03:45:52.0318482Z   guard: tests/test_rating_shadow_ab.py
+UNKNOWN STEP	2026-09-20T03:45:52.0318832Z   guard: tests/test_request_telemetry.py
+UNKNOWN STEP	2026-09-20T03:45:52.0319196Z   guard: tests/test_resolve_spot_geometry.py
+UNKNOWN STEP	2026-09-20T03:45:52.0319554Z   guard: tests/test_run_provenance.py
+UNKNOWN STEP	2026-09-20T03:45:52.0319921Z   guard: tests/test_series_build_materialisation.py
+UNKNOWN STEP	2026-09-20T03:45:52.0320314Z   guard: tests/test_series_build_time_bound.py
+UNKNOWN STEP	2026-09-20T03:45:52.0320711Z   guard: tests/test_series_coordinate_allocation.py
+UNKNOWN STEP	2026-09-20T03:45:52.0321101Z   guard: tests/test_series_load_stride.py
+UNKNOWN STEP	2026-09-20T03:45:52.0321605Z   guard: tests/test_series_stride_query_leak.py
+UNKNOWN STEP	2026-09-20T03:45:52.0321986Z   guard: tests/test_series_vector_budget.py
+UNKNOWN STEP	2026-09-20T03:45:52.0322354Z   guard: tests/test_sim_compare_ranking.py
+UNKNOWN STEP	2026-09-20T03:45:52.0322705Z   guard: tests/test_sim_daylight.py
+UNKNOWN STEP	2026-09-20T03:45:52.0323107Z   guard: tests/test_sim_every_surface_reads_the_served_curve.py
+UNKNOWN STEP	2026-09-20T03:45:52.0323536Z   guard: tests/test_sim_explain.py
+UNKNOWN STEP	2026-09-20T03:45:52.0323867Z   guard: tests/test_sim_forecast_lane.py
+UNKNOWN STEP	2026-09-20T03:45:52.0324234Z   guard: tests/test_sim_forecast_negative_cache.py
+UNKNOWN STEP	2026-09-20T03:45:52.0324650Z   guard: tests/test_sim_geometry_cache_key.py
+UNKNOWN STEP	2026-09-20T03:45:52.0325086Z   guard: tests/test_sim_graft_does_not_override_climatology.py
+UNKNOWN STEP	2026-09-20T03:45:52.0325540Z   guard: tests/test_sim_local_size_reference.py
+UNKNOWN STEP	2026-09-20T03:45:52.0325919Z   guard: tests/test_sim_mcp_shim.py
+UNKNOWN STEP	2026-09-20T03:45:52.0326267Z   guard: tests/test_sim_observed_parity.py
+UNKNOWN STEP	2026-09-20T03:45:52.0326660Z   guard: tests/test_sim_score_coordinate_contract.py
+UNKNOWN STEP	2026-09-20T03:45:52.0327072Z   guard: tests/test_sim_served_reference.py
+UNKNOWN STEP	2026-09-20T03:45:52.0327438Z   guard: tests/test_sim_spots_identity.py
+UNKNOWN STEP	2026-09-20T03:45:52.0327802Z   guard: tests/test_sim_whatif_baseline.py
+UNKNOWN STEP	2026-09-20T03:45:52.0328373Z   guard: tests/test_sim_whatif_size_curve_and_io_budget.py
+UNKNOWN STEP	2026-09-20T03:45:52.0328789Z   guard: tests/test_sim_window_scan.py
+UNKNOWN STEP	2026-09-20T03:45:52.0329131Z   guard: tests/test_simulation.py
+UNKNOWN STEP	2026-09-20T03:45:52.0329460Z   guard: tests/test_spot_candidate_filter.py
+UNKNOWN STEP	2026-09-20T03:45:52.0329972Z   guard: tests/test_spot_condition_report_routes.py
+UNKNOWN STEP	2026-09-20T03:45:52.0330383Z   guard: tests/test_spot_conditions_batch_bounds.py
+UNKNOWN STEP	2026-09-20T03:45:52.0330798Z   guard: tests/test_spot_conditions_surf_transform.py
+UNKNOWN STEP	2026-09-20T03:45:52.0331182Z   guard: tests/test_spot_geometry_db.py
+UNKNOWN STEP	2026-09-20T03:45:52.0331539Z   guard: tests/test_spot_geometry_readiness.py
+UNKNOWN STEP	2026-09-20T03:45:52.0331945Z   guard: tests/test_spot_hub_forecast_confidence.py
+UNKNOWN STEP	2026-09-20T03:45:52.0332367Z   guard: tests/test_spot_hub_local_size_reference.py
+UNKNOWN STEP	2026-09-20T03:45:52.0332771Z   guard: tests/test_spot_hub_rating_parity.py
+UNKNOWN STEP	2026-09-20T03:45:52.0333150Z   guard: tests/test_spot_import_honesty.py
+UNKNOWN STEP	2026-09-20T03:45:52.0333533Z   guard: tests/test_spot_placement_proposals.py
+UNKNOWN STEP	2026-09-20T03:45:52.0333956Z   guard: tests/test_spot_rating_geometry_disclosure.py
+UNKNOWN STEP	2026-09-20T03:45:52.0334365Z   guard: tests/test_spot_rating_module_seam.py
+UNKNOWN STEP	2026-09-20T03:45:52.0334756Z   guard: tests/test_spot_rating_wire_contract.py
+UNKNOWN STEP	2026-09-20T03:45:52.0335133Z   guard: tests/test_spot_ratings.py
+UNKNOWN STEP	2026-09-20T03:45:52.0335633Z   guard: tests/test_spot_ratings_l2_cache.py
+UNKNOWN STEP	2026-09-20T03:45:52.0336222Z   guard: tests/test_spot_size_climatology.py
+UNKNOWN STEP	2026-09-20T03:45:52.0336882Z   guard: tests/test_surf_alert_scheduled_states_the_quality.py
+UNKNOWN STEP	2026-09-20T03:45:52.0337350Z   guard: tests/test_surf_alert_states_the_quality.py
+UNKNOWN STEP	2026-09-20T03:45:52.0337749Z   guard: tests/test_surf_cap_seam_monotone.py
+UNKNOWN STEP	2026-09-20T03:45:52.0338319Z   guard: tests/test_surf_conditions_post_menu_iter195.py
+UNKNOWN STEP	2026-09-20T03:45:52.0338755Z   guard: tests/test_surf_conditions_reports.py
+UNKNOWN STEP	2026-09-20T03:45:52.0339166Z   guard: tests/test_surf_conditions_surf_transform.py
+UNKNOWN STEP	2026-09-20T03:45:52.0339578Z   guard: tests/test_surf_height_convention.py
+UNKNOWN STEP	2026-09-20T03:45:52.0339963Z   guard: tests/test_surf_partitions_wiring.py
+UNKNOWN STEP	2026-09-20T03:45:52.0340336Z   guard: tests/test_surf_point_land_bit.py
+UNKNOWN STEP	2026-09-20T03:45:52.0340685Z   guard: tests/test_surf_point_parity.py
+UNKNOWN STEP	2026-09-20T03:45:52.0341034Z   guard: tests/test_surf_rating.py
+UNKNOWN STEP	2026-09-20T03:45:52.0341375Z   guard: tests/test_surf_regional_prefer.py
+UNKNOWN STEP	2026-09-20T03:45:52.0341736Z   guard: tests/test_surf_science_audit.py
+UNKNOWN STEP	2026-09-20T03:45:52.0342083Z   guard: tests/test_surf_spots_explore.py
+UNKNOWN STEP	2026-09-20T03:45:52.0342458Z   guard: tests/test_surf_spots_galleries_bookings.py
+UNKNOWN STEP	2026-09-20T03:45:52.0342858Z   guard: tests/test_surf_spots_live_security.py
+UNKNOWN STEP	2026-09-20T03:45:52.0343226Z   guard: tests/test_surf_transform.py
+UNKNOWN STEP	2026-09-20T03:45:52.0343757Z   guard: tests/test_surf_transform_docstring_truth.py
+UNKNOWN STEP	2026-09-20T03:45:52.0344132Z   guard: tests/test_surf_v3.py
+UNKNOWN STEP	2026-09-20T03:45:52.0344446Z   guard: tests/test_sweep_orphaned_l2.py
+UNKNOWN STEP	2026-09-20T03:45:52.0344824Z   guard: tests/test_validate_nearshore_transform.py
+UNKNOWN STEP	2026-09-20T03:45:52.0345197Z   guard: tests/test_weather_api.py
+UNKNOWN STEP	2026-09-20T03:45:52.0345537Z   guard: tests/test_weather_copernicus.py
+UNKNOWN STEP	2026-09-20T03:45:52.0345884Z   guard: tests/test_weather_ingestion.py
+UNKNOWN STEP	2026-09-20T03:45:52.0346220Z   guard: tests/test_weather_normalizer.py
+UNKNOWN STEP	2026-09-20T03:45:52.0346564Z   guard: tests/test_weather_pipeline_auth.py
+UNKNOWN STEP	2026-09-20T03:45:52.0346906Z   guard: tests/test_weather_prefetcher.py
+UNKNOWN STEP	2026-09-20T03:45:52.0347223Z   guard: tests/test_weather_services.py
+UNKNOWN STEP	2026-09-20T03:45:52.0347550Z   guard: tests/test_wind_dynamic_wide_band.py
+UNKNOWN STEP	2026-09-20T03:45:52.0348048Z   guard: tests/test_wind_horizon_gate.py
+UNKNOWN STEP	2026-09-20T03:45:52.0348424Z   guard: tests/test_wind_mid_res_tier.py
+UNKNOWN STEP	2026-09-20T03:45:52.0348747Z   guard: tests/test_wind_multi_bbox_fetch.py
+UNKNOWN STEP	2026-09-20T03:45:52.0349110Z   guard: tests/test_wind_native_viewport_fallback.py
+UNKNOWN STEP	2026-09-20T03:45:52.0349486Z   guard: tests/test_wind_unit_constant_parity.py
+UNKNOWN STEP	2026-09-20T03:46:24.9575252Z ........................................................................ [  3%]
+UNKNOWN STEP	2026-09-20T03:47:12.2300331Z ........................................................................ [  7%]
+UNKNOWN STEP	2026-09-20T03:47:12.8023342Z ........................................................................ [ 10%]
+UNKNOWN STEP	2026-09-20T03:47:18.3743808Z ........................................................................ [ 14%]
+UNKNOWN STEP	2026-09-20T03:47:18.4611342Z ........................................................................ [ 18%]
+UNKNOWN STEP	2026-09-20T03:47:24.8785659Z ........................................................................ [ 21%]
+UNKNOWN STEP	2026-09-20T03:47:24.9502245Z ........................................................................ [ 25%]
+UNKNOWN STEP	2026-09-20T03:59:25.1641941Z ........................................................................ [ 29%]
+UNKNOWN STEP	2026-09-20T04:00:48.6563540Z ........................................................................ [ 32%]
+UNKNOWN STEP	2026-09-20T04:00:48.7187394Z ........................................................................ [ 36%]
+UNKNOWN STEP	2026-09-20T04:00:48.8099519Z ........................................................................ [ 40%]
+UNKNOWN STEP	2026-09-20T04:00:49.1457751Z ........................................................................ [ 43%]
+UNKNOWN STEP	2026-09-20T04:00:49.3012872Z ........................................................................ [ 47%]
+UNKNOWN STEP	2026-09-20T04:00:54.6593359Z ......................................x................................. [ 50%]
+UNKNOWN STEP	2026-09-20T04:00:58.4875366Z ........................................................................ [ 54%]
+UNKNOWN STEP	2026-09-20T04:01:02.8216003Z .................................................................s....s. [ 58%]
+UNKNOWN STEP	2026-09-20T04:01:04.4115791Z ........................................................................ [ 61%]
+UNKNOWN STEP	2026-09-20T04:01:05.0643832Z ........................................................................ [ 65%]
+UNKNOWN STEP	2026-09-20T04:01:05.6221372Z ........................................................................ [ 69%]
+UNKNOWN STEP	2026-09-20T04:01:05.8760392Z ........................................................................ [ 72%]
+UNKNOWN STEP	2026-09-20T04:01:09.8831630Z ........................................................................ [ 76%]
+UNKNOWN STEP	2026-09-20T04:01:17.7986342Z ......................................................................ss [ 80%]
+UNKNOWN STEP	2026-09-20T04:01:17.8547077Z ssssssssssssssssssssssssssssssss........................................ [ 83%]
+UNKNOWN STEP	2026-09-20T04:01:17.9326089Z ........................................................................ [ 87%]
+UNKNOWN STEP	2026-09-20T04:01:18.3423036Z ..............................................ssssssssssssssssssssssssss [ 90%]
+UNKNOWN STEP	2026-09-20T04:01:18.4298335Z ssss.................................................................... [ 94%]
+UNKNOWN STEP	2026-09-20T04:01:48.5346130Z ........................................................................ [ 98%]
+UNKNOWN STEP	2026-09-20T04:02:35.1128876Z ...................................                                      [100%]
+UNKNOWN STEP	2026-09-20T04:02:35.1129998Z =============================== warnings summary ===============================
+UNKNOWN STEP	2026-09-20T04:02:35.1131368Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:41
+UNKNOWN STEP	2026-09-20T04:02:35.1134153Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/starlette/testclient.py:41: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+UNKNOWN STEP	2026-09-20T04:02:35.1136472Z     [], typing.ContextManager[anyio.abc.BlockingPortal]
+UNKNOWN STEP	2026-09-20T04:02:35.1137017Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1137279Z routes/profiles/username.py:44
+UNKNOWN STEP	2026-09-20T04:02:35.1144135Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/profiles/username.py:44: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T04:02:35.1148165Z     @validator('username')
+UNKNOWN STEP	2026-09-20T04:02:35.1148503Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1148717Z routes/profiles/username.py:63
+UNKNOWN STEP	2026-09-20T04:02:35.1151451Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/profiles/username.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T04:02:35.1153659Z     @validator('new_username')
+UNKNOWN STEP	2026-09-20T04:02:35.1153873Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1154324Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_config.py:295
+UNKNOWN STEP	2026-09-20T04:02:35.1156382Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/pydantic/_internal/_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T04:02:35.1159544Z     warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+UNKNOWN STEP	2026-09-20T04:02:35.1160079Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1160771Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+UNKNOWN STEP	2026-09-20T04:02:35.1162961Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+UNKNOWN STEP	2026-09-20T04:02:35.1164765Z     from crypt import crypt as _crypt
+UNKNOWN STEP	2026-09-20T04:02:35.1165186Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1165720Z ../../../../../../opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/supabase/_async/auth_client.py:3
+UNKNOWN STEP	2026-09-20T04:02:35.1167211Z   /opt/hostedtoolcache/Python/3.12.14/x64/lib/python3.12/site-packages/supabase/_async/auth_client.py:3: DeprecationWarning: The `gotrue` package is deprecated, is not going to receive updates in the future. Please, use `supabase_auth` instead.
+UNKNOWN STEP	2026-09-20T04:02:35.1168742Z     from gotrue import (
+UNKNOWN STEP	2026-09-20T04:02:35.1168915Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1169288Z tests/test_parity_unification.py::test_point_resolution_service_resolve_spot_conditions
+UNKNOWN STEP	2026-09-20T04:02:35.1170531Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/services/weather_pipeline/point_resolution.py:444: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+UNKNOWN STEP	2026-09-20T04:02:35.1171783Z     wind_resp = await build_wind_direct_point_response(self.provider, model, lat, lng, target_dt)
+UNKNOWN STEP	2026-09-20T04:02:35.1172451Z   Enable tracemalloc to get traceback where the object was allocated.
+UNKNOWN STEP	2026-09-20T04:02:35.1173467Z   See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+UNKNOWN STEP	2026-09-20T04:02:35.1173963Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1174503Z tests/test_spot_condition_report_routes.py::test_populated_list_serializes_and_live_lookup_degrades[True-/condition-reports/feed]
+UNKNOWN STEP	2026-09-20T04:02:35.1175585Z tests/test_spot_condition_report_routes.py::test_populated_list_serializes_and_live_lookup_degrades[False-/condition-reports/feed]
+UNKNOWN STEP	2026-09-20T04:02:35.1176694Z tests/test_spot_condition_report_routes.py::test_populated_list_serializes_and_live_lookup_degrades[lookup-fails-/condition-reports/feed]
+UNKNOWN STEP	2026-09-20T04:02:35.1177700Z tests/test_spot_condition_report_routes.py::test_watermarked_media_heals_through_real_helper[False-/condition-reports/feed]
+UNKNOWN STEP	2026-09-20T04:02:35.1178949Z tests/test_spot_condition_report_routes.py::test_watermarked_media_heals_through_real_helper[True-/condition-reports/feed]
+UNKNOWN STEP	2026-09-20T04:02:35.1179752Z tests/test_spot_condition_report_routes.py::test_feed_retains_public_gallery_link
+UNKNOWN STEP	2026-09-20T04:02:35.1181350Z   /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/backend/routes/condition_reports/feed.py:202: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+UNKNOWN STEP	2026-09-20T04:02:35.1182791Z     report_dict = report_data.dict()
+UNKNOWN STEP	2026-09-20T04:02:35.1182995Z 
+UNKNOWN STEP	2026-09-20T04:02:35.1183384Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+UNKNOWN STEP	2026-09-20T04:02:35.1183884Z ============================= slowest 30 durations =============================
+UNKNOWN STEP	2026-09-20T04:02:35.1184588Z 178.06s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_the_floor_metric_RESPONDS_to_failures__THE_JACOBIAN
+UNKNOWN STEP	2026-09-20T04:02:35.1185393Z 54.96s call     tests/test_noaa_gfs_marine.py::test_gfs_marine_pilot_noaa_direct_regional
+UNKNOWN STEP	2026-09-20T04:02:35.1186148Z 45.46s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_complete_fetch_is_untouched__THE_CONTROL
+UNKNOWN STEP	2026-09-20T04:02:35.1186953Z 45.12s call     tests/test_noaa_fetch_soft_deadline.py::test_budget_zero_restores_legacy_all_or_nothing
+UNKNOWN STEP	2026-09-20T04:02:35.1187784Z 44.69s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_mostly_null_product_is_REFUSED_not_shipped[1-99.1]
+UNKNOWN STEP	2026-09-20T04:02:35.1188835Z 44.62s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_the_floor_fires_WITHOUT_the_deadline_ever_binding
+UNKNOWN STEP	2026-09-20T04:02:35.1189663Z 44.25s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_healthy_partial_still_salvages
+UNKNOWN STEP	2026-09-20T04:02:35.1190479Z 44.07s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_the_floor_is_byte_identical_when_nothing_failed
+UNKNOWN STEP	2026-09-20T04:02:35.1191387Z 43.64s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_COMPLETE_fetch_at_any_horizon_is_never_refused[14]
+UNKNOWN STEP	2026-09-20T04:02:35.1192302Z 43.16s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_mostly_null_product_is_REFUSED_not_shipped[20-82.3]
+UNKNOWN STEP	2026-09-20T04:02:35.1193209Z 42.31s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_mostly_null_product_is_REFUSED_not_shipped[5-95.6]
+UNKNOWN STEP	2026-09-20T04:02:35.1194007Z 42.13s call     tests/test_noaa_fetch_soft_deadline.py::test_fetch_within_budget_is_not_truncated
+UNKNOWN STEP	2026-09-20T04:02:35.1194772Z 24.20s call     tests/test_noaa_fetch_soft_deadline.py::test_soft_deadline_returns_completed_steps_instead_of_nothing
+UNKNOWN STEP	2026-09-20T04:02:35.1195651Z 15.81s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_COMPLETE_fetch_at_any_horizon_is_never_refused[5]
+UNKNOWN STEP	2026-09-20T04:02:35.1196489Z 15.66s call     tests/test_wind_multi_bbox_fetch.py::test_multi_region_output_is_identical_to_single_region
+UNKNOWN STEP	2026-09-20T04:02:35.1197250Z 14.01s call     tests/test_marine_multi_bbox_fetch.py::test_multi_region_output_is_identical_to_single_region
+UNKNOWN STEP	2026-09-20T04:02:35.1198546Z 9.06s call     tests/test_weather_ingestion.py::test_gfs_marine_ingestion_and_pruning
+UNKNOWN STEP	2026-09-20T04:02:35.1199700Z 8.47s call     tests/test_wind_multi_bbox_fetch.py::test_download_cost_is_independent_of_region_count
+UNKNOWN STEP	2026-09-20T04:02:35.1200903Z 8.47s call     tests/test_weather_ingestion.py::test_euro_marine_global_ingestion
+UNKNOWN STEP	2026-09-20T04:02:35.1202100Z 7.63s call     tests/test_marine_multi_bbox_fetch.py::test_download_cost_is_independent_of_region_count
+UNKNOWN STEP	2026-09-20T04:02:35.1203672Z 6.58s call     tests/test_noaa_coverage_floor_fires_on_failures.py::test_a_COMPLETE_fetch_at_any_horizon_is_never_refused[2]
+UNKNOWN STEP	2026-09-20T04:02:35.1205238Z 6.38s call     tests/test_marine_coarse_preview.py::test_oversized_preview_is_rejected_and_falls_through_to_upstream
+UNKNOWN STEP	2026-09-20T04:02:35.1206607Z 5.94s call     tests/test_weather_ingestion.py::test_icon_marine_global_ingestion
+UNKNOWN STEP	2026-09-20T04:02:35.1207581Z 5.87s call     tests/test_ecmwf_euro.py::test_euro_marine_coarse_gfs_fill_kill_switch
+UNKNOWN STEP	2026-09-20T04:02:35.1208942Z 5.79s call     tests/test_ecmwf_euro.py::test_euro_marine_coarse_gfs_fill_wired_on_waves_with_raw_gfs
+UNKNOWN STEP	2026-09-20T04:02:35.1209991Z 5.76s call     tests/test_ecmwf_euro.py::test_euro_marine_coarse_ecmwf_direct
+UNKNOWN STEP	2026-09-20T04:02:35.1211118Z 5.62s call     tests/test_noaa_fetch_soft_deadline.py::test_floor_scales_with_what_was_actually_requested
+UNKNOWN STEP	2026-09-20T04:02:35.1212357Z 5.23s call     tests/test_ecmwf_euro.py::test_euro_marine_coarse_ecmwf_fallback_to_cmems
+UNKNOWN STEP	2026-09-20T04:02:35.1213402Z 5.15s call     tests/test_ecmwf_euro.py::test_euro_marine_coarse_ecmwf_kill_switch
+UNKNOWN STEP	2026-09-20T04:02:35.1214652Z 4.53s call     tests/test_noaa_gfs_marine.py::test_gfs_marine_noaa_direct_ingestion
+UNKNOWN STEP	2026-09-20T04:02:35.1215563Z 1912 passed, 66 skipped, 1 xfailed, 13 warnings in 999.13s (0:16:39)
+UNKNOWN STEP	2026-09-20T04:02:37.2394154Z ##[group]Run python - <<'PY'
+UNKNOWN STEP	2026-09-20T04:02:37.2395152Z ^[[36;1mpython - <<'PY'^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2395513Z ^[[36;1mimport sys, xml.etree.ElementTree as ET^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2396225Z ^[[36;1m# Floors are shrink-only. Raise them when guards are added; lowering one is a deliberate^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2396982Z ^[[36;1m# act that should appear in a diff, which is the entire point of a ratchet.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2397728Z ^[[36;1m# Measured 2026-08-01 on the fastmcp-free set: 40 modules, 571 passed locally / ~565 in^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2398807Z ^[[36;1m# CI (the six probe guards in test_run_provenance importorskip on fastmcp, which is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2399603Z ^[[36;1m# installable locally and not here). Floor sits below the CI figure, not the local one.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2400437Z ^[[36;1m# ⬆ RAISED 39→40 / 550→559 when test_spot_hub_local_size_reference.py was added (the spot^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2401328Z ^[[36;1m# hub's `reference_size_m` waiver closing). Measured both ends rather than incremented:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2402062Z ^[[36;1m# 39 modules/560 passed without that file, 40/571 with its 11 tests.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2402793Z ^[[36;1m# ⚠️ DELIBERATELY CONSERVATIVE, and left that way: a second module (test_sim_local_size_^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2403634Z ^[[36;1m# reference.py) landed in this glob from concurrent work while this was measured, so the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2404415Z ^[[36;1m# live total is already higher than the figure above. A floor is a floor — it must not be^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2405155Z ^[[36;1m# pinned to a total that another change in flight is still moving. Raise it again from a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2405720Z ^[[36;1m# quiet tree, not from a moving one.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2406263Z ^[[36;1m# MIN_FILES is the exact module count so that ANY drop — a glob that stops matching, an^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2406984Z ^[[36;1m# exclusion pattern that widens by accident — is red rather than quietly narrower.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2407704Z ^[[36;1m# ⚠⚠ MEASURE THE FLOOR ON origin/dev, NEVER ON A SHARED WORKING TREE. This read 41/565^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2408645Z ^[[36;1m# because my local checkout contained tests/test_spot_hub_local_size_reference.py — a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2409616Z ^[[36;1m# CONCURRENT SESSION'S UNTRACKED FILE. origin/dev has 40 files, so the gate could not^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2410331Z ^[[36;1m# be met by anything that ships. Third instance of that class in one session (see also^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2411085Z ^[[36;1m# the reference_for_spot ImportError): in a shared tree, ANY measurement that enumerates^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2411768Z ^[[36;1m# files or symbols is contaminated by another agent's uncommitted work.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2412422Z ^[[36;1m# These numbers are CI's own reading on origin/dev @ 50e441bd: 631 collected, 40 files,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2413004Z ^[[36;1m# 561 passed, 70 skipped. Floor sits just below that.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2413600Z ^[[36;1m# ⬆⬆ RAISED 42→49 / 580→700 on 2026-08-01 — the biggest single jump this gate has had, and^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2414318Z ^[[36;1m# it is COVERAGE, not new tests: `sim_mcp_shim` let four previously-EXCLUDED modules run,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2415070Z ^[[36;1m# and three `importorskip` guards became real passes. The sim's zero-network invariant,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2415830Z ^[[36;1m# live-forecast lane and spot-identity guards now execute in the cloud for the first time.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2416444Z ^[[36;1m#     40 files / 555 passed   (before this session)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2416948Z ^[[36;1m#     42 / 580                (test_sim_served_reference + the un-skipped I/O budget)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2417551Z ^[[36;1m#     49 / 700                (the shim frees the excluded four, + the call-site registry)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2418409Z ^[[36;1m# ★ THE NUMBERS COME FROM THE GATE'S OWN RUN ON origin/dev @ 052326ec — "collected 773^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2419291Z ^[[36;1m# tests across 49 files -> 707 passed, 66 skipped, 0 failed" — NOT from a local count.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2419988Z ^[[36;1m# `6c4ab178` was a floor calibrated on a shared working tree holding a concurrent^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2420703Z ^[[36;1m# session's UNTRACKED test file, which made the gate unmeetable by anything that ships.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2421464Z ^[[36;1m# In a shared tree, any measurement that enumerates files is contaminated: read the gate.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2422179Z ^[[36;1m# ⚠️ The floor sits just below the observed figure, so the concurrent session's^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2422891Z ^[[36;1m# `test_spot_hub_local_size_reference.py` will RAISE it again when they commit — a floor^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2423648Z ^[[36;1m# is shrink-only and must never be pinned to a total another change in flight is moving.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2424312Z ^[[36;1m# ⬆ 49→52 / 700→720: `tests/test_point_*.py` joined the glob above (three files, 19^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2424993Z ^[[36;1m# tests) after the count stayed byte-identical across a commit that added a 12-test guard.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2425676Z ^[[36;1m# From the gate's own run on origin/dev @ 5466147e: "collected 792 tests across 52 files^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2426190Z ^[[36;1m# -> 726 passed, 66 skipped, 0 failed".^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2426674Z ^[[36;1m# ⬆⬆ 52→96 / 720→1090. The biggest jump this ratchet has had, and it is COVERAGE:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2427265Z ^[[36;1m# 45 composition test files were never in the glob at all — including^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2428202Z ^[[36;1m# test_coarse_gulf_fill.py, test_fetch_common.py and test_partition_fabrication_gate.py.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2428893Z ^[[36;1m# A suite named 'composition guards' was not running the composition guards.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2429523Z ^[[36;1m# From the gate's own run on origin/dev @ e079200c: "collected 1162 tests across^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2430152Z ^[[36;1m# 96 files -> 1096 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2430816Z ^[[36;1m# from a checkout (6c4ab178: a floor set from a shared tree holding another session's^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2431397Z ^[[36;1m# untracked file was unmeetable by anything that ships).^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2431993Z ^[[36;1m# ⬆ 96→102 / 1090→1172 on 2026-08-02. NOT new coverage — the ratchet simply had not been^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2432824Z ^[[36;1m# moved since `e079200c` while six more composition files accumulated. Audit v5 F4 found^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2433529Z ^[[36;1m# both gates sitting below their live counts, which means files could stop running with^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2434170Z ^[[36;1m# the gate still green: the exact silence this ratchet exists to break.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2434779Z ^[[36;1m# From the gate's OWN run on origin/dev @ ff94cb7d: "collected 1244 tests across 102^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2435436Z ^[[36;1m# files -> 1178 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never from a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2436139Z ^[[36;1m# checkout — a clean worktree at the same sha read 104 files / 1204 passed here, because^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2436814Z ^[[36;1m# a local run is not this job's environment (`test_weather_sim_mcp` needs a `dev.db` that^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2437462Z ^[[36;1m# CI does not have). Two different numbers, and only one of them is the gate's.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2438245Z ^[[36;1m# ⬆ 102→103 / 1172→1179 the same day: `a74f66a6` (a concurrent session's ingest-deadline^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2438919Z ^[[36;1m# fix) landed between the reading above and this one, adding a file. Pinned to it because^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2439608Z ^[[36;1m# it is COMMITTED, not in flight — the distinction this comment block keeps making. The^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2440320Z ^[[36;1m# same session still holds `test_spot_hub_local_size_reference.py` UNTRACKED, and that one^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2441006Z ^[[36;1m# must NOT be chased: a floor is shrink-only and pinning it to work another change is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2441645Z ^[[36;1m# still moving makes the gate unmeetable by anything that ships (`6c4ab178`).^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2442422Z ^[[36;1m# From the gate's OWN run on origin/dev @ 7ff69cbc: "collected 1251 tests across 103^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2442982Z ^[[36;1m# files -> 1185 passed, 66 skipped, 0 failed, 0 errors".^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2443537Z ^[[36;1m# ⬆ 103→107 / 1179→1210 (2026-08-02, end of session). Four files joined this lane during^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2444142Z ^[[36;1m# the day — `test_partition_band_composition`, `test_marine_ensemble_cost_probe`,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2444790Z ^[[36;1m# `test_surf_transform_docstring_truth`, plus a concurrent session's — and the floor was^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2445436Z ^[[36;1m# left behind each time, so by the end four files could have stopped being collected with^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2446064Z ^[[36;1m# the gate still green. That is the exact hole audit v5 F4 was about, re-opened by the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2446538Z ^[[36;1m# work that closed it.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2446992Z ^[[36;1m# From the gate's OWN run on origin/dev @ 904f50cf: "collected 1282 tests across 107 files^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2447612Z ^[[36;1m# -> 1216 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never a checkout.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2448349Z ^[[36;1m# ⬆⬆ 110→148 / 1235→1676 on 2026-08-11, and this is the LARGEST STALENESS this floor has^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2448979Z ^[[36;1m# carried: 38 files and 447 tests. NOT new coverage — the lane had been selecting 148 files^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2449615Z ^[[36;1m# since the memory-safety family was adopted on 2026-08-10, so for that whole period^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2450261Z ^[[36;1m# THIRTY-EIGHT files could have stopped being collected with this gate still green. The^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2450827Z ^[[36;1m# floor was measuring nothing that had happened in a week.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2451355Z ^[[36;1m# ⚠️ AND THE PROSE HAD FALLEN OUT OF STEP EXACTLY AS THIS BLOCK WARNS. The 110/1235 it^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2452022Z ^[[36;1m# replaces arrived with NO entry explaining it — every other value here cites the run it^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2452699Z ^[[36;1m# came from, that one cited nothing, so there was no way to tell whether it was current or^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2453349Z ^[[36;1m# stale without reading the gate. A number without its reading is not a ratchet, it is a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2454132Z ^[[36;1m# guess that happens to be green. Same shape the estate block records at "275 sits two^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2454642Z ^[[36;1m# below 277" written above `MIN_PASSED = 285`.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2455114Z ^[[36;1m# From the gate's OWN run on origin/dev @ 1b447f44 (run 31509178910): "collected 1749^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2455717Z ^[[36;1m# tests across 148 files -> 1682 passed, 67 skipped, 0 failed, 0 errors". 1676 sits the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2456373Z ^[[36;1m# customary 6 below the observed pass count; MIN_FILES is EXACT, as this block requires.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2457030Z ^[[36;1m# ★ THAT READING IS ALSO THE CONTROL ON THIS COMMIT'S REFACTOR: it is the last run of the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2457677Z ^[[36;1m# OLD `ls` glob, and `--lane guards`, which replaced it, selects the same 148. The swap is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2458380Z ^[[36;1m# collection-neutral, measured on both sides rather than asserted.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2458985Z ^[[36;1m# ⬆ MIN_PASSED 1676→1685 on 2026-08-11, from the FIRST POST-MERGE run — which also settled^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2459627Z ^[[36;1m# the control above: `--lane guards` collected exactly 148 files, so the swap off the `ls`^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2460266Z ^[[36;1m# glob is confirmed collection-neutral IN CI and not merely on a workstation.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2460880Z ^[[36;1m# ⚠️ AND THIS ENTRY RECORDS MY OWN BREACH OF THE RULE ONE LANE BELOW. `9857a325` added 9^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2461523Z ^[[36;1m# tests to test_flag_lane_parity.py — a file THIS lane collects — without moving this floor^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2462171Z ^[[36;1m# in the same commit, which is precisely what the chain lane's capitalised instruction^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2462939Z ^[[36;1m# forbids, committed in the change that shipped the mechanism for catching it. The new^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2463582Z ^[[36;1m# staleness gate did NOT redden it (lag 15 against a budget of 25), and that leniency is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2464230Z ^[[36;1m# why this entry exists: a floor 15 low is 15 tests that can vanish in silence, and a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2464814Z ^[[36;1m# budget wide enough to be useful is also wide enough to let a small lag sit.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2465389Z ^[[36;1m# From the gate's OWN run on origin/dev @ 9857a325 (run 31514754043): "collected 1758^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2465999Z ^[[36;1m# tests across 148 files -> 1691 passed, 67 skipped, 0 failed, 0 errors". The +9 over the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2466651Z ^[[36;1m# prior 1749 is fully attributed — test_flag_lane_parity 23→32, test_sim_mcp_shim unchanged^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2467295Z ^[[36;1m# at 5 — so this is bookkeeping, not new coverage. 1685 restores the customary 6 below.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2468082Z ^[[36;1m# ⬆ MIN_FILES 148→149 IN THE SAME COMMIT THAT CAUSES IT. test_flag_lane_parity.py reached^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2468656Z ^[[36;1m# 787 of the 800-LOC cap and was split; its CI-lane guards moved to^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2469236Z ^[[36;1m# tests/test_ci_lane_single_source.py, which is NAMED in COMPOSITION so the 11 tests stay^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2469869Z ^[[36;1m# in THIS lane. So the split is a FILE change, not a test change: 148→149 files, and^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2470426Z ^[[36;1m# MIN_PASSED stays 1685 because the lane still collects the same 1691.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2471017Z ^[[36;1m# ★ A SPLIT IS A LANE CHANGE. Had the new file not been named in COMPOSITION it would have^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2471678Z ^[[36;1m#   fallen to the estate complement, taking 11 tests with it and putting this lane at 1680^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2472286Z ^[[36;1m#   against a floor of 1685 — red, from a refactor that moved no logic at all.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2472850Z ^[[36;1m# ⬆ MIN_PASSED 1685→1695 on 2026-08-12, cited run 31637900295 (3bc776d9), which^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2473464Z ^[[36;1m# observed 1701. The staleness guard flagged the floor 16 below the reading against a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2474101Z ^[[36;1m# budget of 6 — a floor beneath the observation cannot detect anything shrinking back^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2474835Z ^[[36;1m# to it, which is the whole point of having one. The gap is coverage ADDED (the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2475456Z ^[[36;1m# shadow-A/B, provenance, horizon and telemetry suites), not a lane collecting less.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2476061Z ^[[36;1m# ⬆ MIN_PASSED 1695→1699 on 2026-08-12. Run 31651640516 (d4c4f5d3) observed 1703^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2476655Z ^[[36;1m# and the script prescribed 1697, but that would redden on the VERY NEXT RUN: 70fa7144^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2477275Z ^[[36;1m# adds 2 more tests to test_rating_shadow_ab.py (31→33), which this lane owns, so the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2477989Z ^[[36;1m# next reading is 1705 and 1705-1697=8 exceeds the budget of 6. The prescription is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2478617Z ^[[36;1m# computed from the last GREEN run and cannot see tests already committed but not yet^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2479223Z ^[[36;1m# run. 1705-6=1699 is the floor that survives both readings (lag 4 now, 6 next, and^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2479712Z ^[[36;1m# the comparison is strict `>`).^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2480164Z ^[[36;1m# ⬆ MIN_PASSED 1699→1701 on 2026-08-13, RAISED BEFORE CI ASKED. Run 31664846960^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2480760Z ^[[36;1m# (5ad5afa6) observed 1705 -- which CONFIRMS the 1705 projected in the previous raise^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2481399Z ^[[36;1m# (1703+2, arithmetic shown so it could be falsified; it was not). 4d338d30 then added^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2482007Z ^[[36;1m# 2 tests to test_rating_shadow_ab.py, which this lane owns, so the next reading is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2482592Z ^[[36;1m# 1707 and 1707-1699=8 would exceed the budget of 6. 1707-6=1701 clears both the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2483295Z ^[[36;1m# current reading (lag 4) and the next (lag 6, and the comparison is strict `>`).^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2483913Z ^[[36;1m# ⬆ MIN_FILES 149→150, MIN_PASSED 1701→1706 on 2026-08-13 (WS-CAN-0014). This commit adds^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2484571Z ^[[36;1m# test_point_resolution_is_stamped.py — 5 tests — which the COMPOSITION patterns claim for^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2485276Z ^[[36;1m# THIS lane, not the estate complement (verified with `ci_test_lanes.py --lane guards`,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2485945Z ^[[36;1m# not assumed from the filename). 1707 (projected) + 5 = 1712, and 1712 - 6 (this lane's^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2486588Z ^[[36;1m# budget) = 1706. The file count is raised with it so a deletion still reddens the lane.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2487233Z ^[[36;1m# ⬆ MIN_FILES 150→151, MIN_PASSED 1706→1714 on 2026-08-14 (WS-CAN-0066). This commit adds^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2487994Z ^[[36;1m# test_surf_alert_scheduled_states_the_quality.py — 6 tests — and rewrites the census in^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2488623Z ^[[36;1m# test_surf_alert_states_the_quality.py from 7 tests to 9. Verified with^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2489239Z ^[[36;1m# `ci_test_lanes.py --lane guards` that the NEW file is claimed by this lane and not the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2489879Z ^[[36;1m# estate complement: it is named test_surf_alert_scheduled_* precisely so it matches the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2490550Z ^[[36;1m# COMPOSITION pattern `tests/test_surf_*.py` — under its first name, test_scheduled_*, it^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2491144Z ^[[36;1m# fell to the estate lane, away from the sibling it belongs beside.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2491719Z ^[[36;1m# ⚠️ THE DELTA IS +8 COLLECTED, NOT THE +9 THE PRE-PUSH HOOK PRINTS. The hook counts ADDED^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2492370Z ^[[36;1m# `+def test_` lines; the census rewrite REPLACED one test with three, so 9 added defs are^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2493040Z ^[[36;1m# 8 net. Both readings are recorded because the discrepancy is the interesting part and a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2493715Z ^[[36;1m# future raise will hit it again. Confirmed by running the lane, not by arithmetic alone:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2494341Z ^[[36;1m# 1712 (last green, run 31754614229) + 8 = 1720 observed locally, and 1720 - 6 (this^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2494796Z ^[[36;1m# lane's budget) = 1714.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2495346Z ^[[36;1m# ⚠️ The local run also read 66 skipped + 1 xfailed against CI's 67 skipped: total^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2495947Z ^[[36;1m# collected moved 1779 → 1787, exactly +8, so the skip/xfail shift is an environment^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2496605Z ^[[36;1m# artifact and does NOT move the pass count. (That box reports python 3.14 against a^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2497207Z ^[[36;1m# declared 3.12; CI remains the authority and will confirm or falsify 1720.)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2497927Z ^[[36;1m# RAISED 2026-08-14 (WS-CAN-0062 / WS-OBJ-207, Program 13.0 Mission 1): +1 file, +10 tests.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2498573Z ^[[36;1m# `tests/test_spot_rating_geometry_disclosure.py` matches the COMPOSITION pattern^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2499234Z ^[[36;1m# `tests/test_spot_*.py`, so it lands in THIS lane — checked with `--lane guards` (151 -> 152),^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2499726Z ^[[36;1m# not inferred from the name.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2500213Z ^[[36;1m# ⭐ MEASURED, NOT PROJECTED, and the two readings agree for once: 1720 + 10 = 1730, and a full^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2500899Z ^[[36;1m# local lane run reported exactly `1730 passed, 66 skipped, 1 xfailed` in 25:47. 1730 - 6^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2501556Z ^[[36;1m# (this lane's budget) = 1724. The +10 has no def-count discrepancy — unlike the 08-13 raise,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2502207Z ^[[36;1m# nothing was replaced, so the pre-push hook's added-`def test_` count is the net for once.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2502843Z ^[[36;1m# ⚠️ The FIRST run of this lane came back `1 failed, 1729 passed`: the failure was^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2503532Z ^[[36;1m# `test_flag_lane_parity::test_every_science_switch_a_rating_surface_reads_is_declared_in_the_registry`,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2504391Z ^[[36;1m# because the mission's new `RATING_GEOMETRY_CAVEAT` kill switch had not been declared in^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2505081Z ^[[36;1m# `_RATING_FLAGS`. 155 targeted tests were green at that moment. That guard is the ONLY thing^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2505649Z ^[[36;1m# that catches an undeclared switch — do not narrow it.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2506186Z ^[[36;1m# RAISED AGAIN 2026-08-14 (Program 13.0 Mission 2, the spot_ratings.py split): +1 file,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2506832Z ^[[36;1m# +11 tests — `tests/test_spot_rating_module_seam.py`, which pins the one-way dependency^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2507465Z ^[[36;1m# between the rating reference and its precompute lane. MEASURED at `1741 passed,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2508083Z ^[[36;1m# 66 skipped, 1 xfailed` in 27:05; 1741 - 6 = 1735.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2508579Z ^[[36;1m# ⚠️ The FIRST run of this lane after the split came back `8 failed, 1732 passed`, all in^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2509241Z ^[[36;1m# `test_run_provenance.py` — it reaches precompute symbols as `sr.intern_frame_runs(...)`,^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2509907Z ^[[36;1m# a form my import census was blind to. chain (786) and estate (372) were clean throughout.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2510522Z ^[[36;1m# ⬆ 153→154 / 1735→1782 on 2026-08-15: +1 file (test_surf_cap_seam_monotone.py, the^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2511141Z ^[[36;1m# WS-CAN-0072 cap-seam property lane) = +47 tests. CI-anchored per the estate lesson:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2511745Z ^[[36;1m# last green run 31864807822 observed 1741; 1741 + 47 = 1788; 1788 - 6 = 1782. The^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2512348Z ^[[36;1m# pre-push hook blocked the batch until this pair moved — as designed (5th catch).^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2512933Z ^[[36;1m# September 9: dev run 34279488030 observed 155 files / 1804 passed.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2513461Z ^[[36;1m# Restore the zero-file and six-test margins; no selection or skip change.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2513994Z ^[[36;1m# September 10: CI34520513943 observed 155 files / 1804 passed.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2514509Z ^[[36;1m# Add one module with 24 locally executed endpoint controls. The candidate^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2515028Z ^[[36;1m# CI run must confirm 156 / 1828; retain the six-test aggregate margin.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2515516Z ^[[36;1m# September 14: dev CI34556618466 observed 156 files / 1828 passed.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2516148Z ^[[36;1m# Isolated ownership and coordinate repairs add 2 files / 46 tests.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2516653Z ^[[36;1m# Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2517186Z ^[[36;1m# dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2517729Z ^[[36;1m# September 16: hosted CI35055272824 measured 160 files / 1883 passes.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2518387Z ^[[36;1m# September 20 second check: 14 executed observation-pairing/finite-error controls^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2518965Z ^[[36;1m# in existing guard modules. Expected hosted reading 1883 + 14 = 1897, pending^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2519548Z ^[[36;1m# candidate CI; preserve the six-test margin. Local Python 3.14 has four separately^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2520181Z ^[[36;1m# reproduced baseline provider-ownership failures, so do not lower the hosted floor.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2520762Z ^[[36;1m# September 20 continuation: run35485093918 at 74ca4f4e confirmed 1897.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2521322Z ^[[36;1m# +15 executed scoring-validity controls in the same guard file -> expected 1912.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2521868Z ^[[36;1m# Keep the six-test margin; _FLOOR_SET_FROM moves in this same commit.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2522290Z ^[[36;1mMIN_FILES, MIN_PASSED = 160, 1906^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2522567Z ^[[36;1mtry:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2522813Z ^[[36;1m    root = ET.parse('guards.xml').getroot()^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2523147Z ^[[36;1mexcept Exception as e:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2523560Z ^[[36;1m    print(f"::error::No parseable guards.xml — the suite did not run at all ({e}).")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2523996Z ^[[36;1m    sys.exit(1)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2524481Z ^[[36;1msuites = [root] if root.tag == 'testsuite' else root.findall('testsuite')^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2524956Z ^[[36;1mtests = sum(int(s.get('tests', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2525357Z ^[[36;1mfails = sum(int(s.get('failures', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2525774Z ^[[36;1merrs = sum(int(s.get('errors', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2526166Z ^[[36;1mskips = sum(int(s.get('skipped', 0)) for s in suites)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2526644Z ^[[36;1m# ⚠️ pytest 9's junitxml emits NO `file` attribute — verified 2026-08-01, 0 of 737^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2527192Z ^[[36;1m# testcases carried one — so the module is derived from `classname`, which is^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2527771Z ^[[36;1m# `tests.test_foo` for function tests and `tests.test_foo.TestBar` for class-based ones.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2528487Z ^[[36;1m# Taking the first two segments counts MODULES and reproduces the 44 globbed files^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2529093Z ^[[36;1m# exactly; counting `classname` whole reads 57 and drifts upward with every test class^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2529663Z ^[[36;1m# added, which would make this floor measure test STYLE rather than coverage.^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2530149Z ^[[36;1mfiles = {'.'.join((tc.get('classname') or '').split('.')[:2])^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2530554Z ^[[36;1m         for s in suites for tc in s.iter('testcase')}^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2530875Z ^[[36;1mfiles.discard('')^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2531140Z ^[[36;1mpassed = tests - fails - errs - skips^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2531527Z ^[[36;1mprint(f"collected {tests} tests across {len(files)} files -> "^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2532006Z ^[[36;1m      f"{passed} passed, {skips} skipped, {fails} failed, {errs} errors")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2532381Z ^[[36;1mbad = []^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2532595Z ^[[36;1mif fails or errs:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2532886Z ^[[36;1m    bad.append(f"{fails} failed / {errs} errored")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2533221Z ^[[36;1mif len(files) < MIN_FILES:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2533661Z ^[[36;1m    bad.append(f"only {len(files)} files collected, floor is {MIN_FILES} — a glob stopped "^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2534170Z ^[[36;1m               f"matching, so guards silently went unrun")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2534506Z ^[[36;1mif passed < MIN_PASSED:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2535054Z ^[[36;1m    bad.append(f"only {passed} tests passed, floor is {MIN_PASSED} — guards were deleted "^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2535517Z ^[[36;1m               f"or mass-skipped")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2535906Z ^[[36;1mreport_controls = [tc for s in suites for tc in s.iter('testcase')^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2536420Z ^[[36;1m                   if tc.get('classname') == 'tests.test_spot_condition_report_routes']^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2536902Z ^[[36;1mif len(report_controls) < 24 or any(tc.find(tag) is not None^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2537414Z ^[[36;1m                                   for tc in report_controls for tag in ('failure', 'error', 'skipped')):^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2538198Z ^[[36;1m    bad.append("condition-report endpoint controls missing, skipped or failing (require all 24)")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2538683Z ^[[36;1mif bad:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2538890Z ^[[36;1m    for b in bad:^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2539185Z ^[[36;1m        print(f"::error::Composition guard suite: {b}")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2539526Z ^[[36;1m    sys.exit(1)^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2539825Z ^[[36;1mprint("Composition guards ran in full and are green.")^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2540157Z ^[[36;1mPY^[[0m
+UNKNOWN STEP	2026-09-20T04:02:37.2579710Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T04:02:37.2579969Z env:
+UNKNOWN STEP	2026-09-20T04:02:37.2580253Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T04:02:37.2580713Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T04:02:37.2581170Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T04:02:37.2581572Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T04:02:37.2581980Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T04:02:37.2582533Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T04:02:37.2582885Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T04:02:37.2921441Z collected 1979 tests across 160 files -> 1912 passed, 67 skipped, 0 failed, 0 errors
+UNKNOWN STEP	2026-09-20T04:02:37.2922616Z Composition guards ran in full and are green.
+UNKNOWN STEP	2026-09-20T04:02:37.3129556Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T04:02:37.4673086Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T04:02:37.5678686Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T04:02:37.5725276Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T04:02:37.5791965Z Temporarily overriding HOME='/home/runner/work/_temp/6443b610-b929-4373-81e8-daa7bea0fff1' before making global git config changes
+UNKNOWN STEP	2026-09-20T04:02:37.5798396Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T04:02:37.5799965Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T04:02:37.5881865Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T04:02:37.5972020Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T04:02:37.6429277Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T04:02:37.6448603Z http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T04:02:37.6481018Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T04:02:37.6533262Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T04:02:37.6834943Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T04:02:37.6883693Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T04:02:37.7349214Z Cleaning up orphan processes

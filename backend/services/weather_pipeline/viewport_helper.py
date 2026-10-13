@@ -14,6 +14,8 @@ from services.weather_pipeline.route_helpers import (
 )
 from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.normalizer import WeatherNormalizer
+from services.weather_pipeline.reval_queue import SeriesFrame, schedule_revalidation
+from services.weather_pipeline.wind_bg_build import Linger, window_indices, wind_bg_bounded
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,8 @@ async def find_any_cached_product_helper(
             except Exception:
                 continue
 
+    from services.weather_pipeline.island_gate import is_island_gated as _island_gated
+
     # 2. Search Manifest (pruning for anomalous future-dated entries runs inside get_manifest())
     manifest = await asyncio.to_thread(store.get_manifest)
     best_manifest_item = None
@@ -156,6 +160,13 @@ async def find_any_cached_product_helper(
             # cover) and would win or lose by MANIFEST ORDER — serving a ~24x payload where the 629-vector
             # coarse was intended. Skip it here; the coarse remains the honest instant preview.
             if getattr(p, "region_id", None) == "global_mid":
+                continue
+            # Same class as the global_mid skip above: an ungated tier winning a scan it was never
+            # measured in. Island tiles are 0.083 deg, so on a small viewport they fully cover the
+            # bbox and displace the tier that had been answering. See point_resolution._island_gated
+            # (this is the SECOND independent manifest selection site -- there is no single choke
+            # point, which is why COPERNICUS_ISLAND_INGEST now defaults to 0).
+            if _island_gated(p):
                 continue
             diff = abs(p.valid_time_start.timestamp() - target_ts)
             # Allow up to 24 hours stale product fallback for rate limit
@@ -213,10 +224,14 @@ async def get_cached_dynamic_product_helper(
     domain: str,
     layer: str,
     target_dt: datetime,
-    bbox_str: str
+    bbox_str: str,
+    background_tasks=None,
 ) -> Optional[NormalizedProduct]:
     """
     Checks dynamic product index for a fresh or stale cache hit.
+
+    `background_tasks` is the caller's (/grid's BackgroundTasks, a grid_series `SeriesFrame`, or None); a
+    stale hit's refresh takes its queue slot through reval_queue with it.
     """
     req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
     t_sz = 1.0 if model.upper() == "GFS" else 2.0
@@ -262,6 +277,7 @@ async def get_cached_dynamic_product_helper(
             loaded_product.partial_coverage = False
             
             is_stale_swr = False
+            refresh_pending = False
             created_at_str = cached_entry.get("created_at")
             if created_at_str:
                 try:
@@ -269,20 +285,29 @@ async def get_cached_dynamic_product_helper(
                     age_sec = (datetime.now(timezone.utc) - created_at).total_seconds()
                     if age_sec > 1800:  # 30 minutes
                         is_stale_swr = True
+                        # BOUNDED (2026-10-09). This refresh was a bare create_task counted against
+                        # nothing: at 01:10:06-12Z one stale GFS wind grid_series page started 46
+                        # upstream fetches on the shared 1-CPU box, one per frame. It now takes a slot
+                        # like every other site: a series frame other than the page's warm one starts
+                        # nothing, the warm one stays out of the viewed hour's reserve, and /grid is
+                        # capped by MARINE_REVAL_QUEUE_MAX. Pinned by tests/test_stale_cache_reval_bounded.py.
                         reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{time_str}_{cache_key}"
-                        if reval_key not in service.ACTIVE_REVALIDATIONS:
-                            service.ACTIVE_REVALIDATIONS.add(reval_key)
+                        in_flight = reval_key in service.ACTIVE_REVALIDATIONS
+                        refresh_pending = schedule_revalidation(
+                            service, background_tasks, model, domain, layer, time_str, target_dt, bbox_str,
+                            reval_key, queue_max=int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2")))
+                        if refresh_pending and not in_flight:
                             logger.info(f"[Dynamic Viewport] SWR background revalidation triggered for {reval_key} (age: {age_sec:.1f}s)")
-                            asyncio.create_task(service._revalidate_fetch(
-                                model, domain, layer, time_str, target_dt, bbox_str, reval_key
-                            ))
+                        elif not refresh_pending and not isinstance(background_tasks, SeriesFrame):
+                            logger.info(f"[Dynamic Viewport] SWR refresh deferred, sharpen queue full: {reval_key}")
                 except Exception as swr_err:
                     logger.error(f"[Dynamic Viewport] SWR setup error: {swr_err}")
-            
+
             loaded_product.cache_hit = "stale_cache_hit" if is_stale_swr else "cache_hit"
             loaded_product.stale = is_stale_swr
             if is_stale_swr:
-                loaded_product.staleReason = "swr_revalidation_pending"
+                # Pending only when a refresh will land: the client refetches a pending answer in 15 s.
+                loaded_product.staleReason = "swr_revalidation_pending" if refresh_pending else "swr_refresh_deferred"
             else:
                 loaded_product.staleReason = None
             
@@ -343,6 +368,11 @@ async def bg_process_remaining_hours_helper(
         remaining_indices = [i for i in range(len(times)) if i != target_idx]
 
         processed_indices = {target_idx}
+        # WIND_BG_BUILD_BOUNDED (default off, see wind_bg_build.py): build the waited-for hours and a window
+        # around the fetch's hour, linger briefly for late waiters, then retire. `speculative is None` = today.
+        bounded = wind_bg_bounded(domain)
+        speculative = window_indices(target_idx, len(times)) if bounded else None
+        linger = Linger(service, request_dedup_key, context) if bounded else None
 
         is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
         if is_conjoined:
@@ -363,13 +393,17 @@ async def bg_process_remaining_hours_helper(
 
             if next_idx is None:
                 for idx in remaining_indices:
-                    if idx not in processed_indices:
+                    if idx not in processed_indices and (speculative is None or idx in speculative):
                         next_idx = idx
                         break
 
             if next_idx is None:
+                if linger is not None and await linger.wait():
+                    continue
                 break
 
+            if linger is not None:
+                linger.worked()
             processed_indices.add(next_idx)
             t_str = times[next_idx]
             
@@ -499,8 +533,14 @@ async def bg_process_remaining_hours_helper(
             # Yield to the event loop
             await asyncio.sleep(0.001)
 
-            # Force garbage collection to reclaim memory from Pydantic models after every hour
-            gc.collect()
+            # Force garbage collection to reclaim memory from Pydantic models after every hour. A FULL collection
+            # walks the whole serve heap (measured 0.42 s each on the event-loop thread, 163 of a 385-hour
+            # build's 173 CPU-seconds); the bounded build keeps a young-generation pass here and the full one
+            # in the `finally` below.
+            if bounded:
+                gc.collect(1)
+            else:
+                gc.collect()
 
     except asyncio.CancelledError:
         logger.info(f"[Dynamic Viewport BG] Background task for {model} {domain} {layer} was cancelled.")

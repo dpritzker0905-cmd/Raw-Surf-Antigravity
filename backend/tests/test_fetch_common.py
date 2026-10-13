@@ -181,3 +181,47 @@ async def test_runner_merges_extra_payload(monkeypatch, tmp_path):
     out = await fc.run_fetcher_subprocess(str(fake), {"west": 0}, 10.0, 2, "FAKE", "fake",
                                           extra_payload={"layer": "pressure"})
     assert out == [{"layer": "pressure"}]
+
+
+# ── per-fetcher timeout breaker (2026-09-23) ─────────────────────────────────────────────────────
+# Ingest run 35819847745 was cancelled at its job limit after ecmwf_opendata_fetcher timed out three
+# times in a row (1800 s each). After one timeout the same script must fail fast to the fallback.
+
+def _sleeper(tmp_path, name="slow_fetcher.py"):
+    s = tmp_path / name
+    s.write_text("import time\ntime.sleep(30)\n")
+    return s
+
+
+@pytest.mark.asyncio
+async def test_after_one_timeout_the_same_fetcher_fails_fast(monkeypatch, tmp_path):
+    import time as _t
+    monkeypatch.setattr(fc, "is_test_environment", lambda: False)
+    monkeypatch.setattr(fc, "_TIMED_OUT_AT", {})
+    slow = _sleeper(tmp_path)
+    assert await fc.run_fetcher_subprocess(str(slow), {"west": 0}, 10.0, 2, "SLOW", "s", timeout=1) is None
+    t0 = _t.monotonic()
+    assert await fc.run_fetcher_subprocess(str(slow), {"west": 0}, 10.0, 2, "SLOW", "s", timeout=20) is None
+    assert _t.monotonic() - t0 < 2.0            # skipped, not another wait
+
+
+@pytest.mark.asyncio
+async def test_the_breaker_is_per_fetcher_not_global(monkeypatch, tmp_path):
+    monkeypatch.setattr(fc, "is_test_environment", lambda: False)
+    monkeypatch.setattr(fc, "_TIMED_OUT_AT", {"slow_fetcher.py": __import__("time").monotonic()})
+    ok = tmp_path / "ok_fetcher.py"
+    ok.write_text("import json,sys\np=json.loads(sys.argv[1])\n"
+                  "open(p['output_path'],'w').write(json.dumps([{'a':1}]))\n")
+    assert await fc.run_fetcher_subprocess(str(ok), {"west": 0}, 10.0, 2, "OK", "o") == [{"a": 1}]
+
+
+@pytest.mark.asyncio
+async def test_the_breaker_closes_after_the_cooldown(monkeypatch, tmp_path):
+    # A cooldown, not a latch: these fetchers also run in-process on the long-lived serve box.
+    monkeypatch.setattr(fc, "is_test_environment", lambda: False)
+    monkeypatch.setenv("FETCHER_TIMEOUT_COOLDOWN_S", "5")
+    monkeypatch.setattr(fc, "_TIMED_OUT_AT", {"ok_fetcher.py": __import__("time").monotonic() - 10})
+    ok = tmp_path / "ok_fetcher.py"
+    ok.write_text("import json,sys\np=json.loads(sys.argv[1])\n"
+                  "open(p['output_path'],'w').write(json.dumps([{'a':1}]))\n")
+    assert await fc.run_fetcher_subprocess(str(ok), {"west": 0}, 10.0, 2, "OK", "o") == [{"a": 1}]

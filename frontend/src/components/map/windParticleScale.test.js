@@ -135,7 +135,9 @@ describe('wind mark scale — every zoom x every device class', () => {
   it('the mark is a DASH — narrower than the disc it replaced, so land shows through', () => {
     // Area scales as 1/elong because DRAW_FS narrows the across-wind axis.
     expect(DRAW_FS).toMatch(/float\s+elong\s*=\s*mix\(1\.8,\s*2\.6,/);
-    expect(DRAW_FS).toMatch(/localCoord\s*=\s*vec2\(along\.x,\s*along\.y\s*\*\s*elong\)/);
+    // Particles v2 (2026-10-08) multiplies the ACROSS axis by the stretch factor too: the sprite grew
+    // along the flow by the per-frame step, and the across width must stay the base dash width.
+    expect(DRAW_FS).toMatch(/localCoord\s*=\s*vec2\(along\.x,\s*along\.y\s*\*\s*elong(\s*\*\s*max\(v_stretch,\s*1\.0\))?\)/);
     // …and it must narrow ACROSS, never lengthen ALONG (that would clip against the sprite square).
     expect(DRAW_FS).not.toMatch(/along\.x\s*\/\s*elong/);
   });

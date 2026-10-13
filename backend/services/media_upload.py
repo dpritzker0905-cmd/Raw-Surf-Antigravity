@@ -38,7 +38,10 @@ async def upload_to_supabase_storage(
     if SUPABASE_URL and SUPABASE_SERVICE_KEY:
         try:
             async with aiohttp.ClientSession() as session:
+                # `apikey` is what authenticates a new-style sb_secret_ key; the Bearer copy is
+                # only understood for legacy JWT keys (Storage answers "Invalid Compact JWS" without it).
                 headers = {
+                    'apikey': SUPABASE_SERVICE_KEY,
                     'Authorization': f'Bearer {SUPABASE_SERVICE_KEY}',
                     'Content-Type': content_type,
                     'x-upsert': 'true'

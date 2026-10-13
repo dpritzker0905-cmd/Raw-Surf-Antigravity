@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -57,8 +58,8 @@ class ExceptionResolveBody(BaseModel):
 @router.post("/{dispatch_id}/request-exception")
 async def request_cancellation_exception(
     dispatch_id: str,
-    user_id: str,
     data: ExceptionRequestBody,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -138,8 +139,8 @@ async def request_cancellation_exception(
 @router.post("/{dispatch_id}/resolve-exception")
 async def resolve_cancellation_exception(
     dispatch_id: str,
-    user_id: str,
     data: ExceptionResolveBody,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

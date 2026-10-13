@@ -26,6 +26,8 @@ from services.weather_pipeline.pilot_regions import (      # noqa: E402,F401
     is_flagship_pilot_region,
     flagship_pilot_days,
     get_all_pilot_regions,
+    GFS_MARINE_EXTRA_REGIONS,
+    get_gfs_marine_pilot_regions,
 )
 
 

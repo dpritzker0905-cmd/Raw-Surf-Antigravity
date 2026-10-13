@@ -170,7 +170,7 @@ const GallerySessionPanel = ({
                     </Button>
                   ) : (
                     <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-[10px] h-7">
- G Delivered
+                      Delivered
                     </Badge>
                   )}
                 </div>

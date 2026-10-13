@@ -6,6 +6,7 @@ from typing import List
 from datetime import datetime
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Notification
 from models import Profile
 
@@ -96,6 +97,7 @@ class CreateNotificationRequest(BaseModel):
 @router.post("/notifications")
 async def create_notification(
     request: CreateNotificationRequest,
+    current_user_id: str = Depends(get_current_user_id),  # a signed-in user, recorded as the actor
     db: AsyncSession = Depends(get_db)
 ):
     """Create a notification for a user (e.g., post reaction, message, etc.)"""
@@ -117,9 +119,12 @@ async def create_notification(
 @router.post("/notifications/send")
 async def send_notification(
     data: SendNotificationRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Send a notification from one user to another (e.g., thank you)"""
+    if data.sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     import json
     
     notification = Notification(
@@ -314,12 +319,15 @@ async def unsubscribe_photographer_alert(
 async def trigger_photographer_alert(
     photographer_id: str,
     alert_type: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Trigger notifications for all subscribers when photographer becomes available.
     Called internally when photographer goes live, activates on-demand, etc.
     """
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from models import PhotographerAlertSubscription, Profile
     import os
     import httpx
@@ -359,17 +367,20 @@ async def trigger_photographer_alert(
     
     # Send OneSignal notifications
     onesignal_app_id = os.environ.get('ONESIGNAL_APP_ID')
-    onesignal_api_key = os.environ.get('ONESIGNAL_API_KEY')
-    
+    # Same credential + scheme as services/onesignal_service.py. OneSignal's App API keys
+    # (the only kind that can be created since Nov 2024) authenticate with `Key`, not the
+    # legacy `Basic` scheme, and are served from api.onesignal.com.
+    onesignal_api_key = os.environ.get('ONESIGNAL_REST_API_KEY') or os.environ.get('ONESIGNAL_API_KEY')
+
     if onesignal_app_id and onesignal_api_key:
         user_ids = [sub.user_id for sub in subscribers]
         
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    'https://onesignal.com/api/v1/notifications',
+                    'https://api.onesignal.com/notifications',
                     headers={
-                        'Authorization': f'Basic {onesignal_api_key}',
+                        'Authorization': f'Key {onesignal_api_key}',
                         'Content-Type': 'application/json'
                     },
                     json={

@@ -49,7 +49,9 @@ SPOT_REFERENCE_M = 1.86        # the per-SPOT climatology the glyph graded with
 # asymmetry is the point of the pair of assertions below, not an inconsistency.
 # ★ The PROPERTY under test is unchanged and still asserted: the served reference reaches the score,
 #   and the gap stays above 20 (now 54.6 - 32.2 = 22.4).
-SPOT_REFERENCE_SCORE = 32.2    # what that reference reproduces (served glyph was 31.9 pre-pair)
+# 32.2 -> 33.9 on 2026-09-27: Kr 0.797 -> 0.873 on 2026-09-27 (measured against the chain it multiplies; validate_nearshore_transform.py --composed);
+#   the served height rises +9.5% and the spot-reference curve is still on its slope. Gap 54.6 - 33.9 = 20.7.
+SPOT_REFERENCE_SCORE = 33.9    # what that reference reproduces (32.2 at Kr 0.797)
 
 
 def _score(**kw):

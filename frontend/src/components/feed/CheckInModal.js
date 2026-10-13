@@ -39,7 +39,7 @@ const CheckInModal = ({
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-4 shadow-lg shadow-yellow-400/30">
                   <Flame className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-2xl font-black text-white mb-1">Checked In! ??</h3>
+                <h3 className="text-2xl font-black text-white mb-1">Checked In!</h3>
                 <p className="text-gray-400 text-sm mb-6">{checkInReward.spot_name}</p>
   
                 {/* XP earned */}
@@ -52,7 +52,7 @@ const CheckInModal = ({
   
                 {/* First visit bonus */}
                 {checkInReward.is_first_visit && (
-                  <div className="text-blue-400 text-sm font-medium mb-2">?? First visit to this spot!</div>
+                  <div className="text-blue-400 text-sm font-medium mb-2">First visit to this spot!</div>
                 )}
   
                 {/* Badge earned */}
@@ -69,7 +69,7 @@ const CheckInModal = ({
                 {/* Streak */}
                 {checkInReward.streak_days > 0 && (
                   <div className="text-orange-400 text-sm mb-6">
-                    ?? {checkInReward.streak_days} day streak
+                    {checkInReward.streak_days} day streak
                     {checkInReward.streak_days >= 7 ? ' - on fire!' : ' - keep it going!'}
                   </div>
                 )}
@@ -78,7 +78,7 @@ const CheckInModal = ({
                   onClick={onClose}
                   className="w-full bg-gradient-to-r from-yellow-400 to-orange-400 hover:from-yellow-500 hover:to-orange-500 text-black font-bold h-12"
                 >
-                  Awesome! ??
+                  Awesome!
                 </Button>
               </div>
             ) : (
@@ -127,7 +127,7 @@ const CheckInModal = ({
                         <span className="font-medium">{nearestSpot.name}</span>
                         {' '}&mdash; {nearestSpot.distance}km away
                         {parseFloat(nearestSpot.distance) < 10
- ? ' - +++G- Within range - you\'ll earn Passport XP!'
+                          ? ' - Within range - you\'ll earn Passport XP!'
                           : ' - Outside 10km check-in zone'}
                       </div>
                     )}
@@ -310,11 +310,11 @@ const CheckInModal = ({
                         <SelectValue placeholder="How's it looking?" />
                       </SelectTrigger>
                       <SelectContent className="bg-zinc-800 border-zinc-700">
-                        <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">?? Glassy</SelectItem>
-                        <SelectItem value="Clean" className="text-white hover:bg-zinc-700">? Clean</SelectItem>
-                        <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">?? Choppy</SelectItem>
-                        <SelectItem value="Messy" className="text-white hover:bg-zinc-700">?? Messy</SelectItem>
-                    <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">{String.fromCodePoint(0x1F4A5)} Blown Out</SelectItem>
+                        <SelectItem value="Glassy" className="text-white hover:bg-zinc-700">Glassy</SelectItem>
+                        <SelectItem value="Clean" className="text-white hover:bg-zinc-700">Clean</SelectItem>
+                        <SelectItem value="Choppy" className="text-white hover:bg-zinc-700">Choppy</SelectItem>
+                        <SelectItem value="Messy" className="text-white hover:bg-zinc-700">Messy</SelectItem>
+                    <SelectItem value="Blown Out" className="text-white hover:bg-zinc-700">Blown Out</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -374,8 +374,8 @@ const CheckInModal = ({
                       <>
                         <Flame className="w-5 h-5 mr-2" />
                         {checkInData.use_gps && (checkInData.spot_id || nearestSpot)
- ? 'Check In + Earn XP +++-GP'
- : 'Check In & Keep Streak +++G-'}
+                          ? 'Check In + Earn XP'
+                          : 'Check In & Keep Streak'}
                       </>
                     )}
                   </Button>

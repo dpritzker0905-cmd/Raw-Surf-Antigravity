@@ -20,6 +20,8 @@ pending), the first REST error disables the lane for the process and everything 
 exactly as before.
 
 Kill switch: MANIFEST_POINTER=0 disables both the publish and the read path.
+MANIFEST_IMMUTABLE_PUBLICATION=1 uses unique create-only copies, acknowledged uploads
+and bounded age/generation retention; default off preserves the legacy writer.
 """
 
 import os
@@ -163,6 +165,9 @@ def publish_run_keyed(store, manifest_bytes: bytes, upload_fn, delete_fn) -> Opt
     """
     if not pointer_enabled():
         return None
+    if os.environ.get("MANIFEST_IMMUTABLE_PUBLICATION", "0") == "1":
+        from services.weather_pipeline.manifest_immutable import publish_immutable
+        return publish_immutable(manifest_bytes, upload_fn)
     try:
         current = read_pointer()
         run_id = os.environ.get("GITHUB_RUN_ID")

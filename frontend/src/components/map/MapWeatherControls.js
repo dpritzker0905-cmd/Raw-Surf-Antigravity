@@ -6,10 +6,11 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
-import { windLegendGradientCSS, windLegendStops } from './WindColorRamp';
+import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
-
+import TimelineStatus from './TimelineStatus';
+import { forecastReadout } from './forecastReadout';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 
@@ -81,6 +82,7 @@ export var MapWeatherControls = ({
   currentTimeOffset = 0,
   onTimeChange,
   isPlaying = false,
+  isBuffering = false,
   onTogglePlay,
   isTimelineCollapsed = false,
   onTimelineCollapseToggle,
@@ -120,7 +122,9 @@ export var MapWeatherControls = ({
       ? 'bg-black/90 border-cyan-900/50 shadow-cyan-900/20'
       : 'bg-zinc-900/95 border-zinc-800 shadow-2xl';
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  // Light is gray-600, not -500: -500 on the chipBg gray-100 is ~4.4:1, under WCAG AA's 4.5:1 for this 12px text
+  // (axe on a production build, W-10 R5: 14 desktop / 13 mobile nodes, the unselected model and layer chips).
+  const textMuted = isLight ? 'text-gray-600' : 'text-gray-400';
   const btnHover = isLight ? 'hover:bg-gray-200' : 'hover:bg-zinc-700';
   const chipBg = isLight ? 'bg-gray-100 border-gray-200' : 'bg-zinc-800 border-zinc-700';
 
@@ -259,7 +263,7 @@ export var MapWeatherControls = ({
     // NOTE: no eslint-disable here — this project's eslint config does NOT register the
     // react-hooks plugin, and naming an unknown rule in a disable comment is itself a
     // compile-failing error on the Netlify build (deploy 6a540b87, 2026-07-12).
-  }, [theme, heightUnit]);
+  }, [theme, heightUnit, windLookKey(theme)]);   // the wind look (WindColorRamp.js): light's bar follows its field, so a kill or lever that changes the look redraws the bar at the next render
 
   // Surf-quality RATING legend: 7 discrete bands (very_poor -> epic) as a hard-stop gradient, mirroring the
   // shader getRatingColor palette. Fixed colors (not theme-dependent); coarse tick labels under the bar.
@@ -331,12 +335,8 @@ export var MapWeatherControls = ({
       if (!frame?.time) return '--:--';
       const d = new Date(frame.time * 1000);
       return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    } else {
-      if (sliderVal === 0) return 'Live';
-      const d = new Date();
-      d.setHours(d.getHours() + sliderVal);
-      return `${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.toLocaleTimeString('en-US', { hour: 'numeric' })}`;
     }
+    return forecastReadout(sliderVal, activeLayer, activeModel).text;   // F-07: the DISPLAYED instant
   };
 
   const progress = isRadar
@@ -482,8 +482,11 @@ export var MapWeatherControls = ({
             onClick={onTogglePlay}
             className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-95 shadow-md ${isPlaying ? 'bg-rose-500 text-white' : 'bg-cyan-500 text-black'}`}
             aria-label={isPlaying ? 'Pause' : 'Play'}
+            aria-busy={isPlaying && isBuffering}
+            title={isPlaying && isBuffering ? 'Loading next forecast frame — pause playback' : undefined}
           >
-            {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
+            {isPlaying && isBuffering ? <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" /> : isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 ml-0.5" />}
+            {isPlaying && isBuffering && <span className="sr-only" role="status">Loading next forecast frame</span>}
           </button>
 
           {/* Step Back (Radar only) */}
@@ -549,7 +552,7 @@ export var MapWeatherControls = ({
 
           {/* Time Readout */}
           <div className={`text-[10px] font-bold shrink-0 text-right min-w-[50px] ${textClass}`}>
-            {formatTime()}
+            <span aria-hidden={!isRadar}>{formatTime()}</span>{!isRadar && <span className="sr-only">{forecastReadout(sliderVal, activeLayer, activeModel).srText}</span>}
           </div>
         </div>
 
@@ -581,6 +584,7 @@ export var MapWeatherControls = ({
           </div>
         )}
 
+        <TimelineStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} showTime={!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer)} showWind={!isRadar && activeModel === 'GFS' && (activeLayers || []).includes('wind')} />
         {/* v3.8: Day tick labels beneath scrubber — classic slider only (the wheel's drum
             carries its own day ticks + labels). */}
         {!useWheel && !isRadar && maxForecastHours > 24 && (
@@ -950,4 +954,3 @@ export var MapWeatherControls = ({
 };
 
 export default MapWeatherControls;
-

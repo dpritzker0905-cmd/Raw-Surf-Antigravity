@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timezone, timedelta
 
 from services.weather_pipeline.store import ProductStore, _get_supabase_storage, WEATHER_BUCKET
+from services.weather_pipeline.consensus_ingest import is_shadow
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,10 @@ async def prefetch_supabase_products():
         if getattr(p, "is_test_fixture", False):
             continue
         if (p.domain.lower(), p.layer.lower()) not in _WARM_LAYERS:
+            continue
+        # SHADOW EXCLUSION (2026-09-29, D-009): a shadow product (the CONSENSUS lane) is graded, never served,
+        # so it must not take a warm slot from a product a user will read.
+        if is_shadow(p.model):
             continue
         # MID-RES EXCLUSION (2026-07-05, the Render dev-deploy MEMORY FAILURES): `global_mid` products
         # are ~15k vectors (~1.5-3 MB JSON) — ~24x the coarse products this 400-product warm budget was

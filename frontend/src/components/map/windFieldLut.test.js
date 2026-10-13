@@ -17,7 +17,7 @@
  * Kill: __RAW_DISABLE_WIND_FIELD_LUT__ -> the legacy inline ramp (kept in the shader).
  */
 import { HEATMAP_FS } from './WebGLWindShaders';
-import { THEME_RAMPS, sampleRamp } from './WindColorRamp';
+import { THEME_RAMPS, FIELD_RAMPS, sampleRamp, buildFieldRampTexture, resolveFieldRamp } from './WindColorRamp';
 
 const rgbToHueDeg = ([r, g, b]) => {
   const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
@@ -77,10 +77,11 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     }
   });
 
-  it('adjacent low-band HUE GAPS are >= 18 deg in every theme (the slow-wind sensitivity pin)', () => {
+  it('adjacent low-band HUE GAPS are >= 18 deg in dark (the slow-wind sensitivity pin)', () => {
     // 2026-07-19: dark's 0-3-6 kn gaps measured 12/10/11 deg — one cyan family. The spread
-    // redistributed the low stops; this pin stops them drifting back together.
-    for (const theme of ['dark', 'light', 'beach']) {
+    // redistributed the low stops; this pin stops them drifting back together. Light and beach were
+    // redesigned 2026-10-09 to separate bands by lightness AND hue; they are gated in CIEDE2000 below.
+    for (const theme of ['dark']) {
       const ramp = THEME_RAMPS[theme];
       for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
         const a = rgbToHueDeg([ramp[i - 1][1], ramp[i - 1][2], ramp[i - 1][3]]);
@@ -133,7 +134,7 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       const bm = BASEMAP[theme].map((v) => v / 255);
       return rgbToHueDeg([bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a]);
     };
-    for (const theme of ['dark', 'light', 'beach']) {
+    for (const theme of ['dark']) {   // light/beach now TINT (multiply) — gated by the CIEDE2000 tests below
       const ramp = THEME_RAMPS[theme];
       for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
         const a = compositeHue(theme, ramp[i - 1]);
@@ -179,7 +180,7 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       light: { 0: 42, 3: 74, 6: 62 },
       beach: { 0: 23.8, 3: 39, 6: 30 },
     };
-    for (const theme of ['dark', 'light', 'beach']) {
+    for (const theme of ['dark']) {   // light/beach: superseded by the owner's 2026-10-09 middle ground (below)
       const ramp = THEME_RAMPS[theme];
       for (const stop of ramp) {
         const floor = FLOORS[theme][stop[0]];
@@ -187,6 +188,181 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
         expect(visDelta(theme, stop)).toBeGreaterThanOrEqual(floor);
       }
     }
+  });
+
+  // ── LIGHT + BEACH (2026-10-09 redesign; owner chose the MIDDLE GROUND for slow wind) ─────────────────────
+  // The field now TINTS the basemap (multiply blend, WebGLWindUtils.v2FieldTint): out = basemap x (1 - s(1 - colour)) on the
+  // ENCODED values the GPU blends, s = opacity x (baseA + (1 - baseA) smoothstep(0, 7, kn)) x strength. Distances in CIEDE2000.
+  const srgbToLab = (rgb) => { const d = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)); const [R, G, B] = rgb.map(d);
+    const X = (0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047, Y = 0.2126 * R + 0.7152 * G + 0.0722 * B, Z = (0.0193 * R + 0.1192 * G + 0.9505 * B) / 1.08883;
+    const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116); return [116 * f(Y) - 16, 500 * (f(X) - f(Y)), 200 * (f(Y) - f(Z))]; };
+  const de2000 = ([L1, a1, b1], [L2, a2, b2]) => { const rad = Math.PI / 180, C1 = Math.hypot(a1, b1), C2 = Math.hypot(a2, b2), Cb = (C1 + C2) / 2, G = 0.5 * (1 - Math.sqrt(Cb ** 7 / (Cb ** 7 + 25 ** 7)));
+    const a1p = a1 * (1 + G), a2p = a2 * (1 + G), C1p = Math.hypot(a1p, b1), C2p = Math.hypot(a2p, b2), h1p = (Math.atan2(b1, a1p) / rad + 360) % 360, h2p = (Math.atan2(b2, a2p) / rad + 360) % 360;
+    let dhp = h2p - h1p; if (C1p * C2p === 0) dhp = 0; else if (dhp > 180) dhp -= 360; else if (dhp < -180) dhp += 360;
+    const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp * rad) / 2), Lbp = (L1 + L2) / 2, Cbp = (C1p + C2p) / 2;
+    let hbp = h1p + h2p; if (C1p * C2p !== 0) hbp = Math.abs(h1p - h2p) > 180 ? (h1p + h2p + 360) / 2 : (h1p + h2p) / 2;
+    const T = 1 - 0.17 * Math.cos((hbp - 30) * rad) + 0.24 * Math.cos(2 * hbp * rad) + 0.32 * Math.cos((3 * hbp + 6) * rad) - 0.2 * Math.cos((4 * hbp - 63) * rad);
+    const SL = 1 + (0.015 * (Lbp - 50) ** 2) / Math.sqrt(20 + (Lbp - 50) ** 2), SC = 1 + 0.045 * Cbp, SH = 1 + 0.015 * Cbp * T;
+    const RT = -2 * Math.sqrt(Cbp ** 7 / (Cbp ** 7 + 25 ** 7)) * Math.sin(60 * Math.exp(-(((hbp - 275) / 25) ** 2)) * rad);
+    return Math.sqrt(((L2 - L1) / SL) ** 2 + ((C2p - C1p) / SC) ** 2 + (dHp / SH) ** 2 + RT * ((C2p - C1p) / SC) * (dHp / SH)); };
+  const TINT = { light: { op: 0.65, baseA: 0.42, k: 0.70 / 0.65 }, beach: { op: 0.55, baseA: 0.45, k: 0.60 / 0.55 } };
+  const SURFACES = { light: { water: [168, 214, 222], land: [236, 236, 232] }, beach: { water: [150, 190, 200], land: [222, 208, 180] } };
+  const ss = (e0, e1, x) => { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+  const tinted = (theme, [kn, r, g, b], bm) => { const t = TINT[theme], s = Math.min(1, t.op * (t.baseA + (1 - t.baseA) * ss(0, 7, kn)) * t.k);
+    return bm.map((v, i) => (v / 255) * (1 - s * (1 - [r, g, b][i]))); };
+  // CALM IS A PALE TINT (2026-10-10, owner: "the light wind color also looks like fog visually, a lot, in light mode", "hard lines in
+  // between very light winds and other wind fields"). The bar here was "calm is clean" (<= 2.5 dE off the surface), set in 2026-07 on a
+  // map that kept its colour under the wind. Since 2026-10-09 the basemap is greyed there, so a clean calm draws grey, and a tint below the
+  // threshold of seeing followed by the climb to 3 kn draws an edge round every calm patch. Calm is now a tint the eye can name,
+  // weaker than light air's, and still far below the saturated stops of 2026-07 (the positive control below).
+  it('light/beach slow wind: calm is a pale tint, light air a soft visible tint, a breeze clear colour — on water AND land', () => {
+    // These are the basemaps' OWN surfaces (the picture with the basemap mute killed): beach's seafoam calm is 4.5 off its own teal water.
+    // Over the muted ground that draws, calm is 5 or more on every surface (windClearLowBand.test.js).
+    const MIDDLE = { 0: [4, 11.5], 3: [9, Infinity], 6: [14, Infinity] };   // [min, max] dE vs the bare surface
+    for (const theme of ['light', 'beach']) for (const [where, bm] of Object.entries(SURFACES[theme])) for (const stop of FIELD_RAMPS[theme]) {   // the FIELD tints the map
+      const band = MIDDLE[stop[0]]; if (!band) continue;
+      const d = de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, stop, bm)));
+      expect(d).toBeGreaterThanOrEqual(stop[0] === 6 && where === 'land' ? 15 : band[0]);
+      expect(d).toBeLessThanOrEqual(band[1]);
+    }
+  });
+  it('light/beach: adjacent stops >= 9 dE2000 apart through 27 kn, and >= 5.5 apart once tinted onto the map below 21 kn', () => {
+    for (const theme of ['light', 'beach']) {
+      const ramp = THEME_RAMPS[theme];
+      for (let i = 1; i < ramp.length && ramp[i][0] <= 27; i++) expect(de2000(srgbToLab(ramp[i - 1].slice(1, 4)), srgbToLab(ramp[i].slice(1, 4)))).toBeGreaterThanOrEqual(9);
+      const field = FIELD_RAMPS[theme];
+      for (const bm of Object.values(SURFACES[theme])) for (let i = 1; i < field.length && field[i][0] <= 21; i++) {
+        // the calm pair is 5.3 over light's own cyan water (the picture with the basemap mute killed); over the muted ground that draws
+        // it is 6.1 and 7.4 (windClearLowBand.test.js)
+        expect(de2000(srgbToLab(tinted(theme, field[i - 1], bm)), srgbToLab(tinted(theme, field[i], bm)))).toBeGreaterThanOrEqual(i === 1 ? 5.0 : 5.5);
+      }
+    }
+  });
+  it('POSITIVE CONTROL: the 07-20 saturated calm stops would fail the pale-calm bar (hot pink / electric violet washed calm land)', () => {
+    const OLD_CALM = { light: [0, 0.54, 0.00, 0.92], beach: [0, 1.00, 0.32, 0.78] };
+    for (const theme of ['light', 'beach']) {
+      const bm = SURFACES[theme].land;
+      expect(de2000(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, OLD_CALM[theme], bm)))).toBeGreaterThan(11.5 * 1.5);
+    }
+  });
+
+  // DARK PARITY (owner: "I like this transparency [dark] ... match this with light and beach"). Bench dE76 of the map with
+  // vs without the field, per band, dark (approved): the light/beach FIELD ramps must carry the same strength per band.
+  const DARK_STRENGTH = { 6: 23.2, 10: 29.5, 16: 32.0, 21: 31.5, 27: 30.4, 33: 28.5, 40: 26.3, 47: 24.7, 55: 24, 63: 24, 75: 24 };
+  const BENCH_BASEMAP = { light: [0.86, 0.88, 0.90], beach: [0.62, 0.58, 0.50] };
+  const dE76 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  const strength = (theme, stop) => { const bm = BENCH_BASEMAP[theme].map((v) => v * 255); return dE76(srgbToLab(bm.map((v) => v / 255)), srgbToLab(tinted(theme, stop, bm))); };
+  // LIGHT FROM 27 KN IS STRONGER THAN DARK, BY THE OWNER'S PICK (2026-10-10, after the A/B: "I like A too"). The colour-blind floor on
+  // the muted ground cannot be had at dark's strength: each extra ~7 dE76 of strength buys ~1 dE2000 of floor (log
+  // 2026-10-09-light-fastband-cvd). Light's 27-75 kn field is "A, steady descent" (windLightFastBand.test.js); its own measured
+  // strengths are the pin. 6-21 kn stay at dark's. window.__RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores dark parity in every band.
+  const LIGHT_FAST_STRENGTH = { 27: 33.2, 33: 34.1, 40: 33.2, 47: 33.1, 55: 41.1, 63: 40.4, 75: 43.8 };
+  it('beach FIELD carries the measured dark strength 6-75 kn, light 6-21 kn (within 1 dE); light 27-75 kn carries A\'s own strengths (within 1 dE)', () => {
+    for (const theme of ['light', 'beach']) for (const stop of FIELD_RAMPS[theme]) {
+      const target = theme === 'light' && LIGHT_FAST_STRENGTH[stop[0]] !== undefined ? LIGHT_FAST_STRENGTH[stop[0]] : DARK_STRENGTH[stop[0]]; if (target === undefined) continue;
+      expect(Math.abs(strength(theme, stop) - target)).toBeLessThanOrEqual(target === 32.0 && theme === 'beach' ? 2.2 : 1.0);
+    }
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores the light field that carried dark\'s strength 6-75 kn (within 1 dE)', () => {
+    const before = resolveFieldRamp('light', { __RAW_DISABLE_WIND_LIGHT_FASTBAND__: true });
+    before.forEach((stop) => { const target = DARK_STRENGTH[stop[0]]; if (target !== undefined) expect(Math.abs(strength('light', stop) - target)).toBeLessThanOrEqual(1.0); });
+    expect(before.filter((stop) => stop[0] >= 27).every((stop) => Math.abs(strength('light', stop) - LIGHT_FAST_STRENGTH[stop[0]]) > 1.0)).toBe(true);   // and fails A's pin
+  });
+  it('POSITIVE CONTROL: the particle palette as the field overshoots light\'s own storm bands by more than 30% (dark\'s by more than 100%)', () => {
+    const storm = THEME_RAMPS.light.filter((st) => st[0] >= 40);
+    storm.forEach((st) => { expect(strength('light', st) / LIGHT_FAST_STRENGTH[st[0]]).toBeGreaterThan(1.3); expect(strength('light', st) / DARK_STRENGTH[st[0]]).toBeGreaterThan(2.0); });
+  });
+  it('the field and the particles share hue identity: every field stop is within 25 deg of the particle stop hue (chromatic stops)', () => {
+    for (const theme of ['light', 'beach']) FIELD_RAMPS[theme].forEach((st, i) => {
+      const p = THEME_RAMPS[theme][i]; const sat = (c) => Math.max(...c) - Math.min(...c); if (sat(p.slice(1, 4)) < 0.15 || sat(st.slice(1, 4)) < 0.1) return;
+      let d = Math.abs(rgbToHueDeg(st.slice(1, 4)) - rgbToHueDeg(p.slice(1, 4))); if (d > 180) d = 360 - d; expect(d).toBeLessThanOrEqual(25);
+    });
+  });
+  it('the field ramp texture exists only for tinted themes, honours its kill switch, and binds only on the tinted field pass', () => {
+    const fakeGl = { TEXTURE_2D: 1, TEXTURE_BINDING_2D: 2, getParameter: () => null, createTexture: () => ({ t: 1 }), bindTexture: () => {}, texParameteri: () => {}, texImage2D: () => {} };
+    expect(buildFieldRampTexture(fakeGl, 50, 'dark', {})).toBeNull();
+    expect(buildFieldRampTexture(fakeGl, 50, 'light', {})).toEqual({ t: 1 });
+    expect(buildFieldRampTexture(fakeGl, 50, 'light', { __RAW_DISABLE_WIND_FIELD_RAMP__: true })).toBeNull();
+    const fs = require('fs'), path = require('path'); const eng = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8'), init = fs.readFileSync(path.join(__dirname, 'WebGLWindEngineInit.js'), 'utf8');
+    expect(eng).toContain('bindTexture(gl, (_ft > 0 && this._fieldRamp) || this._colorRamp, 1)');
+    expect(eng.split('this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme)').length - 1).toBe(2);
+    expect(init).toContain('if (engine._fieldRamp) gl.deleteTexture(engine._fieldRamp);');
+  });
+
+  // MID-BAND REFINE (owner, 2026-10-09: "around 15kts is blending in with the color of the map itself"). Over the basemap WATER
+  // the 10-21 kn interpolation crosses the water's hue, so a 2-3 arcmin streak is seen by its LIGHTNESS against its own tint,
+  // and the band by its distance from the water. Streak = the premultiplied particle (stop alpha x theme opacity) over the
+  // field tint at the same speed. Pre-refine worst cases: light streak vs tint +1.5 L*, beach 12-17 kn streak vs water 10.2.
+  const POP = { light: 1.0, beach: 0.6 };
+  const labHue = ([, a, b]) => ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+  const worstOverWater = (theme, P, F, from, to) => { const water = SURFACES[theme].water, Lw = srgbToLab(water.map((x) => x / 255));
+    const out = { streakVsTintL: Infinity, streakVsWater: Infinity, tintHueGap: Infinity, tintVsWater: Infinity, tintDarkMin: Infinity, tintDarkMax: -Infinity };
+    for (let v = from; v <= to; v += 0.5) { const p = sampleRamp(P, v), f = sampleRamp(F, v), a = p[3] * POP[theme];
+      const T = tinted(theme, [v, f[0], f[1], f[2]], water), S = [0, 1, 2].map((j) => p[j] * a + T[j] * (1 - a)), Lt = srgbToLab(T);
+      let gap = Math.abs(labHue(Lt) - labHue(Lw)); if (gap > 180) gap = 360 - gap;
+      out.streakVsTintL = Math.min(out.streakVsTintL, srgbToLab(S)[0] - Lt[0]);
+      out.streakVsWater = Math.min(out.streakVsWater, de2000(Lw, srgbToLab(S)));
+      out.tintHueGap = Math.min(out.tintHueGap, gap); out.tintVsWater = Math.min(out.tintVsWater, de2000(Lw, Lt));
+      out.tintDarkMin = Math.min(out.tintDarkMin, Lw[0] - Lt[0]); out.tintDarkMax = Math.max(out.tintDarkMax, Lw[0] - Lt[0]); }
+    return out; };
+  const ramps = (theme) => { const { resolveThemeRamp, resolveFieldRamp } = require('./WindColorRamp'); return [resolveThemeRamp(theme), resolveFieldRamp(theme, window)]; };
+  it('mid-band LIGHT: 10-21 kn streaks stand >= +3.6 L* off their own tint on water', () => {
+    expect(worstOverWater('light', ...ramps('light'), 10, 21).streakVsTintL).toBeGreaterThanOrEqual(3.6);
+    expect(worstOverWater('light', ...ramps('light'), 12, 17).streakVsWater).toBeGreaterThanOrEqual(13.4);
+  });
+  // BEACH GREEN BAND (owner: "beach mode the issue is still persisting"): the TINT must leave the water's colour family —
+  // >= 35° of hue off the water and >= 18 dE2000 from it at every speed 8-22 kn — and darken it EVENLY (15-24 L*, no false
+  // bands). Pre-change worst cases: hue gap 0°, 12.7 dE2000.
+  it('mid-band BEACH: 8-22 kn tint sits >= 35° off the water hue, >= 18 dE2000 from it, darkening it evenly by 14-24 L*', () => {
+    const w = worstOverWater('beach', ...ramps('beach'), 8, 22);
+    expect(w.tintHueGap).toBeGreaterThanOrEqual(35);
+    expect(w.tintVsWater).toBeGreaterThanOrEqual(18);
+    expect(w.tintDarkMin).toBeGreaterThanOrEqual(14);
+    expect(w.tintDarkMax).toBeLessThanOrEqual(24);
+    expect(worstOverWater('beach', ...ramps('beach'), 12, 17).streakVsWater).toBeGreaterThanOrEqual(11.5);
+  });
+  // LIGHT LOW BAND (owner: "slower wind speeds under 15kts ... too similar to the water color"): 10 kn violet side, 16 kn green
+  // side. A violet -> green ramp must hand off across the water's hue once; pin that hand-off to <= 1 kn and the tint's
+  // separation everywhere else. Cerulean/teal (the #285 stops) sat < 20° off the water hue for ~10 kn (8-18).
+  const narrowKn = (theme, P, F, from, to) => { let n = 0; for (let v = from; v <= to; v += 0.5) if (worstOverWater(theme, P, F, v, v).tintHueGap < 20) n += 0.5; return n; };
+  it('light low band: the tint leaves the water\'s hue family except a <= 1 kn hand-off; >= 14.5 dE2000 off the water 7-22 kn', () => {
+    const [lp, lf] = ramps('light');
+    expect(narrowKn('light', lp, lf, 4, 22)).toBeLessThanOrEqual(1);
+    expect(worstOverWater('light', lp, lf, 7, 22).tintVsWater).toBeGreaterThanOrEqual(14.5);
+    expect(worstOverWater('light', lp, lf, 7, 11).tintHueGap).toBeGreaterThanOrEqual(35);
+    expect(worstOverWater('light', lp, lf, 15, 22).tintHueGap).toBeGreaterThanOrEqual(35);
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_LIGHT_LOWBAND__ restores cerulean/teal, which sit on the water hue for ~10 kn', () => {
+    window.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ = true;
+    try {
+      const [lp, lf] = ramps('light');
+      expect(lp[3]).toEqual([10, 0.103, 0.701, 0.825, 0.80]);
+      expect(lf[4]).toEqual([16, 0.228, 0.803, 0.762, 0.82]);
+      expect(ramps('beach')[0]).toBe(THEME_RAMPS.beach);   // light only
+      expect(narrowKn('light', lp, lf, 4, 22)).toBeGreaterThanOrEqual(8);
+    } finally {
+      delete window.__RAW_DISABLE_WIND_LIGHT_LOWBAND__;
+    }
+  });
+  it('POSITIVE CONTROL + kill: __RAW_DISABLE_WIND_MIDBAND_REFINE__ restores the pre-refine stops, which fail that bar', () => {
+    window.__RAW_DISABLE_WIND_MIDBAND_REFINE__ = true;
+    try {
+      const [lp, lf] = ramps('light'), [bp, bf] = ramps('beach');
+      expect(lp[3]).toEqual([10, 0.116, 0.690, 0.811, 0.80]);
+      expect(lf[3]).toEqual([10, 0.276, 0.688, 0.789, 0.80]);
+      expect(bp[4]).toEqual([16, 0.308, 0.764, 0.906, 0.85]);
+      expect(bf[4]).toEqual([16, 0.008, 0.788, 0.967, 0.85]);
+      expect(bp[5]).toEqual([21, 0.284, 0.748, 0.574, 0.87]);
+      expect(lp[7]).toEqual(THEME_RAMPS.light[7]);   // stops outside the band are the live palette
+      expect(worstOverWater('light', lp, lf, 10, 21).streakVsTintL).toBeLessThan(2);
+      expect(worstOverWater('beach', bp, bf, 12, 17).streakVsWater).toBeLessThan(10.8);
+      const old = worstOverWater('beach', bp, bf, 8, 22);
+      expect(old.tintHueGap).toBeLessThan(5);       // the sea colours sat ON the water's hue
+      expect(old.tintVsWater).toBeLessThan(14);
+    } finally {
+      delete window.__RAW_DISABLE_WIND_MIDBAND_REFINE__;
+    }
+    expect(ramps('light')[0]).toBe(THEME_RAMPS.light);
   });
 
   it('the respread kill switch restores the legacy low stops', () => {

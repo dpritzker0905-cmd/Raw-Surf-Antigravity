@@ -1,0 +1,63 @@
+map handle: map
+=== NOISE ESTIMATE (4 identical baselines) ===
+ noise[0] z=8 layers=138 rafSites=2 tex=67 buf=504 workers=18 gl=1 intervals=20 hud=GFS / wind|LOADED|UNKNOWN|NO DATA legend=Air Temp
+ noise[1] z=8 layers=138 rafSites=2 tex=67 buf=504 workers=18 gl=1 intervals=20 hud=GFS / none|OFF|UNKNOWN|NO DATA legend=Air Temp
+ noise[2] z=8 layers=138 rafSites=2 tex=67 buf=504 workers=18 gl=1 intervals=20 hud=GFS / wind|LOADED|UNKNOWN|NO DATA legend=Air Temp
+ noise[3] z=8 layers=138 rafSites=2 tex=67 buf=504 workers=18 gl=1 intervals=20 hud=GFS / none|OFF|UNKNOWN|NO DATA legend=Air Temp
+NOISE BAND: {"texLive":{"min":67,"max":67,"spread":0},"bufLive":{"min":504,"max":504,"spread":0},"rafOwnerSites":{"min":2,"max":2,"spread":0},"workerCount":{"min":18,"max":18,"spread":0},"glContexts":{"min":1,"max":1,"spread":0},"intervalsLive":{"min":20,"max":20,"spread":0},"canvases":{"min":2,"max":4,"spread":2},"programs":{"min":24,"max":24,"spread":0},"layers":{"min":138,"max":138,"spread":0}}
+=== FIRST-ORDER JACOBIAN ===
+[J] zoom_+3_(8to11)            dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   60 dBuf=  464 dCv= 0 dInt=  0 dReq=  30 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] zoom_-3_(8to5)             dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    1 dBuf=  345 dCv= 0 dInt=  0 dReq=  10 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] zoom_+5_(8to13)            dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   62 dBuf=  455 dCv= 0 dInt=  0 dReq=  35 dFail=  9 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] pan_lon_+2.6deg            dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    8 dBuf=   12 dCv= 0 dInt=  0 dReq=  13 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] pan_lat_+12deg             dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   54 dBuf=  489 dCv= 0 dInt=  0 dReq=  38 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] bearing_+45                dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   18 dBuf=  164 dCv= 0 dInt=  0 dReq=  19 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] pitch_+45                  dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   12 dBuf=   53 dCv= 0 dInt=  0 dReq=  21 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] antimeridian_179.6         dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   20 dBuf=  172 dCv= 0 dInt=  0 dReq=  22 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] highlat_66.5               dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    2 dBuf= -101 dCv= 0 dInt=  0 dReq=  14 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] model_to_EURO              dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    0 dBuf=    0 dCv= 0 dInt=  0 dReq=   8 dFail=  0 | GFS / none->EURO / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] model_to_ICON              dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   -1 dBuf=    0 dCv= 0 dInt=  0 dReq=  10 dFail=  1 | GFS / wind->ICON / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] layer_to_waves             dLay=  5 dRafS=  0 dWrk=  0 dGL= 0 dTex=  -93 dBuf=-1832 dCv= 2 dInt=  1 dReq=  14 dFail=  6 | GFS / none->GFS / waves | raster OFF->LOADED | legend Air Temp->Air Temp
+[J] layer_to_swell1            dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   20 dBuf=   88 dCv= 0 dInt=  0 dReq=   2 dFail=  1 | GFS / wind->GFS / swell_1 | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] layer_to_swell2            dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   18 dBuf=   83 dCv= 0 dInt=  0 dReq=   5 dFail=  1 | GFS / wind->GFS / swell_2 | raster LOADED->LOADING | legend Air Temp->Air Temp
+[J] layer_to_watertemp         dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   54 dBuf=  -26 dCv= 0 dInt=  1 dReq= 100 dFail=  3 | GFS / wind->GFS / water_temp | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] layer_to_fog               dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   28 dBuf=    0 dCv= 0 dInt=  0 dReq=  30 dFail=  3 | GFS / wind->GFS / fog | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] layer_to_precip            dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   27 dBuf=    0 dCv= 0 dInt=  0 dReq=  40 dFail=  3 | GFS / wind->GFS / rain | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] time_+1h                   dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    0 dBuf=    0 dCv= 0 dInt=  0 dReq=  10 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] time_+1d                   dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    0 dBuf=    0 dCv= 0 dInt=  0 dReq=   8 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] time_-1d                   dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   -1 dBuf=    0 dCv= 0 dInt=  0 dReq=   2 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] viewport_800x600           dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    0 dBuf=    0 dCv= 0 dInt=  0 dReq=   1 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+[J] viewport_1920x1080         dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=   16 dBuf=   99 dCv= 0 dInt=  0 dReq=  21 dFail=  0 | GFS / wind->GFS / wind | raster LOADED->LOADED | legend Air Temp->Air Temp
+[J] tab_hidden_8s              dLay=  0 dRafS=  0 dWrk=  0 dGL= 0 dTex=    0 dBuf=    0 dCv= 0 dInt= -1 dReq=   0 dFail=  0 | GFS / none->GFS / none | raster OFF->OFF | legend Air Temp->Air Temp
+=== RAF OWNERSHIP UNDER HIDDEN ===
+HIDDEN: {"rafDelta_hidden8s":142,"rafPerSec_hidden":17.8,"rafDelta_visible8s":148,"rafPerSec_visible":18.5,"fetchDelta_hidden":0,"texDelta_hidden":0}
+=== SECOND-ORDER INTERACTION RESIDUALS ===
+[I] zoom x layerSwitch           dX={"layers":0,"texLive":60,"bufLive":396,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":-14,"bufLive":-271,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":1,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":20,"bufLive":108,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":1,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":-26,"bufLive":-17,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+[I] modelSwitch x timeScrub      dX={"layers":0,"texLive":-1,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":2,"bufLive":5,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":-1,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":-2,"bufLive":-5,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+[I] layerSwitch x mapMove        dX={"layers":0,"texLive":18,"bufLive":83,"rafSites":0,"workers":0,"gl":0,"canvases":2,"intervals":0,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":30,"bufLive":370,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":-14,"bufLive":-257,"rafSites":0,"workers":0,"gl":0,"canvases":2,"intervals":1,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":-62,"bufLive":-710,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":1,"programs":0,"marineLayers":0}
+[I] resize x zoom                dX={"layers":0,"texLive":16,"bufLive":126,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":76,"bufLive":674,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":0,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":-92,"bufLive":-800,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+[I] antimeridian x zoom          dX={"layers":0,"texLive":20,"bufLive":172,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":26,"bufLive":60,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":-6,"bufLive":9,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":-52,"bufLive":-223,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+[I] hidden x timeScrub           dX={"layers":0,"texLive":0,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":0,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":-1,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":-1,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+[I] layerSwitch x modelSwitch    dX={"layers":0,"texLive":-70,"bufLive":-841,"rafSites":0,"workers":0,"gl":0,"canvases":2,"intervals":1,"programs":0,"marineLayers":0}
+     dY={"layers":0,"texLive":0,"bufLive":0,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+     dXY={"layers":0,"texLive":14,"bufLive":83,"rafSites":0,"workers":0,"gl":0,"canvases":2,"intervals":1,"programs":0,"marineLayers":0}
+     RESID={"layers":0,"texLive":84,"bufLive":924,"rafSites":0,"workers":0,"gl":0,"canvases":0,"intervals":0,"programs":0,"marineLayers":0}
+=== DONE === totalRequests=1537 totalFailed=163 consoleErrors=59

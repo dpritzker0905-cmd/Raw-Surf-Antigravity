@@ -1,56 +1,159 @@
 # Nearshore outcome loop runner (WS-CAN-0076 / AV-09, Audit 4.0 lane, 2026-08-16).
 # ⚠️ Scheduled workflows fire from the DEFAULT branch only — that is `dev` here, not `main`.
-# ⚠️ ARMED-OFF BY DEFAULT: the cron fires but the run no-ops unless the repo variable
+# ⚠️ ARMED-OFF BY DEFAULT: the cron records NOT GRADED and skips the validation JOB unless
+# the repo variable
 #    NEARSHORE_VAL_ENABLED = '1' (packet constraint #5 — cost was measured before scheduling:
 #    ~2.5 s CDIP probe + 17 point calls ≈ 6 s wall warm; Render cold start dominates).
 #    workflow_dispatch always runs (it IS the manual arm).
-# Exit contract (scripts/run_nearshore_validation.py): 0 GRADED · 1 REFUSED (a verdict — the
-# report says why; exits 0 here so an accrual lane cannot train red-blindness) · 2 INFRA (red).
+# ★ AN ARMED HOUR GRADES EVERY CHEAP ARM (2026-09-28). A scheduled run has no inputs, so every arm used to
+#   default OFF and arming the lane would have accrued the bulk arm alone, never the MOP, MOP-grid or NWPS
+#   evidence the stage 4 decisions wait on. On schedule those three are ON (one CDIP request per station;
+#   the ingest's ~17 KB run artifacts; ~1 NWPS file per station); the swell-train arm stays dispatch-only
+#   (4x the point calls, and #117 measured it no better at the buoys).
+# ★ VA-03 (2026-10-08): THE JUDGE MUST NOT READ GREEN WHILE IT GRADES NOTHING. Armed off from 09-20, ~85
+#   scheduled runs were green with nothing graded. So:
+#   - an armed-off run WARNS when no run has graded in 72 h (one read of this workflow's own run list);
+#   - GRADED needs 30 station-hours (GRADED_MIN_STATION_HOURS in the runner);
+#   - REFUSED fails the run.
+#   One hour matched 7 station-hours, so a scheduled slot grades the last 24 h (measured: 24-98 station-hours,
+#   314-802 /point calls). That is why the cron is 6-hourly, not hourly: the box is one shared CPU.
+# Exit contract (scripts/run_nearshore_validation.py): 0 GRADED · 1 REFUSED (a verdict; the report says why;
+# red, VA-03) · 2 INFRA (red).
 name: Nearshore Validation (WS-CAN-0076)
+run-name: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && vars.NEARSHORE_VAL_ENABLED == '1')) && 'Nearshore requested - see validation verdict' || 'Nearshore NOT GRADED - ARMED OFF' }}
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      backfill_hours:
+        description: "Also grade the last N hours at 3-hourly steps (point calls = spots x (N/3+1)). 0 = this hour only, the cron's setting."
+        required: false
+        default: '0'
+      trains:
+        description: "Also grade the swell-train arm (what SURF_PARTITIONS would serve) beside the bulk arm. 4x the point calls."
+        required: false
+        default: '0'
+      mop:
+        description: "Also grade CDIP's MOP nearshore forecast at the buoys beside the bulk arm (roadmap stage 4). One CDIP request per station."
+        required: false
+        default: '0'
+      mop_grid:
+        description: "Also grade the archived MOP sea+swell grid runs (the product stage 4 would serve) from the MOP ingest's artifacts."
+        required: false
+        default: '0'
+      nwps:
+        description: "Also grade NOAA NWPS (SWAN) spectra at the buoys beside the bulk arm (stage 4 outside California). ~1 MB per cycle per station."
+        required: false
+        default: '0'
+      consensus:
+        description: "Also grade the equal-mean GFS/EURO/ICON consensus input (stage 5), the GFS+EURO mean, and each member through the same transform. 3x the point calls."
+        required: false
+        default: '0'
   schedule:
-    # Hourly is the accrual rate the packet assumes; GitHub cron is BEST-EFFORT (measured
-    # delivery 5-32% on sibling lanes) — the report series is append-only, gaps are fine.
-    - cron: '20 * * * *'
+    # Six-hourly, each slot grading the last 24 h (VA-03). Off the core ingest (:15 past every 4th hour) and the
+    # precompute (:45 past 07/15/23). GitHub cron is BEST-EFFORT (a 6-hourly lane lost 75% of its slots), so
+    # expect about one graded run a day. The report series is append-only; gaps are fine.
+    - cron: '20 3,9,15,21 * * *'
 
 permissions:
   contents: read
+  actions: read       # the mop_grid arm reads the MOP ingest's run artifacts (no storage credentials)
 
 concurrency:
   group: nearshore-validation
   cancel-in-progress: true
 
 jobs:
+  eligibility:
+    name: Record eligibility (not a scientific verdict)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      eligible: ${{ steps.gate.outputs.eligible }}
+    steps:
+      - name: Record whether scientific validation was requested
+        id: gate
+        env:
+          NEARSHORE_VAL_ENABLED: ${{ vars.NEARSHORE_VAL_ENABLED }}
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime, timedelta, timezone
+
+          event = os.environ["GITHUB_EVENT_NAME"]
+          eligible = event == "workflow_dispatch" or (
+              event == "schedule" and os.environ.get("NEARSHORE_VAL_ENABLED") == "1"
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"eligible={str(eligible).lower()}\n")
+
+
+          # VA-03: when did the judge last GRADE? A successful requested run (REFUSED and INFRA fail the run).
+          def last_graded(window_h=72):
+              since = datetime.now(timezone.utc) - timedelta(hours=window_h)
+              url = (f"{os.environ.get('GITHUB_API_URL', 'https://api.github.com')}/repos/{os.environ['GITHUB_REPOSITORY']}"
+                     f"/actions/workflows/nearshore-validation.yml/runs?status=success&per_page=100"
+                     f"&created=%3E%3D{since.strftime('%Y-%m-%dT%H:%M:%SZ')}")
+              request = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                                             "Authorization": f"Bearer {os.environ['GH_TOKEN']}"})
+              with urllib.request.urlopen(request, timeout=15) as response:
+                  runs = json.load(response).get("workflow_runs") or []
+              graded = [r for r in runs if r.get("conclusion") == "success"
+                        and str(r.get("display_title", "")).startswith("Nearshore requested")
+                        and datetime.strptime(r["created_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) >= since]
+              return max(graded, key=lambda r: r["created_at"]) if graded else None
+
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              if eligible:
+                  summary.write("### Nearshore validation: **REQUESTED**\n\n")
+                  summary.write("Eligibility is not a forecast verdict. See the validation job and report for GRADED, REFUSED, or INFRA.\n")
+              else:
+                  summary.write("### Nearshore validation: **NOT GRADED — ARMED OFF**\n\n")
+                  summary.write("The scientific validation job is skipped. No model or observation requests were made.\n\n")
+                  summary.write("A manual dispatch runs validation; scheduled grading requires NEARSHORE_VAL_ENABLED=1.\n")
+                  try:
+                      last = last_graded()
+                  except Exception as error:  # noqa: BLE001 - any failure is reported by name, never swallowed
+                      note = (f"run history unreadable ({type(error).__name__}: {str(error)[:120]}), "
+                              "so how long the judge has graded nothing is unknown")
+                      summary.write(f"\n**WARN:** {note}.\n")
+                      print(f"::warning::Nearshore judge: {note}.")
+                  else:
+                      if last is None:
+                          note = "has graded nothing in the last 72 h, so the served breaking height has no instrument"
+                          summary.write(f"\n**WARN: the nearshore judge {note}.** Arming it is the owner's call "
+                                        "(repo variable NEARSHORE_VAL_ENABLED=1).\n")
+                          print(f"::warning::Nearshore judge {note}.")
+                      else:
+                          summary.write(f"\nThe judge last graded in run {last['id']} at {last['created_at']}.\n")
+          if not eligible:
+              print("::notice::Nearshore NOT GRADED — ARMED OFF; scientific validation skipped.")
+
   validate:
+    name: Scientific validation (verdict in report)
+    needs: eligibility
+    if: needs.eligibility.outputs.eligible == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Arm gate (scheduled runs no-op until NEARSHORE_VAL_ENABLED=1)
-        if: github.event_name == 'schedule' && vars.NEARSHORE_VAL_ENABLED != '1'
-        run: |
-          echo "::notice::nearshore-validation is ARMED OFF (set repo variable NEARSHORE_VAL_ENABLED=1 to arm the cron; workflow_dispatch always runs)."
-          echo "ARMED_OFF=1" >> "$GITHUB_ENV"
-
       - uses: actions/checkout@v5
-        if: env.ARMED_OFF != '1'
 
       - uses: actions/setup-python@v6
-        if: env.ARMED_OFF != '1'
         with:
           # 3.12 TO MATCH PRODUCTION — see artifact-interpreter-parity before any move.
           python-version: '3.12'
 
       - name: Install backend dependencies
-        if: env.ARMED_OFF != '1'
         working-directory: backend
         run: pip install -q -r requirements.txt
 
       # marine-nightly.yml pattern: Render free tier cold-starts; grading a sleeping backend
       # reports a refusal that means "the box was asleep" (the recorded 30-vs-0 control pair).
       - name: Preflight — wake the prod backend (the MODEL side under test)
-        if: env.ARMED_OFF != '1'
         id: warm
         run: |
           for i in $(seq 1 30); do
@@ -62,12 +165,29 @@ jobs:
           echo "::warning::prod backend never answered /api/health — the runner will exit 2 (INFRA), not grade."
           echo "awake=0" >> "$GITHUB_OUTPUT"
 
+      - name: Fetch the archived MOP grid runs (stage 4)
+        if: github.event.inputs.mop_grid == '1' || github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p mop_archive
+          for id in $(gh run list -R "${{ github.repository }}" --workflow mop-nearshore-ingest.yml \
+                        --status success --limit 16 --json databaseId -q '.[].databaseId'); do
+            gh run download "$id" -R "${{ github.repository }}" -n "mop-spot-series-$id" -D "mop_archive/$id" || true
+          done
+          echo "archived MOP runs fetched: $(find mop_archive -name '*.json' | wc -l)"
+
       - name: Run the nearshore outcome loop
-        if: env.ARMED_OFF != '1'
         working-directory: backend
         env:
           NEARSHORE_VAL_MIN_MATCHED: ${{ vars.NEARSHORE_VAL_MIN_MATCHED || '1' }}
           NEARSHORE_VAL_MAX_STATIONS: ${{ vars.NEARSHORE_VAL_MAX_STATIONS || '20' }}
+          NEARSHORE_VAL_BACKFILL_H: ${{ github.event.inputs.backfill_hours || (github.event_name == 'schedule' && '24') || '0' }}
+          NEARSHORE_VAL_TRAINS: ${{ github.event.inputs.trains || '0' }}
+          NEARSHORE_VAL_MOP: ${{ github.event.inputs.mop || (github.event_name == 'schedule' && '1') || '0' }}
+          NEARSHORE_VAL_MOP_GRID_DIR: ${{ (github.event.inputs.mop_grid == '1' || github.event_name == 'schedule') && '../mop_archive' || '' }}
+          NEARSHORE_VAL_NWPS: ${{ github.event.inputs.nwps || (github.event_name == 'schedule' && '1') || '0' }}
+          NEARSHORE_VAL_CONSENSUS: ${{ github.event.inputs.consensus || '0' }}
           # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
           # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
           # does not cover this workflow — do not make it need to).
@@ -79,18 +199,18 @@ jobs:
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
-          grep -E "^VERDICT|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
+          grep -E "^VERDICT|^GEOMETRY|^NO_FRICTION_AB|^LEGACY_FRICTION_AB|^NEARSHORE_INPUT_AB|^CONSENSUS_AB|^SHADOW_AB|^MEMBER_AB|^PAIR_AB|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
           if [ "$rc" -ge 2 ]; then
             echo "::error::INFRA, NOT A VERDICT (exit $rc): pair table, CDIP THREDDS, or the prod point API could not answer. Nothing was graded. preflight awake=${{ steps.warm.outputs.awake }}"
             exit 2
           elif [ "$rc" -eq 1 ]; then
-            echo "::warning::REFUSED — available:false; nearshore_report.json carries the counters and reason."
-            exit 0
+            echo "::error::REFUSED, nothing graded: available:false; nearshore_report.json carries the counters and reason (VA-03: no green without a grade)."
+            exit 1
           fi
           echo "GRADED — nearshore_report.json"
 
       - name: Summary
-        if: always() && env.ARMED_OFF != '1'
+        if: always()
         working-directory: backend
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
@@ -106,11 +226,43 @@ jobs:
               print(f"- ⚠️ {r['reason']}")
           for s, v in sorted(r.get("stations", {}).items()):
               print(f"- `{s}` n={v['n']} MAE {v['mae_m']} m bias {v['bias_m']:+} m")
+          ab = r.get("obs_over_model")
+          if ab:
+              print(f"- observed / modelled median {ab['median']} (p10 {ab['p10']}, p90 {ab['p90']}, n {ab['n']})")
+          gm = r.get("mop_grid_ab")
+          if gm:
+              print(f"- archived MOP grid arm: bulk MAE {gm['bulk']['mae_m']} m vs grid {gm['arm']['mae_m']} m (bias {gm['arm']['bias_m']:+}) over {gm['n']} spot-hours / {gm['n_station_hours']} station-hours; grid closer on {gm['arm_closer_share']:.0%}")
+          ni = r.get("nearshore_input_ab")
+          if ni:
+              print(f"- nearshore-input arm (served value as a shelf-depth nearshore input, wide shelves): bulk MAE {ni['bulk']['mae_m']} m vs {ni['arm']['mae_m']} m (bias {ni['arm']['bias_m']:+}) over {ni['n']} spot-hours / {ni['n_station_hours']} station-hours; closer on {ni['arm_closer_share']:.0%}")
+          fr = r.get("no_friction_ab")
+          if fr:
+              print(f"- shelf arm (cross-shelf friction off, wide shelves): bulk MAE {fr['bulk']['mae_m']} m (bias {fr['bulk']['bias_m']:+}) vs {fr['arm']['mae_m']} m (bias {fr['arm']['bias_m']:+}) over {fr['n']} spot-hours / {fr['n_station_hours']} station-hours; closer on {fr['arm_closer_share']:.0%}")
+          ca = r.get("consensus_ab")
+          if ca:
+              print(f"- consensus arm (equal mean of GFS/EURO/ICON, GFS period and bearing): bulk MAE {ca['bulk']['mae_m']} m (bias {ca['bulk']['bias_m']:+}) vs {ca['arm']['mae_m']} m (bias {ca['arm']['bias_m']:+}) over {ca['n']} spot-hours / {ca['n_station_hours']} station-hours; closer on {ca['arm_closer_share']:.0%}")
+          pa = r.get("pair_ab")
+          if pa:
+              print(f"- GFS+EURO mean (the consensus without ICON): GFS MAE {pa['bulk']['mae_m']} m vs {pa['arm']['mae_m']} m (bias {pa['arm']['bias_m']:+}) over {pa['n']} spot-hours; closer on {pa['arm_closer_share']:.0%}")
+          for mb, v in sorted((r.get("member_ab") or {}).items()):
+              print(f"- {mb} alone through the same transform: GFS MAE {v['bulk']['mae_m']} m vs {mb} {v['arm']['mae_m']} m (bias {v['arm']['bias_m']:+}) over {v['n']} spot-hours; closer on {v['arm_closer_share']:.0%}")
+          nw = r.get("nwps_ab")
+          if nw:
+              print(f"- NOAA NWPS arm: bulk MAE {nw['bulk']['mae_m']} m (bias {nw['bulk']['bias_m']:+}) vs NWPS {nw['arm']['mae_m']} m (bias {nw['arm']['bias_m']:+}) over {nw['n']} spot-hours / {nw['n_station_hours']} station-hours; NWPS closer on {nw['arm_closer_share']:.0%}")
+          m = r.get("mop_ab")
+          if m:
+              print(f"- CDIP MOP arm: bulk MAE {m['bulk']['mae_m']} m (bias {m['bulk']['bias_m']:+}) vs MOP {m['arm']['mae_m']} m (bias {m['arm']['bias_m']:+}) over {m['n']} spot-hours / {m['n_station_hours']} station-hours; MOP closer on {m['arm_closer_share']:.0%}")
+          t = r.get("trains_ab")
+          if t:
+              o = t["trains_only"]
+              print(f"- swell-train arm: bulk MAE {t['bulk']['mae_m']} m vs as-flipped {t['as_flipped']['mae_m']} m over {t['n']} rows; trains used on {o['n']}")
+              if o["n"]:
+                  print(f"  - where used: bulk {o['bulk']['mae_m']} m (bias {o['bulk']['bias_m']:+}) vs trains {o['trains']['mae_m']} m (bias {o['trains']['bias_m']:+}); trains closer on {o['trains_closer_share']:.0%}")
           print(f"- budget wall {r['budget']['wall_s']} s · point calls {r['point_api']['calls']} ({r['point_api']['failed']} failed)")
           PY
 
       - name: Upload the report series
-        if: always() && env.ARMED_OFF != '1'
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: nearshore-validation-${{ github.run_id }}

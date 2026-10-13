@@ -11,10 +11,30 @@ import math
 import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
+from types import SimpleNamespace
 
 from services.weather_pipeline.schemas import NormalizedPointResponse, NormalizedPointDetail
+from services.weather_pipeline.cycle_provenance import cycle_from_points
+from services.weather_pipeline.grid_resolver import stamp_frame_honesty
 
 logger = logging.getLogger(__name__)
+
+
+def direct_point_provenance(raw, index, target_dt):
+    """Stamp the selected upstream sample using the shared serving-honesty contract.
+
+    Hourly provider times without an offset are UTC, as in the existing selector.
+    A receipt timestamp or the requested time cannot establish a model cycle.
+    This boundary consumes the selector's index; it never chooses a different sample.
+    """
+    sample = datetime.fromisoformat(raw["hourly"]["time"][index].replace("Z", "+00:00"))
+    if sample.tzinfo is None:
+        sample = sample.replace(tzinfo=timezone.utc)
+    frame = SimpleNamespace(valid_time=sample.astimezone(timezone.utc), product_id=None,
+                            served_valid_time=None, frame_offset_hours=0.0, frame_substituted=False)
+    stamp_frame_honesty(frame, target_dt, target_dt.isoformat())
+    return {**cycle_from_points([raw]), "served_valid_time": frame.served_valid_time,
+            "frame_offset_hours": frame.frame_offset_hours, "frame_substituted": frame.frame_substituted}
 
 
 def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
@@ -66,6 +86,7 @@ async def build_wind_direct_point_response(provider, model: str, lat: float, lng
                     layer="wind",
                     run_time=datetime.now(timezone.utc),
                     valid_time=target_dt,
+                    **direct_point_provenance(raw_point, idx, target_dt),
                     is_forecast_authoritative=True,
                     is_estimated=False,
                     point=detail,
@@ -138,6 +159,7 @@ async def build_scalar_direct_point_response(provider, model: str, layer: str, l
                     layer=layer.lower(),
                     run_time=datetime.now(timezone.utc),
                     valid_time=target_dt,
+                    **direct_point_provenance(raw_point, idx, target_dt),
                     is_forecast_authoritative=True,
                     is_estimated=False,
                     point=detail,

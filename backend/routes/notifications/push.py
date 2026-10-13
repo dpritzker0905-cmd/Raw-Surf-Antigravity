@@ -1,4 +1,4 @@
-"""Push notification core — OneSignal integration, subscription management, and send API.
+"""Push notifications — authenticated subscriptions and internal OneSignal delivery.
 
 Domain-specific notification helper functions are in push_payloads.py (v88).
 """
@@ -7,12 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional, Dict
-from datetime import datetime, timezone
 import httpx
 import os
 import logging
 
 from database import get_db
+from core.security import get_current_user_id
 from models import PushSubscription
 
 router = APIRouter()
@@ -37,20 +37,18 @@ class OneSignalSubscription(BaseModel):
     token: Optional[str] = None
 
 
-class PushNotificationPayload(BaseModel):
-    user_id: str
-    title: str
-    message: str
-    event_type: str = "general"
-    data: Dict = {}
-    action_url: Optional[str] = None
-
-
 @router.post("/push/subscribe")
-async def subscribe_push(user_id: str, data: PushSubscriptionCreate, db: AsyncSession = Depends(get_db)):
+async def subscribe_push(
+    data: PushSubscriptionCreate,
+    user_id: Optional[str] = None,
+    actor_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_id is not None and user_id != actor_id:
+        raise HTTPException(status_code=403, detail="Cannot manage another user's push subscription")
     existing = await db.execute(
         select(PushSubscription).where(
-            PushSubscription.user_id == user_id,
+            PushSubscription.user_id == actor_id,
             PushSubscription.endpoint == data.endpoint
         )
     )
@@ -58,7 +56,7 @@ async def subscribe_push(user_id: str, data: PushSubscriptionCreate, db: AsyncSe
         return {"message": "Already subscribed", "status": "existing"}
     
     subscription = PushSubscription(
-        user_id=user_id,
+        user_id=actor_id,
         endpoint=data.endpoint,
         p256dh_key=data.p256dh_key,
         auth_key=data.auth_key,
@@ -71,8 +69,14 @@ async def subscribe_push(user_id: str, data: PushSubscriptionCreate, db: AsyncSe
 
 
 @router.post("/push/onesignal/subscribe")
-async def subscribe_onesignal(data: OneSignalSubscription, db: AsyncSession = Depends(get_db)):
+async def subscribe_onesignal(
+    data: OneSignalSubscription,
+    actor_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Save OneSignal subscription ID for a user"""
+    if data.user_id != actor_id:
+        raise HTTPException(status_code=403, detail="Cannot manage another user's push subscription")
     try:
         # Check if exists
         existing = await db.execute(
@@ -104,10 +108,17 @@ async def subscribe_onesignal(data: OneSignalSubscription, db: AsyncSession = De
 
 
 @router.delete("/push/unsubscribe")
-async def unsubscribe_push(user_id: str, endpoint: str, db: AsyncSession = Depends(get_db)):
+async def unsubscribe_push(
+    endpoint: str,
+    user_id: Optional[str] = None,
+    actor_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_id is not None and user_id != actor_id:
+        raise HTTPException(status_code=403, detail="Cannot manage another user's push subscription")
     result = await db.execute(
         select(PushSubscription).where(
-            PushSubscription.user_id == user_id,
+            PushSubscription.user_id == actor_id,
             PushSubscription.endpoint == endpoint
         )
     )
@@ -198,19 +209,6 @@ async def send_push_notification(
     except Exception as e:
         logger.error(f"Push notification error: {e}")
         return {"status": "error", "detail": str(e)}
-
-
-@router.post("/push/send")
-async def send_push_endpoint(payload: PushNotificationPayload):
-    """API endpoint to send a push notification"""
-    result = await send_push_notification(
-        user_id=payload.user_id,
-        title=payload.title,
-        message=payload.message,
-        data=payload.data,
-        action_url=payload.action_url
-    )
-    return result
 
 
 # Domain-specific notification helpers moved to push_payloads.py (v88)

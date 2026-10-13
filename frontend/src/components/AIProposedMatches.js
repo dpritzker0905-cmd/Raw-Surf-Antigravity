@@ -27,7 +27,8 @@ import { Card, CardContent } from './ui/card';
 import { 
   Check, X, Image, Video, AlertCircle, Loader2, 
   Crown, Lock, Eye,
-  Sparkles, DollarSign, CheckCircle, Gift, CreditCard, Shield
+  Sparkles, DollarSign, CheckCircle, Gift, CreditCard, Shield,
+  ScanFace, Palette, Shirt, Camera, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
@@ -103,19 +104,22 @@ const ConfidenceBadge = ({ confidence, matchMethod }) => {
     return 'bg-red-500/20 text-red-400 border-red-500/30';
   };
   
-  const getMethodIcon = (method) => {
+  const getMethod = (method) => {
     switch (method) {
- case 'face_match': return '=';
- case 'board_color': return '=';
- case 'wetsuit': return '=';
- case 'profile_photo': return '=+';
- default: return '=';
+      case 'face_match': return { Icon: ScanFace, label: 'Face match' };
+      case 'board_color': return { Icon: Palette, label: 'Board color match' };
+      case 'wetsuit': return { Icon: Shirt, label: 'Wetsuit match' };
+      case 'profile_photo': return { Icon: Camera, label: 'Profile photo match' };
+      default: return { Icon: Search, label: 'AI match' };
     }
   };
-  
+  const { Icon: MethodIcon, label: methodLabel } = getMethod(matchMethod);
+
   return (
-    <Badge className={`${getConfidenceColor(confidence)} border text-xs`}>
-      {getMethodIcon(matchMethod)} {Math.round(confidence * 100)}% match
+    <Badge className={`${getConfidenceColor(confidence)} border text-xs`} title={methodLabel}>
+      <MethodIcon className="w-3 h-3 mr-1" aria-hidden="true" />
+      <span className="sr-only">{methodLabel}: </span>
+      {Math.round(confidence * 100)}% match
     </Badge>
   );
 };

@@ -1,6 +1,10 @@
 import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
-import { traceOmUrl, traceOmBlock } from './omUrlTrace';
+import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
+import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
+import { OPEN_METEO_SPATIAL_BASE_URL, isOpenMeteoSpatialUrl } from './openMeteoEndpoints';
+import { reportProtocolRegistrationFailure } from './openMeteoProtocolFailure';
+import { RasterDecodeWork, rasterWorkEnabled } from './rasterDecodeWork';
 
 // F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
 // active, an unconditional console.log per decoded tile materially amplifies tile-heavy
@@ -141,16 +145,8 @@ if (typeof window !== 'undefined') {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // In-memory cache for decoded tile buffers to bypass WASM decode and fetch entirely on hits during timeline scrubs
-const DECODED_TILE_CACHE = new Map();
-const MAX_CACHE_SIZE = 150;
-
-function cacheDecodedTile(key, value) {
-  if (DECODED_TILE_CACHE.size >= MAX_CACHE_SIZE) {
-    const oldestKey = DECODED_TILE_CACHE.keys().next().value;
-    DECODED_TILE_CACHE.delete(oldestKey);
-  }
-  DECODED_TILE_CACHE.set(key, value);
-}
+const decodedWork = new RasterDecodeWork(150);
+const DECODED_TILE_CACHE = decodedWork.cache;
 
 // Marine variables — identification only (no longer used for raster clipping since Phase 4A GPU migration)
 // Marine rendering is now 100% GPU-driven via WebGLMarineEngine heatmap + particles.
@@ -424,7 +420,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       const urlString = typeof input === 'string' ? input : input?.url || '';
       
       // Fast-path: Block requests to known missing model runs or specific missing tiles in 0ms
-      if (urlString.includes('map-tiles.open-meteo.com')) {
+      if (isOpenMeteoSpatialUrl(urlString)) {
         if (MISSING_OM_TILES.has(urlString)) {
           return Promise.resolve(new Response('OM Tile Missing', {
             status: 404,
@@ -442,23 +438,17 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
       }
 
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
+      if (isOpenMeteoSpatialUrl(urlString) && urlString.includes('latest.json') && !urlString.includes('time_step=') && !urlString.includes('skip_intercept=true') && MODEL_METADATA_CACHE) {
         try {
           const urlObj = new URL(urlString);
           const parts = urlObj.pathname.split('/');
           const model = parts[2];
-          if (model && MODEL_METADATA_CACHE[model] && MODEL_METADATA_CACHE[model].validTimes?.length) {
+          if (model && LIVE_FETCHED_MODELS.has(model) && MODEL_METADATA_CACHE[model]?.sourceMetadata) {
             const meta = MODEL_METADATA_CACHE[model];
             WeatherTelemetry.trackCacheHit(model, 'MODEL_METADATA_CACHE');
-            const responseData = {
-              completed: true,
-              crs_wkt: "",
-              last_modified_time: new Date().toISOString(),
-              reference_time: meta.referenceTime || new Date().toISOString(),
-              valid_times: meta.validTimes,
-              variables: meta.variables || []
-            };
-            return Promise.resolve(new Response(JSON.stringify(responseData), {
+            // Only a validated provider response can stand in for latest.json.
+            // Never promote bootstrap cycle/time guesses or UI aliases to provider truth.
+            return Promise.resolve(new Response(JSON.stringify(meta.sourceMetadata), {
               status: 200,
               statusText: 'OK',
               headers: { 'Content-Type': 'application/json' }
@@ -472,7 +462,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       }
 
       let effectiveInit = init;
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+      if (isOpenMeteoSpatialUrl(urlString) && urlString.includes('.om')) {
         effectiveInit = { ...init, cache: 'no-store' };
       }
 
@@ -480,7 +470,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       const promise = originalFetch.call(this, input, effectiveInit);
 
       // Inspect response and register 404s for .om tile runs
-      if (urlString.includes('map-tiles.open-meteo.com') && urlString.includes('.om')) {
+      if (isOpenMeteoSpatialUrl(urlString) && urlString.includes('.om')) {
         return promise.then(res => {
           const duration = Date.now() - fetchStartTime;
           if (res.status === 404) {
@@ -693,7 +683,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
     // Global programmatic GRIB tile prefetcher for marine waves (bypasses MapLibre entirely)
     window.__FETCH_OM_TILE__ = async (variable, timeIndex, model = 'ncep_gfswave025') => {
       if (typeof window === 'undefined') return;
-      const url = `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${timeIndex}&variable=${variable}`;
+      const url = `om://${OPEN_METEO_SPATIAL_BASE_URL}/${model}/latest.json?time_step=valid_times_${timeIndex}&variable=${variable}`;
       
       const abortController = new AbortController();
       const currentSettings = window.__OM_PROTOCOL_SETTINGS__ || settings;
@@ -832,19 +822,20 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const effectiveSettings = currentSettings;
 
           // v3.15: Serialized concurrency lock to prevent parallel setToOmFile race condition OOM crashes
-          const runProtocol = async () => {
+          const runProtocol = async (decodeController = abortController, epoch = decodedWork.epoch) => {
+            const cacheKey = decodedWork.key(params.url, params.type, effectiveSettings);
             const tileKey = params.url || 'unknown-tile';
 
             // 1. Fast-path: Return cached decoded tile immediately in 0ms on hits (exempt marine variables to guarantee main-thread broadcast updates)
-            if (!isMarine && DECODED_TILE_CACHE.has(tileKey)) {
+            if (!decodeController.signal.aborted && !isMarine && DECODED_TILE_CACHE.has(cacheKey)) {
               TILE_TRUTH.cacheHits++;
               TILE_TRUTH.recentTiles.push({ key: tileKey.slice(-60), source: 'CACHE_HIT', timestamp: Date.now(), marine: isMarine });
               if (TILE_TRUTH.recentTiles.length > 50) TILE_TRUTH.recentTiles.shift();
-              WeatherTelemetry.trackTileLoaded(tileKey, true);
-              return DECODED_TILE_CACHE.get(tileKey);
+              WeatherTelemetry.trackTileLoaded(tileKey, true); traceOmServed('cache_hit');
+              return decodedWork.get(cacheKey);
             }
 
-            if (abortController.signal.aborted) {
+            if (decodeController.signal.aborted) {
               throw new DOMException('The user aborted a request.', 'AbortError');
             }
 
@@ -852,13 +843,13 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             WeatherTelemetry.trackTileRequest(tileKey, tileKey);
             const startTime = Date.now();
             try {
-              if (abortController.signal.aborted) {
+              if (decodeController.signal.aborted) {
                 WeatherTelemetry.trackTileLoaded(tileKey, false);
                 throw new DOMException('The user aborted a request.', 'AbortError');
               }
               WeatherTelemetry.trackRasterDecodeStart(tileKey);
-              const res = await omProtocol(params, abortController, effectiveSettings);
-              TILE_TRUTH.protocolCalls++;
+              const res = await omProtocol(params, decodeController, effectiveSettings);
+              TILE_TRUTH.protocolCalls++; traceOmServed('decode');
               TILE_TRUTH.cacheMisses++;
               const clipApplied = !!(effectiveSettings?.clippingOptions?.geojson);
               TILE_TRUTH.recentTiles.push({
@@ -877,8 +868,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               WeatherTelemetry.trackRasterDecoded(tileKey, Date.now() - startTime);
 
               // 2. Cache successful decoded result
-              if (res && res.data) {
-                cacheDecodedTile(tileKey, res);
+              if (res && res.data && !decodeController.signal.aborted && (!isMarine || !rasterWorkEnabled())) {
+                decodedWork.set(cacheKey, res, epoch);
               }
               const isFallbackActive = params.url && params.url.includes('webgl_fallback=true');
               if (isMarine && !isFallbackActive) {
@@ -900,7 +891,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           };
 
           try {
-            return runProtocol();
+            return decodedWork.run(decodedWork.key(params.url, params.type, effectiveSettings),
+              effectiveSettings, abortController, isMarine || params.type !== 'arrayBuffer', runProtocol);
           } catch (syncErr) {
             if (syncErr.name === 'AbortError' || syncErr.message?.includes('aborted')) {
               throw syncErr;
@@ -912,7 +904,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       } catch (e) { /* already registered - will read from window.__OM_PROTOCOL_SETTINGS__ */ }
     }
     setProtocolReady(true);
-  });
+    // F-15: this chain had no .catch, and setProtocolReady(true) is its LAST statement — so any
+    // throw above left protocolReady false forever and silently blanked all six raster layers.
+  }).catch(err => reportProtocolRegistrationFailure(err, setProtocolReady));
 }
 
 /**
@@ -922,7 +916,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
  * @returns {Promise<void>}
  */
 export function clearOpenMeteoCache() {
-  DECODED_TILE_CACHE.clear();
+  decodedWork.clear();
   if (typeof window !== 'undefined' && window.__DECODED_OM_TILES__) {
     window.__DECODED_OM_TILES__.clear();
     console.log('[CACHE] [OM-Protocol] Main-thread window.__DECODED_OM_TILES__ cleared successfully');

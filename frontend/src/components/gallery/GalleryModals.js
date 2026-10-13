@@ -31,7 +31,7 @@ export const TagAssignModal = ({
               <DialogHeader>
                 <DialogTitle className="text-foreground flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-400" />
- Tag & Assign G {selectedGallery?.title || 'Gallery'}
+                  Tag & Assign -- {selectedGallery?.title || 'Gallery'}
                 </DialogTitle>
                 <p className="text-xs text-muted-foreground">
                   {selectedItems.size > 0 
@@ -45,10 +45,10 @@ export const TagAssignModal = ({
                 <div className="rounded-lg p-2.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-[11px] font-semibold text-purple-400">
- = {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
+                      {selectedItems.size > 0 ? `${selectedItems.size} Selected` : `All ${galleryItems.length} Items`}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
- {galleryItems.filter(i => i.media_type !== 'video').length} =+ G {galleryItems.filter(i => i.media_type === 'video').length} =
+                      {galleryItems.filter(i => i.media_type !== 'video').length} photos &middot; {galleryItems.filter(i => i.media_type === 'video').length} videos
                     </span>
                   </div>
                   <div className="flex gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
@@ -143,23 +143,23 @@ export const TagAssignModal = ({
                               </div>
                               {isFullyDistributed ? (
                                 <p className="text-[11px] text-emerald-400 font-medium mt-0.5">
- G All {p.items_distributed} items already delivered
+                                  All {p.items_distributed} items already delivered
                                 </p>
                               ) : (
                                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                                   {p.items_distributed > 0 && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>
- = {p.items_distributed} sent
+                                      {p.items_distributed} sent
                                     </span>
                                   )}
                                   {creditsToUse > 0 && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399' }}>
- =n+ {creditsToUse} included
+                                      {creditsToUse} included
                                     </span>
                                   )}
                                   {previewCount > 0 && (
                                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
- = {previewCount} preview
+                                      {previewCount} preview
                                     </span>
                                   )}
                                 </div>
@@ -169,7 +169,7 @@ export const TagAssignModal = ({
                             {/* Action */}
                             {isFullyDistributed ? (
                               <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] flex-shrink-0">
- G Done
+                                Done
                               </Badge>
                             ) : (
                               <Button aria-label="Loader2" size="sm"
@@ -476,9 +476,9 @@ export const LinkSessionModal = ({
                               ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                               : 'bg-orange-500/20 text-orange-400 border-orange-500/30'
                           }`}>
- {session.session_type === 'live' ? '= Live' :
- session.session_type === 'booking' ? '= Booking' :
- 'G On-Demand'}
+                            {session.session_type === 'live' ? 'Live' :
+                             session.session_type === 'booking' ? 'Booking' :
+                             'On-Demand'}
                           </Badge>
                           <Badge className={`text-[8px] px-1 py-0 ${
                             session.status === 'active' || session.status === 'shooting'

@@ -30,6 +30,35 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
+    "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
+    "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),
+    "MANIFEST_IMMUTABLE_PUBLICATION": ("0", "Publish unique create-only manifest copies only after durable upload acknowledgment", "Render env + ingestion/precompute/monitor together"),
+    "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
+    "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
+    "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),
+    "PRODUCT_REVISION_REFRESH": ("0", "Validate changed manifest registrations before replacing existing L1 forecast objects", "Render env; staging bytes/concurrency/egress acceptance before activation"),
+    "INGEST_PRUNE_VERIFIED_CYCLES": ("0", "Prune only verified-cycle duplicates of the same hour, source and coverage; preserve unknowns and unique tails", "Render env + ingestion/precompute/monitor together"),
+    "COPERNICUS_TERMINAL_TIME_GUARD": ("0", "Stop dataset-wide temporal tile failures; reject empty success cache rows", "Render env + ingestion/precompute/monitor together"),
+    "SURF_REQUESTED_HORIZON": ("0", "Resolve only requested spot forecast days; current-only never fetches future frames", "Render env + ingestion/precompute/monitor together"),
+    "SURF_STRICT_AVAILABILITY": ("0", "Keep missing/invalid spot sea unavailable; preserve measured zero", "Render env + ingestion/precompute/monitor together"),
+    "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
+    "WIND_GRID_GFS_GLOBAL": ("0", "GFS wind grids ask Open-Meteo for gfs_global, not gfs_seamless (HRRR inside its domain): "
+                                  "one model under the GFS label, so a zoom cannot swap the eye's model", "Render env"),
+    # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
+    # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
+    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
+                            "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
+                       "Render env"),
+    # SERVE-BOX COST, not physics (2026-10-10): no wind number moves (tests/test_wind_bg_build_bounded.py pins the
+    # vectors equal, on vs off). Off, a fresh wind box builds all ~385 hourly steps in the background with a full
+    # gc.collect() each (0.42 s on the event loop) and a new box cancels the task a request may be waiting on.
+    "WIND_BG_BUILD_BOUNDED": ("0", "Wind background build: only the hours a request waits for plus a +-6 h window, a short "
+                                   "linger for late waiters, young-generation GC per hour, and a new box no longer cancels "
+                                   "a task that has a waiter (serve-box CPU and event-loop time; no served number moves)",
+                              "Render env"),
+    "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
+    "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the
     # nine multiplicative factors removed the most. Pulling it changes no score, only the ability to
     # say WHY. Declared in the same commit that added it: an undeclared switch is invisible to the
@@ -215,6 +244,10 @@ _RATING_FLAGS = {
     # heights — the exact RATING_TIDE-class trap. 4x the marine point resolutions when on.
     "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # Roadmap stage 4 (2026-09-27). DARK until the nearshore judge's archived-grid arm has the hours.
+    "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
+                                         "instead of the offshore field + parametric transform (all surfaces)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible
@@ -242,26 +275,27 @@ _RATING_FLAGS = {
                                          "0 = the pre-2026-08-05 laboratory ceilings 1.05/1.25, "
                                          "which sat 54% above anything ever measured in the field",
                                     "Render env"),
-    "SURF_REFRACTION_KR":          ("0.797", "Nearshore refraction coefficient, measured against "
-                                             "CDIP instruments (385,651 QC-good swell hours, 10 CA "
-                                             "sites). The transform previously assumed 1.0 and so "
-                                             "over-predicted by +25.5%. ⛔ PARTNER OF "
+    "SURF_REFRACTION_KR":          ("0.873", "Nearshore refraction coefficient, measured against "
+                                             "CDIP instruments AND the chain it multiplies (394,331 "
+                                             "QC-good swell hours, 10 CA sites, 2026-09-27; was 0.797, "
+                                             "which double-counted shelf friction + exposure). The "
+                                             "transform once assumed 1.0. ⛔ PARTNER OF "
                                              "SURF_HEIGHT_H110 — setting this to 1.0 while H110 is "
                                              "on reinstates that +25.5%",
                                     "Render env"),
-    # ── 2026-08-15: THE CAP-SEAM REPAIR (11.0 §3.8 / Master Codex MC-01) — dark until flipped. ──
+    # ── 2026-08-15: THE CAP-SEAM REPAIR (11.0 §3.8 / Master Codex MC-01) — DEFAULT ON since 2026-09-28, ──
+    # paired with cross-shelf friction off (SHELF_CF_SCALE_DEFAULT = 0), which sends more wide-shelf seas to the cap.
     # Legacy compares the PRE-conversion height to the γ·d cap and converts only the unsaturated
     # branch, so the published height climbs to 1.27×cap then FALLS onto cap as offshore Hs rises
     # 0.01 m (largest probe drop −21.3%: 8.2294 m → 6.4800 m). The repair saturates the H1/10
     # statistic in its own space: min(converted, cap). Binds only where the depth cap binds
     # (0.145% of served spot-hours, n=227,088) — big-wave frames.
-    "SURF_CAP_SEAM_MONOTONE":      ("0", "Cap-seam repair: saturate the published H1/10 statistic "
+    "SURF_CAP_SEAM_MONOTONE":      ("1", "Cap-seam repair: saturate the published H1/10 statistic "
                                          "in its own space — min(converted, γ·d) — so a rising "
                                          "offshore sea can never DROP the published surf height at "
-                                         "the breaking-regime edge. OFF = legacy seam, "
-                                         "byte-identical. ⚠️ FLIP ALL LANES TOGETHER (precomputed "
-                                         "frames bake heights) after the band census is "
-                                         "owner-reviewed",
+                                         "the breaking-regime edge. ON since 2026-09-28 (paired "
+                                         "with cross-shelf friction off); OFF = legacy seam. ⚠️ "
+                                         "FLIP ALL LANES TOGETHER (precomputed frames bake heights)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
 }
 

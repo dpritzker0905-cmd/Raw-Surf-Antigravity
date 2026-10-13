@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { composerConditionsEnabled, historicalSession, applyConditionFields } from '../utils/composerConditions';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { useAuth } from '../contexts/AuthContext';
@@ -91,9 +92,21 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
   };
 
   const fetchConditions = async (lat, lon, spotName) => {
+    if (composerConditionsEnabled() && historicalSession(sessionDate)) {
+      toast.error('Current forecasts cannot fill a past session. Enter observed conditions.');
+      return;
+    }
     setConditionsLoading(true);
     try {
       const { data: d } = await apiClient.get(`/surf-conditions`, { params: { latitude: lat, longitude: lon, spot_name: spotName } });
+      if (composerConditionsEnabled()) {
+        const available = applyConditionFields(d, { waveHeightFt: setWaveHeightFt, wavePeriodSec: setWavePeriodSec, waveDirection: setWaveDirection, waveDirectionDegrees: setWaveDirectionDegrees, windSpeedMph: setWindSpeedMph, windDirection: setWindDirection, tideStatus: setTideStatus, tideHeightFt: setTideHeightFt });
+        setConditionsSource(available ? 'auto_current' : 'unavailable');
+        setShowSessionData(true);
+        if (available) toast.success('Current forecast filled. These are modeled conditions.');
+        else toast.error('No conditions available for this location. Enter observed conditions.');
+        return;
+      }
       if (d.wave_height_ft) setWaveHeightFt(d.wave_height_ft.toString());
       if (d.wave_period_sec) setWavePeriodSec(d.wave_period_sec.toString());
       if (d.wave_direction) setWaveDirection(d.wave_direction);

@@ -76,6 +76,25 @@ beforeEach(() => {
   delete window.__MARINE_ENGINE__;
 });
 
+describe('resident frame evidence reaches the HUD parity verdict', () => {
+  test.each([
+    ['mismatch', 'MISMATCH', ['servedValidTime'], []],
+    ['unverified', 'UNSAMPLED', [], ['modelRunTime']],
+  ])('%s frame evidence cannot become a label-only MATCH', (status, expected, mismatches, missing) => {
+    setHeatmapDiag();
+    window.__WebGLMarineLayer_DIAG__.frameParity = { status, mismatches, missing };
+    writeOverlayDiagnostics(baseParams({ exactPoint: { provider: 'open-meteo' }, exactPointStatus: 'valid' }));
+    expect(window.__MARINE_SOURCE_PARITY__.status).toBe(expected);
+    expect(window.__MARINE_SOURCE_PARITY__.match).toBe(false);
+  });
+  test('frame comparison is not applicable when no point is selected', () => {
+    setHeatmapDiag();
+    window.__WebGLMarineLayer_DIAG__.frameParity = { status: 'unverified', mismatches: [], missing: ['servedValidTime'] };
+    writeOverlayDiagnostics(baseParams({ lat: null, lng: null }));
+    expect(window.__MARINE_SOURCE_PARITY__.status).toBe('NOT_APPLICABLE');
+  });
+});
+
 describe('source parity refuses instead of passing', () => {
   test('REGRESSION: an idle, never-sampled infobox is UNSAMPLED — not a match', () => {
     // This is the exact production state: field rendered, infobox never sampled.

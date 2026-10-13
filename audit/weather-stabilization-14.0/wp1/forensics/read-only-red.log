@@ -1,0 +1,86 @@
+FAIL src/components/map/backendWeatherServiceClient.readOnly.test.js
+  × a read-only time lookup never fetches a missing/empty manifest: null (3 ms)
+  × a read-only time lookup never fetches a missing/empty manifest: {"products":[]} (1 ms)
+  × read-only resolution uses the existing manifest cadence without changing serving diagnostics (2 ms)
+  √ existing serving callers still refresh missing manifests and publish diagnostics (5 ms)
+
+  ● a read-only time lookup never fetches a missing/empty manifest: null
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: "https://raw-surf-antigravity.onrender.com/api/weather/products"
+
+      21 |   setCachedManifest(manifest);
+      22 |   expect(getSharedValidTime(0, 'waves', 'GFS', { readOnly: true })).toBe(NOW);
+    > 23 |   expect(global.fetch).not.toHaveBeenCalled();
+         |                            ^
+      24 |   expect(latestTimeDiag.GFS_waves).toEqual({ sentinel: 'serving diagnostics' });
+      25 | });
+      26 |
+
+      at src/components/map/backendWeatherServiceClient.readOnly.test.js:23:28
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  ● a read-only time lookup never fetches a missing/empty manifest: {"products":[]}
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: "https://raw-surf-antigravity.onrender.com/api/weather/products"
+
+      21 |   setCachedManifest(manifest);
+      22 |   expect(getSharedValidTime(0, 'waves', 'GFS', { readOnly: true })).toBe(NOW);
+    > 23 |   expect(global.fetch).not.toHaveBeenCalled();
+         |                            ^
+      24 |   expect(latestTimeDiag.GFS_waves).toEqual({ sentinel: 'serving diagnostics' });
+      25 | });
+      26 |
+
+      at src/components/map/backendWeatherServiceClient.readOnly.test.js:23:28
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  ● read-only resolution uses the existing manifest cadence without changing serving diagnostics
+
+    expect(received).toEqual(expected) // deep equality
+
+    - Expected  - 1
+    + Received  + 4
+
+      Object {
+    -   "sentinel": "serving diagnostics",
+    +   "fallbackReason": null,
+    +   "manifestDeltaHours": 1,
+    +   "requestedValidTime": "2026-09-20T22:00:00.000Z",
+    +   "selectedManifestValidTime": "2026-09-20T21:00:00.000Z",
+      }
+
+      29 |   expect(getSharedValidTime(1, 'waves', 'GFS', { readOnly: true })).toBe(NOW);
+      30 |   expect(global.fetch).not.toHaveBeenCalled();
+    > 31 |   expect(latestTimeDiag.GFS_waves).toEqual({ sentinel: 'serving diagnostics' });
+         |                                    ^
+      32 |   expect(getSharedValidTime(1, 'waves', 'GFS')).toBe(NOW);
+      33 |   expect(latestTimeDiag.GFS_waves.requestedValidTime).toBe('2026-09-20T22:00:00.000Z');
+      34 | });
+
+      at Object.<anonymous> (src/components/map/backendWeatherServiceClient.readOnly.test.js:31:36)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 1 passed, 4 total
+Snapshots:   0 total
+Time:        1.733 s
+Ran all test suites within paths "src/components/map/backendWeatherServiceClient.readOnly.test.js".

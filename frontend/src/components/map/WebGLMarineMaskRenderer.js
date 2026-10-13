@@ -49,6 +49,9 @@ export function isBasemapWaterSourceReady(mapInstance) {
     let waterSource = 'composite';
     const baseWater = mapInstance.getStyle()?.layers?.find(l => l.id === 'water');
     if (baseWater && baseWater.source) waterSource = baseWater.source;
+    // No basemap water source at all (the A15-17 fallback style): fail open WITHOUT asking, because
+    // isSourceLoaded fires a map `error` event for an unknown source id on every mask refresh.
+    if (typeof mapInstance.getSource === 'function' && !mapInstance.getSource(waterSource)) return true;
     if (typeof mapInstance.isSourceLoaded === 'function') {
       const v = mapInstance.isSourceLoaded(waterSource);
       if (typeof v === 'boolean' && !v) return false;
@@ -76,6 +79,45 @@ export function isBasemapWaterSourceReady(mapInstance) {
 // NE land (0) forces mask 0, NE water (255) leaves the mask untouched (open water, canals, sheltered
 // 64, and port-landfill land — all NE=water or already black — survive). Full resolution so thin cays
 // NE carries survive (the old 1024 snapshot averaged them to water). Exported for tests.
+/**
+ * ISLAND RE-ASSERT GATE — pure, exported so the threshold is testable rather than inline.
+ *
+ * ⭐ 1200 → 400 (2026-08-17), and this is the ISLAND-HALO fix. The re-assert MULTIPLIES coarse
+ * Natural Earth land back over the accurate basemap-derived mask, so wherever NE's generalized
+ * coastline bulges seaward of the real one it FORCES the mask to land and the marine field is
+ * carved off real water. Measured at Madeira z9.30, per bearing, on the deployed build:
+ *
+ *     leg                       visible band    onset median   worst bearing
+ *     stock (gate 1200)            15 px            5 px       75° @ 57 px
+ *     re-assert DISABLED            3 px            0 px       255° @ 28 px
+ *     gate = 400                    3 px            0 px       255° @ 28 px
+ *
+ * The waves-OFF baseline is 2 px, so gate=400 returns the coast to the basemap's own edge, and it
+ * reproduces the fully-disabled result exactly while KEEPING the re-assert where it was justified.
+ *
+ * ⛔ WHY NOT SIMPLY DISABLE IT: it exists because the basemap's water polygons DROP small islands,
+ * which the ocean-white pass then floods — forensics measured Abaco 8–17% flooded at a z9 mask of
+ * **205 px/deg**, re-assert → 0. That evidence stands.
+ *
+ * ★ THE GATE WAS COMPARING THE WRONG PAIR. It asks whether the MASK's texel is coarser than NE, but
+ * what decides whether NE HELPS is whether the BASEMAP is coarser than NE. At 205 px/deg the mask is
+ * coarse and NE genuinely adds detail; the viewport overlay runs at ~850 px/deg (a 2048 canvas over
+ * ~2.4°) where the basemap is far finer than NE 10m and NE only corrupts. 400 separates the two:
+ * it keeps 205 (Abaco) and world masks (~11), and excludes the overlay (850) and the base (~1720).
+ *
+ * Tune/kill: `__RAW_ISLAND_REASSERT_MAX_DENSITY__`, `__RAW_DISABLE_ISLAND_REASSERT__`.
+ */
+export const ISLAND_REASSERT_MAX_DENSITY = 400;
+export function islandReassertEnabled(opts) {
+  const o = opts || {};
+  if (o.killed) return false;
+  const d = o.densityPxPerDeg;
+  if (typeof d !== 'number' || !isFinite(d) || d <= 0) return false;   // unknown => do not corrupt
+  const max = (typeof o.maxDensity === 'number' && isFinite(o.maxDensity) && o.maxDensity > 0)
+    ? o.maxDensity : ISLAND_REASSERT_MAX_DENSITY;
+  return d < max;
+}
+
 export function reassertNeLand(canvas, neFull) {
   if (!canvas || !neFull || typeof document === 'undefined') return { applied: false, reason: 'no_input' };
   try {
@@ -93,8 +135,10 @@ export function reassertNeLand(canvas, neFull) {
   }
 }
 
-export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
-  if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
+// Resolve the existing finest-tile selection before allocating a refresh canvas. The packet is
+// owned by one synchronous paint attempt; never cache it across tile arrivals or map events.
+export function prepareBasemapWaterOverlay(mapInstance) {
+  if (!mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return null;
   let waterSource = 'composite';
   let waterSourceLayer = 'water';
   try {
@@ -135,10 +179,18 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     try {
       feats = mapInstance.querySourceFeatures(waterSource, { sourceLayer: waterSourceLayer });
     } catch (e) {
-      return false;
+      return null;
     }
   }
-  if (!feats || !feats.length) return false;
+  if (!feats || !feats.length) return null;
+  return { waterSource, feats, usedSourceFallback };
+}
+
+export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedWater) {
+  if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
+  const water = preparedWater || prepareBasemapWaterOverlay(mapInstance);
+  if (!water) return false;
+  const { waterSource, feats, usedSourceFallback } = water;
 
   // STRICT viewport in geographic coords — the truth patch region. NO pad (was 40%): both tile
   // queries above can only see tiles covering the CURRENT viewport, so a padded rect black-fills
@@ -170,17 +222,27 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   // engages at every zoom the mask is coarse (z5-~z11) and self-disables where the basemap is
   // genuinely finer (z12+ meter tiles — re-asserting coarse NE there would blockify the coast).
   let neFull = null;
+  let checkOpenWaterDamage = false;
+  let islandOn = false;
   try {
     const _raOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
     const _densityPxDeg = _span > 0 ? canvas.width / _span : 0;
-    const _maxDensity = (typeof window !== 'undefined' && Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__)) || 1200;
-    if (!_raOff && _densityPxDeg > 0 && _densityPxDeg < _maxDensity) {
+    const _maxDensity = (typeof window !== 'undefined') ? Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__) : NaN;
+    // The pristine snapshot has two consumers with different density limits. A fine-basemap
+    // coast must not be overwritten by NE, but partial tile queries still need damage detection.
+    // `islandOn` is the ONLY thing that lets step 3c multiply NE land back: owning a snapshot for
+    // damage detection must never switch the re-assert on (it bypassed the 400 px/deg gate and the
+    // __RAW_DISABLE_ISLAND_REASSERT__ kill switch, bringing back the Madeira island halo).
+    checkOpenWaterDamage = _densityPxDeg > 0 && _densityPxDeg < 1200 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ === true);
+    islandOn = islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff });
+    if (checkOpenWaterDamage || islandOn) {
       neFull = document.createElement('canvas');
       neFull.width = canvas.width; neFull.height = canvas.height;
       neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
     }
-  } catch (e) { neFull = null; }
+  } catch (e) { neFull = null; islandOn = false; }
 
   // 1. Land-black the viewport patch (clipped to the canvas).
   const [px0, py0] = project(vb.west, vb.north);
@@ -279,15 +341,15 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     }
   }
 
-  // 3c. ISLAND RE-ASSERT (see reassertNeLand + the neFull capture above): multiply the pristine
-  //     full-res NE land back wherever the mask is coarser than NE (neFull is non-null only then).
+  // 3c. ISLAND RE-ASSERT: the independent 400 px/degree gate decides whether to multiply NE
+  //     land back. The damage detector also owns a snapshot, without overriding this gate.
   //     Runs AFTER the inland guard so it overrides any island the basemap flooded; the wetland +
   //     sheltered passes below only ever darken, so they can't re-flood it. Only darkens → the
   //     port-landfill/canal/sheltered verdicts (NE=water) are all preserved.
   try {
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
     const _dens = _span > 0 ? Math.round(canvas.width / _span) : null;
-    if (neFull) {
+    if (neFull && islandOn) {
       const rStats = reassertNeLand(canvas, neFull);
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.islandReassert = { ...rStats, densityPxDeg: _dens };
     } else if (typeof window !== 'undefined' && window.__RAW_GPU__) {
@@ -437,7 +499,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   let openWaterDegraded = false;
   try {
     const _w2 = typeof window !== 'undefined' ? window : {};
-    if (painted > 0 && neFull && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
+    if (painted > 0 && neFull && checkOpenWaterDamage && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
       const sx = Math.round(rx), sy = Math.round(ry), sw = Math.floor(rw), sh = Math.floor(rh);
       const cur = ctx.getImageData(sx, sy, sw, sh).data;
       const ne = neFull.getContext('2d', { willReadFrequently: true }).getImageData(sx, sy, sw, sh).data;
@@ -710,7 +772,7 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
     try {
       const keep = document.createElement('canvas');
       keep.width = canvas.width; keep.height = canvas.height;
-      keep.getContext('2d').drawImage(canvas, 0, 0);
+      keep.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
       _maskCanvasCache.delete(cacheKey);
       _maskCanvasCache.set(cacheKey, keep);
       while (_maskCanvasCache.size > MASK_CANVAS_CACHE_MAX) {

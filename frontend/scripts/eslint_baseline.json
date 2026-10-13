@@ -1,9 +1,9 @@
 {
   "_comment": "Pre-existing frontend lint debt. SHRINK-ONLY — counts may fall, never rise. Regenerate with `node scripts/check_eslint.js --write-baseline` after genuinely reducing debt. Rules in ALWAYS_ZERO (see check_eslint.js) can never appear here.",
-  "_filesLinted": 1015,
+  "_filesLinted": 1113,
   "errors": {
-    "no-redeclare": 77,
-    "no-empty": 74,
+    "no-empty": 73,
+    "no-redeclare": 10,
     "no-constant-binary-expression": 1,
     "no-constant-condition": 1,
     "no-useless-escape": 1
@@ -13,7 +13,7 @@
     "jsx-a11y/click-events-have-key-events": 194,
     "jsx-a11y/no-static-element-interactions": 185,
     "jsx-a11y/control-has-associated-label": 149,
-    "unused-imports/no-unused-imports": 128,
+    "unused-imports/no-unused-imports": 125,
     "jsx-a11y/no-noninteractive-element-interactions": 52,
     "(unused eslint-disable directive)": 22
   }

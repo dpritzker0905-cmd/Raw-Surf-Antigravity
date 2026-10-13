@@ -16,6 +16,7 @@
 
 import axios from 'axios';
 import { toast } from 'sonner';
+import { markSessionRejected, sessionRejectedRecently } from './sessionRejection';
 
 const DEFAULT_BACKEND_URL = 'https://raw-surf-antigravity.onrender.com';
 
@@ -25,28 +26,53 @@ export const BACKEND_URL = (typeof window !== 'undefined' && (window.__BACKEND_U
 /** Full /api base URL string -- for edge cases that still need a bare string */
 export const API_BASE = `${BACKEND_URL}/api`;
 
+/**
+ * Default request timeout.
+ *
+ * Was 60s, justified as "handles Render free-tier cold starts (30-60s warm-up)". That premise is
+ * FALSE: the backend is on a PAID Render plan and does not idle-spin-down, so no request is
+ * waiting on a 30-60s wake. What the 60s actually bought was a 60-second delay before a genuine
+ * failure -- a saturated box, a stalled upstream, a dead worker -- became visible to the user.
+ *
+ * 15s covers a deploy-restart blip (the one real stall left) with margin, and surfaces real
+ * breakage ~4x sooner. Compare the feed's own 8s timeout, which has been shorter than the
+ * "30s cold start" its comment claimed all along and has not caused trouble.
+ *
+ * Genuinely slow endpoints are NOT covered by this and must not be: see SLOW_ENDPOINTS below.
+ */
+const DEFAULT_TIMEOUT_MS = 15000;
+
+/**
+ * Endpoints that are legitimately slow -- model inference, image compositing, bulk fan-out --
+ * and were silently relying on the old 60s default. Dropping the default without these would
+ * convert working features into timeouts, so each is pinned explicitly with its reason.
+ *
+ * A caller passing its own `timeout` always wins over this list.
+ */
+const SLOW_ENDPOINTS = [
+  { pattern: /^\/ai\/(suggest-tags|face-match|analyze-photo|scan-surfboard)/, ms: 90000 }, // vision model inference
+  { pattern: /^\/gallery\/trigger-ai-match/, ms: 90000 },                                  // batch face-match fan-out
+  { pattern: /^\/gallery\/generate-watermark-preview/, ms: 60000 },                         // server-side image compositing
+  { pattern: /^\/compliance\/data-export\//, ms: 120000 },                                  // full-account GDPR export
+  { pattern: /^\/admin\/bulk-campaigns\/[^/]+\/send/, ms: 120000 },                         // fan-out to every recipient
+];
+
 const apiClient = axios.create({
   baseURL: `${BACKEND_URL}/api`,
- timeout: 60000, // 60s -- handles Render free-tier cold starts (30-60s warm-up)
+  timeout: DEFAULT_TIMEOUT_MS,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// --- Cold-start warmup ---
-// The backend runs on Render's free tier, which spins the server down after ~15 min idle
-// and takes 20-60s to wake on the next request. Fire a lightweight fire-and-forget ping at
-// module-import time (before React even renders) so the server starts waking as early as
-// possible, overlapping the cold start with app bootstrap instead of the user's first
-// weather fetch. Any request wakes Render, so a 404 is fine; errors are intentionally ignored.
-// NOTE: this only shaves time by starting the wake earlier — it does NOT eliminate the cold
-// start. The real fix is keeping the backend warm (a cron ping every ~10 min, or a paid tier).
-if (typeof window !== 'undefined' && typeof fetch === 'function') {
-  try {
-    fetch(`${BACKEND_URL}/api/health`, { method: 'GET', mode: 'cors', cache: 'no-store', keepalive: true })
-      .catch(() => { /* warmup is best-effort; ignore failures */ });
-  } catch { /* ignore */ }
-}
+// --- Cold-start warmup: REMOVED ---
+// A fire-and-forget GET /api/health used to run here at module-import time, to start waking a
+// spun-down Render box before React rendered. Its own closing note read: "The real fix is keeping
+// the backend warm (a cron ping every ~10 min, or a PAID TIER)." That fix has since been applied --
+// the backend is on a paid plan and does not idle-spin-down -- so the ping woke nothing and was
+// simply one extra request on every single app load. Deleted rather than re-commented: there is no
+// remaining behaviour to explain. (Connection pre-warm is not a reason to keep it; the first real
+// request follows milliseconds later and opens the connection itself.)
 
 // --- Request interceptor -- inject auth token ---
 apiClient.interceptors.request.use(
@@ -64,6 +90,16 @@ apiClient.interceptors.request.use(
  // Malformed localStorage -- silently skip; 401 interceptor below will handle
     }
 
+    // Raise the timeout for known-slow endpoints. Only when the caller did NOT set its own:
+    // axios has already merged defaults by this point, so `timeout === DEFAULT_TIMEOUT_MS` is
+    // how we detect "caller expressed no opinion".
+    if (config.timeout === DEFAULT_TIMEOUT_MS && typeof config.url === 'string') {
+      const slow = SLOW_ENDPOINTS.find((e) => e.pattern.test(config.url));
+      if (slow) {
+        config.timeout = slow.ms;
+      }
+    }
+
     // Per-request debug is OPT-IN (window.__RAW_API_DEBUG__ = true): the dispatch/unread-count
     // pollers fire every few seconds, so the old always-on dev line flooded the console within a
     // minute and drowned the marine forensic logs. Errors/warnings below stay always-on in dev.
@@ -76,16 +112,57 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// --- Track whether we've already shown the session-expired message ---
-let _sessionExpiredShown = false;
+// --- 401 -> the sign-in form: once per refused session, never a loop ---
+// The redirect is a HARD load, so module state only dedupes the 401s of one page (`_redirectPending`
+// is deliberately NOT reset by a later 2xx: that reset scheduled one redirect per 401 that followed
+// a success, i.e. several GET /auth per page). What survives the hard load is the sessionRejection
+// mark. 2026-10-08: without it, a session that re-appeared after the clear (the development mock
+// seed in AuthContext, another tab) cycled 401 -> /auth -> /feed -> 401 until the tab was closed.
+let _redirectPending = false;
+let _signInPromptShown = false;
+
+const SIGN_IN_PATH = '/auth?tab=login';
+const SESSION_TOAST_ID = 'session-expired';
+const SESSION_KEYS = ['raw-surf-user', 'raw-surf-user-original', 'impersonation_session',
+  'isGodMode', 'isPersonaBarActive', 'activePersona',
+  'godModeMinimized', 'godModeDesktopMinimized'];
+
+const clearStoredSession = () => SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
+
+function handleRefusedSession() {
+  const currentPath = window.location.pathname;
+  // Not from the auth page itself, nor from the admin console (it handles its own auth errors).
+  if (currentPath.startsWith('/auth') || currentPath.startsWith('/admin')) return;
+  if (_redirectPending) return;
+
+  if (sessionRejectedRecently()) {
+    // A 401 redirect landed in this tab moments ago and the session is refused AGAIN: something
+    // re-armed it. Navigating now would be the loop. Drop what was refused and offer the form;
+    // the next navigation is the user's click.
+    clearStoredSession();
+    if (!_signInPromptShown) {
+      _signInPromptShown = true;
+      toast.error('Your session was not accepted -- please sign in.', {
+        id: SESSION_TOAST_ID,
+        duration: Infinity,
+        action: { label: 'Sign in', onClick: () => { window.location.href = SIGN_IN_PATH; } },
+      });
+    }
+    return;
+  }
+
+  _redirectPending = true;
+  markSessionRejected();
+  toast.error('Session expired -- please sign in again.', { id: SESSION_TOAST_ID, duration: 4000 });
+  setTimeout(() => {
+    clearStoredSession();
+    window.location.href = SIGN_IN_PATH;
+  }, 2000);
+}
 
 // --- Response interceptor -- handle auth errors ---
 apiClient.interceptors.response.use(
-  (response) => {
-    // Reset session-expired flag on any successful response
-    _sessionExpiredShown = false;
-    return response;
-  },
+  (response) => response,
   (error) => {
     if (!error.response) {
       // Network / CORS errors
@@ -104,28 +181,22 @@ apiClient.interceptors.response.use(
     // Do NOT redirect if already on /auth (avoids redirect loops).
  // Do NOT redirect for admin-only endpoints -- let the admin console handle
     // those errors gracefully via its own .catch() handlers. The admin console
-    // fires 7+ parallel API calls on load; a single transient 401 (e.g. Render
-    // cold-start timing) should NOT nuke the entire session.
-    if (status === 401 && !_sessionExpiredShown) {
+    // fires 7+ parallel API calls on load; a single transient 401 should NOT nuke
+    // the entire session.
+    // WARNING: the original justification named "Render cold-start timing" as the source of that
+    // transient 401. That is not a real mechanism -- a cold start yields a timeout or a 502, never
+    // a 401 -- and the backend is on a paid plan with no idle spin-down anyway. The SUPPRESSION is
+    // left in place because it stands on its own (the admin console handles its own auth errors,
+    // and the /admin path check in handleRefusedSession already blocks the redirect), but it rests
+    // on a thinner rationale than it appears to: a 401 reaching here is probably GENUINE. Worth
+    // revisiting on its own merits rather than as cold-start debris.
+    if (status === 401) {
  // Skip if this is an auth call itself (login/signup) G let the caller handle it
       const isAuthCall = url.includes('/auth/login') || url.includes('/auth/signup');
  // Skip admin-only endpoints -- the admin console handles these errors itself
       const isAdminCall = url.includes('/admin/');
       if (!isAuthCall && !isAdminCall) {
-        _sessionExpiredShown = true;
-        const currentPath = window.location.pathname;
-        const isAlreadyOnAuth = currentPath.startsWith('/auth');
-        const isOnAdmin = currentPath.startsWith('/admin');
-        if (!isAlreadyOnAuth && !isOnAdmin) {
- toast.error('Session expired -- please sign in again.', { duration: 4000 });
-          setTimeout(() => {
-            // Clear ALL session data before redirecting
-            ['raw-surf-user', 'raw-surf-user-original', 'impersonation_session',
-             'isGodMode', 'isPersonaBarActive', 'activePersona',
-             'godModeMinimized', 'godModeDesktopMinimized'].forEach(k => localStorage.removeItem(k));
-            window.location.href = '/auth';
-          }, 2000);
-        }
+        handleRefusedSession();
       }
       return Promise.reject(error);
     }
@@ -144,7 +215,8 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
- // 503 -- backend is down / starting up on Render free tier
+ // 503 -- backend is down, restarting after a deploy, or shedding load. (Was attributed to
+    // "starting up on Render free tier"; there is no free-tier idle wake -- the plan is paid.)
     if (status === 503) {
       toast.error('Service temporarily unavailable. Please try again shortly.', { duration: 5000 });
       return Promise.reject(error);

@@ -1,5 +1,6 @@
 import logging
 import os
+from services.weather_pipeline.selection_identity import selection_identity
 from typing import List, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -88,12 +89,12 @@ def _select_best_from_list(
                         best_diff = diff
                         best_item = p
                     elif abs(cov_area - best_cov_area) < 0.0001:
-                        if diff < best_diff:
+                        if diff < best_diff or (diff == best_diff and selection_identity(p) < selection_identity(best_item)):
                             best_diff = diff
                             best_item = p
         else:
             # No bounding box requested, match purely on time difference
-            if diff < best_diff:
+            if diff < best_diff or (diff == best_diff and best_item is not None and selection_identity(p) < selection_identity(best_item)):
                 best_diff = diff
                 best_item = p
                 

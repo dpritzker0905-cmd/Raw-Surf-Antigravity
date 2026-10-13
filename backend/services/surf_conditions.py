@@ -124,9 +124,11 @@ async def get_noaa_tide_data(
     
     if target_datetime is None:
         target_datetime = datetime.now(timezone.utc)
-    
-    # Get predictions for today
-    date_str = target_datetime.strftime("%Y%m%d")
+    target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                       else target_datetime.astimezone(timezone.utc))
+    # Include adjacent days so midnight has both surrounding extrema in UTC.
+    begin_date = (target_datetime - timedelta(days=1)).strftime("%Y%m%d")
+    end_date = (target_datetime + timedelta(days=1)).strftime("%Y%m%d")
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -141,8 +143,8 @@ async def get_noaa_tide_data(
                     "time_zone": "gmt",
                     "application": "RawSurfOS",
                     "format": "json",
-                    "begin_date": date_str,
-                    "end_date": date_str,
+                    "begin_date": begin_date,
+                    "end_date": end_date,
                     "interval": "hilo"  # High/Low only
                 }
             )
@@ -159,7 +161,10 @@ async def get_noaa_tide_data(
             
             result = {
                 "source": "noaa",
-                "station_id": station_id
+                "station_id": station_id,
+                "tide_status": "unknown",
+                "tide_datum": "MLLW",
+                "tide_method": "linear_hilo_estimate"
             }
             
             # Parse predictions to find current tide status
@@ -210,7 +215,7 @@ async def get_noaa_tide_data(
                     result["next_low"] = next_tide["time"].isoformat()
                     result["next_low_height"] = next_tide["height"]
             
-            elif prev_tide:
+            elif prev_tide and prev_tide["time"] == now:
                 result["tide_status"] = "High" if prev_tide["type"] == "H" else "Low"
                 result["tide_height_ft"] = prev_tide["height"]
             
@@ -241,8 +246,15 @@ async def get_surf_conditions(
         Dictionary with wave_height_ft, wave_period_sec, wind_speed_mph, 
         wind_direction, and source
     """
+    explicit_target = target_datetime is not None
     if target_datetime is None:
         target_datetime = datetime.now(timezone.utc)
+    # The provider is queried in UTC. Naive caller timestamps retain the historical UTC convention.
+    target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                       else target_datetime.astimezone(timezone.utc))
+    target_hour = target_datetime.strftime("%Y-%m-%dT%H:00")
+    time_params = ({"start_hour": target_hour, "end_hour": target_hour}
+                   if explicit_target else {"forecast_days": 1})
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -263,9 +275,10 @@ async def get_surf_conditions(
                         "wave_height",
                         "wave_period",
                         "wave_direction",
+                        "swell_wave_height",
                     ],
                     "timezone": "UTC",
-                    "forecast_days": 1
+                    **time_params
                 }
             )
             
@@ -276,11 +289,12 @@ async def get_surf_conditions(
             data = response.json()
             
             # Get current conditions if available
-            current = data.get("current", {})
+            current = {} if explicit_target else data.get("current", {})
             
             wave_height_m = current.get("wave_height")
             wave_period = current.get("wave_period")
             wave_direction = current.get("wave_direction")
+            swell_height_m = current.get("swell_wave_height")
             
             # If no current data, try hourly
             if wave_height_m is None:
@@ -289,22 +303,19 @@ async def get_surf_conditions(
                 heights = hourly.get("wave_height", [])
                 periods = hourly.get("wave_period", [])
                 directions = hourly.get("wave_direction", [])
+                swells = hourly.get("swell_wave_height", [])
+                swell_height_m = None
                 
-                # Find closest hour
+                # Select the containing UTC hour. Missing data must not borrow another valid time.
                 if times and heights:
-                    target_hour = target_datetime.strftime("%Y-%m-%dT%H:00")
                     for i, t in enumerate(times):
                         if t == target_hour:
                             wave_height_m = heights[i] if i < len(heights) else None
                             wave_period = periods[i] if i < len(periods) else None
                             wave_direction = directions[i] if i < len(directions) else None
+                            swell_height_m = swells[i] if i < len(swells) else None
                             break
                     
-                    # If no exact match, use first available
-                    if wave_height_m is None and heights:
-                        wave_height_m = heights[0]
-                        wave_period = periods[0] if periods else None
-                        wave_direction = directions[0] if directions else None
             
             result = {
                 "source": "open-meteo",
@@ -320,8 +331,11 @@ async def get_surf_conditions(
                 breaking_ft, regime = _breaking_ft(
                     latitude, longitude, wave_height_m, wave_period, wave_direction)
                 result["wave_height_ft"] = breaking_ft          # BREAKING — what a surfer rides
-                result["swell_height_ft"] = meters_to_feet(wave_height_m)   # OFFSHORE — what the model reports
+                result["offshore_height_ft"] = meters_to_feet(wave_height_m)  # TOTAL SEA, not swell
                 result["surf_regime"] = regime                  # provenance: 'offshore_estimate' == the transform failed open
+
+            # Swell is a distinct provider quantity. Missing swell must not fall back to total sea.
+            result["swell_height_ft"] = meters_to_feet(swell_height_m) if swell_height_m is not None else None
 
             if wave_period is not None:
                 result["wave_period_sec"] = int(wave_period)
@@ -373,12 +387,16 @@ async def get_conditions_for_spot(
             "error": f"Unknown spot: {spot_name}. Try providing coordinates."
         }
     
-    # Get full conditions including tide
+    # Get full conditions including tide (current hour: the hub's composition, as in the coordinate path)
+    pipeline = (await pipeline_current_conditions(spot_info["lat"], spot_info["lon"])
+                if target_datetime is None else None)
     conditions = await get_full_conditions(
         spot_info["lat"],
         spot_info["lon"],
         spot_info["name"],
-        spot_info.get("noaa_station")
+        spot_info.get("noaa_station"),
+        target_datetime=target_datetime,
+        current_override=pipeline
     )
     
     conditions["coordinates"] = {"lat": spot_info["lat"], "lon": spot_info["lon"]}
@@ -388,7 +406,8 @@ async def get_conditions_for_spot(
 
 async def get_wind_conditions(
     latitude: float,
-    longitude: float
+    longitude: float,
+    target_datetime: Optional[datetime] = None
 ) -> Dict[str, Any]:
     """
     Fetch wind conditions from Open-Meteo Weather API
@@ -401,6 +420,14 @@ async def get_wind_conditions(
         Dictionary with wind_speed_mph, wind_direction
     """
     WEATHER_API = "https://api.open-meteo.com/v1/forecast"
+    target_hour = None
+    if target_datetime is not None:
+        target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                           else target_datetime.astimezone(timezone.utc))
+        target_hour = target_datetime.strftime("%Y-%m-%dT%H:00")
+    fields = ["wind_speed_10m", "wind_direction_10m"]
+    time_params = ({"hourly": fields, "start_hour": target_hour, "end_hour": target_hour}
+                   if target_hour else {"current": fields})
     
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -409,7 +436,7 @@ async def get_wind_conditions(
                 params={
                     "latitude": latitude,
                     "longitude": longitude,
-                    "current": ["wind_speed_10m", "wind_direction_10m"],
+                    **time_params,
                     "timezone": "UTC"
                 }
             )
@@ -418,7 +445,14 @@ async def get_wind_conditions(
                 return {"source": "error", "error": f"API returned {response.status_code}"}
             
             data = response.json()
-            current = data.get("current", {})
+            current = data.get("current", {}) if target_hour is None else {}
+            if target_hour is not None:
+                hourly = data.get("hourly", {})
+                times = hourly.get("time", [])
+                if target_hour in times:
+                    index = times.index(target_hour)
+                    current = {field: hourly.get(field, [])[index]
+                               for field in fields if index < len(hourly.get(field, []))}
             
             result = {"source": "open-meteo-weather"}
             
@@ -439,11 +473,54 @@ async def get_wind_conditions(
         return {"source": "error", "error": str(e)}
 
 
+async def pipeline_current_conditions(latitude: float, longitude: float, resolver=None,
+                                      model: str = "GFS") -> Optional[Dict[str, Any]]:
+    """NEVER RAISES: current surf + wind from the SAME producer the spot hub serves, or None.
+
+    ONE FORECAST COMPOSITION (audit 15.0 A15-05(c), 2026-09-26). The post composer auto-fills a
+    session from `/api/surf-conditions`, whose breaking height already runs `estimate_surf_at` (the
+    08-01 fix below) but from its OWN Open-Meteo marine fetch. So the post and the hub could record
+    different numbers for the same spot and hour, and the post carried no quality at all. This asks
+    the hub's producer (`resolve_spot_conditions`: pipeline products, `estimate_surf_at`,
+    `compute_surf_rating`) and maps it onto this module's field names. None falls back to the
+    provider path, unchanged."""
+    try:
+        if resolver is None:
+            from routes.surf_data.conditions import point_resolution_service as resolver
+        data = await resolver.resolve_spot_conditions(model=model, lat=latitude, lng=longitude, forecast_days=1)
+        cur = (data or {}).get("current_conditions") or {}
+        if cur.get("wave_height_ft") is None:
+            return None
+        out = {"source": "pipeline", "model": model,
+               "wave_height_ft": cur.get("wave_height_ft"),
+               "offshore_height_ft": cur.get("offshore_height_ft"),
+               "surf_regime": cur.get("surf_regime"),
+               "swell_height_ft": cur.get("swell_height_ft")}
+        if cur.get("wave_period") is not None:
+            out["wave_period_sec"] = int(cur["wave_period"])
+        if cur.get("wave_direction") is not None:
+            out["wave_direction"] = degrees_to_direction(cur["wave_direction"])
+            out["wave_direction_degrees"] = cur["wave_direction"]
+        if cur.get("wind_speed_kts") is not None:
+            out["wind_speed_mph"] = round(cur["wind_speed_kts"] * 1.15078, 1)
+        if cur.get("wind_direction") is not None:
+            out["wind_direction"] = degrees_to_direction(cur["wind_direction"])
+        for k in ("rating", "rating_level"):
+            if cur.get(k) is not None:
+                out[k] = cur[k]
+        return out
+    except Exception as e:
+        logger.info(f"[surf-conditions] pipeline current conditions unavailable, using provider: {type(e).__name__}")
+        return None
+
+
 async def get_full_conditions(
     latitude: float,
     longitude: float,
     spot_name: Optional[str] = None,
-    noaa_station: Optional[str] = None
+    noaa_station: Optional[str] = None,
+    target_datetime: Optional[datetime] = None,
+    current_override: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
     Get combined surf, wind, and tide conditions
@@ -457,16 +534,25 @@ async def get_full_conditions(
     Returns:
         Combined conditions dictionary
     """
-    # Get surf conditions (wave data)
-    surf = await get_surf_conditions(latitude, longitude)
-    
-    # Get wind conditions
-    wind = await get_wind_conditions(latitude, longitude)
+    # An explicit composite represents one containing UTC hour for every source.
+    target_args = {}
+    if target_datetime is not None:
+        target_datetime = (target_datetime.replace(tzinfo=timezone.utc) if target_datetime.tzinfo is None
+                           else target_datetime.astimezone(timezone.utc))
+        target_datetime = target_datetime.replace(minute=0, second=0, microsecond=0)
+        target_args = {"target_datetime": target_datetime}
+    # Current-mode callers that pass `current_override` (pipeline_current_conditions) read the spot hub's
+    # composition; an explicit hour, or no override, keeps the provider path exactly as before.
+    if current_override and target_datetime is None:
+        surf = wind = current_override
+    else:
+        surf = await get_surf_conditions(latitude, longitude, **target_args)
+        wind = await get_wind_conditions(latitude, longitude, **target_args)
     
     # Get tide conditions (if NOAA station available)
     tide = {}
     if noaa_station:
-        tide = await get_noaa_tide_data(noaa_station)
+        tide = await get_noaa_tide_data(noaa_station, **target_args)
     
     # Merge results
     result = {
@@ -475,7 +561,8 @@ async def get_full_conditions(
         # stamps the offshore value and the regime beside the breaking height; forwarding only the
         # height here would leave this surface unable to say whether the transform ran or failed
         # open — the same "a number that cannot say what it is" class the fix above closed.
-        "swell_height_ft": surf.get("swell_height_ft"),        # OFFSHORE, named
+        "swell_height_ft": surf.get("swell_height_ft"),        # PROVIDER SWELL, may be unknown
+        "offshore_height_ft": surf.get("offshore_height_ft"),  # TOTAL SEA
         "surf_regime": surf.get("surf_regime"),                # 'offshore_estimate' == failed open
         "wave_period_sec": surf.get("wave_period_sec"),
         "wave_direction": surf.get("wave_direction"),
@@ -484,15 +571,22 @@ async def get_full_conditions(
         "wind_direction": wind.get("wind_direction"),
         "tide_height_ft": tide.get("tide_height_ft"),
         "tide_status": tide.get("tide_status"),
+        "tide_method": tide.get("tide_method"),
+        "tide_datum": tide.get("tide_datum"),
         "next_high": tide.get("next_high"),
         "next_low": tide.get("next_low"),
         "source": "auto",
+        "surf_source": surf.get("source"),                     # 'pipeline' = the hub's chain; else the provider
+        "rating": surf.get("rating"),                          # quality, from the same chain (pipeline only)
+        "rating_level": surf.get("rating_level"),
         "tide_source": "noaa" if tide.get("source") == "noaa" else None,
         "fetched_at": datetime.now(timezone.utc).isoformat()
     }
     
     if spot_name:
         result["spot_name"] = spot_name
+    if target_datetime is not None:
+        result["requested_time"] = target_datetime.isoformat()
     
     # Remove None values
     result = {k: v for k, v in result.items() if v is not None}

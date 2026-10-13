@@ -128,3 +128,30 @@ def test_the_whitelist_really_does_drop_unlisted_keys__THE_CONTROL(monkeypatch):
     assert "a_key_the_route_never_lists" not in resp["current"], (
         "the route no longer whitelists `current` — re-derive this suite: the boundary it guards "
         "has changed shape, and `forecast_confidence` may now be arriving for a different reason")
+
+
+_QUALITY = {"rating": 72.4, "rating_level": "good", "rating_confirmed": False, "surf_regime": "shelf",
+            "offshore_height_ft": 4.1, "wind_speed_kts": 8.0, "wind_direction": 45.0}
+
+
+def test_quality_and_provenance_reach_the_hub(monkeypatch):
+    """Audit 15.0 (2026-09-26): the producer computes the rating on every request; the whitelist
+    dropped it, so the hub showed a size without a quality. Measured live on 24 responses."""
+    resp = _call_route(monkeypatch, _producer_payload(**_QUALITY))
+    if "error" in resp:
+        pytest.skip(f"route could not run in this environment: {resp['error']}")
+    current = resp["current"]
+    assert current.get("wave_height_ft") == 5.3, f"SETUP BROKEN: got keys {sorted(current)}"
+    for k, v in _QUALITY.items():
+        assert current.get(k) == v, f"`{k}` was attached by the producer and dropped by the route"
+    assert current["rating_confirmed"] is False       # a False flag is information, not absence
+
+
+def test_quality_is_ABSENT_not_null_when_the_rating_did_not_run(monkeypatch):
+    """The producer's rating block is try/except'd; when it fails the keys are simply not attached,
+    and the wire must not invent them as null."""
+    resp = _call_route(monkeypatch, _producer_payload(rating=None))
+    if "error" in resp:
+        pytest.skip(f"route could not run in this environment: {resp['error']}")
+    for k in _QUALITY:
+        assert k not in resp["current"], f"`{k}` is present-and-null; it must be absent"

@@ -1,0 +1,15 @@
+{
+  "head": "91b90ae9f642b9be015aa4c06a766cdfd557b74a",
+  "actualPointWriterLine": 316,
+  "pointWriterHasProvider": false,
+  "infoboxHeatmapParity": {
+    "actualWriterMatchingOtherFields": false,
+    "supplyingMatchingProvider": true,
+    "changingHour": false
+  },
+  "pointVisualParity": {
+    "matchingProductsAfterDefaultFalse": false,
+    "changedProductAndTimeAfterInjectedTrue": true
+  },
+  "scope": "Diagnostic truth only: no GPU/point service parity or live rendering divergence inferred; production code unchanged"
+}

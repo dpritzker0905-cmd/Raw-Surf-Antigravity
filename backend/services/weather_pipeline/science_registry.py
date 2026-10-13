@@ -73,6 +73,23 @@ def _add(c: Constant) -> None:
     _REGISTRY[c.name] = c
 
 
+_add(Constant(
+    name="MARINE_REGIONAL_MIN_COVERAGE_FRACTION",
+    value=0.70,
+    units="fraction of requested longitude-latitude rectangle",
+    what="Minimum regional coverage accepted before the covering coarse fallback.",
+    module="services.weather_pipeline.grid_resolver_selection",
+    source="OURS. Audit 14 WP-2 explicitly permits clamped regional coverage at >=70%.",
+    method="owner",
+    sample="Selection policy, not an empirically calibrated physical constant. "
+           "Sebastian edge sensitivity and threshold controls in test_regional_edge_selection.py.",
+    published_range=None,
+    status=DERIVED,
+    applies_to="Marine manifest selection only; actual served bounds still determine partial_coverage. "
+               "Does not increase upstream resolution or manufacture cells outside the tile.",
+))
+
+
 # --- depth-limited breaking --------------------------------------------------------------------
 
 _add(Constant(
@@ -152,6 +169,31 @@ _add(Constant(
         "an OWNER decision, not a silent correction. NOTE ALSO that 93% is a single-event maximum "
         "on one shelf, not a validated global envelope -- treating it as one would repeat the "
         "GAMMA_MAX_STEEP error in the opposite direction."),
+))
+
+_add(Constant(
+    name="SHELF_CF_SCALE_DEFAULT",
+    value=0.0,
+    units="dimensionless (scale on SHELF_FRICTION_CF; 0 = the chain adds no cross-shelf friction)",
+    what="How much cross-shelf bottom friction the chain applies ON TOP of the model field at the spot.",
+    module="services.weather_pipeline.surf_transform",
+    source="OURS. Nearshore judge shelf arm (scripts/run_nearshore_validation.py, no_friction_ab) against "
+           "CDIP nearshore buoys on wide shelves; runs of 2026-09-28 (PR #136's first run, CI 36375348896, "
+           "CI 36432875668). Shadow A/B of the served frames: run 36462075711",
+    method="field",
+    sample="48 wide-shelf station-hours (Duck, Wrightsville, Cape Canaveral, Fort Pierce and neighbours): "
+           "friction off closer on 78% / 82.5% / 75% of hours, MAE -38% / -40% / -34%; the chain stays low "
+           "with it off (bias -0.10 / -0.06 m), so no scale in (0, 0.25] fits better than 0.",
+    published_range=None,
+    status=DERIVED,
+    debt_reason="",
+    applies_to=(
+        "The served field at a wide-shelf spot is already shelf water: GFS-Wave (WAVEWATCH III) applies "
+        "bottom friction in its own source terms, and /point at the spot read 0.44 (Duck) to 0.66 (Cape "
+        "Canaveral) of /point at the shelf edge. Friction across the whole shelf width from the edge therefore "
+        "counted the shelf twice. The previous 0.25 (2026-07-17) was fitted to forecaster reports, not "
+        "instruments. Narrow and deep shelves are unaffected (friction ~1.0 there). SHELF_KF_FLOOR only binds "
+        "while this is > 0. SURF_SHELF_CF_SCALE=0.25 restores the legacy chain."),
 ))
 
 _add(Constant(
@@ -266,17 +308,22 @@ _add(Constant(
 
 _add(Constant(
     name="REFRACTION_KR",
-    value=0.797,
+    value=0.873,
     units="dimensionless (Kr, nearshore refraction coefficient)",
     what="Energy lost to refraction between offshore and the break. The transform assumed 1.0.",
     module="services.weather_pipeline.surf_transform",
-    source="validate_nearshore_transform.py measured against the CDIP instrument archive",
+    source="validate_nearshore_transform.py --composed, against the CDIP instrument archive",
     method="field",
-    sample="385,651 QC-good swell hours across 10 independent California CDIP sites",
+    sample="394,331 QC-good swell hours across 10 independent California CDIP sites (2026-09-27)",
     published_range=(0.75, 1.30),
     status=IN_RANGE,
     debt_reason="",
     applies_to=(
+        "RE-MEASURED 2026-09-27 AGAINST THE CHAIN IT MULTIPLIES: 0.797 was observed(near/deep) / Ks "
+        "ONLY, so it absorbed shelf friction and directional blocking that the chain ALSO applies "
+        "(shelf_dissipation, _height_exposure_factor) -- counted twice. Divided by the chain's own "
+        "friction x shoaling x exposure on the same pairs and hours: median 0.873 (per site "
+        "0.640-1.173); the Ks-only side reproduces 0.797 exactly. History of the 0.797 below. "
         "*** THE PARTNER OF SURF_HEIGHT_H110. NEITHER MAY SHIP ALONE. *** Assuming Kr = 1.0 "
         "over-predicted nearshore height by 1/0.797 = +25.5%; emitting Hs where the published surf "
         "standard is H1/10 (x1.27) left us -21.3% low. Net (1/0.797)/1.27 = 0.988 -- right by "
@@ -375,6 +422,44 @@ _add(Constant(
         "'collapsing' class is not represented at all. 3.3 sits inside their bracket, which is why "
         "this is IN_RANGE rather than debt. The same 'not biunivocal' caveat as "
         "IRIBARREN_SPILLING_PLUNGING applies."),
+))
+
+# The swell-train gate (surf_partitions.py). Registered 2026-09-28, when the split out of surf_transform.py
+# turned their grandfather entries stale: both were placed in a MEASURED gap, so the debt was only the record.
+_add(Constant(
+    name="PARTITION_MIN_QUAD_FRAC",
+    value=0.5,
+    units="dimensionless (quadrature of the swell trains' Hs / the total Hs)",
+    what="Below this share of the total height the swell trains do not represent the sea, and the "
+         "height falls back to the total field instead of inflating a minority train.",
+    module="services.weather_pipeline.surf_partitions",
+    source="OURS. Review of 2026-07-30 (a lone cached swell_1 of 0.84 m against a 1.73 m total would have "
+           "been scaled x2.06 into a clean 10.25 s sea that never existed); "
+           "docs/research/AUDIT-2026-08-01-sota-architecture-and-zero-regression-upgrade-path.md section 2.7",
+    method="model",
+    sample="the measured deviations of the trains' quadrature from their own total (review 2026-07-30): the "
+           "largest LEGITIMATE under-read is Bondi -22.3% (0.777 of the total), far above the 0.5 floor",
+    published_range=None,
+    status=DERIVED,
+    applies_to="The served total Hs and its swell_1 / swell_2 / wind_waves partitions at one point and hour.",
+))
+
+_add(Constant(
+    name="PARTITION_MAX_TP_RATIO",
+    value=1.10,
+    units="dimensionless (total peak period / the longest partition period)",
+    what="Above this ratio the trains are missing a long swell the total's peak period comes from, so "
+         "they do not represent the sea and the height falls back to the total field.",
+    module="services.weather_pipeline.surf_partitions",
+    source="OURS. Measured live 2026-07-31 (the ratio's natural gap), recorded beside the constant and in "
+           "docs/research/AUDIT-2026-08-01-sota-architecture-and-zero-regression-upgrade-path.md section 2.7",
+    method="model",
+    sample="36 samples, 6 Florida sites x forecast hours 0/6/12/24/48/72, GFS: median ratio 0.999; the 7 above "
+           "1.0 split at a gap near 1.08 -- 1.002 / 1.048 / 1.050 (rounding on a tie) vs 1.116 / 1.131 / "
+           "1.171 / 1.330 (a total period no partition can produce); 1.10 admits the first three, rejects the four",
+    published_range=None,
+    status=DERIVED,
+    applies_to="GFS-Wave partitions at 6 Florida sites; the gap has not been re-measured on EURO or ICON trains.",
 ))
 
 

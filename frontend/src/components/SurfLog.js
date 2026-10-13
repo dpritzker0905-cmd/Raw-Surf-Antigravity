@@ -2,7 +2,8 @@
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Plus, Waves, Clock, MapPin, Star, Trash2, Edit3,
-  ChevronLeft, Loader2, Calendar, Thermometer, Wind, Users, Save
+  ChevronLeft, Loader2, Calendar, Thermometer, Wind, Users, Save,
+  Laugh, Smile, Meh, Angry, Frown
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -19,11 +20,11 @@ import GpxUploadModal from './GpxUploadModal';
 import { LocationPicker } from './LocationPicker';
 
 const MOODS = [
- { id: 'stoked', label: 'Stoked', icon: '=', color: 'text-green-400' },
- { id: 'happy', label: 'Happy', icon: '=', color: 'text-yellow-400' },
- { id: 'mellow', label: 'Mellow', icon: '=', color: 'text-blue-400' },
- { id: 'frustrated', label: 'Frustrated', icon: '=', color: 'text-orange-400' },
- { id: 'exhausted', label: 'Exhausted', icon: '=', color: 'text-red-400' },
+  { id: 'stoked', label: 'Stoked', Icon: Laugh, color: 'text-green-400' },
+  { id: 'happy', label: 'Happy', Icon: Smile, color: 'text-yellow-400' },
+  { id: 'mellow', label: 'Mellow', Icon: Meh, color: 'text-blue-400' },
+  { id: 'frustrated', label: 'Frustrated', Icon: Angry, color: 'text-orange-400' },
+  { id: 'exhausted', label: 'Exhausted', Icon: Frown, color: 'text-red-400' },
 ];
 
 const CROWD_LEVELS = ['Empty', 'Light', 'Moderate', 'Crowded', 'Packed'];
@@ -74,7 +75,12 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
             {new Date(entry.session_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </span>
           {entry.session_time && <Badge variant="outline" className="text-[10px] py-0">{entry.session_time}</Badge>}
-          {mood && <span title={mood.label}>{mood.icon}</span>}
+          {mood && (
+            <span title={mood.label}>
+              <mood.Icon className={`w-4 h-4 ${mood.color}`} aria-hidden="true" />
+              <span className="sr-only">Mood: {mood.label}</span>
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button aria-label="Edit3" onClick={() => onEdit(entry)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700'}`}><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
@@ -167,7 +173,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
         toast.success('Entry updated');
       } else {
         await apiClient.post(`/surf-log/${userId}`, payload);
- toast.success('Session logged! =');
+        toast.success('Session logged!');
       }
       onSaved();
       onClose();
@@ -273,9 +279,9 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
             <label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Mood</label>
             <div className="flex gap-2 mt-1">
               {MOODS.map(m => (
-                <button key={m.id} type="button" onClick={() => set('mood', form.mood === m.id ? '' : m.id)}
+                <button key={m.id} type="button" aria-pressed={form.mood === m.id} onClick={() => set('mood', form.mood === m.id ? '' : m.id)}
                   className={`flex flex-col items-center p-2 rounded-xl transition-all ${form.mood === m.id ? 'bg-cyan-500/20 ring-1 ring-cyan-500' : isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-800'}`}>
-                  <span className="text-lg">{m.icon}</span>
+                  <m.Icon className={`w-5 h-5 ${m.color}`} aria-hidden="true" />
                   <span className={`text-[9px] ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>{m.label}</span>
                 </button>
               ))}
@@ -359,7 +365,7 @@ const SurfLog = () => {
         try {
           const res = await apiClient.get(`/strava/callback?code=${code}&state=${state}`);
           if (res.data.success) {
- toast.success("Strava successfully connected! =");
+            toast.success("Strava successfully connected!");
             // Clean up the URL
             window.history.replaceState({}, document.title, window.location.pathname);
           }

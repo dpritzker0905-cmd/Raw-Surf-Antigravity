@@ -102,7 +102,7 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore
     from services.weather_pipeline.scheduler_helpers import (
-        REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS)
+        REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS, GFS_MARINE_EXTRA_REGIONS)
     from services.weather_pipeline import copernicus_validator
     import services.noaa_marine_service as noaa_marine
 
@@ -110,6 +110,7 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
     monkeypatch.setenv("WORLDWIDE_COASTAL", "1")
+    monkeypatch.delenv("GFS_MARINE_EXTRA_REGIONS", raising=False)
     monkeypatch.setenv("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")
     monkeypatch.setenv("GFS_MARINE_FORECAST_DAYS", "3")
     monkeypatch.setattr(copernicus_validator, "is_test_environment", lambda: False)
@@ -128,11 +129,14 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
     assert set(by_days) == {3, 14}, f"horizons seen: {sorted(by_days)} -- expected exactly 3d and 14d"
     assert by_days[14] == set(REGIONAL_CONFIGS) | {"global_mid"}, (
         "flagship horizon must carry the flagship regions plus the folded global_mid tile")
-    assert by_days[3] == set(WORLDWIDE_COASTAL_REGIONS), "worldwide horizon must carry all 8 worldwide regions"
+    # F-08 Stage A: the GFS-only extras ride the SAME worldwide-horizon pass (not the flagship 14 d).
+    assert by_days[3] == set(WORLDWIDE_COASTAL_REGIONS) | set(GFS_MARINE_EXTRA_REGIONS), (
+        "worldwide horizon must carry every worldwide region plus the GFS-only F-08 extras")
 
     saved = {p.region_id for p in temp_store.get_manifest().products
              if p.model == "GFS" and p.domain == "marine"}
-    missing = (set(REGIONAL_CONFIGS) | set(WORLDWIDE_COASTAL_REGIONS)) - saved
+    missing = (set(REGIONAL_CONFIGS) | set(WORLDWIDE_COASTAL_REGIONS)
+               | set(GFS_MARINE_EXTRA_REGIONS)) - saved
     assert not missing, f"regions missing from the manifest: {missing}"
 
 

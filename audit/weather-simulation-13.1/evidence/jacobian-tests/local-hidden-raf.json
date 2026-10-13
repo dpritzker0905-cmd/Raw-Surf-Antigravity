@@ -1,0 +1,208 @@
+{
+  "hiddenRes": {
+    "rafDelta_hidden8s": 142,
+    "rafPerSec_hidden": 17.8,
+    "rafDelta_visible8s": 148,
+    "rafPerSec_visible": 18.5,
+    "fetchDelta_hidden": 0,
+    "texDelta_hidden": 0
+  },
+  "h0": {
+    "rafCalls": 29124,
+    "rafOwnerSites": 2,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        29123
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workersEver": 18,
+    "glContexts": 1,
+    "texLive": 218,
+    "texCreate": 905,
+    "bufLive": 459,
+    "fbLive": 4,
+    "programs": 29,
+    "intervalsLive": 17,
+    "fetches": 257,
+    "gridFetches": 65,
+    "heapMB": 132.56,
+    "canvases": 4,
+    "domNodes": 630,
+    "map": {
+      "zoom": 8,
+      "lng": -80.607,
+      "lat": 28.361,
+      "bearing": 45,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "marineLayers": [
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "fog-slot-0-layer",
+        "fog-slot-1-layer",
+        "fog-slot-2-layer"
+      ],
+      "canvasW": 1080,
+      "canvasH": 800
+    },
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "rasterSource": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_2 infobox=wind Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICON Surf Rating: OFF "
+    },
+    "legend": "Air Temp",
+    "pressed": [
+      "GFS",
+      "Wind"
+    ]
+  },
+  "h1": {
+    "rafCalls": 29266,
+    "rafOwnerSites": 2,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        29265
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workersEver": 18,
+    "glContexts": 1,
+    "texLive": 218,
+    "texCreate": 905,
+    "bufLive": 459,
+    "fbLive": 4,
+    "programs": 29,
+    "intervalsLive": 16,
+    "fetches": 257,
+    "gridFetches": 65,
+    "heapMB": 132.56,
+    "canvases": 4,
+    "domNodes": 630,
+    "map": {
+      "zoom": 8,
+      "lng": -80.607,
+      "lat": 28.361,
+      "bearing": 45,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "marineLayers": [
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "fog-slot-0-layer",
+        "fog-slot-1-layer",
+        "fog-slot-2-layer"
+      ],
+      "canvasW": 1080,
+      "canvasH": 800
+    },
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "rasterSource": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_2 infobox=wind Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICON Surf Rating: OFF "
+    },
+    "legend": "Air Temp",
+    "pressed": [
+      "GFS",
+      "Wind"
+    ]
+  },
+  "h2": {
+    "rafCalls": 29414,
+    "rafOwnerSites": 2,
+    "rafTop": [
+      [
+        "/react-scan@0.5.6/dist/auto.global.js:2:153658",
+        29413
+      ],
+      [
+        "/static/js/bundle.js:33208:9",
+        1
+      ]
+    ],
+    "workerCount": 18,
+    "workersEver": 18,
+    "glContexts": 1,
+    "texLive": 218,
+    "texCreate": 935,
+    "bufLive": 459,
+    "fbLive": 4,
+    "programs": 29,
+    "intervalsLive": 17,
+    "fetches": 257,
+    "gridFetches": 65,
+    "heapMB": 132.56,
+    "canvases": 4,
+    "domNodes": 630,
+    "map": {
+      "zoom": 8,
+      "lng": -80.607,
+      "lat": 28.361,
+      "bearing": 45,
+      "pitch": 0,
+      "styleLoaded": true,
+      "layers": 143,
+      "sources": 24,
+      "marineLayers": [
+        "water_temp-slot-0-layer",
+        "water_temp-slot-1-layer",
+        "water_temp-slot-2-layer",
+        "ocean-mask-fill",
+        "ocean-mask-inland-water",
+        "ocean-mask-inland-waterway",
+        "ocean-mask-buffer",
+        "ocean-mask-line",
+        "fog-slot-0-layer",
+        "fog-slot-1-layer",
+        "fog-slot-2-layer"
+      ],
+      "canvasW": 1080,
+      "canvasH": 800
+    },
+    "hud": {
+      "modelLayer": "GFS / wind",
+      "renderMode": "Wind",
+      "rasterSource": "LOADED",
+      "provider": "UNKNOWN",
+      "klass": "COARSE 2° GRID",
+      "truth": "⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_2 infobox=wind Live Map 0 shooting All Surf Spots Photographers Request a WEATHER GFS EURO ICON Surf Rating: OFF "
+    },
+    "legend": "Air Temp",
+    "pressed": [
+      "GFS",
+      "Wind"
+    ]
+  }
+}

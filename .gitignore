@@ -345,3 +345,8 @@ frontend/suite-results.json
 # (hit 2026-08-02) and this repo has twice swept a concurrent session's untracked file into a commit.
 # Durability belongs in the DB geometry columns + rehydrate at boot (queue #1), not in git.
 backend/services/weather_pipeline/data/shore_normals_overlay.json
+
+# Keep raw local test output and the one-off credential-removal helper out of the public repair record.
+# Sanitized receipts, report and reproducer are tracked instead.
+audit/repairs-2026-10-03/*.xml
+audit/repairs-2026-10-03/remove_credential_fallback.py

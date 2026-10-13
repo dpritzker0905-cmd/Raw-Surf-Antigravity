@@ -9,6 +9,7 @@ import { getBackendWindFlag, clampViewportBbox, getSharedValidTime } from './bac
 import { fetchBackendWindGrid } from './backendWindServiceClient';
 import { createFallbackSafeZeroGrid, recordTerminalNoCoverage } from './marineControllerCache';
 import { recordTruthStage } from './weatherTruthTracker';
+import { fineContainmentAcceptable, windCacheTtlMs } from './windFineContainment';
 
 // --- CACHES ---
 var WIND_CACHE = new Map();
@@ -21,9 +22,8 @@ var WIND_CACHE = new Map();
 // rate-limited window -> every later zoom/pan served from that one stale entry, zero network).
 // A stale entry gets 2 min instead: long enough to ride out the backend's own 60-120s negative
 // cache without hammering it, short enough that recovery is minutes, not the TTL.
-function windCacheTtlMs(entry) {
-  return entry?.data?.stale ? 2 * 60 * 1000 : 10 * 60 * 1000;
-}
+// (2026-10-08) A mid-tier answer still sharpening ('swr_revalidation_pending') gets 15 s — the rule
+// now lives in windFineContainment.js (windCacheTtlMs).
 // In-flight wind fetches keyed by the canonical target (model + hour + snapped tile) so the
 // primary refresh, moveend, and scrub-settle callers share ONE network request instead of
 // issuing duplicate same-hour wind URLs (F3).
@@ -289,6 +289,9 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
             ? (g.bounds.east + 360.0) - g.bounds.west : g.bounds.east - g.bounds.west;
           if (bSpan >= 350.0) continue;
         }
+        // ...nor may a COARSE clip (the 2-deg global_mid cached while zoomed out "contained" every
+        // deeper fine request — 2-deg wind at every zoom, 2026-10-08). See windFineContainment.js.
+        if (wantsFineTile && !fineContainmentAcceptable(g, clampResult.clampedBbox)) continue;
         if (g?.vectors?.length > 0 && g.bounds) {
           const ew = boundsToCheck.west, ee = boundsToCheck.east, es = boundsToCheck.south, en = boundsToCheck.north;
           const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;

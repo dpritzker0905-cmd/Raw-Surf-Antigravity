@@ -33,6 +33,7 @@ import time
 import math
 import uuid
 import tempfile
+from datetime import timezone
 from pathlib import Path
 
 try:
@@ -47,6 +48,12 @@ except ImportError:  # pragma: no cover - package-context fallback
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
         meteo_wind_dir, make_point_dict, energy_mean_height_block,
     )
+# Module top, in the script/package idiom: production spawns this file by path for waves, wind AND pressure
+# (hotfix 2026-09-29; see the GFS fetcher's note and tests/test_fetcher_script_imports.py).
+try:
+    from _fetch_native_cell import LAND_HALF, enabled as _native_enabled, is_native, views  # script
+except ImportError:  # pragma: no cover - package-context fallback
+    from services._fetch_native_cell import LAND_HALF, enabled as _native_enabled, is_native, views
 
 LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
 # Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
@@ -302,6 +309,18 @@ def fetch_global_coarse(payload):
     # global 0.25° (longitude wraps). Kill: ECMWF_WAVE_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
     scalar_blockmean = os.environ.get("ECMWF_WAVE_SCALAR_BLOCKMEAN", "1") != "0"
     _half = max(1, int(round(resolution / 0.25 / 2.0)))
+    # ⛔ NATIVE-CELL REGRID (2026-09-29, REGRID_NATIVE_CELL, default off). At the native 0.25 deg the line above yields
+    # half=1: the height block is the 2x2 of native cells NORTH-WEST of the node, while every other EURO variable is
+    # point-sampled at the node's OWN cell, so one EURO point carried a height from one place and a direction and
+    # period from another (same_model_parity_probe; services/_fetch_native_cell.py). With the flag on, a
+    # native-resolution call reads the height of its EXACT cell through the same reduction (its 1x1 slice).
+    _nat = _native_enabled() and is_native(resolution)
+
+    def _height_at(a, r, c):
+        if _nat:
+            # The exact native cell; a LAND cell (its own height missing) answers from its centred 3x3.
+            return energy_mean_height_block(*views(r, c, LAND_HALF if not np.isfinite(a[r, c]) else 1, a), True)
+        return energy_mean_height_block(a, r, c, _half, True)
 
     axes = {}    # rid -> (lats, lons)
     for rid, bb in regions.items():
@@ -357,6 +376,11 @@ def fetch_global_coarse(payload):
     spread = {}    # rid -> kind -> vt -> (sds, counts); populated only in ensemble mode
     ensemble_on = (layer == "waves") and wave_ensemble_enabled()
     idx_by = None    # rid -> [(r, c), ...]
+    # F-05 (audit 14.0/15.0): the client resolves the latest cycle itself and the fetcher used to drop
+    # it, so 98.4% of EURO products said model_run_time "missing". Only a complete, consistent set
+    # of analysis times on the selected messages can establish the deterministic batch's cycle.
+    cycles = set()
+    cycles_complete = True
     try:
         grbs = pygrib.open(str(target))
         for m in grbs:
@@ -375,6 +399,11 @@ def fetch_global_coarse(payload):
                           for rid, (lats, lons) in axes.items()}
             arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
             vt = m.validDate
+            analysis_time = getattr(m, "analDate", None)
+            if analysis_time is None:
+                cycles_complete = False
+            else:
+                cycles.add(analysis_time)
             kind = (sn if sn in want_bands else
                     "u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
                     "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
@@ -386,7 +415,7 @@ def fetch_global_coarse(payload):
                 if kind == "h" and scalar_blockmean:
                     # block-mean the wave height so enclosed-sea cells whose centre lands on masked land
                     # survive (see the ECMWF_WAVE_SCALAR_BLOCKMEAN note); everything else point-samples.
-                    vals = [energy_mean_height_block(arr, r, c, _half, True) for (r, c) in im]
+                    vals = [_height_at(arr, r, c) for (r, c) in im]
                 else:
                     vals = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
                 # A plain assignment is CORRECT here: this is the deterministic stream, one message
@@ -418,7 +447,7 @@ def fetch_global_coarse(payload):
                     evt = em.validDate
                     for rid, im in idx_by.items():
                         if scalar_blockmean:
-                            evals = [energy_mean_height_block(earr, r, c, _half, True) for (r, c) in im]
+                            evals = [_height_at(earr, r, c) for (r, c) in im]
                         else:
                             evals = [earr[r, c] for (r, c) in im]
                         ens.setdefault(rid, {}).setdefault("h", {}).setdefault(evt, {})[emember] = evals
@@ -563,10 +592,17 @@ def fetch_global_coarse(payload):
         pi = 0
         for la in lats:
             for lo in lons:
-                points.append(make_point_dict(la, lo, "ecmwf", units, hourly_of(pi)))
+                pt = make_point_dict(la, lo, "ecmwf", units, hourly_of(pi))
+                if cycle_iso:
+                    pt["__model_run_time"] = cycle_iso   # F-05; cycle_from_points reads it
+                points.append(pt)
                 pi += 1
         return points
 
+    # Exactly one analysis time on EVERY selected message -> cycle (pygrib's analDate is naive UTC).
+    # Missing or conflicting metadata -> no claim: another message cannot supply the missing run.
+    cycle_iso = (next(iter(cycles)).replace(tzinfo=timezone.utc).isoformat()
+                 if cycles_complete and len(cycles) == 1 else None)
     if multi:
         return {rid: _assemble(rid) for rid in regions}, len(times_dt), 0, times
     return _assemble("__single__"), len(times_dt), 0, times

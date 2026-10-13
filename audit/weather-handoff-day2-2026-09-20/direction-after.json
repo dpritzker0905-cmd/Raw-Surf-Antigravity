@@ -1,0 +1,594 @@
+{
+  "source_sha": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "source_modified": true,
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "scientific_environment": {},
+  "fixed_geometry": {
+    "depth_m": 30.0,
+    "shelf_width_km": 10.0,
+    "coastal": true,
+    "shore_normal_deg": 0.0,
+    "shore_normal_src": "probe_fixed",
+    "magnet_factor": 1.0,
+    "magnet_name": null,
+    "break_depth_m": 5.0,
+    "nearshore": true,
+    "shore_normal_match_km": null
+  },
+  "external_http_attempts": 0,
+  "scope": "synthetic offline public point resolver, canonical surf transform and actual spot rating; no empirical skill claim",
+  "blend_helper": {
+    "north_control": {
+      "result": 0.0
+    },
+    "wrapped_control": {
+      "result": 0.0
+    },
+    "opposing": {
+      "result": null
+    },
+    "opposing_plus": {
+      "result": null
+    },
+    "opposing_minus": {
+      "result": null
+    },
+    "missing": {
+      "result": null
+    },
+    "all_nan": {
+      "result": null
+    },
+    "one_infinite": {
+      "result": null
+    },
+    "zero_weight_infinite": {
+      "result": 90.0
+    },
+    "calm_control": {
+      "result": 90.0
+    }
+  },
+  "exposure_consumers": {
+    "north": {
+      "height_factor": {
+        "result": 1.0
+      },
+      "rating_factor": {
+        "result": 1.0
+      }
+    },
+    "cross": {
+      "height_factor": {
+        "result": 0.5950000000000001
+      },
+      "rating_factor": {
+        "result": 0.10000000000000006
+      }
+    },
+    "opposed": {
+      "height_factor": {
+        "result": 0.5950000000000001
+      },
+      "rating_factor": {
+        "result": 0.1
+      }
+    },
+    "missing": {
+      "height_factor": {
+        "result": 1.0
+      },
+      "rating_factor": {
+        "result": 1.0
+      }
+    },
+    "nan": {
+      "height_factor": {
+        "result": 0.5950000000000001
+      },
+      "rating_factor": {
+        "result": 0.1
+      }
+    },
+    "infinite": {
+      "height_factor": {
+        "exception": "ValueError",
+        "message": "expected a finite input, got inf"
+      },
+      "rating_factor": {
+        "exception": "ValueError",
+        "message": "expected a finite input, got inf"
+      }
+    }
+  },
+  "served_cases": {
+    "north_control": {
+      "status": 200,
+      "point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 2.4,
+        "direction": 0.0,
+        "u": -0.0,
+        "v": -2.4,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "surf_height_m": 3.2975,
+      "surf_regime": "shoaling",
+      "estimate_basis": {
+        "type": "euro_persistence_gfs_blend",
+        "target_valid_time": "2026-10-01T00:00:00+00:00",
+        "layer": "waves",
+        "native_limit_hours": 240,
+        "weights": {
+          "persistence": 0.4,
+          "gfs": 0.6,
+          "icon": 0.0
+        },
+        "confidence": 0.85,
+        "euro_anchor_valid_time": "2026-09-30T00:00:00+00:00"
+      },
+      "is_forecast_authoritative": false,
+      "wire_point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 2.4,
+        "direction": 0.0,
+        "u": -0.0,
+        "v": -2.4,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "wire_roundtrip": "valid",
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": 68.0,
+        "level": "fair_good",
+        "surf_height_m": 3.297,
+        "swell_from_deg": 0.0,
+        "limiter": "wind_period_blend"
+      }
+    },
+    "wrapped_control": {
+      "status": 200,
+      "point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 2.4,
+        "direction": 0.0,
+        "u": -0.0,
+        "v": -2.4,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "surf_height_m": 3.2975,
+      "surf_regime": "shoaling",
+      "estimate_basis": {
+        "type": "euro_persistence_gfs_blend",
+        "target_valid_time": "2026-10-01T00:00:00+00:00",
+        "layer": "waves",
+        "native_limit_hours": 240,
+        "weights": {
+          "persistence": 0.4,
+          "gfs": 0.6,
+          "icon": 0.0
+        },
+        "confidence": 0.85,
+        "euro_anchor_valid_time": "2026-09-30T00:00:00+00:00"
+      },
+      "is_forecast_authoritative": false,
+      "wire_point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 2.4,
+        "direction": 0.0,
+        "u": -0.0,
+        "v": -2.4,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "wire_roundtrip": "valid",
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": 68.0,
+        "level": "fair_good",
+        "surf_height_m": 3.297,
+        "swell_from_deg": 0.0,
+        "limiter": "wind_period_blend"
+      }
+    },
+    "opposing": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "opposing_plus": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "opposing_minus": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "both_missing": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "gfs_missing": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "gfs_truncated": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "gfs_nan": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "both_nan": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "gfs_infinite": {
+      "status": 404,
+      "body": {
+        "status": "error",
+        "reason": "no_copernicus_coverage",
+        "detail": "Authoritative weather point product not found for EURO waves at time 2026-10-01T00:00:00+00:00.",
+        "source": "backend_direct_point",
+        "coverage_status": "outside_grid_tile",
+        "fallback_attempted": true,
+        "fallback_reason": "no_matching_grid_product",
+        "is_forecast_authoritative": false,
+        "is_estimated": false,
+        "grid_parity": false,
+        "gridParity": false
+      },
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": null,
+        "level": "unknown",
+        "surf_height_m": null,
+        "swell_from_deg": null,
+        "limiter": "size_gate"
+      }
+    },
+    "icon_infinite": {
+      "status": 200,
+      "point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 2.7,
+        "direction": 90.0,
+        "u": -2.7,
+        "v": -0.0,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "surf_height_m": 2.1559,
+      "surf_regime": "shelf",
+      "estimate_basis": {
+        "type": "euro_persistence_gfs_blend",
+        "target_valid_time": "2026-09-24T00:00:00+00:00",
+        "layer": "waves",
+        "native_limit_hours": 240,
+        "weights": {
+          "persistence": 0.7,
+          "gfs": 0.3,
+          "icon": 0.0
+        },
+        "confidence": 1.0,
+        "euro_anchor_valid_time": "2026-09-22T00:00:00+00:00"
+      },
+      "is_forecast_authoritative": false,
+      "wire_point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 2.7,
+        "direction": 90.0,
+        "u": -2.7,
+        "v": -0.0,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "wire_roundtrip": "valid",
+      "fetched_models": [
+        "GFS",
+        "ICON"
+      ],
+      "served_rating": {
+        "score": 6.8,
+        "level": "very_poor",
+        "surf_height_m": 2.156,
+        "swell_from_deg": 90.0,
+        "limiter": "swell_exposure"
+      }
+    },
+    "calm_control": {
+      "status": 200,
+      "point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 0.0,
+        "direction": 90.0,
+        "u": 0.0,
+        "v": 0.0,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "surf_height_m": 0.0,
+      "surf_regime": "calm",
+      "estimate_basis": {
+        "type": "euro_persistence_gfs_blend",
+        "target_valid_time": "2026-10-01T00:00:00+00:00",
+        "layer": "waves",
+        "native_limit_hours": 240,
+        "weights": {
+          "persistence": 0.4,
+          "gfs": 0.6,
+          "icon": 0.0
+        },
+        "confidence": 0.85,
+        "euro_anchor_valid_time": "2026-09-30T00:00:00+00:00"
+      },
+      "is_forecast_authoritative": false,
+      "wire_point": {
+        "requested_lat": 0.0,
+        "requested_lng": 0.0,
+        "sampled_lat": 0.0,
+        "sampled_lng": 0.0,
+        "speed": 0.0,
+        "direction": 90.0,
+        "u": 0.0,
+        "v": 0.0,
+        "period": 12.0,
+        "gust": null,
+        "value": null,
+        "speed_spread": null,
+        "interpolation_method": "point_estimate_blend",
+        "wave_bands": null
+      },
+      "wire_roundtrip": "valid",
+      "fetched_models": [
+        "GFS"
+      ],
+      "served_rating": {
+        "score": 0.0,
+        "level": "very_poor",
+        "surf_height_m": 0.0,
+        "swell_from_deg": 90.0,
+        "limiter": "size_gate"
+      }
+    }
+  },
+  "grid_and_lattice": {
+    "opposing": null,
+    "positive_height_zero_vectors": null,
+    "lattice_opposing": null
+  }
+}

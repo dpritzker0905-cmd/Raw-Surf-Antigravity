@@ -74,6 +74,16 @@ DONORS = {L: [_vec(-70.0, -50.0, 2.5), _vec(30.0, -90.0, 1.1)]
           for L in ("waves", "swell_1", "swell_2", "wind_waves")}
 
 
+def _served(out, lat, lng):
+    """The cell as SERVED. ⚠️ Since 2026-10-01 the fill copies instead of mutating (its input may be
+    the L1 cache's own objects; tests/test_coarse_fill_shared_vectors.py), so the input `hole` stays
+    masked whatever happens. Every assertion about what was or was not filled reads the OUTPUT;
+    asserting on the input would pass even if a guard below stopped binding."""
+    hits = [v for v in out.grid.vectors if v.lat == lat and v.lng == lng]
+    assert len(hits) == 1, f"expected one served cell at ({lat}, {lng}), found {len(hits)}"
+    return hits[0]
+
+
 # ── 1. THE DEFECT ITSELF ──────────────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("layer", ["waves", "swell_1", "swell_2", "wind_waves"])
@@ -83,9 +93,10 @@ def test_every_marine_layer_gets_its_holes_filled(layer):
     store = _Store(DONORS)
     hole = _vec(-70.0, -50.0, valid=False)
     out = _run(_product([hole, _vec(0.0, 0.0, 1.4)]), "EURO", layer, store, DONORS)
-    assert hole.is_valid is True, f"{layer} hole was not filled"
-    assert hole.speed == pytest.approx(2.5)
+    assert _served(out, -70.0, -50.0).is_valid is True, f"{layer} hole was not filled"
+    assert _served(out, -70.0, -50.0).speed == pytest.approx(2.5)
     assert out.coarse_fill["cells_filled"] == 1
+    assert hole.is_valid is False and hole.speed is None, "the fill wrote into its input vector"
 
 
 def test_a_layer_outside_the_list_is_left_ALONE():
@@ -93,8 +104,8 @@ def test_a_layer_outside_the_list_is_left_ALONE():
     and `wind`/`pressure` are not marine height fields at all."""
     store = _Store(DONORS)
     hole = _vec(-70.0, -50.0, valid=False)
-    _run(_product([hole]), "EURO", "wind", store, DONORS)
-    assert hole.is_valid is False, "a non-marine-height layer was filled"
+    out = _run(_product([hole]), "EURO", "wind", store, DONORS)
+    assert _served(out, -70.0, -50.0).is_valid is False, "a non-marine-height layer was filled"
     assert store.asked == [], "the donor was loaded for a layer that must never be filled"
 
 
@@ -116,8 +127,8 @@ def test_no_same_layer_donor_means_NO_FILL_rather_than_a_wrong_quantity():
     would paint total wave height onto a swell layer and nothing would say so."""
     store = _Store({})
     hole = _vec(-70.0, -50.0, valid=False)
-    _run(_product([hole]), "EURO", "swell_1", store, {"waves": DONORS["waves"]})
-    assert hole.is_valid is False, "a missing same-layer donor was papered over"
+    out = _run(_product([hole]), "EURO", "swell_1", store, {"waves": DONORS["waves"]})
+    assert _served(out, -70.0, -50.0).is_valid is False, "a missing same-layer donor was papered over"
 
 
 # ── 3. PROVENANCE — a substituted cell used to be indistinguishable from a native one ─────────
@@ -234,8 +245,8 @@ def test_GFS_is_never_a_recipient():
     INGEST defect (queue #25), which this serve-time fill deliberately does not pretend to solve."""
     store = _Store(DONORS)
     hole = _vec(-70.0, -50.0, valid=False)
-    _run(_product([hole]), "GFS", "swell_1", store, DONORS)
-    assert hole.is_valid is False
+    out = _run(_product([hole]), "GFS", "swell_1", store, DONORS)
+    assert _served(out, -70.0, -50.0).is_valid is False
 
 
 def test_a_REGIONAL_grid_is_untouched():
@@ -244,16 +255,16 @@ def test_a_REGIONAL_grid_is_untouched():
     hole = _vec(-70.0, -50.0, valid=False)
     prod = _product([hole])
     prod.grid.bounds = types.SimpleNamespace(west=-100.0, south=20.0, east=-60.0, north=50.0)
-    _run(prod, "EURO", "swell_1", store, DONORS)
-    assert hole.is_valid is False, "a regional grid was filled by the global-coarse path"
+    out = _run(prod, "EURO", "swell_1", store, DONORS)
+    assert _served(out, -70.0, -50.0).is_valid is False, "a regional grid was filled by the global-coarse path"
 
 
 def test_the_kill_switch_still_works(monkeypatch):
     monkeypatch.setenv("MARINE_COARSE_GULF_FILL", "0")
     store = _Store(DONORS)
     hole = _vec(-70.0, -50.0, valid=False)
-    _run(_product([hole]), "EURO", "swell_1", store, DONORS)
-    assert hole.is_valid is False
+    out = _run(_product([hole]), "EURO", "swell_1", store, DONORS)
+    assert _served(out, -70.0, -50.0).is_valid is False
 
 
 def test_a_hole_with_no_donor_NEARBY_stays_a_hole():
@@ -262,5 +273,5 @@ def test_a_hole_with_no_donor_NEARBY_stays_a_hole():
     why the live hole count could be trusted — the donor had to exist for a cell to count."""
     store = _Store(DONORS)
     hole = _vec(85.0, 170.0, valid=False)          # far from every donor above
-    _run(_product([hole]), "EURO", "swell_1", store, DONORS)
-    assert hole.is_valid is False
+    out = _run(_product([hole]), "EURO", "swell_1", store, DONORS)
+    assert _served(out, 85.0, 170.0).is_valid is False

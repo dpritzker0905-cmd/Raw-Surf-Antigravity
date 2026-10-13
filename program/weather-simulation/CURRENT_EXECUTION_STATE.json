@@ -1,6 +1,6 @@
 {
   "program": "13.0",
-  "updated": "2026-08-14",
+  "updated": "2026-09-20",
   "baseline": {
     "branch": "dev",
     "commit": "1f4e5149abedef9bc8b6fab4d0d25135e5f787a4",
@@ -131,5 +131,70 @@
     },
     "floors": "NOT raised — D-5: floors come from CI's origin/dev reading, which requires an authorized push first",
     "release_state": {"pushed": false, "authorization": "none; program rule 7", "note": "commits are local on top of the other session's pushed b292e243/aa305291"}
+  },
+  "codex_second_check_2026_09_20": {
+    "branch": "codex/weather-handoff-second-check",
+    "pushed_baseline": "d82032f5cd5978967622721b8c9638da36a87f7d",
+    "dev_baseline": "607af934e74fa87f3b8e58698ef68fdce919ea54",
+    "status": "Day-two local repairs verified: direction, raster metadata and archive persistence; separate publication authorization pending",
+    "hosted_baseline_receipt": {
+      "run": 35487375744,
+      "jobs_passed": 11,
+      "guards": 1912,
+      "chain": 1022,
+      "estate": 502,
+      "frontend": 2486
+    },
+    "local_direction_chain": {
+      "passed": 1079,
+      "files": 100,
+      "python": "3.14.4; CI is 3.12"
+    },
+    "local_frontend": {
+      "passed": 2542,
+      "suites": 259,
+      "exit_code": 0,
+      "build": "Passed with warnings; Node 24.19.0 locally versus CI Node 18"
+    },
+    "scored_replay": {
+      "snapshot_sha256": "9012f386d32995ee66ec04a6a7ce816356481366e502bd9d135fce6c326e417e",
+      "as_of": "2026-09-20T16:29:23Z",
+      "archive_rows": 86346,
+      "week_rows": 55425,
+      "verdict": "OK with six public-reference warnings",
+      "observation_pairing_exclusions": 0,
+      "source": "audit/weather-handoff-day2-2026-09-20/SCORED_REPLAY.md"
+    },
+    "release": {
+      "pushed_new_work": false,
+      "merged": false,
+      "deployed": false,
+      "authorization": "Separate authorization required for new day-two push; no merge authorized."
+    },
+    "limitations": [
+      "Common-observation local replay is complete; first corrected scheduled verdict remains outstanding.",
+      "Retained archive begins September9; no claim of full monthly retention or historical incident attribution.",
+      "Public references and the EURO alternate still outperform the served lane on this cohort.",
+      "Numerical direction refusal is not calibrated forecast uncertainty or field validation.",
+      "Production frontend remains frozen; no visual performance or halo closure claimed."
+    ],
+    "local_final_chain": {
+      "passed": 1148,
+      "files": 101,
+      "warnings": 3,
+      "seconds": 710.85,
+      "receipt": "audit/weather-handoff-day2-2026-09-20/retention-chain.xml",
+      "python": "3.14.4; CI is 3.12"
+    },
+    "local_governance": {
+      "passed": 51,
+      "partitioned_test_files": 530,
+      "loc_ratchet": "passed"
+    },
+    "archive_persistence": {
+      "scope": "Forecast skill ledger, hot residual archive and monthly residual rollup",
+      "contract": "Strict structural reads, create-only missing-object writes, acknowledged persistence, preflight months before writes, scored archives before pending consumption",
+      "limits": "Existing-object concurrency and stale successful reads remain unprotected; retention limits unchanged"
+    }
   }
 }

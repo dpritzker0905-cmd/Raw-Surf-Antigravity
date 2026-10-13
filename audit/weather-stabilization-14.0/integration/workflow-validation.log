@@ -1,0 +1,38 @@
+{
+  "yaml_parser": "PyYAML 6.0.3; BaseLoader preserves on; duplicate keys rejected",
+  "yaml_files": {
+    "ci.yml": {
+      "jobs": 11,
+      "sha256": "abc0f2787a5949660c1675182e5d2dfec95adde6f334571d77689a72cf15814c"
+    },
+    "encoding-check.yml": {
+      "jobs": 1,
+      "sha256": "16bee67471aaf55a973314373fe449bbc1370921751a336112baf3d05bd8efd6"
+    },
+    "loc-check.yml": {
+      "jobs": 1,
+      "sha256": "007cfa9f80ebf46634a168ff6e484e3985a0b7648ff7c7ebd09abcc50c94e35b"
+    }
+  },
+  "broad_frontend_test_blocks": true,
+  "focused_frontend_test_blocks": true,
+  "focused_count_gate_runs_always": true,
+  "focused_pattern": "marine-card-matrix-closure|forecast-card-swell-vs-surf|marineGlobalPrewarm.seriesReuse|marineTimelineCoverage|useMarineOrchestratorScrubCache.timeline|backendWeatherServiceClient.readOnly|ForecastTimeStatus",
+  "recorded_result_input_sha256": "b3d29a2859c2294705b1ae1a43d20503d7227bde35e94d016de71db6c0721546",
+  "recorded_result_files_match_pattern": [
+    "marineGlobalPrewarm.seriesReuse.test.js",
+    "marine-card-matrix-closure.test.js",
+    "useMarineOrchestratorScrubCache.timeline.test.js",
+    "marineTimelineCoverage.test.js",
+    "ForecastTimeStatus.test.js",
+    "backendWeatherServiceClient.readOnly.test.js",
+    "forecast-card-swell-vs-surf.test.js"
+  ],
+  "recorded_results": {
+    "numTotalTestSuites": 7,
+    "numPassedTestSuites": 7,
+    "numPassedTests": 96,
+    "numFailedTests": 0
+  },
+  "limit": "YAML parse/structural and recorded-result checks, not actionlint, a fresh Jest run, or hosted Actions execution. Gate JavaScript input filename alone is adapted to the saved receipt."
+}

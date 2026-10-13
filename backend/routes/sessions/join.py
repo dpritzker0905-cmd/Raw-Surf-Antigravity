@@ -5,12 +5,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 import json
 from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionParticipant, Notification, PaymentTransaction, Post, Profile, RoleEnum, XPTransaction
 
 from .schemas import JoinSessionRequest
 from utils.credits import deduct_credits
+from services import live_session_escrow
 import os, stripe, logging
 import stripe_mcp_server, sqlite3
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
@@ -19,7 +21,12 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/sessions/join")
-async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSession = Depends(get_db)):
+async def join_session(
+    data: JoinSessionRequest,
+    surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Join a live session - SmugMug-style pricing:
     - Buy-in price to join the session
@@ -38,7 +45,12 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
     - User receives notification about the refund
     """
     from models import AnalyticsEvent
-    
+
+    # The buyer is whoever holds the token: debiting credits or charging a card for an id
+    # supplied in the query string would let anyone spend another user's balance.
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot join a session on behalf of another user")
+
     surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
     surfer = surfer_result.scalar_one_or_none()
     if not surfer:
@@ -97,7 +109,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
         platform_discount = 0.20  # 20% off
     
     # Apply photographer-specific subscription discount (stacks with platform discount)
-    from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+    from routes.subscriptions_billing.photo_sub_helpers import get_subscription_discount, try_use_subscription_quota
     photo_sub_discount_pct = await get_subscription_discount(
         db, surfer_id, data.photographer_id, service_type='on_demand'
     )
@@ -195,9 +207,7 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
     # ============ CREDIT PAYMENT PROCESSING ============
     payment_processed = False
     new_balance = surfer.credit_balance
-    photographer_credited = False
-    photographer_credit_amount = 0.0
-    
+
     if data.payment_method == 'credits':
         success, new_balance, error = await deduct_credits(
             user_id=surfer_id,
@@ -214,40 +224,10 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
             raise HTTPException(status_code=400, detail=error)
         
         payment_processed = True
-        
-        # Credit photographer - use proper balance based on role
-        from utils.revenue_routing import is_pro_creator, is_hobbyist_creator
-        
-        photographer_credit_amount = final_price * 0.80  # 80% after platform fee
-        
-        if is_pro_creator(photographer.role):
-            # Pro: goes to withdrawable credits
-            photographer.withdrawable_credits += photographer_credit_amount
-            photographer.credit_balance = photographer.withdrawable_credits
-        elif is_hobbyist_creator(photographer.role):
-            # Hobbyist: goes to gear credits
-            photographer.gear_only_credits += photographer_credit_amount
-            photographer.credit_balance = photographer.gear_only_credits
-        else:
-            # Other roles: regular credit balance
-            photographer.credit_balance = (photographer.credit_balance or 0) + photographer_credit_amount
-        
-        photographer_credited = True
-        
-        # Log the credit transaction
-        credit_tx = CreditTransaction(
-            user_id=photographer.id,
-            amount=photographer_credit_amount,
-            balance_before=photographer.credit_balance - photographer_credit_amount,
-            balance_after=photographer.credit_balance,
-            transaction_type='live_session_earning',
-            description=f"Live session buy-in from {surfer.full_name}",
-            reference_type='live_session',
-            reference_id=surfer_id,
-            counterparty_id=surfer_id
-        )
-        db.add(credit_tx)
-    
+        # The photographer's share is not paid here: it is held on the participant row below and
+        # released when the buyer acts on the delivered media, or after 7 days
+        # (services/live_session_escrow.py).
+
     # ============ TRY SESSION JOIN - REFUND ON FAILURE ============
     try:
         # Determine participant role (grom_buyer if parent is buying for child)
@@ -303,9 +283,11 @@ async def join_session(data: JoinSessionRequest, surfer_id: str, db: AsyncSessio
             locked_price_standard=locked_standard,
             locked_price_high=locked_high,
         )
-        
+        if payment_processed:
+            live_session_escrow.hold(participant, final_price)
+
         db.add(participant)
-        
+
         # Notify photographer
         notification = Notification(
             user_id=data.photographer_id,

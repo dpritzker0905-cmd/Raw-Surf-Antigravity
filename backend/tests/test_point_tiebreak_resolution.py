@@ -57,11 +57,24 @@ def test_the_kill_switch_restores_the_old_key_exactly(monkeypatch):
 
 def test_both_selection_sites_share_the_one_key_so_they_cannot_drift():
     import inspect
+    from services.weather_pipeline import grid_resolver_surf as GRS
+    from services.weather_pipeline import manifest_point_selection as MPS
     from services.weather_pipeline import point_resolution as PR
-    for fn_name in ("_resolve_point_internal", "find_cached_grid_product"):
-        src = inspect.getsource(getattr(PR.PointResolutionService, fn_name))
-        assert "key=_selection_key" in src, (
-            f"{fn_name} no longer uses the shared _selection_key — the two sites can drift into "
+    # 2026-09-26: the pick itself is shared now (manifest_point_selection), and so is its ranking.
+    # The rating band's wind sampler is the THIRD site: it had its own min(time) pick and it chose
+    # the Florida tile for ICON's band everywhere.
+    sites = {fn: inspect.getsource(getattr(PR.PointResolutionService, fn))
+             for fn in ("_resolve_point_internal", "find_cached_grid_product")}
+    sites["grid_resolver_surf._build_wind_sampler"] = inspect.getsource(GRS._build_wind_sampler)
+    import ast
+    import textwrap
+    for fn_name, src in sites.items():
+        called = {(n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", None))
+                  for n in ast.walk(ast.parse(textwrap.dedent(src))) if isinstance(n, ast.Call)}
+        assert {"point_candidates", "choose_for_point"} <= called, (
+            f"{fn_name} no longer picks through manifest_point_selection — the sites can drift into "
             f"different selection semantics, which is how the four duplicate lambdas happened")
-        assert "get_bbox_area" not in src, (
-            f"{fn_name} regrew a local ranking — rank in _selection_key only")
+        assert not called & {"get_bbox_area", "min", "sorted"}, (
+            f"{fn_name} regrew a local ranking — rank in manifest_point_selection.selection_key only")
+    assert "key=lambda e: selection_key(" in inspect.getsource(MPS.point_candidates)
+    assert PR._selection_key is MPS.selection_key, "point_resolution must re-export the ONE key"

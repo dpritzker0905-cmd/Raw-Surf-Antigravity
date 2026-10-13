@@ -5,6 +5,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AlertCircle, Search, X, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { useThemeName } from '../../contexts/ThemeContext';
+import { mapChromeTheme } from './mapChromeTheme';
 
 export var MapFilterTabs = ({ 
   filter, 
@@ -17,6 +19,8 @@ export var MapFilterTabs = ({
   const [searchResults, setSearchResults] = useState([]);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef(null);
+  // Three themes (W-10 R4): this chrome was zinc-800 / text-white in every mode.
+  const c = mapChromeTheme(useThemeName());
   
   // Handle search input
   const handleSearch = (query) => {
@@ -63,14 +67,14 @@ export var MapFilterTabs = ({
       {/* Search Bar */}
       <div className="relative" ref={searchRef}>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${c.subtleText}`} />
           <input aria-label="Search surf spots..."
             type="text"
             value={searchQuery}
             onChange={(e) => handleSearch(e.target.value)}
             onFocus={() => searchQuery.length >= 2 && setShowResults(true)}
             placeholder="Search surf spots..."
-            className="w-full pl-9 pr-8 py-2 bg-zinc-800/90 backdrop-blur-sm border border-zinc-700 rounded-full text-white text-sm placeholder-gray-500 focus:outline-none focus:border-yellow-400/50 focus:ring-1 focus:ring-yellow-400/30"
+            className={`w-full pl-9 pr-8 py-2 ${c.surface} backdrop-blur-sm border rounded-full ${c.surfaceText} text-sm placeholder-gray-500 focus:outline-none focus:border-yellow-400/50 focus:ring-1 focus:ring-yellow-400/30`}
             data-testid="map-spot-search-input"
           />
           {searchQuery && (
@@ -80,7 +84,7 @@ export var MapFilterTabs = ({
                 setSearchResults([]);
                 setShowResults(false);
               }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              className={`absolute right-3 top-1/2 -translate-y-1/2 ${c.iconButton}`}
               aria-label="Clear search"
             >
               <X className="w-4 h-4" />
@@ -90,20 +94,20 @@ export var MapFilterTabs = ({
         
         {/* Search Results Dropdown */}
         {showResults && searchResults.length > 0 && (
-          <div className="absolute top-full mt-1 left-0 right-0 bg-zinc-800/95 backdrop-blur-md border border-zinc-700 rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto">
+          <div className={`absolute top-full mt-1 left-0 right-0 ${c.dropdown} backdrop-blur-md border rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto`}>
             {searchResults.map((spot) => (
               <button
                 key={spot.id}
                 onClick={() => handleSpotClick(spot)}
-                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700/50 transition-colors text-left border-b border-zinc-700/50 last:border-b-0"
+                className={`w-full flex items-center gap-3 px-4 py-3 ${c.rowHover} transition-colors text-left border-b ${c.rowBorder} last:border-b-0`}
                 data-testid={`search-result-${spot.id}`}
               >
                 <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center shrink-0">
                   <MapPin className="w-4 h-4 text-cyan-400" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{spot.name}</p>
-                  <p className="text-gray-400 text-xs truncate">
+                  <p className={`${c.surfaceText} text-sm font-medium truncate`}>{spot.name}</p>
+                  <p className={`${c.subtleText} text-xs truncate`}>
                     {[spot.region, spot.country].filter(Boolean).join(', ')}
                   </p>
                 </div>
@@ -129,7 +133,7 @@ export var MapFilterTabs = ({
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all backdrop-blur-sm ${
               filter === f
                 ? 'bg-yellow-400 text-black'
-                : 'bg-zinc-800/90 text-gray-300 hover:bg-zinc-700'
+                : c.chipIdle
             }`}
             data-testid={`map-filter-${f}`}
           >
@@ -140,8 +144,8 @@ export var MapFilterTabs = ({
         {/* Location Denied Warning */}
         {locationDenied && (
           <div className="flex items-center gap-2 px-3 py-2 bg-red-500/20 border border-red-500/50 rounded-full text-xs">
-            <AlertCircle className="w-4 h-4 text-red-400" />
-            <span className="text-red-300">Location denied</span>
+            <AlertCircle className={`w-4 h-4 ${c.dangerIcon}`} />
+            <span className={c.danger}>Location denied</span>
             <button
               onClick={() => {
                 toast.info(
@@ -149,7 +153,7 @@ export var MapFilterTabs = ({
                   { duration: 8000 }
                 );
               }}
-              className="text-cyan-400 hover:text-cyan-300 underline"
+              className={`${c.link} underline`}
             >
               Help
             </button>

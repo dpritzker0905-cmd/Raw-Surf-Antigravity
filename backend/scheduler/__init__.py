@@ -24,6 +24,7 @@ from .bookings import (
 )
 from .financial import (
     auto_release_escrow_task,
+    release_live_session_escrow_task,
     send_weekly_sales_reports_task,
     cleanup_abandoned_stripe_sessions_task,
     check_credit_transaction_integrity_task,
@@ -107,6 +108,15 @@ def start_scheduler():
         tracked('auto_escrow_release', 'Auto-release escrow 7 days after session', 'Daily 3am UTC', auto_release_escrow_task),
         CronTrigger(hour=3, minute=0),
         id='auto_escrow_release', name='Auto-release escrow 7 days after session',
+        replace_existing=True
+    )
+
+    # Live-session escrow — every 15 min: pay held buy-in shares once the buyer acts, or after 7 days
+    scheduler.add_job(
+        tracked('live_session_escrow_release', 'Release live-session buy-in shares after buyer action or 7 days',
+                'Every 15 minutes', release_live_session_escrow_task),
+        IntervalTrigger(minutes=15),
+        id='live_session_escrow_release', name='Release live-session buy-in shares',
         replace_existing=True
     )
 
@@ -238,11 +248,66 @@ def start_scheduler():
         replace_existing=True
     )
 
+    # WORKFLOW DISPATCH FALLBACK (2026-09-28) — GitHub drops 44-75% of the data lanes' scheduled slots and runs
+    # the rest hours late; this fires a lane's workflow when its cron slot passed with no run. DARK until
+    # GITHUB_DISPATCH_TOKEN is set (a no-op pass otherwise). See services/workflow_dispatch.py. Kill:
+    # WORKFLOW_DISPATCH=0. Sync (requests), so tracked() runs it off the event loop.
+    def _workflow_dispatch():
+        from services import workflow_dispatch
+        workflow_dispatch.run_once()
+
+    from services.workflow_dispatch import INTERVAL_MIN as _wd_min
+    scheduler.add_job(
+        tracked('workflow_dispatch', 'Dispatch data-lane workflows GitHub did not run', f'Every {_wd_min} minutes',
+                _workflow_dispatch),
+        IntervalTrigger(minutes=_wd_min),
+        id='workflow_dispatch', name='Dispatch data-lane workflows GitHub did not run',
+        replace_existing=True
+    )
+
+    # MEMORY TRACE (2026-09-21) — the instrument for "does the degradation track process uptime?"
+    # A restart cleared a 4.6% 5xx rate, an 11.4% over-10s rate and 85.3% memory use, under HIGHER
+    # load. That inference rests on two snapshots of two DIFFERENT processes, which is not a growth
+    # series; this job makes one. It samples RSS alongside the sizes of the four unbounded caches
+    # AND two bounded controls, so the leak names itself instead of only announcing that it exists.
+    # 5 minutes × 288 samples = the 24h window that spans the 14h degradation. Cost per sample is
+    # one psutil read plus a few len() calls. Kill: MEMORY_TRACE=0.
+    def _sample_memory():
+        try:
+            from services import memory_trace
+            memory_trace.sample()
+        except Exception as e:
+            logger.warning(f"[Scheduler] Memory trace sample failed: {e}")
+        # AFTER the sample, so the trace keeps recording the un-trimmed ratchet and heap_trim's own
+        # before/after says how much of it was reclaimable arena free-space. Kill: HEAP_TRIM=0.
+        try:
+            from services import heap_trim
+            heap_trim.trim()
+        except Exception as e:
+            logger.warning(f"[Scheduler] heap trim failed: {e}")
+
+    scheduler.add_job(
+        tracked('memory_trace', 'Sample RSS and cache sizes for leak detection', 'Every 5 minutes', _sample_memory),
+        IntervalTrigger(minutes=5),
+        id='memory_trace', name='Sample RSS and cache sizes for leak detection',
+        replace_existing=True
+    )
+
+    # Take one sample immediately so the series has a t≈0 origin. Without it the first data point
+    # is 5 minutes in, and the question is specifically about growth FROM startup.
+    try:
+        from services import memory_trace
+        memory_trace.register_default_gauges()
+        memory_trace.sample()
+    except Exception as e:
+        logger.warning(f"[Scheduler] Memory trace init failed: {e}")
+
     scheduler.start()
     logger.info("[Scheduler] Background scheduler started")
     logger.info("[Scheduler] Jobs: surf_alerts (15min), story_cleanup (1hr), leaderboard_reset (monthly), "
                 "grom_report (weekly), payment_expiry (5min), platform_metrics (6hr), session_reminders (5min), "
-                "auto_escrow_release (daily 3am), selection_deadline_expiry (daily 4am), weekly_sales_reports "
+                "auto_escrow_release (daily 3am), live_session_escrow_release (15min), "
+                "selection_deadline_expiry (daily 4am), weekly_sales_reports "
                 "(Monday 9am), expire_booking_invites (5min), cleanup_stripe_sessions (30min), "
                 "cleanup_expired_booking_payments (10min), credit_integrity_check (daily 5am), rate_limiter_cleanup (1hr)")
 

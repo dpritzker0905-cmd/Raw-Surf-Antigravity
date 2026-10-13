@@ -9,6 +9,10 @@
  *   - NO DOM or React dependency
  *   - Pure color math + GL texture creation
  */
+import { DARK_RULES, DARK_WHITE, solveDarkRules } from './windDarkRules';
+import { BEACH_PATH, beachPathRows } from './windBeachPath';
+import { setWindLandDepthGate, windLandWhite } from './windBasemapMute';
+import { LIGHT_PATH, lightTables } from './windLightPath';
 
 /**
  * v3.11.3: Scientific wind speed color ramp (meteorological convention).
@@ -80,36 +84,51 @@ var DEFAULT_WIND_RAMP = [
 // advance, visΔ floors (>=12 @0kn, >=20 @3kn — achieved 25-45 @0kn), composite sat floors,
 // >=18° wheel clearance from the 75 kn stop, haze guard <=0.55*opacity. Pinned by
 // windFieldLut.test.js (composite gaps + visibility floors at the NEW alphas).
+// LIGHT + BEACH REDESIGN (2026-10-09, owner: "light mode needs color corrections" / "beach mode colors seem off ... use
+// artistic skill" / "careful not to completely block land mass"; slow wind: owner chose the MIDDLE GROUND). Supersedes the
+// 07-20 saturated-calm stops (hot pink / electric violet washed every calm landmass) together with the field tint and the
+// speed-coloured premultiplied marks (WebGLWindUtils.v2FieldTint / v2SpeedPremul). Designed in OKLCH on the 13 Beaufort
+// anchors, checked in CIEDE2000 under the multiply tint over the measured basemaps:
+//  - calm (0 kn) is ~colourless (dE <= ~1 on water and land): no wind, no wash;
+//  - light air is a soft visible tint (3 kn dE ~9-10), a breeze clear colour (6 kn dE ~15) — the owner's middle ground;
+//  - adjacent bands >= 9.5 dE apart (>= 4.9 deuteranope-simulated); lightness falls calm -> storm except one capped dip
+//    at 10 kn (needed for slow wind to show on cyan water); all stops in sRGB gamut.
+// BEACH "sea -> sunset -> dusk": sand-white, seafoam, aqua-green, jade, emerald, palm-frond, palm gold, sunset gold,
+// apricot, coral, hibiscus, sunset magenta, dusk violet. (10-21 kn were sea-teal / lagoon / sea green — the water's own
+// colours; see BEACH GREEN BAND below.)
 var BEACH_WIND_RAMP = [
-  [0,  1.00, 0.32, 0.78, 0.75], // Calm: hot pink (composite 261°, visΔ 25.0)
-  [3,  0.94, 0.22, 0.49, 0.78], // Light air: raspberry (composite 314°, visΔ 42.5)
-  [6,  0.85, 0.53, 0.47, 0.81], // Light breeze: terracotta (composite 7°, visΔ 32.7)
-  [10, 0.95, 0.82, 0.06, 0.83], // Gentle: yellow-gold
-  [16, 0.72, 0.90, 0.12, 0.85], // Moderate: lime
-  [21, 0.35, 0.88, 0.25, 0.87], // Fresh: green
-  [27, 0.10, 0.88, 0.55, 0.88], // Strong: spring green
-  [33, 0.00, 0.86, 0.80, 0.90], // Near gale: turquoise
-  [40, 0.00, 0.72, 0.92, 0.91], // Gale: cyan-blue
-  [47, 0.10, 0.55, 0.95, 0.92], // Strong gale: royal blue
-  [55, 0.35, 0.35, 0.93, 0.93], // Storm: indigo
-  [63, 0.60, 0.25, 0.90, 0.94], // Violent storm: violet
-  [75, 0.88, 0.20, 0.88, 0.95], // Hurricane: magenta
+  [0,  0.973, 0.953, 0.911, 0.75], // Calm: sand white (L* 95.9)
+  [3,  0.471, 0.891, 0.712, 0.78], // Light air: seafoam (L* 83.2)
+  [6,  0.027, 0.780, 0.643, 0.81], // Light breeze: aqua-green (L* 71.9)
+  [10, 0.185, 0.642, 0.496, 0.83], // Gentle: jade (L* 60.4; colour-blind pass)
+  [16, 0.291, 0.613, 0.234, 0.85], // Moderate: emerald (L* 57.7; colour-blind pass)
+  [21, 0.286, 0.496, 0.208, 0.87], // Fresh: palm-frond green (L* 47.9; OKLCH 0.540/0.120/138)
+  [27, 0.631, 0.710, 0.304, 0.88], // Strong: palm gold-green (L* 70.3)
+  [33, 0.827, 0.647, 0.050, 0.90], // Near gale: sunset gold (L* 70.0)
+  [40, 0.862, 0.455, 0.068, 0.91], // Gale: apricot (L* 59.6)
+  [47, 0.822, 0.325, 0.239, 0.92], // Strong gale: coral (L* 52.0)
+  [55, 0.739, 0.212, 0.305, 0.93], // Storm: hibiscus (L* 44.2)
+  [63, 0.582, 0.149, 0.411, 0.94], // Violent storm: sunset magenta (L* 35.5)
+  [75, 0.322, 0.173, 0.514, 0.95], // Hurricane: dusk violet (L* 27.4)
 ];
 
+// LIGHT "dawn sky -> storm": cloud white, lavender, periwinkle, light violet, sage leaf, spring green, yellow-green, gold,
+// orange, red-orange, red, crimson, plum. (Lavender/periwinkle, not sky blue, open the ramp: blue on the pale-cyan water is
+// invisible. 10/16 kn were cerulean/teal — the water's own colours; see LIGHT LOW BAND below.)
 var LIGHT_WIND_RAMP = [
-  [0,  0.54, 0.00, 0.92, 0.72], // Calm: electric violet (composite 243°, visΔ 45.1 @ baseA 0.42)
-  [3,  0.01, 0.00, 0.52, 0.75], // Light air: navy-indigo (composite 222°, visΔ 80.1)
-  [6,  0.06, 0.50, 0.78, 0.78], // Light breeze: cerulean (composite 201°, visΔ 66.9)
-  [10, 0.03, 0.42, 0.40, 0.80], // Gentle: pine teal
-  [16, 0.08, 0.46, 0.20, 0.82], // Moderate: forest green
-  [21, 0.30, 0.47, 0.10, 0.84], // Fresh: olive
-  [27, 0.52, 0.44, 0.03, 0.86], // Strong: dark gold
-  [33, 0.65, 0.38, 0.02, 0.87], // Near gale: bronze
-  [40, 0.72, 0.28, 0.04, 0.88], // Gale: burnt orange
-  [47, 0.75, 0.18, 0.08, 0.90], // Strong gale: brick
-  [55, 0.70, 0.08, 0.22, 0.91], // Storm: crimson
-  [63, 0.58, 0.05, 0.38, 0.93], // Violent storm: wine
-  [75, 0.40, 0.02, 0.45, 0.95], // Hurricane: deep violet
+  [0,  0.942, 0.964, 0.987, 0.72], // Calm: cloud white (L* 96.6)
+  [3,  0.803, 0.759, 0.965, 0.75], // Light air: lavender (L* 80.7)
+  [6,  0.631, 0.688, 0.883, 0.78], // Light breeze: periwinkle (L* 72.1)
+  [10, 0.746, 0.650, 0.997, 0.80], // Gentle: light violet (L* 73.1; OKLCH 0.780/0.125/296)
+  [16, 0.545, 0.672, 0.377, 0.82], // Moderate: sage leaf (L* 66.2; OKLCH 0.700/0.108/128)
+  [21, 0.415, 0.764, 0.520, 0.84], // Fresh: spring green (L* 72.0)
+  [27, 0.610, 0.708, 0.289, 0.86], // Strong: yellow-green (L* 69.7)
+  [33, 0.804, 0.641, 0.027, 0.87], // Near gale: gold (L* 69.0)
+  [40, 0.842, 0.436, 0.014, 0.88], // Gale: orange (L* 57.9)
+  [47, 0.825, 0.317, 0.104, 0.90], // Strong gale: red-orange (L* 51.5)
+  [55, 0.752, 0.167, 0.184, 0.91], // Storm: red (L* 42.9)
+  [63, 0.608, 0.084, 0.311, 0.93], // Violent storm: crimson (L* 34.2)
+  [75, 0.395, 0.104, 0.440, 0.95], // Hurricane: plum (L* 25.8)
 ];
 
 var DARK_WIND_RAMP = [
@@ -121,14 +140,15 @@ var DARK_WIND_RAMP = [
   [0,  0.90, 0.00, 1.00, 0.80], // Calm: vivid magenta (composite 269°, visΔ 26.3 @ baseA 0.44)
   [3,  0.03, 0.00, 1.00, 0.83], // Light air: pure blue (composite 234°, visΔ 42.3)
   [6,  0.00, 0.67, 1.00, 0.85], // Light breeze: azure (composite 200°, visΔ 37.4)
-  [10, 0.20, 0.95, 0.70, 0.87], // Gentle: aqua-green
-  [16, 0.38, 0.95, 0.40, 0.88], // Moderate: spring green
-  [21, 0.62, 0.92, 0.30, 0.89], // Fresh: yellow-green
-  [27, 0.85, 0.85, 0.20, 0.90], // Strong: chartreuse
-  [33, 0.97, 0.72, 0.15, 0.91], // Near gale: amber
-  [40, 0.99, 0.55, 0.12, 0.92], // Gale: orange
-  [47, 0.98, 0.35, 0.15, 0.93], // Strong gale: vermilion
-  [55, 0.95, 0.20, 0.30, 0.94], // Storm: hot red
+  // 10-55 kn: the COLOUR-BLIND PASS below (L* 83 -> 90 -> 91 -> 86 -> 77 -> 66 -> 59 -> 53: one lightness arc).
+  [10, 0.003, 0.918, 0.696, 0.87], // Gentle: aqua-green (deeper)
+  [16, 0.415, 1.000, 0.562, 0.88], // Moderate: spring green (brighter, softer)
+  [21, 0.636, 0.990, 0.371, 0.89], // Fresh: yellow-green (the arc's peak)
+  [27, 0.972, 0.843, 0.112, 0.90], // Strong: chartreuse, warmed toward lemon
+  [33, 0.963, 0.693, 0.180, 0.91], // Near gale: amber
+  [40, 0.957, 0.517, 0.165, 0.92], // Gale: orange
+  [47, 0.966, 0.352, 0.190, 0.93], // Strong gale: vermilion
+  [55, 0.952, 0.178, 0.290, 0.94], // Storm: hot red
   [63, 0.92, 0.30, 0.65, 0.95], // Violent storm: rose
   [75, 1.00, 0.75, 0.95, 0.95], // Hurricane: white-magenta
 ];
@@ -144,6 +164,390 @@ export var THEME_RAMPS = {
   dark: DARK_WIND_RAMP
 };
 
+// FIELD RAMPS (2026-10-09, owner: "I like this transparency and animation level [dark], can we match this with light and
+// beach but keep ... seeing the land mass ... keep the colors"). Dark's field carries a FLAT strength per band (bench dE76,
+// basemap vs field: 6 kn 23 · 10 kn 29.5 · 16 kn 32 · 21 kn 31.5 · 27 kn 30 · 33 kn 28.5 · 40 kn 26 · 47+ kn ~24-25). With the
+// particle palettes as the field, light's storm bands ran up to 2x that (dark ink on a white map) and beach's 10-27 kn ~2/3.
+// Re-tuning the SHARED ramp would have made light's hurricane PARTICLES pastel, so the tinted themes give the field its
+// own ramp: same hues (OKLCH h fixed), L/C re-solved per band so the multiply tint carries dark's measured strength
+// (model = the GPU blend on encoded sRGB at the owner's +5-point strengths). 0 and 3 kn keep the middle-ground stops.
+// The particles keep THEME_RAMPS. Kill: __RAW_DISABLE_WIND_FIELD_RAMP__ (the field samples THEME_RAMPS again).
+// MID-BAND REFINE (2026-10-09, owner: "around 15kts is blending in with the color of the map itself ... refine this very
+// slightly"; reports/Wind particle color basemap contrast.md). Measured on the composite over the basemap WATER (light
+// 168,214,222 · beach 150,190,200): the 10-16 kn interpolation passes THROUGH the water's hue (light ~12-13 kn, beach ~13 and
+// ~17 kn, 0-4° gap), a cyan multiply over cyan water keeps only 0.51-0.68 of its over-land strength, and the 2-3 arcmin
+// streaks sat just +1.5 to +5.3 L* above their own tint (light 10 kn +6% Weber, under the ~8-11% "just usable" floor for a
+// thin line). Hue cannot fix a crossing speed and thin marks are seen by LIGHTNESS, so in LIGHT each layer gets the lever
+// that works on its own ground: the 10 kn FIELD stop darkens 3.6 L*, the PARTICLE (legend) stops hold their lightness within
+// ±1 L* and gain chroma. Solved by a maximin over 10-21 kn on water (streak vs its tint dL*/4, tint vs water dE00/14, streak
+// vs water dE00/14) with this file's windFieldLut gates hard, dark parity kept, land tint <= +0.2 dE76, no hue turned toward
+// the water, every stop <= 2 CSS JND (dE_OK <= 0.04). Light over water, 10-21 kn: streak vs its tint +1.5..+4.2 -> +3.8..+4.0
+// L* (worst ~6% -> ~15% Weber). The owner accepted light at this step.
+// BEACH GREEN BAND (owner, same day: "light mode seems acceptable, but beach mode the issue is still persisting. Use art
+// resources ... and animation resources"; research_notes/Beach wind art and motion/). The slight refine moved beach's tint by
+// ~1 dE00, and the streak's speed colour is a ~1 px core inside a white ring, so what reads as "the wind colour" is the TINT —
+// and beach's 10-21 kn tints were the water's own colours (sea-teal, lagoon, sea green on grey-blue water). Painters' rule:
+// same hue darker reads as deeper water or cloud shadow; a change of hue FAMILY reads as something on the sea. At dark-parity
+// strength the multiply only clears the water's colour category (>= 35° hue) for a tint hue <= ~165° OKLCH (turquoise 180°
+// reaches 27° at best), so the band becomes the sea-glass greens: particles (legend) jade -> emerald -> palm-frond (the art
+// research's set: adjacent 11.3 / 11.3 / 11.6 dE00, deuteranope 11.1 / 13.1 / 9.8), field solved per speed for parity +
+// windFieldLut gates + an EVEN darkening over water (15-23 L* below it, smooth across speeds — no false bands), land tint
+// <= +2.2 dE76. Over water, 8-24 kn: tint hue gap 0-36° -> 36-89°, tint vs water 12.7-16.8 -> 18.5-30.4 dE00.
+// Kill: __RAW_DISABLE_WIND_MIDBAND_REFINE__ (the stops listed below revert — beach to its pre-refine sea colours — on the
+// next ramp build: theme change or reload).
+var PRE_MIDBAND_STOPS = {
+  particle: { light: { 3: [10, 0.116, 0.690, 0.811, 0.80], 4: [16, 0.332, 0.785, 0.749, 0.82], 5: [21, 0.409, 0.758, 0.514, 0.84] },
+    beach: { 3: [10, 0.361, 0.680, 0.704, 0.83], 4: [16, 0.308, 0.764, 0.906, 0.85], 5: [21, 0.284, 0.748, 0.574, 0.87] } },
+  field: { light: { 3: [10, 0.276, 0.688, 0.789, 0.80], 4: [16, 0.228, 0.803, 0.762, 0.82] },
+    beach: { 3: [10, 0.008, 0.746, 0.788, 0.83], 4: [16, 0.008, 0.788, 0.967, 0.85], 5: [21, 0.016, 0.811, 0.637, 0.87] } },
+};
+// LIGHT LOW BAND (owner, later the same day: "in light mode, I think those slower wind speeds under 15kts animation color
+// looks to similar to the water color of the map ... refine this like you did with color skills"). Measured over light water,
+// the tint sat 0-26° off the water's hue from 8 to 18 kn (0° at 12 kn): cerulean (10) and teal (16) ARE the water's colours.
+// Same cure as beach: leave the water's family. 10 kn goes to the violet side (light violet; tint 298° OKLCH), 16 kn to the
+// green side (sage leaf; tint 138°). A violet -> green ramp must hand off across the water's hue somewhere; the solver keeps
+// that hand-off to ~1 kn (13 kn) where it used to span 8-18 kn. Over water: tint >= 35° off the water's hue at every speed
+// 4-22 kn except 12.5-13.5, tint vs water 13.8-16.3 -> 14.9-22.2 dE00, streak vs its tint +4.0..+5.9 L* over 7-16 kn (was
+// +3.8..+4.0), all windFieldLut gates and dark parity held. Owner-pane A/B on the real map: research_notes/Beach wind art and
+// motion/. (Softening the basemap water instead was measured too: +2-3 dE00 at the cost of the land/water step, 16 -> 10-12.)
+// Kill: __RAW_DISABLE_WIND_LIGHT_LOWBAND__ restores the cerulean/teal stops (the midband kill, if also set, wins).
+var PRE_LIGHT_LOWBAND = {
+  particle: { 3: [10, 0.103, 0.701, 0.825, 0.80], 4: [16, 0.304, 0.786, 0.738, 0.82] },
+  field: { 3: [10, 0.289, 0.646, 0.736, 0.80], 4: [16, 0.228, 0.803, 0.762, 0.82] },
+};
+// COLOUR-BLIND PASS (2026-10-09; frontend/scripts/wind-color, coloraide Vienot protan/deutan + Brettel tritan, floor 5 dE2000
+// between neighbouring stops). DARK: the 10-33 kn neon greens sat at one lightness (L* 84-86), so a red/green-blind viewer saw
+// one yellow from 10 to 33 kn (legend 16-21 kn protan 2.4, tint over water 21-27 kn protan 2.1; 16-21 kn was even under the
+// 9 dE normal-vision legend target at 7.9). Re-solved by the least change (every stop <= 0.05 dE_OK, ~2.5 CSS JND) with
+// every Jest gate hard and NO new lightness or chroma peak/dip in the legend or the tint over water: the greens now
+// brighten and saturate up to a 21 kn peak and the warm bands step down from it. Legend and tint >= 5.2 under all three.
+// BEACH: the tint's 16-33 kn sat at one lightness over the water while its hues ran palm green -> palm gold -> sunset gold
+// (yellow-green vs gold is one colour to a deuteranope: tint 27-33 kn deutan 0.4; legend 10-16 kn tritan 1.9). Same solve,
+// plus the land surface held to the floor too, and the tint allowed to turn only where the LEGEND turns (21 kn dips, 27-33
+// kn jumps up): the 27 kn field lifts to a light lime-gold (tint over water L* 60 -> 68), 40 kn becomes a clearer apricot,
+// the legend moves <= 0.013 dE_OK. Legend, tint over water and tint over land >= 5.2 under all three.
+// LIGHT, PARTIAL (an exception for the owner): the legend passes (6-10 kn deutan 4.3 -> 5.2, 27-33 kn protan 3.9 -> 5.2) and
+// the tint over water's weakest pair rises 0.3 -> 2.75, but the tint cannot reach 5 there at dark parity. Light's pale
+// warm 40-75 kn fields cancel the cyan water to a near-grey (C* 2-16, L* 61-64; 40-47 kn is 3.9 dE even in normal vision),
+// and a 24-26 dE76 tint can darken the water by at most ~22 L*. Under the same gates the solver reached 5 over water in
+// 1 run of 11, by redesigning the field (21-27 kn pale, stops up to 0.18 dE_OK, land worse): not shipped. The streaks
+// and the legend carry the fast bands. Kill: __RAW_DISABLE_WIND_<DARK|BEACH|LIGHT>_CVD__ restores that theme's rows below
+// (next ramp build: theme change or reload).
+var PRE_CVD = {
+  particle: {
+    dark: { 3: [10, 0.20, 0.95, 0.70, 0.87], 4: [16, 0.38, 0.95, 0.40, 0.88], 5: [21, 0.62, 0.92, 0.30, 0.89], 6: [27, 0.85, 0.85, 0.20, 0.90],
+      7: [33, 0.97, 0.72, 0.15, 0.91], 8: [40, 0.99, 0.55, 0.12, 0.92], 9: [47, 0.98, 0.35, 0.15, 0.93], 10: [55, 0.95, 0.20, 0.30, 0.94] },
+    beach: { 3: [10, 0.244, 0.631, 0.479, 0.83], 4: [16, 0.229, 0.626, 0.268, 0.85], 6: [27, 0.635, 0.707, 0.283, 0.88], 7: [33, 0.825, 0.650, 0.124, 0.90] },
+    light: { 1: [3, 0.803, 0.757, 0.982, 0.75], 2: [6, 0.612, 0.688, 0.897, 0.78], 3: [10, 0.747, 0.652, 0.997, 0.80], 6: [27, 0.615, 0.706, 0.267, 0.86],
+      7: [33, 0.802, 0.643, 0.099, 0.87] },
+  },
+  field: {
+    beach: { 2: [6, 0.237, 0.790, 0.664, 0.81], 4: [16, 0.268, 0.720, 0.190, 0.85], 5: [21, 0.435, 0.664, 0.005, 0.87], 6: [27, 0.618, 0.702, 0.000, 0.88],
+      7: [33, 0.839, 0.654, 0.027, 0.90], 8: [40, 0.843, 0.457, 0.124, 0.91], 9: [47, 0.809, 0.388, 0.311, 0.92], 10: [55, 0.638, 0.335, 0.364, 0.93],
+      11: [63, 0.497, 0.330, 0.414, 0.94], 12: [75, 0.441, 0.381, 0.553, 0.95] },
+    light: { 2: [6, 0.628, 0.701, 0.901, 0.78], 3: [10, 0.724, 0.641, 0.912, 0.80], 5: [21, 0.455, 0.763, 0.543, 0.84], 6: [27, 0.628, 0.692, 0.432, 0.86],
+      7: [33, 0.740, 0.657, 0.431, 0.87], 8: [40, 0.753, 0.588, 0.478, 0.88], 9: [47, 0.824, 0.613, 0.540, 0.90], 10: [55, 0.858, 0.618, 0.596, 0.91],
+      11: [63, 0.816, 0.601, 0.656, 0.93] },
+  },
+};
+var CVD_KILL = { dark: '__RAW_DISABLE_WIND_DARK_CVD__', beach: '__RAW_DISABLE_WIND_BEACH_CVD__', light: '__RAW_DISABLE_WIND_LIGHT_CVD__' };
+// LIGHT, ON A NEUTRAL GROUND (2026-10-09, owner: "then do the light colour-blind palette pass"). With the basemap muted
+// under the wind (windBasemapMute.js), light's tint sits on grey water and grey land, where its fast bands had always
+// collapsed for a deuteranope (27-33 kn: 1.8 on its own near-grey land, 1.9 on the muted water). Same solver as the pass
+// above, every Jest gate hard, NO new lightness/chroma peak or dip on any ground (muted or not), the unmuted water held at
+// its 2.75 and the land not lowered. Five field stops move <= 0.014 dE_OK (total 0.040; L* within 1.6): 33 and 40 kn a
+// touch deeper, 21 kn a touch less green. Weakest neighbouring tints: muted water 1.92 -> 2.58, muted land 1.85 -> 2.59,
+// unmuted land 1.83 -> 2.52, unmuted water 2.75 (kept). THE CEILING IS ~2.6 under light's rules, not 5 (4 + 6 maximin
+// seeds: 2.36-2.64). What binds is smoothness: a pass that may draw new lightness bands reaches 5.2 only with 4.5-8 L*
+// stripes at 33/47/63 kn (L-V15); 3 L* bands reach ~4. Removing the strength parity alone reaches ~3.2. Five needs a
+// redesign of the warm fast-band hues (log 2026-10-09-light-neutral-cvd). Kill: __RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__
+// (light field rows below; the older kills still win on the rows they share).
+var PRE_NEUTRAL_CVD_LIGHT_FIELD = { 3: [10, 0.719, 0.640, 0.914, 0.80], 5: [21, 0.462, 0.759, 0.538, 0.84], 6: [27, 0.631, 0.705, 0.434, 0.86],
+  7: [33, 0.687, 0.634, 0.429, 0.87], 8: [40, 0.751, 0.595, 0.470, 0.88] };
+function revertRows(ramp, rows) { return ramp.map(function(stop, i) { return rows[i] ? rows[i].slice() : stop; }); }
+function cvdPassed(ramp, kind, theme, w) {
+  var pre = PRE_CVD[kind][theme];
+  return pre && w && w[CVD_KILL[theme]] === true ? revertRows(ramp, pre) : ramp;
+}
+// LIGHT'S FIELD FROM 6 KN UP IS "A, STEADY DESCENT" (owner, 2026-10-10, after the A/B of three redesigns: "I like A too"). The
+// neutral-ground pass above proved ~2.6 is the ceiling for light's field tints at dark's strength; five needed a redesign. On the muted
+// ground every neighbouring tint pair from 6 kn up sat below 5 for some viewer (6-10 deutan 2.6, 16-21 4.5, 21-27 3.0, 27-75 kn 2.6-4.0),
+// so the fix is the whole 6-75 kn field, not only the warm bands. Lightness alone cannot carry it (the multiply tint bottoms out at
+// 0.3 x ground, L* ~33): A is a steady lightness descent AND a steady hue sweep through yellow -> red -> plum, so a deuteranope gets the
+// blue-yellow axis as well. Warm hues kept (hue identity to the legend within 25 deg); the LEGEND (particle ramp) is untouched.
+//   WHAT IT BUYS: weakest neighbouring tint 5.22 (muted water) / 5.26 (muted land) for protan, deutan and tritan (2.58 / 2.59 before); no
+//   lightness or chroma peak/dip (prominence > 1) in 21-75 kn on either ground; the 16 kn dip is shallower (2.4 L* against 4.6).
+//   WHAT IT COSTS, the one gate it re-scopes: 27-75 kn are stronger than dark's (33-44 dE76 against 24-30; x1.83 at 75 kn, the land under
+//   it L* 58.5 against 70). 6-21 kn stay within 1 dE76 of dark.
+// The two candidates not taken (B blue-violet end, C gentle) and the gate-by-gate report: log 2026-10-09-light-fastband-cvd.
+// Kill: __RAW_DISABLE_WIND_LIGHT_FASTBAND__ restores the rows below (next ramp build: theme change or reload). Each OLDER light-field
+// kill steps back past A first, so it draws exactly what it drew before A, never a mix of A's rows and older ones.
+var PRE_FASTBAND_LIGHT_FIELD = { 2: [6, 0.631, 0.705, 0.891, 0.78], 3: [10, 0.710, 0.639, 0.913, 0.80], 4: [16, 0.466, 0.625, 0.412, 0.82], 5: [21, 0.462, 0.747, 0.521, 0.84],
+  6: [27, 0.634, 0.708, 0.432, 0.86], 7: [33, 0.670, 0.618, 0.409, 0.87], 8: [40, 0.742, 0.579, 0.462, 0.88], 9: [47, 0.834, 0.599, 0.536, 0.90],
+  10: [55, 0.783, 0.591, 0.571, 0.91], 11: [63, 0.782, 0.608, 0.683, 0.93], 12: [75, 0.736, 0.616, 0.753, 0.95] };
+var LIGHT_FIELD_OLDER_KILLS = ['__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__'];
+// CLEAR CALM (2026-10-10, owner: "the light wind color also looks like fog visually, a lot, in light mode. And slightly in beach
+// mode"; "I do see hard lines in between very light winds and other wind fields"). Measured on the composite over the muted LAND
+// (scripts/wind-color, L* / C*): the calm stops were near white at the tint's weakest strength (0.29), so calm air drew the BARE
+// map. Since the basemap is greyed under the wind (windBasemapMute.js), bare is grey: light 92.4 / 0.6 on a ground of 93.4 / 0.5,
+// reaching lavender (85.2 / 12.3) within 3 kn; beach 83.0 / 3.5 on 83.9 / 2.2, reaching seafoam within 3 kn at 5.7 dE00 per knot,
+// its steepest step anywhere. Calm is now a pale tint of each theme's own first colour, solved FROM the composite wanted:
+//   light  88.5 / 7.0, a pale rose (dark's calm is magenta; 9.3 dE00 off the land, weaker than 3 kn's 12.5, and 7.4 from it);
+//   beach  82.2 / 7.5, a pale seafoam (8.1 off the land, 7.8 from 3 kn).
+// The calm edge's steepest step falls from 5.1 to 3.6 dE00 per knot in light and from 5.7 to 3.5 in beach.
+// The stops are deeper than they draw because calm tints at 0.29 strength. This RE-SCOPES the 2026-07 "calm is clean" bar
+// (windFieldLut.test.js): that bar was set on a map that kept its colour under the wind. A near-white lilac cannot carry more
+// (gamut: C* 8 at L* 89), and 3-10 kn stay as they were: their strength is dark's (D-018's field contract) and their steps hold
+// the colour-blind floor. The LEGEND (particle ramp) is untouched. Kill: __RAW_DISABLE_WIND_CALM_CLEAR__ (the rows below);
+// every older field kill of the theme steps back past it first, so it draws exactly what it drew before.
+var PRE_CLEAR_FIELD = { light: { 0: [0, 0.942, 0.964, 0.987, 0.72] }, beach: { 0: [0, 0.973, 0.953, 0.911, 0.75] } };
+var BEACH_FIELD_OLDER_KILLS = ['__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__'];
+function beforeClearCalm(ramp, kind, theme, w) {
+  if (kind !== 'field' || !PRE_CLEAR_FIELD[theme] || !w) return ramp;
+  var older = theme === 'light' ? LIGHT_FIELD_OLDER_KILLS.concat('__RAW_DISABLE_WIND_LIGHT_FASTBAND__') : BEACH_FIELD_OLDER_KILLS;
+  var back = w.__RAW_DISABLE_WIND_CALM_CLEAR__ === true || older.some(function(k) { return w[k] === true; });
+  return back ? revertRows(ramp, PRE_CLEAR_FIELD[theme]) : ramp;
+}
+function beforeFastBand(ramp, kind, theme, w) {
+  if (kind !== 'field' || theme !== 'light' || !w) return ramp;
+  var back = w.__RAW_DISABLE_WIND_LIGHT_FASTBAND__ === true || LIGHT_FIELD_OLDER_KILLS.some(function(k) { return w[k] === true; });
+  return back ? revertRows(ramp, PRE_FASTBAND_LIGHT_FIELD) : ramp;
+}
+function midbandRefined(ramp, kind, theme, w) {
+  ramp = beforeFastBand(beforeClearCalm(ramp, kind, theme, w), kind, theme, w);
+  if (kind === 'field' && theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__ === true) ramp = revertRows(ramp, PRE_NEUTRAL_CVD_LIGHT_FIELD);
+  ramp = cvdPassed(ramp, kind, theme, w);   // the older kills below win over it on the rows they share
+  var out = (theme === 'light' && w && w.__RAW_DISABLE_WIND_LIGHT_LOWBAND__ === true) ? revertRows(ramp, PRE_LIGHT_LOWBAND[kind]) : ramp;
+  var pre = PRE_MIDBAND_STOPS[kind][theme];
+  if (!pre || !w || w.__RAW_DISABLE_WIND_MIDBAND_REFINE__ !== true) return out;
+  return revertRows(out, pre);
+}
+var LIGHT_FIELD_RAMP = [   // 6-75 kn: A, STEADY DESCENT (see PRE_FASTBAND_LIGHT_FIELD: the colour-blind floor on the muted ground;
+  // 27-75 kn stronger than dark's). 3 kn is the stop it was; calm: CLEAR CALM (PRE_CLEAR_FIELD)
+  [0,  0.970, 0.741, 0.866, 0.72], [3,  0.803, 0.757, 0.982, 0.75], [6,  0.711, 0.727, 0.967, 0.78],
+  [10, 0.717, 0.581, 0.819, 0.80], [16, 0.467, 0.622, 0.412, 0.82], [21, 0.450, 0.762, 0.543, 0.84],
+  [27, 0.703, 0.717, 0.395, 0.86], [33, 0.625, 0.590, 0.324, 0.87], [40, 0.600, 0.484, 0.332, 0.88],
+  [47, 0.701, 0.443, 0.438, 0.90], [55, 0.679, 0.326, 0.414, 0.91], [63, 0.611, 0.348, 0.534, 0.93],
+  [75, 0.562, 0.358, 0.652, 0.95],
+];
+var BEACH_FIELD_RAMP = [   // 6 and 16-75 kn: the COLOUR-BLIND PASS (27 kn lifts to a light lime-gold, 40 kn a clearer apricot)
+  [0,  0.713, 0.981, 0.860, 0.75], [3,  0.471, 0.891, 0.712, 0.78], [6,  0.253, 0.783, 0.635, 0.81],   // calm: CLEAR CALM
+  [10, 0.034, 0.515, 0.336, 0.83], [16, 0.177, 0.713, 0.291, 0.85], [21, 0.439, 0.672, 0.000, 0.87],
+  [27, 0.650, 0.908, 0.240, 0.88], [33, 0.808, 0.633, 0.003, 0.90], [40, 0.961, 0.488, 0.284, 0.91],
+  [47, 0.790, 0.381, 0.308, 0.92], [55, 0.621, 0.314, 0.321, 0.93], [63, 0.498, 0.330, 0.430, 0.94],
+  [75, 0.437, 0.385, 0.578, 0.95],
+];
+export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
+
+// LIGHT'S LOOK, AN A/B (2026-10-10; owner: "We really just need to replicate dark mode, but with proper setup for the colors for each
+// modes schema", "we need to replicate our science from dark mode"). The LEVER is default off. SINCE 2026-10-11 (D-021, the white
+// streak) the 'deep' tables below ARE light's default: dark's rules draw them with dark's own white ring (darkRulesTables), so a
+// change to LIGHT_LOOK_FIELD.deep or LIGHT_LOOK_MARKS.deep changes what light draws with no lever set (windWhiteStreak.test.js pins the bytes). SINCE 2026-10-12 (D-024) rows 1 to 32 kn of both are windLightPath.js's wherever light's path draws (windLightPath.test.js pins those bytes).
+// Dark's look, measured (log 2026-10-10-dark-style-light-beach): every streak pixel is a brighter shade of the colour under it (+9.5 to
+// +14.5 L* at the median, chroma kept), and the colour under it is DARK (a dark map under a vivid veil). Dark's streak method moved onto
+// light washed out (D-019, amended): light's ground under the streaks is L* 74-88, and a mark that can only lighten has no room there.
+// Beach's ground is L* 57-72 and the same method reads well. What light lacks is the GROUND, not the streak method.
+// window.__RAW_WIND_LIGHT_LOOK__ (light only; read at once, the engine rebuilds its ramps when it changes):
+//   'moderate' | 'deep'  A: a deeper field, solved FROM the composite wanted over the muted land (stop = 1 - (1 - wanted / ground) /
+//                        strength), in light's own hue order (rose calm, lilac, periwinkle, violet, the path's blue and teal, green,
+//                        teal-green, yellow-green, gold, amber, rose, crimson, plum), then dark's streak method on it. The streak is
+//                        the field's own hue (within 15 deg) at full brightness, at least 14 L* above the field and at least as
+//                        colourful at 10 kn and from 13 kn (lilac, periwinkle and blue are paler: vivid only when dark), solved so neighbouring streaks keep the colour-blind floor too (LIGHT_LOOK_MARKS; dark's
+//                        streaks are its legend, which keeps it). Between 10 and 16 kn the streaks carry 1 kn waypoints on the
+//                        FIELD's own hue path (blue, azure, teal), so they never take the straight line between an orchid and a green
+//                        (it kept 0.58 of its colour: drawn straight, grey at 11.5 kn, then green over a blue field; independent
+//                        review). Both of a look's tables draw their path whatever older kill is set. Ground under 6-27 kn streaks
+//                        over the muted land: moderate L* 64-69
+//                        (beach's depth), deep 57-65. Colour-blind floor on the muted water and land: moderate 5.6, deep 5.5.
+//                        RE-SCOPES D-018's bar: light's field strength from 6 to 21 kn is no longer dark's (within 1 dE76); it is
+//                        deeper by design. The legend bar does not move.
+//   'ink'                B: today's field; the marks darker than the ground (ink, windInk.js), with ink's own colours for 27-47 kn
+//                        (LIGHT_INK_MARK_ROWS) and a strength cap where the marks cover most of the ground.
+// Kill: window.__RAW_DISABLE_WIND_LIGHT_LOOK__ (today's light, byte for byte). While a look is on, the older field kills stand aside.
+// Measurements and the A/B: log 2026-10-10-light-look-ab.
+var LIGHT_LOOKS = ['moderate', 'deep', 'ink'];
+var LIGHT_LOOK_FIELD = {
+  moderate: [[0, 0.826, 0.467, 0.643, 0.72], [3, 0.631, 0.468, 0.994, 0.75], [6, 0.475, 0.544, 0.999, 0.78], [10, 0.727, 0.405, 0.804, 0.80],
+    [16, 0.391, 0.609, 0.139, 0.82], [21, 0.233, 0.609, 0.427, 0.84], [27, 0.493, 0.568, 0.263, 0.86], [33, 0.628, 0.458, 0.074, 0.87],
+    [40, 0.610, 0.282, 0.000, 0.88], [47, 0.756, 0.180, 0.166, 0.90], [55, 0.642, 0.002, 0.176, 0.91], [63, 0.537, 0.045, 0.429, 0.93],
+    [75, 0.311, 0.038, 0.624, 0.95]],
+  deep: [[0, 0.774, 0.272, 0.493, 0.72], [3, 0.502, 0.385, 0.838, 0.75], [6, 0.406, 0.477, 0.995, 0.78], [10, 0.638, 0.306, 0.780, 0.80],
+    [16, 0.215, 0.472, 0.023, 0.82], [21, 0.001, 0.569, 0.336, 0.84], [27, 0.348, 0.500, 0.170, 0.86], [33, 0.444, 0.341, 0.000, 0.87],
+    [40, 0.393, 0.211, 0.000, 0.88], [47, 0.515, 0.162, 0.137, 0.90], [55, 0.450, 0.000, 0.113, 0.91], [63, 0.356, 0.005, 0.282, 0.93],
+    [75, 0.170, 0.003, 0.408, 0.95]],
+};
+var LIGHT_LOOK_MARKS = {
+  moderate: [[0, 1.000, 0.948, 0.971, 0.72], [3, 0.937, 0.904, 1.000, 0.75], [6, 0.860, 0.791, 1.000, 0.78], [10, 0.839, 0.706, 1.000, 0.80],
+    [11, 0.804, 0.758, 1.000, 0.803], [12, 0.707, 0.817, 1.000, 0.807], [13, 0.490, 0.884, 1.000, 0.81], [14, 0.126, 1.000, 0.997, 0.813], [15, 0.107, 1.000, 0.773, 0.817],
+    [16, 0.599, 1.000, 0.129, 0.82], [21, 0.511, 1.000, 0.775, 0.84], [27, 0.787, 1.000, 0.202, 0.86], [33, 1.000, 0.781, 0.000, 0.87],
+    [40, 1.000, 0.672, 0.382, 0.88], [47, 1.000, 0.554, 0.538, 0.90], [55, 1.000, 0.433, 0.583, 0.91], [63, 1.000, 0.137, 0.851, 0.93],
+    [75, 0.660, 0.376, 1.000, 0.95]],
+  deep: [[0, 1.000, 0.955, 0.973, 0.72], [3, 0.908, 0.872, 1.000, 0.75], [6, 0.832, 0.738, 1.000, 0.78], [10, 0.885, 0.590, 1.000, 0.80],
+    [11, 0.750, 0.703, 1.000, 0.803], [12, 0.606, 0.776, 1.000, 0.807], [13, 0.376, 0.864, 1.000, 0.81], [14, 0.140, 0.995, 1.000, 0.813], [15, 0.151, 1.000, 0.804, 0.817],
+    [16, 0.513, 1.000, 0.156, 0.82], [21, 0.054, 1.000, 0.711, 0.84], [27, 0.629, 1.000, 0.188, 0.86], [33, 1.000, 0.932, 0.483, 0.87],
+    [40, 1.000, 0.654, 0.044, 0.88], [47, 1.000, 0.479, 0.458, 0.90], [55, 1.000, 0.195, 0.394, 0.91], [63, 1.000, 0.115, 0.898, 0.93],
+    [75, 0.651, 0.428, 1.000, 0.95]],
+};
+// B's own streak colours for 27-47 kn (rows 6-9 of the legend). A multiply mark over the tinted water can never be lighter than it,
+// and a warm hue darkened is brown: the legend's gold ink took the 33 kn water to L* 37 at hue 90 (olive) and the 40 kn water to L* 29.
+// Solved per band over the field-tinted muted water and land: the most colour inside a hue window that is never yellow (27 kn a green,
+// 33 ochre, 40 deep amber, 47 vermilion), darkening the ground by 7-13 L* (was 14-21), each band >= 10 dE00 from its neighbours.
+// Over the water: 27 kn L* 51 C* 65 h 127, 33 kn 42 / 48 / 84, 40 kn 38 / 36 / 66, 47 kn 38 / 36 / 45.
+var LIGHT_INK_MARK_ROWS = { 6: [27, 0.500, 0.940, 0.000, 0.86], 7: [33, 1.000, 0.720, 0.000, 0.87], 8: [40, 1.000, 0.660, 0.300, 0.88], 9: [47, 1.000, 0.620, 0.400, 0.90] };
+
+// The A/B from a phone, where there is no console: ?windLook=moderate|deep|ink in the page's address. Read once per page and kept (a
+// route change that drops the query keeps it); the console lever, when set, wins, and the kill wins over both.
+var URL_LOOK = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+function lookFromUrl(w) {
+  if (!URL_LOOK || typeof w !== 'object') return undefined;
+  if (!URL_LOOK.has(w)) {
+    var s = w.location && typeof w.location.search === 'string' ? w.location.search : '', v;
+    try { v = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(s).get('windLook') : null; } catch (e) { v = null; }
+    URL_LOOK.set(w, v === null ? undefined : v);
+  }
+  return URL_LOOK.get(w);
+}
+
+/** The light look the lever picks ('moderate' | 'deep' | 'ink'), or null: off, killed, or not a look. */
+export function windLightLook(win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!w || w.__RAW_DISABLE_WIND_LIGHT_LOOK__ === true) return null;
+  var v = w.__RAW_WIND_LIGHT_LOOK__ !== undefined ? w.__RAW_WIND_LIGHT_LOOK__ : lookFromUrl(w);
+  return LIGHT_LOOKS.indexOf(v) >= 0 ? v : null;
+}
+function copyRows(rows) { return rows.map(function(s) { return s.slice(); }); }
+
+/** The field's stops for `theme` (null = no field ramp), honouring the mid-band refine kill. */
+export function resolveFieldRamp(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  var look = theme === 'light' ? windLightLook(w) : null;
+  if (LIGHT_LOOK_FIELD[look]) return copyRows(LIGHT_LOOK_FIELD[look]);
+  return FIELD_RAMPS[theme] ? midbandRefined(FIELD_RAMPS[theme], 'field', theme, w) : null;
+}
+
+/** The stops the MARKS draw when a light look gives them their own (null = the legend's, resolveThemeRamp). The legend bar never moves. */
+export function resolveMarkRamp(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  var look = theme === 'light' ? windLightLook(w) : null;
+  if (LIGHT_LOOK_MARKS[look]) return copyRows(LIGHT_LOOK_MARKS[look]);
+  return look === 'ink' ? revertRows(resolveThemeRamp(theme), LIGHT_INK_MARK_ROWS) : null;
+}
+
+/**
+ * DARK'S RULES (windDarkRules.js; owner 2026-10-11, D-020): ON for light and beach. `__RAW_DISABLE_WIND_DARK_RULES__ = true` draws
+ * both exactly as before; `__RAW_WIND_DARK_RULES__` = true | false | 'light' | 'beach' narrows them. Which tables and which ring they
+ * draw is the white streak's (windWhiteStreakOn below, D-021): this function still decides WHETHER a theme is drawn by them at all.
+ * A theme draws dark's rules WHOLE or not at all (the dimmed field, the land and sea streak rows and dark's streak method belong
+ * together), so every older lever that draws a theme its own way holds that theme on the tables it was built on: an explicit light
+ * look, the ink and glow levers (windInk.js reads the same ones) and the neutral-body v2 theme. This is the one place that decides;
+ * the engine's tables, its land mask and windInk all ask it (windDarkRules.test.js sweeps every combination).
+ *
+ * EVERY OLDER KILL KEEPS ITS MEANING. A kill is how a past change is rolled back, and each is documented to restore what was drawn
+ * before it (DECISIONS D-018, D-019). Dark's rules are solved on the default field rows, dark's default legend, the multiply tint at
+ * its default strength and the muted ground, so a kill or bench lever that changes one of those would otherwise draw a mix nobody
+ * built (independent review, 2026-10-11: under the field-tint kill the field sampled the marks' two-row table). Set, each of the
+ * keys below stands dark's rules down for the session, in both themes: it draws exactly what it drew before them. A NEW kill that
+ * touches the tables, the field's blend or strength, the marks' composite or the ground joins DARK_RULES_HOLDS (the test fails on an
+ * unclassified kill).
+ */
+export var DARK_RULES_HOLDS = ['__RAW_DISABLE_WIND_LIGHT_LOOK__', '__RAW_DISABLE_WIND_INK__', '__RAW_DISABLE_WIND_GLOW__', '__RAW_DISABLE_WIND_THEME_V2__',   // the looks
+  '__RAW_DISABLE_WIND_HUE_PATH__', '__RAW_DISABLE_WIND_CALM_CLEAR__', '__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__',   // the tables' rows
+  '__RAW_DISABLE_WIND_LIGHT_LOWBAND__', '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__', '__RAW_DISABLE_WIND_FIELD_RAMP__',
+  '__RAW_DISABLE_WIND_FIELD_TINT__', '__RAW_DISABLE_WIND_FIELD_LUT__', '__RAW_DISABLE_WIND_CALM_ALPHA_V3__', '__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__', '__RAW_DISABLE_WIND_SPEED_PREMUL__',   // the composites
+  '__RAW_DISABLE_WIND_BASEMAP_MUTE__'];   // the ground
+export var DARK_RULES_STEERS = ['__RAW_WIND_FIELD_TINT__', '__RAW_WIND_FIELD_TINT_THEMES__', '__RAW_WIND_PREMUL_THEMES__', '__RAW_WIND_BASEMAP_MUTE__', '__RAW_WIND_BASEMAP_WATER_L__'];   // bench levers on the same things: set at all
+export function windDarkRulesOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {}, i;
+  if ((theme !== 'light' && theme !== 'beach') || w.__RAW_DISABLE_WIND_DARK_RULES__ === true || (theme === 'light' && windLightLook(w))) return false;
+  for (i = 0; i < DARK_RULES_HOLDS.length; i++) if (w[DARK_RULES_HOLDS[i]] === true) return false;
+  for (i = 0; i < DARK_RULES_STEERS.length; i++) if (w[DARK_RULES_STEERS[i]] !== undefined && w[DARK_RULES_STEERS[i]] !== null) return false;
+  var names = function(lever) { return lever === true || (typeof lever === 'string' && lever.split(',').indexOf(theme) >= 0); };
+  if (names(w.__RAW_WIND_INK__) || names(w.__RAW_WIND_GLOW__) || w.__RAW_WIND_THEME_V2__ === true) return false;
+  var lever = w.__RAW_WIND_DARK_RULES__;
+  return (lever === true ? ['light', 'beach'] : (lever === false ? [] : (typeof lever === 'string' ? lever.split(',') : DARK_RULES.themes))).indexOf(theme) >= 0;
+}
+/**
+ * THE WHITE STREAK (windDarkRules.js WHITE_STREAK; owner 2026-10-11, D-021): ON wherever dark's rules draw, so every lever and older
+ * kill that stands them down stands it down too. `__RAW_DISABLE_WIND_WHITE_STREAK__ = true` draws both themes as they were before it.
+ */
+export function windWhiteStreakOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  return w.__RAW_DISABLE_WIND_WHITE_STREAK__ !== true && windDarkRulesOn(theme, w);
+}
+/** How strongly the white streak is laid over land and over sea, as shares of full strength (windDarkRules.js DARK_WHITE, D-022): { land: 1, sea: 1 }, as before it, under `__RAW_DISABLE_WIND_DARK_WHITE__ = true` and wherever the white streak does not draw. */
+export function windWhiteStrength(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {}, k = w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w) ? DARK_WHITE[theme] : null;
+  return k ? { land: windLandWhite(theme, w, k), sea: k.sea } : { land: 1, sea: 1 };   // the land's strength is the one its drawn tone was solved with (windBasemapMute.js windLandWhite: D-026 and its step)
+}
+setWindLandDepthGate(function (theme, w) { return w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w); });   // the land goes deep only where those strengths are drawn: an older kill draws its old picture
+/**
+ * BEACH'S PATH (windBeachPath.js; owner 2026-10-12, D-025): beach's field with its lightness one way through the green band and its pale gale band under a ceiling.
+ * ON wherever the white streak draws in beach, so everything that stands the white streak down stands it down too.
+ * `__RAW_DISABLE_WIND_BEACH_PATH__ = true` draws beach as before it. The streaks' rows are not touched.
+ * D-022's kill (`__RAW_DISABLE_WIND_DARK_WHITE__`) stands it down as well: that kill is documented to draw PR #313's picture pixel for
+ * pixel, and an older kill keeps its meaning (D-020, amended; the rule the review of light's path, PR #318, applied to its own tables).
+ */
+export function windBeachPathOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  return theme === 'beach' && w.__RAW_DISABLE_WIND_BEACH_PATH__ !== true && w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && windWhiteStreakOn(theme, w);
+}
+/** LIGHT'S PATH (D-024): on in light wherever the white streak draws as D-022 lays it, never under the Canvas2D fallback. Why each term is there: windLightPath.js, "Kill". */
+export function windLightPathOn(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null) || {};
+  return theme === 'light' && w.__RAW_DISABLE_WIND_LIGHT_PATH__ !== true && w.__RAW_DISABLE_WIND_DARK_WHITE__ !== true && w.__WIND_CANVAS_FALLBACK__ !== true && windWhiteStreakOn(theme, w);
+}
+var SOLVED = {};
+function darkRulesTables(theme, w) {
+  // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike; on light's path,
+  // those two tables with their 1 to 32 kn rows replaced by the path's (windLightPath.js builds them once).
+  if (theme === 'light' && windWhiteStreakOn(theme, w)) return lightTables(windLightPathOn(theme, w), LIGHT_LOOK_FIELD.deep, LIGHT_LOOK_MARKS.deep);
+  // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
+  // it is given the field's own path, whatever older kill is set, as a light look's tables are.
+  var field = huePathStops(resolveFieldRamp(theme, w), {}), dark = resolveThemeRamp('dark'), key = theme + JSON.stringify(field) + JSON.stringify(dark);
+  if (!SOLVED[key]) SOLVED[key] = solveDarkRules(theme, field, dark);
+  if (!windBeachPathOn(theme, w)) return SOLVED[key];
+  if (!SOLVED[key].path) SOLVED[key].path = { field: beachPathRows(SOLVED[key].field, BEACH_PATH.field), land: SOLVED[key].land, water: SOLVED[key].water };   // the path's rows over the solved field; the streaks' rows as solved
+  return SOLVED[key].path;
+}
+/** The field's stops as DRAWN: dark's rules' field when they are on (beach's dimmed one, on its path under the white streak; light's deeper one under the white streak), else resolveFieldRamp's. */
+export function resolveDrawnField(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  return windDarkRulesOn(theme, w) ? copyRows(darkRulesTables(theme, w).field) : resolveFieldRamp(theme, w);
+}
+/** The marks' stops as DRAWN, { land, water } (null = the legend's ramp). Off: both are resolveMarkRamp's. */
+export function resolveDrawnMarks(theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!windDarkRulesOn(theme, w)) { var m = resolveMarkRamp(theme, w); return { land: m, water: m }; }
+  var t = darkRulesTables(theme, w);
+  return { land: copyRows(t.land), water: copyRows(t.water) };
+}
+/** The marks' LUT, 256 x 2 RGBA: row 0 over land, row 1 over sea (DRAW_FS mixes them by windLandMask.js). Two equal rows when dark's rules are off, and for light under the white streak. */
+export function drawnMarkRampData(maxSpeed, theme, win) {
+  var m = resolveDrawnMarks(theme, win), land = generateRampData(maxSpeed, m.land, theme, win);
+  var data = new Uint8Array(256 * 2 * 4);
+  data.set(land, 0); data.set(m.water === m.land ? land : generateRampData(maxSpeed, m.water, theme, win), 256 * 4);
+  return data;
+}
+/** What the marks' and field's tables depend on besides the theme: a change rebuilds them at once (WebGLWindEngine). */
+export function windLookKey(theme, win) {
+  var names = [windLightLook(win), windWhiteStreakOn(theme, win) ? 'white' : null, (windLightPathOn(theme, win) || windBeachPathOn(theme, win)) ? 'path' : null].filter(Boolean);
+  return names.join('+') + '|' + (windDarkRulesOn(theme, win) ? 'dark-rules' : '');
+}
+
+/** The field's own LUT texture for `theme` (null = the field samples the particle ramp). Restores the texture binding. */
+export function buildFieldRampTexture(gl, maxSpeed, theme, win) {
+  var w = win || (typeof window !== 'undefined' ? window : {});
+  var look = (theme === 'light' && LIGHT_LOOK_FIELD[windLightLook(w)]) || windDarkRulesOn(theme, w);   // a look's field is drawn even under the field-ramp kill (its marks are not a field)
+  if (!gl || !FIELD_RAMPS[theme] || (w.__RAW_DISABLE_WIND_FIELD_RAMP__ === true && !look)) return null;
+  var data = generateRampData(maxSpeed || 50, resolveDrawnField(theme, w), null, look ? {} : w), prev = gl.getParameter(gl.TEXTURE_BINDING_2D), tex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.bindTexture(gl.TEXTURE_2D, prev);
+  return tex;
+}
+
 // KILL SWITCH for the low-band respread (added late — shipping palette constants without one
 // violated the every-lever-kill-switched rule): __RAW_DISABLE_WIND_LOWBAND_RESPREAD__ = true
 // restores the pre-respread low stops (effective on the next ramp regeneration: theme change or
@@ -155,11 +559,17 @@ var LEGACY_LOW_STOPS = {
 };
 
 export function resolveThemeRamp(theme) {
-  var ramp = THEME_RAMPS[theme] || DEFAULT_WIND_RAMP;
+  var ramp = midbandRefined(THEME_RAMPS[theme] || DEFAULT_WIND_RAMP, 'particle', theme, typeof window !== 'undefined' ? window : null);
   var killed = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_LOWBAND_RESPREAD__ === true;
   if (!killed) return ramp;
   var legacy = LEGACY_LOW_STOPS[theme] || LEGACY_LOW_STOPS.dark;
   return ramp.map(function(stop, i) { return legacy[i] ? legacy[i].slice() : stop; });
+}
+/** The stops the LEGEND BAR draws: the particle ramp, except in light on light's path, where the bar follows the hues the FIELD draws (windLightPath.js,
+ *  "THE LEGEND MOVES WITH IT"). The particle ramp itself (resolveThemeRamp) never moves: every older kill and lever draws its marks from it. */
+export function resolveLegendRamp(theme, win) {
+  var ramp = resolveThemeRamp(theme);
+  return theme === 'light' && windLightPathOn(theme, win) ? copyRows(revertRows(ramp, LIGHT_PATH.legend)) : ramp;
 }
 
 /**
@@ -180,8 +590,8 @@ export function resolveThemeRamp(theme) {
  * Positions are VALUE-PROPORTIONAL (kn / max), because the bar is drawn with equal-width CSS stops
  * otherwise — R11-11 item 3, the same defect one level down.
  */
-export function windLegendGradientCSS(theme) {
-  var ramp = resolveThemeRamp(theme);
+export function windLegendGradientCSS(theme, win) {
+  var ramp = huePathStops(resolveLegendRamp(theme, win));   // the bar draws the path the map draws
   var max = ramp[ramp.length - 1][0] || 1;
   var css = ramp.map(function (s) {
     return 'rgba(' + Math.round(s[1] * 255) + ',' + Math.round(s[2] * 255) + ','
@@ -224,6 +634,73 @@ function lerpStop(a, b, t) {
   ];
 }
 
+// HUE PATH (2026-10-10, the same two owner reports as CLEAR CALM). A ramp is a list of stops, and between two stops the
+// colour ran on the straight sRGB line. Light's 10 kn violet and 16 kn green sit on opposite sides of the colour wheel (172 deg),
+// so that line runs through GREY: at 13 kn the field over the muted land was L* 69.6 / C* 1.0, a grey veil at the commonest wind
+// speeds, entered and left at 9 dE00 per knot (the hard lines), and the streaks and the legend bar greyed with it. A segment whose
+// straight midpoint keeps under HALF of its ends' chroma is now walked round the wheel in OKLCH (lightness and chroma straight, hue
+// by the shortest arc; two near-opposite hues go by the cool side, through cyan, the one family no other band uses), as 1 kn
+// waypoints. Today that is ONE segment, light's 10-16 kn, in the field and in the particle ramp: violet, blue, azure, teal, green
+// (C* 19-22 over the muted land throughout). That segment keeps 0.07-0.09; every other segment of light and beach keeps 0.90 or
+// more and dark's weakest (6-10 kn) 0.78, so the trigger at one half has a wide margin on both sides and nothing else is touched,
+// byte for byte (windClearLowBand.test.js pins the margin: a palette edit that drifts a segment toward the trigger fails there).
+// Light's look A/B (windLightLook above; its 'deep' tables are light's default since D-021) keeps the same margin: its fields' 10-16 kn keep 0.07-0.13 and walk the path, and
+// A's streak tables carry their own 1 kn waypoints, so every one of their segments keeps 0.92 or more (windLightLook.test.js).
+// Kill: __RAW_DISABLE_WIND_HUE_PATH__ (next ramp build: theme change or reload). Every OLDER ramp kill stands the path down too,
+// so that kill draws exactly what it drew: its rows AND the straight line between them.
+var HUE_PATH_KEEP = 0.5;
+var HUE_PATH_OLDER_KILLS = ['__RAW_DISABLE_WIND_LIGHT_FASTBAND__', '__RAW_DISABLE_WIND_LIGHT_NEUTRAL_CVD__', '__RAW_DISABLE_WIND_LIGHT_CVD__', '__RAW_DISABLE_WIND_LIGHT_LOWBAND__',
+  '__RAW_DISABLE_WIND_MIDBAND_REFINE__', '__RAW_DISABLE_WIND_BEACH_CVD__', '__RAW_DISABLE_WIND_DARK_CVD__', '__RAW_DISABLE_WIND_LOWBAND_RESPREAD__', '__RAW_DISABLE_WIND_FIELD_RAMP__'];
+function srgbToLin(c) { return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }
+function linToSrgb(c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055; }
+/** sRGB [r, g, b] 0-1 -> OKLCH [L, C, hue deg] (Ottosson 2020). */
+export function toOklch(c) {
+  var r = srgbToLin(c[0]), g = srgbToLin(c[1]), b = srgbToLin(c[2]);
+  var l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  var s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  var A = 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s, B = 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s;
+  return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, Math.sqrt(A * A + B * B), (Math.atan2(B, A) * 180 / Math.PI + 360) % 360];
+}
+function fromOklch(L, C, h) {
+  var A = C * Math.cos(h * Math.PI / 180), B = C * Math.sin(h * Math.PI / 180);
+  var l = Math.pow(L + 0.3963377774 * A + 0.2158037573 * B, 3), m = Math.pow(L - 0.1055613458 * A - 0.0638541728 * B, 3), s = Math.pow(L - 0.0894841775 * A - 1.2914855480 * B, 3);
+  return [linToSrgb(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s), linToSrgb(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    linToSrgb(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s)];
+}
+/** Signed hue travel from hp to hq, by the shortest arc; near-opposite hues (over 150 deg) go by the side that passes cyan (200 deg). */
+function hueArc(hp, hq) {
+  var d = ((hq - hp + 540) % 360) - 180;
+  if (Math.abs(d) <= 150) return d;
+  var viaCool = d > 0 ? ((200 - hp + 360) % 360) <= d : ((hp - 200 + 360) % 360) <= -d;
+  return viaCool ? d : (d > 0 ? d - 360 : d + 360);
+}
+function mixHue(a, b, t) {
+  var p = toOklch(a), q = toOklch(b), hp = p[1] < 0.02 ? q[2] : p[2], hq = q[1] < 0.02 ? p[2] : q[2];
+  var L = p[0] + (q[0] - p[0]) * t, C = p[1] + (q[1] - p[1]) * t, h = hp + hueArc(hp, hq) * t, out = fromOklch(L, C, h);
+  var outside = function(x) { return !(x >= -0.0005 && x <= 1.0005); };
+  for (var i = 0; i < 40 && out.some(outside); i++) { C *= 0.94; out = fromOklch(L, C, h); }   // a displayable colour of the same hue
+  return out.map(function(x) { return Math.min(1, Math.max(0, x)); });
+}
+/** The ramp with 1 kn waypoints on every segment that would otherwise lose its colour (the ramp itself when none does, or killed). */
+export function huePathStops(ramp, win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  if (!ramp || ramp.length < 2) return ramp;
+  if (w && (w.__RAW_DISABLE_WIND_HUE_PATH__ === true || HUE_PATH_OLDER_KILLS.some(function(k) { return w[k] === true; }))) return ramp;
+  var out = [ramp[0]];
+  for (var i = 1; i < ramp.length; i++) {
+    var a = ramp[i - 1], b = ramp[i], ca = toOklch(a.slice(1, 4)), cb = toOklch(b.slice(1, 4));
+    var mid = toOklch([(a[1] + b[1]) / 2, (a[2] + b[2]) / 2, (a[3] + b[3]) / 2]);
+    if (mid[1] < HUE_PATH_KEEP * (ca[1] + cb[1]) / 2) {
+      for (var n = Math.max(2, Math.round(b[0] - a[0])), k = 1; k < n; k++) {
+        var c = mixHue(a.slice(1, 4), b.slice(1, 4), k / n);
+        out.push([a[0] + (b[0] - a[0]) * k / n, c[0], c[1], c[2], a[4] + (b[4] - a[4]) * k / n]);
+      }
+    }
+    out.push(b);
+  }
+  return out.length === ramp.length ? ramp : out;
+}
+
 /**
  * Sample the color ramp at a given wind speed.
  * @param {number[][]} ramp
@@ -251,8 +728,8 @@ export function sampleRamp(ramp, speed) {
  * @param {string} [theme] - 'dark', 'light', or 'beach' — selects themed ramp
  * @returns {Uint8Array} 256×1 RGBA data (1024 bytes)
  */
-export function generateRampData(maxSpeed, ramp, theme) {
-  var stops = ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP);
+export function generateRampData(maxSpeed, ramp, theme, win) {
+  var stops = huePathStops(ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP), win);   // HUE PATH: no segment runs through grey
   var data = new Uint8Array(256 * 4);
 
   for (var i = 0; i < 256; i++) {

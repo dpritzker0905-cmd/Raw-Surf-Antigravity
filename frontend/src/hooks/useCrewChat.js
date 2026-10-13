@@ -3,6 +3,7 @@ import apiClient, { BACKEND_URL } from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { formatClockTime } from '../utils/formatTime';
+import { getFileIcon } from '../components/messages/crewChatUtils';
 
 const WS_URL = BACKEND_URL.replace('https://', 'wss://').replace('http://', 'ws://');
 export const MAX_VOICE_DURATION = 30;
@@ -391,16 +392,7 @@ export default function useCrewChat({
 
   // Format file size for display
 
-  // Get file icon based on type
-  const getFileIcon = (fileType) => {
- if (fileType?.includes('pdf')) return '=';
- if (fileType?.includes('word') || fileType?.includes('doc')) return '=';
- if (fileType?.includes('excel') || fileType?.includes('sheet')) return '=';
- if (fileType?.includes('powerpoint') || fileType?.includes('presentation')) return '=';
- if (fileType?.includes('zip') || fileType?.includes('archive')) return '=';
- if (fileType?.includes('text') || fileType?.includes('csv')) return '=';
- return '=';
-  };
+  // File icon: the single implementation lives in components/messages/crewChatUtils (imported above).
 
   // Voice playback
   const toggleVoicePlayback = (messageId, mediaUrl) => {

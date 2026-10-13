@@ -156,7 +156,12 @@ export const Feed = () => {
     if (user?.id) fetchStreak();
 
     // Deferred: secondary data loads after posts render (~1.5s delay)
-    // Prevents 8 simultaneous API calls competing on Render cold-starts
+    // KEPT, but not for the reason originally given ("Prevents 8 simultaneous API calls competing
+    // on Render cold-starts"). Cold starts are not a factor -- the backend is on a PAID plan with
+    // no idle spin-down. The real constraint is the box itself: a 1-CPU / 512MB instance, which
+    // marineGridSeries.js:653 records having actually OOM'd under concurrent load. Staggering the
+    // secondary fetches still protects the critical path (posts) from competing with four
+    // decorative ones. Re-measure against that constraint, not against a wake time, before tuning.
     const deferTimer = setTimeout(() => {
       fetchLiveUsers();
       if (user?.id) {

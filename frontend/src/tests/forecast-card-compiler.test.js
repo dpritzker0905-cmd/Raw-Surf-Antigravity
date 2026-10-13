@@ -1,6 +1,33 @@
 import { compileForecastCards } from '../components/map/forecastCardCompiler';
 import { Cloud, Eye } from 'lucide-react';
 
+describe.each(['rain', 'radar', 'precipitation'])('%s precipitation presence', (activeLayer) => {
+  const card = (values) => compileForecastCards({
+    activeLayer, wx: {}, getClampedValue: () => null, ...values,
+  })[0];
+
+  test.each([null, undefined])('missing total %s and missing snow stay unknown', (precip) => {
+    expect(card({ precip, snowfall: null }).value).toBe('--');
+  });
+
+  test('zero snow alone cannot prove zero total precipitation', () => {
+    expect(card({ precip: null, snowfall: 0 }).value).toBe('--');
+  });
+
+  test('missing precipitation while loading does not claim dry weather', () => {
+    expect(card({ precip: null, snowfall: null, isLoading: true }).value).toBe('Loading');
+  });
+
+  test('measured zero total remains a numeric zero', () => {
+    expect(card({ precip: 0, snowfall: null }).value).toBe('0.0 mm/h');
+  });
+
+  test('known rain and snow retain their values', () => {
+    expect(card({ precip: 2, snowfall: 0 }).value).toBe('2.0 mm/h');
+    expect(card({ precip: null, snowfall: 1 }).value).toBe('1.0 cm/h');
+  });
+});
+
 describe('forecastCardCompiler.js - compileForecastCards', () => {
   test('compiles satellite card correctly with valid cloud cover data', () => {
     const cards = compileForecastCards({

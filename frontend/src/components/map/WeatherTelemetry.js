@@ -6,6 +6,7 @@
  * Exposes real-time insights to the Admin Diagnostics Panel.
  */
 import { BUILD_VERSION } from '../../buildVersion';
+import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
 
 class WeatherTelemetryEngine {
   constructor() {
@@ -39,7 +40,7 @@ class WeatherTelemetryEngine {
     };
     
     this.gpuStats = {
-      fps: 60,
+      fps: null,   // measured only while weather layers draw (A15-20); null = not measured, never an invented 60
       lastFrameTime: Date.now(),
       drawCalls: 0,
       textureCount: 0,
@@ -51,12 +52,12 @@ class WeatherTelemetryEngine {
     this.failureKnowledgebase = [];
     this.topologyMap = {
       sources: {
-        GFS: 'https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013',
-        EURO: 'https://map-tiles.open-meteo.com/data_spatial/ecmwf_ifs025',
-        ICON: 'https://map-tiles.open-meteo.com/data_spatial/dwd_icon',
-        GFS_Wave: 'https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025',
-        EURO_Wave: 'https://map-tiles.open-meteo.com/data_spatial/ecmwf_wam025',
-        ICON_Wave: 'https://map-tiles.open-meteo.com/data_spatial/dwd_gwam'
+        GFS: `${OPEN_METEO_SPATIAL_BASE_URL}/ncep_gfs013`,
+        EURO: `${OPEN_METEO_SPATIAL_BASE_URL}/ecmwf_ifs025`,
+        ICON: `${OPEN_METEO_SPATIAL_BASE_URL}/dwd_icon`,
+        GFS_Wave: `${OPEN_METEO_SPATIAL_BASE_URL}/ncep_gfswave025`,
+        EURO_Wave: `${OPEN_METEO_SPATIAL_BASE_URL}/ecmwf_wam025`,
+        ICON_Wave: `${OPEN_METEO_SPATIAL_BASE_URL}/dwd_gwam`
       },
       layers: {
         rain: { engine: 'MapLibre Raster Layer', sync: '3-hourly Ring Buffer' },
@@ -327,6 +328,7 @@ class WeatherTelemetryEngine {
     if (layers && JSON.stringify(layers) !== JSON.stringify(this.activeLayers)) {
       this.activeLayers = layers;
       changed = true;
+      if (typeof window !== 'undefined') this._syncFpsMonitor();
     }
     if (offset !== undefined && offset !== this.timeOffsetHours) {
       this.timeOffsetHours = offset;
@@ -378,25 +380,42 @@ class WeatherTelemetryEngine {
 
   // WebGL Context & Render loop observability
   initFpsMonitor() {
-    let frameCount = 0;
-    let lastTime = performance.now();
+    this._fpsRaf = null;
+    this._syncFpsMonitor();
+  }
 
-    const loop = () => {
-      frameCount++;
-      const now = performance.now();
-      if (now - lastTime >= 1000) {
-        this.gpuStats.fps = Math.round((frameCount * 1000) / (now - lastTime));
-        frameCount = 0;
-        lastTime = now;
-        
-        // Trigger low FPS event
-        if (this.gpuStats.fps < 24 && this.activeLayers.length > 0) {
-          this.emit('FPS_drop_detected', { currentFps: this.gpuStats.fps });
+  /**
+   * A15-20 (audit 15.0, 2026-09-26): this counter requested an animation frame on EVERY vsync from
+   * module load, forever, on every page, map or not. It was the one thing keeping an idle page's
+   * frame loop awake (MapLibre stops drawing when nothing changes), to measure a number nothing
+   * needed while no weather layer draws: the drop event below was already gated on activeLayers.
+   * It now runs only while layers are active, and fps reads null while paused, never a stale value.
+   */
+  _syncFpsMonitor() {
+    const want = this.activeLayers.length > 0 && typeof requestAnimationFrame === 'function';
+    if (want && this._fpsRaf == null) {
+      let frameCount = 0;
+      let lastTime = performance.now();
+      const loop = () => {
+        frameCount++;
+        const now = performance.now();
+        if (now - lastTime >= 1000) {
+          this.gpuStats.fps = Math.round((frameCount * 1000) / (now - lastTime));
+          frameCount = 0;
+          lastTime = now;
+          // Trigger low FPS event
+          if (this.gpuStats.fps < 24 && this.activeLayers.length > 0) {
+            this.emit('FPS_drop_detected', { currentFps: this.gpuStats.fps });
+          }
         }
-      }
-      requestAnimationFrame(loop);
-    };
-    requestAnimationFrame(loop);
+        this._fpsRaf = requestAnimationFrame(loop);
+      };
+      this._fpsRaf = requestAnimationFrame(loop);
+    } else if (!want && this._fpsRaf != null) {
+      cancelAnimationFrame(this._fpsRaf);
+      this._fpsRaf = null;
+      this.gpuStats.fps = null;
+    }
   }
 
   trackRenderCall(durationMs) {

@@ -138,6 +138,9 @@ def test_fetch_within_budget_is_not_truncated(noaa_env, monkeypatch):
     assert failed == 0
     assert len(times) == 113
     assert points, "a complete fetch must return points"
+    from datetime import datetime
+    for point in points:
+        assert datetime.fromisoformat(point['__model_run_time']) == datetime.fromisoformat(times[0].replace('Z', '+00:00'))
 
 
 # ── the defect: a slow fetch must degrade, not vanish ────────────────────────────────────────────

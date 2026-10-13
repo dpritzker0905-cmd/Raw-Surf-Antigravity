@@ -1,0 +1,279 @@
+{
+  "captured_at": "2026-09-20T20:26:37.040909+00:00",
+  "parent_head": "91b90ae9f642b9be015aa4c06a766cdfd557b74a",
+  "source_sha256": {
+    "backend/services/weather_pipeline/store.py": "b2ee96de739fe719165e1e930a212187e0c4f13c6c1539cd877211fd8bb201da",
+    "backend/services/weather_pipeline/store_helpers.py": "70e79d405c641aa4ab4fad7ece04e20a573b3cf2339a9068c308fa3b6f511b8c",
+    "backend/services/weather_pipeline/grid_resolver.py": "54a400d8edeea1d3ee7eebe4f4bbca8ff6fd0e84beec119f0150691c403e096d",
+    "backend/services/weather_pipeline/normalizer.py": "bb801fa6a7155ddd7ad43039f313379402703b6ccd897c7e186917b733d8eac7",
+    "backend/services/weather_pipeline/schemas.py": "4962d18090fa39a756f7a734f54643ccbcdd9bc35c1a80b6c11658b5b8637edf"
+  },
+  "network": "disabled; in-memory fake L2 and temporary local files only",
+  "scenarios": [
+    {
+      "scenario": "labels_only_changed",
+      "fixture": "synthetic, explicitly controlled; not a production capture",
+      "manifest_product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+      "manifest_object_id_in_this_process": 2078848489792,
+      "manifest_model_run_time": "2035-01-02T06:00:00+00:00",
+      "manifest_ingested_at": "2035-01-02T15:00:00+00:00",
+      "manifest_last_update": "2035-01-02T15:00:00+00:00",
+      "restore_recorded_at": "2026-09-20T20:26:37.089870+00:00",
+      "product_cache_ttl_seconds": 300.0,
+      "memory_cache_inserted_at": "2026-09-20T20:26:37.088516+00:00",
+      "l1_file_mtime_before_restore": "2026-09-20T20:26:37.068593+00:00",
+      "l1_file_mtime_after_restore": "2026-09-20T20:26:37.068593+00:00",
+      "initial": {
+        "object_id_in_this_process": 2078848489120,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-01T12:00:00+00:00",
+        "ingested_at": "2035-01-01T23:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "after_manifest_restore_warm": {
+        "object_id_in_this_process": 2078847627536,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-01T12:00:00+00:00",
+        "ingested_at": "2035-01-01T23:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "after_memory_clear_disk": {
+        "object_id_in_this_process": 2078848358112,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-01T12:00:00+00:00",
+        "ingested_at": "2035-01-01T23:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "after_l1_absence_fresh_download": {
+        "object_id_in_this_process": 2078847920336,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-02T06:00:00+00:00",
+        "ingested_at": "2035-01-02T15:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "l1_product_hash_unchanged_by_restore": true,
+      "product_downloads": [
+        "gfs_marine_waves_diagnostic_local_20350102T180000Z.json"
+      ],
+      "trace": [
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": false,
+          "preexisting_disk_file": true,
+          "returned": {
+            "object_id_in_this_process": 2078848489120,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-01T12:00:00+00:00",
+            "ingested_at": "2035-01-01T23:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848490128,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848490128,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": true,
+          "preexisting_disk_file": true,
+          "returned": {
+            "object_id_in_this_process": 2078847627536,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-01T12:00:00+00:00",
+            "ingested_at": "2035-01-01T23:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848490128,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": false,
+          "preexisting_disk_file": true,
+          "returned": {
+            "object_id_in_this_process": 2078848358112,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-01T12:00:00+00:00",
+            "ingested_at": "2035-01-01T23:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848490128,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": false,
+          "preexisting_disk_file": false,
+          "returned": {
+            "object_id_in_this_process": 2078847920336,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-02T06:00:00+00:00",
+            "ingested_at": "2035-01-02T15:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        }
+      ]
+    },
+    {
+      "scenario": "values_and_labels_changed",
+      "fixture": "synthetic, explicitly controlled; not a production capture",
+      "manifest_product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+      "manifest_object_id_in_this_process": 2078848358112,
+      "manifest_model_run_time": "2035-01-02T06:00:00+00:00",
+      "manifest_ingested_at": "2035-01-02T15:00:00+00:00",
+      "manifest_last_update": "2035-01-02T15:00:00+00:00",
+      "restore_recorded_at": "2026-09-20T20:26:37.107152+00:00",
+      "product_cache_ttl_seconds": 300.0,
+      "memory_cache_inserted_at": "2026-09-20T20:26:37.105956+00:00",
+      "l1_file_mtime_before_restore": "2026-09-20T20:26:37.104114+00:00",
+      "l1_file_mtime_after_restore": "2026-09-20T20:26:37.104114+00:00",
+      "initial": {
+        "object_id_in_this_process": 2078848702544,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-01T12:00:00+00:00",
+        "ingested_at": "2035-01-01T23:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "after_manifest_restore_warm": {
+        "object_id_in_this_process": 2078847711136,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-01T12:00:00+00:00",
+        "ingested_at": "2035-01-01T23:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "after_memory_clear_disk": {
+        "object_id_in_this_process": 2078849158960,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-01T12:00:00+00:00",
+        "ingested_at": "2035-01-01T23:00:00+00:00",
+        "mean_height": 1.0,
+        "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+      },
+      "after_l1_absence_fresh_download": {
+        "object_id_in_this_process": 2078849141056,
+        "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+        "model_run_time": "2035-01-02T06:00:00+00:00",
+        "ingested_at": "2035-01-02T15:00:00+00:00",
+        "mean_height": 2.0,
+        "grid_value_sha256": "d844a2a3801133483904cbb46c6bd8c3bf91faeaf314ccd017fdaadea8f70a74"
+      },
+      "l1_product_hash_unchanged_by_restore": true,
+      "product_downloads": [
+        "gfs_marine_waves_diagnostic_local_20350102T180000Z.json"
+      ],
+      "trace": [
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": false,
+          "preexisting_disk_file": true,
+          "returned": {
+            "object_id_in_this_process": 2078848702544,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-01T12:00:00+00:00",
+            "ingested_at": "2035-01-01T23:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848358416,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848358416,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": true,
+          "preexisting_disk_file": true,
+          "returned": {
+            "object_id_in_this_process": 2078847711136,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-01T12:00:00+00:00",
+            "ingested_at": "2035-01-01T23:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848358416,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": false,
+          "preexisting_disk_file": true,
+          "returned": {
+            "object_id_in_this_process": 2078849158960,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-01T12:00:00+00:00",
+            "ingested_at": "2035-01-01T23:00:00+00:00",
+            "mean_height": 1.0,
+            "grid_value_sha256": "033b1a8ed9e53b646698a54a82ac36b8a83e9ecf9cff7da158fabb8b71e0c60c"
+          }
+        },
+        {
+          "operation": "get_manifest",
+          "object_id_in_this_process": 2078848358416,
+          "last_manifest_update": "2035-01-02T15:00:00+00:00",
+          "product_count": 1
+        },
+        {
+          "operation": "load_product",
+          "filename": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+          "preexisting_memory_entry": false,
+          "preexisting_disk_file": false,
+          "returned": {
+            "object_id_in_this_process": 2078849141056,
+            "product_id": "gfs_marine_waves_diagnostic_local_20350102T180000Z.json",
+            "model_run_time": "2035-01-02T06:00:00+00:00",
+            "ingested_at": "2035-01-02T15:00:00+00:00",
+            "mean_height": 2.0,
+            "grid_value_sha256": "d844a2a3801133483904cbb46c6bd8c3bf91faeaf314ccd017fdaadea8f70a74"
+          }
+        }
+      ]
+    }
+  ],
+  "limit": "Demonstrates a real local serving mechanism, not the live Render worker's record identity."
+}

@@ -336,8 +336,10 @@ def process_video_from_path(
     Memory-safe variant of process_video_upload that works directly from a
     file already on disk, avoiding the need to hold raw bytes in RAM.
 
-    Designed for Render 512 MB free-tier deployments where buffering an entire
-    video in Python memory causes OOM crashes.
+    Designed for the 512 MB Render instance, where buffering an entire video in
+    Python memory causes OOM crashes. (Was written as "free-tier"; the plan is paid
+    now, but the 512 MB ceiling is a property of the INSTANCE and still applies --
+    see marineGridSeries.js:653 for the same constraint biting on the frontend.)
 
     Args:
         source_path: Path to the video file already saved on disk

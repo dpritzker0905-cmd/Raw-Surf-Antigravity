@@ -7,6 +7,9 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity';
+import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
@@ -22,11 +25,17 @@ import {
 } from './WebGLWindUtils';
 import {
   createTexture,
+  withTextureState,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
-import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
-
-import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
+import { renderMaskToCanvas, overlayBasemapWaterOnMask, prepareBasemapWaterOverlay, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
+import { measureMarineMaskPaint } from './marineMaskRefreshAttribution';
+import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
+  from './marineOverlayMode';
+export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
+import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
+import { setGridPointRegUniform } from './gridPointRegistration';
+import { populateCrestDiagnostics, marineForensicFrameEvidence } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
   reinitParticles,
@@ -75,7 +84,7 @@ export {
 // `_arbiterGraceState` comes back too: the Phase B SHADOW verdict below (:175) must pass the SAME
 // grace object the live decision mutates, or it reports the rating-grace rule as a divergence
 // forever. It is shared mutable state, not a value — the identity is the point.
-import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState } from './marineCommitGate';
+import { decideMarineCommit, shouldBridgeToCoarseGlobal, _arbiterGraceState, coarseBaseStaleForSeed, heldBaseKeeps } from './marineCommitGate';
 
 export {
   shouldBridgeToCoarseGlobal, shouldRejectSubcoveringRegional, decideMarineCommit,
@@ -115,6 +124,7 @@ function WebGLMarineEngine() {
 
 WebGLMarineEngine.prototype.init = function(gl) {
   initEngine(this, gl);
+  if (!this._initialized) throw new Error('WebGL Marine initialization failed');
 };
 
 WebGLMarineEngine.prototype.reinitParticles = function(gl) {
@@ -171,10 +181,11 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
         this._waveData && this._waveData.waveGrid, waveGrid,
         { zoom: this._lastZoom, viewportBounds: this._lastViewportBounds,
           flavorWant: window.__SURF_MODE__ === true,
+          absoluteFrameTime: forecastStateIdentityEnabled(),
           zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
-          // Mid-band ceiling from the SAME window the guard read, so the shadow can't diverge on it.
+          // Mid-band ceiling and the F-22 base-aware switch from the SAME window the guard read, so the shadow can't diverge on them.
           midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 40.0,
-          midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true,
+          midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true, baseAwareBridge: window.__RAW_DISABLE_BASE_AWARE_BRIDGE__ !== true,
           // Shadow must exercise the SAME rule list the flip will run, grace included — otherwise
           // it re-reports the (now-fixed) rating-grace class as a divergence forever.
           graceState: _arbiterGraceState,
@@ -527,13 +538,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // model/layer no longer blocks the consume — the stale base is REPLACED (_captureCoarseBase frees it
   // first) so blend-both re-engages for the new model without waiting for an organic world commit.
   // A base already matching the seed's identity means an organic commit beat the seed here — the seed
-  // is DISCARDED (the old gate left it pending forever, which then blocked every future staging).
+  // is DISCARDED (the old gate left it pending forever, which then blocked every future staging) unless it is a 2-degree seed over a coarser base of that hour.
   if (this._pendingCoarseBaseGrid) {
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
-    const _stale = !_b ||
-      (_b.__sourceModel || 'GFS') !== (_seed.__sourceModel || 'GFS') ||
-      (_b.__componentLayer || 'waves') !== (_seed.__componentLayer || 'waves');
+    const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, another HOUR (F-21, marineStaleHour.js) or a finer lattice of the same hour (rule 6)
     this._pendingCoarseBaseGrid = null;
     if (_stale) {
       try {
@@ -1298,7 +1307,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // the only viewport truth) are untouched. Kill: __RAW_DISABLE_DENSE_BASE_NO_REPLACE__.
     const _cmb = this._cachedMaskBounds, _cmd = this._cachedMaskTexDims;
     const _cmSpan = _cmb ? ((_cmb.east < _cmb.west) ? (_cmb.east + 360) - _cmb.west : _cmb.east - _cmb.west) : 0;
-    const { rawWideTrigger: _rawWideTrigger, replace: _overlayReplace, baseGlobalDense: _baseGlobalDense } =
+    const { rawWideTrigger: _rawWideTrigger, replace: _overlayReplaceWide, baseGlobalDense: _baseGlobalDense } =
       computeWideOverlayMode({
         gwSpan: _gwSpan, mbCov: _mbCov, covReplaceOff: _covReplaceOff,
         baseTexIsCached: this._waveData.u_oceanMaskTexture === this._cachedMaskTex,
@@ -1344,11 +1353,19 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // The REPLACE cases (world grid / coverage_gap) are driven by `_rawWideTrigger` and are untouched.
     // Kill: __RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ (restores the old z>=12-only gate for a clean A/B).
     // _midCarveOff / _midCarveEngage computed above (near _maskEdgeSharp) and reused here.
+    // MID-CARVE REPLACE (2026-08-17) — rationale + measurements: computeMidCarveReplace.
+    const _midCarveReplace = computeMidCarveReplace({
+      midCarveEngage: _midCarveEngage,
+      overlayCoversViewport: _overlayCoversViewport,
+      overlayPaintDegraded: this._overlayPaintDegraded,
+      killed: (typeof window !== 'undefined' && window.__RAW_DISABLE_MIDCARVE_REPLACE__ === true),
+    });
+    const _overlayReplace = _overlayReplaceWide || _midCarveReplace;
     const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds && !_degradedDrop &&
       (_rawWideTrigger || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5) || _midCarveEngage));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, overlayCoversView: _overlayCoversViewport, reason: _nonCoveringDrop ? 'noncovering_drop' : _degradedDrop ? 'degraded_drop' : (_overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off')), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, overlayCoversView: _overlayCoversViewport, reason: overlayTelemetryReason({ overlayOn, overlayReplace: _overlayReplace, nonCoveringDrop: _nonCoveringDrop, degradedDrop: _degradedDrop, midCarveReplace: _midCarveReplace, overlayReplaceWide: _overlayReplaceWide, gwSpan: _gwSpan, baseGlobalDense: _baseGlobalDense }), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
     }
     // Probe state (maskFloodProbe.js): the exact mask-selection the shader just used, so the
     // GPU read-back diagnostic samples what is actually on screen. Dev-only; cheap object write.
@@ -1491,6 +1508,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       else if (mode === 'mask') debugModeVal = 2.0;
       else if (mode === 'grid') debugModeVal = 3.0;
       else if (mode === 'mercator') debugModeVal = 4.0;
+      else if (mode === 'why') debugModeVal = 5.0;   // discard-reason map (the 255° teardown)
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
 
@@ -1553,9 +1571,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // and the shader paints the band when u_surfMode>0.5 — so a missing band is one of: flag off, grid not a
     // rating grid (propagation), or downstream. No render effect; reads the same inputs the gate above uses.
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      var _rawFlag = (window.__SURF_MODE__ !== undefined)
-        ? !!window.__SURF_MODE__
-        : (typeof window.localStorage !== 'undefined' && window.localStorage.getItem('__SURF_MODE__') === 'true');
+      var _rawFlag = readMarineSurfMode();
       window.__RAW_GPU__.ratingBand = {
         flag: _rawFlag,                                            // is the Surf/Rating toggle's global flag set?
         gridRatingMode: !!(waveGrid && waveGrid.ratingMode),       // did a rating grid reach the engine?
@@ -1595,7 +1611,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       var _fsNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!this._forensicSnapT || (_fsNow - this._forensicSnapT) > 15000) {
         this._forensicSnapT = _fsNow;
-        var _snap = {
+        var _snap = { ...marineForensicFrameEvidence(waveGrid),
           zoom: (typeof z === 'number') ? +z.toFixed(2) : null,
           dims: waveGrid ? `${waveGrid.cols}x${waveGrid.rows}` : null,
           spanLng: (waveGrid && waveGrid.bounds) ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null,
@@ -1660,6 +1676,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
     // Crisp mask edge for coarse residents (the heatmap pass's own halo — see the damp block).
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
+    setLandAwareFetchUniforms(gl, this.heatmapProgram, this._waveData && this._waveData.waveGrid);
     // COAST SDF (2026-07-21): a crisp, resolution-independent coast + tunable erosion from the .b
     // signed-distance field. Off (__RAW_DISABLE_COAST_SDF__ or no .b field) => legacy binary edge.
     const _sdfKill = (typeof window !== 'undefined' && window.__RAW_DISABLE_COAST_SDF__ === true);
@@ -1812,8 +1829,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      // t/n (2026-09-21): unstamped, this object goes STALE when the heatmap stops drawing — so
+      // "hidden at opacity 0" and "not drawing at all" read identically, and the second is the gap.
+      const _n = ((window.__RAW_GPU__.opacity || {}).n || 0) + 1;
       window.__RAW_GPU__.opacity = {
         heatmap: +heatmapOpacity.toFixed(3), mult: +mult.toFixed(3), coarseFade: +coarseFade.toFixed(2),
+        t: Date.now(), n: _n,
       };
       window.__RAW_GPU__.maskId = {
         cachedBound: this._waveData.u_oceanMaskTexture === this._cachedMaskTex,
@@ -1915,7 +1936,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Coarse-band nearest-cell direction (vortex band, default mode): crest orientation snaps to the nearest
       // coarse cell-center heading — matches ADVECT so orientation == motion. 0 outside the band.
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.drawProgram, 'u_wave_reg', this._waveData.waveGrid);
 
       // Zoom-band crest SELF-CONTRAST (2026-07-03): full strength where the crest palette collides
       // with the heatmap palette (user-reported z3.65–4.25 wash-out), ramping in from z3.0 and out
@@ -2204,7 +2225,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Coarse-band nearest-cell direction (matches DRAW): advect along the nearest cell-center heading so the
       // per-cell motion is uniform — the bilinear swirl cannot form. 0 outside the vortex band.
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_coarseNearestDir'), coarseNearestDir);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.advectProgram, 'u_wave_reg', this._waveData.waveGrid);
 
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
@@ -2367,17 +2388,14 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // (A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
   // out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)
   if (span >= 30) { this._lastMaskRepatchReason = 'wide_delegate'; return this.refreshViewportOverlayMask(gl, mapInstance, true); }
-  // STALE-OVERLAY CLEAR (2026-07-04, the "bright rectangle block" at Punat z9.44 after a z12.5 zoom):
-  // the viewport-truth overlay is a DEEP-ZOOM (z≥12) crispness enhancement painted for a SMALL box.
-  // Zooming back out below z12 leaves that box resident, and it then applies its sheltered/crisp
-  // verdict over a SUB-VIEWPORT rectangle (min()-combine) while the surrounding viewport uses the
-  // base mask — a hard rectangular seam that pans with the map (live repro: z12.5→z9.44). Below the
-  // overlay-active zone for a REGIONAL grid (span<30, z<12) the overlay is never legitimately
-  // painted OR rendered, so a resident box is always stale — drop it. Wide grids (span≥30, handled
-  // above) keep their overlay: they use it at every zoom via REPLACE. Proven fix: clearing the
-  // bounds alone (no re-patch) removes the block.
+  // Clear regional overlays only below their ACTIVE carve zone; clearing below the obsolete
+  // z12 gate while midzoom carving is active discards clean truth and repaints every refresh.
+  // The legacy carve/retention rollback keeps z12. Wide-grid REPLACE is delegated above.
   try {
-    if (mapInstance.getZoom() < 12 && this._overlayMaskBounds) {
+    const overlayMinZoom = typeof window !== 'undefined' &&
+      (window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true || window.__RAW_DISABLE_ACTIVE_OVERLAY_RETENTION__ === true)
+      ? 12 : MIDZOOM_OVERLAY_CARVE_MIN_Z;
+    if (mapInstance.getZoom() < overlayMinZoom && this._overlayMaskBounds) {
       this._overlayMaskBounds = null;
       this._overlayMaskTruthBox = null;
     }
@@ -2461,19 +2479,19 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // layer's `idle` listener re-drives this refresh once every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) { this._lastMaskRepatchReason = 'source_not_ready'; return false; }
   try {
-    const canvas = renderMaskToCanvas(geo, bounds);
-    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
+    const water = measureMarineCpuPhase('maskFeatureQuery', () => prepareBasemapWaterOverlay(mapInstance));
+    if (!water) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
+    const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds));
+    const applied = measureMarineCpuPhase('maskWaterPaint', () => measureMarineMaskPaint(water, () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water)));
     if (!applied) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     // COAST SDF: re-write the signed dist-to-coast into .b on the PATCHED base coast (this re-upload
     // would otherwise revert .b to a redundant .r). Opt-in; byte-identical when off. Keeps the flag live.
     this._cachedMaskHasSDF = writeCoastDistanceField(canvas);
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    measureMarineCpuPhase('maskUpload', () => withTextureState(gl, () => {
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    }));
     // Record the TRUTH box for the hysteresis above — the STRICT viewport the painter actually
     // repainted (the old 40%-padded box claimed truth over a ring the tile queries can never
     // cover; that ring was black land = the pan/zoom "rectangle holes"). Zoom-ins inside the box
@@ -2522,12 +2540,8 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   if (!geo || !gl || !mapInstance) return false;
   let z;
   try { z = mapInstance.getZoom(); } catch (e) { return false; }
-  // z≥4.4 (was 7, was 9 — 2026-07-07, the z5 "halo keeps trying to heal + heatmap on islands"):
-  // "below z7 coarse texels read acceptably" was WRONG — world-mask texels stay visibly wide
-  // (>1.3 screen px) down to z≈4.4, and the world-GRID regime (span≥30, where this overlay is
-  // the ONLY crisp truth) lives mostly below z7. The paint is a fixed screen-resolution canvas,
-  // so cost does not grow with span; at z<4.4 the texels go sub-pixel and the base mask reads
-  // fine, so the gate self-limits.
+  // z≥4.4: world-mask texels stay visibly wide below z7, where this is the only crisp truth.
+  // The fixed-resolution canvas does not grow with span; below z4.4 the base reads sub-pixel.
   if (z < 4.4) return false;
   let bounds;
   let view = null;
@@ -2561,22 +2575,22 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       const cy = (bounds.north + bounds.south) / 2;
       bounds.south = Math.max(-85, cy - MIN_SPAN / 2); bounds.north = Math.min(85, cy + MIN_SPAN / 2);
     }
-    // HYSTERESIS (the stair-climb fix): if the previous paint's TRUTH box (the strict viewport it
-    // actually repainted from tile truth — NOT the padded texture bounds, whose ring is only NE
-    // base truth) still CONTAINS the current viewport AND its resolution is still adequate (span
-    // not more than ~5× the viewport — i.e. the user hasn't zoomed far past its texel density),
-    // skip the repaint entirely. Zoom-ins inside the truth box cost NOTHING; escaping it repaints
-    // once (throttled at the layer, tile-gated below).
+    // HYSTERESIS: reuse covering queried truth within 5× the view. Minimum-span reuse also
+    // needs stable zoom: identical bounds add no density, but settled zooms bring finer tiles.
+    // Combine-mode changes rebuild; the padded ring remains NE, not queried tile truth.
+    const spanReuseOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_MINIMUM_SPAN_REUSE__ === true;
     const prev = this._overlayMaskBounds;
     const prevTruth = this._overlayMaskTruthBox;
     // A DEGRADED previous paint (parent-vulnerable fallback) never earns the skip — this is the
-    // El Salvador grey-rectangle self-heal (2026-07-06): a bad box on a WIDE-grid residency
-    // REPLACES the base mask at every zoom and used to persist until the 5× resolution rule
-    // finally escaped (the user had to zoom extremely close). Now the next refresh repaints it.
+    // Grey-rectangle self-heal: a bad box on a WIDE-grid residency
+    // REPLACES the base at every zoom; a later attempt must retry with finest tile truth.
     if (prev && prevTruth && this._overlayMaskTex && !this._overlayPaintDegraded &&
+        (spanReuseOff || this._overlayMaskBasinScale === !!basinScale) &&
         prevTruth.west <= view.west && prevTruth.east >= view.east &&
         prevTruth.south <= view.south && prevTruth.north >= view.north &&
-        (prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5) {
+        ((prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5 ||
+          (!spanReuseOff && Math.abs(z - this._overlayMaskPaintZoom) < 0.75 &&
+            (prev.east - prev.west) <= bounds.east - bounds.west))) {
       // #11 FORENSICS (read-only, 2026-08-01): the no-shrink guard below never fires in production
       // (proven INERT by kill-switch A/B, `50c74e33`). Its precondition is a COVERING incumbent —
       // and THIS skip also requires the previous box to contain the viewport. Since the padded
@@ -2600,10 +2614,12 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   // skip and let the `idle`-driven refresh land the paint when every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) return false;
   try {
+    const water = measureMarineCpuPhase('maskFeatureQuery', () => prepareBasemapWaterOverlay(mapInstance));
+    if (!water) return false;
     // 2048 cap: an overlay spans ≤ ~1°, so 2048 px keeps ≤ ~3 m/texel at deep zoom while the
     // paint + texImage2D upload cost 4× less than the 4096 tier (8 MB vs 32 MB per refresh).
-    const canvas = renderMaskToCanvas(geo, bounds, { maxWidth: 2048 });
-    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
+    const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds, { maxWidth: 2048 }));
+    const applied = measureMarineCpuPhase('maskWaterPaint', () => measureMarineMaskPaint(water, () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water)));
     if (!applied) return false;
     // ── MASK NO-SHRINK (#11, the halo) ────────────────────────────────────────────────────────
     // Refuse a candidate mask that SHRINKS while failing to cover the viewport, when the incumbent
@@ -2653,22 +2669,24 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     }
     // COAST SDF for the viewport-truth overlay (the band's min-combine mask). Opt-in; byte-identical off.
     this._overlayMaskHasSDF = writeCoastDistanceField(canvas);
-    if (!this._overlayMaskTex) {
-      this._overlayMaskTex = gl.createTexture();
+    // Capture before allocation binds anything; restore even when an upload throws.
+    measureMarineCpuPhase('maskUpload', () => withTextureState(gl, () => {
+      if (!this._overlayMaskTex) {
+        this._overlayMaskTex = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
       gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    }
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-    gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    }));
+    this._overlayMaskTexDims = { w: canvas.width, h: canvas.height }; // probe follows uploaded size
     this._overlayMaskBounds = bounds;
+    this._overlayMaskBasinScale = !!basinScale;
+    this._overlayMaskPaintZoom = z;
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
     // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
     this._overlayMaskTruthBox = view;
@@ -2695,20 +2713,11 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const ps = this._probeState || {};
   const merc = (lat) => { const c = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180; return (1 - Math.log(Math.tan(c) + 1 / Math.cos(c)) / Math.PI) / 2; };
   const wrap = (lng, center) => { let p = lng; while (p - center > 180) p -= 360; while (p - center < -180) p += 360; return p; };
-  const dimsForOverlay = (b) => {
-    const span = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
-    let w = span < 10 ? 4096 : (span < 30 ? 2048 : 4096); if (w > 2048) w = 2048;
-    // MID-ZOOM COASTAL CARVE (2026-07-21, user residual-fringe report): the regional min-combine
-    // overlay spans ~0.5–3° across the halo band; at the flat 2048 cap that is ~56 m/texel and the
-    // coast carve is soft, so the heatmap feather still rides a thin fringe onto land. Lift the cap to
-    // 4096 (~28 m/texel) for that span band so the coast cuts crisply — matching the z>=12 look the
-    // user confirmed clean. Deep-zoom (<0.35°, already fine at 2048) and world (≥30°, memory-bound)
-    // spans are unchanged. Kill: __RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ (restores the flat 2048 cap).
-    if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true) &&
-        span >= 0.35 && span < 6) w = 4096;
-    return { w, h: w / 2 };
-  };
-  const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  // WebGL2 may have different read/draw bindings. Touch only the read target there;
+  // WebGL1 has one binding and follows the original FRAMEBUFFER path.
+  const framebufferTarget = gl.READ_FRAMEBUFFER !== undefined ? gl.READ_FRAMEBUFFER : gl.FRAMEBUFFER;
+  const framebufferBinding = gl.READ_FRAMEBUFFER_BINDING !== undefined ? gl.READ_FRAMEBUFFER_BINDING : gl.FRAMEBUFFER_BINDING;
+  const prevFbo = gl.getParameter(framebufferBinding);
   const fbo = gl.createFramebuffer();
   const out = new Uint8Array(4);
   const read = (tex, b, dims, lng, lat) => {
@@ -2723,9 +2732,9 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     const tx = Math.max(0, Math.min(dims.w - 1, Math.round(u * (dims.w - 1))));
     const tyC = Math.max(0, Math.min(dims.h - 1, Math.round(v * (dims.h - 1))));
     const ty = dims.h - 1 - tyC;                          // mask uploaded UNPACK_FLIP_Y=true
-    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
+    gl.bindFramebuffer(framebufferTarget, fbo);
+    gl.framebufferTexture2D(framebufferTarget, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    if (gl.checkFramebufferStatus(framebufferTarget) !== gl.FRAMEBUFFER_COMPLETE) return null;
     gl.readPixels(tx, ty, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
     return { r: out[0], b: out[2] }; // .r = land/water; .b = coast SDF (when __RAW_COAST_SDF__)
   };
@@ -2735,7 +2744,7 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     return pl >= wW && pl <= wE;
   };
   const baseTex = this._cachedMaskTex, baseB = this._cachedMaskBounds, baseD = this._cachedMaskTexDims;
-  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay(ovB) : null;
+  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = this._overlayMaskTexDims || null;
   // COARSE-BASE FALLBACK (2026-07-18 EVE-2): beyond the RESIDENT mask bounds both reads return
   // null, which callers (zoomlab's water ground truth) had to guess about — the ring-fill zone
   // read as "unknown/land" and could hide a real dead-ring finding there. The held coarse base
@@ -2743,28 +2752,32 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   const cb = this._coarseBaseData;
   const cbTex = cb && cb.u_oceanMaskTexture, cbB = cb && cb.bounds;
   const cbD = (cb && cb.__maskCanvasDims) ? { w: cb.__maskCanvasDims.w, h: cb.__maskCanvasDims.h } : null;
-  const res = points.map(({ lng, lat }) => {
-    const baseS = read(baseTex, baseB, baseD, lng, lat);
-    const ovS = read(ovTex, ovB, ovD, lng, lat);
-    const base = baseS ? baseS.r : null;
-    const overlay = ovS ? ovS.r : null;
-    let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
-    if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
-      if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
-      else {
-        effective = (base == null) ? overlay : Math.min(base, overlay);
-        effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
-        src = 'overlay_min';
+  try {
+    return points.map(({ lng, lat }) => {
+      const baseS = read(baseTex, baseB, baseD, lng, lat);
+      const ovS = read(ovTex, ovB, ovD, lng, lat);
+      const base = baseS ? baseS.r : null;
+      const overlay = ovS ? ovS.r : null;
+      let effective = base, src = 'base', effB = baseS ? baseS.b : null; // effB = the coast-SDF byte the shader uses
+      if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
+        if (ps.replace) { effective = overlay; effB = ovS.b; src = 'overlay_replace'; }
+        else {
+          effective = (base == null) ? overlay : Math.min(base, overlay);
+          effB = (baseS && ovS) ? Math.min(baseS.b, ovS.b) : (ovS ? ovS.b : effB); // min-combine of two SDFs = more-land
+          src = 'overlay_min';
+        }
       }
-    }
-    if (effective == null && cbTex && cbB && cbD) {
-      const cbS = read(cbTex, cbB, cbD, lng, lat);
-      if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
-    }
-    return { lng, lat, base, overlay, effective, src, effB };
-  });
-  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) { /* probe cleanup only — the sampled result is already captured in `res` */ }
-  return res;
+      if (effective == null && cbTex && cbB && cbD) {
+        const cbS = read(cbTex, cbB, cbD, lng, lat);
+        if (cbS != null) { effective = cbS.r; effB = cbS.b; src = 'coarse_base'; }
+      }
+      return { lng, lat, base, overlay, effective, src, effB };
+    });
+  } finally {
+    // A diagnostic read may throw too: never leave MapLibre attached to our FBO.
+    try { gl.bindFramebuffer(framebufferTarget, prevFbo); } catch (e) { /* context may be lost */ }
+    try { gl.deleteFramebuffer(fbo); } catch (e) { /* context may be lost */ }
+  }
 };
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
@@ -2804,11 +2817,11 @@ export function resolveDeliveredCoverage(cachedBounds, curView, gridKey, lastFor
   const forceKey = curView
     ? `${gridKey}|${k(curView.west)},${k(curView.south)},${k(curView.east)},${k(curView.north)}`
     : `${gridKey}|`;
-  // Unknown delivery is NOT treated as short: this may only ADD repaints in the proven-bad case,
-  // never remove a skip the old code granted on information we do not have.
-  const deliveredShort = !disabled && !!cachedBounds && !!curView && !(
-    cachedBounds.west <= curView.west && cachedBounds.east >= curView.east
-    && cachedBounds.south <= curView.south && cachedBounds.north >= curView.north);
+  // Never skip on unknown delivery, nor on a WRAPPED box (east<west) that containment calls COVERED — C4-MR-09.
+  const deliveredShort = !disabled && !!cachedBounds && !!curView
+    && (curView.east < curView.west || cachedBounds.east < cachedBounds.west
+      || !(cachedBounds.west <= curView.west && cachedBounds.east >= curView.east
+        && cachedBounds.south <= curView.south && cachedBounds.north >= curView.north));
   return { deliveredShort, forceKey, forceRepaint: deliveredShort && lastForcedFor !== forceKey };
 }
 
@@ -2888,7 +2901,7 @@ WebGLMarineEngine.prototype._coarseBaseLruEnabled = function() {
 };
 
 WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
-  if (!gl) return;
+  if (!gl || heldBaseKeeps(this._coarseBaseLruEnabled() ? this._coarseBaseLru : null, this._coarseBaseData, waveGrid)) return;   // F-22 follow-up: a held EXACT base is not replaced by a coarser frame of the same data (marineStaleHour.js rule 5; both capture paths come through here)
   // Encode the NEW base BEFORE freeing the old (see resolveCoarseBaseSwap) so a failed re-encode never nulls
   // the base — the two texture sets coexist for a few synchronous lines only. Kill: __RAW_DISABLE_ATOMIC_COARSE_BASE__.
   const atomic = (typeof window === 'undefined') || window.__RAW_DISABLE_ATOMIC_COARSE_BASE__ !== true;
@@ -3013,25 +3026,6 @@ export function computeWideOverlayMode(opts) {
   return { rawWideTrigger, replace, baseGlobalDense };
 }
 
-// MID-ZOOM COASTAL CARVE gate (2026-07-21). Below the z>=12 deep-zoom overlay gate the coarse
-// coastline-geojson base mask haloes wash onto the coast (user live A/B off John Pennekamp, halo
-// band z~8.75–12.13). The viewport-truth overlay min()-combines and ONLY EVER removes wash, so
-// engaging it earlier can tighten the coast but never add bleed. Pure + exported so the render's
-// engage decision is unit-tested. TRUE ⇒ min-combine the viewport overlay at mid zoom. Requires the
-// overlay to CONTAIN the viewport (no padded-ring exposure — never a REPLACE-style ring flood) and
-// to be non-degraded. Kill via midCarveOff (__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ at the call site).
-export const MIDZOOM_OVERLAY_CARVE_MIN_Z = 9;
-export function computeMidZoomOverlayEngage(opts) {
-  const o = opts || {};
-  if (o.midCarveOff) return false;
-  // Fail safe on an unknown zoom (undefined/null/NaN all fall here — typeof NaN === 'number' would
-  // otherwise slip through): a wrong "engage" could flood, a wrong "skip" just leaves today's behavior.
-  if (!Number.isFinite(o.z) || o.z < MIDZOOM_OVERLAY_CARVE_MIN_Z) return false;
-  if (!o.overlayCoversViewport) return false;
-  if (o.overlayPaintDegraded === true) return false;
-  return true;
-}
-
 WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
   try {
     if (!gl) return false;
@@ -3040,7 +3034,7 @@ WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
     const cbg = base && base.waveGrid;
     const rwg = this._waveData && this._waveData.waveGrid;
     if (!shouldBridgeToCoarseGlobal(rwg, cbg, this._lastZoom, this._lastViewportBounds,
-        typeof window !== 'undefined' ? window : undefined)) return false;
+        typeof window !== 'undefined' ? window : undefined, this.__staleSwapMs, this.__selectedMs)) return false;   // F-21: the instant while the resident is a stale world frame; F-22: the selected instant, always
     // Promotion commits a GLOBAL grid while the cached mask is still the regional's box — force the
     // full mask rebuild (the escaped-mask recipe, 64bd1ff6): left alone, the encoder's retain guards
     // (retain_patched / retain_res_no_downgrade) keep the crisp REGIONAL mask under the WORLD grid and
@@ -3116,6 +3110,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), 1.0);
   // Same crisp-edge verdict as the main pass — the wash's coarse mask edge was the other halo face.
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
+  setLandAwareFetchUniforms(gl, this.heatmapProgram, base && base.waveGrid);
   // The coarse-wash binds a DIFFERENT (global) base mask whose .b is not a resident SDF — force the
   // SDF path OFF here so it can't inherit the main pass's enabled uniform and misread .b as distance.
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_coastSDFEnabled'), 0.0);
@@ -3204,4 +3199,5 @@ WebGLMarineEngine.prototype.dispose = function(gl) {
   }
 };
 
+instrumentMarineEngineCpuPhases(WebGLMarineEngine);
 export default WebGLMarineEngine;

@@ -1,0 +1,72 @@
+{
+  "at": "2026-09-20T20:11:19.994345+00:00",
+  "valid_time": "2026-09-20T18:00:00Z",
+  "latitude_note": "Controlled latitude; audit omitted actual browser latitude.",
+  "health_version": "2.0.0-stage-6f-v1-607af934e74fa87f3b8e58698ef68fdce919ea54",
+  "cases": [
+    {
+      "case": "sebastian_audit_longitudes",
+      "requested_bbox": "-81.93,26.5,-78.97,29.2",
+      "product_id": "gfs_marine_waves_global_mid_20260920T180000Z.json",
+      "resolution": null,
+      "partial_coverage": false,
+      "coverage_scope": "regional",
+      "served_bbox": "-84.0000,24.0000,-76.0000,32.0000",
+      "stale": false,
+      "model_run_time": "2026-09-19T12:00:00Z",
+      "ingested_at": "2026-09-19T22:55:48.544578Z",
+      "native_longitude_spacing": [
+        2.0
+      ],
+      "vector_count": 25
+    },
+    {
+      "case": "edge_inside",
+      "requested_bbox": "-81.9601,26.5,-79.0001,29.2",
+      "product_id": "gfs_marine_waves_florida_east_coast_20260920T180000Z.json",
+      "resolution": null,
+      "partial_coverage": false,
+      "coverage_scope": "regional",
+      "served_bbox": "-82.0000,26.0000,-79.0000,30.0000",
+      "stale": false,
+      "model_run_time": "2026-09-19T12:00:00Z",
+      "ingested_at": "2026-09-19T22:54:23.759121Z",
+      "native_longitude_spacing": [
+        0.25
+      ],
+      "vector_count": 221
+    },
+    {
+      "case": "edge_outside",
+      "requested_bbox": "-81.9599,26.5,-78.9999,29.2",
+      "product_id": "gfs_marine_waves_global_mid_20260920T180000Z.json",
+      "resolution": null,
+      "partial_coverage": false,
+      "coverage_scope": "regional",
+      "served_bbox": "-84.0000,24.0000,-76.0000,32.0000",
+      "stale": false,
+      "model_run_time": "2026-09-19T12:00:00Z",
+      "ingested_at": "2026-09-19T22:55:48.544578Z",
+      "native_longitude_spacing": [
+        2.0
+      ],
+      "vector_count": 25
+    },
+    {
+      "case": "healthy_inside",
+      "requested_bbox": "-81.19,27.2,-79.71,28.5",
+      "product_id": "gfs_marine_waves_florida_east_coast_20260920T180000Z.json",
+      "resolution": null,
+      "partial_coverage": false,
+      "coverage_scope": "regional",
+      "served_bbox": "-82.0000,27.0000,-79.0000,29.0000",
+      "stale": false,
+      "model_run_time": "2026-09-19T12:00:00Z",
+      "ingested_at": "2026-09-19T22:54:23.759121Z",
+      "native_longitude_spacing": [
+        0.25
+      ],
+      "vector_count": 117
+    }
+  ]
+}

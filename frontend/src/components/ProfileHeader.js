@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Camera, MapPin, Flame, Radio, Heart, Trophy, Ban, Check, Loader2, UserPlus, UserMinus,
-  Instagram, Globe, ExternalLink, Settings
+  Instagram, Globe, ExternalLink, Settings, Shapes
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
@@ -196,9 +196,12 @@ export const ProfileHeader = ({
               className="absolute -bottom-1 -right-1 z-20 w-7 h-7 rounded-full bg-zinc-800 border-2 border-zinc-600 hover:border-cyan-400 flex items-center justify-center transition-all group/logo"
               data-testid="avatar-mode-toggle"
               title={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
+              aria-label={profile.is_logo_avatar ? 'Switch to Photo mode' : 'Switch to Logo mode'}
             >
               <span className="text-[10px] font-bold text-zinc-300 group-hover/logo:text-cyan-400">
- {profile.is_logo_avatar ? '=' : '???'}
+                {profile.is_logo_avatar
+                  ? <Camera className="w-3.5 h-3.5" aria-hidden="true" />
+                  : <Shapes className="w-3.5 h-3.5" aria-hidden="true" />}
               </span>
             </button>
           )}

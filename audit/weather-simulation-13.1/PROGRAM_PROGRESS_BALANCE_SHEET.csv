@@ -1,0 +1,40 @@
+direction,indicator,baseline_791fdf78,current_HEAD_568fc2c6,evidence,confidence
+POSITIVE,Objectives/tasks certified closed,0 in window,6,"WS-OBJ-207 d8c866bd; WS-CAN-0009 d1fb5369; WS-CAN-0062 d8c866bd; WS-CAN-0066 a1b5aac3; WS-CAN-0073 f44cc87f; WS-CAN-0075 0509b1ec",HIGH
+POSITIVE,Critical/High defects causally eliminated,0 in window,2,"coastal+island halo (784b4c6c ocean-mask-buffer opt-in + 050f19b3 NE re-assert gate 1200->400) verified on the deployed build with a positive control at 6022f4cf; GRIB Range positional-variable-swap (a6e4339a)",HIGH
+POSITIVE,Release-gate blockers removed,0 in window,1,WS-CAN-0066 - the live 15-minute scheduled alert now states quality,HIGH
+POSITIVE,Meaningful regression tests added,n/a,18 of 27 rated Strong Causal or Strong Invariant,TEST_PROTECTION_QUALITY.md,HIGH
+POSITIVE,Test density (frontend/src/components/map),0.84 tests per module (134 test / 159 module),0.91 (150 / 165),git grep at both revisions; the strongest convergence signal measured,HIGH
+POSITIVE,Scientific gaps closed,n/a,3,"GRIB Range guards close a real corruption path; report-calibration `available` moved from 'a file exists' to n_matched>=1; SURF_HEIGHT_H110 registry cell repaired a 10-day-stale claim",HIGH
+POSITIVE,Config robustness,22 module-level bare env parses,1 clamping accessor absorbing 20 inline reads,backend/services/weather_pipeline/config_env.py env_int:29 env_float:48,HIGH
+POSITIVE,Failure-recovery paths added,n/a,2,SAFE_DEGRADED coverage terminal state (d555b17e); FPS-guardrail downgrade now disclosed AND recoverable (fc3e2af2),HIGH
+POSITIVE,Backend batch latency,~11.4 s / 30 spots,0.40-0.59 s (~22x),c4a8a315 - measured live on production spots,HIGH
+POSITIVE,Build-cache correctness,junctioned worktree poisoned the webpack cache (casualty: the wasm decoder),fixed - cache keyed to the build tree,01ec5a3d,HIGH
+POSITIVE,Uncaught page errors across 13 journeys / 1558 requests,not measured,0,evidence/blind-summary.json,HIGH
+POSITIVE,Owner multiplication under race + 3 remount cycles,not measured,none - workers 18->18 GL 1->1 canvases 4->4,evidence/blind-marks.json; jacobian-tests/local-jacobian-first-order.json,HIGH
+NEGATIVE,New CRITICAL regression,0,1,"/conditions/batch swell_height_ft carries VHM0 (offshore significant) on the frame lane vs VHM0_SW1 (primary swell partition) on the live lane; DEFAULT ON. conditions.py:75; spot_ratings.py:136",HIGH
+NEGATIVE,New duplicate authority (ingestion),2 EURO marine lanes (10deg coarse; 2deg mid),3,"copernicus_island_ingestion (fb50fa6d) 0.083deg x 20 bboxes under the SAME model label EURO, DEFAULT ON at forecast.py:174-175, its 'inert by construction' claim refuted by point_resolution.py:340 / manifest_view.py:39-51",HIGH
+NEGATIVE,Objectives regressed,0,2,"WS-OBJ-101 (every activated layer paints) - 12.2 marked CLOSED, 13.0 still Partially Delivered; WS-OBJ-705 (CI/E2E integrity) - 12.2 REOPENED, register still reads CERTIFIED",HIGH
+NEGATIVE,Objectives unchanged,n/a,7,four Finish-Line-A positions received zero commits,HIGH
+NEGATIVE,Architecture authority counts converged,n/a,0 of 10,"git grep at both revisions: rAF 24/46 identical; Workers 2 identical; caches 50 identical; renderers 2/3/2 identical; REACT_APP_ 11/43 identical; OceanMask 10 non-test identical; projection helpers 17 identical; normalization 17/10/19 identical; composition entry points identical",HIGH
+NEGATIVE,Architecture authority counts diverged,n/a,3,window.__RAW_*/__OM_* runtime overrides 261->264; backend weather env names 215->221 (reads 343->353); setInterval owners 7->8 files,HIGH
+NEGATIVE,Module inventory,137 backend services / 159 map modules,142 / 165 with ZERO deletions,surface area only grows,HIGH
+NEGATIVE,New permanent fallback,n/a,1,coarse-bridge grace (e17f0332) - dark by default,HIGH
+NEGATIVE,Self-corrections / retractions,n/a,52 of 127 commits (41%),MISSION_AND_COMMIT_FORENSIC_LEDGER.csv column is_revert_or_retraction,HIGH
+NEGATIVE,Duplicate-counted commits,0,6,"0509b1ec 7362bab4 7bb7b9d6 72a8edba dd9dadff 118cfabc are patch-identical to bf8fb4cd d4c6f487 be6a705a d72444b5 ce66f6f4 e0fb3289; verified with git patch-id --stable; reconciled at merge ed280c93",HIGH
+NEGATIVE,REGRESSION_RISK commits,0,4,"7becd023 (root-cause claim refuted, plausibly CAUSED the halo); be6a705a (CI floor from a prediction, broke CI); 1bcd2241 (floor edited without its pair -> must have been red); bcd8eb3e (land-aware fetch shipped inert then default-reverted)",HIGH
+NEGATIVE,Verification debt - register staleness,registers current at 12.2,4 days and 127 commits stale,"only 7 of 40 objective rows carry a 13.0 status, all dated 2026-08-14; ZERO of the 42 commits since 2026-08-16 reference any WS-OBJ/WS-CAN id; 'madeira' and 'island' return 0 hits in all three registers",HIGH
+NEGATIVE,Verification debt - authority map staleness,current,126 commits stale while its header asserts it describes HEAD,last commit d8c866bd = the Program 13.0 START commit,HIGH
+NEGATIVE,Dangling register references,0,2,WS-OBJ-401 cites WS-CAN-0068 and WS-CAN-0069; neither id exists in any register,HIGH
+NEGATIVE,12.2 objective deltas ingested,8 available,1,5 silent drops by omission incl. the WS-OBJ-705 reopening,HIGH
+NEGATIVE,Proposed 12.2 objectives adopted,4 available (WS-OBJ-706..709),0,MISSING_OBJECTIVE_REGISTER.csv,HIGH
+NEGATIVE,Stale CI floors at HEAD,unknown,2,"chain floor 88/809 at HEAD vs measured 90 files / 839 collected -> stale by 2 files and 30 tests, and NO test in the repo can see it; two frontend floors have nothing watching them",HIGH
+NEGATIVE,Scope drift,n/a,"61 of 127 commits (48%) in a lane with no authorising document and no register id",IMPLEMENTATION_SCOPE_COMPLIANCE.csv,HIGH
+NEGATIVE,Wrong-sequence work,n/a,"Gate 4 and Gate 5 tasks closed while Gate 1 is open with an objective in Verification Failed",CURRENT_TASK_REGISTER.csv:69-72; CURRENT_RELEASE_GATE_STATUS.md,HIGH
+NEGATIVE,Production frontend age,82 days behind HEAD,90 days behind HEAD,SW BUILD_VERSION 3bd38a83 (2026-05-20) unchanged since Audit 12.1 AND 12.2,HIGH
+NEGATIVE,Baseline controllability,unknown,"HEAD advanced and was PUSHED by a concurrent session DURING this audit",CURRENT_BASELINE_MANIFEST.md section 0,HIGH
+NEUTRAL,Style-layer lifecycle,not measured,+5 permanent MapLibre layers per marine-layer visit; never removed,"blind marks 138->143; Jacobian layer->layers=+5 against a ZERO noise spread",HIGH
+NEUTRAL,Timer lifecycle,not measured,+1 live setInterval per marine layer visit; monotone,Jacobian layer_to_waves and layer_to_watertemp intervalsLive=+1,HIGH
+NEUTRAL,Shader-program lifecycle,not measured,+1 to +2 per zoom change; monotone; never released,Jacobian zoom probes programs=+1/+2/+1,HIGH
+NEUTRAL,Animation visibility ownership,not measured,none - 17.8 RAF/s hidden vs 18.5 RAF/s visible,"jacobian-tests/local-hidden-raf.json; NOTE the defineProperty override does not engage Chromium throttling, so this shows the APP has no owner, not that a real background tab burns CPU",MEDIUM
+NEUTRAL,Unexpected first-order couplings at HEAD,NOT MEASURED at baseline,6,JACOBIAN_TRAJECTORY_MATRIX.csv - cannot be called an increase or a decrease; no comparable prior measurement exists,HIGH
+NEUTRAL,Unexpected nonlinear interactions at HEAD,NOT MEASURED at baseline,3,JACOBIAN_INTERACTION_RESIDUALS.csv - same caveat,HIGH

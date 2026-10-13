@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -34,7 +35,8 @@ from .schemas import (
     BoostRequestCreate, DispatchCheckoutRequest, ExceptionRequestBody,
     ExceptionResolveBody, CrewPaymentRequest, CrewCheckoutRequest,
     CoverRemainingRequest, RemindCrewRequest,
-    get_available_pros, _get_surfer_board_description
+    get_available_pros, _get_surfer_board_description,
+    captain_amount_owed, to_cents,
 )
 
 logger = logging.getLogger("routes.dispatch")
@@ -138,16 +140,22 @@ async def get_pending_requests(db: AsyncSession = Depends(get_db)):
 async def create_dispatch_request(
     request_data: CreateDispatchRequest,
     requester_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Create a new on-demand dispatch request
     Returns payment intent for deposit
-    
+
     Time Guardrails:
     - On-Demand (is_immediate=True): Current-day only, no scheduling allowed
     - Scheduled (is_immediate=False): Requires 24-hour lead time
     """
+    # The requester is whoever holds the token; a quick-book spends that user's
+    # subscription quota and opens a request in their name.
+    if requester_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot request a pro on behalf of another user")
+
     # Verify requester exists
     result = await db.execute(select(Profile).where(Profile.id == requester_id))
     requester = result.scalar_one_or_none()
@@ -230,7 +238,7 @@ async def create_dispatch_request(
     subscription_discount_pct = 0.0
     subscription_covered = False
     if request_data.target_photographer_id:
-        from routes.photo_subscriptions import get_subscription_discount, try_use_subscription_quota
+        from routes.subscriptions_billing.photo_sub_helpers import get_subscription_discount, try_use_subscription_quota
         subscription_discount_pct = await get_subscription_discount(
             db, requester_id, request_data.target_photographer_id, service_type='on_demand'
         )
@@ -358,27 +366,35 @@ async def confirm_payment(
     dispatch_id: str,
     payer_id: str,
     background_tasks: BackgroundTasks,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Confirm payment and start the dispatch process (CAPTAIN payment).
     Called after Stripe payment succeeds or wallet/credit payment.
-    
+
     ATOMIC TRANSACTION: This endpoint ensures that:
     1. Credit deduction only happens if dispatch record is properly updated
     2. Captain metadata (name, avatar) is stored for photographer dashboard
     3. If any step fails, entire transaction rolls back
     """
+    # The payer is whoever holds the token, and only the requester pays to start their request.
+    if payer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot pay on behalf of another user")
+
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
-    
+
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
-    
+
+    if str(dispatch.requester_id) != current_user_id:
+        raise HTTPException(status_code=403, detail="Only the requester can pay for this request")
+
     if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
         raise HTTPException(status_code=400, detail=f"Request is not pending payment. Status: {dispatch.status}")
     
@@ -391,7 +407,7 @@ async def confirm_payment(
     
     # Use captain_share_amount if set (for split bookings), otherwise full deposit
     # This allows captain to pay $0 if crew pays 100%
-    captain_amount = dispatch.captain_share_amount if dispatch.captain_share_amount is not None else dispatch.deposit_amount
+    captain_amount = captain_amount_owed(dispatch)
     
     # Only verify credits if captain actually needs to pay
     if captain_amount > 0 and payer.credit_balance < captain_amount:
@@ -487,15 +503,19 @@ async def confirm_payment(
 @router.post("/checkout")
 async def create_dispatch_checkout(
     data: DispatchCheckoutRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Create a Stripe Checkout session for on-demand dispatch card payments.
     Called when user selects card payment instead of credits.
     """
+    if data.payer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot pay on behalf of another user")
+
     if not stripe.api_key:
         raise HTTPException(status_code=500, detail="Stripe not configured")
-    
+
     # Verify dispatch request exists and is pending payment
     result = await db.execute(
         select(DispatchRequest)
@@ -503,13 +523,21 @@ async def create_dispatch_checkout(
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
-    
+
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
-    
+
+    if str(dispatch.requester_id) != current_user_id:
+        raise HTTPException(status_code=403, detail="Only the requester can pay for this request")
+
     if dispatch.status != DispatchRequestStatusEnum.PENDING_PAYMENT:
         raise HTTPException(status_code=400, detail=f"Request is not pending payment. Status: {dispatch.status}")
-    
+
+    # The charge comes from the record, never from the request body.
+    amount = captain_amount_owed(dispatch)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="No card payment is due for this request")
+
     # Get photographer name for checkout description
     photographer_name = "Photographer"
     if dispatch.target_photographer_id:
@@ -530,7 +558,7 @@ async def create_dispatch_checkout(
             line_items=[{
                 'price_data': {
                     'currency': 'usd',
-                    'unit_amount': int(data.amount * 100),  # Stripe uses cents
+                    'unit_amount': to_cents(amount),  # Stripe uses cents
                     'product_data': {
                         'name': f'On-Demand Session with {photographer_name}',
                         'description': f'{int(dispatch.estimated_duration_hours * 60)} min on-demand photography session',
@@ -556,7 +584,7 @@ async def create_dispatch_checkout(
         transaction = PaymentTransaction(
             user_id=data.payer_id,
             session_id=checkout_session.id,
-            amount=data.amount,
+            amount=amount,
             currency="usd",
             payment_status="Pending",
             status="Pending",
@@ -572,7 +600,7 @@ async def create_dispatch_checkout(
             "checkout_url": checkout_session.url,
             "session_id": checkout_session.id,
             "dispatch_id": data.dispatch_id,
-            "amount": data.amount
+            "amount": amount
         }
         
     except stripe.error.StripeError as e:

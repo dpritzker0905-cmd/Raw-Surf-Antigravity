@@ -56,15 +56,15 @@ const SKILL_LEVELS = [
 // Region/Peak options (expandable)
 const REGIONS = [
   { id: 'all', label: 'All Regions' },
- { id: 'ny', label: 'New York', flag: '=+' },
- { id: 'fl', label: 'Florida', flag: '=' },
- { id: 'ca', label: 'California', flag: '=' },
- { id: 'hi', label: 'Hawaii', flag: '=' },
- { id: 'cr', label: 'Costa Rica', flag: '==+' },
- { id: 'pr', label: 'Puerto Rico', flag: '==+' },
- { id: 'mx', label: 'Mexico', flag: '==+' },
- { id: 'id', label: 'Indonesia', flag: '==' },
- { id: 'au', label: 'Australia', flag: '==' },
+  { id: 'ny', label: 'New York' },
+  { id: 'fl', label: 'Florida' },
+  { id: 'ca', label: 'California' },
+  { id: 'hi', label: 'Hawaii' },
+  { id: 'cr', label: 'Costa Rica' },
+  { id: 'pr', label: 'Puerto Rico' },
+  { id: 'mx', label: 'Mexico' },
+  { id: 'id', label: 'Indonesia' },
+  { id: 'au', label: 'Australia' },
 ];
 
 /**

@@ -1,17 +1,18 @@
 [build]
   base = "frontend"
-  command = "node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
+  # Owner approved ICON stored tail on dev only; context.dev means local Netlify Dev.
+  command = "if [ \"$CONTEXT\" = \"branch-deploy\" ] && [ \"$BRANCH\" = \"dev\" ]; then export REACT_APP_ICON_STORED_TAIL=true; fi; node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
   publish = "build"
 
 [build.environment]
-  NODE_VERSION = "18.20.2"
+  NODE_VERSION = "24.21.0"
   NODE_OPTIONS = "--openssl-legacy-provider"
   NETLIFY_NEXT_PLUGIN_SKIP = "true"
   REACT_APP_BACKEND_URL = "https://raw-surf-antigravity.onrender.com"
 
 # Production (main branch) - only rebuild when frontend files actually changed
 [context.production]
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- frontend/src frontend/public netlify.toml"
+  ignore = "node scripts/netlify-ignore.cjs"
 
 
 

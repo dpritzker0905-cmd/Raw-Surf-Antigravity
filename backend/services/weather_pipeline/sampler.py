@@ -1,11 +1,20 @@
+import contextlib
+import contextvars
 import math
 import logging
+import os
+from services.weather_pipeline.cycle_provenance import time_provenance
+from services.weather_pipeline.product_revision_refresh import point_revision_provenance
 from typing import Optional, Dict, Any, Tuple, List
 from services.weather_pipeline.schemas import (
     NormalizedProduct, NormalizedPointDetail, NormalizedPointResponse
 )
 
 logger = logging.getLogger(__name__)
+
+# Marine layers that are spectral PARTITIONS of the sea state. An invalid cell in one of these means
+# "no energy in this partition here", not "land" — see the reach rule in sample_point.
+PARTITION_LAYERS = frozenset({"swell_1", "swell_2", "wind_waves"})
 
 
 def deduce_grid_resolution(grid) -> float:
@@ -42,11 +51,136 @@ def resolution_or_none(grid):
     return res if res and res > 0 else None
 
 
+def scalar_marine_height_enabled(domain: str) -> bool:
+    """SAMPLER_SCALAR_HEIGHT (default '0', dark): interpolate a MARINE height as the scalar it is.
+
+    ⛔ WHY (audit 2026-09-30). The bilinear branches below average the corners' (u, v) and report
+    sqrt(u^2 + v^2) as the height. That is right for wind, a vector, and wrong for a significant wave
+    height: WAVEWATCH III, WAM and every downstream consumer treat Hs as a scalar field, and a vector
+    mean can only SHRINK it (|sum w_i h_i e_i| <= sum w_i h_i), by as much as the corners' directions
+    diverge. They diverge exactly where surf spots are: around islands, headlands and swell shadows.
+    Measured on production products, 2026-09-30:
+      * NDBC 51202 Mokapu Point: corners 1.39-1.57 m from 75-189 deg; served 0.9795 m (the sampler's
+        own answer to the digit), scalar 1.455 m, Open-Meteo's same-model cell 1.44 m, buoy 2.0 m.
+      * same-model parity (245 rows, 57 buoys): MAE 0.055 -> 0.043 m, RMSE 0.104 -> 0.071 m.
+      * 1,662 rated spots: 11% under-read offshore by > 5%, 7% by > 10% (Thurso East 2.8 -> 7.0 ft).
+      * NDBC truth, one hour: where the two differ, scalar is closer on 11 of 12 rows.
+    Direction keeps the energy-weighted vector mean (the right estimator for a mean direction); u/v
+    are re-derived from the scalar height and that direction so the point stays self-consistent.
+    Wind and weather domains are untouched. It changes served numbers on every surface that samples
+    a point (glyphs, hub, sim, the consensus builder, the skill ledger), so it flips ONLY on the
+    owner's word, in every lane together: Render env, forecast-ingest.yml, forecast-ingest-pilots.yml
+    and precompute.yml.
+    """
+    return (domain or "").lower() == "marine" and (
+        os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") == "1" or _FORCE_SCALAR.get())
+
+
+# The skill ledger's shadow lane (forecast_skill.GFS_SCALAR) grades the scalar answer beside the served one while the
+# switch is dark, the pattern consensus_serve.serve_raw() set: a context, not an env write, so the served lane in
+# the same process is never affected. contextvars are copied into tasks created inside the block.
+_FORCE_SCALAR = contextvars.ContextVar("sampler_force_scalar_height", default=False)
+
+
+@contextlib.contextmanager
+def force_scalar_height():
+    token = _FORCE_SCALAR.set(True)
+    try:
+        yield
+    finally:
+        _FORCE_SCALAR.reset(token)
+
+
+def _scalar_height_point(corner_weights, interp_u: float, interp_v: float):
+    """(speed, direction, u, v) for a marine point: the weighted SCALAR mean of the corners' heights,
+    the vector mean's direction, and u/v rebuilt from the two. Weights are normalised here, so the
+    ocean-masked branch can pass its surviving corners as they are. A cancelling vector mean (numerically
+    zero next to the height: atan2 of float residue is an arbitrary bearing) has no direction, so the
+    heaviest corner's is used instead."""
+    sum_w = sum(w for _, w in corner_weights)
+    speed = sum(w * v.speed for v, w in corner_weights) / sum_w
+    if math.hypot(interp_u, interp_v) <= 1e-9 * max(1.0, speed):
+        direction = float(max(corner_weights, key=lambda cw: cw[1])[0].direction)
+    else:
+        direction = math.degrees(math.atan2(-interp_u, -interp_v)) % 360.0
+    rad = math.radians(direction)
+    return speed, direction, -speed * math.sin(rad), -speed * math.cos(rad)
+
+
+def _to_monotonic_lng(x: float, west: float) -> float:
+    """Longitude mapped onto a monotonic axis starting at `west`, for antimeridian-crossing grids."""
+    val = x - west
+    if val < 0:
+        val += 360.0
+    return west + val
+
+
+def _from_monotonic_lng(mono_x: float) -> float:
+    wrapped = mono_x % 360.0
+    if wrapped > 180.0:
+        wrapped -= 360.0
+    return wrapped
+
+
 class PointSampler:
     """
     Samples point forecasts from NormalizedProduct grid files
     using high-fidelity Bilinear Interpolation.
     """
+
+    def __init__(self, memoize: bool = False):
+        # OPT-IN GRID-INDEX MEMO (2026-09-29). sample_point rebuilds a product's sorted axes, its
+        # coordinate map, its resolution and (on the coastal fallbacks) its valid-vector list on EVERY
+        # call, so one sample costs O(grid): measured 0.21 ms on a 725-cell Florida tile and 2.66 ms on
+        # a 5,917-cell Brazil tile. The ingest consensus builder samples every GFS cell against EURO and
+        # ICON: ~25 s per Brazil frame unmemoized, 0.15 s memoized (1.5 s when the members' land masks
+        # disagree everywhere and every sample takes the nearest-ocean scan). The math is untouched:
+        # the SAME index, built the same way, once (tests/test_consensus_product.py pins memoized ==
+        # fresh on every branch).
+        # ⛔ Never on a long-lived instance (the module-level samplers in routes/): the memo holds
+        # every product it has seen until the sampler itself is dropped.
+        self._memo = {} if memoize else None
+
+    def _grid_index(self, product: NormalizedProduct):
+        """(lats, bounds, lons_mono, coordinate_map) of a non-empty grid, or None when its coordinate
+        lists are unusable. Memoized per product object when the sampler was built with memoize=True."""
+        entry = self._memo.get(id(product)) if self._memo is not None else None
+        if entry is not None and entry["product"] is product:
+            return entry["index"]
+        grid = product.grid
+        lats = sorted(list(set(v.lat for v in grid.vectors)))
+        index = None
+        if lats:
+            bounds = grid.bounds
+            if not bounds:
+                lons_fallback = sorted(list(set(v.lng for v in grid.vectors)))
+                from services.weather_pipeline.schemas import CoverageBounds
+                bounds = CoverageBounds(west=lons_fallback[0], south=lats[0], east=lons_fallback[-1], north=lats[-1])
+            lons_mono = sorted(list(set(_to_monotonic_lng(v.lng, bounds.west) for v in grid.vectors)))
+            index = (lats, bounds, lons_mono, {(v.lat, v.lng): v for v in grid.vectors})
+        if self._memo is not None:
+            self._memo[id(product)] = {"product": product, "index": index, "valid": None}
+        return index
+
+    def _valid_vectors(self, product: NormalizedProduct) -> List[Any]:
+        """The grid's valid vectors (the fallback branches' candidate list), memoized like the index."""
+        entry = self._memo.get(id(product)) if self._memo is not None else None
+        if entry is not None and entry["product"] is product and entry["valid"] is not None:
+            return entry["valid"]
+        valid = [v for v in product.grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+        if entry is not None and entry["product"] is product:
+            entry["valid"] = valid
+        return valid
+
+    def _resolution(self, product: NormalizedProduct):
+        """resolution_or_none(product.grid), memoized like the index: it sorts every latitude of the grid, and on a
+        memoized sampler it was the largest remaining per-sample cost (8.8 of 9.7 s building a Brazil frame)."""
+        entry = self._memo.get(id(product)) if self._memo is not None else None
+        if entry is None or entry["product"] is not product:
+            return resolution_or_none(product.grid)
+        if "resolution" not in entry:
+            entry["resolution"] = resolution_or_none(product.grid)
+        return entry["resolution"]
 
     def sample_point(
         self,
@@ -69,33 +203,13 @@ class PointSampler:
         if not grid or not grid.vectors:
             return self._build_unavailable_response(product, lat, lng, "Empty or missing grid data")
 
-        lats = sorted(list(set(v.lat for v in grid.vectors)))
-        if not lats:
+        index = self._grid_index(product)
+        if index is None:
             return self._build_unavailable_response(product, lat, lng, "Invalid grid coordinates list")
+        lats, bounds, lons_mono, coordinate_map = index
 
-        bounds = grid.bounds
-        if not bounds:
-            lons_fallback = sorted(list(set(v.lng for v in grid.vectors)))
-            if not lons_fallback:
-                return self._build_unavailable_response(product, lat, lng, "Invalid grid coordinates list")
-            from services.weather_pipeline.schemas import CoverageBounds
-            bounds = CoverageBounds(west=lons_fallback[0], south=lats[0], east=lons_fallback[-1], north=lats[-1])
-
-        # Monotonic longitude mapping helpers for antimeridian crossing
-        def to_monotonic_lng(x: float, west: float) -> float:
-            val = x - west
-            if val < 0:
-                val += 360.0
-            return west + val
-
-        def from_monotonic_lng(mono_x: float) -> float:
-            wrapped = mono_x % 360.0
-            if wrapped > 180.0:
-                wrapped -= 360.0
-            return wrapped
-
-        lons_mono = sorted(list(set(to_monotonic_lng(v.lng, bounds.west) for v in grid.vectors)))
-        lng_mono = to_monotonic_lng(lng, bounds.west)
+        # Monotonic longitude mapping (antimeridian crossing): module-level _to/_from_monotonic_lng.
+        lng_mono = _to_monotonic_lng(lng, bounds.west)
 
         min_lat, max_lat = bounds.south, bounds.north
         min_lon_mono, max_lon_mono = lons_mono[0], lons_mono[-1]
@@ -130,12 +244,14 @@ class PointSampler:
                 interpolation_method="out_of_bounds_fallback"
             )
             return NormalizedPointResponse(
-                resolution=resolution_or_none(product.grid),
+                resolution=self._resolution(product),
                 model=product.model,
                 provider=product.provider,
                 domain=product.domain,
                 layer=product.layer,
                 run_time=product.run_time,
+                **time_provenance(product),
+                **point_revision_provenance(product),
                 valid_time=product.valid_time,
                 is_forecast_authoritative=False,
                 is_estimated=is_estimated,
@@ -154,9 +270,7 @@ class PointSampler:
                 upstream_model=product.upstream_model
             )
 
-        # 2. Build coordinate map for constant-time lookup
-        coordinate_map = {(v.lat, v.lng): v for v in grid.vectors}
-
+        # 2. Coordinate map for constant-time lookup (built by _grid_index)
         def get_vector_safe(lat_val: float, lon_val: float):
             vec = coordinate_map.get((lat_val, lon_val))
             if vec is not None:
@@ -168,13 +282,13 @@ class PointSampler:
         # 3. Locate bounding box coordinates
         lat0, lat1 = self._find_surrounding_brackets(lats, lat)
         lon0_mono, lon1_mono = self._find_surrounding_brackets(lons_mono, lng_mono)
-        lon0 = from_monotonic_lng(lon0_mono)
-        lon1 = from_monotonic_lng(lon1_mono)
+        lon0 = _from_monotonic_lng(lon0_mono)
+        lon1 = _from_monotonic_lng(lon1_mono)
 
         # Exact match path
         if lat0 == lat1 and lon0 == lon1:
             vec = get_vector_safe(lat0, lon0)
-            if vec:
+            if vec and (os.environ.get("SAMPLER_EXACT_VALIDITY", "0") != "1" or self._is_vector_valid(vec, product.domain, product.layer)):
                 detail = NormalizedPointDetail(
                     requested_lat=lat,
                     requested_lng=lng,
@@ -221,7 +335,7 @@ class PointSampler:
                 return self._build_unavailable_response(product, lat, lng, f"No valid {product.layer} data in grid")
                 
             if len(corners) < 4:
-                valid_scalar = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                valid_scalar = self._valid_vectors(product)
                 if valid_scalar:
                     nearest = self._find_nearest_vector(valid_scalar, lat, lng)
                     detail = NormalizedPointDetail(
@@ -278,10 +392,14 @@ class PointSampler:
             interp_u = w11 * v11.u + w12 * v12.u + w21 * v21.u + w22 * v22.u
             interp_v = w11 * v11.v + w12 * v12.v + w21 * v21.v + w22 * v22.v
             
+            # A corner's period counts only when it is POSITIVE. The normalizer stores a missing period
+            # as 0.0 on an otherwise valid vector, and averaging that zero in dragged EURO's coastal swell
+            # periods toward nothing (3.79 s at Steamer Lane where the ocean corners give 8.5 s,
+            # 2026-09-27). A layer with no period anywhere still reads 0.0, as before.
             interp_period = 0.0
             p_sum_weights = 0.0
             for v, w in corner_weights:
-                if v is not None and v.period is not None:
+                if v is not None and v.period is not None and v.period > 0.0:
                     interp_period += w * v.period
                     p_sum_weights += w
             if p_sum_weights > 0.0:
@@ -303,6 +421,9 @@ class PointSampler:
             interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
             if interp_dir < 0.0:
                 interp_dir += 360.0
+            if scalar_marine_height_enabled(product.domain):     # dark: see the helper's docstring
+                interp_speed, interp_dir, interp_u, interp_v = _scalar_height_point(
+                    corner_weights, interp_u, interp_v)
 
             detail = NormalizedPointDetail(
                 requested_lat=lat,
@@ -335,7 +456,7 @@ class PointSampler:
                     norm_w = w / sum_w
                     interp_u += norm_w * v.u
                     interp_v += norm_w * v.v
-                    if v.period is not None:
+                    if v.period is not None and v.period > 0.0:     # see the 4-corner branch
                         interp_period += norm_w * v.period
                         p_sum_w += norm_w
                     vg = getattr(v, "gust", None)
@@ -354,6 +475,9 @@ class PointSampler:
                 interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
                 if interp_dir < 0.0:
                     interp_dir += 360.0
+                if scalar_marine_height_enabled(product.domain):     # dark: the same rule as above
+                    interp_speed, interp_dir, interp_u, interp_v = _scalar_height_point(
+                        valid_ocean_corners, interp_u, interp_v)
 
                 detail = NormalizedPointDetail(
                     requested_lat=lat,
@@ -371,7 +495,7 @@ class PointSampler:
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
             else:
                 # Fallback to nearest ocean vector if sum of weights is zero
-                valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+                valid_vectors = self._valid_vectors(product)
                 if valid_vectors:
                     nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                     detail = NormalizedPointDetail(
@@ -405,7 +529,7 @@ class PointSampler:
 
         elif len(valid_ocean_corners) == 1:
             # 3. Fallback to Nearest Ocean Vector (exactly 1 valid ocean corner exists)
-            valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+            valid_vectors = self._valid_vectors(product)
             if valid_vectors:
                 nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 detail = NormalizedPointDetail(
@@ -434,12 +558,22 @@ class PointSampler:
             # The heatmap interpolates from farther valid ocean cells, so the infobox showed a misleading
             # "0 ft / 0 dir" where the map shows waves. Fall back to the nearest valid ocean vector IF it's
             # within ~1.5 grid cells; deep-inland points (nearest ocean farther) stay unavailable.
-            valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+            valid_vectors = self._valid_vectors(product)
             if valid_vectors:
                 nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 pos_diffs = [lats[i + 1] - lats[i] for i in range(len(lats) - 1)]
                 grid_res = min(pos_diffs) if pos_diffs else 10.0
-                max_dist = max(grid_res * 1.5, 1.0)
+                # ⛔ PARTITIONS ARE NOT COASTLINE (audit 15.0, A15-02). A swell/wind-sea cell is
+                # invalid where WW3 put no energy in that partition — open ocean, not land. The 1°
+                # floor below exists for the TOTAL field at a coast; applied to a partition it reached
+                # four 0.25° cells away and reported another place's swell train: Sebastian Inlet
+                # published primary swell 2.45 m against a 1.72 m TOTAL sea (impossible: Hs² = Σ
+                # partitions²) while upstream had no swell partition there. Partitions keep only the
+                # cell-scale reach; a farther train is somewhere else's sea, so the answer is absent.
+                if product.domain.lower() == "marine" and product.layer.lower() in PARTITION_LAYERS:
+                    max_dist = grid_res * 1.5
+                else:
+                    max_dist = max(grid_res * 1.5, 1.0)
                 d = math.hypot(nearest.lat - lat, nearest.lng - lng)
                 if d <= max_dist:
                     detail = NormalizedPointDetail(
@@ -536,12 +670,14 @@ class PointSampler:
             interpolation_method="unavailable"
         )
         return NormalizedPointResponse(
-            resolution=resolution_or_none(product.grid),
+            resolution=self._resolution(product),
             model=product.model,
             provider=product.provider,
             domain=product.domain,
             layer=product.layer,
             run_time=product.run_time,
+            **time_provenance(product),
+            **point_revision_provenance(product),
             valid_time=product.valid_time,
             is_forecast_authoritative=False,
             is_estimated=False,
@@ -570,12 +706,14 @@ class PointSampler:
         warnings: List[str]
     ) -> NormalizedPointResponse:
         return NormalizedPointResponse(
-            resolution=resolution_or_none(product.grid),
+            resolution=self._resolution(product),
             model=product.model,
             provider=product.provider,
             domain=product.domain,
             layer=product.layer,
             run_time=product.run_time,
+            **time_provenance(product),
+            **point_revision_provenance(product),
             valid_time=product.valid_time,
             is_forecast_authoritative=not is_estimated,
             is_estimated=is_estimated,

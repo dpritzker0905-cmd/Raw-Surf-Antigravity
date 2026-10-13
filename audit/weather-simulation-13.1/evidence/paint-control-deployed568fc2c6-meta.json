@@ -1,0 +1,132 @@
+{
+  "base": "https://dev--rawsurf.netlify.app",
+  "gridStatuses": {
+    "200": 45
+  },
+  "failedCount": 75,
+  "consoleErrorCount": 31,
+  "topFails": [
+    [
+      "https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/08/18/1200Z/2026-08-18T1800.om",
+      14
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/weather/grid_series",
+      9
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/11/564/854.vector.pbf",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/11/564/856.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/11/564/855.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/11/565/854.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/11/565/856.vector.pbf",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-incidents-v1/11/565/855.vector.pbf",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/11/564/854.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/11/564/855.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/11/565/854.vector.pbf",
+      2
+    ],
+    [
+      "https://b.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/11/565/856.vector.pbf",
+      2
+    ],
+    [
+      "https://a.tiles.mapbox.com/v4/mapbox.mapbox-traffic-v1/11/565/855.vector.pbf",
+      2
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/health",
+      1
+    ],
+    [
+      "https://dev--rawsurf.netlify.app/static/js/2488.e123072c.chunk.js",
+      1
+    ],
+    [
+      "https://dev--rawsurf.netlify.app/locales/en/admin.json",
+      1
+    ],
+    [
+      "https://dev--rawsurf.netlify.app/locales/en/booking.json",
+      1
+    ],
+    [
+      "https://raw-surf-antigravity.onrender.com/api/site-access",
+      1
+    ],
+    [
+      "https://dev--rawsurf.netlify.app/locales/en/common.json",
+      1
+    ],
+    [
+      "https://dev--rawsurf.netlify.app/locales/en/profile.json",
+      1
+    ]
+  ],
+  "topErrs": [
+    [
+      "WebSocket connection to 'wss://raw-surf-antigravity.onrender.com/api/ws/call/admin-user-id' failed: Error duri",
+      13
+    ],
+    [
+      "Failed to load resource: the server responded with a status of 404 ()",
+      4
+    ],
+    [
+      "[Backend Weather Service] Wind grid fetch error: signal is aborted without reason. Falling back cleanly.",
+      4
+    ],
+    [
+      "[WebRTC] Signaling WS error: Event",
+      3
+    ],
+    [
+      "[WebGLGuardrail] Frame rate consistently below 20 FPS (1 FPS) for 12 consecutive seconds. Triggering local ren",
+      2
+    ],
+    [
+      "[ERROR] Failed to fetch fresh avatar: AxiosError: Request failed with status code 404\n    at Fe (https://dev--",
+      1
+    ],
+    [
+      "Failed to load resource: the server responded with a status of 500 ()",
+      1
+    ],
+    [
+      "Failed to refresh user: AxiosError: Request failed with status code 404\n    at Fe (https://dev--rawsurf.netlif",
+      1
+    ],
+    [
+      "[ERROR] Failed to fetch bookings: AxiosError: Request failed with status code 404\n    at Fe (https://dev--raws",
+      1
+    ],
+    [
+      "[ERROR] Error fetching featured photographers: AxiosError: timeout of 60000ms exceeded\n    at g.ontimeout (htt",
+      1
+    ]
+  ]
+}

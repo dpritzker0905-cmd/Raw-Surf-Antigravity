@@ -1,0 +1,121 @@
+{
+  "recorded_at": "2026-10-04T13:55:32.605Z",
+  "baseline": "db20de62a22f1ea89ecb56c0520d21af4c2f55d3",
+  "scope": [
+    "W-03",
+    "W-05"
+  ],
+  "instrument": "Actual loader/limiter/mapper; offline mocked transport and deterministic timers",
+  "receipts": [
+    {
+      "instrument": "series-baseline-1",
+      "sha256": "3ead51628eaabc21359930a56c68bdae0632136bb89fe4a9b6ced8c5afa3050f",
+      "suites": 2,
+      "suite_pass": 0,
+      "tests": 22,
+      "passed": 4,
+      "failed": 18,
+      "pending": 0
+    },
+    {
+      "instrument": "series-baseline-2",
+      "sha256": "2c9717e98af21f187b84396e9f0a3e12cb25145d87d729d1f395af59d7c95507",
+      "suites": 2,
+      "suite_pass": 0,
+      "tests": 22,
+      "passed": 4,
+      "failed": 18,
+      "pending": 0
+    },
+    {
+      "instrument": "series-after-1",
+      "sha256": "830d7d36daeb96bd850f06d24331684df3b28a1c26be6b30357a6d37d1489b7f",
+      "suites": 2,
+      "suite_pass": 2,
+      "tests": 22,
+      "passed": 22,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "instrument": "series-expanded-baseline-1",
+      "sha256": "d4ea736bea9f48676cf7f612c9a93fbdf55b7d6d6b3fc2099dff0ee59dcede9a",
+      "suites": 2,
+      "suite_pass": 0,
+      "tests": 28,
+      "passed": 5,
+      "failed": 23,
+      "pending": 0
+    },
+    {
+      "instrument": "series-expanded-baseline-2",
+      "sha256": "ef191240e6a421e833a42d38bc3aa3822899c1983ff457d653ac203d084e42f1",
+      "suites": 2,
+      "suite_pass": 0,
+      "tests": 28,
+      "passed": 5,
+      "failed": 23,
+      "pending": 0
+    },
+    {
+      "instrument": "series-neighbors-1",
+      "sha256": "6d9a2411248d5c11ca29095eb11868551e05f77003430e37d123d8efb07c76bb",
+      "suites": 19,
+      "suite_pass": 19,
+      "tests": 163,
+      "passed": 163,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "instrument": "series-neighbors-2",
+      "sha256": "007a76c37d508c6fe6a187b13e44615967bd7320cae139c0cd86f972ba3f3f24",
+      "suites": 19,
+      "suite_pass": 19,
+      "tests": 163,
+      "passed": 163,
+      "failed": 0,
+      "pending": 0
+    },
+    {
+      "instrument": "series-frontend-full",
+      "sha256": "5b6da507ceb9cc6df9294066235036bd78fb1208e9a1d0c191b00278e8e4fafe",
+      "suites": 337,
+      "suite_pass": 337,
+      "tests": 3468,
+      "passed": 3468,
+      "failed": 0,
+      "pending": 0
+    }
+  ],
+  "hashes": {
+    "frontend/src/components/map/marineGridSeries.js": "ecabdd3c119b49dcfe05ba2a7ef71610506c51a2390a0c8a098bac5f3f1b06bc",
+    "frontend/src/components/map/marineSeriesDeferred.js": "da5f143ec4849acab2a01c9c5b2f19c2ad11f923437d84ef42adf72f24e676e9",
+    "frontend/src/components/map/marineSeriesFrame.js": "727e2740ba9672e9444a01448ccc1bd109eaa3010085482e4f0c7c2fb8af6eff",
+    "frontend/src/components/map/marineGridSeries.deferredCancellation.test.js": "81347d5e09364e12b2de4be80255c21b70c2169e6968ed0f70eb61b5fa842be7",
+    "frontend/src/components/map/marineSeriesFrame.provenance.test.js": "f0cc9d4c7e5b76f874a9e810422392546de662d46896badab139b202ef5f9f0e",
+    ".github/workflows/ci.yml": "7512b8becd8a5d7f2fe4d890040a8c3b7b1e0800aae97fd7c6adf11333d6f664"
+  },
+  "frontend_floors": {
+    "suites": 337,
+    "tests": 3468
+  },
+  "local_gates": {
+    "craco_build": "passed",
+    "lint_ratchet": "passed; 86 existing errors, 917 warnings",
+    "loc": "passed; zero new/regressed violations",
+    "ledger": "584 entries valid"
+  },
+  "hosted": {
+    "source_sha": "d67763d59d5e007e07f84b274b6693faf5134ad7",
+    "ci_run": "37207402431",
+    "frontend_job": "111451360943",
+    "frontend_test_build_discovery": "success; jobs API verified 2026-10-04T14:03:40Z",
+    "frontend_lint_composition": "success",
+    "explicit_test_totals": "pending log availability; local337/3468 confirmed",
+    "full_ci": "two longer backend lanes still running; no full-run acceptance claimed"
+  },
+  "served_numbers_changed": false,
+  "merged": false,
+  "production_deployed": false
+}

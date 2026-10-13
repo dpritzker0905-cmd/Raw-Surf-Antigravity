@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Loader2, ChevronDown, Trophy, Star, Send } from 'lucide-react';
+import { Loader2, ChevronDown, Trophy, Star, Send, Waves, Check } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -87,16 +87,16 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
 
   // Only 2 selectable modes - Pro is not a surf mode you pick, it's verified status
   const modes = [
- { id: 'casual', label: 'Casual', icon: '=' },
- { id: 'competitive', label: 'Competitive', icon: '=' },
+    { id: 'casual', label: 'Casual', Icon: Waves },
+    { id: 'competitive', label: 'Competitive', Icon: Trophy },
   ];
 
   // Pro section header label based on current state
   const proSectionLabel = loadingVerif ? 'Apply for Pro Verification'
-    : isVerifiedPro ? '? Verified Pro'
-    : isLegend ? '??? Legend'
-    : verificationStatus === 'pending' || verificationStatus === 'under_review' ? '? Verification Pending'
-    : verificationStatus === 'rejected' ? '? Reapply for Pro Verification'
+    : isVerifiedPro ? 'Verified Pro'
+    : isLegend ? 'Legend'
+    : verificationStatus === 'pending' || verificationStatus === 'under_review' ? 'Verification Pending'
+    : verificationStatus === 'rejected' ? 'Reapply for Pro Verification'
     : 'Apply for Pro Verification';
 
   return (
@@ -107,12 +107,12 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
           Surf Mode
           {isLegend && (
             <span className="ml-auto px-2 py-0.5 bg-amber-500/20 text-amber-400 text-xs rounded-full border border-amber-500/30">
-              ??? Legend
+              Legend
             </span>
           )}
           {isVerifiedPro && !isLegend && (
             <span className="ml-auto px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full border border-emerald-500/30">
-              ? Verified Pro
+              Verified Pro
             </span>
           )}
         </CardTitle>
@@ -122,7 +122,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
         {/* Legend read-only display */}
         {isLegend ? (
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-            <p className="text-amber-400 font-semibold">??? Legend</p>
+            <p className="text-amber-400 font-semibold">Legend</p>
             <p className={`text-xs ${textSecondaryClass} mt-1`}>
               This status was personally assigned by Raw Surf - reserved for icons of the sport.
             </p>
@@ -142,7 +142,7 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
                     : 'border-border bg-muted/40 text-muted-foreground hover:border-zinc-500'
                 }`}
               >
-                <span className="text-lg">{m.icon}</span>
+                <m.Icon className="w-5 h-5" aria-hidden="true" />
                 <span>{m.label}</span>
               </button>
             ))}
@@ -161,9 +161,9 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
           <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
             <p className="text-purple-400 text-sm font-semibold flex items-center gap-1"><Trophy className="w-4 h-4" /> Competitive Mode Active</p>
             <ul className={`text-xs ${textSecondaryClass} mt-2 space-y-1 list-none`}>
-              <li>? Appears on contest boards &amp; community rankings</li>
-              <li>? Stoked dashboard activated</li>
-              <li>? Visible to photographers as a competitive athlete</li>
+              <li className="flex items-center gap-1"><Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" /> Appears on contest boards &amp; community rankings</li>
+              <li className="flex items-center gap-1"><Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" /> Stoked dashboard activated</li>
+              <li className="flex items-center gap-1"><Check className="w-3 h-3 flex-shrink-0" aria-hidden="true" /> Visible to photographers as a competitive athlete</li>
             </ul>
           </div>
         )}
@@ -190,19 +190,19 @@ export const SurfModeCard = ({ textPrimaryClass, textSecondaryClass, cardBgClass
                   </div>
                 ) : isVerifiedPro ? (
                   <div className="text-center py-2">
-                    <p className="text-emerald-400 font-semibold">? WSL Verified Pro</p>
+                    <p className="text-emerald-400 font-semibold">WSL Verified Pro</p>
                     <p className={`text-xs ${textSecondaryClass} mt-1`}>Your pro status is confirmed. Welcome to The Peak.</p>
                   </div>
                 ) : verificationStatus === 'pending' || verificationStatus === 'under_review' ? (
                   <div className="text-center py-2">
-                    <p className="text-yellow-400 font-semibold">? Verification Under Review</p>
+                    <p className="text-yellow-400 font-semibold">Verification Under Review</p>
                     <p className={`text-xs ${textSecondaryClass} mt-1`}>Our team is reviewing your credentials. You'll hear back within 24-48 hours.</p>
                   </div>
                 ) : (
                   <>
                     {verificationStatus === 'rejected' && (
                       <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-                        <p className="text-red-400 text-sm font-semibold">? Previous request was not approved</p>
+                        <p className="text-red-400 text-sm font-semibold">Previous request was not approved</p>
                         <p className={`text-xs ${textSecondaryClass} mt-1`}>You may reapply with updated credentials below.</p>
                       </div>
                     )}

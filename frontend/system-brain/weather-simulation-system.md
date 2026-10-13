@@ -1,6 +1,10 @@
 # Weather & Marine Simulation System — Source of Truth
 *System Brain & Codebase Organizational Tracking Ledger — rewritten 2026-07-05 (was FCE-era, 2026-06-02)*
 
+> ⚠️ **Dated note 2026-09-30 (W-50):** this file was last rewritten 2026-07-05 and is HISTORY where it differs from
+> the git record. Its "512MB" figures are stale: the Render box has 2 GB (DECISIONS D-005) and degraded at 85% of it
+> on 2026-09-21. Current state: `docs/weather-program/STATE.md`; the program's memory of record: `docs/weather-program/`.
+
 > [!IMPORTANT]
 > This document describes the CURRENT architecture: decoupled ingestion (GitHub-Action cron →
 > Supabase L2 → Render serve-only), the marine orchestrator render path, the resolution ladder

@@ -18,8 +18,10 @@ import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMari
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
+import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
+import { uploadedGridServesHour } from './marineHourInstant';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -109,7 +111,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const lastSig = lastUploadedGridRef.current;
     
     const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
-    const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;
+    // A frame labelled 15 IS offset 16's 12Z product at 3-hourly range: no "Stale Hour Retained" for it (marineHourInstant.js).
+    const parity = active && renderedDataHour !== null &&
+      (requestedHour === renderedDataHour || uploadedGridServesHour(lastSig, requestedHour, activeModel));
     
     let reason = 'parity_match';
     if (!active) {
@@ -380,6 +384,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       contentHash: diffResult.contentHash,
       timestamp: grid.timestamp || revision || 0,
       renderedDataHour: renderedDataHour,
+      renderedValidTime: (grid.grid && grid.grid.valid_time) || grid.valid_time || null,
       geojsonSig: geojsonSig,
       themeSig: themeSig,
       uploadSig: uploadSigResidency,
@@ -402,7 +407,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       activeModel: activeModelRef.current, activeLayer: activeMarineLayer,
       timeOffsetHours: timeOffsetHoursRef.current, provider: grid?.__provider || 'none',
       gridProvider, sourceModel: gridModel, componentLayer,
-      vectorCount: grid.vectors.length, nonzeroCount: diffResult.nonzeroCount, renderAccepted: true,
+      vectorCount: grid.vectors.length, nonzeroCount: diffResult.nonzeroCount, renderAccepted: true, servedProductId: grid.__servedProductId || grid.productId || grid.product_id || null,
       rejectionReason: null, elapsedMs: uploadElapsed,
       timestamp: new Date().toISOString()
     };
@@ -679,7 +684,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // world-grid regime lives BELOW the old z≥7 gate, so its only crisp-truth mechanism never
     // ran exactly where it was needed. The narrow path (base-mask repaint, span-dependent cost)
     // keeps z≥6 (aligned with the commit-time sites).
-    const refresh = () => {
+    const refresh = (event) => measureMarineMaskRefresh(event, mapInstance, () => {
       markMaskViewportSettled();   // settle marker for the mask-shelter debounce (default-off)
       if (!activeRef.current) return;
       let z;
@@ -716,14 +721,14 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         // Consume the throttle ONLY when a paint actually happened (2026-07-04, "rectangle
         // holes"): a moveend attempt that the tile-readiness gate (or hysteresis) skipped used to
         // eat the window and starve the `idle` refresh that would have painted real truth —
-        // missing-tile rectangles then persisted until the next gesture. Skipped attempts are
-        // cheap (bounds math only), so leaving the window open costs nothing.
+        // missing-tile rectangles then persisted until the next gesture. Readiness, hysteresis
+        // and empty-feature exits precede canvas allocation; later paint/upload failures may cost work.
         if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) {
           basemapMaskThrottleRef.current = now;
           mapInstance.triggerRepaint();
         }
       }
-    };
+    });
     // idle fires after moveend AND after tile loads settle; moveend added 2026-07-04 because idle
     // can lag seconds behind each gesture during zoom-out. Full rationale (and why the 700 ms
     // throttle is safe here) moved to GATE6_mask_settle_debounce_DO_NOT_PROMOTE.md for the LOC
@@ -740,15 +745,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // work). Kill: __RAW_DISABLE_MASK_SOURCEDATA_REDRIVE__.
     // Pre-throttled to 250ms (the 5290f1e9 precedent: sourcedata fires at high frequency, and even
     // the "cheap" gate checks — getStyle().layers.find per event — add up during tile churn).
-    let _lastSrcDataCheck = 0;
-    const onSourceData = (e) => {
-      if (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_SOURCEDATA_REDRIVE__ === true) return;
-      if (!e || !e.isSourceLoaded) return;
-      const now = Date.now();
-      if (now - _lastSrcDataCheck < 250) return;
-      _lastSrcDataCheck = now;
-      refresh();
-    };
+    const onSourceData = createMarineMaskSourceRedrive(refresh);
     mapInstance.on('sourcedata', onSourceData);
     // ZOOM-OUT ANTICIPATION (2026-07-05, the "~1s unclamp on fast zoom-out"): the moveend fetch only
     // starts AFTER the gesture — warm the ~2.5×-span grid the moment the gesture is clearly a

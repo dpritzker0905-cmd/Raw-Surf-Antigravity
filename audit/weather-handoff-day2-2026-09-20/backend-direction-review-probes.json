@@ -1,0 +1,49 @@
+[
+  {
+    "unresolvedIconCell": 0,
+    "heights": [
+      2.6,
+      2.8,
+      2.8,
+      2.8
+    ],
+    "valid": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "weights": {
+      "persistence": 0.6,
+      "gfs": 0.3,
+      "icon": 0.1
+    },
+    "type": "euro_persistence_gfs_icon_blend"
+  },
+  {
+    "unresolvedIconCell": 3,
+    "heights": [
+      2.8,
+      2.8,
+      2.8,
+      2.6
+    ],
+    "valid": [
+      true,
+      true,
+      true,
+      true
+    ],
+    "weights": {
+      "persistence": 0.6,
+      "gfs": 0.4,
+      "icon": 0.0
+    },
+    "type": "euro_persistence_gfs_icon_blend"
+  },
+  {
+    "overflow": "OverflowError",
+    "message": "intermediate overflow in fsum",
+    "note": "unphysical heights and non-normalized weights; no ordinary-domain runtime attribution"
+  }
+]

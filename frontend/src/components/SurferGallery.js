@@ -238,7 +238,7 @@ export const SurferGallery = () => {
               My Gallery
             </h1>
             <p className={`text-sm ${textSecondaryClass} mt-1`}>
- Your private media locker G {stats.total || 0} items
+              Your private media locker &middot; {stats.total || 0} items
             </p>
           </div>
           

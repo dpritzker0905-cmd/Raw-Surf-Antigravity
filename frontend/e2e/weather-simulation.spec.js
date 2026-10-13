@@ -3,6 +3,7 @@
  * Tests surfer lockout, admin sandbox, diagnostics telemetry, and map controls.
  */
 const { test, expect } = require('@playwright/test');
+const { stubSeededMessageBadge } = require('./seededMessageBadge');
 
 const standardUser = {
   id: 'test-surfer-id',
@@ -127,6 +128,8 @@ test.beforeEach(async ({ page }) => {
       });
     }
   });
+  // Registered after the external-resource router so the exact badge fixture wins.
+  await stubSeededMessageBadge(page, [standardUser.id, adminUser.id]);
 });
 
 test.describe('Surfer Lockout Redirection', () => {
@@ -310,7 +313,13 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(playBtn).toBeVisible();
 
     // Verify time readout initially says "Live"
-    const timeReadout = page.locator('div.min-w-\\[50px\\]').filter({ visible: true });
+    // The chip holds two spans since 1cfc15fd (F-07): the visible time (aria-hidden) and a
+    // screen-reader sentence ("Showing the forecast for …"). Reading the whole div concatenated them
+    // ("LiveShowing the forecast for Fri 4 PM.") and failed on every run from then on (audit 15.0,
+    // A15-06). Assert the visible chip only; the sr-only sentence has its own unit tests.
+    const timeReadout = page
+      .locator('div.min-w-\\[50px\\] > span[aria-hidden="true"]')
+      .filter({ visible: true });
     await expect(timeReadout).toHaveText('Live');
 
     // 4. Toggle timeline play
@@ -441,111 +450,69 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(gfsBtn).toBeVisible();
     await gfsBtn.evaluate(el => el.click());
 
-    // Wait for GFS telemetry synchronization in window.__MARINE_PROJECTION_DIAG__.
+    // ⛔ WHICH DIAGNOSTIC (audit 15.0, A15-06 / A15-09). These gates read
+    // __MARINE_PROJECTION_DIAG__, which is written only by the `/grid` lane. This describe sets
+    // `force_marine_fallback`, and in that lane the diag is never written at all: measured locally
+    // at ca2c5520 it stayed `not_initialized / unsupported` for 20 s after Waves and after EURO,
+    // while the field was committed. So the gate failed on every run (CI 36153843638 printed exactly
+    // that initial state). __FORECAST_TIMELINE_COVERAGE_DIAG__ is written when a frame is committed
+    // in BOTH lanes and names the model, the product and the valid time, so the gates read it.
     //
-    // Switching the model requests a product this session has never fetched, so it is a marine
-    // cache MISS by construction — 18-35 s measured (see the canvas budget above). The old 15 s
-    // sat under that floor and timed out on 9 of 12 attempts.
-    //
-    // The bare timeout was also undiagnosable: this gate ANDs three terms and reported none of
-    // them, so a failure could not tell "the model never switched" from "it switched but never
-    // became renderable". Measured at the artifact 2026-08-06 the gate DOES pass
-    // (activeModel=GFS, renderable=true, renderDecision=clip_to_coverage), so on the next failure
-    // we need the term values, not another guess.
-    try {
-      await page.waitForFunction(() => {
-        const diag = window.__MARINE_PROJECTION_DIAG__;
-        return diag && diag.activeModel === 'GFS' &&
-               (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
-      }, null, { timeout: 45000 });
-    } catch (err) {
-      const seen = await page.evaluate(() => {
-        const d = window.__MARINE_PROJECTION_DIAG__;
-        if (!d) return { diagPresent: false };
-        return {
-          diagPresent: true,
-          activeModel: d.activeModel,
-          renderable: d.renderable,
-          renderDecision: d.renderDecision,
-          status: d.status,
-          reason: d.reason,
-          outsideCoverageReason: d.outsideCoverageReason,
-          productId: d.productId,
-        };
-      });
-      throw new Error(
-        `GFS telemetry gate never satisfied. Terms actually seen: ${JSON.stringify(seen)}\n${err.message}`
-      );
-    }
+    // Switching the model is a marine cache MISS by construction — 18-35 s measured — hence 45 s.
+    const readCommitted = () => page.evaluate(() => {
+      const t = window.__FORECAST_TIMELINE_COVERAGE_DIAG__;
+      if (!t) return { diagPresent: false };
+      return {
+        diagPresent: true,
+        activeModel: t.activeModel,
+        activeLayer: t.activeLayer,
+        status: t.status,
+        renderDecision: t.renderDecision,
+        gridProductId: t.gridProductId,
+        selectedValidTime: t.selectedValidTime,
+      };
+    });
+    const committedFor = async (model) => {
+      try {
+        await page.waitForFunction((m) => {
+          const t = window.__FORECAST_TIMELINE_COVERAGE_DIAG__;
+          return !!t && t.activeModel === m && t.activeLayer === 'waves' && t.status === 'active' &&
+                 (t.renderDecision === 'render' || t.renderDecision === 'clip_to_coverage') &&
+                 !!t.gridProductId && !!t.selectedValidTime;
+        }, model, { timeout: 45000 });
+      } catch (err) {
+        throw new Error(
+          `${model} commit gate never satisfied. Terms actually seen: ${JSON.stringify(await readCommitted())}
+${err.message}`
+        );
+      }
+      const seen = await readCommitted();
+      expect(seen.activeModel).toBe(model);
+      // The product must belong to the model the user picked, not the one before it.
+      // Committed ids seen live: `gfs_marine_waves_<region>_<t>.json`, `viewport_gfs_marine_…`,
+      // `series_GFS_waves_h0`. Each names the model; none may name a different one.
+      const pid = String(seen.gridProductId).toLowerCase();
+      const m = model.toLowerCase();
+      expect(pid.startsWith(`${m}_`) || pid.startsWith(`viewport_${m}_`) || pid.startsWith(`series_${m}_`)).toBe(true);
+      return seen;
+    };
 
-    // Assert GFS telemetry is fully synchronized
-    const gfsDiag = await page.evaluate(() => window.__MARINE_PROJECTION_DIAG__);
-    expect(gfsDiag.activeModel).toBe('GFS');
-    const isGfsRenderable = gfsDiag.renderable === true || gfsDiag.renderDecision === 'render' || gfsDiag.renderDecision === 'clip_to_coverage';
-    expect(isGfsRenderable).toBe(true);
+    await committedFor('GFS');
 
     // 3. Switch to "EURO" model selector (Copernicus)
     const euroBtn = page.locator('button').filter({ hasText: 'EURO' }).filter({ visible: true }).first();
     await expect(euroBtn).toBeVisible();
     await euroBtn.evaluate(el => el.click());
 
-    // Wait for Copernicus (EURO) telemetry synchronization.
-    //
-    // Another model switch, so another marine cache MISS — same 18-35 s budget as the GFS gate.
-    // This gate ANDs FIVE terms and reported none of them on timeout. Measured at the artifact
-    // 2026-08-06 all five pass: activeModel=EURO, diag present, provider=open-meteo,
-    // fallbackReason=null, renderable=true.
-    // ⚠️ `skipped` and `nonzeroCount` are NOT keys of __COPERNICUS_GRID_DIAG__ (measured), so the
-    // last two clauses of the renderable term are dead — only `renderable === true` can satisfy it.
-    try {
-      await page.waitForFunction(() => {
-        const marineDiag = window.__MARINE_PROJECTION_DIAG__;
-        const copernicusDiag = window.__COPERNICUS_GRID_DIAG__;
-        return marineDiag && marineDiag.activeModel === 'EURO' &&
-               copernicusDiag &&
-               (copernicusDiag.provider === 'copernicus' || copernicusDiag.provider === 'backend-weather-service' || copernicusDiag.provider === 'open-meteo' || copernicusDiag.provider === 'estimated') &&
-               (!copernicusDiag.fallbackReason || copernicusDiag.fallbackReason === null) &&
-               (copernicusDiag.renderable === true || copernicusDiag.skipped === false || (copernicusDiag.nonzeroCount !== undefined && copernicusDiag.nonzeroCount > 0));
-      }, null, { timeout: 45000 });
-    } catch (err) {
-      const seen = await page.evaluate(() => {
-        const m = window.__MARINE_PROJECTION_DIAG__;
-        const c = window.__COPERNICUS_GRID_DIAG__;
-        return {
-          term1_activeModel: m ? m.activeModel : '<no marine diag>',
-          term2_copernicusDiagPresent: !!c,
-          term3_provider: c ? c.provider : null,
-          term4_fallbackReason: c ? c.fallbackReason : null,
-          term5_renderable: c ? c.renderable : null,
-          gridMode: c ? c.gridMode : null,
-          is_estimated: c ? c.is_estimated : null,
-        };
-      });
-      throw new Error(
-        `EURO/Copernicus telemetry gate never satisfied. Terms actually seen: ${JSON.stringify(seen)}\n${err.message}`
-      );
-    }
+    await committedFor('EURO');
 
-    // Assert Copernicus/EURO telemetry is fully synchronized and valid
-    const finalDiag = await page.evaluate(() => {
-      return {
-        marine: window.__MARINE_PROJECTION_DIAG__,
-        copernicus: window.__COPERNICUS_GRID_DIAG__
-      };
-    });
-
-    expect(finalDiag.marine.activeModel).toBe('EURO');
-    expect(finalDiag.copernicus.fallbackReason || null).toBeNull();
-    // ⚠️ The last clause read `finalDiag.nonzeroCount` while its own guard read
-    // `finalDiag.copernicus.nonzeroCount` — an undefined that could never be > 0, so the clause
-    // was dead code masquerading as a fallback. (It stays inert either way: `nonzeroCount` is not
-    // a key of __COPERNICUS_GRID_DIAG__ at all, measured 2026-08-06. Corrected so it reads what it
-    // guards rather than silently never firing.)
-    const isCopernicusRenderable = finalDiag.copernicus.renderable === true ||
-                                   finalDiag.copernicus.skipped === false ||
-                                   (finalDiag.copernicus.nonzeroCount !== undefined && finalDiag.copernicus.nonzeroCount > 0);
-    expect(isCopernicusRenderable).toBe(true);
-    expect(['copernicus', 'backend-weather-service', 'open-meteo', 'estimated']).toContain(finalDiag.copernicus.provider);
+    // The Copernicus grid diag is still published on this lane (measured: provider open-meteo,
+    // renderable true, no fallback reason) — keep its provider/fallback contract.
+    const copernicus = await page.evaluate(() => window.__COPERNICUS_GRID_DIAG__ || null);
+    expect(copernicus).not.toBeNull();
+    expect(copernicus.fallbackReason || null).toBeNull();
+    expect(copernicus.renderable).toBe(true);
+    expect(['copernicus', 'backend-weather-service', 'open-meteo', 'estimated']).toContain(copernicus.provider);
   });
 });
 
@@ -566,6 +533,9 @@ test.describe('Standard Surfer Map Controls', () => {
 // sampled" from "broken" must refuse.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════
 const { diffFraction, varianceFraction } = require('./pngPixels');
+// The app's own JS mirror of the heatmap ramp (WebGLMarineShaders.js getThemedWaveColor): the discriminator
+// predicts each cell's colour with it rather than re-deriving the ramp here (LESSONS L-S11).
+const { getThemedWaveColorJS } = require('../src/components/map/colorScales');
 
 test.describe('Rendered-field pixel truth (executed GL)', () => {
   test.beforeEach(async ({ page }) => {
@@ -604,6 +574,16 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
   // latch added after a transient commit was indistinguishable from none. Remaining: the +24h
   // commit is not yet reliably observed against the shared 1-CPU box under repeated runs.
   // Finish = un-fixme once the latch wait passes 3 consecutive local headed runs.
+  // ⭐ FIRST REAL RUNS (2026-09-29, headed system Chrome vs a production build of dev + the live backend):
+  // fixed here: (a) the clip graded land + the Diagnostics HUD because the app now boots on the Space
+  // Coast (the test sets its own sea); (b) the readiness gate read only the /grid diag, which the
+  // grid_series lane never writes (it stays 'Initial state' over open ocean): the engine's commit is the
+  // gate now; (c) crest lifecycle noise (above). STILL OPEN, why it stays fixme: on a calm sea the +24 h
+  // step moved the grid mean 0.279 -> 0.384 m (half the cells > 0.25 m) yet changed 2-5% of pixels,
+  // equal to the 3-6% noise. Either the 0-20+ ft ramp cannot show a 1-2 ft day-to-day change, or the
+  // picture does not follow the data; the data discriminator (0.039 m) cannot tell them apart. Next:
+  // grade against the colour the ramp PREDICTS for each cell, not a texture quantum
+  // (docs/weather-program/log/2026-09-29-sim-works-plan.md, W-12).
   test.fixme('the marine field is non-blank, and scrubbing +1 day CHANGES the rendered pixels', async ({ page }) => {
     // Page load (8-20 s) + one marine cache miss (18-35 s) + a series-warm scrub commit — the
     // same measured budgets as the sibling tests.
@@ -625,16 +605,34 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
     test.skip(isMobile, 'pixel truth runs on the desktop layout — the bottom-sheet flow adds motion this oracle would misread');
 
+    // ⛔ OPEN OCEAN, SET BY THE TEST (2026-09-29, first real run of this oracle). The clip below was
+    // written for a boot view of open Atlantic; the app now boots on the Florida Space Coast at z9,
+    // so the clip graded land and the Diagnostics HUD: "sea moved on 76% of cells but only 2.60% of
+    // pixels changed". The oracle must choose its own sea, never inherit the app's default camera.
+    // ⚠️ Open ocean alone is not enough: at 30N 66W z7 the 2-deg mid tier paints a near-uniform wash
+    // (varianceFraction 0.0008) that the paint gate below cannot tell from no paint. The camera sits
+    // inside the 0.25-deg florida_east_coast tile (82-79W, 27-30N) and the clip (set below) covers only
+    // its sea side, 30-100 km offshore: real structure, no land, no tier seam.
+    await page.evaluate(() => {
+      const m = window.__MAP_INSTANCE__ || window.map;
+      if (m) m.jumpTo({ center: [-80.4, 28.4], zoom: 9 });
+    });
+
     // Activate Waves and wait for the engine (not the fallback) to be renderable.
     const wavesBtn = page.locator('button').filter({ hasText: 'Waves' }).filter({ visible: true }).first();
     await expect(wavesBtn).toBeVisible();
     await wavesBtn.evaluate(el => el.click());
     try {
+      // The ENGINE's own commit is the readiness oracle (its truthTag names the product it holds).
+      // The projection diag is written only by the /grid path; over open ocean the field arrives
+      // through the grid_series lane alone and the diag stays at "Initial state" (2026-09-29), so a
+      // diag-only gate never opens there even though the engine is painting.
       await page.waitForFunction(() => {
         const diag = window.__MARINE_PROJECTION_DIAG__;
         const eng = window.__MARINE_ENGINE__;
-        return diag && (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage')
-               && eng && eng._waveData && eng._waveData.waveGrid;
+        const committed = eng && eng._waveData && eng._waveData.waveGrid;
+        const diagSaysRender = diag && (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
+        return committed && (diagSaysRender || !!(eng._waveData.truthTag && eng._waveData.truthTag.product_id));
       }, null, { timeout: 45000 });
     } catch (err) {
       const seen = await page.evaluate(() => ({
@@ -651,12 +649,22 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // without it (measured on this oracle's fourth live run: engineHour null at timeout).
     await page.evaluate(() => {
       window.__RAW_WAVE_SPEED__ = 0;
-      window.__E2E_MAX_HOUR__ = 0;
+      // Crest LIFECYCLE is not frozen by the drift lever: crests are born and fade on the wall clock.
+      // Measured 2026-09-29 (0.25-deg Florida tile, z9, canvas only): same-hour noise 19-29% of pixels
+      // at the default 1650 crests, 3-6% with the target at 1 (the engine's 2% density floor,
+      // WebGLMarineEngine.js densityBase). The heatmap wash is the subject; crests only add noise.
+      window.__RAW_PART_TARGET__ = 1;
+      // ⛔ LATCH ON VALID TIME (W-37, 2026-09-30). This latched `hourOffset >= 24`, but hourOffset counts
+      // from a series base_time that floats with the clock: at 00:47Z the correct +24 h frame
+      // (valid 2026-10-01T00Z) carried hourOffset 23, so the latch never closed. The valid time is the
+      // invariant; the target is set just before the step.
+      window.__E2E_TARGET_VALID__ = null;
+      window.__E2E_SEEN_TARGET__ = false;
       if (!window.__E2E_HOUR_POLLER__) {
         window.__E2E_HOUR_POLLER__ = setInterval(() => {
           const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-          if (g && typeof g.hourOffset === 'number' && g.hourOffset > window.__E2E_MAX_HOUR__) {
-            window.__E2E_MAX_HOUR__ = g.hourOffset;
+          if (g && window.__E2E_TARGET_VALID__ && (g.valid_time || g.validTime) === window.__E2E_TARGET_VALID__) {
+            window.__E2E_SEEN_TARGET__ = true;
           }
         }, 250);
       }
@@ -669,19 +677,31 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // CLIP = the central-ocean region only: hard-inset away from the right-side weather panel,
     // the bottom timeline wheel, and the left rail — none of that UI may vote in a FIELD oracle
     // (first live run: the +1d readout repaint alone measured 0.16% and could masquerade as
-    // field change). At the default boot viewport this window is open Atlantic.
+    // field change). With the camera set above, x 55-90% of the canvas is sea inside the tile
+    // (about 80.25-79.2W at 28.2-29.0N; the coast is at 80.6-80.95W there).
     const clip = {
-      x: box.x + box.width * 0.08,
+      x: box.x + box.width * 0.55,
       y: box.y + box.height * 0.15,
-      width: Math.max(64, box.width * 0.50),
+      width: Math.max(64, box.width * 0.35),
       height: Math.max(64, box.height * 0.45),
+    };
+    // CANVAS ONLY for the instant of each shot: every element but the map canvas is made invisible
+    // (visibility keeps layout, so nothing moves), so no panel, HUD, readout or marker can vote in a
+    // FIELD oracle, whatever the build shows. The same helper takes all three shots.
+    const CANVAS_ONLY = 'body * { visibility: hidden !important; } canvas.maplibregl-canvas { visibility: visible !important; }';
+    const shoot = async () => {
+      const style = await page.addStyleTag({ content: CANVAS_ONLY });
+      await page.waitForTimeout(150);
+      const png = await page.screenshot({ clip });
+      await style.evaluate(el => el.remove());
+      return png;
     };
 
     // CONTROL PAIR — same hour, ~1.2 s apart: measures residual animation noise (foam phase is
     // wall-clock and cannot be frozen; that is WHY the threshold is self-calibrated).
-    const shotA1 = await page.screenshot({ clip });
+    const shotA1 = await shoot();
     await page.waitForTimeout(1200);
-    const shotA2 = await page.screenshot({ clip });
+    const shotA2 = await shoot();
     const noise = diffFraction(shotA1, shotA2);
 
     // PAINT GATE (first live run, 2026-08-09): this spec's route mocks blank the basemap, so ANY
@@ -696,15 +716,26 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // REFUSE arm: if animation dominates even with drift frozen, the oracle cannot measure.
     test.skip(noise > 0.25, `residual animation noise ${(noise * 100).toFixed(1)}% of pixels — the hour-change signal cannot be separated; raise the freeze levers before re-enabling`);
 
-    // Snapshot the h0 sea from the engine's own grid — the data-delta discriminator below needs it.
-    const seaBefore = await page.evaluate(() => {
-      const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-      if (!g || !g.vectors) return null;
-      const step = Math.max(1, Math.floor(g.vectors.length / 200));
+    // Snapshot the h0 sea from the engine's own grid: the cells that project INTO THE CLIP, with their position.
+    // ⛔ (W-37) The old sampler took every Nth vector and compared the two hours BY INDEX, but the +0 h grid (the
+    // 17x17 regional tile) and the +24 h grid (a viewport-clipped series frame) are different lattices: index i
+    // was a different place in each, and 'the sea moved on 76% of cells' compared unrelated cells.
+    const seaInClip = (c) => page.evaluate((clipRect) => {
+      const m = window.__MAP_INSTANCE__ || window.map;
+      const w = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = w && w.waveGrid;
+      if (!m || !g || !g.vectors) return null;
+      const cv = document.querySelector('canvas.maplibregl-canvas').getBoundingClientRect();
       const out = [];
-      for (let i = 0; i < g.vectors.length; i += step) out.push(g.vectors[i] ? (g.vectors[i].speed || 0) : 0);
-      return out;
-    });
+      for (const v of g.vectors) {
+        const h = v ? (v.height ?? v.speed) : null;
+        if (!v || typeof v.lat !== 'number' || !(h > 0) || v.isOcean === false) continue;
+        const p = m.project([v.lng, v.lat]); const x = cv.left + p.x, y = cv.top + p.y;
+        if (x >= clipRect.x && x <= clipRect.x + clipRect.width && y >= clipRect.y && y <= clipRect.y + clipRect.height) out.push({ lat: v.lat, lng: v.lng, h });
+      }
+      const b = g.bounds; const cell = b && g.cols > 1 ? (b.east - b.west) / (g.cols - 1) : 0.25;
+      return { cells: out, cell, valid: g.valid_time || g.validTime };
+    }, c);
+    const seaBefore = await seaInClip(clip);
     expect(seaBefore, 'engine grid unreadable for the data-delta discriminator').not.toBeNull();
 
     // TREATMENT — +1 day via the accessible wheel (PageUp = +1 day, the house a11y contract),
@@ -712,17 +743,19 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     const scrubber = page
       .locator('[role="slider"][aria-label="Forecast timeline wheel"]')
       .filter({ visible: true }).first();
+    const targetValid = new Date(Date.parse(seaBefore.valid) + 24 * 3600 * 1000).toISOString().replace('.000Z', 'Z');
+    await page.evaluate((t) => { window.__E2E_TARGET_VALID__ = t; window.__E2E_SEEN_TARGET__ = false; }, targetValid);
     await scrubber.focus();
     await scrubber.press('PageUp');
     try {
       // The LATCH is the commit oracle (a transient commit counts); the stable-read loop below
       // is the read oracle. 90 s: the cold grid_series miss is 18-35 s alone and this shared
       // 1-CPU box is also serving production.
-      await page.waitForFunction(() => window.__E2E_MAX_HOUR__ >= 24, null, { timeout: 90000 });
+      await page.waitForFunction(() => window.__E2E_SEEN_TARGET__ === true, null, { timeout: 90000 });
     } catch (err) {
       const seen = await page.evaluate(() => {
         const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-        return { latchedMaxHour: window.__E2E_MAX_HOUR__, engineHour: g ? g.hourOffset : null,
+        return { target: window.__E2E_TARGET_VALID__, seenTarget: window.__E2E_SEEN_TARGET__, engineValid: g ? (g.valid_time || g.validTime) : null, engineHour: g ? g.hourOffset : null,
                  scrub: window.isScrubbingTimeline || false };
       });
       throw new Error(`engine never committed the +24h frame (latch never saw it). Seen: ${JSON.stringify(seen)}\n${err.message}`);
@@ -735,42 +768,57 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     // renderer — wait for a STABLE resident at the new hour, then read, with a bounded retry.
     let seaAfter = null;
     for (let attempt = 0; attempt < 3 && !seaAfter; attempt++) {
-      await page.waitForFunction(() => {
+      await page.waitForFunction((t) => {
         const eng = window.__MARINE_ENGINE__;
         const g = eng && eng._waveData && eng._waveData.waveGrid;
-        return g && g.vectors && typeof g.hourOffset === 'number' && g.hourOffset >= 24;
-      }, null, { timeout: 30000 });
+        return g && g.vectors && (g.valid_time || g.validTime) === t;
+      }, targetValid, { timeout: 30000 });
       await page.waitForTimeout(800);
-      seaAfter = await page.evaluate(() => {
-        const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-        if (!g || !g.vectors || g.hourOffset < 24) return null;
-        const step = Math.max(1, Math.floor(g.vectors.length / 200));
-        const out = [];
-        for (let i = 0; i < g.vectors.length; i += step) out.push(g.vectors[i] ? (g.vectors[i].speed || 0) : 0);
-        return out;
-      });
+      const s = await seaInClip(clip);
+      seaAfter = s && s.valid === targetValid ? s : null;
     }
     // DATA-DELTA DISCRIMINATOR: never grade the renderer on an unchanged input. If the sea
     // itself barely moved across the step (possible on a becalmed frame), REFUSE — a pixel
     // no-change would then be correct behaviour, not a defect. Calibration (live, 2026-08-09,
     // wide-Atlantic default view): h0→h24 moved 64% of cells by more than one 8-bit texture
     // quantum (0.039 m) and crossed a colour band on 20.3% — so 10% is a conservative floor.
-    expect(seaAfter, 'engine grid never stabilised at the new hour (3 stable-read attempts)').not.toBeNull();
-    const n = Math.min(seaBefore.length, seaAfter.length);
-    let moved = 0;
-    for (let i = 0; i < n; i++) if (Math.abs(seaBefore[i] - seaAfter[i]) > 0.039) moved++;
-    const seaMovedFrac = moved / Math.max(1, n);
+    expect(seaAfter, 'engine grid never stabilised at the target valid time (3 stable-read attempts)').not.toBeNull();
+    // ⛔ VISIBLE change, predicted by the app's own ramp (W-37). A 0.039 m texture quantum is not a visible
+    // change: measured 2026-09-30 offshore at 28.4N 80.4W, a +24 h step moved these cells by 0.055 m on
+    // average, which the ramp paints about 10 green units apart, inside the rendering noise. A cell
+    // 'visibly moved' when its predicted colour moves by more than diffFraction's own threshold (30 of 765)
+    // after the heatmap opacity. Cells are matched by position (nearest within 0.6 of a cell).
+    const themeName = await page.evaluate(() => { const c = document.documentElement.classList; return c.contains('beach-mode') ? 'beach' : c.contains('light') ? 'light' : 'dark'; });
+    const surfMode = await page.evaluate(() => window.__SURF_MODE__ === true);
+    const opacity = await page.evaluate(() => (window.__RAW_GPU__ && window.__RAW_GPU__.opacity && window.__RAW_GPU__.opacity.heatmap) || 0.76);
+    const tol = 0.6 * Math.max(seaBefore.cell, seaAfter.cell);
+    let matched = 0, visiblyMoved = 0;
+    for (const a of seaBefore.cells) {
+      let best = null, bd = Infinity;
+      for (const b of seaAfter.cells) { const d = Math.hypot(a.lat - b.lat, a.lng - b.lng); if (d < bd) { bd = d; best = b; } }
+      if (!best || bd > tol) continue;
+      matched++;
+      const c0 = getThemedWaveColorJS(a.h, themeName, surfMode), c1 = getThemedWaveColorJS(best.h, themeName, surfMode);
+      const d = opacity * (Math.abs(c0[0] - c1[0]) + Math.abs(c0[1] - c1[1]) + Math.abs(c0[2] - c1[2]));
+      if (d > 30) visiblyMoved++;
+    }
+    test.skip(matched < 8, `only ${matched} sea cells of both hours fall in the clip — too few to grade; check the camera`);
+    const seaMovedFrac = visiblyMoved / matched;
     test.skip(seaMovedFrac < 0.10,
-      `the sea itself moved on only ${(seaMovedFrac * 100).toFixed(1)}% of sampled cells across the step — the renderer cannot be graded on an unchanged input; becalmed frame, re-run later`);
+      `the ramp predicts a visible colour change on only ${(seaMovedFrac * 100).toFixed(1)}% of ${matched} sea cells across the step — a calm, unchanged sea cannot grade the renderer; re-run on a changing sea`);
 
-    const shotB = await page.screenshot({ clip });
+    const shotB = await shoot();
     const change = diffFraction(shotA1, shotB);
 
     // THE ASSERTION: the +24h field must differ from the +0h field by clearly more than the
     // same-hour animation noise. A frozen frame under an advancing readout — the four-mechanism
     // composite failure — fails here and nowhere else in the estate.
     const floor = Math.max(3 * noise, 0.005);
-    expect(change, `the sea moved on ${(seaMovedFrac * 100).toFixed(0)}% of cells but only ${(change * 100).toFixed(2)}% of pixels changed (noise ${(noise * 100).toFixed(2)}%, floor ${(floor * 100).toFixed(2)}%) — the readout and the DATA advanced but the picture did not`).toBeGreaterThan(floor);
+    // The measurement travels with the verdict: a pass with no numbers is not evidence (LESSONS L-P9).
+    const measured = `cells=${matched} visiblyMoved=${(seaMovedFrac * 100).toFixed(1)}% change=${(change * 100).toFixed(2)}% noise=${(noise * 100).toFixed(2)}% floor=${(floor * 100).toFixed(2)}% structure=${structure.toFixed(4)}`;
+    test.info().annotations.push({ type: 'pixel-truth', description: measured });
+    console.log(`[pixel-truth] ${measured}`);
+    expect(change, `the ramp predicts a visible change on ${(seaMovedFrac * 100).toFixed(0)}% of ${matched} sea cells but only ${(change * 100).toFixed(2)}% of pixels changed (noise ${(noise * 100).toFixed(2)}%, floor ${(floor * 100).toFixed(2)}%) — the readout and the DATA advanced but the picture did not`).toBeGreaterThan(floor);
   });
 });
 

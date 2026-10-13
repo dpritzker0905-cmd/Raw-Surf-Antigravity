@@ -101,7 +101,7 @@ async def get_crew_chat_messages(
     # Build query
     query = select(CrewChatMessage).where(
         CrewChatMessage.booking_id == booking_id,
-        not CrewChatMessage.is_deleted
+        CrewChatMessage.is_deleted.is_(False)
     ).options(selectinload(CrewChatMessage.sender))
     
     # Pagination cursor
@@ -341,7 +341,7 @@ async def mark_messages_read(
         select(CrewChatMessage).where(
             CrewChatMessage.booking_id == booking_id,
             CrewChatMessage.sender_id != user_id,
-            not CrewChatMessage.is_deleted
+            CrewChatMessage.is_deleted.is_(False)
         )
     )
     messages = result.scalars().all()

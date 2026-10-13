@@ -1,0 +1,24 @@
+=== PAINT CONTROL — deployed568fc2c6 — https://dev--rawsurf.netlify.app — 2026-08-18T17:44:33.249Z ===
+map handle: map
+  deployed568fc2c6 Wind        cocoa-z8         colors= 524 dom= 27.5% sat=0.321 mean=[44,69,78] raster=null provider=null class=null
+  deployed568fc2c6 Wind        cocoa-z11        colors= 352 dom= 27.5% sat=0.34 mean=[44,69,80] raster=null provider=null class=null
+  deployed568fc2c6 Wind        madeira-z9       colors= 308 dom= 27.7% sat=0.425 mean=[69,118,96] raster=null provider=null class=null
+  deployed568fc2c6 Wind        openatlantic-z5  colors= 892 dom= 15.7% sat=0.5 mean=[61,113,115] raster=null provider=null class=null
+  deployed568fc2c6 Wind        portugal-z8      colors= 539 dom= 17.4% sat=0.581 mean=[51,93,122] raster=null provider=null class=null
+  deployed568fc2c6 Waves       cocoa-z8         colors= 311 dom=   27% sat=0.469 mean=[33,104,93] raster=null provider=null class=null
+  deployed568fc2c6 Waves       cocoa-z11        colors= 184 dom= 34.7% sat=0.223 mean=[56,74,79] raster=null provider=null class=null
+  deployed568fc2c6 Waves       madeira-z9       colors= 264 dom= 30.3% sat=0.408 mean=[77,116,134] raster=null provider=null class=null
+  deployed568fc2c6 Waves       openatlantic-z5  colors=  19 dom= 34.6% sat=0.461 mean=[79,133,146] raster=null provider=null class=null
+  deployed568fc2c6 Waves       portugal-z8      colors=   2 dom= 91.7% sat=0.512 mean=[76,134,156] raster=null provider=null class=null
+  deployed568fc2c6 Swell       cocoa-z8         colors= 207 dom= 27.4% sat=0.421 mean=[35,86,78] raster=null provider=null class=null
+  deployed568fc2c6 Swell       cocoa-z11        colors= 174 dom= 35.4% sat=0.19 mean=[60,73,80] raster=null provider=null class=null
+  deployed568fc2c6 Swell       madeira-z9       colors= 172 dom= 71.3% sat=0.266 mean=[86,106,117] raster=null provider=null class=null
+  deployed568fc2c6 Swell       openatlantic-z5  colors=   1 dom=  100% sat=0.262 mean=[93,117,126] raster=null provider=null class=null
+  deployed568fc2c6 Swell       portugal-z8      colors=  60 dom= 78.4% sat=0.258 mean=[95,119,128] raster=null provider=null class=null
+  deployed568fc2c6 Water Temp  cocoa-z8         colors= 201 dom= 27.6% sat=0.376 mean=[93,78,47] raster=null provider=null class=null
+  deployed568fc2c6 Water Temp  cocoa-z11        colors= 191 dom= 27.6% sat=0.396 mean=[96,75,45] raster=null provider=null class=null
+  deployed568fc2c6 Water Temp  madeira-z9       colors= 261 dom= 70.1% sat=0.628 mean=[147,137,56] raster=null provider=null class=null
+  deployed568fc2c6 Water Temp  openatlantic-z5  colors=   2 dom=   76% sat=0.714 mean=[168,131,48] raster=null provider=null class=null
+  deployed568fc2c6 Water Temp  portugal-z8      colors=   2 dom=   99% sat=0.765 mean=[179,172,42] raster=null provider=null class=null
+grid_series/grid response statuses: {"200":45}
+total failed requests: 75; console errors: 31

@@ -447,7 +447,10 @@ const useSessionActions = ({
       }
 
       // --- STEP B: Go Live - small JSON payload (no media bytes inline) ---
-      // 120s timeout: Render free tier cold starts can take 30-60s
+      // 20s. Was 120s "because Render free tier cold starts can take 30-60s" -- the backend is on
+      // a PAID plan and does not idle-spin-down, so that wait only delayed a real failure by two
+      // minutes while the photographer watched a spinner. Matches the same POST in
+      // useDutyStationActions.js; these two call the SAME endpoint and must not drift.
       const response = await apiClient.post(
         `/photographer/${user?.id}/go-live`,
         {
@@ -471,7 +474,7 @@ const useSessionActions = ({
           earnings_destination_id: sessionSettings.earnings_destination_id,
           earnings_cause_name: sessionSettings.earnings_cause_name
         },
-        { timeout: 120000 }
+        { timeout: 20000 }
       );
 
       setIsLive(true);
@@ -500,7 +503,8 @@ const useSessionActions = ({
       const isNetwork = !error.response && !isTimeout;
       let detail;
       if (isTimeout) {
-        detail = 'Server is warming up - please wait a moment and try again.';
+        // Was "Server is warming up" -- same stale free-tier story as the 120s timeout above.
+        detail = 'Go-live timed out. Please try again.';
       } else if (isNetwork) {
         detail = 'Network error - check your connection and try again.';
       } else {

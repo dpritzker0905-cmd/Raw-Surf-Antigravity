@@ -7,6 +7,7 @@ from typing import Optional, Any, Dict
 
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from services.weather_pipeline.l2_retry import label_l2_read_failures
 from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.dynamic_index import DynamicProductIndex
 from services.weather_pipeline.sampler import PointSampler
@@ -25,29 +26,37 @@ logger = logging.getLogger(__name__)
 # safe_index_get + the WIND / WEATHER-scalar direct-point builders moved to
 # point_direct_fallbacks (800-LOC split, 2026-07-03); re-exported for existing importers.
 from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
-    safe_index_get, build_wind_direct_point_response, build_scalar_direct_point_response
+    safe_index_get, build_wind_direct_point_response, build_scalar_direct_point_response, direct_point_provenance
 )
 # The surf composition (geometry -> breaking height -> partitions -> readiness). Extracted
 # 2026-07-30 when this file hit 801 of the 800-line ratchet; it remains the SINGLE place
 # `surf_height_m` is produced.
 from services.weather_pipeline.point_surf_augment import augment_with_surf  # noqa: E402
 from services.weather_pipeline import wave_physics  # noqa: E402
+from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic, prefers_scheduled_native
 
-def _selection_key(pair):
-    """Candidate ranking for the point resolver's manifest selection, ONE definition for both
-    sites (resolve_point + find_cached_grid_product — they had drifted into four identical
-    lambdas). ⭐ RESOLUTION BREAKS TIME TIES (2026-08-09, MASTER-AUDIT-11.0 resolution F7): the
-    old key was (time_diff, bbox_area), and two GLOBAL products at the same hour tie on BOTH
-    terms — manifest order decided, so a 10° product could answer a point a 2° product covered.
-    55.22% of served spots depend on a global tier, and this tie-break is the gate the audit put
-    in front of any 0.25° coverage expansion. Finer resolution wins within a time tie; area stays
-    the final term. Kill: POINT_RES_TIEBREAK=0 restores (diff, area) exactly."""
-    from services.weather_pipeline.product_selection import get_bbox_area
-    p, diff = pair
-    area = get_bbox_area(p.coverage.west, p.coverage.south, p.coverage.east, p.coverage.north)
-    if os.environ.get("POINT_RES_TIEBREAK", "1") != "0":
-        return (diff, float(p.resolution), area)
-    return (diff, area)
+# The candidate ranking and the manifest pick moved to manifest_point_selection (2026-09-26) — the
+# two loops below were verbatim copies and the rating band's wind sampler a wrong third. The
+# name stays importable here for the tests and callers that use it.
+from services.weather_pipeline.manifest_point_selection import selection_key as _selection_key  # noqa: E402,F401
+from services.weather_pipeline.grid_resolver import stamp_frame_honesty  # noqa: E402  (/grid's honesty stamp, one definition)
+
+
+# The island SERVING gate now lives in island_gate.py -- there are FIVE selection sites, so a
+# predicate defined next to one of them was already drifting toward the copy-per-site shape.
+# `_island_gated` is kept as the module-local name the gated loops below read.
+from services.weather_pipeline.island_gate import (  # noqa: E402
+    ISLAND_REGION_PREFIX, is_island_gated as _island_gated,
+)
+
+
+# ⛔ ONLY THE THREE UPSTREAM MODELS MAY REACH AN UPSTREAM (2026-09-29). The direct-point fallbacks below call the
+# provider with `model`, and the provider maps a name it does not know to a DEFAULT (open_meteo_provider:
+# FORECAST_MODELS.get(model, "gfs_seamless")). The marine and weather branches were gated on this membership; the WIND
+# branch was not, so a shadow model such as CONSENSUS (D-009, stored products only) would have been answered with
+# real GFS wind under its own name: the skill ledger's `raw_surf:CONSENSUS` lane resolves wind for every buoy at every
+# lead, ~177 mislabelled upstream calls a pass. One membership, read by all three branches.
+UPSTREAM_MODELS = ("GFS", "ICON", "EURO")
 
 
 class PointResolutionService:
@@ -156,8 +165,7 @@ class PointResolutionService:
                 logger.debug(f"[Surf partitions] {part_layer} at ({lat},{lng}) skipped: {_pe}")
         if not parts:
             return None
-        from services.weather_pipeline.surf_transform import (
-            partitions_represent, reconcile_partitions)
+        from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
         # The REPRESENT gate: if the surviving trains carry under half the total Hs in quadrature,
         # the dominant train is missing and reconciling would inflate a minority train to carry all
         # the energy at its own period — fall back to the total field instead.
@@ -167,6 +175,7 @@ class PointResolutionService:
             return None
         return reconcile_partitions(parts, total_h)
 
+    @label_l2_read_failures        # W-23: an answer served around a refused L2 read says so
     async def resolve_point(
         self,
         model: str,
@@ -253,14 +262,24 @@ class PointResolutionService:
 
         if grid_product_id:
             product = await asyncio.to_thread(self.store.load_product, grid_product_id)
+            if product and os.environ.get("POINT_PRODUCT_IDENTITY", "0") == "1":
+                if (getattr(product, "model", "").upper() != model.upper()
+                        or getattr(product, "domain", "").lower() != domain.lower()):
+                    logger.warning("[Point Resolution] Hint model/domain mismatch; using automatic selection.")
+                    product = None
+                    grid_product_id = None
             if product and getattr(product, "layer", "").lower() != layer.lower():
                 logger.warning(f"[Point Resolution] Layer mismatch: loaded product has layer={product.layer}, but requested layer={layer}. Bypassing strict grid lookup.")
                 product = None
                 grid_product_id = None
 
             if not product or not product.grid or not product.grid.vectors:
-                return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id or "unknown", "grid_product_not_found")
+                # A15-09: the client now sends the id of the frame it DREW. A file that is not (yet)
+                # on this box must not blank the infobox — fall through like the temporal swap does.
+                logger.warning(f"[Point Resolution] {grid_product_id} not loadable; using automatic selection.")
+                product = grid_product_id = None
 
+        if grid_product_id and product is not None:
             # Let's ensure coverage_mode is set correctly!
             if not getattr(product, "coverage_mode", None):
                 if "global_coarse" in grid_product_id:
@@ -282,6 +301,7 @@ class PointResolutionService:
 
             # Inside bounds - sample from product
             response = self.sampler.sample_point(product, lat, lng)
+            stamp_frame_honesty(response, target_dt, valid_time_str)  # the frame sampled, BEFORE the echo
             response.valid_time = target_dt
             response.product_id = grid_product_id
             response.source = "grid_file"
@@ -306,6 +326,13 @@ class PointResolutionService:
         )
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
+            replacement = await superseded_dynamic(self.store, product) if product else None
+            if replacement:
+                filename, product = replacement
+                dynamic_match = {"product_id": filename, "coverage_mode": "regional_tile"}
+            elif product and prefers_scheduled_native(
+                    await asyncio.to_thread(self.store.get_manifest), product, lat, lng, target_dt):
+                product = None            # A15-04: 2b answers from the scheduled native tile
             if product:
                 # Ensure coverage_mode is set!
                 if not getattr(product, "coverage_mode", None):
@@ -313,13 +340,14 @@ class PointResolutionService:
                 if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
+                stamp_frame_honesty(response, target_dt, valid_time_str)  # the frame sampled, BEFORE the echo
                 response.valid_time = target_dt
                 response.product_id = dynamic_match["product_id"]
                 response.source = "grid_file"
-                response.coverage_status = "inside_served_bbox"
+                response.coverage_status = "inside_regional_tile" if replacement else "inside_served_bbox"
                 response.fallback_attempted = False
                 response.fallback_reason = None
-                response.is_dynamic_viewport_product = True
+                response.is_dynamic_viewport_product = not bool(replacement)
                 response.cache_key = dynamic_match.get("cache_key")
                 response.cache_hit = "cache_hit"
                 response.requested_bbox = dynamic_match.get("requested_bbox")
@@ -333,42 +361,11 @@ class PointResolutionService:
         # 2b. Check scheduled products in the manifest — via the identity-keyed lane index
         # (manifest_view). The old full scan was O(16,132) x 22 per hub request, on the loop.
         manifest = await asyncio.to_thread(self.store.get_manifest)
-        authoritative_candidates = []
-        estimated_candidates = []
-
-        from services.weather_pipeline.manifest_view import products_for
-        for p in products_for(manifest, model, domain, layer):
-            # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
-            actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-            if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
-                t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
-                t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
-                diff = abs(t1.timestamp() - t2.timestamp())
-                if diff <= 3 * 3600:
-                    if getattr(p, "is_estimated", False):
-                        estimated_candidates.append((p, diff))
-                    else:
-                        authoritative_candidates.append((p, diff))
-
-        best_auth = None
-        best_est = None
-        if authoritative_candidates:
-            best_auth = min(authoritative_candidates, key=_selection_key)
-        if estimated_candidates:
-            best_est = min(estimated_candidates, key=_selection_key)
-
-        matching_item = None
-        if best_auth and best_est:
-            auth_p, auth_diff = best_auth
-            est_p, est_diff = best_est
-            if est_diff <= 1800 and auth_diff > 1800:
-                matching_item = est_p
-            else:
-                matching_item = auth_p
-        elif best_auth:
-            matching_item = best_auth[0]
-        elif best_est:
-            matching_item = best_est[0]
+        # The pick is manifest_point_selection's, shared with the other point site and the rating
+        # band's wind sampler, so all three answer a coordinate from the same product.
+        from services.weather_pipeline.manifest_point_selection import choose_for_point, point_candidates
+        matching_item = choose_for_point(
+            point_candidates(manifest, model, domain, layer, target_dt), lat, lng)
 
         coarse_last_resort = None
         if matching_item:
@@ -385,6 +382,7 @@ class PointResolutionService:
                 if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
+                stamp_frame_honesty(response, target_dt, valid_time_str)  # the frame sampled, BEFORE the echo
                 response.valid_time = target_dt
                 response.product_id = matching_item.filename
                 response.source = "grid_file"
@@ -424,12 +422,12 @@ class PointResolutionService:
                     return response
 
         # 2c. Fallback to direct point query
-        if domain.lower() == "wind" and layer.lower() == "wind":
+        if domain.lower() == "wind" and layer.lower() == "wind" and model.upper() in UPSTREAM_MODELS:
             wind_resp = await build_wind_direct_point_response(self.provider, model, lat, lng, target_dt)
             if wind_resp is not None:
                 return wind_resp
 
-        elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and model.upper() in ("GFS", "ICON", "EURO"):
+        elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and model.upper() in UPSTREAM_MODELS:
             try:
                 # Use model-appropriate forecast_days for point fallback
                 point_forecast_days = {"ICON": 7, "EURO": 10, "GFS": 16}.get(model.upper(), 2)
@@ -591,7 +589,9 @@ class PointResolutionService:
                             interpolation_method="direct_point_api"
                         )
                         
-                        if model.upper() == "GFS" or is_fallback_active:
+                        if is_fallback_active:
+                            upstream_model = OpenMeteoProvider.MARINE_MODELS[fallback_model]
+                        elif model.upper() == "GFS":
                             upstream_model = "ncep_gfswave025"
                         elif model.upper() == "ICON":
                             upstream_model = "gwam"
@@ -612,19 +612,15 @@ class PointResolutionService:
                         # Set is_estimated and estimate_basis matching normalizer conformed rules
                         is_estimated = is_fallback_active
                         est_basis = None
-                        if model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves") and is_fallback_active:
-                            is_estimated = True
+                        fallback_provider = "gfs_estimated_fallback"
+                        if is_fallback_active:
+                            fallback_provider = "open-meteo" if fallback_model == "EURO" else "gfs_estimated_fallback"
                             est_basis = {
-                                "type": "ecmwf_ifs_derived_fallback",
+                                "type": "ecmwf_ifs_derived_fallback" if fallback_model == "EURO" else "gfs_derived_fallback",
+                                # Preserve the existing partition eligibility classification.
                                 "method": "wave_component_ratio_estimation",
-                                "source_model": "ecmwf_wam025"
-                            }
-                        elif is_fallback_active:
-                            is_estimated = True
-                            est_basis = {
-                                "type": "gfs_derived_fallback",
-                                "method": "wave_component_ratio_estimation",
-                                "source_model": "ncep_gfswave025"
+                                "source_method": "direct_point_api",
+                                "source_model": upstream_model
                             }
 
                         # Labels flow from data truth in EVERY environment (2026-07-04): the old
@@ -632,11 +628,12 @@ class PointResolutionService:
                         # fallback-derived EURO points provider="copernicus"/is_estimated=False.
                         return NormalizedPointResponse(
                             model=model.upper(),
-                            provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
+                            provider=fallback_provider if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             domain="marine",
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),
                             valid_time=target_dt,
+                            **direct_point_provenance(raw_point, idx, target_dt),
                             is_forecast_authoritative=(not is_estimated),
                             is_estimated=is_estimated,
                             estimate_basis=est_basis,
@@ -650,7 +647,7 @@ class PointResolutionService:
                             coverage_status="coarse_gap_direct_point" if coarse_last_resort is not None else "outside_grid_tile",
                             fallback_attempted=True,
                             fallback_reason="copernicus_missing_fallback" if is_fallback_active else ("coarse_sample_degraded" if coarse_last_resort is not None else "no_matching_grid_product"),
-                            upstream_provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
+                            upstream_provider=fallback_provider if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             upstream_model=upstream_model,
                             units=units,
                             grid_parity=False,
@@ -663,7 +660,7 @@ class PointResolutionService:
                 # an error. A systematic outage still surfaces via volume + the ratings coverage guard.
                 logger.warning(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex!r} (serving coarse/no-coverage fallback)")
 
-        elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in ("GFS", "ICON", "EURO"):
+        elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in UPSTREAM_MODELS:
             scalar_resp = await build_scalar_direct_point_response(self.provider, model, layer, lat, lng, target_dt)
             if scalar_resp is not None:
                 return scalar_resp
@@ -693,47 +690,19 @@ class PointResolutionService:
         )
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
+            replacement = await superseded_dynamic(self.store, product) if product else None
+            if replacement:
+                return replacement[1]
             if product:
                 return product
 
         # 2. Check scheduled products in the manifest — same lane index as resolve_point above.
         manifest = await asyncio.to_thread(self.store.get_manifest)
-        authoritative_candidates = []
-        estimated_candidates = []
-
-        from services.weather_pipeline.manifest_view import products_for
-        from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
-        for p in products_for(manifest, model, domain, layer):
-            actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-            if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
-                t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
-                t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
-                diff = abs(t1.timestamp() - t2.timestamp())
-                if diff <= 3 * 3600:
-                    if getattr(p, "is_estimated", False):
-                        estimated_candidates.append((p, diff))
-                    else:
-                        authoritative_candidates.append((p, diff))
-
-        best_auth = None
-        best_est = None
-        if authoritative_candidates:
-            best_auth = min(authoritative_candidates, key=_selection_key)
-        if estimated_candidates:
-            best_est = min(estimated_candidates, key=_selection_key)
-
-        matching_item = None
-        if best_auth and best_est:
-            auth_p, auth_diff = best_auth
-            est_p, est_diff = best_est
-            if est_diff <= 1800 and auth_diff > 1800:
-                matching_item = est_p
-            else:
-                matching_item = auth_p
-        elif best_auth:
-            matching_item = best_auth[0]
-        elif best_est:
-            matching_item = best_est[0]
+        # The pick is manifest_point_selection's, shared with the other point site and the rating
+        # band's wind sampler, so all three answer a coordinate from the same product.
+        from services.weather_pipeline.manifest_point_selection import choose_for_point, point_candidates
+        matching_item = choose_for_point(
+            point_candidates(manifest, model, domain, layer, target_dt), lat, lng)
 
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
@@ -762,4 +731,3 @@ class PointResolutionService:
         from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
         return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
                                                   spot_id=spot_id)
-

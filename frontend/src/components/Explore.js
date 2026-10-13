@@ -331,7 +331,7 @@ export const Explore = () => {
 
   // Data fetching handlers extracted to hooks/useExploreData.js
   const {
-    fetchTrending, fetchTrendingHashtags, fetchHashtagPosts, handleHashtagClick,
+    trendingError, fetchTrending, fetchTrendingHashtags, fetchHashtagPosts, handleHashtagClick,
     fetchTrendingWaves, handleWaveClick, fetchExplorePosts, handlePostClick,
     fetchSpotConditions, performSearch, clearSearch,
     fetchLeaderboard, fetchSponsorDetails, openSponsorCard, closeSponsorCard,
@@ -584,6 +584,8 @@ export const Explore = () => {
       {/* Trending Section (extracted to explore/ExploreTrending.js) */}
       {!showResults && !loading && activeTab === 'all' && (
         <ExploreTrending
+          error={trendingError}
+          onRetry={fetchTrending}
           trending={trending}
           spotConditions={spotConditions}
           user={user}

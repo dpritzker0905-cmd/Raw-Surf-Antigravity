@@ -7,6 +7,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { getMarineSeriesFrame } from './marineGridSeries';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
+import { publishMarineTimelineRequest, publishMarineTimelineFrame } from './marineTimelineCoverage';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 let _lastMarineScrubLogTime = 0;
@@ -73,6 +74,7 @@ export function useMarineOrchestratorScrubCache({
     }
 
     if (isBackendActive) {
+      const requestedValidTime = getSharedValidTime(timeOffsetHours, curLayer, curModel, { readOnly: true });
       let cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
       // The series frame is the EXACT scrubbed hour (±1.5h snap). getModelSafeMarine can return a
       // NEAREST/stale-hour fallback (flagged __staleHour) which the commit below intentionally
@@ -82,6 +84,8 @@ export function useMarineOrchestratorScrubCache({
         const seriesFrame = getMarineSeriesFrame(curModel, curLayer, vpBounds, timeOffsetHours);
         if (seriesFrame) cachedBackendData = seriesFrame;
       }
+      // Lookup may publish a retained cache hour; restore the current request before commit/miss handling.
+      publishMarineTimelineRequest({ model: curModel, layer: curLayer, hour: timeOffsetHours, requestedValidTime });
       
       let isRegional = false;
       let isViewportZoomedOut = false;
@@ -188,6 +192,8 @@ export function useMarineOrchestratorScrubCache({
           }
           setMarineData(cachedBackendData);
         }
+        publishMarineTimelineFrame({ data: cachedBackendData, model: curModel, layer: curLayer,
+          hour: timeOffsetHours, requestedValidTime });
 
         if (!window.isScrubbingTimeline) {
           const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];

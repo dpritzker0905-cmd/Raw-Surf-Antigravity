@@ -19,6 +19,20 @@
 # live 17:32:10). ⚠️ `ignoredPaths` ONLY — a `paths` whitelist inverts the failure mode, silently
 # stopping deploys for anything unlisted, and a backend that quietly stops receiving code is far
 # worse than one that deploys too often.
+# ✅ SET ON THE LIVE SERVICE 2026-09-19 VIA THE RENDER API (same reason as the 08-10 note above):
+#     COPERNICUS_ISLAND_INGEST = "0"
+# It was NOT previously present among the service's env vars at all, so it had been taking the code
+# default of "1" — i.e. the 0.083° island lane had been INGESTING IN PRODUCTION since 2026-08-18,
+# under a header that claimed the lane was "inert by construction". It was not: manifest selection
+# ranks on (time_diff, RESOLUTION, area), and at the time of writing 13,600 of 34,721 live products
+# (39.2%) are island-lane, all at 0.0833° against a next-finest 0.25°, so they WON every time tie
+# at 20 island regions. See docs/runbooks/RATIONALE-2026-09-19-island-serving-gate.md.
+# ⚠️ SETTING THE VAR DID NOT STOP THE LANE. Render did not auto-deploy on the env-var write; the
+# running process kept its old environment (uptime 31h56m, newest island product ingested 22:26Z
+# the same day). ⇒ A VAR IS NOT IN EFFECT UNTIL THE PROCESS THAT READS IT RESTARTS — verify with
+# /api/health's `uptime`, never with the Render config read-back, which reports only intent.
+# Owner decision 2026-09-19: let the next deploy apply it rather than restart the box.
+#
 services:
   - type: web
     name: raw-surf-backend

@@ -86,6 +86,7 @@ async def test_private_upload_returns_only_an_opaque_reference(monkeypatch):
             "https://project.supabase.co/storage/v1/object/crew_chat/booking-1/voice%20note.webm",
             {
                 "headers": {
+                    "apikey": "service-key",
                     "Authorization": "Bearer service-key",
                     "Content-Type": "audio/webm",
                     "x-upsert": "false",
@@ -94,6 +95,15 @@ async def test_private_upload_returns_only_an_opaque_reference(monkeypatch):
             },
         )
     ]
+
+
+def test_storage_auth_carries_apikey_for_new_style_secret_keys():
+    # Supabase's sb_secret_ keys are not JWTs: Storage accepts them ONLY on `apikey` and
+    # rejects a Bearer-only request ("Invalid Compact JWS", verified 2026-09-24 against prod).
+    # Dropping `apikey` here would break every private upload the day legacy keys are disabled.
+    headers = private_media._storage_auth_headers("sb_secret_example")
+    assert headers["apikey"] == "sb_secret_example"
+    assert headers["Authorization"] == "Bearer sb_secret_example"
 
 
 @pytest.mark.asyncio

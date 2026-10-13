@@ -17,6 +17,7 @@ from datetime import datetime, timezone
 import json
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, SponsorshipTransaction, ShakaMessage, Post, 
     Notification, SponsorshipType
@@ -88,6 +89,7 @@ async def get_pending_shaka_prompts(
 async def send_shaka(
     sender_id: str,
     data: SendShakaRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -95,6 +97,8 @@ async def send_shaka(
     Can be a video, animation, or text message.
     If public, creates a post on the feed.
     """
+    if sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get the sponsorship
     sponsor_result = await db.execute(
         select(SponsorshipTransaction)

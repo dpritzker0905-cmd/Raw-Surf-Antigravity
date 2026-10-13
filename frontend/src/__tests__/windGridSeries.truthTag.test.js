@@ -34,6 +34,20 @@ describe('wind series-frame truthTag lineage (audit #18/A3 wind mirror)', () => 
   });
   afterEach(() => { delete window.__WIND_SERIES__; });
 
+  it.each([true, false])('keeps verified lead separate from slider offset: %s', async known => {
+    const response = mockSeriesResponse();
+    for (const frame of response.frames) {
+      frame.run_time = '2026-06-20T05:00:00Z';
+      if (known) Object.assign(frame, { model_run_time: '2026-06-20T00:00:00Z',
+        model_run_time_status: 'known', ingested_at: '2026-06-20T05:00:00Z' });
+    }
+    global.fetch.mockResolvedValue({ ok: true, json: async () => response });
+    await ensureWindSeries('GFS', bounds, 0);
+    const frame = getWindSeriesFrame('GFS', bounds, 3);
+    expect(frame.truthTag.forecastLeadHours).toBe(known ? 9 : null);
+    expect(frame.truthTag.timeOffsetHours).toBe(3);
+  });
+
   it('mints the tag once at frame construction with the series product id', async () => {
     await ensureWindSeries('GFS', bounds, 0);
     const frame = getWindSeriesFrame('GFS', bounds, 3);

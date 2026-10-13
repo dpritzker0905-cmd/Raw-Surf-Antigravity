@@ -139,9 +139,12 @@ class WeatherNormalizer:
             valid_time_str += "Z"
         actual_valid_time = datetime.fromisoformat(valid_time_str.replace("Z", "+00:00"))
 
-        # Deduce run time
+        # Legacy run_time is used by storage/pruning. Preserve it during the explicit-cycle migration.
+        ingested_at = datetime.now(timezone.utc)
         if not run_time:
-            run_time = datetime.now(timezone.utc)
+            run_time = ingested_at
+        from services.weather_pipeline.cycle_provenance import cycle_from_points
+        cycle = cycle_from_points(raw_results)
 
         # Build bounds
         bounds = CoverageBounds(
@@ -693,6 +696,8 @@ class WeatherNormalizer:
             domain=domain.lower(),
             layer=layer.lower(),
             run_time=run_time,
+            **cycle,
+            ingested_at=ingested_at,
             valid_time=actual_valid_time,
             is_forecast_authoritative=provider.lower() != "test-fixture",
             is_estimated=is_layer_estimated or provider.lower() == "test-fixture",

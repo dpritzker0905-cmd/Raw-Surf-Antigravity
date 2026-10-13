@@ -1,0 +1,111 @@
+{
+  "baseline_ref": "2355ac2a08619ad283b6c2696fd95b87f824cb3f",
+  "runtime": "offline Windows Python with two declared packages absent; real ephemeral SQLite; provider/push offline",
+  "receipts": {
+    "alerts-before-1": {
+      "tests": 23,
+      "failed": 16,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-before-2": {
+      "tests": 23,
+      "failed": 16,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-after-1": {
+      "tests": 93,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-after-2": {
+      "tests": 161,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-after-final": {
+      "tests": 63,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-before-1": {
+      "tests": 5,
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-before-2": {
+      "tests": 5,
+      "failed": 5,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-config-before-1": {
+      "tests": 19,
+      "failed": 13,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-config-before-2": {
+      "tests": 19,
+      "failed": 13,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-after-1": {
+      "tests": 167,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-actor-after-2": {
+      "tests": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-owner-after-1": {
+      "tests": 182,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "alerts-owner-after-2": {
+      "tests": 25,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "frontend": {
+    "node": "24.21.0",
+    "suites": 356,
+    "tests": 3689,
+    "build": true,
+    "lint_ratchet": true
+  },
+  "hosted": "pending",
+  "production_changed": false,
+  "cooldown_source": "f995dae4d5cfc7310b0e0d5b8719a50f45bd8ee6",
+  "projected_backend": 5448,
+  "hosted_cooldown": {
+    "source": "f995dae4d5cfc7310b0e0d5b8719a50f45bd8ee6",
+    "run": 37252419546,
+    "jobs_passed": 11,
+    "backend": 5427,
+    "guards": 2360,
+    "chain": 2049,
+    "estate": 1018,
+    "frontend_suites": 356,
+    "frontend_tests": 3689
+  },
+  "hosted_owner_extension": {
+    "source": "6c355cb2e6fa9f1c887d4236361007ecbd277bbb",
+    "run": 37253656301,
+    "status": "in_progress"
+  }
+}

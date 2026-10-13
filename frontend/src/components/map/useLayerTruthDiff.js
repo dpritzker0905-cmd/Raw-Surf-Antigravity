@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { marineEmptyVerdict } from './marineEmptyGrace';
 
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
@@ -21,13 +22,22 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
   const historyRef = useRef([]);
   const violationBufferRef = useRef([]);
   const mountTimeRef = useRef(Date.now());
-  // Throttle render event to avoid 60fps getStyle() serialization penalty
-  const lastRenderCheck = useRef(0);
+  // W-32: when the current "marine active, no vectors" spell began, and the one re-check that fires
+  // when its grace ends (a map that goes idle would otherwise never look again). See marineEmptyGrace.
+  const marineEmptySinceRef = useRef(null);
+  const marineEmptyTimerRef = useRef(null);
 
   useEffect(() => {
     if (!mapInstance) return;
+    let disposed = false, frameTimer = null, moveEndTimer = null;
+    let lastFrameCheck = performance.now();
+    const cancelFrameCheck = () => {
+      if (frameTimer !== null) clearTimeout(frameTimer);
+      frameTimer = null;
+    };
 
     const captureSnapshot = (label) => {
+      if (disposed) return;
       let style;
       try {
         style = mapInstance.getStyle();
@@ -141,14 +151,28 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         !!window.__MARINE_FETCH_DEBOUNCING__
       );
       const activeMarineLayers = ["waves","swell_1","swell_2","wind_waves"].filter(l => s.activeLayersAll.includes(l));
-      if (activeMarineLayers.length) {
-        if (!s.marine?.grid?.vectors?.length && !isTransitioning) {
-          violations.push({
-            layerId: activeMarineLayers[0],
-            type: "MARINE_EMPTY_RENDER",
-            hint: "Marine layer active but no vector data present"
-          });
-        }
+      // W-32: the flags above clear in the fetch's `finally`, ~0.7 s before the grid commits, so the
+      // condition must HOLD for the grace before it is a violation (marineEmptyGrace.js).
+      const emptyVerdict = marineEmptyVerdict({
+        empty: activeMarineLayers.length > 0 && !s.marine?.grid?.vectors?.length,
+        transitioning: isTransitioning,
+        since: marineEmptySinceRef.current,
+        now: Date.now(),
+        disabled: typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_EMPTY_GRACE__ === true,
+      });
+      marineEmptySinceRef.current = emptyVerdict.since;
+      if (emptyVerdict.recheckInMs !== null && !marineEmptyTimerRef.current) {
+        marineEmptyTimerRef.current = setTimeout(() => {
+          marineEmptyTimerRef.current = null;
+          captureSnapshot("empty-grace");
+        }, emptyVerdict.recheckInMs + 50);
+      }
+      if (emptyVerdict.report) {
+        violations.push({
+          layerId: activeMarineLayers[0],
+          type: "MARINE_EMPTY_RENDER",
+          hint: "Marine layer active but no vector data present"
+        });
       }
 
       // RULE 4: raster layers must never share same visible source
@@ -193,19 +217,36 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       return violations;
     }
 
-    // Attach listeners
-    const onRender = () => {
-      // Bypass the expensive getStyle() serialization during active scrubbing — it runs on
-      // every MapLibre render and causes periodic micro-stutters while the timeline is dragged.
+    // MapLibre may emit idle after EACH animated custom-layer render. Both events must share
+    // the style-serialization budget; throttling render alone leaves idle doing frame-rate work.
+    const inspectFrame = label => {
+      if (disposed) return;
       if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
       const now = performance.now();
-      if (now - lastRenderCheck.current > 250) { // Throttle to 4fps for debug checks to save CPU
-        lastRenderCheck.current = now;
-        captureSnapshot("render");
+      const remaining = 250 - (now - lastFrameCheck);
+      if (remaining <= 0) {
+        cancelFrameCheck();
+        lastFrameCheck = now;
+        captureSnapshot(label);
+      } else if (label === 'idle' && frameTimer === null) {
+        // A final settled idle still gets checked even if no subsequent frame is requested.
+        frameTimer = setTimeout(() => {
+          frameTimer = null;
+          inspectFrame('idle');
+        }, remaining);
       }
     };
-    const onIdle = () => captureSnapshot("idle");
-    const onMoveEnd = () => setTimeout(() => captureSnapshot("post-moveend"), 100);
+    const onRender = () => inspectFrame('render');
+    const onIdle = () => inspectFrame('idle');
+    const onMoveEnd = () => {
+      if (moveEndTimer !== null) clearTimeout(moveEndTimer);
+      moveEndTimer = setTimeout(() => {
+        moveEndTimer = null;
+        cancelFrameCheck();
+        lastFrameCheck = performance.now();
+        captureSnapshot('post-moveend');
+      }, 100);
+    };
 
     mapInstance.on("render", onRender);
     mapInstance.on("idle", onIdle);
@@ -215,9 +256,17 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
     captureSnapshot("mount/update");
 
     return () => {
+      disposed = true;
+      cancelFrameCheck();
+      if (moveEndTimer !== null) clearTimeout(moveEndTimer);
       mapInstance.off("render", onRender);
       mapInstance.off("idle", onIdle);
       mapInstance.off("moveend", onMoveEnd);
+      // The re-check closes over THIS effect's captureSnapshot; the next run arms its own.
+      if (marineEmptyTimerRef.current) {
+        clearTimeout(marineEmptyTimerRef.current);
+        marineEmptyTimerRef.current = null;
+      }
     };
   }, [mapInstance, activeLayers, activeRenderType, windData, marineData]);
 

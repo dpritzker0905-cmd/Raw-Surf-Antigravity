@@ -124,7 +124,7 @@ export const AccessCodeScreen = ({ children }) => {
 
   // Access code required - show gate screen
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black flex items-center justify-center p-4">
+    <div className="access-code-screen min-h-screen bg-gradient-to-br from-black via-zinc-900 to-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Brand */}
         <div className="text-center mb-8">
@@ -175,7 +175,7 @@ export const AccessCodeScreen = ({ children }) => {
                   setCode(e.target.value.toUpperCase());
                   setError('');
                 }}
-                className="bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500 text-center text-lg tracking-widest uppercase"
+                className="access-code-input bg-zinc-800 border-zinc-700 text-white placeholder-zinc-500 text-center text-lg tracking-widest uppercase"
                 autoComplete="off"
                 autoFocus
               />

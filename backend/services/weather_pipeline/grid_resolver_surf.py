@@ -52,7 +52,10 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
 
     _copied = False
     try:
-        from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
+        from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
+        # The band's shore normal is the CHAIN's (coarse -> ETOPO asset -> override), not the coarse raster
+        # alone: that one term was the band-vs-glyph composition gap (surf_point._shore_normal_precedence).
+        from services.weather_pipeline.surf_point import chain_shore_normal_at
         # Keep the AMBIENT field honest at global/coarse zoom (rating plan §1): a ~10° coarse frame can't
         # resolve a trustworthy shore-normal / exposure, surf is a coastline property, and a blocky
         # world-zoom rating band isn't the experience — the per-spot rating GLYPHS (P1) are the accuracy
@@ -129,12 +132,46 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                 # ★ The fix is the thread, NOT vectorising the lookups: `lru_cache(maxsize=200_000)`
                 # already makes the steady state ~4.8 µs/cell (23–43× the cold path), so the
                 # remaining cost is a cold-start tax, not a hot loop.
+                # ── PER-CELL REFERENCE, ECHOED (2026-09-21, Queue E#1) ────────────────────────
+                # The band's score is monotonically DECREASING in `reference_size_m`, so that one
+                # number decides its colour — and until now it was the only input a reader could
+                # not see. Measured at Sebastian Inlet the same cell scores 11.7 at ref 2.164,
+                # 24.2 at 1.15 and 52.6 at 0.50, while the band served 59.1; the reference had to
+                # be inferred from that curve because the grid climatology lives in L2 and is
+                # unreachable from a dev box. ⭐ AN INPUT THAT DECIDES THE OUTPUT AND CANNOT BE
+                # READ BACK MAKES EVERY DISAGREEMENT A REPLAY EXERCISE. Echoing it makes each band
+                # score self-explaining, and makes band-vs-glyph a subtraction rather than a study.
+                # ⚠️ A SUMMARY, not per-vector: a rated world frame is ~15,000 cells and per-cell
+                # values would bloat every response to answer a question about a handful of them.
+                # Wrapping reference_fn rather than changing rating_transform_grid is deliberate —
+                # that file sits at 797/800 LOC, and this records what the band ACTUALLY consumed
+                # rather than what we believe it would have.
+                _refs = []
+                _inner_ref_fn = reference_fn
+
+                def _recording_reference_fn(lat, lng, _f=_inner_ref_fn, _acc=_refs):
+                    r = _f(lat, lng)
+                    if isinstance(r, (int, float)):
+                        _acc.append(float(r))
+                    return r
+
                 n_t, n_masked = await asyncio.to_thread(
                     rating_transform_grid,
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at,
-                    reference_fn=reference_fn, gate_fn=gate_fn)
+                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, chain_shore_normal_at,
+                    reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
                        "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}
+                # `n` is the count that ANSWERED, not the count asked: reference_for returns None
+                # where a cell has too few samples, and those cells fall back to the global default.
+                # Reporting only min/p50/max would hide that distinction, and "no reference" vs
+                # "a small reference" are different explanations for a bright band.
+                if _refs:
+                    _s = sorted(_refs)
+                    tag["reference_m"] = {"n": len(_s), "min": round(_s[0], 3),
+                                          "p50": round(_s[len(_s) // 2], 3), "max": round(_s[-1], 3)}
+                elif reference_fn:
+                    tag["reference_m"] = {"n": 0, "note": "no cell resolved a local reference; "
+                                                          "the global default applied throughout"}
                 label = "RATING overlay"
             else:
                 from services.weather_pipeline.surf_transform import surf_transform_grid
@@ -251,27 +288,47 @@ def _make_nearest_sampler(vex):
 
 
 async def _build_wind_sampler(store, manifest, model, target_dt):
-    """Return a ``(lat, lng) -> (speed_ms, from_deg) | None`` sampler over the model's wind product nearest
-    ``target_dt`` (within 3h), for the surf-rating's offshore/onshore wind factor. The wind product stores
-    speed in KNOTS (value_unit=kn) -> converted to m/s; ``direction`` is the meteorological FROM bearing.
-    Nearest-cell by lat/lng (robust to grid ordering; the wind grid is small/coarse). None if no product."""
+    """Return a ``(lat, lng) -> (speed_ms, from_deg) | None`` sampler for the surf rating's
+    offshore/onshore wind factor, or None when the model has no wind product within 3 h.
+
+    ★ PER CELL, THE PRODUCT THE POINT RESOLVER WOULD ANSWER THAT CELL FROM (2026-09-26): the finest
+    wind product COVERING the cell (`manifest_point_selection`, shared with the glyph's wind point),
+    so the band grades on the same wind as the glyph beside it. It used to take `min(time)` over
+    EVERY wind product of the model: 16 tie per hour (14 regional tiles + 2° + 10° globals), so the
+    manifest's order picked one wind field for the planet — `global_mid` for GFS/EURO and the
+    FLORIDA tile for ICON, sampled at its nearest edge for a Portuguese cell.
+    Products load lazily, once each: this sampler runs inside `rating_transform_grid`'s worker thread
+    (asyncio.to_thread above), never on the event loop. The wind product stores KNOTS -> m/s;
+    ``direction`` is the meteorological FROM bearing."""
     try:
-        from services.weather_pipeline.manifest_view import products_for
-        cands = [
-            p for p in products_for(manifest, model, "wind", "wind")
-            if abs((p.valid_time_start - target_dt).total_seconds()) <= 3 * 3600
-        ]
-        if not cands:
+        from services.weather_pipeline.manifest_point_selection import choose_for_point, point_candidates
+        cands = point_candidates(manifest, model, "wind", "wind", target_dt)
+    except Exception:
+        return None
+    if not (cands[0] or cands[1]):
+        return None
+    loaded = {}
+
+    def sampler(lat, lng):
+        p = choose_for_point(cands, lat, lng)
+        if p is None:
             return None
-        best = min(cands, key=lambda p: abs((p.valid_time_start - target_dt).total_seconds()))
-        wp = await asyncio.to_thread(store.load_product, best.filename)
+        if p.filename not in loaded:
+            loaded[p.filename] = _load_nearest_sampler(store, p.filename)
+        s = loaded[p.filename]
+        return s(lat, lng) if s is not None else None
+    return sampler
+
+
+def _load_nearest_sampler(store, filename):
+    """The nearest-cell sampler over one wind product, or None when it cannot be loaded."""
+    try:
+        wp = store.load_product(filename)
         if not wp or not wp.grid or not wp.grid.vectors:
             return None
         vex = [v for v in wp.grid.vectors
                if getattr(v, "lat", None) is not None and getattr(v, "lng", None) is not None
                and getattr(v, "speed", None) is not None]
-        if not vex:
-            return None
-        return _make_nearest_sampler(vex)
+        return _make_nearest_sampler(vex) if vex else None
     except Exception:
         return None

@@ -27,6 +27,21 @@ on:
         description: "Forecast days to fetch (2 is enough to cover every variable)"
         required: false
         default: "2"
+      # 2026-09-29: REGRID_NATIVE_CELL (#171) is also proven HERE before its flip. At the native 0.25 deg it
+      # reroutes every reduction, so the same scalar-vs-vector identity must hold with it on, on real GRIB; and
+      # the extra step below prices the flip (flag off vs on, same fetch). The defaults reproduce the original job.
+      resolution:
+        description: "Target resolution in degrees (0.25 = native, where REGRID_NATIVE_CELL acts)"
+        required: false
+        default: "10.0"
+      bbox:
+        description: "bbox JSON"
+        required: false
+        default: '{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0}'
+      regrid_native_cell:
+        description: "REGRID_NATIVE_CELL for both fetches ('1' also prices the flip against a flag-off fetch)"
+        required: false
+        default: "0"
 
 concurrency:
   group: vector-blockmean-parity
@@ -60,17 +75,25 @@ jobs:
         working-directory: backend
         env:
           FETCH_VECTOR_BLOCKMEAN: "0"
+          REGRID_NATIVE_CELL: ${{ github.event.inputs.regrid_native_cell || '0' }}
+          PAYLOAD_BBOX: ${{ github.event.inputs.bbox || '{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0}' }}
+          PAYLOAD_RES: ${{ github.event.inputs.resolution || '10.0' }}
+          PAYLOAD_DAYS: ${{ github.event.inputs.forecast_days || '2' }}
         run: |
           python services/noaa_gfs_wave_fetcher.py \
-            '{"bbox":{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0},"resolution":10.0,"forecast_days":'"${{ github.event.inputs.forecast_days || '2' }}"',"output_path":"/tmp/scalar.json"}'
+            '{"bbox":'"$PAYLOAD_BBOX"',"resolution":'"$PAYLOAD_RES"',"forecast_days":'"$PAYLOAD_DAYS"',"output_path":"/tmp/scalar.json"}'
 
       - name: Fetch with the VECTORIZED path (FETCH_VECTOR_BLOCKMEAN=1)
         working-directory: backend
         env:
           FETCH_VECTOR_BLOCKMEAN: "1"
+          REGRID_NATIVE_CELL: ${{ github.event.inputs.regrid_native_cell || '0' }}
+          PAYLOAD_BBOX: ${{ github.event.inputs.bbox || '{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0}' }}
+          PAYLOAD_RES: ${{ github.event.inputs.resolution || '10.0' }}
+          PAYLOAD_DAYS: ${{ github.event.inputs.forecast_days || '2' }}
         run: |
           python services/noaa_gfs_wave_fetcher.py \
-            '{"bbox":{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0},"resolution":10.0,"forecast_days":'"${{ github.event.inputs.forecast_days || '2' }}"',"output_path":"/tmp/vector.json"}'
+            '{"bbox":'"$PAYLOAD_BBOX"',"resolution":'"$PAYLOAD_RES"',"forecast_days":'"$PAYLOAD_DAYS"',"output_path":"/tmp/vector.json"}'
 
       - name: "🔬 Diff the two payloads — the evidence the flag flip needs"
         run: |
@@ -134,4 +157,64 @@ jobs:
                   print("  " + d)
               sys.exit(1)
           print("::notice::IDENTICAL on real GRIB. FETCH_VECTOR_BLOCKMEAN=1 is safe to default on.")
+          PY
+
+      - name: Fetch with the flag OFF (prices the REGRID_NATIVE_CELL flip)
+        if: ${{ github.event.inputs.regrid_native_cell == '1' }}
+        working-directory: backend
+        env:
+          FETCH_VECTOR_BLOCKMEAN: "1"
+          REGRID_NATIVE_CELL: "0"
+          PAYLOAD_BBOX: ${{ github.event.inputs.bbox }}
+          PAYLOAD_RES: ${{ github.event.inputs.resolution }}
+          PAYLOAD_DAYS: ${{ github.event.inputs.forecast_days || '2' }}
+        run: |
+          python services/noaa_gfs_wave_fetcher.py \
+            '{"bbox":'"$PAYLOAD_BBOX"',"resolution":'"$PAYLOAD_RES"',"forecast_days":'"$PAYLOAD_DAYS"',"output_path":"/tmp/legacy.json"}'
+
+      - name: "📏 How far the flip moves served values (flag off vs on, same fetch)"
+        if: ${{ github.event.inputs.regrid_native_cell == '1' }}
+        run: |
+          python - <<'PY'
+          import json, statistics, sys
+
+          def points(o):
+              if isinstance(o, dict) and o.get("__multi_region__"):
+                  return [p for r in o["regions"].values() for p in r]
+              return o
+
+          on, off = points(json.load(open("/tmp/vector.json"))), points(json.load(open("/tmp/legacy.json")))
+          if on[0]["hourly"]["time"] != off[0]["hourly"]["time"] or len(on) != len(off):
+              print("::notice::INCONCLUSIVE — the cycle rolled between the fetches. Re-run.")
+              sys.exit(0)
+          lost_total = None
+          for var in ("wave_height", "swell_wave_height", "wave_period", "wave_direction"):
+              d, gained, lost = [], 0, 0
+              for pa, pb in zip(on, off):
+                  for x, y in zip(pa["hourly"].get(var, []), pb["hourly"].get(var, [])):
+                      if x is None and y is not None:
+                          lost += 1
+                      elif x is not None and y is None:
+                          gained += 1
+                      elif x is not None:
+                          dv = x - y
+                          if var == "wave_direction":
+                              dv = (dv + 180.0) % 360.0 - 180.0
+                          d.append(abs(dv))
+              if not d:
+                  print(f"{var}: nothing paired")
+                  continue
+              d.sort()
+              p = lambda q: d[min(len(d) - 1, int(q * len(d)))]
+              print(f"FLIP_DELTA {var}: n={len(d)} mean|d|={statistics.fmean(d):.4f} p50={p(0.5):.4f} "
+                    f"p90={p(0.9):.4f} max={d[-1]:.4f} | value on only with flag ON {gained}, only with flag OFF {lost}")
+              if var == "wave_height":
+                  lost_total = lost
+          # ⛔ THE GATE (2026-09-29): run 36622286406 found the exact cell alone left 20 of 425 coastal nodes with NO
+          # total height (their own cell is land). A flip may move values; it may never blank a node the legacy
+          # block covered. A partition may legitimately vanish (a sea cell with no train), so only the total gates.
+          if lost_total:
+              print(f"::error::the flip would blank {lost_total} total-height values the legacy block served")
+              sys.exit(1)
+          print("::notice::FLIP_COVERAGE OK: no total-height value the legacy block served is lost")
           PY

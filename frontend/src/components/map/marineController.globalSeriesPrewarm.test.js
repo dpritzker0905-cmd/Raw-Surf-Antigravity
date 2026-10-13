@@ -16,6 +16,7 @@ jest.mock('../../lib/apiClient', () => ({ API_BASE: '' }));
 jest.mock('./marineGridSeries', () => ({
   ensureMarineSeries: jest.fn(() => Promise.resolve()),
   getMarineSeriesFrame: jest.fn(() => null),
+  runBackgroundWarm: jest.fn((fn) => fn()),   // the A15-11 lane, transparent here
 }));
 // ⚠️ Mock ONLY the module under assertion. Two earlier attempts to stub the backend clients failed
 // outright and are worth recording: a hand-listed mock of `backendWeatherServiceClient` dropped
@@ -46,7 +47,8 @@ describe('prewarmGlobalMarineGrid warms the SERIES cache, not just the grid cach
   it('calls ensureMarineSeries at GLOBAL bounds while the user is ZOOMED IN', () => {
     prewarmGlobalMarineGrid('GFS', 0, ZOOMED_IN, 'waves');
     expect(ensureMarineSeries).toHaveBeenCalledTimes(1);
-    const [model, layer, bounds, hourOffset, signal, currentPageOnly] = ensureMarineSeries.mock.calls[0];
+    const [model, layer, bounds, hourOffset, signal, currentPageOnly, , background] = ensureMarineSeries.mock.calls[0];
+    expect(background).toBe(true);              // A15-11: a warm, after what is on screen
     expect(model).toBe('GFS');
     expect(layer).toBe('waves');
     expect(bounds).toEqual(GLOBAL_BOUNDS);      // the GLOBAL bounds, never the caller's viewport

@@ -3,6 +3,7 @@
  * Shows in Settings page. Requires confirmation before proceeding.
  */
 import React, { useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
 
 const DeleteAccountSection = ({ onDeleted }) => {
@@ -40,7 +41,7 @@ const DeleteAccountSection = ({ onDeleted }) => {
         borderRadius: 12,
         border: '1px solid rgba(239,68,68,0.15)'
       }}>
- <div style={{ fontSize: 40, marginBottom: 12 }}>G</div>
+        <CheckCircle2 size={40} color="#34d399" aria-hidden="true" style={{ marginBottom: 12 }} />
         <p style={{ color: '#f1f5f9', fontWeight: 600, margin: 0 }}>
           Account data deleted
         </p>
@@ -99,7 +100,7 @@ const DeleteAccountSection = ({ onDeleted }) => {
             color: '#fca5a5',
             lineHeight: 1.5
           }}>
- Gn+ This will permanently delete your posts, comments, follows, check-ins, and reviews.
+            This will permanently delete your posts, comments, follows, check-ins, and reviews.
             Your profile will be anonymized. Type <strong>DELETE</strong> to confirm.
           </div>
           <input aria-label="Text input"

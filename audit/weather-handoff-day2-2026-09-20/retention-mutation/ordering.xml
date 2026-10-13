@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="1.337" timestamp="2026-09-20T13:04:47.720635-04:00" hostname="DESKTOP-MCNC85Q"><testcase classname="tests.test_forecast_skill_retention" name="test_failed_archive_write_preserves_pending_for_retry[503]" time="0.220"><failure message="AssertionError: assert {'calibration...h': 24, ...}]} == {'calibration...h': 24, ...}]}&#10;  &#10;  Omitting 1 identical items, use -vv to show&#10;  Differing items:&#10;  {'calibration/skill/pending.json': []} != {'calibration/skill/pending.json': [{'buoy_id': 'new', 'hs_m': 1.6, 'lead_h': 24, 'source': 'raw_surf', ...}]}&#10;  Use -v to get more diff">wire = namespace(objects={'calibration/skill/pending.json': [], 'calibration/skill/scored-2026-09.json': [{'source': 'raw_sur...ther_pipeline.store.ProductStore object at 0x000002277F47AF90&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000002277F4FE140&gt;)
+mode = '503'
+
+    @pytest.mark.parametrize("mode", ["503", "timeout"])
+    def test_failed_archive_write_preserves_pending_for_retry(wire, mode):
+        before = deepcopy(wire.objects)
+        wire.write_modes[MONTH] = mode
+        with pytest.raises(RuntimeError):
+            wire.run()
+&gt;       assert wire.objects == before
+E       AssertionError: assert {'calibration...h': 24, ...}]} == {'calibration...h': 24, ...}]}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'calibration/skill/pending.json': []} != {'calibration/skill/pending.json': [{'buoy_id': 'new', 'hs_m': 1.6, 'lead_h': 24, 'source': 'raw_surf', ...}]}
+E         Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:165: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_success_preserves_old_rows_and_repeated_run_does_not_duplicate" time="0.008" /></testsuite></testsuites>

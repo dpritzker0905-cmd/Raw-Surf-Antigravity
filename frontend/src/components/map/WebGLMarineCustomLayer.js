@@ -1,7 +1,12 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
-import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
+import { shouldHoldClearOnDeactivate, noteMarineActive, recordChurn } from './marineTransitionCoordinator';
+import { SKIP, stampLayerCall, stampSkip } from './marineLayerStamp';
 import { resolveCoarseBridgeGrace } from './marineCoarseBridgeGrace';
+import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
+import { createStaleHourTracker } from './marineStaleHour';
+import { staleWorldDimMult } from './marineStaleHourLayer';
+import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -74,7 +79,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
   // turned into "the heatmap vanished and never came back" with only a console.warn. A THROW here is
   // a hidden off switch; the counter must measure a BURST, not a lifetime total.
   let lastErrorTime = 0;
-  return {
+  // WRONG-HOUR WORLD FRAME (2026-10-01, audit F-21; marineStaleHour.js): how long the selected hour has held still.
+  const _staleHour = createStaleHourTracker();
+  const layer = {
     id: LAYER_ID,
     type: 'custom',
     renderingMode: '2d',
@@ -106,6 +113,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         }
       } catch (e) {
         console.error('[WebGLMarine] Init failed:', e.message);
+        // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
+        // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
+        recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
         if (onErrorRef.current) onErrorRef.current();
       }
     },
@@ -145,6 +155,8 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         _gl = glOrArgs;
         _matrix = matrixArg;
       }
+      // WHY-NO-DRAW stamp (the desktop-Safari continuity gap) — see marineLayerStamp.js.
+      const _stamp = stampLayerCall();
       if (this._renderLogged === undefined) {
         this._renderLogged = true;
         console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount, "matrixType:", typeof _matrix, "matrixLen:", _matrix?.length);
@@ -155,6 +167,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       }
 
       if (!activeRef.current || errorCount > 3) {
+        let _held = false;
         if (this._wasActive) {
           // TRANSITION HOLD (2026-07-06): a model/layer switch blinks activeRef false for a
           // beat — keep the resident textures through it (see shouldHoldClearOnDeactivate);
@@ -163,8 +176,11 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           if (!shouldHoldClearOnDeactivate()) {
             engine.clearBuffers(_gl);
             this._wasActive = false;
+          } else {
+            _held = true;
           }
         }
+        stampSkip(_stamp, errorCount > 3 ? SKIP.ERRORS : (_held ? SKIP.INACTIVE_HELD : SKIP.INACTIVE));
         return;
       }
 
@@ -179,7 +195,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       const _bgPrev = engine ? engine.__coarseBridgeGrace : null;
       if (engine) engine.__coarseBridgeGrace = null;
       const map = mapRef.current;
-      if (!map) return;
+      if (!map) { stampSkip(_stamp, SKIP.NO_MAP); return; }
 
       let viewportBounds = null;
       let opacityMultiplier = 1.0;
@@ -223,7 +239,8 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             const vpHeight = en - es;
 
             const currentZoom = map.getZoom();
-            const isViewportZoomedOut = (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
+            // ONE definition (F-22, 2026-10-02): the engine's bridge promotes the held base under this same test (marineZoomOutGate.isGateWideView).
+            const isViewportZoomedOut = isGateWideView(currentZoom, vpWidth, vpHeight);
 
             const isGridRegional = gridWidth < 340.0;
             let isContained = true;
@@ -289,7 +306,19 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
               // until the real global commits and supersedes it. Kill: __RAW_DISABLE_COARSE_BRIDGE__.
               const hasCoarseBridge = !!(engine._coarseBaseData && engine._coarseBaseData.u_waveTexture) &&
                 (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true);
-              if (isViewportZoomedOut && isGridRegional && hasCoarseBridge) {
+              // C4-MR-15 (2026-08-16): the branch DECISION now comes from marineZoomOutGate, the pure
+              // module PR #7 landed with zero importers. It arrived as "a specification with a test,
+              // not the live code path", and its own header warned the two could drift silently — they
+              // already had: `e17f0332` (08-15) added the grace below, nine days after the module froze
+              // branch 1 at a flat 0.0. Wiring it AS WRITTEN would have reverted that grace.
+              // ⇒ The module owns WHICH branch; the layer keeps the impure grace and its side effects,
+              //   gated on `coarseBridge`. Neither duplicates the other's condition.
+              const _rej = resolveRejectedOpacity({
+                isViewportZoomedOut, isGridRegional, hasCoarseBridge, isZoomingOrMoving,
+                currentZoom, overlapRatio,
+              });
+              if (_rej.bail) { this._wasActive = false; stampSkip(_stamp, SKIP.REJECTED_BAIL); return; }
+              if (_rej.coarseBridge) {
                 // COARSE-BRIDGE GRACE (2026-08-15) — the bridge above is the only fade-to-zero in
                 // this family with NO time bound, and the nightly measured it holding 18.8 s. See
                 // `marineCoarseBridgeGrace.js` for the traces, and for why this is neither
@@ -312,22 +341,10 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
                     ? { held: Math.round(_bg.state.held), revealing: _bg.state.revealing,
                         mult: +_bg.mult.toFixed(3) } : null;
                 }
-              } else if (!isZoomingOrMoving) {
-                this._wasActive = false;
-                return;
-              } else if (isViewportZoomedOut && isGridRegional) {
-                opacityMultiplier = 0.0;
               } else {
-                // Calculate fade out during zoom transition or low overlap
-                let zoomFade = 1.0;
-                if (currentZoom <= 6.5) {
-                  zoomFade = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
-                }
-                let overlapFade = 1.0;
-                if (overlapRatio < 0.15) {
-                  overlapFade = Math.max(0.0, Math.min(1.0, (overlapRatio - 0.05) / (0.15 - 0.05)));
-                }
-                opacityMultiplier = Math.min(zoomFade, overlapFade);
+                // Branches 3 and 4 (the measured blank, and the zoom/overlap fade) are the module's
+                // verbatim — the inline copy they replaced was byte-identical arithmetic.
+                opacityMultiplier = _rej.opacity;
               }
             }
           } else {
@@ -337,6 +354,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             if (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM && isGlobalSupported && gridWidth < 340.0) {
               if (!isZoomingOrMoving) {
                 this._wasActive = false;
+                stampSkip(_stamp, SKIP.ZOOMED_OUT_IDLE);
                 return;
               }
               opacityMultiplier = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
@@ -348,16 +366,29 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
-
+        // The engine also exits before any GL work without a projection. Preserve repaint,
+        // but do not let these callbacks count as slow GPU drawing in the fallback guard.
+        if (!_matrix || !_matrix.length) stampSkip(_stamp, SKIP.ENGINE_NO_MATRIX);
+        // A WORLD frame made for another hour than the selected one (the page-load frame the zoom-out bridge promotes while the
+        // right hour is still on its way) is drawn provisional, not as the selected hour: a fraction of its strength, only once
+        // the hour has held still, never for a regional frame. Fail-open, kill: __RAW_DISABLE_STALE_HOUR_DIM__.
+        opacityMultiplier *= staleWorldDimMult(engine, _staleHour, timeOffsetHoursRef ? timeOffsetHoursRef.current : 0,
+          activeLayersRef ? activeLayersRef.current : null, activeModelRef ? activeModelRef.current : 'GFS');
+        if (!engine._initialized || !engine._waveData) stampSkip(_stamp, SKIP.ENGINE_NO_DATA);
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();
+        // Each throw, with its message, on the churn log the continuity gate attaches. The Chrome
+        // burst at Sebastian z12 swapped this engine for the Canvas2D fallback (engine_dispose x2 +
+        // foam_mount at the stall start) with no record of what threw.
+        recordChurn('marine_render_error', { n: errorCount, message: String((e && e.message) || e).slice(0, 160) });
         if (errorCount <= 3) {
           console.warn(`[WebGLMarine] Render error (${errorCount}/3):`, e.message);
         }
         if (errorCount === 3) {
           console.error('[WebGLMarine] Too many errors, disabling GPU marine particles.');
+          recordChurn('marine_webgl_fallback', { cause: 'render_error_burst' });
           if (onErrorRef.current) onErrorRef.current();
         }
       } finally {
@@ -381,4 +412,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       glRef.current = null;
     }
   };
+  // Includes argument resolution, skip paths, pre-draw work and repaint scheduling.
+  layer.render = timeMarineCpuPhase('customCallback', layer.render);
+  return layer;
 }

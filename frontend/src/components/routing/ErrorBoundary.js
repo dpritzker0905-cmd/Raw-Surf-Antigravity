@@ -9,6 +9,7 @@
  * - Reports the error to console for Render logs
  */
 import React from 'react';
+import { Waves } from 'lucide-react';
 
 const IS_DEV = process.env.NODE_ENV === 'development' || 
   (typeof window !== 'undefined' && window.location.hostname.startsWith('dev--'));
@@ -88,7 +89,7 @@ class ErrorBoundary extends React.Component {
         textAlign: 'center'
       }}>
         {/* Wave icon */}
- <div style={{ fontSize: 64, marginBottom: 16 }}>=</div>
+        <Waves size={64} color="#06b6d4" aria-hidden="true" style={{ marginBottom: 16 }} />
 
         <h1 style={{
           fontSize: IS_DEV ? 24 : 28,

@@ -1,7 +1,8 @@
 """
 Surf spots core — list, locations hierarchy, nearby, and spot detail endpoints.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -14,13 +15,27 @@ from models import Profile, SurfSpot, Booking
 from core.security import get_optional_user_id_from_jwt_or_query
 from utils.geo import haversine_distance
 from .schemas import SurfSpotResponse, get_visibility_radius, is_within_geofence
+from . import spots_cache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _cache_headers(etag: str) -> dict:
+    """
+    `private` because the payload can carry `active_photographers_count`, which is a live signal
+    about where people are — it must not sit in a shared proxy. `must-revalidate` keeps the client
+    honest once max-age lapses rather than letting it drift on a stale catalogue.
+    """
+    return {
+        "ETag": etag,
+        "Cache-Control": f"private, max-age={spots_cache.ttl_seconds()}, must-revalidate",
+    }
+
+
 @router.get("/surf-spots", response_model=List[SurfSpotResponse])
 async def get_surf_spots(
+    request: Request,
     region: Optional[str] = None,
     country: Optional[str] = None,
     state_province: Optional[str] = None,
@@ -38,7 +53,28 @@ async def get_surf_spots(
     Get surf spots with Privacy Shield geofencing.
     - If user_lat/lon provided, calculates distance and applies visibility rules
     - active_photographers_count is only shown if within geofence
+
+    Serves the unfiltered catalogue from a single-slot cache — see spots_cache for the measurements
+    that motivated it and the two correctness restrictions. Geofenced and filtered requests take the
+    original path unchanged.
     """
+    # ── Cache fast path. Deliberately BEFORE `Depends(get_db)` does any work: the scarce resource on
+    # this service is the 8-connection pool and the single event loop, so a hit must cost neither.
+    cacheable = spots_cache.is_cacheable(
+        user_lat=user_lat, user_lon=user_lon, region=region,
+        country=country, state_province=state_province, viewport_only=viewport_only,
+    )
+    if cacheable:
+        hit = spots_cache.get()
+        if hit is not None:
+            etag, body = hit
+            # A matching If-None-Match means the client already holds these bytes. 304 skips ~760 KB
+            # (~106 KB gzipped) per poll — the wire cost this route was paying 2,085 times.
+            if request.headers.get("if-none-match") == etag:
+                return Response(status_code=304, headers=_cache_headers(etag))
+            return Response(content=body, media_type="application/json",
+                            headers=_cache_headers(etag))
+
     query = select(SurfSpot).where(SurfSpot.is_active.is_(True))
     
     if region:
@@ -61,9 +97,13 @@ async def get_surf_spots(
     result = await db.execute(query.order_by(SurfSpot.name))
     spots = result.scalars().all()
     
-    # Get user's subscription tier for Privacy Shield
+    # Get user's subscription tier for Privacy Shield.
+    # ⭐ Only when coordinates were supplied. `visibility_radius` feeds `is_within_geofence` and
+    # NOTHING else, and that is only called when user_lat/user_lon are both present — so without
+    # coordinates this was a per-request Profile round-trip whose result was computed and discarded.
+    # On a box whose binding constraint is an 8-connection pool, a dead query is not free.
     visibility_radius = 1.0
-    if user_id:
+    if user_id and user_lat is not None and user_lon is not None:
         user_result = await db.execute(select(Profile).where(Profile.id == user_id))
         user = user_result.scalar_one_or_none()
         if user:
@@ -100,8 +140,16 @@ async def get_surf_spots(
             wave_type=spot.wave_type, is_within_geofence=within_geofence,
             distance_miles=round(distance, 2) if distance is not None else None
         ))
-    
-    return spot_responses
+
+    if not cacheable:
+        return spot_responses
+
+    # Serialise ONCE and hand back a Response. Returning the model list would make FastAPI
+    # re-validate all 1,773 items against `response_model` — a second full pass over the payload,
+    # synchronous, on the only event loop this service has.
+    body = spots_cache.serialize(jsonable_encoder(spot_responses))
+    etag = spots_cache.store(body)
+    return Response(content=body, media_type="application/json", headers=_cache_headers(etag))
 
 
 @router.get("/surf-spots/locations")

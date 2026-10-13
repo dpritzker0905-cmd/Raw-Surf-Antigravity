@@ -1,0 +1,8 @@
+PASS src/tests/om-metadata-demand.test.js
+PASS src/tests/om-metadata-provenance.test.js
+
+Test Suites: 2 passed, 2 total
+Tests:       17 passed, 17 total
+Snapshots:   0 total
+Time:        2.432 s, estimated 3 s
+Ran all test suites matching /om-metadata-(demand|provenance).test.js/i.

@@ -35,6 +35,29 @@ describe('series-frame truthTag lineage (audit #18/A3)', () => {
   });
   afterEach(() => { delete window.__MARINE_SERIES__; });
 
+  it.each([true, false])('preserves explicit cycle identity and legacy unknown state: %s', async (known) => {
+    const response = mockSeriesResponse();
+    for (const frame of response.frames) {
+      frame.run_time = '2026-06-20T05:30:00Z';
+      if (known) Object.assign(frame, {
+        model_run_time: '2026-06-20T00:00:00Z', model_run_time_status: 'known',
+        ingested_at: '2026-06-20T05:30:00Z',
+      });
+    }
+    global.fetch.mockResolvedValue({ ok: true, json: async () => response });
+    await ensureMarineSeries('GFS', 'waves', bounds);
+    const frame = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+    expect(frame.model_run_time).toBe(known ? '2026-06-20T00:00:00Z' : null);
+    expect(frame.model_run_time_status).toBe(known ? 'known' : 'missing');
+    expect(frame.ingested_at).toBe(known ? '2026-06-20T05:30:00Z' : null);
+    expect(frame.run_time).toBe('2026-06-20T05:30:00Z');
+    expect(frame.grid.model_run_time).toBe(frame.model_run_time);
+    expect(frame.grid.model_run_time_status).toBe(frame.model_run_time_status);
+    expect(frame.truthTag.forecastLeadHours).toBe(known ? 6 : null);
+    expect(frame.truthTag.model_run_time).toBe(frame.model_run_time);
+    expect(frame.truthTag.timeOffsetHours).toBe(0);
+  });
+
   it('mints the tag once at frame construction, on the grid AND the wrapper', async () => {
     await ensureMarineSeries('GFS', 'waves', bounds);
     const frame = getMarineSeriesFrame('GFS', 'waves', bounds, 3);

@@ -51,14 +51,14 @@ describe('nearest-direction shader plumbing', () => {
     expect(ADVECT_FS).toContain('uniform float u_coarseNearestDir;');
     expect(ADVECT_FS).toContain('uniform vec2 u_waveGridSize;');
     expect(ADVECT_FS).toContain('u_coarseNearestDir > 0.5');
-    expect(ADVECT_FS).toContain('floor(tex_uv * u_waveGridSize)');
+    expect(ADVECT_FS).toContain('floor(ptReg(tex_uv, u_wave_reg) * u_waveGridSize)');   // nearest SAMPLE under point registration
   });
 
   it('DRAW_VS declares and uses the nearest-cell uniforms (orientation matches motion)', () => {
     expect(DRAW_VS).toContain('uniform float u_coarseNearestDir;');
     expect(DRAW_VS).toContain('uniform vec2 u_waveGridSize;');
     expect(DRAW_VS).toContain('u_coarseNearestDir > 0.5');
-    expect(DRAW_VS).toContain('floor(tex_uv * u_waveGridSize)');
+    expect(DRAW_VS).toContain('floor(ptReg(tex_uv, u_wave_reg) * u_waveGridSize)');   // nearest SAMPLE under point registration
   });
 
   it('the nearest override snaps BEFORE the mercator y-flip in both shaders (flip applies once)', () => {

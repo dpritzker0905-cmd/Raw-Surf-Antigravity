@@ -1,6 +1,8 @@
 import React from 'react';
 import { Navigation, Loader2, MapPin, Camera, Users, Layers } from 'lucide-react';
 import { Button } from '../ui/button';
+import { useThemeName } from '../../contexts/ThemeContext';
+import { mapChromeTheme } from './mapChromeTheme';
 
 /**
  * Right-side floating control panel on the map.
@@ -25,6 +27,8 @@ export var MapRightControls = ({
   activeLayers = [],
 }) => {
   const bottomStyle = activeLayers.length > 0 ? 'bottom-[150px] md:bottom-20' : 'bottom-20';
+  // Three themes (W-10 R4): these buttons were zinc-800 / text-white in every mode.
+  const c = mapChromeTheme(useThemeName());
 
   return (
     <div
@@ -47,10 +51,10 @@ export var MapRightControls = ({
         <Button
           onClick={onGetLocation}
           disabled={gpsLoading}
-          className={`backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${
+          className={`backdrop-blur-sm rounded-full w-12 h-12 p-0 ${
             userLocation?.accuracy && userLocation.accuracy > 500
-              ? 'bg-orange-600/90'
-              : 'bg-zinc-800/90'
+              ? 'bg-orange-600/90 text-white hover:bg-zinc-700'
+              : c.fab
           }`}
           data-testid="gps-location-btn"
           title={userLocation?.accuracy ? `Accuracy: ${Math.round(userLocation.accuracy)}m` : 'Get location'}
@@ -58,7 +62,7 @@ export var MapRightControls = ({
           {gpsLoading ? (
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
-            <Navigation className={`w-5 h-5 ${userLocation && userLocation.accuracy <= 100 ? 'text-blue-400' : ''}`} />
+            <Navigation className={`w-5 h-5 ${userLocation && userLocation.accuracy <= 100 ? c.activeBlue : ''}`} />
           )}
         </Button>
         {(locationDenied || (userLocation?.accuracy && userLocation.accuracy > 200)) && (
@@ -81,10 +85,10 @@ export var MapRightControls = ({
         aria-label="Featured photographers"
         aria-expanded={showFeaturedPanel}
         onClick={onToggleFeatured}
-        className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFeaturedPanel ? 'ring-2 ring-yellow-400' : ''}`}
+        className={`${c.fab} backdrop-blur-sm rounded-full w-12 h-12 p-0 ${showFeaturedPanel ? 'ring-2 ring-yellow-400' : ''}`}
         data-testid="featured-photographers-btn"
       >
-        <Camera className={`w-5 h-5 ${showFeaturedPanel ? 'text-yellow-400' : ''}`} />
+        <Camera className={`w-5 h-5 ${showFeaturedPanel ? c.activeYellow : ''}`} />
       </Button>
 
       {/* Friends on map toggle */}
@@ -92,10 +96,10 @@ export var MapRightControls = ({
         aria-label="Friends on map"
         aria-expanded={showFriendsOnMap}
         onClick={onToggleFriends}
-        className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFriendsOnMap ? 'ring-2 ring-yellow-400' : ''}`}
+        className={`${c.fab} backdrop-blur-sm rounded-full w-12 h-12 p-0 ${showFriendsOnMap ? 'ring-2 ring-yellow-400' : ''}`}
         data-testid="friends-on-map-btn"
       >
-        <Users className={`w-5 h-5 ${showFriendsOnMap ? 'text-yellow-400' : ''}`} />
+        <Users className={`w-5 h-5 ${showFriendsOnMap ? c.activeYellow : ''}`} />
       </Button>
 
       {/* Mobile Weather Layers Toggle */}
@@ -103,10 +107,10 @@ export var MapRightControls = ({
         aria-label="Weather layers"
         aria-expanded={showWeatherControls}
         onClick={onToggleWeatherControls}
-        className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 md:hidden ${showWeatherControls ? 'ring-2 ring-cyan-400' : ''}`}
+        className={`${c.fab} backdrop-blur-sm rounded-full w-12 h-12 p-0 md:hidden ${showWeatherControls ? 'ring-2 ring-cyan-400' : ''}`}
         data-testid="weather-layers-btn"
       >
-        <Layers className={`w-5 h-5 ${showWeatherControls ? 'text-cyan-400' : ''}`} />
+        <Layers className={`w-5 h-5 ${showWeatherControls ? c.activeCyan : ''}`} />
       </Button>
 
       {/* Friend count badge */}

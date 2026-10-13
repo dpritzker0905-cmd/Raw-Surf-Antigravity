@@ -23,23 +23,33 @@
 
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
-import { buildTruthTag, recordTruthStage } from './weatherTruthTracker';
+import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
+import { frameToMarineData } from './marineSeriesFrame';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
+import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
+import { isThinnedWorldGrid } from './marineExactUpgrade';
+import { MarineSeriesCache } from './marineSeriesCache';
+import { finestCoveringSeriesFrame, nearestFrameInEntry } from './marineSeriesFinerEntry';
+import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
+import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
 import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
+import {
+  acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
+  _resetSeriesLimiterForTest,
+} from './marineSeriesLimiter';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
-const _seriesCache = new Map();
+const _seriesCache = new MarineSeriesCache();
 const _inFlight = new Map();
-const _idleTimers = new Set(); // pending adjacent-page prefetch timers (cleared on reset)
-
-// Arm a self-cleaning idle timer: track it for _resetMarineSeriesForTest, but REMOVE its id from the
-// Set once it fires so the Set doesn't accumulate fired ids across a long session (leak: the raw
-// `setTimeout(...); _idleTimers.add(t)` sites at coarse-reval / warming / fail-retry never deleted the
-// fired id — the Set only shrank on reset). Mirrors scheduleIdlePrefetch's self-delete. Behaviour-neutral.
-function armIdleTimer(fn, delay) {
-  const t = setTimeout(() => { _idleTimers.delete(t); fn(); }, delay);
-  _idleTimers.add(t);
-  return t;
+function hasLiveFlight(key) {
+  const flight = _inFlight.get(key);
+  if (marineSeriesWorkBoundsEnabled() && flight?.seriesSignal?.aborted) {
+    _inFlight.delete(key); return false;
+  }
+  return _inFlight.has(key);
+}
+function finishFlight(key, flight) {
+  if (_inFlight.get(key) === flight) _inFlight.delete(key);
 }
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 48;              // bounded; heavy-class targets hold up to 8 SMALL pages each
@@ -92,44 +102,12 @@ function scheduleFailRetry(model, layer, bounds, page, signal, key, reason) {
     }
   }
   if (n > SERIES_FAIL_RETRY_MAX) return;
-  armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(n));
+  deferMarineSeries(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(n), signal);
 }
 
-// Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
-// once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
-// into 503s/timeouts so NOTHING completes — the "bottleneck after scrubbing." Cap concurrent
-// fetches so the box serves them ~2 at a time and each finishes fast (no contention). Requests
-// queue client-side; a request whose signal aborts while queued is dropped (never hits the box),
-// so superseded model/layer warms don't pile up. Tune up once the backend has more CPU.
-const MARINE_SERIES_MAX_CONCURRENT = 2;
-let _seriesActiveLoads = 0;
-const _seriesWaiters = []; // [{ resolve, signal }]
-
-function acquireSeriesSlot(signal) {
-  if (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) { _seriesActiveLoads++; return Promise.resolve(true); }
-  return new Promise((resolve) => {
-    const entry = { resolve, signal };
-    _seriesWaiters.push(entry);
-    if (signal) {
-      try {
-        signal.addEventListener('abort', () => {
-          const i = _seriesWaiters.indexOf(entry);
-          if (i >= 0) { _seriesWaiters.splice(i, 1); resolve(false); } // dropped while queued; no slot taken
-        }, { once: true });
-      } catch (e) { /* ignore */ }
-    }
-  });
-}
-
-function releaseSeriesSlot() {
-  if (_seriesActiveLoads > 0) _seriesActiveLoads--;
-  while (_seriesWaiters.length && _seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
-    const w = _seriesWaiters.shift();
-    if (w.signal && w.signal.aborted) { w.resolve(false); continue; } // drop aborted-while-queued
-    _seriesActiveLoads++;
-    w.resolve(true);
-  }
-}
+// The in-flight budget (the page lanes and the hour-0 mini lane) lives in marineSeriesLimiter.js;
+// runBackgroundWarm and _seriesLimiterState are re-exported so no importer moved.
+export { runBackgroundWarm, _seriesLimiterState } from './marineSeriesLimiter';
 
 // 3-hourly pages of at most 48 frames (the backend series cap). The span is per COST CLASS,
 // sized so ONE page always fits Netlify's ~26s /api/* proxy window — a page that runs past it
@@ -173,11 +151,15 @@ export function marineSeriesPageForHour(hourOffset, model) {
   return Math.min(lastPageFor(model), Math.floor(h / pageSpanHours(model)));
 }
 
-// The hour offsets a page requests (<=48 frames, 3-hourly, clamped to the 336h ceiling).
+// The hour offsets a page requests (<=48 frames, 3-hourly, clamped to the 336h ceiling), shifted
+// back by the anchor's grid phase so every frame lands on a real 00/03/06.. UTC product time (T-01,
+// audit 14.1). Phase 0 reproduces the historic lattice exactly; otherwise page 0 opens at -phase,
+// the product at or before "now" — the frame the manifest lane also selects for the Now handle.
 function buildPageHours(page, model) {
   const span = pageSpanHours(model);
-  const start = page * span;
-  const end = Math.min(start + span - 3, MARINE_SERIES_MAX_HOURS);
+  const phase = seriesGridPhase(3);
+  const start = page * span - phase;
+  const end = Math.min(page * span + span - 3 - phase, MARINE_SERIES_MAX_HOURS);
   const hours = [];
   for (let h = start; h <= end; h += 3) hours.push(h);
   return hours;
@@ -205,149 +187,35 @@ function viewportKey(bounds) {
   return `${r(w)}_${r(bounds.south)}_${r(e)}_${r(bounds.north)}`;
 }
 
+// F-01 (audit 14.0): the ANCHOR is part of the identity of a cached page.
+// A page holds frames addressed by hour OFFSET, so the same key under a different anchor names a
+// different absolute time. Without it, a page still warm across an hour rollover served the
+// previous hour's frames under today's offsets — the cache silently answered the wrong absolute
+// time. Granularity is the hour, so this adds one key per hour, not one per request.
+//
+// `seriesAnchorTag` / `seriesAnchorParam` moved to ./seriesAnchor so the WIND lane could use the
+// identical pair rather than grow its own copy — recreating the two-independent-clocks shape that
+// F-01 was about. That module also documents why it is separate from backendWeatherServiceClient
+// and why neither helper may ever throw.
 function pageKey(model, layer, bounds, page) {
-  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}`;
+  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}${seriesAnchorTag()}`;
+}
+
+export function marineSeriesViewportIdentity(model, layer, bounds) {
+  return pageKey(model, layer, bounds, 0);
 }
 
 
 // Defer adjacent-page prefetch to idle so it never competes with the current page or a
 // scrub. requestIdleCallback when available; otherwise a macrotask (NOT a microtask, so it
 // can't fire inside a caller's await — keeps the synchronous "one fetch" test invariant).
-function scheduleIdlePrefetch(fn) {
-  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-    const id = window.requestIdleCallback(() => { _idleTimers.delete(id); fn(); }, { timeout: 2500 });
-    _idleTimers.add(id);
-    return;
-  }
-  const id = setTimeout(() => { _idleTimers.delete(id); fn(); }, 1500);
-  _idleTimers.add(id);
-}
-
-// Convert one backend series frame into a marineData object shaped exactly like a normal
-// cached grid commit, so the orchestrator's existing commit/parity logic accepts it.
-function frameToMarineData(frame, model, layer) {
-  const provider = frame.provider || (model === 'EURO' ? 'copernicus' : 'open-meteo');
-  const renderable = Array.isArray(frame.vectors) && frame.vectors.length > 0;
-  // True data origin for the HUD provenance. `provider` is the deliberate 'open-meteo' contract key (kept
-  // byte-identical across the NOAA-direct + open-meteo paths), so without __sourceDataset the HUD mislabels
-  // NOAA-direct GFS as "open-meteo". Prefer the backend's per-frame source_dataset; else derive from the model
-  // (on the decoupled ingest runner open-meteo is unreachable, so GFS marine is always NOAA-direct ncep_gfswave025,
-  // ICON=GWAM/DWD, EURO=Copernicus). The HUD's __basicSourceName maps these → NOAA / DWD / Copernicus.
-  // ⛔⛔ THE MODEL->DATASET GUESS IS FALSIFIED FOR EURO (measured 2026-08-03). The derivation below
-  // assumes one upstream per model, and the comment above says why that was true when written. It is
-  // NOT true for EURO: sampled over 70 NDBC coordinates, `EURO` served THREE different
-  // `upstream_provider`s — copernicus, ecmwf, and gfs_estimated_fallback — and their accuracy is not
-  // interchangeable. Scoring GFS on the SAME sites:
-  //     EURO/copernicus MAE 0.159 (3.2x better than GFS)
-  //     EURO/ecmwf      MAE 0.339 (WORSE than GFS's 0.266 there) -- 36% of EURO's coverage
-  //     EURO/gfs_estimated_fallback MAE 0.114
-  // The Florida EURO grid returns `upstream_provider: "ecmwf"`, so the guess labels it
-  // "copernicus_cmems" and the HUD tells the user Copernicus for a coarser field. A label that is
-  // right 50% of the time is a PROVENANCE defect, which is this repo's recurring class.
-  // ⇒ PREFER THE BACKEND'S OWN `upstream_provider` (served on every marine response, alongside the
-  //   `provider` DISPATCH KEY). The model guess stays as the last resort for frames that predate it,
-  //   so nothing regresses where the guess was already right.
-  const __upstreamProvider = frame.upstream_provider || null;
-  const __sourceDataset = frame.source_dataset || (
-    __upstreamProvider === 'copernicus' ? 'copernicus_cmems' :
-    __upstreamProvider === 'ecmwf' ? 'ecmwf_ifs' :
-    __upstreamProvider === 'noaa' ? 'ncep_gfswave025' :
-    __upstreamProvider === 'dwd' ? 'gwam_dwd' :
-    __upstreamProvider === 'gfs_estimated_fallback' ? 'gfs_estimated_fallback' :
-    model === 'GFS' ? 'ncep_gfswave025' :
-    model === 'ICON' ? 'gwam_dwd' :
-    model === 'EURO' ? 'copernicus_cmems' : null
-  );
-  const grid = {
-    vectors: frame.vectors,
-    cols: frame.cols,
-    rows: frame.rows,
-    bounds: frame.bounds,
-    __renderable: renderable,
-    // MISSING STAMP = the EURO series stall (2026-07-06): every REAL fetch path stamps
-    // __gridSupportsLayer (mapper/copernicusGridFetcher/backend clients), and useMarineWindData's
-    // hasCopernicusGrid REQUIRES it === true for provider 'copernicus'/'backend-weather-service' —
-    // so a series-committed EURO frame (the clamp sharpen's ONLY route at close zoom, and the
-    // scrub safety-net's fast path) conformed to hasCopernicusGrid:false and the gate NULLED it.
-    // The raw marineData still fed useSimulationField, hence the log signature "series frames
-    // bind to the SIM FIELD but the ENGINE keeps coarse_global". The series endpoint returns
-    // frames FOR the requested layer, so vectors-present ⇒ the grid supports it: truthful stamp.
-    __gridSupportsLayer: renderable,
-    __componentLayer: layer,
-    __sourceModel: model,
-    __sourceDataset,
-    __gridProvider: provider,
-    // The ORIGIN beside the DISPATCH KEY, so a consumer can tell an 8 km MFWAM field from a 25 km
-    // IFS one. `__MARINE_RENDER_SOURCE_DIAG__.upstreamProvider` reads this.
-    __upstreamProvider,
-    provider,
-    hourOffset: frame.hour_offset,
-    is_estimated: !!frame.is_estimated,
-    is_dynamic_viewport_product: true,
-    __fromSeries: true,
-    // Carry the surf-RATING signal so the shader paints the rating band on series-committed frames (clamp/scrub
-    // commit series frames; without this the rating band never rendered even with surf=1). See _frame_rating_mode.
-    ratingMode: !!frame.rating_mode,
-    // §0c SERVING HONESTY: the frame actually served per the backend (valid_time echoes the
-    // ask). Surfaced in FORENSIC-SNAP as frameOff — a pasted log self-reports frame skew.
-    valid_time: frame.valid_time || null,
-    served_valid_time: frame.served_valid_time || null,
-    frame_offset_hours: frame.frame_offset_hours ?? 0,
-    frame_substituted: !!frame.frame_substituted,
-  };
-  const product_id = `series_${model}_${layer}_h${frame.hour_offset}`;
-  // Audit #18/A3: mint the lineage tag ONCE here — recordTruthStage PRESERVES an existing tag, so
-  // commit and webglUpload share product_id + traceId. Without this the engine reconstructs a tag
-  // from the bare waveGrid (no product_id there) → "Product: undefined" + a divergent traceId, and
-  // the same-product previousStages filter never matches series frames. Stamped on the GRID because
-  // that's the object the engine sees (waveGrid.truthTag), and mirrored on the wrapper for the
-  // orchestratorCommit's marineData.truthTag read.
-  const truthTag = renderable ? buildTruthTag({
-    grid, model, domain: 'marine', layer,
-    valid_time: frame.valid_time, run_time: frame.run_time,
-    product_id, provider,
-    is_dynamic_viewport_product: true,
-    coverage_scope: frame.coverage_scope,
-  }, 'seriesFrameMint') : null;
-  if (truthTag) {
-    if (Number.isFinite(frame.hour_offset)) truthTag.timeOffsetHours = frame.hour_offset;
-    grid.truthTag = truthTag;
-    // Task #14 (2026-07-18): REGISTER the chain at its mint. Series frames legitimately commit
-    // through direct lanes (scrub-settle, clamp backstop, hour-0 revalidate) that never record an
-    // orchestratorCommit — their webglUpload then compared against the PREVIOUS chain's commit on
-    // the same stable product_id (series_*_h0) and console.error'd a false MISMATCH on every
-    // mini/series commit (TruthOverlay render storm rode the same spam). 'seriesFrameMint' is a
-    // START stage (exempt from backward comparison, arms the absence watchdog) so the upload
-    // compares within ITS OWN chain; real within-chain divergence still trips. Scope mirrors the
-    // tracker's GFS-waves@h0 gate. Kill: __RAW_DISABLE_SERIES_MINT_STAGE__.
-    if (model === 'GFS' && layer === 'waves' && frame.hour_offset === 0 &&
-        typeof window !== 'undefined' && !window.__RAW_DISABLE_SERIES_MINT_STAGE__) {
-      recordTruthStage('seriesFrameMint', {
-        model, domain: 'marine', layer,
-        valid_time: frame.valid_time, run_time: frame.run_time,
-        product_id, grid, truthTag,
-      }, 'marineGridSeries.js', 'mapSeriesFrame');
-    }
-  }
-  return {
-    type: 'FeatureCollection',
-    features: [],
-    grid,
-    __sourceModel: model,
-    __provider: provider,
-    __renderable: renderable,
-    __fromSeries: true,
-    hourOffset: frame.hour_offset,
-    ...(truthTag ? { truthTag } : {}),
-    product_id,
-    region_id: 'series',
-    is_dynamic_viewport_product: true,
-  };
+function scheduleIdlePrefetch(fn, signal) {
+  deferMarineSeries(fn, 1500, signal, true);
 }
 
 // Load ONE page of the series. Idempotent + TTL'd + deduped (keyed by page). Never throws.
-async function loadSeriesPage(model, layer, bounds, page, signal, force = false) {
-  if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
+async function loadSeriesPage(model, layer, bounds, page, signal, force = false, background = false) {
+  if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
   const key = pageKey(model, layer, bounds, page);
   // Padded request box (also used for the coverage-aware dedup below). Computed once here.
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
@@ -387,7 +255,12 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     }
     if (!coarseRetryDue && !coverageBroken && Date.now() - existing.ts < SERIES_TTL_MS) return;
   }
-  if (_inFlight.has(key)) return;
+  if (hasLiveFlight(key)) {
+    // Already loading. If it is still QUEUED as a background warm and someone now needs it on screen,
+    // it jumps the queue (A15-11); a load already running is left alone.
+    if (!background) promoteQueuedWarm(key);
+    return;
+  }
 
   const hours = buildPageHours(page, model);
   if (hours.length === 0) return;
@@ -403,6 +276,11 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`
+    // F-01 (audit 14.0): transmit the absolute anchor the hour offsets are measured from. Without
+    // it the backend floored its own clock while this client rounds its own, so the committed frame
+    // could sit one hour off the requested hour for half of every hour. Backend validates + bounds
+    // it and reports `base_time_source`; an older backend ignores the param (additive).
+    + seriesAnchorParam()
     + (surfFlavor ? '&surf=1' : '');
 
   // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
@@ -423,17 +301,20 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
   const p = (async () => {
     // Wait for a concurrency slot before hitting the 1-CPU backend. If the signal aborts while
     // we're queued, acquireSeriesSlot resolves false and we never fetch (superseded warm dropped).
-    const gotSlot = await acquireSeriesSlot(localController.signal);
+    const gotSlot = await acquireSeriesSlot(localController.signal, background, key);
     if (!gotSlot || localController.signal.aborted) {
-      _inFlight.delete(key);
-      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // ⛔ OUTSIDE the try/finally below so its removal never ran here: 10 added / 0 removed over 4 cycles. Do NOT move the acquire into the try (finally would over-release the slot). docs/runbooks/RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md
+      // Cancellation can follow acquisition (including a queued handoff) before this
+      // continuation runs. Return only an owned slot; queued drops own none.
+      if (gotSlot) releaseSeriesSlot(gotSlot);
+      finishFlight(key, p);
+      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } } // Preserve queued-drop listener cleanup; see RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md.
       return;
     }
     timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
     try {
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) {
-        // §4.3(b): a failed page (deploy-window 500, cold-start 502) retries bounded instead of
+        // §4.3(b): a failed page (deploy-window 500/502) retries bounded instead of
         // silently vanishing until the next gesture. Entries that already hold frames skip it.
         if (!localController.signal.aborted && !(existing && existing.frames && existing.frames.size)) {
           scheduleFailRetry(model, layer, bounds, page, signal, key, `http_${res.status}`);
@@ -441,6 +322,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
         return;
       }
       const json = await res.json();
+      if (localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) {
         // COLD-START retry (2026-07-06, chip task_e618f9ff): an empty series marked `warming`
         // means the backend is mid L2-restore (every deploy opens this window) — retry with the
@@ -455,7 +337,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
                 model, layer, page, warming: true, warmingRetries: prevWarm + 1,
               });
             }
-            armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(prevWarm + 1));
+            deferMarineSeries(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(prevWarm + 1), signal);
           }
         }
         return;
@@ -494,7 +376,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
       // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
       if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
-        armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal); }, coarseRevalDelayMs(revalCount));
+        deferMarineSeries(() => { loadSeriesPage(model, layer, bounds, page, signal); }, coarseRevalDelayMs(revalCount), signal);
       } else if (!isCoarsePreview && typeof window !== 'undefined') {
         // A REGIONAL frame just landed. Notify so a held coarse-global / clamped grid is sharpened
         // IMMEDIATELY (event-driven) instead of waiting on the ~3s render backstop's polling timer.
@@ -520,12 +402,13 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
         scheduleFailRetry(model, layer, bounds, page, signal, key, reason);
       }
     } finally {
-      releaseSeriesSlot(); // hand the slot to the next queued load
+      releaseSeriesSlot(gotSlot); // hand the slot to the next queued load (visible first)
       clearTimeout(timeoutId);
-      _inFlight.delete(key);
+      finishFlight(key, p);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
+  p.seriesSignal = localController.signal;
   _inFlight.set(key, p);
   // Awaiting here makes the load observable to callers that DO await (and tests); the
   // orchestrator calls this fire-and-forget (no await), so it stays a background load.
@@ -545,14 +428,15 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
 // backend absorbs the tiny request concurrently. Completion re-drive = the SAME
 // 'marine_series_revalidated' event the full page fires (event-driven sharpen, not the 3 s poll).
 // Kill: __RAW_DISABLE_HOUR0_FIRST__. Telemetry: __MARINE_SERIES_DIAG__.h0Loads/h0Served.
-async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
+async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, background = false) {
+  if (marineSeriesCallerAborted(signal)) return;
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
-  if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
-  const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the 3-hourly frame grid
+  if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || hasLiveFlight(h0key)) return;
+  const h = alignToCadenceGrid(Math.max(0, hourOffset), 3);   // T-01: snap to the UTC product grid, not anchor+3k
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));
@@ -561,16 +445,24 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${h}`
+    + seriesAnchorParam()   // F-01: same anchor as the paged lane
     + (surfFlavor ? '&surf=1' : '');
   const localController = new AbortController();
   const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };
   if (signal) { try { signal.addEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
-  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
+  let timeoutId = null;
+  let lane = null;
   const p = (async () => {
     try {
+      // A15-11: a visible mini starts at once (counted, so background work waits for it); a background
+      // warm's mini waits for the one background request (marineSeriesLimiter.js). The timeout starts with the fetch.
+      lane = await acquireMiniSlot(localController.signal, background);
+      if (!lane || localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
+      timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;                                   // silent: the full page is coming anyway
       const json = await res.json();
+      if (localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
       const f = json.frames.find((x) => typeof x.hour_offset === 'number' && x.vectors && x.vectors.length > 0);
       if (!f) return;
@@ -592,11 +484,13 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
         try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ }
       }
     } catch (e) { /* silent — full page is the safety net */ } finally {
-      clearTimeout(timeoutId);
-      _inFlight.delete(h0key);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (lane) releaseMiniSlot(lane);
+      finishFlight(h0key, p);
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
+  p.seriesSignal = localController.signal;
   _inFlight.set(h0key, p);
   await p;
 }
@@ -606,8 +500,8 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
  * then prefetch adjacent page(s) during idle. Idempotent + TTL'd + deduped. No-op when the
  * flag is off. Never throws. hourOffset defaults to 0 (near page) for legacy callers.
  */
-export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false) {
-  if (!isMarineSeriesEnabled() || !bounds) return;
+export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false, background = false) {
+  if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   // HOUR-0-FIRST: when the current page is COLD, race a 1-hour mini load ahead of it
   // (fire-and-forget — it must not delay the page load it exists to beat). Fires on EVERY cold
@@ -622,20 +516,20 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   const _pk = pageKey(model, layer, bounds, page);
   const _pc = _seriesCache.get(_pk);
   if (!(_pc && _pc.frames && _pc.frames.size && Date.now() - _pc.ts < SERIES_TTL_MS)) {
-    loadSeriesHour0(model, layer, bounds, hourOffset, signal);
+    loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
   }
-  await loadSeriesPage(model, layer, bounds, page, signal, force);
+  await loadSeriesPage(model, layer, bounds, page, signal, force, background);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
   // pages (future-hour frames, for scrubbing) would be wasted 1-CPU backend load on the siblings.
-  if (currentPageOnly) return;
+  if (currentPageOnly || marineSeriesCallerAborted(signal)) return;
   // Prefetch neighbours during idle so scrubbing into an adjacent page is already warm.
   for (const adj of [page + 1, page - 1]) {
     if (adj < 0 || adj > lastPageFor(model)) continue;
     const k = pageKey(model, layer, bounds, adj);
     const cached = _seriesCache.get(k);
-    if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || _inFlight.has(k)) continue;
-    scheduleIdlePrefetch(() => { loadSeriesPage(model, layer, bounds, adj, signal); });
+    if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || hasLiveFlight(k)) continue;
+    scheduleIdlePrefetch(() => { loadSeriesPage(model, layer, bounds, adj, signal, false, true); }, signal); // a warm
   }
 }
 
@@ -646,7 +540,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
  * hours otherwise held the previous frame until settle. Fire-and-forget; deduped + TTL'd.
  */
 export function prewarmMarineSeries(model, layer, bounds, signal) {
-  if (!isMarineSeriesEnabled() || !bounds) return;
+  if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
   // Kill: __RAW_DISABLE_SERIES_PREWARM__=true. ⛔ Measured: OFF is a REGRESSION, not a fix (-5 of
   // 63 reqs, moves work INTO the gesture) — docs/research/FINDING-2026-08-09-the-prewarm-is-not-the-cause.md
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_PREWARM__ === true) return;
@@ -655,21 +549,15 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
   // scrub+toggle. Skip the eager prewarm for EURO — its lazy current-page load handles it. GFS &
   // ICON just re-slice a cheap cached coarse product, so prewarming all pages is safe + fast.
   if ((model || 'GFS').toUpperCase() === 'EURO') return;
+  // BACKGROUND (A15-11, 2026-09-28). These pages are warmed for scrubbing, not shown: the page on screen is
+  // loaded visible by the caller's ensureMarineSeries, and a visible request for a page still queued here
+  // promotes it. Loaded visible, the next page took a slot 600 ms after every toggle (dev E2E 36367984954,
+  // Safari: the current page + this one + the gesture's mini + its world /grid beside a background request).
   for (let page = 0, last = lastPageFor(model); page <= last; page++) {
-    loadSeriesPage(model, layer, bounds, page, signal);
+    loadSeriesPage(model, layer, bounds, page, signal, false, true);
   }
 }
 
-
-// Nearest frame (within ±1.5h, 3-hourly) for an hour within one cache entry, or null.
-function nearestFrameInEntry(entry, hourOffset) {
-  let best = null, bestDiff = Infinity;
-  for (const h of entry.hours) {
-    const d = Math.abs(h - hourOffset);
-    if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
-  }
-  return (best !== null && bestDiff <= 1.5) ? { frame: best, diff: bestDiff } : null;
-}
 
 /**
  * Return a ready-to-commit marineData for the requested hour from the cached series, or
@@ -709,6 +597,13 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
       const d = Math.abs(h - hourOffset);
       if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
     }
+  }
+  // An exact-key hit is not the end of the search: a coarse tile forced under this key must not beat a finer covering one
+  // (the paused churn's series-entry half, marineSeriesFinerEntry.js).
+  if (best !== null && bestDiff <= 1.5 && isRegionalViewport) {
+    const pick = finestCoveringSeriesFrame(_seriesCache.values(), { frame: best, diff: bestDiff },
+      { model, layer, surf: getSurfModeFlag(), bounds, hourOffset, now, ttlMs: SERIES_TTL_MS });
+    best = pick.frame; bestDiff = pick.diff;
   }
   // Containment fallback: the exact viewport key missed (e.g. just zoomed in / panned a bit), but
   // a WIDER already-warmed series (same model/layer, page-proximate) whose bbox CONTAINS this
@@ -779,22 +674,26 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     }
     best = null;
   }
+  // A thin world frame drops narrow swells between cells. Under the qualified policy, keep
+  // the resident field while the ordinary exact-grid path loads; applies to play and manual scrub.
+  if (best && exactGfsPlaybackEnabled(model, layer) && isThinnedWorldGrid(best.grid)) best = null;
   if (best === null || bestDiff > 1.5) {
     if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) window.__MARINE_SERIES_DIAG__.misses++;
     return null;
   }
   if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) window.__MARINE_SERIES_DIAG__.hits++;
+  _seriesCache.touchFrame(best);
   return best;
 }
 
 export function _resetMarineSeriesForTest() {
   _seriesCache.clear();
   _inFlight.clear();
-  for (const id of _idleTimers) {
-    try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) { /* ignore */ }
-  }
-  _idleTimers.clear();
-  _seriesActiveLoads = 0;
-  _seriesWaiters.length = 0;
+  resetMarineSeriesDeferred();
+  _resetSeriesLimiterForTest();
   _failRetries.clear();
+}
+
+export function _marineSeriesCacheState() {
+  return { entries: _seriesCache.size, estimatedBytes: _seriesCache.estimatedBytes ?? null };
 }

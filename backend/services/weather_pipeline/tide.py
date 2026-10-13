@@ -1,31 +1,165 @@
 """
 tide.py — global tide level at any surf spot, for the rating's tide_fit factor (plan §4 P4).
 
-Source: Open-Meteo Marine ``sea_level_height_msl`` (hourly tidal height in metres, GLOBAL, free, no key, by
+Source: Open-Meteo Marine ``sea_level_height_msl`` (sea-level height including tides, metres above global
+mean sea level; not a chart-datum or pure astronomical tide measurement), by
 LAT/LNG). This deliberately sidesteps the NOAA CO-OPS path (US stations only + needs a per-spot station map) —
 a lat/lng source covers every spot worldwide with no schema change. Open-Meteo stays our FALLBACK provider, so
 using it for a variable the direct sources don't carry (tide) is consistent.
 
-Pure helpers (normalize / tide_state_at) are unit-tested; the async fetch is TTL-cached by rounded lat/lng so
-the precompute loop (and the live endpoint) hit the API at most once per ~11 km area per TTL — tide changes
-slowly and one hourly series covers the whole forecast window. Never raises: a tide miss -> neutral rating.
+Pure helpers (normalize / tide_state_at) are unit-tested. Acquisition shares a horizon-aware cache and
+per-cell locks across point requests and batch prewarming. Failures return unavailable with a timed
+cooldown; cancellation propagates. No retry loop or detached request is started.
 """
+import asyncio
+from contextlib import asynccontextmanager
 import logging
+import math
 import time
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 OPEN_METEO_MARINE_API = "https://marine-api.open-meteo.com/v1/marine"
-_TIDE_TTL_S = 3 * 3600.0          # tide series is stable for hours; refetch a spot-area at most every 3h
+_TIDE_TTL_S = 3 * 3600.0          # maximum cache age, provided the requested day range is covered
 _TIDE_CACHE = {}                  # (lat_r, lng_r) -> {"ts", "time":[...], "level":[...]}
 _TIDE_CACHE_MAX = 2000
+_TIDE_FAILURE_COOLDOWN_S = 30.0
+_TIDE_POINT_TIMEOUT_S = 15.0
+_TIDE_BATCH_TIMEOUT_S = 60.0
+_TIDE_FAILURE_UNTIL = {}
+_TIDE_RATE_LIMIT_UNTIL = 0.0
+_TIDE_LOCKS = {}  # (event loop, rounded cell) -> [lock, active/queued users]; removed after last user
 
 
 def _round_key(lat, lng):
     """~0.1° (~11 km) cache key so nearby spots share one tide fetch."""
     return (round(float(lat), 1), round(float(lng), 1))
+
+
+def _cached_series(key, forecast_days, now):
+    hit = _TIDE_CACHE.get(key)
+    if not hit or not 0 <= now - hit["ts"] < _TIDE_TTL_S:
+        return None
+    # A three-day request made yesterday does not cover the last day of today's request.
+    through_day = hit.get("through_day", int(hit["ts"] // 86400) + 3)
+    if through_day < int(now // 86400) + forecast_days:
+        return None
+    return {"time": hit["time"], "level": hit["level"]}
+
+
+@asynccontextmanager
+async def _acquire_cells(keys):
+    """Waiters recheck the cache under the lock. Cancellation owns no detached HTTP work.
+
+    Sorted acquisition prevents overlapping batches from deadlocking. Reference counts cover
+    both holders and queued callers, so cleanup cannot create two locks for an active cell.
+    Locks are event-loop scoped; no future can be awaited from a different loop.
+    """
+    entries, acquired = [], []
+    loop = asyncio.get_running_loop()
+    try:
+        for cell in sorted(set(keys)):
+            key = (loop, cell)
+            entry = _TIDE_LOCKS.setdefault(key, [asyncio.Lock(), 0])
+            entry[1] += 1
+            entries.append((key, entry))
+        for _, entry in entries:
+            await entry[0].acquire()
+            acquired.append(entry[0])
+        yield
+    finally:
+        for lock in reversed(acquired):
+            lock.release()
+        for key, entry in entries:
+            entry[1] -= 1
+            if entry[1] == 0:
+                _TIDE_LOCKS.pop(key, None)
+
+
+def _cooling_down(key):
+    now = time.monotonic()
+    until = _TIDE_FAILURE_UNTIL.get(key, 0.0)
+    if until <= now:
+        _TIDE_FAILURE_UNTIL.pop(key, None)
+    return now < max(until, _TIDE_RATE_LIMIT_UNTIL)
+
+
+def _record_failure(keys, response=None):
+    """Refuse new acquisition for 30s, or a longer finite server Retry-After on HTTP429.
+
+    This is a deadline, not a sleep or retry. A quota refusal protects all tide cells in this
+    process, including the per-point fallback after a failed batch. No payload/URL is logged.
+    """
+    global _TIDE_RATE_LIMIT_UNTIL
+    delay = _TIDE_FAILURE_COOLDOWN_S
+    status = getattr(response, 'status_code', None)
+    if status == 429:
+        value = getattr(response, 'headers', {}).get('Retry-After', '')
+        try:
+            try:
+                requested = float(value)
+            except (TypeError, ValueError):
+                retry_at = parsedate_to_datetime(value)
+                if retry_at.tzinfo is None:  # obsolete HTTP-date forms still mean GMT
+                    retry_at = retry_at.replace(tzinfo=timezone.utc)
+                requested = retry_at.timestamp() - time.time()
+            if math.isfinite(requested) and requested > delay:
+                delay = requested
+        except (TypeError, ValueError, OverflowError):
+            pass
+    now = time.monotonic()
+    until = now + delay
+    if not math.isfinite(until):
+        until = now + _TIDE_FAILURE_COOLDOWN_S
+    if status == 429:
+        _TIDE_RATE_LIMIT_UNTIL = max(_TIDE_RATE_LIMIT_UNTIL, until)
+    for key in keys:
+        if key not in _TIDE_FAILURE_UNTIL and len(_TIDE_FAILURE_UNTIL) >= _TIDE_CACHE_MAX:
+            _TIDE_FAILURE_UNTIL.pop(min(_TIDE_FAILURE_UNTIL, key=_TIDE_FAILURE_UNTIL.get))
+        _TIDE_FAILURE_UNTIL[key] = until
+    logger.warning('[tide] acquisition unavailable: status=%s cells=%d cooldown_s=%.1f',
+                   status, len(keys), until - now)
+
+
+async def _fetch_json(url, keys, client, timeout):
+    try:
+        if client is None:
+            import httpx
+            async with httpx.AsyncClient(timeout=timeout) as owned:
+                response = await owned.get(url)
+        else:
+            response = await client.get(url)
+        if response.status_code != 200:
+            _record_failure(keys, response)
+            return None
+        data = response.json()
+        if data is None:
+            _record_failure(keys)
+        return data
+    except Exception as exc:
+        # CancelledError is a BaseException and deliberately propagates through client/lock cleanup.
+        logger.debug('[tide] acquisition exception: %s', type(exc).__name__)
+        _record_failure(keys)
+        return None
+
+
+def _store_series(key, item, forecast_days, requested_at):
+    hourly = item.get('hourly') if isinstance(item, dict) else None
+    times = hourly.get('time') if isinstance(hourly, dict) else None
+    levels = hourly.get('sea_level_height_msl') if isinstance(hourly, dict) else None
+    if not isinstance(times, list) or not isinstance(levels, list) or not times or len(times) != len(levels):
+        _record_failure([key])
+        return False
+    if key not in _TIDE_CACHE and len(_TIDE_CACHE) >= _TIDE_CACHE_MAX:
+        # Evict one oldest entry; clearing the entire cache would create another cold request burst.
+        _TIDE_CACHE.pop(min(_TIDE_CACHE, key=lambda k: _TIDE_CACHE[k]['ts']))
+    _TIDE_CACHE[key] = {'ts': requested_at, 'time': times, 'level': levels,
+                        'through_day': int(requested_at // 86400) + forecast_days}
+    _TIDE_FAILURE_UNTIL.pop(key, None)
+    return True
 
 
 def _parse_iso(s):
@@ -193,39 +327,38 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
 async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Optional[dict]:
     """Fetch the hourly tide series (sea_level_height_msl) for (lat,lng) from Open-Meteo Marine, TTL-cached by
     rounded coords. Returns {"time":[...], "level":[...]} or None. Uses an injected async client when given
-    (tests); never raises."""
+    (tests). Unavailable data returns None; caller cancellation propagates."""
     key = _round_key(lat, lng)
-    now = time.time()
-    hit = _TIDE_CACHE.get(key)
-    if hit and (now - hit["ts"]) < _TIDE_TTL_S:
-        return {"time": hit["time"], "level": hit["level"]}
-    url = (f"{OPEN_METEO_MARINE_API}?latitude={key[0]}&longitude={key[1]}"
-           f"&hourly=sea_level_height_msl&forecast_days={forecast_days}&timezone=GMT")
+    return await _within_budget(_fetch_point(key, client, forecast_days), [key],
+                                _TIDE_POINT_TIMEOUT_S, None)
+
+
+async def _within_budget(operation, keys, seconds, unavailable):
+    """Bound lock waiting plus HTTP together; external caller cancellation still propagates."""
     try:
-        if client is not None:
-            resp = await client.get(url)
-            data = resp.json() if resp.status_code == 200 else None
-        else:
-            import httpx
-            async with httpx.AsyncClient(timeout=15) as c:
-                resp = await c.get(url)
-                data = resp.json() if resp.status_code == 200 else None
-    except Exception as e:
-        logger.debug(f"[tide] fetch failed for {key}: {e}")
-        return None
-    if not data or "hourly" not in data:
-        return None
-    h = data["hourly"]
-    times, levels = h.get("time"), h.get("sea_level_height_msl")
-    if not times or not levels:
-        return None
-    if len(_TIDE_CACHE) >= _TIDE_CACHE_MAX:
-        _TIDE_CACHE.clear()
-    _TIDE_CACHE[key] = {"ts": now, "time": times, "level": levels}
-    return {"time": times, "level": levels}
+        async with asyncio.timeout(seconds):
+            return await operation
+    except TimeoutError:
+        logger.warning('[tide] acquisition budget exhausted: cells=%d budget_s=%.1f', len(keys), seconds)
+        _record_failure(keys)
+        return unavailable
 
 
-def _prewarm_keys(latlngs, now=None):
+async def _fetch_point(key, client, forecast_days):
+    async with _acquire_cells([key]):
+        now = time.time()
+        hit = _cached_series(key, forecast_days, now)
+        if hit is not None or _cooling_down(key):
+            return hit
+        url = (f"{OPEN_METEO_MARINE_API}?latitude={key[0]}&longitude={key[1]}"
+               f"&hourly=sea_level_height_msl&forecast_days={forecast_days}&timezone=GMT")
+        data = await _fetch_json(url, [key], client, _TIDE_POINT_TIMEOUT_S)
+        if data is not None and _store_series(key, data, forecast_days, now):
+            return _cached_series(key, forecast_days, now)
+        return None
+
+
+def _prewarm_keys(latlngs, now=None, forecast_days=3):
     """PURE: unique rounded cache keys from (lat,lng) pairs that are not already cache-fresh — the batch
     prewarm's work list. Order-preserving so a chunk's results zip back to its keys."""
     now = time.time() if now is None else now
@@ -241,8 +374,7 @@ def _prewarm_keys(latlngs, now=None):
         if k in seen:
             continue
         seen.add(k)
-        hit = _TIDE_CACHE.get(k)
-        if hit and (now - hit["ts"]) < _TIDE_TTL_S:
+        if _cached_series(k, forecast_days, now) is not None:
             continue
         keys.append(k)
     return keys
@@ -254,41 +386,36 @@ async def prewarm_tide_cache(latlngs, client=None, forecast_days: int = 3, chunk
     2026-07-18). The ratings precompute calls this once per run — a fresh CI process would otherwise
     cold-fetch ~900 spot-cells one request at a time inside rate_one_spot (quota + tail latency); batched
     it's ~10 requests for ~1500 spots. Requests use the ROUNDED key coords, exactly what fetch_tide_hourly
-    would request, so the seeded entries are byte-identical to the per-spot path's. Never raises; returns
-    the number of cells seeded."""
-    keys = _prewarm_keys(latlngs)
+    would request, so the seeded entries have the same values as the per-spot path. Failures cool down
+    without seeding data; cancellation propagates. Returns the number of cells seeded."""
+    keys = _prewarm_keys(latlngs, forecast_days=forecast_days)
     seeded = 0
     for i in range(0, len(keys), chunk_size):
         chunk = keys[i:i + chunk_size]
+        if time.monotonic() < _TIDE_RATE_LIMIT_UNTIL:
+            break
+        seeded += await _within_budget(_prewarm_chunk(chunk, client, forecast_days), chunk,
+                                       _TIDE_BATCH_TIMEOUT_S, 0)
+    return seeded
+
+
+async def _prewarm_chunk(chunk, client, forecast_days):
+    async with _acquire_cells(chunk):
+        now = time.time()
+        chunk = [k for k in chunk if _cached_series(k, forecast_days, now) is None and not _cooling_down(k)]
+        if not chunk:
+            return 0
         url = (f"{OPEN_METEO_MARINE_API}?latitude={','.join(str(k[0]) for k in chunk)}"
                f"&longitude={','.join(str(k[1]) for k in chunk)}"
                f"&hourly=sea_level_height_msl&forecast_days={forecast_days}&timezone=GMT")
-        try:
-            if client is not None:
-                resp = await client.get(url)
-                data = resp.json() if resp.status_code == 200 else None
-            else:
-                import httpx
-                async with httpx.AsyncClient(timeout=60) as c:
-                    resp = await c.get(url)
-                    data = resp.json() if resp.status_code == 200 else None
-        except Exception as e:
-            logger.debug(f"[tide] prewarm chunk failed ({len(chunk)} cells): {e}")
-            continue
-        if not data:
-            continue
-        results = data if isinstance(data, list) else [data]   # a 1-coord batch comes back as a bare object
-        now = time.time()
-        for k, item in zip(chunk, results):
-            h = (item or {}).get("hourly") or {}
-            times, levels = h.get("time"), h.get("sea_level_height_msl")
-            if not times or not levels:
-                continue
-            if len(_TIDE_CACHE) >= _TIDE_CACHE_MAX:
-                _TIDE_CACHE.clear()
-            _TIDE_CACHE[k] = {"ts": now, "time": times, "level": levels}
-            seeded += 1
-    return seeded
+        data = await _fetch_json(url, chunk, client, _TIDE_BATCH_TIMEOUT_S)
+        if data is None:
+            return 0
+        results = data if isinstance(data, list) else [data]
+        if len(results) != len(chunk):
+            _record_failure(chunk)
+            return 0
+        return sum(int(_store_series(k, item, forecast_days, now)) for k, item in zip(chunk, results))
 
 
 async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
@@ -301,4 +428,8 @@ async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
 
 
 def _reset_tide_cache_for_test():
+    global _TIDE_RATE_LIMIT_UNTIL
     _TIDE_CACHE.clear()
+    _TIDE_FAILURE_UNTIL.clear()
+    _TIDE_RATE_LIMIT_UNTIL = 0.0
+    assert not _TIDE_LOCKS, 'tide callers must finish/cancel before resetting acquisition state'

@@ -1,0 +1,23 @@
+PASS src/components/map/marineGlobalPrewarm.seriesReuse.test.js
+  ● Console
+
+    console.log
+      [WEATHER_TRUTH] Stage: seriesFrameMint | TraceID: 102fc659 | Product: series_GFS_waves_h0 | Status: OK
+
+      at recordTruthStage (src/components/map/weatherTruthTracker.js:353:13)
+
+    console.log
+      [WEATHER_TRUTH] Stage: cacheRead | TraceID: 102fc659 | Product: series_GFS_waves_h0 | Status: OK
+
+      at recordTruthStage (src/components/map/weatherTruthTracker.js:353:13)
+
+PASS src/components/map/marineGridSeries.globalPrewarm.test.js
+PASS src/__tests__/marineCoarseBridgeModelSwitch.test.js
+PASS src/components/map/marineController.globalSeriesPrewarm.test.js
+PASS src/__tests__/globalGridCacheKeyParity.test.js
+
+Test Suites: 5 passed, 5 total
+Tests:       40 passed, 40 total
+Snapshots:   0 total
+Time:        8.915 s
+Ran all test suites matching /marineGlobalPrewarm.seriesReuse|marineController.globalSeriesPrewarm|marineGridSeries.globalPrewarm|marineCoarseBridgeModelSwitch|globalGridCacheKeyParity/i.

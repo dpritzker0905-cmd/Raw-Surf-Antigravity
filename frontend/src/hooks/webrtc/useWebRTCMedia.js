@@ -55,11 +55,11 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
  // --- Step 1: Always acquire audio first ---
   let audioStream;
   try {
- logger.debug('[WebRTC] Step 1 -- requesting audio-onlyG');
+    logger.debug('[WebRTC] Step 1 -- requesting audio-only...');
     audioStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
- logger.debug('[WebRTC] G Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
+    logger.debug('[WebRTC] Audio acquired:', audioStream.getAudioTracks().length, 'track(s)');
   } catch (err) {
- console.error('[WebRTC] G Audio request failed:', err.name, err.message);
+    console.error('[WebRTC] Audio request failed:', err.name, err.message);
     throw err; // No audio = no call possible
   }
 
@@ -80,7 +80,7 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     try {
  logger.debug('[WebRTC] Step 2 -- trying video with:', JSON.stringify(constraints));
       videoStream = await navigator.mediaDevices.getUserMedia(constraints);
- logger.debug('[WebRTC] G Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
+      logger.debug('[WebRTC] Video acquired:', videoStream.getVideoTracks().length, 'track(s)');
       break;
     } catch (err) {
       console.warn('[WebRTC] Video attempt failed:', constraints, err.name, err.message);
@@ -92,12 +92,12 @@ export async function getMediaStream(type = 'audio', facingMode = 'user') {
     const combined = new MediaStream();
     audioStream.getAudioTracks().forEach(t => combined.addTrack(t));
     videoStream.getVideoTracks().forEach(t => combined.addTrack(t));
- logger.debug('[WebRTC] G Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
+    logger.debug('[WebRTC] Combined stream:', combined.getAudioTracks().length, 'audio,', combined.getVideoTracks().length, 'video');
     return combined;
   }
 
  // Video failed at all constraint levels -- fall back to audio-only
- console.warn('[WebRTC] Gn+ All video attempts failed, falling back to audio-only');
+  console.warn('[WebRTC] All video attempts failed, falling back to audio-only');
   toast('Camera unavailable \u{2014} continuing with audio only', { icon: '\u{1F4F9}' });
   return audioStream;
 }

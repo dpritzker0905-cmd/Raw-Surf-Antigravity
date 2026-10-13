@@ -135,7 +135,15 @@ def test_komar_breaker_height():
     assert st.komar_breaker_height(1.0, 16.0) > st.komar_breaker_height(1.0, 8.0)
 
 
-def test_shelf_dissipation():
+@pytest.fixture
+def legacy_friction(monkeypatch):
+    """The friction MECHANISM at its pre-2026-09-28 scale (0.25). The served default is 0 (SHELF_CF_SCALE_DEFAULT:
+    the model field at a shelf cell already carries bed friction), so these pin the lever, not the default --
+    without this they would pass vacuously at Kf == 1.0 everywhere."""
+    monkeypatch.setenv("SURF_SHELF_CF_SCALE", "0.25")
+
+
+def test_shelf_dissipation(legacy_friction):
     # deep water or zero shelf width -> no loss
     assert st.shelf_dissipation(12.0, 3000.0, 100.0) == pytest.approx(1.0, abs=1e-9)
     assert st.shelf_dissipation(10.0, 20.0, 0.0) == pytest.approx(1.0)
@@ -240,7 +248,7 @@ def test_estimate_surf_steep_shelf_breaks_taller():
     assert lf == pytest.approx(ls), "long-period: both paths clamp to the field ceiling"
 
 
-def test_estimate_surf_wider_shelf_reduces_more():
+def test_estimate_surf_wider_shelf_reduces_more(legacy_friction):
     # THE key physics fix: a wider shelf (more cross-shelf friction) gives smaller surf for the same swell.
     narrow, _ = st.estimate_surf(2.0, 10.0, 25.0, coastal=True, shelf_width_km=20.0)
     wide, _ = st.estimate_surf(2.0, 10.0, 25.0, coastal=True, shelf_width_km=120.0)
@@ -275,14 +283,27 @@ async def test_resolve_point_attaches_surf_for_marine(monkeypatch):
             value_kind="wave_height", value_unit="m", display_unit_hint="ft",
             source_variables=["wave_height"], freshness_sec=1800)
 
-    # Cape Canaveral marine waves: a WIDE SHALLOW shelf -> surf attached AND SMALLER than the offshore swell
+    # Cape Canaveral marine waves: a WIDE SHALLOW shelf -> surf attached, and the shelf does not AMPLIFY the sea.
+    # RE-STATED 2026-09-28 (Kr 0.873, #120; friction off, #146). The old bound "surf < offshore" was the friction-era
+    # premise that the chain itself must shrink a Florida sea. The served field at this cell is already shelf water
+    # (WW3 carries the bed friction), and the regime stays 'shelf' (the Hs statistic does not grow); the published
+    # height exceeds offshore only by the H1/10 surf convention (x1.27). Evidence: GFS-Wave itself reads the FL east
+    # coast x1.10-1.27 high at the buoys (audit/.../evidence/input_bias_by_region_2026-09-28T22Z.json), while the
+    # transform reads ~13% low there as everywhere (the nearshore judge). Big seas still come out below offshore.
+    from services.weather_pipeline.surf_height_convention import H110_OVER_HS
     async def fake_marine(**kw):
         return _resp("marine", "waves", 28.4, -80.55, 2.0, 10.0)
     monkeypatch.setattr(svc, "_resolve_point_internal", fake_marine)
     r = await svc.resolve_point("GFS", "marine", "waves", 28.4, -80.55, "2026-06-28T00:00:00Z")
-    assert r.surf_regime in ("shelf", "breaking")                    # friction-dominated coastal break
-    assert r.surf_height_m is not None and 0 < r.surf_height_m < 2.0  # Florida shelf shrinks it (the fix)
+    assert r.surf_regime == "shelf"                                  # the Hs statistic does not grow here
+    assert r.surf_height_m is not None and 0 < r.surf_height_m <= 2.0 * H110_OVER_HS  # only the surf convention
     assert r.shelf_depth_m is not None and r.shelf_depth_m < 200
+
+    async def fake_big(**kw):
+        return _resp("marine", "waves", 28.4, -80.55, 4.0, 10.0)
+    monkeypatch.setattr(svc, "_resolve_point_internal", fake_big)
+    rb = await svc.resolve_point("GFS", "marine", "waves", 28.4, -80.55, "2026-06-28T00:00:00Z")
+    assert rb.surf_regime == "shelf" and 0 < rb.surf_height_m < 4.0  # the negative-direction control: a big sea shrinks
 
     # Deep open ocean (no nearby land) -> open_ocean, surf == offshore swell (hidden by the infobox)
     async def fake_deep(**kw):
@@ -383,7 +404,7 @@ def test_nonsense_break_depth_is_ignored():
 # extrapolated far outside its calibration and left Salthill Beach retaining 0.4% of its swell —
 # permanently flat, worse than a naive baseline.
 
-def test_shelf_dissipation_never_claims_more_loss_than_the_cited_literature():
+def test_shelf_dissipation_never_claims_more_loss_than_the_cited_literature(legacy_friction):
     """Ardhuin et al. (2003): a maximum 93% ENERGY reduction on the widest shelves, so height ~
     sqrt(energy) puts the source-consistent floor at sqrt(0.07) = 0.265.
 
@@ -404,7 +425,7 @@ def test_shelf_dissipation_never_claims_more_loss_than_the_cited_literature():
                 assert st.shelf_dissipation(tp, d, w) >= st.SHELF_KF_FLOOR - 1e-12
 
 
-def test_the_floor_only_ever_restores_height_never_removes_more():
+def test_the_floor_only_ever_restores_height_never_removes_more(legacy_friction):
     """It must be incapable of making a currently-good spot worse."""
     import os as _os
     prior = _os.environ.get("SURF_SHELF_KF_FLOOR")
@@ -424,7 +445,7 @@ def test_the_floor_only_ever_restores_height_never_removes_more():
             _os.environ["SURF_SHELF_KF_FLOOR"] = prior
 
 
-def test_the_floor_is_inert_inside_the_calibration_envelope():
+def test_the_floor_is_inert_inside_the_calibration_envelope(legacy_friction):
     """The documented case (~80-100 km wide, ~25 m deep, ~8-10 s) must be BYTE-IDENTICAL — the
     formula still reproduces its stated ~0.85 there, and the floor must not touch it."""
     assert st.shelf_dissipation(9.0, 25.0, 90.0) == pytest.approx(0.844, abs=0.005)
@@ -433,7 +454,7 @@ def test_the_floor_is_inert_inside_the_calibration_envelope():
         assert st.shelf_dissipation(tp, d, w) > st.SHELF_KF_FLOOR
 
 
-def test_shelf_kf_floor_kill_switch_restores_the_unbounded_form():
+def test_shelf_kf_floor_kill_switch_restores_the_unbounded_form(legacy_friction):
     import math as _math
     import os as _os
     prior = _os.environ.get("SURF_SHELF_KF_FLOOR")

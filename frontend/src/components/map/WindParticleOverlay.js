@@ -197,6 +197,8 @@ function WindParticleOverlayInner({ mapInstance, active, data, id, theme }) {
 
   useEffect(function() { activeRef.current = active; }, [active]);
   useEffect(function() { themeRef.current = theme; }, [theme]);
+  // While this Canvas2D fallback is the wind's renderer the WebGL engine is not: say so, so the legend bar stays the particle ramp these marks sample (WindColorRamp.js windLightPathOn).
+  useEffect(function() { window.__WIND_CANVAS_FALLBACK__ = true; return function() { delete window.__WIND_CANVAS_FALLBACK__; }; }, []);
   useEffect(function() {
     if (data?.vectors?.length && data.renderable !== false) {
       dataRef.current = data;

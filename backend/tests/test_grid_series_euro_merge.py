@@ -154,25 +154,28 @@ def _gfs_product():
     )
 
 
-def test_gfs_series_first_hour_warms_regional_via_none_background_tasks():
-    """The zoom-in clamp backend fix: the FIRST hour must pass background_tasks=None so resolve_grid's SWR
-    revalidation (which builds + caches the precise regional viewport tile) actually fires; the rest pass a
-    throwaway BackgroundTasks so we don't fan out N background fetches on the 1-CPU box."""
-    calls = []  # (valid_time, background_tasks is None)
+def test_gfs_series_first_hour_is_the_only_warm_frame():
+    """The zoom-in clamp backend fix: the FIRST hour must be allowed to revalidate so resolve_grid's SWR
+    sharpen (which builds + caches the precise regional viewport tile) actually fires; the rest must not, so
+    we don't fan out N background fetches on the 1-CPU box.
+    Until 2026-10-09 "the rest" got a throwaway BackgroundTasks, which registered queue keys nothing ever ran
+    or released (tests/test_reval_viewed_hour_wins.py). Every frame now says what it is with a SeriesFrame."""
+    from services.weather_pipeline.reval_queue import SeriesFrame
+    calls = []  # (valid_time, background_tasks)
 
     async def recording_resolve(*, model, domain, layer, valid_time, bbox, surf=False, background_tasks=None, request=None):
-        calls.append((valid_time, background_tasks is None))
+        calls.append((valid_time, background_tasks))
         return _gfs_product()
 
     out = asyncio.run(build_grid_series(
         recording_resolve, None, "GFS", "marine", "waves", "-81,27,-80,28", "0,3,6",
     ))
     assert out["frame_count"] == 3
-    # The FIRST hour built (sorted -> hour 0) warmed the regional tile (background_tasks=None) ...
-    assert calls[0][1] is True
-    # ... and EXACTLY one hour did, with all others using a real (throwaway) BackgroundTasks.
-    assert sum(1 for (_, is_none) in calls if is_none) == 1
-    assert all(is_none is False for (_, is_none) in calls[1:])
+    assert all(isinstance(bg, SeriesFrame) for (_, bg) in calls)
+    # The FIRST hour built (sorted -> hour 0) is the warm frame ...
+    assert calls[0][1].warm is True
+    # ... and EXACTLY one hour is.
+    assert sum(1 for (_, bg) in calls if bg.warm) == 1
 
 
 def _fast_path_frames(hour_list):

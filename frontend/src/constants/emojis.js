@@ -16,6 +16,13 @@
 // ---  Quick-access row (top row, surf-first) ---
 export const QUICK_ACCESS_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F64C}', '\u{2764}\u{FE0F}', '\u{1F44F}', '\u{1F60E}', '\u{1F4AA}'];
 
+// ---  Note picker (messages/CreateNoteModal.js + ProfileNoteModal.js) ---
+// The 12-emoji set both note modals shipped with, recovered from their first commits.
+// da30f15d's non-ASCII sweep had reduced both inline copies to '=' x11 and 'Gn+'/'G', so the
+// pickers inserted literal '=' into notes. Shaka, Wave, Surfer, Fire, 100, Cool, Sunrise, Shell,
+// Shark, Sun, Palm, Sparkles.
+export const NOTE_EMOJIS = ['\u{1F919}', '\u{1F30A}', '\u{1F3C4}', '\u{1F525}', '\u{1F4AF}', '\u{1F60E}', '\u{1F305}', '\u{1F41A}', '\u{1F988}', '\u{2600}\u{FE0F}', '\u{1F334}', '\u{2728}'];
+
 // ---  Reaction emojis for post/comment/message reactions ---
 // SYNC CONTRACT: Must match backend/routes/posts/schemas.py -- VALID_REACTIONS
 // Verified in-sync v103: both lists are 10 identical codepoints in the same order.

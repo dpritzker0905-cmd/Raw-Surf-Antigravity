@@ -23,7 +23,8 @@ import apiClient from '../lib/apiClient';
 import { getFullUrl } from '../utils/media';
 import {
   X, Send, Mic, StopCircle, MessageCircle, ChevronDown,
-  Loader2, Check, CheckCheck, Zap
+  Loader2, Check, CheckCheck, Zap,
+  Navigation, MapPin, Car, ThumbsUp, HelpCircle, Clock, Eye, Camera, Waves, Heart
 } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
@@ -31,16 +32,16 @@ import logger from '../utils/logger';
 
 // Quick replies for on-demand session coordination
 const SESSION_QUICK_REPLIES = [
- { id: 'omw', text: "On my way! =", icon: '=' },
- { id: 'arrived', text: "Just arrived at the spot =", icon: '=' },
- { id: 'parking', text: "Looking for parking =+n+", icon: '=+n+' },
- { id: 'ready', text: "Ready when you are! =", icon: '=' },
- { id: 'where', text: "Where exactly are you?", icon: '=' },
-  { id: 'running_late', text: "Running a few minutes late ?", icon: '?' },
- { id: 'looking', text: "I'm looking for you =", icon: '=' },
- { id: 'found', text: "Found you! Starting session =+", icon: '=+' },
- { id: 'waves', text: "Waves are looking good! =", icon: '=' },
- { id: 'thanks', text: "Thanks for the session! =", icon: '=' },
+  { id: 'omw', text: "On my way!", Icon: Navigation },
+  { id: 'arrived', text: "Just arrived at the spot", Icon: MapPin },
+  { id: 'parking', text: "Looking for parking", Icon: Car },
+  { id: 'ready', text: "Ready when you are!", Icon: ThumbsUp },
+  { id: 'where', text: "Where exactly are you?", Icon: HelpCircle },
+  { id: 'running_late', text: "Running a few minutes late", Icon: Clock },
+  { id: 'looking', text: "I'm looking for you", Icon: Eye },
+  { id: 'found', text: "Found you! Starting session", Icon: Camera },
+  { id: 'waves', text: "Waves are looking good!", Icon: Waves },
+  { id: 'thanks', text: "Thanks for the session!", Icon: Heart },
 ];
 
 const MAX_VOICE_DURATION = 30; // seconds
@@ -488,7 +489,7 @@ export const SessionChatDrawer = ({
                       : 'bg-zinc-800 hover:bg-cyan-500/20 text-gray-300 hover:text-cyan-400 border border-zinc-700 hover:border-cyan-500/40'
                   }`}
                 >
-                  <span>{qr.icon}</span>
+                  <qr.Icon className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true" />
                   <span>{qr.text}</span>
                 </button>
               ))}

@@ -2,6 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
+import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -21,7 +22,7 @@ uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
 uniform float u_speed_scale;      // scale-invariant speed scale (float for Mercator)
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
-uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
+uniform float u_drop_rate_bump; uniform float u_dt_scale; uniform float u_drop_cap; uniform float u_v2_density; uniform float u_v2_motion; uniform vec4 u_v2_box; uniform vec2 u_v2_drop; // bump: speed-dependent drop increase; dt_scale: A15-18 elapsed 60 Hz frames (0 = unset -> 1); drop_cap: motion floor (0 = unset -> 1)
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
 uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
 uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
@@ -48,6 +49,7 @@ uniform vec2 u_fineBounds_min;    // fine grid bounds [west, south]
 uniform vec2 u_fineBounds_max;    // fine grid bounds [east, north]
 uniform float u_fine_enabled;
 uniform float u_fine_feather_frac; // feather band as a fraction of the fine grid span
+uniform vec4 u_base_reg; uniform vec4 u_fine_reg; // POINT REGISTRATION (gridPointRegistration.js): sample bounds -> texel centres; 0 = legacy
 uniform float u_fine_wide_fade;   // wide-zoom fade [0..1] — rides ONLY the vortex persistence/
                                   // gamma gate (its particle hoarding depletes the rest of the
                                   // viewport at wide zoom). The DATA blend fw never fades:
@@ -91,6 +93,7 @@ vec4 encodePos(vec2 pos) {
 }
 
 // Pseudo-random hash
+${GLSL_PT_REG}
 float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -130,7 +133,7 @@ void main() {
   vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Lookup wind at this position
-  vec4 windData = texture2D(u_wind, tex_uv);
+  vec4 windData = texture2D(u_wind, ptReg(tex_uv, u_base_reg));
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windData.r, windData.g));
   // Fine-overlay lookup: inside the fine grid, advect from the SHARPER field, feather-blended
   // into the base so there is no velocity step at the seam (and never a data edge to fall off).
@@ -147,15 +150,15 @@ void main() {
     if (f_u > 0.0 && f_u < 1.0 && f_v > 0.0 && f_v < 1.0) {
       float fEdge = min(min(f_u, 1.0 - f_u), min(f_v, 1.0 - f_v));
       float fw = smoothstep(0.0, max(u_fine_feather_frac, 0.001), fEdge);
-      vec4 fineData = texture2D(u_wind_fine, vec2(f_u, f_v));
+      vec4 fineData = texture2D(u_wind_fine, ptReg(vec2(f_u, f_v), u_fine_reg));
       vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineData.r, fineData.g));
       wind = mix(wind, fineWind, fw);
       if (u_vortex_levers > 0.5) {
         // central-difference curl on the fine grid (4 taps, one cell each side)
-        vec2 wr = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u + u_fine_texel.x, f_v)).rg);
-        vec2 wl = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u - u_fine_texel.x, f_v)).rg);
-        vec2 wu2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u, f_v + u_fine_texel.y)).rg);
-        vec2 wd2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u, f_v - u_fine_texel.y)).rg);
+        vec2 wr = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u + u_fine_texel.x, f_v), u_fine_reg)).rg);
+        vec2 wl = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u - u_fine_texel.x, f_v), u_fine_reg)).rg);
+        vec2 wu2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u, f_v + u_fine_texel.y), u_fine_reg)).rg);
+        vec2 wd2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(vec2(f_u, f_v - u_fine_texel.y), u_fine_reg)).rg);
         // cell km carries the fine box's MEAN cosLat (engine-side): a box is <= 13 deg of
         // latitude, so the cos varies < ~7% across it — irrelevant to a 0.25..0.8 gate band —
         // and one convention is shared with the HEATMAP debug view (no drift between the two).
@@ -206,9 +209,9 @@ void main() {
   // proper"). What the eye reads is INK, not particle count:
   //     ink(speed) ~ mark AREA(speed) x COUNT(speed),  and  COUNT ~ lifetime ~ 1/dropRate.
   //
-  // The legacy rule u_drop_rate + speed*u_drop_rate_bump is NOT a bug — measured against the
-  // webgl-wind lineage's trail rendering (ink ~ speed/dropRate) it holds ink flat to 1.06x above
-  // 4 kn. It is a well-tuned compensator and must not be "simplified" away.
+  // The legacy rule u_drop_rate + speed*u_drop_rate_bump holds trail ink flat (1.06x above 4 kn) —
+  // keep it — but its bump multiplies raw KNOTS (upstream: speed normalised to 0..1), so above ~20 kn
+  // it starved life below visible motion (47 kn: 2.6 frames). u_drop_cap below bounds it (2026-10-08).
   //
   // The clumping was introduced by THIS SESSION's low-wind size floor (DRAW_VS): it multiplied
   // calm-air mark AREA by up to ~10x — and un-zeroed the sub-0.5 kn marks that legacy had made
@@ -263,8 +266,9 @@ void main() {
   // lifetime at annulus-median speed). A deliberate, GATED ink premium like the calm floor —
   // bounded to the vortex's small screen area; the 0.002 floor (== the base drop rate) keeps
   // particles mortal. gate 0 -> dropRate unchanged.
-  dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002);
-  float drop = step(1.0 - dropRate, rand(seed));
+  if (u_v2_motion > 0.5) dropRate = max(u_v2_drop.x + u_v2_drop.y * clamp(speed / max(u_speed_max, 1.0), 0.0, 1.0), speed < 1.0 ? 0.04 : 0.0); // V2: ~2 s life, calm keeps 25 frames
+  dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002); dropRate = min(dropRate, u_drop_cap > 0.0 ? u_drop_cap : 1.0); // MOTION FLOOR: life >= 1/u_drop_cap frames
+  float drop = step(pow(1.0 - dropRate, u_dt_scale > 0.0 ? u_dt_scale : 1.0), rand(seed));   // A15-18
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
   bool isOob = false;
@@ -275,6 +279,9 @@ void main() {
   if (isOob) {
     drop = 1.0;
   }
+  if (u_v2_density > 0.5) { // V2: recycle anything that leaves the padded viewport (x wraps in global space)
+    float inX = (u_zoom > 6.0) ? step(u_v2_box.x, nextPos.x) * step(nextPos.x, u_v2_box.z) : step(fract(nextPos.x - u_v2_box.x), u_v2_box.z - u_v2_box.x);
+    drop = max(drop, 1.0 - inX * step(u_v2_box.y, nextPos.y) * step(nextPos.y, u_v2_box.w)); }
 
   // Random new position for respawned particles
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
@@ -361,7 +368,7 @@ void main() {
     }
     newPos = vec2((randLng + 180.0) / 360.0, randY);
   }
-  
+  if (u_v2_density > 0.5) { newPos = mix(u_v2_box.xy, u_v2_box.zw, randVal); if (u_zoom <= 6.0) newPos.x = fract(newPos.x); } // V2: respawn in view
   pos = mix(nextPos, newPos, drop);
   if (u_zoom <= 6.0) {
     pos.y = clamp(pos.y, 0.001, 0.999);
@@ -383,7 +390,9 @@ uniform float u_tile_width;       // v3.22: local tile width for high zoom preci
 varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
-varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
+varying vec2 v_world; varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED. v_world: windLandMask.js
+uniform float u_v2_density; uniform float u_v2_motion; uniform float u_v2_keep; uniform vec4 u_v2_speedkeep; uniform float u_v2_px_per_kn; uniform float u_v2_speed_max; uniform float u_v2_gamma; varying float v_stretch; // PARTICLES V2
+uniform float u_trail_dk; uniform float u_dash_thin; uniform float u_dash_min_css; varying float v_thin; // close-zoom thin marks: narrowing, width floor (css px), this mark's share (WebGLWindUtils WIND_CLOSE_THIN)
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -402,6 +411,7 @@ uniform vec2 u_fineBounds_min;
 uniform vec2 u_fineBounds_max;
 uniform float u_fine_enabled;
 uniform float u_fine_feather_frac;
+uniform vec4 u_base_reg; uniform vec4 u_fine_reg; // point registration (see ADVECT_FS)
 uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
@@ -425,6 +435,7 @@ float latToMercatorY(float lat) {
 }
 
 // Pseudo-random hash
+${GLSL_PT_REG}
 float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -448,10 +459,7 @@ void main() {
     float keepFloor = (u_closezoom_density > 0.5) ? 0.70 : 0.45;
     keepRate = mix(1.0, keepFloor, smoothstep(4.0, 8.0, u_zoom));
   }
-  if (p_rand > keepRate) {
-    gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
-    return;
-  }
+  if (u_v2_density > 0.5) keepRate = u_v2_keep; // V2: density pinned in screen space (WebGLWindUtils.v2KeepRate); cull after v_speed
 
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
@@ -476,7 +484,7 @@ void main() {
   vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Speed for coloring
-  vec4 windColor = texture2D(u_wind, tex_uv);
+  vec4 windColor = texture2D(u_wind, ptReg(tex_uv, u_base_reg));
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
   // Fine-overlay lookup (mirrors ADVECT_FS): the mark must be coloured and oriented by the field
   // that actually advected it, or speed/colour truth breaks inside the fine box.
@@ -492,12 +500,16 @@ void main() {
     if (f_u > 0.0 && f_u < 1.0 && f_v > 0.0 && f_v < 1.0) {
       float fEdge = min(min(f_u, 1.0 - f_u), min(f_v, 1.0 - f_v));
       float fw = smoothstep(0.0, max(u_fine_feather_frac, 0.001), fEdge);
-      vec4 fineColor = texture2D(u_wind_fine, vec2(f_u, f_v));
+      vec4 fineColor = texture2D(u_wind_fine, ptReg(vec2(f_u, f_v), u_fine_reg));
       vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineColor.r, fineColor.g));
       wind = mix(wind, fineWind, fw);
     }
   }
   v_speed = length(wind);
+  // SPEED-AWARE KEEP (WebGLWindUtils.v2SpeedKeep): the motion floor lets a fast mark outlive the legacy drop rule, so it
+  // out-inks a slow one by legacyDrop/cap; keep fast marks in exactly that ratio and ink per area stops tracking speed.
+  if (u_v2_speedkeep.x > 0.0) keepRate *= pow(min(1.0, u_v2_speedkeep.y / (u_v2_speedkeep.z + v_speed * u_v2_speedkeep.w)), u_v2_speedkeep.x);
+  if (p_rand > keepRate) { gl_Position = vec4(-2.0, -2.0, -2.0, 1.0); gl_PointSize = 0.0; return; }
   // SCREEN-SPACE wind direction for the oriented mark. Mercator convention: +y is SOUTH on screen
   // while v is NORTHWARD, so the y component is negated — the same flip the advection step uses.
   // Falls back to +x for a genuinely zero vector so normalize() cannot produce NaN.
@@ -519,7 +531,7 @@ void main() {
   v_alpha = edgeFade;
 
   // Convert to Web Mercator and apply world-copy offset
-  float x = global_pos.x + u_lng_offset / 360.0;
+  float x = global_pos.x + u_lng_offset / 360.0; v_world = vec2(fract(global_pos.x), global_pos.y);   // where on the world this mark is (the land mask)
   float y = global_pos.y;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
@@ -645,6 +657,12 @@ void main() {
     gl_PointSize = mix(min(gl_PointSize, cap10), cap10, lift);
   }
 
+  // CLOSE-ZOOM THIN MARKS: never narrow a dash below u_dash_min_css across the wind (DRAW_FS's elongation; why: WIND_CLOSE_THIN).
+  v_thin = clamp(u_dash_thin, 1.0, max(gl_PointSize / (mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(u_dash_min_css * max(u_dpr, 1.0), 0.5)), 1.0));
+  v_stretch = 1.0; // V2: stretch the mark along the flow by its own per-frame step, so the stamps join into a streak
+  if (u_v2_motion > 0.5 && gl_PointSize > 0.0) { float stepPx = v_speed * u_v2_px_per_kn * pow(clamp(v_speed / max(u_v2_speed_max, 1.0), 0.02, 1.0), u_v2_gamma - 1.0) * max(u_dpr, 1.0);
+    v_stretch = (gl_PointSize + stepPx) / gl_PointSize; gl_PointSize += stepPx; }
+  gl_PointSize *= 1.0 + u_trail_dk; // TRAILS ANCHORED TO THE MAP: the mark at the trail buffer's own scale (0 = the screen's; windTrailAnchor.js)
   // Debug mode colors
   if (u_debug_mode > 0.5) {
     if (u_debug_mode < 5.5) v_debug_color = vec4(uv.x, uv.y, 0.0, 1.0);
@@ -660,15 +678,19 @@ export const DRAW_FS = `precision mediump float;
 varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
-uniform sampler2D u_color_ramp;
+uniform sampler2D u_color_ramp; ${GLSL_LAND_FS}
 uniform float u_max_speed;
 uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the particle program never had it
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
 uniform float u_calm_alpha_kill; // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
 uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
+varying float v_thin;        // close-zoom across-wind narrowing for THIS mark (DRAW_VS: u_dash_thin under the width floor)
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
+uniform float u_casing_fixed;  // 1 = one casing pole for every mark (WebGLWindUtils.windCasingFixedPole)
+uniform float u_single_casing; // 1 = rim only, no white inner ring (WebGLWindUtils.v2SpeedPremul)
 varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
+varying float v_stretch; uniform float u_v2_theme; uniform vec3 u_v2_body; ${GLSL_INK_MARK} // PARTICLES V2; INK (windInk.js)
 void main() {
   if (v_debug_color.a > 0.5) {
     gl_FragColor = v_debug_color;
@@ -691,8 +713,8 @@ void main() {
     // inside the sprite, keeps its length equal to the sprite, and cuts area by ~1/elong — so the
     // basemap shows through MORE than with the round mark it replaces.
     // 2.6:1 at the slow end easing to 1.8:1 once real motion supplies its own streak.
-    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed));
-    localCoord = vec2(along.x, along.y * elong);
+    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed)) * max(v_thin, 1.0);
+    localCoord = vec2(along.x, along.y * elong * max(v_stretch, 1.0));
   }
   float dist = length(localCoord);
   if (dist > 0.5) discard;
@@ -701,41 +723,12 @@ void main() {
   float soft = smoothstep(0.5, 0.2, dist);
   
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
-  vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
+  float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);   // LUT row 0 over land, row 1 over sea (dark's rules; windLandMask.js)
   
-  // Enhance particle contrast over heatmaps. THE STRUCTURAL PROBLEM (2026-07-18 EVE-3, user
-  // report: "wind animations are hard to see as they blend too much with their heatmap colors"):
-  // the particle and the field beneath it sample the SAME ramp at the SAME normalised speed —
-  // texture2D(u_color_ramp, v_speed/u_max_speed) here vs ramp(speed/u_max_speed, u_theme) in
-  // HEATMAP_FS — so a particle's colour is IDENTICAL to the pixel behind it BY CONSTRUCTION. No
-  // palette edit can fix that; only a luminance separation can, which is what rim+core are for.
-  //
-  // THE GAP: rim/core were FIXED black/white, and this program was the one wind program that never
-  // received u_theme (the engine bound it to heatmapProgram only). Tuned against the dark theme,
-  // they invert in light mode — there the field ramp is DEEP NAVY/TEAL on a LIGHT basemap, so a
-  // 98%-black rim is camouflage against the very field it must separate from. Beach's bright
-  // coral/yellow field washes out the white core for the same reason, mirrored.
-  // Now theme-aware: the rim always runs AWAY from the local field's luminance.
-  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ (u_theme_rim = 0.0 -> the legacy black/white pair).
-  // DUAL-TONE CASING (2026-07-18 EVE-3 round 2 — the cartographic halo/casing technique).
-  // A PER-THEME CONSTANT rim was still wrong. Measured contrast of the shipped rim against the
-  // field colour it must separate from, per ramp stop (scripts/probe_wind_contrast.js):
-  //   dark  worst 5.48:1 @39kn · light worst 3.78:1 @21kn · beach worst 3.30:1 @39kn
-  // The light ramp's luminance is NON-MONOTONIC — it PEAKS at the 21 kn gold (Y=0.460) — so a
-  // fixed near-white rim has the least headroom exactly in the common moderate-wind band. That is
-  // the "still hard to see at SOME wind speeds" report, and it is not fixable by choosing a better
-  // constant: a MID-luminance field contrasts poorly against BOTH poles at once.
-  //
-  // The fix is the technique mapmakers use for labels/lines over arbitrary terrain: give the mark
-  // its OWN high-contrast edge. An outer ring and an inner ring at OPPOSITE luminance poles put a
-  // ~21:1 boundary INSIDE the mark, so legibility stops depending on the field's luminance at all.
-  // The orientation flips on the LOCAL field luminance (APCA coefficients) so the OUTER ring is
-  // always the one opposing the field — that also makes the rule self-theming: the dark theme's
-  // neon ramp is BRIGHT (Y 0.72-0.85) so it resolves to the dark-outer/light-inner pair the dark
-  // theme was originally tuned with, while light's dark navy ramp resolves to the inverse.
-  // The BODY keeps the speed colour: truth (colour == speed) is never traded away.
-  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ -> the legacy fixed black-rim/white-core pair.
+  // CASING (dual-tone, theme-aware rim; 2026-07-18 rounds 2-6): rationale relocated verbatim to
+  // docs/architecture/RATIONALE-WebGLWindEngine.md "DRAW_FS casing". Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__.
   vec3 rgb = color.rgb;
+  if (u_v2_theme > 0.5) rgb = u_v2_body; if (u_ink > 0.5) rgb = inkOf(rgb); else if (u_ink_k.z > 0.5) rgb = glowOf(rgb); // V2: one neutral body per theme. INK / GLOW: the legend colour as ink, or as a light tint (windInk.js)
   if (u_theme_rim > 0.5) {
     // THE POLE MUST BE CHOSEN FROM THE COMPOSITED BACKGROUND, NOT THE RAMP COLOUR
     // (2026-07-18 round 6 — the root behind "light mode is really hard to see").
@@ -765,12 +758,14 @@ void main() {
     }
     float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, rampEnd, v_speed));
     float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
-    float fieldIsBright = step(0.179, fieldY);
+    // FIXED POLE: a per-pixel step flipped the casing where the field crosses 0.179 (dark theme: calm air, ~43 kn) and
+    // cut grid-cell-shaped holes, the "diamonds in the red wind". One pole for every mark: the bright-field one.
+    float fieldIsBright = (u_casing_fixed > 0.5) ? 1.0 : step(0.179, fieldY); fieldIsBright *= 1.0 - u_ink;   // ink: a WHITE rim (no ink) carves
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
     float innerL = 1.0 - outerL;                   // opposes the outer ring
     float outer = smoothstep(0.38, 0.50, dist);
     float inner = smoothstep(0.38, 0.26, dist) * smoothstep(0.10, 0.20, dist);
-    rgb = mix(rgb, vec3(innerL), inner * 0.92);
+    rgb = mix(rgb, vec3(innerL), inner * 0.92 * (1.0 - max(u_v2_theme, u_single_casing))); // single thin casing
     rgb = mix(rgb, vec3(outerL), outer * 0.98);
   } else {
     float rim = smoothstep(0.28, 0.46, dist);
@@ -780,8 +775,8 @@ void main() {
   }
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
-  float alpha = v_alpha * soft * color.a;
-  gl_FragColor = vec4(rgb * alpha, alpha);
+  float alpha = v_alpha * soft * (u_v2_theme > 0.5 ? mix(0.85, 1.0, smoothstep(0.0, 40.0, v_speed)) : color.a);
+  gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land) * (1.0 - (u_calm_air.y + (u_calm_air.x - u_calm_air.y) * land) * (1.0 - smoothstep(u_calm_air.z, u_calm_air.w, v_speed))), alpha);   // dark's white, ground by ground (windLandMask.js u_white), and its fall in near-calm air (windCalmAir.js u_calm_air: exactly 1.0 when both dims are 0): the light level, never the cover
 }`;
 
 export const HEATMAP_VS = `
@@ -822,6 +817,7 @@ uniform float u_edge_feather_frac;  // 2026-07-19: absolute-width feather (see D
 uniform sampler2D u_color_ramp;     // 2026-07-19: the SAME Beaufort LUT the particles use
 uniform float u_field_lut;          // 1 = sample the LUT (default), 0 = legacy inline 7-stop ramp
 uniform float u_calm_alpha_kill;    // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
+uniform float u_field_tint;         // > 0: TINT the basemap (multiply blend) instead of covering it (WebGLWindUtils.v2FieldTint)
 // BASE-PASS CUTOUT under a resident fine overlay (2026-07-19, queue #9). The overlay pass draws
 // ON TOP with its own feathered edge; without a complementary hole the two semi-transparent
 // alphas COMPOUND inside the overlay (a visibly brighter rectangle). The base fades out exactly
@@ -851,9 +847,11 @@ uniform float u_fine_singlepass;
 uniform vec2 u_fine_texel;
 uniform vec2 u_fine_cell_km;
 uniform float u_debug_mode;
+uniform vec4 u_base_reg; uniform vec4 u_fine_reg; // point registration: u_base_reg = whatever u_wind holds in this pass
 varying vec2 v_uv;
 
 // v3.15: Premium 7-stop Windy/Ventusky-grade color ramp per theme
+${GLSL_PT_REG}
 vec3 ramp(float t, float theme) {
   // Dark theme: deep navy > teal > cyan > green-yellow > amber > hot red > white/magenta
   // Light theme: pale ice > sky blue > medium blue > indigo > purple > rose > near-white
@@ -911,19 +909,19 @@ void main() {
       gl_FragColor = vec4(v_uv.x, 1.0 - v_uv.y, 1.0, u_opacity);
       return;
     } else if (u_debug_mode > 8.5 && u_debug_mode < 9.5) { // 'vortex' gate view -> 9.0
-      vec2 wr = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x + u_fine_texel.x, v_uv.y)).rg);
-      vec2 wl = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x - u_fine_texel.x, v_uv.y)).rg);
-      vec2 wu2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x, v_uv.y + u_fine_texel.y)).rg);
-      vec2 wd2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x, v_uv.y - u_fine_texel.y)).rg);
+      vec2 wr = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x + u_fine_texel.x, v_uv.y), u_base_reg)).rg);
+      vec2 wl = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x - u_fine_texel.x, v_uv.y), u_base_reg)).rg);
+      vec2 wu2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x, v_uv.y + u_fine_texel.y), u_base_reg)).rg);
+      vec2 wd2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(vec2(v_uv.x, v_uv.y - u_fine_texel.y), u_base_reg)).rg);
       float curlz = (wr.y - wl.y) / (2.0 * u_fine_cell_km.x) - (wu2.x - wd2.x) / (2.0 * u_fine_cell_km.y);
-      vec2 wc = mix(u_wind_min, u_wind_max, texture2D(u_wind, v_uv).rg);
+      vec2 wc = mix(u_wind_min, u_wind_max, texture2D(u_wind, ptReg(v_uv, u_base_reg)).rg);
       float Rd = abs(curlz) * u_fine_cell_km.y / (length(wc) + 2.0);
       float g = smoothstep(0.5, 1.2, Rd);
       gl_FragColor = vec4(g, 0.0, 0.0, max(g, 0.15));
       return;
     }
   }
-  vec4 encoded = texture2D(u_wind, v_uv);
+  vec4 encoded = texture2D(u_wind, ptReg(v_uv, u_base_reg));
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
   // SINGLE-PASS fine composite (see uniform block): inside the fine box, mix toward the fine
   // texture's wind by the SAME feather weight the legacy overlay edge used — then one draw,
@@ -934,7 +932,7 @@ void main() {
     if (fRel.x > 0.0 && fRel.x < 1.0 && fRel.y > 0.0 && fRel.y < 1.0) {
       float fEdge = min(min(fRel.x, 1.0 - fRel.x), min(fRel.y, 1.0 - fRel.y));
       float fw = smoothstep(0.0, max(u_cutout_feather, 0.001), fEdge) * u_cutout_strength;
-      vec2 fineWind = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, fRel).rg);
+      vec2 fineWind = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, ptReg(fRel, u_fine_reg)).rg);
       wind = mix(wind, fineWind, fw);
     }
   }
@@ -991,7 +989,7 @@ void main() {
   vec3 fieldRgb = (u_field_lut > 0.5)
     ? texture2D(u_color_ramp, vec2(t, 0.5)).rgb
     : ramp(t, u_theme);
-  gl_FragColor = vec4(fieldRgb * alpha, alpha);
+  gl_FragColor = u_field_tint > 0.0 ? vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0) : vec4(fieldRgb * alpha, alpha);
 }`;
 
 export const SCREEN_VS = `
@@ -1004,26 +1002,28 @@ void main() {
 
 export const SCREEN_FS = `
 precision mediump float;
+${GLSL_TRAIL_UV}
+${GLSL_INK_COVER}\n${GLSL_TRAIL_VEIL}
 uniform sampler2D u_screen;
 uniform float u_opacity;
-varying vec2 v_uv;
+uniform float u_premul; uniform float u_glow;   // V2 theme: premultiplied trails (dark marks show). GLOW: dark's composite with the colour renormalised (windInk.js)
 void main() {
-  vec4 color = texture2D(u_screen, v_uv);
-  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness.
-  // Black = transparent, bright = opaque. Creates proper vapor trail effect.
-  float brightness = max(color.r, max(color.g, color.b));
-  gl_FragColor = vec4(color.rgb, brightness * u_opacity);
+  vec4 color = trailTexel(u_screen);   // through the trail buffer's camera; it declares v_uv (windTrailAnchor.js)
+  // v3.12.2: FBO uses RGB-fade (alpha=1.0), so derive alpha from brightness: black = transparent, bright = opaque.
+  float brightness = max(color.r, max(color.g, color.b)); if (u_glow > 0.5 && u_trail_veil.x > 0.0) { gl_FragColor = trailVeilOf(color.rgb, brightness, u_opacity); return; }   // light's and beach's white streak: the glow branch's light and dark's veil (windTrailVeil.js, D-029); the line below is every other path's, and theirs under the kill
+  gl_FragColor = u_ink > 0.5 ? vec4(mix(vec3(1.0), color.rgb, u_opacity * inkCapOf(u_screen)), 1.0) : (u_premul > 0.5 ? color * u_opacity : vec4(u_glow > 0.5 ? color.rgb / max(brightness, 0.004) : color.rgb, brightness * (u_glow > 0.5 ? brightness : 1.0) * u_opacity));   // ink: multiplied into the map; glow: a tail loses strength, not colour
 }`;
 
 export const FADE_FS = `
 precision mediump float;
+${GLSL_TRAIL_UV}
 uniform sampler2D u_screen;
 uniform float u_fade;
-varying vec2 v_uv;
+uniform float u_premul;          // V2 theme: fade RGBA together (premultiplied)
 void main() {
-  vec4 color = texture2D(u_screen, v_uv);
+  vec4 color = trailTexel(u_screen);   // yesterday's ink, moved with the map; it declares v_uv (windTrailAnchor.js)
   // v3.12.2 CRITICAL FIX: Fade RGB, keep alpha=1.0 (mapbox/webgl-wind technique).
   // Fading alpha causes compound decay invisible trails.
   // Fading RGB creates visible dimming premultiplied blend makes black = transparent.
-  gl_FragColor = vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0);
+  gl_FragColor = u_ink > 0.5 ? vec4(1.0 - floor((1.0 - color.rgb) * 255.0 * u_fade) / 255.0, 1.0) : (u_premul > 0.5 ? floor(color * 255.0 * u_fade) / 255.0 : vec4(floor(color.rgb * 255.0 * u_fade) / 255.0, 1.0));   // ink fades to paper
 }`;

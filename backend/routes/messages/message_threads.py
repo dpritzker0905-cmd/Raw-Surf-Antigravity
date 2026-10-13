@@ -9,6 +9,7 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timezone
 import json
 from models import Conversation, Message, Notification, Profile, RoleEnum
@@ -24,11 +25,16 @@ router = APIRouter()
 
 
 @router.get("/messages/grom-zone/available-groms/{user_id}")
-async def get_available_groms_to_message(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_available_groms_to_message(user_id: str, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """
     Get list of other Groms that this Grom can message.
     Only returns Groms who are linked and approved by their parents.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     from models import RoleEnum
     
     # Verify user is a Grom
@@ -64,10 +70,15 @@ async def get_available_groms_to_message(user_id: str, db: AsyncSession = Depend
 
 
 @router.get("/messages/grom-zone/family-members/{user_id}")
-async def get_family_members(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_family_members(user_id: str, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """
     Get family members (Parent or Groms) linked to the given user.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     from models import RoleEnum
     
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -118,13 +129,17 @@ async def get_family_members(user_id: str, db: AsyncSession = Depends(get_db)):
 @router.get("/messages/conversations/{user_id}/family")
 async def get_family_conversations(
     user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Get conversations between user and their family members.
     For Grom Parents: conversations with their Groms
     For Groms: conversations with their Parent
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     from models import RoleEnum
 
     # Get user profile
@@ -214,12 +229,16 @@ async def get_family_conversations(
 async def start_conversation(
     sender_id: str,
     recipient_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
 ):
     """
     Start or get existing conversation with a user.
     Used when clicking "Message" on a profile.
     """
+    if sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     # Validate both users exist
     sender_result = await db.execute(select(Profile).where(Profile.id == sender_id))
     sender = sender_result.scalar_one_or_none()
@@ -258,8 +277,14 @@ async def start_conversation(
 
 
 @router.post("/messages/decline/{conversation_id}")
-async def decline_message_request(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def decline_message_request(conversation_id: str, user_id: str | None = None, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Decline/hide a message request"""
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+    user_id = current_user_id
+
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
     conversation = result.scalar_one_or_none()
     

@@ -97,6 +97,7 @@ async def health_check(
             "restore_errors": persistence_diag.get("restore_errors", []),
             "disk_product_count": persistence_diag.get("disk_product_count", 0),
             "supabase_product_count": persistence_diag.get("supabase_product_count"),
+            "supabase_listing": persistence_diag.get("supabase_listing"),
         }
     except Exception as e:
         logger.error(f"Health check weather diagnostics failed: {e}")
@@ -144,6 +145,23 @@ async def health_check(
     except Exception as e:            # an instrument must never break the thing it observes
         logger.warning(f"[health] memory probe failed: {e}")
 
+    # LEAK TRACE (2026-09-21). rss_mb above is a POINT; the open question is a SLOPE — whether the
+    # degradation that a restart cleared tracks process uptime. Two snapshots of two different
+    # processes cannot answer that, so the scheduler samples this process every 5 minutes and the
+    # summary is published here. `growing` lists only the gauges that MOVED, so a flat bounded
+    # control is visible by its absence there while still present in the raw series.
+    try:
+        from services import memory_trace
+        memory["trace"] = memory_trace.growth_summary()
+    except Exception as e:
+        logger.warning(f"[health] memory trace summary failed: {e}")
+    # heap_trim (2026-09-26): how much freed arena space each 5-minute malloc_trim hands back.
+    try:
+        from services import heap_trim
+        memory["trim"] = heap_trim.stats()
+    except Exception as e:
+        logger.warning(f"[health] heap trim stats failed: {e}")
+
     # ── the configuration fingerprint (MC-09, 2026-08-15) ────────────────────────────────────────
     # A redacted identity for the resolved flag registry: hash + counts, never values. Two boxes
     # or two moments can be told apart during an incident without a flag crossing the wire. Same
@@ -154,6 +172,18 @@ async def health_check(
         config_fp = compute_config_fingerprint()
     except Exception as e:
         logger.warning(f"[health] config fingerprint failed: {e}")
+
+    # Serving gates (2026-09-23, audit 14.1): the product run-age census must tell a lane that is
+    # FAILING from one that is deliberately NOT SERVED, or a gated lane pages forever (the island lane
+    # failed the monitor 4 runs in a row after it was switched off). A deliberate, narrow exception
+    # to the "counts, never values" posture above: a public boolean per gate, read through the SAME
+    # function the resolver uses, so the monitor and the serving path cannot disagree.
+    serving_gates = None
+    try:
+        from services.weather_pipeline.island_gate import island_serving_armed
+        serving_gates = {"island": bool(island_serving_armed())}
+    except Exception as e:
+        logger.warning(f"[health] serving gates failed: {e}")
 
     # Process Uptime
     try:
@@ -206,6 +236,7 @@ async def health_check(
         "environment": os.environ.get("RENDER", "local"),
         "runtime": _runtime_fingerprint(),
         "config": config_fp,
+        "serving_gates": serving_gates,
         "memory": memory,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
@@ -281,6 +312,9 @@ async def health_check(
             
             health_data["scheduler"]["job_count"] = len(jobs)
             health_data["scheduler"]["jobs"] = job_info
+            # Armed or dark, and each data lane's last decision (never the token).
+            from services.workflow_dispatch import status as _wd_status
+            health_data["scheduler"]["workflow_dispatch"] = _wd_status()
             health_data["checks"].append({"name": "scheduler", "status": "pass"})
         else:
             health_data["scheduler"]["running"] = False
@@ -314,7 +348,7 @@ async def data_freshness_health():
     Data-freshness health for an EXTERNAL uptime monitor (2026-07-08). Computes lane freshness ON READ
     from the served manifest (no DB, no fetch) so it catches a DEAD/timing-out forecast-ingest cron even
     when the cron never runs to publish health.json — the manifest simply ages and this returns 503.
-    Point an UptimeRobot/cron-job.org probe here (like keep-warm) to get alerted BEFORE users see stale
+    Point an UptimeRobot/cron-job.org probe here to get alerted BEFORE users see stale
     data. 200 = ok/warn, 503 = critical (cron down or a lane missing). Never raises.
     """
     import asyncio

@@ -34,6 +34,58 @@ BBOX = {"west": -122.0, "south": 37.0, "east": -121.0, "north": 38.0}
 T = datetime(2026, 7, 30, 12, 0, 0, tzinfo=timezone.utc)
 
 
+@pytest.mark.parametrize('receipt_hour', [13, 19])
+def test_model_cycle_does_not_move_with_normalization_clock(monkeypatch, receipt_hour):
+    import services.weather_pipeline.normalizer as N
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 7, 30, receipt_hour, tzinfo=timezone.utc)
+    monkeypatch.setattr(N, 'datetime', Clock)
+    points = _points('noaa')
+    for p in points:
+        p['__model_run_time'] = '2026-07-30T06:00:00Z'
+    result = WeatherNormalizer().normalize(model='GFS', provider='open-meteo', domain='marine',
+        layer='waves', raw_results=points, bbox=BBOX, resolution=.25, target_time=T)
+    assert getattr(result, 'model_run_time', None) == datetime(2026, 7, 30, 6, tzinfo=timezone.utc)
+    assert result.model_run_time_status == 'known'
+    assert result.ingested_at == Clock.now()
+    assert result.valid_time == T
+
+
+@pytest.mark.parametrize('stamps,status', [
+    ([None]*4, 'missing'),
+    (['2026-07-30T06:00:00Z', None, None, None], 'incomplete'),
+    (['2026-07-30T06:00:00Z']*3+['2026-07-30T00:00:00Z'], 'conflicting'),
+    (['not-a-time']*4, 'invalid'),
+    (['2026-07-30T06:00:00']*4, 'invalid'),
+])
+def test_unverified_cycle_is_explicit_and_order_independent(stamps, status):
+    points = _points('noaa')
+    for p, stamp in zip(points, stamps):
+        if stamp is not None: p['__model_run_time'] = stamp
+    for ordered in [points, list(reversed(points))]:
+        p = WeatherNormalizer().normalize(model='GFS', provider='open-meteo', domain='marine',
+            layer='waves', raw_results=ordered, bbox=BBOX, resolution=.25, target_time=T, run_time=T)
+        assert getattr(p, 'model_run_time_status', None) == status
+        assert p.model_run_time is None, 'an ingest/legacy timestamp is not cycle evidence'
+
+
+def test_cycle_changes_are_metadata_only_and_equivalent_offsets_agree():
+    points = _points('noaa')
+    baseline = _norm('open-meteo', 'noaa', model='GFS')
+    for hour in [0, 6]:
+        for i, point in enumerate(points):
+            point['__model_run_time'] = (f'2026-07-30T{hour:02d}:00:00Z' if i % 2 == 0
+                                        else f'2026-07-30T{hour+2:02d}:00:00+02:00')
+        p = WeatherNormalizer().normalize(model='GFS', provider='open-meteo', domain='marine',
+            layer='waves', raw_results=points, bbox=BBOX, resolution=.25, target_time=T)
+        assert p.model_run_time == T.replace(hour=hour)
+        assert p.model_run_time_status == 'known'
+        assert p.grid.model_dump() == baseline.grid.model_dump()
+        assert p.valid_time == baseline.valid_time
+
+
 def _points(marker=None, n=4):
     """Open-Meteo-shaped marine points, optionally carrying a direct fetcher's `__provider`."""
     out = []

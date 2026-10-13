@@ -42,9 +42,13 @@ class _Resp:
         self.status_code = status_code
         self.text = text
         self._payload = payload if payload is not None else []
+        self.headers = {}
 
     def json(self):
         return self._payload
+
+    def close(self):
+        pass
 
 
 class _Session:

@@ -1,0 +1,413 @@
+{
+  "source_sha": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "skill_source_modified": false,
+  "scope": "actual loader, ledger and upload serializer; all HTTP mocked; upsert captured in memory; no production incident attribution",
+  "cases": [
+    {
+      "mode": "healthy",
+      "failed_key": "calibration/skill/scored-2026-09.json",
+      "reads": [
+        {
+          "key": "calibration/skill/pending.json",
+          "mode": "healthy"
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "mode": "healthy"
+        }
+      ],
+      "captured_writes": [
+        {
+          "key": "calibration/skill/pending.json",
+          "row_count": 0,
+          "buoys": []
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "row_count": 3,
+          "buoys": [
+            "old-a",
+            "old-b",
+            "new"
+          ]
+        }
+      ],
+      "month_rows_before": 2,
+      "month_rows_after": 3,
+      "old_month_buoys_retained": [
+        "old-a",
+        "old-b"
+      ],
+      "pending_rows_before": 1,
+      "pending_rows_after": 0,
+      "ledger_result": {
+        "ledgered": 0,
+        "scored": 1,
+        "pending_kept": 0,
+        "pending_evicted_cap": 0,
+        "summary": [
+          {
+            "source": "raw_surf",
+            "lead_h": 24,
+            "n": 1,
+            "n_buoys": 1,
+            "bias_m": 0.1,
+            "mae_m": 0.1,
+            "n_paired": 1,
+            "mean_obs_m": 1.5,
+            "mean_fc_m": 1.6,
+            "rmse_m": 0.1,
+            "si": null,
+            "corr": null,
+            "sym_slope": null,
+            "by_obs_band": {
+              "rideable 1.5-3m": {
+                "n_paired": 1,
+                "mean_obs_m": 1.5,
+                "mean_fc_m": 1.6,
+                "bias_m": 0.1,
+                "mae_m": 0.1,
+                "rmse_m": 0.1,
+                "si": null,
+                "corr": null,
+                "sym_slope": null
+              }
+            }
+          }
+        ],
+        "scoring_rejections": {
+          "invalid_forecasts": 0,
+          "invalid_observations": 0
+        }
+      }
+    },
+    {
+      "mode": "true_404",
+      "failed_key": "calibration/skill/scored-2026-09.json",
+      "reads": [
+        {
+          "key": "calibration/skill/pending.json",
+          "mode": "healthy"
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "mode": "true_404"
+        }
+      ],
+      "captured_writes": [
+        {
+          "key": "calibration/skill/pending.json",
+          "row_count": 0,
+          "buoys": []
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "row_count": 1,
+          "buoys": [
+            "new"
+          ]
+        }
+      ],
+      "month_rows_before": 0,
+      "month_rows_after": 1,
+      "old_month_buoys_retained": [],
+      "pending_rows_before": 1,
+      "pending_rows_after": 0,
+      "ledger_result": {
+        "ledgered": 0,
+        "scored": 1,
+        "pending_kept": 0,
+        "pending_evicted_cap": 0,
+        "summary": [
+          {
+            "source": "raw_surf",
+            "lead_h": 24,
+            "n": 1,
+            "n_buoys": 1,
+            "bias_m": 0.1,
+            "mae_m": 0.1,
+            "n_paired": 1,
+            "mean_obs_m": 1.5,
+            "mean_fc_m": 1.6,
+            "rmse_m": 0.1,
+            "si": null,
+            "corr": null,
+            "sym_slope": null,
+            "by_obs_band": {
+              "rideable 1.5-3m": {
+                "n_paired": 1,
+                "mean_obs_m": 1.5,
+                "mean_fc_m": 1.6,
+                "bias_m": 0.1,
+                "mae_m": 0.1,
+                "rmse_m": 0.1,
+                "si": null,
+                "corr": null,
+                "sym_slope": null
+              }
+            }
+          }
+        ],
+        "scoring_rejections": {
+          "invalid_forecasts": 0,
+          "invalid_observations": 0
+        }
+      }
+    },
+    {
+      "mode": "http_503",
+      "failed_key": "calibration/skill/scored-2026-09.json",
+      "reads": [
+        {
+          "key": "calibration/skill/pending.json",
+          "mode": "healthy"
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "mode": "http_503"
+        }
+      ],
+      "captured_writes": [
+        {
+          "key": "calibration/skill/pending.json",
+          "row_count": 0,
+          "buoys": []
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "row_count": 1,
+          "buoys": [
+            "new"
+          ]
+        }
+      ],
+      "month_rows_before": 2,
+      "month_rows_after": 1,
+      "old_month_buoys_retained": [],
+      "pending_rows_before": 1,
+      "pending_rows_after": 0,
+      "ledger_result": {
+        "ledgered": 0,
+        "scored": 1,
+        "pending_kept": 0,
+        "pending_evicted_cap": 0,
+        "summary": [
+          {
+            "source": "raw_surf",
+            "lead_h": 24,
+            "n": 1,
+            "n_buoys": 1,
+            "bias_m": 0.1,
+            "mae_m": 0.1,
+            "n_paired": 1,
+            "mean_obs_m": 1.5,
+            "mean_fc_m": 1.6,
+            "rmse_m": 0.1,
+            "si": null,
+            "corr": null,
+            "sym_slope": null,
+            "by_obs_band": {
+              "rideable 1.5-3m": {
+                "n_paired": 1,
+                "mean_obs_m": 1.5,
+                "mean_fc_m": 1.6,
+                "bias_m": 0.1,
+                "mae_m": 0.1,
+                "rmse_m": 0.1,
+                "si": null,
+                "corr": null,
+                "sym_slope": null
+              }
+            }
+          }
+        ],
+        "scoring_rejections": {
+          "invalid_forecasts": 0,
+          "invalid_observations": 0
+        }
+      }
+    },
+    {
+      "mode": "timeout",
+      "failed_key": "calibration/skill/scored-2026-09.json",
+      "reads": [
+        {
+          "key": "calibration/skill/pending.json",
+          "mode": "healthy"
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "mode": "timeout"
+        }
+      ],
+      "captured_writes": [
+        {
+          "key": "calibration/skill/pending.json",
+          "row_count": 0,
+          "buoys": []
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "row_count": 1,
+          "buoys": [
+            "new"
+          ]
+        }
+      ],
+      "month_rows_before": 2,
+      "month_rows_after": 1,
+      "old_month_buoys_retained": [],
+      "pending_rows_before": 1,
+      "pending_rows_after": 0,
+      "ledger_result": {
+        "ledgered": 0,
+        "scored": 1,
+        "pending_kept": 0,
+        "pending_evicted_cap": 0,
+        "summary": [
+          {
+            "source": "raw_surf",
+            "lead_h": 24,
+            "n": 1,
+            "n_buoys": 1,
+            "bias_m": 0.1,
+            "mae_m": 0.1,
+            "n_paired": 1,
+            "mean_obs_m": 1.5,
+            "mean_fc_m": 1.6,
+            "rmse_m": 0.1,
+            "si": null,
+            "corr": null,
+            "sym_slope": null,
+            "by_obs_band": {
+              "rideable 1.5-3m": {
+                "n_paired": 1,
+                "mean_obs_m": 1.5,
+                "mean_fc_m": 1.6,
+                "bias_m": 0.1,
+                "mae_m": 0.1,
+                "rmse_m": 0.1,
+                "si": null,
+                "corr": null,
+                "sym_slope": null
+              }
+            }
+          }
+        ],
+        "scoring_rejections": {
+          "invalid_forecasts": 0,
+          "invalid_observations": 0
+        }
+      }
+    },
+    {
+      "mode": "bad_json",
+      "failed_key": "calibration/skill/scored-2026-09.json",
+      "reads": [
+        {
+          "key": "calibration/skill/pending.json",
+          "mode": "healthy"
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "mode": "bad_json"
+        }
+      ],
+      "captured_writes": [
+        {
+          "key": "calibration/skill/pending.json",
+          "row_count": 0,
+          "buoys": []
+        },
+        {
+          "key": "calibration/skill/scored-2026-09.json",
+          "row_count": 1,
+          "buoys": [
+            "new"
+          ]
+        }
+      ],
+      "month_rows_before": 2,
+      "month_rows_after": 1,
+      "old_month_buoys_retained": [],
+      "pending_rows_before": 1,
+      "pending_rows_after": 0,
+      "ledger_result": {
+        "ledgered": 0,
+        "scored": 1,
+        "pending_kept": 0,
+        "pending_evicted_cap": 0,
+        "summary": [
+          {
+            "source": "raw_surf",
+            "lead_h": 24,
+            "n": 1,
+            "n_buoys": 1,
+            "bias_m": 0.1,
+            "mae_m": 0.1,
+            "n_paired": 1,
+            "mean_obs_m": 1.5,
+            "mean_fc_m": 1.6,
+            "rmse_m": 0.1,
+            "si": null,
+            "corr": null,
+            "sym_slope": null,
+            "by_obs_band": {
+              "rideable 1.5-3m": {
+                "n_paired": 1,
+                "mean_obs_m": 1.5,
+                "mean_fc_m": 1.6,
+                "bias_m": 0.1,
+                "mae_m": 0.1,
+                "rmse_m": 0.1,
+                "si": null,
+                "corr": null,
+                "sym_slope": null
+              }
+            }
+          }
+        ],
+        "scoring_rejections": {
+          "invalid_forecasts": 0,
+          "invalid_observations": 0
+        }
+      }
+    },
+    {
+      "mode": "timeout",
+      "failed_key": "calibration/skill/pending.json",
+      "reads": [
+        {
+          "key": "calibration/skill/pending.json",
+          "mode": "timeout"
+        }
+      ],
+      "captured_writes": [
+        {
+          "key": "calibration/skill/pending.json",
+          "row_count": 0,
+          "buoys": []
+        }
+      ],
+      "month_rows_before": 2,
+      "month_rows_after": 2,
+      "old_month_buoys_retained": [
+        "old-a",
+        "old-b"
+      ],
+      "pending_rows_before": 1,
+      "pending_rows_after": 0,
+      "ledger_result": {
+        "ledgered": 0,
+        "scored": 0,
+        "pending_kept": 0,
+        "pending_evicted_cap": 0,
+        "summary": [],
+        "scoring_rejections": {
+          "invalid_forecasts": 0,
+          "invalid_observations": 0
+        }
+      }
+    }
+  ]
+}

@@ -54,7 +54,7 @@ const LocationPickerPanel = ({
                   </span>
                   {nearestSpot && userLat && (
                     <span className="text-xs text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-full">
- = {nearestSpot.distance}km
+                      {nearestSpot.distance}km
                     </span>
                   )}
                 </div>

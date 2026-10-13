@@ -40,6 +40,18 @@ void main() {
 
 export const HEATMAP_FS = `
 precision mediump float;
+// A15-13 (audit 15.0): GEOGRAPHY AT HIGH PRECISION. mediump's guaranteed minimum is fp16 (10-bit
+// mantissa); many phone GPUs honour exactly that. At fp16 this shader's lng would step 0.0625°
+// (~7 km), lat ~0.08° after the Mercator inverse, and the land-aware sampler's texel-space
+// position a whole texel on the 1440-wide world grid — banded, misregistered coasts. Desktop GPUs
+// already run mediump as fp32, so there nothing changes. Only geographic/texture-coordinate
+// values use GEO_P; colour math stays mediump. Uniform precision is unchanged for every uniform
+// the vertex shader shares (u_dataBounds_*, u_lng_offset are already highp in both).
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+#define GEO_P highp
+#else
+#define GEO_P mediump
+#endif
 varying highp vec2 v_mercator_xy;
 uniform sampler2D u_waveTexture;
 uniform sampler2D u_chlorophyllTexture;
@@ -95,15 +107,75 @@ uniform highp vec2 u_overlayTruth_min;  // truth box min corner, overlay-UV spac
 uniform highp vec2 u_overlayTruth_max;  // truth box max corner
 uniform float u_coastErode;             // threshold shift in normalized SDF units (+ erodes water / grows land)
 uniform float u_coastAA;                // smoothstep half-width around the coast (normalized SDF units)
+uniform GEO_P vec2 u_waveTexel;               // 1/cols, 1/rows of the WAVE grid — land-aware fetch only
+uniform float u_landAwareFetch;         // 1 = exclude land texels from the bilinear blend
+uniform GEO_P vec4 u_wave_reg;           // POINT REGISTRATION (gridPointRegistration.js): sample bounds -> texel centres; 0 = legacy
+GEO_P vec2 ptReg(GEO_P vec2 uv, GEO_P vec4 r) { return uv + uv * r.xy + r.zw; }
 
-float mercatorYToLat(float y) {
-  float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
+// LAND-AWARE WAVE FETCH (2026-08-18) — the island halo.
+//
+// THE DEFECT. The wave grid is ~22.5 km per cell, so a small island IS a cell or three. Those cells
+// are land; extrapolateOceanData fills them with the MEAN of their ocean neighbours, which at
+// Madeira mixes the sheltered lee (1.12 m) with the exposed north (1.60 m) and yields ~1.1. gl.LINEAR
+// then spreads that one averaged number outward, so the WINDWARD shore ramps 1.6 -> 1.1 over a full
+// cell. That ramp is the halo, and it rings an island because an island has coast on every side. On a
+// mainland coast the same cells sit inland and the coastline hides the ramp — which is exactly why
+// the owner saw it on islands and not over land.
+//
+// THE FIX, in Jacobian terms. Rendered height is H = sum(w_i * h_i) over the 4 surrounding texels, and
+// the bug is that dH/dh_land > 0. Zero the land weights and renormalise:
+//     H = sum_ocean(w_i h_i) / sum_ocean(w_i)
+// so a water pixel is interpolated only among WATER cells. When all four are land the pixel is on
+// land and masked anyway, so fall back to the plain fetch rather than inventing a value.
+//
+// ★ THE FLAG MUST NOT BE INTERPOLATED, or it stops being a flag. Each texel is sampled at its exact
+// CENTRE, where bilinear filtering returns that texel verbatim (weights 1,0,0,0) — so no NEAREST
+// sampler is needed and the wave texture's filtering is untouched.
+// ★ The flag rides u_chlorophyllTexture.a, which is the only channel that is (a) on the SAME
+// cols x rows grid as the wave texture, (b) previously a constant 255, and (c) not touched by the
+// wrap-seam average that rewrites chlorophyll's r/g/b. Uploads come from a Uint8Array, so
+// UNPACK_PREMULTIPLY_ALPHA_WEBGL does not apply and alpha survives the upload unmodified.
+//
+// Kill: u_landAwareFetch = 0 (window.__RAW_DISABLE_LAND_AWARE_FETCH__) restores the plain fetch
+// byte-for-byte.
+vec4 sampleWaveLandAware(GEO_P vec2 uv) {
+  vec4 plain = texture2D(u_waveTexture, uv);
+  if (u_landAwareFetch < 0.5 || u_waveTexel.x <= 0.0 || u_waveTexel.y <= 0.0) return plain;
+
+  GEO_P vec2 tc = uv / u_waveTexel - 0.5;          // texel-space position of the sample
+  vec2 f = fract(tc);
+  GEO_P vec2 c0 = (floor(tc) + 0.5) * u_waveTexel; // centre of the lower-left texel of the 2x2 footprint
+  vec2 cx = vec2(u_waveTexel.x, 0.0);
+  vec2 cy = vec2(0.0, u_waveTexel.y);
+
+  vec4 s00 = texture2D(u_waveTexture, c0);
+  vec4 s10 = texture2D(u_waveTexture, c0 + cx);
+  vec4 s01 = texture2D(u_waveTexture, c0 + cy);
+  vec4 s11 = texture2D(u_waveTexture, c0 + cx + cy);
+
+  float m00 = step(0.5, texture2D(u_chlorophyllTexture, c0).a);
+  float m10 = step(0.5, texture2D(u_chlorophyllTexture, c0 + cx).a);
+  float m01 = step(0.5, texture2D(u_chlorophyllTexture, c0 + cy).a);
+  float m11 = step(0.5, texture2D(u_chlorophyllTexture, c0 + cx + cy).a);
+
+  float w00 = (1.0 - f.x) * (1.0 - f.y) * m00;
+  float w10 = f.x * (1.0 - f.y) * m10;
+  float w01 = (1.0 - f.x) * f.y * m01;
+  float w11 = f.x * f.y * m11;
+  float wsum = w00 + w10 + w01 + w11;
+  if (wsum < 0.0001) return plain;           // all four are land: masked pixel, do not invent a value
+
+  return (s00 * w00 + s10 * w10 + s01 * w01 + s11 * w11) / wsum;
+}
+
+GEO_P float mercatorYToLat(GEO_P float y) {
+  GEO_P float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
   return atan(sinhVal) * 180.0 / 3.141592653589793;
 }
 
-float latToMercatorY(float lat) {
-  float latClamped = clamp(lat, -85.051129, 85.051129);
-  float rad = latClamped * 3.141592653589793 / 180.0;
+GEO_P float latToMercatorY(GEO_P float lat) {
+  GEO_P float latClamped = clamp(lat, -85.051129, 85.051129);
+  GEO_P float rad = latClamped * 3.141592653589793 / 180.0;
   return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
 }
 
@@ -278,17 +350,17 @@ vec3 getRatingColorSmooth(float s) {
 // harbor-scale detail a 10-mi ribbon doesn't need, and doubling 16 samples with overlay
 // branches isn't worth it. The band branch is the ONLY caller (u_surfMode > 0.5) — the honest
 // swell path never pays for these samples.
-float oceanAtGeo(float slng, float slat) {
-  float mMinY = latToMercatorY(u_maskBounds_max.y);
-  float mMaxY = latToMercatorY(u_maskBounds_min.y);
-  float su;
+float oceanAtGeo(GEO_P float slng, GEO_P float slat) {
+  GEO_P float mMinY = latToMercatorY(u_maskBounds_max.y);
+  GEO_P float mMaxY = latToMercatorY(u_maskBounds_min.y);
+  GEO_P float su;
   if (u_maskBounds_min.x > u_maskBounds_max.x) {
-    float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    GEO_P float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
     su = mod(slng - u_maskBounds_min.x, 360.0) / max(mspan, 0.0001);
   } else {
     su = (slng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
   }
-  float sv = (mMaxY - latToMercatorY(slat)) / max(mMaxY - mMinY, 0.0001);
+  GEO_P float sv = (mMaxY - latToMercatorY(slat)) / max(mMaxY - mMinY, 0.0001);
   return texture2D(u_oceanMaskTexture, vec2(su, sv)).r;
 }
 
@@ -299,7 +371,7 @@ float oceanAtGeo(float slng, float slat) {
 // at distance d from a coast the disc's land fraction falls smoothly from ~0.5 (on the beach) to
 // 0 (a full disc-radius offshore) — no steps exist to see, every sample slides bilinearly.
 // Concave bays read slightly wider (higher land fraction) — a natural, desirable look.
-float coastLandFrac(float lng, float lat, float dDeg) {
+float coastLandFrac(GEO_P float lng, GEO_P float lat, float dDeg) {
   float rx = dDeg / max(cos(radians(lat)), 0.2);   // lng offset shrinks with latitude
   float f = 1.0 - oceanAtGeo(lng, lat);
   // inner ring — 6 samples at half radius (60° spacing)
@@ -325,33 +397,34 @@ float coastLandFrac(float lng, float lat, float dDeg) {
 }
 
 void main() {
-  float lng = v_mercator_xy.x * 360.0 - 180.0 - u_lng_offset;
-  float lat = mercatorYToLat(v_mercator_xy.y);
+  GEO_P float lng = v_mercator_xy.x * 360.0 - 180.0 - u_lng_offset;
+  GEO_P float lat = mercatorYToLat(v_mercator_xy.y);
 
-  float tex_u;
+  GEO_P float tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
-    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    GEO_P float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
     tex_u = mod(lng - u_dataBounds_min.x, 360.0) / max(span, 0.0001);
   } else {
     tex_u = (lng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
   }
-  float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
-  vec2 grid_uv = vec2(tex_u, tex_v);
+  GEO_P float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
+  GEO_P vec2 grid_uv = vec2(tex_u, tex_v);
+  GEO_P vec2 data_uv = ptReg(grid_uv, u_wave_reg);   // data-texture lookups only; feathering/debug keep grid_uv
 
   // DECOUPLED MASK BOUNDS (2026-07-04): the ocean mask can cover different geography than the
   // data grid (a viewport-scoped basemap-truth mask while the WORLD grid is resident), so its uv
   // derives from u_maskBounds, never u_dataBounds.
-  float maskMercMinY = latToMercatorY(u_maskBounds_max.y); // North
-  float maskMercMaxY = latToMercatorY(u_maskBounds_min.y); // South
-  float mask_u;
+  GEO_P float maskMercMinY = latToMercatorY(u_maskBounds_max.y); // North
+  GEO_P float maskMercMaxY = latToMercatorY(u_maskBounds_min.y); // South
+  GEO_P float mask_u;
   if (u_maskBounds_min.x > u_maskBounds_max.x) {
-    float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    GEO_P float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
     mask_u = mod(lng - u_maskBounds_min.x, 360.0) / max(mspan, 0.0001);
   } else {
     mask_u = (lng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
   }
-  float mask_v = (maskMercMaxY - v_mercator_xy.y) / max(maskMercMaxY - maskMercMinY, 0.0001);
-  vec2 mask_uv = vec2(mask_u, mask_v);
+  GEO_P float mask_v = (maskMercMaxY - v_mercator_xy.y) / max(maskMercMaxY - maskMercMinY, 0.0001);
+  GEO_P vec2 mask_uv = vec2(mask_u, mask_v);
 
   vec4 _maskSample = texture2D(u_oceanMaskTexture, mask_uv);
   float oceanAlpha = _maskSample.r;
@@ -379,10 +452,10 @@ void main() {
   // clamped to edge-water and disabled land masking wholesale — live Istria/Susak regression).
   bool _ovApplied = false;
   if (u_overlayMaskEnabled > 0.5) {
-    float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
-    float oMercMaxY = latToMercatorY(u_overlayBounds_min.y);
-    float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
-    float o_v = (oMercMaxY - v_mercator_xy.y) / max(oMercMaxY - oMercMinY, 0.0001);
+    GEO_P float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
+    GEO_P float oMercMaxY = latToMercatorY(u_overlayBounds_min.y);
+    GEO_P float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
+    GEO_P float o_v = (oMercMaxY - v_mercator_xy.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
       // AV-01a: inside STORAGE bounds is not inside TRUTH — the overlay speaks only inside its
       // truth rect; on the pad ring _ovApplied stays false so the base/wash/clip decide.
@@ -409,8 +482,8 @@ void main() {
       && (mask_u <= 0.0 || mask_u >= 1.0 || mask_v <= 0.0 || mask_v >= 1.0)) {
     oceanAlpha = 0.0;
   }
-  vec4 waveData = texture2D(u_waveTexture, grid_uv);
-  float depthFactor = texture2D(u_bathymetryTexture, grid_uv).r;
+  vec4 waveData = sampleWaveLandAware(data_uv);
+  float depthFactor = texture2D(u_bathymetryTexture, data_uv).r;
   float waveHeight = waveData.b * 10.0;
   
   float displayHeight = waveHeight;
@@ -430,6 +503,20 @@ void main() {
       return;
     } else if (u_debug_mode < 4.5) { // 'mercator' -> 4.0
       gl_FragColor = vec4(grid_uv.x, 1.0 - grid_uv.y, 1.0, u_opacity);
+      return;
+    } else if (u_debug_mode < 5.5) { // 'why' -> 5.0
+      // DISCARD-REASON MAP (2026-08-17, the 255 deg teardown). The two discards below this block are
+      // the ONLY ways this pass yields nothing, and a blank pixel cannot say which one ran — the
+      // teardown could prove the mask was innocent but not name the culprit. Paint the reason:
+      //   RED   oceanAlpha < 0.5                      — the mask discard
+      //   BLUE  surf mode AND ratingScore <= 0.05     — the rating discard (the "bilinear tail")
+      //   GREEN this pass paints here
+      // Conditions are written to MATCH the real discards exactly; if they ever drift apart this
+      // view starts lying, so it is deliberately adjacent to them rather than in a helper.
+      // Alpha is pinned to 1.0 (not u_opacity) so the class is read straight, not through a blend.
+      if (oceanAlpha < 0.5) { gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); return; }
+      if (u_surfMode > 0.5 && waveHeight * 10.0 <= 0.05) { gl_FragColor = vec4(0.0, 0.0, 1.0, 1.0); return; }
+      gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
       return;
     }
   }
@@ -543,7 +630,7 @@ void main() {
   vec3 baseDepthColor = mix(c_shelf_mid, deepNavy, t3);
 
   // ── LAYER 2: CHLOROPHYLL SATELLITE REALISM LAYER ──
-  float chlDensity = texture2D(u_chlorophyllTexture, grid_uv).r;
+  float chlDensity = texture2D(u_chlorophyllTexture, data_uv).r;
   vec3 chlorophyllGreen = vec3(0.06, 0.42, 0.24);
 
   // ── LAYER 3: SHALLOW WATER SHELF GLOW ──

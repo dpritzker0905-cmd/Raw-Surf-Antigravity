@@ -128,7 +128,7 @@ const GpxUploadModal = ({ isOpen, onClose, onParsed }) => {
       const res = await apiClient.get(`/strava/sync-recent?user_id=${userId}`);
       const metrics = res.data;
       onParsed(metrics);
- toast.success("Strava data synced successfully! =");
+      toast.success("Strava data synced successfully!");
       onClose(); // Close modal on success
     } catch (err) {
       toast.error(err.response?.data?.detail || "Failed to sync with Strava.");

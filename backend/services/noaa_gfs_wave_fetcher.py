@@ -148,6 +148,18 @@ except ImportError:
         direction_block_batch, height_block_batch, scalar_block_batch,
     )
 
+# ⛔ MODULE TOP, IN THE SCRIPT/PACKAGE IDIOM, NOT INLINE (hotfix 2026-09-29). Production SPAWNS this file by path
+# (`python services/noaa_gfs_wave_fetcher.py`), where `services` is not importable. #171 put a bare
+# `from services._fetch_native_cell import ...` inside fetch_global_coarse, so every GFS wave fetch died on that
+# line whatever REGRID_NATIVE_CELL said; the real-GRIB parity job caught it before any ingest ran.
+# tests/test_fetcher_script_imports.py now refuses a `services.` import outside an `except ImportError`.
+try:
+    from _fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native, multi_conf_at,  # script
+                                    native_multi, native_reduce, views)
+except ImportError:
+    from services._fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native,  # package
+                                             multi_conf_at, native_multi, native_reduce, views)
+
 # Scalar block aggregation (2026-07-04, wind_waves tri-model forensics): heights = block RMS,
 # periods = H²-weighted block mean — symmetric with the direction block means. PARTITIONED WW3
 # fields (WVHGT/SWELL_2) are exact-0 wherever a subcell classifies elsewhere; center-point
@@ -197,6 +209,12 @@ TOTAL_SEA_PARTITIONS = [
 def _pick_cycle(requests, now, max_f):
     """Probe AWS Open Data newest-first for a COMPLETE GFS-Wave cycle (f000 + the requested last hour
     both present). Returns (cycle_dt, file_prefix) or (None, None)."""
+    if os.environ.get('NOAA_WAVE_CYCLE_RETRY', '0') == '1':
+        try:
+            from _fetch_wave_cycle import pick_complete_cycle
+        except ImportError:
+            from services._fetch_wave_cycle import pick_complete_cycle
+        return pick_complete_cycle(requests, now, max_f, S3_BASE, GRID)
     # GFS runs 00/06/12/18Z; waves land ~3.5-5 h after cycle. Walk back up to ~36 h.
     floor6 = now.replace(minute=0, second=0, microsecond=0, hour=(now.hour // 6) * 6)
     for back in range(0, 7):
@@ -347,6 +365,12 @@ def fetch_global_coarse(payload):
     # Block half-width per region, against the FIXED 0.25° source grid (10° block -> half = 20).
     # Loop-invariant, so computed ONCE here instead of per forecast hour as the single `half` was.
     half_by = {rid: max(1, int(round(res_by[rid] / 0.25 / 2.0))) for rid in regions}
+    # ⛔ NATIVE-CELL REGRID (2026-09-29, REGRID_NATIVE_CELL, default off). At the native 0.25 deg the line above yields
+    # half=1, and the block is the 2x2 of native cells NORTH-WEST of the node: every regional node was a 2x2 energy
+    # mean placed half a cell south-east of its water (same_model_parity_probe; services/_fetch_native_cell.py).
+    # With the flag on, a native-resolution region reads its EXACT cell through the SAME reductions (a doubled view
+    # for the batch forms, a 1x1 slice for the scalar ones), so its direction confidences keep their meaning.
+    native_by = {rid: _native_enabled() and is_native(res_by[rid]) for rid in regions}
     f_hours = list(range(0, max_f + 1, 3))  # 3-hourly (all multiples of 3 exist 0..384)
 
     cycle_dt, prefix = _pick_cycle(requests, datetime.now(timezone.utc), max_f)
@@ -451,6 +475,8 @@ def fetch_global_coarse(payload):
             # says TO≈6) — the coherence-gated DIRPW tier in the _conf helper fixes exactly that.
             _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
             _total_h = arrs.get("wave_height") if total_field else None
+            # A native-resolution node whose own cell is LAND answers from its centred 3x3 (_fetch_native_cell).
+            _hs_native = arrs["wave_height"]
             # The decode + the block-mean inputs above are per-STEP and region-independent; only the
             # point iteration below is per-region. That asymmetry is the whole optimisation, and it
             # is why the BLOCK WIDTH (`half`) can differ per region for free — it is read inside the
@@ -462,6 +488,7 @@ def fetch_global_coarse(payload):
                     for rid, rmap in idx_by.items():
                         series = series_by[rid]
                         half = half_by[rid]
+                        nat = native_by[rid]
                         # VECTORIZED PATH (2026-08-06, MASTER-AUDIT-9.0 Phase 2). Same reduction, one
                         # strided pass instead of ~15,000 python calls: measured 16.8x on this call
                         # (97 -> 5.79 us/point), the single most expensive of the five at 31.0% of the
@@ -476,11 +503,17 @@ def fetch_global_coarse(payload):
                                        _partition_pairs, arr, _r, _c, _h, True, _total_h))
                             _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
                             _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
-                            _bd, _bc, _bp = multi_dir_conf_batch(
-                                _partition_pairs, arr, _rs, _cs, half, True, _sc,
-                                total_h_arr=_total_h,
-                                ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO,
-                                ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
+                            if nat:          # the exact native cell; a LAND cell answers from its centred 3x3
+                                _bd, _bc, _bp = native_multi(
+                                    multi_dir_conf_batch, energy_mean_direction_block_multi_conf, _partition_pairs,
+                                    arr, _total_h, _rs, _cs, ~np.isfinite(_hs_native[_rs, _cs]),
+                                    ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO, ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
+                            else:
+                                _bd, _bc, _bp = multi_dir_conf_batch(
+                                    _partition_pairs, arr, _rs, _cs, half, True, _sc,
+                                    total_h_arr=_total_h,
+                                    ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO,
+                                    ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
                             for pi in range(len(rmap)):
                                 _x = float(_bd[pi])
                                 series[pi][om].append(round(_x, 4) if _x == _x else None)
@@ -490,7 +523,13 @@ def fetch_global_coarse(payload):
                                     )
                             continue
                         for pi, (r, c) in enumerate(rmap):
-                            x, conf = energy_mean_direction_block_multi_conf(_partition_pairs, arr, r, c, half, True, _total_h)
+                            if nat:          # the exact native cell, or a LAND cell's centred 3x3
+                                x, conf = multi_conf_at(energy_mean_direction_block_multi_conf, r, c,
+                                                        LAND_HALF if not np.isfinite(_hs_native[r, c]) else 1,
+                                                        _partition_pairs, arr, _total_h)
+                            else:
+                                x, conf = energy_mean_direction_block_multi_conf(
+                                    _partition_pairs, arr, r, c, half, True, _total_h)
                             series[pi][om].append(round(float(x), 4) if x == x else None)
                             if export_confidence:
                                 series[pi][DIR_CONFIDENCE_OM].append(
@@ -506,6 +545,7 @@ def fetch_global_coarse(payload):
                 for rid, rmap in idx_by.items():
                     series = series_by[rid]
                     half = half_by[rid]
+                    nat = native_by[rid]
                     # VECTORIZED PATH — the same four reductions, one strided pass each. The branch
                     # below is decided per-VARIABLE, not per-point, so it hoists cleanly out of the
                     # point loop. Measured speedups: partition_conf 15.5x, scalar 18.3x, height
@@ -514,11 +554,23 @@ def fetch_global_coarse(payload):
                     # Bit-identical by construction: each batch form vectorizes only the interior and
                     # DELEGATES clamped edge rows to the scalar function handed to it.
                     # Kill: FETCH_VECTOR_BLOCKMEAN=0.
+                    _reduces = h_arr is not None or is_height or p_h_arr is not None
+                    if nat and _reduces:   # this variable's own batch + scalar pair, for _fetch_native_cell
+                        _bt, _fn, _gr = ((partition_dir_conf_batch, energy_mean_direction_block_partition_conf,
+                                          (arr, h_arr)) if h_arr is not None and part_conf_key else
+                                         (direction_block_batch, energy_mean_direction_block, (arr, h_arr))
+                                         if h_arr is not None else
+                                         (height_block_batch, energy_mean_height_block, (arr,)) if is_height else
+                                         (scalar_block_batch, energy_mean_scalar_block, (arr, p_h_arr)))
                     if _vector_blockmean() and rmap:
                         _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
                         _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
                         _vals = _pconfs = None
-                        if h_arr is not None and part_conf_key:
+                        if nat and _reduces:  # the exact native cell; a LAND cell answers from its centred 3x3
+                            _out = native_reduce(_bt, _fn, _gr, _rs, _cs, ~np.isfinite(_hs_native[_rs, _cs]),
+                                                 "partition" if (h_arr is not None and part_conf_key) else "value")
+                            _vals, _pconfs = _out[0], (_out[1] if len(_out) > 1 else None)
+                        elif h_arr is not None and part_conf_key:
                             _vals, _pconfs = partition_dir_conf_batch(
                                 arr, h_arr, _rs, _cs, half, True,
                                 lambda _r, _c, _h=half: energy_mean_direction_block_partition_conf(
@@ -548,7 +600,13 @@ def fetch_global_coarse(payload):
                                 series[pi][om].append(round(_x, 4) if _x == _x else None)
                             continue
                     for pi, (r, c) in enumerate(rmap):
-                        if h_arr is not None and part_conf_key:
+                        if nat and _reduces:  # the exact native cell, or a LAND cell's centred 3x3
+                            x = _fn(*views(r, c, LAND_HALF if not np.isfinite(_hs_native[r, c]) else 1, *_gr), True)
+                            if h_arr is not None and part_conf_key:
+                                x, _pconf = x
+                                series[pi][part_conf_key].append(
+                                    round(float(_pconf), 4) if _pconf is not None else None)
+                        elif h_arr is not None and part_conf_key:
                             x, _pconf = energy_mean_direction_block_partition_conf(
                                 arr, h_arr, r, c, half, True)
                             series[pi][part_conf_key].append(
@@ -666,7 +724,7 @@ def fetch_global_coarse(payload):
                     "latitude": float(la), "longitude": float(lo),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                    "__provider": "noaa",
+                    "__provider": "noaa", "__model_run_time": cycle_dt.isoformat(),
                     "hourly_units": units,
                     "hourly": hourly,
                 })

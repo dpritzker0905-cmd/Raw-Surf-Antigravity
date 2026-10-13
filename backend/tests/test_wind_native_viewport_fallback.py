@@ -29,6 +29,10 @@ client = TestClient(app, raise_server_exceptions=False)
 BBOX = dict(west=-85.0, south=24.0, east=-80.0, north=30.0)  # 5° Gulf box, GFS 1° snap = identity
 BBOX_STR = "-85,24,-80,30"
 BBOX_KEY = "-85.00_24.00_-80.00_30.00"
+# One fixed requested hour: the recovery key and window are per hour, so two `now()`s an hour boundary apart
+# would be two keys.
+TARGET = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0) + timedelta(hours=6)
+KEY = wnr.recovery_key("GFS", BBOX_KEY, TARGET)
 
 
 @pytest.fixture(autouse=True)
@@ -40,8 +44,9 @@ def _clean_recovery_state():
     from services.weather_pipeline.store import ProductStore
 
     def _reset():
-        wnr.RECOVERY_TASKS.clear()
+        wnr.RECOVERY_JOBS.clear()
         wnr.RECOVERY_COOLDOWN.clear()
+        wnr.RECOVERED.clear()
         wnr._RECOVERY_SEMAPHORE = None
         with ProductStore._product_cache_lock:
             ProductStore._product_cache.clear()
@@ -49,16 +54,16 @@ def _clean_recovery_state():
 
     _reset()
     yield
-    for t in wnr.RECOVERY_TASKS.values():
-        if not t.done():
-            t.cancel()
+    for job in wnr.RECOVERY_JOBS.values():
+        if not job.task.done():
+            job.task.cancel()
     _reset()
 
 
 def _spawn(service, **overrides):
     kwargs = dict(
         model="GFS", domain="wind", layer="wind",
-        target_dt=datetime.now(timezone.utc),
+        target_dt=TARGET,
         west=BBOX["west"], south=BBOX["south"], east=BBOX["east"], north=BBOX["north"],
         resolution=1.0, bbox_str=BBOX_STR, bbox_key_str=BBOX_KEY,
         coverage_scope="viewport",
@@ -100,7 +105,7 @@ def _run_guard_matrix(monkeypatch):
         # cooldown: task done, cooldown still active → blocked
         results["cooldown"] = _spawn(service)
         # cooldown expired → allowed again
-        wnr.RECOVERY_COOLDOWN["GFS_" + BBOX_KEY] = 0.0
+        wnr.RECOVERY_COOLDOWN[KEY] = 0.0
         results["cooldown_expired"] = _spawn(service)
         await asyncio.sleep(0)
         return results
@@ -127,11 +132,13 @@ def test_fetcher_mapping_resolves_to_real_callables():
     """The model map must point at importable async callables — catches renames/signature drift."""
     import importlib
     import inspect
-    for model, (mod_path, fn_name, days) in wnr._NATIVE_WIND_FETCHERS.items():
+    for model, (mod_path, fn_name, days, windowed) in wnr._NATIVE_WIND_FETCHERS.items():
         fn = getattr(importlib.import_module(mod_path), fn_name)
         assert inspect.iscoroutinefunction(fn), f"{model}: {fn_name} is not async"
         params = inspect.signature(fn).parameters
         assert "timeout_sec" in params, f"{model}: {fn_name} lacks timeout_sec pass-through"
+        if windowed:
+            assert "valid_window" in params, f"{model}: {fn_name} cannot be asked for the recovery window"
         assert days >= 2
 
 
@@ -179,9 +186,10 @@ def test_recovery_persists_and_next_request_upgrades(mock_weather_setup, monkeyp
 
     calls = {}
 
-    async def fake_fetch(bbox, resolution, forecast_days, timeout_sec=None):
+    async def fake_fetch(bbox, resolution, forecast_days, timeout_sec=None, valid_window=None):
         calls["args"] = (bbox, resolution, forecast_days, timeout_sec)
-        return _fake_native_points(bbox, resolution, times)
+        calls["valid_window"] = valid_window
+        return _fake_native_points(bbox, resolution, times)  # all 9 steps: the lane must trim, too
 
     import services.noaa_wind_service as noaa_svc
     monkeypatch.setattr(noaa_svc, "fetch_gfs_wind_global_coarse", fake_fetch)
@@ -192,9 +200,11 @@ def test_recovery_persists_and_next_request_upgrades(mock_weather_setup, monkeyp
         resolution=1.0, bbox_str=BBOX_STR, bbox_key_str=BBOX_KEY,
     ))
 
-    # forecast days honored + subprocess timeout forwarded
+    # forecast days honored + subprocess timeout forwarded + the fetch asked for the window only
     assert calls["args"][2] == wnr.native_forecast_days("GFS")
     assert calls["args"][3] and calls["args"][3] > 0
+    start, end = wnr.recovery_window(target_dt)
+    assert calls["valid_window"] == {"start": f"{start:%Y-%m-%dT%H:%M:%SZ}", "end": f"{end:%Y-%m-%dT%H:%M:%SZ}"}
 
     # target hour persisted under the standard dynamic cache key
     cache_key = build_dynamic_cache_key("GFS", "wind", "wind", target_dt,
@@ -210,11 +220,14 @@ def test_recovery_persists_and_next_request_upgrades(mock_weather_setup, monkeyp
     assert speeds, "recovered grid has no nonzero speeds"
     assert abs(speeds[0] - 19.43844) < 0.05, f"m/s→kn conversion broken: {speeds[0]}"
 
-    # remaining hours persisted too (scrub coverage): another 3-hourly step is in cache
-    other_dt = base + timedelta(hours=12)
-    other_key = build_dynamic_cache_key("GFS", "wind", "wind", other_dt,
-                                        BBOX["west"], BBOX["south"], BBOX["east"], BBOX["north"])
-    assert (store.cache_dir / f"{other_key}.json").exists(), "remaining hours not persisted"
+    # the window's other steps are persisted (scrubbing next to the viewed hour), and nothing past it
+    # (2026-10-09: the whole run was, 129 GFS hours per pan box)
+    def _persisted(h):
+        k = build_dynamic_cache_key("GFS", "wind", "wind", base + timedelta(hours=h),
+                                    BBOX["west"], BBOX["south"], BBOX["east"], BBOX["north"])
+        return (store.cache_dir / f"{k}.json").exists()
+    assert _persisted(3) and _persisted(9), "the window's neighbouring steps were not persisted"
+    assert not any(_persisted(h) for h in (0, 12, 15, 18, 21, 24)), "a recovery persisted hours outside its window"
 
 
 def test_route_failure_spawns_recovery_and_marine_does_not(mock_weather_setup, monkeypatch):
@@ -255,7 +268,7 @@ def test_route_failure_spawns_recovery_and_marine_does_not(mock_weather_setup, m
     monkeypatch.setattr(vps, "maybe_spawn_native_wind_recovery", wnr.maybe_spawn_native_wind_recovery)
     rm = client.get(f"/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time={valid_time}&bbox={BBOX_STR}")
     assert rm.status_code != 500
-    assert not wnr.RECOVERY_TASKS, "marine failure must never spawn a wind native recovery"
+    assert not wnr.RECOVERY_JOBS, "marine failure must never spawn a wind native recovery"
 
 
 # ── Third forensic pass: failure semantics + the REAL subprocess boundary ──
@@ -267,7 +280,7 @@ def test_failed_recovery_no_partial_persist_and_cooldown_selfheals(mock_weather_
     store, dynamic_idx = mock_weather_setup
     service = ViewportService(store=store, dynamic_index=dynamic_idx)
 
-    async def none_fetch(bbox, resolution, forecast_days, timeout_sec=None):
+    async def none_fetch(bbox, resolution, forecast_days, timeout_sec=None, valid_window=None):
         return None
 
     import services.noaa_wind_service as noaa_svc
@@ -275,11 +288,11 @@ def test_failed_recovery_no_partial_persist_and_cooldown_selfheals(mock_weather_
 
     async def scenario():
         assert _spawn(service) is True
-        await wnr.RECOVERY_TASKS["GFS_" + BBOX_KEY]
+        await wnr.RECOVERY_JOBS[KEY].task
         blocked = _spawn(service)          # cooldown active
-        wnr.RECOVERY_COOLDOWN["GFS_" + BBOX_KEY] = 0.0
+        wnr.RECOVERY_COOLDOWN[KEY] = 0.0
         respawned = _spawn(service)        # cooldown expired → self-heals
-        await wnr.RECOVERY_TASKS["GFS_" + BBOX_KEY]
+        await wnr.RECOVERY_JOBS[KEY].task
         return blocked, respawned
 
     blocked, respawned = asyncio.run(scenario())
@@ -332,11 +345,12 @@ def test_real_subprocess_boundary_round_trip(mock_weather_setup, monkeypatch, tm
     import services._fetch_common as fc
     monkeypatch.setattr(fc, "is_test_environment", lambda: False)  # let the subprocess really spawn
 
-    async def real_boundary_fetch(bbox, resolution, forecast_days, timeout_sec=None):
+    async def real_boundary_fetch(bbox, resolution, forecast_days, timeout_sec=None, valid_window=None):
         return await fc.run_fetcher_subprocess(
             str(script), bbox, resolution, forecast_days,
             log_tag="TEST-WIND", out_prefix="testwind",
             timeout=timeout_sec or 60,
+            extra_payload={"valid_window": valid_window} if valid_window else None,
         )
 
     import services.noaa_wind_service as noaa_svc
@@ -364,7 +378,7 @@ def test_semaphore_serializes_concurrent_recoveries(mock_weather_setup, monkeypa
     monkeypatch.setenv("WIND_NATIVE_RECOVERY_CONCURRENCY", "1")
     events = []
 
-    async def slow_fetch(bbox, resolution, forecast_days, timeout_sec=None):
+    async def slow_fetch(bbox, resolution, forecast_days, timeout_sec=None, valid_window=None):
         events.append(("start", bbox["west"]))
         await asyncio.sleep(0.05)
         events.append(("end", bbox["west"]))
@@ -375,8 +389,9 @@ def test_semaphore_serializes_concurrent_recoveries(mock_weather_setup, monkeypa
 
     async def scenario():
         assert _spawn(service) is True
+        await asyncio.sleep(0)             # the first holds the lane before the second arrives
         assert _spawn(service, west=-95.0, bbox_key_str="-95.00_24.00_-80.00_30.00") is True
-        await asyncio.gather(*wnr.RECOVERY_TASKS.values())
+        await asyncio.gather(*[job.task for job in wnr.RECOVERY_JOBS.values()])
 
     asyncio.run(scenario())
     assert len(events) == 4

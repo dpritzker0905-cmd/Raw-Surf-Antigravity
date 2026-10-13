@@ -115,7 +115,7 @@ def pct(vals, q):
 def main():
     from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
     from services.weather_pipeline.surf_rating import compute_surf_rating, score_to_level
-    from services.weather_pipeline.surf_transform import reconcile_partitions
+    from services.weather_pipeline.surf_partitions import reconcile_partitions
 
     print(f"partitions A/B against {BASE} ({MODEL})")
     spots = fetch_spots()

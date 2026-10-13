@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import httpx
 import logging
 import os
+import asyncio
 
 from database import get_db
 from models import SurfSpot
@@ -27,6 +28,17 @@ point_resolution_service = PointResolutionService(
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+CONDITIONS_PREVIEW_TIMEOUT_SECONDS = 3.0
+
+# Producer fields `/conditions/{spot_id}` passes through into `current` (absent unless set). The hub
+# is a surface that shows surf HEIGHT, so it must also carry QUALITY: "a size without a quality is
+# also incomplete" (CLAUDE.md, ONE FORECAST COMPOSITION). `surf_regime` + `offshore_height_ft` let the
+# UI mark the rare fail-open where the breaking transform threw and the offshore value stood in.
+_HUB_PASSTHROUGH = ("rating", "rating_level", "rating_confirmed", "surf_regime", "offshore_height_ft",
+                    "wind_speed_kts", "wind_direction",
+                    # W-34: where this hour's sea came from (a stored product or the point query). The
+                    # drawer printed a hard-coded "Open-Meteo" while the manifest lane served NOAA.
+                    "data_source")
 
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 NOAA_TIDES_URL = "https://api.tidesandcurrents.noaa.gov/api/prod/datagetter"
@@ -65,16 +77,28 @@ def _load_ratings_blob():
 def _frame_conditions_entry(e, updated_at):
     """Map a precomputed frame spot to the batch payload — BYTE-SHAPE IDENTICAL to the live
     entry (six keys; the frozen frontend spreads these). `label` derives through the SAME public
-    ladder the live producer uses, so the two paths cannot disagree about a word."""
+    ladder the live producer uses. Legacy frames lack primary swell: publish None, retaining
+    the fast path, rather than inventing a swell measurement from total offshore Hs."""
     from services.conditions_labels import get_conditions_label
     from services.weather_pipeline.spot_conditions import M_TO_FT
+    from services.weather_pipeline.spot_conditions import swell_height_ft
     h_ft = round(float(e["surf_height_m"]) * M_TO_FT, 1)
     return {"wave_height_ft": h_ft,
             "wave_direction": e["swell_from_deg"],
             "wave_period": e["period_s"],
-            "swell_height_ft": round(float(e["offshore_hs_m"]) * M_TO_FT, 1),
+            "swell_height_ft": swell_height_ft(e.get("primary_swell_hs_m")),
             "label": get_conditions_label(h_ft),
-            "updated_at": updated_at}
+            "updated_at": updated_at,
+            **_quality_pair(e.get("score"), e.get("level"))}
+
+
+def _quality_pair(score, level):
+    """`rating` + `rating_level`, or NOTHING (audit 15.0, 2026-09-26). Both lanes emit the same optional
+    pair, so the per-spot shape stays identical across them; the frozen client spreads entries, so an
+    additive pair is safe for it. The explore cards showed a size and never a quality."""
+    if score is None or not level or level == "unknown":
+        return {}
+    return {"rating": score, "rating_level": level}
 
 
 BATCH_MAX_SPOTS = 200
@@ -165,7 +189,8 @@ async def get_batch_conditions(
                         "wave_period": current["wave_period"],
                         "swell_height_ft": current["swell_height_ft"],
                         "label": current["label"],
-                        "updated_at": current["updated_at"]
+                        "updated_at": current["updated_at"],
+                        **_quality_pair(current.get("rating"), current.get("rating_level")),
                     }
             except Exception as e:
                 # WS-CAN-0009: the exception is LOGGED, never returned — `str(e)` on a wire any
@@ -227,14 +252,12 @@ async def get_spot_conditions(
     
     try:
         data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=2, spot_id=spot_id
+            model=model, lat=spot.latitude, lng=spot.longitude,
+            forecast_days=1 if os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1" else 2, spot_id=spot_id
         )
         if data and "current_conditions" in data:
             current = data["current_conditions"]
             
-            raw_point = await point_resolution_service.provider.fetch_point(
-                model=model, domain="marine", layer="waves", lat=spot.latitude, lng=spot.longitude, forecast_days=1
-            )
             # ⛔⛔ THIS LOOP USED TO BE `height * 3.28084`, i.e. the OFFSHORE significant wave height
             # served under `wave_height_ft` — THE SAME FIELD NAME `current` uses for the BREAKING
             # height, in the same payload, with a human label applied to it. Measured live
@@ -245,9 +268,22 @@ async def get_spot_conditions(
             # `spot_conditions.hourly_breaking_forecast`, beside the `_breaking_ft` that `current`
             # already used, so this route MIRRORS the one chain rather than being a second path.
             # ⚠️ Geometry is resolved ONCE here and reused across all hours — arithmetic, not I/O.
-            geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
-            forecast = hourly_breaking_forecast(
-                spot.latitude, spot.longitude, (raw_point or {}).get("hourly"), geometry, limit=6)
+            # Current conditions are authoritative; the preview is an optional enrichment.
+            forecast = []
+            forecast_status = "unavailable"
+            try:
+                raw_point = await asyncio.wait_for(
+                    point_resolution_service.provider.fetch_point(
+                        model=model, domain="marine", layer="waves", lat=spot.latitude,
+                        lng=spot.longitude, forecast_days=1),
+                    timeout=CONDITIONS_PREVIEW_TIMEOUT_SECONDS,
+                )
+                geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
+                forecast = hourly_breaking_forecast(
+                    spot.latitude, spot.longitude, (raw_point or {}).get("hourly"), geometry, limit=6)
+                forecast_status = "available" if forecast else "unavailable"
+            except Exception:
+                logger.warning("Optional conditions preview unavailable for spot %s model %s", spot_id, model)
             
             return {
                 "spot_id": spot_id,
@@ -274,8 +310,14 @@ async def get_spot_conditions(
                     # Absent-unless-it-binds, mirroring the producer's own contract.
                     **({"forecast_confidence": current["forecast_confidence"]}
                        if current.get("forecast_confidence") else {}),
+                    # ★ THE SAME DEFECT, ONE FIELD OVER (audit 15.0, 2026-09-26). The producer resolves
+                    # a wind sample and runs compute_surf_rating on EVERY request, and this whitelist
+                    # threw the result away: 24 live hub responses carried exactly the eight names
+                    # above, so the hub showed a size and never a quality.
+                    **{k: current[k] for k in _HUB_PASSTHROUGH if current.get(k) is not None},
                 },
-                "forecast": forecast
+                "forecast": forecast,
+                "forecast_status": forecast_status,
             }
         else:
             raise HTTPException(status_code=502, detail="Unable to fetch conditions")
@@ -311,7 +353,9 @@ async def get_spot_forecast(
     
     try:
         data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=min(days, 10),
+            model=model, lat=spot.latitude, lng=spot.longitude,
+            forecast_days=(min(max(days, 0), 10) + 1 if os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1"
+                           else min(days, 10)),
             spot_id=spot_id
         )
         if data and "forecast" in data:

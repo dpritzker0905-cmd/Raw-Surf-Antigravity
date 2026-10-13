@@ -1,0 +1,71 @@
+pair_id,input_x,input_y,output,dX,dY,dXY,residual_I,sign,magnitude_vs_dX_dY,classification,evidence_file
+zoom x layerSwitch,zoom 8->12,layer wind->waves,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,texLive,60,-14,20,-26,-,0.43x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,bufLive,396,-271,108,-17,-,0.04x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,canvases,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,intervals,0,1,1,0,0,0.00x,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+zoom x layerSwitch,zoom 8->12,layer wind->waves,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,texLive,-1,2,-1,-2,-,1.00x,Benign Interaction,evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,bufLive,0,5,0,-5,-,1.00x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,canvases,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,intervals,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+modelSwitch x timeScrub,GFS->EURO,time +1d,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,texLive,18,30,-14,-62,-,2.07x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,bufLive,83,370,-257,-710,-,1.92x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,canvases,2,0,2,0,0,0.00x,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,intervals,0,0,1,1,+,n/a,UNEXPECTED NONLINEAR INTERACTION — a state owner created ONLY in combination,evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x mapMove,wind->waves,pan Portugal z9,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,texLive,16,76,0,-92,-,1.21x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,bufLive,126,674,0,-800,-,1.19x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,canvases,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,intervals,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+resize x zoom,resize 1280->1920,zoom 8->12,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,texLive,20,26,-6,-52,-,2.00x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,bufLive,172,60,9,-223,-,1.30x,Interaction Reduced (sub-additive — combined path allocates LESS than the sum),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,canvases,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,intervals,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+antimeridian x zoom,to antimeridian,zoom to 12,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,texLive,0,0,-1,-1,-,n/a,Benign Interaction,evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,bufLive,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,canvases,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,intervals,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+hidden x timeScrub,hide+restore,time +1d,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,layers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,texLive,-70,0,14,84,+,1.20x,UNEXPECTED NONLINEAR INTERACTION (super-additive),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,bufLive,-841,0,83,924,+,1.10x,UNEXPECTED NONLINEAR INTERACTION (super-additive),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,rafSites,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,workers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,gl,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,canvases,2,0,2,0,0,0.00x,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,intervals,1,0,1,0,0,0.00x,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,programs,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json
+layerSwitch x modelSwitch,wind->waves,GFS->EURO,marineLayers,0,0,0,0,0,n/a,Expected Interaction (none),evidence/jacobian-tests/local-interaction-residuals.json

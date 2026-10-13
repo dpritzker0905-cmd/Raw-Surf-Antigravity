@@ -636,6 +636,33 @@ def test_size_verdict_names_the_reason_a_big_day_scores_low():
     weather_sim_mcp._SIM_OVERRIDES.clear()
 
 
+# THE SAME ORDERING, IN THE REGIME PRODUCTION RUNS. The test above passes with RATING_LOCAL_SIZE
+# unset ("0"), but production has run it ON in all three lanes since 3263031c (2026-08-01). Under
+# the flag the ordering INVERTS: `surf_rating.size_score` grades on the local-relative curve, which
+# saturates at 1.0 from ~3x the spot's reference with no upper penalty (measured on dev b75ed960,
+# ref 4.0 m: 12 m -> 1.0000, 20 m -> 1.0000), and the oversize veto is not strong enough to restore
+# ordering. Re-tuning either changes every published rating, so it is an OWNER calibration
+# decision (CLAUDE.md, ONE FORECAST COMPOSITION) — recorded here, not fixed.
+# strict=True: whoever fixes it sees this turn red and must delete the block.
+# raises=AssertionError: ONLY a real ordering failure may satisfy the xfail. An earlier unshipped
+# draft of this pin swallowed a NameError and would have stayed "expected-failing" forever.
+@pytest.mark.xfail(strict=True, raises=AssertionError, reason=(
+    "LIVE DEFECT: under RATING_LOCAL_SIZE=1 (production since 3263031c) a 20 m Mavericks day "
+    "outscores 1.5 m — the local-relative size curve saturates and the oversize veto cannot "
+    "restore ordering. Owner calibration decision."))
+def test_a_big_day_scores_low_in_the_production_local_size_regime(monkeypatch):
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "1")
+    args = dict(spot_name="Mavericks", wind_direction_deg=110.0, wind_speed_knots=5.0,
+                swell_period_sec=17.0, swell_direction_deg=225.0)
+    try:
+        ordinary = weather_sim_mcp.simulate_weather_change(**args, swell_height_m=1.5)["simulated_surf_output"]
+        giant = weather_sim_mcp.simulate_weather_change(**args, swell_height_m=20.0)["simulated_surf_output"]
+    finally:
+        weather_sim_mcp._SIM_OVERRIDES.clear()
+    assert giant["breaking_height_ft"] > ordinary["breaking_height_ft"]
+    assert giant["quality_rating"] < ordinary["quality_rating"], (ordinary["quality_rating"], giant["quality_rating"])
+
+
 def test_size_verdict_vocabulary_is_closed():
     """A caller (or a UI) keying off this field must not meet an unannounced value."""
     allowed = {"within_range", "at_the_upper_limit", "too_big_to_ride"}

@@ -67,7 +67,10 @@ module.exports = defineConfig({
     // Undefined when E2E_ACCESS_CODE is unset -- see the gate note above. Playwright treats an
     // undefined storageState as "no seeding", which is the loud-failure path, not a silent pass.
     storageState: gateStorageState,
-    trace: 'on-first-retry',
+    // Raw traces serialize authenticated storageState, including E2E_ACCESS_CODE. The public
+    // artifact must never contain that state. Keep screenshots/video; qualify a sanitized trace
+    // pipeline separately before restoring tracing on credential-bearing browser contexts.
+    trace: 'off',
     screenshot: 'only-on-failure',
     // WS-CAN-0027 (2026-08-13). Named by 11.0 as "this audit's single largest evidence gap", then by
     // 11.1, 11.2, 11.4 and 12.0 — five audits disclosed producing zero recordings and none wrote the

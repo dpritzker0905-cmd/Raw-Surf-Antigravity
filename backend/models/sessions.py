@@ -67,7 +67,15 @@ class LiveSessionParticipant(Base):
     # ============ PHOTOGRAPHER NOTES (For surfer identification) ============
     # Photographers can add quick notes to help identify surfers in photos
     photographer_notes = Column(Text, nullable=True)  # e.g., "Red fins, goofy stance, staying near pier"
-    
+
+    # ============ ESCROW (photographer's share of the buy-in) ============
+    # Held at join; released when the buyer acts on the media delivered to their gallery, or 7 days
+    # after the join; cancelled when an early leave is refunded. NULL status = a row from before
+    # escrow existed, whose share was paid at join. See services/live_session_escrow.py.
+    escrow_amount = Column(Float, nullable=True)
+    escrow_status = Column(String(30), nullable=True)  # 'held', 'released', 'cancelled'
+    escrow_released_at = Column(DateTime(timezone=True), nullable=True)
+
     photographer = relationship('Profile', foreign_keys=[photographer_id], backref='session_participants_as_photographer')
     surfer = relationship('Profile', foreign_keys=[surfer_id], backref='session_participations')
     parent_buyer = relationship('Profile', foreign_keys=[parent_buyer_id], backref='grom_session_purchases')

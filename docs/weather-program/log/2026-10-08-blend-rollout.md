@@ -1,0 +1,163 @@
+
+## 2026-10-08 00:09Z — PR259 actual merge readback
+
+PR259 MERGED2026-10-08T00:09:17Z squash76a997607ed1717c8782e736f291116ae72b64dc, exact reviewedhead69cb4705cdc2d16a7acf06cb399a49090adc2aa4.
+origin/dev equals merge; full merge tree equals69cb4705, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-08 00:10Z — PR259 exact final source qualified with actual hosted counters
+
+Actual final259 head69cb4705 qualified: own CI37704544849 all11 successful;377 frontend suites/4177 tests,2425 guards+2396 chain+1227 estate=6048 backend passes; zero failures/errors. Guards66 skipped1xfail, chain159 files/no skips, estate299 selected297 produced0silent. OwnLOC/Ledger/Lighthouse/deploy preview passed; Encoding absent by source filters. Strict validator and memory gate exited0 before ready/exact-head squash merge; full reviewed tree and canonical918 prefix retained. Initial active-run job archive was unavailable, not count evidence; final completed archive provides actual totals. First00:09 source readback still old healthy build, so925 deployment fulfillment pending. No served physical number changed or scientific/live/data-health acceptance inferred.
+
+## 2026-10-08 00:10Z — Direct-point time-honesty counterexample mapped to WF03 and WI03
+
+Saved actual direct-point counterexample under WF03/WI03: exact versus+1h GFS target, two real estimator calls, same physical payload, asked valid_time returned but servednull/offset0/substitutedfalse and missing cycle_sources. Exact source/AST nearest-time method used with offline doubles; initial full import missingFastAPI failed before controls, not green. Caller returns estimate immediately; remaining serialization/provider evidence must be traced before repair. No source change, server/provider/shared-data request or replacement task. No served physical number changed.
+
+## 2026-10-08 00:12Z — Original860 remains blocked by rollout timing and concurrent forecast work
+
+Reconciled original860 without replacement: PR259 merge00:09:17Z makes earliest twenty-minute point00:29:17Z. At00:11 old API07/frontenddd remained healthy, source76 pending. Core37688577040 and regional37704566496 scheduled ingests still active; post-merge E2E37706231506 also active and must be accounted for in quiet prerequisites. No job dispatch/rerun/cancel or browser scene/input forced. The bounded PAUSED GFS Waves contract, stable viewport, paint/CPU/callback/fallback observations, Waves OFF/owned cleanup/posthealth and no Play/scrub/stress remain intact. No served physical number changed.
+
+## 2026-10-08 00:14Z — PR259 matching healthy dev deployment verified;925 fulfilled
+
+Actual automatic rollout read back00:13:37-39Z: frontend76a99760/API full76a997607ed1717c8782e736f291116ae72b64dc healthy; complete13055/13055 durable restoration, connected, zero errors; productionfrontendfc140024. Two marine cycle-unverified warnings remain. This fulfills925 source/availability scope after own final69cb4705 all11/6048backend/4177frontend and exact-tree/prefix qualification. Prior old-source receipts were honestly pending. No manual trigger, environment/flag/product mutation, live scene or served physical number change. Newly generated metadata, WI03 old slots/direct point and860/playback/time/Gulf/device/isolation remain independently open.
+
+## 2026-10-08 00:14Z — PR259 post-merge receipts prepared for normal publication
+
+Prepare normal publication of proposed927–932 on owned codex/blend-cycle-provenance: actual259 merge, own final-head counts/gates, direct-point counterexample under existing WF03/WI03, original860 blockers and actual matching healthy source76/925 fulfillment. Canonical926 history remains byte-identical; only ACTIONS/STATE/ownedOct8 log change versus dev. Guard/commit/push and exact remote/local/clean-tree readback remain pending until executed; do not claim them from this entry alone. Newest merge may wait for next source PR; no endless docs-only merge chain. No served physical number changed.
+
+## 2026-10-08 00:38Z — Commit final-source qualification for the new direct-point metadata repair
+
+Track this new source PR qualification independently of completed925/931; no replacement for860 or any product acceptance task. Own final-head CI actual counters/paired floors/currentbase/LOC/ledger/prefix/clean-tree qualification required before authorized conditionaldev merge; matching deployed source and healthy readback afterward. New due04:00Z. Live860 remains first scene when its quiet prerequisites hold; no broader scenes/Play/scrub/stress or scientific/shared-data mutations authorized by this commitment. No served physical number changes.
+
+## 2026-10-08 00:39Z — Direct-point metadata repair passes actual serving controls and Jacobian comparison
+
+Created owned codex/direct-point-time-provenance from published5948cc98 with prior post-merge927-932 receipts preserved. Actual caller/augmentation/route trace confirms estimated direct point returns without a later honesty stamp. First full imports lackedFastAPI/anyio/httpx: collection failures, not numerical RED. Installed repository-pinned application dependencies in an isolated external test directory, no environment or shared-data change. Actual unchanged baseline40failed/1passed; candidate203passed through real resolver/surf/JSON model with offline provider/geometry doubles. Metadata helper preserves requested valid_time, records each selected sample and contributor cycle, uses common target time only if active target donors agree; mixed targets expose sources and warning, null common frame, neutral0 offset explicitly not exact and substitutedtrue. No cycle inferred from receipt/forecast. Inactive/unavailableICON does not govern provenance. Existing30min threshold/3h guard, four layers, cycle missing/incomplete/invalid/conflicting/known preserved. Initial Jacobian analytic reference incorrectly assumed GFS0.3 for every horizon; corrected instrument to actual returned unchanged weights, then actual2944 immutable76/candidate serving calls/720 finite-difference cases physically/Jacobian identical, analytic height error8.33e-16. Initial selector invoked from root refused empty tree; backend cwd partition passed648/186/159/300. New41 cases naturally estate-owned, paired floor1266/reference1268 with margin2. No served physical number changes; no scoreboard science gain or forecast/live acceptance claimed. Core existing scheduled job completed success00:20:56Z; regional/E2E remain860 blockers. No job dispatch/rerun, browser scene, main promotion, product rewrite or scientific activation. New final-source qualification remains pending.
+
+## 2026-10-08 00:40Z — Prepare normal publication of the bounded direct-point metadata candidate
+
+Prepare normal publication after actual203 focused controls,47 paired floor/selector controls and own memory/ledger-prefix/LOC/lint/diff exits0. Source changes: pure donor identity helper,10 estimator wiring lines,41 real point serving/serialization controls; estate selector300files and projected1268 passes/floor1266/reference1268. No selector workaround or test-floor lowering. Candidate/provenance finding934 follows new qualification commitment933. Initial event kindaction was rejected by ledger before writing; corrected to supported finding, not a history edit. Initial nonexistent second floor-control filename collected nothing; actual correct CI-lane source controls47passed. Ordinary commit/push and remote clean-tree/draft PR readback pending; no bypass. No served physical number changes or scientific/Gulf/live acceptance; all source253/259 scopes and original860 preserved.
+
+## 2026-10-08 00:44Z — PR260 published; exact-hunk ancestry integration preserves canonical records
+
+Normal99e0b0bd source push/draftPR260 creation attached and read back. Expected CONFLICTING squash ancestry resolved by exact hunk replacements across estimator import/floor reference/ledger/STATE; each matched already reviewed HEAD text and canonical926 prefix proof. The Windows text writer accidentally converted local ledgerLF toCRLF. Receipt append refused before writing; memory/prefix gates failed. The agent erroneously continued normal merge43d85f5a/push after those failures instead of stopping; acknowledged to owner and corrected before any dev merge. Independent binary comparison proved committed43 ledger equals99, canonical926 is exact byte-prefix, and only working bytes had CRLF; normalized only those line endings to exact published bytes, SHA256877cbec0f89608fe1ba878f2f749d29642c4608a247bf3c2323d3cfd0ff07b17. Resolver writer now explicitly usesLF. Reran own memory/prefix/LOC/lint/diff gates, each exit0; source/floors/physical recipe remain identical to verified203/Jacobian candidate. GitHub43/base76 nowMERGEABLE/draft, ownLOC/Ledger successful, fullCI37709247239 active and not final qualification. This receipt is appended only after correction and becomes a new final publication head; actual own final checks remain required. No canonical history rewrite, served physical number change, scientific/shared-data mutation or live scene.
+
+## 2026-10-08 01:04Z — PR260 actual merge readback
+
+PR260 MERGED2026-10-08T01:03:20Z squash95b8f7c811a83a890f5b6bc0f61e01c9fc5ca722, exact reviewedhead0da8ecfbc877ecebe11e8beb8e7cb75a677eb171.
+origin/dev equals merge; full merge tree equals0da8ecfb, exact priorledgerprefix retained.
+Source/health deployed readback remains pending; no scientificactivation/shareddata/main
+promotion or live860scene. User rollout authority880;863qualifiedsupplements881 preserved.
+
+## 2026-10-08 01:05Z — PR260 own final source qualifies with actual6089 backend passes
+
+Actual completed own final0da CI37709416823 collected01:02:25Z:377frontend suites4177tests,2425guards2396chain1268estate=6089backend passes, zero failures/errors. Guards66skip1xfail across186files; chain159files/no skips; estate300selected298produced2865skipped0silent, new41 controls supported by exact projected1268 count and local real-path tests. LOC37709416526/Ledger37709416654/Lighthouse37709416647/preview passed; Encoding absent by unchanged-frontend filter, not green. Strict validator current76 base/exact remote-local0da/clean tree/eight owned files/canonical926 byte-prefix through936 plus own memory/prefix/LOC/lint/diff exit0 ran before ready/exact-headsquash merge95 at01:03:20Z. Actual merge tree equalsqualified0da; canonicalledger936 carries prior927-932 and933-936. Normal local ancestry merge while treesidentical had no conflict/tree delta; this prevents repeating prior squash ancestry issue. First01:04 deployment receipt stillhealthyAPI/frontend76,933 availability fulfillment pending honestly. No served wave/surf physical number or scientific flag changed; new served-time offset is diagnostic identity, not forecast skill. Existing source76 E2E failed separately at00:53:53Z and earlier07/7a runs also failed; cannot support product acceptance. No causal attribution to point metadata or cache repair absent isolated evidence.
+
+## 2026-10-08 01:05Z — Superseded own PR260 CI runs stopped; final-source qualification independent
+
+At00:46:43Z canceled only own superseded43 CI37709247239/Lighthouse37709247203 after exact workflow/SHA/currentPRhead verification.00:47:49Z readback completed/cancelled for both. Final0da CI37709416823 is the sole final-source proof. No existing ingest/E2E/Nightly cancel/dispatch/rerun, shared-data mutation or browser action. Owner repair/publication authority supplies bounded own-run cleanup scope. No served physical number changed.
+
+## 2026-10-08 01:05Z — Distinct regular direct-point metadata gap reproduced under existing WF03/WI03
+
+Independent remaining-point-forensics.json at00:47:48Z on actual0da source runs40 real production point resolver/surf/JSON calls,20 exact and20 +1h samples. GFS/ICON/EURO marine/wind/pressure/precipitation covered; unsupportedICON swell2 explicitly excluded/preserved. All regular direct responses omit servedtime/cycle identity despite actual selected timestamps and supplied raw UTCcycle. Estimated-EURO branch was not duplicated or reopened; PR260 remains its own bounded repair. Actual provider maps and offline doubles keep path faithful without network/shared-data requests; no endpoint/live/forecast skill claim. Next existingWF03/WI03 source repair should stamp actual selected sample/cycle at shared direct boundaries, preserve physical/default/source eligibility contracts and require real negative/positive controls, independent physical/Jacobian evidence and own source/rollout qualification. No served physical number changed by this read-only diagnostic.
+
+## 2026-10-08 01:05Z — Original860 remains bounded and blocked; failed acceptance receipts preserved
+
+Refresh original860 contract without replacement: actual260 merge01:03:20Z makes20min01:23:20Z, then matching deployedsource/healthyAPI and quiet prerequisites required. Existingcore376885 completed00:20:56; newlyscheduledcore37710415890 source76 created00:57:07/job00:57:10/ingeststep00:58:01 active with regional37704566496 sourcedd. E2E37706231506 source76 completedfailure00:53:53Z after bounded40min teststep; extracted72tests/1worker/testfilereferences and class-only error signals, no invented final count/root cause. Previous07/7a completedE2E alsofailed; source260 qualification is not these product/device/playback verdicts. LatestexistingMarineNightly37631047631 source4fe failed; scheduler06:30Z,333 originalcontract preserved, no manualdispatch/rerun.01:04readbackAPI/frontend76 healthy/restore13166complete/zeroerrors/two cyclewarnings, oldsource notnew95. No live scene/input/extra forecast request, no existingjob dispatch/rerun/cancel, shareddata/flags or physical number mutation. Keep visible focused stable pausedGFSWaves/viewportboundszoomgrid/paintCPUcallbackfallback/WavesOFFownedcleanup/posthealth exact scope; callback cadence neverGPUcompletion and nestedCPU never summed.
+
+## 2026-10-08 01:06Z — Paired diagnostic scoreboard rows preserve physical scope
+
+Appended same-instrument before/after rows for the served diagnostic offset/time/cycle repair:41 real resolver/surf/JSON controls40fail1pass=>41pass,203focused and actual2944/Jacobian720 physical0. Own final0da source qualified and merged95; deployed identity still requires actual matching readback. No served physical wave/surf number, scientific flag, forecast accuracy or live acceptance changes. Scoreboard is append-only; no earlier row edited.
+
+## 2026-10-08 01:07Z — PR260 matching healthy dev deployment verified;933 fulfilled
+
+Actual automaticrollout01:06:42-44Z frontend95b8f7c8/API full95b8f7c811a83a890f5b6bc0f61e01c9fc5ca722 healthy,complete13247/13247 durable restore,connected,zeroerrors;productionfrontendfc140024. Two marine missing-cycle alerts persist. Assertion helper verifies expected/full/shortsource HTTP/status/readiness/sourcequalified merge; fulfills933 source/availability only. Prior01:04healthy76 honestlypending. No manualtrigger/credential/environment/flag/product rewrite. Paired diagnostic scoreboardbeforeafter rows appended: offsetmetadata repaired, physical wave/surf values and Jacobians unchanged, no skillgain. Original860,regulardirectpoint940,WI03oldslots/warnings,WF02/WF03/playback/Gulf/device/isolation and E2E/Nightly acceptance remain independently open. Newlyscheduledsource76 ingest retains own original source; no new forecast load or forced scene.
+
+## 2026-10-08 01:09Z — Prepare normal publication of PR260 completed rollout and remaining findings
+
+Prepare normal post-merge publication on owned codex/direct-point-time-provenance after actualqualified0da→95 merge/fulltree/prefix and matchinghealthydev frontend/API95/complete13247restore/zeroerrors readback. Canonical936 includes priorproposed927-936 and925 scopedclosure931. Proposed937-943 containsactual260merge/all11 ownCI actual6089backend4177frontend,cleanupofonly superseded43ownCI,regularpoint40offline/20offsetfinding940,failed76E2E/currentquietblockers,933availabilityfulfilled942 andsameinstrumentbeforeafterSCOREBOARD diagnostic rows. Currentancestry incorporatesactualdev95 with identicaltree; onlyfour weatherdocs differ, canonical936prefix retained.01:08postmerge devCI37710971158/E2E37710971172 source95 active plusexistingcore37710415890 source76/regional37704566496 sourcedd; no jobforce/browser scene. Original860 earliest01:23:20Z plus exactquiet/healthy/stable/focusedpausedscope; datawarnings/playback/Gulf/device/isolation/source-independentE2E/Nightly remain open. Normalcommit/push andfinalremote/localclean/prefixreadback pending, neverclaimedalreadydone. No servedphysicalnumber/flag/shareddata/mainchange; nextsourcePR cancarryreceipts, no duplicate docsmergechain.
+
+## 2026-10-08 01:23Z — Regular direct-point source qualification and conditional dev rollout owed
+
+Owner renewed authorization: Ok lets keep going on the repairs. New branchcodex/regular-point-provenance starts at published544d32b5 retaining actualdev95 ancestry and proposed937-943. Trevec unavailable, targeted source fallback. New follow-up944 is own source qualification/rollout, not replacement860 or broad acceptance.
+
+## 2026-10-08 01:23Z — Regular direct-point metadata candidate verified without physical changes
+
+Rootcause: regular constructors stamp requested validtime while dropping selected hourly sample and independently supplied __model_run_time. direct_point_provenance consumes existing selector index and delegates shared stamp_frame_honesty/cycle_from_points. NativeEURO and currentfallback rawdonor covered without relabelling.99actualserving controls include20paths signed±3h/exact,30/31min threshold,missing/invalid/timezone cycles,>3h refusal,UTCnaivehourly,all4EUROfallback layers,null/zero/calm and unsupportedICON. Immutable95 correctedRED92fail7pass; focused213pass/floors47pass. Initialwrongunsupportedstatus was fixtureerror retained, not repair. Forensics144scenarios/3168actualcalls/720centralcases across all20 paths+4fallbacks,UTCnaive/Z,+/-3h,physicalbody comparison excluding six intended time fields and receipt run_time; output/Jacobian diffs0, primarylinearidentityerror2.274e-13. Metadata offset diagnostic scoreboard pairedrows, no physical/skillgain. Sourcequalification944 pending.
+
+## 2026-10-08 01:23Z — 860 remains blocked by concurrent forecast work and restore readiness
+
+Freshhealthreadback reportedrestoreempty/restored0/1error while resident13247 and APIstatushealthy; prior complete13247/0error01:06 receipt retained at its freshness. Source store restore bookkeeping reports lastrestore state, cannot infer emptyresidentcache or exacterrorcause from count. WI03 remainsindependent;860 additionally blocked. Activecore76ingest/new95E2E/precompute; no existingdispatch/rerun/cancel, no browser. Document current blocker without reopening qualifiedcachefixes or claimingavailability/datahealth acceptance.
+
+### Regular-point draft scoreboard formatting correction
+
+First local memory gate failed: two newly drafted scoreboard rows had five cells rather than six. Added the missing diagnostic-scope cell only in these unpublished draft rows; all five existing measurement cells retained verbatim, every published scoreboard byte-prefix retained. Gate failure was observed before any commit/push, and qualification remains blocked until rerun passes. No canonical row or measurement changed. Initial malformed draft rows retained here:
+
+> | 2026-10-08 01:23Z | WF03/WI03 regular direct-point time/cycle — before | Diagnostic metadata controls, immutable dev95 actual resolver/surf/JSON | 99 controls:92failed7passed; servedframe/cycle missing on eligible regular responses | Offline provider/geometry doubles; no physical accuracy or live acceptance |
+> | 2026-10-08 01:23Z | WF03/WI03 regular direct-point time/cycle — after candidate | Same99 controls within213focused passes; actual3168calls/144scenarios/720Jacob cases | Signedframe offset/cycle provenance repaired; physicaloutput/Jacobian differences0; primary identityerror2.274e-13 | No physicalservednumber or scientificflag changed; own hosted/rollout pending944; no skillgain claimed |
+
+## 2026-10-08 01:26Z — Regular direct-point candidate prepared for normal publication
+
+Prepare normal commit/push/draftPRdev after each own localgateexit0. Reviewed22additivebuilderlines/2resolverchangedlines, requestecho and physicalpath unchanged.99newguardcases claim187guardfiles/2524projectedpass margin6, pairedfloorref, selectorunchanged. Two draftscoreboard format failures blockedpublication until corrected6columns; originaldraft retained inlog and publishedscoreboardprefix unchanged. Unownedcanary hash unchanged/unexecuted. Hostedfinalsource, actualremote/clean and conditionaldevrollout are pending944; sourceproof cannot close860/datahealth/productacceptance.
+
+## 2026-10-08 01:27Z — PR261 published for its own final-source qualification
+
+Actualnormal publication01:26:16Z b923943b20ddbc0253b0567881bc261660c967ba clean/remotematch. PR261createddraft andattached, OPEN/MERGEABLE/base95. Own initialCI37712924860,LOC37712924845,Ledger37712924844,Lighthouse37712924873 begun; previewgreen. This948actualpublicationreceipt must be in finalqualifiedhead; newcommit/push normalhooks and ownfinalheadCI, no reuseinitialheadgreen. Candidatesource22additivebuilderlines/2resolverdiff lines;99controls/213focused/47floors and3168calls720Jacob physical0. Previouslydraftscoreboardformat fix requiredsecond missingdelimiter correction; finalmemorygate0 beforefirstpush, allcanonicalpublishedrows retained. Noacceptanceclosure860/datahealth/playback/Gulf/device/isolation.
+
+## 2026-10-08 01:48Z — PR261 exact final-source repair merged into dev
+
+ActualPR261merge2026-10-08T01:47:56Z as3d21765ca7ca2b16a3c186a6f12ef289f6abb086, qualified96704d4e9e3d67affb76e7b0aba4799b3f8f5754 fulltreeequal. SequentialsubprocesscheckTrue validate/localgate/ready/currentbase/headmatch merge; nofailedgate bypass. Actualdevancestryintegrated onidenticaltree beforepostmergeledger. Canonical948 includesprevious260rollout937-943,933/942 scopedclosure. Own944stillpending matchinghealthydeployment. No live860test/Gulf/device/playback/datahealth acceptance.
+
+## 2026-10-08 01:48Z — PR261 final source qualifies with actual6188 backend passes
+
+Actualownfinalsource967 qualifies6188backend/4177frontend all11. Guards2524+66skip1xfail,2591collected187files;chain2396/159/no skip;estate1268/300selected298produced2865skip0silent. Pairedguardsfloor2518/ref2524 and187filesconfirmed, selectorsunchanged. Metadata-only codefullphysical/Jacobian invariance3168calls720cases; no skillgain. Requestecho/selection/nativefallback/unsupportedICON andmarinezero/calm guards retained. Upstreamrawproviders stilllack verifiedcyclemarkerunless independentlysupplied; unknowncyclesstayunknown, not allpointcyclesaccepted. LOC/Ledger/Lighthouse/preview pass; Encoding absent honestly.
+
+## 2026-10-08 01:48Z — Superseded PR261 candidate CI cleanup completed
+
+Canceledonlyownb923CI/Lighthouse, initialrequestafterstateinprogress preserved; finalreadbackbothcompletedcancelled separately. New967all11sourceverdict independent, no reuseoldhead. No existingforecastjob dispatch/rerun/cancel; devmerge mayautomatically supersede E2E under existing repositorysource policy, not manualjobmutation.
+
+## 2026-10-08 01:48Z — Health diagnostic request amplification reproduced offline
+
+Offlinehealthforensics36actualget_persistence_diagnostics calls withstorage double:one listattemptpercall, successand429failure, no cooldown/cache. Sourceunchangedfrom95, methodcalledbypublichealthroute. A concreteunnecessaryupstreamrequest path canbenarrowlyrepaired withboundedcache/cooldown/freshness/failure/concurrency semantics; donotclaimthiscausedlive429orhidefailure/unknowncounts. Actualsanitizedhealth01:28 manifestdownloadfailed429, resident13247/restoreempty0 anddurableconnected preserved. E2E76 availablefinalreportartifactcount0 after40mintestbound; preciseassertioncause notobservablefromcurrentlog, no fabricatedrootcause or cache-repairregression.
+
+## 2026-10-08 01:48Z — Unchanged EURO fallback source-label mismatch reproduced
+
+Actualfourfallbackcalls at01:41:49Z:EUROwaves requestsEURO whichOpenMeteoMARINE_MODELS mapsECMWFwam025 butresponseupstream_model/basis_source reportncepGFSwave025/providergfs_estimated_fallback. Swell1/swell2/windwaves fetchGFS/ncepGFSwave025 whilebasis.source_model reportsECMWFwam025. Fixedsourceassignments existedat95 andintentionallyunchangedin261 metadatarepair; source/scientificaccuracyacceptance remainsopenWI03. Nextsmalllabelrepair mustrecordactualproviderrequestmodel throughfallbackmetadata, preserve physicalinputs/sourceeligibility/nativeauthority/estimatedsemantics andmeasure realserving/Jacobian parity. Do not fabricate modelcycle fromlabel. Firstsandboxasyncioattemptstalledbeforeoutput; ownedPIDstoppedandactualsuccessful4callrerunpermittedonlyWindowsinternalloopbacks withapplicationDNSrefused.
+
+## 2026-10-08 01:49Z — 860 timing and failed95 E2E evidence refreshed after261merge
+
+Actualfresh95E2E37710971172 completedfailure; exactjobs/steps/workloadstatuses and860earliest savedpr261-acceptance-readback.json. Prior source261qualification6188backend/4177frontend doesnotaccept E2E/device/playback. Initial3drollout01:48 stillold95/frontend95; old95restorecomplete13249/0errors nowrecoveredfromearlier429before261deployed, no causalcredit. Currenttwo cyclewarnings persist. Original860earliest2026-10-08T02:07:56+00:00 andsource/healthy/quiet/focus/stableviewport conditions, no forcedscene/Wavesactivation/newforecasts. Latesthealthamplification andfallbacklabels remain distinct verifiedoffline WI03findings despite transientrestore recovery.
+
+## 2026-10-08 01:52Z — PR261 matching healthy dev deployment verified;944 fulfilled
+
+Actualautomaticrollout2026-10-08T01:52:01.809833+00:00 frontend3d21765c/API full3d21765ca7ca2b16a3c186a6f12ef289f6abb086 healthy/complete13301restore/durableconnected/zeroerrors; productionfrontendfc140024. Sourceavailability944fulfilled bythisreceipt only. Datahealthwarn/2alerts, rawprovidersdonotmanufacturecycleidentity. Earlier95transientmanifest429 already recoveredbefore261source appears; provenhealthpollamp36calls/36listattempts andfourfallbacklabelfindings remainexistingWI03followups. Sourcefulltreequalified96704d4e head/all11/6188backend4177frontend,physical3168calls720Jacob0.860firstliveearliest02:07:56Z withactualquiet/visiblefocusedPAUSEDstableviewportcontract, no executedscene. Old95E2Efailed andnew3dE2E pending; Gulf/play/scrub/device/isolation/datahealth/Nightly independent. Actualcurrentalerts: ICON/marine: model cycle unverified: conflicting; EURO/marine: model cycle unverified: conflicting. Earliermissing statuses stay historical; currentconflicting cohort requires independentWI03 donor/grid evidence, not inference from APIavailability or this direct-point repair.
+
+## 2026-10-08 01:52Z — PR261 rollout and remaining repair receipts prepared for normal publication
+
+Prepare normalpostmerge receiptpush with3owned docs only:ACTION/STATE/ownedOct8log, canonical948byteprefix/actualdevancestry preserved. Actual261exactsource qualification6188backend/4177frontend, fulltreeequals967,matchinghealthy3d deployment sourceavailability944fulfilled955. Proven36healthdiagcalls→36remote-listattempts and4fallbacksource-labelcounterexamples independentWI03nextrepairs; no replacementtask. Original860earliest02:07:56Z plusquiet/source/visiblefocusedstablepaused scene, datawarnings/E2E/Nightly/Gulf/device/isolation/play/scrub remainopen. No canonicalrecord rewrite/secret/scienceflag/storedproduct mutation. Actualnormalpublicationreadbackpending; carrynewestreceiptwithnextsourcePR.
+
+
+## 2026-10-08 02:00Z — WI03 bounded health and label repairs begun
+
+Owner: Ok get them done. Commitment957 appended. Local helper stopped afterappend on an incorrect hash-field assumption; ledger hashes canonical lines ratherthan storing hashfield. Correctedhelper and anchored actual957 withoutduplicatecommitment or historyrewrite. No gate/publication bypass. Actualprior956publicationd2fd completed; freshhealthy3d/complete13301restore/zeroerrors/two conflictingmarinecyclewarnings. Pending own newsource qualification/rollout; original860 and independentacceptance retained.
+
+
+## 2026-10-08 02:07Z — WI03 bounded health listing and actual EURO fallback donor labels locally verified
+
+Process-shared30s listing success/failure/unavailable cache and singleflight; current localdisk/restore values remain uncached. Publichealth exposes checked_at/age/ttl/status/cached/first_page scope. NativeEUROmiss labels actualrequestedEUROwaves/ecmwfwam and GFScomponents/ncepGFS, preserving is_estimated/nativeauthority/sample/time/cycle/physicalcalls. Legacy estimatebasis method retained becausepartition gate consumes it; additive source_method records actualdirect_point_api. No scienceflag/selection/physical/shareddata change. Ownqualification/rolloutpending957.
+
+Readback: Finalimmutable3d controls32failed5passed of37; candidate255focusedpasses includingall37 and actualpartitioneligibility. Floors/selector50passed7platformskips; tracked651/188guards160chain300estate2excluded1quarantine; projected2541guards2416chain1268estate=6225, pairedfloors2535/2410/reference2541/2416 margin6. Actual36diagcalls/version:36old versus8candidate listingattempts.3168realresolver/surf/JSON calls144scenarios720centralJacob differences0, identityerror2.274e-13. Frontendopen-meteoacceptance consumer inspected, nofrontendchange. Localhelper hash assumption stoppedafter957append then repairedanchor withoutduplicate; nonexistenttestpath ran0, corrected; backendcwdstage failed, correctedrootstagebeforeactualselector. Review corrected proposedmethodchangebeforequalification to preserveexistingpartitioneligibility. Nofailedgatebypass.
+
+
+## 2026-10-08 02:08Z — WI03 two-repair candidate prepared for normal source publication
+
+Reviewed bounded cache/freshness/error/singleflight and donorlabels candidate; actual255focused/50floors7skips/3168calls720Jacobphysical0. Ownsourcequalification/conditionaldevrolloutpending957. Proposed949-959 retainedoncanonical948/dev3d ancestry; no replacement860. NormaldraftPRdev publication pendingactualreadback.
+
+Readback: Every localmemory/ledgerprefix/LOC/lint/diff/stageddiff gateexit0; fixedcandidate source review preserveslegacy partitionclassification and exposes actual source_method. Actualfinalbaseline32failed5passed37; filesystem/sourcechecks no secrets; canary unchanged/unexecuted. pending normalcommit/push/draftPR/ownfinalheadCI.
+
+
+## 2026-10-08 02:10Z — PR262 bounded health and donor-label repairs published for own qualification
+
+Actualinitial4179 normalpush/draftPR262dev createdandattached,clean/remotematch/base3d/openmergeable. Publicationreceipt960 carriesactualprior261post949-956 and own957-959 sourceevidence; finalcandidate willqualifyitsownchecks. Original860/datawarnings/E2E/Gulf/device/isolation/playback unchanged. Ownconditionalrolloutpending957.
+
+Readback: Freshgh PR262exacthead/base/state and remote/local/clean assertionspass, pr262-initial-publication.json. InitialownCI37716479043,LOC37716478969,Ledger37716478944,Lighthouse37716479097 started/queued; no earlierPR counters reused. pendingfinalhead ownCI/counters/preview and actualconditionalrollout.

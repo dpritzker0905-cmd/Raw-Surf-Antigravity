@@ -47,22 +47,22 @@ const SKILL_LEVELS = [
 // Region options
 const REGIONS = [
   { id: 'all', label: 'All Regions' },
- { id: 'ny', label: 'New York', flag: '=+' },
- { id: 'fl', label: 'Florida', flag: '=' },
- { id: 'ca', label: 'California', flag: '=' },
- { id: 'hi', label: 'Hawaii', flag: '=' },
-  { id: 'cr', label: 'Costa Rica', flag: '????' },
-  { id: 'pr', label: 'Puerto Rico', flag: '????' },
-  { id: 'mx', label: 'Mexico', flag: '????' },
-  { id: 'id', label: 'Indonesia', flag: '????' },
-  { id: 'au', label: 'Australia', flag: '????' },
+  { id: 'ny', label: 'New York' },
+  { id: 'fl', label: 'Florida' },
+  { id: 'ca', label: 'California' },
+  { id: 'hi', label: 'Hawaii' },
+  { id: 'cr', label: 'Costa Rica' },
+  { id: 'pr', label: 'Puerto Rico' },
+  { id: 'mx', label: 'Mexico' },
+  { id: 'id', label: 'Indonesia' },
+  { id: 'au', label: 'Australia' },
 ];
 
 // Sort options
 const SORT_OPTIONS = [
   { id: 'rating', label: 'Highest Rated' },
-  { id: 'price_asc', label: 'Price: Low ? High' },
-  { id: 'price_desc', label: 'Price: High ? Low' },
+  { id: 'price_asc', label: 'Price: Low to High' },
+  { id: 'price_desc', label: 'Price: High to Low' },
   { id: 'sessions', label: 'Most Sessions' },
   { id: 'distance', label: 'Nearest First' },
 ];

@@ -1,0 +1,206 @@
+{
+  "backend/services/weather_pipeline/grid_resolver.py": [
+    {
+      "name": null,
+      "kind": "Import",
+      "line": 9,
+      "end": 9
+    },
+    {
+      "name": null,
+      "kind": "Import",
+      "line": 10,
+      "end": 10
+    },
+    {
+      "name": null,
+      "kind": "Import",
+      "line": 11,
+      "end": 11
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 12,
+      "end": 12
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 13,
+      "end": 13
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 15,
+      "end": 15
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 16,
+      "end": 16
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 18,
+      "end": 18
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 19,
+      "end": 23
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 24,
+      "end": 24
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 25,
+      "end": 25
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 29,
+      "end": 32
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 33,
+      "end": 33
+    },
+    {
+      "name": "stamp_frame_honesty",
+      "kind": "FunctionDef",
+      "line": 38,
+      "end": 66
+    },
+    {
+      "name": "_grid_cell_deg",
+      "kind": "FunctionDef",
+      "line": 69,
+      "end": 81
+    },
+    {
+      "name": "_load_kw",
+      "kind": "FunctionDef",
+      "line": 85,
+      "end": 108
+    },
+    {
+      "name": "resolve_grid",
+      "kind": "AsyncFunctionDef",
+      "line": 111,
+      "end": 715
+    }
+  ],
+  "backend/services/weather_pipeline/grid_resolver_selection.py": [
+    {
+      "name": null,
+      "kind": "Import",
+      "line": 9,
+      "end": 9
+    },
+    {
+      "name": null,
+      "kind": "Import",
+      "line": 10,
+      "end": 10
+    },
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 11,
+      "end": 11
+    },
+    {
+      "name": "calculate_bbox_intersection_area",
+      "kind": "FunctionDef",
+      "line": 16,
+      "end": 21
+    },
+    {
+      "name": "find_candidates",
+      "kind": "FunctionDef",
+      "line": 24,
+      "end": 51
+    },
+    {
+      "name": "decide_manifest_product",
+      "kind": "FunctionDef",
+      "line": 54,
+      "end": 152
+    },
+    {
+      "name": "apply_surf_regional_prefer",
+      "kind": "FunctionDef",
+      "line": 155,
+      "end": 209
+    }
+  ],
+  "backend/services/weather_pipeline/science_registry.py": [
+    {
+      "name": null,
+      "kind": "ImportFrom",
+      "line": 43,
+      "end": 43
+    },
+    {
+      "name": "Constant",
+      "kind": "ClassDef",
+      "line": 52,
+      "end": 64
+    },
+    {
+      "name": "_add",
+      "kind": "FunctionDef",
+      "line": 70,
+      "end": 73
+    },
+    {
+      "name": "all_constants",
+      "kind": "FunctionDef",
+      "line": 383,
+      "end": 385
+    },
+    {
+      "name": "get",
+      "kind": "FunctionDef",
+      "line": 388,
+      "end": 389
+    },
+    {
+      "name": "value",
+      "kind": "FunctionDef",
+      "line": 392,
+      "end": 393
+    },
+    {
+      "name": "in_published_range",
+      "kind": "FunctionDef",
+      "line": 396,
+      "end": 402
+    },
+    {
+      "name": "out_of_range_names",
+      "kind": "FunctionDef",
+      "line": 405,
+      "end": 408
+    },
+    {
+      "name": "provenance",
+      "kind": "FunctionDef",
+      "line": 411,
+      "end": 422
+    }
+  ]
+}

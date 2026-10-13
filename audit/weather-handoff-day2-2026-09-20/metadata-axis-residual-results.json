@@ -1,0 +1,11 @@
+{
+  "source": "current metadata repair before consuming-hook follow-up",
+  "targetTime": "2026-09-20T15:00:00.000Z",
+  "chosenIndex": 3,
+  "correctIndex": 1,
+  "decoded": "om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfswave025/2026/09/20/1200Z/2026-09-20T2100.om?variable=wave_height",
+  "providerRunIsReal": true,
+  "wrongTimeOffsetHours": 6,
+  "fetches": 2,
+  "limitation": "Actual helpers and decoder. Hook admission is source-traced; this is not a mounted-hook or pixel test."
+}

@@ -13,6 +13,9 @@ from services.weather_pipeline.schemas import (
 logger = logging.getLogger(__name__)
 
 from services.weather_pipeline.copernicus_validator import is_test_environment
+from services.weather_pipeline.persistence_diagnostics import PersistenceListingProbe
+
+_persistence_listing_probe = PersistenceListingProbe()
 
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
@@ -144,6 +147,30 @@ def _fetch_remote_manifest_products() -> Optional[list]:
         return None
 
 
+def manifest_retention_cutoff(now=None):
+    """THE ONE retention policy for manifest products: a product whose valid_time_start is older than
+    this is dead. MANIFEST_RETENTION_DAYS (default 2, the cadence prune's historical value)."""
+    try:
+        days = float(os.environ.get("MANIFEST_RETENTION_DAYS", "2"))
+    except ValueError:
+        days = 2.0
+    return (now or datetime.now(timezone.utc)) - timedelta(days=days)
+
+
+def _past_retention(valid_time_start, cutoff) -> bool:
+    """True when a product (a ManifestProduct datetime or a raw ISO string) is past the cutoff.
+    Unparseable -> False: retention must never delete what it cannot read."""
+    try:
+        vt = valid_time_start
+        if isinstance(vt, str):
+            vt = datetime.fromisoformat(vt.replace("Z", "+00:00"))
+        if vt.tzinfo is None:
+            vt = vt.replace(tzinfo=timezone.utc)
+        return vt < cutoff
+    except Exception:
+        return False
+
+
 def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     """MANIFEST CONCURRENCY (2026-07-14, next-phase queue #1): manifest.json has no If-Match/CAS
     precondition, so two ingest processes (core + pilots) racing the upload each re-serialize
@@ -182,6 +209,23 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
         remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
+        # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
+        # products past MANIFEST_RETENTION_DAYS and passes exclude_keys, but its upload is only QUEUED;
+        # the same lane's next save reconciles WITHOUT exclusions while the remote still holds the
+        # pruned entries, and folds them straight back. Measured on core ingest 36244160502: prune at
+        # 14:22:27, then "folded in 1135 concurrent-writer entries" at 14:22:30, and the live manifest
+        # carried 1,324 products older than the cutoff (15,901 total) the same afternoon. A lane whose
+        # snapshot was restored before another lane's prune re-uploads them the same way. So no upload
+        # folds in a past-retention entry, and none carries one of its own.
+        # Kill: MANIFEST_RETENTION_ON_UPLOAD=0.
+        cutoff = None
+        if os.environ.get("MANIFEST_RETENTION_ON_UPLOAD", "1") != "0":
+            cutoff = manifest_retention_cutoff()
+            before = len(manifest.products)
+            manifest.products = [p for p in manifest.products if not _past_retention(p.valid_time_start, cutoff)]
+            if len(manifest.products) != before:
+                logger.info(f"[Product Store] Retention dropped {before - len(manifest.products)} past-cutoff "
+                            f"entries from this upload (cutoff {cutoff.isoformat()}).")
         from services.weather_pipeline.schemas import ManifestProduct
         from services.weather_pipeline.store_helpers import raw_run_time_newer as _raw_run_time_newer
         ours = {(p.product_id or p.filename): p for p in manifest.products if (p.product_id or p.filename)}
@@ -192,9 +236,16 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
             pid = raw.get("product_id") or raw.get("filename")
             if not pid or pid in excl:
                 continue
+            if cutoff is not None and _past_retention(raw.get("valid_time_start"), cutoff):
+                continue  # a pruned entry the remote still holds: never resurrect it
             mine = ours.get(pid)
-            if mine is not None and not (prefer_newer and _raw_run_time_newer(raw, mine.run_time)):
-                continue  # key collision, ours is current (or the guard is off) — pre-fix behaviour
+            if mine is not None:
+                if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
+                    from services.weather_pipeline.prune_verified_cycles import newer_collision
+                    if not newer_collision(raw, mine):
+                        continue
+                elif not (prefer_newer and _raw_run_time_newer(raw, mine.run_time)):
+                    continue  # Legacy key collision, ours is current (or guard off).
             try:
                 item = ManifestProduct.model_validate(raw)
             except Exception:
@@ -328,8 +379,9 @@ class ProductStore:
 
     # ── Supabase Storage L2 helpers ──────────────────────────────────────
 
-    def _upload_to_supabase(self, filename: str, data_bytes: bytes):
-        """Upload a file to Supabase Storage L2 (fire-and-forget with logging).
+    def _upload_to_supabase(self, filename: str, data_bytes: bytes, *,
+                            strict: bool = False, overwrite: bool = True):
+        """Upload to L2; strict mode raises on failure and returns True on HTTP acknowledgment.
 
         Uses the Storage REST API directly (via requests) instead of storage3's sync .upload(): in the
         pinned supabase==2.4.6, that method raises an UnboundLocalError ("cannot access local variable
@@ -342,13 +394,19 @@ class ProductStore:
         # "spot_ratings/...") are per-feature state blobs and pass through.
         if "/" not in filename and not _l2_pipeline_writes_allowed():
             _note_l2_write_skipped("upload", filename)
+            if strict:
+                raise RuntimeError("L2 upload blocked by designated-writer gate")
             return
         sb = _get_supabase_storage()  # gates on config + ensures the bucket exists (one-time create)
         if sb is None:
+            if strict:
+                raise RuntimeError("L2 storage is unavailable")
             return
         base = os.environ.get("SUPABASE_URL", "").rstrip("/")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
         if not base or not key:
+            if strict:
+                raise RuntimeError("L2 storage is not configured")
             return
         try:
             import requests
@@ -357,7 +415,7 @@ class ProductStore:
                 "Authorization": f"Bearer {key}",
                 "apikey": key,
                 "Content-Type": "application/json",
-                "x-upsert": "true",
+                "x-upsert": "true" if overwrite else "false",
                 # CDN cache policy (2026-07-06, the stale-manifest root): manifest.json mutates
                 # every few minutes but was uploaded with max-age 3600 — Supabase's CDN edges
                 # served the serve-box periodic L2 restore copies up to an HOUR stale and
@@ -367,11 +425,28 @@ class ProductStore:
                 # caching them hard is right; the manifest must always revalidate.
                 "cache-control": manifest_cache_control(filename),
             }
-            resp = requests.post(url, headers=headers, data=data_bytes, timeout=30)
+            # Transient Supabase rejections (429 SlowDown, 5xx, dropped connections) are retried with
+            # jittered backoff -- 7.5% of a pilots run's uploads were silently lost to 429 without it
+            # (l2_retry.py). Non-transient answers still surface on the first attempt.
+            # ⛔ SCOPE: pipeline artifacts only -- product files and manifest.json (top-level keys) plus
+            #   the run-keyed `manifests/...` copies. That is where the 429s landed at scale, and every
+            #   one of those writes is an x-upsert by key, so repeating it is idempotent.
+            #   Namespaced state blobs (`calibration/...`, `spot_ratings/...`) are EXCLUDED: several are
+            #   create-only (overwrite=False) where a retry after a lost ack manufactures a duplicate,
+            #   and all of them sit behind their callers' own pending/redo protocols
+            #   (test_forecast_skill_retention pins exact write attempts). Leave those alone.
+            send = lambda: requests.post(url, headers=headers, data=data_bytes, timeout=30)  # noqa: E731
+            if overwrite and ("/" not in filename or filename.startswith("manifests/")):
+                from services.weather_pipeline.l2_retry import post_with_retry
+                resp, retries = post_with_retry(send, filename)
+            else:
+                resp, retries = send(), 0
             if resp.status_code not in (200, 201):
-                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}"
+                                   + (f" (after {retries} retries)" if retries else ""))
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
-            logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)")
+            logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)"
+                        + (f" after {retries} retries" if retries else ""))
             # S2 run-keyed manifest + pointer CAS: every successful legacy manifest.json upload
             # also publishes an immutable run-keyed copy and CAS-advances the Postgres pointer.
             # This site runs on the serial _manifest_executor and is behind the designated-writer
@@ -383,10 +458,14 @@ class ProductStore:
                     publish_run_keyed(self, data_bytes, self._upload_to_supabase, self._delete_from_supabase)
                 except Exception as ptr_err:
                     logger.warning(f"[Product Store] run-keyed manifest publish failed (legacy lane OK): {ptr_err}")
+            if strict:
+                return True
         except Exception as e:
             err_msg = f"L2 upload failed for {filename}: {e}"
             logger.warning(f"[Product Store] {err_msg}")
             ProductStore._last_upload_errors = (ProductStore._last_upload_errors + [err_msg])[-10:]
+            if strict:
+                raise
 
     def _delete_from_supabase(self, filename: str):
         """Delete a product from Supabase Storage L2 (best-effort, never raises).
@@ -443,26 +522,9 @@ class ProductStore:
         except Exception:
             pass
 
-        sb = _get_supabase_storage()
-        supabase_count = None
-        supabase_connected = sb is not None
-        if sb:
-            try:
-                objects = sb.storage.from_(WEATHER_BUCKET).list()
-                supabase_count = len([
-                    o for o in (objects or [])
-                    if (
-                        (isinstance(o, dict) and o.get("name", "").endswith(".json") and o.get("name") != "manifest.json") or
-                        (hasattr(o, "name") and getattr(o, "name", "").endswith(".json") and getattr(o, "name") != "manifest.json")
-                    )
-                ])
-            except Exception:
-                supabase_count = -1  # Error counting
-
         return {
             "disk_product_count": disk_count,
-            "supabase_connected": supabase_connected,
-            "supabase_product_count": supabase_count,
+            **_persistence_listing_probe.get(_get_supabase_storage, WEATHER_BUCKET),
             "last_restore_time": ProductStore._last_restore_time,
             "restored_count": ProductStore._restored_count,
             "restore_errors": ProductStore._restore_errors[-5:],
@@ -707,4 +769,3 @@ class ProductStore:
         """Moves invalid Copernicus products to quarantine."""
         from services.weather_pipeline.copernicus_validator import quarantine_invalid_copernicus_products_helper
         return quarantine_invalid_copernicus_products_helper(self)
-

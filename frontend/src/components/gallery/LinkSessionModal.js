@@ -84,9 +84,9 @@ const LinkSessionModal = ({
                             session.session_type === 'booking' ? 'border-blue-500/50 text-blue-400' :
                             'border-orange-500/50 text-orange-400'
                           }`}>
- {session.session_type === 'live' ? '=+ Live' :
- session.session_type === 'booking' ? '= Booking' :
- 'G On-Demand'}
+                            {session.session_type === 'live' ? 'Live' :
+                             session.session_type === 'booking' ? 'Booking' :
+                             'On-Demand'}
                           </Badge>
                         )}
                       </div>

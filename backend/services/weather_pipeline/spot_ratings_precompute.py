@@ -34,6 +34,8 @@ import asyncio
 import json
 import logging
 import os
+import threading
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -64,12 +66,16 @@ def intern_frame_runs(frame: dict) -> dict:
     table, index = [], {}
     spots = frame.get("spots") or []
     for sp in spots:
-        pair = (sp.pop("run_time", None), sp.pop("wind_run_time", None))
-        if pair == (None, None):
+        evidence = sp.pop("time_provenance", None)
+        pair = (sp.pop("run_time", None), sp.pop("wind_run_time", None),
+                json.dumps(evidence, sort_keys=True) if evidence is not None else None)
+        if pair == (None, None, None):
             continue                                  # nothing known — no index, expands to None
         if pair not in index:
             index[pair] = len(table)
             table.append([pair[0], pair[1]])
+            if evidence is not None:
+                table[-1].append(evidence)  # optional third column; old readers retain the pair
         sp["run"] = index[pair]
     if table:
         frame["runs"] = table
@@ -91,7 +97,9 @@ def expand_frame_runs(spots: list, frame: dict) -> list:
         idx = sp.get("run")
         pair = table[idx] if isinstance(idx, int) and 0 <= idx < len(table) else (None, None)
         out.append({k: v for k, v in sp.items() if k != "run"}
-                   | {"run_time": pair[0], "wind_run_time": pair[1]})
+                   | {"run_time": pair[0], "wind_run_time": pair[1]}
+                   | ({"time_provenance": json.loads(json.dumps(pair[2]))}
+                      if len(pair) > 2 else {}))
     return out
 
 
@@ -107,6 +115,19 @@ def _parse_dt(s):
 
 
 SELECT_TOLERANCE_S = 7200  # 2h — the frontend's getSharedValidTime needn't string-match the precomputed key
+
+
+def served_offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
+    """Signed hours from the requested hour to the one actually served. None when unknowable."""
+    if not served or not requested:
+        return None
+    from datetime import datetime as _dt
+    try:
+        r = _dt.strptime(requested, "%Y-%m-%dT%H:%M:%SZ")
+        s = _dt.strptime(served, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return round((s - r).total_seconds() / 3600.0, 2)
 
 
 def pick_precomputed_frame(obj, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S):
@@ -215,21 +236,27 @@ def upload_spot_ratings_l2(store, obj) -> None:
     store._upload_to_supabase(SPOT_RATINGS_L2_KEY, data)
 
 
-_l2_cache = {"obj": None, "ts": 0.0}
+_l2_cache = {"obj": None, "ts": None}
+_l2_cache_lock = threading.Lock()
+_L2_NEGATIVE_TTL_S = 60.0
 
 
 def load_spot_ratings_l2_cached(ttl: float = 300.0) -> Optional[dict]:
-    """TTL-cached wrapper around load_spot_ratings_l2 so the serve box reads L2 at most once per `ttl`
-    seconds (the precompute refreshes ~hourly on the cron). Used by the endpoint's precomputed-read path."""
-    import time
-    now = time.time()
-    if _l2_cache["obj"] is not None and (now - _l2_cache["ts"]) < ttl:
-        return _l2_cache["obj"]
-    obj = load_spot_ratings_l2()
-    # Cache even a None result briefly so a missing object doesn't 404 on every request.
-    _l2_cache["obj"] = obj
-    _l2_cache["ts"] = now
-    return obj
+    """Cache successful reads for `ttl`, failures for at most 60s (also bounded by `ttl`).
+
+    Serialize worker-thread refreshes so concurrent misses share the completed result, including
+    None. Unknown data remains unknown; the caller's existing serve ladder still owns fallback.
+    The monotonic TTL starts at completion, so a slow read cannot consume its own backoff.
+    """
+    with _l2_cache_lock:
+        age = None if _l2_cache["ts"] is None else time.monotonic() - _l2_cache["ts"]
+        effective_ttl = ttl if _l2_cache["obj"] is not None else min(ttl, _L2_NEGATIVE_TTL_S)
+        if age is not None and 0 <= age < effective_ttl:
+            return _l2_cache["obj"]
+        obj = load_spot_ratings_l2()
+        _l2_cache["obj"] = obj
+        _l2_cache["ts"] = time.monotonic()
+        return obj
 
 
 def load_spot_ratings_l2() -> Optional[dict]:
@@ -303,8 +330,10 @@ def _make_point_resolver():
     from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
     from services.weather_pipeline.dynamic_index import DynamicProductIndex
     from services.weather_pipeline.store import ProductStore
-    return PointResolutionService(store=ProductStore(), sampler=PointSampler(), provider=OpenMeteoProvider(),
-                                  dynamic_index=DynamicProductIndex())
+    from services.weather_pipeline.consensus_serve import served_store
+    # The SERVING view: these ratings and calibrations describe what users are served (consensus_serve).
+    return PointResolutionService(store=served_store(ProductStore()), sampler=PointSampler(),
+                                  provider=OpenMeteoProvider(), dynamic_index=DynamicProductIndex())
 
 
 def _top_of_hour_utc():
@@ -322,15 +351,28 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     # a small-wave spot but poor at a big-wave spot (Surfline's "relative to the spot's potential"). Gate
     # RATING_LOCAL_SIZE; an empty map (feature off, or a spot without enough climatology yet) → reference None →
     # the global 1.2 m default → unchanged. Auto-scales to any spot added (its reference builds from the model).
+    # ⛔ FAIL CLOSED when the climatology cannot be READ (2026-09-29): a 429 from Supabase Storage used to
+    # land here as None, and the pass rated every spot on the global default while the flag said local
+    # (load_size_climatology_for_rating has the measurement). A REFUSED pass bakes nothing, and the
+    # per-model loop keeps that model's previous frames, as it does for a coverage failure. A climatology
+    # that is ABSENT (never seeded) still rates on the global default, as designed.
     ref_map = {}
     if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import (
-                load_size_climatology_l2_cached, reference_map as _size_reference_map)
-            ref_map = _size_reference_map(load_size_climatology_l2_cached())
-            logger.info("[spot-ratings] local size calibration ON: %d spots have a size reference.", len(ref_map))
+                load_size_climatology_for_rating, reference_map as _size_reference_map)
+            clim, clim_status = load_size_climatology_for_rating()
+            if clim_status == "unavailable":
+                raise RuntimeError("size climatology unreadable after retries")
+            ref_map = _size_reference_map(clim)
+            logger.info("[spot-ratings] local size calibration ON: %d spots have a size reference (climatology %s).",
+                        len(ref_map), clim_status)
         except Exception as _re:
-            logger.warning("[spot-ratings] size-reference load failed (global default): %s", _re)
+            logger.error("[spot-ratings] size-reference load FAILED (%s): refusing to rate %s without each spot's "
+                         "size reference.", _re, models)
+            refused = build_l2_object([])
+            refused["refused"] = "size_reference_unavailable"
+            return refused
 
     # SPATIAL-BATCHING pre-warm (2026-07-06, chip task_2d50cd81): the EURO pass below fires a
     # native CMEMS point per spot — one subset subprocess each, and CMEMS throttles under the
@@ -354,8 +396,8 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     # TIDE pre-warm (2026-07-18, RATING_TIDE flip): with the tide factor on, a fresh CI process would
     # cold-fetch ~900 spot-cells ONE request at a time inside rate_one_spot (Open-Meteo quota + tail
     # latency). Batch-seed the TTL cache first (~10 comma-separated-coords requests for ~1500 spots);
-    # the per-spot path then hits the cache. Never fatal — a failed pre-warm just leaves the per-spot
-    # fallback (and a tide miss is always a neutral rating).
+    # the per-spot path then hits the cache. Never fatal — failed acquisition stays unavailable during
+    # a timed cooldown, including the per-spot fallback, so a refused batch cannot create a request burst.
     if spots and os.environ.get("RATING_TIDE", "0") == "1":
         try:
             from services.weather_pipeline.tide import prewarm_tide_cache
@@ -373,9 +415,14 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     for model in models:
         for h in hour_offsets:
             vt = (base + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z")
+            from services.weather_pipeline.surf_height_convention import describe
+            height_convention = describe()
             rated = list(await asyncio.gather(*[_one(resolver, sp, model, vt) for sp in spots])) if spots else []
+            # Only freshly computed frames own this policy. Never stamp the merged outer object:
+            # checkpoint uploads retain other models' older frames, whose convention may differ.
             frames.append(intern_frame_runs(
-                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated}))
+                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated,
+                 "height_convention": height_convention}))
     return build_l2_object(frames)
 
 
@@ -426,6 +473,10 @@ def run_spot_ratings_precompute() -> tuple:
         nonlocal n_frames_uploaded
         for model in models:
             obj_m = await precompute_spot_ratings(resolver, spots, [model], hours)
+            if obj_m.get("refused"):
+                logger.error("[spot-ratings] precompute %s REFUSED (%s) — keeping the previous %s frames.",
+                             model, obj_m["refused"], model)
+                continue
             frames_m = obj_m.get("frames", [])
             cov = frames_coverage(frames_m)
             # PER-MODEL coverage guard: an all-null model keeps its PREVIOUS frames (never stomp a

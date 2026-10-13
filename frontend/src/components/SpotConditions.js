@@ -11,6 +11,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import logger from '../utils/logger';
 import { getThemeTokens } from '../utils/themeTokens';
+import SpotQualityBadge from './SpotQualityBadge';
+import { hubSourceLabel, formatWaveDirection } from './spotConditionsFormat';
+import { useSpotReadings } from '../hooks/useSpotReadings';
+import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
+import { marineValueValidityEnabled } from './map/marinePointValues';
+import { forecastCalendar } from './forecastCalendar';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
 const E = {
@@ -107,11 +113,21 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const hoverBg = t.hoverBg;
   const isLight = t.isLight;
   const isBeach = t.isBeach;   // BEACH MODE is a first-class theme here, not a dark-mode variant
-  const [conditions, setConditions] = useState(null);
-  const [tideData, setTideData] = useState(null);
-  const [reports, setReports] = useState(null);
-  const [forecast, setForecast] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [legacyConditions, setConditions] = useState(null);
+  const [legacyTideData, setTideData] = useState(null);
+  const [legacyReports, setReports] = useState(null);
+  const [legacyForecast, setForecast] = useState([]);
+  const [legacyLoading, setLoading] = useState(true);
+  const strictIdentity = forecastStateIdentityEnabled();
+  const strictValues = marineValueValidityEnabled();
+  const unavailableBadge = isLight ? 'bg-slate-100 text-slate-700 border-slate-300'
+    : isBeach ? 'bg-black text-cyan-100 border-cyan-900' : 'bg-zinc-800 text-zinc-200 border-zinc-600';
+  const scoped = useSpotReadings(spotId, strictIdentity);
+  const conditions = strictIdentity ? scoped.conditions : legacyConditions;
+  const tideData = strictIdentity ? scoped.tideData : legacyTideData;
+  const reports = strictIdentity ? scoped.reports : legacyReports;
+  const forecast = strictIdentity ? scoped.forecast : legacyForecast;
+  const loading = strictIdentity ? scoped.loading : legacyLoading;
   const [expanded, setExpanded] = useState(false);
   const [forecastExpanded, setForecastExpanded] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -130,13 +146,13 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const isPremiumUser = hasPremiumForecast(user?.subscription_tier);
 
   useEffect(() => {
-    if (spotId) {
+    if (spotId && !strictIdentity) {
       fetchConditions();
       fetchTideData();
       fetchTodaysReports();
       fetchForecast();
     }
-  }, [spotId]);
+  }, [spotId, strictIdentity]);
 
   const fetchConditions = async () => {
     try {
@@ -162,6 +178,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   };
 
   const fetchTodaysReports = async () => {
+    if (strictIdentity) return scoped.refreshReports();
     try {
       const response = await apiClient.get(`/surf-reports/today/${spotId}`);
       setReports(response.data);
@@ -194,7 +211,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         spot_id: spotId,
         ...reportData
       });
- toast.success('Report submitted! Thanks for sharing =');
+      toast.success('Report submitted! Thanks for sharing');
       setShowReportModal(false);
       setReportData({ wave_height: '', conditions: '', wind_direction: '', crowd_level: '', rating: 0, notes: '' });
       fetchTodaysReports();
@@ -215,18 +232,20 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   // Compact view for cards
   if (compact) {
-    const waveHeight = conditions?.current?.wave_height_ft || 0;
-    const label = conditions?.current ? getConditionsLabel(waveHeight) : "No Data";
+    const waveHeight = strictValues ? conditions?.current?.wave_height_ft : conditions?.current?.wave_height_ft || 0;
+    const label = conditions?.current ? getConditionsLabel(waveHeight, strictValues) : "No Data";
     
     return (
       <div className="flex items-center gap-2">
         <Waves className="w-4 h-4 text-blue-400" />
         <span className={`text-sm ${tPrimary} font-medium`}>
-          {waveHeight > 0 ? `${waveHeight}ft` : label}
+          {waveHeight > 0 && (!strictValues || validHeight(waveHeight)) ? `${waveHeight}ft` : label}
         </span>
-        <Badge className={`text-[10px] ${conditionColors[label] || 'bg-gray-500'}`}>
+        <Badge className={`text-[10px] ${label === 'Unavailable' ? unavailableBadge : conditionColors[label] || 'bg-gray-500'}`}>
           {label}
         </Badge>
+        {/* Quality beside size, mirrored from the full layout (three themes, all layouts). */}
+        <SpotQualityBadge current={conditions?.current} compact textClass={tSecondary} />
         {/* MIRRORED INTO THE COMPACT LAYOUT — the three-themes/all-devices mandate is explicit that
             a component with separate layouts must have the change in BOTH, and this repo's recorded
             defect is a signal that reaches one surface and not its sibling. Abbreviated to a dot +
@@ -253,7 +272,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
   // Full view
   const current = conditions?.current;
-  const waveLabel = current ? getConditionsLabel(current.wave_height_ft) : "No Data";
+  const waveLabel = current ? getConditionsLabel(current.wave_height_ft, strictValues) : "No Data";
 
   return (
     <div className={`${containerBg} rounded-xl border ${containerBorder} overflow-hidden`} data-testid="spot-conditions">
@@ -264,7 +283,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             <Waves className="w-5 h-5 text-blue-400" />
             Current Conditions
           </h3>
-          <Badge className={`${conditionColors[waveLabel] || 'bg-gray-500'}`}>
+          <Badge className={`${waveLabel === 'Unavailable' ? unavailableBadge : conditionColors[waveLabel] || 'bg-gray-500'}`}>
             {waveLabel}
           </Badge>
         </div>
@@ -273,15 +292,20 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
           <div className="grid grid-cols-2 gap-4">
             {/* Wave Height */}
             <div className={`${cellBg} rounded-lg p-3 text-center`}>
-              <p className={`text-3xl font-bold ${tPrimary}`}>{current.wave_height_ft}<span className="text-lg">ft</span></p>
-              <p className={`text-xs ${tSecondary}`}>Wave Height</p>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{strictValues && !validHeight(current.wave_height_ft) ? <span className="text-lg">Unavailable</span> : <>{current.wave_height_ft}<span className="text-lg">ft</span></>}</p>
+              <p className={`text-xs ${tSecondary}`}>
+                {/* The breaking transform failed open and the OFFSHORE height stands in: say so. */}
+                {current.surf_regime === 'offshore_estimate' ? 'Offshore height (surf estimate unavailable)' : 'Wave Height'}
+              </p>
             </div>
             
             {/* Swell */}
             <div className={`${cellBg} rounded-lg p-3 text-center`}>
-              <p className={`text-3xl font-bold ${tPrimary}`}>{current.swell_height_ft || 0}<span className="text-lg">ft</span></p>
+              <p className={`text-3xl font-bold ${tPrimary}`}>{strictValues && !validHeight(current.swell_height_ft) ? <span className="text-lg">Unavailable</span> : <>{current.swell_height_ft ?? '—'}<span className="text-lg">ft</span></>}</p>
               <p className={`text-xs ${tSecondary}`}>Swell</p>
             </div>
+
+            <SpotQualityBadge current={current} textClass={tPrimary} mutedClass={tSecondary} cellBg={cellBg} />
 
             {/* Forecast confidence — absent unless the forecast carries an ensemble */}
             {current.forecast_confidence && (
@@ -317,7 +341,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="flex items-center gap-2">
                 <Compass className="w-4 h-4 text-yellow-400" />
                 <span className={`text-sm ${tSecondary}`}>
-                  {current.wave_direction ? `${current.wave_direction}-` : 'N/A'}
+                  {formatWaveDirection(current.wave_direction) || 'N/A'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -334,7 +358,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 
         {/* Source attribution */}
         <p className={`text-[10px] ${tMuted} mt-3`}>
-          Data from Open-Meteo Marine API - Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
+          {hubSourceLabel(current?.data_source)} - Updated: {current?.updated_at ? new Date(current.updated_at).toLocaleTimeString() : 'N/A'}
         </p>
       </div>
 
@@ -420,8 +444,9 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <div className="space-y-2">
                 {forecast.slice(0, forecastDaysAllowed).map((day, index) => {
                   const dateObj = new Date(day.date);
-                  const dayName = index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
-                  const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+                  const dayName = calendar ? calendar.relative : index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+                  const dateStr = calendar ? calendar.monthDay : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   
                   return (
                     <div key={day.date} className={`flex items-center justify-between p-3 ${cellBg} rounded-lg`}>
@@ -432,12 +457,12 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                         </div>
                         <div className="flex items-center gap-2">
                           <Waves className="w-4 h-4 text-blue-400" />
-                          <span className={`${tPrimary} font-bold`}>{day.wave_height_min}-{day.wave_height_max}ft</span>
+                          <span className={`${tPrimary} font-bold`}>{strictValues && (!validHeight(day.wave_height_min) || !validHeight(day.wave_height_max)) ? 'Unavailable' : `${day.wave_height_min}-${day.wave_height_max}ft`}</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge className={`text-[10px] ${conditionColors[day.label] || 'bg-gray-500'}`}>
-                          {day.label}
+                        <Badge className={`text-[10px] ${strictValues && (!validHeight(day.wave_height_min) || !validHeight(day.wave_height_max)) ? unavailableBadge : conditionColors[day.label] || 'bg-gray-500'}`}>
+                          {strictValues && (!validHeight(day.wave_height_min) || !validHeight(day.wave_height_max)) ? 'Unavailable' : day.label}
                         </Badge>
                         {day.swell_period && (
                           <span className={`${tSecondary} text-xs`}>{day.swell_period}s</span>
@@ -698,15 +723,18 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
 };
 
 // Helper function
-function getConditionsLabel(waveHeightFt) {
+const validHeight = value => Number.isFinite(value) && value >= 0;
+function getConditionsLabel(waveHeightFt, strictValues = false) {
+  if (strictValues && !validHeight(waveHeightFt)) return 'Unavailable';
   if (waveHeightFt < 1) return "Flat";
   if (waveHeightFt < 2) return "Ankle High";
   if (waveHeightFt < 3) return "Knee High";
   if (waveHeightFt < 4) return "Waist High";
   if (waveHeightFt < 5) return "Chest High";
   if (waveHeightFt < 6) return "Head High";
-  if (waveHeightFt < 8) return "Overhead";
-  if (waveHeightFt < 10) return "Double Overhead";
+  // Canonical services/conditions_labels.py uses 10/15ft. Preserve rollback under the dark flag.
+  if (waveHeightFt < (forecastStateIdentityEnabled() ? 10 : 8)) return "Overhead";
+  if (waveHeightFt < (forecastStateIdentityEnabled() ? 15 : 10)) return "Double Overhead";
   return "Triple Overhead+";
 }
 

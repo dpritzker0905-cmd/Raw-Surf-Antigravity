@@ -328,6 +328,13 @@ export function writeOverlayDiagnostics(params) {
   const unsampled = [...heatmapUnsampled, ...infoboxUnsampled];
 
   const mismatches = [];
+  // Labels can agree while the engine holds an older absolute frame. Consume its actual receipt.
+  const frameParity = webglDiag?.frameParity;
+  if (pointSelected && frameParity?.status === 'mismatch') {
+    mismatches.push(...frameParity.mismatches.map(key => `frame: ${key} differs`));
+  } else if (pointSelected && frameParity?.status === 'unverified') {
+    unsampled.push(`frame: unverified ${frameParity.missing.join(', ')}`);
+  }
   if (!heatmapUninitialised) {
     if (heatmapModel !== activeModel) mismatches.push(`model: heatmap=${heatmapModel} infobox=${activeModel}`);
     if (heatmapLayer !== 'unknown' && heatmapLayer !== activeLayer) mismatches.push(`layer: heatmap=${heatmapLayer} infobox=${activeLayer}`);

@@ -64,20 +64,25 @@ def roll_up_history(store, hot_rows, now: Optional[datetime] = None) -> Dict[str
     """Merge the hot archive's rows into their monthly segments. Uploads only segments that gained
     rows. Returns {month: {"before": n, "after": n}} for what was touched."""
     from services.weather_pipeline.buoy_calibration import (
-        load_calibration_l2, upload_calibration_l2, merge_residual_archive,
+        load_calibration_rows_l2, upload_calibration_l2, merge_residual_archive,
     )
     now = now or datetime.now(timezone.utc)
     result: Dict[str, dict] = {}
+    uploads = []
     for month, rows in sorted(group_rows_by_month(hot_rows).items()):
         key = history_key_for_month(month)
-        existing = load_calibration_l2(key) or []
+        existing, exists = load_calibration_rows_l2(key)
         merged = merge_residual_archive(
             existing, rows, now=now,
             max_age_days=_HISTORY_MAX_AGE_DAYS, max_entries=_HISTORY_MAX_ENTRIES,
         )
         if len(merged) > len(existing):
-            upload_calibration_l2(store, merged, key)
-            result[month] = {"before": len(existing), "after": len(merged)}
+            uploads.append((month, key, merged, exists, len(existing)))
+    # Read every affected segment before writing any. Partial successful writes
+    # remain idempotent on retry; unread history can never become an empty segment.
+    for month, key, merged, exists, before in uploads:
+        upload_calibration_l2(store, merged, key, strict=True, overwrite=exists)
+        result[month] = {"before": before, "after": len(merged)}
     return result
 
 

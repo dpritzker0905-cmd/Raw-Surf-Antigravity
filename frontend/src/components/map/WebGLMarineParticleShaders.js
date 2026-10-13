@@ -37,7 +37,7 @@ uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_dirCoherenceMin;   // close-zoom coherence floor: drop particles where the BILINEAR |waveVec| < this. In nearest mode this culls SEAM STRIPS between divergent cells (side-by-side opposite motion, Baja 2026-07-02); bilinear magnitude is measured BEFORE the nearest override so the signal survives. 0 = off.
 uniform float u_coarseNearestDir;  // >0.5: advect along the NEAREST coarse cell-center heading. On a magnified coarse-global grid, bilinear blending of divergent ~10°-cell headings synthesizes the smooth full-screen vortex; uniform per-cell headings cannot swirl, so crests may animate in the vortex band again. Matches DRAW_VS.
-uniform vec2 u_waveGridSize;       // wave texture texel dims (cols, rows) — cell-center snapping for the nearest-direction sample
+uniform vec4 u_wave_reg; vec2 ptReg(vec2 uv, vec4 r) { return uv + uv * r.xy + r.zw; } uniform vec2 u_waveGridSize;       // wave texture texel dims (cols, rows) — cell-center snapping for the nearest-direction sample
 uniform float u_particles_res;     // particle state texture resolution — stratum width for stratified reseeding
 uniform float u_stratifiedReseed;  // >0.5: respawn each particle inside ITS OWN stratum (its state-texel footprint) instead of uniform-random — Jobard–Lefer-style even coverage, kills reseed clumps at low density (U2, 2026-07-02)
 uniform float u_motionUnlock;      // §4.2 motion-unlock: 1 = rating mode with __RAW_RATING_MOTION_UNLOCK__ — land checks lift to max(mask.r, mask.g), where g = MOTION-water (geographic water incl. band-masked cells). 0 = legacy (mask.r only); on geography masks r==g so this is inert either way.
@@ -140,7 +140,7 @@ void main() {
     && c_u >= 0.0 && c_u <= 1.0 && c_v >= 0.0 && c_v <= 1.0;
 
   vec4 waveData = useCoarse ? texture2D(u_coarseWaveTexture, vec2(c_u, c_v))
-                            : texture2D(u_waveTexture, tex_uv);
+                            : texture2D(u_waveTexture, ptReg(tex_uv, u_wave_reg));
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   // SEAM COHERENCE (2026-07-02): the BILINEAR magnitude, captured BEFORE the nearest override. ~1 inside
   // cells and between AGREEING cells; drops toward 0 mid-seam between DIVERGENT cells — exactly the strips
@@ -154,7 +154,7 @@ void main() {
   // the coarse texture with them lands on wrong cell centers. The fallback stays bilinear (height
   // already is), matching how the wash reads the same texture.
   if (u_coarseNearestDir > 0.5 && !useCoarse) {
-    vec2 cell = min(floor(tex_uv * u_waveGridSize), u_waveGridSize - 1.0);
+    vec2 cell = min(floor(ptReg(tex_uv, u_wave_reg) * u_waveGridSize), u_waveGridSize - 1.0);
     vec2 cellUV = (cell + 0.5) / max(u_waveGridSize, vec2(1.0));
     waveVec = texture2D(u_waveTexture, cellUV).rg * 2.0 - 1.0;
   }
@@ -363,7 +363,7 @@ uniform float u_dirCoherenceMin;    // coherence floor on the BILINEAR |waveVec|
 uniform float u_seamFadeFloor;      // alpha FLOOR of the seam fade (2026-07-03): crests in incoherent-direction zones dim to this, never vanish — a dead ocean at divergence hotspots (Baja) reads as a bug; a dimmed one reads as low confidence.
 uniform float u_farzoomSizeFloor;   // U3: crest size scale at far zoom (0.55 default; 0.4 = legacy). smoothstep(2,12,z) ramps from this floor to 1.
 uniform float u_coarseNearestDir;   // >0.5: orient crests along the NEAREST coarse cell-center heading (vortex band; matches ADVECT_FS so orientation == motion).
-uniform vec2 u_waveGridSize;        // wave texture texel dims (cols, rows) for cell-center snapping.
+uniform vec4 u_wave_reg; vec2 ptReg(vec2 uv, vec4 r) { return uv + uv * r.xy + r.zw; } uniform vec2 u_waveGridSize;        // wave texture texel dims (cols, rows) for cell-center snapping.
 uniform sampler2D u_bathTexture;    // bathymetry depthFactor (R: 0=shelf/reef shallow, 1=deep ocean) — same encoding the heatmap uses; for shoaling foam.
 uniform float u_shoalFoam;          // boost whitecap strength in shallow water (shelfProximity·u_shoalFoam). 0 = off. Engine forces 0 unless a bath texture is bound.
 uniform float u_motion_scale;
@@ -479,7 +479,7 @@ void main() {
     && c_u >= 0.0 && c_u <= 1.0 && c_v >= 0.0 && c_v <= 1.0;
 
   vec4 waveData = useCoarse ? texture2D(u_coarseWaveTexture, vec2(c_u, c_v))
-                            : texture2D(u_waveTexture, tex_uv);
+                            : texture2D(u_waveTexture, ptReg(tex_uv, u_wave_reg));
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   // SEAM COHERENCE (2026-07-02): bilinear magnitude BEFORE the nearest override — matches ADVECT_FS, culls
   // the divergent-cell seam strips where nearest-snapped crests would move opposite ways side by side.
@@ -490,7 +490,7 @@ void main() {
   // RING-FILL particles skip the snap (u_waveGridSize = RESIDENT texel dims — wrong cell centers
   // for the coarse texture); the fallback stays bilinear, matching ADVECT_FS.
   if (u_coarseNearestDir > 0.5 && !useCoarse) {
-    vec2 cell = min(floor(tex_uv * u_waveGridSize), u_waveGridSize - 1.0);
+    vec2 cell = min(floor(ptReg(tex_uv, u_wave_reg) * u_waveGridSize), u_waveGridSize - 1.0);
     vec2 cellUV = (cell + 0.5) / max(u_waveGridSize, vec2(1.0));
     waveVec = texture2D(u_waveTexture, cellUV).rg * 2.0 - 1.0;
   }
@@ -792,7 +792,7 @@ void main() {
   // The engine forces u_shoalFoam=0 unless a bathymetry texture is bound, so u_bathTexture is never read unbound.
   // RING-FILL particles skip it: the bath texture is resident-bounds aligned and tex_uv is OOB out there.
   if (u_shoalFoam > 0.0001 && !useCoarse) {
-    float depthFactor = texture2D(u_bathTexture, tex_uv).r;
+    float depthFactor = texture2D(u_bathTexture, ptReg(tex_uv, u_wave_reg)).r;
     float shelfProximity = clamp(1.0 - depthFactor, 0.0, 1.0);
     v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;
   }

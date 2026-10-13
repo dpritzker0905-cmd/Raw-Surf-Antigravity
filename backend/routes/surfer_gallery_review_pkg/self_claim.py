@@ -10,6 +10,7 @@ import logging
 import json
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, SurferGalleryItem, SurferGalleryClaimQueue,
     GalleryItem, Gallery, LiveSessionParticipant,
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 async def self_claim_photo(
     request: SelfClaimRequest,
     surfer_id: str = Query(...),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -38,6 +40,8 @@ async def self_claim_photo(
     1. Creates a SurferGalleryItem so the surfer can purchase/download
     2. Records as AI training data (confidence=0.95) to improve future matching
     """
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get the gallery item
     gi_result = await db.execute(
         select(GalleryItem).where(GalleryItem.id == request.gallery_item_id)

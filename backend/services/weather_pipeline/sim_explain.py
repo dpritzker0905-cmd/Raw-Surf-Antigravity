@@ -76,7 +76,8 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
             wind_from_deg: Optional[float] = None, shore_normal_deg: Optional[float] = None,
             swell_from_deg: Optional[float] = None, reference_size_m: Optional[float] = None,
             partitions=None, break_depth_m: Optional[float] = None,
-            engine_score: Optional[float] = None) -> Dict[str, Any]:
+            engine_score: Optional[float] = None, tide_norm: Optional[float] = None,
+            best_tide: Optional[str] = None) -> Dict[str, Any]:
     """Every factor behind a score, plus the one that limits it.
 
     Mirrors `sim_rating.calculate_surf_rating`'s call exactly — same optional inputs, passed by
@@ -98,7 +99,7 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
             "size_gate": SR.size_score(surf_h_m, reference_size_m),
             "swell_exposure": _ex,
             "sea_cleanliness": SR.sea_cleanliness(partitions) if partitions else 1.0,
-            "tide_fit": SR.tide_fit(None, SR.parse_best_tide(None)),
+            "tide_fit": SR.tide_fit(tide_norm, SR.parse_best_tide(best_tide)),   # W-30: the served tide
             "breaker_type": SR.breaker_type_quality(None),
             "wind_gate": SR.wind_gate(wind_ms, wind_from_deg, shore_normal_deg),
             "oversize_gate": SR.oversize_gate(surf_h_m, reference_size_m,

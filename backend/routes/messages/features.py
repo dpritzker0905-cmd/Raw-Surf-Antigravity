@@ -12,7 +12,7 @@ import json
 import httpx
 import logging
 from models import Conversation, Message, MessageReaction, Notification, Profile
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from services.private_media import delivery_url_for_media, upload_private_media
 
 from .schemas import (
@@ -33,7 +33,8 @@ class ReactionRequest(BaseModel):
 
 
 @router.post("/messages/react/{message_id}")
-async def add_reaction(message_id: str, user_id: str, data: ReactionRequest, db: AsyncSession = Depends(get_db)):
+async def add_reaction(message_id: str, data: ReactionRequest,
+                       user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Add or toggle an emoji reaction on a message (Shaka 🤙, Wave 🌊, Heart ❤️, Fire 🔥)"""
     
     # Validate emoji is in allowed list
@@ -413,11 +414,18 @@ async def upload_message_media(
 
 
 @router.post("/messages/cleanup-duplicates")
-async def cleanup_duplicate_conversations(db: AsyncSession = Depends(get_db)):
+async def cleanup_duplicate_conversations(db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """
     Admin endpoint to cleanup all duplicate conversations.
     Merges messages from duplicates into the oldest conversation.
     """
+    admin_result = await db.execute(select(Profile).where(Profile.id == current_user_id))
+    admin = admin_result.scalar_one_or_none()
+    if not admin or not admin.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
     import logging
     from sqlalchemy import text
     logger = logging.getLogger(__name__)
@@ -465,6 +473,7 @@ async def cleanup_duplicate_conversations(db: AsyncSession = Depends(get_db)):
         merged_count += 1
     
     await db.commit()
+    logger.info("Conversation cleanup actor=%s merged=%s deleted=%s", current_user_id, merged_count, deleted_count)
     
     return {
         "status": "success",
@@ -473,8 +482,13 @@ async def cleanup_duplicate_conversations(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/messages/conversation-count/{user_id}")
-async def get_conversation_count(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_conversation_count(user_id: str, db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id)
+):
     """Debug endpoint to check for duplicate conversations for a user"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this user")
+
     from sqlalchemy import text
 
 

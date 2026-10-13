@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -57,12 +58,15 @@ class RemindCrewRequest(BaseModel):
 async def captain_cover_remaining(
     dispatch_id: str,
     data: CoverRemainingRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Captain pays remaining unpaid crew shares to unlock media immediately.
     Deducts from captain's credit balance and marks all crew as paid.
     """
+    if data.captain_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get dispatch
     result = await db.execute(
         select(DispatchRequest)

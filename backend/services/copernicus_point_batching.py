@@ -80,15 +80,32 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
         box_deg = float(os.environ.get("POINT_BATCH_BOX_DEG", "5") or 5)
     except ValueError:
         box_deg = 5.0
-    boxes = cluster_points_into_boxes(coords, box_deg)
+    all_boxes = cluster_points_into_boxes(coords, box_deg)
+
+    # ★ FETCH ONCE PER BULLETIN (roadmap stage 1, 2026-09-26; services/cmems_spot_series_cache.py). CMEMS
+    # publishes twice a day but this ran ~12 times a day and hit its budget every run on a healthy upstream.
+    # Series already fetched for the newest native bulletin come from one L2 blob; only the rest are fetched,
+    # in the same boxes, and the union is written back.
+    from services import cmems_spot_series_cache as spot_cache
+    bulletin_iso, reusable = None, {}
+    if spot_cache.enabled():
+        from services.cmems_run_identity import latest_native_bulletin
+        from services.copernicus_global_fetcher import DATASET_ID as _CMEMS_DATASET
+        _latest = latest_native_bulletin(_CMEMS_DATASET)
+        bulletin_iso = _latest.isoformat() if _latest else None
+        if bulletin_iso:
+            reusable = spot_cache.usable_entries(spot_cache.load_blob(), bulletin_iso, forecast_days, _CMEMS_DATASET)
+    boxes = [b for b in ([p for p in box if spot_cache.point_key(*p) not in reusable] for box in all_boxes) if b]
     stats = {
         "enabled": True,
-        "points": sum(len(b) for b in boxes),
+        "points": sum(len(b) for b in all_boxes),
         "boxes": len(boxes),
         "fetched": 0,
         "failed": 0,
         "cached_points": 0,
         "elapsed_s": 0.0,
+        "bulletin": bulletin_iso,
+        "cache_hits": 0,
     }
 
     # SELF-CORRECTING CAP (2026-07-08, runbook §11 — forecast-ingest cron-hang root). The per-box
@@ -123,6 +140,16 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
     # point_resolution then routes points WITHOUT a batched entry straight to the provider-fallback
     # ladder (sub-second proxy) instead of spawning per-point CMEMS subprocesses (the 138×25s
     # murder-loop this module was built to kill). Points already warmed keep native authority.
+    now = time.time()
+    for box in all_boxes:
+        for rla, rlo in box:
+            series = reusable.get(spot_cache.point_key(rla, rlo))
+            if series is not None:
+                _point_cache[batched_point_cache_key(rla, rlo, forecast_days)] = ([copy.deepcopy(series)], now)
+                stats["cache_hits"] += 1
+    stats["cached_points"] = stats["cache_hits"]
+    fetched_series = {}
+
     try:
         budget_s = float(os.environ.get("POINT_BATCH_PREWARM_BUDGET_S", "1200") or 1200)
     except ValueError:
@@ -169,11 +196,17 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
                 continue  # error stub — leave that point to the ladder's own fallback
             _point_cache[batched_point_cache_key(rla, rlo, forecast_days)] = ([copy.deepcopy(res)], now)
             stats["cached_points"] += 1
+            fetched_series[spot_cache.point_key(rla, rlo)] = res
         cap = _point_cache_cap()
         while len(_point_cache) > cap:
             oldest = min(_point_cache.keys(), key=lambda k: _point_cache[k][1])
             _point_cache.pop(oldest, None)
     stats["elapsed_s"] = round(time.time() - t0, 1)
+    if bulletin_iso and fetched_series:
+        from services.copernicus_global_fetcher import DATASET_ID as _CMEMS_DATASET
+        blob = spot_cache.merged_blob(reusable, fetched_series, bulletin_iso, forecast_days, _CMEMS_DATASET)
+        if blob is not None and spot_cache.save_blob(blob):
+            stats["cache_written"] = len(blob["points"])
     if stats.get("aborted"):
         os.environ["POINT_BATCH_DEGRADED"] = "1"
         # ⭐⭐⭐ SAY WHICH ABORT THIS IS, because the two look identical in the log and mean opposite

@@ -19,6 +19,7 @@ a test that needs a token is a test that skips in half the places it runs, and a
 a guard stops guarding.
 """
 import os
+import platform
 import re
 import sys
 
@@ -29,6 +30,148 @@ if BACKEND not in sys.path:
     sys.path.insert(0, BACKEND)
 
 from scripts import ci_floor_staleness as S            # noqa: E402
+
+
+def test_test_fixtures_leave_platform_metadata_usable():
+    assert platform.system()
+    assert platform.node()
+
+
+@pytest.mark.parametrize('environment,expected', [
+    ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
+    ({'GITHUB_REF_NAME': 'main'}, 'main'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+])
+def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
+    monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
+    monkeypatch.delenv('GITHUB_BASE_REF', raising=False)
+    for key, value in environment.items():
+        monkeypatch.setenv(key, value)
+    assert S.history_branch() == expected
+
+
+def test_local_history_requires_an_explicit_branch(monkeypatch):
+    monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
+    monkeypatch.delenv('GITHUB_BASE_REF', raising=False)
+    with pytest.raises(S.Refusal):
+        S.history_branch()
+    assert S.history_branch('main') == 'main'
+
+
+def _runs(*created):
+    return __import__("json").dumps([{"databaseId": 1000 + i, "headSha": f"sha{i}", "createdAt": c}
+                                     for i, c in enumerate(created)])
+
+
+@pytest.fixture(autouse=True)
+def backoff_sleeps(monkeypatch):
+    """Every backoff the lookup asks for, recorded instead of slept: no test here waits for real."""
+    slept = []
+    monkeypatch.setattr(S, "_sleep", slept.append, raising=False)
+    return slept
+
+
+# The 2026-10-02 incident, verbatim: PR #220 (run 36972188156, 06:09Z) and PR #221 (run 37007605637,
+# 12:35Z) both refused on STALE, while `gh run list` and the REST endpoint returned CURRENT minutes later.
+STALE = (35183181239, "2026-09-17T04:46:22Z")
+CURRENT = (36961412429, "2026-10-02T03:43:29Z")
+OLDER = (34000000000, "2026-09-01T00:00:00Z")
+INCIDENT_NOW = (2026, 10, 2, 12, 35)
+
+
+def _cli(*runs):
+    """`gh run list --json databaseId,headSha,createdAt` as it answers."""
+    return __import__("json").dumps([{"databaseId": i, "headSha": f"cli{i}", "createdAt": c} for i, c in runs])
+
+
+def _rest(*runs):
+    """`actions/workflows/ci.yml/runs` as it answers: other field names, wrapped in workflow_runs."""
+    return __import__("json").dumps({"total_count": len(runs), "workflow_runs": [
+        {"id": i, "head_sha": f"rest{i}", "created_at": c} for i, c in runs]})
+
+
+class _ScriptedGh:
+    """Answers `gh run list` and `gh api` from separate queues; a queue's last answer repeats."""
+
+    def __init__(self, cli, rest):
+        self.queues = {"run": list(cli), "api": list(rest)}
+        self.calls = []
+
+    def __call__(self, args, what, **kwargs):
+        self.calls.append(args)
+        queue = self.queues[args[0]]
+        answer = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    def count(self, source):
+        return sum(1 for args in self.calls if args[0] == source)
+
+
+def _at_incident():
+    from datetime import datetime, timezone
+    return datetime(*INCIDENT_NOW, tzinfo=timezone.utc)
+
+
+def test_the_reading_is_the_newest_run_the_api_returns_not_the_first(monkeypatch):
+    """PR #140: `--limit=1` returned run 28712827566, months old, while the right run existed."""
+    from datetime import datetime, timezone
+    asked = []
+    monkeypatch.setattr(S, "_gh", lambda args, what, **kwargs: asked.append(args) or _runs(
+        "2026-05-01T10:00:00Z", "2026-09-28T03:04:45Z", "2026-09-28T02:54:55Z"))
+    run, sha, created = S.last_green_run("dev", now=datetime(2026, 9, 28, 4, tzinfo=timezone.utc))
+    assert (run, sha, created) == (1001, "sha1", "2026-09-28T03:04:45Z")
+    assert f"--limit={S.RUN_LOOKUP_LIMIT}" in asked[0] and S.RUN_LOOKUP_LIMIT > 1
+
+
+def test_a_newest_run_that_is_still_old_refuses_and_says_to_rerun(monkeypatch, backoff_sleeps):
+    """Old on EVERY attempt from BOTH sources: still a refusal, naming the newest run any source gave."""
+    gh = _ScriptedGh(cli=[_cli(OLDER)], rest=[_rest(STALE, OLDER)])
+    monkeypatch.setattr(S, "_gh", gh)
+    with pytest.raises(S.Refusal, match="re-run this job") as refused:
+        S.last_green_run("dev", now=_at_incident())
+    assert "15 days old (run 35183181239, 2026-09-17T04:46:22Z)" in str(refused.value)
+    assert "an old reading is not a current one" in str(refused.value)
+    assert S.RUN_LOOKUP_ATTEMPTS > 1
+    assert gh.count("run") == gh.count("api") == S.RUN_LOOKUP_ATTEMPTS
+    assert backoff_sleeps == list(S.RUN_LOOKUP_BACKOFF_S)
+
+
+def test_an_empty_run_list_still_refuses(monkeypatch):
+    monkeypatch.setattr(S, "_gh", lambda args, what, **kwargs: "[]")
+    with pytest.raises(S.Refusal, match="never measured"):
+        S.last_green_run("dev")
+
+
+def test_a_stale_first_answer_is_asked_again_and_the_current_one_is_read(monkeypatch, backoff_sleeps):
+    """2026-10-02, PRs #220 and #221: the first answer was 15 days old, the same query minutes later current."""
+    gh = _ScriptedGh(cli=[_cli(STALE), _cli(CURRENT, STALE)], rest=[_rest(STALE)])
+    monkeypatch.setattr(S, "_gh", gh)
+    assert S.last_green_run("dev", now=_at_incident()) == (36961412429, "cli36961412429", "2026-10-02T03:43:29Z")
+    assert backoff_sleeps == [S.RUN_LOOKUP_BACKOFF_S[0]]
+    assert gh.count("run") == 2
+
+
+def test_a_current_rest_answer_outvotes_a_stale_run_list(monkeypatch, backoff_sleeps):
+    """Taken as the newest across both sources, at once: the cross-check needs no backoff before it."""
+    gh = _ScriptedGh(cli=[_cli(STALE)], rest=[_rest(STALE, CURRENT)])
+    monkeypatch.setattr(S, "_gh", gh)
+    assert S.last_green_run("dev", now=_at_incident()) == (36961412429, "rest36961412429", "2026-10-02T03:43:29Z")
+    assert backoff_sleeps == []
+    endpoint = [args for args in gh.calls if args[0] == "api"][0][1]
+    assert endpoint.startswith("repos/{owner}/{repo}/actions/workflows/ci.yml/runs?")
+    for query in ("branch=dev", "status=success", f"per_page={S.RUN_LOOKUP_LIMIT}"):
+        assert query in endpoint
+
+
+def test_a_source_that_fails_is_named_in_the_refusal_not_swallowed(monkeypatch):
+    """A failing source may not decide the answer either way: the other one's reading is still judged."""
+    gh = _ScriptedGh(cli=[S.Refusal("`gh run list` failed while listing runs: HTTP 502")], rest=[_rest(STALE)])
+    monkeypatch.setattr(S, "_gh", gh)
+    with pytest.raises(S.Refusal, match="re-run this job") as refused:
+        S.last_green_run("dev", now=_at_incident())
+    assert "run 35183181239" in str(refused.value) and "HTTP 502" in str(refused.value)
 
 
 def test_the_floors_can_still_be_found_in_the_workflow():
@@ -254,7 +397,76 @@ def test_the_budgets_are_documented_where_they_are_defined():
 #                 rule above forbids. CI observed 416 on BOTH lanes of `be6a705a` (runs
 #                 31900011802 / 31900014330, `416 passed, 2865 skipped`), so only 3 of the 12 land
 #                 here. Set from the reading, never from arithmetic on the last one.
-_FLOOR_SET_FROM = {"guards": 1788, "chain": 815, "estate": 435}
+# September 9: dev run 34279488030 guards/chain; PR run 34418519128 estate.
+# September 10: full tracked chain measured 94 files / 922 passed / 0 skipped; tide acquisition guards.
+# September 10 condition-report repair: projected from CI34520513943's 1804
+# plus 24 executed new controls. Candidate CI must confirm 1828. Keep the
+# companion to ci.yml's raised floor in sync; the first candidate caught this omission.
+# September 16: hosted CI35055272824; retain the existing six-test margins.
+# September 19 island serving gate: projected from CI35055272824's chain 940 plus the 6 executed
+# controls in test_island_serving_gate.py (selector-verified into chain: 97 -> 98 files).
+# Candidate CI must confirm 946. The six-test margin is retained, so no budget moves.
+# September 19 grid-path gate: +1 test in the same file (no new file), so chain 946 -> 947
+# and MIN_FILES is unchanged at 98. Candidate CI must confirm 947.
+# September 20 second check: selector-confirmed, executed additions guards +14, chain +43,
+# estate +14. Hosted candidate readings are EXPECTED, not yet observed. Full local estate
+# 514 includes 12 optional trevec passes absent from hosted PR46's 488; comparable value 502.
+# Local Python 3.14's four reproduced baseline ownership failures cannot lower the guard floor.
+# ci.yml and this reference move together; keep established margins guards/chain=6, estate=2.
+# September 20 continuation: run35485093918 at 74ca4f4e CONFIRMED 1897/990/502.
+# Selector-confirmed, executed additions: guards +15 scoring controls; chain +29 direct-height
+# and +3 real-resolver cases. Expected next hosted readings 1912/1022/502, not yet observed.
+# No new files. The paired ci.yml floors preserve margins 6/6/2 in this same commit.
+# Day-two run35487375744 confirmed 1912/1022/502 on d82032f5. Direction support adds
+# 57 chain controls in one selector-confirmed file; full local chain reads 1079/100.
+# Retention adds 69 executed cases in one more chain file: expected 1148/101.
+# Next hosted CI must confirm that projection; six-test chain margin is unchanged.
+# guards 1922: hosted run35538513375 (ed5e46c6) read 1912; audit 14.0 F-01 adds 10 executed
+#   controls in tests/test_grid_series_base_anchor.py, selected by `--lane guards` ONLY.
+# chain 1194: the SAME hosted run actually read 1194, not the 1148 previously projected here.
+#   The projection was never confirmed, so this is corrected to the receipt (see ci.yml).
+# Audit repairs, 2026-10-03: hosted dev run 37048650086 confirms 2248/1777/582.
+# Executed, selector-owned additions chain +13, estate +56; next hosted receipt
+# must confirm these projections. Preserve the existing margins 6/6/2.
+# Continued audit repairs: selector-owned executed additions chain +62 / estate +72.
+# Projections from the same pinned hosted base + first batch, not hosted observations.
+# Capacity repair: checked5d9e92f2 CI37150378034 confirms2248/1876/735; one new chain file
+# adds42 executed controls. Expected1918 needs hosted confirmation; margins6/6/2 unchanged.
+# Allocation guard: exact7cd898f4 CI37152927047 confirms2248/1918/735. The tracked
+# test_grid_* selector owns this28-case file in guards; expected2276 awaits hosted confirmation.
+# Guards181files/floor2270/reference2276 keep margin6; chain/estate unchanged.
+# estate749: checked dev/PR232 CI37154741295 read735; retry controls22to36 add14.
+# guards2278: checkedPR233 CI37155975799 read2276; monitor window adds2.
+# estate781: PR234 CI37157703688 read749; identity evidence controls add32.
+# PR235 CI37158928246 guards2278 plus8 latency-evidence controls ->2286.
+# Independent repair batch: pinned hosted CI37167173560 estate816 +73 executed,
+# selector-owned additions -> projected889. CI must confirm; margin remains2.
+# Ordered audit repair: two tracked chain modules add33 controls; projected1951 from
+# pinned hosted1918. Hosted candidate must confirm; reference moves with floor1945.
+# Calendar/horizon/terminal-cache repair: chain+31, estate+9; hosted confirmation pending.
+# #243 blocker fixes: estate+20 (two files); projected1095, floor1093, margin2; hosted run must confirm.
+# Hosted59dd3d26 estate1105: unset controls belong to chain, projected2053/floor2047.
+# Eight gallery/session assignment controls bring estate to1113/floor1111; no floor lowered.
+# WI02/WI03 add18 chain and33 guards controls, selectors checked from backend cwd.
+# WS-08 adds88 estate controls; projected1201 awaits own-source hosted confirmation.
+# PR250 actually read1201; gallery grace regression adds3, preserving estate margin2.
+# Partial ECMWF metadata adds11 executed chain controls; projected2328, hosted confirmation pending.
+# PR256 confirmed2328 chain passes; 33 interpolation-cycle controls project2361.
+# Paired with chain floor2355; guards/estate references and budgets unchanged.
+# Blend contributor-cycle controls add35:2396 passes,159 files; paired floor2390.
+# Direct-point provenance adds41 estate cases; paired floor1266/reference1268, margin2.
+# Regular direct-point honesty adds99 guards; paired floor2518/reference2524, margin6.
+# EURO donor labels +17 guards and health listing +20 chain, paired six-test margins.
+# Payment caller binding: four estate files add 73 executed tests; projected 1341, margin 2.
+# Actor-route binding: two estate files add 105 executed tests on hosted 1341; projected 1446.
+# Live-session escrow: an 18-test estate file replaces a 2-test one on hosted 1446; projected 1462.
+# VA-03 nearshore judge: +3 chain on hosted 2416 (floor 2413), +13 estate on hosted 1462 (floor 1473).
+# Viewed hour wins the sharpen queue: +9 chain (one file) on hosted 2426 / 161 files (floor 2429).
+# Stale-cache refresh takes a queue slot: +7 chain (one new file) on hosted 2435 / 162 files (floor 2436).
+# Bounded wind native recovery: +14 guards (one new file) on hosted 2541 / 188 files (floor 2549).
+# Actor-route binding batch 2: +69 estate (existing file) on hosted 1475 / 306 files (floor 1542).
+# Bounded wind background build: +17 guards (one new file) on hosted 2641 / 194 files (floor 2652).
+_FLOOR_SET_FROM = {"guards": 2658, "chain": 2444, "estate": 1545}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
@@ -273,3 +485,32 @@ def test_each_lane_budget_matches_the_margin_that_lane_actually_uses(lane):
         f"below the reading it was set from ({floor} vs {_FLOOR_SET_FROM[lane]}). A budget under "
         f"the margin reddens a correct repo; one over it is slack that drift will occupy. If the "
         f"floor moved, move its entry in _FLOOR_SET_FROM with it.")
+
+@pytest.mark.parametrize("bad", [None, {}, {"databaseId": 1, "headSha": "sha", "createdAt": "nonsense"}, {"databaseId": 1, "headSha": "sha", "createdAt": "2026-10-02T12:00:00"}, {"databaseId": 1, "headSha": "sha", "createdAt": "2026-10-04T12:00:00Z"}])
+def test_invalid_cli_source_cannot_poison_current_rest_reading(monkeypatch, bad):
+    gh = _ScriptedGh(cli=[__import__("json").dumps([bad])], rest=[_rest(CURRENT)])
+    monkeypatch.setattr(S, "_gh", gh)
+    assert S.last_green_run("dev", now=_at_incident())[0] == CURRENT[0]
+
+@pytest.mark.parametrize("answer", ["{", "null", "{}", "[null]"])
+def test_all_unreadable_sources_refuse(monkeypatch, answer):
+    gh = _ScriptedGh(cli=[answer], rest=[answer])
+    monkeypatch.setattr(S, "_gh", gh)
+    with pytest.raises(S.Refusal):
+        S.last_green_run("dev", now=_at_incident())
+
+def test_lookup_calls_have_bounded_timeout(monkeypatch):
+    calls = []
+    def run(args, **kwargs):
+        calls.append(kwargs["timeout"])
+        return __import__("types").SimpleNamespace(returncode=0, stdout="[]" if args[1]=="run" else '{"workflow_runs":[]}', stderr="")
+    monkeypatch.setattr(S.subprocess, "run", run)
+    with pytest.raises(S.Refusal):
+        S.last_green_run("dev", now=_at_incident())
+    assert calls == [30] * 6
+
+def test_rest_branch_is_url_encoded(monkeypatch):
+    gh = _ScriptedGh(cli=[_cli(STALE)], rest=[_rest(CURRENT)])
+    monkeypatch.setattr(S, "_gh", gh)
+    S.last_green_run("codex/audit retry&status=failure", now=_at_incident())
+    assert "branch=codex%2Faudit%20retry%26status%3Dfailure&status=success" in gh.calls[1][1]

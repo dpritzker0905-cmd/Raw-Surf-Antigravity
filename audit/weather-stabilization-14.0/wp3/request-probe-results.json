@@ -1,0 +1,146 @@
+{
+  "head": "91b90ae9f642b9be015aa4c06a766cdfd557b74a",
+  "method": "Real marineGlobalPrewarm + marineGridSeries + marineSeriesFrame + coverage; controlled provider and HTTP boundaries; no browser/GPU or byte/time claim",
+  "steppedHours": [
+    0,
+    3,
+    6,
+    9,
+    12,
+    15,
+    18,
+    21,
+    24
+  ],
+  "steppedRequests": {
+    "grid": 9,
+    "series": 2
+  },
+  "pendingBridgeSeedHourAfterLastStep": 0,
+  "warmWideAndCoastalFallbackHour": 24,
+  "controls": {
+    "sameHourRequests": 0,
+    "activeScrubRequests": 0,
+    "widePrewarmRequests": 0,
+    "staleH0AtH3": "miss",
+    "h0AtH1": "nearest frame h0"
+  },
+  "requests": [
+    {
+      "kind": "grid_series",
+      "url": "/api/weather/grid_series?model=GFS&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0"
+    },
+    {
+      "kind": "grid_series",
+      "url": "/api/weather/grid_series?model=GFS&domain=marine&layer=waves&bbox=-180.0000,-80.0000,180.0000,85.0000&hours=0,3,6,9,12,15,18,21,24,27,30,33,36,39,42,45,48,51,54,57,60,63,66,69,72,75,78,81,84,87,90,93,96,99,102,105,108,111,114,117,120,123,126,129,132,135,138,141"
+    },
+    {
+      "kind": "grid",
+      "hour": 0,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 3,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 6,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 9,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 12,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 15,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 18,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 21,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    },
+    {
+      "kind": "grid",
+      "hour": 24,
+      "bounds": {
+        "west": -180,
+        "south": -80,
+        "east": 180,
+        "north": 85
+      },
+      "model": "GFS",
+      "layer": "waves"
+    }
+  ]
+}

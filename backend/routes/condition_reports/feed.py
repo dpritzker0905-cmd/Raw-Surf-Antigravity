@@ -8,6 +8,14 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 from models import ConditionReport, Gallery, LiveSession, SurfSpot
 
+from .schemas import (
+    SURF_REGIONS,
+    ConditionReportResponse,
+    _auto_heal_report_media,
+    cr_logger,
+    get_time_ago,
+)
+
 router = APIRouter()
 
 @router.get("/condition-reports/regions")
@@ -465,5 +473,4 @@ async def get_public_gallery_archive(
         "total": len(response),
         "has_more": len(response) == limit
     }
-
 

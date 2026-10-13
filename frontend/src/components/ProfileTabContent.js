@@ -42,7 +42,7 @@ const ProfileTabContent = ({
           {/* Impact Level */}
           <div className="bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-xl p-6 text-center border border-cyan-500/30">
             <div className="text-4xl mb-2">
- {impactScore.impact_score?.level?.emoji || '='}
+              {impactScore.impact_score?.level?.emoji || <Award className="w-10 h-10 mx-auto" aria-hidden="true" />}
             </div>
             <p className="text-white font-bold text-xl mb-1">
               {impactScore.impact_score?.level?.name || 'Starter'}
@@ -100,7 +100,7 @@ const ProfileTabContent = ({
                   title={badge.description}
                 >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
- {badge.icon_emoji || '='}
+                    {badge.icon_emoji || <Award className="w-5 h-5 text-white" aria-hidden="true" />}
                   </div>
                   <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                 </div>
@@ -213,7 +213,7 @@ const ProfileTabContent = ({
                     title={badge.description}
                   >
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-1">
- {badge.icon_emoji || '='}
+                    {badge.icon_emoji || <Award className="w-5 h-5 text-white" aria-hidden="true" />}
                     </div>
                     <span className="text-[10px] text-gray-400 text-center truncate w-full">{badge.name}</span>
                   </div>

@@ -11,8 +11,8 @@ WHY THIS IS THE RIGHT FIRST CUT:
     breaks. So a broad SHALLOW shelf caps even a big offshore swell to small surf (why Florida's east coast
     is much smaller than the offshore swell), while a STEEP shelf lets more energy through (much of the US
     West Coast). That depth-limited cap is the dominant physical effect, captured here.
-  - Bottom friction: IMPLEMENTED (`shelf_dissipation`, on by default) — a wide shallow shelf bleeds
-    real energy, Kf ~0.32 at Tp 16 s over a 200 km / 15 m shelf and ~0.95 over a narrow deep one.
+  - Bottom friction: IMPLEMENTED (`shelf_dissipation`), OFF by default since 2026-09-28 (SHELF_CF_SCALE_DEFAULT): the
+    model field at a shelf cell already carries WW3's bed friction. At the 0.25 lever: Kf ~0.32 (200 km/15 m, 16 s).
   - Directional exposure: IMPLEMENTED (`_height_exposure_factor`, applied to H inside
     `estimate_surf` since 2026-07-17) — how much of the swell is AIMED at this coast. Measured
     through the live function: 0° off-normal 0.0%, 45° -11.9%, 75° -30.0%, 90° -40.5% of height.
@@ -81,7 +81,7 @@ _GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY = 0.62, 1.05, 1.25
 #    the implicit 1.0 it replaces; it is NOT a per-spot refraction model. That needs the shore normal
 #    plus the finer bathymetry asset, both of which now exist.
 # Kill: SURF_REFRACTION_KR=1.0 restores the pre-2026-08-05 no-refraction behaviour.
-REFRACTION_KR = 0.797
+REFRACTION_KR = 0.873  # was 0.797 (obs/Ks only: double-counted friction + exposure); composed-chain fit 2026-09-27, science_registry
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
 
 
@@ -306,7 +306,7 @@ _CELL_KM = 27.75          # ~0.25 deg ≈ 27.75 km
 SHELF_KF_FLOOR = 0.316    # = sqrt(1 - 0.90). ⚠️ Ardhuin (2003) reports 93% => 0.265; see above
 
 
-def shelf_dissipation(Tp_s, depth_m, width_km):
+def shelf_dissipation(Tp_s, depth_m, width_km, cf_scale=None):
     """Fraction of offshore swell HEIGHT that survives crossing the shelf, lost to bottom friction. ~1.0 over a
     narrow/steep or deep shelf; << 1 over a WIDE SHALLOW shelf where swell crosses many wavelengths of shallow
     water and bleeds energy to the bed — up to 93% energy loss on the widest shelves (Ardhuin 2003, NC/VA
@@ -314,7 +314,7 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
     nearshore effect (the surf-zone shoaling jump is sub-grid at 0.25°).
 
     Form: exp(-CF * shelf_width_in_cells * bed_feel), bed_feel = 1/sinh(kd) (near-bed orbital influence:
-    ~0 in deep water, large in shallow). Returns 1.0 (no loss) for deep water or zero shelf width."""
+    ~0 in deep water, large in shallow). 1.0 for deep water or zero width. `cf_scale` overrides the served scale."""
     if (Tp_s is None or Tp_s <= 0 or depth_m is None or depth_m <= 0
             or width_km is None or width_km <= 0):
         return 1.0
@@ -326,7 +326,7 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
         return 1.0
     feel = 1.0 / math.sinh(kd)
     width_cells = width_km / _CELL_KM
-    kf = math.exp(-SHELF_FRICTION_CF * _shelf_cf_scale() * width_cells * feel)
+    kf = math.exp(-SHELF_FRICTION_CF * (_shelf_cf_scale() if cf_scale is None else cf_scale) * width_cells * feel)
     # Never claim more dissipation than the cited literature supports (see SHELF_KF_FLOOR).
     if os.environ.get("SURF_SHELF_KF_FLOOR", "1") != "0":
         return max(kf, SHELF_KF_FLOOR)
@@ -341,20 +341,24 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
 #   SURF_V3_SHELF_RECAL=0  legacy full-strength shelf friction (the 2.5-3x FL underread)
 #   SURF_V3_EXPOSURE=0     no swell-angle factor on the HEIGHT (rating keeps its own)
 #   SURF_V3_MAGNETS=0      ignore per-spot wave-magnet factors (see surf_magnets.py)
-# Levers: SURF_SHELF_CF_SCALE (default 0.25 — calibrated so FL-class Kf lands ~0.85 instead of
-# ~0.5) and SURF_V3_JACK_MAX (default 2.0 — bounds Komar amplification; literature shoaling
-# amplification rarely exceeds ~1.6-2x without focusing).
+# Levers: SURF_SHELF_CF_SCALE (default SHELF_CF_SCALE_DEFAULT below) and SURF_V3_JACK_MAX (default 2.0 — bounds
+# Komar amplification; literature shoaling amplification rarely exceeds ~1.6-2x without focusing).
 def _v3(flag: str) -> bool:
     return os.environ.get(flag, "1") != "0"
+
+
+# ★ CROSS-SHELF FRICTION OFF BY DEFAULT (2026-09-28; was 0.25): the model field at a wide-shelf spot is already shelf
+# water (WW3 applies bed friction), so edge friction counted the shelf twice. Evidence: science_registry. 0.25 = legacy.
+SHELF_CF_SCALE_DEFAULT = 0.0
 
 
 def _shelf_cf_scale() -> float:
     if not _v3("SURF_V3_SHELF_RECAL"):
         return 1.0
     try:
-        return float(os.environ.get("SURF_SHELF_CF_SCALE", "0.25"))
+        return float(os.environ.get("SURF_SHELF_CF_SCALE", str(SHELF_CF_SCALE_DEFAULT)))
     except (TypeError, ValueError):
-        return 0.25
+        return SHELF_CF_SCALE_DEFAULT
 
 
 def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
@@ -385,7 +389,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
 
     Physics (literature-grounded):
       1. Cross-shelf bottom friction (Kf, ``shelf_dissipation``): swell crossing a WIDE SHALLOW shelf loses
-         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd).
+         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd); OFF by default (SHELF_CF_SCALE_DEFAULT).
       2. Local shoaling (Ks) from deep/intermediate water to the shelf-cell depth (linear wave theory).
       3. Depth-limited breaking: capped at breaker_index(Tp)*depth (period-dependent: long-period plunges taller).
       4. Surf only exists near a shore: an OPEN-OCEAN point (no nearby land) carries swell but no surf ->
@@ -395,8 +399,9 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     SMALLER than the offshore swell; a STEEP/DEEP coast passes most of it through. Sub-grid reef shoaling /
     refraction amplification (surf > offshore) needs finer bathymetry + a shore-normal -> deferred to v3.
 
-    Returns ``(surf_height_m, regime)`` in: calm | unknown | open_ocean | shelf (friction-reduced) |
-    shoaling (locally raised) | breaking (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
+    Returns ``(surf_height_m, regime)`` in: calm | unknown | open_ocean | unknown_depth (coastal, no usable depth:
+    the offshore height, untransformed) | shelf (friction-reduced) | shoaling (locally raised) | breaking
+    (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
     if Hs_m != Hs_m or Tp_s != Tp_s:
@@ -408,7 +413,12 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     if not coastal:
         return float(Hs_m), 'open_ocean'           # swell with no shore to break on -> not surf
     if depth_m is None or depth_m <= 0:
-        return float(Hs_m), 'shelf'                # coastal but no usable depth -> pass through
+        # W-31 (audit 4.1): a coastal point with no usable depth passes the OFFSHORE height through untouched.
+        # It was labelled 'shelf', the regime of a friction-reduced height, so no reader could tell "the shelf
+        # took nothing off" from "there was no depth to ask". Named for what it is; the height is unchanged.
+        # ⚠️ This return precedes `publish_surf_height`, so no H1/10 conversion ever reached this path, under
+        # either label: `unknown_depth` is deliberately NOT in `surf_height_convention._CONVERTIBLE`.
+        return float(Hs_m), 'unknown_depth'
     Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)   # v3 recal scales CF inside (kill-switched)
     Hs_surviving = Kf * Hs_m                       # the swell that makes it across the shelf
     # v3.2 SLOPE-AWARE CAP: shelf-scale slope proxy = depth / width. A flat wide shelf (FL:
@@ -476,17 +486,13 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # to 350 m because its shelf median is 452 m — the Monterey Canyon). `break_depth_m` comes from
     # ETOPO 2022 15s at ~463 m (8.5 m at Cowell's, 13.4 m at Steamer Lane) so H <= gamma*d becomes
     # real physics again. Absent -> legacy behaviour byte-identical. Kill: SURF_BREAK_DEPTH=0.
-    _cap_depth = depth_m
-    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
-        _cap_depth = float(break_depth_m)
     # ── TIDE moves the BREAKING DEPTH and nothing else. ⛔ NEVER `depth_m` (a ~139 km shelf median
     # feeding friction — a metre of tide there is noise pretending to be signal). Datum: MSL both sides.
     # ⚠️ THE FLOOR IS MANDATORY, NOT DEFENSIVE: break depths bottom out at 3.0 m, so a spring low past
     # -3 m drives the cap negative and `min(H, cap)` returns a NEGATIVE height. Default 0.0 + flag OFF
     # ⇒ byte-identical until enabled. Jacobians, reach, and the mutation that holed the first guard:
     # MASTER-AUDIT-10.0 row H + tests/test_tide_moves_the_breaking_cap.py. Enable: SURF_TIDE_DEPTH=1.
-    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
-        _cap_depth = max(_MIN_CAP_DEPTH_M, _cap_depth + float(water_level_m))
+    _cap_depth = effective_cap_depth(depth_m, break_depth_m, water_level_m)
     cap = breaker_index(Tp_s, slope=_slope_proxy) * _cap_depth  # period+slope: long-period/steep breaks taller
     if _v3("SURF_V3_KOMAR"):
         # v3: the surviving swell shoals up to the Komar & Gaughan breaker height at the (sub-grid)
@@ -519,8 +525,21 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # neither the H1/10 convention nor the cap-seam repair can apply on one surface and not
     # another. γ·d stays UNconverted (already a maximum-wave statistic — rationale lives with the
     # helper); SURF_CAP_SEAM_MONOTONE converts BEFORE comparing so a rising sea cannot DROP the
-    # published height at the regime edge (11.0 §3.8 / MC-01). Default OFF = byte-identical legacy.
+    # published height at the regime edge (11.0 §3.8 / MC-01). Default ON since 2026-09-28 (see the helper).
     return publish_surf_height(H, cap, 'shelf' if H <= Hs_m else 'shoaling')
+
+
+def effective_cap_depth(depth_m, break_depth_m, water_level_m=0.0):
+    """Depth of the breaking cap, shared by scalar and recombined seas.
+
+    Tide changes this nearshore cap only; offshore shelf friction retains depth_m.
+    """
+    cap_depth = depth_m
+    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
+        cap_depth = float(break_depth_m)
+    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+        cap_depth = max(_MIN_CAP_DEPTH_M, cap_depth + float(water_level_m))
+    return cap_depth
 
 
 def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
@@ -586,156 +605,11 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
         tp_ref = max((p.get("tp") or 0.0) for p in partitions if isinstance(p, dict))
         _slope = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
-        cap = breaker_index(tp_ref, slope=_slope) * float(break_depth_m)
+        cap = breaker_index(tp_ref, slope=_slope) * effective_cap_depth(depth_m, break_depth_m, water_level_m)
         if h_total >= cap:
             return float(cap), 'breaking'
     # Report the regime of the most energetic train that actually transformed.
     return float(h_total), (regimes[0] if len(set(regimes)) == 1 else 'shoaling')
-
-
-def reconcile_partitions(partitions, total_h_m, tolerance: float = 0.02):
-    """Rescale swell partitions so their energy sums to the TOTAL significant wave height.
-
-    Returns a NEW list (inputs untouched). Fails OPEN — no total, no usable partitions, or a
-    degenerate quadrature returns the input unchanged, so a reconciliation problem can never cost
-    the caller its estimate.
-
-    ★★ WHY THIS IS MANDATORY, not tidiness. The partitions do NOT reconcile with the total field,
-    and they miss in BOTH directions. Measured live against production, 16 spots, 2026-07-29:
-
-        |quadrature - total| / total      median 9.5%,  max 43.8% (Anchor Point)
-        partitions OVER the total (>2%)   10 of 16 spots
-        partitions UNDER the total (<-2%)  1 of 16 (Bondi Beach, -22.3%)
-
-    Sampled independently from separate grid products, interpolation is not energy-conserving, so
-    `sqrt(sum(Hs_i**2))` drifts from the `waves` layer's own Hs. Feeding the raw partitions to
-    `estimate_surf_partitioned` therefore INVENTS energy the model never reported: measured, the raw
-    partitioned height ran a median **+6.2%** above the total-field estimate, purely from the
-    overshoot. Normalising drops that to **+0.6%** while KEEPING the per-spot corrections that are
-    the point of the change (still -44.7%..+26.8%, signed both ways).
-
-    ★ The split of responsibility is the whole idea: the total Hs is the SCALE — the better-
-    constrained quantity, the one the app already serves everywhere and the one `buoy_calibration`
-    was built against — and the partitions are the SHAPE, i.e. how that energy is distributed across
-    periods and bearings. Honouring the periods separately must not quietly re-scale the sea state;
-    that would be an unvalidated change to a calibrated number, smuggled in behind a spectral fix.
-
-    ⚠️ Do NOT "fix" this by dropping to `swell_1` instead. Wind sea is genuinely part of the surf on
-    a windy day, and at Hossegor `swell_1` has measured EQUAL to the entire total — see
-    `estimate_surf_partitioned`.
-    """
-    if not partitions or total_h_m is None:
-        return partitions
-    try:
-        total = float(total_h_m)
-    except (TypeError, ValueError):
-        return partitions
-    if total <= 0:
-        return partitions
-    usable = [p for p in partitions
-              if isinstance(p, dict) and p.get("h") is not None and float(p["h"]) > 0]
-    if not usable:
-        return partitions
-    quad = math.sqrt(sum(float(p["h"]) ** 2 for p in usable))
-    if quad <= 0:
-        return partitions
-    k = total / quad
-    if abs(k - 1.0) <= tolerance:
-        # Already consistent; return unchanged so an in-tolerance sea state is byte-identical.
-        return partitions
-    return [dict(p, h=float(p["h"]) * k) if (isinstance(p, dict) and p.get("h") is not None
-                                             and float(p["h"]) > 0) else p
-            for p in partitions]
-
-
-# The floor below which a partition set does not REPRESENT the sea: if the trains' raw quadrature
-# carries less than half the total Hs (i.e. under a quarter of the energy), the dominant train is
-# missing — reconciling the survivors would inflate a minority train to carry ALL the energy at its
-# own period, a sea state neither the blended field nor the true spectrum describes (review 2026-07-30:
-# a lone cached swell_1 of 0.84 m against a 1.73 m total would have been scaled 2.06x into a clean
-# 10.25 s sea that never existed). Well below every measured LEGITIMATE deviation (max under: Bondi
-# -22.3%; over deviations are unaffected), so it only rejects degenerate coverage.
-PARTITION_MIN_QUAD_FRAC = 0.5
-
-# The PERIOD half of the same question. The height test above cannot see a missing LONG train:
-# a long-period swell carries little height but dominates energy FLUX (P ~ h^2 * T, c_g = gT/4pi),
-# so a decomposition can pass the quadrature gate while omitting the train that matters most to a
-# surfer — and to any flux-based ranking.
-#
-# The check: the total's period is a PEAK period, normally inherited from the dominant train, so
-# T_total must not exceed EVERY partition's period. It cannot, if the partitions cover the spectrum.
-#
-# ⚠️ THE THRESHOLD IS A RATIO, NOT `>` — and that distinction is the whole finding. Measured live
-# 2026-07-31, 36 samples (6 FL sites x forecast hours 0/6/12/24/48/72, GFS):
-#     ratio = T_total / max(partition T):  min 0.466  p25 0.672  MEDIAN 0.999  p75 1.000  max 1.330
-# The median pinned at ~1.000 is the HEALTHY case (peak period inherited from the dominant train),
-# so a boolean `T_total > max` reads ordinary ties as defects: 7 of 36 samples "exceeded", but their
-# ratios split at a natural GAP around 1.08 —
-#     1.0021, 1.0476, 1.0502   interpolation/rounding noise on a tie
-#     1.1161, 1.1308, 1.1711, 1.3298   physically real: a total peak period up to 33% longer than
-#                                      ANY partition, which the partitions cannot produce
-# 1.10 sits in that gap: it admits all three noise cases and rejects all four real ones. The earlier
-# report of this defect ("T_total exceeds every partition at 5 of 6 FL sites") was a boolean over
-# near-ties; the honest rate is ~19% of sample-hours, ~11% material.
-PARTITION_MAX_TP_RATIO = 1.10
-
-
-def partitions_represent(partitions, total_h_m, total_tp_s=None,
-                         min_quad_frac: float = PARTITION_MIN_QUAD_FRAC,
-                         max_tp_ratio: float = PARTITION_MAX_TP_RATIO):
-    """True when the trains plausibly describe the sea the total reports — the supply-side gate
-    BOTH forecast suppliers (`point_resolution._resolve_partitions`, the hub's
-    `_spectral_partitions`) apply BEFORE reconciling. One definition, two callers, so the two
-    lanes cannot drift on what counts as representative (the distributed-guards lesson).
-    Fails CLOSED on unusable input: garbage trains do not represent anything.
-
-    Two independent tests, because a decomposition can fail on either axis alone:
-      HEIGHT  the trains' quadrature carries at least `min_quad_frac` of the total Hs
-      PERIOD  the total's peak period is not `max_tp_ratio`x longer than every train's
-
-    `total_tp_s` is OPTIONAL and the period test is skipped when it is absent or unusable — a
-    caller that cannot supply a trustworthy total period gets exactly today's behaviour rather than
-    a verdict invented from a missing input.
-    """
-    if not partitions or total_h_m is None:
-        return False
-    try:
-        total = float(total_h_m)
-    except (TypeError, ValueError):
-        return False
-    if total != total or total <= 0:
-        return False
-    try:
-        quad = math.sqrt(sum(float(p["h"]) ** 2 for p in partitions
-                             if isinstance(p, dict) and p.get("h") is not None))
-    except (TypeError, ValueError):
-        return False
-    if quad != quad or quad <= 0:
-        return False
-    if quad / total < min_quad_frac:
-        return False
-
-    if total_tp_s is None:
-        return True
-    try:
-        t_total = float(total_tp_s)
-    except (TypeError, ValueError):
-        return True                      # unusable input -> skip the test, never invent a verdict
-    if t_total != t_total or t_total <= 0:
-        return True
-    tps = []
-    for p in partitions:
-        if not isinstance(p, dict):
-            continue
-        try:
-            tp = float(p.get("tp"))
-        except (TypeError, ValueError):
-            continue
-        if tp == tp and tp > 0:
-            tps.append(tp)
-    if not tps:
-        return True                      # no partition periods to compare against
-    return t_total / max(tps) <= max_tp_ratio
 
 
 def surf_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None):

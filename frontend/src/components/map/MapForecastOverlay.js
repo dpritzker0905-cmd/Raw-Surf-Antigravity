@@ -21,7 +21,7 @@ import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './m
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { sampleDecodedOmValue } from './decodedOmSampler';
-import { computeSurfRating } from './surfRating';
+import { usePointRating } from './usePointRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
 import { displayMatchesRequested } from './marineTransitionCoordinator';
@@ -430,41 +430,19 @@ export const MapForecastOverlay = ({
 
 
 
-  // Surf-quality rating (very_poor..epic): size + period + wind (offshore/onshore/sideshore) + swell-ANGLE
-  // exposure. Frontend mirror of surf_rating.py, fed by the backend surf_height_m + shore_normal_deg. Degrades
-  // gracefully — speed-only wind + full exposure when no shore-normal, neutral when no wind. windSpeed is in
-  // KNOTS (display unit) -> convert to m/s. swell-from uses the primary swell dir, falling back to the combined.
-  // RATING-MODE GATE (2026-07-05, item ③): the Rating card renders ONLY when the surf-rating overlay
-  // toggle is ON — the same __SURF_MODE__ source of truth the shader band + glyphs key on. In plain
-  // Swell mode the infobox shows the honest physical values without a quality verdict.
-  const surfRating = getSurfModeFlag()
-    ? computeSurfRating(
-        useExactPoint?.surf_height_m,
-        wavePeriod,
-        windSpeed != null ? windSpeed / 1.943844 : null,
-        windDir,
-        useExactPoint?.shore_normal_deg,
-        useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null,
-        // tideNorm / bestTide / breakerXi: null = neutral, matching the hub's waived factors
-        // (test_rating_composition_parity.py is the registry).
-        null, null, null,
-        // referenceSizeM WAS ALSO null, and that stopped being neutral on 2026-08-01. Waiving it
-        // graded this badge on the global 1.2 m curve while RATING_LOCAL_SIZE made the glyph and
-        // the band grade against the spot's own good day — measured at a median 4.9 and up to 58.1
-        // points, on 47.6% of spot-hours, between two surfaces showing the same spot-hour.
-        // ★★ A WAIVER IS NOT A CONSTANT: it is only as neutral as the flag it silently shadows, and
-        // the structural parity guard cannot see that — "declares null" stays a valid declaration
-        // while the thing null MEANS changes underneath it.
-        // The backend serves the per-CELL reference here (same blob the band uses at this
-        // coordinate); null keeps the legacy global curve, so this is safe before it deploys.
-        useExactPoint?.reference_size_m ?? null,
-        // The trains the served surf_height_m ran on (SURF_PARTITIONS on; null otherwise). Without
-        // this the badge grades the blended field while the glyph — computed by the backend from
-        // the SAME response family — grades the spectrum: a fair glyph under a good badge at the
-        // same spot-hour (2026-07-30 review). surfRating.js already implements the factors.
-        useExactPoint?.partitions ?? null
-      )
-    : null;
+  // Surf-quality rating (very_poor..epic): the BACKEND's verdict for this coordinate + hour
+  // (/api/weather/point-rating, A15-05(b) 2026-09-26): the glyph's own precomputed item at a
+  // catalogued spot, rate_one_spot + the observation gate elsewhere. It replaced a JS mirror
+  // (surfRating.js computeSurfRating) that graded on the browser's Open-Meteo wind and without
+  // break depth, so the badge could disagree with the glyph beside it. No browser fallback: while
+  // the answer is pending or unavailable the Rating card is absent, never a second opinion.
+  // RATING-MODE GATE (2026-07-05, item ③): only while the surf-rating overlay toggle is ON, and
+  // only at a coastal break (the card's own regime gate), so an open-ocean tap costs no request.
+  const _ratingRegime = useExactPoint?.surf_regime;
+  const surfRating = usePointRating({
+    enabled: getSurfModeFlag() && !!_ratingRegime && !['open_ocean', 'calm', 'unknown'].includes(_ratingRegime),
+    lat: pointLat, lng: pointLng, model: activeModel, timeOffsetHours: settledOffset,
+  });
 
   // Temp-pair infobox v2: Water Temp samples the client-decoded grid the raster renders from
   // (display-consistent — the active slot URL names model+timeIndex; SST is on no point lane).

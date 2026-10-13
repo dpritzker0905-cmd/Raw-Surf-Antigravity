@@ -32,6 +32,11 @@ import tempfile
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
+try:
+    from _fetch_window import window_f_hours            # script-by-path
+except ImportError:  # pragma: no cover - package-context fallback
+    from services._fetch_window import window_f_hours
+
 BASE = "https://opendata.dwd.de/weather/nwp/icon/grib"
 SINGLE = "icon_global_icosahedral_single-level"
 INVAR = "icon_global_icosahedral_time-invariant"
@@ -132,6 +137,12 @@ def fetch_global_coarse(payload):
     if not date:
         sys.stderr.write("[dwd_icon_wind_fetcher] no complete ICON run found on DWD opendata\n")
         return ({} if multi else []), 0, 0, None
+    # A native recovery asks for the viewed hour's steps only (services/_fetch_window.py); ingest sends no window.
+    # Nothing inside it: stop before the CLAT/CLON downloads, the costliest part of an ICON fetch.
+    f_hours = window_f_hours(f_hours, cycle_dt, payload.get("valid_window"))
+    if not f_hours:
+        sys.stderr.write("[dwd_icon_wind_fetcher] no forecast step inside the requested valid_window\n")
+        return ({} if multi else []), 0, 0, None
 
     tmp = Path(tempfile.gettempdir())
 
@@ -221,7 +232,7 @@ def fetch_global_coarse(payload):
                     "latitude": float(la), "longitude": float(lo),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                    "__provider": "dwd",
+                    "__provider": "dwd", "__model_run_time": cycle_dt.isoformat(),
                     "hourly_units": {"time": "iso8601", "wind_speed_10m": "m/s", "wind_direction_10m": "°"},
                     "hourly": {
                         "time": times,

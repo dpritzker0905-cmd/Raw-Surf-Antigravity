@@ -252,13 +252,13 @@ const ComposeModal = ({ isOpen, onClose, onSelectUser, currentUserId }) => {
                     {user.username && (
                       <span className="text-sm text-muted-foreground">@{user.username}</span>
                     )}
- <span className="text-xs text-muted-foreground/70">{user.username ? '+-+' : ''} {roleInfo.label}</span>
+                    <span className="text-xs text-muted-foreground/70">{user.username ? '\u00B7' : ''} {roleInfo.label}</span>
                     {/* Follow status indicator */}
                     {user.isMutual && (
- <span className="text-xs text-emerald-400 ml-1">+-+ Mutuals</span>
+                      <span className="text-xs text-emerald-400 ml-1">&middot; Mutuals</span>
                     )}
                     {!user.isMutual && user.followsYou && (
- <span className="text-xs text-cyan-400 ml-1">+-+ Follows you</span>
+                      <span className="text-xs text-cyan-400 ml-1">&middot; Follows you</span>
                     )}
                   </div>
                 </div>

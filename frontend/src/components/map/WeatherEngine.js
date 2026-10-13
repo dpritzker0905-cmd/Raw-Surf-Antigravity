@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
-import { windGridsCompatible } from './WebGLWindEngine';
+import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep';
 import { recordTruthStage } from './weatherTruthTracker';
-import { ensureWindSeries, getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
+import { getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
+import { startWindSeriesWarm } from './windSeriesWarm';
 import { isTerminalNoCoverage } from './marineControllerCache';
 
 // Module-level scrub log throttle (max once per 2s)
@@ -149,7 +150,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             const sameModel = (data.source || null) === (lg.source || null);
             const sameHour = (data.hourOffset || 0) === (lg.hourOffset || 0);
             if (twoTexLive && sameModel && sameHour && lgSpan >= 350.0) {
-              console.log('[WeatherEngine] commitWindData CHOKE: non-covering grid passes as FINE OVERLAY over the resident global base');
+              if (keepResidentFine(typeof window !== 'undefined' ? window.__WIND_FINE_OVERLAY__ : null, data, vp)) { console.log('[WeatherEngine] commitWindData CHOKE: kept the resident fine overlay (it shows more of the view, as fine or finer)'); return; } console.log('[WeatherEngine] commitWindData CHOKE: non-covering grid passes as FINE OVERLAY over the resident global base');
               windRevision.current += 1;
               return commitWindDataInner(data);
             }
@@ -693,44 +694,9 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   // a no-op until enabled, so the default wind path is unchanged.
   useEffect(() => {
     if (!mapInstance || !isWindActive) return;
-    let cancelled = false;
-    const controller = new AbortController();
-    const kick = () => {
-      if (cancelled || !mapInstance) return;
-      try {
-        const b = mapInstance.getBounds();
-        ensureWindSeries(
-          activeModel,
-          { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
-          timeOffsetHours,
-          controller.signal
-        );
-      } catch (e) { /* map not ready — ignore */ }
-    };
-    const t = setTimeout(kick, 600);
-    const onIdle = () => kick();
-    mapInstance.on('moveend', onIdle);
-    // On scrub start, eagerly load EVERY page so any hour the user jumps to during a fast drag
-    // is already cached (the during-drag path reads getWindSeriesFrame synchronously).
-    const onScrubStart = () => {
-      if (cancelled || !mapInstance) return;
-      try {
-        const b = mapInstance.getBounds();
-        prewarmWindSeries(
-          activeModel,
-          { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
-          controller.signal
-        );
-      } catch (e) { /* map not ready — ignore */ }
-    };
-    if (typeof window !== 'undefined') window.addEventListener('timeline_scrub_start', onScrubStart);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      controller.abort();
-      try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
-      if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
-    };
+    // The wiring lives in windSeriesWarm.js (so the pan replay drives this exact code). Work belongs
+    // to the view that asked for it: a pan aborts the previous pan's series requests.
+    return startWindSeriesWarm({ map: mapInstance, model: activeModel, hour: timeOffsetHours });
     // Page is intentionally NOT a dep (mirror useMarineOrchestrator). prewarmWindSeries loads ALL
     // pages on settle + scrub-start; re-running per page crossing only ABORTS the in-flight warm via
     // the cleanup's controller.abort(), so a fast multi-page scrub perpetually killed its own wind

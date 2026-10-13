@@ -207,7 +207,7 @@ const SinglePost = () => {
     
     // Quick tap = toggle shaka reaction
     if (wasPressing) {
- await handleReaction(postId, '=');
+      await handleReaction(postId, '\u{1F919}');
     }
   };
   

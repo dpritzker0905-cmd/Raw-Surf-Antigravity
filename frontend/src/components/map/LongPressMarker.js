@@ -1,5 +1,5 @@
 import React from 'react';
-import { Marker } from 'react-map-gl/maplibre';
+import { ContentMarker as Marker } from './ContentMarker';   // wrapper = positioning, content = control (W-10 R5)
 
 export const LongPressMarker = ({ location }) => {
   if (!location) return null;

@@ -13,7 +13,8 @@ import {
 
   Trophy, Users, Flame, DollarSign,
   Medal, Crown, Star, TrendingUp, ChevronRight,
-  Eye, EyeOff, Lock
+  Eye, EyeOff, Lock, Plane, Sunrise, Sunset, Swords, Target, Heart,
+  Palette, Brain, Wallet, Award
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
@@ -38,20 +39,20 @@ import { getFullUrl } from '../utils/media';
 
 
 
-// Badge icon mapping
+// Badge icon mapping (decorative: the badge name is rendered as text under the icon)
 const BADGE_ICONS = {
- frequent_flyers: 'Gn+',
- dawn_patrol: '=',
- sunset_crew: '=',
- weekend_warriors: 'Gn+',
- squad_goals: '=',
- dynamic_duo: '=',
- wolf_pack: '=',
- ride_or_die: '=',
- variety_pack: '=',
- local_legends: '=',
- smart_splitters: '=',
- budget_bosses: '='
+  frequent_flyers: Plane,
+  dawn_patrol: Sunrise,
+  sunset_crew: Sunset,
+  weekend_warriors: Swords,
+  squad_goals: Target,
+  dynamic_duo: Users,
+  wolf_pack: Users,
+  ride_or_die: Heart,
+  variety_pack: Palette,
+  local_legends: Trophy,
+  smart_splitters: Brain,
+  budget_bosses: Wallet
 };
 
 const TIER_COLORS = {
@@ -73,11 +74,12 @@ const BadgeCard = ({ badge, size = 'md' }) => {
   };
   
   const tierColor = TIER_COLORS[badge.tier] || TIER_COLORS[1];
+  const BadgeIcon = BADGE_ICONS[badge.badge_type] || Award;
   
   return (
     <div className="flex flex-col items-center">
       <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br ${tierColor} flex items-center justify-center shadow-lg`}>
- <span>{BADGE_ICONS[badge.badge_type] || '='}</span>
+        <BadgeIcon className="w-1/2 h-1/2 text-white" aria-hidden="true" />
       </div>
       <p className="text-xs font-medium mt-1 text-center">{badge.badge_name}</p>
       <Badge variant="outline" className="text-xs mt-0.5">

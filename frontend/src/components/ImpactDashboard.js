@@ -9,7 +9,8 @@ import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import {
 
-  Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings
+  Heart, Target, Search, Users, DollarSign, TrendingUp, Loader2, ExternalLink, Check, Waves, Star, Gift, Settings,
+  Crown, Trophy
 } from 'lucide-react';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
@@ -18,13 +19,13 @@ import { ROLES } from '../constants/roles';
 
 
 const IMPACT_LEVELS = {
- Legend: { emoji: '=', color: 'from-yellow-400 to-amber-600' },
- Champion: { emoji: '=', color: 'from-amber-400 to-orange-500' },
- Hero: { emoji: '=+', color: 'from-purple-400 to-indigo-500' },
- Patron: { emoji: '=', color: 'from-blue-400 to-cyan-500' },
- Supporter: { emoji: '=', color: 'from-green-400 to-emerald-500' },
- Contributor: { emoji: '=', color: 'from-teal-400 to-cyan-500' },
- Starter: { emoji: '=', color: 'from-gray-400 to-zinc-500' }
+  Legend: { Icon: Crown, color: 'from-yellow-400 to-amber-600' },
+  Champion: { Icon: Trophy, color: 'from-amber-400 to-orange-500' },
+  Hero: { Icon: Star, color: 'from-purple-400 to-indigo-500' },
+  Patron: { Icon: Heart, color: 'from-blue-400 to-cyan-500' },
+  Supporter: { Icon: Gift, color: 'from-green-400 to-emerald-500' },
+  Contributor: { Icon: Users, color: 'from-teal-400 to-cyan-500' },
+  Starter: { Icon: Waves, color: 'from-gray-400 to-zinc-500' }
 };
 
 const CAUSE_CATEGORIES = {
@@ -181,7 +182,7 @@ export const ImpactDashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-3xl">{level.emoji}</span>
+                  <level.Icon className="w-8 h-8 text-foreground" aria-hidden="true" />
                   <span className="text-foreground font-bold text-xl">{levelName}</span>
                 </div>
                 <p className="text-foreground/80 text-sm">Impact Level</p>

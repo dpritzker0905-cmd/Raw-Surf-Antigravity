@@ -17,6 +17,7 @@ from scripts.science_shadow_ab import replay_frames                     # noqa: 
 from services.weather_pipeline.surf_point import (                       # noqa: E402
     estimate_surf_at, resolve_surf_geometry)
 from services.weather_pipeline.surf_rating import compute_surf_rating   # noqa: E402
+from services.weather_pipeline.surf_transform import REFRACTION_KR       # noqa: E402
 
 PIPELINE = (21.665, -158.051)
 
@@ -67,6 +68,46 @@ def clean_flags(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
+def _rounded_row(level_flip=False):
+    """A served row as persisted: its stored height carries write rounding (+0.9%, inside the 1% height
+    tolerance) and its score is the rating OF that stored height, so the reproduction checks pass. Picked
+    where the curve is steep enough that 0.9% of height is worth more than the 0.25-point tolerance -- or,
+    with `level_flip`, where that rounding alone crosses a LEVEL boundary (the 3 rows measured)."""
+    g = resolve_surf_geometry(*PIPELINE)
+    for k in range(40, 400):
+        row = _row(offshore=k / 100.0)
+        stored = round(row["surf_height_m"] * 1.009, 3)
+        score, level = compute_surf_rating(stored, 14.0, 2.0, wind_from_deg=140.0,
+                                           shore_normal_deg=g.shore_normal_deg, swell_from_deg=315.0,
+                                           break_depth_m=g.break_depth_m)
+        if abs(score - row["score"]) > 0.25 and (level != row["level"] or not level_flip):
+            return dict(row, surf_height_m=stored, score=score, level=level)
+    pytest.skip("no steep enough point on the rating curve at Pipeline")
+
+
+def test_a_null_HEIGHT_candidate_is_the_null_result_despite_write_rounding():
+    """Measured 2026-09-28 on 584 served rows: with SURF_REFRACTION_KR at its own default, 7 rows moved
+    > 0.25 pts and 3 changed LEVEL, because the candidate was compared with the PERSISTED score, which
+    carries the rounding of every input. Both arms now run the same functions on the same inputs."""
+    row = _rounded_row()
+    rep = replay_frames(_frames([row]), {"SURF_REFRACTION_KR": str(REFRACTION_KR)})
+    assert rep["rows_replayable"] == 1, "the rounded row must still pass the reproduction checks"
+    assert rep["delta_min"] == 0.0 and rep["delta_max"] == 0.0
+    assert rep["level_up"] == 0 and rep["level_down"] == 0
+    assert rep["height_ratio"]["min"] == rep["height_ratio"]["max"] == 1.0
+    m = rep["biggest_upgrades"][0]
+    assert m["score_served"] == row["score"] and m["score_now"] != row["score"], (
+        "the served score is reported beside the recomputed baseline the candidate was measured against")
+
+
+def test_write_rounding_across_a_level_boundary_is_not_a_level_change():
+    row = _rounded_row(level_flip=True)
+    rep = replay_frames(_frames([row]), {"SURF_REFRACTION_KR": str(REFRACTION_KR)})
+    assert rep["rows_replayable"] == 1 and rep["level_up"] == 0 and rep["level_down"] == 0
+    m = rep["biggest_upgrades"][0]
+    assert m["level_served"] == row["level"] and m["level_now"] == m["level_cand"] != row["level"]
+
+
 def test_the_null_candidate_is_the_null_result():
     """A candidate identical to the baseline must change NOTHING -- the null control that proves
     the harness cannot manufacture deltas."""
@@ -83,14 +124,16 @@ def test_a_height_flag_candidate_moves_the_height_and_the_score():
     (77.4 -> 96.0, good -> epic), while 2.0 m sits on the known PLATEAU (96.0 either way -- the
     same flat band as the sim's 1 m/4 m = 86.5/86.5). The candidate arm must re-run the height
     half on BOTH; only the rising-limb row may move the score."""
-    rep = replay_frames(_frames([_row(offshore=0.5), _row(offshore=2.0)]),
+    # 0.5 -> 0.45 m on 2026-09-27: at Kr 0.873 the 0.5 m row already reads epic (86.6), so it can no
+    # longer show a level change; 0.45 m is the same rising-limb case (good -> epic, 76.0 -> 89.8).
+    rep = replay_frames(_frames([_row(offshore=0.45), _row(offshore=2.0)]),
                         {"SURF_REFRACTION_KR": "1.0"})
     assert rep["rows_replayable"] == 2 and rep["disqualified"] == 0
     by_h = sorted(rep["biggest_upgrades"] + rep["biggest_downgrades"],
                   key=lambda m: m["surf_height_m"])
     limb, plateau = by_h[0], by_h[-1]
     for m in (limb, plateau):
-        assert m["cand_height_m"] == pytest.approx(m["surf_height_m"] / 0.797, rel=0.01), (
+        assert m["cand_height_m"] == pytest.approx(m["surf_height_m"] / REFRACTION_KR, rel=0.01), (
             "the candidate height must be the un-refracted height (1/Kr), recomputed from the "
             "offshore inputs -- not the persisted breaking height reused")
     assert limb["delta"] > 0 and limb["level_cand"] != limb["level_now"], (
@@ -313,6 +356,50 @@ def _run_main(monkeypatch, tmp_path, rows, capsys, candidate="SURF_REFRACTION_KR
     return code, capsys.readouterr().out
 
 
+def test_a_blob_with_no_frames_is_REFUSED_not_NOT_READY(monkeypatch, tmp_path, capsys):
+    """NOT READY means frames were read and none carried inputs; ZERO frames means nothing was read."""
+    from scripts import science_shadow_ab as mod
+    f = tmp_path / "frames.json"
+    f.write_text('{"frames": []}', encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0", "--frames-file", str(f)])
+    assert mod.main() == 3
+    out = capsys.readouterr().out
+    assert "REFUSED" in out and "held no frames" in out and "NOT READY" not in out
+
+
+def _l2(monkeypatch, answers):
+    """Stub the uncached L2 read with a script of answers; returns the call log."""
+    from scripts import science_shadow_ab as mod
+    from services.weather_pipeline import spot_ratings_precompute as pre
+    calls = []
+
+    def fake():
+        calls.append(1)
+        return answers[min(len(calls), len(answers)) - 1]
+
+    monkeypatch.setattr(pre, "load_spot_ratings_l2", fake)
+    monkeypatch.setattr(mod, "FRAMES_READ_WAIT_S", 0.0)
+    monkeypatch.setattr(sys, "argv", ["x", "--candidate", "SURF_REFRACTION_KR=1.0"])
+    return mod, calls
+
+
+def test_an_unreadable_blob_is_retried_then_REFUSED(monkeypatch, capsys):
+    """Run 36499867208 read NOTHING while a precompute was uploading (a run 5 s later read 6 frames) and
+    reported NOT READY with exit 0. An unread blob is blindness: retried, then red."""
+    mod, calls = _l2(monkeypatch, [None])
+    assert mod.main() == 3 and len(calls) == mod.FRAMES_READ_ATTEMPTS
+    out = capsys.readouterr().out
+    assert "could not be read after 3 attempts" in out and "NOT READY" not in out
+
+
+def test_one_failed_read_is_retried_and_the_replay_proceeds(monkeypatch, capsys):
+    bare = _row()
+    del bare["inputs"]
+    mod, calls = _l2(monkeypatch, [None, {"frames": _frames([bare])}])
+    assert mod.main() == 0 and len(calls) == 2
+    assert "NOT READY" in capsys.readouterr().out, "frames were read; none carried inputs"
+
+
 def test_no_inputs_anywhere_is_NOT_READY_and_exits_zero(monkeypatch, tmp_path, capsys):
     """Frames that predate the inputs persistence, or a blob where no row fell in the 5% sample,
     are ABSENCE. Nothing is wrong, nothing was measured, and it self-resolves on the next
@@ -405,6 +492,40 @@ def test_the_tide_lever_is_now_EXERCISABLE_and_potent(monkeypatch, tmp_path, cap
     assert ctl["max_abs_delta"] > 10.0, (
         "tide moves the DEPTH-LIMITED CAP: measured 38.1 points at the cap-limited probe. A small "
         "delta means the probes stopped reaching the saturated regime where it binds.")
+
+
+def test_the_shelf_friction_lever_is_EXERCISABLE():
+    """2026-09-28: SURF_SHELF_CF_SCALE=0 was REFUSED as inert while the nearshore judge's shelf arm measured
+    cross-shelf friction as the largest error left. Two causes, both pinned here: the control probed only
+    Pipeline (bed friction 1.0 at every sea), and the replay re-derived heights only for 5 named flags."""
+    from scripts.science_shadow_ab import candidate_can_move
+    # The candidate is the NON-default value: 0 until 2026-09-28, 0.25 (the legacy scale) since friction went
+    # off by default (SHELF_CF_SCALE_DEFAULT). A default-valued candidate is inert by definition.
+    for flag, value in (("SURF_SHELF_CF_SCALE", "0.25"), ("SURF_V3_SHELF_RECAL", "0")):
+        ctl = candidate_can_move({flag: value})
+        assert ctl["can_move"] is True and ctl["max_abs_delta"] > 5.0, (flag, ctl)
+
+
+def test_every_SURF_setting_the_height_path_reads_re_derives_the_height():
+    """A hand list named 5 of 16; the rule is the prefix, so a new lever cannot fall behind it."""
+    import pathlib
+    import re as _re
+    from scripts.science_shadow_ab import is_height_flag
+    root = pathlib.Path(__file__).resolve().parents[1] / "services" / "weather_pipeline"
+    read = set()
+    for name in ("surf_transform.py", "surf_point.py", "surf_magnets.py"):
+        src = (root / name).read_text(encoding="utf-8")
+        read |= set(_re.findall(r'(?:os\.environ\.get|_v3)\("(SURF_[A-Z0-9_]+)"', src))
+    assert len(read) >= 10 and {"SURF_SHELF_CF_SCALE", "SURF_V3_SHELF_RECAL"} <= read
+    assert all(is_height_flag(f) for f in read), sorted(f for f in read if not is_height_flag(f))
+    assert not is_height_flag("RATING_LOCAL_SIZE") and not is_height_flag("REQUEST_TELEMETRY")
+
+
+def test_a_SURF_flag_the_replay_cannot_drive_still_refuses():
+    """The prefix does not certify anything: MOP serving needs a nearshore input the replay does not carry,
+    so its positive control must still fail rather than report a reassuring null."""
+    from scripts.science_shadow_ab import candidate_can_move
+    assert candidate_can_move({"SURF_NEARSHORE_MOP": "1"})["can_move"] is False
 
 
 def test_a_live_candidate_still_reports_normally(monkeypatch, tmp_path, capsys):

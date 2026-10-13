@@ -1,0 +1,23 @@
+{
+  "baseline": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "baselineTestCount": 2486,
+  "metadataTestsAdded": 13,
+  "directionTestsAddedBySeparateAgent": 43,
+  "fullCandidate": {
+    "suitesPassed": 259,
+    "testsPassed": 2542,
+    "exitCode": 0,
+    "jestTestSeconds": 45.591,
+    "log": "logs/day2-final-full-frontend.log",
+    "warning": "Jest did not exit one second after completion; later exited normally without forceExit. Cause not attributed."
+  },
+  "changedSuitesDetectOpenHandles": {
+    "suitesPassed": 3,
+    "testsPassed": 60,
+    "exitCode": 0,
+    "handlesReported": false,
+    "exitWarning": false,
+    "log": "logs/day2-focused-open-handles.log"
+  },
+  "limits": "Unit/integration checks with controlled fixtures; no live provider, browser pixel, GPU performance, or full-chain backend acceptance claim."
+}

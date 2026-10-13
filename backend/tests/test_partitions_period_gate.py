@@ -19,8 +19,7 @@ Every number below is one of those measured samples.
 """
 import pytest
 
-from services.weather_pipeline.surf_transform import (
-    PARTITION_MAX_TP_RATIO, PARTITION_MIN_QUAD_FRAC, partitions_represent)
+from services.weather_pipeline.surf_partitions import PARTITION_MAX_TP_RATIO, PARTITION_MIN_QUAD_FRAC, partitions_represent
 
 
 def _trains(*pairs):

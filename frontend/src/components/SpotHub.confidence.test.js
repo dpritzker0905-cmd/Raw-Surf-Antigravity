@@ -67,7 +67,7 @@ const FC = {
   calibrated: false,
 };
 
-function mockApi(forecastConfidence) {
+function mockApi(forecastConfidence, swellHeight = 0.7) {
   apiClient.get.mockImplementation((url) => {
     if (url.includes('/explore/spot-details/')) {
       return Promise.resolve({
@@ -82,7 +82,7 @@ function mockApi(forecastConfidence) {
             wave_height_ft: 2.1,
             wave_period: 4.41,
             wave_direction: 286,
-            swell_height_ft: 0.7,
+            swell_height_ft: swellHeight,
             ...(forecastConfidence ? { forecast_confidence: forecastConfidence } : {}),
           },
         },
@@ -108,6 +108,15 @@ beforeEach(() => {
   mockTheme = 'dark';
   jest.clearAllMocks();
 });
+
+it.each([['light', null, '—ft'], ['dark', 0, '0ft'], ['beach', 1.1, '1.1ft']])(
+  'keeps unknown, zero and measured swell distinct in %s', async (theme, height, text) => {
+    mockTheme = theme;
+    mockApi(null, height);
+    render(<SpotHub />);
+    expect(await screen.findByText(text)).toBeInTheDocument();
+  }
+);
 
 it('renders the level word, the sentence, and hides the dot from assistive tech', async () => {
   mockApi(FC);
@@ -155,4 +164,22 @@ it('THREE THEMES: light, dark and beach render three DISTINCT dot classes', asyn
   // ⚠️ SpotHub read only `isLight` before this block landed. Had `isBeach` not been added, beach
   // would have silently rendered as dark and this is the assertion that would have caught it.
   expect(new Set(seen).size).toBe(3);
+});
+
+it.each(['light', 'dark', 'beach'])('daily calendar identifiers stay Oct 5 in the actual %s hub', async theme => {
+  mockTheme = theme;
+  process.env.REACT_APP_FORECAST_STATE_IDENTITY = 'true';
+  apiClient.get.mockImplementation(url => Promise.resolve({ data: url.includes('/spot-details/') ? {
+    id: 'spot-1', name: 'Calendar Beach', forecast: [
+      { date: '2026-10-05', wave_height_max: 6, label: 'Overhead' },
+      { date: '2026-10-06', wave_height_max: 7, label: 'Overhead' },
+    ], current_conditions: { wave_height_ft: 5, label: 'Head High' },
+  } : {} }));
+  try {
+    render(<SpotHub />);
+    expect(await screen.findByText('Mon')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('Tue')).toBeInTheDocument();
+    expect(screen.queryByText('Sun')).toBeNull();
+  } finally { delete process.env.REACT_APP_FORECAST_STATE_IDENTITY; }
 });

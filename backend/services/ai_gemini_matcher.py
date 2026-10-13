@@ -239,14 +239,13 @@ async def _call_gemini_vision(
     try:
         async with httpx.AsyncClient(timeout=45.0) as client:
             response = await client.post(
-                f"{GEMINI_API_URL}?key={GEMINI_API_KEY}",
+                GEMINI_API_URL,
                 json=request_body,
-                headers={"Content-Type": "application/json"}
+                headers={"Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY}
             )
             
             if response.status_code != 200:
-                error_text = response.text[:500]
-                logger.error(f"Gemini API error {response.status_code}: {error_text}")
+                logger.error("Gemini API error: HTTP %s", response.status_code)
                 return _error_result(f"Gemini API error: {response.status_code}")
             
             result = response.json()
@@ -288,8 +287,8 @@ async def _call_gemini_vision(
         logger.error("Gemini API request timed out")
         return _error_result("Request timed out")
     except Exception as e:
-        logger.error(f"Gemini API call failed: {e}")
-        return _error_result(str(e))
+        logger.error("Gemini API call failed (%s)", type(e).__name__)
+        return _error_result("Gemini request failed")
 
 
 async def _download_image_as_base64(url: str) -> Optional[str]:
@@ -338,7 +337,6 @@ async def check_gemini_health() -> Dict[str, Any]:
         "service": "gemini_flash",
         "model": GEMINI_MODEL,
         "key_configured": bool(GEMINI_API_KEY),
-        "key_preview": f"{GEMINI_API_KEY[:8]}..." if GEMINI_API_KEY else None,
         "api_reachable": False,
         "error": None
     }
@@ -351,12 +349,14 @@ async def check_gemini_health() -> Dict[str, Any]:
         # Quick health check — list models
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}?key={GEMINI_API_KEY}"
+                f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}",
+                headers={"x-goog-api-key": GEMINI_API_KEY},
             )
             status["api_reachable"] = response.status_code == 200
             if response.status_code != 200:
                 status["error"] = f"API returned {response.status_code}"
     except Exception as e:
-        status["error"] = str(e)
+        logger.warning("Gemini health request failed (%s)", type(e).__name__)
+        status["error"] = "Gemini health request failed"
     
     return status

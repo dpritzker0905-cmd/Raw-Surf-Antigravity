@@ -570,7 +570,7 @@ export var RequestProModal = ({
             </div>
             {boostHours > 0 && (
               <p className="text-xs text-orange-300/80">
-                ?? Your request will appear first to all pros for {boostHours} hour{boostHours > 1 ? 's' : ''}
+                Your request will appear first to all pros for {boostHours} hour{boostHours > 1 ? 's' : ''}
               </p>
             )}
           </div>

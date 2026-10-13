@@ -12,13 +12,12 @@
  * 5. Final composite: render trail texture to screen canvas
  */
 
-import { generateRampData } from './WindColorRamp';
+import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask'; import { bindCalmAir } from './windCalmAir';
+import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
+import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
 import {
-  createTexture,
-  unbindTexture,
-  createFBO,
-  bindTexture,
-  encodeWindTexture
+  createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -34,12 +33,7 @@ function latToMercatorY(lat) {
   return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
 }
 
-// WIND ANIM TUNING (2026-07-06, user request: "+~10% wind animation presence at z3.3-4.69" and
-// "slower winds move slower, faster winds move faster"): motion was ALREADY linearly proportional
-// to |wind| (webgl-wind lineage — offset ∝ decoded u/v); gamma > 1 adds perceptual CONTRAST by
-// damping slow particles relative to fast ones (pow(speedNorm, gamma-1)); gamma 1.0 = exact linear.
-// Levers: __RAW_WIND_LOWBAND_BIAS__ (0..1, default 0.012 ≈ +10% on-screen in-band),
-// __RAW_WIND_SPEED_GAMMA__ (0.5..3, default 1.15), kill __RAW_DISABLE_WIND_SPEED_GAMMA__ → 1.0.
+// WIND ANIM TUNING (2026-07-06): rationale relocated to docs/architecture/RATIONALE-WebGLWindEngine.md "Wind anim tuning".
 export function resolveWindAnimTuning(win) {
   const w = win || {};
   let lowBandBias = 0.012;
@@ -197,6 +191,7 @@ export function windFineFeatherFrac(fineSpan, wideFade) {
 
 WebGLWindEngine.prototype.init = function(gl) {
   initEngine(this, gl);
+  if (!this._initialized) throw new Error('WebGL Wind initialization failed');
 };
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
@@ -213,17 +208,13 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
         && windGridIsGlobal(windGrid) === windGridIsGlobal(this._windData.windGrid)) {
       residentSameSlot = this._windData.windGrid;
     } else if (this._windFine?.windGrid && !windGridIsGlobal(windGrid)) {
-      residentSameSlot = this._windFine.windGrid;
+      residentSameSlot = tierOuter(this._windFine.windGrid); // a mosaic's own served box (windTierMosaic.js)
     }
     if (residentSameSlot && windGridsIdentical(residentSameSlot, windGrid)) return 'noop';
   }
   var verdict = 'base';
 
-  // COARSE-OVERLAY GUARD (2026-07-21, user "grid shape / small clamp"). The FINE overlay must
-  // SHARPEN the base. A compatible regional grid that is CLEARLY coarser than the resident global
-  // base (a 5x4 `swr_revalidation_pending` SWR preview over the sharp 2° world base) would render a
-  // blocky patch on top of good data — keep the base, ignore the preview. Kill:
-  // __RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__.
+  // COARSE-OVERLAY GUARD (2026-07-21) + NO-DOWNGRADE (2026-10-08): rationale in RATIONALE-WebGLWindEngine.md.
   if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null)
       && windBaseOverlayEnabled(typeof window !== 'undefined' ? window : null)
       && !windGridIsGlobal(windGrid)
@@ -231,6 +222,12 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
       && windGridsCompatible(this._windData.windGrid, windGrid)
       && windGridClearlyCoarserThan(windGrid, this._windData.windGrid)) {
     return 'noop_coarse';
+  }
+  if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null) && !windGridIsGlobal(windGrid) && this._windFine?.windGrid
+      && windGridsCompatible(this._windFine.windGrid, windGrid) && windGridClearlyCoarserThan(windGrid, this._windFine.windGrid)) {
+    if (tierKeepsOver(this._windFine.windGrid, windGrid)) return 'noop_coarser_than_fine'; // never downgrade the view: inside the resident (windTierMosaic.js)
+    if (baseClipKeepsFine(windGrid, this._windData?.windGrid, this._windFine.windGrid)) return 'noop_base_clip'; // only the base's own nodes: keep the finer box (windOverlayKeep.js)
+    windGrid = tierMosaic(windGrid, this._windFine.windGrid) || windGrid; // a coarser covering box keeps the finer nodes it overlaps (windTierMosaic.js)
   }
 
   // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
@@ -390,12 +387,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   // Update color ramp when theme changes or if texture is not yet created
   // v3.15: Use _currentTheme (set by setTheme) as fallback when theme param not passed
-  var activeTheme = theme || this._currentTheme || 'dark';
-  if (activeTheme !== this._currentTheme || !this._colorRamp) {
-    this._currentTheme = activeTheme;
-    var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
+  var activeTheme = theme || this._currentTheme || 'dark', lookKey = windLookKey(activeTheme);   // the light-look lever and dark's rules (WindColorRamp.js): a change rebuilds at once
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
+    this._currentTheme = activeTheme; this._lookKey = lookKey;
+    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);   // two rows, over land and over sea: equal unless dark's rules draw rows of their own
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);
   }
   if (!matrix || !matrix.length) {
@@ -415,35 +412,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     }
     this.screenA = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
     this.screenB = createFBO(gl, gl.NEAREST, screenWidth, screenHeight);
-    this._screenW = screenWidth; this._screenH = screenHeight;
+    this._screenW = screenWidth; this._screenH = screenHeight; this._trail = null; this._inkWas = null;
   }
 
-  // v3.15: Clear trail FBOs during genuine zoom transitions only.
-  // Track camera center to distinguish zoom from pan (pan causes micro zoom jitter).
-  var currentZoom = typeof zoom === 'number' ? zoom : 6;
-  if (this._lastRenderZoom !== undefined) {
-    var zoomDelta = Math.abs(currentZoom - this._lastRenderZoom);
-    // v3.15: Only clear on genuine zoom changes (> 0.15), not pan-induced float jitter.
-    // During panning, mapbox can report sub-0.01 zoom fluctuations that falsely trigger
-    // trail clears, causing the "grid flash" artifact.
-    if (zoomDelta > 0.15) {
-      // Additional guard: accumulate zoom delta across frames to filter jitter
-      this._zoomDeltaAccum = (this._zoomDeltaAccum || 0) + zoomDelta;
-      if (this._zoomDeltaAccum > 0.25) {
-        // Genuine zoom change — clear trail buffers
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
-        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        this._zoomDeltaAccum = 0;
-      }
-    } else {
-      // Small delta — likely pan jitter, decay accumulator
-      this._zoomDeltaAccum = Math.max(0, (this._zoomDeltaAccum || 0) - 0.02);
-    }
-  }
-  this._lastRenderZoom = currentZoom;
+  // TRAILS ANCHORED TO THE MAP: this frame's trail-buffer camera (windTrailAnchor.js). With its kill switch on, the buffer
+  // is the screen again and a genuine zoom jump clears it, as before.
+  const _trail = windTrailFrame(this, gl, this._trailMatrix || matrix, screenWidth, screenHeight, typeof zoom === 'number' ? zoom : 6);
   const webglState = captureWebGLState(gl);
   try {
     gl.disable(gl.DEPTH_TEST);
@@ -519,7 +493,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       ? 'partial_regional_coverage'
       : 'full_coverage';
     window.__WIND_FINE_OVERLAY__ = fine
-      ? { active: true, bounds: fine.bounds, cols: fine.windGrid?.cols, rows: fine.windGrid?.rows,
+      ? { active: true, bounds: fine.bounds, cols: tierOuter(fine.windGrid)?.cols, rows: tierOuter(fine.windGrid)?.rows, // the SERVED box's lattice, mosaic or not
           wideFade: +fineWideFade.toFixed(2) }
       : { active: false };
   }
@@ -543,9 +517,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.23: Disable the minimum advection step clamp at high zooms (z > 6) since
   // we use tile-relative coordinates. This prevents the wind animation from
   // exploding in speed. Also, we scale the tile coordinate size to increase precision.
-  const stableSpeedScale = ((z > 6.0)
-    ? (this.speedFactor * Math.pow(0.5, z) * 0.00025)
-    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale;
+  const _v2 = this._v2 = resolveWindParticlesV2(typeof window !== 'undefined' ? window : null), _pm = v2SpeedPremul(_v2, effectiveTheme), _premul = _v2.theme || _pm.on, _ft = v2FieldTint(effectiveTheme), _ink = windInk(effectiveTheme, _v2); // PARTICLES V2; INK (windInk.js)
+  const stableSpeedScale = ((z > 6.0 || _v2.motion)
+    ? (this.speedFactor * (_v2.motion ? _v2.speedMul : 1) * Math.pow(0.5, z) * 0.00025)
+    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025)) * _rmScale * (this._dtScale = frameTimeScale(this)); // A15-18: per 60 Hz frame
 
   // v3.22: Compute camera center and tile origin for high-precision advection
   var vb = viewportBounds || [-180, -80, 180, 85];
@@ -612,8 +587,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  gl.useProgram(this.heatmapProgram);
+  if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); // field tint: multiply
+  gl.useProgram(this.heatmapProgram); gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_tint'), _ft);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), dataBoundsMaxX, bounds.north);
@@ -626,7 +601,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac); bindWindPointReg(gl, this.heatmapProgram, this._windData.windGrid, fine && fine.windGrid);
   // BASE-PASS CUTOUT + SINGLE-PASS BASE+FINE (the hairline-seam fix): one draw, one alpha —
   // full rationale: docs/architecture/RATIONALE-WebGLWindEngine.md. Legacy two-pass kept for
   // the kill switch + vortex debug. Kill: __RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__.
@@ -683,7 +658,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   bindTexture(gl, this._windData.texture, 0);
-  if (this._colorRamp) bindTexture(gl, this._colorRamp, 1);
+  if (this._colorRamp) bindTexture(gl, (_ft > 0 && this._fieldRamp) || this._colorRamp, 1); // tinted themes: the field's own ramp
     var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
     if (this.heatmapVAO) {
       gl.bindVertexArray(this.heatmapVAO);
@@ -710,7 +685,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), fine.uMax[0], fine.uMax[1]);
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), 1.0);
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), fineFeatherFrac);
-      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
+      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0); bindWindPointReg(gl, this.heatmapProgram, fine.windGrid, fine.windGrid);
       // VORTEX GATE DEBUG VIEW: __GPU_DEBUG__.mode='vortex' paints the R-gate on THIS pass only
       // (the base pass keeps its normal render — 10-deg cells cannot resolve a vortex anyway).
       var _vortexDebug = (typeof window !== 'undefined' && window.__GPU_DEBUG__ && window.__GPU_DEBUG__.mode === 'vortex') ? 9.0 : debugModeVal;
@@ -742,6 +717,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_dt_scale'), this._dtScale || 1); // A15-18: respawn per 60 Hz frame
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), dataBoundsMaxX, bounds.north);
@@ -764,7 +740,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Bounded drop rate — stops steady-state density from tracking (the inverse of) wind speed.
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
-  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_cap'), resolveWindMotionFloor(typeof window !== 'undefined' ? window : null).dropCap); // motion floor (2026-10-08)
+  var _v2Box = v2GlobalBox(vb, _v2.margin), _v2Drop = v2DropRule(_v2.lifeS); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform4fv(gl.getUniformLocation(this.advectProgram, 'u_v2_box'), v2RespawnBox(_v2Box, isHighZoom, tileOriginX, tileOriginY, tileWidth)); gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_v2_drop'), _v2Drop[0], _v2Drop[1]); bindWindPointReg(gl, this.advectProgram, this._windData.windGrid, fine && fine.windGrid);
   // Size monotonicity (2026-07-19): slower never draws larger than faster. Mirrored into the
   // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
   var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
@@ -821,6 +798,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
   // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
+  if (this._v2Premul !== _premul) { this._v2Premul = _premul; [this.screenA, this.screenB].forEach((sb) => { gl.bindFramebuffer(gl.FRAMEBUFFER, sb.fbo); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }); } if (this._inkWas !== _ink.mode) { this._inkWas = _ink.mode; clearTrails(gl, this, _ink.on); } // V2: premultiplied trails start clean; ink starts on white paper
   gl.useProgram(this.fadeProgram);
   unbindTexture(gl, this.screenB.tex);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
@@ -828,8 +806,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.12.2: No blend for fade shader outputs alpha=1.0, straight overwrite
   gl.disable(gl.BLEND);
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
-  bindTexture(gl, this.screenA.tex, 0);
+  gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), perFrameFade(_v2.motion ? _v2.fade : v2TrailFade(this.fadeOpacity, z, _v2), this._dtScale || 1)); gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _premul ? 1 : 0); bindInk(gl, this.fadeProgram, _ink.mode); // A15-18
+  bindTexture(gl, this.screenA.tex, 0); bindTrailUv(gl, this.fadeProgram, _trail.fade, _trail.fadeLinear, _trail.feather);
   if (this.fadeVAO) {
     gl.bindVertexArray(this.fadeVAO);
   } else {
@@ -854,12 +832,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.useProgram(this.drawProgram);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind'), 1);
-  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2);
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2); bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme); bindCalmAir(gl, this.drawProgram, effectiveTheme, z);   // dark's rules: land and sea rows, and the white's strength over each (D-022), and its fall in near-calm air (D-030)
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, _trail.draw || mat4); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trail_dk'), _trail.dk);
   var bnd = this._windData.bounds;
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), dataBoundsMinX, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), dataBoundsMaxX, bnd.north);
@@ -868,7 +846,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // received the theme — `u_theme` was bound to heatmapProgram only (L351), so the wind FIELD was
   // theme-aware while the wind PARTICLES were not. Their separation rim/core were therefore tuned
   // against dark and inverted in light mode. See DRAW_FS for the full reasoning.
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal); bindInk(gl, this.drawProgram, _ink.mode); gl.uniform3f(gl.getUniformLocation(this.drawProgram, 'u_ink_k'), _ink.purity, _ink.density, _ink.glow ? 1 + _ink.white : 0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme_rim'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_THEMED_PARTICLE_RIM__ === true) ? 0.0 : 1.0);
   // casing mirror of the 07-20 calm-alpha kill switch — both programs must agree or the pole
@@ -878,6 +856,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Oriented dash — direction is carried by ELONGATION, not by mark area.
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DASH__ === true) ? 0.0 : 1.0);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_thin'), windCloseThinFactor(effectiveTheme, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash_min_css'), WIND_CLOSE_THIN.minCssPx); // close-zoom thin marks + width floor
   // COMPOSITED BACKGROUND (round 6). The wind field is SEMI-TRANSPARENT, so a particle sits on the
   // ramp blended over the BASEMAP — in light mode only ~23% ramp at low wind. The casing must pick
   // its pole from that composite, not from the ramp colour, or it inverts (measured 1.71:1 at
@@ -885,7 +864,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_field_opacity'), heatmapOpacity);
   // Approximate LINEAR luminance of each theme's basemap behind the wind layer.
   var _basemapY = effectiveTheme === 'light' ? 0.72 : (effectiveTheme === 'beach' ? 0.30 : 0.02);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_basemap_y'), _basemapY);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_basemap_y'), _basemapY); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_casing_fixed'), windCasingFixedPole() ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_single_casing'), _pm.singleCasing ? 1 : 0); if (_ink.mode) gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_single_casing'), 1 - _ink.spine); gl.uniform4fv(gl.getUniformLocation(this.drawProgram, 'u_v2_speedkeep'), v2SpeedKeepUniform(_v2, z, resolveWindMotionFloor(typeof window !== 'undefined' ? window : null).dropCap, this.dropRate, this.dropRateBump));
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowwind_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_size_monotonic'),
@@ -900,8 +879,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var _dpr = (typeof window !== 'undefined' && Number(window.__RAW_WIND_DPR__))
     || (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dpr'), Math.max(1, Math.min(3, _dpr)));
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_density'), _v2.density ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_motion'), _v2.motion ? 1 : 0); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_keep'), v2KeepRate(v2DensityAt(_v2, z), screenWidth / Math.max(1, _dpr), screenHeight / Math.max(1, _dpr), this.particleRes * this.particleRes, _v2Box, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_px_per_kn'), stableSpeedScale * 512 * Math.pow(2, z)); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_speed_max'), _speedMax); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_gamma'), _windTune.speedGamma); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_v2_theme'), _v2.theme ? 1 : 0); gl.uniform3fv(gl.getUniformLocation(this.drawProgram, 'u_v2_body'), V2_BODY[effectiveTheme] || V2_BODY.dark);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
-  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac); bindWindPointReg(gl, this.drawProgram, this._windData.windGrid, fine && fine.windGrid);
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
@@ -961,8 +941,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
   gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0);
-  bindTexture(gl, this.screenB.tex, 0);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_glow'), 0); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_ink_cap'), 1);   // a plain copy in every model (windInk.js)
+  bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, TRAIL_IDENTITY, false);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
   } else {
@@ -986,8 +966,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.useProgram(this.screenProgram);
   gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-  bindTexture(gl, this.screenB.tex, 0);
+  blendIntoMap(gl, _premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0); if (_ink.on) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); bindInk(gl, this.screenProgram, _ink.mode);
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_ink_cap'), _ink.on && _ink.cap > 0 && _ink.cap < 1 ? _ink.cap : 1); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_ink_px'), 1 / screenWidth, 1 / screenHeight);   // ink's cover cap (windInk.js)
+  bindTexture(gl, this.screenB.tex, 0); bindTrailUv(gl, this.screenProgram, _trail.view, _trail.viewLinear);
   if (this.screenVAO) {
     gl.bindVertexArray(this.screenVAO);
   } else {
@@ -1003,8 +984,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   var finalOpacity = 0.48;
   if (z >= 4.0 && z <= 9.0) {
     finalOpacity = 0.505;
-  }
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), finalOpacity);
+  } var darkOpacity = finalOpacity; if (_ink.glow) finalOpacity = _ink.opacity;   // glow (windInk.js) runs this brightness-alpha path at its own strength
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), _v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z)); var _veil = trailVeilUniform(effectiveTheme, _ink.glow, darkOpacity, z); gl.uniform2f(gl.getUniformLocation(this.screenProgram, 'u_trail_veil'), _veil[0], _veil[1]);   // close-zoom land; dark's veil under light's and beach's trails (windTrailVeil.js, D-029): [0, 1] in dark, under its kill and wherever the white streak does not draw
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
@@ -1059,7 +1040,7 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null); this._inkWas = null;
     console.log('[WebGLWind] Buffers cleared (layer switch)');
   } catch (e) {
     console.warn('[WebGLWind] clearBuffers error:', e.message);
@@ -1076,12 +1057,12 @@ WebGLWindEngine.prototype.reinitParticles = function(gl, opts) {
  */
 WebGLWindEngine.prototype.setTheme = function(gl, theme) {
   if (!gl || !this._initialized) return;
-  var activeTheme = theme || 'dark';
-  if (activeTheme !== this._currentTheme || !this._colorRamp) {
-    this._currentTheme = activeTheme;
-    var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
+  var activeTheme = theme || 'dark', lookKey = windLookKey(activeTheme);
+  if (activeTheme !== this._currentTheme || !this._colorRamp || lookKey !== this._lookKey) {
+    this._currentTheme = activeTheme; this._lookKey = lookKey;
+    var rampData = drawnMarkRampData(this._maxWindSpeed, activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 2); if (this._fieldRamp) gl.deleteTexture(this._fieldRamp); this._fieldRamp = buildFieldRampTexture(gl, this._maxWindSpeed, activeTheme);
     console.log('[WebGLWind] Theme set to:', activeTheme);
   }
 };

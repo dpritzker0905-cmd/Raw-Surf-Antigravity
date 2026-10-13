@@ -1,0 +1,129 @@
+{
+  "captured_at": "2026-09-20T17:05:11.940807+00:00",
+  "parent_head": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "source_state": "local modified candidate; hashes identify validated source",
+  "python": "3.14.4",
+  "node": "v24.19.0",
+  "backend": {
+    "final_chain": {
+      "tests": 1148,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 1148,
+      "seconds": 710.549,
+      "receipt": "retention-chain.xml"
+    },
+    "retention_affected": {
+      "tests": 213,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 213,
+      "seconds": 9.801,
+      "receipt": "retention-affected.xml"
+    },
+    "adjacent_upload_consumers": {
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 42,
+      "seconds": 19.131,
+      "receipt": "retention-adjacent.xml"
+    },
+    "size_climatology": {
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 10,
+      "seconds": 1.694,
+      "receipt": "retention-size-climatology.xml"
+    },
+    "governance": {
+      "tests": 51,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 51,
+      "seconds": 5.195,
+      "receipt": "governance.xml"
+    }
+  },
+  "chain_selected_files": 101,
+  "frontend": {
+    "baseline": "d82032f5cd5978967622721b8c9638da36a87f7d",
+    "baselineTestCount": 2486,
+    "metadataTestsAdded": 13,
+    "directionTestsAddedBySeparateAgent": 43,
+    "fullCandidate": {
+      "suitesPassed": 259,
+      "testsPassed": 2542,
+      "exitCode": 0,
+      "jestTestSeconds": 45.591,
+      "log": "logs/day2-final-full-frontend.log",
+      "warning": "Jest did not exit one second after completion; later exited normally without forceExit. Cause not attributed."
+    },
+    "changedSuitesDetectOpenHandles": {
+      "suitesPassed": 3,
+      "testsPassed": 60,
+      "exitCode": 0,
+      "handlesReported": false,
+      "exitWarning": false,
+      "log": "logs/day2-focused-open-handles.log"
+    },
+    "limits": "Unit/integration checks with controlled fixtures; no live provider, browser pixel, GPU performance, or full-chain backend acceptance claim."
+  },
+  "build": {
+    "receipt": "logs/day2-frontend-build.log",
+    "marker": "Compiled with warnings.",
+    "observed_exit_code": 0,
+    "command": "node node_modules/@craco/craco/dist/bin/craco.js build"
+  },
+  "loc": {
+    "receipt": "logs/day2-loc-ratchet.log",
+    "marker": "[OK] No new violations."
+  },
+  "partition": {
+    "receipt": "logs/day2-lane-partition.log",
+    "marker": "partition OK:"
+  },
+  "backend_flake8": {
+    "status": "unavailable",
+    "reason": "No module named flake8",
+    "receipt": "logs/day2-backend-changed-lint.log"
+  },
+  "source_sha256": {
+    ".github/workflows/ci.yml": "4d13c74a13b01d53de6c54c7704e51bfe9bb7e4ad175feeb83467937d07caf28",
+    "backend/services/weather_pipeline/buoy_calibration.py": "dfaf9db6b6bc5e47867a2f3d8ce4c7fae8e28b158468cbf90fc77badfe8e7722",
+    "backend/services/weather_pipeline/buoy_residual_retention.py": "c3b37ca8ddfa492d549df38cf3ff1aeeb04c0f8e1c7015e41338c75826136c58",
+    "backend/services/weather_pipeline/estimator.py": "1824313c6ca0b961c7bfb1065ad3e9717413f58c34a5d17a0aacc1c10a16757c",
+    "backend/services/weather_pipeline/forecast_skill.py": "b595e4cd5bc5bec8cc864369a0dd85916049b94cc466f477451eb13c209d2290",
+    "backend/services/weather_pipeline/lattice_fill.py": "7c1885845e680075b95d422d96ce8a665f19c63953fb7161b5a08e5f7099e567",
+    "backend/services/weather_pipeline/store.py": "b2ee96de739fe719165e1e930a212187e0c4f13c6c1539cd877211fd8bb201da",
+    "backend/tests/test_buoy_residual_retention.py": "b0430db596fbf319bbee8be52232bac55955e9a32d91cd56eff3866d6c70db91",
+    "backend/tests/test_ci_floor_staleness.py": "7834a649e349958d4108968b9a7cd95098855560c2ed63c29b9b392626666a5c",
+    "backend/tests/test_estimator_direction_support.py": "e7f7d6c2042664818376b92d97994ef6be63f50047805821d4b44f03aa09fced",
+    "backend/tests/test_euro_estimator.py": "0c5f60e20367f045c3196507a071f4d5a6ca8470e4e2e212001dcd6e4515e350",
+    "backend/tests/test_forecast_skill.py": "a3a9c608ec0d159d2560b83e704c69fe9caa412f6695c3f8eb0cae970bea5687",
+    "backend/tests/test_forecast_skill_retention.py": "e7e48c6777dfbe776075a53c7505e63f70ed16ad84024429c594e6c815ad62df",
+    "frontend/src/components/map/backendWeatherServiceClient.directionValidity.test.js": "3643744b28d560a15970d8e0223d274a22ab571672567a1985c9e2a29ce8c8bb",
+    "frontend/src/components/map/backendWeatherServiceClient.js": "5cc05c6e54b0e958b587f7b0cef63b4e093f5d6a523751cfc2f28409e300dd4c",
+    "frontend/src/components/map/backendWeatherServiceClientHelpers.js": "946d5047f95cb64f194a90693811f0ca707a6e68b51727f0698dfc00aee47ae4",
+    "frontend/src/components/map/backendWeatherServiceClientPoint.js": "8fa73eb7a5685d0ff335482efdb910584fa5032a3a022048d1ed8a8640899ce4",
+    "frontend/src/components/map/mapUtils.js": "dfd0cf5b4b476ffc2b294c5d577e84179be7ce230ead1b17199eed412ce08a7f",
+    "frontend/src/components/map/marineDirectionBlend.js": "e347452d3aa5be00c8f8cc57ae35278d3f30c7acb14a91fb66ef53d30fcb8574",
+    "frontend/src/components/map/openMeteoMetadata.js": "cf9fe933e9ce6c748af3990558d2c079c45b8b8909de024309f0ab68588e36fd",
+    "frontend/src/components/map/openMeteoProtocol.js": "a6af00d0a1bfec3e0c6e5ccd3839c989c01ab29062fb7a5acdef78ca39aa61c1",
+    "frontend/src/components/map/useOpenMeteoTileUrls.js": "4538db4fb781ebf713e464f7566c07c23776b417cf23c61efbc438bc5ca80ba8",
+    "frontend/src/tests/om-metadata-demand.test.js": "ba9a79314ecf50779e931f0b3535ee42636fcd042fcce0e19228cbd835360150",
+    "frontend/src/tests/om-metadata-provenance.test.js": "be7b6170a4c32b00612c74dab2ba83d6014fde887fdfa4b4b37edb4800fce2f9"
+  },
+  "limits": [
+    "Counts overlap; do not sum test lanes and affected subsets.",
+    "Local Python 3.14 and Node 24 differ from hosted Python 3.12 and Node 18.",
+    "Full chain preceded a test-only clock freeze; affected suites reran after it.",
+    "No hosted result for this candidate, live pixel acceptance, or deployment is claimed."
+  ]
+}

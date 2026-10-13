@@ -57,7 +57,7 @@ import apiClient from '../lib/apiClient';
 const FC_MODERATE = { level: 'moderate', spread_m: 0.31, relative_spread: 0.25, calibrated: false };
 
 /** Route the component's four fetches; `forecast_confidence` is what varies. */
-function mockApi(forecastConfidence) {
+function mockApi(forecastConfidence, swellHeight = null) {
   apiClient.get.mockImplementation((url) => {
     if (url.startsWith('/conditions/')) {
       return Promise.resolve({
@@ -65,6 +65,7 @@ function mockApi(forecastConfidence) {
           current: {
             wave_height_ft: 4.2,
             wave_period: 12,
+            swell_height_ft: swellHeight,
             wind_speed: 8,
             wind_direction: 290,
             ...(forecastConfidence ? { forecast_confidence: forecastConfidence } : {}),
@@ -80,6 +81,16 @@ beforeEach(() => {
   mockTheme = 'dark';
   jest.clearAllMocks();
 });
+
+it.each([['light', null, '—ft'], ['dark', 0, '0ft'], ['beach', 1.1, '1.1ft']])(
+  'keeps unknown, zero and measured swell distinct in %s', async (theme, height, text) => {
+    mockTheme = theme;
+    mockApi(null, height);
+    render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+    const label = await screen.findByText('Swell');
+    expect(label.parentElement).toHaveTextContent(text);
+  }
+);
 
 describe('theme tokens expose all three modes', () => {
   // ⚠️ THE FALL-THROUGH THIS CATCHES: if `isBeach` were dropped from the tokens it would be

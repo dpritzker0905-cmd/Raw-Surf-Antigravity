@@ -1,0 +1,312 @@
+{
+  "parent_commit": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "blend_source_origin": "Frozen git-show d82032f5 snapshots; probe remains reproducible after the repair.",
+  "source_sha256": {
+    "frontend/src/components/map/backendWeatherServiceClientHelpers.js": "f192d0ca33c86278eea45ddc3644affe8d06988960ec949246e5d39fb7dd7eaa",
+    "frontend/src/components/map/backendWeatherServiceClientPoint.js": "bee001cfc8ea27336dd543ff26f8930a93b0f0a132cd18ed6fa95a90a90ad0a3",
+    "frontend/src/components/map/backendWeatherServiceClient.js": "97385aa8e56529c580a8738e7b3246ca065b4e4ecaac84812c27d0b5a75fc3ec",
+    "frontend/src/components/map/useSpotRatings.js": "e3f9039ce149de20c23416b3e9be4cd7c762cf32d911a30ad75f7f32f705ffc1",
+    "frontend/src/components/map/surfRating.js": "b4a6d7c261d63ff38d2d7fdc2bfe829392d211c78a650096ab739748ce6cbff7"
+  },
+  "network_requests": 0,
+  "method": "Actual helper, full point fetch and extended grid helper loaded in VM; module imports replaced by diagnostic stubs; all fetch promises synthetic.",
+  "helperCases": [
+    {
+      "label": "equal opposite north/south",
+      "heights": [
+        1,
+        1
+      ],
+      "directions": [
+        0,
+        180
+      ],
+      "weights": [
+        0.5,
+        0.5
+      ],
+      "result": 90
+    },
+    {
+      "label": "rotation of same cancellation",
+      "heights": [
+        1,
+        1
+      ],
+      "directions": [
+        90,
+        270
+      ],
+      "weights": [
+        0.5,
+        0.5
+      ],
+      "result": 180
+    },
+    {
+      "label": "reachable 60/40 cancellation",
+      "heights": [
+        2,
+        3
+      ],
+      "directions": [
+        0,
+        180
+      ],
+      "weights": [
+        0.6,
+        0.4
+      ],
+      "result": 146.50188442500132
+    },
+    {
+      "label": "wrap control",
+      "heights": [
+        1,
+        1
+      ],
+      "directions": [
+        350,
+        10
+      ],
+      "weights": [
+        0.5,
+        0.5
+      ],
+      "result": 0
+    },
+    {
+      "label": "calm separate",
+      "heights": [
+        0,
+        0
+      ],
+      "directions": [
+        0,
+        180
+      ],
+      "weights": [
+        0.5,
+        0.5
+      ],
+      "result": 0
+    }
+  ],
+  "subVector": {
+    "height": 2.4000000000000004,
+    "speed": 2.4000000000000004,
+    "direction": 146.50188442500132,
+    "isOcean": true,
+    "u": -1.3245829415804642,
+    "v": 2.001369538809374
+  },
+  "maskedSecondarySource": {
+    "height": 2.4000000000000004,
+    "speed": 2.4000000000000004,
+    "direction": 146.50188442500132,
+    "isOcean": true,
+    "u": -1.3245829415804642,
+    "v": 2.001369538809374
+  },
+  "trendVector": {
+    "height": 2.4000000000000004,
+    "speed": 2.4000000000000004,
+    "direction": 33.49811557499868,
+    "isOcean": true,
+    "u": -1.3245829415804633,
+    "v": -2.0013695388093744
+  },
+  "pointCases": [
+    {
+      "label": "trend",
+      "hour": 192,
+      "layer": "waves",
+      "status": "exact_success",
+      "height": 2.4,
+      "direction": 90,
+      "provider": "estimated",
+      "surf_height_m": null,
+      "requested_provider_points": [
+        {
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 168
+        },
+        {
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 168
+        },
+        {
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 192
+        }
+      ]
+    },
+    {
+      "label": "tail",
+      "hour": 300,
+      "layer": "waves",
+      "status": "exact_success",
+      "height": 2.4000000000000004,
+      "direction": 146.50188442500132,
+      "provider": "estimated",
+      "surf_height_m": null,
+      "requested_provider_points": [
+        {
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 300
+        },
+        {
+          "model": "EURO",
+          "layer": "waves",
+          "hour": 300
+        },
+        {
+          "model": "ICON",
+          "layer": "waves",
+          "hour": 168
+        },
+        {
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 168
+        },
+        {
+          "model": "GFS",
+          "layer": "waves",
+          "hour": 240
+        },
+        {
+          "model": "EURO",
+          "layer": "waves",
+          "hour": 240
+        }
+      ]
+    },
+    {
+      "label": "secondary",
+      "hour": 24,
+      "layer": "swell_2",
+      "status": "exact_success",
+      "height": 2.4000000000000004,
+      "direction": 146.50188442500132,
+      "provider": "estimated",
+      "surf_height_m": null,
+      "requested_provider_points": [
+        {
+          "model": "GFS",
+          "layer": "swell_2",
+          "hour": 24
+        },
+        {
+          "model": "EURO",
+          "layer": "swell_2",
+          "hour": 24
+        }
+      ]
+    }
+  ],
+  "gridCases": [
+    {
+      "hour": 192,
+      "vector": {
+        "height": 2.4,
+        "speed": 2.4,
+        "direction": 90,
+        "isOcean": true,
+        "u": -2.4,
+        "v": -1.4695761589768238e-16,
+        "waves": {
+          "height": 2.4,
+          "speed": 2.4,
+          "direction": 90,
+          "isOcean": true,
+          "u": -2.4,
+          "v": -1.4695761589768238e-16
+        }
+      },
+      "ratingMode": null,
+      "renderable": true,
+      "requested_provider_grids": [
+        {
+          "model": "ICON",
+          "hour": 168,
+          "layer": "waves"
+        },
+        {
+          "model": "GFS",
+          "hour": 168,
+          "layer": "waves"
+        },
+        {
+          "model": "GFS",
+          "hour": 192,
+          "layer": "waves"
+        }
+      ]
+    },
+    {
+      "hour": 300,
+      "vector": {
+        "height": 2.4000000000000004,
+        "speed": 2.4000000000000004,
+        "direction": 146.50188442500132,
+        "isOcean": true,
+        "u": -1.3245829415804642,
+        "v": 2.001369538809374,
+        "waves": {
+          "height": 2.4000000000000004,
+          "speed": 2.4000000000000004,
+          "direction": 146.50188442500132,
+          "isOcean": true,
+          "u": -1.3245829415804642,
+          "v": 2.001369538809374
+        }
+      },
+      "ratingMode": null,
+      "renderable": true,
+      "requested_provider_grids": [
+        {
+          "model": "GFS",
+          "hour": 300,
+          "layer": "waves"
+        },
+        {
+          "model": "EURO",
+          "hour": 300,
+          "layer": "waves"
+        },
+        {
+          "model": "ICON",
+          "hour": 168,
+          "layer": "waves"
+        },
+        {
+          "model": "GFS",
+          "hour": 168,
+          "layer": "waves"
+        },
+        {
+          "model": "GFS",
+          "hour": 240,
+          "layer": "waves"
+        },
+        {
+          "model": "EURO",
+          "hour": 240,
+          "layer": "waves"
+        }
+      ]
+    }
+  ],
+  "consumer_control": {
+    "null_surf_height_rating": {
+      "score": null,
+      "level": "unknown"
+    },
+    "note": "Mirrored point responses omit surf_height_m, and mirrored grids omit ratingMode; no direct evidence here of corrupted surf-rating glyphs."
+  }
+}

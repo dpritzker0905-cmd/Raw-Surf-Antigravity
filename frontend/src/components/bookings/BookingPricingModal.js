@@ -200,7 +200,7 @@ const BookingPricingModal = (props) => {
                 Crew Split Pricing
               </h4>
               <p className={`text-xs ${textSecondaryClass} mb-4`}>
-                Formula: Base Session Price + (Per Surfer ? Additional Crew)
+                Formula: Base Session Price + (Per Surfer &times; Additional Crew)
               </p>
               <NumericStepper
                 label="Price Per Additional Surfer"

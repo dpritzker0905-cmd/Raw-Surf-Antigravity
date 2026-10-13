@@ -251,7 +251,7 @@ export const PastTab = ({
                         <Badge variant="secondary" className={`text-[10px] font-semibold px-2 py-0.5 ${
                           isLight ? 'bg-green-100 text-green-700' : 'bg-green-500/15 text-green-400 border border-green-500/20'
                         }`}>
- G Completed
+                          Completed
                         </Badge>
                       );
                     } else if (displayStatus === 'Missed') {

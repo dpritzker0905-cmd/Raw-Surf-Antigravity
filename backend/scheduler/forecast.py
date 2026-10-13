@@ -40,7 +40,8 @@ def ingest_marine_forecast_task():
             # Run conformed global weather pipeline jobs
             from services.weather_pipeline.scheduler import WeatherPipelineScheduler
             from services.weather_pipeline.store import ProductStore
-            
+            from services.weather_pipeline.wind_lane_ingest import ingest_hrrr_wind_lane as _ingest_hrrr_wind_lane
+
             store = ProductStore()
             weather_scheduler = WeatherPipelineScheduler(store=store)
             
@@ -96,6 +97,9 @@ def ingest_marine_forecast_task():
                 # is minimal; each runs after a 30s stagger + gc.collect() like the rest.
                 ("Icon Wind Global", weather_scheduler.ingest_icon_wind_global),
                 ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
+                # The HRRR wind lane (D-017): one NOAA HRRR cycle (f00-f48, 0.25-deg area mean) to L2 for the
+                # serve box's wind_lane.apply_wind_lane. GitHub Actions only (wind_lane_ingest.should_run).
+                ("GFS Wind HRRR Lane", lambda: _ingest_hrrr_wind_lane(store)),
                 ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
                 *_marine_jobs,  # both EURO+ICON in CI (MARINE_INGEST_ALL=1); alternated on the 1-CPU Render box
@@ -129,6 +133,8 @@ def ingest_marine_forecast_task():
             # flipped, and the failure mode is silent — the mid job registered here AND folded there
             # (two downloads, the thing being fixed), or neither (no mid tile at all).
             from services.weather_pipeline.marine_mid_res_ingestion import gfs_mid_folds_into_pilot
+            from services.weather_pipeline.consensus_ingest import (
+                enabled as consensus_ingest_enabled, ingest_consensus_shadow_impl)
 
             pilot_jobs = [
                 # Marine MID-RES globals (z6-7 quality tier, 2026-07-05): ~2° globals served CLIPPED by
@@ -159,6 +165,20 @@ def ingest_marine_forecast_task():
                   if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]
                   if os.environ.get("EURO_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                # ISLAND 0.083 deg (~9.2 km) CMEMS lane (2026-08-18, the island-halo TRUE fix). At
+                # 0.25 deg a small island is ONE cell, so its cell holds the mean of its ocean
+                # neighbours — lee averaged with windward — and bilinear spreads that onto both shores.
+                # Provably unfixable downstream: a Laplace solve returns the same mean to within 0.03 m
+                # at unit island thickness, and a land-aware fetch measured WORSE. The Madeira pilot on
+                # the live API reads 1.62-1.77 m windward (vs 1.24-1.38 at 0.25 deg) and resolves a
+                # sharp 0.59-0.98 m lee 8 km away. 20 regions x ONE bbox subset each; latency is per
+                # CALL not per cell (40/150/308 pts all ~12-13 s), so ~4.3 min and ~4.6 MB per frame.
+                # Runs LAST in the marine group: no downstream job reuses its cache, so isolating it is
+                # dependency-safe, and a slow CMEMS day cannot delay the tiers that already serve.
+                # Arms: COPERNICUS_ISLAND_INGEST=1 (default 0 since 2026-09-19); COPERNICUS_ISLAND_REGION_LIMIT=N trims to the N
+                # highest-spot-count regions (the list is ordered by spot count, so it degrades well).
+                *([("Copernicus Island Regional", weather_scheduler.ingest_copernicus_island_regions)]
+                  if os.environ.get("COPERNICUS_ISLAND_INGEST", "0") == "1" else []),
                 # WIND global_mid (~2°, 2026-07-20 queue #3): the fixed-resolution background wind
                 # field (the Windy/nullschool pattern) — mid_res_tier serves it clipped wherever
                 # wind would otherwise get the 10° coarse (wide spans, world zoom, dynamic-lane
@@ -188,6 +208,12 @@ def ingest_marine_forecast_task():
                 # worldwide regions (~3-6 min). Kill: EURO_MARINE_PILOT_INGEST=0.
                 *([("EURO Marine Pilot", weather_scheduler.ingest_euro_marine_pilot)]
                   if os.environ.get("EURO_MARINE_PILOT_INGEST", "1") != "0" else []),
+                # CONSENSUS SHADOW (2026-09-29, D-009): the equal GFS/EURO/ICON mean of every GFS regional
+                # waves frame, saved as its own `CONSENSUS` product for the skill ledger to grade before any
+                # flip. LAST in the marine group, after all three members' regional passes. Serves nothing.
+                # Arm: CONSENSUS_INGEST=1 (default 0). See services/weather_pipeline/consensus_ingest.py.
+                *([("Consensus Marine Shadow", lambda: ingest_consensus_shadow_impl(weather_scheduler))]
+                  if consensus_ingest_enabled() else []),
             ]
             # Regional WIND pilots (0.25° coastal tiles, all 3 models) — the zoomed-in-wind fix. Wind ships
             # ONLY a 10° global product, so the serve box did a ~20s synchronous live viewport fetch per
@@ -228,8 +254,8 @@ def ingest_marine_forecast_task():
             # runs accumulate and re-bloat manifest.json -> startup/parse memory spikes -> OOM.
             # Prune everything whose valid time is >2 days old after each ingestion cycle.
             try:
-                from datetime import datetime, timezone, timedelta
-                cutoff = datetime.now(timezone.utc) - timedelta(days=2)
+                from services.weather_pipeline.store import manifest_retention_cutoff
+                cutoff = manifest_retention_cutoff()   # the same policy every upload now enforces
                 logger.info(f"[Scheduler] Pruning products older than {cutoff.isoformat()}...")
                 await asyncio.to_thread(store.prune_old_products, cutoff)
                 logger.info("[Scheduler] Manifest pruning complete.")

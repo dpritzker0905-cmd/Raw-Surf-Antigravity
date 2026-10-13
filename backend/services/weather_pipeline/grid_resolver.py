@@ -16,6 +16,7 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 from services.weather_pipeline.schemas import NormalizedProduct
+from services.weather_pipeline.l2_retry import label_l2_read_failures
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
@@ -28,9 +29,10 @@ from services.weather_pipeline.viewport_helper import _is_oversized_grid
 # Pure extractions — calculate_bbox_intersection_area is re-exported here for compatibility.
 from services.weather_pipeline.grid_resolver_selection import (
     calculate_bbox_intersection_area, find_candidates, decide_manifest_product,
-    apply_surf_regional_prefer,
+    apply_surf_regional_prefer, prefer_overlapping_marine_region,
 )
 from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
+from services.weather_pipeline.reval_queue import reval_key, schedule_revalidation
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +110,7 @@ def _load_kw(series_stride) -> dict:
     return {"stride": s} if s > 1 else {}
 
 
+@label_l2_read_failures        # W-23: an answer served around a refused L2 read says so
 async def resolve_grid(
     store,
     viewport_service,
@@ -154,9 +157,16 @@ async def resolve_grid(
 
     # 1. Search the manifest for candidate products covering the target time
     manifest = await asyncio.to_thread(store.get_manifest)
-    authoritative_candidates, estimated_candidates = find_candidates(
-        manifest, model, domain, layer, target_dt
-    )
+    if os.environ.get("GRID_RESPONSE_BOUNDS", "0") == "1":
+        # The owned grid child retains its lease while this real thread finishes.
+        # Offloading removes this scan from the loop; it does not preempt CPU work.
+        authoritative_candidates, estimated_candidates = await asyncio.to_thread(
+            find_candidates, manifest, model, domain, layer, target_dt
+        )
+    else:
+        authoritative_candidates, estimated_candidates = find_candidates(
+            manifest, model, domain, layer, target_dt
+        )
 
     # MID-RES split (Step 3.6 tier, mid_res_tier.py): global_mid items must never compete in the
     # generic selection — select_best_candidate ties globals on intersection+coverage area and falls
@@ -171,6 +181,10 @@ async def resolve_grid(
     # Match best candidate from registry
     matching_manifest_item = select_best_candidate(
         authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
+    )
+    matching_manifest_item = prefer_overlapping_marine_region(
+        matching_manifest_item, authoritative_candidates, estimated_candidates,
+        domain, req_w, req_s, req_e, req_n, _mid_auth + _mid_est,
     )
 
     # Coverage policy (extracted: grid_resolver_selection.decide_manifest_product) — should the
@@ -211,9 +225,19 @@ async def resolve_grid(
 
     # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
     if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
+        # background_tasks: a stale (>30 min) hit refreshes through reval_queue like every other site, so
+        # a series frame starts nothing and the viewed hour's /grid keeps its slot (2026-10-09).
         product = await viewport_service.get_cached_dynamic_product(
-            model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
+            model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox,
+            background_tasks=background_tasks,
         )
+        if product is not None:
+            from services.weather_pipeline.dynamic_cycle_policy import superseded_dynamic
+            replacement = await superseded_dynamic(store, product)
+            if replacement:
+                filename, product = replacement
+                product.product_id = filename
+                product.is_dynamic_viewport_product = False
 
         # RESOLUTION-ADEQUACY GUARD (2026-07-15, root A — the "ICON coarse / wave-direction wrong when
         # the rating band is on" report): a STALE COARSE dynamic-viewport product (e.g. a 0.44°/cell
@@ -265,6 +289,26 @@ async def resolve_grid(
                         product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                        if bbox and domain.lower() == "marine" and regional_span_lng < 350.0:
+                            # Coverage is the served lattice, not manifest extents or a tolerance:
+                            # a 0.03-degree shortfall must never be labelled full coverage.
+                            product.partial_coverage = not is_bbox_covered_by(
+                                req_w, req_s, req_e, req_n, product.grid.bounds, margin=0.0)
+                            if product.partial_coverage:
+                                product.coverage_scope = "regional_partial"
+                                # Preserve the existing SWR queue bound and eligibility. Fetch the
+                                # ORIGINAL viewport so a partial regional never becomes sticky.
+                                key = reval_key(model, domain, layer, target_dt, bbox)
+                                span = max((req_e - req_w) % 360, req_n - req_s)
+                                if (viewport_service.is_viewport_enabled(
+                                        model, domain, layer, False, bbox, target_dt=target_dt)
+                                        and span <= float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
+                                        and schedule_revalidation(
+                                            viewport_service, background_tasks, model, domain, layer, valid_time,
+                                            target_dt, bbox, key,
+                                            queue_max=int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2")))):
+                                    product.stale = True
+                                    product.staleReason = "swr_revalidation_pending"
             elif candidate_product:
                 logger.warning(
                     f"[Grid Resolver] Skipping oversized stale manifest product {matching_manifest_item.filename} "
@@ -315,20 +359,9 @@ async def resolve_grid(
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
                     if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
-                        reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-                        if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
-                            viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
-                            if background_tasks:
-                                background_tasks.add_task(
-                                    viewport_service._revalidate_fetch,
-                                    model, domain, layer, valid_time, target_dt, bbox, reval_key
-                                )
-                            else:
-                                asyncio.create_task(
-                                    viewport_service._revalidate_fetch(
-                                        model, domain, layer, valid_time, target_dt, bbox, reval_key
-                                    )
-                                )
+                        key = reval_key(model, domain, layer, target_dt, bbox)
+                        schedule_revalidation(viewport_service, background_tasks, model, domain, layer,
+                                              valid_time, target_dt, bbox, key)
             elif candidate_product:
                 logger.warning(
                     f"[Grid Resolver] Skipping oversized stale preview product {manifest_preview_item.filename} "
@@ -354,6 +387,9 @@ async def resolve_grid(
             # so dwelling viewports sharpen 2° → 0.25° — the pre-mid steady state restored.
             viewport_service=viewport_service, valid_time=valid_time, target_dt=target_dt,
             background_tasks=background_tasks,
+            # Commitment 228: a series frame is strided inside the tier, before the per-cell steps
+            # below. Never for surf -- apply_surf_overlay has not been shown to be per-cell.
+            series_stride=None if surf else _load_kw(series_stride).get("stride"),
         )
         if _mid_product is not None:
             product = _mid_product
@@ -403,20 +439,9 @@ async def resolve_grid(
             if preview.grid and preview.grid.bounds:
                 preview.served_bbox = f"{preview.grid.bounds.west:.4f},{preview.grid.bounds.south:.4f},{preview.grid.bounds.east:.4f},{preview.grid.bounds.north:.4f}"
             # Kick off background revalidation so the next request resolves the precise viewport.
-            reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-            if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
-                viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
-                if background_tasks:
-                    background_tasks.add_task(
-                        viewport_service._revalidate_fetch,
-                        model, domain, layer, valid_time, target_dt, bbox, reval_key
-                    )
-                else:
-                    asyncio.create_task(
-                        viewport_service._revalidate_fetch(
-                            model, domain, layer, valid_time, target_dt, bbox, reval_key
-                        )
-                    )
+            key = reval_key(model, domain, layer, target_dt, bbox)
+            schedule_revalidation(viewport_service, background_tasks, model, domain, layer,
+                                  valid_time, target_dt, bbox, key)
             logger.info(
                 f"[Grid Route] Instant coarse preview {preview.product_id} "
                 f"({len(preview.grid.vectors)} vec) for {model} {layer}; revalidating viewport in background."
@@ -474,8 +499,9 @@ async def resolve_grid(
                                         "source_model": "ncep_gfswave025",
                                     }
                             if product.grid:
-                                if product.grid.diagnostics is None:
-                                    product.grid.diagnostics = {}
+                                # COPY, never write in place: an in-flight WAITER's product holds the GFS
+                                # viewport product's L1 dict (see step 4 below; 2026-10-01).
+                                product.grid.diagnostics = dict(product.grid.diagnostics or {})
                                 product.grid.diagnostics["provider"] = product.provider
                                 product.grid.diagnostics["stale"] = False
                                 product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
@@ -488,7 +514,14 @@ async def resolve_grid(
 
                 # Step 6: Durable manifest overlap as regional_partial only if no better dynamic/stale viewport product exists
                 overlap_candidates = []
+                from services.weather_pipeline.island_gate import is_island_gated
                 for p in manifest.products:
+                    # The island gate. Weaker than the find_candidates site but the same class:
+                    # this ranks by intersection area, which TIES for any tile containing the
+                    # request, then falls to time diff and finally to LIST ORDER -- exactly the
+                    # trap mid_res_tier already documents for global_mid.
+                    if is_island_gated(p):
+                        continue
                     if (
                         p.model.upper() == model.upper()
                         and p.domain.lower() == domain.lower()
@@ -645,8 +678,12 @@ async def resolve_grid(
 
     # 4. Set diagnostics renderable property explicitly
     if product and product.grid:
-        if product.grid.diagnostics is None:
-            product.grid.diagnostics = {}
+        # COPY the dict before stamping it (2026-10-01). The grid container is this request's own, but
+        # its `diagnostics` is usually the ProductStore L1 entry's: load_product and filter_grid_to_bbox
+        # copy one level, and stored grids carry a non-None dict, so the old `is None` guard never
+        # rebound. The stamps landed in the cache, and `valid_time` (the REQUESTED hour) of a later
+        # request rewrote an earlier response. Pinned by tests/test_grid_resolver_shared_diagnostics.py.
+        product.grid.diagnostics = dict(product.grid.diagnostics or {})
         product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
         product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
         product.grid.diagnostics["valid_time"] = product.valid_time.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -656,7 +693,9 @@ async def resolve_grid(
     # Attach truthTag for GFS marine waves and all wind forecast models
     is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")
     is_wind = (domain.lower() == "wind" and layer.lower() == "wind")
-    if is_gfs_marine_waves or is_wind:
+    # Not for a strided series frame (commitment 228): grid_series never serialises truthTag, and the
+    # hash is a Python loop over every cell (82 ms per 15k-cell frame, profiled) on the page's clock.
+    if (is_gfs_marine_waves or is_wind) and not _load_kw(series_stride):
         if isinstance(product, NormalizedProduct):
             product.truthTag = compute_truth_tag(
                 model=product.model,

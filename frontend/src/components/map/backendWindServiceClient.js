@@ -16,8 +16,10 @@ import {
   PILOT_COVERAGE,
   fetchProductsManifest
 } from './backendWeatherServiceClient';
+import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { BoundedPointCache } from './BoundedPointCache';
 import { recordTruthStage } from './weatherTruthTracker';
+import { windLaneParam } from './windLane';
 
 export const windPointCache = new BoundedPointCache(50, 30000);
 
@@ -77,7 +79,13 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
     requested_bbox: json.requested_bbox || null,
     served_bbox: json.served_bbox || null,
     run_time: json.run_time || null,
-    valid_time: json.valid_time || null
+    // The model CYCLE (run_time is the legacy ingest stamp, one per built box): windTierMosaic.js merges two boxes of one cycle only.
+    model_run_time: json.model_run_time || null, model_run_time_status: json.model_run_time_status || null,
+    // The frame really served (valid_time echoes the asked hour; grid_resolver.stamp_frame_honesty).
+    served_valid_time: json.served_valid_time || null, frame_substituted: !!json.frame_substituted,
+    valid_time: json.valid_time || null,
+    // Which model the backend's wind lane put at this hour (HRRR near the US / GFS; windLane.js, D-017).
+    wind_lane: json.wind_lane || null
   };
 
   if (typeof window !== 'undefined' && hourOffset === 0) {
@@ -229,7 +237,9 @@ export function updateWindDiagnostics(type, details) {
 /**
  * Fetches exact point forecast from backend weather service for wind.
  */
-export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS') {
+export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, model = 'GFS', requestContext = null) {
+  requestContext = pointRequestIdentityEnabled()
+    ? requestContext || createPointRequestContext(model, 'wind', hourOffset) : null;
   let gridProductId = null;
   if (typeof window !== 'undefined') {
     const diag = window.__WIND_PROJECTION_DIAG__;
@@ -239,14 +249,15 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
   }
 
   const start = Date.now();
-  const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
+  if (requestContext) gridProductId = requestContext.gridProductId;
+  const validTimeStr = requestContext?.validTime || getSharedValidTime(hourOffset, 'wind', model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';
   let cacheKey = `${model}_wind_wind_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
   if (gridProductId) {
     cacheKey += `_grid_${gridProductId}`;
   }
 
-  const cached = windPointCache.get(cacheKey);
+  const cached = requestContext?.force ? null : windPointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for ${model} Wind: ${cacheKey}`);
     const clonedData = JSON.parse(JSON.stringify(cached.data));
@@ -460,7 +471,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+  const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}${windLaneParam()}`;
 
   const _inFlight = inFlightWindRequests.get(url);
   if (_inFlight) {
@@ -627,4 +638,3 @@ if (typeof window !== 'undefined') {
   window.fetchBackendExactWindPoint = fetchBackendExactWindPoint;
   window.fetchBackendWindGrid = fetchBackendWindGrid;
 }
-

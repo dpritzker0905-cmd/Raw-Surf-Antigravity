@@ -1,6 +1,3 @@
-import platform
-platform._wmi = None
-
 import os
 import sys
 import subprocess
@@ -14,6 +11,7 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env', override=True)  # Override system env vars with .env values
 
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # (Early Synchronous Cache Check has been shifted to the lifespan function to avoid blocking port binding and causing Render health check failures)
@@ -282,7 +280,12 @@ async def run_background_cache_population():
     """
     import os
     logger.info("[lifespan] Starting background cache pre-population check...")
-    
+    try:  # the HRRR wind lane's cycle starts loading now (a background thread), so the first wind grids carry it (D-017)
+        from services.weather_pipeline.wind_lane import current_lane
+        current_lane()
+    except Exception as e:
+        logger.warning(f"[lifespan] wind lane warm-up skipped: {e}")
+
     # Store original USE_WEATHER_PROXY env var and temporarily set it to "false" to bypass proxy during pre-population
     orig_proxy = os.environ.get("USE_WEATHER_PROXY")
     os.environ["USE_WEATHER_PROXY"] = "false"
@@ -497,6 +500,11 @@ app.add_middleware(
 # includes both and is the number closest to what the client felt. Kill: REQUEST_TELEMETRY=0.
 from services.request_telemetry import RequestTelemetryMiddleware
 app.add_middleware(RequestTelemetryMiddleware)
+from services.weather_pipeline.grid_response import GridResponseIngress
+app.add_middleware(GridResponseIngress)
+# The wind lane's per-session kill switch (the client sends wind_lane=gfs on /grid and /grid_series; D-017).
+from services.weather_pipeline.wind_lane import WindLaneRequestMode
+app.add_middleware(WindLaneRequestMode)
 
 # CORS ON ERROR RESPONSES (backlog ⑦, shipped 2026-07-12): unhandled exceptions bypass
 # CORSMiddleware (Starlette's ServerErrorMiddleware wraps OUTSIDE user middleware), so during
@@ -536,180 +544,6 @@ async def root_ping():
 # The duplicate /api/health endpoint has been consolidated and moved to routes/health.py to prevent priority conflict.
 
 
-# Stripe Webhook Handler (kept at root level for proper signature verification)
-@app.post("/api/webhook/stripe")
-async def stripe_webhook(request: Request):
-    """Handle Stripe webhooks using standard SDK"""
-    from sqlalchemy.ext.asyncio import AsyncSession
-    from sqlalchemy import select
-    from database import get_db
-    from models import PaymentTransaction, Profile
-    
-    body = await request.body()
-    signature = request.headers.get("Stripe-Signature")
-    endpoint_secret = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
-    
-    try:
-        if endpoint_secret and signature:
-            event = stripe.Webhook.construct_event(body, signature, endpoint_secret)
-        else:
-            event = json.loads(body)
-        
-        if event.get('type') == 'checkout.session.completed':
-            session = event['data']['object']
-            session_id = session.get('id')
-            metadata = session.get('metadata', {})
-
-            from database import async_session_maker
-
-            # ── Crew share card payment ──────────────────────────────────────────
-            if metadata.get('type') == 'crew_share':
-                participant_id = metadata.get('participant_id')
-                payer_id = metadata.get('payer_id')
-                logger.info(f"[Webhook] crew_share payment: participant={participant_id} payer={payer_id}")
-                if participant_id and payer_id:
-                    from models import DispatchRequestParticipant, DispatchRequest
-                    from sqlalchemy import select as sa_select
-                    from sqlalchemy.orm import selectinload as sa_load
-                    from datetime import datetime, timezone
-
-                    async with async_session_maker() as db:
-                        p_result = await db.execute(
-                            sa_select(DispatchRequestParticipant)
-                            .where(DispatchRequestParticipant.id == participant_id)
-                            .options(sa_load(DispatchRequestParticipant.dispatch_request))
-                        )
-                        participant = p_result.scalar_one_or_none()
-                        if participant and not participant.paid:
-                            participant.status = 'paid'
-                            participant.paid = True
-                            participant.paid_at = datetime.now(timezone.utc)
-                            participant.payer_name = metadata.get('payer_name', '')
-                            participant.payer_username = metadata.get('payer_username', '')
-                            participant.payer_avatar_url = metadata.get('payer_avatar_url', '')
-                            # Check if all crew paid → mark dispatch fully funded
-                            dispatch = participant.dispatch_request
-                            if dispatch:
-                                all_p_result = await db.execute(
-                                    sa_select(DispatchRequestParticipant)
-                                    .where(DispatchRequestParticipant.dispatch_request_id == dispatch.id)
-                                )
-                                all_ps = all_p_result.scalars().all()
-                                paid_count = sum(
-                                    1 for p in all_ps
-                                    if p.paid or p.id == participant_id
-                                )
-                                if paid_count >= len(all_ps) and dispatch.deposit_paid:
-                                    dispatch.all_participants_paid = True
-                                    dispatch.all_participants_paid_at = datetime.now(timezone.utc)
-                            await db.commit()
-                            logger.info(f"[Webhook] crew_share paid: participant {participant_id}")
-
-            # ── Photo subscription card payment ──────────────────────────────────
-            elif metadata.get('type') == 'photo_subscription':
-                surfer_id = metadata.get('surfer_id')
-                plan_id = metadata.get('plan_id')
-                photographer_id = metadata.get('photographer_id')
-                logger.info(f"[Webhook] photo_subscription payment: surfer={surfer_id} plan={plan_id}")
-                if surfer_id and plan_id:
-                    from models import PhotographerSubscriptionPlan, SurferPhotoSubscription
-                    from sqlalchemy import select as sa_select
-                    from datetime import datetime, timezone, timedelta
-
-                    async with async_session_maker() as db:
-                        # Check if already activated (idempotency)
-                        tx_result = await db.execute(
-                            sa_select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-                        )
-                        tx = tx_result.scalar_one_or_none()
-                        if tx and tx.payment_status == 'completed':
-                            logger.info(f"[Webhook] photo_subscription already completed for session {session_id}")
-                        else:
-                            plan_result = await db.execute(
-                                sa_select(PhotographerSubscriptionPlan).where(PhotographerSubscriptionPlan.id == plan_id)
-                            )
-                            plan = plan_result.scalar_one_or_none()
-                            if plan:
-                                now = datetime.now(timezone.utc)
-                                expires_at = now + (timedelta(weeks=1) if plan.interval == 'weekly' else timedelta(days=30))
-
-                                sub = SurferPhotoSubscription(
-                                    surfer_id=surfer_id,
-                                    photographer_id=photographer_id or plan.photographer_id,
-                                    plan_id=plan.id,
-                                    plan_name=plan.name,
-                                    plan_interval=plan.interval,
-                                    plan_price=plan.price,
-                                    expires_at=expires_at,
-                                    photos_remaining=plan.photos_included,
-                                    videos_remaining=plan.videos_included,
-                                    live_session_buyins_remaining=plan.live_session_buyins,
-                                    sessions_remaining=plan.sessions_included,
-                                    booking_discount_pct=plan.booking_discount_pct,
-                                    on_demand_discount_pct=plan.on_demand_discount_pct,
-                                    amount_paid=plan.price,
-                                    payment_method='card',
-                                    stripe_session_id=session_id,
-                                )
-                                db.add(sub)
-
-                                # Credit photographer
-                                phot_result = await db.execute(sa_select(Profile).where(Profile.id == (photographer_id or plan.photographer_id)))
-                                photographer = phot_result.scalar_one_or_none()
-                                if photographer:
-                                    commission = 0.20 if (photographer.subscription_tier or 'free') != 'premium' else 0.15
-                                    photographer.withdrawable_credits = (photographer.withdrawable_credits or 0) + plan.price * (1 - commission)
-
-                                # Mark transaction completed
-                                if tx:
-                                    tx.payment_status = 'completed'
-                                    tx.status = 'completed'
-
-                                await db.commit()
-                                logger.info(f"[Webhook] photo_subscription activated: surfer {surfer_id} → plan {plan.name}")
-
-            # ── Standard credit purchase / subscription ──────────────────────────
-            else:
-                async with async_session_maker() as db:
-                    result = await db.execute(
-                        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-                    )
-                    transaction = result.scalar_one_or_none()
-                    
-                    if transaction and transaction.payment_status != 'completed':
-                        transaction.payment_status = 'completed'
-                        transaction.status = 'completed'
-                        
-                        tx_metadata = json.loads(transaction.transaction_metadata) if transaction.transaction_metadata else {}
-                        
-                        if 'credits' in tx_metadata:
-                            credits_to_add = int(tx_metadata.get('credits', 0))
-                            if credits_to_add > 0:
-                                profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
-                                profile = profile_result.scalar_one_or_none()
-                                if profile:
-                                    profile.credit_balance = (profile.credit_balance or 0) + credits_to_add
-                        
-                        elif 'tier_name' in tx_metadata:
-                            tier_name = tx_metadata.get('tier_name', 'basic')
-                            profile_result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
-                            profile = profile_result.scalar_one_or_none()
-                            if profile:
-                                pass  # TODO: tier upgrade logic
-                        
-                        await db.commit()
-                        logger.info(f"Webhook processed: session {session_id} marked as completed")
-        
-        return {"status": "received"}
-        
-    except stripe.error.SignatureVerificationError as e:
-        logger.error(f"Webhook signature verification failed: {str(e)}")
-        from fastapi import HTTPException
-        raise HTTPException(status_code=400, detail="Invalid signature")
-    except Exception as e:
-        logger.error(f"Webhook error: {str(e)}")
-        from fastapi import HTTPException
-        raise HTTPException(status_code=500, detail=f"Webhook error: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

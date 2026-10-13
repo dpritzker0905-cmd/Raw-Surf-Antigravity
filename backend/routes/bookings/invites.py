@@ -162,8 +162,8 @@ async def release_escrow(booking: Booking, db: AsyncSession):
 @router.post("/bookings/{booking_id}/invite")
 async def invite_friend_to_booking(
     booking_id: str,
-    user_id: str,
     data: InviteFriendRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Invite a friend to join the booking"""
@@ -484,8 +484,8 @@ async def search_users_for_invite(
 @router.post("/bookings/{booking_id}/invite-by-handle")
 async def invite_user_by_handle(
     booking_id: str,
-    user_id: str,
     data: InviteByHandleRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

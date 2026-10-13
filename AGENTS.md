@@ -1,3 +1,20 @@
+## Project Rules (binding)
+
+- **No secret values in any tracked file.** This repository is PUBLIC. Reference credentials by
+  environment-variable name only (`QDRANT_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`); never write a key,
+  token, password or connection string into code, docs, handoffs, instruction files, fixtures or
+  committed tool output. Values live only in Render env, GitHub Actions secrets, Netlify env and
+  gitignored local `.env` files. A committed value is compromised: rotate it at the provider —
+  history rewriting does not unpublish it (`docs/runbooks/SECURITY-2026-09-19-committed-credentials.md`).
+  Never bypass a GitHub push-protection block. Full rules: `CLAUDE.md`.
+
+- **WEATHER PROGRAM MEMORY (user mandate 2026-09-29):** the weather program's state, decisions, scoreboard and
+  lessons live in `docs/weather-program/` (start at its `README.md`), tracked in git so every session on every
+  machine reads the same state and no session silently overwrites another's. Follow its write protocol: logs
+  and ledgers are append-only, one log file per session, shared files are edited by exact-string replacement
+  (never rewritten whole), and every fix that changes a served number adds a `SCOREBOARD.md` row. Every
+  state-changing action is recorded in the hash-chained action ledger (`ACTIONS.jsonl`, BRAIN_RULES §23).
+
 <!-- trevec:rules:start -->
 
 ## Trevec MCP Tools

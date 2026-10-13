@@ -1,0 +1,64 @@
+FAIL src/components/map/marineTimelineCoverage.test.js
+  √ a spatially covering future response cannot claim current temporal coverage (2 ms)
+  √ unverified retained-render telemetry is disclosed without claiming a verified render failure
+  × verified render evidence can establish the actual mismatch (2 ms)
+  × accepted engine time takes precedence over a stale legacy parity effect (2 ms)
+  √ healthy equal instants and coverage survive different ISO string formatting
+  √ a correct subsequent response clears a prior response mismatch (1 ms)
+
+  ● verified render evidence can establish the actual mismatch
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: "render_time_mismatch"
+    Received: "aligned"
+
+      39 |     __componentLayer: 'waves', hourOffset: 18, served_valid_time: FUTURE } } };
+      40 |   publish();
+    > 41 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.temporalStatus).toBe('render_time_mismatch');
+         |                                                                     ^
+      42 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__.coverage_status).toBe('stale_time_mismatch');
+      43 | });
+      44 |
+
+      at Object.<anonymous> (src/components/map/marineTimelineCoverage.test.js:41:69)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+  ● accepted engine time takes precedence over a stale legacy parity effect
+
+    expect(received).toMatchObject(expected)
+
+    - Expected  - 3
+    + Received  + 3
+
+      Object {
+    -   "coverage_status": "full_coverage",
+    -   "renderVerified": true,
+    -   "temporalStatus": "aligned",
+    +   "coverage_status": "temporal_coverage_unverified",
+    +   "renderVerified": false,
+    +   "temporalStatus": "render_time_unverified",
+      }
+
+      48 |     __componentLayer: 'waves', hourOffset: 0, served_valid_time: NOW } } };
+      49 |   publish();
+    > 50 |   expect(window.__FORECAST_TIMELINE_COVERAGE_DIAG__).toMatchObject({
+         |                                                      ^
+      51 |     temporalStatus: 'aligned', renderVerified: true, coverage_status: 'full_coverage',
+      52 |   });
+      53 | });
+
+      at Object.<anonymous> (src/components/map/marineTimelineCoverage.test.js:50:54)
+      at TestScheduler.scheduleTests (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/TestScheduler.js:333:13)
+      at runJest (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/runJest.js:404:19)
+      at _run10000 (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:320:7)
+      at runCLI (../../../../../Raw-Surf/frontend/node_modules/@jest/core/build/cli/index.js:173:3)
+
+Test Suites: 1 failed, 1 total
+Tests:       2 failed, 4 passed, 6 total
+Snapshots:   0 total
+Time:        1.669 s, estimated 2 s
+Ran all test suites within paths "src/components/map/marineTimelineCoverage.test.js".

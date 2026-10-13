@@ -1,0 +1,159 @@
+{
+  "baseline": "0fb75c8eb9c57aeebdf644bb1e67de6f83d53b5d",
+  "recorded_at_utc": "2026-10-04 19:55Z",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "686facad1da756695633f347a7bc332446440bbb43436f35757e52b85f73b456",
+    ".github/workflows/forecast-ingest.yml": "4816f2c1907f02e187f4f89fbf9254bdee177e3a3533b25d4b6014c136e2b487",
+    ".github/workflows/precompute.yml": "f5040f43c35b748a8ede5f13e845e2dc427b3ccbbee733d1d870735e46b66e0f",
+    ".github/workflows/sim-parity-monitor.yml": "21d51d32f956907095b42f204c6948ea2c0f22d367426d09c3d856f7cac25536",
+    "backend/routes/admin/surf_forecast.py": "5f187d93257e0ccfc3c05d3b5fe95cd7bb8be520294050afc078f178cd13019a",
+    "backend/routes/surf_data/conditions.py": "83557b5f965ad66e278a735145375b60922d55adf13fc89185a86ee6407149dc",
+    "backend/services/copernicus_errors.py": "3a41ecfec42ec535a83fa052838531ae5ae511dcf12b766c3f0991fb48e50579",
+    "backend/services/copernicus_fetcher.py": "ef3439e7c37fd192be3a13c953e1ac05e94934f84364c790c5073b36f34ce0bb",
+    "backend/services/copernicus_marine_service.py": "f259c1fe70b1614d91ba2f1e9f99a1b7e61c88ecce890299cfb230e8ae9459db",
+    "backend/services/weather_pipeline/spot_conditions.py": "a3edbed3308c4d0bb22bbf6bb975e3588e091042a875bd828a396ab257620650",
+    "backend/tests/test_audit_conditions_isolation.py": "670618441c52507be9810bda56fd009249a3702a681d931745abd99ca5c567e2",
+    "backend/tests/test_audit_copernicus_terminal.py": "7125f19a85f3b6400737d9a492abf41e6924a9ab1f4f0331a0bdee1409a2022c",
+    "backend/tests/test_audit_spot_availability.py": "daac4c855f0543eb1cf52fa4817ae2a3d736a886d723ea686cd31a1e050a3c46",
+    "backend/tests/test_ci_floor_staleness.py": "d17ad038e7eccd7f51a32c5384d30ff47ce5581fea2d89e1c5a264d189f48d31",
+    "frontend/src/components/ExploreSpotCard.js": "3e810b451d559b77370121e9bf96fbf5f75871bbe57d8aca3caf1d0018cbc3db",
+    "frontend/src/components/ExploreSpotCard.quality.test.js": "9612331df5c5b9d20e0b8c609f1ea53627a2a20b6838189b6cdfa4b930317054",
+    "frontend/src/components/SpotConditions.identity.test.js": "1c80d63eb54a31d0984d1ea284e4b39e176452e74a80384d39d673f47c6e6e21",
+    "frontend/src/components/SpotConditions.js": "3c4f3c19d8585fc398f8b7b7610a8aa90ec285b3599dc8f7748b6959521cb4fe",
+    "frontend/src/components/SpotHub.confidence.test.js": "121ca008612c7de7a890c5373f36578a926fc95e52c2fa89d3524f01733a036c",
+    "frontend/src/components/SpotHub.js": "e37e9c251d41880df7e54aa321114287e3fff700b1ccc7232b5cff33a5b2c9e4",
+    "frontend/src/components/forecastCalendar.js": "5d9d2033d201c4594d834d471dbfdb6a22e8547d3cd81ef7aec089dee424c126",
+    "frontend/src/components/forecastCalendar.test.js": "c49f4e36ceade1ba9f816181706557060a1ea49f88a160d06e24081e346d9270"
+  },
+  "local": {
+    "frontend_suites": 347,
+    "frontend_tests": 3610,
+    "backend_supported_neighbors": 195,
+    "frontend_before_twice": {
+      "failed": 9,
+      "passed": 21
+    },
+    "backend_before_twice": {
+      "failed": 17,
+      "passed": 70
+    },
+    "lint_existing_errors": 86,
+    "lint_existing_warnings": 917,
+    "build": "accepted CI=false",
+    "themes": [
+      "light",
+      "dark",
+      "beach"
+    ],
+    "phone_width": 390,
+    "final_timezone_controls": {
+      "America/New_York": 47,
+      "Pacific/Auckland": 47
+    }
+  },
+  "hosted": {
+    "status": "completed/success",
+    "source": "40cd1ddd0f710ad7a00678f2dba07c41c9310c43",
+    "run_id": 37230181942,
+    "jobs": 11,
+    "frontend_suites": 347,
+    "frontend_tests": 3610,
+    "passed": {
+      "chain": 1982,
+      "guards": 2288,
+      "estate": 898
+    },
+    "backend_total": 5168,
+    "guards_documented_skips": 66,
+    "guards_documented_xfailed": 1,
+    "chain_files": 150,
+    "estate_selected_files": 284,
+    "estate_produced_files": 282,
+    "estate_silent_files": 0
+  },
+  "flags": {
+    "SURF_REQUESTED_HORIZON": "0",
+    "COPERNICUS_TERMINAL_TIME_GUARD": "0",
+    "REACT_APP_FORECAST_STATE_IDENTITY": "default off"
+  },
+  "limits": [
+    "No merge/deploy/activation",
+    "No full-map/GPU/FPS or live p95 acceptance",
+    "Full local backend not qualified"
+  ],
+  "final_read_back_utc": "2026-10-04 20:12Z",
+  "jacobian_current_source": {
+    "passes_per_run": 6,
+    "runs": 2,
+    "instrument": "point_jacobian_probe.py",
+    "readings": {
+      "GFS/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "ICON/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "EURO/flag0": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.0,
+          1.0000000000000009
+        ]
+      },
+      "GFS/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "ICON/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      },
+      "EURO/flag1": {
+        "epsilon_m": 0.05,
+        "columns": [
+          "requested_product_height",
+          "cross_model_hint_height"
+        ],
+        "height_derivatives": [
+          0.9999999999999987,
+          0.0
+        ]
+      }
+    },
+    "qualification": "Request ownership, no scientific skill claim"
+  }
+}

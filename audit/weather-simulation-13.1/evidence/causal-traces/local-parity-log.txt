@@ -1,0 +1,82 @@
+=== PARITY CAUSAL TRACE — local — http://localhost:3000 — 2026-08-18T17:56:07.172Z ===
+
+[1] clicked=Wind
+   parity.status=undefined activeLayer=undefined heatmap.model=undefined heatmap.provider=undefined heatmap.vectorCount=undefined heatmap.waveData=undefined
+   mismatchReasons=undefined  unsampled=undefined
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=false engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="? NOT VERIFIED — source parity not established (parity: status absent) 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Ph"
+
+[2] clicked=Waves
+   parity.status=UNSAMPLED activeLayer=waves heatmap.model=GFS heatmap.provider=none heatmap.vectorCount=0 heatmap.waveData=false
+   mismatchReasons=null  unsampled=["heatmap: no rendered provider","heatmap: zero vectors rendered"]
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=false engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="? NOT VERIFIED — source parity not established (heatmap: no rendered provider · heatmap: zero vectors rendered) 6 2 6 5 "
+
+[3] clicked=Wind
+   parity.status=MISMATCH activeLayer=wind heatmap.model=GFS heatmap.provider=none heatmap.vectorCount=0 heatmap.waveData=false
+   mismatchReasons=["layer: heatmap=waves infobox=wind"]  unsampled=["heatmap: no rendered provider","heatmap: zero vectors rendered"]
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=false engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=waves infobox=wind 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photographers"
+
+[4] clicked=Swell
+   parity.status=MISMATCH activeLayer=swell_1 heatmap.model=GFS heatmap.provider=none heatmap.vectorCount=0 heatmap.waveData=false
+   mismatchReasons=["layer: heatmap=waves infobox=swell_1"]  unsampled=["heatmap: no rendered provider","heatmap: zero vectors rendered"]
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=false engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=waves infobox=swell_1 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photograph"
+
+[5] clicked=Water Temp
+   parity.status=MISMATCH activeLayer=water_temp heatmap.model=GFS heatmap.provider=none heatmap.vectorCount=0 heatmap.waveData=false
+   mismatchReasons=["layer: heatmap=swell_1 infobox=water_temp"]  unsampled=["heatmap: no rendered provider","heatmap: zero vectors rendered"]
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=false engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_1 infobox=water_temp 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photo"
+
+[6] clicked=Swell 2
+   parity.status=UNSAMPLED activeLayer=swell_2 heatmap.model=GFS heatmap.provider=none heatmap.vectorCount=0 heatmap.waveData=false
+   mismatchReasons=null  unsampled=["heatmap: no rendered provider","heatmap: zero vectors rendered"]
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=true engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="? NOT VERIFIED — source parity not established (heatmap: no rendered provider · heatmap: zero vectors rendered) 6 2 6 5 "
+
+[7] clicked=Wind
+   parity.status=MISMATCH activeLayer=wind heatmap.model=GFS heatmap.provider=open-meteo heatmap.vectorCount=15023 heatmap.waveData=true
+   mismatchReasons=["layer: heatmap=swell_2 infobox=wind"]  unsampled=null
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=true engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_2 infobox=wind 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photographe"
+
+[8] clicked=Fog
+   parity.status=MISMATCH activeLayer=fog heatmap.model=GFS heatmap.provider=open-meteo heatmap.vectorCount=15023 heatmap.waveData=true
+   mismatchReasons=["layer: heatmap=swell_2 infobox=fog"]  unsampled=null
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=true engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_2 infobox=fog 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photographer"
+
+[9] clicked=Waves
+   parity.status=NOT_APPLICABLE activeLayer=waves heatmap.model=GFS heatmap.provider=open-meteo heatmap.vectorCount=15023 heatmap.waveData=true
+   mismatchReasons=null  unsampled=null
+   webglDiag.activeLayer=undefined vectorCount=undefined infoboxHeatmapParity=false
+   engine.hasWaveData=true engine.activeLayer=null
+   style.customLayers=null
+   HUD badge=xnull  truth="⚠️ SOURCE-PARITY-MISMATCH layer: heatmap=swell_2 infobox=waves 6 2 6 5 5 4 Live Map 0 shooting All Surf Spots Photograph"
+
+=== ABLATION: set every custom (marine) layer visibility=none, then re-read parity ===
+  custom layers hidden: null
+  BEFORE ablation: status=MISMATCH reasons=["layer: heatmap=waves infobox=wind"]
+  AFTER  ablation: status=MISMATCH reasons=["layer: heatmap=waves infobox=wind"]
+  NOTE: project record says visibility:'none' is silently reverted on OceanMask; check customLayers vis below.
+  AFTER customLayers=null
+
+=== DONE ===

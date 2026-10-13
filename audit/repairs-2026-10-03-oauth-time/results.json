@@ -1,0 +1,219 @@
+{
+  "repair_start": "88c9278e",
+  "hosted_base": "e0f934662eb919de6182a4c0fc4cfc41f9f5aa89",
+  "hosted_run": 37048650086,
+  "generated_at": "2026-10-03T17:17:35Z",
+  "scope": "local synthetic HTTP/SQLite and PostgreSQL dialect compilation; no hosted or live PostgreSQL acceptance",
+  "runs": {
+    "estate": {
+      "sha256": "1a61a4022107494a7912647aeea1991e299c192427d19834c23c12b708e5f747",
+      "counts": {
+        "passed": 734,
+        "failure": 0,
+        "error": 0,
+        "skipped": 2866
+      },
+      "failed_case_names": []
+    },
+    "integration": {
+      "sha256": "8bff5e73ccf0795de75fd34a757eebbda91ee8c0ba8c2b0bf44144a18d45fa6a",
+      "counts": {
+        "passed": 339,
+        "failure": 0,
+        "error": 0,
+        "skipped": 2
+      },
+      "failed_case_names": []
+    },
+    "oauth-after-1": {
+      "sha256": "38fd72b785989bf23ad4f89ce47fd55f8ff896deb9600c633d0798ed2bdd8cb8",
+      "counts": {
+        "passed": 28,
+        "failure": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": []
+    },
+    "oauth-after-2": {
+      "sha256": "0dd4b121ea880b7d59d089e51d20a082601c12ba8b6d3e55176d06929000f6fc",
+      "counts": {
+        "passed": 28,
+        "failure": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": []
+    },
+    "oauth-before-1": {
+      "sha256": "03b8c95183a5d6bcd780a593774be4ebcc4a52a310d7627cd70767b30ca6b2af",
+      "counts": {
+        "passed": 3,
+        "failure": 22,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": [
+        "test_private_strava_actions_require_verified_owner[None-401-status]",
+        "test_private_strava_actions_require_verified_owner[None-401-auth-url]",
+        "test_private_strava_actions_require_verified_owner[None-401-sync-recent]",
+        "test_private_strava_actions_require_verified_owner[other-403-status]",
+        "test_private_strava_actions_require_verified_owner[other-403-auth-url]",
+        "test_private_strava_actions_require_verified_owner[other-403-sync-recent]",
+        "test_asserted_user_id_is_not_oauth_state[None-owner-401]",
+        "test_asserted_user_id_is_not_oauth_state[other-owner-400]",
+        "test_asserted_user_id_is_not_oauth_state[owner-owner-400]",
+        "test_asserted_user_id_is_not_oauth_state[owner-unknown-400]",
+        "test_redirect_requires_configured_frontend_callback[https://evil.invalid/surf-log]",
+        "test_redirect_requires_configured_frontend_callback[https://example.invalid/other]",
+        "test_redirect_requires_configured_frontend_callback[https://example.invalid/surf-log?return=evil]",
+        "test_redirect_requires_configured_frontend_callback[javascript:alert(1)]",
+        "test_issued_state_is_unique_and_hashed_in_database",
+        "test_wrong_owner_cannot_consume_legitimate_state",
+        "test_callback_is_single_use_and_leaves_other_account_unchanged",
+        "test_expired_state_fails_before_provider",
+        "test_provider_failure_requires_fresh_authorization_state",
+        "test_malformed_provider_tokens_are_not_acknowledged_or_saved[access_token-None]",
+        "test_malformed_provider_tokens_are_not_acknowledged_or_saved[refresh_token-]",
+        "test_malformed_provider_tokens_are_not_acknowledged_or_saved[expires_at-None]"
+      ]
+    },
+    "oauth-before-2": {
+      "sha256": "b169f07fb12a2e7019942cbe77ae9436e4830eeec2b82e5310ae98b3e5a1f5b0",
+      "counts": {
+        "passed": 3,
+        "failure": 22,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": [
+        "test_private_strava_actions_require_verified_owner[None-401-status]",
+        "test_private_strava_actions_require_verified_owner[None-401-auth-url]",
+        "test_private_strava_actions_require_verified_owner[None-401-sync-recent]",
+        "test_private_strava_actions_require_verified_owner[other-403-status]",
+        "test_private_strava_actions_require_verified_owner[other-403-auth-url]",
+        "test_private_strava_actions_require_verified_owner[other-403-sync-recent]",
+        "test_asserted_user_id_is_not_oauth_state[None-owner-401]",
+        "test_asserted_user_id_is_not_oauth_state[other-owner-400]",
+        "test_asserted_user_id_is_not_oauth_state[owner-owner-400]",
+        "test_asserted_user_id_is_not_oauth_state[owner-unknown-400]",
+        "test_redirect_requires_configured_frontend_callback[https://evil.invalid/surf-log]",
+        "test_redirect_requires_configured_frontend_callback[https://example.invalid/other]",
+        "test_redirect_requires_configured_frontend_callback[https://example.invalid/surf-log?return=evil]",
+        "test_redirect_requires_configured_frontend_callback[javascript:alert(1)]",
+        "test_issued_state_is_unique_and_hashed_in_database",
+        "test_wrong_owner_cannot_consume_legitimate_state",
+        "test_callback_is_single_use_and_leaves_other_account_unchanged",
+        "test_expired_state_fails_before_provider",
+        "test_provider_failure_requires_fresh_authorization_state",
+        "test_malformed_provider_tokens_are_not_acknowledged_or_saved[access_token-None]",
+        "test_malformed_provider_tokens_are_not_acknowledged_or_saved[refresh_token-]",
+        "test_malformed_provider_tokens_are_not_acknowledged_or_saved[expires_at-None]"
+      ]
+    },
+    "time-after-1": {
+      "sha256": "531dd4072ce1fcb292bc8d2ce38247495f7913488eab0bfe77077ccaca2e5faf",
+      "counts": {
+        "passed": 53,
+        "failure": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": []
+    },
+    "time-after-2": {
+      "sha256": "56437b0c3d2adde118ec7a257afd8ada92dafac85ccf8bf64190dbfc79a1629d",
+      "counts": {
+        "passed": 53,
+        "failure": 0,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": []
+    },
+    "time-before-1": {
+      "sha256": "1762158a5ca80c29b53b827a4a086fbbf2ac4ee79f212143e4cb0f3b4a340b53",
+      "counts": {
+        "passed": 3,
+        "failure": 21,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": [
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T09:00:00Z-GFS]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T09:00:00Z-ICON]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T09:00:00Z-EURO]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T15:00:00Z-GFS]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T15:00:00Z-ICON]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T15:00:00Z-EURO]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-None]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-bad]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-2026-10-03T09:00:00]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-2026-10-03T10:00:00Z]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-None]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-bad]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-2026-10-03T09:00:00]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-2026-10-03T10:00:00Z]",
+        "test_rating_stale_fallback_does_not_claim_same_hour_or_supply_tide[None]",
+        "test_rating_stale_fallback_does_not_claim_same_hour_or_supply_tide[bad]",
+        "test_rating_stale_fallback_does_not_claim_same_hour_or_supply_tide[2026-10-03T10:00:00Z]",
+        "test_unknown_or_different_observed_model_is_not_comparable[None]",
+        "test_unknown_or_different_observed_model_is_not_comparable[ICON]",
+        "test_equal_instants_with_different_iso_spellings_are_comparable",
+        "test_requested_hour_perturbation_cannot_move_actual_comparison"
+      ]
+    },
+    "time-before-2": {
+      "sha256": "80b8237807a2570629642e02206f707bdf7e0e0d62d5c9c9fc9811a437b9a34d",
+      "counts": {
+        "passed": 3,
+        "failure": 21,
+        "error": 0,
+        "skipped": 0
+      },
+      "failed_case_names": [
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T09:00:00Z-GFS]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T09:00:00Z-ICON]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T09:00:00Z-EURO]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T15:00:00Z-GFS]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T15:00:00Z-ICON]",
+        "test_tide_and_parity_request_actual_hour_model_once[2026-10-03T15:00:00Z-EURO]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-None]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-bad]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-2026-10-03T09:00:00]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[marine-2026-10-03T10:00:00Z]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-None]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-bad]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-2026-10-03T09:00:00]",
+        "test_unknown_or_mixed_baseline_cannot_reuse_tide_or_quality[wind-2026-10-03T10:00:00Z]",
+        "test_rating_stale_fallback_does_not_claim_same_hour_or_supply_tide[None]",
+        "test_rating_stale_fallback_does_not_claim_same_hour_or_supply_tide[bad]",
+        "test_rating_stale_fallback_does_not_claim_same_hour_or_supply_tide[2026-10-03T10:00:00Z]",
+        "test_unknown_or_different_observed_model_is_not_comparable[None]",
+        "test_unknown_or_different_observed_model_is_not_comparable[ICON]",
+        "test_equal_instants_with_different_iso_spellings_are_comparable",
+        "test_requested_hour_perturbation_cannot_move_actual_comparison"
+      ]
+    }
+  },
+  "instruments": {
+    "backend/tests/test_audit_strava_authority.py": "4db67ddc60d56b49f3c2708a5c62817de5d072857653869ae92b801dc047fdfc",
+    "backend/tests/test_audit_sim_time_contract.py": "bccdc4287526de6fffeeaf93110b5637440dfb1ffb5cb9b7fd23115666f2d7f1"
+  },
+  "jacobian_controls": {
+    "requested_hour_to_comparison_with_actual_frame_fixed": "zero; unchanged height/quality comparison and one shared query",
+    "actual_frame_hour_to_query_hour": "unit mapping over 09Z/15Z and three model controls",
+    "unauthorized_actor_to_provider_and_profile_effect": "zero; denied request, no provider exchange, both account token hashes unchanged"
+  },
+  "ci_projection": {
+    "guards": 2248,
+    "chain": 1876,
+    "estate": 735,
+    "margins": [
+      6,
+      6,
+      2
+    ],
+    "hosted_confirmation": "pending"
+  }
+}

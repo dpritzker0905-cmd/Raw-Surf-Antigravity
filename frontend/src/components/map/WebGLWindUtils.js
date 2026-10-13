@@ -2,29 +2,41 @@
  * WebGLWindUtils.js
  * standard WebGL utilities for the GPU Wind engine.
  */
+import { setGridPointRegUniform } from './gridPointRegistration';
+import { windInk } from './windInk';
 
 export function createShader(gl, type, source) {
   const shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+  if (!shader) return null;
+  let compiled = false;
+  try {
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    compiled = !!gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+    if (compiled) return shader;
     console.error('[WebGLWind] Shader error:', gl.getShaderInfoLog(shader));
-    gl.deleteShader(shader);
-    return null;
+  } finally {
+    // Successful shaders remain owned by the initialization batch/program until disposal.
+    if (!compiled) gl.deleteShader(shader);
   }
-  return shader;
+  return null;
 }
 
 export function createProgram(gl, vs, fs) {
   const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+  if (!prog) return null;
+  let linked = false;
+  try {
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    linked = !!gl.getProgramParameter(prog, gl.LINK_STATUS);
+    if (linked) return prog;
     console.error('[WebGLWind] Link error:', gl.getProgramInfoLog(prog));
-    return null;
+  } finally {
+    if (!linked) gl.deleteProgram(prog);
   }
-  return prog;
+  return null;
 }
 
 export function createTexture(gl, filter, data, width, height) {
@@ -292,4 +304,369 @@ export function safeDeleteTexture(gl, tex, engine) {
       g.gpuMemoryEstimate = Math.max(0, g.gpuMemoryEstimate - (w * h * 4));
     }
   }
+}
+
+// ── FRAME-TIME SCALING (audit 15.0, A15-18) ────────────────────────────────────────────────────
+// The wind step, trail fade and particle respawn were applied once PER FRAME, so a 120 Hz screen
+// ran the field twice as fast, with half-length trails, as a 60 Hz one. Each is now scaled by the
+// elapsed time against a 60 Hz reference frame, so per-SECOND behaviour matches the tuned 60 Hz
+// look on every display. Clamped so a hidden tab's long pause cannot fling particles on return.
+export const REFERENCE_FRAME_MS = 1000 / 60;
+export const FRAME_SCALE_MIN = 0.25;
+export const FRAME_SCALE_MAX = 3.0;
+
+/** Elapsed time since this engine's previous frame, in 60 Hz frames (1 on the first frame). */
+export function frameTimeScale(engine, nowMs = (typeof performance !== 'undefined' ? performance.now() : Date.now())) {
+  const last = engine._lastWindFrameAt;
+  engine._lastWindFrameAt = nowMs;
+  if (!Number.isFinite(last) || nowMs <= last) return 1;
+  return Math.min(FRAME_SCALE_MAX, Math.max(FRAME_SCALE_MIN, (nowMs - last) / REFERENCE_FRAME_MS));
+}
+
+/** A per-frame multiplicative fade applied over `scale` reference frames. */
+export function perFrameFade(fade, scale) {
+  return Math.pow(fade, scale > 0 ? scale : 1);
+}
+
+// ── MOTION FLOOR (2026-10-08, the hurricane report) ────────────────────────────────────────────
+// ADVECT_FS grows the respawn chance with speed in KNOTS (u_drop_rate + speed * u_drop_rate_bump),
+// so at 47 kn a particle lived 2.6 frames (44 ms): too short to be seen moving, and its streak was
+// no longer than a breeze's. The cap below bounds the per-60 Hz-frame drop chance to
+// 1 / minLifeFrames. Default 6 frames (100 ms) engages above ~20.6 kn only. Full rationale:
+// docs/architecture/RATIONALE-WebGLWindEngine.md §Motion floor; tests: windMotionFloor.test.js.
+// Lever: window.__RAW_WIND_MIN_LIFE_FRAMES__ (2..60). Kill: __RAW_DISABLE_WIND_MOTION_FLOOR__.
+export const MOTION_FLOOR_DEFAULT_FRAMES = 6;
+
+/** The advect shader's drop-rate cap (u_drop_cap) for the given window-like lever bag. */
+export function resolveWindMotionFloor(win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  let minLifeFrames = MOTION_FLOOR_DEFAULT_FRAMES;
+  const lever = w.__RAW_WIND_MIN_LIFE_FRAMES__;
+  if (typeof lever === 'number' && Number.isFinite(lever)) minLifeFrames = Math.max(2, Math.min(60, lever));
+  const dropCap = w.__RAW_DISABLE_WIND_MOTION_FLOOR__ === true ? 1 : 1 / minLifeFrames;
+  return { minLifeFrames, dropCap };
+}
+
+// ── PARTICLES V2 (2026-10-08 wind zoom audit; windParticlesV2.test.js) ─────────────────────────
+// CALIBRATION: density is decoupled from lifetime. Particles respawn only inside the padded viewport
+// (and are recycled the moment they leave it), so the on-screen count is pool x screen/box area at
+// every zoom; a deterministic draw cull then pins it to one screen density at every zoom. That frees the
+// lifetime to follow perception research (~1-2 s, the leaders' range) instead of the 0.1-0.2 s the
+// ink budget forced. Marks stretch along the flow by their own per-frame step (no beads), and the
+// step uses the owner-approved z6 speed everywhere (the z5.78-6.0 clamp ran 16% fast; it is gone).
+// THEME: a premultiplied-alpha trail buffer (dark marks were transparent under the brightness-alpha
+// composite) + one neutral body colour per theme over the luminance-adaptive casing; near-opaque
+// heads clear 3:1 against the field at every speed in all three themes (modelled in the test).
+// Kill density: __RAW_DISABLE_WIND_DENSITY_V2__ (or __RAW_DISABLE_WIND_CALIBRATION_V2__). Opt-in: __RAW_WIND_MOTION_V2__,
+// __RAW_WIND_THEME_V2__. Levers: __RAW_WIND_V2_DENSITY__
+// (heads per 100x100 css px), __RAW_WIND_V2_FADE__ (tail), __RAW_WIND_V2_SPEED__ (x nominal), __RAW_WIND_V2_LIFE_S__, __RAW_WIND_V2_OPACITY__.
+// Rationale and measurements: docs/architecture/RATIONALE-WebGLWindEngine.md "Particles v2".
+// densityPer100 + fade are calibrated TOGETHER for ink parity with the shipped look (GPU A/B, 2026-10-08): long-lived
+// heads drag tails, so the shipped head count (~130) carpeted the field (95% coverage); 12 heads + fade 0.93 match it.
+// SYNC (2026-10-08, owner: "we were close before ... solid color particles"): density control is the ONLY v2 half on by
+// default, held at 490 marks per 100x100 css px = the measured pre-v2 look the owner approved at z6 and full zoom-out
+// (z2 487 / z3 173 / z4 78 / z5 216 / z6 493 on dev, 2026-10-08). v2 motion (12 heads + fade 0.93 ink parity) and the
+// neutral theme are opt-in: __RAW_WIND_MOTION_V2__ / __RAW_WIND_THEME_V2__ = true.
+export const V2_DEFAULTS = Object.freeze({ densityPer100: 490, densityPer100Motion: 12, fade: 0.93, margin: 0.1, speedMul: 1.16, lifeS: 2.0, bumpAtMax: 0.01, composite: 0.95 });
+export const V2_BODY = Object.freeze({ dark: [0.96, 0.98, 1.0], light: [0.05, 0.10, 0.22], beach: [0.08, 0.10, 0.20] });
+
+export function resolveWindParticlesV2(win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  const num = (k, lo, hi, d) => ((typeof w[k] === 'number' && Number.isFinite(w[k])) ? Math.max(lo, Math.min(hi, w[k])) : d);
+  const closeInk = typeof w.__RAW_WIND_V2_DENSITY__ !== 'number' && w.__RAW_WIND_MOTION_V2__ !== true && w.__RAW_DISABLE_WIND_CLOSEZOOM_INK__ !== true;
+  return {
+    density: w.__RAW_DISABLE_WIND_DENSITY_V2__ !== true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
+    motion: w.__RAW_WIND_MOTION_V2__ === true && w.__RAW_DISABLE_WIND_CALIBRATION_V2__ !== true,
+    theme: w.__RAW_WIND_THEME_V2__ === true && w.__RAW_DISABLE_WIND_THEME_V2__ !== true,
+    densityPer100: num('__RAW_WIND_V2_DENSITY__', 5, 2000, w.__RAW_WIND_MOTION_V2__ === true ? V2_DEFAULTS.densityPer100Motion : V2_DEFAULTS.densityPer100),
+    closeInk,
+    speedKeep: closeInk && w.__RAW_DISABLE_WIND_SPEED_KEEP__ !== true,
+    speedMul: num('__RAW_WIND_V2_SPEED__', 0.25, 4, V2_DEFAULTS.speedMul),
+    lifeS: num('__RAW_WIND_V2_LIFE_S__', 0.2, 10, V2_DEFAULTS.lifeS),
+    composite: num('__RAW_WIND_V2_OPACITY__', 0.2, 1, V2_DEFAULTS.composite),
+    fade: num('__RAW_WIND_V2_FADE__', 0.8, 0.995, V2_DEFAULTS.fade),
+    margin: V2_DEFAULTS.margin,
+  };
+}
+
+const mercYOf = (lat) => {
+  const r = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180;
+  return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2;
+};
+
+/** Padded viewport in GLOBAL Mercator units [x0, y0, x1, y1] (x may leave [0,1]; y clamped to the drawable band). */
+export function v2GlobalBox(vb, margin) {
+  let x0 = (vb[0] + 180) / 360, x1 = (vb[2] + 180) / 360;
+  if (x1 < x0) x1 += 1;                                      // antimeridian-crossing bounds
+  const yN = mercYOf(vb[3]), yS = mercYOf(vb[1]);
+  const px = (x1 - x0) * margin, py = (yS - yN) * margin;
+  let bx0 = x0 - px, bx1 = x1 + px;
+  if (bx1 - bx0 >= 1) { bx0 = 0; bx1 = 1; }                  // a whole world in view: respawn everywhere
+  return [bx0, Math.max(mercYOf(85), yN - py), bx1, Math.min(mercYOf(-80), yS + py)];
+}
+
+/** The respawn box in the ADVECT position space: global at z<=6, tile-relative [0,1] above. */
+export function v2RespawnBox(globalBox, hiZoom, tileOriginX, tileOriginY, tileWidth) {
+  if (!hiZoom) return globalBox;
+  const [x0, y0, x1, y1] = globalBox;
+  const k = Math.round((tileOriginX + tileWidth / 2) - (x0 + x1) / 2);   // same world copy as the tile
+  const t = (v, o) => Math.max(0, Math.min(1, (v - o) / tileWidth));
+  return [t(x0 + k, tileOriginX), t(y0, tileOriginY), t(x1 + k, tileOriginX), t(y1, tileOriginY)];
+}
+
+/** Fraction of particles to draw so the on-screen density is densityPer100 marks per 100x100 css px. */
+export function v2KeepRate(densityPer100, cssW, cssH, pool, globalBox, zoom) {
+  const world = 512 * Math.pow(2, zoom);
+  const boxArea = Math.max(1, (globalBox[2] - globalBox[0]) * world * (globalBox[3] - globalBox[1]) * world);
+  const screenArea = Math.max(1, cssW * cssH);
+  const inView = pool * Math.min(1, screenArea / boxArea);   // steady state: every live particle is in the box
+  return Math.max(0.002, Math.min(1, (densityPer100 * screenArea / 1e4) / Math.max(1, inView)));
+}
+
+// CLOSE-ZOOM INK (2026-10-08, owner: "I see diamonds now in the red wind"). Holding 490 marks at EVERY zoom saturated the
+// trail buffer above z6, where each mark lays far more ink (the z>6 step mode + zoom-grown marks): at z7.5 99.8% of the
+// screen was inked (19.4% before #276) and the mark colour became the picture, so the grid's top-speed cells read as
+// solid dark diamonds. Above z6 the density holds the owner-approved close-up INK instead (mean trail-buffer brightness
+// ~150/255: pre-#276 z6 156, z9 147). Doses measured for ~150 on dev 744a7132 (Gulf hurricane): z6.5 165, z7 120,
+// z8 70, z9 45, z10 32, z11.5 30. The lever __RAW_WIND_V2_DENSITY__ stays flat. Kill: __RAW_DISABLE_WIND_CLOSEZOOM_INK__.
+export const V2_CLOSE_INK = Object.freeze({ atZ6: 220, halvingsPerZoom: 0.75, floor: 30 });
+
+/** Marks per 100x100 css px to draw at this zoom: the flat target at z<=6, the close-zoom ink curve above. */
+export function v2DensityAt(v2, zoom) {
+  if (!v2.closeInk || !(zoom > 6)) return v2.densityPer100;
+  const dose = (c) => Math.max(c.floor, c.atZ6 * Math.pow(2, -c.halvingsPerZoom * (zoom - 6)));
+  if (!v2.speedKeep) return dose(V2_CLOSE_INK);
+  // the two curves are each measured for their own cull state: blend them by the cull's own weight
+  return dose(V2_CLOSE_INK) + (dose(V2_SPEED_KEEP_INK) - dose(V2_CLOSE_INK)) * v2SpeedKeepExp(zoom);
+}
+
+// SPEED-AWARE KEEP (2026-10-08, owner: "I personally like the speed changes"). The motion floor (u_drop_cap, #268) lets a
+// fast mark outlive the legacy drop rule, so its trail out-inks a slow one by legacyDrop/cap (2.2x at 45 kn); a count dosed
+// on storm bands therefore starved calm air (z9 eye area 92 vs 149 pre-#276). Above z6 the draw cull keeps a mark with
+// min(1, cap / legacyDrop(speed)): ink per area stops tracking speed and the freed budget lifts the close-zoom count.
+// Dose measured live (dev 74ce023c, Gulf hurricane, cull on): z6.5 297 -> 169, z7 229 -> 160, z8 136 -> 162, z9 80 -> ~155
+// (eye area 70 -> 133, 100 -> 151; pre-#276 149), z11.5 52 -> 146; trimmed to 350 / floor 50 for ~150.
+// Kill: __RAW_DISABLE_WIND_SPEED_KEEP__ (back to the #278 curve, no speed cull).
+export const V2_SPEED_KEEP_INK = Object.freeze({ atZ6: 350, halvingsPerZoom: 0.75, floor: 50 });
+
+/** Draw-keep factor for a mark at `speedKn` under the motion floor (the GLSL twin lives in DRAW_VS). */
+export function v2SpeedKeep(speedKn, dropCap, dropRate, bump) {
+  return Math.min(1, dropCap / (dropRate + speedKn * bump));
+}
+
+// ZOOM FADE (bench, real engine, all three themes): the cull is exact at z7 (storm/slow trail brightness 0.99-1.01) but
+// overcorrects closer in, where a fast mark's per-frame jump outruns its own length and its trail beads (0.76 at
+// z8.5-z10 at full strength, 0.83-0.85 even at keep^0.5). Fading k from 1 at z7.5 to 0 at z9.5 gave 0.88-1.14 at
+// z7-z11 in dark, beach and light with 0 artifacts; the dose blends the two measured curves by the same k.
+export const V2_SPEED_KEEP_FADE = Object.freeze({ fullBelowZ: 7.5, offFromZ: 9.5 });
+/** Cull exponent k at this zoom: 1 (full) at z<=7.5, 0 (off) at z>=9.5, linear between. */
+export function v2SpeedKeepExp(zoom) {
+  const f = V2_SPEED_KEEP_FADE; return Math.min(1, Math.max(0, (f.offFromZ - zoom) / (f.offFromZ - f.fullBelowZ)));
+}
+/** DRAW_VS u_v2_speedkeep: [exponent k (0 = off), drop cap, base drop, bump]; on only where the close-zoom ink curve applies. */
+export function v2SpeedKeepUniform(v2, zoom, dropCap, dropRate, bump, win = (typeof window !== 'undefined' ? window : null)) {
+  const lev = win && win.__RAW_WIND_SPEED_KEEP_EXP__, k = (typeof lev === 'number' && lev > 0 && lev <= 2) ? lev : v2SpeedKeepExp(zoom);
+  return [v2.density && v2.speedKeep && zoom > 6 ? k : 0, dropCap, dropRate, bump];
+}
+
+// FIXED CASING POLE (2026-10-08, the diamonds the owner circled): DRAW_FS picked each mark's casing pole per pixel with
+// step(0.179, fieldY). In dark theme the field crosses 0.179 only in calm air and at ~43-44 kn, so 5 of 784 blocks flipped
+// to a dark-cored mark that the brightness-alpha composite nearly hides: grid-cell-shaped holes (ink 0.56-0.69 of the
+// surroundings at the owner's two spots; 1.00-1.06 with one pole, artifact clusters 2 -> 0). Light and beach never cross.
+// Kill: __RAW_DISABLE_WIND_FIXED_CASING__ (back to the per-pixel pole).
+export function windCasingFixedPole(win = (typeof window !== 'undefined' ? window : null)) {
+  return !(win && win.__RAW_DISABLE_WIND_FIXED_CASING__ === true);
+}
+
+// WIDE-ZOOM TRAILS (2026-10-08, owner: "Zooms out should have a decent particle density. Its been too sparse"). Zoomed out a
+// mark moves few pixels per frame, so its trail is short and the screen thin (bench ink z2-z5 91-109 vs ~150 up close);
+// more heads cannot help (a 512^2 pool measured identical: the density target, not the pool, sets the count). Longer
+// trails can: the leaders keep ~1-1.3 s at global scale vs our 0.47 s. Fade 0.985 (~1.1 s) at z<=5.5 lifted bench ink to
+// 126-148 at 60 fps with no new artifacts, blending to the calibrated close-zoom fade by z6.5. Kill: __RAW_DISABLE_WIND_WIDE_TRAILS__.
+export const V2_WIDE_TRAILS = Object.freeze({ fade: 0.985, fullBelowZ: 5.5, baseFromZ: 6.5 });
+
+// SPEED-COLOURED PREMULTIPLIED COMPOSITE (2026-10-09, owner: "light mode needs color corrections, and possibly beach mode
+// does"). The legacy screen pass takes a mark's ALPHA from its BRIGHTNESS, at 0.48-0.505 opacity: a light-theme mark is
+// a DARK speed colour, so it renders near-transparent and only its white inner casing ring shows (pale cream streaks).
+// #273's premultiplied trail buffer shows dark marks at true colour but was tied to the neutral body the owner
+// rejected; this decouples it. Per theme: premultiplied trails + speed-coloured body, optionally the single (rim-only)
+// casing, at a calibrated composite opacity. Bench levers: __RAW_WIND_PREMUL_THEMES__ ('light,beach'),
+// __RAW_WIND_PREMUL_OPACITY__, __RAW_WIND_SINGLE_CASING__. Kill: __RAW_DISABLE_WIND_SPEED_PREMUL__.
+// Calibrated on the real-engine bench against dark's approved salience (CIE dL* of particles vs the field alone, z3/z7/z9),
+// re-run after the 2026-10-09 palettes + field ramps: light 1.0 -> 85-89% of dark's dL* with ~2x its chroma contrast
+// (combined dE 96-122% of dark), beach 0.6 -> 95-110%; the double casing keeps the dark rim's LIGHTNESS contrast
+// (rim-only marks were colourful but near-isoluminant with the field: dL* 0.6 vs 2.7, the weak-motion case).
+export const V2_SPEED_PREMUL = Object.freeze({ themes: ['light', 'beach'], opacity: Object.freeze({ light: 1.0, beach: 0.6 }), singleCasing: false });
+
+// FIELD TINT, NOT COVER (2026-10-09, owner: "be careful not to completely block land mass underneath ... be innovative").
+// The field pass emits premultiplied colour but blends with SRC_ALPHA, so it lays colour x a^2 over basemap x (1 - a): in
+// light mode (a ~0.65) a muddy grey veil that kept only 0.41 of the basemap's line contrast (dark: 0.51). A multiply blend
+// TINTS instead: out = basemap x (1 - s(1 - colour)) — identical colour over plain white, and coastlines/labels keep their
+// Weber contrast because line and background are scaled alike (cartography's thematic-overlay technique).
+// Bench levers: __RAW_WIND_FIELD_TINT__ (strength), __RAW_WIND_FIELD_TINT_THEMES__. Kill: __RAW_DISABLE_WIND_FIELD_TINT__.
+// Bench (basemap line grid under the layer; retained line contrast field+particles): light 0.40 -> 0.65, beach 0.47 -> 0.85
+// (dark, untouched: 0.50); field chroma light 19-24 -> 25-29 C*, beach unchanged; particle salience at dark parity.
+// Owner, after the live preview: "reduce the transparency by 5% on beach and light modes winds" — full-wind field opacity
+// +5 points (light 0.65 -> 0.70, beach 0.55 -> 0.60), i.e. the tint strength x (op + 0.05) / op.
+export const V2_FIELD_TINT = Object.freeze({ themes: ['light', 'beach'], strength: Object.freeze({ light: 0.70 / 0.65, beach: 0.60 / 0.55 }) });
+
+/** Field tint strength for this theme (0 = the legacy alpha-over field). */
+export function v2FieldTint(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_FIELD_TINT__ === true) return 0;
+  const themes = typeof w.__RAW_WIND_FIELD_TINT_THEMES__ === 'string' ? w.__RAW_WIND_FIELD_TINT_THEMES__.split(',') : V2_FIELD_TINT.themes;
+  if (!themes.includes(theme)) return 0;
+  const s = w.__RAW_WIND_FIELD_TINT__;
+  return (typeof s === 'number' && s > 0 && s <= 2) ? s : (V2_FIELD_TINT.strength[theme] || 1);
+}
+
+// WIND UNDER THE LABELS (2026-10-09, owner: "on light mode, its hard to see the continent/land below the hurricane ... when
+// zoomed up a little closer. How do we keep the coloring ... but make the land a little more visible, without ruining the
+// wind animation?"). The wind custom layer was added with no anchor, so it sat ABOVE every basemap layer: country/state
+// borders and every place name were tinted and crossed by streaks, and the land's only remaining cue near the storm was a
+// ~10 L* land/water step that a strong tint compresses. Weather maps (Windy, Ventusky) draw the colour layer UNDER borders
+// and labels. Both tinted basemaps (navigation-day-v1, outdoors-v11) open their borders+labels block at
+// 'admin-1-boundary-bg' (layer 96/98 of 118/121), so the wind goes just before the first 'admin-*' layer: the tint still
+// multiplies land, water, roads and buildings; borders and names draw crisp on top. Colours and animation are untouched.
+// Light and beach (owner: "check beach mode to see if we can make similar changes to the land and labels, maybe slightly
+// less bold"), then dark (owner: "dark mode could benefit with a light border and labels, similar to the other modes, but
+// designed for the dark map"; navigation-night-v1 opens the same block at 'admin-1-boundary-bg', layer 97 of 119, and its
+// own labels are light text on dark halos). Lever: __RAW_WIND_UNDER_LABELS_THEMES__; kill:
+// __RAW_DISABLE_WIND_UNDER_LABELS__ (the layer returns to the top on the next style load: theme change or reload).
+export var WIND_UNDER_LABELS = { themes: ['light', 'beach', 'dark'] };
+/** The basemap layer id to insert the wind layer before (undefined = on top), from the style's layer list. */
+export function windLayerBeforeId(layers, theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_UNDER_LABELS__ === true || !Array.isArray(layers)) return undefined;
+  const themes = typeof w.__RAW_WIND_UNDER_LABELS_THEMES__ === 'string' ? w.__RAW_WIND_UNDER_LABELS_THEMES__.split(',') : WIND_UNDER_LABELS.themes;
+  if (!themes.includes(theme)) return undefined;
+  const hit = layers.find((l) => l && typeof l.id === 'string' && /^admin-/.test(l.id));
+  return hit ? hit.id : undefined;
+}
+
+// COASTLINE ABOVE THE WIND (same report). Labels above the wind name the land but do not draw it: light's 6-16 kn tints are
+// blue-family, so near a storm the tinted land reads like the water and these basemaps carry no coastline stroke. Windy and
+// Ventusky draw coastlines above their colour layer; this draws the basemap's OWN water-polygon outlines (same source and
+// source-layer as its 'water' fill, so the line sits exactly on the map's coast at every zoom) as a thin slate line just
+// above the wind, under the borders + labels. Owner-pane bench, z6.4 Gulf storm: the Louisiana coast, delta and lakes read
+// through the storm at 0.42 opacity in light (0.6 got busy in the delta) and at 0.28 in beach (the owner asked for "slightly
+// less bold" there; its green band already separates land a little). DARK gets a LIGHT line designed for the dark map: pale
+// slate at 0.45 read through the bright streaks on the bench, where a warm sand line sank into dark's yellow-green tint and
+// 0.28 was lost in the streak texture. Visible only while wind is on.
+// Levers: __RAW_WIND_COASTLINE_THEMES__, __RAW_WIND_COASTLINE_OPACITY__ (0.1-1); kill: __RAW_DISABLE_WIND_COASTLINE__.
+export var WIND_COASTLINE = { id: 'wind-coastline', themes: ['light', 'beach', 'dark'],
+  color: { light: 'rgb(45, 58, 72)', beach: 'rgb(45, 58, 72)', dark: 'rgb(200, 214, 228)' }, opacity: { light: 0.42, beach: 0.28, dark: 0.45 },
+  width: ['interpolate', ['linear'], ['zoom'], 3, 0.4, 6, 0.7, 9, 1.1, 12, 1.4] };
+/** Does this theme draw the coastline stroke at all (its kill, its themes lever)? Cheap: the layer asks on every style event. */
+export function windCoastlineWanted(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_COASTLINE__ === true) return false;
+  const themes = typeof w.__RAW_WIND_COASTLINE_THEMES__ === 'string' ? w.__RAW_WIND_COASTLINE_THEMES__.split(',') : WIND_COASTLINE.themes;
+  return themes.includes(theme);
+}
+/** The coastline line-layer spec for this style + theme, or null (theme off, kill, or no 'water' fill to trace). */
+export function windCoastlineLayer(layers, theme, visible, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (!windCoastlineWanted(theme, w) || !Array.isArray(layers)) return null;
+  const water = layers.find((l) => l && l.id === 'water' && l.type === 'fill' && l.source && l['source-layer']);
+  if (!water) return null;
+  const op = w.__RAW_WIND_COASTLINE_OPACITY__;
+  return { id: WIND_COASTLINE.id, type: 'line', source: water.source, 'source-layer': water['source-layer'],
+    layout: { visibility: visible ? 'visible' : 'none', 'line-join': 'round' },
+    paint: { 'line-color': WIND_COASTLINE.color[theme] || WIND_COASTLINE.color.light, 'line-opacity': (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (WIND_COASTLINE.opacity[theme] || 0.3), 'line-width': WIND_COASTLINE.width } };
+}
+
+/** { on, opacity, singleCasing } for this theme (off whenever the neutral-body v2 theme is on: it owns the premul path). */
+export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  const ink = windInk(theme, v2, w);   // windInk.js: glow runs dark's path (premultiplied off); ink keeps this path's flags and brings its own strength
+  if (ink.on) return { on: true, opacity: ink.opacity, singleCasing: false };
+  if (!v2 || v2.theme || w.__RAW_DISABLE_WIND_SPEED_PREMUL__ === true || ink.glow) return { on: false, opacity: 0, singleCasing: false };
+  const themes = typeof w.__RAW_WIND_PREMUL_THEMES__ === 'string' ? w.__RAW_WIND_PREMUL_THEMES__.split(',') : V2_SPEED_PREMUL.themes;
+  const on = themes.includes(theme), op = w.__RAW_WIND_PREMUL_OPACITY__;
+  const opacity = (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (V2_SPEED_PREMUL.opacity[theme] || 0.8);
+  const sc = typeof w.__RAW_WIND_SINGLE_CASING__ === 'boolean' ? w.__RAW_WIND_SINGLE_CASING__ : V2_SPEED_PREMUL.singleCasing;
+  return { on, opacity: on ? opacity : 0, singleCasing: on && sc };
+}
+
+// CLOSE-ZOOM LAND (2026-10-09). Owner: "in light mode, really close up ... wind animations are flooding too much just a little
+// bit, where it drowns out the land beneath"; then "Dont assume that beach mode and dark mode cannot be improved a little
+// bit ... We need this to be state of the art". Above z6 the close-zoom dose holds trail INK; every theme's particles then
+// took more of the land's line contrast at z7-9 than at its approved z6 (bench land-run.js, beyond the field alone: light
+// 0.40 -> 0.58-0.64, beach 0.25 -> 0.37-0.40, dark 0.24 -> 0.31-0.35; the field alone keeps ~0.80 / 0.80 / 0.49 at every
+// zoom). A factor on each theme's mark composite opacity (light/beach premultiplied, dark brightness-alpha) eases in across
+// z6-7.5 and holds each theme at its own z6 level:
+//   light 0.65 (#291): z7-11 0.43/0.43/0.40/0.35/0.36 vs z6 0.40;
+//   beach 0.65: 0.27/0.27/0.25/0.22/0.23 vs 0.25;
+//   dark  0.8 (gentler; its marks stay at least as visible as at z6 through z9): 0.27/0.28/0.24/0.21/0.21 vs 0.24.
+// Why opacity and not width (WIND_CLOSE_THIN, below): at equal land returned, thinner marks keep each mark's contrast, but
+// narrowing changes the TRAIL pattern, and the wind bench's scanner found recurring ink bands at ~17-24 kn and holes at
+// ~8 kn at z6.5-8 in every theme (10 shapes in 7 of 12 views vs dev's 4 in 3, 3 seeds). That is exactly where the
+// speed-aware cull, calibrated on the wide mark, runs at full strength. A composite factor scales the finished picture
+// uniformly and cannot create a pattern. Mark count, size, trails and colours are unchanged; z<=6 is untouched.
+// Lever: __RAW_WIND_CLOSE_LAND_OPACITY__ (the close-zoom factor, 0.1-1, any theme). Kill: __RAW_DISABLE_WIND_CLOSE_LAND__.
+export const WIND_CLOSE_LAND = Object.freeze({ to: Object.freeze({ light: 0.65, beach: 0.65, dark: 0.8 }), fromZ: 6, fullZ: 7.5 });
+
+/** 0 at z<=fromZ, 1 from fullZ, smoothstep between: the close-zoom ramp both close-zoom levers ride (L-V13). */
+export function windCloseRamp(zoom, c = WIND_CLOSE_LAND) {
+  if (!(zoom > c.fromZ)) return 0;
+  const t = Math.min(1, (zoom - c.fromZ) / (c.fullZ - c.fromZ));
+  return t * t * (3 - 2 * t);
+}
+
+/** Factor on the mark composite opacity at this zoom: 1 at z<=fromZ, the theme's `to` from fullZ, smoothstep between. */
+export function windCloseLandFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {}, c = WIND_CLOSE_LAND, lev = w.__RAW_WIND_CLOSE_LAND_OPACITY__;
+  if (w.__RAW_DISABLE_WIND_CLOSE_LAND__ === true) return 1;
+  const to = (typeof lev === 'number' && lev >= 0.1 && lev <= 1) ? lev : c.to[theme];
+  if (typeof to !== 'number') return 1;
+  return 1 + (to - 1) * windCloseRamp(zoom, c);
+}
+
+// CLOSE-ZOOM THIN MARKS (lever only; measured 2026-10-09, not a default). Narrows each dash ACROSS the wind by `to` at close
+// zoom (DRAW_FS divides its half-width): length, count, trail and colour are unchanged.
+//   - The case for it: zoomBoost widens a dash to ~5.8 css px at z9, while no leading wind map draws wider than ~3 px
+//     (reports/Wind particle close zoom legibility.md). Opacity is the luminance contrast that carries motion. At equal land
+//     returned, thin kept each mark's contrast (light z8: 15.5 vs 15.7 dL* per marked pixel; opacity 0.65 gave 13.1).
+//   - Why it is not the default: it reshapes the trail pattern where the speed-aware cull runs at full strength. The
+//     scanner found recurring bands at ~17-24 kn and holes at ~8 kn at z6.5-8 in every theme, with a 1.5 or a 2.5 css px
+//     width floor alike (LESSONS L-V16). Re-calibrate V2_SPEED_KEEP_INK for the narrower mark before turning it on.
+// WIDTH FLOOR (minCssPx): no dash is narrowed below 1.5 css px across the wind (DRAW_VS caps each mark's v_thin).
+// Lever: __RAW_WIND_CLOSE_THIN__ (1-3, any theme). Kill: __RAW_DISABLE_WIND_CLOSE_THIN__.
+export const WIND_CLOSE_THIN = Object.freeze({ to: Object.freeze({}), fromZ: 6, fullZ: 7.5, minCssPx: 1.5 });
+
+/** Across-wind narrowing factor (>= 1) for the dash at this zoom: 1 at z<=fromZ, the theme's `to` from fullZ. */
+export function windCloseThinFactor(theme, zoom, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {}, c = WIND_CLOSE_THIN, lev = w.__RAW_WIND_CLOSE_THIN__;
+  if (w.__RAW_DISABLE_WIND_CLOSE_THIN__ === true) return 1;
+  const to = (typeof lev === 'number' && lev >= 1 && lev <= 3) ? lev : c.to[theme];
+  if (typeof to !== 'number') return 1;
+  return 1 + (to - 1) * windCloseRamp(zoom, c);
+}
+
+/** Per-frame trail fade at this zoom: the wide-zoom fade, blended linearly into `baseFade` across fullBelowZ..baseFromZ. */
+export function v2TrailFade(baseFade, zoom, v2, win = (typeof window !== 'undefined' ? window : null)) {
+  if (!v2 || !v2.density || v2.motion || (win && win.__RAW_DISABLE_WIND_WIDE_TRAILS__ === true)) return baseFade;
+  const t = Math.min(1, Math.max(0, (zoom - V2_WIDE_TRAILS.fullBelowZ) / (V2_WIDE_TRAILS.baseFromZ - V2_WIDE_TRAILS.fullBelowZ)));
+  return V2_WIDE_TRAILS.fade + (baseFade - V2_WIDE_TRAILS.fade) * t;
+}
+
+/** Mean-life drop chance per 60 Hz frame at calm, and the bump at the grid's max speed (upstream webgl-wind shape). */
+export function v2DropRule(lifeS) {
+  return [1 / (60 * lifeS), V2_DEFAULTS.bumpAtMax];
+}
+
+// ── NO-DOWNGRADE (2026-10-08 live test; windTwoTexture.test.js) ────────────────────────────────
+/** True when bounds `a` contain bounds `b` (degrees; antimeridian-aware on both). */
+export function windBoundsContain(a, b) {
+  if (!a || !b) return false;
+  const span = (x) => (x.east < x.west ? (x.east + 360) - x.west : x.east - x.west);
+  const off = ((((b.west - a.west) % 360) + 360) % 360);
+  return off + span(b) <= span(a) + 1e-9 && b.south >= a.south - 1e-9 && b.north <= a.north + 1e-9;
+}
+
+// ── POINT REGISTRATION (2026-10-08, the post-pan field shift; gridPointRegistration.js) ──────────
+/** Binds u_base_reg (the texture bound as u_wind in this pass) and u_fine_reg on `prog`. */
+export function bindWindPointReg(gl, prog, baseGrid, fineGrid, win) {
+  return [setGridPointRegUniform(gl, prog, 'u_base_reg', baseGrid, win), setGridPointRegUniform(gl, prog, 'u_fine_reg', fineGrid, win)];
 }

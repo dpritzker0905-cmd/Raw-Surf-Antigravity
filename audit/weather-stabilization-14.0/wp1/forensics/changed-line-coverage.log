@@ -1,0 +1,85 @@
+{
+  "baselineRevision": "91b90ae9",
+  "note": "Istanbul statement start lines intersecting changed lines; not branch coverage.",
+  "files": [
+    {
+      "file": "frontend/src/components/map/backendWeatherServiceClient.js",
+      "changedStatementLines": 2,
+      "covered": 2,
+      "uncovered": [],
+      "executable": [
+        242,
+        246
+      ]
+    },
+    {
+      "file": "frontend/src/components/map/backendWeatherServiceClientDiag.js",
+      "changedStatementLines": 1,
+      "covered": 1,
+      "uncovered": [],
+      "executable": [
+        283
+      ]
+    },
+    {
+      "file": "frontend/src/components/map/marineTimelineCoverage.js",
+      "changedStatementLines": 39,
+      "covered": 39,
+      "uncovered": [],
+      "executable": [
+        2,
+        3,
+        4,
+        5,
+        10,
+        11,
+        12,
+        15,
+        18,
+        19,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        34,
+        35,
+        36,
+        40,
+        52,
+        53,
+        54,
+        56,
+        57,
+        59,
+        62,
+        65,
+        70,
+        71,
+        72,
+        77,
+        82,
+        83,
+        84,
+        87,
+        89,
+        98
+      ]
+    },
+    {
+      "file": "frontend/src/components/map/useMarineOrchestratorScrubCache.js",
+      "changedStatementLines": 3,
+      "covered": 3,
+      "uncovered": [],
+      "executable": [
+        77,
+        88,
+        195
+      ]
+    }
+  ],
+  "total": 45,
+  "covered": 45
+}

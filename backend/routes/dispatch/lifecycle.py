@@ -37,13 +37,24 @@ from .schemas import (
     BoostRequestCreate, DispatchCheckoutRequest, ExceptionRequestBody,
     ExceptionResolveBody, CrewPaymentRequest, CrewCheckoutRequest,
     CoverRemainingRequest, RemindCrewRequest,
-    get_available_pros, _get_surfer_board_description
+    get_available_pros, _get_surfer_board_description, captain_amount_owed,
 )
 
 logger = logging.getLogger("routes.dispatch")
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 
 router = APIRouter(prefix="/dispatch", tags=["dispatch"])
+
+# A request in one of these states is finished; declining it again must not reopen or refund it.
+_CLOSED_STATUSES = frozenset({
+    DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.COMPLETED,
+    DispatchRequestStatusEnum.REFUNDED, DispatchRequestStatusEnum.NO_PRO_FOUND,
+})
+# States reached only after the requester's deposit was taken (see confirm_payment / payment-success).
+_DEPOSIT_HELD_STATUSES = frozenset({
+    DispatchRequestStatusEnum.SEARCHING_FOR_PRO, DispatchRequestStatusEnum.ACCEPTED,
+    DispatchRequestStatusEnum.EN_ROUTE, DispatchRequestStatusEnum.ARRIVED,
+})
 
 @router.post("/{dispatch_id}/accept")
 async def accept_dispatch(
@@ -194,49 +205,60 @@ async def decline_dispatch(
         notification.response = 'declined'
         notification.responded_at = datetime.now(timezone.utc)
     
-    # Get the dispatch request
+    # Get the dispatch request (locked, so concurrent declines are applied one at a time)
     dispatch_result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
         .options(selectinload(DispatchRequest.requester))
+        .with_for_update()
     )
     dispatch = dispatch_result.scalar_one_or_none()
-    
+
     if not dispatch:
         raise HTTPException(status_code=404, detail="Dispatch request not found")
-    
-    # If this was a Quick Book (targeted), mark the entire request as declined
-    if dispatch.target_photographer_id == photographer_id:
+
+    # If this was a Quick Book (targeted), mark the entire request as declined.
+    # A request that is already closed is left as it is, so repeating a decline changes nothing.
+    if dispatch.target_photographer_id == photographer_id and dispatch.status not in _CLOSED_STATUSES:
+        # Refund only what the requester actually paid, and only while it is still held.
+        deposit_held = bool(dispatch.deposit_paid) and dispatch.status in _DEPOSIT_HELD_STATUSES
+        refund = captain_amount_owed(dispatch) if deposit_held else 0
+
+        now = datetime.now(timezone.utc)
         dispatch.status = DispatchRequestStatusEnum.CANCELLED
+        dispatch.status_changed_at = now
         dispatch.cancellation_reason = "Photographer declined the request"
-        dispatch.cancelled_at = datetime.now(timezone.utc)
-        
+        dispatch.cancelled_at = now
+        dispatch.refund_amount = refund
+        dispatch.refund_type = 'full' if refund > 0 else 'none'
+
         # Notify the surfer
         requester_notification = Notification(
             user_id=dispatch.requester_id,
             type='dispatch_declined',
             title='Request Declined',
-            body='The photographer is unavailable right now. Your credits have been refunded.',
+            body='The photographer is unavailable right now.'
+                 + (' Your credits have been refunded.' if refund > 0 else ''),
             data=json.dumps({
                 'dispatch_id': dispatch_id,
                 'action': 'declined'
             })
         )
         db.add(requester_notification)
-        
+
         # Refund the deposit
-        if dispatch.deposit_amount and dispatch.deposit_amount > 0:
+        if refund > 0:
             payer_result = await db.execute(
                 select(Profile).where(Profile.id == dispatch.requester_id)
             )
             payer = payer_result.scalar_one_or_none()
             if payer:
                 old_balance = payer.credit_balance or 0
-                payer.credit_balance = old_balance + dispatch.deposit_amount
-                
+                payer.credit_balance = old_balance + refund
+
                 refund_tx = CreditTransaction(
                     user_id=dispatch.requester_id,
-                    amount=dispatch.deposit_amount,
+                    amount=refund,
                     balance_before=old_balance,
                     balance_after=payer.credit_balance,
                     transaction_type='dispatch_refund',

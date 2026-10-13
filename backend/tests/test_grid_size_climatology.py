@@ -55,9 +55,11 @@ def test_accumulate_folds_across_runs_and_skips_bad_points():
 
 
 def test_accumulate_excludes_subrideable_days():
-    # A trace 0.1 m offshore swell breaks below the 0.2 m rideability floor -> merge_samples drops it,
+    # A trace 0.06 m offshore swell breaks below the 0.2 m rideability floor -> merge_samples drops it,
     # so flat days never drag a coast's "good day" reference down (mirrors the spot blob's floor).
-    pts = [_pt(28.5, -80.5, 0.1)]
+    # (0.1 m until 2026-09-28: it only broke below the floor because cross-shelf friction, now off by
+    # default -- SHELF_CF_SCALE_DEFAULT -- shrank it first; without friction it breaks just above 0.2 m.)
+    pts = [_pt(28.5, -80.5, 0.06)]
     obj = gc.accumulate_points_into_grid_climatology(None, pts, **_fns())
     key = gc.cell_key(28.5, -80.5)
     assert key not in obj["cells"] or obj["cells"][key]["n"] == 0
@@ -135,7 +137,18 @@ def test_apply_surf_overlay_threads_reference_under_flag():
     src = inspect.getsource(apply_surf_overlay)
     assert 'os.environ.get("RATING_LOCAL_SIZE", "0") == "1"' in src
     assert "load_grid_size_climatology_l2_cached" in src
-    assert "reference_fn=reference_fn" in src
+    # ⬇ 2026-09-21: was `assert "reference_fn=reference_fn" in src`. The reference is now threaded
+    # through a RECORDING WRAPPER so the per-cell values it returns can be echoed into
+    # `diagnostics.surf_transform.reference_m` (Queue E#1: the band's score is monotonic in this
+    # number, and it was the one input a reader could not see). The INTENT is unchanged and is
+    # asserted more strictly than before — the fn reaching rating_transform_grid must still be
+    # gated on `reference_fn` being truthy, so the no-climatology path still passes None rather
+    # than a wrapper that would record an empty list and report "no reference" forever.
+    assert "reference_fn=(_recording_reference_fn if reference_fn else None)" in src
+    assert "_recording_reference_fn" in src and "_f(lat, lng)" in src, (
+        "the wrapper must CALL the injected fn and return its value — an echo that substituted or "
+        "swallowed the reference would change the very scores it exists to explain"
+    )
 
 
 def test_gfs_mid_ingest_wires_grid_climatology():

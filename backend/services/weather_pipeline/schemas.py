@@ -65,6 +65,9 @@ class NormalizedProduct(BaseModel):
     domain: str
     layer: str
     run_time: datetime
+    model_run_time: Optional[datetime] = None  # verified cycle; never inferred from run_time
+    model_run_time_status: str = "missing"
+    ingested_at: Optional[datetime] = None
     valid_time: datetime
     is_forecast_authoritative: bool
     is_estimated: bool
@@ -97,6 +100,10 @@ class NormalizedProduct(BaseModel):
     # route even when the assignment succeeds. TWO barriers; this clears both.
     # None = nothing was substituted. See `test_coarse_fill_layers.py` §3 for the round-trip guard.
     coarse_fill: Optional[Dict[str, Any]] = None
+    # The wind lane's provenance (wind_lane.apply_wind_lane): which model the served wind is at this hour ("hrrr+gfs" or
+    # "gfs"), the HRRR cycle and horizon, the time weight and how many cells HRRR carries. None = the lane did not run
+    # (off, not GFS wind, or no HRRR cycle loaded). Declared for the coarse_fill reason above: undeclared, it is lost.
+    wind_lane: Optional[Dict[str, Any]] = None
 
     # Region metadata fields for Stage 6H
     region_id: Optional[str] = None
@@ -166,7 +173,17 @@ class NormalizedPointResponse(BaseModel):
     domain: str
     layer: str
     run_time: datetime
+    model_run_time: Optional[datetime] = None  # verified cycle; never inferred from run_time
+    model_run_time_status: str = "missing"
+    ingested_at: Optional[datetime] = None
     valid_time: datetime
+    # SERVING HONESTY on /point too (2026-09-27): `valid_time` echoes the ASK, exactly like /grid's,
+    # while the resolver answers an off-cycle hour from the nearest 3-hourly frame (measured live: 04Z
+    # answered from the 03Z product, labelled 04Z). Same additive fields and same stamp as /grid
+    # (grid_resolver.stamp_frame_honesty): the frame actually sampled, its signed offset, >30 min flag.
+    served_valid_time: Optional[str] = None
+    frame_offset_hours: float = 0.0
+    frame_substituted: bool = False
     is_forecast_authoritative: bool
     is_estimated: bool
     estimate_basis: Optional[Dict[str, Any]] = None
@@ -227,6 +244,9 @@ class NormalizedPointResponse(BaseModel):
     # ±0.75° coastal gate, which kept the row visible for markers well offshore. Display-only tag; the
     # estimate itself is computed the same either way.
     surf_nearshore: Optional[bool] = None
+    # Which model `surf_height_m` stands on: "cdip_mop" (roadmap stage 4, SURF_NEARSHORE_MOP) or
+    # "parametric" (the offshore field through the chain). None where no surf height was produced.
+    surf_source: Optional[str] = None
     # ── PROVENANCE FOR THE SURF NUMBER ITSELF (2026-07-30) ──────────────────────────────────────
     # `shore_normal_deg` above was served bare, and a bearing off the COARSE 0.25° grid is
     # indistinguishable from a measured one — Bondi Beach served `111.54097591853844`, fourteen
@@ -295,6 +315,9 @@ class ManifestProduct(BaseModel):
     domain: str
     layer: str
     run_time: datetime
+    model_run_time: Optional[datetime] = None  # verified cycle; never inferred from run_time
+    model_run_time_status: str = "missing"
+    ingested_at: Optional[datetime] = None
     valid_time_start: datetime
     valid_time_end: datetime
     resolution: float

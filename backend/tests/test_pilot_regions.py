@@ -72,3 +72,134 @@ def test_expansion_boxes_are_well_formed_and_share_edges_without_interior_overla
             assert not interior_overlap, (
                 f"{ra} and {rb} overlap in the interior — the same cells would ingest twice "
                 f"every cycle. Abut on an edge or shrink one.")
+
+
+# ─── F-08 STAGE A: GFS-MARINE-ONLY EXTRA REGIONS (audit 14.1, 2026-09-25) ──────────────────────
+
+def _prod_env(monkeypatch):
+    from services.weather_pipeline import copernicus_validator
+    monkeypatch.setattr(copernicus_validator, "is_test_environment", lambda: False)
+    monkeypatch.setenv("WORLDWIDE_COASTAL", "1")
+    monkeypatch.delenv("GFS_MARINE_EXTRA_REGIONS", raising=False)
+
+
+def test_gfs_extra_boxes_are_well_formed_and_never_overlap_any_box():
+    """Every box the GFS pass slices — flagship, worldwide AND the extras — must be interior-disjoint,
+    or the same cells ingest twice per cycle. centralamerica_caribbean was trimmed -85 -> -84 to ABUT
+    mexico_centralamerica_pac; widen it back and this fails."""
+    from services.weather_pipeline.pilot_regions import (
+        REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS, GFS_MARINE_EXTRA_REGIONS)
+    assert not (set(GFS_MARINE_EXTRA_REGIONS) & (set(REGIONAL_CONFIGS) | set(WORLDWIDE_COASTAL_REGIONS)))
+    boxes = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS}
+    for rid, b in GFS_MARINE_EXTRA_REGIONS.items():
+        assert b["west"] < b["east"] and b["south"] < b["north"] and b["resolution"] == 0.25, rid
+    items = list(boxes.items())
+    for i, (ra, a) in enumerate(items):
+        for rb, b in items[i + 1:]:
+            assert not (a["west"] < b["east"] and b["west"] < a["east"]
+                        and a["south"] < b["north"] and b["south"] < a["north"]), (ra, rb)
+
+
+def test_gfs_extras_reach_only_the_gfs_marine_pass(monkeypatch):
+    """⭐ The whole point of a separate dict: get_all_pilot_regions() also feeds ICON/EURO marine, so an
+    extra that leaked into it would triple the product cost Stage A was priced at. Positive control:
+    the GFS function DOES carry them, so this cannot pass by the extras being empty."""
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_EXTRA_REGIONS, get_all_pilot_regions, get_gfs_marine_pilot_regions)
+    _prod_env(monkeypatch)
+    assert GFS_MARINE_EXTRA_REGIONS
+    assert not (set(GFS_MARINE_EXTRA_REGIONS) & set(get_all_pilot_regions())), "extras leaked to ICON/EURO"
+    gfs = get_gfs_marine_pilot_regions()
+    assert set(GFS_MARINE_EXTRA_REGIONS) <= set(gfs)
+    assert set(get_all_pilot_regions()) <= set(gfs), "the GFS pass must not LOSE any existing region"
+
+
+def test_gfs_extras_kill_switch_and_test_env(monkeypatch):
+    from services.weather_pipeline.pilot_regions import (
+        REGIONAL_CONFIGS, GFS_MARINE_EXTRA_REGIONS, get_all_pilot_regions, get_gfs_marine_pilot_regions)
+    _prod_env(monkeypatch)
+    monkeypatch.setenv("GFS_MARINE_EXTRA_REGIONS", "0")
+    assert get_gfs_marine_pilot_regions() == get_all_pilot_regions()
+    monkeypatch.setenv("GFS_MARINE_EXTRA_REGIONS", "1")
+    monkeypatch.setenv("WORLDWIDE_COASTAL", "0")          # the parent gate still wins
+    assert set(get_gfs_marine_pilot_regions()) == set(REGIONAL_CONFIGS)
+    monkeypatch.undo()                                     # real pytest env -> flagship only
+    assert set(get_gfs_marine_pilot_regions()) == set(REGIONAL_CONFIGS)
+    assert not (set(GFS_MARINE_EXTRA_REGIONS) & set(get_gfs_marine_pilot_regions()))
+
+
+def test_census_holds_the_extras_to_the_flagship_cadence():
+    """The census keeps region names as literals (runnable without the backend path), so the two
+    lists are one fact written twice: a box added to the dict but not the census would be graded
+    `worldwide` (72 h) and a dead new lane would hide for three days."""
+    from services.weather_pipeline.pilot_regions import GFS_MARINE_EXTRA_REGIONS
+    from scripts import product_run_age_census as C
+    assert set(C.GFS_MARINE_EXTRA_REGIONS) == set(GFS_MARINE_EXTRA_REGIONS)
+    for rid in GFS_MARINE_EXTRA_REGIONS:
+        assert C.tier_of(rid, "GFS", "marine") == "flagship", rid
+
+
+# ─── F-08 STAGE B, BOX 1: us_pacific_northwest (2026-09-29), DARK ──────────────────────────────────────────────────
+
+def test_stage_b_box_is_well_formed_and_never_overlaps_any_box():
+    from services.weather_pipeline.pilot_regions import (
+        REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS, GFS_MARINE_EXTRA_REGIONS, GFS_MARINE_STAGE_B_REGIONS)
+    others = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS}
+    assert not (set(GFS_MARINE_STAGE_B_REGIONS) & set(others))
+    for rid, b in GFS_MARINE_STAGE_B_REGIONS.items():
+        assert b["west"] < b["east"] and b["south"] < b["north"] and b["resolution"] == 0.25, rid
+        for ro, o in others.items():
+            assert not (b["west"] < o["east"] and o["west"] < b["east"]
+                        and b["south"] < o["north"] and o["south"] < b["north"]), (rid, ro)
+    # It ABUTS SoCal at 38N (the gap the probe measured starts exactly there).
+    assert (GFS_MARINE_STAGE_B_REGIONS["us_pacific_northwest"]["south"]
+            == REGIONAL_CONFIGS["us_west_coast_socal"]["north"])
+
+
+def test_stage_b_covers_the_buoys_the_probe_measured():
+    """The box exists for these buoys (the parity probe's worst global_mid rows); each must be inside it."""
+    from services.weather_pipeline.pilot_regions import GFS_MARINE_STAGE_B_REGIONS
+    b = GFS_MARINE_STAGE_B_REGIONS["us_pacific_northwest"]
+    for bid, lat, lng in (("46244", 40.90, -124.36), ("46211", 46.86, -124.24), ("46243", 46.22, -124.13),
+                          ("46206", 48.84, -126.00), ("46213", 40.29, -124.75)):
+        assert b["south"] <= lat <= b["north"] and b["west"] <= lng <= b["east"], bid
+
+
+def test_stage_b_is_dark_by_default_and_reaches_only_the_gfs_pass(monkeypatch):
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_STAGE_B_REGIONS, get_all_pilot_regions, get_gfs_marine_pilot_regions)
+    _prod_env(monkeypatch)
+    monkeypatch.delenv("GFS_MARINE_STAGE_B", raising=False)
+    assert not (set(GFS_MARINE_STAGE_B_REGIONS) & set(get_gfs_marine_pilot_regions()))    # dark
+    monkeypatch.setenv("GFS_MARINE_STAGE_B", "1")
+    assert set(GFS_MARINE_STAGE_B_REGIONS) <= set(get_gfs_marine_pilot_regions())
+    assert not (set(GFS_MARINE_STAGE_B_REGIONS) & set(get_all_pilot_regions())), "leaked to ICON/EURO"
+    monkeypatch.setenv("GFS_MARINE_EXTRA_REGIONS", "0")                                   # Stage A's kill
+    assert set(GFS_MARINE_STAGE_B_REGIONS) <= set(get_gfs_marine_pilot_regions())         # is Stage A's only
+    monkeypatch.setenv("WORLDWIDE_COASTAL", "0")                                          # the parent gate wins
+    assert not (set(GFS_MARINE_STAGE_B_REGIONS) & set(get_gfs_marine_pilot_regions()))
+
+
+def test_census_holds_stage_b_to_the_flagship_cadence():
+    from services.weather_pipeline.pilot_regions import GFS_MARINE_STAGE_B_REGIONS
+    from scripts import product_run_age_census as C
+    assert set(C.GFS_MARINE_STAGE_B_REGIONS) == set(GFS_MARINE_STAGE_B_REGIONS)
+    for rid in GFS_MARINE_STAGE_B_REGIONS:
+        assert C.tier_of(rid, "GFS", "marine") == "flagship", rid
+
+
+def test_both_fetch_lanes_declare_stage_b_flipped_and_equal():
+    """FLIPPED by the owner (D-011): '1' in both fetch lanes, never one. The CODE default stays '0' (dark), so a
+    lane that forgets the declaration ingests nothing new. To revert: '0' in BOTH."""
+    from pathlib import Path
+
+    import yaml
+    root = Path(__file__).resolve().parents[2]
+    vals = {}
+    for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml"):
+        d = yaml.safe_load((root / ".github" / "workflows" / wf).read_text(encoding="utf-8"))
+        found = [st["env"]["GFS_MARINE_STAGE_B"] for j in d["jobs"].values() for st in j.get("steps", [])
+                 if isinstance(st, dict) and "GFS_MARINE_STAGE_B" in (st.get("env") or {})]
+        assert len(found) == 1, wf
+        vals[wf] = found[0]
+    assert set(vals.values()) == {"1"}, vals

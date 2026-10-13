@@ -53,8 +53,6 @@ async def get_custom_logo(logo_url: str) -> Optional[Image.Image]:
     Download and cache a custom watermark logo from URL
     Returns a PIL Image with transparency preserved
     """
-    global _watermark_logo_cache
-    
     if logo_url in _watermark_logo_cache:
         return Image.open(io.BytesIO(_watermark_logo_cache[logo_url]))
     

@@ -289,13 +289,13 @@ export const SurfAlerts = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {alert.min_wave_height && (
+                      {alert.min_wave_height != null && (
                         <Badge className="bg-blue-500/20 text-blue-400">
                           <Waves className="w-3 h-3 mr-1" />
                           {alert.min_wave_height}ft+
                         </Badge>
                       )}
-                      {alert.max_wave_height && (
+                      {alert.max_wave_height != null && (
                         <Badge className="bg-blue-500/20 text-blue-400">
                           Max {alert.max_wave_height}ft
                         </Badge>
@@ -355,6 +355,13 @@ export const SurfAlerts = () => {
                         <span>Last: {new Date(alert.last_triggered).toLocaleDateString()}</span>
                       )}
                     </div>
+                    {Number.isFinite(alert.cooldown_seconds) && alert.cooldown_seconds >= 900 && (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        At most one alert every {alert.cooldown_seconds % 60 === 0
+                          ? `${alert.cooldown_seconds / 60} minutes`
+                          : `${alert.cooldown_seconds} seconds`}.
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>

@@ -6,6 +6,7 @@ import {
   PILOT_COVERAGE 
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { MODEL_METADATA_CACHE, PRECIP_MODEL_MAP } from './LayerRegistry';
 
 export const precipitationPointCache = new BoundedPointCache(50, 30000);
@@ -32,7 +33,9 @@ export function getBackendPrecipitationFlag() {
 /**
  * Fetches exact point precipitation forecast from backend weather service.
  */
-export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, signal, model = 'GFS') {
+export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, signal, model = 'GFS', requestContext = null) {
+  requestContext = pointRequestIdentityEnabled()
+    ? requestContext || createPointRequestContext(model, 'precipitation', hourOffset) : null;
   const start = Date.now();
   const targetModel = (model || 'GFS').toUpperCase();
   const offset = isNaN(Number(hourOffset)) ? 0 : Number(hourOffset);
@@ -95,10 +98,11 @@ export async function fetchBackendExactPrecipitationPoint(lat, lng, hourOffset, 
     visualTileTime = meta.validTimes[closestIdx];
   }
 
+  if (requestContext) validTimeStr = requestContext.validTime;
   const provider = 'open-meteo';
   const cacheKey = `${targetModel}_weather_precipitation_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
 
-  const cached = precipitationPointCache.get(cacheKey);
+  const cached = requestContext?.force ? null : precipitationPointCache.get(cacheKey);
   if (cached) {
     console.log(`[Backend Weather Service] Cache hit for ${targetModel} Precipitation: ${cacheKey}`);
     const clonedData = JSON.parse(JSON.stringify(cached.data));

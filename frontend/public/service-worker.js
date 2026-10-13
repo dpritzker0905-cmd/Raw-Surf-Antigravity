@@ -22,6 +22,18 @@ const OFFLINE_API_PATTERNS = [
   '/api/spots-in-bounds'
 ];
 
+// F-14 (audit 14.0) — THE SW WAS INCONSISTENT ABOUT ORIGIN, AND ONE HALF COULD NEVER WORK.
+// The fetch handler below matches on `url.pathname` ALONE, so it intercepts the API wherever it
+// lives — and it always lives cross-origin, because the app calls an absolute
+// REACT_APP_BACKEND_URL (onrender.com) rather than a same-origin path. But the CACHE_SPOTS
+// warm-up built its URL from `self.location.origin`, i.e. the page's own host. On localhost that
+// resolves to the static dev server, which has no /api at all; on Netlify it resolves to the CDN
+// rather than the backend. So the offline cache the fallback depends on was warmed against the
+// wrong host, or never warmed at all — and a single transient backend failure then produced a
+// synthetic "You are offline" with an EMPTY spot list while the network was perfectly healthy.
+// Remember the origin the API is actually served from, learned from the requests we intercept.
+let OBSERVED_API_ORIGIN = null;
+
 // Helper to safely call caches.open, returning null on rejection
 async function safeOpenCache(name) {
   try {
@@ -107,6 +119,10 @@ self.addEventListener('fetch', (event) => {
   const isOfflineAPI = OFFLINE_API_PATTERNS.some(pattern => url.pathname.includes(pattern));
   
   if (isOfflineAPI) {
+    // F-14: learn where the API actually lives, so CACHE_SPOTS warms the right host instead of
+    // this page's own origin. Recorded on every intercepted request, so it self-corrects if the
+    // backend URL ever changes without needing a new SW build.
+    OBSERVED_API_ORIGIN = url.origin;
     // Network-first with cache fallback for spot data
     event.respondWith(
       fetch(event.request)
@@ -132,7 +148,15 @@ self.addEventListener('fetch', (event) => {
           try {
             const cache = await safeOpenCache(SPOT_CACHE_NAME);
             if (cache) {
-              const cachedResponse = await cache.match(event.request);
+              // F-14: an exact match keys on the FULL url including query, and these requests
+              // carry user_id / viewport params, so the exact key almost never recurs. Falling
+              // back to a search-insensitive match lets a real cached spot list serve instead of
+              // the synthetic empty payload below. It is tagged X-SW-Cache-Fallback either way,
+              // so the client still treats it as stale and retries for the precise list.
+              let cachedResponse = await cache.match(event.request);
+              if (!cachedResponse) {
+                cachedResponse = await cache.match(event.request, { ignoreSearch: true });
+              }
               if (cachedResponse) {
                 // Tag the cache-fallback so the client can tell a transient cold-start (retry → fresh global
                 // spots) from genuine offline (keep stale). Without this the stale viewport cache was served
@@ -150,13 +174,31 @@ self.addEventListener('fetch', (event) => {
           } catch (e) {
             console.warn('[ServiceWorker] Match failed:', e);
           }
-          // Return offline response for spots
+          // F-14: no cache to serve. Say WHICH failure this is rather than always claiming
+          // offline. `navigator.onLine === false` is genuine offline; otherwise the network is up
+          // and the backend simply failed this request (a deploy restart is the common case), and
+          // announcing "You are offline" for that is a false statement to the user and a
+          // misleading signal to any diagnostic reading it.
+          // `offline: true` is retained in BOTH branches because the client keys its retry ladder
+          // on that field (useMapData.js); changing it would silently disable the retry. The
+          // honest detail rides alongside it.
+          // Only `onLine === false` is a positive offline signal. Absent or true means the
+          // browser believes it has a network, so this is an upstream failure, not offline.
+          const genuinelyOffline = typeof self.navigator !== 'undefined'
+            && self.navigator.onLine === false;
           return new Response(JSON.stringify({
             offline: true,
-            message: 'You are offline. Showing cached spot data.',
+            transient: !genuinelyOffline,
+            reason: genuinelyOffline ? 'browser-offline' : 'upstream-unreachable',
+            message: genuinelyOffline
+              ? 'You are offline. Showing cached spot data.'
+              : 'Surf spots are temporarily unreachable. Retrying.',
             data: []
           }), {
-            headers: { 'Content-Type': 'application/json' }
+            headers: {
+              'Content-Type': 'application/json',
+              'X-SW-Spots-Fallback': genuinelyOffline ? 'offline' : 'transient'
+            }
           });
         })
     );
@@ -352,7 +394,12 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       safeOpenCache(SPOT_CACHE_NAME).then(async (cache) => {
         if (!cache) throw new Error('CacheStorage not available');
-        const spotsUrl = new URL('/api/surf-spots', self.location.origin);
+        // F-14: warm the origin the API is ACTUALLY served from, not this page's own host.
+        // `self.location.origin` was the static/CDN host in every environment — on localhost it
+        // has no /api at all, so this handler could only ever cache a 404 or throw. Fall back to
+        // the page origin only when no API request has been observed yet, which preserves the old
+        // behaviour for a same-origin deployment.
+        const spotsUrl = new URL('/api/surf-spots', OBSERVED_API_ORIGIN || self.location.origin);
         const response = await fetch(spotsUrl);
         if (response.ok) {
           await cache.put(spotsUrl, response.clone());

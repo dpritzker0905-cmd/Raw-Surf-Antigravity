@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -319,6 +320,7 @@ def calculate_bulk_discount(item_count: int, tiers: list = None) -> float:
 @router.post("/gallery/bulk-purchase")
 async def bulk_purchase_items(
     data: BulkPurchaseRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -332,7 +334,9 @@ async def bulk_purchase_items(
     Atomic transaction: all items succeed or none.
     """
     from models import CreditTransaction
-    
+
+    if data.buyer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     if not data.item_ids:
         raise HTTPException(status_code=400, detail="No items selected")
     

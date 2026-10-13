@@ -15,6 +15,7 @@ import os
 import stripe
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchRequestStatusEnum, Booking, CreditTransaction, Notification,
@@ -158,8 +159,8 @@ async def complete_dispatch_session(
 @router.post("/{dispatch_id}/cancel")
 async def cancel_dispatch(
     dispatch_id: str,
-    user_id: str,
     cancel_data: CancelDispatchRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

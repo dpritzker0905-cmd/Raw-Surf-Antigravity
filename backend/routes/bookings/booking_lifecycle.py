@@ -22,7 +22,8 @@ from models import (
     Notification, RoleEnum, Post
 )
 from utils.credits import deduct_credits, add_credits
-from models import LiveSessionParticipant
+from models import CreditTransaction, LiveSessionParticipant
+from services import live_session_escrow
 
 try:
     from services.onesignal_service import onesignal_service
@@ -546,18 +547,37 @@ async def leave_live_session(
 
     refund_amount = 0
     refund_applied = False
+    surfer = None
 
-    if time_in_session < 10 and participant.amount_paid and participant.amount_paid > 0:
-        refund_amount = participant.amount_paid
+    paid = participant.amount_paid and participant.amount_paid > 0
+    if time_in_session < live_session_escrow.EARLY_LEAVE_MINUTES and paid:
+        if participant.escrow_status is None:
+            # A row from before escrow existed: its share was paid at join; keep the promised refund.
+            eligible = True
+        elif (participant.escrow_status == live_session_escrow.HELD
+              and not await live_session_escrow.already_refunded_early(db, participant)):
+            # Refund only by cancelling the photographer's held share, once per surfer per session. A
+            # share already released because the buyer acted on the delivered media is not refunded.
+            eligible = await live_session_escrow.cancel_for_early_leave(db, participant, now)
+        else:
+            eligible = False
 
-        surfer_result = await db.execute(
-            select(Profile).where(Profile.id == user_id)
-        )
-        surfer = surfer_result.scalar_one_or_none()
-
-        if surfer:
-            surfer.credit_balance = (surfer.credit_balance or 0) + refund_amount
-            refund_applied = True
+        if eligible:
+            refund_amount = participant.amount_paid
+            surfer = (await db.execute(
+                select(Profile).where(Profile.id == user_id).with_for_update()
+            )).scalar_one_or_none()
+            if surfer:
+                before = surfer.credit_balance or 0
+                surfer.credit_balance = before + refund_amount
+                db.add(CreditTransaction(
+                    user_id=user_id, amount=refund_amount, balance_before=before,
+                    balance_after=surfer.credit_balance, transaction_type='live_session_refund',
+                    description='Left a live session within the refund window',
+                    reference_type='live_session', reference_id=participant.id,
+                    counterparty_id=participant.photographer_id,
+                ))
+                refund_applied = True
 
     participant.status = 'left'
     participant.left_at = now

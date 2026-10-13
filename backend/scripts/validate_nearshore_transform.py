@@ -226,6 +226,31 @@ def implied_kr_samples(near_series, deep_series, near_depth_m):
     return out
 
 
+def implied_kr_composed_samples(near_series, deep_series, near_depth_m, geo, kr_in_use):
+    """[(kr, swell_dir_deg, tp)] against the SERVED composition, not shoaling alone (2026-09-27).
+
+    `implied_kr_samples` divides the observed deep->nearshore ratio by Ks ONLY, so its 0.797 absorbed
+    every loss on the way in: shelf friction, directional blocking and refraction. The served chain then
+    multiplies its OWN modelled friction and exposure on top of that Kr. This asks the question the chain
+    needs answered: given the factors it already applies, what Kr makes it match the instrument? It
+    drives `nearshore_validation.model_hs_at_station` (parity-pinned to `estimate_surf`) with the DEEP
+    buoy's observed Hs/Tp/Dp, so no forecast is involved, and scales the Kr that function applied by
+    observed / modelled. `geo` is `resolve_surf_geometry` at the nearshore buoy. Pure -> unit-testable."""
+    from services.weather_pipeline.nearshore_validation import model_hs_at_station
+    out = []
+    for t in set(near_series) & set(deep_series):
+        hn = near_series[t][0]
+        hd, td, dpd = deep_series[t]
+        if hd < MIN_HS_M or hn <= 0 or td < MIN_TP_SWELL:
+            continue
+        modelled = model_hs_at_station(hd, td, dpd, geo.shore_normal_deg, near_depth_m, geo.depth_m,
+                                       geo.shelf_width_km)
+        if not modelled or modelled <= 0:
+            continue
+        out.append((kr_in_use * hn / modelled, dpd, td))
+    return out
+
+
 def _pair_series(pair):
     an0, an1 = station_span(pair["near"])
     ad0, ad1 = station_span(pair["deep"])
@@ -251,6 +276,34 @@ def measure(pair):
             "near_depth_m": pair["near_depth_m"], "sep_km": pair["sep_km"], "n": len(krs),
             "kr_median": round(statistics.median(krs), 4),
             "kr_p25": round(q[0], 4), "kr_p75": round(q[2], 4)}
+
+
+def measure_composed(pair):
+    """`measure`, against the served composition (see implied_kr_composed_samples)."""
+    from services.weather_pipeline.surf_point import resolve_surf_geometry
+    from services.weather_pipeline.surf_transform import REFRACTION_KR
+    try:
+        kr_in_use = float(os.environ.get("SURF_REFRACTION_KR", REFRACTION_KR))
+    except (TypeError, ValueError):
+        kr_in_use = REFRACTION_KR
+    try:
+        sn, sd = _pair_series(pair)
+    except Exception as e:
+        return {"pair": f"{pair['deep']}->{pair['near']}", "error": str(e)[:70]}
+    geo = resolve_surf_geometry(pair["near_lat"], pair["near_lng"])
+    comp = implied_kr_composed_samples(sn, sd, pair["near_depth_m"], geo, kr_in_use)
+    ks_only = implied_kr_samples(sn, sd, pair["near_depth_m"])
+    if len(comp) < MIN_SAMPLES:
+        return {"pair": f"{pair['deep']}->{pair['near']}", "error": f"only {len(comp)} samples"}
+    krs = [c[0] for c in comp]
+    q = statistics.quantiles(krs, n=4)
+    return {"pair": f"{pair['deep']}->{pair['near']}", "near": pair["near"], "deep": pair["deep"],
+            "near_depth_m": pair["near_depth_m"], "sep_km": pair["sep_km"], "n": len(krs),
+            "shore_normal_deg": geo.shore_normal_deg, "shelf_depth_m": geo.depth_m,
+            "shelf_width_km": geo.shelf_width_km,
+            "kr_ks_only_median": round(statistics.median(k[0] for k in ks_only), 4),
+            "kr_composed_median": round(statistics.median(krs), 4),
+            "kr_composed_p25": round(q[0], 4), "kr_composed_p75": round(q[2], 4)}
 
 
 def directional(pair, bin_deg=15, min_bin=150):
@@ -378,6 +431,8 @@ def main(argv=None):
     ap.add_argument("--discover", action="store_true", help="find offshore/nearshore buoy pairs")
     ap.add_argument("--measure", action="store_true", help="implied Kr per site")
     ap.add_argument("--directional", action="store_true", help="Kr binned by swell direction")
+    ap.add_argument("--composed", action="store_true",
+                    help="implied Kr against the served chain (friction x shoaling x exposure), not Ks alone")
     ap.add_argument("--shadow", action="store_true",
                     help="fit Kr ~ A*(1 - B*shadow) — does horizon blocking explain the direction?")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
@@ -385,8 +440,8 @@ def main(argv=None):
     ap.add_argument("--workers", type=int, default=5)
     ap.add_argument("--limit", type=int, default=0, help="only the N closest pairs")
     a = ap.parse_args(argv)
-    if not (a.discover or a.measure or a.directional or a.shadow):
-        ap.error("choose --discover, --measure, --directional and/or --shadow")
+    if not (a.discover or a.measure or a.directional or a.shadow or a.composed):
+        ap.error("choose --discover, --measure, --directional, --shadow and/or --composed")
 
     out_dir = os.path.abspath(a.out)
     pairs = _load_or_discover(out_dir, a.workers)
@@ -417,6 +472,29 @@ def main(argv=None):
             print(f"  Kr  min {min(meds):.3f}  median {statistics.median(meds):.3f}  max {max(meds):.3f}"
                   f"   ({sum(1 for m in meds if m > 1)} site(s) FOCUS above 1.0)")
         json.dump(rows, open(os.path.join(out_dir, "kr_measured.json"), "w"), indent=1)
+
+    if a.composed:
+        print(f"\n{'=' * 92}\nIMPLIED Kr AGAINST THE SERVED CHAIN = measured / (Kf x Ks x exposure)"
+              f"\n{'=' * 92}")
+        rows = []
+        with cf.ThreadPoolExecutor(max_workers=a.workers) as ex:
+            for r in ex.map(measure_composed, pairs):
+                if "error" in r:
+                    print(f"  {r['pair']:<16} SKIP  {r['error']}")
+                else:
+                    rows.append(r)
+        print(f"\n{'pair':<16} {'depth':>6} {'n':>8} | {'Ks-only':>8} | {'p25':>6} {'CHAIN':>6} {'p75':>6}")
+        for r in sorted(rows, key=lambda x: x["kr_composed_median"]):
+            print(f"{r['pair']:<16} {r['near_depth_m']:6.1f} {r['n']:8d} | {r['kr_ks_only_median']:8.3f} | "
+                  f"{r['kr_composed_p25']:6.3f} {r['kr_composed_median']:6.3f} {r['kr_composed_p75']:6.3f}")
+        if rows:
+            ks = [r["kr_ks_only_median"] for r in rows]
+            ch = [r["kr_composed_median"] for r in rows]
+            print(f"\n  {len(rows)} sites, {sum(r['n'] for r in rows):,} swell hours")
+            print(f"  Ks-only Kr  median {statistics.median(ks):.3f}   (the constant in use)")
+            print(f"  chain   Kr  median {statistics.median(ch):.3f}   (what the chain needs, given its own "
+                  f"friction and exposure)")
+        json.dump(rows, open(os.path.join(out_dir, "kr_composed.json"), "w"), indent=1)
 
     if a.directional:
         print(f"\n{'=' * 92}\nKr BY INCOMING SWELL DIRECTION -- blocking swings, friction does not\n{'=' * 92}")

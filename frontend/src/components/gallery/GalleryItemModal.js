@@ -152,9 +152,9 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       } else {
         const accessType = response.data.access_type;
         const accessLabel = accessType === 'included' 
-          ? '-+ Full resolution (included in buy-in ??)' 
-          : '-+ Added to Locker';
-        toast.success(`? Tagged to ${surferName} ${accessLabel}`);
+          ? '\u00B7 Full resolution (included in buy-in)'
+          : '\u00B7 Added to Locker';
+        toast.success(`Tagged to ${surferName} ${accessLabel}`);
         
         // Mark as tagged in local state
         setTaggedIds(prev => new Set([...prev, surferId]));
@@ -227,7 +227,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success(`?? Saved! ${response.data.downloads_remaining} downloads remaining`);
+      toast.success(`Saved! ${response.data.downloads_remaining} downloads remaining`);
     } catch (error) {
       toast.error(getErrorMessage(error, 'Download failed'));
     }
@@ -335,7 +335,7 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 <div className="w-20 h-20 rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/50">
                   <Check className="w-10 h-10 text-white" />
                 </div>
-                <p className="text-white text-xl font-bold">?? Unlocked!</p>
+                <p className="text-white text-xl font-bold">Unlocked!</p>
                 <p className="text-emerald-400 text-sm mt-1">Full resolution available</p>
               </div>
             </div>
@@ -482,15 +482,15 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                 {/* AI status badge */}
                 {item.ai_suggested_count > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-cyan-500/15 text-cyan-400 border border-cyan-500/30">
-                    ?? AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
+                    AI matched to {item.ai_suggested_count} surfer{item.ai_suggested_count !== 1 ? 's' : ''}
                   </span>
                 ) : item.distributed_count > 0 ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    ? Distributed to {item.distributed_count}
+                    Distributed to {item.distributed_count}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
-                    ?? Needs manual tagging
+                    Needs manual tagging
                   </span>
                 )}
               </div>
@@ -557,13 +557,13 @@ export const GalleryItemModal = ({ item, onClose, onPurchased, galleryId, onSetA
                           <p className="text-[11px] text-gray-400">
                             {isTagged ? (
                               <span className="text-emerald-400 font-medium">
-                                ? Tagged -+ {isAiMatch ? 'AI matched' : 'manually tagged'}
+                                Tagged &middot; {isAiMatch ? 'AI matched' : 'manually tagged'}
                                 {matchConfidence ? ` (${Math.round(matchConfidence * 100)}%)` : ''}
                               </span>
                             ) : hasCredits ? (
-                              <span className="text-emerald-400">??? {p.photos_credit_remaining} credits left -+ tap to tag</span>
+                              <span className="text-emerald-400">{p.photos_credit_remaining} credits left &middot; tap to tag</span>
                             ) : (
-                              <span>?? Extra item -+ tap to add to locker</span>
+                              <span>Extra item &middot; tap to add to locker</span>
                             )}
                           </p>
                         </div>

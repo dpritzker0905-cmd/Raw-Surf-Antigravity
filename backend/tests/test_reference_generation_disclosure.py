@@ -43,14 +43,19 @@ def test_probe_gates_on_the_glyphs_own_reference_when_disclosed():
     ast.parse(src)
 
 
-def test_the_pedras_negras_inversion_is_pinned():
+def test_the_pedras_negras_inversion_is_pinned(monkeypatch):
     """The regression fixture from the live red: at h=1.261 m the size curve must separate the
     two reference generations exactly as observed (glyph 0.5898 @ 1.2793; sim 0.318 @ 2.199).
     If the curve changes shape, this pin moves and the artefact-vs-replay method breaks — that
     is a calibration decision, not a refactor side effect."""
-    os.environ["RATING_LOCAL_SIZE"] = "1"
+    # monkeypatch, NOT os.environ: a bare assignment here leaked RATING_LOCAL_SIZE=1 into every test
+    # that ran after this file in the same process — reproduced 2026-09-23 on dev b75ed960:
+    # `test_weather_sim_mcp.py::test_size_verdict_names_the_reason_a_big_day_scores_low` passes alone
+    # and FAILS after this file, so the suite's green was order-dependent.
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "1")
     import sys
-    sys.path.insert(0, _BACKEND)
+    if _BACKEND not in sys.path:
+        sys.path.insert(0, _BACKEND)
     from services.weather_pipeline.surf_rating import size_score
     assert abs(size_score(1.261, 1.2793) - 0.5898) < 0.002
     assert abs(size_score(1.261, 2.199) - 0.318) < 0.002

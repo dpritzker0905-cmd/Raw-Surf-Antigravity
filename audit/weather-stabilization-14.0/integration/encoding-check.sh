@@ -1,0 +1,12 @@
+echo "Scanning for garbled multi-byte UTF-8 corruption..."
+GARBLED=$(grep -rlP 'Ã[ƒ†]|Ã¯Â¿|ÃƒÆ' frontend/src/ --include="*.js" --include="*.jsx" || true)
+if [ -n "$GARBLED" ]; then
+  echo "❌ Garbled UTF-8 detected in the following files:"
+  echo "$GARBLED"
+  echo ""
+  echo "Fix: Replace raw multi-byte emoji with \\u{XXXXX} Unicode escapes"
+  echo "See: project rules → Emoji & Unicode section"
+  exit 1
+else
+  echo "✅ No garbled UTF-8 found - all clear!"
+fi

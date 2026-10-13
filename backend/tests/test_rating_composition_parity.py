@@ -177,13 +177,13 @@ SURFACES = {
             "swell_from_deg": SUPPLIED,
             "reference_size_m": SUPPLIED,   # same RATING_LOCAL_SIZE gate as the reference
             "break_depth_m": SUPPLIED,
-            "tide_norm": (
-                "The sim's lane is SYNCHRONOUS (urllib, no async client) and `tide.tide_norm_at` "
-                "is async HTTP. Adding a third network call to a tool handler is the regression "
-                "`576dcbdd` fixed — measured 42.2 s blocking, past where an MCP client reports a "
-                "TIMEOUT instead of an answer. Weighed against 18 of 1,773 spots (1.0%) having a "
-                "usable tide band, the cost is not worth the coverage."),
-            "best_tide": SeeAlso("tide_norm"),
+            # W-30 (2026-09-30): the GLYPH's own served tide state, read off the /spot-ratings
+            # response parity already fetches (`sim_observed.served_tide`, zero new I/O), gated
+            # SIM_SERVED_TIDE (default '0'). The waiver that stood here ("the sim's lane is
+            # synchronous and `tide_norm_at` is async HTTP; a third network call is `576dcbdd`'s
+            # 42.2 s regression") is why it is an OBSERVATION and not a fetch: it still holds.
+            "tide_norm": SUPPLIED,
+            "best_tide": SUPPLIED,
             "breaker_xi": SeeAlso("breaker_xi"),
             # The sim's scenario vocabulary is a single train, so partitions arrive only from the
             # LIVE lane (the point response carries the trains the server's height ran on) and are
@@ -480,6 +480,9 @@ POST_STEP_SURFACES = {
     "map rating band":             ("services.weather_pipeline.grid_resolver_surf", None),
     "spot hub":                    ("services.weather_pipeline.spot_conditions", None),
     "weather sim":                 ("services.weather_pipeline.sim_rating", None),
+    # 2026-09-26 (A15-05(b)): the map infobox. Its live lane is `rate_one_spot` + the hub's gate;
+    # its precomputed lane serves the glyph's already-gated frame item.
+    "map infobox (point rating)":  ("services.weather_pipeline.point_rating", None),
     # ⚠️ THE FIFTH SURFACE — `weather_sim_mcp.get_weather_forecast` — IS DELIBERATELY NOT HERE, and
     # the reason is the finding of 2026-08-03. It DELEGATES the gate to `sim_rating` rather than
     # referencing it, so "does this module name the symbol?" is the wrong question and adding it

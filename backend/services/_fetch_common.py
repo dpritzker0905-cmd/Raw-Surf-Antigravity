@@ -673,6 +673,21 @@ def make_point_dict(lat: float, lon: float, provider: str, hourly_units: dict, h
 
 
 # ─────────────────────── async subprocess runner (services) ───────────────────────
+# PER-FETCHER TIMEOUT BREAKER (2026-09-23). Ingest run 35819847745 was CANCELLED at its 165-min job
+# limit because ecmwf_opendata_fetcher timed out three times in a row (wind 05:23, waves 06:17,
+# pressure 06:50 -- 1800 s each), so the whole cycle's finished GFS/ICON work was lost with it. 8
+# ECMWF timeouts across the last 10 ingest runs. After one timeout the same fetcher script fails
+# fast (-> the caller's existing fallback) until FETCHER_TIMEOUT_COOLDOWN_S passes; a cooldown, not
+# a latch, because these fetchers also run in-process on the long-lived serve box.
+_TIMED_OUT_AT = {}
+
+
+def _breaker_open(script_name: str) -> bool:
+    import time
+    t = _TIMED_OUT_AT.get(os.path.basename(script_name))
+    return t is not None and time.monotonic() - t < float(os.environ.get("FETCHER_TIMEOUT_COOLDOWN_S", "3600"))
+
+
 async def run_fetcher_subprocess(
     script_name: str,
     bbox: dict,
@@ -692,6 +707,10 @@ async def run_fetcher_subprocess(
     JSON payload for fetchers that serve more than one layer.
     """
     if is_test_environment():
+        return None
+    if _breaker_open(script_name):
+        logger.error(f"[{log_tag}] skipped: {os.path.basename(script_name)} timed out earlier in this "
+                     f"cooldown window -- failing fast to the fallback instead of another {timeout}s wait")
         return None
 
     import asyncio
@@ -758,6 +777,8 @@ async def run_fetcher_subprocess(
         data = await asyncio.to_thread(_read_json_file, out)
         return data if data else None
     except subprocess.TimeoutExpired:
+        import time
+        _TIMED_OUT_AT[os.path.basename(script_name)] = time.monotonic()
         logger.error(f"[{log_tag}] fetcher subprocess timed out (>{timeout}s)")
         return None
     except Exception as e:

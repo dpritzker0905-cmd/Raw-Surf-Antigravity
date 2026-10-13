@@ -387,6 +387,9 @@ _RATING_SURFACES = (
     "services/weather_pipeline/sim_rating.py",
     "services/weather_pipeline/grid_resolver_surf.py",
     "services/weather_pipeline/point_surf_augment.py",
+    # ADDED 2026-09-26 (A15-05(b)): the infobox's rating surface. It owns the per-coordinate size
+    # reference that point_surf_augment now imports, so RATING_LOCAL_SIZE is read HERE.
+    "services/weather_pipeline/point_rating.py",
     "services/weather_pipeline/surf_rating.py",
     "services/weather_pipeline/surf_transform.py",
     "routes/weather.py",
@@ -439,7 +442,7 @@ _REGISTRY_EXEMPT = {
     # The registry's own contract is a boolean default (`test_registry_parses_and_is_not_empty`
     # asserts entry[0] in ("0","1")). These two are CALIBRATION SCALARS, not switches; declaring
     # them would force widening that contract for every flag. They belong with the physics.
-    "SURF_SHELF_CF_SCALE": "calibration scalar (default '0.25'), not a boolean switch",
+    "SURF_SHELF_CF_SCALE": "calibration scalar (default '0.0' since 2026-09-28, was '0.25'), not a boolean switch",
     "SURF_V3_JACK_MAX": "calibration scalar (default '2.0'), not a boolean switch",
     # A FILESYSTEM PATH, not a science switch. It relocates the overlay file for tests; it cannot
     # change a number. The registry's "where to flip" column would have nothing true to say about

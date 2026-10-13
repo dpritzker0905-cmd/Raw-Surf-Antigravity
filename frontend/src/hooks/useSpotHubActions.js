@@ -3,6 +3,7 @@
  * Extracted from SpotHub.js -- handler logic for spot detail pages.
  * v32: Rewritten to match actual SpotHub.js handler implementations.
  */
+import { useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -22,6 +23,7 @@ const useSpotHubActions = ({
   setPhotographerPosts,
   setUserPosts,
   setLoading,
+  setLoadError,
   setUserLocation,
   setIsWithinProximity,
   setLivePulse,
@@ -34,6 +36,8 @@ const useSpotHubActions = ({
   setShowScheduledDrawer,
   setShowRequestModal,
 }) => {
+  const spotRequest = useRef(null);
+  const cancelSpotDataLoad = () => spotRequest.current?.abort();
 
   // Calculate distance between two coordinates in miles
   const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -48,10 +52,11 @@ const useSpotHubActions = ({
   };
 
   // Check user's proximity to the spot
-  const checkProximity = (spotLat, spotLng) => {
+  const checkProximity = (spotLat, spotLng, isCurrent = () => true) => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          if (!isCurrent()) return;
           const { latitude, longitude } = position.coords;
           setUserLocation({ lat: latitude, lng: longitude });
           
@@ -62,6 +67,7 @@ const useSpotHubActions = ({
           }
         },
         (error) => {
+          if (!isCurrent()) return;
           logger.debug('Could not get user location:', error);
           setIsWithinProximity(false);
         },
@@ -87,21 +93,41 @@ const useSpotHubActions = ({
   };
 
   const fetchAllSpotData = async () => {
+    cancelSpotDataLoad();
+    const controller = new AbortController();
+    spotRequest.current = controller;
+    const isCurrent = () => !controller.signal.aborted && spotRequest.current === controller;
+    const config = { signal: controller.signal };
     setLoading(true);
+    setLoadError(null);
+    setSpot(null);
+    setSpotDetails(null);
+    setActivePhotographers([]);
+    setSurfReports([]);
+    setConditionReports([]);
+    setPhotographerPosts([]);
+    setUserPosts([]);
+    setIsWithinProximity(false);
     try {
       // Fetch spot details with forecast
-      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}&model=${activeModel}`);
-      if (detailsResponse.data.error) {
-        toast.error(detailsResponse.data.error);
-        setLoading(false);
+      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}&model=${activeModel}`, config);
+      if (!isCurrent()) return;
+      const data = detailsResponse.data;
+      // The current endpoint's missing-spot contract is HTTP 200 with this exact error.
+      // A timeout, HTML gateway response, or unrelated application error is not absence.
+      if (data?.error === 'Spot not found') {
+        setLoadError('not-found');
         return;
       }
-      setSpotDetails(detailsResponse.data);
-      setSpot(detailsResponse.data);
+      if (!data || typeof data !== 'object' || data.error || data.id !== spotId || !data.name) {
+        throw new Error('Invalid spot details response');
+      }
+      setSpotDetails(data);
+      setSpot(data);
       
       // Check user's proximity to the spot
       if (detailsResponse.data.latitude && detailsResponse.data.longitude) {
-        checkProximity(detailsResponse.data.latitude, detailsResponse.data.longitude);
+        checkProximity(detailsResponse.data.latitude, detailsResponse.data.longitude, isCurrent);
       }
       
       // Active photographers come from spot-details response
@@ -112,25 +138,28 @@ const useSpotHubActions = ({
       
       // Fetch additional data in parallel
       const [reportsRes, postsRes] = await Promise.allSettled([
-        apiClient.get(`/condition-reports/spot/${spotId}?limit=10&include_expired=true`),
-        apiClient.get(`/posts/spot/${spotId}?limit=50&viewer_id=${user?.id || ''}`) // Only posts TAGGED to this spot
+        apiClient.get(`/condition-reports/spot/${spotId}?limit=10&include_expired=true`, config),
+        apiClient.get(`/posts/spot/${spotId}?limit=50&viewer_id=${user?.id || ''}`, config) // Only posts TAGGED to this spot
       ]);
+      if (!isCurrent()) return;
       
       if (reportsRes.status === 'fulfilled') {
-        setConditionReports(reportsRes.value.data.reports || reportsRes.value.data || []);
+        const reports = reportsRes.value.data?.reports || reportsRes.value.data;
+        setConditionReports(Array.isArray(reports) ? reports : []);
       }
       
       if (postsRes.status === 'fulfilled') {
         // Use the separated posts from the new endpoint
-        setPhotographerPosts(postsRes.value.data.photographer_posts || []);
-        setUserPosts(postsRes.value.data.user_posts || []);
+        setPhotographerPosts(postsRes.value.data?.photographer_posts || []);
+        setUserPosts(postsRes.value.data?.user_posts || []);
       }
       
     } catch (error) {
+      if (!isCurrent()) return;
       logger.error('Error fetching spot data:', error);
-      toast.error('Failed to load spot information');
+      setLoadError(error.response?.status === 404 ? 'not-found' : 'unavailable');
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
@@ -222,6 +251,7 @@ const useSpotHubActions = ({
 
   return {
     fetchAllSpotData,
+    cancelSpotDataLoad,
     fetchLivePulse,
     fetchIntelData,
     handleReportConditionReport,

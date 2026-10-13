@@ -1,0 +1,96 @@
+{
+  "baseline": "649cb14e73bfbba539b7c5f555f62256759a6a8e",
+  "recorded_at_utc": "2026-10-04 22:09Z",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "9f8618bc7895b538ac4afca97122bf2aeb9dc2b8c819a07db37959f6d52657c6",
+    ".github/workflows/forecast-ingest-pilots.yml": "86161c75c2e1c115d99068b34726063a1400d549bf2f74d507e12dbf46dfb8d5",
+    ".github/workflows/forecast-ingest.yml": "20a9503125e43934c1f3b5f55f463d9243f16a677cbd755f002f48142c8c8560",
+    ".github/workflows/precompute.yml": "37c100afbe7f31da1d418673090e2a77c83f952c61bcb1ebd4b3e92b5cba13cd",
+    ".github/workflows/sim-parity-monitor.yml": "6d165ccbf4413fd83da8d10e13f19407a41adbb45adb77423ca35930ef6293aa",
+    "backend/routes/admin/surf_forecast.py": "45bbd269ce973d49689de7e836b4c109725354b9f56cf6c028daeafbdfd14c84",
+    "backend/services/weather_pipeline/manifest_immutable.py": "eb659ca6ec5a1b011a07328ea146cd30fcf77472cd532d9200ad78ef81a25536",
+    "backend/services/weather_pipeline/manifest_pointer.py": "04dea5fe1791ebc8229a598d64b9292a13c88934fe902f679356f09d56336c04",
+    "backend/tests/test_ci_floor_staleness.py": "d1f39b62fb927e44aba0f0109a88953aa08fbcddae69ae62027a8660fbcd758b",
+    "backend/tests/test_manifest_immutable_publication.py": "90337b6cef05d3d8c28f840f594797df69b1ce89295d5fd6265173c6b6f43e81",
+    "backend/scripts/memory_audit.py": "95b635df8b0ce04a5c56357e821213d6ab8771129a1592c637b2dfa0cdf7bff5",
+    "backend/tests/test_memory_audit_scoreboard.py": "b2c71dc96f7862bc94c40214ff041556ad8ebbf2db1becdae02ef074bb8fb6dd"
+  },
+  "local": {
+    "causal_before_twice": {
+      "tests": 16,
+      "failed": 9,
+      "passed": 7,
+      "errors": 0,
+      "skipped": 0
+    },
+    "supported_neighbors_twice": 148,
+    "new_guard_controls": 39,
+    "floor_controls": 36,
+    "jacobian": {
+      "epsilon": 0.05,
+      "columns": [
+        "winner",
+        "loser"
+      ],
+      "legacy": [
+        0,
+        1
+      ],
+      "enabled": [
+        1,
+        0
+      ]
+    },
+    "selector": {
+      "tracked": 620,
+      "guards": 182,
+      "chain": 150,
+      "estate": 285,
+      "existing_fastmcp_exclusions": 2,
+      "existing_quarantine": 1
+    }
+  },
+  "hosted": {
+    "status": "success",
+    "expected": {
+      "guards": 2327,
+      "chain": 1982,
+      "estate": 910,
+      "backend_total": 5219,
+      "frontend": 3610
+    },
+    "source": "e4353c062c093b453ce7f4e9445a4a793ce7feba",
+    "ci": 37240056010,
+    "actual": {
+      "guards": 2327,
+      "chain": 1982,
+      "estate": 910,
+      "backend_total": 5219,
+      "frontend": 3610,
+      "frontend_suites": 347,
+      "guard_skips": 66,
+      "guard_xfailed": 1,
+      "estate_silent": 0
+    }
+  },
+  "flag": {
+    "MANIFEST_IMMUTABLE_PUBLICATION": "0"
+  },
+  "limits": [
+    "No merge/deploy/activation",
+    "Actual Supabase canary unqualified",
+    "No science skill gain"
+  ],
+  "chronology_followup": {
+    "recorded_at_utc": "2026-10-04 22:25Z",
+    "source_run": 37239259594,
+    "original_date_only_row_retained": true,
+    "actual_audit_before": {
+      "failed": 1,
+      "passed": 1
+    },
+    "regression_controls": 12,
+    "neighbors_passed": 108,
+    "estate_floor": 908
+  }
+}

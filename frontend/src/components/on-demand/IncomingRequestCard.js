@@ -107,7 +107,7 @@ const IncomingRequestCard = ({
                 <span className={`text-sm ${textSecondary}`}>{request.distance_miles?.toFixed(1) || '?'} mi away</span>
                 {request.requester_stance && (
                   <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 uppercase tracking-wide">
- {request.requester_stance === 'goofy' ? '?? Goofy' : '= Regular'}
+                    {request.requester_stance === 'goofy' ? 'Goofy' : 'Regular'}
                   </span>
                 )}
               </div>
@@ -271,12 +271,12 @@ const IncomingRequestCard = ({
             {/* Surfer Identification Section */}
             {(request.requester_stance || request.requester_board_description) && (
               <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-400/20 space-y-2">
-                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>?? Surfer ID</p>
+                <p className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>Surfer ID</p>
                 {request.requester_stance && (
                   <div className="flex items-center gap-2 text-sm">
                     <span className={textSecondary}>Stance:</span>
                     <span className={`font-medium ${textPrimary} capitalize`}>
- {request.requester_stance === 'goofy' ? '= Goofy Foot' : '= Regular'}
+                      {request.requester_stance === 'goofy' ? 'Goofy Foot' : 'Regular'}
                     </span>
                   </div>
                 )}

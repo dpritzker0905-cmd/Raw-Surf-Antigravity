@@ -58,9 +58,13 @@ async def get_surf_conditions(
                 noaa_station = info.get("noaa_station")
                 break
     
-    # If we have coordinates, fetch conditions
+    # If we have coordinates, fetch conditions. Surf + wind come from the spot hub's producer when it can
+    # answer (ONE FORECAST COMPOSITION, A15-05(c)); tides stay NOAA; any failure keeps the provider path.
     if latitude is not None and longitude is not None:
-        conditions = await get_full_conditions(latitude, longitude, spot_name, noaa_station)
+        from services.surf_conditions import pipeline_current_conditions
+        pipeline = await pipeline_current_conditions(latitude, longitude)
+        conditions = await get_full_conditions(latitude, longitude, spot_name, noaa_station,
+                                               current_override=pipeline)
         return conditions
     
     # If spot_name provided, try to match known spot

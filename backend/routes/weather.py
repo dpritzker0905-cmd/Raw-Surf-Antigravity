@@ -22,6 +22,7 @@ from services.weather_pipeline.route_helpers import (
 )
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
+from services.weather_pipeline.grid_response import GridResponseRoute, own_grid_operation
 
 # P1 per-spot ratings (/spot-ratings): query surf spots + compute the rating at each precise location.
 from sqlalchemy import select, or_
@@ -33,15 +34,17 @@ from services.weather_pipeline.spot_ratings import rate_one_spot
 # The precompute/L2 lane split out of spot_ratings.py 2026-08-14; `rate_one_spot` above is still
 # THE reference implementation and is imported from its original module.
 from services.weather_pipeline.spot_ratings_precompute import (
-    load_spot_ratings_l2_cached, select_precomputed,
+    load_spot_ratings_l2_cached, select_precomputed, served_offset_hours as _offset_hours,
 )
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/weather")
+router = APIRouter(prefix="/weather", route_class=GridResponseRoute)
 
 # Instantiate Store and Sampler
-store = ProductStore()
+# The SERVING view (consensus_serve.ServedStore: a no-op unless CONSENSUS_SERVE=1); ingest keeps its own store.
+from services.weather_pipeline.consensus_serve import served_store  # noqa: E402
+store = served_store(ProductStore())
 dynamic_index = DynamicProductIndex()
 sampler = PointSampler()
 provider = OpenMeteoProvider()
@@ -61,17 +64,16 @@ async def get_products():
     """
     GET /api/weather/products
     Returns the current manifest registry listing available prepared weather products.
+
+    A15-16 (audit 15.0): this public, unauthenticated response also carried the server's absolute
+    cache path and a listing of every file in it (2,717 names, measured 2026-09-25), re-read from
+    disk on each call. Nothing read either field over HTTP; the diagnostics scripts use the store
+    directly. Both are gone.
     """
-    import os
     manifest = await asyncio.to_thread(store.get_manifest)
-    def get_disk_files():
-        return os.listdir(store.cache_dir) if os.path.exists(store.cache_dir) else []
-    files = await asyncio.to_thread(get_disk_files)
     return {
         "last_manifest_update": manifest.last_manifest_update,
         "products": manifest.products,
-        "files_on_disk": files,
-        "cache_dir": str(store.cache_dir)
     }
 
 
@@ -83,6 +85,7 @@ async def get_grid_series(
     bbox: str = Query(..., description="west,south,east,north viewport bbox"),
     hours: str = Query(..., description="comma-separated integer hour offsets from now, e.g. 0,3,6,9"),
     surf: bool = Query(False, description="Option-2: surf-transform each frame (Swell<->Surf toggle)"),
+    base_time: Optional[str] = Query(None, description="ISO-8601 UTC anchor the hour offsets are measured from; omit for the server clock."),
     request: Request = None,
 ):
     """
@@ -91,22 +94,24 @@ async def get_grid_series(
     Returns a TIME-SERIES of viewport grids in ONE response so the client can scrub
     hours instantly (client-side frame selection) instead of one fetch per hour.
 
-    SURGICAL + ADDITIVE: reuses the exact per-hour dynamic-product builder that /grid
-    already uses (get_cached_dynamic_product). The first requested hour triggers the
-    multi-hour upstream fetch (Open-Meteo/Copernicus already return it and the provider
-    caches it 5 min); every subsequent hour re-slices that SAME cached fetch. It does not
-    touch /grid — if it fails, the client falls back to the per-hour /grid flow.
+    Reuses /grid's per-hour builder and shared upstream cache. If a series fails,
+    the client falls back to per-hour /grid requests. The dark response envelope
+    shares admission across both HTTP routes and owns canceled per-hour work.
     """
     from services.weather_pipeline.grid_series_helper import build_grid_series
-    # Reuse the SAME resolver /grid uses (get_grid, defined below) so each frame matches the
-    # live heatmap exactly, at any zoom/region (manifest regional/global + dynamic viewport).
-    # viewport_service enables the EURO/Copernicus fast path (one full-range fetch + slice).
-    # request is threaded through so a scrub-aborted connection cancels the remaining per-hour
-    # builds instead of running the whole multi-hour series to completion (zombie OOM load).
-    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf)
+    # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
+    # validates/discloses base_time and stops per-hour builds after client disconnect.
+    # Qualified response bounds include queueing, building, encoding and compression.
+    if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1" and os.environ.get("GRID_RESPONSE_BOUNDS", "0") != "1":
+        from services.weather_pipeline.series_response import serve_series
+        return await serve_series(lambda: build_grid_series(
+            get_grid, viewport_service, model, domain, layer, bbox, hours,
+            request=request, surf=surf, base_time=base_time), hours, request)
+    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
 
 
 @router.get("/grid", response_model=NormalizedProduct)
+@own_grid_operation
 async def get_grid(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
@@ -147,12 +152,12 @@ async def get_grid(
             bbox=bbox, surf=surf, background_tasks=background_tasks, request=request,
             series_stride=_stride
         )
-        # ROOT FIX (2026-07-23): the 10° coarse EURO/ICON `waves` tier masks enclosed seas (Gulf) →
-        # wrong colors on zoom-out. Fill those holes from the SERVED GFS coarse (valid Gulf) at serve
-        # time — the ingest fill can't (it reads a raw grid whose Gulf doesn't reconstruct). grid_series
-        # reuses this route per frame, so both endpoints get it. Kill: MARINE_COARSE_GULF_FILL=0.
-        from services.weather_pipeline.coarse_gulf_fill import fill_coarse_enclosed_sea_from_gfs_served
-        return await fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain, layer)
+        # ROOT FIX (2026-07-23): the 10° coarse EURO/ICON `waves` tier masks enclosed seas (Gulf) → wrong colors on zoom-out. Fill
+        # those holes from the SERVED GFS coarse (valid Gulf) at serve time — the ingest fill can't (it reads a raw grid whose Gulf
+        # doesn't reconstruct). grid_series reuses this route per frame, so both endpoints get it. Kill: MARINE_COARSE_GULF_FILL=0.
+        # Then the wind lane (HRRR by place and time, wind_lane.py, D-017), last, so every GFS wind tier passes once. Kill: WIND_HRRR_LANE=0.
+        from services.weather_pipeline import coarse_gulf_fill as _gf, wind_lane as _wl
+        return _wl.apply_wind_lane(await _gf.fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain, layer), model, domain, layer)
     except HTTPException:
         # Intentional, CORS-safe statuses (499 client-closed, 503 temporarily-unavailable, 4xx) — keep.
         raise
@@ -172,11 +177,13 @@ async def get_grid(
 
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
-    model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
+    # CONSENSUS (2026-09-29, D-009): the shadow product, so the nearshore judge can grade the exact built product.
+    # It resolves from stored products only (point_resolution.UPSTREAM_MODELS); the frontend never requests it.
+    model: str = Query(..., pattern="^(GFS|ICON|EURO|CONSENSUS)$"),
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
-    lat: float = Query(..., description="Latitude coordinate"),
-    lng: float = Query(..., description="Longitude coordinate"),
+    lat: float = Query(..., ge=-90, le=90, allow_inf_nan=False, description="Latitude coordinate"),
+    lng: float = Query(..., ge=-180, le=180, allow_inf_nan=False, description="Longitude coordinate"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     grid_product_id: Optional[str] = Query(None, description="The exact grid product to sample from"),
     grid_bbox: Optional[str] = Query(None, description="The client's viewport grid bbox")
@@ -338,6 +345,7 @@ class SpotRatingItem(BaseModel):
     # Pydantic silently DROPS them at this boundary (the wire-contract guard caught exactly that).
     swell_from_deg: Optional[float] = None
     offshore_hs_m: Optional[float] = None
+    primary_swell_hs_m: Optional[float] = None  # cached swell_1; None means unavailable, not total sea
     tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
     why: Optional[str] = None            # short human explanation
     # Observation gate (RATING_OBS_GATE): good/epic verdicts require confirmation — >=2-model agreement
@@ -371,6 +379,7 @@ class SpotRatingItem(BaseModel):
     # `geometry_readiness` above, and as `served_valid_time` on the response).
     run_time: Optional[str] = None            # the marine run — it produced `surf_height_m`
     wind_run_time: Optional[str] = None
+    time_provenance: Optional[dict] = None  # independent marine/wind cycle evidence; legacy unknown
     # WHICH OF THE NINE FACTORS REMOVED THE MOST. The score is a product of nine terms in [0,1] and
     # this payload published only the score plus `why` (height/period/wind — three INPUTS, not
     # factors), so the live ceiling of 68.8 with zero 'good' could not be ATTRIBUTED.
@@ -435,20 +444,9 @@ class SpotRatingsResponse(BaseModel):
     # None on the live path (computed at the requested hour) and when disabled.
     served_valid_time: Optional[str] = None
     frame_offset_hours: Optional[float] = None
+    # Producer-owned metadata, not the serving process's current flags. Old/live frames stay unknown.
+    height_convention: Optional[dict] = None
     spots: list[SpotRatingItem]
-
-def _offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
-    """Signed hours from the requested hour to the one actually served. None when unknowable."""
-    if not served or not requested:
-        return None
-    from datetime import datetime as _dt
-    try:
-        r = _dt.strptime(requested, "%Y-%m-%dT%H:%M:%SZ")
-        s = _dt.strptime(served, "%Y-%m-%dT%H:%M:%SZ")
-    except ValueError:
-        return None
-    return round((s - r).total_seconds() / 3600.0, 2)
-
 
 # Live-path TTL cache: rating a viewport on the 1-CPU serve box is 7-22s, so a re-view (or another user) would
 # pay it again and most fetches abort on pan before finishing. Cache the computed response per
@@ -487,7 +485,7 @@ async def get_spot_ratings(
     # bound live remains the truth path. Kill: SPOT_RATINGS_STALE_TOLERANCE_S=0.
     pre, pre_source, pre_served = None, "precomputed", None
     try:
-        from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered
+        from services.weather_pipeline.spot_ratings_precompute import select_precomputed_laddered, pick_precomputed_frame
         # ⛔ OFF THE EVENT LOOP (2026-08-06, MASTER-AUDIT-9.0 §5.1). This loader is a synchronous
         # `requests.get(timeout=10)` to Supabase Storage behind a 300 s TTL, so calling it bare here
         # ran a blocking socket read on the loop: measured against this handler, **0 of ~50 possible
@@ -508,12 +506,15 @@ async def get_spot_ratings(
     if pre is not None:
         items = [SpotRatingItem(**sp) for sp in pre[:limit]]
         count = sum(1 for it in items if it.score is not None)
+        selected_frame = pick_precomputed_frame(_l2_obj, model, pre_served, tolerance_s=0) or {}
+        frame_convention = selected_frame.get("height_convention")
         # `valid_time` echoes what was ASKED FOR; `served_valid_time` is what the frame describes.
         # The stale ladder can serve a frame up to 6 h away and only the label said so — so a client
         # (or a parity check) had no way to tell a real disagreement from a time offset.
         return SpotRatingsResponse(model=model, valid_time=valid_time, count=count,
                                    source=pre_source, served_valid_time=pre_served,
                                    frame_offset_hours=_offset_hours(valid_time, pre_served),
+                                   height_convention=frame_convention if isinstance(frame_convention, dict) else None,
                                    spots=items)
 
     # Live-path cache hit (a recent identical viewport already paid the 7-22s compute)?
@@ -796,4 +797,3 @@ async def get_diagnostics_log(admin=Depends(get_current_admin)):
 # Include the ingestion sub-router dynamically to break circular imports
 from .weather_ingest import router as ingest_router
 router.include_router(ingest_router)
-

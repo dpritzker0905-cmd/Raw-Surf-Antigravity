@@ -1,0 +1,976 @@
+{
+ "generated_from": "production /api/surf-spots (1773 spots) + NE 50m land",
+ "resolution_deg": 0.0833,
+ "pad_deg": 0.45,
+ "merge_deg": 0.6,
+ "measured_bytes_per_cell_frame": 232,
+ "island_spots_covered": 555,
+ "regions": [
+  {
+   "rank": 1,
+   "spots": 57,
+   "country": "Portugal",
+   "bbox": [
+    -29.292,
+    36.492,
+    -24.577,
+    39.545
+   ],
+   "cols": 57,
+   "rows": 37,
+   "cells": 2109
+  },
+  {
+   "rank": 2,
+   "spots": 46,
+   "country": "USA/Bahamas",
+   "bbox": [
+    -80.887,
+    24.199,
+    -75.665,
+    28.301
+   ],
+   "cols": 63,
+   "rows": 49,
+   "cells": 3087
+  },
+  {
+   "rank": 3,
+   "spots": 40,
+   "country": "USA",
+   "bbox": [
+    -160.693,
+    20.149,
+    -155.54,
+    22.673
+   ],
+   "cols": 62,
+   "rows": 30,
+   "cells": 1860
+  },
+  {
+   "rank": 4,
+   "spots": 30,
+   "country": "USA",
+   "bbox": [
+    -77.124,
+    34.203,
+    -75.186,
+    36.396
+   ],
+   "cols": 23,
+   "rows": 26,
+   "cells": 598
+  },
+  {
+   "rank": 5,
+   "spots": 23,
+   "country": "Portugal",
+   "bbox": [
+    -17.691,
+    32.198,
+    -16.243,
+    33.319
+   ],
+   "cols": 17,
+   "rows": 13,
+   "cells": 221
+  },
+  {
+   "rank": 6,
+   "spots": 22,
+   "country": "Indonesia",
+   "bbox": [
+    115.03,
+    -9.379,
+    117.184,
+    -7.754
+   ],
+   "cols": 26,
+   "rows": 20,
+   "cells": 520
+  },
+  {
+   "rank": 7,
+   "spots": 21,
+   "country": "Spain",
+   "bbox": [
+    -18.611,
+    27.196,
+    -12.973,
+    29.687
+   ],
+   "cols": 68,
+   "rows": 30,
+   "cells": 2040
+  },
+  {
+   "rank": 8,
+   "spots": 18,
+   "country": "Brazil",
+   "bbox": [
+    -49.005,
+    -28.262,
+    -47.928,
+    -26.95
+   ],
+   "cols": 13,
+   "rows": 16,
+   "cells": 208
+  },
+  {
+   "rank": 9,
+   "spots": 18,
+   "country": "USA",
+   "bbox": [
+    -75.829,
+    37.422,
+    -73.617,
+    41.108
+   ],
+   "cols": 27,
+   "rows": 44,
+   "cells": 1188
+  },
+  {
+   "rank": 10,
+   "spots": 16,
+   "country": "Barbados/Martinique/Guadeloupe",
+   "bbox": [
+    -61.99,
+    12.612,
+    -58.978,
+    16.957
+   ],
+   "cols": 36,
+   "rows": 52,
+   "cells": 1872
+  },
+  {
+   "rank": 11,
+   "spots": 13,
+   "country": "Maldives",
+   "bbox": [
+    73.023,
+    3.705,
+    73.978,
+    4.698
+   ],
+   "cols": 11,
+   "rows": 12,
+   "cells": 132
+  },
+  {
+   "rank": 12,
+   "spots": 13,
+   "country": "Thailand",
+   "bbox": [
+    97.668,
+    7.467,
+    100.524,
+    10.501
+   ],
+   "cols": 34,
+   "rows": 36,
+   "cells": 1224
+  },
+  {
+   "rank": 13,
+   "spots": 12,
+   "country": "Samoa",
+   "bbox": [
+    -172.496,
+    -14.497,
+    -171.0,
+    -13.357
+   ],
+   "cols": 18,
+   "rows": 14,
+   "cells": 252
+  },
+  {
+   "rank": 14,
+   "spots": 12,
+   "country": "French Polynesia",
+   "bbox": [
+    -151.962,
+    -18.312,
+    -148.701,
+    -16.124
+   ],
+   "cols": 39,
+   "rows": 26,
+   "cells": 1014
+  },
+  {
+   "rank": 15,
+   "spots": 11,
+   "country": "Philippines",
+   "bbox": [
+    123.367,
+    9.118,
+    126.443,
+    10.61
+   ],
+   "cols": 37,
+   "rows": 18,
+   "cells": 666
+  },
+  {
+   "rank": 16,
+   "spots": 10,
+   "country": "Tonga",
+   "bbox": [
+    -175.812,
+    -21.901,
+    -173.472,
+    -18.115
+   ],
+   "cols": 28,
+   "rows": 45,
+   "cells": 1260
+  },
+  {
+   "rank": 17,
+   "spots": 9,
+   "country": "Ireland",
+   "bbox": [
+    -10.716,
+    53.435,
+    -9.498,
+    54.467
+   ],
+   "cols": 15,
+   "rows": 12,
+   "cells": 180
+  },
+  {
+   "rank": 18,
+   "spots": 9,
+   "country": "USA",
+   "bbox": [
+    -82.651,
+    25.978,
+    -81.587,
+    27.151
+   ],
+   "cols": 13,
+   "rows": 14,
+   "cells": 182
+  },
+  {
+   "rank": 19,
+   "spots": 9,
+   "country": "Indonesia",
+   "bbox": [
+    99.087,
+    -3.271,
+    100.654,
+    -1.567
+   ],
+   "cols": 19,
+   "rows": 20,
+   "cells": 380
+  },
+  {
+   "rank": 20,
+   "spots": 9,
+   "country": "British Virgin Islands/U.S. Virgin Islands",
+   "bbox": [
+    -65.339,
+    17.252,
+    -63.875,
+    18.967
+   ],
+   "cols": 18,
+   "rows": 21,
+   "cells": 378
+  },
+  {
+   "rank": 21,
+   "spots": 9,
+   "country": "USA",
+   "bbox": [
+    -97.857,
+    25.663,
+    -96.39,
+    28.583
+   ],
+   "cols": 18,
+   "rows": 35,
+   "cells": 630
+  },
+  {
+   "rank": 22,
+   "spots": 8,
+   "country": "Bermuda",
+   "bbox": [
+    -65.313,
+    31.81,
+    -64.218,
+    32.837
+   ],
+   "cols": 13,
+   "rows": 12,
+   "cells": 156
+  },
+  {
+   "rank": 23,
+   "spots": 7,
+   "country": "USA",
+   "bbox": [
+    -95.54,
+    28.686,
+    -94.318,
+    29.791
+   ],
+   "cols": 15,
+   "rows": 13,
+   "cells": 195
+  },
+  {
+   "rank": 24,
+   "spots": 7,
+   "country": "USA",
+   "bbox": [
+    -81.935,
+    30.278,
+    -80.969,
+    31.421
+   ],
+   "cols": 12,
+   "rows": 14,
+   "cells": 168
+  },
+  {
+   "rank": 25,
+   "spots": 7,
+   "country": "USA",
+   "bbox": [
+    -120.368,
+    32.862,
+    -117.847,
+    34.53
+   ],
+   "cols": 30,
+   "rows": 20,
+   "cells": 600
+  },
+  {
+   "rank": 26,
+   "spots": 7,
+   "country": "Aruba/Curacao",
+   "bbox": [
+    -70.516,
+    11.595,
+    -68.301,
+    13.064
+   ],
+   "cols": 27,
+   "rows": 18,
+   "cells": 486
+  },
+  {
+   "rank": 27,
+   "spots": 6,
+   "country": "Solomon Islands",
+   "bbox": [
+    156.09,
+    -9.276,
+    158.703,
+    -7.405
+   ],
+   "cols": 31,
+   "rows": 22,
+   "cells": 682
+  },
+  {
+   "rank": 28,
+   "spots": 5,
+   "country": "Cook Islands",
+   "bbox": [
+    -160.292,
+    -21.7,
+    -159.287,
+    -20.736
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  },
+  {
+   "rank": 29,
+   "spots": 5,
+   "country": "Panama",
+   "bbox": [
+    -82.772,
+    8.884,
+    -81.783,
+    9.882
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  },
+  {
+   "rank": 30,
+   "spots": 5,
+   "country": "Vanuatu",
+   "bbox": [
+    167.708,
+    -18.257,
+    169.035,
+    -17.092
+   ],
+   "cols": 16,
+   "rows": 14,
+   "cells": 224
+  },
+  {
+   "rank": 31,
+   "spots": 5,
+   "country": "Indonesia",
+   "bbox": [
+    96.629,
+    0.114,
+    98.382,
+    1.99
+   ],
+   "cols": 21,
+   "rows": 23,
+   "cells": 483
+  },
+  {
+   "rank": 32,
+   "spots": 5,
+   "country": "Brazil",
+   "bbox": [
+    -45.901,
+    -24.391,
+    -44.783,
+    -23.278
+   ],
+   "cols": 13,
+   "rows": 13,
+   "cells": 169
+  },
+  {
+   "rank": 33,
+   "spots": 4,
+   "country": "Solomon Islands",
+   "bbox": [
+    159.646,
+    -9.631,
+    160.858,
+    -8.546
+   ],
+   "cols": 15,
+   "rows": 13,
+   "cells": 195
+  },
+  {
+   "rank": 34,
+   "spots": 4,
+   "country": "Panama",
+   "bbox": [
+    -82.309,
+    6.878,
+    -81.153,
+    8.072
+   ],
+   "cols": 14,
+   "rows": 14,
+   "cells": 196
+  },
+  {
+   "rank": 35,
+   "spots": 4,
+   "country": "Turks and Caicos",
+   "bbox": [
+    -72.469,
+    21.38,
+    -71.43,
+    22.402
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  },
+  {
+   "rank": 36,
+   "spots": 4,
+   "country": "United Kingdom",
+   "bbox": [
+    -3.851,
+    58.289,
+    -2.446,
+    59.369
+   ],
+   "cols": 17,
+   "rows": 13,
+   "cells": 221
+  },
+  {
+   "rank": 37,
+   "spots": 4,
+   "country": "Mauritius/Reunion Island",
+   "bbox": [
+    54.783,
+    -21.819,
+    58.242,
+    -19.54
+   ],
+   "cols": 42,
+   "rows": 27,
+   "cells": 1134
+  },
+  {
+   "rank": 38,
+   "spots": 4,
+   "country": "Australia",
+   "bbox": [
+    152.915,
+    -28.162,
+    153.989,
+    -26.58
+   ],
+   "cols": 13,
+   "rows": 19,
+   "cells": 247
+  },
+  {
+   "rank": 39,
+   "spots": 3,
+   "country": "Indonesia",
+   "bbox": [
+    122.368,
+    -11.36,
+    123.868,
+    -10.022
+   ],
+   "cols": 18,
+   "rows": 16,
+   "cells": 288
+  },
+  {
+   "rank": 40,
+   "spots": 3,
+   "country": "USA",
+   "bbox": [
+    -85.567,
+    29.157,
+    -84.287,
+    30.182
+   ],
+   "cols": 15,
+   "rows": 12,
+   "cells": 180
+  },
+  {
+   "rank": 41,
+   "spots": 3,
+   "country": "Vanuatu",
+   "bbox": [
+    166.645,
+    -16.2,
+    167.684,
+    -15.173
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  },
+  {
+   "rank": 42,
+   "spots": 3,
+   "country": "Fiji",
+   "bbox": [
+    177.509,
+    -19.602,
+    178.938,
+    -18.484
+   ],
+   "cols": 17,
+   "rows": 13,
+   "cells": 221
+  },
+  {
+   "rank": 43,
+   "spots": 3,
+   "country": "Vanuatu",
+   "bbox": [
+    168.767,
+    -20.099,
+    169.941,
+    -18.872
+   ],
+   "cols": 14,
+   "rows": 15,
+   "cells": 210
+  },
+  {
+   "rank": 44,
+   "spots": 3,
+   "country": "Philippines",
+   "bbox": [
+    123.589,
+    13.082,
+    124.867,
+    14.528
+   ],
+   "cols": 15,
+   "rows": 17,
+   "cells": 255
+  },
+  {
+   "rank": 45,
+   "spots": 3,
+   "country": "USA",
+   "bbox": [
+    -71.853,
+    40.799,
+    -69.528,
+    42.022
+   ],
+   "cols": 28,
+   "rows": 15,
+   "cells": 420
+  },
+  {
+   "rank": 46,
+   "spots": 2,
+   "country": "Marshall Islands",
+   "bbox": [
+    171.127,
+    6.523,
+    172.207,
+    7.498
+   ],
+   "cols": 13,
+   "rows": 12,
+   "cells": 156
+  },
+  {
+   "rank": 47,
+   "spots": 2,
+   "country": "Canada",
+   "bbox": [
+    -126.681,
+    48.814,
+    -125.614,
+    49.83
+   ],
+   "cols": 13,
+   "rows": 12,
+   "cells": 156
+  },
+  {
+   "rank": 48,
+   "spots": 2,
+   "country": "Trinidad & Tobago",
+   "bbox": [
+    -61.261,
+    10.719,
+    -60.075,
+    11.775
+   ],
+   "cols": 14,
+   "rows": 13,
+   "cells": 182
+  },
+  {
+   "rank": 49,
+   "spots": 2,
+   "country": "Papua New Guinea",
+   "bbox": [
+    149.512,
+    -3.125,
+    150.902,
+    -1.934
+   ],
+   "cols": 17,
+   "rows": 14,
+   "cells": 238
+  },
+  {
+   "rank": 50,
+   "spots": 2,
+   "country": "Cape Verde",
+   "bbox": [
+    -23.441,
+    16.158,
+    -22.438,
+    17.294
+   ],
+   "cols": 12,
+   "rows": 14,
+   "cells": 168
+  },
+  {
+   "rank": 51,
+   "spots": 2,
+   "country": "Japan",
+   "bbox": [
+    127.2,
+    25.645,
+    128.782,
+    27.332
+   ],
+   "cols": 19,
+   "rows": 20,
+   "cells": 380
+  },
+  {
+   "rank": 52,
+   "spots": 2,
+   "country": "Australia",
+   "bbox": [
+    144.83,
+    -38.871,
+    145.937,
+    -37.864
+   ],
+   "cols": 13,
+   "rows": 12,
+   "cells": 156
+  },
+  {
+   "rank": 53,
+   "spots": 2,
+   "country": "Micronesia",
+   "bbox": [
+    157.678,
+    6.341,
+    158.785,
+    7.428
+   ],
+   "cols": 13,
+   "rows": 13,
+   "cells": 169
+  },
+  {
+   "rank": 54,
+   "spots": 2,
+   "country": "Ecuador",
+   "bbox": [
+    -90.059,
+    -1.402,
+    -88.809,
+    -0.23
+   ],
+   "cols": 15,
+   "rows": 14,
+   "cells": 210
+  },
+  {
+   "rank": 55,
+   "spots": 2,
+   "country": "Malaysia",
+   "bbox": [
+    103.2,
+    0.815,
+    104.673,
+    3.322
+   ],
+   "cols": 18,
+   "rows": 30,
+   "cells": 540
+  },
+  {
+   "rank": 56,
+   "spots": 2,
+   "country": "Belize/Honduras",
+   "bbox": [
+    -88.385,
+    15.85,
+    -85.806,
+    17.996
+   ],
+   "cols": 31,
+   "rows": 26,
+   "cells": 806
+  },
+  {
+   "rank": 57,
+   "spots": 2,
+   "country": "Brazil",
+   "bbox": [
+    -32.868,
+    -4.308,
+    -31.938,
+    -3.407
+   ],
+   "cols": 11,
+   "rows": 11,
+   "cells": 121
+  },
+  {
+   "rank": 58,
+   "spots": 1,
+   "country": "Papua New Guinea",
+   "bbox": [
+    150.336,
+    -11.093,
+    151.349,
+    -10.102
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  },
+  {
+   "rank": 59,
+   "spots": 1,
+   "country": "Micronesia",
+   "bbox": [
+    151.406,
+    6.977,
+    152.363,
+    7.917
+   ],
+   "cols": 11,
+   "rows": 11,
+   "cells": 121
+  },
+  {
+   "rank": 60,
+   "spots": 1,
+   "country": "Portugal",
+   "bbox": [
+    -31.733,
+    38.909,
+    -30.687,
+    39.971
+   ],
+   "cols": 13,
+   "rows": 13,
+   "cells": 169
+  },
+  {
+   "rank": 61,
+   "spots": 1,
+   "country": "Ecuador",
+   "bbox": [
+    -80.723,
+    -3.462,
+    -79.459,
+    -2.219
+   ],
+   "cols": 15,
+   "rows": 15,
+   "cells": 225
+  },
+  {
+   "rank": 62,
+   "spots": 1,
+   "country": "Tuvalu",
+   "bbox": [
+    178.746,
+    -8.985,
+    179.667,
+    -8.016
+   ],
+   "cols": 11,
+   "rows": 12,
+   "cells": 132
+  },
+  {
+   "rank": 63,
+   "spots": 1,
+   "country": "Micronesia",
+   "bbox": [
+    162.471,
+    4.827,
+    163.443,
+    5.785
+   ],
+   "cols": 12,
+   "rows": 11,
+   "cells": 132
+  },
+  {
+   "rank": 64,
+   "spots": 1,
+   "country": "Mexico",
+   "bbox": [
+    -87.469,
+    19.822,
+    -86.305,
+    21.029
+   ],
+   "cols": 14,
+   "rows": 14,
+   "cells": 196
+  },
+  {
+   "rank": 65,
+   "spots": 1,
+   "country": "France",
+   "bbox": [
+    -1.839,
+    45.367,
+    -0.728,
+    46.5
+   ],
+   "cols": 13,
+   "rows": 14,
+   "cells": 182
+  },
+  {
+   "rank": 66,
+   "spots": 1,
+   "country": "Channel Islands",
+   "bbox": [
+    -3.096,
+    48.979,
+    -2.062,
+    49.957
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  },
+  {
+   "rank": 67,
+   "spots": 1,
+   "country": "Papua New Guinea",
+   "bbox": [
+    145.434,
+    -5.206,
+    146.503,
+    -4.089
+   ],
+   "cols": 13,
+   "rows": 13,
+   "cells": 169
+  },
+  {
+   "rank": 68,
+   "spots": 1,
+   "country": "Norway",
+   "bbox": [
+    12.75,
+    67.545,
+    14.569,
+    68.726
+   ],
+   "cols": 22,
+   "rows": 14,
+   "cells": 308
+  },
+  {
+   "rank": 69,
+   "spots": 1,
+   "country": "Vietnam",
+   "bbox": [
+    106.628,
+    9.887,
+    107.645,
+    10.896
+   ],
+   "cols": 12,
+   "rows": 12,
+   "cells": 144
+  }
+ ]
+}

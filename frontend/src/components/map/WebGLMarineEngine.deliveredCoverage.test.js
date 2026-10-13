@@ -91,3 +91,52 @@ describe('resolveDeliveredCoverage — judge the DELIVERY, not the request', () 
     expect(a.forceKey).toBe(b.forceKey);   // same view+grid ⇒ same key; only coverage differed
   });
 });
+
+// ⛔ C4-MR-09 (2026-08-16) — THE ANTIMERIDIAN. `curView` comes from `map.getBounds()`, whose
+// getWest()/getEast() return west > east when the viewport crosses 180°. The plain <=/>= containment
+// above then reports COVERED for a box it does not cover, and the skip is granted — REMOVING a
+// repaint, which is the one direction this function's own header promises never to take ("may only
+// ADD repaints ... never remove a skip"). The engine already carries the idiom for this elsewhere
+// (`_vbEast < _vbWest // viewport crosses the antimeridian`), and it has been bitten here before:
+// the 2026-07 wrap conditions were dead code and "half the field blanked".
+// The fix REFUSES rather than reasons: a wrapped box on either side is never a skip.
+describe('resolveDeliveredCoverage — antimeridian (wrapped boxes are never a skip)', () => {
+  // ⚠️ THE SIZES ARE LOAD-BEARING. A wrap test only DISCRIMINATES when naive containment would have
+  // said COVERED — otherwise it passes with or without the fix. My first draft had cache and view the
+  // wrong way round and TWO of three tests were vacuous; the mutation run exposed it (only 1 of 3 went
+  // red). So: the cache must be WIDER than the view, and each test asserts `naiveCovered` explicitly
+  // so a future edit that breaks the discrimination fails loudly instead of silently.
+  const WRAP_VIEW = { west: 175, south: -10, east: -175, north: 10 };   // narrower, straddles 180°
+  const WRAP_CACHE = { west: 170, south: -20, east: -170, north: 20 };  // wider, also straddles
+  const WORLD = { west: -180, south: -85, east: 180, north: 85 };
+  const naive = (c, v) => c.west <= v.west && c.east >= v.east && c.south <= v.south && c.north >= v.north;
+
+  it('a WRAPPED viewport is short even against a whole-world cache (naive maths said COVERED)', () => {
+    expect(naive(WORLD, WRAP_VIEW)).toBe(true);      // -180<=175 ✓ 180>=-175 ✓ — the old skip
+    const r = resolveDeliveredCoverage(WORLD, WRAP_VIEW, KEY, null, false);
+    expect(r.deliveredShort).toBe(true);
+    expect(r.forceRepaint).toBe(true);
+  });
+
+  it('a WRAPPED cached box is short too — the refusal is symmetric', () => {
+    expect(naive(WRAP_CACHE, WRAP_VIEW)).toBe(true); // 170<=175 ✓ -170>=-175 ✓ — the old skip
+    expect(resolveDeliveredCoverage(WRAP_CACHE, WRAP_VIEW, KEY, null, false).deliveredShort).toBe(true);
+  });
+
+  it('refuses in the SAFE direction: it may add a repaint, never remove one', () => {
+    // Both sides wrapped and naively "covering" — still refused. Costing a repaint is the acceptable
+    // error; granting a skip on a box we cannot reason about is not.
+    const r = resolveDeliveredCoverage(WRAP_CACHE, WRAP_VIEW, KEY, null, false);
+    expect(r.forceRepaint).toBe(true);
+  });
+
+  it('the kill switch still disables the whole check, wrap included', () => {
+    expect(resolveDeliveredCoverage(WORLD, WRAP_VIEW, KEY, null, true).deliveredShort).toBe(false);
+  });
+
+  // NON-VACUITY — the wrap clause must not have turned the function into "always short".
+  it('unwrapped boxes are unaffected: a covering delivery is still NOT short', () => {
+    expect(resolveDeliveredCoverage(COVERS, VIEW, KEY, null, false).deliveredShort).toBe(false);
+    expect(resolveDeliveredCoverage(WORLD, VIEW, KEY, null, false).deliveredShort).toBe(false);
+  });
+});

@@ -16,52 +16,24 @@ import time
 from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
-from starlette.background import BackgroundTasks
+from services.weather_pipeline.reval_queue import SeriesFrame, series_frame_scope
+from services.weather_pipeline.series_source_policy import (
+    has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
+    thinning_mode,
     stamp_build_time_bound,
     stride_for,
 )
+# Moved to grid_series_viewport 2026-09-29 (800-line cap); imported back so callers and test patches see no change.
+from services.weather_pipeline.grid_series_viewport import (
+    _build_euro_marine_series, _build_openmeteo_marine_series, _frame_provenance, _frame_rating_mode)
 
 logger = logging.getLogger(__name__)
 
 MAX_FRAMES = 48
 CONCURRENCY = 4
-
-
-def _frame_rating_mode(grid) -> bool:
-    """True when a series frame is a genuine surf-RATING grid (surf=1 + regional → rating_transform_grid ran,
-    diagnostics.surf_transform.value_kind == 'surf_rating'). The frontend conformer (frameToMarineData) keys
-    `grid.ratingMode` off this so the shader paints the rating band on series-committed frames (the clamp/scrub
-    paths commit series frames, so WITHOUT this the rating band never rendered — the 'no heatmap rating colour'
-    report). False for raw-height / coarse frames (honest swell)."""
-    try:
-        d = getattr(grid, "diagnostics", None) or {}
-        return bool((d.get("surf_transform") or {}).get("value_kind") == "surf_rating")
-    except Exception:
-        return False
-
-
-def _frame_provenance(product) -> dict:
-    """Run/upstream identity for a series frame (2026-08-09, Report 11.0 R11-04).
-
-    Series frames used to strip run_time/upstream_provider/source_dataset/estimate_basis — the
-    per-hour /grid lane serves all four, so this was a serialization gap, not missing data. Two
-    consequences it caused: (1) adjacent scrubber hours could mix MODEL RUNS with no disclosure
-    (each hour resolves independently against a manifest that legitimately holds two run
-    generations mid-cycle); (2) the frontend's model→dataset guess — FALSIFIED for EURO, measured
-    2026-08-03 — stayed the active provenance path for every series-committed frame, because
-    frameToMarineData prefers `frame.upstream_provider` and it was never present. Additive
-    fields only; None where the resolved product carries none. run_time remains the INGEST
-    wall-clock (true model-cycle identity is a separate, Phase-3 item)."""
-    rt = getattr(product, "run_time", None)
-    return {
-        "run_time": rt.strftime("%Y-%m-%dT%H:%M:%SZ") if hasattr(rt, "strftime") else rt,
-        "upstream_provider": getattr(product, "upstream_provider", None),
-        "source_dataset": getattr(product, "source_dataset", None),
-        "estimate_basis": getattr(product, "estimate_basis", None),
-    }
 
 
 # ── BUILD-TIME BOUND (2026-08-10, the Render OOM root) ────────────────────────────────────────
@@ -148,12 +120,15 @@ def _resolver_takes_series_stride(resolve_grid) -> bool:
         return False       # unintrospectable callable -> call it the old way
 
 
-def _apply_build_stride(product, stride: int) -> bool:
+def _apply_build_stride(product, stride: int, mode: str = "stride") -> bool:
     """Decimate one resolved product's grid before the series takes a reference to it.
 
     ⚠️ REBINDS grid.vectors — never mutates it. ProductStore.load_product hands out a SHALLOW
     model_copy, so that list object is the one in _product_cache; an in-place stride would
     decimate the CACHED product and every later reader of it. See decimate_vectors.
+
+    `mode` is `thinning_mode(layer, domain)`: 'max' (peak-preserving, marine heights, opt-in) or the
+    plain 'stride'. Every site that thins a series frame passes the same value (ONE QUANTITY).
     """
     if stride <= 1 or product is None:
         return False
@@ -161,7 +136,7 @@ def _apply_build_stride(product, stride: int) -> bool:
         g = getattr(product, "grid", None)
         if g is None or not getattr(g, "vectors", None):
             return False
-        out = decimate_vectors(g.vectors, g.cols, g.rows, stride)
+        out = decimate_vectors(g.vectors, g.cols, g.rows, stride, mode=mode)
         if out is None:
             return False
         g.vectors, g.cols, g.rows = out
@@ -217,213 +192,71 @@ EURO_NATIVE_HOURS = 240  # EURO marine native horizon; 241..336h are stored ESTI
 OPENMETEO_SERIES_TIMEOUT = 30.0
 
 
-async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hour_list, base):
+# F-01 (audit 14.0): how far a CLIENT-SUPPLIED series anchor may sit from this box's own clock
+# before we refuse it. The anchor exists to reconcile a half-hour phase difference (the browser
+# ROUNDS the hour, this module FLOORS it), so an honest client is always within ~1h. The window is
+# deliberately wider than that -- a laptop with a lazy NTP sync is a legitimate client -- and still
+# far too narrow to let a caller pin the series to an arbitrary time and drive unbounded upstream
+# fetches or poison a shared per-time cache. Anything outside falls back to the server clock and is
+# DISCLOSED as `base_time_source: "client_rejected"`; it is never silently honoured.
+SERIES_ANCHOR_MAX_SKEW_HOURS = 26
+
+
+def _resolve_series_anchor(base_time, server_now):
+    """Return (anchor_datetime, source) for the series.
+
+    source is one of "server" (no anchor asked for), "client" (accepted, snapped to the hour) or
+    "client_rejected" (unparseable or outside the skew window -- server clock used instead).
+
+    Fails OPEN by design: this runs on the scrub hot path, and a hard failure here would blank the
+    heatmap. A bad anchor degrades to exactly the pre-2026-09-20 behaviour.
     """
-    EURO/Copernicus fast path. The per-hour loop hangs for EURO because each hour passes a
-    `valid_time`, which makes copernicus_marine_service fetch only a ±3h CMEMS window per
-    hour (serialized behind a global lock) — N slow downloads. Instead, fetch the FULL
-    forecast range ONCE (valid_time=None) and normalize every requested hour from that one
-    response, reusing the SAME normalizer /grid's dynamic path uses.
-
-    Additive + EURO-marine-only: touches no existing method, cache, or the /grid path. On
-    any problem returns None so build_grid_series falls back to the generic per-hour loop.
-    """
-    from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
-    from services.weather_pipeline.route_helpers import parse_bbox, generate_bbox_coords
-    from services.weather_pipeline.normalizer import WeatherNormalizer
-
-    w, s, e, n = parse_bbox(bbox)
-    bbox_dict = {"west": w, "south": s, "east": e, "north": n}
-
-    # Adaptive resolution + 500-point cap, mirroring the dynamic builder so the grid matches.
-    resolution = 0.25
-    steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
-    lats, lons = generate_bbox_coords(w, s, e, n, resolution)
-    while len(lats) > 500 and resolution != steps[-1]:
-        resolution = steps[min(len(steps) - 1, steps.index(resolution) + 1)]
-        lats, lons = generate_bbox_coords(w, s, e, n, resolution)
-    if not lats:
-        return None
-
-    max_h = max(hour_list) if hour_list else 72
-    forecast_days = min(10, max(3, (max_h // 24) + 2))
-
-    cop = CopernicusProvider()
-    # Shield the full-range fetch from cancellation. If THIS request's outer budget
-    # (EURO_SERIES_TIMEOUT) expires and cancels us, a bare `await` would also cancel the
-    # Copernicus download — so it never finishes, never populates the provider's 10-min cache,
-    # and the NEXT cold load re-pays the full latency and times out again (the >60s hang the
-    # user sees as EURO never serving native data, falling back to the estimate every time).
-    # With shield the download keeps running in the background and caches, so the next series
-    # request resolves from cache and EURO serves its native Copernicus grid (incl. real swell
-    # partitions). Restored from 4bbe81c3 — it was dropped as collateral in the 06-23 00:56 batch
-    # revert (the actual breaker was the coordinator-parity change, re-applied corrected as f0627bf8).
-    raw = await asyncio.shield(cop.fetch_grid(
-        layer=layer, bbox=bbox_dict, resolution=resolution,
-        forecast_days=forecast_days, precomputed_coords=(lats, lons),
-        valid_time=None,  # FULL range in ONE fetch — the entire point of this path
-    ))
-    if not raw:
-        return None
-    raw_list = raw if isinstance(raw, list) else [raw]
-    times = (raw_list[0].get("hourly") or {}).get("time") or []
-    if not times:
-        return None
-
-    frames = []
-    shared_bounds = None
-    shared_cols = shared_rows = 0
-    region_id = f"viewport_series_{w:.2f}_{s:.2f}_{e:.2f}_{n:.2f}"
-    for h in hour_list:
-        target_dt = base + timedelta(hours=h)
-        idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
-        if idx is None:
-            continue
-        t_str = times[idx]
-        t_actual = datetime.fromisoformat((t_str if t_str.endswith("Z") else t_str + "Z").replace("Z", "+00:00"))
-        normalized = await viewport_service.normalizer.normalize_async(
-            model="EURO", provider="copernicus", domain="marine", layer=layer,
-            raw_results=raw_list, bbox=bbox_dict, resolution=resolution,
-            target_time=t_actual, coverage_mode="viewport", region_id=region_id,
-        )
-        if not normalized or not getattr(normalized, "grid", None) or not normalized.grid.vectors:
-            continue
-        g = normalized.grid
-        b = {"west": g.bounds.west, "south": g.bounds.south, "east": g.bounds.east, "north": g.bounds.north} if g.bounds else None
-        if shared_bounds is None and b:
-            shared_bounds, shared_cols, shared_rows = b, g.cols, g.rows
-        frames.append({
-            "hour_offset": h,
-            "valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "cols": g.cols, "rows": g.rows, "bounds": b,
-            "vectors": g.vectors,
-            "provider": getattr(normalized, "provider", "copernicus"),
-            "is_estimated": getattr(normalized, "is_estimated", False),
-            "rating_mode": _frame_rating_mode(g),
-            # §0c: this fast path normalizes each hour directly from one fetch — the frame IS
-            # the exact ask, so honesty fields report identity (uniform schema with the
-            # resolve_grid-backed path below).
-            "served_valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "frame_offset_hours": 0.0,
-            "frame_substituted": False,
-            **_frame_provenance(normalized),
-        })
-
-    frames.sort(key=lambda f: f["hour_offset"])
-    return {
-        "model": "EURO", "domain": "marine", "layer": layer,
-        "base_time": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "bounds": shared_bounds, "cols": shared_cols, "rows": shared_rows,
-        "frame_count": len(frames), "frames": frames,
-    }
-
-
-async def _build_openmeteo_marine_series(viewport_service, model: str, layer: str, bbox: str, hour_list, base):
-    """GFS/ICON marine fast path — the SCRUB analog of the regional-tile warm (mirrors _build_euro_marine_series).
-
-    WHY: the generic per-hour loop calls resolve_grid, whose Step-3.7 serves the instant GLOBAL coarse preview
-    for a cold viewport, so a zoomed-in scrub stays coarse-clamped across ALL hours — and enclosed seas are
-    land-masked at the 10° coarse resolution (the Gulf-of-Mexico "no-data square" while scrubbing GFS waves).
-    Instead, fetch the FULL forecast range ONCE from Open-Meteo for the viewport bbox and normalize EVERY
-    requested hour from that single response, so the whole scrub renders the REGIONAL 0.25° grid (the Gulf
-    fully resolved). One fetch per series page (provider-cached 5 min), reusing the SAME normalizer the generic
-    dynamic path uses. Additive + GFS/ICON-marine-only + fall-through: on ANY problem returns None so
-    build_grid_series uses the generic per-hour loop unchanged. Gated by GFS_ICON_SERIES_FASTPATH (default off)
-    because it trades the manifest-coarse instant render for a live regional fetch (latency + open-meteo load)."""
-    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
-    from services.weather_pipeline.route_helpers import parse_bbox, generate_bbox_coords
-    from services.weather_pipeline.normalizer import WeatherNormalizer
-
-    w, s, e, n = parse_bbox(bbox)
-    bbox_dict = {"west": w, "south": s, "east": e, "north": n}
-
-    # Adaptive resolution + 500-point cap, mirroring the dynamic builder so the grid matches /grid's.
-    resolution = 0.25
-    steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
-    lats, lons = generate_bbox_coords(w, s, e, n, resolution)
-    while len(lats) > 500 and resolution != steps[-1]:
-        resolution = steps[min(len(steps) - 1, steps.index(resolution) + 1)]
-        lats, lons = generate_bbox_coords(w, s, e, n, resolution)
-    if not lats:
-        return None
-
-    max_h = max(hour_list) if hour_list else 72
-    forecast_days = min(16, max(3, (max_h // 24) + 2))
-
-    provider = OpenMeteoProvider()
-    # Shield the fetch (like EURO) so a cancelled request still warms the provider's 5-min cache for next time.
-    raw = await asyncio.shield(provider.fetch_grid(
-        model=model, domain="marine", layer=layer, bbox=bbox_dict,
-        resolution=resolution, forecast_days=forecast_days, precomputed_coords=(lats, lons),
-    ))
-    if not raw:
-        return None
-    raw_list = raw if isinstance(raw, list) else [raw]
-    times = (raw_list[0].get("hourly") or {}).get("time") or []
-    if not times:
-        return None
-
-    frames = []
-    shared_bounds = None
-    shared_cols = shared_rows = 0
-    region_id = f"viewport_series_{w:.2f}_{s:.2f}_{e:.2f}_{n:.2f}"
-    for h in hour_list:
-        target_dt = base + timedelta(hours=h)
-        idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
-        if idx is None:
-            continue
-        t_str = times[idx]
-        t_actual = datetime.fromisoformat((t_str if t_str.endswith("Z") else t_str + "Z").replace("Z", "+00:00"))
-        normalized = await viewport_service.normalizer.normalize_async(
-            model=model, provider="open-meteo", domain="marine", layer=layer,
-            raw_results=raw_list, bbox=bbox_dict, resolution=resolution,
-            target_time=t_actual, coverage_mode="viewport", region_id=region_id,
-        )
-        if not normalized or not getattr(normalized, "grid", None) or not normalized.grid.vectors:
-            continue
-        g = normalized.grid
-        b = {"west": g.bounds.west, "south": g.bounds.south, "east": g.bounds.east, "north": g.bounds.north} if g.bounds else None
-        if shared_bounds is None and b:
-            shared_bounds, shared_cols, shared_rows = b, g.cols, g.rows
-        frames.append({
-            "hour_offset": h,
-            "valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "cols": g.cols, "rows": g.rows, "bounds": b,
-            "vectors": g.vectors,
-            "provider": getattr(normalized, "provider", "open-meteo"),
-            "is_estimated": getattr(normalized, "is_estimated", False),
-            "rating_mode": _frame_rating_mode(g),
-            # §0c: find_closest_time_index can snap to a NEIGHBORING available time — this path
-            # can genuinely substitute, so compute the real offset (ask = base+h, served =
-            # t_actual) rather than reporting identity.
-            "served_valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "frame_offset_hours": round((t_actual - target_dt).total_seconds() / 3600.0, 2),
-            "frame_substituted": abs((t_actual - target_dt).total_seconds()) > 1800,
-            **_frame_provenance(normalized),
-        })
-
-    frames.sort(key=lambda f: f["hour_offset"])
-    return {
-        "model": model, "domain": "marine", "layer": layer,
-        "base_time": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "bounds": shared_bounds, "cols": shared_cols, "rows": shared_rows,
-        "frame_count": len(frames), "frames": frames,
-    }
+    server_anchor = server_now.replace(minute=0, second=0, microsecond=0)
+    if base_time is None or str(base_time).strip() == "":
+        return server_anchor, "server"
+    try:
+        raw = str(base_time).strip().replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(raw)
+        # The contract is UTC. A naive stamp is UTC, never this box's local zone -- reading it as
+        # local time would shift the whole series by the server's offset.
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        parsed = parsed.astimezone(timezone.utc)
+    except Exception:
+        return server_anchor, "client_rejected"
+    if abs((parsed - server_now).total_seconds()) > SERIES_ANCHOR_MAX_SKEW_HOURS * 3600:
+        return server_anchor, "client_rejected"
+    # The series grid is hourly; snap so a smeared client clock cannot produce fractional frames.
+    return parsed.replace(minute=0, second=0, microsecond=0), "client"
 
 
 async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str,
-                            bbox: str, hours: str, request=None, surf: bool = False) -> dict:
+                            bbox: str, hours: str, request=None, surf: bool = False,
+                            base_time: str = None) -> dict:
     """Public entry point: build the series, then BOUND it (audit v7 §3).
 
     A thin wrapper, deliberately. This module has THREE assembly points -- the EURO fast path, the
     Open-Meteo fast path, and the generic per-hour loop -- and a budget applied at one of them is
     the "guard ran nowhere" class this codebase has now hit seven times. Every path returns through
     here, so the invariant lives here and cannot be routed around by a future fourth path.
+
+    `base_time` is the CLIENT'S absolute series anchor (F-01, audit 14.0). Before it existed this
+    module floored its own clock while the browser rounded its own, so the two disagreed by exactly
+    one hour whenever the minute was >= 30 -- with no way to reconcile them, because the request
+    carried only hour OFFSETS. Omitting it reproduces the old behaviour byte-for-byte.
+    `base_time_source` is stamped on EVERY response here, at the single funnel, for the same reason
+    the budget is: a disclosure applied at one of three assembly points is a disclosure that ran
+    nowhere.
     """
+    anchor, anchor_source = _resolve_series_anchor(base_time, datetime.now(timezone.utc))
     resp = await _build_grid_series_impl(
         resolve_grid, viewport_service, model, domain, layer, bbox, hours,
-        request=request, surf=surf,
+        request=request, surf=surf, base_anchor=anchor,
     )
+    try:
+        resp["base_time_source"] = anchor_source
+    except Exception:
+        logger.exception("[series-anchor] could not stamp base_time_source")
     # RUN CENSUS (2026-08-09, R11-04): each hour resolves independently, so ONE response can mix
     # model runs mid-ingest (~1-2.75 h window, 6x/day) — physically discontinuous adjacent frames.
     # Frames now carry run_time; the census makes a mixed page detectable at a glance (client-side
@@ -443,7 +276,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
         return resp
 
 
-async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
+async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False, base_anchor=None) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
     per requested hour with its valid_time so every frame matches exactly what the live
@@ -469,7 +302,10 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     if not hour_list:
         raise HTTPException(status_code=400, detail="no valid hours provided")
 
-    base = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+    # F-01 (audit 14.0): the anchor now arrives resolved from build_grid_series, which reconciles
+    # the client's rounded hour with this box's floored one. The `or` keeps every direct caller of
+    # this private impl (tests, any future internal path) on the historic floor behaviour.
+    base = base_anchor or datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
     # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic per-hour
     # loop below hangs for EURO — each hour is a separate ±3h CMEMS download). Additive +
@@ -528,19 +364,21 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # no-data square during scrub). Additive + fall-through: on any failure the generic per-hour loop below runs
     # unchanged. Default off because it trades the instant manifest-coarse render for a live regional fetch.
     #
-    # SWR budget (audit #24, 2026-07-11): Render logs showed the await hitting the 30s ceiling on 62% of
-    # attempts (+21% upstream 400s, 17% empty) — every one a 30s-held request on the 1-CPU box before the
-    # instant stored fallback. The inner fetch is SHIELDED, so on timeout it keeps running and warms the
-    # provider's 5-min cache; the client's coarse-reval machinery already re-fetches spaced retries. So the
-    # long await bought nothing: await only a short first-paint budget (warm-cache scrubs still return
-    # regional frames instantly), fall back fast otherwise, and let the reval pick up the warmed cache.
-    # Revert lever: GFS_ICON_SERIES_FASTPATH_WAIT_SEC=30.
-    if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
+    # SWR budget (audit #24, 2026-07-11): the await hit the 30s ceiling on 62% of attempts on the 1-CPU box.
+    # The fetch is SHIELDED (a timeout still warms the provider's 5-min cache), so await only a short
+    # first-paint budget and let the client's reval pick up the warmed cache. Revert: ..._WAIT_SEC=30.
+    # T-01 (audit 14.1): skip the live lane when stored cycle-identified products cover every hour exactly.
+    live_series = (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
             and viewport_service is not None
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
-            and not await _client_gone()):
+            and not await _client_gone())
+    # Commitment 228: a world-scale live grid (15 deg) cannot beat the stored 2 deg field; skip it outright.
+    if live_series and await live_lane_cannot_beat_stored(viewport_service, model, domain, layer, bbox, hour_list, base):
+        live_series = False
+    prefer_stored = live_series and await has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hour_list, base)
+    if live_series and not prefer_stored:
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
@@ -561,7 +399,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # hour resolves and reveals the geometry; `hours` records which frames were ACTUALLY rewritten
     # so the response stamp counts them instead of assuming; `before` accumulates what the series
     # would have retained, so the saving is measured rather than claimed.
-    bound = {"stride": 1, "hours": set(), "before": 0}
+    bound = {"stride": 1, "hours": set(), "before": 0, "mode": thinning_mode(layer, domain)}
 
     async def _build_one(h: int, warm_regional: bool = False):
         if time.monotonic() > deadline or await _client_gone():
@@ -579,12 +417,29 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 #   * That schedule runs via asyncio.create_task ONLY when background_tasks is falsy; a (throwaway)
                 #     BackgroundTasks() just .add_task()s to an object that never executes outside a request — so
                 #     grid_series served the global preview FOREVER and the heatmap stayed coarse-clamped.
-                # Pass None for the FIRST hour so the regional revalidation actually fires (warming the tile once
-                # for the bbox); throwaway for the rest so we don't fan out N background fetches on the 1-CPU box.
-                bg = None if warm_regional else BackgroundTasks()
+                # The FIRST hour warms the tile once for the bbox; the rest must not fan out N background
+                # fetches on the 1-CPU box.
+                # ⛔ 2026-10-09: "the rest" got a throwaway BackgroundTasks(), which is truthy, so every site
+                # still REGISTERED the key and queued the fetch on an object nothing runs. The key was never
+                # discarded: two prefetch frames held both MARINE_REVAL_QUEUE_MAX slots for good and the hour
+                # being viewed never sharpened. SeriesFrame says what the frame is; reval_queue enforces it
+                # (no key without a task, and a warm frame never takes the slot kept for the viewed hour).
+                bg = SeriesFrame(warm=warm_regional)
                 # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole
                 # series; cold budget while the L2 restore is in flight (see PER_HOUR_TIMEOUT_COLD).
-                _t = _per_hour_timeout()
+                # ── DEADLINE-CLAMPED PER-HOUR BUDGET (2026-09-21) ────────────────────────
+                # OVERALL_DEADLINE was checked only BEFORE starting an hour, while the per-hour
+                # BOUND is 10s (16s cold) — not the "~1s each measured" its headroom note assumes.
+                # So an hour starting at t=19.9s ran to t=29.9s, past NETLIFY_PROXY_WINDOW_S, the
+                # TOTAL loss that comment exists to prevent. ⭐ The headroom was sized against the
+                # TYPICAL cost instead of the BOUND it must contain. Hour 0 is unaffected (t≈0 ⇒
+                # min() returns its full cold budget).
+                # Full reconciliation, incl. the two-service-state readings that show this is NOT a
+                # symptom of that day's saturation: tests/test_grid_series_deadline_bound.py.
+                _remaining = deadline - time.monotonic()
+                if _remaining <= 0:
+                    return (h, None)
+                _t = min(_per_hour_timeout(), _remaining)
                 # ── LOAD-TIME BOUND (2026-08-10) ──────────────────────────────────────────────
                 # By the time hour 0 has resolved, `bound["stride"]` is known — and every
                 # remaining hour is going to be strided by exactly that number a few lines below.
@@ -600,13 +455,16 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 _kw = {}
                 if bound["stride"] > 1 and _resolver_takes_series_stride(resolve_grid):
                     _kw["series_stride"] = bound["stride"]
-                product = await asyncio.wait_for(
-                    resolve_grid(
-                        model=model, domain=domain, layer=layer,
-                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg, **_kw
-                    ),
-                    timeout=_t,
-                )
+                # The frame also marks what it starts deeper down, where `bg` does not reach: a failed
+                # fine-wind fetch's native recovery (wind_native_recovery, 2026-10-09).
+                with series_frame_scope(bg):
+                    product = await asyncio.wait_for(
+                        resolve_grid(
+                            model=model, domain=domain, layer=layer,
+                            valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg, **_kw
+                        ),
+                        timeout=_t,
+                    )
             # Bound this hour BEFORE the gather can collect it — the whole point (see above).
             _g = getattr(product, "grid", None) if product is not None else None
             if _g is not None and getattr(_g, "vectors", None):
@@ -623,7 +481,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 # `test_a_small_viewport_is_never_decimated` caught exactly that.
                 if bound["stride"] > 1 and _load_stride_of(_g) == bound["stride"]:
                     bound["hours"].add(h)          # already at target geometry; stamp, don't redo
-                elif _apply_build_stride(product, bound["stride"]):
+                elif _apply_build_stride(product, bound["stride"], bound["mode"]):
                     bound["hours"].add(h)
             return (h, product)
         except asyncio.TimeoutError:
@@ -640,13 +498,13 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     try:
         results = []
         if loop_hours:
-            # First hour warms the regional viewport tile (background_tasks=None → the SWR revalidation fires)
+            # First hour warms the regional viewport tile (SeriesFrame(warm=True) → the SWR revalidation fires)
             # so the NEXT series request for this bbox serves the precise regional grid instead of global-coarse.
             results = [await _build_one(loop_hours[0], warm_regional=True)]
             # The first hour is home: its geometry picks the stride for every remaining hour — and
             # for itself, since it was built before that stride could be known.
             bound["stride"] = _series_build_stride(results[0][1], len(loop_hours))
-            if _apply_build_stride(results[0][1], bound["stride"]):
+            if _apply_build_stride(results[0][1], bound["stride"], bound["mode"]):
                 bound["hours"].add(results[0][0])
             if len(loop_hours) > 1:
                 results.extend(await asyncio.gather(*[_build_one(h) for h in loop_hours[1:]], return_exceptions=True))
@@ -677,8 +535,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "provider": getattr(product, "provider", None),
             "is_estimated": getattr(product, "is_estimated", False),
             "rating_mode": _frame_rating_mode(g),
-            # Present only on frames this build actually strided, so a client can tell a
-            # decimated frame from a natively-small one (they are otherwise identical).
+            # Only on frames this build strided: tells a decimated frame from a natively-small one.
             **({"decimated_stride": bound["stride"]} if h in bound["hours"] else {}),
             # §0c SERVING HONESTY: valid_time above echoes the per-hour ask (resolve_grid's
             # contract); these carry the frame actually served — stamped by stamp_frame_honesty
@@ -687,6 +544,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "frame_offset_hours": getattr(product, "frame_offset_hours", 0.0),
             "frame_substituted": getattr(product, "frame_substituted", False),
             **_frame_provenance(product),
+            **{k: getattr(product, k, None) for k in ("product_id", "region_id", "upstream_model", "wind_lane")},  # STORED id (A15-09); lane (D-017)
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames
@@ -701,6 +559,11 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                 bound["before"] += len(pf.get("vectors") or [])
                 if shared_bounds is None and pf.get("bounds"):
                     shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
+    if prefer_stored and not await _client_gone():   # a listed file that failed to load: fill ONLY that hour live
+        await recover_missing_hours(lambda hs: _build_openmeteo_marine_series(viewport_service, model, layer, bbox, hs, base), frames, hour_list,
+                                    min(float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5")), OPENMETEO_SERIES_TIMEOUT))
+        if shared_bounds is None and frames and frames[0].get("bounds"):
+            shared_bounds, shared_cols, shared_rows = frames[0]["bounds"], frames[0].get("cols", 0), frames[0].get("rows", 0)
 
     frames.sort(key=lambda f: f["hour_offset"])
     resp = {
@@ -721,7 +584,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # (build_grid_series) and will find the response already under budget, so it no-ops — the
     # stamp has to come from here or the diagnostic would silently vanish for bounded pages.
     if bound["stride"] > 1:
-        stamp_build_time_bound(resp, bound["stride"], len(bound["hours"]), bound["before"])
+        stamp_build_time_bound(resp, bound["stride"], len(bound["hours"]), bound["before"], mode=bound["mode"])
     if not frames and _restore_in_progress():
         resp["warming"] = True
     return resp

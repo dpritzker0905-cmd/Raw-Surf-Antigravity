@@ -20,6 +20,17 @@ from services.weather_pipeline.schemas import CoverageBounds, ManifestProduct, P
 from services.weather_pipeline.store import reconcile_manifest_products_for_upload
 
 
+import pytest as _pytest_retention
+
+
+@_pytest_retention.fixture(autouse=True)
+def _retention_out_of_scope(monkeypatch):
+    """These tests pin MERGE semantics on fixtures dated 2026-07; the upload-time retention filter
+    (audit 15.0) would otherwise treat every one as expired. Retention has its own suite:
+    tests/test_manifest_retention_holds.py."""
+    monkeypatch.setenv("MANIFEST_RETENTION_DAYS", "36500")
+
+
 def _cov():
     return CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
 

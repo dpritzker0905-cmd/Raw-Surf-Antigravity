@@ -1,0 +1,21 @@
+{
+  "baseline_head": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "mutation": "Disable only normalized-resultant rejection",
+  "restored_exact_bytes": true,
+  "results": [
+    {
+      "label": "frontend-direction-before",
+      "returncode": 1,
+      "numPassedTests": 6,
+      "numFailedTests": 37,
+      "numPendingTests": 0
+    },
+    {
+      "label": "frontend-direction-mutation",
+      "returncode": 1,
+      "numPassedTests": 0,
+      "numFailedTests": 10,
+      "numPendingTests": 33
+    }
+  ]
+}

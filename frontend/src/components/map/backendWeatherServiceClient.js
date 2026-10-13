@@ -9,11 +9,13 @@
 
 import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { readMarineSurfMode } from './marineSurfMode';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
 import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
 import { arrayMax, arrayMin } from './marineControllerUtils';
+import { blendSubVector } from './marineDirectionBlend';
 
 
 export { BoundedPointCache };
@@ -144,7 +146,7 @@ export function getSurfModeFlag() {
   if (typeof window === 'undefined') return false;
   if (window.__SURF_MODE__ !== undefined) return !!window.__SURF_MODE__;
   try {
-    const persisted = window.localStorage.getItem('__SURF_MODE__') === 'true';
+    const persisted = readMarineSurfMode(window);
     // BOOT-RACE PIN (2026-07-03): stamp the window flag on FIRST read so every reader —
     // including the raw `window.__SURF_MODE__` inline reads in the engine — agrees for the whole
     // boot. Before this, code reading the window flag directly saw `undefined` (falsy) until the
@@ -182,14 +184,37 @@ export function getBackendIconMarineFlag() {
 }
 
 /**
+ * THE frontend forecast anchor, in epoch ms: "now" snapped to the NEAREST whole hour.
+ *
+ * F-01 (audit 14.0). This value used to be computed inline inside getSharedValidTime only, while
+ * the /grid_series backend independently FLOORED its own clock. The two agree for 30 minutes of
+ * every hour and disagree by exactly one hour for the other 30 — so the committed series frame
+ * silently differed from the hour the wheel displayed (measured live 2026-09-20 20:52Z: requested
+ * 21Z, committed 20Z). It is exported so every caller that needs the anchor reads THIS one rather
+ * than re-deriving it; the series request now transmits it, and the backend honours it.
+ *
+ * ⚠️ Do not "fix" a future anchor disagreement by adding a second rounding rule here. There is one
+ * anchor; if a consumer disagrees with it, transmit this value to that consumer instead.
+ */
+export function getSeriesAnchorMs() {
+  const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
+  return Math.round(baseTime / 3600000) * 3600000;
+}
+
+/** The same anchor as an ISO-8601 UTC string, which is the wire format /grid_series accepts. */
+export function getSeriesAnchorIso() {
+  return new Date(getSeriesAnchorMs()).toISOString();
+}
+
+/**
  * Computes a standardized snapped UTC ISO string from hourOffset.
  * Resolves the nearest valid_time from cachedManifest when available (max 3h delta).
  * Provides the single source of authority for matching grid/point time dimensions.
+ * Diagnostic callers use readOnly to avoid manifest refreshes or serving diagnostic writes.
  */
-export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS') {
+export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName = 'GFS', { readOnly = false, anchorMs = null, domain = null } = {}) {
   const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
-  const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
-  const roundedNow = Math.round(baseTime / 3600000) * 3600000;
+  const roundedNow = anchorMs ?? getSeriesAnchorMs();
   const targetDt = new Date(roundedNow + offset * 3600000);
   const requestedValidTime = targetDt.toISOString();
 
@@ -198,7 +223,7 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   let fallbackReason = null;
 
   const filterLayer = (layer || 'waves').toLowerCase();
-  const filterDomain = filterLayer === 'wind' ? 'wind' : 'marine';
+  const filterDomain = domain || (filterLayer === 'wind' ? 'wind' : 'marine');
   const filterModel = (modelName || 'GFS').toUpperCase();
 
   const manifest = getCachedManifest();
@@ -237,11 +262,11 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   } else {
     fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
     // Prefetch or refresh manifest in background
-    fetchProductsManifest(true).catch(() => {});
+    if (!readOnly) fetchProductsManifest(true).catch(() => {});
   }
 
   const cacheDiagKey = `${filterModel}_${filterLayer}`;
-  latestTimeDiag[cacheDiagKey] = {
+  if (!readOnly) latestTimeDiag[cacheDiagKey] = {
     requestedValidTime,
     selectedManifestValidTime,
     manifestDeltaHours,
@@ -269,7 +294,11 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
   await fetchProductsManifest().catch(() => null);
 
-  if (model === 'ICON' && hourOffset > 168) {
+  // D-001: changing displayed forecasts stays dark until the owner authorizes a flip.
+  // When enabled, use the backend's stored estimate and its product/run/served-time identity.
+  // Secondary swell retains its separately disclosed legacy estimate (D-003).
+  const storedIconTail = process.env.REACT_APP_ICON_STORED_TAIL === 'true';
+  if (model === 'ICON' && hourOffset > 168 && (!storedIconTail || layer === 'swell_2')) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to existing swell_2 blender below
     } else {
@@ -354,34 +383,17 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       let maxSpeed = 0, nonzeroCount = 0;
 
       const blendedVectors = primaryVectors.map(pv => {
-        let speed = pv.speed || 0;
-        let u = pv.u || 0;
-        let v = pv.v || 0;
-        let period = pv.period || 0;
-
         const sv = secondaryLookup ? secondaryLookup.get(skey(pv.lat, pv.lng)) : null;
-        const sSpeed = sv ? (sv.speed || 0) : 0;
-        if (sSpeed > 0 && speed > 0) {
-          // both sources have secondary swell here -> weighted blend
-          speed = speed * primaryW + sSpeed * secondaryW;
-          u = u * primaryW + (sv.u || 0) * secondaryW;
-          v = v * primaryW + (sv.v || 0) * secondaryW;
-          period = period * primaryW + (sv.period || 0) * secondaryW;
-        } else if (sSpeed > 0) {
-          // only the secondary source has it -> use it fully (fills the anchor grid's gaps, e.g. EURO in
-          // the Gulf where GFS is 0/coarse). This is what kills the no-swell square.
-          speed = sSpeed; u = sv.u || 0; v = sv.v || 0; period = sv.period || 0;
-        }
-        // else: only the primary source (or neither) -> keep the primary value
-
-        if (speed > maxSpeed) maxSpeed = speed;
-        if (speed > 0) nonzeroCount++;
-
-        return {
-          lat: pv.lat, lng: pv.lng,
-          speed, u, v, period,
-          is_valid: pv.is_valid !== false
-        };
+        const pAvailable = pv.isOcean !== false && pv.is_valid !== false;
+        const sAvailable = sv && sv.isOcean !== false && sv.is_valid !== false;
+        // Keep full-strength single-source ocean coverage, but never synthesize a bearing
+        // from cancelling directions or include a masked secondary source.
+        const blended = pAvailable && sAvailable && pv.speed > 0 && sv.speed > 0
+          ? blendSubVector(pv, sv, primaryW, secondaryW)
+          : blendSubVector(sAvailable && sv.speed > 0 ? sv : (pAvailable ? pv : null), null, 1, 0);
+        if (blended.speed > maxSpeed) maxSpeed = blended.speed;
+        if (blended.speed > 0) nonzeroCount++;
+        return { lat: pv.lat, lng: pv.lng, ...blended };
       });
 
       const blendedGrid = {
@@ -414,7 +426,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
           euro_weight: EURO_WEIGHT,
           gfs_vectors: gfsVectors.length,
           euro_vectors: euroVectors.length,
-          source_model: 'ncep_gfswave025+ecmwf_wam025'
+          source_model: `${gfsGrid?.grid?.__sourceDataset || 'ncep_gfswave025'}+${euroGrid?.grid?.__sourceDataset || 'cmems_mod_glo_wav_anfc_0.083deg_PT3H-i'}` // A15-01: EURO swell_2 is CMEMS, not WAM
         }
       };
 

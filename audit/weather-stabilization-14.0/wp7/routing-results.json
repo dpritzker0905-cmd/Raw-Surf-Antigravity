@@ -1,0 +1,330 @@
+{
+  "captured_at": "2026-09-20T20:37:04.338Z",
+  "head": "eb715a150ba59499aad3c675d50130fa3cfef6ad",
+  "source_sha256": {
+    "frontend/src/components/map/LayerRegistry.js": "ca0820c9e9e2894729dd848058a8dd8d164ba01563d2553b3135e367032ea000",
+    "frontend/src/components/map/useOpenMeteoTileUrls.js": "4538db4fb781ebf713e464f7566c07c23776b417cf23c61efbc438bc5ca80ba8",
+    "frontend/src/components/map/modelHorizons.js": "ca2e9ed0fa33212683d8fcfb1b6c9ad7fadcc837048369bd2498603f79049f92"
+  },
+  "method": "Unmodified resolveModel function extracted from hook, real registry maps/entries/constants; VM invocation; axis-floor default OFF.",
+  "limits": "Isolated routing execution only: not React mounting, live provider availability, decoded pixels, or browser display verification. No network access.",
+  "checks": 45,
+  "passed": 45,
+  "rows": [
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "GFS",
+      "offset_hours": 0,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "GFS",
+      "offset_hours": 168,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "GFS",
+      "offset_hours": 169,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "GFS",
+      "offset_hours": 228,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "GFS",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "ICON",
+      "offset_hours": 0,
+      "rendered_model": "dwd_icon"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "ICON",
+      "offset_hours": 168,
+      "rendered_model": "dwd_icon"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "ICON",
+      "offset_hours": 169,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "ICON",
+      "offset_hours": 228,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "ICON",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "EURO",
+      "offset_hours": 0,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "EURO",
+      "offset_hours": 168,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "EURO",
+      "offset_hours": 169,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "EURO",
+      "offset_hours": 228,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "satellite",
+      "variable": "cloud_cover",
+      "selected_model": "EURO",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "GFS",
+      "offset_hours": 0,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "GFS",
+      "offset_hours": 168,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "GFS",
+      "offset_hours": 169,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "GFS",
+      "offset_hours": 228,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "GFS",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "ICON",
+      "offset_hours": 0,
+      "rendered_model": "dwd_icon"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "ICON",
+      "offset_hours": 168,
+      "rendered_model": "dwd_icon"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "ICON",
+      "offset_hours": 169,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "ICON",
+      "offset_hours": 228,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "ICON",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "EURO",
+      "offset_hours": 0,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "EURO",
+      "offset_hours": 168,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "EURO",
+      "offset_hours": 169,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "EURO",
+      "offset_hours": 228,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "temperature",
+      "variable": "temperature_2m",
+      "selected_model": "EURO",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "GFS",
+      "offset_hours": 0,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "GFS",
+      "offset_hours": 168,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "GFS",
+      "offset_hours": 169,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "GFS",
+      "offset_hours": 228,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "GFS",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "ICON",
+      "offset_hours": 0,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "ICON",
+      "offset_hours": 168,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "ICON",
+      "offset_hours": 169,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "ICON",
+      "offset_hours": 228,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "ICON",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "EURO",
+      "offset_hours": 0,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "EURO",
+      "offset_hours": 168,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "EURO",
+      "offset_hours": 169,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "EURO",
+      "offset_hours": 228,
+      "rendered_model": "ecmwf_ifs025"
+    },
+    {
+      "layer": "water_temp",
+      "variable": "surface_temperature",
+      "selected_model": "EURO",
+      "offset_hours": 229,
+      "rendered_model": "ncep_gfs013"
+    }
+  ]
+}

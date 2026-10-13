@@ -13,7 +13,7 @@ from database import get_db
 from models import Profile, SurferGalleryItem, SurferGalleryClaimQueue
 from core.security import get_user_id_from_jwt_or_query
 from .schemas import ClaimMatchRequest, ClaimBatchRequest, ConfirmIdentityRequest, _parse_match_reasons
-from .entitlements import get_session_entitlements
+from .entitlements import get_session_entitlements, consume_live_photo_credit
 
 router = APIRouter(prefix="/surfer-gallery", tags=["Surfer Gallery Review"])
 logger = logging.getLogger(__name__)
@@ -135,9 +135,10 @@ async def claim_single_match(
     if not queue_item:
         raise HTTPException(status_code=404, detail="Match not found")
 
-    entitlements = await get_session_entitlements(
-        request.session_id, user_id, db
-    )
+    stored_session = queue_item.booking_id or queue_item.live_session_id
+    if not stored_session or request.session_id != stored_session:
+        raise HTTPException(status_code=409, detail="Match session does not agree with stored media")
+    entitlements = await get_session_entitlements(stored_session, user_id, db)
 
     if entitlements["is_all_inclusive"]:
         access_type = "included"
@@ -158,6 +159,8 @@ async def claim_single_match(
         access_type = "purchased"
         payment_method = "credits"
 
+    if access_type == 'included' and queue_item.live_session_id:
+        await consume_live_photo_credit(queue_item.live_session_id, user_id, db)
     surfer_item = SurferGalleryItem(
         surfer_id=user_id,
         gallery_item_id=queue_item.gallery_item_id,
@@ -201,6 +204,18 @@ async def claim_matches_batch(
     """
     if not request.match_ids:
         raise HTTPException(status_code=400, detail="No matches selected")
+    if len(set(request.match_ids)) != len(request.match_ids):
+        raise HTTPException(status_code=400, detail="Duplicate matches are not allowed")
+    context = await db.execute(select(SurferGalleryClaimQueue).where(
+        SurferGalleryClaimQueue.id.in_(request.match_ids),
+        SurferGalleryClaimQueue.surfer_id == user_id,
+        SurferGalleryClaimQueue.status == "pending"))
+    queues = context.scalars().all()
+    if len(queues) != len(request.match_ids):
+        raise HTTPException(status_code=404, detail="Match not found")
+    if any((q.booking_id or q.live_session_id) != request.session_id for q in queues):
+        raise HTTPException(status_code=409, detail="Match session does not agree with stored media")
+
 
     entitlements = await get_session_entitlements(
         request.session_id, user_id, db
@@ -251,6 +266,8 @@ async def claim_matches_batch(
             access_type = "purchased"
             payment_method = "credits"
 
+        if access_type == 'included' and queue_item.live_session_id:
+            await consume_live_photo_credit(queue_item.live_session_id, user_id, db)
         surfer_item = SurferGalleryItem(
             surfer_id=user_id,
             gallery_item_id=queue_item.gallery_item_id,

@@ -704,12 +704,44 @@ input[type="range"].appearance-none::-moz-range-track {
   color: #b45309 !important; /* text-amber-700 */
 }
 
+/* The beta gate stays dark in every theme. Outrank the broad input overrides above. */
+.access-code-screen .access-code-input {
+  color: #ffffff !important;
+  caret-color: #ffffff;
+}
+
+.access-code-screen .access-code-input::placeholder {
+  color: #a1a1aa !important;
+}
+
 /* ============ AUTHENTICATION THEME CONTRAST ============ */
 /* Auth is available before sign-in, so it must respect a previously saved theme. */
 .auth-page {
+  --auth-muted: 0 0% 40%;
+  --auth-border: 0 0% 45%;
+  --auth-field: 0 0% 96%;
+  --auth-focus: 200 100% 30%;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+.dark .auth-page {
+  --auth-muted: 0 0% 64%;
+  --auth-border: 0 0% 55%;
+  --auth-field: 0 0% 15%;
+  --auth-focus: 45 100% 50%;
+}
+
+.beach-mode .auth-page {
+  --auth-muted: 0 0% 75%;
+  --auth-border: 0 0% 60%;
+  --auth-field: 0 0% 8%;
+  --auth-focus: 80 80% 50%;
+}
+
+.auth-page .auth-muted { color: hsl(var(--auth-muted)); }
+.auth-page .auth-link { color: hsl(var(--auth-focus)); }
+.auth-page .auth-control-border { border-color: hsl(var(--auth-border)); }
 
 .auth-card {
   background-color: hsl(var(--card)) !important;
@@ -723,19 +755,21 @@ input[type="range"].appearance-none::-moz-range-track {
 
 /* The important declarations deliberately outrank the legacy broad theme input rules above. */
 .auth-card .auth-input {
-  background-color: hsl(var(--input)) !important;
-  border-color: hsl(var(--border)) !important;
+  background-color: hsl(var(--auth-field)) !important;
+  border-color: hsl(var(--auth-border)) !important;
   color: hsl(var(--foreground)) !important;
   caret-color: hsl(var(--foreground));
 }
 
 .auth-card .auth-input::placeholder {
-  color: hsl(var(--foreground) / 0.72) !important;
+  color: hsl(var(--auth-muted)) !important;
   opacity: 1;
 }
 
 .auth-card .auth-input:focus-visible {
-  border-color: hsl(var(--ring)) !important;
+  border-color: hsl(var(--auth-focus)) !important;
+  outline: 2px solid hsl(var(--auth-focus));
+  outline-offset: 2px;
 }
 /* ============ COMPACT MESSAGES VIEW ON SHORT VERTICAL SCREENS ============ */
 @media (max-height: 800px) and (min-width: 768px) {

@@ -204,7 +204,7 @@ const HashtagAutocomplete = forwardRef(({
       {/* Hint */}
       <div className="px-3 py-1.5 bg-muted/30 border-t border-border">
         <p className="text-[10px] text-muted-foreground">
- ?? Navigate Enter Select Esc Close
+          &uarr;&darr; Navigate &middot; Enter Select &middot; Esc Close
         </p>
       </div>
     </div>

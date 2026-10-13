@@ -1,0 +1,1306 @@
+[
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Wind",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 524,
+    "dominantPct": 27.5,
+    "mean": [
+      44,
+      69,
+      78
+    ],
+    "meanSaturation": 0.321,
+    "topColors": [
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27.5
+      },
+      {
+        "rgb": [
+          24,
+          24,
+          32
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          112
+        ],
+        "pct": 12.6
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 10.6
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          112
+        ],
+        "pct": 3.6
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          120
+        ],
+        "pct": 2.8
+      }
+    ],
+    "gridResponsesSinceCam": 1
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Wind",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 352,
+    "dominantPct": 27.5,
+    "mean": [
+      44,
+      69,
+      80
+    ],
+    "meanSaturation": 0.34,
+    "topColors": [
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27.5
+      },
+      {
+        "rgb": [
+          24,
+          24,
+          32
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 20.1
+      },
+      {
+        "rgb": [
+          40,
+          96,
+          112
+        ],
+        "pct": 5.1
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          64
+        ],
+        "pct": 2.4
+      },
+      {
+        "rgb": [
+          40,
+          88,
+          112
+        ],
+        "pct": 2.4
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Wind",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 308,
+    "dominantPct": 27.7,
+    "mean": [
+      69,
+      118,
+      96
+    ],
+    "meanSaturation": 0.425,
+    "topColors": [
+      {
+        "rgb": [
+          64,
+          112,
+          96
+        ],
+        "pct": 27.7
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          72
+        ],
+        "pct": 13
+      },
+      {
+        "rgb": [
+          56,
+          104,
+          88
+        ],
+        "pct": 9.3
+      },
+      {
+        "rgb": [
+          64,
+          112,
+          88
+        ],
+        "pct": 8.5
+      },
+      {
+        "rgb": [
+          64,
+          104,
+          88
+        ],
+        "pct": 4.1
+      },
+      {
+        "rgb": [
+          56,
+          112,
+          88
+        ],
+        "pct": 4
+      }
+    ],
+    "gridResponsesSinceCam": 1
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Wind",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 892,
+    "dominantPct": 15.7,
+    "mean": [
+      61,
+      113,
+      115
+    ],
+    "meanSaturation": 0.5,
+    "topColors": [
+      {
+        "rgb": [
+          48,
+          104,
+          112
+        ],
+        "pct": 15.7
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          104
+        ],
+        "pct": 8.2
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 5.1
+      },
+      {
+        "rgb": [
+          64,
+          112,
+          88
+        ],
+        "pct": 4.2
+      },
+      {
+        "rgb": [
+          56,
+          112,
+          104
+        ],
+        "pct": 3.8
+      },
+      {
+        "rgb": [
+          48,
+          96,
+          112
+        ],
+        "pct": 3.5
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Wind",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 539,
+    "dominantPct": 17.4,
+    "mean": [
+      51,
+      93,
+      122
+    ],
+    "meanSaturation": 0.581,
+    "topColors": [
+      {
+        "rgb": [
+          48,
+          96,
+          120
+        ],
+        "pct": 17.4
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          112
+        ],
+        "pct": 13
+      },
+      {
+        "rgb": [
+          48,
+          72,
+          120
+        ],
+        "pct": 11.4
+      },
+      {
+        "rgb": [
+          48,
+          80,
+          120
+        ],
+        "pct": 10.7
+      },
+      {
+        "rgb": [
+          48,
+          88,
+          120
+        ],
+        "pct": 10.2
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          120
+        ],
+        "pct": 4.1
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Waves",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 311,
+    "dominantPct": 27,
+    "mean": [
+      33,
+      104,
+      93
+    ],
+    "meanSaturation": 0.469,
+    "topColors": [
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27
+      },
+      {
+        "rgb": [
+          24,
+          32,
+          32
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          24,
+          184,
+          152
+        ],
+        "pct": 11.7
+      },
+      {
+        "rgb": [
+          24,
+          192,
+          152
+        ],
+        "pct": 5.8
+      },
+      {
+        "rgb": [
+          24,
+          192,
+          160
+        ],
+        "pct": 4.5
+      },
+      {
+        "rgb": [
+          16,
+          192,
+          160
+        ],
+        "pct": 3.1
+      }
+    ],
+    "gridResponsesSinceCam": 5
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Waves",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 184,
+    "dominantPct": 34.7,
+    "mean": [
+      56,
+      74,
+      79
+    ],
+    "meanSaturation": 0.223,
+    "topColors": [
+      {
+        "rgb": [
+          80,
+          112,
+          120
+        ],
+        "pct": 34.7
+      },
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27
+      },
+      {
+        "rgb": [
+          24,
+          24,
+          32
+        ],
+        "pct": 22.1
+      },
+      {
+        "rgb": [
+          16,
+          56,
+          64
+        ],
+        "pct": 2.5
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          64
+        ],
+        "pct": 2.4
+      },
+      {
+        "rgb": [
+          0,
+          176,
+          208
+        ],
+        "pct": 1.6
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Waves",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 264,
+    "dominantPct": 30.3,
+    "mean": [
+      77,
+      116,
+      134
+    ],
+    "meanSaturation": 0.408,
+    "topColors": [
+      {
+        "rgb": [
+          72,
+          128,
+          152
+        ],
+        "pct": 30.3
+      },
+      {
+        "rgb": [
+          72,
+          136,
+          152
+        ],
+        "pct": 19.9
+      },
+      {
+        "rgb": [
+          88,
+          112,
+          120
+        ],
+        "pct": 19.8
+      },
+      {
+        "rgb": [
+          64,
+          72,
+          88
+        ],
+        "pct": 18.4
+      },
+      {
+        "rgb": [
+          48,
+          104,
+          128
+        ],
+        "pct": 2
+      },
+      {
+        "rgb": [
+          40,
+          48,
+          48
+        ],
+        "pct": 0.7
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Waves",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 19,
+    "dominantPct": 34.6,
+    "mean": [
+      79,
+      133,
+      146
+    ],
+    "meanSaturation": 0.461,
+    "topColors": [
+      {
+        "rgb": [
+          72,
+          136,
+          144
+        ],
+        "pct": 34.6
+      },
+      {
+        "rgb": [
+          72,
+          128,
+          136
+        ],
+        "pct": 34.3
+      },
+      {
+        "rgb": [
+          80,
+          120,
+          144
+        ],
+        "pct": 10.2
+      },
+      {
+        "rgb": [
+          72,
+          128,
+          144
+        ],
+        "pct": 9.2
+      },
+      {
+        "rgb": [
+          80,
+          128,
+          144
+        ],
+        "pct": 3.8
+      },
+      {
+        "rgb": [
+          80,
+          112,
+          144
+        ],
+        "pct": 3.5
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Waves",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 2,
+    "dominantPct": 91.7,
+    "mean": [
+      76,
+      134,
+      156
+    ],
+    "meanSaturation": 0.512,
+    "topColors": [
+      {
+        "rgb": [
+          72,
+          128,
+          152
+        ],
+        "pct": 91.7
+      },
+      {
+        "rgb": [
+          72,
+          136,
+          152
+        ],
+        "pct": 8.3
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Swell",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 207,
+    "dominantPct": 27.4,
+    "mean": [
+      35,
+      86,
+      78
+    ],
+    "meanSaturation": 0.421,
+    "topColors": [
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27.4
+      },
+      {
+        "rgb": [
+          24,
+          24,
+          32
+        ],
+        "pct": 18.3
+      },
+      {
+        "rgb": [
+          32,
+          144,
+          120
+        ],
+        "pct": 11
+      },
+      {
+        "rgb": [
+          32,
+          136,
+          120
+        ],
+        "pct": 5.3
+      },
+      {
+        "rgb": [
+          24,
+          136,
+          112
+        ],
+        "pct": 4.8
+      },
+      {
+        "rgb": [
+          24,
+          144,
+          120
+        ],
+        "pct": 4.5
+      }
+    ],
+    "gridResponsesSinceCam": 3
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Swell",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 174,
+    "dominantPct": 35.4,
+    "mean": [
+      60,
+      73,
+      80
+    ],
+    "meanSaturation": 0.19,
+    "topColors": [
+      {
+        "rgb": [
+          88,
+          112,
+          120
+        ],
+        "pct": 35.4
+      },
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27.4
+      },
+      {
+        "rgb": [
+          24,
+          24,
+          32
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          64
+        ],
+        "pct": 2.4
+      },
+      {
+        "rgb": [
+          80,
+          104,
+          112
+        ],
+        "pct": 2.3
+      },
+      {
+        "rgb": [
+          16,
+          56,
+          64
+        ],
+        "pct": 2.1
+      }
+    ],
+    "gridResponsesSinceCam": 2
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Swell",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 172,
+    "dominantPct": 71.3,
+    "mean": [
+      86,
+      106,
+      117
+    ],
+    "meanSaturation": 0.266,
+    "topColors": [
+      {
+        "rgb": [
+          88,
+          112,
+          120
+        ],
+        "pct": 71.3
+      },
+      {
+        "rgb": [
+          64,
+          72,
+          88
+        ],
+        "pct": 20.6
+      },
+      {
+        "rgb": [
+          48,
+          56,
+          64
+        ],
+        "pct": 0.7
+      },
+      {
+        "rgb": [
+          40,
+          40,
+          48
+        ],
+        "pct": 0.6
+      },
+      {
+        "rgb": [
+          56,
+          64,
+          80
+        ],
+        "pct": 0.5
+      },
+      {
+        "rgb": [
+          56,
+          64,
+          72
+        ],
+        "pct": 0.5
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Swell",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 1,
+    "dominantPct": 100,
+    "mean": [
+      93,
+      117,
+      126
+    ],
+    "meanSaturation": 0.262,
+    "topColors": [
+      {
+        "rgb": [
+          88,
+          112,
+          120
+        ],
+        "pct": 100
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Swell",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 60,
+    "dominantPct": 78.4,
+    "mean": [
+      95,
+      119,
+      128
+    ],
+    "meanSaturation": 0.258,
+    "topColors": [
+      {
+        "rgb": [
+          88,
+          112,
+          120
+        ],
+        "pct": 78.4
+      },
+      {
+        "rgb": [
+          88,
+          112,
+          128
+        ],
+        "pct": 15.4
+      },
+      {
+        "rgb": [
+          96,
+          120,
+          128
+        ],
+        "pct": 1.7
+      },
+      {
+        "rgb": [
+          104,
+          128,
+          136
+        ],
+        "pct": 0.6
+      },
+      {
+        "rgb": [
+          112,
+          136,
+          144
+        ],
+        "pct": 0.4
+      },
+      {
+        "rgb": [
+          152,
+          168,
+          184
+        ],
+        "pct": 0.3
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Water Temp",
+    "cam": "cocoa-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 201,
+    "dominantPct": 27.6,
+    "mean": [
+      93,
+      78,
+      47
+    ],
+    "meanSaturation": 0.376,
+    "topColors": [
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27.6
+      },
+      {
+        "rgb": [
+          176,
+          128,
+          40
+        ],
+        "pct": 24.1
+      },
+      {
+        "rgb": [
+          32,
+          24,
+          24
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          176,
+          112,
+          40
+        ],
+        "pct": 6.5
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          64
+        ],
+        "pct": 2.4
+      },
+      {
+        "rgb": [
+          24,
+          56,
+          56
+        ],
+        "pct": 1.9
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Water Temp",
+    "cam": "cocoa-z11",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 191,
+    "dominantPct": 27.6,
+    "mean": [
+      96,
+      75,
+      45
+    ],
+    "meanSaturation": 0.396,
+    "topColors": [
+      {
+        "rgb": [
+          32,
+          32,
+          40
+        ],
+        "pct": 27.6
+      },
+      {
+        "rgb": [
+          184,
+          120,
+          32
+        ],
+        "pct": 25.8
+      },
+      {
+        "rgb": [
+          32,
+          24,
+          24
+        ],
+        "pct": 22.2
+      },
+      {
+        "rgb": [
+          176,
+          112,
+          32
+        ],
+        "pct": 9.9
+      },
+      {
+        "rgb": [
+          56,
+          56,
+          64
+        ],
+        "pct": 2.4
+      },
+      {
+        "rgb": [
+          168,
+          112,
+          32
+        ],
+        "pct": 2.2
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Water Temp",
+    "cam": "madeira-z9",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 261,
+    "dominantPct": 70.1,
+    "mean": [
+      147,
+      137,
+      56
+    ],
+    "meanSaturation": 0.628,
+    "topColors": [
+      {
+        "rgb": [
+          176,
+          160,
+          40
+        ],
+        "pct": 70.1
+      },
+      {
+        "rgb": [
+          64,
+          72,
+          88
+        ],
+        "pct": 21.6
+      },
+      {
+        "rgb": [
+          48,
+          56,
+          64
+        ],
+        "pct": 0.8
+      },
+      {
+        "rgb": [
+          56,
+          64,
+          80
+        ],
+        "pct": 0.6
+      },
+      {
+        "rgb": [
+          48,
+          48,
+          40
+        ],
+        "pct": 0.6
+      },
+      {
+        "rgb": [
+          56,
+          72,
+          88
+        ],
+        "pct": 0.6
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Water Temp",
+    "cam": "openatlantic-z5",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 2,
+    "dominantPct": 76,
+    "mean": [
+      168,
+      131,
+      48
+    ],
+    "meanSaturation": 0.714,
+    "topColors": [
+      {
+        "rgb": [
+          168,
+          128,
+          48
+        ],
+        "pct": 76
+      },
+      {
+        "rgb": [
+          168,
+          136,
+          48
+        ],
+        "pct": 24
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  },
+  {
+    "build": "deployed568fc2c6",
+    "layer": "Water Temp",
+    "cam": "portugal-z8",
+    "hud": {
+      "modelLayer": null,
+      "renderMode": null,
+      "raster": null,
+      "provider": null,
+      "klass": null,
+      "truth": null
+    },
+    "distinctColors": 2,
+    "dominantPct": 99,
+    "mean": [
+      179,
+      172,
+      42
+    ],
+    "meanSaturation": 0.765,
+    "topColors": [
+      {
+        "rgb": [
+          176,
+          168,
+          40
+        ],
+        "pct": 99
+      },
+      {
+        "rgb": [
+          176,
+          184,
+          40
+        ],
+        "pct": 1
+      }
+    ],
+    "gridResponsesSinceCam": 0
+  }
+]

@@ -40,6 +40,14 @@ from services.weather_pipeline.schemas import (  # noqa: E402
     CoverageBounds, ManifestProduct, PipelineManifest,
 )
 
+
+@pytest.fixture(autouse=True)
+def _retention_out_of_scope(monkeypatch):
+    """These tests pin MERGE semantics on fixtures dated 2026-08; the upload-time retention filter
+    (audit 15.0) would otherwise treat every one as expired. Retention has its own suite:
+    tests/test_manifest_retention_holds.py."""
+    monkeypatch.setenv("MANIFEST_RETENTION_DAYS", "36500")
+
 T_OLD = datetime(2026, 8, 7, 0, 0, tzinfo=timezone.utc)    # the run BOTH sides restored from
 T_NEW = datetime(2026, 8, 7, 1, 38, tzinfo=timezone.utc)   # the core ingest's fresh write
 VALID = datetime(2026, 8, 7, 6, 0, tzinfo=timezone.utc)

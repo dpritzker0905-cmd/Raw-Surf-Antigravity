@@ -1,0 +1,46 @@
+{
+  "parent_head": "91b90ae9f642b9be015aa4c06a766cdfd557b74a",
+  "source_files": {
+    "backend/services/weather_pipeline/capabilities.py": {
+      "lines": 719,
+      "sha256": "1851b41e43d54176d963f22657ce053eaf718a9331de01787cf19f51beb2e844"
+    },
+    "backend/tests/test_capabilities_contract.py": {
+      "lines": 311,
+      "sha256": "ef7255740c1c48607657f930dc365416b003e0476c2fee5c24a73bbb299f1af1"
+    }
+  },
+  "old_row_count": 24,
+  "new_row_count": 24,
+  "all_legacy_fields_except_docs_note_unchanged": true,
+  "non_euro_marine_rows_byte_equivalent_as_dicts": true,
+  "recorded_live_native_grids_match_candidate": {
+    "waves": true,
+    "swell_1": true,
+    "swell_2": true,
+    "wind_waves": true
+  },
+  "pytest": {
+    "baseline-final": {
+      "tests": "16",
+      "failures": "14",
+      "errors": "0",
+      "skipped": "0",
+      "time": "22.178"
+    },
+    "mutation-final": {
+      "tests": "16",
+      "failures": "2",
+      "errors": "0",
+      "skipped": "0",
+      "time": "22.044"
+    },
+    "after": {
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "9.247"
+    }
+  }
+}

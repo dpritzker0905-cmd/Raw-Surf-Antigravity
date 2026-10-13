@@ -1,0 +1,158 @@
+{
+  "recorded_utc": "2026-10-05 02:50Z",
+  "baseline": "035ac5f25f425a24057c39b6624aa0e9ee242edd",
+  "original_audit_sha256": {
+    "REPORT.md": "cb09ac7e9bb338976e21a4fde3e8b3e9c40a0950a0a642f5afcdd2ce38308600",
+    "findings.json": "36298c0238a1976ffed6e993041a97e8f1b08a48344200a90c61f1555cf44626"
+  },
+  "xml_receipts": {
+    "deep-security-before1": {
+      "cases": 27,
+      "failed": 24,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-security-before2": {
+      "cases": 27,
+      "failed": 24,
+      "errors": 0,
+      "skipped": 0
+    },
+    "actor-before1": {
+      "cases": 5,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    "actor-before2": {
+      "cases": 5,
+      "failed": 3,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-security-after1": {
+      "cases": 27,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-security-expanded": {
+      "cases": 109,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-security-final": {
+      "cases": 126,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-security-final2": {
+      "cases": 130,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-security-final3": {
+      "cases": 166,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-jacobian1": {
+      "cases": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "deep-jacobian2": {
+      "cases": 6,
+      "failed": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "source_lf_sha256": [
+    {
+      "path": "backend/routes/notifications/push.py",
+      "sha256": "426bc672741077c8820d0d4a76239a38f07c16b73b892ca391ded2d1a5c01aea"
+    },
+    {
+      "path": "backend/routes/ai/ai_health.py",
+      "sha256": "e4010228ba3e00a443da21a81c15e7d308e1f15611396fe4dd04154547050bf6"
+    },
+    {
+      "path": "backend/services/ai_gemini_matcher.py",
+      "sha256": "54a9c9c7aaee563f0c1c14d72ec81d84e02ba5a339c459a75eb2d25561e644dd"
+    },
+    {
+      "path": "backend/server.py",
+      "sha256": "e6019c98393004eee738aeec28436aeb33a5e8986544814fa15e9f573c7d8310"
+    },
+    {
+      "path": "backend/scripts/action_ledger.py",
+      "sha256": "0cd6b0ef3e1ef1130a0be62017a1d531b8c9e2bd89112f77be5fdf1d10324df8"
+    },
+    {
+      "path": ".github/workflows/e2e-tests.yml",
+      "sha256": "3f978e020b5e0978298496221bb3bdb95afa0a4ae783988bb6770e6d862c9e09"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "8bca46fd2acde6f8b8266de8f465e4c67c86ef6627b73c1ecd9a1c23737f0dd9"
+    },
+    {
+      "path": "backend/tests/test_ci_floor_staleness.py",
+      "sha256": "8b48ccba26afebfa8ce2561f4fda3ee8999fe20f5bcf7d2e0caad6ee4ec7c67d"
+    },
+    {
+      "path": "backend/tests/test_audit_push_authority.py",
+      "sha256": "a30f92549ec64a9fab0d6439d1bcc354d84519466d0e6c4bddfcd7a1ec1f610f"
+    },
+    {
+      "path": "backend/tests/test_audit_ai_credential_transport.py",
+      "sha256": "94a27e1032156d26938580ffab3d3a6c30e3663d9db02b316d0a57bcb61eee4b"
+    },
+    {
+      "path": "backend/tests/test_audit_e2e_trace_override.py",
+      "sha256": "6bb450e7350c38020721fdd288dabbf8ea58faf8aaaaa6ce716fb7d8a8c232db"
+    },
+    {
+      "path": "backend/tests/test_audit_ledger_actor.py",
+      "sha256": "96344fb735d3ef432ca7f38c51d8aff780f3e9af7ab6123217079569a8cc6173"
+    }
+  ],
+  "new_cases": 36,
+  "hosted_previous": {
+    "run": 37253656301,
+    "source": "6c355cb2",
+    "conclusion": "success",
+    "jobs": 11,
+    "guards": 2360,
+    "chain": 2049,
+    "estate": 1039,
+    "frontend_suites": 356,
+    "frontend_tests": 3689
+  },
+  "hosted_candidate": {"source": "d1cc16fe394de241a314494fe728d9f83d2a380d", "run": 37257237630, "status": "completed", "conclusion": "success", "jobs": 11, "guards": 2360, "chain": 2049, "estate": 1075, "backend_total": 5484, "frontend_suites": 356, "frontend_tests": 3689, "estate_selected": 294, "estate_produced": 292, "silent": 0},
+  "floors": {
+    "guards": 2354,
+    "chain": 2043,
+    "estate": 1073
+  },
+  "references": {
+    "guards": 2360,
+    "chain": 2049,
+    "estate": 1075
+  },
+  "discovery": {
+    "tracked": 633,
+    "guards": 185,
+    "chain": 151,
+    "estate": 294,
+    "existing_exclusions": 2,
+    "existing_quarantine": 1
+  },
+  "scope": "offline source qualification; no deployment/activation/provider writes"
+}

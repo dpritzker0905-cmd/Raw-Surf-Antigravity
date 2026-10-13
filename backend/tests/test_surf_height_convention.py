@@ -151,12 +151,14 @@ def test_the_DEFAULT_is_on_and_its_partner_is_on_with_it(monkeypatch):
     importlib.reload(ST)
 
     assert SHC.enabled() is True, "SURF_HEIGHT_H110 must DEFAULT ON — see the pair above"
-    assert ST.REFRACTION_KR == pytest.approx(0.797), (
-        "the refraction partner must ship with it; 1.0 reinstates the +25.5% landmine")
-    # and the product of the two must land within ~2% of neutral, which is the whole argument
-    net = SHC.H110_OVER_HS * ST.REFRACTION_KR
-    assert net == pytest.approx(1.0, abs=0.02), (
-        f"the pair must nearly cancel; got {net:.4f}. One half has moved without the other.")
+    from services.weather_pipeline import science_registry
+    assert ST.REFRACTION_KR < 1.0, "the refraction partner must ship with it; 1.0 removes refraction"
+    assert ST.REFRACTION_KR == pytest.approx(science_registry.value("REFRACTION_KR")), (
+        "the served Kr must be the registry's MEASURED value")
+    # RETIRED 2026-09-27: `H110 x Kr ~= 1.0`. That cancellation was a property of the Ks-only Kr (0.797),
+    # which double-counted the chain's friction and exposure. Measured against the chain it multiplies,
+    # Kr = 0.873 and the product is 1.109: the nearshore Hs matches the instruments and H1/10 is the
+    # published statistic on top of it. Two corrections, not a cancelling pair.
 
 
 # ── The coupling that makes this flag dangerous on its own ─────────────────────────────────────

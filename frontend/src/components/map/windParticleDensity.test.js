@@ -19,6 +19,10 @@
  *
  * FIX: pay for enlarged marks in lifetime. dropRate = max(legacy, area/I0), so it can only ever
  * recycle SOONER — never hoard — which leaves the long-shipped >11 kn regime bit-identical.
+ *
+ * 2026-10-08 CORRECTION: above ~20.6 kn the legacy rule itself was the bug (its bump multiplies raw
+ * knots, so a 47 kn particle lived 2.6 frames and could not be seen moving). The motion floor caps
+ * the drop chance at 1/6 there; 11-20 kn stays bit-identical. See windMotionFloor.test.js.
  */
 import { ADVECT_FS, DRAW_VS } from './WebGLWindShaders';
 
@@ -45,11 +49,15 @@ const sizeCss = (s) => {
 // restoring light-wind lifetimes to the legacy pace (the square over-charged 1-8 kn by ~2x,
 // which read as GAPS in light air).
 const elong = (s) => smoothstep(10.0, 0.5, s) * (2.6 - 1.8) + 1.8;
+// Motion floor (2026-10-08, the hurricane report): the final drop chance is capped at 1/6 a frame,
+// so no particle lives under 6 frames. Engages above ~20.6 kn only — see windMotionFloor.test.js.
+const MOTION_CAP = 1 / 6;
 const shippedDrop = (s) => {
   let d = Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / elong(s) / I0);
   if (s < 4.75) d = Math.max(legacyDrop(s), Math.min(d, 0.04));
-  return d;
+  return Math.min(d, MOTION_CAP);
 };
+const MOTION_KNEE = (MOTION_CAP - DROP) / BUMP;   // 20.6 kn
 const ink = (s, drop) => (sizeCss(s) * sizeCss(s)) / elong(s) / drop(s);
 
 describe('wind particle ink budget', () => {
@@ -81,23 +89,26 @@ describe('wind particle ink budget', () => {
     expect(ratio).toBeLessThan(3.0);
   });
 
-  it('NEVER hoards: the drop rate is >= legacy at every speed', () => {
-    for (const s of REAL) expect(shippedDrop(s)).toBeGreaterThanOrEqual(legacyDrop(s) - 1e-12);
-  });
-
-  it('leaves the long-shipped fast regime bit-identical (>= ~11 kn)', () => {
-    for (const s of [11.08, 16.87, 22.71, 38.79]) {
-      expect(shippedDrop(s)).toBeCloseTo(legacyDrop(s), 10);
+  it('the ink budget NEVER hoards: drop >= legacy wherever the motion floor is not engaged', () => {
+    for (const s of REAL.filter((x) => x <= MOTION_KNEE)) {
+      expect(shippedDrop(s)).toBeGreaterThanOrEqual(legacyDrop(s) - 1e-12);
     }
   });
 
-  it('no lifetime is shorter than the regime legacy already runs at speed', () => {
-    // Legacy already recycles 38.8 kn particles every ~3.2 frames, so that is a normal lifetime
-    // here — the compensation must not go far beyond it or calm air will visibly flicker.
+  it('leaves the 11-20 kn regime bit-identical; above the knee the motion floor holds life at 6 frames', () => {
+    for (const s of [11.08, 16.87]) expect(shippedDrop(s)).toBeCloseTo(legacyDrop(s), 10);
+    // legacy recycled 38.8 kn particles every ~3.2 frames (and 47 kn every 2.6) — too short to be
+    // seen moving: the 2026-10-08 hurricane report. Above the knee the cap now governs.
+    for (const s of [22.71, 38.79]) expect(shippedDrop(s)).toBeCloseTo(MOTION_CAP, 10);
+  });
+
+  it('no lifetime is shorter than the motion floor', () => {
+    // The ink compensation recycles calm marks sooner, never below the calm floor's 25 frames;
+    // the motion floor keeps every faster particle alive at least 6 frames (100 ms at 60 Hz).
     const shortest = Math.min(...REAL.map((s) => 1 / shippedDrop(s)));
     // eslint-disable-next-line no-console
-    console.log(`shortest lifetime ${shortest.toFixed(1)} frames (legacy at 38.8kn = ${(1 / legacyDrop(38.79)).toFixed(1)})`);
-    expect(shortest).toBeGreaterThan(2.5);
+    console.log(`shortest lifetime ${shortest.toFixed(1)} frames (uncapped legacy at 38.8kn = ${(1 / legacyDrop(38.79)).toFixed(1)})`);
+    expect(shortest).toBeGreaterThanOrEqual(6 - 1e-9);
   });
 
   it('the two shader stages agree on the size curve (drift here IS a density bug)', () => {

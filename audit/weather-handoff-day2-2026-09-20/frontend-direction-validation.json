@@ -1,0 +1,80 @@
+{
+  "parent_commit": "d82032f5cd5978967622721b8c9638da36a87f7d",
+  "source_files": {
+    "frontend/src/components/map/backendWeatherServiceClient.js": {
+      "sha256": "5cc05c6e54b0e958b587f7b0cef63b4e093f5d6a523751cfc2f28409e300dd4c",
+      "lines": 681
+    },
+    "frontend/src/components/map/backendWeatherServiceClientHelpers.js": {
+      "sha256": "946d5047f95cb64f194a90693811f0ca707a6e68b51727f0698dfc00aee47ae4",
+      "lines": 669
+    },
+    "frontend/src/components/map/backendWeatherServiceClientPoint.js": {
+      "sha256": "8fa73eb7a5685d0ff335482efdb910584fa5032a3a022048d1ed8a8640899ce4",
+      "lines": 706
+    },
+    "frontend/src/components/map/marineDirectionBlend.js": {
+      "sha256": "e347452d3aa5be00c8f8cc57ae35278d3f30c7acb14a91fb66ef53d30fcb8574",
+      "lines": 94
+    },
+    "frontend/src/components/map/backendWeatherServiceClient.directionValidity.test.js": {
+      "sha256": "3643744b28d560a15970d8e0223d274a22ab571672567a1985c9e2a29ce8c8bb",
+      "lines": 202
+    }
+  },
+  "focused": {
+    "numPassedTests": 74,
+    "numFailedTests": 0,
+    "numPassedTestSuites": 5
+  },
+  "new_tests": 43,
+  "counterfactuals": {
+    "baseline_head": "d82032f5cd5978967622721b8c9638da36a87f7d",
+    "mutation": "Disable only normalized-resultant rejection",
+    "restored_exact_bytes": true,
+    "results": [
+      {
+        "label": "frontend-direction-before",
+        "returncode": 1,
+        "numPassedTests": 6,
+        "numFailedTests": 37,
+        "numPendingTests": 0
+      },
+      {
+        "label": "frontend-direction-mutation",
+        "returncode": 1,
+        "numPassedTests": 0,
+        "numFailedTests": 10,
+        "numPendingTests": 33
+      }
+    ]
+  },
+  "lint": [
+    {
+      "file": "backendWeatherServiceClient.directionValidity.test.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "backendWeatherServiceClient.js",
+      "errors": 8,
+      "warnings": 0
+    },
+    {
+      "file": "backendWeatherServiceClientHelpers.js",
+      "errors": 1,
+      "warnings": 1
+    },
+    {
+      "file": "backendWeatherServiceClientPoint.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "file": "marineDirectionBlend.js",
+      "errors": 0,
+      "warnings": 0
+    }
+  ],
+  "full_frontend": "Coordinated with rendering_audit; separate receipt pending."
+}

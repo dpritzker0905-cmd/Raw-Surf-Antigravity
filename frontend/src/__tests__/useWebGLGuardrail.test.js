@@ -22,13 +22,18 @@ describe('useWebGLGuardrail', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.__MARINE_ENGINE__ = { _initialized: true, _waveData: {} };
+    window.__RAW_GPU__ = {};
     eventListeners = {};
     docEventListeners = {};
     currentTime = 1000;
 
     mapInstance = {
       on: jest.fn((event, cb) => {
-        eventListeners[event] = cb;
+        eventListeners[event] = (...args) => {
+          window.__RAW_GPU__.layer = { n: (window.__RAW_GPU__.layer?.n || 0) + 1, t: Date.now(), skip: null };
+          cb(...args);
+        };
       }),
       off: jest.fn((event, cb) => {
         if (eventListeners[event] === cb) {
@@ -61,6 +66,8 @@ describe('useWebGLGuardrail', () => {
   });
 
   afterEach(() => {
+    delete window.__MARINE_ENGINE__;
+    delete window.__RAW_GPU__;
     mockPerformanceNow.mockRestore();
     jest.restoreAllMocks();
     Object.defineProperty(document, 'hidden', {
@@ -288,6 +295,33 @@ describe('useWebGLGuardrail', () => {
       onRender();
     }
 
+    expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
+  });
+
+  it.each([2000, 3000])('breaks a low-FPS streak across an excluded %i ms gap', (gap) => {
+    const setWebglMarineFailed = jest.fn();
+    renderHook(() => useWebGLGuardrail({
+      mapInstance, activeLayers: ['waves'], setWebglWindFailed: jest.fn(),
+      setWebglMarineFailed, webglWindFailed: false, webglMarineFailed: false,
+    }));
+    const onRender = eventListeners.render;
+    currentTime += 11000;
+    onRender();
+    for (let i = 0; i < 11; i++) {
+      currentTime += 1000;
+      onRender();
+    }
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
+    currentTime += gap;
+    onRender();
+    for (let i = 0; i < 11; i++) {
+      currentTime += 1000;
+      onRender();
+      expect(setWebglMarineFailed).not.toHaveBeenCalled();
+    }
+    currentTime += 1000;
+    onRender();
+    expect(setWebglMarineFailed).toHaveBeenCalledTimes(1);
     expect(setWebglMarineFailed).toHaveBeenCalledWith(true);
   });
 

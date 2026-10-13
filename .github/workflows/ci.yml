@@ -23,7 +23,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [24.21.0]
 
     steps:
       - uses: actions/checkout@v5
@@ -85,7 +85,51 @@ jobs:
           // 2026-08-03 (audit v7): +1 suite / +14 tests (marineGridSeries.antimeridian.test.js).
           // Raised BY THE DELTA, not reset to today's absolute Windows figure — that preserves the
           // deliberate ubuntu margin above rather than silently spending it.
-          const MIN_SUITES = 185, MIN_TESTS = 1686;
+          // September 20: exact hosted run35487375744 at d82032f5 measured 257/2486.
+          // Retire the now-observed platform uncertainty and the stale 72/800 gap.
+          // Today's additional 2 suites / 56 tests pass locally; ratchet those only
+          // after the next hosted receipt, rather than labelling a projection observed.
+          // 2026-09-21 (F-15): local Windows now reads 272 suites / 2651 tests — the two new
+          // suites are openMeteoProtocolFailure.test.js (14) and truthOverlayLayerTruth.test.js
+          // (17). DELIBERATELY NOT RAISED, per the rule two lines up: a local figure is a
+          // projection, not a receipt. The pending gap is now 15 suites / 165 tests, and the
+          // NEXT hosted green run should be used to ratchet all of it at once.
+          // ⚠️ This lag is the documented cost of that rule, not an oversight — the backend lanes'
+          // "a floor that lags is not measuring anything" note argues the other way, and the two
+          // are reconciled by WHERE the number comes from: hosted receipt raises, local never does.
+          // 2026-09-28 (A15-11 mini lane): raised to the HOSTED receipt of dev run 36361175254 at acd1f070
+          // (#129), which printed `suites 296/296  tests 2869/2869  failed 0` — the whole pending gap
+          // since September 20 (+39 suites / +383 tests), from a receipt, never a local figure. This
+          // change's own marineSeriesLimiter.miniLane.test.js (+1 suite / +8 tests) is NOT counted: the
+          // next hosted run is its receipt.
+          // 2026-09-28 (A15-11, one background request only when idle): raised to the hosted receipt of
+          // #131's own run (`suites 297/297  tests 2877/2877  failed 0`), which counted the mini-lane suite
+          // this change rewrites test-for-test (8 -> 8), so it adds no suite and no test.
+          // 2026-09-28 (recorder settled peak): raised to the hosted receipt of #138's run (`suites 297/297  tests
+          // 2879/2879  failed 0`, its +2 prewarm tests). This change's own +2 recorder tests are counted on its run.
+          // PR238 hosted 328 suites/3362 tests; add one suite/25 tests, keep margins 31/483.
+          // PR240 retains hosted 329/3387; +1 suite/12 scope probes, margins 31/483.
+          // Independent audit AS03: hosted CI37177756735 at d5b1fa34 confirms335/3440.
+          // Retire the historical 31-suite/483-test gap and guard every new repair test.
+          // W03/W05: db20de62 hosted335/3440 + two suites/28 controls; hosted confirmation pending.
+          // Point identity, availability, playback and consumer controls: full local346/3582.
+          // Daily calendar, mounted label/rollback controls: +1suite/+28tests; projected347/3610.
+          // PF01/PF02 transport/cache and mounted viewport controls: +4suites/+37tests.
+          // Visual sourcea1cb1ed3 own CI37405974317 full job112083517831: hosted365/3808.
+          // Rollover source48c04424 own CI37407541898 job112088337571: actual367/3872.
+          // Raise to qualified hosted coverage; no frontend tests added by WS-08.
+          // Shared world-coordinate repair adds1suite/94controls; local368/3966 passed.
+          // Own hosted confirmation required; preserve the zero-margin frontend ratchet.
+          // Mounted zero-coordinate hook: +1 suite/42 controls, local369/4008.
+          // WF-02 projection-boundary repair: six real layer/engine/hook controls, local369/4014.
+          // Own hosted confirmation pending; retain the zero-margin frontend ratchet.
+            // WF-02 diagnostic-fault boundary + fixed native receipt: +1 suite/31 controls.
+            // Local final370/4045; new exact-source hosted qualification required.
+            // Callback-gap diagnostic: +2 suites /21 fault, interval, privacy and lifecycle controls.
+            // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
+            // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
+            // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
+            const MIN_SUITES = 377, MIN_TESTS = 4177;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -134,10 +178,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 18.20.2
+      - name: Use Node.js 24.21.0
         uses: actions/setup-node@v5
         with:
-          node-version: '18.20.2'   # matches frontend/.node-version
+          node-version: '24.21.0'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -174,10 +218,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 18.20.2
+      - name: Use Node.js 24.21.0
         uses: actions/setup-node@v5
         with:
-          node-version: '18.20.2'   # matches frontend/.node-version
+          node-version: '24.21.0'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -195,7 +239,7 @@ jobs:
         run: |
           set -o pipefail
           CI=true npx react-scripts test --watchAll=false \
-            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf" \
+            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf|marineGlobalPrewarm.seriesReuse|marineTimelineCoverage|useMarineOrchestratorScrubCache.timeline|backendWeatherServiceClient.readOnly|backendWeatherServiceClient.iconStoredTail|ForecastTimeStatus" \
             --json --outputFile=guard-results.json
         # NO continue-on-error. That is the entire point of this job.
 
@@ -219,7 +263,10 @@ jobs:
           // ⬆ 37 -> 48 (1a-2: the derived energy coefficient, the band ladder, coarsen-don't-hide,
           //             magnitude-based precision, and the live-fixture band-span anti-vacuity)
           // Measured from the run each time, never incremented by hand.
-          const MIN_SUITES = 2, MIN_TESTS = 48;
+          // Audit14: measured 7 suites / 96 tests, including exact-time reuse and timeline truth.
+          // This focused discovery floor supplements the blocking full frontend suite.
+          // PR238 hosted focused lane 7 suites/96 tests; new source-authority controls add 1/25.
+          const MIN_SUITES = 8, MIN_TESTS = 121;
           let r;
           try { r = JSON.parse(fs.readFileSync('guard-results.json', 'utf8')); }
           catch (e) { console.error('✗ no guard-results.json — jest never wrote a result'); process.exit(1); }
@@ -264,10 +311,15 @@ jobs:
           pip install -q flake8
           pip install -q -r requirements.txt
 
+      # The April route split imported successfully while function bodies retained
+      # missing globals. Keep a targeted dependency guard as well as the fatal-error gate.
+      - name: Condition-report runtime dependency guard
+        working-directory: backend
+        run: flake8 --select=F821 routes/condition_reports
+
       - name: Lint backend
         working-directory: backend
         run: flake8 --max-line-length=150 --count --select=E9,F63,F7,F82 --show-source --statistics .
-        continue-on-error: true  # Warn only, don't block
 
   # v89 Governance — File Size Enforcement (<800 LOC)
   # v94: All violations resolved — strict enforcement enabled
@@ -307,6 +359,8 @@ jobs:
   # ratchet — shrink-only; regenerate with --write-baseline after triage work). This exact debt
   # was "fixed and declared complete" twice (c1526cdc, 84236b0c) and drifted back 221→226 in five
   # days — enforcement, not convention, is the control. AST-based (regex breaks on nested parens).
+  # Widened 2026-10-08: any actor-id argument (payer_id, surfer_id, captain_id, photographer_id, ...),
+  # not only `user_id`; the baseline now stores hashes, not route names, and only shrinks.
   backend-bola-guard:
     runs-on: ubuntu-latest
     steps:
@@ -336,7 +390,9 @@ jobs:
   # passing count collapses — measure FILES PARSED, not finding count.
   backend-sim-composition-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # CI 34886811636 passed all 1874 guards but used 19m58s of 20m.
+    # Keep a bounded five-minute margin; selection and pass floors stay unchanged.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
 
@@ -421,7 +477,8 @@ jobs:
           test -s /tmp/guard_files.txt || { echo "::error::--lane guards selected NO files"; exit 1; }
           sed 's/^/  guard: /' /tmp/guard_files.txt
           FILES=$(tr '\n' ' ' < /tmp/guard_files.txt)
-          python -m pytest $FILES -q --junitxml=guards.xml
+          # Retain slow-phase evidence to distinguish test cost from job setup time.
+          python -m pytest $FILES -q --durations=30 --junitxml=guards.xml
 
       # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
       # was collected is reported rather than hidden behind the first red test.
@@ -609,7 +666,176 @@ jobs:
           # WS-CAN-0072 cap-seam property lane) = +47 tests. CI-anchored per the estate lesson:
           # last green run 31864807822 observed 1741; 1741 + 47 = 1788; 1788 - 6 = 1782. The
           # pre-push hook blocked the batch until this pair moved — as designed (5th catch).
-          MIN_FILES, MIN_PASSED = 154, 1782
+          # September 9: dev run 34279488030 observed 155 files / 1804 passed.
+          # Restore the zero-file and six-test margins; no selection or skip change.
+          # September 10: CI34520513943 observed 155 files / 1804 passed.
+          # Add one module with 24 locally executed endpoint controls. The candidate
+          # CI run must confirm 156 / 1828; retain the six-test aggregate margin.
+          # September 14: dev CI34556618466 observed 156 files / 1828 passed.
+          # Isolated ownership and coordinate repairs add 2 files / 46 tests.
+          # Candidate Linux CI must confirm 158 / 1874; keep the six-test margin.
+          # dev run 34924124059 observed 159 files / 1877 passes; preserve six-test margin.
+          # September 16: hosted CI35055272824 measured 160 files / 1883 passes.
+          # September 20 second check: 14 executed observation-pairing/finite-error controls
+          # in existing guard modules. Expected hosted reading 1883 + 14 = 1897, pending
+          # candidate CI; preserve the six-test margin. Local Python 3.14 has four separately
+          # reproduced baseline provider-ownership failures, so do not lower the hosted floor.
+          # September 20 continuation: run35485093918 at 74ca4f4e confirmed 1897.
+          # +15 executed scoring-validity controls in the same guard file -> expected 1912.
+          # Keep the six-test margin; _FLOOR_SET_FROM moves in this same commit.
+          # September 20, audit 14.0 F-01: run35538513375 at ed5e46c6 confirmed 160/1912.
+          # tests/test_grid_series_base_anchor.py adds 10 executed series-anchor controls in ONE
+          # new file selected by `--lane guards` only (verified: chain and estate do not select
+          # it), so files 160 -> 161 EXACT and the expected hosted reading is 1912 + 10 = 1922.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1922 in this commit.
+          # September 21, grid_series deadline bound: +1 file auto-claimed by `--lane guards`
+          # (selector run before and after `git add`: guards 161 -> 162, chain 102 and estate
+          # 266 unchanged). tests/test_grid_series_deadline_bound.py adds 13 executed controls,
+          # so files 161 -> 162 EXACT and the expected hosted reading is 1922 + 13 = 1935.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1935 in this commit.
+          # September 21, /api/surf-spots response cache: TWO more files, both auto-claimed by
+          # `--lane guards` the moment they were tracked (selector run before and after `git add`:
+          # guards 162 -> 164, chain 102 and estate unchanged).
+          #   tests/test_surf_spots_cache.py       23 tests -- cache semantics, TTL, kill switch,
+          #     and the PRIVACY restriction that a geofenced response is never cacheable
+          #   tests/test_surf_spots_cache_route.py 13 tests -- the route-level query COUNT, i.e.
+          #     that a hit acquires no pool connection and executes nothing
+          # So files 162 -> 164 EXACT and the expected hosted reading is 1935 + 36 = 1971.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1971 in this commit.
+          # ⭐ The 36-test delta RECONCILES against a full local guards run taken before the
+          # grid_series file existed (163 files, 20:50): "4 failed, 1954 passed", and 1958 - 1954 = 4
+          # is exactly the test_grid_series_provider_ownership.py set this block already records as
+          # reproduced on local Python 3.14 and absent from the hosted 3.12 reading. Two independent
+          # routes to the same delta is what makes this a projection worth banking, not a guess.
+          # September 21, marine cold-fetch sharing: +1 file auto-claimed by `--lane guards`
+          # (selector run before and after `git add`: guards 164 -> 165, chain 102 and estate
+          # 267 unchanged). tests/test_marine_cold_fetch_sharing.py adds 25 executed controls,
+          # so files 164 -> 165 EXACT and the expected hosted reading is 1971 + 25 = 1996.
+          # Retain the six-test margin; _FLOOR_SET_FROM["guards"] moves to 1996 in this commit.
+          # ⬆ MIN_PASSED 1990→1999 on 2026-09-25, from hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
+          # 165 files / 2005 passed (PR #71's census + health-gate tests). 2005 - 6 = 1999, files
+          # unchanged at 165 EXACT; _FLOOR_SET_FROM["guards"] moves to 2005 in this commit.
+          # ⬆ MIN_FILES 165→166, MIN_PASSED 1999→2023 on 2026-09-25, from hosted run 36138912467 @ a0c0d5e2 (dev, after the nine audit-14.1 PRs #63-#70, #72):
+          # 166 files / 2029 passed. Files EXACT at 166; 2029 - 6 = 2023; _FLOOR_SET_FROM["guards"]
+          # moves to 2029 in this commit.
+          # ⬆ MIN_FILES 166→167, MIN_PASSED 2023→2036 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-02):
+          # hosted run 36169668729 @ ca2c5520 observed 166 files / 2029 passed. The new
+          # tests/test_partition_absent_not_elsewhere.py (claimed by `--lane guards`) adds 13 executed
+          # tests: 2029 + 13 = 2042, 2042 - 6 = 2036; files 167 EXACT; _FLOOR_SET_FROM["guards"] -> 2042.
+          # ⬆ MIN_FILES 167→168, MIN_PASSED 2036→2050 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-04):
+          # hosted run 36180221724 (PR #79, merged as d820a82f) observed 167 files / 2042 passed, confirming
+          # the A15-02 projection exactly. The new tests/test_point_prefers_scheduled_native.py (claimed by
+          # `--lane guards`) adds 14 executed tests: 2042 + 14 = 2056, 2056 - 6 = 2050; files 168 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2056.
+          # ⬆ MIN_FILES 168→169, MIN_PASSED 2050→2055 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-09):
+          # hosted CI on PR #80 (merged as fe3a5462) observed 168 files / 2056 passed, confirming the A15-04
+          # projection exactly. The new tests/test_series_frame_stored_identity.py (claimed by `--lane guards`)
+          # adds 5 executed tests: 2056 + 5 = 2061, 2061 - 6 = 2055; files 169 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2061.
+          # ⬆ MIN_FILES 169→170, MIN_PASSED 2055→2063 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (manifest
+          # retention holds across uploads): hosted CI on PR #97 (merged as d7932f3e) observed 169 files / 2061
+          # passed. The new tests/test_manifest_retention_holds.py (claimed by `--lane guards`) adds 8 executed
+          # tests: 2061 + 8 = 2069, 2069 - 6 = 2063; files 170 EXACT; _FLOOR_SET_FROM["guards"] -> 2069.
+          # ⬆ MIN_FILES 170→171, MIN_PASSED 2063→2072 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (composer on
+          # the hub's composition, A15-05(c)): hosted CI on PR #100 (merged as 0829207c) observed 170 files / 2069
+          # passed, confirming the retention projection exactly. The new tests/test_surf_conditions_one_composition.py
+          # (claimed by `--lane guards`) adds 9 executed tests: 2069 + 9 = 2078, 2078 - 6 = 2072; files 171 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2078.
+          # ⬆ MIN_FILES 171→172, MIN_PASSED 2072→2084 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (infobox
+          # rating from the backend, A15-05(b)): hosted CI on PR #102 (merged as e648ae37) observed 171 files / 2078
+          # passed, confirming the #101 projection exactly. The new tests/test_point_rating.py (claimed by
+          # `--lane guards`) adds 11 executed tests and the infobox's POST_STEP_SURFACES entry in
+          # test_rating_composition_parity.py adds 1: 2078 + 12 = 2090, 2090 - 6 = 2084; files 172 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2090.
+          # ⬆ MIN_FILES 172→173, MIN_PASSED 2084→2088 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (/point frame
+          # honesty): hosted CI on PR #113 (merged as eaa5d432) observed 172 files / 2090 passed, confirming the
+          # #103 projection (and #113's chain 113/1328 exactly). The new tests/test_point_frame_honesty.py (claimed by
+          # `--lane guards`) adds 4 executed tests: 2090 + 4 = 2094, 2094 - 6 = 2088; files 173 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2094.
+          # ⬆ MIN_PASSED 2088→2092 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (Kr measured against the chain it
+          # multiplies): hosted CI on PR #116 (merged as 37a40946) observed 173 files / 2094 passed, confirming the
+          # #114 projection exactly. tests/test_validate_nearshore_transform.py (already claimed by `--lane guards`)
+          # gains 4 executed tests: 2094 + 4 = 2098, 2098 - 6 = 2092; files 173 unchanged;
+          # _FLOOR_SET_FROM["guards"] -> 2098.
+          # ⬆ MIN_PASSED 2092→2095 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the science shadow A/B can
+          # exercise shelf-friction levers): dev's hosted run 36373600771 (d6638bf4) observed 173 files / 2098.
+          # tests/test_rating_shadow_ab.py (claimed by `--lane guards`) gains 3 executed tests: 2098 + 3 = 2101,
+          # 2101 - 6 = 2095; files 173 unchanged; _FLOOR_SET_FROM["guards"] -> 2101.
+          # ⬆ MIN_FILES 173→174, MIN_PASSED 2095→2105 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the science
+          # shadow A/B replays SURF_NEARSHORE_MOP): hosted CI on PR #120 (merged as 52e0ec53) observed 173 files / 2101.
+          # The new tests/test_rating_shadow_ab_mop.py (claimed by `--lane guards`) adds 10 executed tests:
+          # 2101 + 10 = 2111, 2111 - 6 = 2105; files 174 EXACT; _FLOOR_SET_FROM["guards"] -> 2111.
+          # ⬆ MIN_PASSED 2105→2110 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the shadow A/B measures against
+          # the recomputed baseline and refuses an unread blob): hosted CI on PR #150 (merged as 9c7ccaf0) observed
+          # 174 files / 2111. tests/test_rating_shadow_ab.py (claimed by `--lane guards`) gains 5 executed tests:
+          # 2111 + 5 = 2116, 2116 - 6 = 2110; files 174 unchanged; _FLOOR_SET_FROM["guards"] -> 2116.
+          # ⬆ MIN_PASSED 2110→2118 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the accuracy monitor judges
+          # scoring liveness on the archive, not on one pass): hosted CI on PR #164 (merged as 09cbca84) observed
+          # 174 files / 2116 passed. tests/test_forecast_accuracy_monitor.py (claimed by `--lane guards`) gains 8
+          # executed tests: 2116 + 8 = 2124, 2124 - 6 = 2118; files 174 unchanged; _FLOOR_SET_FROM["guards"] -> 2124.
+          # ⬆ MIN_FILES 174→175, MIN_PASSED 2118→2124 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-34: the spot
+          # hub names where its sea came from): hosted CI on PR #185 (run 36653165594 @ ed9d72dc) observed 174 files /
+          # 2124 passed. The new tests/test_spot_hub_data_source.py (claimed by `--lane guards`) adds 6 executed tests:
+          # 2124 + 6 = 2130, 2130 - 6 = 2124; files 175 EXACT; _FLOOR_SET_FROM["guards"] -> 2130.
+          # ⬆ MIN_FILES 175→176, MIN_PASSED 2124→2140 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-30: the sim
+          # grades tide from the glyph's own served tide state, dark): hosted CI on #197 (run 36764840449) observed 175
+          # files / 2130 passed. The new tests/test_sim_served_tide.py (claimed by `--lane guards`) adds 16 executed
+          # tests (the 16th, the catalogue path, found the fix inert): 2130 + 16 = 2146, 2146 - 6 = 2140; 176 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2146.
+          # ⬆ MIN_FILES 176→177, MIN_PASSED 2140→2158 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the grid
+          # resolver copies a served grid's diagnostics dict before stamping it): hosted CI on dev ac080442 (run
+          # 36795274173, as read by #211 and the mid-tier branch) observed 176 files / 2146 passed. The new
+          # tests/test_grid_resolver_shared_diagnostics.py (claimed by `--lane guards`) adds 18 executed tests:
+          # 2146 + 18 = 2164, 2164 - 6 = 2158; files 177 EXACT; _FLOOR_SET_FROM["guards"] -> 2164.
+          # ⬆ MIN_FILES 176→177, MIN_PASSED 2140→2145 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the coarse
+          # marine fill copies instead of writing into the shared L1 product): hosted CI on dev ac080442 (run
+          # 36795274173) observed 176 files / 2146 passed. The new tests/test_coarse_fill_shared_vectors.py (claimed by
+          # `--lane guards`) adds 5 executed tests: 2146 + 5 = 2151, 2151 - 6 = 2145; files 177 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2151.
+          # ⬆ MIN_FILES 177→178, MIN_PASSED 2158→2163 on 2026-10-01, the two lines above COMBINED when #211 merged dev after
+          # #213 (by the grid-resolver session): hosted CI on #213 (run 36807315007 @ 33935bbf) observed 177 files / 2164
+          # in this lane. #211's tests/test_coarse_fill_shared_vectors.py adds 5: 2164 + 5 = 2169, 2169 - 6 = 2163; files
+          # 178 EXACT; _FLOOR_SET_FROM["guards"] -> 2169.
+          # ⬆ MIN_FILES 178→179, MIN_PASSED 2163→2177 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the vector half of
+          # the shared-L1-object guard): projected from #211's line above (2169, not yet read hosted when this was
+          # written; confirm on this PR's run). The new tests/test_grid_vector_shared_writes.py (claimed by
+          # `--lane guards`) adds 14 executed tests: 2169 + 14 = 2183, 2183 - 6 = 2177; files 179 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2183.
+          # ⬆ MIN_FILES 179→180, MIN_PASSED 2177→2242 on 2026-10-02, IN THE SAME PUSH THAT CAUSES IT (the far-zoom branch's
+          # max series thinning, built dark): hosted CI on dev c4a59c01 (run 36961412429) read 179 files / 2183 passed,
+          # confirming #211's projection. tests/test_series_max_thinning.py (claimed by `--lane guards`) adds 65 executed
+          # tests (65 passed locally, 0 skipped): 2183 + 65 = 2248, 2248 - 6 = 2242; files 180 EXACT;
+          # _FLOOR_SET_FROM["guards"] -> 2248.
+          # 2026-10-03 allocation guard: exact7cd898f4 CI37152927047 confirms2248.
+          # Tracked test_grid_* selector owns this28-case file in GUARDS, not chain. Expected2276
+          # awaits hosted confirmation;181files and2276-6=2270 retain the same margin.
+          # PR233 checkedCI37155975799 read2276; monitor window adds2 ->2278.
+          # Exact181files and margin6 unchanged.
+          # PR235 CI37158928246 confirms2278; latency evidence adds8 ->2286.
+          # Same181files/margin6; zero slow markers on healthy rows preserved.
+          # PR239 actual2286 plus2 monitor-label controls ->2288; margin6 unchanged.
+          # Immutable manifest publication: hosted2327 projected (2288 +39), same six-test margin.
+          # Response envelope17 + served-hour8 + staging-target8: projected2360, margin6.
+          # WI03: 33 cycle/provenance controls in test_data_health; projected2393, margin6.
+          # WI06: staged selector owns32 bounded wave-cycle retry controls; projected2425/186files, margin6.
+          # Regular direct-point honesty adds99 executed controls; projected2524/187files, margin6.
+          # EURO donor labels add17 guards; projected2541/188files, six-test margin.
+          # ⬆ 188/2535 → 189/2549 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (a pan never costs a full-forecast
+          # wind native recovery): tests/test_wind_native_recovery_bounded.py (14), selector-verified into this lane;
+          # hosted reading on dev 9ef7a3c0 (CI 37880486038: 188 files, 2541 passed) -> projected 2555/189;
+          # 2555 - 6 = 2549.
+          # ⬆ 189/2549 → 190/2559 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (GFS wind grids ask for gfs_global,
+          # dark): tests/test_wind_grid_gfs_global.py (10), selector-verified into this lane; hosted reading on dev
+          # 8ba4aae6 (CI 37948644845: 2555 passed) -> projected 2565/190; 2565 - 6 = 2559.
+          # ⬆ 190/2559 → 194/2635 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): four
+          # files selector-verified into this lane -- test_wind_hrrr_grid (20), test_noaa_hrrr_wind_fetcher (14),
+          # test_wind_hrrr_lane (33), test_wind_hrrr_lane_ingest (9) = 76; hosted reading on dev db037eaf (CI 37971676215:
+          # 190 files, 2565 passed) -> projected 2641/194; 2641 - 6 = 2635. This PR must read 194 files / 2641.
+          # ⬆ 194/2635 → 195/2652 on 2026-10-10, IN THE SAME COMMIT THAT CAUSES IT (a fresh wind box builds the hours
+          # asked for, dark): tests/test_wind_bg_build_bounded.py (17), selector-verified into this lane; hosted reading
+          # on dev 9e11676c (CI 38013820511: 194 files, 2641 passed, 67 skipped) -> projected 2658/195; 2658 - 6 = 2652.
+          # This PR must read 195 files / 2658.
+          MIN_FILES, MIN_PASSED = 195, 2652
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -641,6 +867,11 @@ jobs:
           if passed < MIN_PASSED:
               bad.append(f"only {passed} tests passed, floor is {MIN_PASSED} — guards were deleted "
                          f"or mass-skipped")
+          report_controls = [tc for s in suites for tc in s.iter('testcase')
+                             if tc.get('classname') == 'tests.test_spot_condition_report_routes']
+          if len(report_controls) < 24 or any(tc.find(tag) is not None
+                                             for tc in report_controls for tag in ('failure', 'error', 'skipped')):
+              bad.append("condition-report endpoint controls missing, skipped or failing (require all 24)")
           if bad:
               for b in bad:
                   print(f"::error::Composition guard suite: {b}")
@@ -781,7 +1012,383 @@ jobs:
           # ⬆ 801→809 on 2026-08-15 (fifth): +8 tests, test_nearshore_validation.py (WS-CAN-0076's
           # refusal/composition-pin/QC/report core), selector-verified into this lane.
           # 807 + 8 = 815; 815 - 6 = 809. MIN_FILES 87 → 88.
-          MIN_FILES, MIN_PASSED = 88, 809
+          # ⬆ MIN_FILES 88→90, MIN_PASSED 809→833 on 2026-08-18 (the 0.083° island lane). This
+          # commit adds test_copernicus_island_regions.py (14) and test_copernicus_island_ingestion.py
+          # (10) = 24 tests in 2 files, so the lane will collect 90 files / 839 passed. MIN_FILES is
+          # EXACT; MIN_PASSED keeps the customary 6 below, and _FLOOR_SET_FROM["chain"] moves to 839
+          # in the SAME commit — the pair test reddens if either moves alone.
+          # ⚠️ RAISED BECAUSE THE PRE-PUSH HOOK REFUSED THE PUSH, which is the 5th time this lane has
+          # needed it. The floor is not merely a minimum: backend-floor-staleness goes red when the
+          # observed count runs too far ABOVE it, so adding tests without raising it is a red CI.
+          # September 9: dev run 34279488030 observed 93 files / 884 passed.
+          # September 10: tracked chain selector claims test_tide_acquisition.py; full local
+          # chain measured 94 files / 922 passed / 0 skipped (356.57s). Keep the 6-test margin
+          # and update _FLOOR_SET_FROM["chain"] in the same commit. Linux CI verifies this floor.
+          # PR31 CI35021160260 measured 96 files / 932 passes on the merged code.
+          # Keep the six-test margin and the paired citation in sync.
+          # September 16: hosted CI35055272824 measured 97 files / 940 passes.
+          # ⬆ 97/934 → 98/940 on 2026-09-19 (the island SERVING gate). This commit adds
+          # test_island_serving_gate.py (6), selector-verified into this lane with
+          # `ci_test_lanes.py --lane chain` (97 → 98 files). 940 + 6 = 946; 946 - 6 = 940.
+          # MIN_FILES is EXACT; MIN_PASSED keeps the customary 6 below, and
+          # _FLOOR_SET_FROM["chain"] moves to 946 in the SAME commit.
+          # ⬆ 940 → 941 on 2026-09-19 (the grid-path half of the island gate). The same test FILE
+          # gains a 7th test (the /api/weather/grid ranking outcome), so MIN_FILES stays 98 while
+          # the reading moves 946 → 947; 947 - 6 = 941. _FLOOR_SET_FROM["chain"] moves with it.
+          # September 20 second check: selector-confirmed +1 file / +43 executed controls
+          # (grid estimator/periods +30, point periods +8, nonfinite spread +5). Expected hosted
+          # reading 947 + 43 = 990; retain six-test margin and paired provenance. CI confirms.
+          # September 20 continuation: run35485093918 at 74ca4f4e confirmed 990.
+          # +29 direct-height controls and +3 real-resolver cases -> expected 1022.
+          # No new files; retain six-test margin and move paired provenance together.
+          # Day-two direction support: hosted d82032f5 confirmed 1022/99; +57 executed
+          # controls in +1 selector-confirmed file. Full local chain: 1079/100.
+          # Retention adds 69 executed controls in one further selector-confirmed file.
+          # Expected final chain 1148/101; hosted receipt must confirm that projection.
+          # Retain the established six-test margin and paired reference.
+          # ⬆ 2026-09-20: that projection was NOT confirmed — hosted run35538513375 at ed5e46c6
+          # actually observed 102 files / 1194 passes (the weather-stabilization-14 batch landed
+          # its WP2/WP5 cases without moving this pair). A floor 52 below the reading cannot
+          # detect anything shrinking back to it, so it is corrected here from that receipt:
+          # files 102 EXACT, passes 1194 - 6 = 1188. Local `--lane chain` also selects 102.
+          # This lane is untouched by audit 14.0's F-01 work; the drift is pre-existing.
+          # September 21, Queue E#1 band-reference echo: +1 file auto-claimed by `--lane chain`
+          # (selector run before and after `git add`: chain 102 -> 103, guards 165 and estate
+          # 267 unchanged). tests/test_band_reference_echo.py adds 12 executed controls, so
+          # files 102 -> 103 EXACT and the expected hosted reading is 1194 + 12 = 1206.
+          # Retain the six-test margin; _FLOOR_SET_FROM["chain"] moves to 1206 in this commit.
+          # ⬆ MIN_FILES 103→104, MIN_PASSED 1200→1203 on 2026-09-25, from hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
+          # 104 files / 1209 passed. Files EXACT at 104; 1209 - 6 = 1203; _FLOOR_SET_FROM["chain"]
+          # moves to 1209 in this commit.
+          # ⬆ MIN_PASSED 1203→1207 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (F-08 Stage A):
+          # hosted run 36138912467 @ a0c0d5e2 (dev, after the nine audit-14.1 PRs #63-#70, #72) observed 104 files / 1209 passed; tests/test_pilot_regions.py (claimed by
+          # `--lane chain`) gains 4 executed tests, no new file, so the expected hosted reading is
+          # 1209 + 4 = 1213. 1213 - 6 = 1207; files stay 104 EXACT; _FLOOR_SET_FROM["chain"] -> 1213.
+          # ⬆ MIN_PASSED 1207→1218 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (L2 upload retry):
+          # hosted run 36153843410 @ fb8d861c (dev, after F-08 Stage A) observed 104 files / 1213 passed,
+          # confirming Stage A's projection exactly. tests/test_l2_writer_gate.py (claimed by `--lane
+          # chain`) gains 11 executed tests (8 -> 19), no new file: 1213 + 11 = 1224, 1224 - 6 = 1218; files stay
+          # 104 EXACT; _FLOOR_SET_FROM["chain"] -> 1224.
+          # ⬆ MIN_FILES 104→105, MIN_PASSED 1218→1234 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-10):
+          # hosted CI on PR #81 (merged as 21a91c1c) observed 104 files / 1224 passed. The new
+          # tests/test_capabilities_served_upstream.py (claimed by `--lane chain`) adds 16 executed tests:
+          # 1224 + 16 = 1240, 1240 - 6 = 1234; files 105 EXACT; _FLOOR_SET_FROM["chain"] -> 1240.
+          # ⬆ MIN_FILES 105→106, MIN_PASSED 1234→1239 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-19):
+          # hosted CI on PR #87 (merged as b0985ca8) observed 105 files / 1240 passed, confirming the A15-10
+          # projection exactly. The new tests/test_calibration_read_retry.py (claimed by `--lane chain`) adds
+          # 5 executed tests: 1240 + 5 = 1245, 1245 - 6 = 1239; files 106 EXACT; _FLOOR_SET_FROM["chain"] -> 1245.
+          # ⬆ MIN_FILES 106→107, MIN_PASSED 1239→1242 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (F-05):
+          # hosted CI on PR #88 (merged as e5306df3) observed 106 files / 1245 passed, confirming the A15-19
+          # projection exactly. The new tests/test_ecmwf_cycle_identity.py (claimed by `--lane chain`) adds 3
+          # executed tests: 1245 + 3 = 1248, 1248 - 6 = 1242; files 107 EXACT; _FLOOR_SET_FROM["chain"] -> 1248.
+          # ⬆ MIN_FILES 107→108, MIN_PASSED 1242→1255 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (F-05 part 2,
+          # CMEMS run identity): hosted run 36210532124 on PR #90 observed 107 files / 1248 passed, confirming the
+          # F-05 projection exactly. The new tests/test_cmems_run_identity.py (claimed by `--lane chain` through its
+          # cycle_provenance import) adds 13 executed tests: 1248 + 13 = 1261, 1261 - 6 = 1255; files 108 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1261.
+          # ⬆ MIN_PASSED 1255→1260 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (F-05 part 3, the in-process
+          # CMEMS lane): hosted CI on PR #91 (merged as 38c838c3) observed 108 files / 1261 passed, confirming
+          # the part-2 projection exactly. tests/test_cmems_run_identity.py gains 5 executed tests (13 -> 18),
+          # no new file: 1261 + 5 = 1266, 1266 - 6 = 1260; files stay 108 EXACT; _FLOOR_SET_FROM["chain"] -> 1266.
+          # ⬆ MIN_PASSED 1260→1262 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (batch quality pair): hosted CI
+          # on PR #96 (merged as a7e6f6ca) observed 108 files / 1266 passed, confirming the F-05 part-3 projection
+          # exactly. tests/test_conditions_batch_precompute.py (claimed by `--lane chain`) gains 2 executed tests,
+          # no new file: 1266 + 2 = 1268, 1268 - 6 = 1262; files stay 108 EXACT; _FLOOR_SET_FROM["chain"] -> 1268.
+          # ⬆ MIN_FILES 108→109, MIN_PASSED 1262→1278 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (roadmap
+          # stage 1, CMEMS spot series once per bulletin): hosted CI on PR #98 (merged as a139d0e8) observed 108
+          # files / 1268 passed, confirming the batch-quality projection exactly. The new
+          # tests/test_cmems_spot_series_cache.py (claimed by `--lane chain`) adds 16 executed tests:
+          # 1268 + 16 = 1284, 1284 - 6 = 1278; files 109 EXACT; _FLOOR_SET_FROM["chain"] -> 1284.
+          # ⬆ MIN_FILES 109→110, MIN_PASSED 1278→1287 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (band on the
+          # chain's shore normal, Queue E#1): hosted CI on PR #101 (merged as 2a7ae5f6) observed 109 files / 1284
+          # passed (unchanged since #100). The new tests/test_band_chain_shore_normal.py (claimed
+          # by `--lane chain`) adds 9 executed tests: 1284 + 9 = 1293, 1293 - 6 = 1287; files 110 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1293.
+          # ⬆ MIN_FILES 110→111, MIN_PASSED 1287→1293 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (the band's
+          # wind follows the point resolver's pick, Queue E#1 data half): hosted CI on PR #103 (merged as d096c5eb)
+          # observed 110 files / 1293 passed, confirming the #102 projection exactly. The new
+          # tests/test_band_wind_follows_the_point.py (claimed by `--lane chain`) adds 6 executed tests:
+          # 1293 + 6 = 1299, 1299 - 6 = 1293; files 111 EXACT; _FLOOR_SET_FROM["chain"] -> 1299.
+          # ⬆ MIN_FILES 111→112, MIN_PASSED 1293→1309 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (shadow MOS on
+          # the skill ledger, roadmap stage 5 step 1): hosted CI on PR #106 (merged as 547ec447) observed 111 files /
+          # 1299 passed, confirming the #104 projection exactly. The new tests/test_skill_mos.py (claimed by
+          # `--lane chain`) adds 16 executed tests: 1299 + 16 = 1315, 1315 - 6 = 1309; files 112 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1315.
+          # ⬆ MIN_FILES 112→113, MIN_PASSED 1309→1322 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (same-model gap
+          # attribution on the skill ledger): hosted CI on PR #112 (merged as be682591) observed 112 files / 1315
+          # passed, confirming the #107 projection exactly. The new tests/test_skill_attribution.py (claimed by
+          # `--lane chain`) adds 13 executed tests: 1315 + 13 = 1328, 1328 - 6 = 1322; files 113 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1328.
+          # ⬆ MIN_FILES 113→114, MIN_PASSED 1322→1328 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (nearshore
+          # validation backfill + attribution): hosted CI on PR #114 (merged as 7fddbb73) observed 113 files / 1328
+          # passed, confirming the #113 projection exactly. The new tests/test_nearshore_backfill.py (claimed by
+          # `--lane chain`) adds 6 executed tests: 1328 + 6 = 1334, 1334 - 6 = 1328; files 114 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1334.
+          # ⬆ MIN_FILES 114→115, MIN_PASSED 1328→1339 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the swell-train flip, roadmap stage 3): hosted CI on PR #116 (merged as 37a40946) observed
+          # 114 files / 1334 passed, confirming the #116 projection exactly. The new tests/test_nearshore_trains_ab.py
+          # (claimed by `--lane chain`) adds 11 executed tests: 1334 + 11 = 1345, 1345 - 6 = 1339; files 115 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1345.
+          # ⬆ MIN_FILES 115→116, MIN_PASSED 1339→1348 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (EURO's CMEMS
+          # swell periods near coasts): hosted CI on PR #117 (merged as b5a13d63) observed 115 files / 1345 passed,
+          # confirming the #117 projection exactly. The new tests/test_cmems_period_window.py (claimed by
+          # `--lane chain`) adds 9 executed tests: 1345 + 9 = 1354, 1354 - 6 = 1348; files 116 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1354.
+          # ⬆ MIN_FILES 116→117, MIN_PASSED 1348→1355 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades CDIP's MOP, roadmap stage 4): hosted CI on PR #122 (merged as 8e8ddeed) observed 116 files /
+          # 1354 passed, confirming the #118 projection exactly. The new tests/test_nearshore_mop_arm.py (claimed by
+          # `--lane chain`) adds 7 executed tests: 1354 + 7 = 1361, 1361 - 6 = 1355; files 117 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1361.
+          # ⬆ MIN_FILES 117→118, MIN_PASSED 1355→1362 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the MOP
+          # spot -> cell table, roadmap stage 4): hosted CI on PR #124 (merged as 7fab53ec) observed 117 files / 1361
+          # passed, confirming the #124 projection exactly. The new tests/test_mop_spot_cells.py (claimed by
+          # `--lane chain`) adds 7 executed tests: 1361 + 7 = 1368, 1368 - 6 = 1362; files 118 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1368.
+          # ⬆ MIN_FILES 118→119, MIN_PASSED 1362→1369 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the MOP
+          # ingest archives each sea+swell run at the spot and buoy cells, roadmap stage 4): hosted CI on PR #125
+          # (merged as c852abb3) observed 118 files / 1368 passed, confirming the #125 projection exactly. The new
+          # tests/test_mop_ingest.py (claimed by `--lane chain`) adds 7 executed tests: 1368 + 7 = 1375,
+          # 1375 - 6 = 1369; files 119 EXACT; _FLOOR_SET_FROM["chain"] -> 1375.
+          # ⬆ MIN_FILES 119→120, MIN_PASSED 1369→1374 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the ARCHIVED MOP grid runs, stage 4): hosted CI on PR #126 (merged as ff0e3549) observed
+          # 119 files / 1375 passed, confirming the #126 projection exactly. The new
+          # tests/test_nearshore_mop_grid_arm.py (claimed by `--lane chain`) adds 5 executed tests: 1375 + 5 = 1380,
+          # 1380 - 6 = 1374; files 120 EXACT; _FLOOR_SET_FROM["chain"] -> 1380.
+          # ⬆ MIN_FILES 120→121, MIN_PASSED 1374→1384 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (stage 4
+          # serving, dark behind SURF_NEARSHORE_MOP): stacked on PR #127, whose projection is 120 files / 1380
+          # passed (#126's hosted 119 / 1375 + 5). The new tests/test_mop_nearshore_serving.py (claimed by
+          # `--lane chain`) adds 10 executed tests: 1380 + 10 = 1390, 1390 - 6 = 1384; files 121 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1390.
+          # ⬆ MIN_PASSED 1384→1387 on 2026-09-27, IN THE SAME COMMIT THAT CAUSES IT (the same-model attribution
+          # splits big swells out): stacked on PR #128 (projection 121 files / 1390; #127 hosted 120 / 1380
+          # confirmed its own). tests/test_skill_attribution.py (already claimed by `--lane chain`) gains 3
+          # executed tests: 1390 + 3 = 1393, 1393 - 6 = 1387; files 121 unchanged; _FLOOR_SET_FROM["chain"] -> 1393.
+          # ⬆ MIN_FILES 121→122, MIN_PASSED 1387→1402 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge's NOAA NWPS arm, stage 4 outside California): dev's hosted run 36361175254 (acd1f070, #129)
+          # observed 121 files / 1393 passed, confirming the #129 projection exactly. The new tests/test_nwps_arm.py
+          # (claimed by `--lane chain`) adds 15 executed tests: 1393 + 15 = 1408, 1408 - 6 = 1402; files 122 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1408.
+          # ⬆ MIN_PASSED 1402→1406 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (big swell selected by the
+          # forecast as well as by the observation): #130's hosted merge run observed 122 files / 1408 passed,
+          # confirming its projection exactly. tests/test_skill_mos.py (already claimed by `--lane chain`) gains 4
+          # executed tests: 1408 + 4 = 1412, 1412 - 6 = 1406; files 122 unchanged; _FLOOR_SET_FROM["chain"] -> 1412.
+          # ⬆ MIN_PASSED 1406→1407 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (an armed judge hour grades every
+          # cheap arm; the NWPS fetch stops at the cycle that covers the window): #132's hosted merge run observed
+          # 122 files / 1412 passed, confirming its projection exactly. tests/test_nwps_arm.py (claimed by `--lane
+          # chain`) gains 1 executed test: 1412 + 1 = 1413, 1413 - 6 = 1407; files 122 unchanged; _FLOOR_SET_FROM -> 1413.
+          # ⬆ MIN_FILES 122→123, MIN_PASSED 1407→1410 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the transform with the BUOY's geometry): #133's hosted merge run observed 122 files / 1413,
+          # confirming its projection exactly. The new tests/test_nearshore_station_geometry.py (claimed by `--lane
+          # chain`) adds 3 executed tests: 1413 + 3 = 1416, 1416 - 6 = 1410; files 123 EXACT; _FLOOR_SET_FROM -> 1416.
+          # ⬆ MIN_FILES 123→124, MIN_PASSED 1410→1413 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge's shelf arm, cross-shelf friction off on wide shelves): #135's hosted merge run observed 123 files /
+          # 1416, confirming its projection exactly. The new tests/test_nearshore_shelf_arm.py (claimed by `--lane
+          # chain`) adds 3 executed tests: 1416 + 3 = 1419, 1419 - 6 = 1413; files 124 EXACT; _FLOOR_SET_FROM -> 1419.
+          # ⬆ MIN_PASSED 1413→1415 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore judge's
+          # nearshore-input arm): #136's hosted merge run observed 124 files / 1419, confirming its projection exactly.
+          # tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 2 executed tests: 1419 + 2 = 1421,
+          # 1421 - 6 = 1415; files 124 unchanged; _FLOOR_SET_FROM["chain"] -> 1421.
+          # ⬆ MIN_FILES 124→125, MIN_PASSED 1415→1426 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the
+          # three-model consensus scored at the buoys): #137's hosted merge run observed 124 files / 1421, confirming
+          # its projection exactly. The new tests/test_skill_consensus.py (claimed by `--lane chain`) adds 11
+          # executed tests: 1421 + 11 = 1432, 1432 - 6 = 1426; files 125 EXACT; _FLOOR_SET_FROM["chain"] -> 1432.
+          # ⬆ MIN_PASSED 1426→1428 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the skill-weighted consensus):
+          # #139's hosted merge run observed 125 files / 1432, confirming its projection exactly.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 2 executed tests: 1432 + 2 = 1434,
+          # 1434 - 6 = 1428; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1434.
+          # ⬆ MIN_PASSED 1428→1431 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the consensus graded on big
+          # swells): dev's hosted run 36376343655 (89b13a0a) observed 125 files / 1434, confirming #140's projection.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1434 + 3 = 1437,
+          # 1437 - 6 = 1431; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1437.
+          # ⬆ MIN_PASSED 1431→1434 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (cross-shelf friction off by
+          # default + the cap-seam repair on, held for the owner): #145's hosted merge run observed 125 files / 1437,
+          # confirming its projection. tests/test_nearshore_shelf_arm.py (claimed by `--lane chain`) gains 3 executed
+          # tests: 1437 + 3 = 1440, 1440 - 6 = 1434; files 125 unchanged; _FLOOR_SET_FROM["chain"] -> 1440.
+          # ⬆ MIN_FILES 125→126, MIN_PASSED 1434→1442 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge reaches the Gulf via NDBC 42035 and grades the legacy friction beside the friction-off chain): #146's
+          # hosted merge-candidate run observed 125 files / 1440, confirming its projection. The new
+          # tests/test_nearshore_gulf_ndbc.py (claimed by `--lane chain`) adds 8 executed tests: 1440 + 8 = 1448,
+          # 1448 - 6 = 1442; files 126 EXACT; _FLOOR_SET_FROM["chain"] -> 1448.
+          # ⬆ MIN_PASSED 1442→1443 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (NDBC 42098, the West Florida shelf,
+          # joins the judge): #147's hosted merge-candidate run observed 126 files / 1448, confirming its projection.
+          # tests/test_nearshore_gulf_ndbc.py (claimed by `--lane chain`) gains 1 executed test (the committed-table pin
+          # is now parametrized over both buoys): 1448 + 1 = 1449, 1449 - 6 = 1443; files 126; _FLOOR_SET_FROM -> 1449.
+          # ⬆ MIN_FILES 126→127, MIN_PASSED 1443→1455 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the nearshore
+          # judge grades the three-model consensus input): hosted CI on PR #152 (merged as efc9d89a) observed 126 files /
+          # 1449 passed. The new tests/test_nearshore_consensus_arm.py (claimed by `--lane chain`) adds 12 executed
+          # tests: 1449 + 12 = 1461, 1461 - 6 = 1455; files 127 EXACT; _FLOOR_SET_FROM["chain"] -> 1461.
+          # ⬆ MIN_PASSED 1455→1459 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the GFS+EURO pair graded in the
+          # ledger and the judge): hosted CI on PR #155 (merged as 322d1f20) observed 127 files / 1461.
+          # tests/test_nearshore_consensus_arm.py and tests/test_skill_consensus.py (both claimed by `--lane chain`)
+          # gain 2 executed tests each: 1461 + 4 = 1465, 1465 - 6 = 1459; files 127 unchanged; _FLOOR_SET_FROM -> 1465.
+          # ⬆ MIN_PASSED 1459→1471 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the ledger's consensus split by
+          # coast): hosted CI on PR #157 (merged as a9bf2ac2) observed 127 files / 1465. tests/test_skill_consensus.py
+          # (claimed by `--lane chain`) gains 12 executed tests: 1465 + 12 = 1477, 1477 - 6 = 1471; files 127
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1477.
+          # ⬆ MIN_PASSED 1471→1474 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the ledger's consensus split by
+          # observed sea state): hosted CI on PR #158 (merged as ef1ba246) observed 127 files / 1477; #159 added none.
+          # tests/test_skill_consensus.py (claimed by `--lane chain`) gains 3 executed tests: 1477 + 3 = 1480,
+          # 1480 - 6 = 1474; files 127 unchanged; _FLOOR_SET_FROM["chain"] -> 1480.
+          # ⬆ MIN_FILES 127→128, MIN_PASSED 1474→1495 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the equal-mean
+          # consensus builder, dark): hosted CI on dev @ e82f59c8 (#153) observed 127 files / 1480. The new
+          # tests/test_consensus_product.py (claimed by `--lane chain`) adds 21 executed tests: 1480 + 21 = 1501,
+          # 1501 - 6 = 1495; files 128 EXACT; _FLOOR_SET_FROM["chain"] -> 1501.
+          # ⬆ MIN_FILES 128→129, MIN_PASSED 1495→1515 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the glyph
+          # precompute refuses to rate without the size climatology): hosted CI on PR #161 (merged as e4c27fd7)
+          # observed 128 files / 1501. The new tests/test_size_reference_fail_closed.py (claimed by `--lane chain`)
+          # adds 20 executed tests: 1501 + 20 = 1521, 1521 - 6 = 1515; files 129 EXACT; _FLOOR_SET_FROM -> 1521.
+          # ⬆ MIN_FILES 129→130, MIN_PASSED 1515→1531 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the consensus
+          # SHADOW at ingest, D-009): hosted CI on PR #162 (merged as f18c7ab8) observed 129 files / 1521. The new
+          # tests/test_consensus_ingest.py (claimed by `--lane chain`) adds 16 executed tests: 1521 + 16 = 1537,
+          # 1537 - 6 = 1531; files 130 EXACT; _FLOOR_SET_FROM["chain"] -> 1537.
+          # ⬆ MIN_PASSED 1531→1535 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (no shadow model reaches an
+          # upstream): hosted CI on PR #166 (merged as 0b169692) observed 130 files / 1537 passed.
+          # tests/test_consensus_ingest.py (claimed by `--lane chain`) gains 4 executed tests: 1537 + 4 = 1541,
+          # 1541 - 6 = 1535; files 130 unchanged; _FLOOR_SET_FROM["chain"] -> 1541.
+          # ⬆ MIN_PASSED 1535→1543 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (consensus PR C: the shadow graded
+          # in the ledger and the judge): hosted CI on PR #167 (merged as b16dbb5d) observed 130 files / 1541.
+          # tests/test_skill_consensus.py (+5) and tests/test_nearshore_consensus_arm.py (+3), both claimed by
+          # `--lane chain`: 1541 + 8 = 1549, 1549 - 6 = 1543; files 130 unchanged; _FLOOR_SET_FROM["chain"] -> 1549.
+          # ⬆ MIN_FILES 130→131, MIN_PASSED 1543→1554 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the same-model
+          # parity probe): hosted CI on PR #169 (merged as afa19a52) observed 130 files / 1549. The new
+          # tests/test_same_model_parity_probe.py (claimed by `--lane chain`) adds 11 executed tests: 1549 + 11 = 1560,
+          # 1560 - 6 = 1554; files 131 EXACT; _FLOOR_SET_FROM["chain"] -> 1560.
+          # ⬆ MIN_FILES 131→132, MIN_PASSED 1554→1568 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the native-cell
+          # regrid, REGRID_NATIVE_CELL, dark): hosted CI on PR #170 (the parity probe, this branch's base) observed
+          # 131 files / 1560. The new tests/test_regrid_native_cell.py (claimed by `--lane chain`) adds 14 executed
+          # tests: 1560 + 14 = 1574, 1574 - 6 = 1568; files 132 EXACT; _FLOOR_SET_FROM["chain"] -> 1574.
+          # ⬆ MIN_PASSED 1568→1575 in the same PR, IN THE COMMIT THAT CAUSES IT: the ICON and EURO halves add 7 tests to
+          # that same file (21 in all): 1560 + 21 = 1581, 1581 - 6 = 1575; files 132 unchanged; _FLOOR_SET_FROM -> 1581.
+          # ⬆ MIN_PASSED 1575→1580 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (a land node answers from its
+          # centred 3x3): hosted CI on PR #172 (merged as bdef3be2) observed 132 files / 1581. The same file gains 5
+          # executed tests (26 in all): 1581 + 5 = 1586, 1586 - 6 = 1580; files 132 unchanged; _FLOOR_SET_FROM -> 1586.
+          # ⬆ MIN_FILES 132→133, MIN_PASSED 1580→1607 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the consensus
+          # serving switch, CONSENSUS_SERVE, dark): hosted CI on PR #174 observed 132 files / 1586. The new
+          # tests/test_consensus_serve.py (claimed by `--lane chain`) adds 27 executed tests: 1586 + 27 = 1613,
+          # 1613 - 6 = 1607; files 133 EXACT; _FLOOR_SET_FROM["chain"] -> 1613.
+          # ⬆ MIN_PASSED 1607→1612 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (F-08 Stage B's first box,
+          # us_pacific_northwest, dark): hosted CI on PR #175 (merged as f4590a3d) observed 133 files / 1613.
+          # tests/test_pilot_regions.py (claimed by `--lane chain`) gains 5 executed tests: 1613 + 5 = 1618,
+          # 1618 - 6 = 1612; files 133 unchanged; _FLOOR_SET_FROM["chain"] -> 1618.
+          # ⬆ MIN_FILES 133→134, MIN_PASSED 1612→1620 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (a marine height
+          # interpolated as a scalar, SAMPLER_SCALAR_HEIGHT, dark): hosted CI on origin/dev @ 8fd1b948 (run 36658691020)
+          # observed 133 files / 1618. The new tests/test_sampler_scalar_marine_height.py (claimed by `--lane chain`)
+          # adds 12 executed tests: 1618 + 12 = 1630, 1630 - 6 = 1624; files 134 EXACT; _FLOOR_SET_FROM["chain"] -> 1630.
+          # ⬆ MIN_FILES 134→135, MIN_PASSED 1624→1634 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (S7/S8: period
+          # and direction in the skill ledger): hosted CI on #192 observed 134 files / 1630. The new
+          # tests/test_skill_direction_period.py (claimed by `--lane chain`) adds 10 executed tests: 1630 + 10 = 1640,
+          # 1640 - 6 = 1634; files 135 EXACT; _FLOOR_SET_FROM["chain"] -> 1640.
+          # ⬆ MIN_PASSED 1634→1638 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (S9: wind in the skill ledger; the
+          # calibration fetch finally parses wind): hosted CI on #193 observed 135 files / 1640.
+          # tests/test_skill_direction_period.py gains 4 executed tests: 1640 + 4 = 1644, 1644 - 6 = 1638; files 135
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1644.
+          # ⬆ MIN_FILES 135→136, MIN_PASSED 1638→1649 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-23: a refused L2
+          # read is retried, held for seconds not cached as absent, and labelled): hosted CI on #194 observed 135 files /
+          # 1644. The new tests/test_l2_read_refusal.py (claimed by `--lane chain`) adds 11 executed tests: 1644 + 11 =
+          # 1655, 1655 - 6 = 1649; files 136 EXACT; _FLOOR_SET_FROM["chain"] -> 1655.
+          # ⬆ MIN_PASSED 1649→1651 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (commitment 188: the big-swell bias
+          # by forecast bin, split by coast): hosted CI on #196 (run 36760791018 @ 14961798) observed 136 files / 1655.
+          # tests/test_skill_consensus.py gains 2 executed tests: 1655 + 2 = 1657, 1657 - 6 = 1651; files 136
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1657.
+          # ⬆ MIN_PASSED 1651→1655 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (the per-region serve rule graded on
+          # the weeks that did not choose it): hosted CI on #197 observed 136 files / 1657.
+          # tests/test_skill_consensus.py gains 4 executed tests: 1657 + 4 = 1661, 1661 - 6 = 1655; files 136
+          # unchanged; _FLOOR_SET_FROM["chain"] -> 1661.
+          # ⬆ MIN_FILES 136→137, MIN_PASSED 1655→1660 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (commitment 203:
+          # the parity probe grades with the glyph's tide and samples the banded spots): hosted CI on #198 (run
+          # 36767046299) observed 136 files / 1661. The new tests/test_probe_tide_banded.py (claimed by `--lane chain`)
+          # adds 5 executed tests: 1661 + 5 = 1666, 1666 - 6 = 1660; files 137 EXACT; _FLOOR_SET_FROM["chain"] -> 1666.
+          # ⬆ MIN_FILES 137→138, MIN_PASSED 1660→1668 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (W-31: a coastal
+          # point with no usable depth is the named regime unknown_depth): hosted CI on #200 (run 36772678148 @ 41ac3a23)
+          # observed 137 files / 1666. The new tests/test_unknown_depth_regime.py (claimed by `--lane chain`) adds 8
+          # executed tests: 1666 + 8 = 1674, 1674 - 6 = 1668; files 138 EXACT; _FLOOR_SET_FROM["chain"] -> 1674.
+          # ⬆ MIN_PASSED 1668→1678 on 2026-09-30, IN THE SAME COMMIT THAT CAUSES IT (CONSENSUS_SERVE_KEEP_GFS, the
+          # Hawaii-only consensus rule's switch, dark): hosted CI on #201 (run 36774878323) observed 138 files / 1674.
+          # tests/test_consensus_serve.py gains 10 executed tests (27 -> 37): 1674 + 10 = 1684, 1684 - 6 = 1678; files
+          # 138 unchanged; _FLOOR_SET_FROM["chain"] -> 1684.
+          # ⬆ MIN_FILES 138→139, MIN_PASSED 1678→1683 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (the mid-res
+          # tier copies the cached global_mid's diagnostics dict before stamping it): hosted CI on dev (run 36795274173
+          # @ ac080442) observed 138 files / 1684. The new tests/test_mid_tier_shared_diagnostics.py (claimed by
+          # `--lane chain`) adds 5 executed tests: 1684 + 5 = 1689, 1689 - 6 = 1683; files 139 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1689.
+          # ⬆ MIN_FILES 138→139, MIN_PASSED 1678→1709 on 2026-10-01, IN THE SAME COMMIT THAT CAUSES IT (commitment
+          # 228, the world-scale series cost): hosted CI on dev e8321acc (run 36793705026) observed 138 files / 1684.
+          # The new tests/test_world_series_cost.py (claimed by `--lane chain` only) adds 31 executed tests:
+          # 1684 + 31 = 1715, 1715 - 6 = 1709; files 139 EXACT; _FLOOR_SET_FROM["chain"] -> 1715.
+          # ⬆ MIN_FILES 139→140, MIN_PASSED 1683→1714 on 2026-10-01, the two lines above COMBINED when #210 merged dev after
+          # #212 (by the grid-resolver session): hosted CI on #213 (run 36807315007 @ 33935bbf, dev 454d96cb's tree)
+          # observed 138 files / 1684 in this lane. #212's tests/test_mid_tier_shared_diagnostics.py adds 5 and #210's
+          # tests/test_world_series_cost.py adds 31: 1684 + 5 + 31 = 1720, 1720 - 6 = 1714; files 140 EXACT;
+          # _FLOOR_SET_FROM["chain"] -> 1720.
+          # ⬆ MIN_PASSED 1714→1732 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the strict L2 reader treats
+          # Supabase's missing-object HTTP 400 as absent; the skill ledger died at the 2026-10-01 month rollover):
+          # hosted CI on dev 63a70425 (run 36858078858) observed 140 files / 1720, confirming #213's projection
+          # exactly. tests/test_calibration_read_retry.py gains 7 executed tests and
+          # tests/test_forecast_skill_retention.py gains 11 (both claimed by `--lane chain`): 1720 + 18 = 1738,
+          # 1738 - 6 = 1732; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1738.
+          # ⬆ MIN_PASSED 1732→1734 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (the W-23 label never writes into a
+          # cached product's warnings, and it is logged): hosted CI on #217 (run 36955511157 @ 7b606f06) observed 140
+          # files / 1738. tests/test_l2_read_refusal.py (claimed by `--lane chain`) gains 2 executed tests: 1738 + 2 =
+          # 1740, 1740 - 6 = 1734; files 140 unchanged; _FLOOR_SET_FROM["chain"] -> 1740.
+          # ⬆ MIN_FILES 140→141, MIN_PASSED 1734→1748 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (one guard on
+          # the invariant: no serve path may change a product the L1 cache holds, a conftest autouse fixture for every
+          # lane): hosted CI on #219 (run 36959067942 @ 4d3848ce) observed 140 files / 1740, confirming its projection
+          # exactly. The new tests/test_l1_cached_product_guard.py (claimed by `--lane chain` only) adds 14 executed
+          # tests: 1740 + 14 = 1754, 1754 - 6 = 1748; files 141 EXACT; _FLOOR_SET_FROM["chain"] -> 1754.
+          # ⬆ MIN_FILES 141→142, MIN_PASSED 1748→1771 on 2026-10-02, IN THE SAME COMMIT THAT CAUSES IT (consensus PR C,
+          # the flip sweep, re-derived after #223 merged): hosted CI on #223 (run 37009550311 @ eed3bfe9) observed 141
+          # files / 1754, confirming #223's projection. tests/test_consensus_flip_sweep.py (a new file, claimed by
+          # `--lane chain`) adds 23 executed tests: 1754 + 23 = 1777, 1777 - 6 = 1771; files 142;
+          # _FLOOR_SET_FROM["chain"] -> 1777.
+          # 2026-10-03 audit repairs: hosted dev run 37048650086 at e0f93466 confirms
+          # 142 files / 1777 passes. Two selector-owned files add 13 executed cases:
+          # projected 144 / 1790, floor 1790 - 6 = 1784. Hosted confirmation pending.
+          # Next local audit batch: +62 executed sim-input cases, one chain file.
+          # Same hosted base receipt + prior additions: projected 145 / 1852; margin 6.
+          # 2026-10-03 OAuth/time audit: pinned hosted base 37048650086 plus earlier owned
+          # additions projected 1852; 24 executed served-time cases -> 1876, margin 6.
+          # Tracked selector now 146 files; hosted confirmation pending.
+          # 2026-10-03 capacity repair: checked5d9e92f2 CI37150378034 confirms chain1876.
+          # One selector-owned file adds42 executed parity/cache/fallback controls (local pair42pass).
+          # Expected hosted1918, not yet observed;147 files and1918-6=1912 keep the same margin.
+          # Ordered audit repair: two selector-owned files add21+12 executed controls to
+          # pinned hosted1918. Expected1951; local full collection crashes on Windows,
+          # so hosted CI must confirm. Preserve the six-test margin and paired reference.
+          # Hosted5afa0c82 chain1951 +11producer/+20Copernicus controls =1982; margin6.
+          # Exact-corner validity67 controls: projected2049, margin6.
+          # Four actual unset-default controls belong to chain: projected2053, margin6.
+          # WI02: 18 invocation-scoped product progress controls; projected2071, margin6.
+          # WI04: staged selector owns27 shared-object prune controls; projected2098/153files, margin6.
+          # WI05: staged selector owns38 invalid-write/zero/ack controls; projected2136/154files, margin6.
+          # WI01/WI06: 90 staged refresh/cycle-prune controls; projected2226/156files, margin6.
+          # Grid HTTP response envelope: staged chain test +54 executed controls.
+          # Own hostedf405 read2280; 37 scan/lease controls project2317/157files, preserve margin6.
+          # Five follow-ups grade real-helper cancellation/ready frames/expired child work.
+          # Partial ECMWF analysis metadata: 11 executed offline controls; projected2328, margin6.
+          # PR256 own receipt read2328; 33 interpolation-cycle controls are
+          # selector-owned by chain: projected2361 across158 files, margin6.
+          # Blend contributor-cycle controls add35 executed tests and one chain-owned file:
+          # projected2396 across159 files, preserving the six-test margin.
+          # Health listing cache adds20 chain controls; projected2416/160files, margin6.
+          # ⬆ 2410→2413 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (VA-03 nearshore judge): three
+          # GRADED-floor cases in test_nearshore_validation.py on the hosted 2416 read on dev ab416298
+          # (CI 37853930681: 160 files, 2416 passed): projected 2419/160 files; 2419 - 6 = 2413, margin 6.
+          # ⬆ 160/2413 → 161/2420 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (orphaned hour-waiter):
+          # test_viewport_orphaned_hour_waiter.py (7), selector-verified into this lane; hosted reading on
+          # dev 1b21ad2a (CI 37858602008: 160 files, 2419 passed) -> projected 2426/161; 2426 - 6 = 2420.
+          # ⬆ 161/2420 → 162/2429 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the viewed hour wins the
+          # sharpen queue): test_reval_viewed_hour_wins.py (9), selector-verified into this lane; hosted
+          # reading on dev c687b6b1 (CI 37865521312: 161 files, 2426 passed) -> projected 2435/162;
+          # 2435 - 6 = 2429.
+          # ⬆ 162/2429 → 163/2436 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the stale-cache refresh
+          # takes a queue slot): test_stale_cache_reval_bounded.py (6) plus 1 in test_reval_viewed_hour_wins.py,
+          # selector-verified into this lane; hosted reading on #277 head 4cbf59d7 (CI 37872426321: 162 files,
+          # 2435 passed) -> projected 2442/163; 2442 - 6 = 2436.
+          # ⬆ 163/2436 → 163/2438 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new
+          # pooled fetcher noaa_hrrr_wind_fetcher.py joins POOLED_FETCHERS in test_fetcher_http_pooling.py (2 parametrized
+          # cases); hosted reading on dev db037eaf (CI 37971676215: 163 files, 2442 passed) -> projected 2444/163;
+          # 2444 - 6 = 2438. This PR must read 163 files / 2444.
+          MIN_FILES, MIN_PASSED = 163, 2438
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1066,7 +1673,123 @@ jobs:
           # `importorskip("pyarrow"/"lance")` collects on a dev box and never in CI.
           # ⚠️ The arithmetic is shown so the next green run can falsify it. If 416 was not the
           # figure this lane actually carries forward, that run says so and the number moves.
-          MIN_PASSED = 433
+          # September 9: run 34418519128 at cfcd0168 observed 459 passed,
+          # 2865 skipped, 263 selected / 261 producing results, zero silent files.
+          # This includes all 19 new census transport controls. Margin stays two.
+          # September 16: PR35 run35038920152 job104614181006 observed488 passes;
+          # retain the estate lane's two-test deletion margin.
+          # September 20 second check: PR46 run35482845900/job106003630843 read 488.
+          # Full local estate reads 514: subtract the 12 undeclared optional trevec tests
+          # (hosted importorskip), leaving 502 expected hosted passes including 14 new gate
+          # controls. Preserve THIS lane's two-test margin, not the other lanes' six.
+          # ⬆ 500→514 on 2026-09-21: +14 tests in the new tests/test_memory_trace.py, which
+          # `--lane estate` claims (estate 266→267; guards 161 and chain 102 unchanged,
+          # selector run before and after `git add`). CI-ANCHORED per the rule above, NOT a
+          # local reading: last CI-anchored value 502 + 14 = 516; 516 - 2 (this lane's budget)
+          # = 514, and _FLOOR_SET_FROM[estate] moves to 516 with it. The new module carries no
+          # importorskip, so it collects identically on both sides and does not add to this
+          # lane's structural local-high bias.
+          # ⬆ 514→519 on 2026-09-21: +5 tests in the EXISTING tests/test_memory_trace.py (no new
+          # file, so estate stays 267 and only the test count moves). They pin the boot-ramp fix
+          # this module's own first live reading exposed — it published a 400→752 MB STARTUP
+          # ramp as "rss_mb_per_hour: 2113.4". CI-ANCHORED per the rule above: 516 + 5 = 521;
+          # 521 - 2 (this lane's budget) = 519, and _FLOOR_SET_FROM[estate] moves to 521.
+          # ⬆ 519→520 on 2026-09-25, CI-ANCHORED on hosted run 36082196820 @ 4c307031 (dev, after PRs #71 and #74):
+          # 522 passed. 522 - 2 (this lane's budget) = 520; _FLOOR_SET_FROM[estate] moves to 522.
+          # ⬆ 520→522 on 2026-09-25, IN THE SAME COMMIT THAT CAUSES IT (A15-16): hosted CI on PR #82 (merged as
+          # 0c638257) observed 267 files / 522 passed. The new tests/test_products_response_no_disk_listing.py
+          # (claimed by `--lane estate`) adds 2 executed tests: 522 + 2 = 524; 524 - 2 (this lane's budget)
+          # = 522, and _FLOOR_SET_FROM[estate] moves to 524.
+          # ⬆ 522→527 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (heap_trim, merged over A15-16):
+          # tests/test_memory_trace.py (claimed by `--lane estate`) gains 5 tests, all executed on Linux (the
+          # glibc positive control only skips on Windows). A15-16's projected 524 + 5 = 529; 529 - 2 (this
+          # lane's budget) = 527; _FLOOR_SET_FROM[estate] -> 529.
+          # ⬆ 527→532 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (A15-15): the new
+          # tests/test_precompute_follows_pilots.py (claimed by `--lane estate`; guards and chain do not
+          # select it) adds 5 executed tests (it imports yaml HARD; PyYAML is transitive via copernicusmarine ->
+          # dask, so losing it errors loudly instead of skipping). 529 is a RECEIPT, not a projection: hosted run
+          # 36209648226 on PR #89 read 268 files / 529 passed. 529 + 5 = 534; 534 - 2 (this lane's budget) = 532; _FLOOR_SET_FROM[estate] -> 534.
+          # ⬆ 532→534 on 2026-09-26, IN THE SAME COMMIT THAT CAUSES IT (spot-hub quality passthrough): hosted run
+          # 36252492528 on PR #95 observed 269 files / 534 passed, confirming the A15-15 projection exactly.
+          # tests/test_conditions_route_wire_contract.py (claimed by `--lane estate`) gains 2 executed tests, no
+          # new file: 534 + 2 = 536; 536 - 2 (this lane's budget) = 534; _FLOOR_SET_FROM[estate] -> 536.
+          # ⬆ 534→537 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (an armed judge hour grades every cheap arm):
+          # #132's hosted run observed 269 files / 536 passed. tests/test_nearshore_workflow_eligibility.py (claimed
+          # by `--lane estate`) gains 3 executed tests: 536 + 3 = 539; 539 - 2 (this lane's budget) = 537;
+          # _FLOOR_SET_FROM[estate] -> 539.
+          # ⬆ 537→540 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (the floor-staleness check reads the NEWEST of
+          # 20 runs): dev's hosted run 36373600771 (d6638bf4) observed 539 passed. tests/test_ci_floor_staleness.py
+          # (claimed by `--lane estate`) gains 3 executed tests: 539 + 3 = 542; 542 - 2 = 540; _FLOOR_SET_FROM -> 542.
+          # ⬆ 540→543 on 2026-09-28, IN THE SAME COMMIT THAT CAUSES IT (ratings follow the physics: precompute.yml
+          # re-rates on a dev push to the composition chain): hosted CI on PR #120 (merged as 52e0ec53) observed 542
+          # passed. tests/test_precompute_follows_pilots.py (claimed by `--lane estate`) gains 3 executed tests:
+          # 542 + 3 = 545; 545 - 2 = 543; _FLOOR_SET_FROM[estate] -> 545.
+          # ⬆ 543→554 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (E2E waits for the backend's first L2
+          # restore, not only its deploy): hosted CI on PR #158 (merged as ef1ba246) observed 545 passed. The new
+          # tests/test_e2e_backend_ready.py (claimed by `--lane estate`) adds 11 executed tests: 545 + 11 = 556;
+          # 556 - 2 = 554; _FLOOR_SET_FROM[estate] -> 556.
+          # ⬆ 554→568 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the data lanes fire when GitHub's schedule
+          # does not; re-derived after #159 merged the other estate bump): hosted CI on PR #159 (merged as d3c8676e)
+          # observed 556 passed. The new tests/test_workflow_dispatch.py (claimed by `--lane estate`) adds 14 executed
+          # tests: 556 + 14 = 570; 570 - 2 = 568; _FLOOR_SET_FROM[estate] -> 570.
+          # ⬆ 568→580 on 2026-09-29, IN THE SAME COMMIT THAT CAUSES IT (the fetchers' by-path import hotfix): hosted
+          # CI on PR #171 (merged as 7e81347f) observed 271 files / 570 passed. The new
+          # tests/test_fetcher_script_imports.py (claimed by `--lane estate`) adds 12 executed tests: 570 + 12 = 582;
+          # 582 - 2 = 580; _FLOOR_SET_FROM[estate] -> 582.
+          # 2026-10-03 audit repairs: the same hosted dev receipt confirms 582.
+          # Four selector-owned files add 56 executed cases: projected 638;
+          # floor 638 - 2 = 636. Hosted confirmation pending; no budget widened.
+          # Next local audit batch: +72 executed messaging cases, one estate file.
+          # Same hosted base receipt + prior additions: projected 710; margin 2.
+          # 2026-10-03 OAuth/time audit: prior hosted projection 710 + 25 executed OAuth
+          # authority cases = 735; retain margin 2. Windows local count is not calibration.
+          # CI37154741295 on checked3bb8f443 read735; retry controls add14, expected749.
+          # Preserve estate margin2; guards and chain floors unchanged.
+          # PR234 CI37157703688 estate read749;32new executed identity controls ->781.
+          # Same margin2, expected279selected/277results; live legacy suite still explicit skips.
+          # PR236 actual estate781 plus4 weekly report runtime controls ->785; same margin2.
+          # PR237 actualestate785 plus25selectionownership controls ->810; margin2 unchanged.
+          # PR239 actualestate810 plus6 assembledStripe controls ->816; margin2 unchanged.
+          # Independent audit: CI37167173560 confirms816. Two selector-owned files
+          # add73 executed cases; projected889, same margin2. Candidate CI must confirm.
+          # Hosted5afa0c82 estate889 +9actual horizon-route controls =898; margin2.
+          # Scoreboard chronology:12 actual-audit/negative controls; projected910, margin2.
+          # Observer22/session23/social7/purchase8: projected970, margin2.
+          # Atomic alert delivery69 controls including HTTP configuration ownership: projected1039, margin2.
+          # Deep-audit push/AI/trace/explicit-actor controls add36 to hosted1039; margin2.
+          # #243 blocker fixes: two estate files add20 executed cases (money-route authority15,
+          # on-demand selection quota5) to projected1075 = 1095; margin2. Hosted run must confirm.
+          # Hosted59dd3d26 actually ran1105 estate cases; four unset cases belong to chain.
+          # Eight gallery-vs-session assignment controls bring estate to1113; margin2.
+          # WS-08 real-router controls add88: hosted1113 +88 projected1201, margin2.
+          # Exact-source hosted qualification remains required; no floor lowered.
+          # PR250 own CI37557753240 read1201. Gallery grace-period regression adds3
+          # executed estate cases: projected1204, preserving margin2. Own CI must confirm.
+          # PR226 current-base guard adds23 executed estate controls to hosted1204.
+          # Projected1227, preserving margin2; own exact-head hosted CI must confirm.
+          # Direct-point donor-time/cycle regression adds41 executed estate controls.
+          # Tracked selector300 files; projected1268 passes, preserving the two-test margin.
+          # ⬆ 1266→1339 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (payment caller binding): four
+          # new estate files add 73 executed tests (collect-only, all passing locally) to the hosted
+          # 1268 read on dev b02f43f8 (CI 37717937274: 300 files, 1268 passed): projected 1341;
+          # 1341 - 2 = 1339; margin 2 kept. Hosted CI on this PR must read 304 files / 1341.
+          # ⬆ 1339→1444 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (actor-route binding): two new
+          # estate files add 105 executed tests (74 binding + 31 guard) to the hosted 1341 read on dev
+          # baee6438 (CI 37777820792): projected 1446; 1446 - 2 = 1444; this PR must read 306 / 1446.
+          # ⬆ 1444→1460 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (live-session escrow): an
+          # 18-test estate file replaces a 2-test file on the hosted 1446 read for #265 (merged as
+          # fe5573db): 1446 - 2 + 18 = 1462; 1462 - 2 = 1460; this PR must read 306 / 1462.
+          # ⬆ 1460→1473 on 2026-10-08, IN THE SAME COMMIT THAT CAUSES IT (VA-03 nearshore judge): 13 new
+          # cases (12 workflow-gate, 1 runner floor) on the hosted 1462 read on dev ab416298 (CI 37853930681):
+          # projected 1475; 1475 - 2 = 1473, margin 2. This PR must read 306 files / 1475.
+          # ⬆ 1473→1542 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (actor-route binding, batch 2):
+          # the existing binding file adds 69 executed tests (23 routes x 3) to the hosted 1475 read on dev
+          # 84a1bb0f (CI 37964123006: 306 selected, 1475 passed): projected 1544; 1544 - 2 = 1542, margin 2.
+          # This PR must read 306 files / 1544.
+          # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
+          # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
+          # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
+          MIN_PASSED = 1543
 
           try:
               root = ET.parse('estate.xml').getroot()
@@ -1156,12 +1879,10 @@ jobs:
           python-version: '3.12'
 
       # No pip install: the script is stdlib + the `gh` CLI, which is preinstalled on the runner.
-      # ⛔ `--branch dev` is PINNED and not derived from the current ref. The lanes accumulate their
-      # green history on dev (every push there is also the backend deploy), so a run triggered from
-      # main or from a PR must still read dev's history — deriving the branch would make this job
-      # refuse on every branch that has no CI history of its own, which is most of them.
+      # Compare pushes with their own branch; PRs with their base branch. Main and dev have
+      # different test estates. No branch history is an explicit refusal, never a dev fallback.
       - name: "🔍 Are the ratchet floors still current, or has CI outgrown them?"
         working-directory: backend
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/ci_floor_staleness.py --branch dev
+        run: python scripts/ci_floor_staleness.py

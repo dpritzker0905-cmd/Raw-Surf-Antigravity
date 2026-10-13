@@ -5,6 +5,7 @@
  */
 
 import { computeGridContentHash } from './marineGridHash';
+import { readMarineFrameReceipt, compareMarineFrameReceipts, residentFrameDiagnosticsEnabled } from './marineFrameReceipt';
 
 // Initialize defaults at module load so diagnostics are never null.
 //
@@ -38,6 +39,8 @@ if (typeof window !== 'undefined') {
     timeOffsetHours: null,
     lastUploadClearRejectionReason: 'none',
     infoboxHeatmapParity: false,
+    residentFrame: null,
+    frameParity: null,
     timestamp: null
   };
 
@@ -115,6 +118,11 @@ export function updateWebGLMarineLayerDiag(engine, activeModel, activeLayers, ti
                   infoboxHour === heatmapHour &&
                   infoboxProvider === heatmapProvider;
 
+  const residentFrame = readMarineFrameReceipt(engine?._waveData?.waveGrid);
+  const frameParity = residentFrameDiagnosticsEnabled()
+    ? compareMarineFrameReceipts(residentFrame, window.__MARINE_POINT_DIAG__?.frameReceipt)
+    : { status: 'disabled', mismatches: [], missing: [], productRelation: 'unverified' };
+
   const backendGridVectorCount = lastSig.vectorsLength || 0;
   const webglSourceVectorCount = lastSig.vectorsLength || 0;
   const particleCount = engine ? (engine.particleRes ** 2) : 0;
@@ -129,8 +137,8 @@ export function updateWebGLMarineLayerDiag(engine, activeModel, activeLayers, ti
     status: 'active',
     activeModel: heatmapModel,
     activeMarineLayer: heatmapLayer,
-    renderedProvider: heatmapProvider,
-    componentLayer: lastSig.componentLayer || 'none',
+    renderedProvider: residentFrameDiagnosticsEnabled() ? residentFrame?.provider || 'none' : heatmapProvider,
+    componentLayer: residentFrameDiagnosticsEnabled() ? residentFrame?.layer || 'none' : lastSig.componentLayer || 'none',
     backendGridVectorCount,
     webglSourceVectorCount,
     particleCount,
@@ -139,7 +147,9 @@ export function updateWebGLMarineLayerDiag(engine, activeModel, activeLayers, ti
     waveDataPresent: !!engine?._waveData,
     timeOffsetHours: heatmapHour,
     lastUploadClearRejectionReason: window.__WEBGL_MARINE_UPLOAD_REASON__ || 'none',
-    infoboxHeatmapParity: matches,
+    infoboxHeatmapParity: residentFrameDiagnosticsEnabled() ? frameParity.status === 'match' : matches,
+    residentFrame,
+    frameParity,
     timestamp: new Date().toISOString()
   };
 

@@ -6,6 +6,7 @@
 // deployment" — the exact confound that invalidated a whole live session on 2026-07-12 and
 // that marineForensics already solves for ITS ring. 'dev' means a local un-stamped build.
 import { BUILD_VERSION } from '../../buildVersion';
+import { verifiedCycleTime } from './verifiedCycleTime';
 
 function fnv1a_32(str) {
   let h = 2166136261;
@@ -130,6 +131,7 @@ export function buildTruthTag(data, stageName) {
     } catch (e) {}
     
     return {
+      ...verifiedCycleTime(data),
       traceId,
       model,
       domain,

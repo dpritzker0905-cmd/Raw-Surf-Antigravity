@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from typing import Optional
 from models import GalleryItem, LiveSessionParticipant, Profile
 from .schemas import ActiveSessionResponse, SessionParticipantResponse
@@ -97,6 +98,7 @@ async def purchase_photo_in_session(
     session_id: str,
     data: PurchasePhotoRequest,
     surfer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -104,7 +106,11 @@ async def purchase_photo_in_session(
     Uses the photographer's per-photo price.
     """
     from models import GalleryItem, GalleryPurchase
-    
+
+    # The buyer is whoever holds the token; never debit an id taken from the query string.
+    if surfer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot purchase on behalf of another user")
+
     # Verify surfer is in the session
     participant_result = await db.execute(
         select(LiveSessionParticipant)
@@ -148,7 +154,7 @@ async def purchase_photo_in_session(
     photo_price = photographer.live_photo_price or gallery_item.price or 5.0
     
     # Check if subscription quota covers this item (photo or video)
-    from routes.photo_subscriptions import try_use_subscription_quota
+    from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
 
 
     quota_type = 'video' if gallery_item.media_type == 'video' else 'photo'

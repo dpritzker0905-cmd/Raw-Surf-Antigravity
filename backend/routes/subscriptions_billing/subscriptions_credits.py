@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from .subscriptions import get_tiers_for_role, GROM_SUBSCRIPTION_TIERS
@@ -28,9 +29,12 @@ class GromCreditSubscriptionRequest(BaseModel):
 
 @router.post("/subscriptions/pay-with-credits/{user_id}")
 async def pay_subscription_with_credits(
-    user_id: str, data: CreditSubscriptionPaymentRequest, db: AsyncSession = Depends(get_db)
+    user_id: str, data: CreditSubscriptionPaymentRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
 ):
     """Pay for subscription upgrade using Stoked Credits."""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
     if not user:

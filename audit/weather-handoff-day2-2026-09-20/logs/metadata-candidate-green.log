@@ -1,0 +1,18 @@
+PASS src/tests/om-metadata-provenance.test.js
+  √ cold metadata demands share and await the provider request before replacing bootstrap axes (786 ms)
+  √ the actual decoder never caches guessed run/time paths while a cold provider manifest is pending (28 ms)
+  √ a verified warm manifest reaches the decoder verbatim without fetching or adding UI aliases (12 ms)
+  √ rejects unfinished run without promoting bootstrap metadata or suppressing a later retry (7 ms)
+  √ rejects missing completion proof without promoting bootstrap metadata or suppressing a later retry (10 ms)
+  √ rejects invalid reference time without promoting bootstrap metadata or suppressing a later retry (9 ms)
+  √ rejects empty time axis without promoting bootstrap metadata or suppressing a later retry (9 ms)
+  √ rejects invalid valid time without promoting bootstrap metadata or suppressing a later retry (10 ms)
+  √ rejects missing variables without promoting bootstrap metadata or suppressing a later retry (9 ms)
+  √ failed metadata transport cannot become fabricated success in the actual decoder (27 ms)
+  √ healthy live metadata remains a deduplicated warm-cache hit (10 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       11 passed, 11 total
+Snapshots:   0 total
+Time:        2.108 s
+Ran all test suites matching /om-metadata-provenance.test.js/i.

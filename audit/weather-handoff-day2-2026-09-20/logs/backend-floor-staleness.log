@@ -1,0 +1,221 @@
+UNKNOWN STEP	﻿2026-09-20T03:44:58.7822071Z Current runner version: '2.337.0'
+UNKNOWN STEP	2026-09-20T03:44:58.7856457Z ##[group]Runner Image Provisioner
+UNKNOWN STEP	2026-09-20T03:44:58.7858001Z Hosted Compute Agent
+UNKNOWN STEP	2026-09-20T03:44:58.7858997Z Version: 20260828.587
+UNKNOWN STEP	2026-09-20T03:44:58.7859990Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+UNKNOWN STEP	2026-09-20T03:44:58.7861312Z Build Date: 2026-08-28T16:44:25Z
+UNKNOWN STEP	2026-09-20T03:44:58.7862811Z Worker ID: {0fb3ba58-6653-401a-b5a3-120d7d821e5a}
+UNKNOWN STEP	2026-09-20T03:44:58.7863995Z Azure Region: eastus2
+UNKNOWN STEP	2026-09-20T03:44:58.7865151Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.7867365Z ##[group]Operating System
+UNKNOWN STEP	2026-09-20T03:44:58.7868592Z Ubuntu
+UNKNOWN STEP	2026-09-20T03:44:58.7869471Z 24.04.5
+UNKNOWN STEP	2026-09-20T03:44:58.7870303Z LTS
+UNKNOWN STEP	2026-09-20T03:44:58.7871133Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.7872356Z ##[group]Runner Image
+UNKNOWN STEP	2026-09-20T03:44:58.7873396Z Image: ubuntu-24.04
+UNKNOWN STEP	2026-09-20T03:44:58.7874287Z Version: 20260907.300.1
+UNKNOWN STEP	2026-09-20T03:44:58.7876520Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260907.300/images/ubuntu/Ubuntu2404-Readme.md
+UNKNOWN STEP	2026-09-20T03:44:58.7879181Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260907.300
+UNKNOWN STEP	2026-09-20T03:44:58.7880896Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.7883247Z ##[group]GITHUB_TOKEN Permissions
+UNKNOWN STEP	2026-09-20T03:44:58.7885826Z Actions: read
+UNKNOWN STEP	2026-09-20T03:44:58.7886771Z Contents: read
+UNKNOWN STEP	2026-09-20T03:44:58.7887767Z Metadata: read
+UNKNOWN STEP	2026-09-20T03:44:58.7888685Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:58.7891945Z Secret source: Actions
+UNKNOWN STEP	2026-09-20T03:44:58.7893471Z Cache mode: write
+UNKNOWN STEP	2026-09-20T03:44:58.7894626Z Prepare workflow directory
+UNKNOWN STEP	2026-09-20T03:44:58.8363443Z Prepare all required actions
+UNKNOWN STEP	2026-09-20T03:44:58.8434275Z Getting action download info
+UNKNOWN STEP	2026-09-20T03:44:59.0449976Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+UNKNOWN STEP	2026-09-20T03:44:59.1954125Z Download action repository 'actions/setup-python@v6' (SHA:ece7cb06caefa5fff74198d8649806c4678c61a1)
+UNKNOWN STEP	2026-09-20T03:44:59.4065146Z Complete job name: backend-floor-staleness
+UNKNOWN STEP	2026-09-20T03:44:59.4819242Z ##[group]Run actions/checkout@v5
+UNKNOWN STEP	2026-09-20T03:44:59.4820170Z with:
+UNKNOWN STEP	2026-09-20T03:44:59.4820733Z   repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.4825082Z   token: ***
+UNKNOWN STEP	2026-09-20T03:44:59.4825559Z   ssh-strict: true
+UNKNOWN STEP	2026-09-20T03:44:59.4826023Z   ssh-user: git
+UNKNOWN STEP	2026-09-20T03:44:59.4826505Z   persist-credentials: true
+UNKNOWN STEP	2026-09-20T03:44:59.4827015Z   clean: true
+UNKNOWN STEP	2026-09-20T03:44:59.4827484Z   sparse-checkout-cone-mode: true
+UNKNOWN STEP	2026-09-20T03:44:59.4828037Z   fetch-depth: 1
+UNKNOWN STEP	2026-09-20T03:44:59.4828498Z   fetch-tags: false
+UNKNOWN STEP	2026-09-20T03:44:59.4828965Z   show-progress: true
+UNKNOWN STEP	2026-09-20T03:44:59.4829428Z   lfs: false
+UNKNOWN STEP	2026-09-20T03:44:59.4829855Z   submodules: false
+UNKNOWN STEP	2026-09-20T03:44:59.4830320Z   set-safe-directory: true
+UNKNOWN STEP	2026-09-20T03:44:59.4830842Z   allow-unsafe-pr-checkout: false
+UNKNOWN STEP	2026-09-20T03:44:59.4831894Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.5854738Z Syncing repository: dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.5856841Z ##[group]Getting Git version info
+UNKNOWN STEP	2026-09-20T03:44:59.5857718Z Working directory is '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.5858884Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:44:59.5945134Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:44:59.5983669Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.5993150Z Temporarily overriding HOME='/home/runner/work/_temp/35f7038d-e251-43c2-a248-c9f8408728aa' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:44:59.5996016Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:44:59.5998704Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.6058729Z Deleting the contents of '/home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity'
+UNKNOWN STEP	2026-09-20T03:44:59.6063887Z ##[group]Initializing the repository
+UNKNOWN STEP	2026-09-20T03:44:59.6067707Z [command]/usr/bin/git init /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.6168845Z hint: Using 'master' as the name for the initial branch. This default branch name
+UNKNOWN STEP	2026-09-20T03:44:59.6171159Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+UNKNOWN STEP	2026-09-20T03:44:59.6173202Z hint: to use in all of your new repositories, which will suppress this warning,
+UNKNOWN STEP	2026-09-20T03:44:59.6174566Z hint: call:
+UNKNOWN STEP	2026-09-20T03:44:59.6175387Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.6176497Z hint: 	git config --global init.defaultBranch <name>
+UNKNOWN STEP	2026-09-20T03:44:59.6177716Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.6178814Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+UNKNOWN STEP	2026-09-20T03:44:59.6180492Z hint: 'development'. The just-created branch can be renamed via this command:
+UNKNOWN STEP	2026-09-20T03:44:59.6182517Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.6183461Z hint: 	git branch -m <name>
+UNKNOWN STEP	2026-09-20T03:44:59.6184411Z hint:
+UNKNOWN STEP	2026-09-20T03:44:59.6185623Z hint: Disable this message with "git config set advice.defaultBranchName false"
+UNKNOWN STEP	2026-09-20T03:44:59.6187693Z Initialized empty Git repository in /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity/.git/
+UNKNOWN STEP	2026-09-20T03:44:59.6191356Z [command]/usr/bin/git remote add origin https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:44:59.6233922Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.6235262Z ##[group]Disabling automatic garbage collection
+UNKNOWN STEP	2026-09-20T03:44:59.6239090Z [command]/usr/bin/git config --local gc.auto 0
+UNKNOWN STEP	2026-09-20T03:44:59.6270758Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.6272399Z ##[group]Setting up auth
+UNKNOWN STEP	2026-09-20T03:44:59.6278507Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:44:59.6313862Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:44:59.6743482Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:44:59.6779866Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:44:59.7009520Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:44:59.7045962Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:44:59.7270596Z [command]/usr/bin/git config --local http.https://github.com/.extraheader [REDACTED] ***
+UNKNOWN STEP	2026-09-20T03:44:59.7310421Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:44:59.7311404Z ##[group]Fetching the repository
+UNKNOWN STEP	2026-09-20T03:44:59.7320508Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +21feff6f3b4b225191120201cca9cc0f0157d54c:refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:09.2866021Z From https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:09.2867379Z  * [new ref]         21feff6f3b4b225191120201cca9cc0f0157d54c -> pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:09.2870692Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:09.2871775Z ##[group]Determining the checkout info
+UNKNOWN STEP	2026-09-20T03:45:09.2874376Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:09.2883326Z [command]/usr/bin/git sparse-checkout disable
+UNKNOWN STEP	2026-09-20T03:45:09.2945291Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+UNKNOWN STEP	2026-09-20T03:45:09.2991361Z ##[group]Checking out the ref
+UNKNOWN STEP	2026-09-20T03:45:09.2999003Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/47/merge
+UNKNOWN STEP	2026-09-20T03:45:10.3207459Z Updating files:  48% (2156/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3256775Z Updating files:  49% (2171/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3309703Z Updating files:  50% (2215/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3361114Z Updating files:  51% (2260/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3408334Z Updating files:  52% (2304/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3451632Z Updating files:  53% (2348/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3635809Z Updating files:  54% (2393/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3802201Z Updating files:  55% (2437/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3840504Z Updating files:  56% (2481/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3878779Z Updating files:  57% (2526/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.3903938Z Updating files:  58% (2570/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4177414Z Updating files:  59% (2614/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4232545Z Updating files:  60% (2658/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4261367Z Updating files:  61% (2703/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4305546Z Updating files:  62% (2747/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4348930Z Updating files:  63% (2791/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4388052Z Updating files:  64% (2836/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4422857Z Updating files:  65% (2880/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4454378Z Updating files:  66% (2924/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4491784Z Updating files:  67% (2969/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4533834Z Updating files:  68% (3013/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4582218Z Updating files:  69% (3057/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4619001Z Updating files:  70% (3101/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4657959Z Updating files:  71% (3146/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4693209Z Updating files:  72% (3190/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4730510Z Updating files:  73% (3234/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4766664Z Updating files:  74% (3279/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4799114Z Updating files:  75% (3323/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4831061Z Updating files:  76% (3367/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4851451Z Updating files:  77% (3412/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4877717Z Updating files:  78% (3456/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4909481Z Updating files:  79% (3500/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4937154Z Updating files:  80% (3544/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4965912Z Updating files:  81% (3589/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.4993037Z Updating files:  82% (3633/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5123105Z Updating files:  83% (3677/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5187123Z Updating files:  84% (3722/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5453677Z Updating files:  85% (3766/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5518943Z Updating files:  86% (3810/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5548559Z Updating files:  87% (3855/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5953764Z Updating files:  88% (3899/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.5976926Z Updating files:  89% (3943/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6002036Z Updating files:  90% (3987/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6027714Z Updating files:  91% (4032/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6054097Z Updating files:  92% (4076/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6080268Z Updating files:  93% (4120/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6107286Z Updating files:  94% (4165/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6128910Z Updating files:  95% (4209/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6148113Z Updating files:  96% (4253/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6169086Z Updating files:  97% (4298/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6188817Z Updating files:  98% (4342/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6349554Z Updating files:  99% (4386/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6350545Z Updating files: 100% (4430/4430)
+UNKNOWN STEP	2026-09-20T03:45:10.6351219Z Updating files: 100% (4430/4430), done.
+UNKNOWN STEP	2026-09-20T03:45:10.6398074Z Note: switching to 'refs/remotes/pull/47/merge'.
+UNKNOWN STEP	2026-09-20T03:45:10.6398627Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6399056Z You are in 'detached HEAD' state. You can look around, make experimental
+UNKNOWN STEP	2026-09-20T03:45:10.6400125Z changes and commit them, and you can discard any commits you make in this
+UNKNOWN STEP	2026-09-20T03:45:10.6401150Z state without impacting any branches by switching back to a branch.
+UNKNOWN STEP	2026-09-20T03:45:10.6401958Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6402355Z If you want to create a new branch to retain commits you create, you may
+UNKNOWN STEP	2026-09-20T03:45:10.6404184Z do so (now or later) by using -c with the switch command. Example:
+UNKNOWN STEP	2026-09-20T03:45:10.6404721Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6404963Z   git switch -c <new-branch-name>
+UNKNOWN STEP	2026-09-20T03:45:10.6405324Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6405561Z Or undo this operation with:
+UNKNOWN STEP	2026-09-20T03:45:10.6405925Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6406116Z   git switch -
+UNKNOWN STEP	2026-09-20T03:45:10.6406383Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6406832Z Turn off this advice by setting config variable advice.detachedHead to false
+UNKNOWN STEP	2026-09-20T03:45:10.6407431Z 
+UNKNOWN STEP	2026-09-20T03:45:10.6408118Z HEAD is now at 21feff6 Merge d82032f5cd5978967622721b8c9638da36a87f7d into 607af934e74fa87f3b8e58698ef68fdce919ea54
+UNKNOWN STEP	2026-09-20T03:45:10.6478319Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:10.6543605Z [command]/usr/bin/git log -1 --format=%H
+UNKNOWN STEP	2026-09-20T03:45:10.6578149Z 21feff6f3b4b225191120201cca9cc0f0157d54c
+UNKNOWN STEP	2026-09-20T03:45:10.6936305Z ##[group]Run actions/setup-python@v6
+UNKNOWN STEP	2026-09-20T03:45:10.6936650Z with:
+UNKNOWN STEP	2026-09-20T03:45:10.6936855Z   python-version: 3.12
+UNKNOWN STEP	2026-09-20T03:45:10.6937085Z   check-latest: false
+UNKNOWN STEP	2026-09-20T03:45:10.6939379Z   token: ***
+UNKNOWN STEP	2026-09-20T03:45:10.6939613Z   update-environment: true
+UNKNOWN STEP	2026-09-20T03:45:10.6939871Z   allow-prereleases: false
+UNKNOWN STEP	2026-09-20T03:45:10.6940133Z   freethreaded: false
+UNKNOWN STEP	2026-09-20T03:45:10.6940358Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:10.8189561Z ##[group]Installed versions
+UNKNOWN STEP	2026-09-20T03:45:10.8639121Z Successfully set up CPython (3.12.14)
+UNKNOWN STEP	2026-09-20T03:45:10.8640073Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:10.8860107Z ##[group]Run python scripts/ci_floor_staleness.py
+UNKNOWN STEP	2026-09-20T03:45:10.8860802Z ^[[36;1mpython scripts/ci_floor_staleness.py^[[0m
+UNKNOWN STEP	2026-09-20T03:45:10.8968437Z shell: /usr/bin/bash -e {0}
+UNKNOWN STEP	2026-09-20T03:45:10.8969206Z env:
+UNKNOWN STEP	2026-09-20T03:45:10.8969997Z   pythonLocation: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:10.8971088Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib/pkgconfig
+UNKNOWN STEP	2026-09-20T03:45:10.8972436Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:10.8973373Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:10.8974242Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.12.14/x64
+UNKNOWN STEP	2026-09-20T03:45:10.8975184Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.12.14/x64/lib
+UNKNOWN STEP	2026-09-20T03:45:10.8980249Z   GH_TOKEN: ***
+UNKNOWN STEP	2026-09-20T03:45:10.8980607Z ##[endgroup]
+UNKNOWN STEP	2026-09-20T03:45:19.5209487Z reading run 35483627338 (607af934, 2026-09-20T02:18:03Z) on dev
+UNKNOWN STEP	2026-09-20T03:45:19.5210602Z   guards   MIN_FILES 160 vs 160 observed          MIN_PASSED 1906 vs 1883 observed
+UNKNOWN STEP	2026-09-20T03:45:19.5211382Z   chain    MIN_FILES 99 vs 98 observed            MIN_PASSED 1016 vs 947 observed
+UNKNOWN STEP	2026-09-20T03:45:19.5212386Z   estate   MIN_FILES -                            MIN_PASSED 500 vs 488 observed
+UNKNOWN STEP	2026-09-20T03:45:19.5213037Z every floor is current against the last green run.
+UNKNOWN STEP	2026-09-20T03:45:19.5387955Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:45:19.6840101Z Post job cleanup.
+UNKNOWN STEP	2026-09-20T03:45:19.7731327Z [command]/usr/bin/git version
+UNKNOWN STEP	2026-09-20T03:45:19.7776532Z git version 2.55.0
+UNKNOWN STEP	2026-09-20T03:45:19.7816775Z Temporarily overriding HOME='/home/runner/work/_temp/1f8b6732-fd0b-4b8d-a07f-9466f2598b5b' before making global git config changes
+UNKNOWN STEP	2026-09-20T03:45:19.7818110Z Adding repository directory to the temporary git global config as a safe directory
+UNKNOWN STEP	2026-09-20T03:45:19.7823379Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Raw-Surf-Antigravity/Raw-Surf-Antigravity
+UNKNOWN STEP	2026-09-20T03:45:19.7864193Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+UNKNOWN STEP	2026-09-20T03:45:19.7899404Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+UNKNOWN STEP	2026-09-20T03:45:19.8162315Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+UNKNOWN STEP	2026-09-20T03:45:19.8191964Z http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:45:19.8205663Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+UNKNOWN STEP	2026-09-20T03:45:19.8241965Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+UNKNOWN STEP	2026-09-20T03:45:19.8573079Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+UNKNOWN STEP	2026-09-20T03:45:19.8622732Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+UNKNOWN STEP	2026-09-20T03:45:19.9102780Z Cleaning up orphan processes

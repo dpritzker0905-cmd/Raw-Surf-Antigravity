@@ -1,0 +1,63 @@
+{
+  "mode": "disable_request",
+  "baselineRevision": "91b90ae9",
+  "note": "Controlled dependency experiment against actual hook. Not a browser or network test. Mutations are in-memory only.",
+  "cases": [
+    {
+      "pass": false,
+      "scrubbing": false,
+      "series": false,
+      "error": "Expected values to be strictly equal:\n\n18 !== 0\n"
+    },
+    {
+      "pass": false,
+      "scrubbing": true,
+      "series": false,
+      "error": "Expected values to be strictly equal:\n\n18 !== 0\n"
+    },
+    {
+      "pass": true,
+      "scrubbing": false,
+      "series": true,
+      "ownerHour": 0,
+      "committedHours": [
+        0
+      ],
+      "enqueued": [],
+      "events": [
+        "local_cache_remap_timeline"
+      ],
+      "timeline": {
+        "timeOffsetHours": 0,
+        "selectedValidTime": "2026-09-20T21:00:00Z",
+        "requestedValidTime": "2026-09-20T21:00:00Z",
+        "coverage_status": "full_coverage",
+        "domain": "marine",
+        "activeModel": "GFS",
+        "activeLayer": "waves",
+        "gridProductId": null,
+        "model_run_time": null,
+        "model_run_time_status": "missing",
+        "commitRevision": 2,
+        "cacheStatus": "committed_cache_frame",
+        "temporalStatus": "aligned",
+        "temporalMismatch": false,
+        "responseTimeMismatch": false,
+        "renderTimeMismatch": false,
+        "reportedRenderTimeMismatch": false,
+        "renderVerified": false,
+        "requestedHour": 0,
+        "renderedHour": null,
+        "renderedValidTime": null,
+        "renderEvidenceSource": null,
+        "spatialCoverageStatus": "full_coverage"
+      }
+    },
+    {
+      "case": "accepted_engine_over_legacy",
+      "pass": true
+    }
+  ],
+  "passed": 2,
+  "failed": 2
+}

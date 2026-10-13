@@ -1,7 +1,7 @@
 """Gallery selection deadline expiry processing — runs daily at 4am UTC."""
 import logging
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 async def process_selection_deadline_expiry_task():
@@ -162,5 +162,4 @@ async def process_selection_deadline_expiry_task():
     
     except Exception as e:
         logger.error(f"[Scheduler] Error in selection deadline expiry: {str(e)}")
-
 

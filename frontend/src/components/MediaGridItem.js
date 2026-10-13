@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Camera, MapPin, Grid3X3, Check, Pin } from 'lucide-react';
+import { Play, Camera, MapPin, Grid3X3, Check, Pin, Heart } from 'lucide-react';
 import { getFullUrl } from '../utils/media';
 
 /**
@@ -90,7 +90,12 @@ export const MediaGridItem = ({ item, onClick, isPinned = false }) => {
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
         <div className="flex items-center gap-4 text-white text-sm">
- {item.likes_count !== undefined && <span className="flex items-center gap-1">Gn+ {item.likes_count}</span>}
+          {item.likes_count !== undefined && (
+            <span className="flex items-center gap-1">
+              <Heart className="w-4 h-4" aria-hidden="true" />
+              {item.likes_count}<span className="sr-only"> likes</span>
+            </span>
+          )}
           {item.tagged_by && <span className="flex items-center gap-1">Tagged by {item.tagged_by}</span>}
         </div>
       </div>

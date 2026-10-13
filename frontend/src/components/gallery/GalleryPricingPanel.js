@@ -102,9 +102,9 @@ const GalleryPricingPanel = ({
               gallery.session_settings.session_type === 'on_demand' ? 'border-amber-500/50 text-amber-400' :
               'border-zinc-500/50 text-zinc-400'
             }>
- {gallery.session_settings.session_type === 'live' ? '=+ Live Session' :
- gallery.session_settings.session_type === 'booking' ? '= Booking' :
- gallery.session_settings.session_type === 'on_demand' ? 'G On-Demand' : 'Gn+ Manual'}
+              {gallery.session_settings.session_type === 'live' ? 'Live Session' :
+               gallery.session_settings.session_type === 'booking' ? 'Booking' :
+               gallery.session_settings.session_type === 'on_demand' ? 'On-Demand' : 'Manual'}
             </Badge>
           )}
         </div>

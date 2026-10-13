@@ -528,7 +528,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         }
 
         // 3. Bring high-resolution inland water (lakes/reservoirs) back to the top
-        if (!hasWater) {
+        if (!hasWater && mapInstance.getSource(waterSource)) { // A15-17: the fallback basemap has no lake source
           try {
             mapInstance.addLayer({
               id: MASK_INLAND_WATER,
@@ -551,7 +551,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
           } catch (e) {
             console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
           }
-        } else {
+        } else if (hasWater) {
           try {
             if (inlandBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, inlandBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
@@ -560,7 +560,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         }
 
         // 4. Bring high-resolution waterways (rivers/streams) back to the top
-        if (!hasWaterway) {
+        if (!hasWaterway && mapInstance.getSource(waterwaySource)) {
           try {
             mapInstance.addLayer({
               id: MASK_INLAND_WATERWAY,
@@ -582,7 +582,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
           } catch (e) {
             console.warn('[OceanMask] Failed to add MASK_INLAND_WATERWAY:', e);
           }
-        } else {
+        } else if (hasWaterway) {
           try {
             if (inlandBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, inlandBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);

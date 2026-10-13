@@ -680,7 +680,7 @@ async def mark_note_notifications_read(
                 and_(
                     Notification.user_id == user_id,
                     Notification.type == "note_reply",
-                    not Notification.is_read
+                    Notification.is_read.is_(False)
                 )
             )
         )

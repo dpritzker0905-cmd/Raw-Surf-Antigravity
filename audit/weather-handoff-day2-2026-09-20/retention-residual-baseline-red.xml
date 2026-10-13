@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="15" skipped="0" tests="18" time="1.258" timestamp="2026-09-20T12:46:53.067099-04:00" hostname="DESKTOP-MCNC85Q"><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[503-hot]" time="0.183"><failure message="AssertionError: assert ['calibration..._latest.json'] == ['calibration..._latest.json']&#10;  &#10;  At index 0 diff: 'calibration/buoy_residual_archive.json' != 'calibration/buoy_latest.json'&#10;  Left contains one more item: 'calibration/buoy_latest.json'&#10;  Use -v to get more diff">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FB17CB0&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FBE7D70&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC04A90&gt;
+kind = 'hot', mode = '503'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+            with pytest.raises(RuntimeError):
+                action()
+            assert wire.writes == []
+        else:
+            assert action() == (1, .1), "a skipped archive must not suppress the report"
+&gt;           assert [k for k, _, _ in wire.writes] == [bc.BUOY_CALIBRATION_L2_KEY]
+E           AssertionError: assert ['calibration..._latest.json'] == ['calibration..._latest.json']
+E             
+E             At index 0 diff: 'calibration/buoy_residual_archive.json' != 'calibration/buoy_latest.json'
+E             Left contains one more item: 'calibration/buoy_latest.json'
+E             Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:318: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[503-monthly]" time="0.002"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FBD8190&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FC061F0&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC06AE0&gt;
+kind = 'monthly', mode = '503'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+&gt;           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:313: Failed</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[bad_json-hot]" time="0.003"><failure message="AssertionError: assert ['calibration..._latest.json'] == ['calibration..._latest.json']&#10;  &#10;  At index 0 diff: 'calibration/buoy_residual_archive.json' != 'calibration/buoy_latest.json'&#10;  Left contains one more item: 'calibration/buoy_latest.json'&#10;  Use -v to get more diff">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FBD9950&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FC06A30&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC07270&gt;
+kind = 'hot', mode = 'bad_json'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+            with pytest.raises(RuntimeError):
+                action()
+            assert wire.writes == []
+        else:
+            assert action() == (1, .1), "a skipped archive must not suppress the report"
+&gt;           assert [k for k, _, _ in wire.writes] == [bc.BUOY_CALIBRATION_L2_KEY]
+E           AssertionError: assert ['calibration..._latest.json'] == ['calibration..._latest.json']
+E             
+E             At index 0 diff: 'calibration/buoy_residual_archive.json' != 'calibration/buoy_latest.json'
+E             Left contains one more item: 'calibration/buoy_latest.json'
+E             Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:318: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[bad_json-monthly]" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FBC9220&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FC06980&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC06C40&gt;
+kind = 'monthly', mode = 'bad_json'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+&gt;           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:313: Failed</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[null-hot]" time="0.003"><failure message="AssertionError: assert ['calibration..._latest.json'] == ['calibration..._latest.json']&#10;  &#10;  At index 0 diff: 'calibration/buoy_residual_archive.json' != 'calibration/buoy_latest.json'&#10;  Left contains one more item: 'calibration/buoy_latest.json'&#10;  Use -v to get more diff">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FBCB100&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FC071C0&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC06350&gt;
+kind = 'hot', mode = 'null'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+            with pytest.raises(RuntimeError):
+                action()
+            assert wire.writes == []
+        else:
+            assert action() == (1, .1), "a skipped archive must not suppress the report"
+&gt;           assert [k for k, _, _ in wire.writes] == [bc.BUOY_CALIBRATION_L2_KEY]
+E           AssertionError: assert ['calibration..._latest.json'] == ['calibration..._latest.json']
+E             
+E             At index 0 diff: 'calibration/buoy_residual_archive.json' != 'calibration/buoy_latest.json'
+E             Left contains one more item: 'calibration/buoy_latest.json'
+E             Use -v to get more diff
+
+tests\test_forecast_skill_retention.py:318: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[null-monthly]" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FC13D10&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FC06560&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC075E0&gt;
+kind = 'monthly', mode = 'null'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+&gt;           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:313: Failed</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[wrong_shape-hot]" time="0.003" /><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_never_replace_unread_history[wrong_shape-monthly]" time="0.001"><failure message="AttributeError: 'NoneType' object has no attribute 'get'">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FBBFDF0&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FC07320&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FC07ED0&gt;
+kind = 'monthly', mode = 'wrong_shape'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("mode", ["503", "bad_json", "null", "wrong_shape"])
+    def test_residual_writers_never_replace_unread_history(wire, residual_writer, kind, mode):
+        key, action = residual_writer(kind)
+        if mode in ("null", "wrong_shape"):
+            wire.objects[key] = None if mode == "null" else [None]
+        else:
+            wire.read_modes[key] = mode
+        before = deepcopy(wire.objects[key])
+        if kind == "monthly":
+            with pytest.raises(RuntimeError):
+&gt;               action()
+
+tests\test_forecast_skill_retention.py:314: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests\test_forecast_skill_retention.py:297: in &lt;lambda&gt;
+    action = bc.run_buoy_calibration if kind == "hot" else lambda: retention.roll_up_history(
+services\weather_pipeline\buoy_residual_retention.py:74: in roll_up_history
+    merged = merge_residual_archive(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+existing = [None]
+incoming = [{'buoy_id': 'new', 'buoy_time': '2026-09-01T00:00:00Z', 'buoy_wvht_m': 1.5, 'height_err_m': 0.1, ...}]
+now = datetime.datetime(2026, 9, 1, 0, 15, tzinfo=datetime.timezone.utc)
+max_age_days = 36500, max_entries = 1000000000
+
+    def merge_residual_archive(existing, incoming, now=None,
+                               max_age_days: int = RESIDUAL_ARCHIVE_MAX_AGE_DAYS,
+                               max_entries: int = RESIDUAL_ARCHIVE_MAX_ENTRIES) -&gt; list:
+        """PURE: append `incoming`, drop repeats of the SAME (buoy_id, buoy_time), prune by age and cap.
+    
+        Tolerant of malformed rows: anything whose buoy_time will not parse is dropped rather than
+        allowed to poison the series with an unorderable entry."""
+        now = now or datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=max_age_days)
+        merged, seen = [], set()
+        for row in list(existing or []) + list(incoming or []):
+&gt;           bid, bt = row.get("buoy_id"), row.get("buoy_time")
+                      ^^^^^^^
+E           AttributeError: 'NoneType' object has no attribute 'get'
+
+services\weather_pipeline\buoy_calibration.py:628: AttributeError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_acknowledge_append_or_create[False-hot]" time="0.003"><failure message="AssertionError: assert 'true' == 'false'&#10;  &#10;  - false&#10;  + true">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FDDD050&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FD143B0&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FD147D0&gt;
+kind = 'hot', exists = False
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("exists", [False, True])
+    def test_residual_writers_acknowledge_append_or_create(wire, residual_writer, kind, exists):
+        key, action = residual_writer(kind)
+        if not exists:
+            del wire.objects[key]
+        elif kind == "hot":
+            wire.objects[key].append(residual("expired", "2020-01-01T00:00:00Z"))
+        action()
+        assert {r["buoy_id"] for r in wire.objects[key]} == ({"old", "new"} if exists else {"new"})
+&gt;       assert next(upsert for k, _, upsert in wire.writes if k == key) == ("true" if exists else "false")
+E       AssertionError: assert 'true' == 'false'
+E         
+E         - false
+E         + true
+
+tests\test_forecast_skill_retention.py:333: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_acknowledge_append_or_create[False-monthly]" time="0.002"><failure message="AssertionError: assert 'true' == 'false'&#10;  &#10;  - false&#10;  + true">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FDDD950&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FD14040&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FD152D0&gt;
+kind = 'monthly', exists = False
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("exists", [False, True])
+    def test_residual_writers_acknowledge_append_or_create(wire, residual_writer, kind, exists):
+        key, action = residual_writer(kind)
+        if not exists:
+            del wire.objects[key]
+        elif kind == "hot":
+            wire.objects[key].append(residual("expired", "2020-01-01T00:00:00Z"))
+        action()
+        assert {r["buoy_id"] for r in wire.objects[key]} == ({"old", "new"} if exists else {"new"})
+&gt;       assert next(upsert for k, _, upsert in wire.writes if k == key) == ("true" if exists else "false")
+E       AssertionError: assert 'true' == 'false'
+E         
+E         - false
+E         + true
+
+tests\test_forecast_skill_retention.py:333: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_acknowledge_append_or_create[True-hot]" time="0.003" /><testcase classname="tests.test_forecast_skill_retention" name="test_residual_writers_acknowledge_append_or_create[True-monthly]" time="0.001" /><testcase classname="tests.test_forecast_skill_retention" name="test_residual_archive_failure_never_claims_persistence[false_missing-hot]" time="0.002"><failure message="AssertionError: assert 'archive' not in {'archive': {'first_obs': '2026-09-01T00:00:00+00:00', 'last_obs': '2026-09-01T00:00:00+00:00', 'n_buoys': 1, 'n_entri...:00:00Z', 'residual': {'buoy_wvht_m': 1.5, 'height_err_m': 0.1, 'model_hs_m': 1.6}}], 'summary': {'height_mae_m': 0.1}}">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87F943070&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FD15FE0&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FD16560&gt;
+kind = 'hot', failure = 'false_missing'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("failure", ["false_missing", "write_503"])
+    def test_residual_archive_failure_never_claims_persistence(wire, residual_writer, kind, failure):
+        key, action = residual_writer(kind)
+        before = deepcopy(wire.objects[key])
+        if failure == "false_missing":
+            wire.read_modes[key] = "NoSuchKey"
+        else:
+            wire.write_modes[key] = "503"
+        if kind == "monthly":
+            with pytest.raises(RuntimeError):
+                action()
+        else:
+            assert action() == (1, .1)
+&gt;           assert "archive" not in wire.objects[bc.BUOY_CALIBRATION_L2_KEY]
+E           AssertionError: assert 'archive' not in {'archive': {'first_obs': '2026-09-01T00:00:00+00:00', 'last_obs': '2026-09-01T00:00:00+00:00', 'n_buoys': 1, 'n_entri...:00:00Z', 'residual': {'buoy_wvht_m': 1.5, 'height_err_m': 0.1, 'model_hs_m': 1.6}}], 'summary': {'height_mae_m': 0.1}}
+
+tests\test_forecast_skill_retention.py:352: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_archive_failure_never_claims_persistence[false_missing-monthly]" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FB62DD0&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FD164B0&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FD16DA0&gt;
+kind = 'monthly', failure = 'false_missing'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("failure", ["false_missing", "write_503"])
+    def test_residual_archive_failure_never_claims_persistence(wire, residual_writer, kind, failure):
+        key, action = residual_writer(kind)
+        before = deepcopy(wire.objects[key])
+        if failure == "false_missing":
+            wire.read_modes[key] = "NoSuchKey"
+        else:
+            wire.write_modes[key] = "503"
+        if kind == "monthly":
+&gt;           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:348: Failed</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_archive_failure_never_claims_persistence[write_503-hot]" time="0.003"><failure message="AssertionError: assert 'archive' not in {'archive': {'first_obs': '2026-09-01T00:00:00+00:00', 'last_obs': '2026-09-01T00:00:00+00:00', 'n_buoys': 2, 'n_entri...:00:00Z', 'residual': {'buoy_wvht_m': 1.5, 'height_err_m': 0.1, 'model_hs_m': 1.6}}], 'summary': {'height_mae_m': 0.1}}">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87F5A0530&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FD16CF0&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FD17690&gt;
+kind = 'hot', failure = 'write_503'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("failure", ["false_missing", "write_503"])
+    def test_residual_archive_failure_never_claims_persistence(wire, residual_writer, kind, failure):
+        key, action = residual_writer(kind)
+        before = deepcopy(wire.objects[key])
+        if failure == "false_missing":
+            wire.read_modes[key] = "NoSuchKey"
+        else:
+            wire.write_modes[key] = "503"
+        if kind == "monthly":
+            with pytest.raises(RuntimeError):
+                action()
+        else:
+            assert action() == (1, .1)
+&gt;           assert "archive" not in wire.objects[bc.BUOY_CALIBRATION_L2_KEY]
+E           AssertionError: assert 'archive' not in {'archive': {'first_obs': '2026-09-01T00:00:00+00:00', 'last_obs': '2026-09-01T00:00:00+00:00', 'n_buoys': 2, 'n_entri...:00:00Z', 'residual': {'buoy_wvht_m': 1.5, 'height_err_m': 0.1, 'model_hs_m': 1.6}}], 'summary': {'height_mae_m': 0.1}}
+
+tests\test_forecast_skill_retention.py:352: AssertionError</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_archive_failure_never_claims_persistence[write_503-monthly]" time="0.003"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FB5E5D0&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FD17B60&gt;)
+residual_writer = &lt;function residual_writer.&lt;locals&gt;.configure at 0x000001D87FCDC0F0&gt;
+kind = 'monthly', failure = 'write_503'
+
+    @pytest.mark.parametrize("kind", ["hot", "monthly"])
+    @pytest.mark.parametrize("failure", ["false_missing", "write_503"])
+    def test_residual_archive_failure_never_claims_persistence(wire, residual_writer, kind, failure):
+        key, action = residual_writer(kind)
+        before = deepcopy(wire.objects[key])
+        if failure == "false_missing":
+            wire.read_modes[key] = "NoSuchKey"
+        else:
+            wire.write_modes[key] = "503"
+        if kind == "monthly":
+&gt;           with pytest.raises(RuntimeError):
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:348: Failed</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_residual_months_are_preflighted_before_writes" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FB5E810&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FCDC720&gt;)
+
+    def test_residual_months_are_preflighted_before_writes(wire):
+        from services.weather_pipeline import buoy_residual_retention as retention
+        later = retention.history_key_for_month("2026-09")
+        wire.read_modes[later] = "503"
+&gt;       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:360: Failed</failure></testcase><testcase classname="tests.test_forecast_skill_retention" name="test_partial_residual_rollup_is_retryable" time="0.001"><failure message="Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;">wire = namespace(objects={'calibration/skill/pending.json': [{'source': 'raw_surf', 'buoy_id': 'new', 'target_time': '2026-09...ther_pipeline.store.ProductStore object at 0x000001D87FCDCCB0&gt;, run=&lt;function wire.&lt;locals&gt;.run at 0x000001D87FCDCD50&gt;)
+
+    def test_partial_residual_rollup_is_retryable(wire):
+        from services.weather_pipeline import buoy_residual_retention as retention
+        earlier = retention.history_key_for_month("2026-08")
+        later = retention.history_key_for_month("2026-09")
+        hot = [residual("prior", "2026-08-31T23:00:00Z"), residual("new")]
+        wire.write_modes[later] = "503"
+&gt;       with pytest.raises(RuntimeError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE &lt;class 'RuntimeError'&gt;
+
+tests\test_forecast_skill_retention.py:372: Failed</failure></testcase></testsuite></testsuites>

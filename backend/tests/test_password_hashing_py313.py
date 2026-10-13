@@ -80,8 +80,9 @@ def test_the_simulation_is_only_a_simulation_below_3_13():
     genuinely gone, so the fixture removes nothing and "it passed" says only that the interpreter
     already lacks the module — not that the fixture works.
     ⇒ State which case we are in, so a green run cannot be read as a simulation that never ran.
-      Below 3.13 the module MUST be natively importable (the simulation is doing real work);
-      at 3.13+ it MUST NOT be (the fixture is a no-op and the tests are then direct evidence).
+      Below 3.13 on Unix the module MUST be natively importable (the simulation does real work).
+      On Windows, or at 3.13+, it MUST NOT be: those runs provide direct absence evidence.
+      Python documents crypt as Unix-only: https://docs.python.org/3.12/library/crypt.html
     """
     try:
         import crypt  # noqa: F401
@@ -89,14 +90,14 @@ def test_the_simulation_is_only_a_simulation_below_3_13():
     except ImportError:
         natively_present = False
 
-    if sys.version_info < (3, 13):
+    if sys.version_info < (3, 13) and sys.platform != 'win32':
         assert natively_present, (
-            "crypt is missing below 3.13 — the `without_crypt` fixture would be removing something "
+            "crypt is missing on Unix below 3.13 — the `without_crypt` fixture would be removing something "
             "that was never there, making every simulation test vacuous"
         )
     else:
         assert not natively_present, (
-            "crypt is importable on 3.13+, which contradicts the removal these tests are about"
+            "crypt is importable on Windows or 3.13+, contradicting its supported availability"
         )
 
 

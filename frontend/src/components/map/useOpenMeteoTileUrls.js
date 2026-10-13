@@ -7,6 +7,9 @@ import {
   closestAxisIndex, effectiveCutoverH,
 } from './modelHorizons';
 import maplibregl from 'maplibre-gl';
+import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
+import { toast } from 'sonner';
+import { subscribeToProtocolFailure, OM_PROTOCOL_DEPENDENT_LAYERS } from './openMeteoProtocolFailure';
 import {
   OM_MODEL_MAP,
   fetchModelMetadata,
@@ -331,6 +334,22 @@ export function useOpenMeteoTileUrls({
     registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
   }, []);
 
+  // F-15 (2026-09-21): the PRODUCTION-facing half of the disclosure. The diagnostics HUD's
+  // UNAVAILABLE row is dev-gated (isDiagHudEnabled is OFF in production), so without this a real
+  // user would still get six silently blank layers. Fires at most once — the failure is terminal,
+  // nothing retries, and subscribeToProtocolFailure is self-deduplicating. Deliberately does NOT
+  // name the exception to the user: the message is upstream text we do not control and could be
+  // anything; the actionable part is which layers are gone. The cause is in the console, in
+  // telemetry, and on window.__OM_PROTOCOL_FAILURE__.
+  useEffect(() => subscribeToProtocolFailure(() => {
+    try {
+      toast.error('Weather map layers are unavailable', {
+        description: `${OM_PROTOCOL_DEPENDENT_LAYERS.join(', ')} could not start. Reload to retry.`,
+        duration: 10000,
+      });
+    } catch (e) { /* a missing toast host must not break the map */ }
+  }), []);
+
   // Water-temp halo heal (2026-07-11): if a surface_temperature decode raced past the land-mask
   // build, the library cached an UNMASKED field for that timestep. When the protocol signals the
   // mask is ready, rotate the wt URLs once (&wtlm=1 via getUrlForIndex) → slots re-point → fresh
@@ -368,16 +387,6 @@ export function useOpenMeteoTileUrls({
       signal
     );
   }, []);
-
-  // Pre-warm ALL model metadata immediately upon mount to eliminate layer activation latency completely
-  useEffect(() => {
-    const allModels = [
-      'ncep_gfs025', 'ncep_gfs013', 'ncep_gfswave025',
-      'ecmwf_ifs025', 'ecmwf_wam025',
-      'dwd_icon', 'dwd_gwam'
-    ];
-    allModels.forEach(m => fetchMetadata(m));
-  }, [fetchMetadata]);
 
   // Closest time index computation
   const closestTimeIdx = useMemo(() => {
@@ -439,7 +448,7 @@ export function useOpenMeteoTileUrls({
       const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
       // wt-landmask heal: one-time URL rotation so cached pre-mask decodes get re-decoded masked.
       const wtHeal = (variable === 'surface_temperature' && wtLandmaskNudgeRef.current) ? '&wtlm=1' : '';
-      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
+      return `om://${OPEN_METEO_SPATIAL_BASE_URL}/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
     };
 
     const resolveAllUrls = async () => {
@@ -539,10 +548,17 @@ export function useOpenMeteoTileUrls({
         const models = [...new Set(activeTasks.map(t => resolveModel(t.entry, t.variable)))];
         window.__OM_ACTIVE_MODELS__ = models;
 
-        const allCached = models.every(m => MODEL_METADATA_CACHE[m] && Array.isArray(MODEL_METADATA_CACHE[m].validTimes) && MODEL_METADATA_CACHE[m].validTimes.length);
-        if (!allCached) {
-          // Asynchronous slow-path (only used if cache is cold)
-          await Promise.all(models.map(m => fetchMetadata(m)));
+        // Fetch only models required by active raster/fallback layers. Native marine uses
+        // backend grids and must not depend on an unrelated tile host at startup.
+        // fetchModelMetadata deduplicates live/in-flight requests; bootstrap cached axes
+        // alone are not proof that a model's metadata has actually been fetched.
+        const missingMetadata = models.filter(m => !LIVE_FETCHED_MODELS.has(m)
+          || !Array.isArray(MODEL_METADATA_CACHE[m]?.validTimes)
+          || !MODEL_METADATA_CACHE[m].validTimes.length);
+        // Preserve the May warm-cache fast path: genuinely live metadata resolves within
+        // this animation callback. Placeholder axes must still trigger an actual fetch.
+        if (missingMetadata.length) {
+          await Promise.all(missingMetadata.map(m => fetchMetadata(m)));
           if (!isMounted) return;
         }
 
@@ -558,6 +574,16 @@ export function useOpenMeteoTileUrls({
           }
           let layerModel = resolveModel(entry, variable);
           let meta = MODEL_METADATA_CACHE[layerModel] || { variables: [], validTimes: [] };
+          if (!meta.sourceMetadata) {
+            // A failed cold request leaves UI bootstrap defaults in the cache. Their
+            // time index is not portable to the provider axis fetched by the decoder.
+            // Wait for verified metadata before publishing any real tile URL.
+            newActiveSlots[layerKey] = 0;
+            for (let slot = 0; slot < 3; slot++) {
+              newUrls[`${layerKey}-slot-${slot}`] = 'om://transparent-tile';
+            }
+            continue;
+          }
           let resolvedVar = variable;
           if (!meta.variables.includes(variable)) {
             if (entry.omModelGroup === 'marine') {
@@ -764,4 +790,3 @@ export function useOpenMeteoTileUrls({
   };
 
 }
-
