@@ -47,7 +47,10 @@ const BEFORE = { light: { 50: ['71ea0097', '71ea0097', 'f73f7078'], 75: ['a49922
   beach: { 50: ['6e75db94', '72b4bd7f', '7c248d5f'], 75: ['be558fd8', 'cd4835ed', 'b9db3bb2'] }, dark: { 50: ['c2ebc33e', 'c2ebc33e', null] } };
 // What light draws on its path with no lever: the tables that were filmed beside dark (the wind bench's runs light-2lvl-z4, -z6, -z9 and
 // ramp-light-now, 2026-10-12) and the legend bar's CSS. Any edit to LIGHT_PATH moves these: re-film and re-check before re-pinning.
-const NOW = { 50: ['b9cf6f25', 'b9cf6f25', '7c17c193'], 75: ['ad6b7fa5', 'ad6b7fa5', 'be9bf367'], bar: '580b7236' };
+// SINCE THE MARGIN (D-031, 2026-10-13) the FIELD's bytes are the margin's: the field that was filmed, moved by at most 0.11 dE00 a knot (its
+// bytes as filmed are MERGED_FIELD; the rows are scripts/wind-color/light-path-318.json). The streak row and the legend bar did not move.
+const NOW = { 50: ['b9cf6f25', 'b9cf6f25', 'df782223'], 75: ['ad6b7fa5', 'ad6b7fa5', '3c00deb3'], bar: '580b7236' };
+const MERGED_FIELD = { 50: '7c17c193', 75: 'be9bf367' };
 
 // ── colour: CIELAB D65 and the checker's colour-blind distance (coloraide 8.13's Vienot protan/deutan and Brettel tritan, as windPaletteCvd.test.js) ──
 const dec = (c) => (Math.abs(c) <= 0.04045 ? c / 12.92 : Math.sign(c) * Math.pow((Math.abs(c) + 0.055) / 1.055, 2.4));
@@ -113,7 +116,8 @@ describe('the switch: on where the white streak draws in light, and the kill res
   it.each([50, 75])('the kill draws the field and the streak row light drew before, byte for byte; the default draws others (%i kn)', (max) => {
     expect(hashes('light', KILL, max)).toEqual(BEFORE.light[max]);
     const now = hashes('light', {}, max);
-    expect(now).toEqual(NOW[max]);                                                                   // THE DEFAULT'S OWN BYTES: the tables that were filmed
+    expect(now).toEqual(NOW[max]);                                                                   // THE DEFAULT'S OWN BYTES: the streak row that was filmed, the field with its margin
+    expect(now[2]).not.toBe(MERGED_FIELD[max]);                                                      // and the margin DID move the field's bytes
     expect(now[0]).not.toBe(BEFORE.light[max][0]); expect(now[2]).not.toBe(BEFORE.light[max][2]);   // the positive control: both tables moved
     expect(now[0]).toBe(now[1]);                                                                     // still one streak row over land and sea
   });
@@ -144,26 +148,29 @@ describe('the switch: on where the white streak draws in light, and the kill res
     const ENGINE = fs.readFileSync(path.join(__dirname, 'WebGLWindEngine.js'), 'utf8');
     expect(ENGINE.match(/lookKey !== this\._lookKey/g)).toHaveLength(2);    // both of the engine's ramp builds compare the key
   });
-  it('only rows 1 to 32 kn are the path\'s: calm and every row from 33 kn are the rows before it, in the field and in the streak row', () => {
-    expect([LIGHT_PATH.from, LIGHT_PATH.to]).toEqual([1, 32]);
+  it('the path owns the STREAK ROW from 1 to 32 kn and, since the margin, the FIELD from 1 to 63 kn: calm and 75 kn are the rows before it in both', () => {
+    expect([LIGHT_PATH.from, LIGHT_PATH.to, LIGHT_PATH.fieldTo]).toEqual([1, 32, 63]);
     expect(Object.isFrozen(LIGHT_PATH)).toBe(true);
-    for (const rows of [LIGHT_PATH.field, LIGHT_PATH.marks]) {
-      expect(rows.map((r) => r[0])).toEqual(Array.from({ length: 32 }, (_, i) => i + 1));
-      for (const r of rows) for (const c of r.slice(1)) { expect(c).toBeGreaterThanOrEqual(0); expect(c).toBeLessThanOrEqual(1); }
-    }
-    const outside = (rows) => rows.filter((r) => r[0] < 1 || r[0] > 32);
-    expect(outside(resolveDrawnField('light', {}))).toEqual(outside(resolveDrawnField('light', KILL)));
-    expect(outside(resolveDrawnMarks('light', {}).land)).toEqual(outside(resolveDrawnMarks('light', KILL).land));
-    expect(outside(resolveDrawnField('light', {})).map((r) => r[0])).toEqual([0, 33, 40, 47, 55, 63, 75]);
-    for (const kn of [0, 33, 40, 55, 75]) for (const surface of SURFACES) expect(onScreen('now', kn, surface)).toEqual(onScreen('was', kn, surface));
+    const knots = Array.from({ length: 32 }, (_, i) => i + 1);
+    expect(LIGHT_PATH.marks.map((r) => r[0])).toEqual(knots); expect(LIGHT_PATH.field.map((r) => r[0])).toEqual([...knots, 33, 40, 47, 55, 63]);
+    for (const rows of [LIGHT_PATH.field, LIGHT_PATH.marks]) for (const r of rows) { expect(Object.isFrozen(r)).toBe(true); for (const c of r.slice(1)) { expect(c).toBeGreaterThanOrEqual(0); expect(c).toBeLessThanOrEqual(1); } }
+    const outside = (rows, to) => rows.filter((r) => r[0] < 1 || r[0] > to);
+    expect(outside(resolveDrawnField('light', {}), 63)).toEqual(outside(resolveDrawnField('light', KILL), 63));
+    expect(outside(resolveDrawnMarks('light', {}).land, 32)).toEqual(outside(resolveDrawnMarks('light', KILL).land, 32));
+    expect(outside(resolveDrawnField('light', {}), 63).map((r) => r[0])).toEqual([0, 75]);
+    expect(resolveDrawnField('light', {}).map((r) => r[0])).toEqual(resolveDrawnField('light', KILL).map((r) => r[0]).filter((kn) => kn < 1 || kn > 32).concat(knots).sort((a, b) => a - b));   // no knot gained or lost from 33 kn up
+    for (const kn of [0, 75]) for (const surface of SURFACES) expect(onScreen('now', kn, surface)).toEqual(onScreen('was', kn, surface));
+    // the rows the path first kept (33 to 63 kn) took the margin's step and no more: within 0.12 dE00 of the rows before it, and their alpha is not moved
+    for (const kn of [33, 40, 47, 55, 63]) { for (const surface of SURFACES) expect(normal(onScreen('now', kn, surface), onScreen('was', kn, surface))).toBeLessThan(0.12);
+      expect(resolveDrawnField('light', {}).find((r) => r[0] === kn)[4]).toBe(resolveDrawnField('light', KILL).find((r) => r[0] === kn)[4]); }
     expect(lightPathRows([[0, 9], [3, 9], [16, 9], [33, 9], [75, 9]], [[1, 7], [32, 7]])).toEqual([[0, 9], [1, 7], [32, 7], [33, 9], [75, 9]]);
   });
-  it('lightTables: off the path, the tables handed in; on it, their 1 to 32 kn rows replaced, one streak row for land and sea, built once', () => {
+  it('lightTables: off the path, the tables handed in; on it, the field\'s 1 to 63 kn rows and the streak row\'s 1 to 32 kn rows replaced, one streak row for land and sea, built once', () => {
     const field = [[0, 9], [3, 9], [33, 9]], marks = [[0, 8], [16, 8], [75, 8]];
     const off = lightTables(false, field, marks);
     expect(off.field).toBe(field); expect(off.land).toBe(marks); expect(off.water).toBe(marks);
-    const on = lightTables(true, field, marks), owned = (rows) => rows.filter((r) => r[0] >= LIGHT_PATH.from && r[0] <= LIGHT_PATH.to);
-    expect(owned(on.field)).toEqual(LIGHT_PATH.field); expect(owned(on.land)).toEqual(LIGHT_PATH.marks); expect(on.water).toBe(on.land);
+    const on = lightTables(true, field, marks), owned = (rows, to) => rows.filter((r) => r[0] >= LIGHT_PATH.from && r[0] <= to);
+    expect(owned(on.field, LIGHT_PATH.fieldTo)).toEqual(LIGHT_PATH.field); expect(owned(on.land, LIGHT_PATH.to)).toEqual(LIGHT_PATH.marks); expect(on.water).toBe(on.land);
     expect(lightTables(true, field, marks)).toBe(on);                                                // built once (the app hands in the same two constants every time)
     expect(lightTables(false, field, marks).field).toBe(field);                                      // and it never leaks into the kill's arm
   });
@@ -233,7 +240,7 @@ describe('the order is dark\'s: the hue runs one way with speed', () => {
     for (const kn of [3, 6, 10, 16, 21]) expect(gap('now', kn)).toBeLessThanOrEqual(20.2);
     for (let kn = 3; kn <= 21; kn++) expect(gap('now', kn)).toBeLessThanOrEqual(25);             // between stops light's hue moves at an even pace where dark's rushes from 5 to 6 kn
     expect(gap('was', 10)).toBeGreaterThan(135); expect(gap('was', 21)).toBeGreaterThan(25);     // the control: an orchid where dark is aqua, a teal where dark is yellow-green
-    expect(Math.round(lch(onScreen('was', 10)).h)).toBe(318); expect(Math.round(lch(onScreen('now', 10)).h)).toBe(197);
+    expect(Math.round(lch(onScreen('was', 10)).h)).toBe(318); expect(lch(onScreen('now', 10)).h).toBeGreaterThan(195.5); expect(lch(onScreen('now', 10)).h).toBeLessThan(197.5);   // cyan: 197 as merged, 196 with the margin
   });
   it('no knot draws a harder edge than dark\'s own hardest; before, 11 to 12 kn stepped 16 dE00', () => {
     const dark = steepest(darkOn);
@@ -253,74 +260,90 @@ describe('the lightness runs one way, on two levels for the white streak', () =>
     expect(lch(onScreen('was', 21)).L - lch(onScreen('was', 16)).L).toBeGreaterThan(4);
     expect(lch(onScreen('now', 21)).L - lch(onScreen('now', 16)).L).toBeLessThan(0.05);
   });
-  it('TWO LEVELS: 6 to 10 kn at L* 65, 16 to 27 kn at L* 60 (the ground a white streak stands on); 10 kn is 5.8 lighter than before, 21 kn 1.3 deeper', () => {
+  it('TWO LEVELS: 6 to 10 kn at L* 65, 16 to 27 kn at L* 60 (the ground a white streak stands on); 10 kn is 6.0 lighter than before (5.8 as merged, 0.15 more with the margin), 21 kn 1.3 deeper', () => {
     for (let kn = 6; kn <= 10; kn++) { const L = lch(onScreen('now', kn)).L; expect(L).toBeGreaterThan(64.7); expect(L).toBeLessThan(65.3); }
     for (let kn = 16; kn <= 27; kn++) { const L = lch(onScreen('now', kn)).L; expect(L).toBeGreaterThan(59.9); expect(L).toBeLessThan(60.3); }
-    expect(lch(onScreen('now', 10)).L - lch(onScreen('was', 10)).L).toBeCloseTo(5.8, 1);
+    expect(lch(onScreen('now', 10)).L - lch(onScreen('was', 10)).L).toBeCloseTo(5.95, 1);
     expect(lch(onScreen('now', 16)).L - lch(onScreen('was', 16)).L).toBeCloseTo(3.0, 1);
     expect(lch(onScreen('now', 21)).L - lch(onScreen('was', 21)).L).toBeCloseTo(-1.3, 1);
-    expect(lch(onScreen('now', 0)).L).toBeCloseTo(78.7, 1); expect(lch(onScreen('now', 33)).L).toBeCloseTo(53.6, 1);   // calm and the gold are the rows before
+    expect(lch(onScreen('now', 0)).L).toBeCloseTo(78.7, 1); expect(lch(onScreen('now', 33)).L).toBeCloseTo(53.5, 1);   // calm is the row before; the gold took the margin's step (53.6 as merged)
   });
 });
 
 describe('the colour-blind floor holds, with the bands in order', () => {
-  it('neighbouring Beaufort stops from 3 kn are 5.0 dE2000 or more apart for protan, deutan and tritan, over the sea AND over the land as the mute alone leaves it (the deeper land of PR #320: the pin below)', () => {
+  it('ON THE TABLE neighbouring Beaufort stops from 3 kn are 5.0 dE2000 or more apart for protan, deutan and tritan, over the sea AND over the land as the mute alone leaves it (as drawn, and on the lands the wind draws over: the tests below)', () => {
     expect(weakest(colourBlind, 'now', 'water')).toBeGreaterThanOrEqual(5.0);   // 5.1: 21-27 kn, protan
     expect(weakest(colourBlind, 'now', 'land')).toBeGreaterThanOrEqual(5.4);
     expect(weakest(colourBlind, 'was', 'water')).toBeGreaterThanOrEqual(5.4);   // what the reversals bought: 5.5 and 5.6
     expect(weakest(colourBlind, 'was', 'land')).toBeGreaterThanOrEqual(5.5);
   });
-  // AS UPLOADED. The engine draws the field from a 256-entry, 8-bit texture built for the data's own maximum (held between 10 and 80 kn,
-  // WebGLWindEngine.js), not from the table the palette checker reads. The beach lane's read (windBeachPath.test.js), applied to light: a
-  // stop at `kn` is read at kn / max * 255, linear between two texels; a pair wholly above the maximum is not drawn and not scored. A
-  // model, not a read of the canvas: the shader's own sampling may sit half a texel off, and the framebuffer rounds to 8 bits again.
+  // AS DRAWN. The engine draws the field from a 256-texel, 8-bit texture built for the data's own maximum (held between 10 and 80 kn,
+  // WebGLWindEngine.js), not from the table the palette checker reads. The texture is filled by index (texel i holds the table at
+  // i / 255 x the maximum) and the GPU reads it at position 256 t - 0.5, LINEAR between two texels (scripts/wind-color/lut-lookup-gpu.cjs
+  // read that law back from a GPU; LESSONS L-V69). A pair is scored at a maximum only when both its stops are drawn there. This is
+  // `node check.mjs --as-uploaded 10-80:0.25`, in Jest. Not modelled: the framebuffer rounds to 8 bits once more.
   const NO_DEPTH = { __RAW_DISABLE_WIND_LAND_DEPTH__: true };   // the land as the mute alone leaves it (PR #320's kill): the land every test above scores
+  const DEEPER = { __RAW_DISABLE_WIND_LAND_STEP__: true };      // the land at the sea's depth, as PR #320 merged it: since the land a step above the sea (D-026 amended, 2026-10-12) it is that step's kill
+  const MERGED = require('../../../scripts/wind-color/light-path-318.json').field;   // the path's field as PR #318 merged it, before the margin: the control
   const groundOf = (surface, win) => { const c = surface === 'water' ? [168, 214, 222] : [236, 236, 232];
     const m = /rgba\((\d+), (\d+), (\d+)/.exec(muteColor(`rgb(${c.join(', ')})`, windBasemapMuteAmount('light', win), surface === 'water' ? windBasemapWaterL('light', win) : windBasemapLandL('light', win)));
     return [+m[1], +m[2], +m[3]].map((v) => v / 255); };
-  const tableOf = (win) => { const T = huePathStops(resolveDrawnField('light', win), {}); return (kn) => sampleRamp(T, kn); };
-  const uploadedOf = (win, max) => { const gl = rampGl(), tab = tableOf(win); buildFieldRampTexture(gl, max, 'light', win); const texel = (i) => [0, 1, 2].map((c) => gl.uploaded[i * 4 + c] / 255);
-    return (kn) => { if (kn > max) return tab(kn); const x = Math.min(255, (kn / max) * 255), i = Math.min(254, Math.floor(x)), t = x - i, a = texel(i), b = texel(i + 1); return a.map((v, c) => v + (b[c] - v) * t); }; };
+  const tableOfRows = (rows) => { const T = huePathStops(rows, {}); return (kn) => sampleRamp(T, kn); };
+  const tableOf = (win) => tableOfRows(resolveDrawnField('light', win));
+  const lookup = (bytes, max) => (kn) => { const x = Math.min(255, Math.max(0, Math.min(1, kn / max) * 256 - 0.5)), i = Math.min(254, Math.floor(x)), t = x - i; return [0, 1, 2].map((c) => (bytes[i * 4 + c] + (bytes[(i + 1) * 4 + c] - bytes[i * 4 + c]) * t) / 255); };
+  /** The field as the engine uploads it for `win` at `max` (the engine's own call), read as the GPU reads it. */
+  const uploadedOf = (win, max) => { const gl = rampGl(); buildFieldRampTexture(gl, max, 'light', win); return lookup(gl.uploaded, max); };
+  /** The same for a table that is not what the app draws (the control's rows): the fill buildFieldRampTexture uses. */
+  const uploadedRows = (rows, max) => lookup(generateRampData(max, rows, null, {}), max);
   const tint = (ground, at, kn) => { const F = at(kn), s = strength(kn); return ground.map((v, c) => v * (1 - s * (1 - F[c]))); };
   /** The weakest pair of neighbouring Beaufort stops for a colour-blind viewer, over `ground`, the field read through `at`. */
-  const line = (ground, at, max = Infinity) => { let w = Infinity; for (let i = 1; i < BEAUFORT.length; i++) if (BEAUFORT[i - 1] < max) w = Math.min(w, colourBlind(tint(ground, at, BEAUFORT[i - 1]), tint(ground, at, BEAUFORT[i]))); return w; };
+  const line = (ground, at, max = Infinity) => { let w = Infinity; for (let i = 1; i < BEAUFORT.length; i++) if (BEAUFORT[i] <= max) w = Math.min(w, colourBlind(tint(ground, at, BEAUFORT[i - 1]), tint(ground, at, BEAUFORT[i]))); return w; };
   /** Every maximum the engine can pick, a quarter knot apart: the least the line reads, and at how many of them it is under 5. */
-  const sweep = (surface, win) => { const g = groundOf(surface, win); let least = Infinity, under = 0, n = 0;
-    for (let max = 10; max <= 80; max += 0.25) { const d = line(g, uploadedOf(win, max), max); n++; if (d < 5) under++; least = Math.min(least, d); }
-    return { least, under, n }; };
-  const DEEPER = { __RAW_DISABLE_WIND_LAND_STEP__: true };   // the land at the sea's depth, as PR #320 merged it: since the land a step above the sea (D-026 amended, 2026-10-12) it is that step's kill
-  it('ON THE DEEPER LAND (PR #320, now the land step\'s kill) THERE IS NO MARGIN, and AS UPLOADED the line dips UNDER 5: the table reads 5.01; the 8-bit texture 5.03 at a 50 kn maximum, 4.99 at 75 kn, 4.86 at the least', () => {
-    // The owner, 2026-10-12 17:43Z, shown these numbers and two options: "option 1, merge as shown and add the pin" (DECISIONS D-024, amended).
-    // THIS IS A KNOWN SHORTFALL, PINNED SO A GREEN RUN NEVER READS AS "THE FLOOR HOLDS". The bar is still 5.0: light's rows are re-solved on the
-    // deeper land next (ledger commitment), and these numbers are re-pinned then.
-    const DEEP = groundOf('land', DEEPER), PALE = groundOf('land', NO_DEPTH), SEA = groundOf('water', {});
-    expect(windBasemapLandL('light', DEEPER)).toBe(0.81); expect(windBasemapLandL('light', NO_DEPTH)).toBe(1);   // the deeper land: what drew with no lever until the land step
-    // the table, as the palette checker reads it (`node check.mjs --strict` prints 5.0 and no red line)
-    expect(line(DEEP, tableOf({}))).toBeGreaterThanOrEqual(5.0); expect(line(DEEP, tableOf({}))).toBeCloseTo(5.006, 2);
-    expect(line(PALE, tableOf(NO_DEPTH))).toBeCloseTo(5.503, 2); expect(line(SEA, tableOf({}))).toBeCloseTo(5.130, 2);
-    // as uploaded
-    expect(line(DEEP, uploadedOf({}, 50), 50)).toBeCloseTo(5.033, 2);
-    expect(line(DEEP, uploadedOf({}, 75), 75)).toBeCloseTo(4.987, 2);                                                // under the bar
-    const deep = sweep('land', DEEPER);
-    expect(deep.n).toBe(281); expect(deep.least).toBeCloseTo(4.859, 2); expect(deep.under).toBe(151);                // under 5 at about half of the maxima, by up to 0.14
-    const sea = sweep('water', {});
-    expect(sea.least).toBeCloseTo(4.960, 2); expect(sea.under).toBe(12);
-    // the controls. Light before its path on the same land (dev's own light): the deeper land takes most of the margin, this change the rest.
-    const was = sweep('land', { ...KILL, ...DEEPER });
-    expect(line(DEEP, tableOf(KILL))).toBeCloseTo(5.053, 2); expect(was.least).toBeCloseTo(4.928, 2); expect(was.under).toBe(21);
-    // And the land before PR #320: never under, read either way.
-    const pale = sweep('land', NO_DEPTH);
-    expect(pale.least).toBeCloseTo(5.364, 2); expect(pale.under).toBe(0);
+  const sweepOf = (ground, drawnAt) => { let least = Infinity, under = 0, n = 0; for (let max = 10; max <= 80; max += 0.25) { const d = line(ground, drawnAt(max), max); n++; if (d < 5) under++; least = Math.min(least, d); } return { least, under, n }; };
+  const sweep = (surface, win) => sweepOf(groundOf(surface, win), (max) => uploadedOf(win, max));
+  const sweepMerged = (surface, win) => sweepOf(groundOf(surface, win), (max) => uploadedRows(MERGED, max));
+  it('the control is the field PR #318 merged, to the byte, and the two ways of reading a texture agree', () => {
+    for (const max of [50, 75]) { expect(fnv(generateRampData(max, MERGED, null, {}))).toBe(MERGED_FIELD[max]);
+      const gl = rampGl(); buildFieldRampTexture(gl, max, 'light', {}); expect(Array.from(generateRampData(max, resolveDrawnField('light', {}), null, {}))).toEqual(Array.from(gl.uploaded)); }
+    expect(MERGED.map((r) => r[0])).toEqual(resolveDrawnField('light', {}).map((r) => r[0]));
   });
-  it('ON THE LAND AS IT DRAWS NOW (a step above the sea, D-026 amended) the line holds 5.0 over land, read from the table and as uploaded at every maximum', () => {
-    // The land took the sea's own factor (0.90) on 2026-10-12 so the map shows through at the far-out zooms; a lighter ground gives the tint more room.
-    // The SEA's line is not moved by it and still dips (the pin above): light's re-solve is for the sea.
-    const STEP = groundOf('land', {});
-    expect(windBasemapLandL('light', {})).toBe(0.9);
-    expect(line(STEP, tableOf({}))).toBeGreaterThanOrEqual(5.0);
-    const step = sweep('land', {});
-    expect(step.n).toBe(281); expect(step.under).toBe(0); expect(step.least).toBeGreaterThanOrEqual(5.0);
-    expect(step.least).toBeGreaterThan(sweep('land', DEEPER).least + 0.2);            // and by a margin the deeper land did not have
+  it('AS DRAWN THE LINE HOLDS 5.0 AT EVERY MAXIMUM from 10 to 80 kn: 5.03 over the SEA and 5.20 over the land as it draws, a step above the sea (the margin, D-031)', () => {
+    // The owner, 2026-10-12 17:43Z, shown the path's shortfall as drawn: "option 1, merge as shown and add the pin"; the re-solve followed (D-024, amended; D-031).
+    expect(windBasemapLandL('light', {})).toBe(0.9);                                                               // the land as it draws: a step above the sea (D-026 amended)
+    const sea = sweep('water', {}), step = sweep('land', {});
+    expect(sea.n).toBe(281); expect(sea.under).toBe(0); expect(sea.least).toBeGreaterThanOrEqual(5.03); expect(sea.least).toBeCloseTo(5.034, 2);
+    expect(step.under).toBe(0); expect(step.least).toBeGreaterThanOrEqual(5.03); expect(step.least).toBeCloseTo(5.204, 2);
+    // on the table, which `node check.mjs --strict` reads: the room the 8-bit rounding eats
+    expect(line(groundOf('water', {}), tableOf({}))).toBeCloseTo(5.159, 2); expect(line(groundOf('land', {}), tableOf({}))).toBeCloseTo(5.303, 2);
+    expect(step.least).toBeGreaterThan(sweep('land', DEEPER).least + 0.2);                                          // the land a step above the sea has room the deeper land did not
+  });
+  it('BEFORE THE MARGIN (the path as PR #318 merged it) the SEA dipped under 5 as drawn at 32 of 281 maxima (4.93), whatever the land; the land a step above the sea held (5.18)', () => {
+    const sea = sweepMerged('water', {}), step = sweepMerged('land', {});
+    expect(sea.least).toBeCloseTo(4.934, 2); expect(sea.under).toBe(32); expect(line(groundOf('water', {}), tableOfRows(MERGED))).toBeCloseTo(5.130, 2);
+    expect(step.least).toBeCloseTo(5.177, 2); expect(step.under).toBe(0); expect(line(groundOf('land', {}), tableOfRows(MERGED))).toBeCloseTo(5.275, 2);
+  });
+  it('THE KILLS\' PICTURES, READ AND NOT SOLVED FOR: under the land step\'s kill (the land at the sea\'s depth, PR #320) the line over the LAND is still short as drawn: 4.94, under 5 at 68 of 281 maxima (4.85 and 123 before the margin)', () => {
+    // A KNOWN SHORTFALL UNDER A KILL, PINNED SO A GREEN RUN NEVER READS AS "THE FLOOR HOLDS THERE". The bar is 5.0 as drawn on what draws by default.
+    expect(windBasemapLandL('light', DEEPER)).toBe(0.81); expect(windBasemapLandL('light', NO_DEPTH)).toBe(1);
+    const DEEP = groundOf('land', DEEPER);
+    const deeper = sweep('land', DEEPER), before = sweepMerged('land', DEEPER);
+    expect(line(DEEP, tableOf({}))).toBeGreaterThanOrEqual(5.0); expect(line(DEEP, tableOf({}))).toBeCloseTo(5.035, 2);   // on the table it holds (`check.mjs --strict --before-step` prints 5.0)
+    expect(deeper.least).toBeCloseTo(4.935, 2); expect(deeper.under).toBe(68);
+    expect(line(DEEP, tableOfRows(MERGED))).toBeCloseTo(5.006, 2); expect(before.least).toBeCloseTo(4.847, 2); expect(before.under).toBe(123);
+    // light before its path on that land (the path's own kill): 4.96, under at 8; and over the sea it was never under (5.17)
+    const was = sweep('land', { ...KILL, ...DEEPER }), wasSea = sweep('water', KILL);
+    expect(was.least).toBeCloseTo(4.962, 2); expect(was.under).toBe(8); expect(wasSea.least).toBeCloseTo(5.172, 2); expect(wasSea.under).toBe(0);
+    // the land before PR #320 (its kill): never under, before the margin or with it
+    const pale = sweep('land', NO_DEPTH); expect(pale.least).toBeCloseTo(5.430, 2); expect(pale.under).toBe(0); expect(sweepMerged('land', NO_DEPTH).under).toBe(0);
+  });
+  it('THE MARGIN IS A SMALL MOVE: from the field PR #318 merged, no knot moves further than 0.12 dE00 on screen, over the land or over the sea; calm and 75 kn do not move', () => {
+    const now = tableOf({}), was = tableOfRows(MERGED), most = (g) => { let w = 0; for (let kn = 0; kn <= 75; kn += 0.5) w = Math.max(w, normal(tint(g, now, kn), tint(g, was, kn))); return w; };
+    const land = most(groundOf('land', {})), sea = most(groundOf('water', {})), deeper = most(groundOf('land', DEEPER));
+    expect(land).toBeLessThan(0.12); expect(sea).toBeLessThan(0.12); expect(deeper).toBeLessThan(0.12);
+    expect(Math.max(land, sea)).toBeGreaterThan(0.05);                                                             // and it DID move
+    for (const kn of [0, 75]) expect(now(kn)).toEqual(was(kn));
+    // only the field: the streak row and the legend bar are the ones PR #318 merged
+    expect(hashes('light', {}, 50).slice(0, 2)).toEqual(['b9cf6f25', 'b9cf6f25']); expect(fnv(Array.from(windLegendGradientCSS('light', {})).map((c) => c.charCodeAt(0)))).toBe(NOW.bar);
   });
   it('THE COST, said plainly: the weakest normal-vision neighbours are 8.0 apart (9.0 before), and 6 to 16 kn carry a third less colour', () => {
     expect(weakest(normal, 'now', 'water')).toBeGreaterThanOrEqual(7.9); expect(weakest(normal, 'now', 'water')).toBeLessThan(8.3);
