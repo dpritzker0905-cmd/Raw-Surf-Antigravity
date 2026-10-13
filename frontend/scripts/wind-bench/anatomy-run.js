@@ -68,7 +68,7 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}/${tag}/map.html`);
     await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
     const fine = JSON.parse(fs.readFileSync(fixture, 'utf8'));
-    await page.evaluate((fx) => window.__MAP_BENCH__.init(fx), { fine, scale, offline: false, pixelRatio: dpr });
+    await page.evaluate((fx) => window.__MAP_BENCH__.init(fx), { fine, scale, offline: false, pixelRatio: dpr, css: (/^(\d+)x(\d+)$/.exec(flag('--css', '')) || []).slice(1).map(Number) });   // --css 390x844: the map at a phone's CSS size
     console.log(`engine: ${source.label} · view ${lng},${lat} · map pixel ratio ${dpr} · ${path.basename(fixture)} x${scale} · arms ${arms.map((a) => a[0]).join(', ')}`);
     for (const z of zooms) {
       for (const theme of themes) for (const [arm, levers] of (theme === 'dark' ? [arms[0]] : arms)) {
