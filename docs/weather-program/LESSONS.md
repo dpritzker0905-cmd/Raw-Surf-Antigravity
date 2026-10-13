@@ -1263,3 +1263,15 @@ A stored estimate can be estimated again in a browser branch with different sour
   solves with no cap put 0.4 to 0.5 dE00 on one row; capped, the total was lower too. **Do:** name the bar where it is drawn
   (L-V69); budget rounding per pair, not per table; print every bar with every candidate, because under the lowest cap the
   solve reached the floor only by leaving a bar.
+
+- **L-P36 · Before telling the owner how a blocked merge can be released, read the WHOLE protection rule, not the one line
+  that blocks.** A promotion to `main` was blocked by a required check that no longer exists. The owner was told twice, and
+  the PR body said, that they could either fix the rule or "merge it yourself with your admin override". The rule also had
+  `enforce_admins` on: there was no override, for anyone. One API call (`branches/main/protection`) had returned the required
+  list and was read for that list only; the same answer held `enforce_admins`, twelve hours before it was looked at. Nothing
+  was lost (the owner chose to fix the rule), but an option that does not exist was offered as a way out. And a rule the owner
+  "does not see" is a classic branch protection rule being looked for under Rulesets: give the direct address
+  (`settings/branch_protection_rules/<id>`, the id from GraphQL `branchProtectionRules`). **Do:** (1) when a merge is blocked,
+  read required checks, strict, linear history, admin enforcement and rulesets together, and say which merge METHODS and which
+  BYPASSES exist before proposing one; (2) name the setting's exact address; (3) a session never edits branch protection: it
+  is the owner's security setting.

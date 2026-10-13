@@ -459,3 +459,42 @@ map's CSS size, by default the 897 x 914 pane every scored column assumes (the c
 **#317 brought up to dev by this session** (the streak-rows measurement of 2026-10-12, docs only, opened by the session that
 measured it and left for last): dev merged into it; its two ledger lines (seq 1063 and 1064 on its branch) re-appended after
 dev's head word for word with a note (now seq 1160 and 1161); this session's records after them.
+
+## 02:28-14:27Z (2026-10-13) · #327 merged; dev promoted to main (#328); production did not change
+
+**#327 (light's colour-blind margin, D-031, the colours lane's) merged** at 2026-10-13T02:28:52Z as `f9320c27` (squash), by
+this session on the owner's word of 01:19Z: "And the small colour-blind tweak to lights colors". Read before: OPEN, MERGEABLE,
+CLEAN, head `810ad447`, 18 checks passed and 1 neutral; dev `e1c0f28c` an ancestor; dev's ledger a byte prefix (seq 1166 to
+1171 its own, 1166 the `pr_merge #317`); its independent review back with no must-fix. Re-read here from the lane's tree
+before the merge (`check.mjs --as-uploaded 10-80:0.25`): the sea 4.93 with 32 of 281 maxima under 5.0 to 5.03 with none; the
+land 5.18 to 5.20; the composited field moves 0.11 dE00 at most, at 10 kn (a plain CIEDE2000 of the two trees' `--json`
+dumps). The dev site, read statically at 02:32:21Z: `BUILD_VERSION` `f9320c27`.
+
+**Main.** The owner, 01:13Z: "push it to main and also merge anything left". The section-22 question was asked at 01:17Z
+with what a push carries. The owner, 01:54Z: "yes push to main after the color tweaks are in".
+
+- **#328 opened** at 02:29:54Z: the branch `promote/dev-to-main-2026-10-13` is `origin/dev` `f9320c27` plus ONE merge commit
+  made with the `ours` strategy (`18f99577`: parents dev and main; its tree is dev's, byte for byte). `main` held three squash
+  "promote" commits (#9, #12, #13) that dev's history lacks; a content merge showed 25 conflicts, each dev's side.
+- **Its checks:** 16 passed, 3 neutral (Netlify), 1 failed: `backend-floor-staleness`, which REFUSES on any PR into `main`
+  ("the newest successful ci.yml run on 'main' ... is 57 days old", 2026-08-16): it reads the base branch's last green run
+  and takes an old one for a stale API answer. Not a required check on `main`; not about the code.
+- **It was blocked by main's own rule,** which required a check named `lint-and-build (18.x)`; since Node 24.21.0
+  (2026-10-09) the job is `lint-and-build (24.21.0)`. This session did not change the rule and did not bypass it.
+- **This session told the owner something wrong, twice** (02:35Z, 02:56Z, and in #328's body): "or merge it yourself with your
+  admin override". The rule has `enforce_admins` on ("do not allow bypassing"), read at 14:11Z, so no override existed.
+  Corrected to the owner at 14:11Z. The lesson is L-P36.
+- **The owner changed the rule** at about 14:15Z ("saved, merge 328, push to main", 14:16Z), after asking where it was ("I
+  don't see the rule": it is a classic branch protection rule, id 81316321, not a ruleset). Read back by API at 14:16:12Z:
+  required `lint-and-build (24.21.0)`, the `18.x` entry gone, linear history and admin enforcement unchanged.
+- **#328 merged** at 2026-10-13T14:16:40Z as `261db85a` (squash; `main` requires linear history). After: `origin/main` at
+  `261db85a`, its tree equal to `origin/dev`'s (an empty diff).
+
+**Production did not change.** `rawsurf.netlify.app` read `BUILD_VERSION` `fc140024` at 01:57Z, at 14:16:25Z and at every
+45 s from 14:17:01Z to 14:23:51Z, and at 14:26:07Z: the frozen build of the 2026-09-29 note. Netlify posted no status on
+`261db85a`. The dev site stayed at `f9320c27`; the backend stayed healthy on dev's code with its uptime unbroken (11 h 44 m
+before, 11 h 53 m after): it follows dev. The owner was told that publishing to users is a step in Netlify, which this
+session cannot reach, and that the main build should be looked at on its preview link first.
+
+Main's own CI on `261db85a`: Lighthouse, Encoding Guard and LOC Governance passed; the long `CI` run was in progress when
+this was written.
