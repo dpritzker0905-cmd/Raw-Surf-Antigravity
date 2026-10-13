@@ -239,9 +239,9 @@ describe('what the look is, per knot: white light over a ground deep enough to s
     // Since light's path (D-024) the everyday winds sit on TWO levels: 65 from 6 to 10 kn, 60 from 16 to 27 kn. The arm the owner watched
     // here stepped 59, 57, 61 (L* 57.1 to 61.4 from 9 to 27 kn): windLightPath.test.js reads both.
     const everyday = KNOTS.filter((kn) => kn >= 9 && kn <= 27).map((kn) => Lstar(ground('light', 'land', kn)));
-    expect(Math.min(...everyday)).toBeCloseTo(60.1, 1); expect(Math.max(...everyday)).toBeCloseTo(65.0, 1);
+    expect(Math.min(...everyday)).toBeCloseTo(60.0, 1); expect(Math.max(...everyday)).toBeCloseTo(65.1, 1);   // 60.1 and 65.0 as the path merged; 60.03 and 65.08 with its margin (D-031)
     // calm keeps a pale tint (D-019): under 6 kn the ground is lighter than that, and a streak there steps less
-    expect(Lstar(ground('light', 'land', 0))).toBeCloseTo(78.7, 1); expect(Lstar(ground('light', 'land', 3))).toBeCloseTo(71.9, 1);
+    expect(Lstar(ground('light', 'land', 0))).toBeCloseTo(78.7, 1); expect(Lstar(ground('light', 'land', 3))).toBeCloseTo(72.0, 1);   // 3 kn: 71.9 as the path merged, 71.98 with its margin (D-031)
   });
   it('THE COST, said plainly: beach\'s ground over land at 26-39 kn is held pale by the name guard (L* 65-73), and a white streak has less to stand on there', () => {
     const pale = KNOTS.filter((kn) => kn >= 6 && Lstar(ground('beach', 'land', kn)) > 65.2);
@@ -249,7 +249,7 @@ describe('what the look is, per knot: white light over a ground deep enough to s
     expect(Math.max(...pale.map((kn) => Lstar(ground('beach', 'land', kn))))).toBeCloseTo(72.9, 1);     // at 29 kn
     expect(KNOTS.filter((kn) => kn >= 6 && Lstar(ground('beach', 'water', kn)) > 65.2)).toEqual([]);    // the sea has the room at every speed
     expect(KNOTS.filter((kn) => kn >= 6 && Lstar(ground('light', 'land', kn)) > 65.2)).toEqual([]);     // and so has light, at the cost of a deeper gold (its 33 kn ground is L* 53.6)
-    expect(Lstar(ground('light', 'land', 33))).toBeCloseTo(53.6, 1);
+    expect(Lstar(ground('light', 'land', 33))).toBeCloseTo(53.5, 1);   // 53.6 as the path merged; the margin (D-031) moved the gold 0.07 L*
   });
 });
 

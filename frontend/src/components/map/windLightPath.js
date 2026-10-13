@@ -51,6 +51,22 @@
  * Where the path meets the rows it keeps, a streak's colour core steps 12.8 dE00 from calm to 1 kn and 8.1 from 32 to 33 kn (4.2 and 4.8
  * before): the core is a pixel under the white ring, and the FIELD's own step there is unchanged.
  *
+ * THE MARGIN (2026-10-13, DECISIONS D-031; the owner: "option 1, merge as shown and add the pin", then "the small colour-blind tweak to
+ * lights colors"). The numbers above are the path as it merged (PR #318). On the table it held 5.1; AS DRAWN it did not: the engine uploads
+ * the field as a 256-texel, 8-bit texture for the data's own maximum (10 to 80 kn), and through it (the GPU's lookup, `check.mjs
+ * --as-uploaded 10-80:0.25`) the weakest pair over the SEA read 4.93, under 5.0 at 32 of the 281 maxima, whatever the land. The `field`
+ * below is that field moved by the smallest step that holds 5.0 as drawn at every maximum (scripts/wind-color/light-margin-solve.mjs):
+ *   - over the sea 5.03 as drawn (5.16 on the table); over the land as it draws a step above the sea (D-026 amended) 5.20 (5.18 before);
+ *   - no knot moves further than 0.11 dE00 on screen (10 kn), 2.1 dE00 summed over 37 rows: not a step the eye finds side by side. The
+ *     hue order, the two levels, the edge, the legend bar and each streak's colour core are re-read on these rows and held; lightness
+ *     rises by at most 0.05 L* from calm to 33 kn (0.02 as merged): at its bar;
+ *   - the rows from 33 to 63 kn, which the path first kept, take a step too (27-33 kn is one of the sea's weak pairs): the field owns 1
+ *     to 63 kn (`fieldTo`). The streak row and the legend bar are NOT moved;
+ *   - under the land step's kill (the land at the sea's depth, PR #320's) the line over the LAND is still short as drawn (4.94, under 5.0
+ *     at 68 of 281 maxima; 4.85 and 123 before): a kill's picture, read and not solved for.
+ * There is no second kill: the path's own kill below restores light before the path, as it did. The path's rows as PR #318 merged them
+ * are scripts/wind-color/light-path-318.json (the solver's reference, and the tests' control).
+ *
  * Kill: window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true (light's field, streak row and legend as they drew before it, byte for byte; the
  * engine rebuilds its tables at once, the legend bar at its next render: MapWeatherControls keys its memo on the look key). ON only
  * where the white streak draws as D-022 lays it (WindColorRamp.js windLightPathOn), so every lever and older kill that stands the
@@ -62,17 +78,20 @@
  */
 const rows = (list) => Object.freeze(list.map((r) => Object.freeze(r)));
 export const LIGHT_PATH = Object.freeze({
-  from: 1,    // the first and last knot it owns: light's calm row, and every row from 33 kn, stay the deeper field's own
-  to: 32,
+  from: 1,    // the first knot it owns: light's calm row stays the deeper field's own
+  to: 32,     // the last knot the STREAK ROW owns (every row from 33 kn is the deeper marks' own)
+  fieldTo: 63,   // the last knot the FIELD owns since the margin (2026-10-13): the rows it first kept from 33 kn take a small step too; 75 kn is the deeper field's own
   field: rows([
-    [1, 0.663, 0.242, 0.573, 0.73], [2, 0.560, 0.307, 0.684, 0.74], [3, 0.467, 0.397, 0.771, 0.75], [4, 0.446, 0.457, 0.804, 0.76],
-    [5, 0.412, 0.498, 0.823, 0.77], [6, 0.354, 0.518, 0.829, 0.78], [7, 0.217, 0.564, 0.832, 0.785], [8, 0.072, 0.589, 0.791, 0.79],
-    [9, 0.000, 0.606, 0.718, 0.795], [10, 0.000, 0.615, 0.618, 0.8], [11, 0.000, 0.603, 0.576, 0.803], [12, 0.000, 0.590, 0.533, 0.807],
-    [13, 0.012, 0.577, 0.490, 0.81], [14, 0.028, 0.563, 0.446, 0.813], [15, 0.047, 0.549, 0.402, 0.817], [16, 0.069, 0.534, 0.358, 0.82],
-    [17, 0.098, 0.533, 0.323, 0.824], [18, 0.131, 0.531, 0.288, 0.828], [19, 0.166, 0.528, 0.252, 0.832], [20, 0.202, 0.524, 0.217, 0.836],
-    [21, 0.240, 0.519, 0.182, 0.84], [22, 0.274, 0.514, 0.148, 0.843], [23, 0.310, 0.508, 0.114, 0.847], [24, 0.347, 0.501, 0.082, 0.85],
-    [25, 0.384, 0.493, 0.052, 0.853], [26, 0.423, 0.484, 0.024, 0.857], [27, 0.462, 0.474, 0.000, 0.86], [28, 0.463, 0.451, 0.000, 0.862],
-    [29, 0.462, 0.428, 0.000, 0.863], [30, 0.460, 0.406, 0.000, 0.865], [31, 0.456, 0.384, 0.000, 0.867], [32, 0.451, 0.362, 0.000, 0.868],
+    [1, 0.664, 0.243, 0.573, 0.73], [2, 0.561, 0.309, 0.683, 0.74], [3, 0.468, 0.399, 0.770, 0.75], [4, 0.447, 0.458, 0.805, 0.76],
+    [5, 0.412, 0.498, 0.825, 0.77], [6, 0.353, 0.518, 0.832, 0.78], [7, 0.215, 0.564, 0.834, 0.785], [8, 0.069, 0.590, 0.793, 0.79],
+    [9, 0.000, 0.607, 0.719, 0.795], [10, 0.000, 0.617, 0.619, 0.8], [11, 0.000, 0.604, 0.577, 0.803], [12, 0.000, 0.591, 0.534, 0.807],
+    [13, 0.009, 0.578, 0.491, 0.81], [14, 0.026, 0.563, 0.446, 0.813], [15, 0.046, 0.549, 0.402, 0.817], [16, 0.068, 0.534, 0.358, 0.82],
+    [17, 0.098, 0.532, 0.323, 0.824], [18, 0.131, 0.530, 0.288, 0.828], [19, 0.167, 0.527, 0.252, 0.832], [20, 0.203, 0.523, 0.217, 0.836],
+    [21, 0.241, 0.518, 0.182, 0.84], [22, 0.275, 0.513, 0.148, 0.843], [23, 0.311, 0.507, 0.114, 0.847], [24, 0.348, 0.501, 0.082, 0.85],
+    [25, 0.385, 0.493, 0.052, 0.853], [26, 0.424, 0.485, 0.024, 0.857], [27, 0.463, 0.475, 0.000, 0.86], [28, 0.463, 0.452, 0.000, 0.862],
+    [29, 0.462, 0.428, 0.000, 0.863], [30, 0.460, 0.406, 0.000, 0.865], [31, 0.455, 0.384, 0.000, 0.867], [32, 0.450, 0.361, 0.000, 0.868],
+    [33, 0.442, 0.340, 0.000, 0.87], [40, 0.392, 0.211, 0.000, 0.88], [47, 0.515, 0.162, 0.137, 0.9], [55, 0.451, 0.001, 0.113, 0.91],
+    [63, 0.356, 0.004, 0.281, 0.93],
   ]),
   marks: rows([
     [1, 1.000, 0.850, 0.967, 0.73], [2, 0.950, 0.830, 1.000, 0.74], [3, 0.858, 0.820, 1.000, 0.75], [4, 0.800, 0.802, 1.000, 0.76],
@@ -89,19 +108,19 @@ export const LIGHT_PATH = Object.freeze({
     4: Object.freeze([16, 0.361, 0.735, 0.581, 0.82]), 5: Object.freeze([21, 0.540, 0.713, 0.436, 0.84]), 6: Object.freeze([27, 0.680, 0.681, 0.297, 0.86]) }),
 });
 
-/** `base` (rows of [kn, r, g, b, a]) with every row from LIGHT_PATH.from to LIGHT_PATH.to replaced by `rows`; the rows outside that span are base's own. */
-export function lightPathRows(base, rows) {
-  return base.filter(function(s) { return s[0] < LIGHT_PATH.from; }).concat(rows, base.filter(function(s) { return s[0] > LIGHT_PATH.to; }));
+/** `base` (rows of [kn, r, g, b, a]) with every row from LIGHT_PATH.from to `to` (LIGHT_PATH.to unless given) replaced by `rows`; the rows outside that span are base's own. */
+export function lightPathRows(base, rows, to = LIGHT_PATH.to) {
+  return base.filter(function(s) { return s[0] < LIGHT_PATH.from; }).concat(rows, base.filter(function(s) { return s[0] > to; }));
 }
 
 let TABLES = null;
 /**
- * What light draws under the white streak (WindColorRamp.js darkRulesTables): `field` and `marks` as they are, or, on the path, with their
- * 1 to 32 kn rows replaced by LIGHT_PATH's. One streak row over land and sea alike. The path's tables are built once: the caller always
+ * What light draws under the white streak (WindColorRamp.js darkRulesTables): `field` and `marks` as they are, or, on the path, with the
+ * field's 1 to 63 kn rows and the streak row's 1 to 32 kn rows replaced by LIGHT_PATH's. One streak row over land and sea alike. The path's tables are built once: the caller always
  * hands in the same two module constants (LIGHT_LOOK_FIELD.deep, LIGHT_LOOK_MARKS.deep).
  */
 export function lightTables(onPath, field, marks) {
   if (!onPath) return { field: field, land: marks, water: marks };
-  if (!TABLES) { const m = lightPathRows(marks, LIGHT_PATH.marks); TABLES = { field: lightPathRows(field, LIGHT_PATH.field), land: m, water: m }; }
+  if (!TABLES) { const m = lightPathRows(marks, LIGHT_PATH.marks); TABLES = { field: lightPathRows(field, LIGHT_PATH.field, LIGHT_PATH.fieldTo), land: m, water: m }; }
   return TABLES;
 }

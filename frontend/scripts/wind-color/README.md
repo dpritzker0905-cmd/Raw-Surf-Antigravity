@@ -172,16 +172,32 @@ D-024): dark's hue ORDER in light's own key. Three files made them, and can re-m
 checker's legend lines read the bar as the app draws it (`resolveLegendRamp`): in light on its path that is no longer the
 particle ramp.
 
-**On the deeper land (PR #320) light has NO margin, and as uploaded it dips under the bar.** The checker reads light's
-colour-blind line at 5.0 over the deeper land (5.006; 5.1 over the sea; 5.5 over the land before PR #320, `--before-depth`).
-Read from the 256-entry 8-bit texture the engine uploads, the deeper land reads 5.03 at a 50 kn maximum, 4.99 at 75 kn and
-4.86 at the least: under 5.0 at 151 of the 281 maxima from 10 to 80 kn, a quarter knot apart (light before its path: 21 of
-281; the land before PR #320: never). The owner took it as shown (D-024, amended 2026-10-12: "option 1, merge as shown and
-add the pin"); `windLightPath.test.js` pins those numbers, and light's rows are to be re-solved on the deeper land. No
-instrument in this folder reads the uploaded texture: a margin under about 0.15 on the table does not survive the upload.
-(Since the land's step, 2026-10-12, the deeper land is what `--before-step` reads, and the land the app draws is the lighter
-one: 5.3 by the table, and as uploaded 5.18 at the least with no maximum under 5.0. The line with no margin is now the SEA's:
-4.93 as uploaded. `check.mjs --as-uploaded [10-80:0.25]` is the instrument this paragraph says did not exist.)
+**Light's margin (2026-10-13, DECISIONS D-031): the bar is AS DRAWN, and light's field now holds it.** The path as PR #318 merged
+it held 5.1 on the table and did not hold as drawn: through the 256-texel 8-bit texture the engine uploads
+(`check.mjs --as-uploaded 10-80:0.25`: the GPU's lookup, 256 t - 0.5, at 281 maxima from 10 to 80 kn) the SEA read 4.93, under
+5.0 at 32 maxima, whatever the land; over the land at the sea's depth (PR #320's, now `--before-step`) 4.85, under at 123. The
+owner took the path as filmed with that pinned (D-024, amended: "option 1, merge as shown and add the pin") and the re-solve
+followed. `LIGHT_PATH.field` is now that field moved by the smallest step that holds 5.0 as drawn on what draws by default:
+
+| light, colour-blind, weakest neighbours | table | as drawn, the least | maxima under 5.0 |
+|---|---|---|---|
+| the sea, before -> after | 5.130 -> 5.159 | 4.934 -> 5.034 | 32 -> 0 |
+| the land as it draws (a step above the sea), before -> after | 5.275 -> 5.303 | 5.177 -> 5.204 | 0 -> 0 |
+| `--before-step` (the land at the sea's depth: a kill's picture, not solved for) | 5.006 -> 5.035 | 4.847 -> 4.935 | 123 -> 68 |
+
+No knot moves further than 0.11 dE00 on screen (10 kn; 2.1 summed over 37 rows); the streak row and the legend bar are not
+moved. `--strict --as-uploaded` still exits 1, for DARK's own line alone (4.97 at one maximum of 281).
+
+`light-margin-solve.mjs` is the instrument, and can re-make the rows: it moves the on-screen colour by a step in CIELAB at
+each Beaufort stop from 3 to 63 kn, holds every bar the path was built on HARD (each is printed on the candidate's own rows),
+gives each pair its own target on the table (the floor plus what the 8-bit rounding takes from THAT pair, 0.06 to 0.26), reads
+the candidate as drawn after each solve and raises the target of any pair still short. `node light-margin-solve.mjs --audit`
+reads the rows the app draws, pair by pair, on every land, with the move from the rows PR #318 merged (`--merged` reads those:
+`light-path-318.json`, the reference the solve moves FROM). The run that made the rows:
+`--solve --sum --maxmove 0.15 --floor 5.03 --seed 2`. What the cap on the largest move buys: capped at 0.25 two seeds put 0.12
+and 0.21 dE00 on one row; at 0.15, 0.11 and 0.13; at 0.10 the solve held 5.0 as drawn but not 5.03; at 0.07 it left one of the
+path's bars (LESSONS L-V69 rule 3, L-V86). A margin under about 0.15 on the table does not survive the upload, and what the
+rounding takes is each pair's own.
 
 What the solve found, so the next one starts further on: holding light's hue to dark's within 8 degrees (dark by the engine's
 law) keeps a 5.2 floor with 6 kn 6 to 7 L\* lighter and 16 to 21 kn 2 to 5 lighter than at 20 degrees, where the depth holds. A cyan as deep as L\* 60 cannot
