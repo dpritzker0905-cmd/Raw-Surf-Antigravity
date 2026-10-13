@@ -52,6 +52,7 @@ node check.mjs --before-depth   # the land as the mute alone leaves it (window._
 node check.mjs --as-uploaded [10-80:1]   # ALSO the field as the GPU draws it: the 8-bit texture by the shader's own lookup, at every maximum of the sweep (red under 5.0 with --strict, or under --as-uploaded-floor 4.9; --index255: by the table's index). OPT-IN: the owner has not set an as-drawn bar, and light and dark are under 5.0 by it
 node lut-lookup-gpu.cjs [swiftshader]   # which position the GPU reads in a 256-texel LINEAR texture (the law --as-uploaded models), read back from a GPU
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
+node mirror-jacobian.mjs [--json out.json]   # every lever against a streak's step at once: what a 10% turn of the white, the field's strength and the map moves, and a knot of wind, beside dark's (see below)
 ```
 
 `--look` resolves the field and the marks as the app does with that lever set (`resolveFieldRamp`, `resolveMarkRamp` in
@@ -149,6 +150,29 @@ dark's field as `field × α + map × (1 − α)`. The engine writes it premulti
 laws; its lightness, chroma, hardest edge and colour-blind line move a lot (by the engine's law: L\* 19 to 27 from 6 to 40 kn,
 nearly flat; hardest edge 8.9 dE00 a knot; colour-blind 2.5 to 3.1). Light and beach (the multiply law) are not affected.
 `light-path-solve.mjs` reads dark through its own `darkOn`.
+
+## The Jacobian (`mirror-jacobian.mjs`): every lever against a streak's step, at once
+
+The owner, 2026-10-12: "use the jacobian lens to help see everything as a whole. To not miss any clues." Three lanes had each
+tuned one input against one reading at a few scenes, and each found its number did not hold in another (land against sea, a
+breeze against a storm, one zoom against another). This prints the matrix those were entries of, from the mirror model's own
+tables and laws (no GPU, no map load):
+
+- **Per ground and knot:** the ground under the wind (`G`), the room left above it, the white strength the app lays there
+  today (`w`: 0.75 over land with the land step, 0.55 over the sea), how far a piled-up streak steps off the ground at that
+  strength, that step over DARK's at the same knot, the strength at which the two would be equal (`w*`) and, where no white
+  reaches dark's step, how deep the ground would have to be (`G*`: the map's own term, which no streak setting can stand in for).
+- **The sign that makes a breeze and a storm disagree:** how each theme's ground moves per knot. From 6 to 16 kn dark's
+  ground gets LIGHTER with speed while light's and beach's get DARKER (or stand still), so a strength matched to dark at one
+  speed is off at another.
+- **The row for a streak's step:** what a 10% turn of the white, of the field's strength and of the map's lightness moves it
+  by, and what one knot of wind does, beside what a knot does to dark's own step.
+
+Dark is laid by the ENGINE's law here (alpha squared, the paragraph above), not the mirror model's. `--before-step` and
+`--before-depth` print the kills' pictures. It refuses to run if its ground for light or beach is not the mirror model's own.
+**It is a model of ONE piled-up trail, not the moving picture:** read it for the sign and the size of a lever before turning
+one, and read the level on the bench (`scripts/wind-bench`: `ground-run.js`, `anatomy-run.js`), which has the veil (D-029),
+the trail's whole profile and near-calm air (D-030), none of which are in this model.
 
 ## Light's path: solving a table with the floor as a constraint (`light-path-*.mjs`)
 
