@@ -1015,3 +1015,23 @@ the PR is a DRAFT until then. Commitment seq 1118 (the re-solve) closes with tho
 
 **Not verified:** nothing seen in the app or on a real canvas, by this session or the owner; the as-drawn read models the
 texture and the GPU's lookup, not the framebuffer's own rounding; phones not measured.
+
+## 2026-10-13 02:10Z · Rebased onto dev `e1c0f28c`, pushed, PR #327 opened as a draft; the ledger lines appended at the leading session's go
+
+- **The go** (the leading session, 01:56Z): #317 merged at 2026-10-13T01:56:05Z (dev `e1c0f28c`, docs and bench scripts
+  only; ledger head seq 1165); this PR is the last before dev is promoted to main. The owner to it, 01:54Z, relayed: "yes push
+  to main after the color tweaks are in".
+- **The owner, first-hand in this session's chat:** 01:51Z, "push it and open the draft PR when the review is back"; 02:06Z,
+  **"push it now, don't wait for the review"**. So it was pushed and opened with the independent review of its diff still
+  running; the PR stays a DRAFT until that review is in and its findings are answered.
+- **Rebase:** both commits onto `e1c0f28c`; one conflict, STATE's `Updated` line (dev's list of logs kept, this log's item
+  first). No lesson or decision number collided (dev's last are L-V84 and D-030). Re-run there: the wind suites 50 suites,
+  1,328 tests, 0 failed; `check.mjs --strict` exit 0; light as uploaded 5.03 over the sea and 5.20 over the land, 0 of 281
+  maxima under 5.0; `loc_ratchet.py` New 0. The full gates of the section above ran on the same app sources before the rebase.
+- **PR #327**, opened 02:07Z as a draft at head `b4480119`.
+- **Ledger, after dev's seq 1165:** 1166 `pr_merge #317` (written here from the leading session's relay; it did the merge);
+  1167 the decision (D-031); 1168 the default; 1169 closes commitment seq 1118 (the re-solve) and says which two parts of its
+  check were NOT met as written: the land at the sea's depth, which is now a kill's picture and still short as drawn, and
+  "shown to the owner moving before it replaces the rows", which the owner waived by asking for it to be merged unseen; 1170
+  `pr_open #327`; 1171 the read-back commitment (a static read of the deployed bundle's rows; due 2026-10-20).
+- This session does not merge. After this push nothing more is pushed unless a check fails or the review finds something.
