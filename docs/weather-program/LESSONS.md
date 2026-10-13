@@ -925,3 +925,323 @@ A stored estimate can be estimated again in a browser branch with different sour
   colour-blind passes bought, and the legend had moved with them. Rules: (1) a colour table is changed with the checker in the
   loop, not after the screenshot; (2) the field and the legend move together or not at all; (3) when a look and a floor pull
   apart, solve with the floor as a constraint (here: 5.1, within 4 degrees of dark's hue) and bring the owner both. (same log)
+- **L-V46 · Read where a thing is drawn before choosing how to fix it, and prove the reading with a control.** The brief for the
+  border ink carried a fair hypothesis: a full-strength streak is opaque at its core, so a border under the wind is cut whatever
+  its colour, and the layer ORDER might matter more than the ink. The style documents and `windLayerBeforeId` said the borders
+  and the names were already above the wind in all three themes; the probe then showed it in pixels (a pixel a glyph covers whole
+  moves 0.00 to 0.27 L* under the wind) and showed it could have seen the opposite (23 to 98 L* with the wind forced on top). The
+  whole fault was the colour, and no layer was moved. Rules: (1) a hypothesis in a brief is a thing to measure first, not a
+  design; (2) "it does not happen" needs the control in which it does; (3) read the style's order from the style, as served,
+  for EVERY theme: beach's lines were a mid grey, not the pale tint read on light. (log 2026-10-12-wind-border-ink)
+- **L-V47 · A column over everything cannot see a few things: score the object the owner named.** Map mode's line columns read
+  light and beach level with dark over land (`retP` 0.62 to 0.70 against 0.60 to 0.67) while their borders stood 2.8 to 7.6 L*
+  off the ground and the owner could not see them: map mode scored 75,000 to 148,000 edge pixels over land in a view (roads,
+  coasts, rivers, label strokes), and the border lines' centres were 440 to 4,704 pixels of it. Read alone (the lines found from
+  the style as a coverage mask, each scored against the ground beside it) the same pictures said 0.10 to 0.64 of dark's. Rules: (1) when the owner names a thing, the instrument's unit is that thing; (2) find it from the
+  source that draws it (the style), not from the picture, so a line that has vanished is still counted; (3) keep the general
+  column beside it: it moved too, and it is what says nothing else was harmed. (same log)
+- **L-V48 · An older kill's meaning is written in its tests: run the neighbours' tests before designing a new kill beside it.**
+  The ink was first built with a kill independent of the mute's, and the mute's own test ("the kill switch restores on the next
+  sync") failed: with `__RAW_DISABLE_WIND_BASEMAP_MUTE__` set, a border was still inked, and that kill is documented as "the map
+  keeps its own colours". L-V25 already says an older kill steps back past what was built on it; I had read the lesson and still
+  designed past it. Rules: (1) a new restyle that rides an older one's machinery is laid only where the older one is drawing;
+  (2) the first run after the first green is the WHOLE file the code lives in; (3) the newer kill may leave the older feature
+  on, never the reverse. (same log)
+- **L-V49 · A bench mode is the app only in what it runs: write down what each mode skips, at the mode.** Two were found while
+  building border mode, and neither had a line in the README. Map mode never ran the app's restyle: the basemap mute went into
+  path mode and then flow and motion modes, and `shoot` drew the wind over the style's own colours for every light and beach
+  number taken there since 2026-10-09. And the engine sizes a mark by the PAGE's device pixel ratio while the bench map's canvas
+  was always 2: at the default a mark is half its app size in CSS pixels, at `--dpr 1.5` three quarters, and no frame was the
+  owner's 1.5 in both. The kin of L-V21 (give the instrument the app's layer stack) and L-V44 (the instrument runs on the owner's
+  screen). Rules: (1) an instrument change is opt-in when recorded numbers were taken the old way, and the README says which
+  way each number was taken; (2) a ratio is one number in the page AND in the canvas, or it is two; (3) what such a gap did to
+  earlier numbers is a measurement owed, not a guess. (same log)
+- **L-V51 · Test the CALLER's order of events, not only the module's states; and a read-back that counts the plan cannot see a
+  write that was overwritten.** With the handler dev has had since #299, the basemap mute is left OFF after a theme change when
+  the new style arrives after the layer's re-sync, which is what a style fetched over the network does (replayed on the real
+  library and styles with dev's module and handler: 3 of 3 in that order; not observed in the app): the layer re-synced a frame
+  after the change, on the old style under the new theme's name; the new style was then diffed in over the restyle; and the
+  stale check, which compares the record and not the paint, answered "nothing to do". `__WIND_BASEMAP_MUTE__` said `applied`
+  throughout, so a read-back taken after a theme change would agree with a map that was not muted. Three things hid it: the module's own tests ran the order that works (the diff, then a sync); every bench mode
+  built a fresh map a theme, so the owner's own way of comparing themes had no instrument; and the read-back reported what was
+  planned. It was found by an independent reviewer walking the caller by hand, and then observed in the first run of a short
+  replay (19 ms to the re-sync, 121 ms to the style). Rules: (1) for code driven by events, write the test in the order the
+  caller fires them, and find that order by reading the caller and the library, not the module; (2) an asynchronous step between
+  "the name changed" and "the thing arrived" is a race until proved otherwise: force both orders; (3) a read-back that can be
+  true while the effect is absent is not one (L-V21 said it of `layers: 0`; this is `layers: 9` on a map that held none of
+  them): read the effect (`getPaintProperty`), or count what took; (4) give every flow the owner uses its own instrument: they
+  compare themes by switching, and nothing switched. (same log)
+- **L-V50 · A look calibrated at one wind speed does not hold at another: sweep the wind as well as the zoom, and read the
+  scene variable WHERE THE CROP SITS.** D-022's sea strengths were solved on one view of one fixture: beach 0.77 read 1.01 of
+  dark's lift. On the deployed build it read 1.37, and this session recommended 0.55 from that one read. It then called the
+  bench's scene "the wind as served, a median near 13 kn" from the fixture's whole box, measured one stronger wind beside it,
+  and wrote that 0.55 was right in a storm and short in a breeze. The fixture is a hurricane: the zoom 6 sea crop holds a 42 kn
+  field, and the "stronger wind" was 95 kn. Swept properly (the crop's median 8 / 17 / 42 / 95 kn) beach at 0.55 reads 1.10 /
+  0.96 / 0.80 / 1.07: the one low reading is the band where beach's own field is pale, which is the band 0.77 had been solved
+  in. Two points at one end of a range had been read as its two ends. Rules: (1) a per-theme strength is read at four wind
+  speeds at least, everyday winds among them (`motion-run.js` runs take `scale`), as it is at three zooms; (2) the speed that
+  labels a scene is read from the fixture inside the crop, never from the fixture's summary or a README; (3) when the bench and
+  a live read disagree, reproduce the live read on the bench (its wind, its pixel ratio, one at a time) BEFORE recommending a
+  number from either; (4) a number goes to the owner with the scene it is true in. L-S10 again (sweep the interior of a range,
+  not its ends): cited in this lesson's first version an hour before it was broken. (log 2026-10-11-wind-dark-white, "Beach's
+  sea at 0.55" and its correction)
+- **L-V52 · Check the premise before the solve: which parts already follow the model, and what "match" means.** The owner:
+  "you need to double check all this ... It could be the way it is, or it could not be. It all has to make sense to match dark
+  mode, but [in] their colors and maps". For an hour this session solved light onto dark's hues within 8 degrees, a figure taken
+  from its brief, and was heading for a field 4 to 12 L* paler (against dark's hue as the instruments then read it). The check took minutes: dark's code is the ORDER of its hues;
+  light already ran it at calm, 3, 6 and 16 kn and from 33 kn up, and broke it at exactly two stops. Rules: (1) before changing a
+  theme, read the MODEL's rules off the model and each theme against them, speed by speed, and say what already holds: that part
+  is not touched; (2) "match" is the same logic, not the same numbers: a tolerance in a brief is a hypothesis with a price, so
+  price it (here 8 degrees cost 6 to 7 L* of depth at 6 kn and 2 to 5 from 16 to 21 kn; 20 kept it); (3) ask why a wrong band is wrong before moving it: both of light's were
+  bought to avoid a cyan sea that the basemap mute had since greyed, a reason that no longer existed; (4) show the check as a
+  sheet a person can read in a glance, with the breaks outlined. (log 2026-10-12-wind-light-path)
+- **L-V53 · A constrained solve needs the authority's own arithmetic, one bar at a time, and a control for the solver itself.**
+  L-V45 said to solve with the floor as a constraint. What made that workable: (1) port the checker's scoring to the solver's
+  language and VERIFY it against the checker (4,000 random pairs, 2e-12 here), so a candidate costs 0.1 ms and the floor is a bar
+  inside the search; the checker still judges every table that comes out; (2) map the frontier before choosing: drop one bar at a
+  time at a fixed depth and read what each buys (stripes 0.85 of floor, a normal-vision bar 0.6, 2 L* of lightness 0.7); the
+  binding bar was not the one expected; (3) a bar may be stricter than the model: "one chroma crest" failed dark itself, which
+  dips through cyan; (4) the solver needs its own positive control: a trailing comment added to a penalty line commented out
+  four bars, and one run returned a "feasible" table 0.8 L* over its depth cap. It was caught because every bar is printed with
+  every solution. Print them all, and score a known-bad candidate before trusting a zero; (5) a candidate stored as OFFSETS from
+  a reference moves when the reference is corrected: when dark's law changed, the saved vector no longer described the table
+  that was filmed. Store what is drawn. (same log)
+- **L-V54 · When two readers share a table and only one should move, split at the reader, not in the table.** Light's legend bar
+  and its particle marks read one ramp. Under the white streak the marks no longer take their colour from it, so only the bar
+  had to follow the field. Overlaying the new rows inside the shared resolver broke 28 tests in states the change never draws
+  (every older look, kill and bench that reads the particle ramp), and would have fed new rows to marks nobody built. Giving the
+  BAR its own resolver left the particle ramp untouched in every state: 16 pins moved, all of the old default, and each kill is
+  exact by construction. Rules: (1) list a table's readers before changing it; (2) the reader that changes gets the new
+  function, the table keeps its bytes; (3) every instrument that reads "the legend" is told which one it means (the checker,
+  the bench's hue line). (same log; `WindColorRamp.js` `resolveLegendRamp`)
+- **L-V60 · An instrument's model of the reference must be the engine's own law, in one place: check a model against a GPU
+  read before anything is solved on it.** Two models of DARK's ground lived side by side. The engine lays dark's field at its
+  alpha SQUARED (`HEATMAP_FS` returns it premultiplied and the engine blends it `SRC_ALPHA, ONE_MINUS_SRC_ALPHA`), and
+  `windDarkRules.js` models that. `check.mjs` and `mirror-model.mjs` (written for D-022 by this session) lay it at its alpha,
+  which reads dark's sea about 20 L* too light (66 against 45 at 13 kn), and the two hold different dark map colours as well.
+  A whole-picture table built on the second model disagreed with the bench, which is how it was found; a solver in another
+  lane had already been built on it. Rules: (1) one composite law is written once and imported, never copied into a second
+  script; (2) a model is read against the GPU at three speeds on each ground before a number is solved on it; (3) when a model
+  and the bench disagree, the model is the suspect. Not yet fixed: the checker's dark lines and their pins move with it, so it
+  is its own change. (log 2026-10-11-wind-dark-white, "The lead")
+- **L-V61 · Give the scene clean axes: one variable a direction, and nothing else changing along it.** D-022 read "zoom 4, 6, 9"
+  on a hurricane fixture, where each zoom's crop holds a different wind and the land crop lies outside the fixture: zoom, speed
+  and place moved together, and three lanes each found a number that failed in the next scene. A SPEED RAMP (the wind blows
+  due north everywhere and its speed rises with longitude, 7 to 61 kn across the view) puts every speed over land and sea in
+  one frame, and a column of the picture is one speed. Read that way in one capture: light's sea is dark's lift at every speed
+  (0.93 to 1.05, read from 13 to 51 kn); beach's sea is short only from 26 to 38 kn (0.60 to 0.68), where its field is pale; the LAND is short in both
+  (light 0.58 to 0.93 below 45 kn, beach 0.38 to 0.53 from 26 to 38 kn) because its ground is 25 to 35 L* paler than dark's
+  land; and dark's land and sea grounds are within about 6 L* of each other where light's and beach's are 12 to 15 apart. Dark
+  is one picture; they are two. Rules: (1) before tuning a number, build the scene in which only its variable moves; (2) read
+  every output along that axis in one capture, the reference included; (3) a result that changes with "zoom" is checked for
+  what else changed with the zoom. (same log)
+- **L-V62 · While lanes are open, the lead's sample is the COMBINED build.** The owner, on two clips cut from this session's
+  own branch: "we have to keep in mind the work the subtrees are doing. For example, one is working on borders and labels of
+  the maps. I dont see those reflections in your samples above". A sample from one branch shows the owner a picture that will
+  never ship. Rules: (1) merge every lane's committed work into a local preview branch (never pushed) and capture from that;
+  (2) say in the caption what each pane includes and what is not in yet; (3) show before and combined in the same clip, beside
+  the reference. (same log)
+- **L-V63 · A checker that prints the weakest pair hides the others: read every pair before you size the fix.** The palette
+  checker's beach lines read 3.1 and 3.2 (16-21 kn) for a day and a half; FOUR pairs were under the bar (27-33 kn 3.6, 47-55 and
+  63-75 kn 4.6 over the sea). A fix aimed at the printed pair would have left the checker red and looked like a failed fix. Rules:
+  (1) print every pair on every ground and viewer (`beach-path-solve.mjs --audit`); (2) the pairs decouple at every stop a change
+  keeps, so solve them apart and join. (log 2026-10-12-wind-beach-path)
+- **L-V64 · A bar read one step at a time passes a slow reversal: bound the WHOLE, and score a known-bad candidate before trusting
+  "violation 0".** The solver's hue-order bar allowed 0.6 degrees a knot; a candidate set 10 kn 2.9 degrees BEHIND 16 kn across six
+  knots and passed. The bar is now the whole turn back. The same holds for "never rises a knot" (read the whole climb). (same log)
+- **L-V65 · Know what speeds a bench crop holds before you read a lift off it.** The wind bench's default scene is a hurricane: at
+  zoom 6 its sea crop holds about 41 kn, its land about 8. This session reported "the sea barely moves" for a change that does not
+  touch 33 to 47 kn; at 8 kn the sea's lift moved 0.18. Rules: (1) read a field change on a speed ramp, or scale the scene and name
+  the speed; (2) land and sea crops of one view are different speeds as well as different grounds; (3) one run is not a number:
+  where two arms' tables barely differ and their lifts differ by 1 L*, say "one run". (found by the lead and simplification lanes;
+  same log)
+- **L-V66 · The least change is not the best field: name what a constraint can be paid in before you solve.** Under a multiply tint
+  at 0.60 strength, deep AND colourful does not exist over beach's land (C* 33 needs L* 54 or lighter), so one-way lightness is paid
+  in depth (the streak's ground), in colour, or in hue. The first solve minimised the change and lifted the commonest winds' ground
+  8.5 L*; the owner's standing preference, already stated for light, was the streak's ground first. Rules: (1) chart the frontier
+  along each coin (`--aim least | colour | deep`) before recommending; (2) ask which coin the owner has already chosen elsewhere;
+  (3) the looser hue match is what keeps depth (8 degrees: 6.7 L* of lift; 12 degrees: 4.3). (same log)
+- **L-V67 · Show options moving through ONE lever in ONE capture, and make the default the bytes that were shown.** The pick was
+  made on a clip the lead cut from this branch's lab lever (`__RAW_...`, default unchanged), with the branch's own kill and an
+  earlier option in the same capture as controls. The default's field hashes are pinned to what that lever drew at that head, and
+  the lever and the options not taken left with the PR. A sheet of swatches did not show the pale band; motion on a ramp did. (same log)
+- **L-V68 · When the default ground changes, every reading is a reading of the OLD ground until it is taken again: re-run the
+  strict reads too, not only the gate.** Beach's path was solved to hold the colour-blind bar over #320's deeper land, and the gate
+  (the palette checker, on the table) read 5.0 there before and after the merge. The stricter read this lane had added after its
+  review, the table as UPLOADED to the 8-bit texture, was pinned on the land before #320 (over 5.2) and was not taken on the deeper
+  land until a question from the lead, minutes after the merge was pushed: 4.87 to 4.89 at the common maxima, under the bar. A solve
+  that puts several pairs on a bar at once leaves no room for rounding. Rules: (1) when a merge changes a default, list every pinned
+  read that names the old default and take each on the new one before reporting; (2) solve to the bar plus the rounding the pipeline
+  adds, or say the uploaded number beside the table's. (log `2026-10-12-wind-beach-path`, the entry after the merge)
+- **L-V69 · "As uploaded" is not "as drawn" until the lookup is the GPU's: read the law back from a GPU before quoting a number
+  through a texture.** This lane's first read of beach's field through the engine's 8-bit texture looked the texture up at the
+  table's own index (255 x speed / maximum). The shader samples at speed / maximum with LINEAR filtering, so the GPU reads position
+  256 t - 0.5: up to half a texel away, which at an 80 kn maximum is the colour of a wind 0.16 kn slower at calm and 0.16 kn faster
+  at the top. Three sets of numbers went to the lead in an hour (4.79 and 4.98, then 4.76 and 4.89, then 4.68 and 4.65), each lower
+  than the last, because the model was refined instead of checked; the first set is in #319's records on dev. A 40-line readback of
+  a texture that encodes its own position (`scripts/wind-color/lut-lookup-gpu.cjs`) settled it in a minute on two renderers. L-V60
+  already said it of the composite law; it holds for every stage between a table and a pixel. Rules: (1) before a number "as drawn"
+  is quoted, each stage it passes through (the fill, the lookup, the blend, the canvas) is either read back from a GPU or named as
+  not modelled; (2) sweep what the engine can actually set (the maximum is clamped to 10..80 kn: 90 and 100 kn cannot happen, and
+  10 to 20 kn can); (3) a solve told to reach a target it cannot reach will pay for it with any bar that is not held hard: a capped
+  solve here traded 0.14 L* of one-way lightness for 0.02 of floor until a test read the bar over the candidate's own rows.
+  (log `2026-10-12-wind-beach-path`, the entries after the merge)
+- **L-V70 · Read EVERY output the eye uses, along the scene's whole range, before tuning any one of them.** For a day the lanes
+  tuned one number (the lift of the picture over the sea, at the speeds one fixture happened to hold) and it came to equal
+  dark's; the owner, in the app, still saw no dark. Asked to compare "the amount and density of the animations" and "how slower
+  color wind is more transparent than faster", a profile of cover, flicker, lift, ground lightness and ground chroma at 14
+  speeds from 1.8 to 45 kn, land and sea, took one afternoon and showed three things no tuned number had: over land under 10 kn
+  light's streaks lift the picture a seventh to a half as far as dark's (most land, most days); light spends its whole
+  lightness range by 10 kn and lays its strongest colour in its lightest winds, where dark builds to 26 kn; and beach is twice
+  as colourful as dark from 15 to 32 kn. D-022's "no white can lift a pale land" had been read at one speed. Rules: (1) the
+  first instrument on a "make X look like Y" task is the profile of every visible quantity along every scene axis, X beside Y;
+  (2) a conclusion about a ground or a speed names the range it was read on; (3) when the owner's eye and a tuned number
+  disagree, the number is measuring the wrong thing: widen the profile before defending it. (log 2026-10-12-wind-land-depth)
+- **L-V71 · Before choosing between two designs, run the bars each must clear at the candidate values.** Two depths for the
+  land were on the table: the sea's (0.81) and dark's own relation, deeper than the sea (0.70). The second matched dark's lift
+  with no seam and was the better mirror on every picture measured; one run of the palette checker at that depth read light's
+  colour-blind line over land at 4.4 against a floor of 5.0 (5.1 at 0.81, 4.9 at 0.76). The choice was made by a bar nobody
+  had run until both arms were filmed. Rule: the checker (and any other floor) is run across the candidate values at the
+  START of a design choice, as cheaply as it is run on a finished one. (same log)
+- **L-V72 · An instrument that reads a canvas must lay behind it what the app lays behind it. The bench drew light over black
+  for two days; the app's light page is near white.** The map's canvas is premultiplied: the screen shows `rgb + (1 - alpha) x
+  page`. Two of the wind's passes left the canvas's alpha at 0.61 to 0.90, the bench saved frames from the bare canvas, and
+  `MapPage.js` lays black behind dark and beach but gray-50 behind light. So in light every bench number and every sample of a
+  look that runs dark's composite (the glow, 2026-10-10; dark's rules and the white streak, 10-11 on) showed a picture the app
+  did not draw. A bare-canvas frame is not "the canvas over black" either: the encoder un-premultiplies (clamped at 255) and then
+  fills, so a pixel held min(channel, alpha) and the brightest streak cores were clipped darker in every theme, dark's bar
+  included (found by the independent review, after this lesson's first wording had called the old frames "over black"); the owner found light "washed out" live on 10-10 (as that session's memory records it) and said
+  "I still do not visually see the improvements yet" on 10-12, and both times the tuning went on against the bench. One
+  real screenshot of the page over each colour settled it in an afternoon. Rules: (1) an instrument's frame is the canvas LAID
+  OVER the page behind it (drawn onto an opaque canvas of the page's colour, never exported bare), and it prints the canvas's
+  alpha, on every read it scores, not only on the frames it saves; (2) the app's fact the instrument copies (here the
+  page's class) is pinned by a test beside the copy; (3) **when the owner's eye and the instrument disagree a second time, the
+  instrument is the suspect: before another round of tuning, compare one real screenshot of the app's own composition with the
+  instrument's frame of the same thing;** (4) a pass drawn into a canvas someone else owns sets the alpha's blend on purpose
+  (`blendFuncSeparate`), never by the colour's factors; (5) compare two arms at the same run position (a theme's first run on a
+  fresh map differed from its second in 15 of 90 frames, whichever arm was which). (log 2026-10-12-wind-canvas-alpha)
+- **L-V73 · A level measured as "the darkest moment of the thing present" is not the level with the thing absent; and a
+  measure that reads two themes differently cannot rank them.** The mirror probe takes each pixel's darkest moment as the ground
+  a streak is laid on, and its `lift` is the mean picture over that. Beside the same crop drawn with the colour field ALONE (a
+  2 x 2 particle pool), on corrected frames (L-V72) with every open change, 3 to 39 kn: in DARK the darkest moment sits 2 to 4 L*
+  UNDER the field over the sea to 18.5 kn (lossless at 15.3 kn: 19% of pixel-instants are 1.5 to 3 L* under it; dark's marks carry
+  the legend's colour and take a little from the field beside their core); in LIGHT and BEACH it sits 1 to 12 L* OVER the field
+  from 12 kn up (their pixels do not come back to the field between streaks). So the probe's lift over-read dark and under-read
+  light and beach at once: over land in light air it said light lifts 0.15 to 0.55 of what dark does where the light actually
+  added is 1.1 to 1.2 times dark's, and that reading was the stated reason for a change (D-026). By light added over the field
+  alone, light and beach are at or above dark nearly everywhere (0.9 at the least); what differs is that dark's streaks return
+  to the field and theirs linger. Rules: (1) a reference level is measured with the thing absent, not inferred from the minimum of the thing present;
+  (2) before a number ranks two arms, check it reads both the same way: here, compare the probe's ground with the field alone in
+  each theme; (3) a claim about a 1 px line is read on lossless crops at device resolution (the JPEG at 1000 px rings: at
+  15.3 kn over land it read dark's dip as 2.0 L* where lossless reads 0.6); (4) when a ratio set a strength or justified a change, the
+  bar is re-derived before either is trusted again. (As first written, on clipped frames and one ramp, this lesson gave "3.4 to
+  5.5 L* low in dark, true in light" and "light at 1.6 to 1.7 times dark": the direction stood, the numbers did not. Log
+  2026-10-12-wind-canvas-alpha, "After the review".)
+  - *2026-10-12 22:00Z, a note on the cause given above (log `2026-10-12-wind-trails-linger`):* "dark's marks carry the legend's
+    colour and take a little from the field beside their core" is not why dark's pixels sit under the field. With dark's white
+    inner ring off it still dips, with its marks laid at light's level it still dips, and with its composite's branch alone
+    swapped for the glow branch it stops: the cause is the composite's own veil (L-V76). The measurement above stands (lossless,
+    the same crops: -2.2 L* at 15.3 kn over the sea, -0.6 over land); the parenthesis was a guess.
+
+- **L-V74 · When the ground moves, everything laid on it is re-solved; and a line is checked by a shape the eye must find, not
+  by its best pixels.** The wind's coastline stroke was solved on 2026-10-09 on light's and beach's pale ground (dark slate at
+  0.42 and 0.28). The deep field, the white streak and the land's depth then put a deep ground under it, and each of those
+  changes re-solved the streaks and the borders and left the stroke. By its best-covered pixels it still read level with dark's
+  (16.9 against 17.1 L\* at zoom 4), and the owner could not see the map: at zoom 4 Florida was drawn in dark and absent in light
+  and beach. A pale hairline on a deep ground carries; a dark hairline of the streaks' own width, among white streaks, does not,
+  at the same number. **Do:** (1) a change that moves the ground under the wind lists what is drawn ON that ground (the coast
+  stroke, the border lines, the names, the streak rows) and re-reads each; (2) read a line where the eye reads it: a land the
+  viewer must find at the zoom they use (Florida at zoom 4), on a crop at device resolution, beside dark, before any number is
+  believed; (3) when the eye and a number disagree, it is the number that has to explain itself (L-V72).
+- **L-V75 · A map is seen THROUGH a layer when its own contrasts survive under it with their sign. "Nearly one ground" was dark's
+  map.** D-026 drew light's and beach's land at the sea's depth on the reading that dark's land and sea "carry nearly one ground
+  under the wind (L\* 33.5 and 42.5)". Those 9 L\* are what is left of dark's own 18: half of its land-sea contrast, with its
+  sign, which is the condition for seeing a film rather than paint (Metelli 1974; Singh and Anderson 2002). Light and beach were
+  left with 0.14 and 0.23 of theirs, and their field is a multiply, which passes the map through whole: it was the restyle that
+  flattened the map, not the wind. **Do:** (1) before a difference is removed as "nearly nothing", ask what the eye uses it for;
+  (2) measure a see-through on a speed ramp, the land against the sea inside one band of speed (`ground-run.js --fixture <ramp>
+  --strips 12`): on the hurricane the sea is windier than the land and the field's own difference reads as the map's; (3) a
+  theme is compared with dark by what it KEEPS of its own map, not by its level.
+- **L-V76 · Before asking why two arms behave differently, read which code path each one RUNS; write the composite out as
+  arithmetic; and then let a fit name the path.** For two days this program measured "the gap between light and beach and dark"
+  (the probe's lift, D-022's strengths, D-026's land) round a difference nobody had read: `SCREEN_FS` has two branches, and light
+  and beach had run the other one since dark's rules (D-020, rule 1). The lead's brief to the session that found it said "all
+  three themes use the same trail composite" and listed six candidate causes; none was the cause. Written as one family,
+  `screen - g = p (b c - b^2 g) - q b (1 - b) g`, dark is `p = q = 0.505` and the glow branch `q = 0`: the missing term is a black
+  veil that dims the ground under every fading tail, and it predicts dark's dip (`op g^2 / 4C`: 2.5 L* over its 15 kn sea) to a
+  few tenths of what was measured (2.2). (Note under L-V73: the cause it gave was a guess.) **Do:** (1) for each arm, read the
+  uniforms and the branch that DRAW it before designing a measurement (a recording GL that keeps the uniforms at each draw, or
+  one value forced on the real engine: `scripts/wind-bench/force-uniforms.js`); (2) write the composite for a fading tail and look
+  for a term one arm lacks; (3) fit the law from the screen and the buffer (`truth-run.js --law`): a coefficient names the path
+  without anyone's reading of the code, to 0.3 of a level; (4) isolate with ONE value changed, BOTH ways: a cause moves the
+  behaviour with it in both directions (dark on the glow branch reads as light; light on dark's branch dips), a modulator (the
+  fade, the trail count, the ground) moves its size and never its sign; (5) when a rule was written against a cost on one ground
+  ("light only adds", for the pale fields of 2026-10-11), re-read it when the ground changes: D-021 and D-026 made the grounds
+  deep, the rule's reason went, and its own cost (the trails linger) had never been measured as motion. And two lanes found this
+  within the hour of each other with two instruments and two candidates (a cut and a veil): a finding goes into the shared record
+  when it is made, not when its PR is opened. Log `2026-10-12-wind-trails-linger`.
+- **L-V77 · A change that is ON by default is checked against every older kill by what the new thing RESTS ON, and the whole test
+  tree is run before a review is asked for.** The veil (D-029) was first gated on the kills that share its tables (dark's rules,
+  the white streak, D-022's strengths). An independent review found two more it rests on and was not gated on: under the opaque
+  canvas's kill (D-027) the canvas's alpha is blended by the colour's factors, so the veil's alpha let light's page through and
+  the veil LIGHTENED the trails it exists to dim (+5 to +10 levels, read on a GPU); under the land's depth kill (D-026) the land
+  is pale again and the veil's dip is two to three times deeper. The same review found the commit red on four tests in files
+  the session had not run (a line-count ratchet and three text pins of lines it had changed), and five mutants of the shader
+  alive under tests that pinned its text. **Do:** (1) for a new default, write the list "this rests on ..." (the ground's depth,
+  the canvas's opacity, the strengths, the branch) and test it under every kill that takes one of those away, not only the kills
+  that share its tables; (2) run the WHOLE frontend tree before the review, not the suites you wrote (a change to one line of a
+  shared file can break a ratchet two files away); (3) a shader's test RUNS its arithmetic (its statements turned to JavaScript,
+  with a statement added as a positive control) and a GL trace keeps each program's uniforms as they stand AT EACH DRAW, not a
+  log of what was sent; (4) a brief to a sub-session carries the owner's standing rules: this one asked for a default-off lever
+  and the owner corrected it within the hour ("levers to turn on new updates need to be on by default"). Log
+  `2026-10-12-wind-trails-linger`, "The independent review".
+
+- **L-V80 · A fix is read at EVERY zoom the app can show before it is called a fix, and at the far end a land is carried by its
+  tone, not by a line.** The coast in the borders' ink (D-028) was measured and filmed at zooms 4, 6, 8 and 10 and merged; the
+  app's far end is zoom 2, and the owner looked there first: "I don't see the fix at higher out zooms". At zooms 2 and 3 the inked
+  stroke read 1.6 times dark's line by its best pixels and the continents were not there, because a stroke is 0.4 px wide at that
+  zoom in every theme: dark's continents are seen by a land 9 L\* under its sea. **Do:** (1) take the zoom list from the app
+  (`minZoom`, the zoom it opens at, the closest it is used at), not from the last bench run; (2) at each zoom ask what CARRIES the
+  thing being judged (a tone at the far end, a line in the middle, labels and roads close in) and measure that; (3) a number that
+  says "stronger than dark's" beside a picture where the thing cannot be found is the wrong number for that zoom (L-V74).
+
+- **L-V81 · A bar is read from the instrument's data, never by its position in a printed row; and a bar that sets a number is
+  read by two routes before the number is written.** The land's streak strength (0.75) was picked to match "dark adds +14.8 L\*
+  over land". 14.8 was dark's field CHROMA: an `awk` field counted from the end of the runner's line, and dark's line ends in a
+  shorter cell than light's and beach's, so every field sat one place off for dark alone. The true bar, from the same run's JSON,
+  is +11.8. The number survived only because the build it goes onto (with the tail's veil) happens to read +11.7 there; on dev as
+  it stood it was 1.23 times dark's. Caught before any commit, by re-reading the row beside its header. **Do:** (1) take every
+  number that will be compared across themes from the runner's `--json`; (2) when a row is printed for the eye, print the name
+  with the value (`adds +11.8`), so a shifted column cannot pass for another; (3) a bar that sets a strength is read a second
+  way (another script, another run, the header line) before the strength is written anywhere.
+
+- **L-V82 · A switch read in two places on two clocks is two switches for as long as the clocks differ.** The land step's kill
+  was read by the map's restyle at the next style event and by the streak's strength on every frame, so setting it in the
+  console drew the new land with the old strength (or the reverse) until something touched the style: a picture nobody built,
+  and exactly what the owner would see first when A/B-ing the kill. The depth's own kill never had this because its second
+  reader read the sync's READ-BACK, not the flag. An independent review found it by flipping the flag with no sync; no test did,
+  because every test synced after setting it. **Do:** (1) when a switch has two readers, one of them reads the other's
+  record of what it DID, never the flag again; (2) test a kill three ways: set before the first sync, set after it with no
+  sync, and set then synced; (3) while a resource a rule depends on is loading (a mask, a texture), say in code which side
+  the rule falls to, and pin it: "every mark reads as land" was harmless while land and sea shared a strength and was a brighter
+  sea the moment they did not.
+
+- **L-V83 · A gauge that counts by a threshold cannot set a level near that threshold; where it and the eye disagree about what
+  is VISIBLE, the level is set by the eye, beside the model, at three zooms, on the visible side.** Near-calm air: by streaks met
+  and body share (a mark = a pixel more than 4 dE76 off the field) light's and beach's streaks matched dark's at a light level
+  near 0.70 at zoom 6. A few hundredths under that the same gauge fell off a cliff (0.96 of dark's at 0.69, 0.38 at 0.66), at
+  zoom 8 the matched level left 0.1 to 0.6 of dark's count, and on films beside dark 0.70 and 0.75 read fainter than dark's
+  stipple: dark's near-calm mark is a speck with a core 29 to 37 L\* over a near-black ground, the dimmed white one stands 4 to
+  6 L\* over L\* 65. Equal counts of marks at a threshold are not equal marks. And the cliff had a cause the gauge could not
+  name: the veil under the trails is measured against a core at the full level, so under a level of about 0.65 it takes as much
+  as the mark adds (found by the independent review, in the composite's own arithmetic). This is L-V74 (a line the eye must find) met again
+  from the other side. **Do:** (1) when a metric has a threshold in it, sweep the parameter across the cliff and write down
+  where the cliff is before picking a value; (2) pick on the far side from the cliff; (3) read the pick at every zoom the app
+  shows, not at the zoom the fixture was built for (the ramp fixture reaches zooms 6 to 10 only); (4) say in the decision which
+  instrument set the number, and what the other one reads there.
+- **L-V84 · An identity check that finds "the same bytes" proves nothing until its positive control has been seen to differ.**
+  `map-run.js --offline --crop` read 54 of 54 crops identical between the near-calm build and the build before it, in dark,
+  under the kill AND at the default: the default should have differed. The bench had not run the app's basemap sync (no
+  `--app-sync`), so the read-back the change rides on was never written and the change never drew, in any arm. The control was
+  in the run and was read only because the table was looked at arm by arm. **Do:** every identity run carries an arm that MUST
+  differ, and the report states it did; a change that rides a read-back is benched with the sync that writes it.

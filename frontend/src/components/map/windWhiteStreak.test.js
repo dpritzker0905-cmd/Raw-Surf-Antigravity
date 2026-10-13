@@ -24,6 +24,9 @@ import { muteColor, windBasemapMuteAmount, windBasemapWaterL } from './windBasem
 
 const V2 = resolveWindParticlesV2({});
 const KILL = { __RAW_DISABLE_WIND_WHITE_STREAK__: true };
+// LIGHT'S PATH (windLightPath.js, D-024) has since re-ordered light's 1 to 32 kn rows ON TOP of this arm. Its kill draws the arm the owner
+// watched here, so light's bytes below are read under it; what light draws with no lever is windLightPath.test.js's.
+const NO_PATH = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };
 const THEMES = ['light', 'beach'];
 const WHITE_MARKS = { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: 1.0, spine: 1, white: 0 };       // dark's streak method with dark's own ring
 const RULES_MARKS = { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: 1.0, spine: 0.25, white: 0 };   // PR #312's: what the kill restores
@@ -41,6 +44,12 @@ const WATCHED = {   // through the levers of the arm the owner picked
   light: { 50: ['71ea0097', '71ea0097', 'f73f7078'], 75: ['a49922ce', 'a49922ce', 'f9ffc9c2'] },   // __RAW_WIND_LIGHT_LOOK__ = 'deep': one streak row over land and sea
   beach: { 50: ['6e75db94', '72b4bd7f', '7c248d5f'], 75: ['be558fd8', 'cd4835ed', 'b9db3bb2'] },   // no table lever: dark's rules' own tables
 };
+// SINCE BEACH'S PATH (windBeachPath.js, 2026-10-12) beach's FIELD under the white streak is its own solved table: the arm the owner
+// watched is drawn through that change's kill (P), and the default is DRAWN: the same two streak rows, the path's field.
+const P = { __RAW_DISABLE_WIND_BEACH_PATH__: true };
+const B4 = { ...P, ...NO_PATH };   // each theme before ITS path (each kill is read by its own theme only): the arm the owner watched, in light and in beach
+const DRAWN = { light: WATCHED.light /* with light's path killed, as the window block below reads it; light's default is windLightPath.test.js's */, beach: { 50: ['6e75db94', '72b4bd7f', '67bfe560'], 75: ['be558fd8', 'cd4835ed', 'b0931ff3'] } };
+const KEY = { light: 'white+path|dark-rules', beach: 'white+path|dark-rules' };   // with no lever: each theme on its path
 const BEFORE = {    // with no lever: what dev drew, and what the kill must restore
   light: { 50: ['46e55dbb', '177f0c5b', 'f03b4ab5'], 75: ['6d6d01df', 'f1f3ef88', 'bf0b2134'] },
   beach: WATCHED.beach,
@@ -61,9 +70,12 @@ describe('the default: the two arms the owner watched, byte for byte', () => {
     expect(windInk('beach', V2, {})).toEqual(windInk('beach', V2, { ...KILL, __RAW_WIND_GLOW_RING__: 1 }));
   });
   it.each([50, 75])('light draws its deeper field and that field\'s own streak row; beach keeps the tables it drew (%i kn)', (max) => {
-    for (const theme of THEMES) expect(hashes(theme, {}, max)).toEqual(WATCHED[theme][max]);
-    expect(hashes('light', {}, max)).toEqual(hashes('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' }, max));   // the lever's own path still draws the same bytes
-    expect(hashes('light', {}, max)).not.toEqual(BEFORE.light[max]);
+    for (const theme of THEMES) expect(hashes(theme, B4, max)).toEqual(WATCHED[theme][max]);
+    expect(hashes('beach', {}, max)).toEqual(DRAWN.beach[max]);                                                // beach's default: the same two streak rows, its path's field (D-025)
+    expect(hashes('light', NO_PATH, max)).toEqual(hashes('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' }, max));   // the lever's own path still draws the same bytes
+    expect(hashes('light', NO_PATH, max)).not.toEqual(BEFORE.light[max]);
+    expect(hashes('light', {}, max)).not.toEqual(WATCHED.light[max]);                                          // and light's default has moved on from this arm (D-024)
+    expect(hashes('light', {}, max)[0]).toBe(hashes('light', {}, max)[1]);                                     // still one streak row over land and sea
   });
   it('light has ONE streak row: the same colours over land and over sea (a white streak takes its colour from what is under it)', () => {
     const m = resolveDrawnMarks('light', {});
@@ -100,10 +112,11 @@ describe('the kill: window.__RAW_DISABLE_WIND_WHITE_STREAK__ draws what dev drew
   });
   it('the engine rebuilds its tables at once when it flips: the look key says which, and still ends as dark\'s rules\' does', () => {
     for (const theme of THEMES) {
-      expect(windLookKey(theme, {})).toBe('white|dark-rules');
+      expect(windLookKey(theme, {})).toBe(KEY[theme]);
+      expect(windLookKey(theme, B4)).toBe('white|dark-rules');
       expect(windLookKey(theme, KILL)).toBe('|dark-rules');
     }
-    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white|dark-rules');   // an explicit light look holds light only; beach still draws the white streak
+    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white+path|dark-rules');   // an explicit light look holds light only; beach still draws the white streak
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|');
   });
 });
@@ -114,12 +127,15 @@ describe('the engine\'s own call shape: no lever object, the levers on the real 
   // all and leave the kill dead in the app (found by an independent review's mutant, 2026-10-11).
   const fieldHash = (theme, max) => { const gl = rampGl(); buildFieldRampTexture(gl, max, theme); return gl.uploaded ? fnv(gl.uploaded) : null; };
   const asTheEngineReads = (theme, max) => { const marks = drawnMarkRampData(max, theme); return [fnv(marks.subarray(0, 1024)), fnv(marks.subarray(1024)), fieldHash(theme, max)]; };
-  afterEach(() => { delete window.__RAW_DISABLE_WIND_WHITE_STREAK__; delete window.__RAW_DISABLE_WIND_DARK_RULES__; });
+  // Light's path is killed on the window for this block, so both themes read D-021's arm as the engine would (its own window shape: windLightPath.test.js).
+  beforeEach(() => { window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true; });
+  const WKEY = { ...KEY, light: 'white|dark-rules' };   // this block's window: light's path killed, beach on its path
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_WHITE_STREAK__; delete window.__RAW_DISABLE_WIND_DARK_RULES__; delete window.__RAW_DISABLE_WIND_LIGHT_PATH__; });
   it('with nothing set on the window it draws the default', () => {
     for (const theme of THEMES) {
       expect(windWhiteStreakOn(theme)).toBe(true);
-      expect(windLookKey(theme)).toBe('white|dark-rules');
-      expect(asTheEngineReads(theme, 50)).toEqual(WATCHED[theme][50]);
+      expect(windLookKey(theme)).toBe(WKEY[theme]);
+      expect(asTheEngineReads(theme, 50)).toEqual(DRAWN[theme][50]);
       expect(windInk(theme, V2)).toEqual(WHITE_MARKS);
     }
   });
@@ -134,7 +150,7 @@ describe('the engine\'s own call shape: no lever object, the levers on the real 
     }
     expect(windLookKey('dark')).toBe('|');
     delete window.__RAW_DISABLE_WIND_WHITE_STREAK__;
-    for (const theme of THEMES) { expect(windLookKey(theme)).toBe('white|dark-rules'); expect(asTheEngineReads(theme, 75)).toEqual(WATCHED[theme][75]); }
+    for (const theme of THEMES) { expect(windLookKey(theme)).toBe(WKEY[theme]); expect(asTheEngineReads(theme, 75)).toEqual(DRAWN[theme][75]); }
   });
   it('dark\'s rules\' own kill on the window still wins over it', () => {
     window.__RAW_DISABLE_WIND_DARK_RULES__ = true;
@@ -197,8 +213,9 @@ const bare = (theme, surface) => { const m = /rgba\((\d+), (\d+), (\d+)/.exec(mu
 const BARE = Object.fromEntries(THEMES.map((t) => [t, { land: bare(t, 'land'), water: bare(t, 'water') }]));
 const strength = (theme, kn) => { const m = MODEL[theme]; return Math.min(1, m.op * (m.baseA + (1 - m.baseA) * ss(0, m.end, kn)) * m.k); };
 const KNOTS = Array.from({ length: 76 }, (_, kn) => kn), SURFACES = ['land', 'water'];
-// The tables as drawn with no lever, on their hue paths (what generateRampData samples).
-const T = Object.fromEntries(THEMES.map((t) => { const m = resolveDrawnMarks(t, {}); return [t, { field: huePathStops(resolveDrawnField(t, {}), {}), land: huePathStops(m.land, {}), water: huePathStops(m.water, {}) }]; }));
+// The tables the white streak was built on, on their hue paths (what generateRampData samples): the default's in light, and in beach
+// the field before its path (P). The path's own per-knot numbers (the head's step, the pale band) are windBeachPath.test.js's.
+const T = Object.fromEntries(THEMES.map((t) => { const m = resolveDrawnMarks(t, P); return [t, { field: huePathStops(resolveDrawnField(t, P), {}), land: huePathStops(m.land, {}), water: huePathStops(m.water, {}) }]; }));
 const ground = (theme, surface, kn) => { const F = sampleRamp(T[theme].field, kn); return BARE[theme][surface].map((v, i) => v * (1 - strength(theme, kn) * (1 - F[i]))); };
 // The brightest pixel of a mark, as the engine lays it: DRAW_FS mixes the body (glowOf: the row's colour at full brightness) toward
 // white by 0.92 x ring on the inner ring and writes it at the row's alpha; SCREEN_FS lays that by dark's streak method.
@@ -217,12 +234,14 @@ describe('what the look is, per knot: white light over a ground deep enough to s
     // at the everyday winds the ground under a streak is more colourful than the streak's head
     for (const theme of THEMES) for (const surface of SURFACES) for (let kn = 6; kn <= 27; kn++) expect(Cstar(ground(theme, surface, kn))).toBeGreaterThan(Cstar(head(theme, surface, kn, WHITE_STREAK.ring)));
   });
-  it('LIGHT\'S GROUND HAS THE ROOM: from 6 kn up it is L* 65.2 or deeper over land and 50.2 or deeper over the sea', () => {
-    for (const kn of KNOTS) if (kn >= 6) { expect(Lstar(ground('light', 'land', kn))).toBeLessThanOrEqual(65.2); expect(Lstar(ground('light', 'water', kn))).toBeLessThanOrEqual(50.2); }
+  it('LIGHT\'S GROUND HAS THE ROOM: from 6 kn up it is L* 65.3 or deeper over land and 50.3 or deeper over the sea', () => {
+    for (const kn of KNOTS) if (kn >= 6) { expect(Lstar(ground('light', 'land', kn))).toBeLessThanOrEqual(65.3); expect(Lstar(ground('light', 'water', kn))).toBeLessThanOrEqual(50.3); }
+    // Since light's path (D-024) the everyday winds sit on TWO levels: 65 from 6 to 10 kn, 60 from 16 to 27 kn. The arm the owner watched
+    // here stepped 59, 57, 61 (L* 57.1 to 61.4 from 9 to 27 kn): windLightPath.test.js reads both.
     const everyday = KNOTS.filter((kn) => kn >= 9 && kn <= 27).map((kn) => Lstar(ground('light', 'land', kn)));
-    expect(Math.min(...everyday)).toBeCloseTo(57.1, 1); expect(Math.max(...everyday)).toBeCloseTo(61.4, 1);   // the "L* 62" of the arm's label
+    expect(Math.min(...everyday)).toBeCloseTo(60.1, 1); expect(Math.max(...everyday)).toBeCloseTo(65.0, 1);
     // calm keeps a pale tint (D-019): under 6 kn the ground is lighter than that, and a streak there steps less
-    expect(Lstar(ground('light', 'land', 0))).toBeCloseTo(78.7, 1); expect(Lstar(ground('light', 'land', 3))).toBeCloseTo(72.1, 1);
+    expect(Lstar(ground('light', 'land', 0))).toBeCloseTo(78.7, 1); expect(Lstar(ground('light', 'land', 3))).toBeCloseTo(71.9, 1);
   });
   it('THE COST, said plainly: beach\'s ground over land at 26-39 kn is held pale by the name guard (L* 65-73), and a white streak has less to stand on there', () => {
     const pale = KNOTS.filter((kn) => kn >= 6 && Lstar(ground('beach', 'land', kn)) > 65.2);

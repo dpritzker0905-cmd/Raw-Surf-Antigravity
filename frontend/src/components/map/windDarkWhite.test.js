@@ -30,6 +30,10 @@ import { GLSL_LAND_FS } from './windLandMask';
 
 const V2 = resolveWindParticlesV2({});
 const KILL = { __RAW_DISABLE_WIND_DARK_WHITE__: true };   // full strength on both grounds, as PR #313 laid it
+const NO_PATH = { __RAW_DISABLE_WIND_LIGHT_PATH__: true };   // light's path (windLightPath.js, D-024) re-ordered light's 1 to 32 kn rows since: PR #313's bytes are what light draws under ITS kill
+const P = { __RAW_DISABLE_WIND_BEACH_PATH__: true };      // before beach's path (windBeachPath.js): the field PR #313 drew, which TABLES pins. The path moves beach's field and its look key, never the strength, and stands down under KILL
+const B4 = { ...P, ...NO_PATH };                           // each theme before ITS path (each kill is read by its own theme only)
+const KEY = { light: 'white+path|dark-rules', beach: 'white+path|dark-rules' };
 const FULL = { land: 1, sea: 1 };
 const THEMES = ['light', 'beach'];
 const WHITE_MARKS = { mode: 2, on: false, glow: true, purity: 0, density: 1, opacity: 1.0, spine: 1, white: 0 };   // D-021's mark model: this change leaves it alone
@@ -54,19 +58,21 @@ const hue = (rgb) => {   // CIELAB hue angle of an sRGB colour (0-1)
 };
 const gap = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 /** The field's colour ON SCREEN over the theme's muted land or sea at `kn` (the solver's own model of the ground). */
-const ground = (theme, kn, surface) => darkRulesGround(theme, surface, sampleRamp(huePathStops(resolveDrawnField(theme, {}), {}), kn), kn);
+// The ground D-022's strengths were solved on: the field before beach's path (P). Under KILL the app draws that field too, so the `was`
+// arms below (full white) are a picture the app can draw; how the strengths read on the path's field is windBeachPath.test.js's and the bench's.
+const ground = (theme, kn, surface) => darkRulesGround(theme, surface, sampleRamp(huePathStops(resolveDrawnField(theme, P), {}), kn), kn);
 /** Where streaks pile up: the trail buffer holds the white ring at the mark's light level, and the screen pass lays it at level squared. */
 const piled = (g, strength) => { const level = Math.sqrt(strength); return glowComposite(g, [level, level, level], WHITE_STREAK.opacity); };
 
 describe('the numbers: a strength for each ground, a theme', () => {
-  it('full strength over land; over the sea 0.55 in light and 0.77 in beach (the bench\'s equal-lift strengths)', () => {
-    expect(DARK_WHITE).toEqual({ light: { land: 1, sea: 0.55 }, beach: { land: 1, sea: 0.77 } });
+  it('full strength over land; over the sea 0.55 in light (the bench\'s equal-lift strength) and 0.55 in beach (the owner\'s screen: 0.77 lifted 1.37 times as far as dark\'s)', () => {
+    expect(DARK_WHITE).toEqual({ light: { land: 1, sea: 0.55 }, beach: { land: 1, sea: 0.55 } });
     expect(Object.isFrozen(DARK_WHITE)).toBe(true); expect(Object.isFrozen(DARK_WHITE.light)).toBe(true); expect(Object.isFrozen(DARK_WHITE.beach)).toBe(true);
     expect(DARK_WHITE.dark).toBeUndefined();
   });
   it('light and beach read them by default; the kill, dark, and anything that stands the white streak down read full strength on both grounds', () => {
     expect(windWhiteStrength('light', {})).toEqual({ land: 1, sea: 0.55 });
-    expect(windWhiteStrength('beach', {})).toEqual({ land: 1, sea: 0.77 });
+    expect(windWhiteStrength('beach', {})).toEqual({ land: 1, sea: 0.55 });
     for (const theme of [...THEMES, 'dark']) expect(windWhiteStrength(theme, KILL)).toEqual(FULL);
     expect(windWhiteStrength('dark', {})).toEqual(FULL);
     for (const theme of THEMES) {
@@ -74,7 +80,7 @@ describe('the numbers: a strength for each ground, a theme', () => {
       for (const off of ['__RAW_DISABLE_WIND_WHITE_STREAK__', '__RAW_DISABLE_WIND_DARK_RULES__', ...DARK_RULES_HOLDS]) expect(windWhiteStrength(theme, { [off]: true })).toEqual(FULL);
     }
     for (const look of ['moderate', 'deep', 'ink']) expect(windWhiteStrength('light', { __RAW_WIND_LIGHT_LOOK__: look })).toEqual(FULL);   // an explicit light look draws its own way
-    expect(windWhiteStrength('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toEqual({ land: 1, sea: 0.77 });                           // and holds light only
+    expect(windWhiteStrength('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toEqual({ land: 1, sea: 0.55 });                           // and holds light only
     const mine = windWhiteStrength('light', {}); mine.sea = 9;
     expect(windWhiteStrength('light', {}).sea).toBe(0.55);                               // the caller's own copy
   });
@@ -84,17 +90,22 @@ describe('the numbers: a strength for each ground, a theme', () => {
       window.__RAW_DISABLE_WIND_DARK_WHITE__ = true;
       expect(windWhiteStrength('light')).toEqual(FULL); expect(windWhiteStrength('beach')).toEqual(FULL);
     } finally { delete window.__RAW_DISABLE_WIND_DARK_WHITE__; }
-    expect(windWhiteStrength('beach')).toEqual({ land: 1, sea: 0.77 });
+    expect(windWhiteStrength('beach')).toEqual({ land: 1, sea: 0.55 });
   });
 });
 
-describe('it is the strength alone: no table, no key and no mark model moves', () => {
+describe('it is the strength alone: D-022 moved no table, no key and no mark model (since beach\'s path, its kill also returns beach\'s field and key to PR #313\'s)', () => {
   it.each([50, 75])('the fields and the streak rows are PR #313\'s, byte for byte, with and without the kill (%i kn)', (max) => {
-    for (const theme of THEMES) { expect(hashes(theme, {}, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }
+    // Each theme's default has moved on to its path (light's D-024, beach's D-025). PR #313's bytes are what each draws under its path's
+    // kill AND under this kill: D-022's kill restores D-021's picture, the tables it was drawn on included (it stands both paths down).
+    for (const theme of THEMES) { expect(hashes(theme, B4, max)).toEqual(TABLES[theme][max]); expect(hashes(theme, KILL, max)).toEqual(TABLES[theme][max]); }   // the kill draws PR #313's tables: beach's path stands down under it
+    expect(hashes('light', {}, max)).not.toEqual(TABLES.light[max]);
+    expect(hashes('light', { ...NO_PATH, ...KILL }, max)).toEqual(TABLES.light[max]);
     expect(hashes('dark', {}, max)).toEqual(hashes('dark', KILL, max));
   });
   it('the mark model and the look key are D-021\'s (the strength is a uniform the engine binds every frame)', () => {
-    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, w)).toBe('white|dark-rules'); }
+    for (const theme of THEMES) for (const w of [{}, KILL]) { expect(windInk(theme, V2, w)).toEqual(WHITE_MARKS); expect(windLookKey(theme, { ...w, ...B4 })).toBe('white|dark-rules'); }
+    for (const theme of THEMES) { expect(windLookKey(theme, {})).toBe(KEY[theme]); expect(windLookKey(theme, KILL)).toBe('white|dark-rules'); }
     expect(windInk('dark', V2, {}).mode).toBe(0);
   });
 });
@@ -104,39 +115,39 @@ describe('how it reaches the pixel: the mark\'s light level, picked by the land 
   it('the mark shader reads the land under the mark once, picks its row by it, and scales its LIGHT by the level for that ground (never its cover)', () => {
     expect(GLSL_LAND_FS).toMatch(/uniform vec2 u_white;/);
     expect(DRAW_FS).toContain('float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);');
-    expect(DRAW_FS).toContain('gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land), alpha);');
+    expect(DRAW_FS).toContain('gl_FragColor = vec4(rgb * alpha * (u_white.y + (u_white.x - u_white.y) * land) * (1.0 - (u_calm_air.y + (u_calm_air.x - u_calm_air.y) * land) * (1.0 - smoothstep(u_calm_air.z, u_calm_air.w, v_speed))), alpha);');   // since near-calm air (windCalmAir.js, D-030) the level also falls below 5.5 kn; that factor is exactly 1.0 where nothing dims
     expect(DRAW_FS.match(/u_white\.[xy]/g)).toHaveLength(3);                              // read on that one line and nowhere else
     expect(DRAW_FS.match(/texture2D\(u_land_mask/g)).toHaveLength(1);
     // with equal levels the factor is exactly the level whatever the mask says (y + 0 * land): dark, the kill and every hold draw as before, bit for bit
     for (const land of [0, 0.3, 0.7071, 1]) expect(1 + (1 - 1) * land).toBe(1);
   });
-  it('the wind bench can name the kill (the scanner\'s own page has no land file, so that arm equals the default there by construction)', () => {
+  it('the wind bench can name the kill (the scanner\'s own page has no land file, so in light that arm equals the default there; in beach it also draws the field before beach\'s path)', () => {
     const { ALL_VARIANTS } = require('../../../scripts/wind-bench/matrix');
     expect(ALL_VARIANTS['full-white'].levers).toEqual(KILL);
     expect(ALL_VARIANTS.candidate.levers).toEqual({});
   });
   it('the screen pass lays a trail at its level SQUARED, which is why a strength is carried as its square root', () => {
     expect(SCREEN_FS).toContain('brightness * (u_glow > 0.5 ? brightness : 1.0) * u_opacity');
-    for (const s of [0.55, 0.77, 1]) {                                                    // the model of that line agrees: a white trail at level sqrt(s) is laid at s
+    for (const s of [0.25, 0.55, 1]) {                                                  // the model of that line agrees: a white trail at level sqrt(s) is laid at s
       const g = [0.2, 0.4, 0.6], out = piled(g, s);
       out.forEach((c, i) => expect(c).toBeCloseTo(g[i] + (1 - g[i]) * s, 10));
     }
   });
   it('the engine hands the theme\'s strengths to the land mask\'s bind, every frame, on the draw program', () => {
-    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme));');
+    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme);');
     expect(ENGINE).toMatch(/import \{[^}]*windWhiteStrength[^}]*\} from '\.\/WindColorRamp';/);
   });
 });
 
 describe('what the law gives, per knot', () => {
   it('OVER THE SEA, where streaks pile up, a streak is its ground\'s colour made lighter; at full strength it was paper white', () => {
-    const keeps = { light: 0.35, beach: 0.17 };                                           // of the ground's chroma, read: 0.364 at the least in light (45 kn), 0.183 in beach (47 kn)
+    const keeps = { light: 0.35, beach: 0.36 }, peaks = { light: 79, beach: 83 }, steps = { light: 27, beach: 22 };   // kept, of the ground's chroma, read at the worst knot: 0.364 in light (45 kn), 0.376 in beach (47 kn; 0.183 at 0.77)
     for (const theme of THEMES) for (let kn = 6; kn <= 55; kn++) {
       const g = ground(theme, kn, 'water'), now = piled(g, windWhiteStrength(theme, {}).sea), was = piled(g, windWhiteStrength(theme, KILL).sea);
       expect(chroma(now)).toBeGreaterThan(keeps[theme] * chroma(g));
       if (chroma(g) > 12) expect(gap(hue(now), hue(g))).toBeLessThan(16);
-      expect(lstar(now)).toBeLessThan(theme === 'light' ? 79 : 91.5);                       // read: 78.2 at the most in light, 90.9 in beach (its 29 kn band, held pale)
-      expect(lstar(now) - lstar(g)).toBeGreaterThan(27);                                  // and it still stands well off its ground (read: 28.1 to 50.4 L*)
+      expect(lstar(now)).toBeLessThan(peaks[theme]);                                      // read: 78.2 at the most in light (6 kn), 82.1 in beach (its 29 kn band, held pale; 90.9 at 0.77)
+      expect(lstar(now) - lstar(g)).toBeGreaterThan(steps[theme]);                        // and it still stands off its ground: 28.1 to 40.0 L* in light, 22.7 (29 kn) to 36.8 in beach (31.5 to 50.4 at 0.77)
       expect(chroma(was)).toBeLessThan(0.5);                                              // the control: no colour left
       expect(lstar(was)).toBeGreaterThan(99.5);
     }

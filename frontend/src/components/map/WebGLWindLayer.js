@@ -12,7 +12,7 @@
  */
 import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
-import { windLayerBeforeId, windCoastlineLayer, WIND_COASTLINE } from './WebGLWindUtils';
+import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
@@ -275,8 +275,20 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
     };
 
     // Dynamic layer style data sync: add layer and keep it present across style/theme reloads
-    const handleStyleData = () => {
+    const handleStyleData = (ev) => {
       if (!mapInstance || !mapInstance.style) return;
+
+      // THE COASTLINE IS A STYLE LAYER; THE WIND LAYER IS NOT (2026-10-12, the independent review of D-028). A theme change that
+      // diffs the new style into this one keeps the custom wind layer and DROPS the coastline (the library's diff removes every
+      // layer the new style does not name), and the branch below adds it only together with the wind layer: after any theme
+      // change in a session the map had no coastline stroke at all. Put it back in its slot; the mute's stale check (below)
+      // then finds a stroke it has not inked and syncs.
+      if (mapInstance.getLayer(LAYER_ID) && !mapInstance.getLayer(WIND_COASTLINE.id) && windCoastlineWanted(themeRef.current) && mapInstance.getLayer('water')) {
+        try {
+          const styleLayers = mapInstance.getStyle()?.layers, coast = windCoastlineLayer(styleLayers, themeRef.current, activeRef.current);
+          if (coast) mapInstance.addLayer(coast, windLayerBeforeId(styleLayers, themeRef.current));
+        } catch (e) { /* a style mid-load: the next style event tries again */ }
+      }
 
       if (!mapInstance.getLayer(LAYER_ID)) {
         layerAddedRef.current = false;
@@ -297,8 +309,11 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         } catch (e) {
           console.warn('[WebGLWind] Failed to add layer:', e.message);
         }
-      } else if (windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {
+      } else if ((ev && ev.type === 'style.load') || windBasemapMuteStale(mapInstance, themeRef.current, activeRef.current, LAYER_ID)) {
         // A satellite photo or a weather wash came on (or went) under the wind, or an earlier sync met a style mid-load.
+        // And a style that has just LOADED always syncs: a theme change fetches its style, the theme's idle re-sync below can
+        // run on the OLD style first, and the diff then writes the new style's colours over it. The record still reads "this
+        // theme, muted, inked", so the stale check sees nothing (2026-10-12: light to beach left beach unmuted and un-inked).
         syncWindBasemapMute(mapInstance, themeRef.current, activeRef.current, LAYER_ID);
       }
     };

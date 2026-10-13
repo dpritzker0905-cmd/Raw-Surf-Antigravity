@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-12 01:05Z** (logs: `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-13 00:41Z** (logs: `log/2026-10-12-wind-map-through.md` (near-calm air, D-030; #325 merged and live), `log/2026-10-12-wind-trails-linger.md` (why light's and beach's trails linger and dark's come back to the field: the trail composite's two laws, read off the screen; dark's veil under their trails ON by default, D-029, a DRAFT; the bench's truth mode), `log/2026-10-12-wind-map-through.md` (the land a step above the sea under the wind, D-026 amended; seeing the map through the wind in light and beach: the coast in the borders' ink, the coastline through a theme change, D-028; a streak's anatomy by speed), `log/2026-10-12-wind-light-path.md` (the check of light and beach against dark's logic; light's field in dark's hue ORDER on two levels, its legend bar moved with it, ON by default, D-024; the solver that holds the colour-blind floor; dark's law in the instruments found wrong), `log/2026-10-12-wind-land-depth.md` (the land at the sea's depth under the wind, D-026; its stated reason corrected), `log/2026-10-12-wind-canvas-alpha.md` (the page behind the map showed through the wind in light: why light never matched its samples; the wind leaves the canvas opaque, ON by default, D-027; the bench lays each frame over the app's page; the probe's ground reads low in dark), `log/2026-10-12-wind-beach-path.md` (beach's wind field checked against dark's logic: lightness one way through its green band, its pale gale band under a ceiling, the colour-blind floor back above 5; option F, ON by default, D-025; the solver that holds the floor as a constraint), `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border, theme-switch and ground instruments; a theme change now leaves the new theme restyled; each theme's ground measured), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -14,8 +14,367 @@ is a claim, not a measurement.
 
 ## Now
 
-- **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 OPEN against
-  dev, the owner merges).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
+- **2026-10-13 00:41Z: in light and beach a streak in NEAR-CALM AIR is laid at a lower light level, ON BY DEFAULT (client
+  only; PR #326 OPEN against dev from `claude/wind-calm-air`; it merges on the owner's word of 2026-10-13 00:14Z, "merge the calm wind pr when its ready"; DECISIONS D-030).** The owner, 2026-10-12 21:51Z: "The almost still wind needs to be
+  almost still and almost transparent on beach and light modes, as that is how it looks on dark mode."
+  - **What draws:** `windCalmAir.js` and the last statement of `DRAW_FS`: below 2.5 kn a mark's light level is 0.80 of itself
+    over land and 0.78 over sea, full by 5.5 kn; the dim eases to half of itself by zoom 8. No particle is removed, moved or
+    slowed. **Kill:** `window.__RAW_DISABLE_WIND_CALM_AIR__ = true` (read each frame). Lever
+    `__RAW_WIND_CALM_LEVEL__ = [land, sea, from kn, full kn]`. Dark never reads it.
+  - **Measured:** from 1 to 3 kn at zoom 6 the bright bodies covered 1.7 to 2.2 times dark's share and now 1.1 to 1.8; the
+    median mark pixel over land stood +6 to +12 L\* over the field and now +1 to +5 (dark +4 to +6.5).
+  - **The level is the eye's, on the visible side:** the gauge matches dark near 0.70 at zoom 6, and a few hundredths under
+    that the marks go out; beside dark on film 0.70 and 0.75 read fainter than dark's. If the owner asks for more: the lever
+    `[0.74, 0.71, 2.5, 5.5]`.
+  - **#325 MERGED** 2026-10-12T23:47:40Z as `f1e4ebc1` (the owner, 22:24Z); the dev site served it at 23:50Z with the veil's,
+    the land step's and the coast ink's switches in its bundle. Its live read-back is owed (ledger seq 1154).
+  - **Not verified:** nothing seen in the app; zooms 2 to 4 read by eye on one film; no phone.
+- **2026-10-12 21:51Z: under the wind, light and beach draw the LAND A STEP ABOVE THE SEA, and a streak over it at 0.75, ON BY DEFAULT
+  (client only; PR #325 MERGED into dev as `f1e4ebc1`, 2026-10-12T23:47:40Z, from `claude/wind-map-far-zoom`, on the owner's word of 22:24Z, after #324; DECISIONS D-026, amended).** The owner, 21:13Z,
+  with the coast in the borders' ink live: "I don't see the fix at higher out zooms, cannot see the land below the wind animations
+  in beach or light modes well".
+  - **What draws:** `windBasemapMute.js` `WIND_LAND_STEP`: the land takes the sea's own factor (0.90 light, 0.94 beach; it was
+    0.81 / 0.85) and a streak over it 0.75 (it was the sea's 0.55). **Kill:** `window.__RAW_DISABLE_WIND_LAND_STEP__ = true` (the
+    land at the sea's depth, as #320 merged, to the byte). Dark, the field, the sea and the coast stroke do not move.
+  - **Measured:** land minus sea under an equal wind: light +8.3 L\*, beach +8.0 (dev +1.1 and +1.7; dark -9.4). A streak over
+    land adds +11.7 / +12.0 L\* WITH the tail's veil on (dark +11.8; without the veil 1.2 times dark's: this merges after the
+    tail's change). The colour-blind line as the GPU draws it over land: light 4.85 to 5.18, beach 5.06
+    to 5.31. The coast stroke was not the gap at zooms 2 and 3 (it read 1.6 times dark's there): a land is seen by its tone.
+  - **Its switch moves at the sync, whole** (an independent review, 22:30Z: the streak's strength read the flag every frame and
+    the land waited for a style event): the read-back carries `landStep`, and the strength reads it. A lever-set land keeps the
+    sea's strength; until the land mask is ready both grounds take the sea's. `check.mjs --before-step` reads PR #320's land.
+  - **The order is the owner's (22:24Z):** "merge the land fix after the tail is in, the push everything turned on switch, so I
+    can test all the changes right away". The tail is PR #324, MERGED 2026-10-12T23:14:37Z as `719070b2`.
+  - **Not verified:** nothing seen in the app; the land mask's seam (0.75 against 0.55) is not measured.
+  - **#323 MERGED** 2026-10-12T21:02:45Z as `e89aaa85` (the owner, 20:54Z: "merge #323 and build the tail"); the dev site served
+    it at 21:04Z with its switch in the bundle. Its live read-back is owed (ledger seq 1134).
+  - **The lanes:** the tail is the trails lane's build (`windTrailVeil.js`, dark's veil under light's and beach's trails; the owner,
+    21:13Z: "merge the tail pr when its ready"); the colours lane re-solves light's field for the sea's colour-blind line (4.93 as
+    drawn); the beach lane has nothing open.
+- **2026-10-12 22:00Z: WHY LIGHT'S AND BEACH'S TRAILS LINGER IS FOUND (the trail composite runs two different laws), and dark's
+  VEIL is built under their trails, ON BY DEFAULT (client only; PR #324 MERGED into dev as `719070b2`, 2026-10-12T23:14:37Z, from `claude/wind-trails-linger`, by the lead
+  session on the owner's word; DECISIONS D-029, amended 22:45Z).** The owner, 21:13Z, to the lead, first-hand there and relayed: "merge the tail pr when its ready". The owner, 20:13Z, to the building session,
+  first-hand, as it was building a default-off lever on the lead's brief: "levers to turn on new updates need to be on by default".
+  The owner has not seen this build in the app; the lead filmed the veil beside dark for them (its note 7); no verdict is recorded here.
+  - **The finding:** `SCREEN_FS` has two branches. Dark lays the trail buffer's colour at alpha `b x opacity`; light and beach,
+    since rule 1 of dark's rules (D-020, "light only adds"), lay it at full brightness at alpha `b^2 x opacity`. As one family,
+    `screen - g = p (b c - b^2 g) - q b (1 - b) g`: dark is `p = q = 0.505`, the glow branch `q = 0`. Dark carries a black veil
+    under every fading tail and the glow branch none, so dark's pixels come back to the field and dip a little under it between
+    streaks, and light's and beach's never went under and from 12 kn up never came back. Fitted from the screen and the trail
+    buffer (`truth-run.js --law`): dark p 0.505, q 0.505; light and beach p 0.999, q 0.000; each to 0.3 to 0.45 of a level. The
+    branch alone, swapped on the real engine, moves the behaviour both ways; the mark's ring, its level, the fade, the trail count
+    and the ground's lightness move its size and never its sign.
+  - **What draws:** `windTrailVeil.js`, one guarded line in `SCREEN_FS`: the glow branch's light unchanged plus dark's veil against
+    the level a streak's core is laid at. No table, particle count, lifetime or fade moves; dark is untouched.
+  - **Kill:** `window.__RAW_DISABLE_WIND_TRAIL_VEIL__ = true` (read each frame; `origin/dev`'s frames to the byte over the sea,
+    90 of 90 at three crops in light and beach). Steer: `window.__RAW_WIND_TRAIL_VEIL__` (0 to 2, or `false`). It stands down
+    under everything that stands the white streak down, D-022's kill, the land's depth kill and the opaque canvas's kill.
+  - **Measured** (speed ramps, zoom 6, lossless crops at 1.5, against the field alone; dark / before / with the veil at 15.3 kn
+    over the sea): a pixel's darkest moment -2.2 / +1.8 / -2.5 in light and -1.6 in beach; the share of the picture lit
+    0.58 / 0.76 / 0.56 and 0.60; flicker 1.37 / 1.09 / 1.36. Light added against dark's, the sea, ten speeds: light 1.30-1.56
+    times before, 0.85-1.33 now; beach 1.04-1.53, 0.87-1.18. A streak's bright body by the lead's gauge (`anatomy-run.js`): 1.3
+    to 1.8 times dark's before, 0.96 to 1.26 now. Zooms 4 and 8 move the same way.
+  - **What it costs:** light and beach have ONE ground depth (D-026), dark has two: over LAND from 6 to 18 kn their tails dip 0.4
+    to 2.0 L* further than dark's do over its near-black land, and the streaks add 0.62 to 0.95 of dark's light there (about
+    dark's before). Strength 1 sits on dark's sea, 0.5 on its land. A typical pixel's lightest moment falls 0.1 to 2.8 L* at 6
+    to 9 kn (the highest tenth of cores 0.6 at most). It breaks rule 1 on purpose.
+  - **The veil or the cut: CLOSED at 22:22Z.** The lead found the same cause the same hour and built another candidate (local
+    `claude/proto-tail-cut`: the glow's alpha cut to zero at a fixed level, never under the field); its ten notes reached the
+    building session only at 22:22Z. Its note 5 withdraws the cut: the veil at strength 1 is the build. Clips beside dark, on the
+    merged tree: `frontend/scripts/wind-bench/out/videos/trail-veil-served.webm`, `-ramp`, `-strengths`, `-vs-cut` (not in the repo).
+  - **What is left, each its own later change, all the lead's:** the near-calm bands (the owner, 21:51Z: "The almost still wind
+    needs to be almost still and almost transparent on beach and light modes"); the sea's remainder (D-022's 0.55); the land's
+    lightness with the streak's strength over it (the lead's land step merges AFTER this and is re-read with the veil on: on
+    that lighter land the veil's dip over land is 0.2 to 0.9 L* deeper at 6 and 15 kn; the veil's level stays the sea's).
+  - **The instrument, committed:** the wind bench's TRUTH mode (`truth.js`, `truth-run.js`; every pixel and frame against the
+    same crop drawn with the field alone; the law's fit), one variable at a time on the real engine (`force-uniforms.js`), several
+    crops of one frame and the trail buffer beside each (`motion-run.js --at`, `--trail`).
+  - **Reviewed independently** (the veil and its kill held on a GPU and over 129,864 lever states; it found the commit red on
+    four existing tests, two older kills the veil had to stand down under, and shader tests that pinned text: all fixed, the
+    log). The whole frontend suite, the lint ratchet, the palette checker and the build pass on the merged tree.
+  - **Not verified:** nothing seen in the app or by the owner; one seed, one view; no phone (the shader is `mediump`); the cut
+    read on six crops only. **Owed:** the read-back on the deployed build once it merges (ledger seq 1142, due
+    2026-10-19). Log `2026-10-12-wind-trails-linger`, LESSONS L-V76, L-V77.
+- **2026-10-12 20:36Z: light and beach draw the wind's COASTLINE in the borders' ink, and the coastline survives a theme change, ON BY
+  DEFAULT (client only; PR #323 MERGED into dev as e89aaa85, 2026-10-12T21:02:45Z, from `claude/wind-map-shows-through`; DECISIONS D-028).** The owner,
+  19:05Z, on the deployed build: "I still cannot see the map as well through the wind animations on light or beach modes. Dark mode
+  I can see the map underneath it, better."
+  - **What draws:** `windBasemapMute.js` `windCoastInk`: while the borders are inked the layer `wind-coastline` takes the same ink
+    with its opacity at 1. `WebGLWindLayer.js`: the style handler puts the stroke back when a theme change has dropped it.
+  - **Kill:** `window.__RAW_DISABLE_WIND_COAST_INK__ = true` (read at the next sync; the stroke as the layer draws it, the borders
+    still inked). Read-back `window.__WIND_COAST_INK__`. Dark, the field, the streaks and the land's depth do not move.
+  - **Found on dev, and fixed here:** a theme change with the wind on left NO coastline in any theme until a reload (the library's
+    diff drops it; the handler re-added it only with the wind layer): gone in 8 of 8 changes on the real library, there in 8 of 8 now.
+  - **Measured:** the stroke against its ground under field + streaks, L\* at zooms 4 / 6 / 8 / 10: dark 17.1 / 24.5 / 23.9 / 21.1,
+    light 31.8 / 39.1 / 32.2 / 28.4 (16.9 / 21.0 / 15.5 / 12.6 under the kill), beach 29.7 / 37.1 / 29.4 / 25.0 (11.8 / 14.9 /
+    9.9 / 8.2). Under an equal wind dark keeps 0.52 of its own land-sea contrast and light and beach 0.14 and 0.23 (D-026's
+    land): recorded, not changed.
+  - **Not verified:** nothing seen in the app. The owner has seen clips beside dark and has not said "merge".
+  - **Owed:** the read-back on the deployed build (ledger seq 1134, due 2026-10-19): the read-back in light, the stroke after a theme change, the owner's eye at zoom 4.
+  - **Next, the owner's observation of 20:02Z** ("lighter moving air/wind in dark mode is almost transparent, or even smaller
+    animations than in beach or light mode"): measured by speed (`anatomy-run.js`): light's and beach's bright streak bodies cover
+    1.2 to 2.3 times dark's area and run 1.2 to 2.4 times as long; cores and width match. Cause: dark's trail composite reaches zero
+    once the trail fades to the ground's level, the glow composite never does. A local prototype of dark's cut brings the bodies
+    to 0.95 to 1.11 of dark's. The trails lane (`claude/wind-trails-linger`) builds it; no PR until the owner has picked.
+  - **#322 MERGED** 2026-10-12T20:01:35Z as `a022b398` (beach's margin; the owner, 19:01Z: "take the margin and merge it").
+- **2026-10-12 19:40Z: beach's wind field holds the colour-blind bar AS THE GPU DRAWS IT (the margin), ON BY DEFAULT (client only; PR
+  #322 MERGED into dev as `a022b398`, 2026-10-12T20:01:35Z).** Owner, 2026-10-12 19:01Z, to the
+  session leading the light and beach wind work, first-hand there and relayed to the building session: "take the margin and merge it" (DECISIONS D-025,
+  its last amendment). They had seen the lead's clip of the option beside what dev drew.
+  - **What draws:** `windBeachPath.js` `BEACH_PATH.field` with the margin's 58 rows at 4 to 46 and 48 to 62 kn; the bytes the lead
+    filmed (`67bfe560` at a 50 kn maximum, `b0931ff3` at 75). No lever, no new switch; `WindColorRamp.js` is not touched. The streak
+    rows, the white strength, the legend, light and dark do not move.
+  - **Kill:** unchanged, `window.__RAW_DISABLE_WIND_BEACH_PATH__ = true` (beach before its path, byte for byte). There is no kill
+    that returns #319's field alone; its rows are kept in `windBeachPath.test.js` as the control. Look key: `white+path|dark-rules`.
+  - **Why:** the checker reads the TABLE; the engine draws an 8-bit, 256-texel TEXTURE of it, read by the GPU half a texel from
+    the table's index (read back from a GPU: `scripts/wind-color/lut-lookup-gpu.cjs`). #319's field held the table's 5.0 with none
+    to spare and read 4.64 to 5.0 as drawn.
+  - **Measured:** as drawn, at 1401 maxima from 10 to 80 kn (land as drawn / sea / land before #320): **5.04 / 5.04 / 5.46** at
+    the least, where #319's field read 4.67 / 4.64 / 4.89 and beach before its path 2.78 / 2.93. On the table 5.12 over the sea and
+    5.15 over the land (5.05 and 5.02). `check.mjs --strict` exits 0; `check.mjs --theme beach --strict --as-uploaded 10-80:0.25`
+    exits 0 (5.04 / 5.06 by coloraide). The lead's film (relayed): the two fields differ by 1.13 and 0.89 CIE76 a pixel on its two
+    ramps (null 0.023), the ground 0.2 to 0.6 L* lighter at four crops, the streak numbers unchanged.
+  - **What it costs:** no knot more than 1.2 dE00 from #319's field (10 kn; 6 kn 1.0); the 10 kn ground 0.7 L* lighter; the hue at
+    6 kn 4.9 degrees toward the aqua; the legend's watch line at 16 kn over the sea 32.0 degrees (31.2). The margin is 0.04.
+  - **The as-drawn line is NOT a gate:** `check.mjs --as-uploaded` is opt-in. By it light reads 4.85 over land and dark 4.97 on
+    dev; the owner has not set a bar. A FINDING for the owner, not acted on: the engine reads its colour textures half a texel off
+    the table's index in every theme (up to 0.16 kn of the ramp at an 80 kn maximum); one shader line would centre it, dark included.
+  - **Not in it:** two capped solves made after the film (no knot more than 1.0 dE00 at the same bar, or 0.5 at a bar of 4.9), on
+    the local branch `claude/wind-beach-path-margin-capped`: their own later choice.
+  - **Not verified:** no frame taken by the building session; no pixel of the wind layer read from a GPU (the lookup law was; the
+    composite and the canvas's rounding were not); nothing seen in the app. **Owed:** the live half of #319's read-back (`_lookKey`
+    in a signed-in browser; ledger commitment, due 2026-10-19) and this change's own (a second commitment, same date). Log `2026-10-12-wind-beach-path`, LESSONS L-V69.
+- **2026-10-12 14:20Z: LIGHT NEVER MATCHED ITS SAMPLES BECAUSE THE PAGE BEHIND THE MAP SHOWED THROUGH THE WIND. The wind now leaves
+  the map's canvas opaque, ON BY DEFAULT (client only; PR #321 MERGED into dev as 720b3980, 2026-10-12T15:47:44Z; DECISIONS D-027).** The owner, 12:28Z,
+  on the deployed build: "I still do not visually see the improvements yet"; 12:36Z: "This should work after all the agents
+  worked on this." The owner did not name this change and has not seen it.
+  - **The finding:** the map's canvas is premultiplied, so the screen shows `rgb + (1 - alpha) x page`. Two of the wind's passes
+    blended the canvas's ALPHA by the colour's factors and left it at 0.61 / 0.69 (least / mean) in dark and 0.75 / 0.90 in light
+    and beach. `MapPage.js` lays black behind dark AND beach and near white (gray-50) behind light. So only light showed the page:
+    its streaks add 27.3 L* to the picture where dark's add 8.5 (against the field alone), a core reads L* 94 (paper white) where
+    dark's reads 70.
+  - **Why two days of work did not show:** the bench saved frames from the BARE canvas, never over the page: no sample of light's
+    white streak was the picture the app drew (LESSONS L-V72). And a bare-canvas frame held min(channel, alpha): the brightest
+    streak cores clipped darker in EVERY theme, so no saved-frame number before this change is exact, dark's bar included (the
+    independent review). What beach lacks on the site is the open changes, none merged.
+  - **What draws:** `blendIntoMap` (`windCanvasAlpha.js`) sets `blendFuncSeparate(src, dst, ZERO, ONE)` at the two passes bound to
+    the map's framebuffer. No colour the wind writes changes. Kill: `window.__RAW_DISABLE_WIND_OPAQUE_CANVAS__ = true`.
+  - **Measured, built** (Mobile Bay, wind x0.4, zoom 6, page and map at 1.5): the canvas's alpha 1 / 1 in three themes; frames
+    against the kill's by hash, at the same run position: dark 90 of 90 the same bytes, beach 90 of 90, light 0 of 90; light's
+    sea beside dark: light added 27.3 -> 12.3 L* (dark 8.5), a core's L* 94 -> 72 (dark 70). The independent review could not break
+    the engine change; its behavioural test (every draw into the map, 20 lever sets) is in the suite.
+  - **The cost:** over land in light air light's streaks add half the light they did (7.5 -> 3.8 L*); dark's add 3.3 there, so it is
+    no shortfall against dark, and #321 does not have to merge with #320 (corrected: first written from the probe's lifts).
+  - **Also found (L-V73), on corrected frames against the field alone, every open change, 6 to 39 kn:** a streak's core stands the
+    same height over the field in all three themes over the sea; light ADDS 1.3 to 1.7 times the light dark does over the sea and
+    beach 1.0 to 1.8 times, both 0.9 to 1.2 times over the deeper land, because their pixels do not come back to the field
+    between streaks (dark's do, and dip a little under it). The probe's own lift read this backwards over land (0.15 to 0.55 where the light added is 1.1
+    to 1.2), and that reading was D-026's stated reason. Not retuned: one visual variable at a time, after this is seen in the app.
+  - **The bench now lays every saved frame over the app's page for the theme and prints the canvas's alpha** (`motion-run.js
+    --behind`); compare two arms at the same run position (a theme's first run on a fresh map is not its second).
+  - **The owner, 15:38Z: "merge #321 and #320 and take the re-solved F" and "and merge anything else needed as well".** #321 is on dev
+    (`720b3980`) and #320 (`9061ad1d`). Next, in order: #315 then #319 (beach's sea 0.55; beach's F, re-solved for the deeper
+    land), #318 (light's hue order). #317 (docs) was not named.
+  - **Not verified:** nothing seen in the app; one view, one seed, zoom 6; phones; any page other than `MapPage.js` hosting the map.
+- **2026-10-12 13:00Z: under the wind, light and beach draw the LAND AT THE SEA'S DEPTH, ON BY DEFAULT (client only; PR #320 MERGED into dev as 9061ad1d,
+  2026-10-12T16:10:09Z).** The owner, 11:50Z, on a prototype shown moving beside dark: "merge #316 and go with F and the deeper
+  land and open the pr" (DECISIONS D-026).
+  - **THE OWNER'S VERDICT ON THE DEPLOYED BUILD, 12:28Z, first-hand:** "I just did a visual check for wind on beach and light
+    modes, and I still do not visually see the improvements yet.... notate that". The dev site then served `74417b5a` (#314 and
+    #316; read from its static files): NOT on it were #315 (beach's sea 0.55), #318 (light's hue order), the beach lane's F, or
+    this change. No change to the wind's look has reached the site since #314. The owner then asked (12:36Z) for the amount and
+    density of the animation and the colours' transparency by speed to be compared with dark's, and for the research to be read
+    again.
+  - **What that comparison found** (three speed ramps, 14 speeds from 1.8 to 45 kn, land and sea; LESSONS L-V70): over the SEA
+    light is dark's equal in cover, flicker and lift at every speed (lift 0.93 to 1.13). **Over LAND under 10 kn light's streaks
+    lift the picture 0.14 to 0.56 of what dark's do** (beach 0.27 to 1.00): most land, most days. Above 15 kn over land light
+    flickers 1.1 to 1.2 times as hard as dark. **Light spends its whole lightness range by 10 kn and lays its strongest colour
+    there** (C* 37 to 40 against dark's 19 to 23); dark builds to about 26 kn. Beach is twice as colourful as dark from 15 to 32
+    kn and pale from 26 to 39.
+  - **What draws:** the land's area colours take 0.81 (light) or 0.85 (beach) of their lightness inside the mute's plan
+    (`WIND_BASEMAP_MUTE.landL`), the lines on the land are muted and deepened with it, and where the land is deep a streak over
+    it is laid at the sea's strength. Kill `window.__RAW_DISABLE_WIND_LAND_DEPTH__ = true`; the mute's kill, dark and imagery
+    leave the land alone.
+  - **Measured, built** (lift against dark's, before -> built): light's land 0.14-0.61 -> 0.39-0.74 under 12 kn, beach's
+    0.27-0.91 -> 0.55-1.03; the land's flicker above 15 kn 1.1-1.2 -> 0.8-0.9; land and sea one ground within 2 L*; the sea
+    unchanged to the digit. Light's colour-blind line over land 5.6 -> 5.1 (floor 5.0): the reason the land is not deeper.
+  - **Not solved by anything built or open:** the land in light air (still 0.39 to 0.66 of dark's under 9 kn in light), the pace
+    of light's build-up, beach's colour from 15 to 32 kn. **Waiting on the owner:** the merges (#315, #318, this, the beach
+    lane's F when it opens, #317 last), then their eye on the deployed build. **#316 MERGED** 2026-10-12T11:52:11Z as
+    `74417b5a`. Log `2026-10-12-wind-land-depth`, LESSONS L-V70, L-V71.
+  - **CORRECTED 2026-10-12 (after #321's review): the reason above was read from a gauge that does not compare themes.** As light
+    ADDED over the field alone, on corrected frames, light's land streaks were never weaker than dark's: 1.1 to 1.55 times dark's
+    without this change, 1.0 to 1.2 with it (beach 1.15 to 1.84, then 0.9 to 1.2). The owner's pick of the look stands; "the land
+    was the largest gap in strength" does not (D-026's correction; this log's dated correction).
+- **2026-10-12 12:33Z: beach's wind FIELD runs one way through its green band with its pale gale band under a ceiling (option F), ON BY
+  DEFAULT (client only; PR #319 MERGED into dev as `11fb734d`, 2026-10-12T17:46:09Z).** Owner, 2026-10-12 11:50Z, to the session leading the light and
+  beach wind work, relayed to the building session: "merge #316 and go with F and the deeper land and open the pr" (DECISIONS D-025;
+  the building session was given no word of the owner's directly).
+  - **What the check found:** beach's hue order already followed dark's logic and is kept. Its lightness ran both ways through the
+    green band (10 kn its darkest band below 47 kn), its 27 to 40 kn band was as light as calm, and FOUR neighbouring pairs were
+    under the colour-blind bar of 5 (16-21 kn 3.1, 27-33 kn 3.6, 47-55 and 63-75 kn 4.6 over the sea): the palette checker prints only
+    the weakest and had been red on dev since D-020.
+  - **What draws:** `windBeachPath.js` `BEACH_PATH.field`, 70 rows laid over the field dark's rules solve, wherever the white
+    streak draws in beach. **Since 2026-10-12 15:38Z it is F RE-SOLVED for the deeper land of #320** (the owner, relayed by the lead:
+    "merge #321 and #320 and take the re-solved F"): F's stops from 6 to 40 kn solved again with that land as the constraint, no
+    knot more than 0.4 dE00 from F; the bytes the lead filmed (`e434f0bf` / `cbfec18a`). Nine of 13 Beaufort stops move; lightness
+    never rises from calm to 21 kn nor from 33 to 75 kn; the gale band sits level (L* 49 over the land as drawn since #320 laid it
+    at the sea's depth; L* 60 over the land before it); hues within 13.5 degrees over land, order kept. The streak rows, the white strength, the legend, light and dark do not move.
+  - **Kill:** `window.__RAW_DISABLE_WIND_BEACH_PATH__ = true` (beach's field as before, byte for byte). #312's, #313's and #314's
+    kills and every hold still draw what they drew. Read-back: the look key is `white+path|dark-rules` in beach.
+  - **Measured (2026-10-12 17:10Z, with dev's #321, #320 and #315 merged into the branch: #320's deeper land is the default):** the
+    palette checker exits 0 with beach's colour-blind lines at 5.0 over water and 5.0 over land (5.05 and 5.02), and at 5.0 / 5.3
+    with `--before-depth` (the land before #320); before the path it reads 3.1 / 2.9 and 3.1 / 3.2. As drawn the ground from 6 to
+    40 kn spans 12.9 L* over land and 12.9 over the sea (21.9 and 21.7 before; dark 7.4 and 7.2) and the gale band peaks at L* 49.0
+    (59.7 before); over the land before #320 those read 15.4 (26.2) and 60.1 (72.9). Over the land the field reads in lightness as
+    over the sea, within 0.5 L* at every Beaufort stop. **The before-to-now lifts "against
+    dark's" first recorded here are WITHDRAWN** (bench frames under-read bright cores; log, the correction entries). On true frames,
+    with every open wind change merged and the sea white at 0.55 (the lead's capture), beach's streaks on this field add 1.5 to 1.8
+    times the light dark's add over the sea from 6 to 18 kn and 0.9 to 1.2 times over the deeper land. No before-and-after of this
+    field alone exists on true frames.
+  - **What it costs:** the 16 and 21 kn greens go grey-green (over the land as drawn C* 12 and 14 of 28 and 28, 6.8 to 8.0 L* deeper; over the
+    land before #320, 14 and 17 of 34 and 33, 8.2 to 9.6 deeper): over the sea the
+    field is about half as colourful as dark's from 12 to 21 kn, where it was more colourful; the gale band's lime and gold are
+    deeper and duller; the 10 kn ground is 4.0 L* lighter (4.7 over the land before #320); a normal eye tells 6-10 and 10-16 kn apart about half as well. **As drawn it was UNDER the bar** (the table held 5.05 and 5.02 with none to spare): 4.64 to 5.0 by the GPU's own lookup of
+    the texture, lowest when a storm is in view. The numbers first written here (4.79 to 5.01) were read at the table's index and
+    are corrected in D-025's last amendment. **THE MARGIN (the entry at the top of Now) replaced this field's rows from 4 to 62 kn.** Over the sea the
+    field at 16 kn sits 31.2 degrees off the unmoved legend's hue (a checker watch line, 1 kn wide).
+  - **NOT in it:** the sea strength re-read on F's ground and the deeper land (both the lead session's; D-026); re-solving beach's
+    streak rows; the options not taken (A, B, C, E, in the log). **Collides with #318** (light's order) in `WindColorRamp.js` at
+    three places: the second to merge keeps both imports, both switches and both names in the look key.
+  - **Not verified:** nothing of this build has been seen in the app. **Waiting on the owner:** the merge, then their eye.
+    **Owed:** the read-back on the deployed build (ledger commitment, due 2026-10-19). Log `2026-10-12-wind-beach-path`, LESSONS
+    L-V63 to L-V67.
+- **2026-10-12 04:58Z: light's wind field runs dark's hue ORDER on two lightness levels, and its legend bar moves with it, ON BY DEFAULT
+  (client only; PR #318 MERGED into dev as `b764797b`, 2026-10-12T18:17:56Z).** Owner, 2026-10-12 02:48Z: "you need to
+  double check all this. The light and beach modes need to make sense logically. It could be the way it is, or it could not be";
+  03:48Z, on three options after a first candidate filmed beside dark: "option 2, give the streaks their ground back"
+  (DECISIONS D-024). Dev was brought in again at `11fb734d` (#321, #320, #315 and #319 are on it); this PR carries `pr_merge #319` (ledger seq
+  1119). The as-uploaded pin is in `windLightPath.test.js` (the owner, 17:43Z: "option 1, merge as shown and add the pin").
+  - **The check:** dark carries speed in the ORDER of its hues. Light ran it except at 10 kn (an orchid, dark's calm colour) and
+    21 kn (a teal behind 16 kn's green, and lighter). Both were bought to avoid a cyan sea the basemap mute has since greyed.
+    Beach's order is sound; its LIGHTNESS runs both ways and its colour-blind line is red since D-020 (its own session).
+  - **What draws:** rows 1 to 32 kn of light's field and streak row are `LIGHT_PATH` (`windLightPath.js`); the legend bar's 3 to
+    27 kn rows follow (`resolveLegendRamp`; the particle ramp does not move). Calm and 33 kn up are the rows before. Hue never
+    turns back (four times before), lightness never rises, two levels (65 at 6 to 10 kn, 60 at 16 to 27 kn), hardest edge 7.9
+    dE00 a knot (16.0). Beach and dark untouched.
+  - **Kill:** `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true` (light as before, byte for byte). Read-back: the look key is
+    `white+path|dark-rules` in light. Every older kill and lever still stands it down.
+  - **Measured:** palette checker, light: no red line; tint 5.1 over sea / 5.5 over land colour-blind (5.5 / 5.6), legend 11.7
+    normal and 5.4 colour-blind (9.3 / 5.2); under the kill, dev's lines. In motion on a speed ramp (3 to 33 kn, zoom 6; page
+    pixel ratio 1.5, the bench's map at 2), lift against dark's, before -> now: over the SEA 0.95 to 1.11 -> 0.96 to 1.06 (dark's
+    at every speed); over LAND 10 kn 0.68 -> 0.52, 13 kn 0.78 -> 0.56, 16 kn 0.90 -> 0.77, every other speed within 0.04.
+    **These lifts were read on frames the bench saved darker than the screen (the log's 15:13Z correction; the bench fix is
+    PR #321's): the direction stands on the tables, the sizes are owed a re-read on the corrected bench.**
+    **Corrected read against dark (the leading session's, 15:36Z, #321's bench, speed ramps, light added over the field
+    alone): with these rows light adds 1.33 to 2.36 times what dark adds over the sea, 1.10 to 1.55 over the pale land, 1.01
+    to 1.22 over #320's deep land: not behind dark at any speed read; the land "gap" was the gauge. Before against now in
+    light is still unread on that bench (the log, 15:38Z).**
+  - **What it costs:** 6 to 16 kn a third less colourful (still above dark's own field on screen); 10 kn 5.8 L* lighter; streaks
+    over land fainter in 10 to 16 kn winds; the weakest normal-vision neighbours 8.0 (9.0); the floor's margin 5.1 (5.5).
+  - **Stands down with:** every lever and kill that stands the white streak down, D-022's kill (it restores D-021's picture),
+    and the Canvas2D fallback (its marks sample the particle ramp).
+  - **FOUND, not fixed here (the leading session's change):** `mirror-model.mjs` and `check.mjs` lay DARK's field at alpha; the
+    engine lays it at alpha squared. Every dark number read through them is about twice too strong; by the engine's law this
+    model reads dark's own colour-blind line at 2.5 to 3.1, where the checker prints 5.2.
+  - **Not verified:** nothing of this build has been seen in the app; the owner chose option 2 from its description and has not
+    judged it moving; phones not measured. **Waiting on the owner:** their eye, then the merge. **2026-10-12 15:58Z, RELAYED by
+    the leading session:** the owner's words to it, 15:38Z, "merge #321 and #320 and take the re-solved F" and "and merge
+    anything else needed as well"; it reads them as covering #318 (not named in them) and merges it LAST, after #321, #320,
+    #315 and #319, once this branch has dev merged in and `check.mjs --strict` on the merged tree holds light's colour-blind
+    line at 5.0 over #320's land (the model read 5.01). **2026-10-12 17:43Z, the owner, first-hand: "option 1, merge as shown
+    and add the pin":** the checker reads that line 5.006 on the tree dev will be after #319; AS UPLOADED (the 8-bit texture) it is
+    under 5.0 at 151 of 281 maxima from 10 to 80 kn (least 4.859; dev's own light 21 of 281). #318 merges as filmed with that
+    pinned in `windLightPath.test.js`; light's rows are re-solved on the deeper land NEXT (a ledger commitment). **Owed:** the read-back on the
+    deployed build (ledger seq 1114, due 2026-10-19); the re-solve on the deeper land (ledger seq 1118, due 2026-10-19). Log `2026-10-12-wind-light-path`,
+    LESSONS L-V52 to L-V54.
+- **2026-10-12 03:50Z: under the wind, light and beach draw the map's BORDER LINES in dark ink, ON BY DEFAULT (client only; PR
+  #316 OPEN against dev, the owner merges).** Owner, 2026-10-12 01:02Z, to the session that built #314 (its log): "The map below, I
+  think the labels and borders need to be more visible. In dark mode they are white boarders and labels. So in beach and light
+  mode, there maybe needs to be black borders and labels?" (DECISIONS D-023). The owner has not seen this build.
+  - **The finding:** the borders and the place names are already drawn ABOVE the wind in all three themes; no streak cuts them
+    (a pixel a glyph covers whole moves 0.00 to 0.27 L* under the wind, 23 to 98 with the wind forced on top). The fault was the
+    lines' colour: light draws them pale lavender and beach mid grey, about a pale land's own lightness once the field is on it.
+    A line's L* against the ground beside it, under field and particles, zooms 4 / 6 / 8: dark 11.9 / 20.9 / 28.5; light 7.6 /
+    2.8 / 5.8; beach 4.0 / 4.7 / 3.0. The names are already near-black on a white halo and are not changed.
+  - **What draws:** the three border lines above the wind (`admin-1-boundary`, `admin-0-boundary`, `admin-0-boundary-disputed`)
+    take `rgba(27, 30, 45, 0.7)` (`WIND_BORDER_INK`, `windBasemapMute.js`): their `line-color` only, zoom interpolations kept;
+    widths, opacities, dashes, casings and names are the style's own. It rides the basemap mute's own record: off exactly with
+    the wind, on a theme change, with imagery showing under the wind, and with the mute's own kill. Dark never changes.
+  - **A SECOND EFFECT, not asked for, found by the independent review and repaired here: after a theme change with the wind on,
+    the new theme is now restyled.** With the handler dev has had since #299, when the new theme's style arrives after the
+    layer's re-sync (a style fetched over the network; a cached one arrives first) the re-sync restyles the OLD style, the new
+    style is diffed in over it, and the basemap stays UNMUTED until the wind is toggled, with `__WIND_BASEMAP_MUTE__` saying
+    `applied`. Replayed on the real library and styles (`switch-run.js`; not observed in the app): dev's module and handler
+    left the new theme unmuted in 3 of 3 changes in that order; the layer now syncs on every `style.load` (two lines in
+    `WebGLWindLayer.js`) and ends restyled in 3 of 3, both orders. **So after this merges the ground under the wind is muted
+    after a theme switch where it may not have been: the owner may see light and beach a little greyer after switching than
+    they have been seeing them.** That is #299's own look, not a new one.
+  - **Kill:** `window.__RAW_DISABLE_WIND_BORDER_INK__ = true`; lever `window.__RAW_WIND_BORDER_INK__` (a CSS colour). Both are
+    read at the next sync (a wind toggle, a theme change, the next style change), not mid-frame. Read-back:
+    `window.__WIND_BORDER_INK__` (`applied` true only with `layers` above 0, else `reason`).
+  - **Measured (the real engine, the real basemaps, in motion, the page and the map at device pixel ratio 1.5; `border-run.js`):**
+    light 39.9 / 36.5 / 35.0 and beach 38.9 / 34.4 / 31.6 at zooms 4 / 6 / 8: 1.1 to 3.4 times dark's line; 0.7 is the lightest
+    of the three strengths measured. **Not above dark's everywhere (corrected 04:40Z, a grid over wind and zoom taken after
+    the PR opened):** at zoom 9 beach reads 0.96 of dark's line (0.85 in near-calm air) and light 1.11 (0.95); the inked line
+    itself holds 30 to 46 L* at every zoom and wind read, where dark's own runs from 12 to 42. The kill arm reads the numbers
+    before, to the digit; 18 of 18 offline crops under the kill are `origin/dev`'s PNGs byte for byte, dark's 9 of 9. Map mode's own columns over every line, over land: `retP` 0.68 / 0.70 /
+    0.66 to 1.05 / 0.76 / 0.73 (light), 0.62 / 0.68 / 0.63 to 1.07 / 0.74 / 0.67 (beach); dark's rows equal in both arms.
+  - **New instruments:** `scripts/wind-bench/border-run.js` + `page/border-probe.js` (the borders and names alone, found from the
+    style; it also reads the whole style's paint back from the library after the wind goes off: exact) and `switch-run.js` +
+    `page/switch-probe.js` (the app's theme change, replayed). **Two limits of the older modes, found and NOT changed in them:** `map-run.js` never ran the app's restyle (the
+    mute), so its light and beach numbers since 2026-10-09 are on an unmuted ground (`--app-sync` is new and opt-in); and the
+    engine sizes a mark by the page's pixel ratio on a bench canvas that was always 2 (`motion-run.js --map-dpr` is new).
+    **Measured since (04:50Z; commitment 1070 closed): neither moves a recorded verdict or a chosen number.** Without the mute,
+    map mode's land rows stand and its SEA rows for light and beach sit on a sea 2 to 7 L* too light (the step 1 to 2 L* too
+    small); with the canvas at 2 the lift against dark's is off by 0.00 to 0.03 over the sea in ordinary wind, up to 0.09 with
+    the fixture scaled 2.3 times (a 60 kn median over this view's sea), 0.02 to 0.08 over land.
+  - **The map, measured for every lane (`ground-run.js`, new):** dark's land is `hsl(214, 17%, 31%)` (rendered L* 29 at zoom
+    6) and its sea [93, 117, 126] (L* 47.7): the sea is 18 L* LIGHTER than the land. After the mute light's land is L* 97.9 and
+    its sea [174, 184, 189] (74.2); beach's 91.4 and [168, 180, 185] (72.5). The mute darkens the sea by 10.7 and 6.4 L* and
+    leaves the land's lightness. Three models in the instruments do not match (dark's land in `check.mjs` / `mirror-model.mjs`
+    is the bench's offline style; `windDarkRules.js` `BASE.dark`; light's water and beach's land): told to the lead, not changed.
+  - **NOT in it, each the owner's call:** a bolder line (the styles draw these 0.5 to 0.75 px wide; width is a second variable);
+    a strength that matches dark's instead of clearing it (by extrapolation below the three measured, near 0.26 / 0.43 / 0.62
+    at zooms 4 / 6 / 8: no one number does); ink for the lesser labels (natural features, water names) and a tint a theme.
+  - **Not verified:** nothing of this build has been seen in the app or by the owner; one view, one wind field, zooms 4 to 8;
+    phones; the theme-change repair is read on the bench's replay of the app's sequence, not in the app. **Waiting on the
+    owner:** the merge, then their eye. **Owed:** the read-back on the deployed build, by the PAINT and not only the read-back
+    (ledger seq 1069, due 2026-10-19). Log `2026-10-12-wind-border-ink`, LESSONS L-V46 to L-V49 and L-V51 (L-V50 is
+    #315's).
+- **2026-10-12 03:10Z: beach's SEA strength for the white streak is 0.55, not 0.77 (client only; the owner's word; PR #315 MERGED into
+  dev as `89f0dc33`, 2026-10-12T17:04:44Z).** After the read-back of #314 on the deployed build (`ec8f46a2`; light at 0.55 lifted the picture 1.04
+  times as far as dark's over open sea at zoom 6, beach at 0.77 lifted it 1.37 times, in a field reaching 67 kn) the owner:
+  "make the beach sea strength change to 0.55" (DECISIONS D-022, amended 2026-10-12).
+  - **What draws:** `DARK_WHITE.beach.sea` 0.55 (`windDarkRules.js`). Nothing else: no table, key, shader or engine line; land,
+    light and dark as before. Kill unchanged: `window.__RAW_DISABLE_WIND_DARK_WHITE__ = true`.
+  - **Measured, and the finding (LESSONS L-V50): a strength is read ACROSS THE WIND'S SPEEDS.** The bench's fixture is a
+    hurricane: its zoom 6 sea crop holds a 42 kn field, the one band (27 to 40 kn) where beach's own field is pale, and 0.77
+    had been solved there. Swept (the crop's median 8 / 17 / 42 / 95 kn; zoom 6, the sea): beach at 0.55 reads 1.10 / 0.96 /
+    0.80 / 1.07 of dark's lift (0.77: about 1.26 at 17 kn, 1.01 at 42, 1.38 at 95, the deployed read); light's 0.55 reads 1.11 /
+    1.05 / 1.03 / 1.23. So 0.55 is dark's lift in everyday wind and short only in beach's pale band. Its cost per knot: at
+    beach's 29 kn band a core stands 22.7 L* off its ground (31.5 at 0.77). Palette checker: the same two red lines as dev; two
+    watch lines move.
+  - **#314's read-back is done** (the mark program's `u_white` as built; the kill acts at once; the count of moving marks is the
+    same in the three themes: 147,456 particles, the same share kept at each zoom), and four errors in D-022's record are
+    corrected there (the read-back criterion, `--size 360`, the README's paths, two unreported watch lines).
+  - **Not verified:** 0.55 has not been seen in the app. **Not built, the owner's calls:** a sea strength that follows the
+    wind's speed (it would fit a breeze and a storm both); the `bindLandMask` guard the review named. **Owed:** the read-back of 0.55 on
+    the deployed build and the owner's verdict (ledger seq 1095, due 2026-10-19); #314's read-back is closed (seq 1091 fulfils 1062).
+  - **This session now LEADS the light/beach-mirror-dark work across three sub-sessions** (the owner, 2026-10-12 02:58Z: "lead
+    those subtrees ... the map needs to be taken into account ... use the jacobian lens to help see everything as a whole"):
+    border ink under the wind (branch `claude/wind-border-ink`, D-023, L-V46 to L-V49), light's colours on dark's hue path
+    (`claude/wind-light-path`, D-024, L-V51 up), and a simplification pass (`claude/stoic-heisenberg-bbe771`). Each lane reports
+    what it moves in the others' outputs on one grid: ground {land, sea} x wind {served, scaled 2.3} x zoom {4, 6, 9}.
+    Log `2026-10-11-wind-dark-white` ("Beach's sea at 0.55").
+    **What the whole-picture read found so far (LESSONS L-V60 to L-V62; log, "The lead"):** on a speed-ramp scene light's sea
+    equals dark's lift at every speed read (13 to 51 kn: 0.93 to 1.05); beach's sea is short only from 26 to 38 kn, where its field is pale; the
+    LAND is short in both because its ground is 25 to 35 L* paler than dark's (no white can fix that: the map's own term);
+    the land mask's coarse edge shows as a pale halo offshore; and `check.mjs` / `mirror-model.mjs` model dark's field at its
+    alpha where the engine lays it at the alpha squared (not yet fixed). A local preview of all lanes combined
+    (`claude/mirror-integ-preview`, never pushed) was shown to the owner in motion.
+- **2026-10-12 01:05Z: light and beach lay the white streak BY THE GROUND under it, ON BY DEFAULT (client only; PR #314 MERGED
+  2026-10-12T01:48:08Z as `ec8f46a2`).** Owner, 2026-10-11 23:23Z to 23:45Z, on the deployed build of #313: "I
   dont see the wind for light mode or beach mode mirroring the dark mode"; "close up zoom ... looks somewhat okay ... Its when you
   start zooming out that the contrast in theme modes happens"; "light could use a lot of improvement, and beach can use
   improvement, just a little milder. you should be able to mathmatically determine" (DECISIONS D-022).
@@ -41,8 +400,8 @@ is a claim, not a measurement.
     light style draws state and country lines in pale lavender; the owner asked at 01:02Z, shown live in their tab at about 01:04Z,
     not built).
   - **Not verified:** nothing of this build has been seen in the app; zoom 4 over the sea still reads 1.2 to 1.3 of dark's lift.
-    **Waiting on the owner:** the merge, then their eye. **Owed:** the read-back on the deployed build (ledger seq 1062, due
-    2026-10-19). Log `2026-10-11-wind-dark-white`, LESSONS L-V43 to L-V45.
+    **Waiting on the owner:** their eye (merged 2026-10-12T01:48:08Z). **Owed:** the read-back on the deployed build (ledger seq
+    1062, due 2026-10-19). Log `2026-10-11-wind-dark-white`, LESSONS L-V43 to L-V45.
 - **2026-10-11 21:08Z: light and beach draw dark's own WHITE streak, ON BY DEFAULT (client only; PR #313 MERGED 2026-10-11T23:14:33Z as `0173f365`; the owner's verdict on it is in, see the entry above).** Owner, 20:09Z, after watching dark, the deployed light and beach and two candidates each side by side in motion:
   "middle row for both, build it" (DECISIONS D-021). It replaces the LOOK of #312, which the owner rejected at 18:29Z ("beach mode
   isn't right. Nor is light mode. But dark mode is good. Its the model to use"); #312's switch, kill and hold lists stand.
@@ -1931,7 +2290,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1064, sha256 30a6255d1b83f5ee36fc95f79a3e2b3e58ff2024371f0e3f6fe85463545af168**
+  **Ledger head: seq 1159, sha256 745107b22a804264ebe8d3d071969828c04728e004b3dc543b0678133fa7ad4f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

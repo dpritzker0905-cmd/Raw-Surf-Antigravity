@@ -298,11 +298,11 @@ describe('the lever narrows the themes; an older lever that draws a theme holds 
   });
   it('the engine rebuilds its tables at once when any of them flips (the look key)', () => {
     const base = windLookKey('light', {});
-    expect(base).toBe('white|dark-rules');
+    expect(base).toBe('white+path|dark-rules');   // light's path (D-024) names itself in the key: its kill rebuilds the tables at once
     for (const w of [KILL, B, { __RAW_WIND_DARK_RULES__: 'beach' }, { __RAW_WIND_LIGHT_LOOK__: 'deep' }, { __RAW_WIND_INK__: true }, { __RAW_WIND_GLOW__: 'light' }, { __RAW_WIND_THEME_V2__: true }]) expect(windLookKey('light', w)).not.toBe(base);
     expect(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).not.toBe(windLookKey('light', { __RAW_WIND_LIGHT_LOOK__: 'ink' }));
     expect(windLookKey('dark', {})).toBe('|');
-    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it
+    expect(windLookKey('beach', { __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep+white+path|dark-rules');   // the key carries the look for every theme; beach's tables do not move with it (its own path: windBeachPath.test.js)
     expect(windLookKey('beach', { ...B, __RAW_WIND_LIGHT_LOOK__: 'deep' })).toBe('deep|dark-rules');
   });
 });
@@ -350,12 +350,17 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     expect(Array.from(marks.subarray(0, 1024))).toEqual(Array.from(generateRampData(75, null, 'light', w)));
   });
   it('EVERY kill named in the wind sources is classified: it holds the old tables, or it is listed here as not touching what the rules assume', () => {
-    // A new kill that changes the tables, the field's blend or strength, the marks' composite or the ground MUST join DARK_RULES_HOLDS.
+    // A new kill that changes the tables, the COLOUR the field's blend or strength lays, the colour of the marks' composite, or the ground MUST join DARK_RULES_HOLDS.
     // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
-      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea, and nothing else; no table reads it
+      '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
+      '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
+      '__RAW_DISABLE_WIND_LAND_STEP__',                                                                        // the land a step above the sea (D-026 amended): SET, the land is at the sea's depth again and a streak over it at the sea's strength; no table reads it
+      '__RAW_DISABLE_WIND_CALM_AIR__',                                                                         // near-calm air (D-030): the LIGHT LEVEL a mark is laid at below 5.5 kn, in the draw pass; no table, field or ground reads it, and it stands down with the veil and the land's step
+      '__RAW_DISABLE_WIND_BEACH_PATH__',                                                                       // beach's path: which field beach draws UNDER the white streak, and stands down with it (windBeachPath.test.js sweeps every hold)
+      '__RAW_DISABLE_WIND_LIGHT_PATH__',                                                                       // light's path (D-024): which rows light's field, streak row and legend bar draw from 1 to 32 kn under the white streak; it stands down with it
       // how many marks, where, how long, how fast (the particles' motion and density)
       '__RAW_DISABLE_WIND_CALIBRATION_V2__', '__RAW_DISABLE_WIND_DENSITY_V2__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__', '__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__',
       '__RAW_DISABLE_WIND_CLOSEZOOM_INK__', '__RAW_DISABLE_WIND_SPEED_KEEP__', '__RAW_DISABLE_WIND_SPEED_GAMMA__', '__RAW_DISABLE_WIND_MOTION_FLOOR__', '__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__',
@@ -367,8 +372,17 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_HOUR0_FIRST__', '__RAW_DISABLE_WIND_BASE_OVERLAY__', '__RAW_DISABLE_WIND_CLIP_KEEP_FINE__', '__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__', '__RAW_DISABLE_WIND_COMMIT_NOOP__',
       '__RAW_DISABLE_WIND_DELIVERY_QUEUE__', '__RAW_DISABLE_WIND_FINE_CONTAIN_GUARD__', '__RAW_DISABLE_WIND_HRRR_LANE__', '__RAW_DISABLE_WIND_OVERLAY_KEEP__', '__RAW_DISABLE_WIND_SERIES_SUPERSEDE__',
       '__RAW_DISABLE_WIND_TIER_MOSAIC__',
-      // the layer's place in the map's stack, and the coastline drawn over it
-      '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__',
+      // the layer's place in the map's stack, and the lines the map draws over it: the coastline, and the borders' ink (2026-10-12:
+      // the border lines sit ABOVE the wind, so their colour is no part of the ground the rules were solved on)
+      '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__', '__RAW_DISABLE_WIND_BORDER_INK__',
+      // the coastline stroke in that ink (D-028): a line ABOVE the wind, like the borders; under its kill the stroke is the layer's own
+      '__RAW_DISABLE_WIND_COAST_INK__',
+      // the map canvas's ALPHA, never its colour (D-027): what the page behind the map adds on screen. The rules were solved on frames laid over
+      // black, which is the picture this change draws; under its kill the picture is dev's, the rules still on
+      '__RAW_DISABLE_WIND_OPAQUE_CANVAS__',
+      // dark's veil under the trails (D-029): the ALPHA the white streak's composite lays between a streak's cores, never a table, the field or the ground.
+      // It draws only where the white streak does, so every hold stands it down; under its kill the picture is dev's of 2026-10-12, the rules still on
+      '__RAW_DISABLE_WIND_TRAIL_VEIL__',
     ];
     const files = fs.readdirSync(__dirname).filter((f) => /^(WebGLWind|wind|WindColorRamp)/.test(f) && f.endsWith('.js') && !f.endsWith('.test.js'));
     expect(files.length).toBeGreaterThan(12);
@@ -587,7 +601,7 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
   it('DRAW_FS declares the mask at the best precision the device has, and mixes the LUT\'s rows by it', () => {
     expect(DRAW_FS).toContain(GLSL_LAND_FS);
     expect(GLSL_LAND_FS).toContain('#ifdef GL_FRAGMENT_PRECISION_HIGH\n#define LAND_HP highp\n#else\n#define LAND_HP mediump\n#endif');
-    expect(live(GLSL_LAND_FS)).toContain('uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; varying LAND_HP vec2 v_world;');   // u_white: dark's white, ground by ground (D-022; windDarkWhite.test.js)
+    expect(live(GLSL_LAND_FS)).toContain('uniform sampler2D u_land_mask; uniform float u_land_on; uniform vec2 u_white; uniform vec4 u_calm_air; varying LAND_HP vec2 v_world;');   // u_white: dark's white, ground by ground (D-022; windDarkWhite.test.js)
     expect(GLSL_LAND_FS.startsWith('\n#ifdef')).toBe(true);                                   // a preprocessor line must start its own line
     // row 0 (v 0.25) is the land row, row 1 (v 0.75) the sea row; with no mask every mark reads 1.0 = land
     expect(live(DRAW_FS)).toContain('float land = u_land_on > 0.5 ? texture2D(u_land_mask, v_world).r : 1.0; vec4 color = mix(texture2D(u_color_ramp, vec2(normalizedSpeed, 0.75)), texture2D(u_color_ramp, vec2(normalizedSpeed, 0.25)), land);');
@@ -597,7 +611,7 @@ describe('the shader and the engine wiring (string pins; the GPU bench is the au
     expect(ENGINE.match(/drawnMarkRampData\(this\._maxWindSpeed, activeTheme\)/g)).toHaveLength(2);   // render and setTheme
     expect(ENGINE.match(/createTexture\(gl, gl\.LINEAR, rampData, 256, 2\)/g)).toHaveLength(2);
     expect(ENGINE.match(/lookKey !== this\._lookKey/g)).toHaveLength(2);
-    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme));');   // since D-022 the same call carries the white's strengths
+    expect(ENGINE).toContain('bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme);');   // since D-022 the same call carries the white's strengths, and since the land's step the theme (whose read-back says what a missing mask means)
     expect(ENGINE).not.toMatch(/bindTexture\(gl, [^)]*, 5\)/);                                 // unit 5 is the mask's alone (0-3 are the engine's; the state isolation restores 0-6)
     expect(ENGINE).not.toContain('resolveMarkRamp');                                           // the engine reads the drawn tables, never the rollback ones
   });

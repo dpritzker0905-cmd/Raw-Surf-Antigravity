@@ -128,6 +128,34 @@ describe('the land mask (rule 4): the mark picks its row by the ground under it'
     bindLandMask(gl, 'prog', 5, false, win, { land: 1, sea: 0.25 });                        // bound whatever the mask\'s state: with no mask every mark reads as land, so x is what draws
     expect(gl.uniforms.u_land_on).toBe(0); expect(gl.uniforms.u_white).toEqual([1, 0.5]);
   });
+  it('WHERE THE LAND IS A STEP ABOVE THE SEA, no mask means the SEA\'s strength on both grounds (a review, 2026-10-12: the sea was laid at the land\'s 0.75 until the 2.7 MB land file was drawn); with the mask, each its own', async () => {
+    const gl = maskGl(), step = (theme, landStep = true) => ({ applied: true, theme, landL: 0.9, landStep }), white = { land: 0.75, sea: 0.55 }, r55 = Math.sqrt(0.55), r75 = Math.sqrt(0.75);
+    const win = Object.assign(page(), { __WIND_BASEMAP_MUTE__: step('light') });
+    bindLandMask(gl, 'prog', 5, true, win, white, 'light');                               // the first frame: the load has only started
+    expect(gl.uniforms.u_land_on).toBe(0); expect(gl.uniforms.u_white).toEqual([r55, r55]);
+    await settle();
+    bindLandMask(gl, 'prog', 5, true, win, white, 'light');
+    expect(gl.uniforms.u_land_on).toBe(1); expect(gl.uniforms.u_white).toEqual([r75, r55]);
+    // Not the step (its kill, D-022 alone, another theme's read-back, no theme passed, no read-back): every mark is laid as over land, as before.
+    const g2 = maskGl();
+    for (const [w, theme] of [[Object.assign(page(), { __WIND_BASEMAP_MUTE__: step('light', false) }), 'light'], [Object.assign(page(), { __WIND_BASEMAP_MUTE__: step('beach') }), 'light'],
+      [Object.assign(page(), { __WIND_BASEMAP_MUTE__: step('light') }), undefined], [page(), 'light']]) {
+      bindLandMask(g2, 'prog', 5, false, w, { land: 1, sea: 0.55 }, theme);
+      expect(g2.uniforms.u_white).toEqual([1, r55]);
+    }
+    bindLandMask(g2, 'prog', 5, false, Object.assign(page(), { __WIND_BASEMAP_MUTE__: step('light') }), undefined, 'light');   // a caller with no strengths: full, step or not
+    expect(g2.uniforms.u_white).toEqual([1, 1]);
+  });
+  it('and with no window passed (the engine\'s own call) the real window\'s read-back decides', () => {
+    const gl = maskGl();
+    try {
+      window.__WIND_BASEMAP_MUTE__ = { applied: true, theme: 'beach', landL: 0.94, landStep: true };
+      bindLandMask(gl, 'prog', 5, false, null, { land: 0.75, sea: 0.55 }, 'beach');
+      expect(gl.uniforms.u_white).toEqual([Math.sqrt(0.55), Math.sqrt(0.55)]);
+      bindLandMask(gl, 'prog', 5, false, null, { land: 0.75, sea: 0.55 }, 'light');
+      expect(gl.uniforms.u_white).toEqual([Math.sqrt(0.75), Math.sqrt(0.55)]);
+    } finally { delete window.__WIND_BASEMAP_MUTE__; }
+  });
   it('uploads north-up whatever unpack state the page left, and leaves that state and the map\'s binding as it found them', async () => {
     const gl = maskGl(), win = page();
     bindLandMask(gl, 'prog', 5, true, win);

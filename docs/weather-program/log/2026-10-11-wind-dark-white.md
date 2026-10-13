@@ -190,3 +190,283 @@ The centre crop (land and sea together): light 0.84 of dark's at zooms 6 and 4 (
 - **Left in the owner's Chrome:** one tab of this session, open on the dev site, showing two PROTOTYPES and not this build: light's
   field on dark's hue path with a global 0.505 white (`mirror(false)` / `mirror(true)` in its console) and the borders in dark ink
   (`borderInk(false)` / `borderInk(true)`). Nothing in it persists past a reload.
+
+## 2026-10-12 01:48Z to 02:20Z · #314 merged; the read-back on the deployed build; the count of moving marks
+
+- **Merged:** the owner, "merge #314 and start the borders and light colours follow-ups". Squash-merged 2026-10-12T01:48:08Z as
+  dev `ec8f46a2`. Two sessions were started for the follow-ups (border ink under the wind; light's colours on dark's hue path).
+- **Read back** in the owner's Chrome on the dev site (build `ec8f46a2` by its `service-worker.js`; one map load, made after the
+  backend had been up 15 minutes and `/api/health` answered in 0.46 to 0.75 s; the window's device pixel ratio was 3, canvas
+  3240 x 1725, not the owner's usual 1.5; the live field reached 67.1 kn): the mark program's `u_white` reads `[1, 0.7416]` in
+  light, `[1, 0.8775]` in beach, `[1, 1]` in dark and under the kill; the look key is `white|dark-rules`; the land mask is ready
+  (68 ms). With `page/mirror-probe.js` over one open-sea crop at zoom 6:
+
+  | zoom 6, open sea | ground L* | lift | core L* | kept | lift / dark's |
+  |---|---|---|---|---|---|
+  | dark | 59.8 | 15.5 | 93.6 | | the model |
+  | light, as built (0.55) | | 16.1 | 87.8 | 0.54 | 1.04 |
+  | light, the kill set | | 24.8 | 98.7 | 0.12 | 1.60 |
+  | beach, as built (0.77) | 43.8 | 21.2 | 92.8 | | 1.37 |
+
+- **What the read cost (the warm-box rule was kept and was not enough):** `/api/health` answered in 6.6 to 8.1 s at 02:16:19Z,
+  right after the read, and in 0.36 to 0.67 s at 02:19:33Z; no 5xx. The page had been taken from zoom 9 to 6 and back, and each
+  zoom band asks for new 48-frame wind series pages (`GET /api/weather/grid_series`: 33 requests, median 10 s, longest 21.5 s).
+  A live read keeps the zoom it loaded at; the bench is for several zooms.
+- **The owner asked:** "double check that the animations counts are near the dark mode settings for beach mode and light mode, in
+  terms of density of animations moving". Read on the same deployed page: the engine draws the same marks in all three themes
+  (147,456 particles; the share kept 0.2972 at zoom 6 and 0.0322 at zoom 9; the thinning and the close-zoom density both 1).
+  Head arrivals per presented frame at zoom 9 (13.8 frames a second in both): dark 0.035 over the sea and 0.025 over land, light
+  the same. The share of the view lit at one instant, sea / land: zoom 6 dark 0.777 / 0.528, light 0.771 / 0.576, beach 0.791 /
+  0.569; zoom 9 dark 0.171 / 0.089, light 0.151 / 0.127, beach 0.170 / 0.136. The count is equal; over land at zoom 9 light and
+  beach light about 1.4 to 1.5 times as much of the view as dark at one instant; over the sea the three are within 12%.
+- **An independent review of the merged change** (a fresh agent, the diff and the records, after the merge): no code defect
+  (under the kill and in dark nothing differs from the code before across 6,093 lever combinations). Four errors in these
+  records, corrected in DECISIONS D-022 ("Corrected 2026-10-12") and in the bench's README: the lifts above were all read with
+  `mirror-run.js --size 360` and no size was named; D-022's read-back criterion (`kept` above about 0.9) is the bench's, not the
+  deployed page's; the README's example paths resolved to `frontend/out/`; and **the checker paragraph above omitted two watch
+  lines that moved with D-022** (the marks' own colours, colour-blind: light 3.6 to 2.5 dE00, beach 2.6 to 2.0; watch lines,
+  not floors).
+
+## 2026-10-12 02:27Z to 03:10Z · Beach's sea at 0.55 (the owner's word), and why the bench and the screen had disagreed
+
+- **The owner, 2026-10-12 02:27Z, after the read-back above:** "make the beach sea strength change to 0.55". This session had
+  recommended it from the one live row above (beach 1.37 of dark's lift at 0.77; light 1.04 at 0.55).
+- **Built, tests first:** the three pins in `windDarkWhite.test.js` moved to 0.55 and failed on the unedited code (3 of 13), then
+  `DARK_WHITE.beach.sea` 0.77 to 0.55 (`windDarkRules.js`, one number and its comment). The per-knot thresholds were re-read from
+  the model, not guessed: over the sea at 0.55 a beach core keeps at least 0.376 of its ground's colour (47 kn; 0.183 at 0.77),
+  peaks at L* 82.1 (29 kn; 90.9) and stands 22.7 to 36.8 L* off its ground (31.5 to 50.4): **the cost is beach's 29 kn band, held
+  pale, where a core is now 22.7 L* off its ground.** No table, key, shader or engine line moves.
+- **The bench, the same view and crops as D-022's** (`motion-run.js --dpr 1.5`, 120 frames a run, `mirror-run.js --size 360`).
+  Controls first: dark's lift 12.6 / 10.4 / 6.9, the kill arm 1.23 / 1.46 / 1.06, light 1.03 at zoom 6 and the inks (dark 34.48,
+  the kill 64.72) are the earlier run's, to the digit.
+
+  | beach, lift / dark's lift | sea z6 | sea z4 | sea z9 | land z6 | land z4 | land z9 |
+  |---|---|---|---|---|---|---|
+  | the kill (1.0 on both grounds) | 1.23 | 1.46 | 1.06 | 0.93 | 0.80 | 0.71 |
+  | 0.77 over the sea (D-022 as merged) | 1.01 | 1.34 | 0.91 | 0.93 | 0.80 | 0.69 |
+  | **0.55 over the sea (this change)** | **0.80** | **1.19** | **0.74** | 0.93 | 0.80 | 0.69 |
+
+  At zoom 6 over the sea the streak core's L* is 70.9 (78.6 at 0.77, 87.9 under the kill; dark's 63.1) and the cover 0.896 (dark
+  0.922). **On the bench's view 0.55 puts beach UNDER dark's lift at zooms 6 and 9.**
+- **Why the deployed read said 1.37 where the bench said 1.01: the wind's strength.** Two more captures, one variable each, zoom
+  6 over the sea:
+
+  | zoom 6, sea | dark's ground L* / lift | beach's ground L* | beach 0.55 | beach, the kill | light 0.55 |
+  |---|---|---|---|---|---|
+  | the wind as served, dpr 1.5 | 36.7 / 12.6 | 49.6 | 0.80 | 1.23 | 1.03 |
+  | the wind x 2.3 (`scale`), dpr 1.5 | 43.9 / 11.8 | 42.0 | 1.07 | 1.70 | 1.23 |
+  | the wind as served, dpr 3 | 41.3 / 13.5 | 52.7 | 0.84 | 1.35 | 0.98 |
+
+  With the wind scaled, beach at 0.77 works out to 1.38 of dark's lift (between the two measured strengths): the deployed read.
+  A stronger wind brightens dark's own ground and deepens beach's, so the same white lifts beach further and dark less. The
+  pixel ratio moves it by 0.04. **So 0.55 is dark's lift in a storm and a quieter streak than dark's in a breeze; 0.77 was the
+  reverse; no one number is both.** The recommendation was made before this was known (LESSONS L-V50). Light reads 1.23 in the
+  scaled wind on the bench and read 1.04 in the live 67 kn field: the two strong-wind scenes do not agree for light, and that
+  is not explained here.
+- **Palette checker** (`check.mjs --strict`): exit 1 with the same two red lines as dev (beach's colour-blind tint lines, 3.1
+  over water, 3.2 over land). Two lines move, neither a floor: `water: speed-colour core vs its own tint` weakest at 8 kn, 12.3
+  to 8.8 L* (watched below 3); `beach marks (the look's own colours), colour-blind` weakest at 3 to 6 kn, 2.0 to 0.8 dE00
+  (protan; a watch line).
+- **Gates:** Jest, both trees: 306 suites, 4,060 tests, 0 failed. `check_eslint.js` exit 0. `scripts/loc_ratchet.py`: 0 new, 0
+  regressed. The production build (`node update-sw-version.js && NODE_OPTIONS=--openssl-legacy-provider CI=false npx craco
+  build`, Git Bash): exit 0; the two stamped files restored.
+- **Not verified:** nothing of 0.55 has been seen in the app. The 3-seed scanner was not rerun (its page serves no land file,
+  so it cannot see a sea strength: L-V40). Zooms 4 and 9 were not read in the scaled wind. Phones: not measured.
+- **Not built, the owner's calls:** a sea strength that follows the wind's speed (the mark shader holds the speed; it would
+  fit a breeze and a storm both); the `bindLandMask` guard the review named.
+
+## 2026-10-12 03:20Z · CORRECTION to the section above: the bench's two scenes were a storm and a stronger storm
+
+The section above says the bench's view "in the wind as served" is a breeze and concludes "0.55 is dark's lift in a storm and a
+quieter streak than dark's in a breeze; 0.77 was the reverse". **That sentence is wrong.** Its numbers stand; its labels do not.
+
+- **How it was found:** the owner asked this session to lead the lanes and to "use the jacobian lens to help see everything as
+  a whole. To not miss any clues." A first table of the whole picture from the colour model (`mirror-jacobian.mjs`, a streak's
+  step off its ground at every knot, land and sea, beside dark's) did not agree with the bench's "breeze" row, so the fixture
+  was read where the crop sits: `eye-2026-10-09-gfs-native.json` is a hurricane. The zoom 6 sea crop (26.2 to 29.7 N, 90 to 86
+  W) holds 56 nodes, median 39.1 kn, quartiles 31.7 and 45.7, top 78.4. "A median near 13 kn" had been taken from the README's
+  line about Mobile Bay. So the two scenes measured were 39 kn and 90 kn.
+- **Measured then, the everyday winds** (`scale` 0.4 and 0.2: the crop's median 16 and 8 kn; zoom 6, the sea, `--size 360`):
+
+  | the sea crop's wind | 8 kn | 16 kn | 39 kn | 90 kn |
+  |---|---|---|---|---|
+  | dark's lift (L*) | 7.3 | 9.6 | 12.6 | 11.8 |
+  | beach at 0.55 | 1.10 | 0.96 | 0.80 | 1.07 |
+  | beach, the kill | | 1.57 | 1.23 | 1.70 |
+  | light at 0.55 | 1.11 | 1.05 | 1.03 | 1.23 |
+  | light, the kill | | 1.72 | 1.62 | |
+
+- **What it means:** 0.77 was solved in the one band of speed (27 to 40 kn) where beach's own field is pale, so it wanted more
+  white there than anywhere else; at 16 kn it works out to about 1.26 of dark's lift and at 90 kn to 1.38. At 0.55 beach reads
+  0.96 to 1.10 at everyday winds: the owner's number is dark's lift where most of the sea is, most days. The records in this
+  change were corrected in place before any merge (the code's comment, D-022's amendment, L-V50, STATE, the bench's README, the
+  PR's description); the ledger's lines 1064 and 1065 carry only the numbers, which stand; a `correction` line records this.
+- **Also read there, not yet acted on:** the land crop at zoom 6 lies mostly north of the fixture's box, over the bench's own
+  climatology, which `scale` does not touch: every land number of D-022 was read at about 8 kn and no other speed. And two of
+  this repo's instruments model dark's ground differently: `windDarkRules.js` lays dark's field at its alpha SQUARED (the
+  engine's law: `HEATMAP_FS` returns the field premultiplied and the engine blends it `SRC_ALPHA, ONE_MINUS_SRC_ALPHA`), while
+  `check.mjs` and `mirror-model.mjs` lay it at its alpha, which reads dark's sea about 20 L* too light (45 against 66 at 13
+  kn); they also hold different dark map colours. The bench's dark ground (36.7 to 43.9 L* over the sea) fits the squared law
+  over the style's colours. Not fixed here: its own change, with a GPU read first.
+
+## 2026-10-12 02:58Z to 03:50Z · The lead: the Jacobian lens, the speed ramp, the combined preview
+
+- **The owner, 02:58Z:** "I asked other subtrees to do this, but I want you to lead those subtrees in researching our data and
+  best practices online, using skills , plugins, mcp servers, memory, art science, animation, everything we can throw at this...
+  We need to make light mode wind animations & beach mode wind animations equivalent to dark modes. We possibly solved issues
+  why, but we have a lot open here and need to put it to lessons and memory. Look at all the subs and talk to them too. We need
+  this to work all this work we're doing now. We got this" and "the map needs to be taken into account... use the jacobian lens
+  to help see everything as a whole. To not miss any clues." Then "I believe in you =)". At 03:36Z, on two clips: "we have to
+  keep in mind the work the subtrees are doing. For example, one is working on borders and labels of the maps. I dont see those
+  reflections in your samples above".
+- **The lanes** (read from their worktrees and branches; two reads of their transcripts were declined, so nothing here is from
+  their chats): border ink under the wind (`claude/wind-border-ink`: D-023, L-V46 to L-V49, the kill
+  `__RAW_DISABLE_WIND_BORDER_INK__`; it found the borders and names are already ABOVE the wind, and two bench gaps); light's
+  colours in dark's hue order (`claude/wind-light-path`: `windLightPath.js`, a candidate ON behind
+  `__RAW_DISABLE_WIND_LIGHT_PATH__`, the colour-blind floor held at 5.2); a simplification pass
+  (`claude/stoic-heisenberg-bbe771`: a docs commit, "nothing removed"). Each was sent the frame below, an assignment and the
+  shared numbering (D-023 / L-V46-49 borders; D-024 / L-V51 up colours; D-025 / L-V55 up simplify; L-V50 and L-V60 up here).
+  The messages are queued; no reply had come when this was written.
+- **The frame:** the picture is one function. Outputs per ground (the ground under the wind, a streak's step and lift, the
+  colour a core keeps, cover, border and label contrast, legend match, the colour-blind floors) of inputs (the map, the field,
+  the marks) across scenes (speed, zoom, pixel ratio, land or sea), with dark's outputs the target, moving with the scene.
+  `scripts/wind-color/mirror-jacobian.mjs` (new, not in this change) prints it from the colour model: per knot and ground, the
+  step beside dark's, the white strength that would equal it, and where none can, how deep the ground would have to be.
+- **What the lens turned up, in order:** (1) the model disagreed with the bench, and dark's law in `mirror-model.mjs` and
+  `check.mjs` was found to be the plain alpha where the engine's is the alpha squared (LESSONS L-V60); (2) with the engine's
+  law the model fitted the bench only if the bench's "served" sea was near 39 kn, and the fixture said it was (the correction
+  above, L-V50); (3) a speed-ramp fixture then gave every speed in one frame (L-V61). The ramp, zoom 6, 110 px crops, lift
+  against dark's:
+
+  | kn | dark land / sea ground L* | light land | light sea | beach land | beach sea | beach sea, the kill |
+  |---|---|---|---|---|---|---|
+  | 8 | 35.8 / 42.3 | 0.85 | 1.05 | 0.93 | 0.97 | 1.65 |
+  | 16 | 37.8 / 44.1 | 0.74 | 0.96 | 0.85 | 0.93 | 1.54 |
+  | 24 | 38.6 / 44.8 | 0.58 | 0.93 | 0.38 | 0.68 | 1.12 |
+  | 32 | 37.1 / 43.1 | 0.88 | 1.04 | 0.53 | 0.60 | 0.98 |
+  | 40 | 33.8 / 39.7 | 0.93 | 1.01 | 0.49 | 0.62 | 1.14 |
+  | 48 | 30.3 / 36.1 | 0.93 | 0.98 | 0.81 | 0.85 | 1.35 |
+  | 56 | 27.0 / 33.2 | 1.08 | 0.99 | 0.99 | 0.93 | 1.45 |
+
+  Grounds under the wind, land / sea: light 62 to 67 / 46 to 52 from 8 to 32 kn; beach 58 to 75 / 44 to 63. Light's kill reads
+  1.53 to 1.74 over the sea; over land the kill is the default (both full white).
+- **What that says, as one picture:** light's sea is done (0.93 to 1.05 at every speed). Beach's sea is done except its pale
+  band (24 to 40 kn), where even full white only just reaches dark's (0.98 to 1.14): that is the field's shape, not the
+  strength. The LAND is short in both, and no white can fix it: its ground is 25 to 35 L* paler than dark's land. In dark the
+  land and the sea carry nearly one ground (within about 6 L*), so one streak fits both and the coast is drawn by lines; in
+  light and beach they are two grounds, which is why D-022 needed a land mask, and the mask's coarse edge shows as a pale halo
+  offshore along the coast (visible in the ramp frames near the Florida panhandle). The multiply tint passes the map's own
+  land/sea step straight through; dark's field nearly replaces its map. The map is the largest term.
+- **Research, first pass** (the lanes hold the deeper assignments): Mapbox's own wind-particle example runs on a monochrome
+  night style; third-party Windy-style layers keep separate light and dark presets; long-exposure trail components offer an
+  additive mode for dark grounds and an "ink" mode for light ones. Vision science: increments and decrements are not seen
+  alike (darks are detected faster at high contrast; light lines on dark look larger; the asymmetry grows with fine detail), so
+  an equal L* step is not an equal visible step across polarities; nothing found tests CIELAB for thin lines. The installed
+  Mapbox cartography skill: mute the base map and let the data stand out; outdoors, more contrast, no subtle greys.
+- **The combined preview (the owner's 03:36Z word; LESSONS L-V62):** a local worktree `../mirror-integ` on the branch
+  `claude/mirror-integ-preview` (never pushed) = this branch + `claude/wind-border-ink` at `eebef515` + `claude/wind-light-path`
+  at `7b647d8f`. Captured at the page's and the map's pixel ratio both 1.5 with device-resolution crops (the border lane's new
+  flags), on the ramp and on an everyday wind at zoom 5; the border ink read back applied on 3 layers in light and beach
+  (`rgba(27, 30, 45, 0.7)`). Two clips and three stills were sent to the owner (`out/videos/combined-ramp-before-after.webm`,
+  `combined-everyday-wind-zoom5.webm`).
+- **Not done:** the instrument fixes (dark's law in the checker and the mirror model; a `--fixture` flag and the ramp fixture
+  in the bench; `mirror-jacobian.mjs` committed) are their own change after the border lane's bench edits land. Nothing was
+  built for the land's ground or the coastal halo: both are the owner's calls, with a moving sample first.
+
+## 2026-10-12 03:50Z to 04:10Z · A prototype of the map's term: the land deepened under the wind (local preview only)
+
+- **What:** in the preview worktree only (`claude/mirror-integ-preview`, commit `182104ae`, never pushed), two prototype levers:
+  a lightness factor for the basemap's LAND area colours inside the mute's plan (the water already has one), and a white
+  strength for land. Arm A: land factor 0.81 in light and 0.85 in beach (the land brought to the muted water's lightness), the
+  land's white at the sea's 0.55. Nothing of it is in any PR.
+- **What it looks like (the clip sent to the owner, dark | combined with today's land | combined with the deeper land):** light
+  becomes one continuous picture, as dark is; the coast is drawn by the border lane's ink; the pale halo offshore is gone,
+  because the land's and the sea's strengths are the same and the mask's edge no longer shows. Beach's pale band (24 to 40 kn)
+  is still pale over land. The style's roads are not area colours, so they stay pale and now read as bright lines.
+- **What it reads (the ramp, 110 px crops over land, lift against dark's; arm A):** light 0.71 / 0.63 / 0.67 / 0.77 at 8 / 16 / 24 /
+  40 kn on a ground of L* 53 to 55 (45 at 40 kn); beach 0.81 / 0.77 / 0.45 / 0.41 on 47 to 63. **Not better than today's lift
+  below 24 kn** (light 0.85 / 0.74 / 0.58 / 0.93 with full white on the pale land): the ground gained room and the white gave
+  more of it back. The arm is untuned: the land's depth and the land's white are two inputs and need one sweep together.
+- **A trap in the bench, found by it:** `page/map-entry.js` `clearLevers()` deletes only `window` keys that start with
+  `__RAW_`. The prototype's levers were named `__PROTO_...`, so they LEAKED into every later run in the same page: the two runs
+  meant as "today" drew arm B's values (beach's "today" read identical to arm B to the last digit, which is how it showed).
+  Those two columns were thrown away, and the clip's "today" panes are the captures taken before the prototype existed. A lever
+  given to the bench is named `__RAW_...`, or it is not a lever.
+- **Also read off the same capture, to be confirmed in a clean run:** with the colours lane's candidate in, light's sea reads
+  0.94 / 0.87 at 8 / 16 kn (1.05 / 0.96 without it). The candidate replaces the streak rows from 4 to 32 kn as well as the field.
+
+## 2026-10-12 04:10Z to 04:25Z · The lanes report: the colours candidate's cost, the real map colours, and a caveat on the live read-back
+
+- **The colours lane's candidate, read on the ramp** (one capture, its kill as the control; zoom 6, 110 px crops, lift against
+  dark's, before -> with the path). SEA: 1.05 -> 0.94 at 8 kn, 1.03 -> 0.88 at 12, 0.96 -> 0.87 at 16, 0.94 -> 0.93 at 21, 0.93 ->
+  0.95 at 24, 1.04 -> 1.01 at 32. LAND: 0.83 -> 0.62, 0.79 -> 0.57, 0.70 -> 0.59, 0.63 -> 0.55, 0.58 -> 0.52, 0.88 -> 0.87. The
+  ground is 3 to 5 L* lighter from 8 to 24 kn on both grounds. That lane had read "no loss over the sea" on the hurricane
+  scene, whose sea crop draws rows it did not touch (L-V50 again). Its own report: by the engine's law for dark, dark's own
+  colour-blind line reads 3.1 over its sea and 2.5 over its land (the checker says 5.2); a GPU read is owed before that is
+  called a finding.
+- **The border ink does not move the lift:** the sea reads 1.05 / 0.96 / 0.93 / 1.04 at 8 / 16 / 24 / 32 kn with and without it, to
+  the digit; the land 0.83 / 0.70 / 0.58 / 0.88 with it against 0.85 / 0.74 / 0.58 / 0.88 without (two captures apart).
+- **The map's real colours, measured by the border lane** (the styles as loaded and rendered medians; its `ground-run.js`):
+  dark's water is [93, 117, 126] (L* 47.7) and its land [54 to 66, 68 to 77, 74 to 92] (L* 28 to 32); `[18, 20, 26]` in
+  `check.mjs` and `mirror-model.mjs` is the bench's OFFLINE land, and `windDarkRules.js` BASE.dark matches neither. Light's
+  muted land is [249, 249, 248] (L* 97.9; the models hold 4 L* darker) and its muted sea [174, 184, 189] (L* 74.2; the models
+  hold a cyan 9 L* lighter). Beach's muted land is [230, 231, 226] (L* 91.4, neutral; the models hold a tan at 84.5) and its
+  muted sea [168, 180, 185] (72.5). The mute lowers the SEA by 10.7 L* in light and 6.4 in beach and the LAND by nothing: the
+  land/sea gap under the wind is the mute's own doing as much as the style's. Every layer that colours an area is below the
+  wind, and the mute's plan already touches each.
+- **A CAVEAT ON THE LIVE READ-BACK OF #314 ABOVE (from the border lane, PR #316):** on dev, a theme change whose style arrives
+  after the wind layer's idle re-sync leaves the NEW theme's basemap UNMUTED while `window.__WIND_BASEMAP_MUTE__` still says
+  applied (3 of 3 in that order on the real library). That read-back switched themes in one page and did not read the map's own
+  paint, so the sea under light and beach in it was in an UNKNOWN mute state, and its lifts (light 1.04, beach 1.37 of dark's)
+  carry that doubt. The bench is not touched by it here: the ramp's grounds are the same on this branch and on the preview
+  that holds #316's fix (light's sea 46.4 and 49.3 at 8 and 16 kn in both; beach's 44.3, 48.5, 59.5, 58.5 in both). The next
+  live read reads `map.getPaintProperty('water', 'fill-color')` in each theme (`rgba(...)` when muted, `hsl(...)` when not).
+  **It also means the owner, comparing themes by switching, may have been looking at an unmuted light or beach.**
+- **The simplification lane** finished with nothing removed (PR #317, docs only): beach's sea streak row carries a lower alpha
+  than its land row from 0 to 36 kn (4 to 11% of the sea's lift), a second reduction light does not have.
+- **The sea crop's wind, read three ways (04:30Z):** this log's 39.1 kn (quartiles 31.7 and 45.7) is the median of the fixture's 56 nodes
+  inside the crop's box; sampled per pixel of the crop, bilinear in u and v on the fixture's own 0.5 degree grid, it is 39.8 (32.1 and
+  45.3), with 1% of the crop west of the fixture's box. The simplification lane reads the same crop at 36 (25 and 45) on PR #317. Not
+  reconciled: which grid the engine draws at zoom 6 (the fixture's own, or the bench's 2 degree world base that takes every fourth
+  node) was not checked. Every reading says a storm field, and no conclusion here rests on the difference.
+
+## 2026-10-12 04:45Z · CORRECTION: the speeds on this log's bench tables (a frame pixel is not a map pixel)
+
+Found by the simplification lane (PR #317), checked here against the bench's code: the bench's map is 897 x 914 CSS px
+(`page/map.html`, `map-entry.js` `CSS_W`, `CSS_H`) and a motion frame is that view scaled to 1000 x 1019 (`smallShot`). This log
+turned frame pixels into longitude as if they were map pixels, so every crop was placed about 11% too wide. **Every measurement
+above stands; the wind speed written beside it does not.**
+
+- **The hurricane scene:** the zoom 6 sea crop (`--at 0.5,0.9 --size 360`) is 26.6 to 29.7 N, 89.8 to 86.3 W, wholly inside the
+  fixture's box: median 41.5 kn, quartiles 36.0 and 46.7 (not 39.1, 31.7 and 45.7). The sweep's columns "8 / 16 / 39 / 90 kn" are
+  8 / 17 / 42 / 95 kn. Corrected in place in the code's comment, D-022's amendment, L-V50, STATE, the bench's README and the PR's
+  description; the earlier sections of this log keep their first numbers.
+- **The speed ramp:** the view spans 92.98 to 83.12 W, so the frame shows 7 to 61 kn (not 4 to 64), and a crop at `--at x` with
+  `--size 110` is centred at 6.9 + 53.7 * (0.89 x + 0.055) kn. The table's rows, as labelled -> as they are:
+  8 -> 13 kn · 12 -> 16 · 16 -> 19 · 21 -> 23 · 24 -> 26 · 32 -> 32 · 40 -> 38 · 48 -> 45 · 56 -> 51. Each crop spans 6 kn.
+  Read again with the true speeds: light's sea is dark's lift from 13 to 51 kn (0.93 to 1.05); beach's sea is short from 26 to
+  38 kn (0.60 to 0.68) and 0.93 to 0.97 at 13 and 19 kn; light's land is 0.58 to 0.93 below 45 kn; beach's land 0.38 to 0.53
+  from 26 to 38 kn. The colours candidate costs the sea 1.05 -> 0.94 at 13 kn, 1.03 -> 0.88 at 16, 0.96 -> 0.87 at 19, and the
+  land 0.83 -> 0.62, 0.79 -> 0.57, 0.70 -> 0.59 there. **Nothing below 13 kn has been read on the ramp**; the only readings in
+  lighter air are the hurricane scene scaled to 8 kn (beach 1.10, light 1.11 of dark's lift over the sea).
+- **Also from that lane, standing:** `--dpr 1.5` names the PAGE's pixel ratio; the map is drawn at 2 in every number of D-022
+  and of this change (the border lane's `--map-dpr` is the fix). The lesson is L-V50's second rule, broken a second time by the
+  session that wrote it: the scene variable is read where the crop sits, and where the crop sits is read from the instrument's
+  own geometry, not assumed.
+
+## 16:10Z, 2026-10-12 · The owner's word to merge; brought up to date with dev after #321 and #320
+
+The owner, 2026-10-12 15:38Z, to this session, first-hand: "merge #321 and #320 and take the re-solved F" and "and merge anything
+else needed as well". This session reads "anything else needed" as the open changes the re-filmed combined clip showed them:
+this one (#315), #319 and #318; #317 (docs) was not named. #321 merged at 15:47:44Z (`720b3980`) and #320 at 2026-10-12T16:10:09Z
+(`9061ad1d`). Dev was then merged into this branch: the four records keep both sides, and this branch's ledger lines are
+re-appended after dev's head with their first times as `acted_at`: what were seq 1063 to 1069 here are seq 1091 to 1097, and
+seq 1098 is `pr_merge #320`. The read-back commitment is seq 1095.
+
+Gates on the merged tree: Jest, both trees, 310 suites, 4,281 tests, 0 failed; check_eslint.js exit 0; loc_ratchet.py exit 0; the production build exit 0 (run on a trial of this merge whose frontend tree is the same, byte for byte).
+
+**Read with today's corrections (#321's log, "After the independent review"):** this change's numbers in this log are the
+mirror probe's lift on frames that clipped bright streak cores, against dark's lift, which reads high. As light ADDED over the
+field alone, on corrected frames with every open change, beach at 0.55 adds 1.0 to 1.8 times what dark does over the sea (6 to
+39 kn); at 0.77 (dev before this change) it added 1.9 times at the one crop read. So this change moves beach's sea toward dark;
+it does not reach it. The strength was the owner's own number ("make the beach sea strength change to 0.55").

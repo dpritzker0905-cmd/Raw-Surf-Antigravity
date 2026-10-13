@@ -46,6 +46,11 @@ node check.mjs --look moderate  # light's look A/B (window.__RAW_WIND_LIGHT_LOOK
 node check.mjs --today          # the tables before dark's rules (what the kill restores)
 node check.mjs --before-white   # dark's rules before the white streak (window.__RAW_DISABLE_WIND_WHITE_STREAK__: what that kill restores)
 node check.mjs --full-white     # the white streak at full strength on both grounds (window.__RAW_DISABLE_WIND_DARK_WHITE__, D-022's kill)
+node check.mjs --before-path    # each theme before ITS path: beach's field (window.__RAW_DISABLE_WIND_BEACH_PATH__) and light's rows (window.__RAW_DISABLE_WIND_LIGHT_PATH__); each kill is read by its own theme only
+node beach-path-solve.mjs --audit   # beach before its path: per Beaufort stop and per pair, every bar (see "Beach's path" below)
+node check.mjs --before-depth   # the land as the mute alone leaves it (window.__RAW_DISABLE_WIND_LAND_DEPTH__, D-026's kill); --land-l 0.75: another depth
+node check.mjs --as-uploaded [10-80:1]   # ALSO the field as the GPU draws it: the 8-bit texture by the shader's own lookup, at every maximum of the sweep (red under 5.0 with --strict, or under --as-uploaded-floor 4.9; --index255: by the table's index). OPT-IN: the owner has not set an as-drawn bar, and light and dark are under 5.0 by it
+node lut-lookup-gpu.cjs [swiftshader]   # which position the GPU reads in a 256-texel LINEAR texture (the law --as-uploaded models), read back from a GPU
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
 ```
 
@@ -73,10 +78,43 @@ muted ground the wind sits on (A, steady descent: 5.22 over the muted water, 5.2
 left and pinned: over light's own cyan water, which shows only with the basemap mute killed, the weakest pair is 3.04
 (10-16 kn).
 
-**As drawn, the colour-blind floor holds in light and does NOT hold in beach** (`node check.mjs --strict` exits 1, two
-red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands' lightness together. Light
-drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day) gave it the deeper field
-of its A/B, which was solved to hold the floor:
+**Beach's path (2026-10-12, `src/components/map/windBeachPath.js`, DECISIONS D-025; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__`;
+log `docs/weather-program/log/2026-10-12-wind-beach-path.md`).** With it, `node check.mjs --strict` exits 0: beach's two
+colour-blind lines read 5.1 over the muted water and 5.1 over the muted land (5.12 and 5.15), and one new watch line is
+printed (over the sea the field sits more than 30° off the legend's hue across 1 kn, 15.5 to 16 kn). The land is the DEEPER
+one that PR #320 lays under the wind (D-026: the land's lightness times 0.85 in beach), the default since that merge;
+`--before-depth` (or `--land-l 1`) reads the land before it: 5.1 and 5.7. The field was solved to hold the bar on either land.
+**Since the land's step (D-026 amended, 2026-10-12; `windBasemapMute.js` WIND_LAND_STEP) a flagless run reads a LIGHTER land:**
+the land at the sea's own factor (0.94 in beach, 0.90 in light), a streak over it at 0.75. There beach reads 5.1 over the
+water and 5.5 over the land, light 5.1 and 5.3. Every number in this section that says "the deeper land" or "the default"
+without a date is PR #320's land: read it now with `--before-step` (the step's kill: beach 5.1 and 5.1, light 5.1 and 5.0).
+`--land-l X` is still the depth's lever, and a land it sets keeps the sea's streak strength, as before the step.
+**The checker reads the TABLE; the engine draws a TEXTURE of it.** The table is sampled into 256 texels of 8 bits
+(`generateRampData`), and the shader reads that texture at speed / maximum with LINEAR filtering, so the GPU reads half a
+texel from the table's own index (`node lut-lookup-gpu.cjs` reads the law back from a GPU: the rule fits to 1/255 of a
+texel). The maximum is the data's strongest wind, clamped to 10..80 kn. `--as-uploaded [10-80:1]` reads every theme that way
+and prints one more line a ground: the weakest pair over the whole sweep. **It is opt-in, not the gate:** by it beach's
+field holds 5.0 at every maximum (5.04 over the water and 5.06 over the land at 281 maxima; it was solved WITH MARGIN for
+that, 2026-10-12, D-025's last amendment), light dips to 4.93 over water and 4.85 over land, and dark to 4.97. Before the
+margin beach read 4.65 and 4.68 at the lowest (PR #319's field), and before its path 2.93 and 2.78. The canvas's own
+8-bit rounding is not modelled.
+Beach before its path reads 3.1 and 2.9 (`--before-path`; 3.1 and 3.2 with `--before-depth` as well). `--before-path` prints
+the table below.
+`beach-path-solve.mjs` is the instrument: it holds the colour-blind floor as a CONSTRAINT (through `light-path-lib.mjs`, a
+plain-JS port of coloraide's filters and CIEDE2000; `node light-path-lib.mjs --verify` checks it against coloraide) while it
+solves for lightness that never rises through the green band, a gale band under a ceiling, and the least lift of the
+streak's ground, in beach's own hues. What is BUILT is option F with its 6 to 40 kn stops re-solved for the deeper land,
+then its 6 to 55 kn stops again with margin for the texture (`--upfloor`, `--uploaded`: the as-drawn floor held as a bar):
+`--audit --ref built` reads it over the land the app draws (add `--before-depth` or `--land-l 1` for the land before
+PR #320); `--audit` alone reads beach before it.
+`beach-path.json` holds option F's stops as first solved (`--score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`). `beach-path-ground.mjs` prints the ground per knot over land and sea
+beside dark's (by the engine's law) and how flat each is from 6 to 40 kn; `beach-path-sheet.mjs out.png` draws the
+speed-by-speed sheet.
+
+**Before beach's path, as drawn, the colour-blind floor held in light and did NOT hold in beach** (`node check.mjs --strict
+--before-path` exits 1, two red lines, both beach's). Dark's rules dim beach's field by one factor, which draws the bands'
+lightness together. Light drew the same kind of field from 2026-10-11 (D-020) until the white streak (D-021, the same day)
+gave it the deeper field of its A/B, which was solved to hold the floor:
 
 | Tint over the muted ground | `--today` | `--before-white` | as drawn | weakest pair as drawn |
 |---|---|---|---|---|
@@ -104,6 +142,51 @@ with speed and its lightness climbs to a plateau. On 2026-10-11 light's hue turn
 green at 16, teal at 21; 146 degrees from dark at 10 kn) and beach's lightness dipped to L* 46.7 at 10 kn. **Do not straighten
 either without this checker in the loop:** a prototype that did read 2.9 for light's colour-blind floor (5.5 before) and 1.3 for
 beach's (3.1), and left light's field off its legend bar. Those turns are what the colour-blind passes bought (LESSONS L-V45).
+
+**Dark is NOT laid by the engine's law here (2026-10-12; not fixed in this file yet).** `mirror-model.mjs` and `check.mjs` lay
+dark's field as `field × α + map × (1 − α)`. The engine writes it premultiplied and blends with `SRC_ALPHA`, so on screen it is
+`field × α² + map × (1 − α)`: about half as strong from 5 kn. Dark's hue over its land moves 2 to 5 degrees between the two
+laws; its lightness, chroma, hardest edge and colour-blind line move a lot (by the engine's law: L\* 19 to 27 from 6 to 40 kn,
+nearly flat; hardest edge 8.9 dE00 a knot; colour-blind 2.5 to 3.1). Light and beach (the multiply law) are not affected.
+`light-path-solve.mjs` reads dark through its own `darkOn`.
+
+## Light's path: solving a table with the floor as a constraint (`light-path-*.mjs`)
+
+Light's field, streak row and legend bar from 1 to 32 kn are solved tables (`src/components/map/windLightPath.js`, DECISIONS
+D-024): dark's hue ORDER in light's own key. Three files made them, and can re-make them:
+
+- **`light-path-lib.mjs`**: the colour-blind distance `cvd_check.py` scores, in plain JS (coloraide 8.13's Viénot protan and
+  deutan, Brettel tritan, CIEDE2000 in CIELAB D65). `node light-path-lib.mjs --verify` scores 4,000 random pairs both ways and
+  prints the largest disagreement (2e-12 dE2000 when written). A search scores a candidate in about 0.1 ms, so the floor is a
+  bar INSIDE the solve, not a reading after it. The checker stays the authority: every table is still run through it.
+- **`light-path-solve.mjs`**: the field. Differential evolution over the colour ON SCREEN over light's muted land at the
+  Beaufort stops; a row a knot between; every bar scored on the rows as they are written (3 decimals). The bars and what each
+  flag sets are in its header. `--deep` holds the floor and the normal-vision distance as bars and aims for the deepest ground
+  (a white streak needs a ground deeper than itself); `--keep N` keeps today's rows up to N kn; `--score cand.json --emit
+  tables.json` prints every bar of a saved candidate and writes its field and streak rows.
+- **`light-path-legend.mjs`**: the legend bar's 3 to 27 kn rows, each on the hue the field draws at that stop, with the
+  checker's own bars (9 dE00 normal, 5.0 colour-blind, the bar within 30 degrees of the field at every half knot).
+
+`check.mjs --before-path` and `mirror-model.mjs --before-path` read light as it drew before the path
+(`window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true`; the same flag sets beach's path's kill, and each theme reads its own). The
+checker's legend lines read the bar as the app draws it (`resolveLegendRamp`): in light on its path that is no longer the
+particle ramp.
+
+**On the deeper land (PR #320) light has NO margin, and as uploaded it dips under the bar.** The checker reads light's
+colour-blind line at 5.0 over the deeper land (5.006; 5.1 over the sea; 5.5 over the land before PR #320, `--before-depth`).
+Read from the 256-entry 8-bit texture the engine uploads, the deeper land reads 5.03 at a 50 kn maximum, 4.99 at 75 kn and
+4.86 at the least: under 5.0 at 151 of the 281 maxima from 10 to 80 kn, a quarter knot apart (light before its path: 21 of
+281; the land before PR #320: never). The owner took it as shown (D-024, amended 2026-10-12: "option 1, merge as shown and
+add the pin"); `windLightPath.test.js` pins those numbers, and light's rows are to be re-solved on the deeper land. No
+instrument in this folder reads the uploaded texture: a margin under about 0.15 on the table does not survive the upload.
+(Since the land's step, 2026-10-12, the deeper land is what `--before-step` reads, and the land the app draws is the lighter
+one: 5.3 by the table, and as uploaded 5.18 at the least with no maximum under 5.0. The line with no margin is now the SEA's:
+4.93 as uploaded. `check.mjs --as-uploaded [10-80:0.25]` is the instrument this paragraph says did not exist.)
+
+What the solve found, so the next one starts further on: holding light's hue to dark's within 8 degrees (dark by the engine's
+law) keeps a 5.2 floor with 6 kn 6 to 7 L\* lighter and 16 to 21 kn 2 to 5 lighter than at 20 degrees, where the depth holds. A cyan as deep as L\* 60 cannot
+carry more than C\* 30 under the 0.70 multiply tint, so the 10 kn band stays light in every solve. A bar that chroma have ONE
+crest is stricter than dark itself (dark dips through cyan).
 
 ## Why coloraide and not culori for colour blindness
 
