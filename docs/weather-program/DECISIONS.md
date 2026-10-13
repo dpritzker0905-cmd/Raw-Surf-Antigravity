@@ -1153,3 +1153,46 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Not verified:** nothing seen in the app; the far-out zooms (2 to 4) were read by eye on one film and not by the gauge (the
   ramp fixture does not reach a far view); one seed; no phone (the shader is `mediump`).
 - **Evidence:** `log/2026-10-12-wind-map-through.md`, "Near-calm air"; LESSONS L-V83, L-V84.
+
+### D-031 · Light's wind field holds its colour-blind line as the GPU draws it (the margin); ON by default
+
+- **Decided:** by the owner. 2026-10-12 17:43Z, first-hand to the session that built light's path, shown that the path's
+  line had no margin as drawn and two options: "option 1, merge as shown and add the pin" (merge PR #318 as filmed, pin the
+  shortfall, re-solve next: D-024, amended). 2026-10-13 01:19Z, to the leading session, first-hand there and relayed: "run
+  the bench at phone size and pixel ratio, and also merge 325, 316. And the small colour-blind tweak to lights colors" (the
+  leading session had described this change to them as "a small colour-blind tweak to light's colours that you haven't
+  seen"). **The owner has not seen it moving.** It was put to them as a number because the move is one no eye finds side by
+  side (below).
+- **The bar, named:** the weakest pair of neighbouring Beaufort stops, for protan, deutan and tritan viewers, 5.0 dE2000 or
+  more AS DRAWN: through the 256-texel, 8-bit texture the engine uploads for the data's own maximum (10 to 80 kn), read by
+  the GPU's lookup (`check.mjs --as-uploaded 10-80:0.25`; LESSONS L-V69), on what draws by default. The table alone is not
+  the bar: the path held 5.1 on it and read 4.93 over the sea as drawn.
+- **What:** `LIGHT_PATH.field` (`windLightPath.js`) is the path's field moved by the smallest step that holds that bar, and
+  owns 1 to 63 kn (the rows the path first kept from 33 kn take a step too: 27-33 kn is one of the sea's weak pairs). The
+  streak row and the legend bar are NOT moved. Client only; no served number moves. Beach and dark are not touched.
+- **Measured** (281 maxima; before is dev `f6310516`):
+
+  | light | table | as drawn, the least | maxima under 5.0 |
+  |---|---|---|---|
+  | the sea | 5.130 -> 5.159 | **4.934 -> 5.034** | **32 -> 0** |
+  | the land as it draws (a step above the sea, D-026 amended) | 5.275 -> 5.303 | 5.177 -> 5.204 | 0 -> 0 |
+  | the land at the sea's depth (the land step's kill) | 5.006 -> 5.035 | 4.847 -> 4.935 | 123 -> 68 |
+
+- **What it moves, said plainly:** no knot moves further than 0.112 dE00 on screen over the land and 0.108 over the sea (both
+  at 10 kn); 2.07 summed over 37 rows. 10 kn is 0.15 L* lighter, 3 kn 0.08 lighter, the gold at 33 kn 0.07 deeper. Lightness
+  rises by at most 0.05 L* from calm to 33 kn (0.02 as merged): inside the path's bar, at its edge. Every bar the path was
+  built on (D-024) is re-read on these rows by the path's own tests.
+- **What it does NOT hold:** under the land step's kill the line over the LAND is still short as drawn (4.94, under 5.0 at 68
+  of 281 maxima). That is a kill's picture, read and pinned, not solved for. Dark's own line reads 4.97 at one maximum of 281
+  by the same read: not this decision's.
+- **Kill:** unchanged. `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true` draws light before the path (its field, streak row
+  and legend bar), byte for byte. There is no second kill, as for beach's margin (PR #322): the rows PR #318 merged are not a
+  switch's picture; they are `frontend/scripts/wind-color/light-path-318.json`, the solver's reference and the tests' control.
+- **What a cap on the largest move bought** (the solve, `light-margin-solve.mjs`): capped at 0.25 dE00 two seeds put 0.12 and
+  0.21 on one row; capped at 0.15, 0.11 and 0.13 (taken: 0.11); at 0.10 the solve held 5.0 as drawn but not the 5.03 asked for;
+  at 0.07 it left one of the path's bars.
+- **Not verified:** nothing seen in the app or on a real canvas; the framebuffer's own rounding is not modelled; phones not
+  measured.
+- **Evidence:** `log/2026-10-12-wind-light-path.md` (2026-10-12 21:39Z to 22:13Z, the solves; 2026-10-13, the default);
+  `windLightPath.test.js` (the as-drawn block; 5 of 5 mutations red); `scripts/wind-color/light-margin-solve.mjs --audit`;
+  an independent review of the diff; LESSONS L-V85, L-V86.

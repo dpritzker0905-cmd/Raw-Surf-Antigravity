@@ -1245,3 +1245,21 @@ A stored estimate can be estimated again in a browser branch with different sour
   `--app-sync`), so the read-back the change rides on was never written and the change never drew, in any arm. The control was
   in the run and was read only because the table was looked at arm by arm. **Do:** every identity run carries an arm that MUST
   differ, and the report states it did; a change that rides a read-back is benched with the sync that writes it.
+- **L-V85 · An instrument run while a mutation run holds the sources reads a mutant.** Light's margin read 5.03 over the sea
+  by the solver's audit; a minute later the palette checker printed 4.99 and a red line for the same rows. Nothing had changed
+  but this: a mutation script was running in the background, had rewritten `windLightPath.js` with one row moved, and the
+  checker (which loads the app's own sources) read that row. The file was restored seconds later and the checker agreed with
+  the audit again. The wrong number was caught only because two instruments had just agreed and then did not. **Do:** a
+  mutation run is exclusive: nothing that reads the sources (a checker, a bench build, a second Jest run, a reviewer) runs
+  until it has restored them; and a mutation script copies, mutates, runs and restores in one `try / finally`, so a crash
+  cannot leave a mutant behind.
+- **L-V86 · A floor held on the table is not held as drawn, and what the rounding takes is each pair's own: solve to targets
+  set pair by pair, and read as drawn after every solve.** Light's path held 5.13 on the table over the sea and read 4.93
+  through the engine's 8-bit texture. The loss was not one number: over the 281 maxima it ran from 0.06 dE (6-10 kn) to 0.26
+  (3-6 kn, pale colours on few texels at a high maximum). A solve that lifted every pair to "5.0 plus 0.15" moved rows that
+  needed nothing and still left one pair short. Giving each pair the target "the floor plus what the rounding took from THAT
+  pair", reading the candidate as drawn after each solve and raising only the targets of pairs still short, found a field 0.11
+  dE00 from the old one at the most. And a cap on the largest move was a help to the search, not a cost: the least-total
+  solves with no cap put 0.4 to 0.5 dE00 on one row; capped, the total was lower too. **Do:** name the bar where it is drawn
+  (L-V69); budget rounding per pair, not per table; print every bar with every candidate, because under the lowest cap the
+  solve reached the floor only by leaving a bar.

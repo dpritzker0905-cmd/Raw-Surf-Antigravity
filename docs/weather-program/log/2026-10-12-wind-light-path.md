@@ -791,3 +791,227 @@ session's scratch folder):
   `action_ledger.py verify` OK (1119 entries). `memory_audit.py --docs-only` 0 FAIL.
 - **Not verified:** nothing of this build has been seen in the app by this session; the as-uploaded numbers are a model with a
   control, not a read of the canvas; hosted CI had not run on this head when this was written.
+
+## 21:39Z · The re-solve on the deeper land: THE MARGIN, a candidate behind a lever on a LOCAL branch (nothing pushed; the owner has not seen it)
+
+**Why now.** #318 merged at 18:17:56Z (dev `b764797b`); `pr_merge #318` is on dev as seq 1120 (carried by #322). The leading
+session, 20:58Z: the hold on this re-solve is lifted (the land's depth stands, D-026), and it is this session's; the owner to
+it, 20:54Z, relayed: "merge #323 and build the tail, also make sure the other sub agents are getting what they need to do done
+so we can get this working". The owner's own word for the re-solve is the first-hand choice of 17:43Z above (option 1). The
+proposal card this session left for a fresh session was withdrawn: the work is done here.
+
+**The bar, restated by the leading session: AS DRAWN, not the table.** The GPU reads the 256-texel texture at position
+256 t - 0.5 (the beach lane read the law back from a GPU: `lut-lookup-gpu.cjs`, LESSONS L-V69), and
+`check.mjs --as-uploaded 10-80:0.25` is that read. Reproduced first, on dev `a022b398`: light 4.85 over the land (27-33 kn,
+deutan, at a 72.75 kn maximum; under 5.0 at 123 of 281 maxima) and 4.93 over the sea (3-6 kn, protan, at 79 kn; 32 of 281).
+**The pin this session added at 17:55Z read the texture at the table's own index (4.859, 151 of 281): that lookup is not the
+GPU's, and the pin now reads by the GPU's (4.847, 123; the sea 4.934, 32; dev's light before #318 4.962 and 8).**
+
+**The solve** (`scripts/wind-color/light-margin-solve.mjs`, new). A step in CIELAB on screen at each Beaufort stop from 3 to 63
+kn, blended along speed, rows written at 3 decimals; every bar of #318 held hard and printed on the candidate's own rows; each
+pair's target on the table is the floor plus what the 8-bit rounding takes from that pair on dev's rows (0.06 to 0.26); after
+each solve the candidate is read as drawn at all 281 maxima and the target of any pair still short is raised. Floor asked: 5.03
+as drawn (room for the one rounding not modelled, the framebuffer's).
+
+| aim | runs | largest move a knot (dE00) | total move | as drawn, land / sea (least) | bars of #318 |
+|---|---|---|---|---|---|
+| least largest move (no cap) | 3 seeds | 0.46 to 0.53 | 8.9 to 11.3 | 5.04 to 5.12 / 5.05 to 5.19 | held |
+| least TOTAL move (no cap) | 3 seeds | 0.42 to 0.53 (at 47 or 63 kn) | 3.5 to 4.1 | 5.05 to 5.08 / 5.05 to 5.08 | held |
+| least total, capped at 0.30 | 2 seeds | 0.22, 0.26 | 3.4, 3.6 | 5.06 / 5.05, 5.07 | held |
+| **least total, capped at 0.25** | 2 seeds | **0.18**, 0.24 | **3.16**, 3.75 | **5.053 / 5.057**; 5.08 / 5.06 | held |
+| least total, capped at 0.20 | 2 seeds | 0.20, 0.19 | 3.4, 3.5 | 5.04 / 5.05, 5.07 | held |
+| capped at 0.15, 0.12, 0.10 | 2 seeds each, stopped after 4 rounds | 0.11 to 0.15 | 2.5 to 3.4 | not held | **short of the floor, or outside a bar** |
+
+- **What the cap buys:** with no cap the least-total solves put 0.42 to 0.53 dE00 on one row; capped at 0.25 the largest move is
+  0.18 and the total is no higher (3.16). The "least largest move" aim did worse on both counts than the capped least-total
+  aim: a search result, not a property of the problem. Under about 0.15 a solve can only reach the floor by leaving one of
+  #318's bars, so it does not (L-V69, rule 3).
+- **Taken as the candidate:** capped at 0.25, seed 1.
+
+**The candidate, read by two instruments** (the solver's audit of the BUILT rows, and `check.mjs --light-path margin
+--as-uploaded 10-80:0.25`; they agree):
+
+| light, colour-blind, weakest neighbours | table | as drawn, the least (where) | as drawn, 50 kn max | maxima under 5.0 |
+|---|---|---|---|---|
+| dev, over the deeper land | 5.006 | 4.847 (27-33 kn at 72.75 kn) | 5.077 | 123 of 281 |
+| dev, over the sea | 5.130 | 4.934 (3-6 kn at 79 kn) | 5.090 | 32 of 281 |
+| **the margin, over the deeper land** | 5.195 | **5.053** (40-47 kn at 78.75 kn) | 5.193 | **0** |
+| **the margin, over the sea** | 5.181 | **5.057** (3-6 kn at 78.5 kn) | 5.173 | **0** |
+| the margin, over the land before #320 | 5.625 | 5.475 | 5.599 | 0 |
+
+- **The move:** the largest 0.182 dE00, at 21 kn; total 3.16 over 37 rows. At 6, 10, 16, 21, 27, 33, 40, 55 kn: 0.08, 0.05, 0.08,
+  0.18, 0.16, 0.12, 0.06, 0.05. Nothing moves at calm or at 75 kn. A step of 0.18 dE00 is not one the eye finds side by side.
+- **Every bar of #318, re-read on the candidate's rows** (dev's value in brackets): hue turns back 0 times (0); hue within 19.93
+  degrees of dark's at the stops 3 to 21 kn (19.93; bar 20.2); lightness rises at most 0.05 L* from calm to 33 kn (0.02; the
+  bar is 0.05, so this one is AT its bar); hardest edge 7.84 dE00 a knot (7.85; dark's 8.9); upper level L* 65.00 to 65.24
+  (64.94 to 65.18); lower level 60.02 to 60.24 (60.06 to 60.10: its spread grew from 0.04 to 0.22, inside 59.9 to 60.3);
+  weakest normal-vision neighbours 8.17 (8.00); weakest colour C* 16.7 (17.0); the legend bar, NOT moved, within 16.95 degrees
+  of the field (16.87; the checker's bar is 30); each streak's colour core, NOT moved, within 1.05 degrees of the field's hue
+  (0.79; bar 3).
+- **Rows from 33 kn move too** (33, 40, 47, 55, 63 kn, which #318 kept): the weakest pairs over the deeper land include 27-33
+  and 40-47 kn, and 40-47 was already under 5.0 as drawn before #318 (8 of 281 maxima).
+
+**Built** (local branch `claude/wind-light-path-margin` from dev `a022b398`; NOT pushed, no PR): `LIGHT_MARGIN` and
+`lightPathOption` in `windLightPath.js`; three lines changed in place in `WindColorRamp.js` (796 lines, as on dev). **Lever:
+`window.__RAW_WIND_LIGHT_PATH__ = 'margin'`, DEFAULT OFF** (unset, or any other value, draws #318's rows byte for byte); read
+only where the path is on, so every kill and lever that stands the path down stands it down; the look key reads
+`white+path-margin|dark-rules`, so the engine rebuilds at once. Field hashes with the lever: `de27184f` at a 50 kn maximum,
+`eebfc1a0` at 75 kn (default: `7c17c193`, `be9bf367`); the streak rows are the default's (`b9cf6f25`, `ad6b7fa5`). The bench's
+variant is `light-margin`.
+
+**Tests** (`windLightPath.test.js`, 118 tests, was 68): default off; one visual variable (only the field's bytes move); the
+look key; the span; the stand-down sweep (the path's kill and 38 lever sets: the lever changes nothing under any); beach and
+dark do not read it; the engine's own call shape on the real window; as drawn 5.0 or more at all 281 maxima over land and
+sea (with dev's rows as the control: 123 and 32 under); the move under 0.2 dE00; every bar re-read; the streak row and the
+legend bar still fit. **Mutation: 5 of 5 red** (the lever on by default 13 tests; the key not naming it 2; the margin drawn
+under the path's kill 3; one row moved by 0.004 5; the streak row moved 2).
+
+**Gates on the local branch:** Jest on both trees 312 suites, 4,432 tests, 0 failed; `check_eslint.js` exit 0; `loc_ratchet.py`
+New 0, Regressed 0; the production build exit 0; `check.mjs --strict` exit 0 with no lever (as on dev); `check.mjs --strict
+--light-path margin --as-uploaded 10-80:0.25` exits 1 for DARK's own line alone (4.97 at one maximum of 281, as on dev):
+light and beach read no red line there.
+
+**Not done, on purpose:** no PR, no push, no ledger line (nothing on dev or in the app changed; commitment seq 1118 stays open
+until the owner has seen it and it is built as the default or dropped). DECISIONS D-030 is kept for the owner's decision on
+it. The leading session films it beside dev and dark on the corrected bench and shows the owner.
+
+**Not verified:** nothing seen in the app or on a real canvas; the as-drawn read does not model the framebuffer's own
+rounding; phones not measured; no independent review of this diff yet (owed before any PR).
+
+## 21:50Z · The candidate on TWO lands: it holds as drawn over the land at 0.81 and at 0.90; the branch rebased onto dev `e89aaa85`
+
+**Asked by the leading session (its note of 21:43Z, written before this session's table reached it).** The owner to it, 21:13Z,
+relayed: "if the coastline fix is live on dev, then it needs to be checked at all zooms, because I don't see the fix at higher
+out zooms, cannot see the land below the wind animations in beach or light modes well" and "make sure your sub agents are on
+the same page here, so we're not just lapping work over work". The map lane (the leading session's own, `windBasemapMute.js`)
+is trying the land at the sea's own factor, lightness x 0.90 in light in place of 0.81. So: hold 5.0 as drawn over the sea,
+over today's land AND over the lighter land, and pin no number that is true of one default land only.
+
+| light, colour-blind, weakest neighbours, AS DRAWN (281 maxima) | the path as merged | the margin |
+|---|---|---|
+| over the sea | 4.934, under 5.0 at 32 | **5.057**, never under |
+| over the land at 0.81 (today's default) | 4.847, under at 123 | **5.053**, never under |
+| over the land at 0.90 (`--land-l 0.90`) | 5.177, never under | **5.288**, never under |
+| over the land before #320 (1.0) | 5.330, never under | 5.475, never under |
+
+- **Today's land is the binding one**, as the leading session expected from beach: a lighter land has more room. On the table
+  the margin reads 5.195 (0.81), 5.431 (0.90), 5.625 (1.0); the sea 5.181.
+- **A lighter land does not make the margin unnecessary:** at 0.90 the path as merged holds over the land, and is still short
+  over the SEA (4.934, 32 maxima). The margin is what lifts the sea.
+- **The tests name their land.** Every as-drawn number in `windLightPath.test.js` is now read on a land set through its lever
+  (`__RAW_WIND_BASEMAP_LAND_L__` 0.81 or 0.90, or #320's kill), never on "whatever draws by default"; one test added for the
+  0.90 land (119 tests in the file). The move's cap is read over both lands and the sea.
+- **Rebased** (a local, unpushed branch) onto dev `e89aaa85` (#323, the coast in the borders' ink; it touches none of this
+  change's files). Gates there: Jest on both trees 313 suites, 4,454 tests, 0 failed; `check_eslint.js` exit 0;
+  `loc_ratchet.py` New 0, Regressed 0. The checker's reads above are `check.mjs --theme light [--light-path margin]
+  [--land-l 0.90] --as-uploaded 10-80:0.25`.
+- Still local, default off, not pushed, no PR; the owner has not seen it.
+
+## 22:12Z · The target narrowed to the SEA (the leading session's note 3): the margin re-solved, a smaller move (0.11 dE00)
+
+**What changed** (its note, 21:53Z): the map lane built the land a step above the sea (lightness x 0.90 in light, in place of
+0.81; its local branch `claude/wind-map-far-zoom` `5e8cba72`, kill `window.__RAW_DISABLE_WIND_LAND_STEP__`, an amendment of
+D-026, not on dev yet). On that land light's line holds without help (5.18 as drawn), so the re-solve is for the SEA: hold 5.0
+as drawn over the sea by the smallest move, show the land's line stays at or above 5.0 on the land at 0.90, and REPORT the
+land at 0.81 (now a kill's picture) without solving for it.
+
+**The solve** (`light-margin-solve.mjs --solve --land-l 0.90 --sum --maxmove C --floor 5.03`; the solver gained `--land-l`,
+which names the land through the app's own lever, and prints the line over every land it was not asked to hold):
+
+| cap on the largest move | seeds | largest move (dE00) | total | as drawn, sea / land at 0.90 | the bars of #318 |
+|---|---|---|---|---|---|
+| 0.25 | 2 | 0.21, 0.12 | 2.6, 2.0 | 5.06 / 5.21; 5.04 / 5.21 | held |
+| **0.15** | 2 | 0.13, **0.11** | 2.3, **2.07** | 5.06 / 5.25; **5.034 / 5.204** | held |
+| 0.10 | 2, stopped after 3 rounds | 0.09, 0.10 | 2.1, 2.2 | 5.03 / 5.20 (5.0 held, the table's targets not) | held |
+| 0.07 | 2, stopped | 0.10 | 2.0, 2.3 | | **outside a bar** |
+
+**Taken: capped at 0.15, seed 2.** Read by the solver's audit of the BUILT rows and by `check.mjs --theme light --light-path
+margin --land-l X --as-uploaded 10-80:0.25`:
+
+| light, colour-blind, weakest neighbours | table | as drawn, the least (where) | 50 kn max | maxima under 5.0 |
+|---|---|---|---|---|
+| dev, the sea | 5.130 | 4.934 (3-6 kn at 79 kn) | 5.090 | 32 of 281 |
+| dev, the land at 0.90 | 5.275 | 5.177 | 5.356 | 0 |
+| **the margin, the sea** | 5.159 | **5.034** (27-33 kn at 68.5 kn) | 5.130 | **0** |
+| **the margin, the land at 0.90** | 5.303 | **5.204** (21-27 kn at 45.75 kn) | 5.357 | **0** |
+| the margin, the land at 0.81 (a kill's picture; NOT solved for) | 5.035 | 4.935 | | 68 of 281 (dev: 4.847, 123) |
+| the margin, the land before #320 | 5.534 | 5.430 | | 0 |
+
+- **The move:** the largest 0.112 dE00, at 10 kn; total 2.07 over 37 rows (the first candidate: 0.182 and 3.16). At 6, 10, 16, 21,
+  27, 33, 40, 55 kn: 0.09, 0.11, 0.02, 0.07, 0.06, 0.09, 0.06, 0.07.
+- **Every bar of #318, re-read on these rows** (dev in brackets): hue turns back 0 times (0); within 19.95 degrees of dark's at
+  the stops 3 to 21 kn (19.93; bar 20.2); lightness rises at most 0.05 L* (0.02; AT its bar of 0.05); hardest edge 7.85 dE00
+  (7.85); upper level L* 65.05 to 65.19 (64.94 to 65.18); lower level 60.03 to 60.12 (60.06 to 60.10); weakest normal-vision
+  neighbours 8.05 (8.00); the legend bar, not moved, within 17.01 degrees of the field (16.87; the test's bar 18, the
+  checker's 30); each streak's colour core, not moved, within 0.88 degrees of the field's hue (0.79; bar 3).
+- **Built:** the same lever (`window.__RAW_WIND_LIGHT_PATH__ = 'margin'`), `LIGHT_MARGIN` replaced. Field hashes `df782223` at a
+  50 kn maximum and `3c00deb3` at 75 kn (the first candidate's were `de27184f`, `eebfc1a0`; the default's `7c17c193`,
+  `be9bf367`). The first candidate's rows are in this branch's history (`7073a90a`): it also held the land at 0.81 (5.05), for
+  a largest move of 0.18.
+- **Tests:** the margin's as-drawn tests now hold the sea and the land at 0.90 as bars and pin the land at 0.81 and the land
+  before #320 as READINGS; the move's cap is 0.12 over both lands and the sea; 118 tests in the file. Mutation: 5 of 5 red.
+- **Gates on the local branch** (dev `e89aaa85` + this change): Jest on both trees 313 suites, 4,453 tests, 0 failed;
+  `check_eslint.js` exit 0; `loc_ratchet.py` New 0, Regressed 0; the production build exit 0.
+- **A read thrown away:** while the mutation run was rewriting `windLightPath.js` in the background, a checker read taken at
+  the same moment printed 4.99 for the sea. It had read a mutant's rows. Read again once the run had finished and restored
+  the file; the numbers above are from that read and from the solver's audit before the run. An instrument must not be run
+  while a mutation run holds the sources.
+- **When the map lane's land step is on dev:** this branch is rebased onto it (it edits the same describe of
+  `windLightPath.test.js`: its `DEEPER` constant and its new test are kept, this change's reads through the GPU's lookup stay).
+- Still local, default off, not pushed, no PR; the owner has not seen it.
+
+## 2026-10-13 01:48Z · The margin made what light draws BY DEFAULT, under the path's own kill; a draft PR (no ledger lines yet)
+
+**Why.** The leading session, 01:21Z: the owner asked for this change to be merged. The owner to it, first-hand there, 2026-10-13
+01:19Z, relayed: "run the bench at phone size and pixel ratio, and also merge 325, 316. And the small colour-blind tweak to
+lights colors" (it had described this change to them as "a small colour-blind tweak to light's colours that you haven't
+seen"); and, 01:09Z, on the dev site with everything on: "Ok I like this". The owner's own word for the re-solve is the choice
+of 2026-10-12 17:43Z above. **The owner has not seen this change moving**: it was put to them as a number, because it is a
+move no eye finds side by side.
+
+**What was built** (branch `claude/wind-light-path-margin`, cut fresh from dev `f6310516`, which holds #324 the trails' veil,
+#325 the land a step above the sea and #326 near-calm air; the lever build of the three sections above is kept on the local
+branch `claude/wind-light-path-margin-lever`):
+- **ON by default, one kill.** `LIGHT_PATH.field` in `windLightPath.js` IS the margin's rows now and owns 1 to 63 kn
+  (`fieldTo`; 37 rows: the path's 32 and the rows it first kept at 33, 40, 47, 55, 63 kn). No lever and no second kill, as
+  beach's margin (PR #322): `window.__RAW_DISABLE_WIND_LIGHT_PATH__ = true` restores light before the path, byte for byte, as
+  it did. `WindColorRamp.js`, `check.mjs` and `mirror-model.mjs` are not changed. The rows PR #318 merged are kept as
+  `scripts/wind-color/light-path-318.json` (the solver's reference and the tests' control; its texture bytes are pinned).
+- **The same rows as the lever build's** (22:13Z): field hashes `df782223` at a 50 kn maximum, `3c00deb3` at 75 kn.
+- **Dev had not moved under it:** on `f6310516` the checker reads light exactly as on `e89aaa85` (the table below, "before").
+
+**The numbers** (`node check.mjs --theme light [--before-step] --as-uploaded 10-80:0.25`; 281 maxima; "as drawn" is the least):
+
+| light, colour-blind, weakest neighbouring Beaufort stops | table, before -> after | as drawn, before -> after | maxima under 5.0, before -> after |
+|---|---|---|---|
+| over the sea | 5.130 -> 5.159 | **4.934 -> 5.034** | **32 -> 0** |
+| over the land as it draws (a step above the sea, x 0.90) | 5.275 -> 5.303 | 5.177 -> 5.204 | 0 -> 0 |
+| `--before-step`: over the land at the sea's depth (x 0.81) | 5.006 -> 5.035 | 4.847 -> 4.935 | 123 -> 68 (a kill's picture; not solved for) |
+
+- `check.mjs --strict` exit 0. `check.mjs --strict --as-uploaded 10-80:0.25` exits 1 for DARK's own line alone (4.97 at one
+  maximum of 281); light's red line is gone; beach reads none.
+- **How far the colours move** from the field PR #318 merged (`light-margin-solve.mjs --audit`, every half knot along the
+  drawn path): **0.112 dE00 at the most over the land (10 kn), 0.108 over the sea (10 kn)**; 2.07 summed over the 37 rows.
+  Calm and 75 kn do not move. Three readings the move shows up in: 10 kn is 0.15 L* lighter (5.95 lighter than before the
+  path, 5.8 as merged); 3 kn 0.08 L* lighter; the gold at 33 kn 0.07 L* deeper.
+- **Every bar of #318 is read on these rows by its own tests** (they read the default): the hue never turns back; within
+  20.2 degrees of dark's at the stops; no edge above 8.0 dE00; lightness never rises by 0.05 L*; the two levels inside
+  64.7 to 65.3 and 59.9 to 60.3; the streak cores within 3 degrees of the field; the bar within 18 degrees.
+
+**Tests.** `windLightPath.test.js` 72 tests (was 69 on dev): the default's bytes re-pinned (the field's; the streak row's and
+the bar's are unchanged and say so); the span; the as-drawn block now reads by the GPU's lookup, with five tests in place of
+two: the control is the field PR #318 merged, to the byte; the default holds at all 281 maxima over the sea and over the land
+as it draws; the control dipped at 32 over the sea; the kills' pictures pinned as readings; the move under 0.12 dE00. Five pins moved on purpose, each
+with the value before in its comment (10 kn's hue 197 -> 196; 10 kn's lift 5.8 -> 5.95; 33 kn's L* 53.6 -> 53.5; in
+`windWhiteStreak.test.js` the everyday levels 60.1 / 65.0 -> 60.0 / 65.1 and 3 kn 71.9 -> 72.0). **Mutation: 5 of 5 red**
+(a row moved by 0.004; a kept row put back a step; the field owning only 1 to 32 kn; the margin leaking under the kill; the
+streak row moved).
+
+**Gates** (dev `f6310516` + this change): Jest on both trees 316 suites, 4,573 tests, 0 failed; `check_eslint.js` exit 0;
+`loc_ratchet.py` New 0, Regressed 0 (`WindColorRamp.js` 796 lines, untouched); the production build exit 0.
+
+**Not done yet:** the ledger lines (the leading session gives the head to append after: a docs PR of its own merges first);
+the PR is a DRAFT until then. Commitment seq 1118 (the re-solve) closes with those lines.
+
+**Not verified:** nothing seen in the app or on a real canvas, by this session or the owner; the as-drawn read models the
+texture and the GPU's lookup, not the framebuffer's own rounding; phones not measured.

@@ -241,7 +241,7 @@ describe('what the look is, per knot: white light over a ground deep enough to s
     const everyday = KNOTS.filter((kn) => kn >= 9 && kn <= 27).map((kn) => Lstar(ground('light', 'land', kn)));
     expect(Math.min(...everyday)).toBeCloseTo(60.0, 1); expect(Math.max(...everyday)).toBeCloseTo(65.1, 1);   // 60.1 and 65.0 as the path merged; 60.03 and 65.08 with its margin (D-031)
     // calm keeps a pale tint (D-019): under 6 kn the ground is lighter than that, and a streak there steps less
-    expect(Lstar(ground('light', 'land', 0))).toBeCloseTo(78.7, 1); expect(Lstar(ground('light', 'land', 3))).toBeCloseTo(71.9, 1);
+    expect(Lstar(ground('light', 'land', 0))).toBeCloseTo(78.7, 1); expect(Lstar(ground('light', 'land', 3))).toBeCloseTo(72.0, 1);   // 3 kn: 71.9 as the path merged, 71.98 with its margin (D-031)
   });
   it('THE COST, said plainly: beach\'s ground over land at 26-39 kn is held pale by the name guard (L* 65-73), and a white streak has less to stand on there', () => {
     const pale = KNOTS.filter((kn) => kn >= 6 && Lstar(ground('beach', 'land', kn)) > 65.2);
