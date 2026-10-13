@@ -1275,3 +1275,16 @@ A stored estimate can be estimated again in a browser branch with different sour
   read required checks, strict, linear history, admin enforcement and rulesets together, and say which merge METHODS and which
   BYPASSES exist before proposing one; (2) name the setting's exact address; (3) a session never edits branch protection: it
   is the owner's security setting.
+
+- **L-P37 · Before merging a lane's PR, read the lane's own branch against the PR's head; and a close-out ends with a sweep of
+  every local branch against its upstream.** #327 was merged ten minutes after the colours lane committed its follow-up to
+  the independent review (comments made true, a guard in its solver), and that commit was never pushed. The PR's checks were
+  green, on the older head; "the review is answered" was true in the lane's worktree and not on GitHub. The lead read
+  `gh pr view` before the merge, and that shows only what GitHub has. Nothing a user sees changed; two comments and a
+  README line gave the wrong range on dev for fifteen hours, until a sweep asked for by the owner ("make sure everything is also
+  pushed") found one branch `[ahead 1]`. **Do:** (1) before merging a lane's PR, compare `git rev-parse <lane branch>` with
+  the PR's `headRefOid`, and read `git status --porcelain` in the lane's worktree (a read, not a write): a difference is a
+  question to the lane, not a merge; (2) a lane's hand-back names the SHA it PUSHED, and the lead checks it is the PR's head;
+  (3) at the end of a program run `git for-each-ref refs/heads --format='%(refname:short) %(upstream:track)'`: every
+  `[ahead N]` on a branch that had a PR is landed or explained, and every branch with no upstream is named as left local on
+  purpose.
