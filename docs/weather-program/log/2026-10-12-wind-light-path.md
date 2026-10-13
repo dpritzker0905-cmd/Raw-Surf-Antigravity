@@ -1035,3 +1035,46 @@ texture and the GPU's lookup, not the framebuffer's own rounding; phones not mea
   "shown to the owner moving before it replaces the rows", which the owner waived by asking for it to be merged unseen; 1170
   `pr_open #327`; 1171 the read-back commitment (a static read of the deployed bundle's rows; due 2026-10-20).
 - This session does not merge. After this push nothing more is pushed unless a check fails or the review finds something.
+
+## 2026-10-13 02:17Z · The PR marked ready at the owner's word; the independent review came in after: no must-fix, one should-fix (stale comments), and a limit of the "as drawn" read said plainly
+
+- **The owner, first-hand in this session's chat, 02:13Z:** "mark it ready now, don't wait for the review". PR #327 was marked
+  ready at 02:13Z (head `810ad447`), with the review still running; its description says so.
+- **The review** (a read-only agent; its harness loaded the ramp code of both commits and compared bytes; its report reached
+  this session at 02:14Z). What it measured:
+  - **Under the kill:** 0 mismatches (the kill alone, 49 lever sets that include it, and "set + kill" over 1,093 sets).
+  - **Lever sweep:** 1,093 sets a theme. Differences only in light, only in the field, only where the commit before already
+    drew the path; never in the streak row, the legend, the look key or `windLightPathOn`. Unexpected differences: 0.
+  - **Beach and dark:** 0 differences in 2 x 1,093 comparisons.
+  - **The default in light:** 39 rows in both, the same knots; 34 rows changed; alpha unchanged in every row; calm and 75 kn
+    identical; the largest change in any channel 0.003 (under one byte); in the texture 105 of 256 texels differ at a 50 kn
+    maximum and 84 at 75 kn, each by exactly 1.
+  - **`light-path-318.json`** equals dev's field number for number, and its texture bytes match.
+  - **The reported numbers reproduce exactly.** They also hold at 7,001 maxima (a hundredth of a knot apart: the sea 5.034,
+    the land 5.194, none under), and under the lookup this session's first pin used (the table's index: the sea 5.022, the
+    land 5.165, none under): the change of lookup in the tests is not what makes them pass.
+- **Its findings, and what was done with each:**
+  1. *Must-fix for the first commit alone:* a 3 kn pin in `windWhiteStreak.test.js` was still at 71.9 there. Already moved by
+     the second commit (to 72.0); the PR is squashed. Nothing to do.
+  2. *Should-fix:* two comments in `WindColorRamp.js` and one line of the README still said rows "1 to 32 kn" of both tables
+     are the path's; the field is 1 to 63 kn now. One of them told an editor that a change to the deep field changes what
+     light draws with no lever, which is no longer true from 33 to 63 kn. **Made true, in a commit held locally** (comments
+     and docs only; no line added to `WindColorRamp.js`).
+  3. *A limit of the claim, the owner's to know:* **"holds 5.0 as drawn" is a claim about the texture and the GPU's lookup,
+     not about the pixel.** The screen rounds each pixel to 8 bits once more. The reviewer's crude model of that (one flat
+     ground colour, each tinted pixel rounded to a byte; its own model, not a GPU read) moves a pair by about ten times this
+     change's 0.034 of room: the sea's 3-6 kn pair reads 4.63 at the worst in BOTH commits, under 5.0 at 153 of 281 maxima
+     before and 80 with the margin. So the margin helps there too, and does not make that reading hold. The tests and the PR
+     said the framebuffer was not modelled; the module's own note now says it as well, with these numbers.
+  4. *The recorded solve command:* the README's command lacked three of the flags the run used. With them (`--land-l 0.90 --gens 1500 --rounds 6`) the run was made again on this branch and gives the committed rows, value for value.
+  5. *Two bars now sit at their limits* (both were already inside, and are): lightness rises 0.0498 L* from calm to 33 kn
+     against a bar of under 0.05 (0.0163 before); light's ground from 6 kn up peaks at L* 65.191 against the 65.2 of
+     `windWhiteStreak.test.js` (65.183 before).
+  6. *No bug reachable from the app* in `lightPathRows` / `lightTables` (the memo ignores its arguments after the first
+     on-path call; the app's one caller always hands in the same two constants).
+  7. *No kill of its own:* the path's kill steps back past PR #318 too, so the app cannot show the margin beside the field as
+     filmed. Known and chosen (as beach's margin); the owner's call if they want one.
+  8. *Two nits in the solver:* `--dump-merged` could have overwritten the reference with the margin's rows (it refuses now);
+     a label said "the deeper land" where the audit reads the land as drawn (fixed).
+- **Not pushed:** the leading session asked for no further push unless a check fails. The commit with 2, 3, 4 and 8 is held
+  locally; it changes comments, docs and a script, nothing drawn, and a push restarts the hosted checks.

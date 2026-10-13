@@ -152,8 +152,8 @@ nearly flat; hardest edge 8.9 dE00 a knot; colour-blind 2.5 to 3.1). Light and b
 
 ## Light's path: solving a table with the floor as a constraint (`light-path-*.mjs`)
 
-Light's field, streak row and legend bar from 1 to 32 kn are solved tables (`src/components/map/windLightPath.js`, DECISIONS
-D-024): dark's hue ORDER in light's own key. Three files made them, and can re-make them:
+Light's field (1 to 63 kn since its margin, below), its streak row (1 to 32 kn) and its legend bar (3 to 27 kn) are solved tables
+(`src/components/map/windLightPath.js`, DECISIONS D-024 and D-031): dark's hue ORDER in light's own key. Three files made them, and can re-make them:
 
 - **`light-path-lib.mjs`**: the colour-blind distance `cvd_check.py` scores, in plain JS (coloraide 8.13's Viénot protan and
   deutan, Brettel tritan, CIEDE2000 in CIELAB D65). `node light-path-lib.mjs --verify` scores 4,000 random pairs both ways and
@@ -186,7 +186,9 @@ followed. `LIGHT_PATH.field` is now that field moved by the smallest step that h
 | `--before-step` (the land at the sea's depth: a kill's picture, not solved for) | 5.006 -> 5.035 | 4.847 -> 4.935 | 123 -> 68 |
 
 No knot moves further than 0.11 dE00 on screen (10 kn; 2.1 summed over 37 rows); the streak row and the legend bar are not
-moved. `--strict --as-uploaded` still exits 1, for DARK's own line alone (4.97 at one maximum of 281).
+moved. `--strict --as-uploaded` still exits 1, for DARK's own line alone (4.97 at one maximum of 281). **"As drawn" is the
+texture and the GPU's lookup: the screen rounds each pixel to 8 bits once more, which nothing here models** (a crude model
+of it, from the review of this change, moves a pair by several times light's margin, before the margin and with it).
 
 `light-margin-solve.mjs` is the instrument, and can re-make the rows: it moves the on-screen colour by a step in CIELAB at
 each Beaufort stop from 3 to 63 kn, holds every bar the path was built on HARD (each is printed on the candidate's own rows),
@@ -194,7 +196,7 @@ gives each pair its own target on the table (the floor plus what the 8-bit round
 the candidate as drawn after each solve and raises the target of any pair still short. `node light-margin-solve.mjs --audit`
 reads the rows the app draws, pair by pair, on every land, with the move from the rows PR #318 merged (`--merged` reads those:
 `light-path-318.json`, the reference the solve moves FROM). The run that made the rows:
-`--solve --sum --maxmove 0.15 --floor 5.03 --seed 2`. What the cap on the largest move buys: capped at 0.25 two seeds put 0.12
+`--solve --land-l 0.90 --sum --maxmove 0.15 --floor 5.03 --seed 2 --gens 1500 --rounds 6` (re-run on this branch after the rows were built: the same rows, value for value). What the cap on the largest move buys: capped at 0.25 two seeds put 0.12
 and 0.21 dE00 on one row; at 0.15, 0.11 and 0.13; at 0.10 the solve held 5.0 as drawn but not 5.03; at 0.07 it left one of the
 path's bars (LESSONS L-V69 rule 3, L-V86). A margin under about 0.15 on the table does not survive the upload, and what the
 rounding takes is each pair's own.
