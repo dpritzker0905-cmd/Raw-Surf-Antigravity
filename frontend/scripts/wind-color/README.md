@@ -168,8 +168,18 @@ tables and laws (no GPU, no map load):
 - **The row for a streak's step:** what a 10% turn of the white, of the field's strength and of the map's lightness moves it
   by, and what one knot of wind does, beside what a knot does to dark's own step.
 
-Dark is laid by the ENGINE's law here (alpha squared, the paragraph above), not the mirror model's. `--before-step` and
-`--before-depth` print the kills' pictures. It refuses to run if its ground for light or beach is not the mirror model's own.
+Dark is laid by the ENGINE's law here (alpha squared, the paragraph above), not the mirror model's, and over the REAL map's
+land (`[58, 71, 79]` at zoom 6, as `ground-run.js` read it), not the mirror model's offline land, which reads 11 L\* too dark
+under the wind and overstates dark's step over land. That law is written here a second time (LESSONS L-V60 rule 1 asks for one
+place): moving it is one change with the checker's dark lines. `--before-step` and `--before-depth` print the kills'
+pictures. It refuses to run if its ground for light or beach is not the mirror model's own.
+
+- **The model's ground against the bench** (the last table; L-V60 rule 2): the field alone over the real maps at zoom 6, by
+  speed, as `ground-run.js --strips 12` read it on a ramp. Dark agrees within 1.1 L\* on both grounds from 3 to 29 kn.
+  Light's ground is 1.3 L\* too dark in the model over the sea and 2.8 over land, beach's 2.3 and 4.1 (10 to 22 kn): the
+  model's light and beach map colours are not quite the real maps', and a ground too dark OVERSTATES that theme's step.
+  The bench reads are constants in the file, of one place and day: re-read them when a map colour, the mute or a field
+  table moves.
 **It is a model of ONE piled-up trail, not the moving picture:** read it for the sign and the size of a lever before turning
 one, and read the level on the bench (`scripts/wind-bench`: `ground-run.js`, `anatomy-run.js`), which has the veil (D-029),
 the trail's whole profile and near-calm air (D-030), none of which are in this model.

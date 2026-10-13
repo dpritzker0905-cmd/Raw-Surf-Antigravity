@@ -558,3 +558,44 @@ checks passed and 1 skipped; dev `f9320c27` an ancestor of the head; dev's ledge
 **Still open, and not this session's to close alone:** the live read-backs of commitments 1069 to 1171 (the owner's signed-in
 browser, only on their ask; due 2026-10-19 and 20); a real phone (the owner has looked on a desktop); production (frozen
 `fc140024`; publishing is the owner's step in Netlify); `pr_merge #330`, owed by the next PR against dev.
+
+## 18:05-18:22Z (2026-10-13) · #330 after its independent review: dark's land in the Jacobian was the bench's offline land; the ratios over land above are withdrawn
+
+An independent review of #330's code (a fresh agent, read-only; asked six yes/no questions with evidence) reported back at
+18:18Z. **What it confirmed:** in `frontend/src` only comments differ from dev (the code tokens of `WindColorRamp.js` and
+`windLightPath.js` compared with a parser: 7,288 and 1,170, identical); the solver's new guard sits wholly inside
+`--dump-merged` and the other modes run; `winOf` gives the white the app lays (0.75 over land, 0.55 over the sea; 0.55 and
+1.00 over land under `--before-step` and `--before-depth`); dark's law in the tool is the engine's, to 0 over 0 to 75 kn; the
+load-time check fires when the law is wrong.
+
+**What it found, and what was done before the merge:**
+
+1. **Dark's map colours.** The tool laid dark over `mirror-model.mjs`'s land, `[18, 20, 26]`: the wind bench's OFFLINE land
+   (L\* 6), not the basemap's. Checked against the bench reads this session already held (`ground-run.js --strips 12` on a
+   speed ramp, zoom 6, the field alone): the model's dark land was 11.4 L\* too dark on average under the wind (worst 14.5,
+   3 to 29 kn) and its dark sea was right (mean -0.08, worst -0.86). A ground that dark overstates dark's step, so every
+   `/dark`, `w*` and `G*` over LAND was biased toward "light and beach fall short". **Fixed:** the tool lays dark over the real
+   land the bench read at zoom 6, `[58, 71, 79]` (L\* 29); the model's dark land is then within 1.07 L\* of the bench (mean
+   -0.19). **The ratios over land in item 2 of the section above are WITHDRAWN** (0.75 to 0.77 and 0.82 to 0.89 at 6 to 8 kn;
+   1.13 and 1.01 at 63 kn): with dark's real land, at the 0.75 the app lays, light's step is 0.89 to 0.95 of dark's from 6 to
+   10 kn and 1.01 to 1.31 from 13 kn up; beach's is 0.96 at 6 kn, 1.05 to 1.36 from 8 to 21 kn, 0.92 to 1.00 from 27 to 40 kn.
+   The sea's numbers stand (0.90 to 0.96 at 6 to 10 kn in light). This is LESSONS L-V60 again, rule 2 (read a model against
+   the GPU before a number is taken from it): the tool was first committed in this PR without that read. It now CARRIES
+   the read: its last table prints its own ground against the bench's, per theme and ground, from constants dated in the file.
+2. **Light's and beach's grounds, by the same read:** 1.3 (sea) and 2.8 (land) L\* too dark in the model for light, 2.3 and
+   4.1 for beach, from 10 to 22 kn (dev `f6310516`, the land step on). The model's light and beach map colours are the
+   checker's, not quite the real maps' (the bench's own land for light reads `[247, 249, 244]`, the model holds
+   `[236, 236, 232]`). NOT changed: those colours are what the colour-blind lines and their pins are solved on. Printed by the
+   tool and said in the README, so the tables are read with it in hand.
+3. **A 10% turn that was 5%:** under `--before-depth` the land's white is 1.00, the upper point of the central difference
+   clamped, and the white's column printed half its value (1.77 for 3.54 at 8 kn over light's land). Fixed: where the white
+   is full the turn is read from 0.90 up to it. The default and `--before-step` were never affected.
+4. **Comments and the header made true:** the map's column is one-sided and now a true 10% darker (4.19, was 4.16 by a 5%
+   step doubled); dark's own white is 0.505 at zooms 4 to 9 and 0.48 outside; `step` is `mirror-run.js`'s column; below
+   5.5 kn the app also dims the mark (D-030), so `w` at 3 kn is not all that is laid; the usage names the `--before` levers;
+   `--json` followed by another flag no longer writes a file named after the flag.
+
+**Left as found (minor, each its own change):** dark's law is written in the tool as well as in `windDarkRules.js` (L-V60
+rule 1 asks for one place; moving it moves the checker's dark lines and pins); `light-margin-solve.mjs --dump-merged` with
+its reference file deleted would write today's rows under a note that names #318 (reachable only by deleting a tracked
+file); `windDarkRules.js` holds a third pair of dark map colours (`[28, 37, 48]`, `[11, 29, 46]`), neither the bench's.
