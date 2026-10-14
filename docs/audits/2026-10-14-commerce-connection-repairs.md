@@ -1,6 +1,6 @@
 # Commerce connection repair checkpoint
 
-2026-10-14 22:51Z. Branch `codex/master-plan-commerce-repairs-2026-10-14`, isolated from dev `131d5d9e434124d9bf510edb9eed2e8238723313`. Draft publication pending. No gate is claimed closed.
+2026-10-14 22:51Z. Branch `codex/master-plan-commerce-repairs-2026-10-14`, isolated from dev `131d5d9e434124d9bf510edb9eed2e8238723313`. Source `0f650146908dafbe6013dc45dd6d5a7e0003d621` published as [draft PR331](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/331), targeting dev. DEV integration and rollout pending. No gate is claimed closed.
 
 ## Authorization, ownership and provenance
 

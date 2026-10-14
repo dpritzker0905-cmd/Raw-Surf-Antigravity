@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- Local isolated commerce lane: MAP-F04 checkout handoff and MAP-F05/06 gallery/locker connections repaired against dev131d5d9e;33focusedpasses, lint/build passed. Draft publication/hosted checks/DEV rollout pending; whole-app and provider acceptance open. Report: `docs/audits/2026-10-14-commerce-connection-repairs.md`. Existing weather/F2/F4 ownership and flags unchanged.
+- Local isolated commerce lane: MAP-F04 checkout handoff and MAP-F05/06 gallery/locker connections repaired against dev131d5d9e;33focusedpasses, lint/build passed. Source0f650146 published as draftPR331; hosted checks/DEV rollout pending; whole-app and provider acceptance open. Report: `docs/audits/2026-10-14-commerce-connection-repairs.md`. Existing weather/F2/F4 ownership and flags unchanged.
 
 - **2026-10-13 01:48Z: light's wind field holds its COLOUR-BLIND LINE AS THE GPU DRAWS IT (the margin), ON BY DEFAULT (client only;
   PR #327 against dev from `claude/wind-light-path-margin`, a draft until its independent review is in; the leading session merges it,
@@ -2308,7 +2308,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1177, sha256 a6f83419b92be8b9a5f94af00e1595d6b481fcbf631cca482cac404c5552764d**
+  **Ledger head: seq 1179, sha256 77e1d16b083f27e430999c4514d12a297bc33d5d41279c88d34bc6f3faab0f47**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
