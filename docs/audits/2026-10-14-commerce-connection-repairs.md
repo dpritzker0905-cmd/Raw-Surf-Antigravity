@@ -49,3 +49,28 @@ No weather controls, drawer actions, forecast/rating/report values, auth policy,
 Draft PR must target dev. Recheck source/owner conflicts and hosted checks before readiness; coordinate the frontend dev rollout around active weather traces. Do not merge stale payment/weather work wholesale. This checkpoint repairs only frontend connections; it cannot certify paid fulfillment or whole-app launch. Revert the eventual isolated frontend repair commit to roll back these changes; no data/schema rollback is required.
 
 Final touched-source ESLint:0errors/4existing video/canvas-label warnings. Earlier wrong-root lint invocation excluded because its frontend globs did not apply. UTF8 anchor update corrected; canonical memory audit0FAIL/14existingWARN/24NOTE and1177entry actionchain verify.
+
+
+## Screenshot and rollout continuation — 2026-10-14T23:08:26.969918+00:00
+
+The earlier screenshot limitation is resolved in the local fixture, not hidden. Before: fake emptyMediaStream kept documentinteractive, zeroFontFaces/statusloaded but fonts.ready unresolved after3s. After: explicit offline camera-denied fixture allows documentcomplete and actual fonts.ready;18cases pass again with bounded3.5s font wait and5s screenshot capture, six images saved. No bypass of font checks and no actual product camera/served value change. Portable harness also normalizes configured Windows output path, which previously could return404 from its string-prefix guard. [Font/capture/source receipt](evidence/2026-10-14-commerce-connections/screenshot-results.json).
+
+| Mode | Hub pending view | Drawer pending view |
+|---|---|---|
+| Light | [Image](evidence/2026-10-14-commerce-connections/hub-light-pending.png) | [Image](evidence/2026-10-14-commerce-connections/drawer-light-pending.png) |
+| Dark | [Image](evidence/2026-10-14-commerce-connections/hub-dark-pending.png) | [Image](evidence/2026-10-14-commerce-connections/drawer-dark-pending.png) |
+| Beach | [Image](evidence/2026-10-14-commerce-connections/hub-beach-pending.png) | [Image](evidence/2026-10-14-commerce-connections/drawer-beach-pending.png) |
+
+Netlify API readback: deploy-preview331 isready at exactebb67faf; noDEV integration is inferred from a preview. Hosted source qualification still has2backendguards running at this observation. Weather owner safe-rollout reply remains absent; changing DEV frontend/serviceworker during source-matched full-map traces could invalidate artifact/cache identity. Do not infer consent or backend/scoring acceptance from the frontend repair.
+
+G09 new dated evidence: [Oct14 22:14UTC monitor job](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38646212317/job/116133585378), dev131d5d9e, completedfailure. Fresh21:55:57UTC calibration/182482archive rows were read, resolving only this run's earlier429 ambiguity. forecast_skill_ops missing; newest scored targetOct13 16:00UTC,30.2h old against16h bound. Residual10890monthrows/908trailing48h, endingOct14 02:00UTC. Log recommends pending-target spread first. Verified and relayed to existing weather owner; scoring recovery remainsopen, no competing repair or schema/flag action.
+
+
+## Actual publication hold — 2026-10-14T23:19:37.856883+00:00
+
+Publishedheadebb67faf completes18successful/1informationalneutral hostedchecks;425frontend suites/5530tests and readyexactpreview verified. The fixture/PNG/scoringaddendum remainslocal because automaticapprovalreview rejectedcommit+push twicebeforeexecution. Statedreason:initiallocal-onlyrestriction controls; later approval relayedbyagent is not directuserreapproval. Direct confirmationrequested in this task, no publicationworkaroundused. Weather owner safe-rolloutack alsoabsent. DEVstill131d5d9e, no merge/DEVrollout. This is an authorization/coordination hold, not unfinished-hosted-tests being presentedascompletion.
+
+
+## Direct authorization received - 2026-10-14T23:22:38.092322+00:00
+
+David directly replied in this task: "Authorize draft publication and qualified dev integration". This resolves the publication hold above; two review rejections remain recorded. Publish the synthetic fixture/screenshots, then qualify the exact final head. DEV integration remains conditional on hosted checks and explicit weather rollout timing acknowledgement. Read-only Render service metadata confirms dev autoDeploy=yes, commit trigger, ignored paths docs/**, audit/**, **/*.md; frontend integration can therefore trigger shared backend build/migrations/restart as well as Netlify frontend/serviceworker replacement. No deployment configuration changed; no shared-service tests or restart initiated.
