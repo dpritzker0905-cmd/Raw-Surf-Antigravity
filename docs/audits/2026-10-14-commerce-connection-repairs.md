@@ -74,3 +74,6 @@ Publishedheadebb67faf completes18successful/1informationalneutral hostedchecks;4
 ## Direct authorization received - 2026-10-14T23:22:38.092322+00:00
 
 David directly replied in this task: "Authorize draft publication and qualified dev integration". This resolves the publication hold above; two review rejections remain recorded. Publish the synthetic fixture/screenshots, then qualify the exact final head. DEV integration remains conditional on hosted checks and explicit weather rollout timing acknowledgement. Read-only Render service metadata confirms dev autoDeploy=yes, commit trigger, ignored paths docs/**, audit/**, **/*.md; frontend integration can therefore trigger shared backend build/migrations/restart as well as Netlify frontend/serviceworker replacement. No deployment configuration changed; no shared-service tests or restart initiated.
+
+
+Publication readback 2026-10-14T23:24:11.439772+00:00: fixture/evidence commit32046968ba1a07f0937e9955a355e3ae9d4d0559 matches remote branch and draftPR331. A records-only receipt follows; qualify that final head separately. Current weather records772c1a6f510fe61d235cf714443d3757b535054e describe tested runtime0ca5661b, while new F2 work is active. No safe rollout acknowledgement received yet. DEV131d5d9e unchanged; source-matched preview/checks and shared rollout coordination remain required.
