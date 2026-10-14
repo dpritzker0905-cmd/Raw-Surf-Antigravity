@@ -1,5 +1,6 @@
-﻿import { useCallback, useMemo } from 'react';
+﻿import { useCallback, useMemo, useRef } from 'react';
 import apiClient from '../lib/apiClient';
+
 import logger from '../utils/logger';
 import { toast } from 'sonner';
 import { isGrom } from '../constants/roles';
@@ -37,6 +38,7 @@ export default function usePublicGalleryActions({
   isAnimating,
   setIsAnimating,
 }) {
+  const purchaseInFlightRef = useRef(false);
   // Fetch photographer profile
   const fetchPhotographer = useCallback(async () => {
     if (!photographerId) return;
@@ -123,6 +125,7 @@ export default function usePublicGalleryActions({
 
   // Purchase item
   const handlePurchase = useCallback(async () => {
+    if (purchaseInFlightRef.current) return;
     if (!user?.id || !selectedItem) {
       toast.error('Please log in to purchase');
       return;
@@ -132,10 +135,11 @@ export default function usePublicGalleryActions({
       return;
     }
 
+    purchaseInFlightRef.current = true;
     setPurchaseLoading(true);
     try {
-      const _res = await apiClient.post(`/gallery/${selectedItem.id}/purchase`, {
-        buyer_id: user.id,
+      const _res = await apiClient.post(`/gallery/item/${encodeURIComponent(selectedItem.id)}/purchase?buyer_id=${encodeURIComponent(user.id)}`, {
+        payment_method: 'credits',
         quality_tier: selectedQuality
       });
 
@@ -150,6 +154,7 @@ export default function usePublicGalleryActions({
       logger.error('Purchase failed:', error);
       toast.error(error.response?.data?.detail || 'Purchase failed');
     } finally {
+      purchaseInFlightRef.current = false;
       setPurchaseLoading(false);
     }
   }, [user, selectedItem, selectedQuality, setPurchaseLoading, setPurchasedIds, setShowPurchaseModal, setSelectedItem, fetchItems]);
