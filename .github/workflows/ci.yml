@@ -129,7 +129,7 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 377, MIN_TESTS = 4177;
+            const MIN_SUITES = 380, MIN_TESTS = 4190;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1789,7 +1789,9 @@ jobs:
           # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
           # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
-          MIN_PASSED = 1543
+          # Payment candidate: +135 executed estate controls from1545 ->1680; margin2.
+          # New opt-in PostgreSQL cases do not inflate this default-lane projection.
+          MIN_PASSED = 1678
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -1,0 +1,255 @@
+"""Real PostgreSQL interleavings; opt-in isolated loopback DB, never SQLite evidence."""
+import asyncio
+import importlib
+import importlib.util
+import json
+import os
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+from sqlalchemy import select, text
+
+from models import Booking, CreditTransaction, LiveSessionParticipant, PaymentTransaction, Profile
+from test_booking_payment_integrity import (  # noqa: F401
+    SESSION, bearer, confirm, harness, live, live_completion, schema, snapshot, webhook,
+)
+
+
+pytestmark = pytest.mark.skipif(not os.environ.get('PAYMENT_TEST_DATABASE_URL'),
+                               reason='Dedicated PostgreSQL gate requires an isolated loopback database')
+
+
+async def observed_lock_wait(h, minimum=1):
+    deadline = asyncio.get_running_loop().time() + 10
+    async with h.engine.connect() as conn:
+        while asyncio.get_running_loop().time() < deadline:
+            # Fresh stats snapshot, actual server wait, not a guessed sleep.
+            await conn.execute(text('SELECT pg_stat_clear_snapshot()'))
+            count = await conn.scalar(text("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() "
+                                           "AND application_name='payment-gates' AND wait_event_type='Lock'"))
+            if count >= minimum:
+                return
+            await asyncio.sleep(.025)
+    raise AssertionError('The competing payment transaction never reached a PostgreSQL row-lock wait')
+
+
+async def test_competing_callback_entry_points_commit_one_entitlement(harness):
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(PaymentTransaction).where(PaymentTransaction.id == 'transaction').with_for_update())
+        tasks = [asyncio.create_task(action()) for action in (
+            lambda: confirm(harness), lambda: webhook(harness),
+            lambda: harness.client.get(f'/api/payments/checkout/status/{SESSION}', headers=bearer()))]
+        await observed_lock_wait(harness)
+        await blocker.commit()
+        responses = await asyncio.wait_for(asyncio.gather(*tasks), 15)
+    assert [r.status_code for r in responses] == [200, 200, 200]
+    assert await snapshot(harness) == ('Confirmed', 'Paid', 'paid', 80, 2, 2)
+
+
+@pytest.mark.parametrize('winner', ['payment', 'cancel', 'expiry'])
+async def test_payment_cancellation_expiry_have_serial_outcomes(harness, monkeypatch, winner):
+    cancel = importlib.import_module('repair_booking_routes.booking_cancellation')
+    harness.app.include_router(cancel.router, prefix='/api')
+    import database
+    monkeypatch.setattr(database, 'async_session_maker', harness.sessions)
+    spec = importlib.util.spec_from_file_location('payment_gate_scheduler', Path(__file__).parents[1] / 'scheduler/bookings.py')
+    scheduler = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(scheduler)
+    async with harness.sessions() as db:
+        (await db.get(Booking, 'booking')).pending_payment_expires_at = datetime.now(timezone.utc) - timedelta(minutes=5)
+        await db.commit()
+    locked, release = asyncio.Event(), asyncio.Event()
+    real_execute = harness.sessions.class_.execute
+    async def execute(self, statement, *args, **kwargs):
+        result = await real_execute(self, statement, *args, **kwargs)
+        if (asyncio.current_task().get_name() == 'winning-transition' and
+                getattr(statement, '_for_update_arg', None) is not None and 'FROM bookings' in str(statement)):
+            locked.set()
+            await asyncio.wait_for(release.wait(), 15)
+        return result
+    monkeypatch.setattr(harness.sessions.class_, 'execute', execute)
+    async def payment(): return await confirm(harness)
+    async def cancellation():
+        return await harness.client.post('/api/bookings/booking/cancel', headers=bearer('pro'), json={})
+    async def expiry(): return await scheduler.cleanup_expired_booking_payments_task()
+    first = asyncio.create_task({'payment': payment, 'cancel': cancellation, 'expiry': expiry}[winner](), name='winning-transition')
+    await asyncio.wait_for(locked.wait(), 15)
+    second = asyncio.create_task(cancellation() if winner == 'payment' else payment())
+    try:
+        await observed_lock_wait(harness)
+    finally:
+        release.set()
+    a, b = await asyncio.wait_for(asyncio.gather(first, second), 15)
+    async with harness.sessions() as db:
+        booking, owner = await db.get(Booking, 'booking'), await db.get(Profile, 'owner')
+        ledger = (await db.scalars(select(CreditTransaction))).all()
+        assert booking.status == 'Cancelled'
+        if winner == 'payment':
+            assert a.status_code == b.status_code == 200
+            assert owner.credit_balance == 180 and len(ledger) == 3
+        else:
+            assert b.status_code == 409, b.text
+            assert owner.credit_balance == 100 and len(ledger) == 1
+
+
+async def test_live_two_paid_checkouts_create_one_participant_and_one_case(harness, live_completion):
+    original = SimpleNamespace(**vars(harness.session))
+    duplicate = SimpleNamespace(**dict(vars(original), id='second-checkout'))
+    async with harness.sessions() as db:
+        db.add(PaymentTransaction(id='second-transaction', user_id='owner', session_id='second-checkout',
+            amount=25, currency='usd', status='Pending', payment_status='Pending',
+            transaction_metadata=json.dumps(harness.session.metadata)))
+        await db.commit()
+    harness.module.stripe.checkout.Session.retrieve = lambda identifier, **kw: original if identifier == SESSION else duplicate
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(Profile).where(Profile.id == 'pro').with_for_update())
+        tasks = [asyncio.create_task(harness.client.post('/api/sessions/complete-payment', headers=bearer(),
+            json={'checkout_session_id': identifier})) for identifier in (SESSION, 'second-checkout')]
+        await observed_lock_wait(harness)
+        await blocker.commit()
+        results = await asyncio.wait_for(asyncio.gather(*tasks), 15)
+    assert sorted(r.status_code for r in results) == [200, 409]
+    async with harness.sessions() as db:
+        assert len((await db.scalars(select(LiveSessionParticipant))).all()) == 1
+        assert await db.scalar(text('SELECT count(*) FROM payment_reconciliation_cases')) == 1
+
+
+async def test_concurrent_unfulfillable_webhooks_leave_one_case(harness):
+    async with harness.sessions() as db:
+        (await db.get(Booking, 'booking')).status = 'Cancelled'
+        await db.commit()
+    results = await asyncio.wait_for(asyncio.gather(*[webhook(harness) for _ in range(5)]), 15)
+    assert all(r.status_code == 200 for r in results), [r.text for r in results]
+    async with harness.sessions() as db:
+        assert await db.scalar(text('SELECT count(*) FROM payment_reconciliation_cases')) == 1
+        assert not (await db.scalars(select(CreditTransaction))).all()
+
+
+async def test_reconciliation_migration_matches_bootstrap_and_denies_public_roles(harness):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import inspect
+    from models import PaymentReconciliationCase
+    path = Path(__file__).parents[1] / 'alembic/versions/payment_reconciliation_001.py'
+    spec = importlib.util.spec_from_file_location('payment_case_migration', path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    def exercise(connection):
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.downgrade()
+            migration.upgrade()
+        columns = inspect(connection).get_columns('payment_reconciliation_cases')
+        assert {c['name']: c['nullable'] for c in columns} == {
+            c.name: c.nullable for c in PaymentReconciliationCase.__table__.columns}
+    async with harness.engine.begin() as conn:
+        await conn.run_sync(exercise)
+        assert await conn.scalar(text("SELECT relrowsecurity FROM pg_class WHERE oid='payment_reconciliation_cases'::regclass"))
+        for role in ('anon', 'authenticated'):
+            assert not await conn.scalar(text("SELECT has_table_privilege(:role, 'payment_reconciliation_cases', 'SELECT')"), {'role': role})
+        assert await conn.scalar(text("SELECT has_table_privilege('service_role', 'payment_reconciliation_cases', 'SELECT')"))
+
+
+@pytest.mark.parametrize('kind',['scheduled','live'])
+async def test_concurrent_preparations_commit_one_purchase(harness,live,monkeypatch,kind):
+    import uuid
+    from models import CheckoutIntent
+    from test_checkout_intent_integrity import purchase,receipt
+    replies={}
+    def create(**params):return replies.setdefault(params['idempotency_key'],receipt(params))
+    monkeypatch.setattr(harness.module.stripe.checkout.Session,'create',create)
+    monkeypatch.setattr(harness.module.stripe.checkout.Session,'retrieve',lambda *a,**kw:next(iter(replies.values())))
+    route,body=purchase(kind);headers=dict(bearer(),**{'Idempotency-Key':str(uuid.uuid4())})
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(Profile).where(Profile.id=='owner').with_for_update())
+        tasks=[asyncio.create_task(harness.client.post(route,json=body,headers=headers)) for _ in range(2)]
+        await observed_lock_wait(harness)
+        await blocker.commit()
+        results=await asyncio.wait_for(asyncio.gather(*tasks),20)
+    assert [r.status_code for r in results]==[200,200],[r.text for r in results]
+    assert len(replies)==1
+    async with harness.sessions() as db:
+        assert len((await db.scalars(select(CheckoutIntent))).all())==1
+        assert len((await db.scalars(select(PaymentTransaction))).all())==2
+        assert (await db.get(Profile,'owner')).credit_balance==(60 if kind=='scheduled' else 80)
+        assert len((await db.scalars(select(CreditTransaction))).all())==(1 if kind=='scheduled' else 0)
+
+
+async def test_intent_retry_and_paid_webhook_do_not_invert_buyer_locks(harness,monkeypatch):
+    import uuid
+    from test_checkout_intent_integrity import purchase,receipt
+    route,body=purchase('scheduled');headers=dict(bearer(),**{'Idempotency-Key':str(uuid.uuid4())})
+    def create(**params):
+        harness.session=receipt(params)
+        return harness.session
+    monkeypatch.setattr(harness.module.stripe.checkout.Session,'create',create)
+    r=await harness.client.post(route,json=body,headers=headers);assert r.status_code==200,r.text
+    harness.session.payment_status='paid';harness.session.status='complete'
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(Profile).where(Profile.id=='owner').with_for_update())
+        paid=asyncio.create_task(webhook(harness))
+        await observed_lock_wait(harness)
+        retry=asyncio.create_task(harness.client.post(route,json=body,headers=headers))
+        await blocker.commit()
+        a,b=await asyncio.wait_for(asyncio.gather(paid,retry),20)
+    assert a.status_code==200 and b.status_code==409,(a.text,b.text)
+    async with harness.sessions() as db:
+        assert (await db.get(Profile,'owner')).credit_balance==60
+        assert len((await db.scalars(select(CreditTransaction))).all())==3
+
+
+async def test_checkout_intent_migration_has_bootstrap_parity_and_private_access(harness):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import inspect
+    from models import CheckoutIntent
+    path=Path(__file__).parents[1]/'alembic/versions/checkout_intent_001.py'
+    spec=importlib.util.spec_from_file_location('orphan_intent_migration',path)
+    migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+    def exercise(connection):
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.downgrade();migration.upgrade()
+        assert {c['name']:c['nullable'] for c in inspect(connection).get_columns('checkout_intents')}=={
+            c.name:c.nullable for c in CheckoutIntent.__table__.columns}
+    async with harness.engine.begin() as conn:
+        await conn.run_sync(exercise)
+        assert await conn.scalar(text("SELECT relrowsecurity FROM pg_class WHERE oid='checkout_intents'::regclass"))
+        for role in ('anon','authenticated'):
+            assert not await conn.scalar(text("SELECT has_table_privilege(:role,'checkout_intents','SELECT')"),{'role':role})
+        assert await conn.scalar(text("SELECT has_table_privilege('service_role','checkout_intents','SELECT')"))
+
+
+async def test_competing_live_callback_status_and_return_grant_one_participation(harness, live_completion):
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(PaymentTransaction).where(PaymentTransaction.id == 'transaction').with_for_update())
+        jobs = [asyncio.create_task(action()) for action in (
+            lambda: webhook(harness),
+            lambda: harness.client.get(f'/api/payments/checkout/status/{SESSION}', headers=bearer()),
+            lambda: harness.client.post('/api/sessions/complete-payment', headers=bearer(), json={'checkout_session_id': SESSION}))]
+        await observed_lock_wait(harness)
+        await blocker.commit()
+        responses = await asyncio.wait_for(asyncio.gather(*jobs), 20)
+    assert [r.status_code for r in responses] == [200, 200, 200], [r.text for r in responses]
+    async with harness.sessions() as db:
+        assert len((await db.scalars(select(LiveSessionParticipant))).all()) == 1
+        assert (await db.get(PaymentTransaction, 'transaction')).payment_status == 'Completed'
+        assert (await db.get(Profile, 'owner')).credit_balance == 80
+
+
+async def test_card_receipt_and_credit_join_serialize_without_deadlock_or_double_charge(harness, live_completion):
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(Profile).where(Profile.id == 'pro').with_for_update())
+        paid = asyncio.create_task(harness.client.post('/api/sessions/complete-payment', headers=bearer(),
+                                                       json={'checkout_session_id': SESSION}))
+        await observed_lock_wait(harness)
+        credits = asyncio.create_task(harness.client.post('/api/sessions/join?surfer_id=owner', headers=bearer(),
+            json={'photographer_id': 'pro', 'payment_method': 'credits'}))
+        await observed_lock_wait(harness, minimum=2)
+        await blocker.commit()
+        paid_response, credit_response = await asyncio.wait_for(asyncio.gather(paid, credits), 20)
+    assert (paid_response.status_code, credit_response.status_code) == (200, 400), (paid_response.text, credit_response.text)
+    async with harness.sessions() as db:
+        assert len((await db.scalars(select(LiveSessionParticipant))).all()) == 1
+        assert (await db.get(Profile, 'owner')).credit_balance == 80
+        assert not (await db.scalars(select(CreditTransaction))).all()

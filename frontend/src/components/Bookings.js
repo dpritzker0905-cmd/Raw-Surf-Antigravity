@@ -10,6 +10,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { usePersona } from '../contexts/PersonaContext';
 
 import apiClient from '../lib/apiClient';
+import { forgetConfirmedCheckout, checkoutErrorMessage } from '../lib/checkoutPurchase';
 
 import { Users, Zap, Radio, History, CalendarClock, UserPlus, Mail, Target, Search, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 
@@ -236,6 +237,7 @@ export const Bookings = () => {
           
           
           if (response.data.success) {
+            forgetConfirmedCheckout(user.id, 'live', checkoutSessionId);
             toast.success(`You're in the session with ${response.data.photographer_name || 'the photographer'}!`, { duration: 5000 });
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
@@ -245,7 +247,8 @@ export const Bookings = () => {
           }
         } catch (error) {
           logger.error('Complete session payment error:', error);
-          toast.error(error.response?.data?.detail || 'Payment received - session will be activated shortly');
+          toast.error(checkoutErrorMessage(error, 'Payment could not be confirmed. Reload to retry this return link.'));
+          return; // Retain the receipt URL so a reload can safely retry after a transient failure.
         }
         
         // Clear the URL params

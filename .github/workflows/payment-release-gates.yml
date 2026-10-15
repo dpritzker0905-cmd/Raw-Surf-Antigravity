@@ -1,0 +1,132 @@
+name: Payment PostgreSQL gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'backend/models/payment*'
+      - 'backend/models/__init__.py'
+      - 'backend/alembic/versions/payment_reconciliation_001.py'
+      - 'backend/alembic/versions/checkout_intent_001.py'
+      - 'backend/models/checkout_intent.py'
+      - 'backend/utils/checkout_intents.py'
+      - 'backend/tests/test_checkout_intent_integrity.py'
+      - 'backend/routes/bookings/**'
+      - 'backend/routes/sessions/**'
+      - 'backend/routes/payment_recovery.py'
+      - 'backend/routes/subscriptions_billing/payments.py'
+      - 'backend/utils/*payment*'
+      - 'backend/utils/checkout_persistence.py'
+      - 'backend/tests/test_booking_payment_integrity.py'
+      - 'backend/tests/test_payment*'
+      - 'backend/tests/test_live_checkout_fulfillment.py'
+      - 'backend/tests/test_sessions_payments_rollback.py'
+      - 'backend/utils/live_session_payment.py'
+      - 'frontend/src/lib/checkoutPurchase*'
+      - 'frontend/src/components/BookingPaymentSuccess*'
+      - 'frontend/src/components/JumpInSessionModal*'
+      - 'frontend/src/components/ScheduledBookingDrawer.js'
+      - 'frontend/src/components/Bookings.js'
+      - 'frontend/scripts/payment-readiness-browser.cjs'
+      - '.github/workflows/payment-release-gates.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-payment-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_USER: payment_gate
+          POSTGRES_DB: rawsurf_payment_gate
+          # Disposable CI service, published only on runner loopback; no hosted credentials.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - '127.0.0.1:5432:5432'
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install declared dependencies in an isolated runtime
+        run: |
+          python -m venv .payment-venv
+          echo "$PWD/.payment-venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$PWD/.payment-venv" >> "$GITHUB_ENV"
+          .payment-venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+      - name: Verify declared runtime parity
+        run: python scripts/check_env_parity.py --strict
+      - name: Configure disposable fixtures without printing credentials
+        run: |
+          python - <<'PY'
+          import os, uuid
+          from sqlalchemy.engine import URL
+          values = {
+              'PAYMENT_TEST_DATABASE_URL': URL.create('postgresql+asyncpg', username='payment_gate',
+                  host='127.0.0.1', port=5432, database='rawsurf_payment_gate').render_as_string(),
+              'DATABASE_URL': URL.create('sqlite+aiosqlite', database=':memory:').render_as_string(),
+              'SECRET_KEY': uuid.uuid4().hex,
+              'TESTING': '1', 'PYTHON_DOTENV_DISABLED': '1',
+          }
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              for name, value in values.items():
+                  output.write(f'{name}={value}\n')
+          PY
+      - name: Exercise real row locks and durable payment recovery
+        run: >-
+          python -m pytest tests/test_payment_postgres_concurrency.py tests/test_payment_migration_readiness.py
+          tests/test_payment_reconciliation.py tests/test_checkout_intent_integrity.py
+          tests/test_sessions_payments_rollback.py tests/test_live_checkout_fulfillment.py -q --junitxml=payment-gates.xml
+      - name: Refuse missing or skipped qualification
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          suites = ET.parse('payment-gates.xml').getroot().iter('testsuite')
+          totals = {name: 0 for name in ('tests', 'failures', 'errors', 'skipped')}
+          for suite in suites:
+              for name in totals:
+                  totals[name] += int(suite.get(name, 0))
+          assert totals['tests'] >= 99 and not any(totals[k] for k in ('failures', 'errors', 'skipped')), totals
+          print('PostgreSQL payment gate:', totals['tests'], 'passed; no skipped qualification.')
+          PY
+
+  payment-browser-controls:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24.21.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Verify payment creation, retry and return components
+        env:
+          CI: 'true'
+        run: >-
+          node node_modules/@craco/craco/dist/bin/craco.js test --watchAll=false --runInBand
+          src/lib/checkoutPurchase.test.js src/components/BookingPaymentSuccess.test.js
+          src/components/JumpInSessionModal.payment.test.js
+      - run: npx playwright install --with-deps chromium
+      - name: Build local acceptance artifact
+        env:
+          CI: 'false'
+        run: npm run build
+      - name: Verify production bundle in three themes and two device sizes
+        run: node scripts/payment-readiness-browser.cjs
