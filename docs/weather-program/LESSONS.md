@@ -1323,3 +1323,6 @@ A stored estimate can be estimated again in a browser branch with different sour
 
 
 - **2026-10-15 documentation-only target advance:** A concurrent DEV receipt can conflict even after application CI passes. Inspect the actual delta:9405b91fc changed only shared memory/logs. Preserve its exact1,221-entry prefix and other writer log, reconstruct isolated records through the CLI, and prove frontend/backend/workflow byte equality to qualified8c before reusing runtime evidence. A separate session's deployment receipt is provenance, not this chat's deployment or permission to release the held payment candidate. Repeat source/memory checks; do not repeat real provider purchases for a documentation-only sync.
+
+
+- **2026-10-15 buyer refund receipt linking:** A paid Stripe Checkout remains paid after its PaymentIntent is refunded. Bind the receipt first, then honor durable pending/review/refunded local case state before any entitlement. A helper accepting a refunded object does not prove the live route returns it: reuse the exact owned refunded receipt through mounted React and inspect both visible text and database invariants. Distinguish pending from succeeded refund; keep a persistent receipt notice and original return URL. Local reconstructed fixtures and provider reads do not certify hosted deployment. Evidence: log/2026-10-15-payment-refund-receipt.md.

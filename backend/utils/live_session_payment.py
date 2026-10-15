@@ -35,6 +35,10 @@ async def fulfill_live_session_payment(db, transaction, receipt):
     transaction_id = tx.id  # Nested rollback can expire ORM attributes, including the PK.
     case = await db.scalar(select(PaymentReconciliationCase).where(
         PaymentReconciliationCase.transaction_id == tx.id).with_for_update())
+    if case and case.state in ('refund_pending', 'review_required', 'refunded'):
+        # A paid Checkout stays paid at Stripe after refunding. Local recovery
+        # state must reach every caller and must never grant fresh entitlement.
+        raise PaymentNeedsReconciliation(tx.id, 'local_payment_state', receipt)
     surfer_id, photographer_id = metadata['surfer_id'], metadata['photographer_id']
     if tx.payment_status == 'Completed':
         if case and case.state == 'open':

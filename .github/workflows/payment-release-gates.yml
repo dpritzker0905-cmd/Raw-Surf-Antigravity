@@ -102,7 +102,7 @@ jobs:
           for suite in suites:
               for name in totals:
                   totals[name] += int(suite.get(name, 0))
-          assert totals['tests'] >= 99 and not any(totals[k] for k in ('failures', 'errors', 'skipped')), totals
+          assert totals['tests'] >= 123 and not any(totals[k] for k in ('failures', 'errors', 'skipped')), totals
           print('PostgreSQL payment gate:', totals['tests'], 'passed; no skipped qualification.')
           PY
 

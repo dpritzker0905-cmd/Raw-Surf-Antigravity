@@ -64,7 +64,9 @@ const BookingPaymentSuccess = () => {
         if (cancelled) return;
         const code = error.response?.status;
         if (code === 409 && error.response?.data?.detail?.reconciliation_required) {
-          setStatus('review');
+          const state = error.response.data.detail.state;
+          if (state === 'refunded') forgetConfirmedCheckout(user.id, 'scheduled', sessionId);
+          setStatus(['refunded', 'refund_pending'].includes(state) ? state : 'review');
           return;
         }
         if (code >= 400 && code < 500) {
@@ -90,10 +92,16 @@ const BookingPaymentSuccess = () => {
           </div>
         );
       
+      case 'refunded':
+      case 'refund_pending':
       case 'review':
         return <div role="alert" className="text-center">
-          <h2 className={`text-2xl font-bold mb-2 ${primary}`}>Payment needs review</h2>
-          <p className={`mb-6 ${secondary}`}>We could not confirm this booking. Check your bookings or contact support before paying again.</p>
+          <h2 className={`text-2xl font-bold mb-2 ${primary}`}>{status === 'refunded' ? 'Payment refunded' : status === 'refund_pending' ? 'Refund pending' : 'Payment needs review'}</h2>
+          <p className={`mb-6 ${secondary}`}>{status === 'refunded'
+            ? 'Your payment was refunded. This booking was not confirmed.'
+            : status === 'refund_pending'
+              ? 'Your refund is pending. This booking was not confirmed. Do not pay again.'
+              : 'We could not confirm this booking. Check your bookings or contact support before paying again.'}</p>
           <Button onClick={() => navigate('/bookings?tab=scheduled')}>View Bookings</Button>
         </div>;
 

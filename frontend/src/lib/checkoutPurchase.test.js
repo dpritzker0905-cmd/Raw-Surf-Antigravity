@@ -88,6 +88,7 @@ test('card request covered by quota accepts the actual live join response withou
 test.each([
   ['open', 'This payment requires review before the session can be confirmed. Do not pay again; contact support.'],
   ['refunded', 'Your payment was refunded. This session was not confirmed.'],
+  ['refund_pending', 'Your refund is pending. This session was not confirmed. Do not pay again.'],
 ])('structured %s reconciliation gives the buyer an actionable receipt message', (state, expected) => {
   const error = { message: 'Request failed with status code 409', response: { status: 409, data: {
     detail: { reconciliation_required: true, case_id: 'case-1', state },

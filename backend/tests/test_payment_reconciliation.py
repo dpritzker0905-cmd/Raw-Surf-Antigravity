@@ -159,6 +159,34 @@ async def test_live_unavailable_receipt_is_durable_without_automatic_refund(harn
     assert records[0]['amount_cents'] == 2500 and live_completion == []
 
 
+@pytest.mark.parametrize('state', ['refund_pending', 'review_required', 'refunded'])
+@pytest.mark.parametrize('entry', ['webhook', 'redirect', 'status'])
+async def test_scheduled_refund_case_remains_authoritative_when_booking_reopens(harness, state, entry):
+    from models import PaymentReconciliationCase
+    await cancel_locally(harness)
+    await webhook(harness)
+    async with harness.sessions() as db:
+        case = (await db.scalars(select(PaymentReconciliationCase))).one()
+        case.state = state
+        if state == 'refunded':
+            case.refund_id = 'refund-fixture'
+            tx = await db.get(PaymentTransaction, 'transaction')
+            tx.payment_status = tx.status = 'Refunded'
+        (await db.get(Booking, 'booking')).status = 'Pending Payment'
+        await db.commit()
+    before = await snapshot(harness)
+    for _ in range(2):
+        response = (await webhook(harness) if entry == 'webhook' else await confirm(harness)
+                    if entry == 'redirect' else await harness.client.get(
+                        f'/api/payments/checkout/status/{SESSION}', headers=bearer()))
+        assert response.status_code == (200 if entry == 'webhook' else 409), response.text
+        body = response.json() if entry == 'webhook' else response.json()['detail']
+        assert body['reconciliation_required'] is True and body['state'] == state
+    assert await snapshot(harness) == before
+    records = await cases(harness)
+    assert len(records) == 1 and records[0]['state'] == state
+
+
 async def test_refund_unknown_outcome_after_key_retention_window_requires_review(harness, monkeypatch):
     from models import PaymentReconciliationCase
     await cancel_locally(harness)

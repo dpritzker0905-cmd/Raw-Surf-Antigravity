@@ -11,6 +11,9 @@ const comparable = body => {
 export const checkoutErrorMessage = (error, fallback = 'Checkout could not be confirmed. Retry this purchase.') => {
   const detail = error?.response?.data?.detail;
   if (detail?.reconciliation_required === true) {
+    if (detail.state === 'refund_pending') {
+      return 'Your refund is pending. This session was not confirmed. Do not pay again.';
+    }
     return detail.state === 'refunded'
       ? 'Your payment was refunded. This session was not confirmed.'
       : 'This payment requires review before the session can be confirmed. Do not pay again; contact support.';
@@ -63,7 +66,7 @@ export async function checkoutPurchase({ ownerId, kind, scope, route, body }) {
   }
 }
 
-// Clear only a receipt the authenticated return handler has actually confirmed.
+// Clear only a receipt the authenticated return handler confirmed as fulfilled or refunded.
 export function forgetConfirmedCheckout(ownerId, kind, sessionId) {
   const ownerPrefix = `${prefix(ownerId)}${kind}:`;
   let keys;

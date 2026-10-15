@@ -96,3 +96,75 @@ async def test_successful_live_recovery_closes_the_original_case(harness, live_c
         cases = (await db.scalars(select(PaymentReconciliationCase))).all()
         assert len(cases) == 1 and cases[0].state == 'fulfilled'
         assert len((await db.scalars(select(LiveSessionParticipant))).all()) == 1
+
+
+@pytest.mark.parametrize('state', ['refund_pending', 'review_required', 'refunded'])
+@pytest.mark.parametrize('entry', ['webhook', 'status', 'return'])
+async def test_refund_case_links_buyer_receipt_without_reactivating_live_session(harness, live_completion, state, entry):
+    from models import LiveSession, PaymentReconciliationCase
+    async with harness.sessions() as db:
+        (await db.get(LiveSession, 'live')).status = 'ended'
+        await db.commit()
+    await webhook(harness)
+    async with harness.sessions() as db:
+        case = (await db.scalars(select(PaymentReconciliationCase))).one()
+        case.state = state
+        if state == 'refunded':
+            case.refund_id = 'refund-fixture'
+            tx = await db.get(PaymentTransaction, 'transaction')
+            tx.payment_status = tx.status = 'Refunded'
+        case_id = case.id
+        # Even if availability returns, a refund already underway must block entitlement.
+        (await db.get(LiveSession, 'live')).status = 'active'
+        await db.commit()
+    for _ in range(2):
+        if entry == 'webhook':
+            response = await webhook(harness)
+        elif entry == 'status':
+            response = await harness.client.get(f'/api/payments/checkout/status/{SESSION}', headers=bearer())
+        else:
+            response = await harness.client.post('/api/sessions/complete-payment', headers=bearer(),
+                json={'checkout_session_id': SESSION})
+        assert response.status_code == (200 if entry == 'webhook' else 409), response.text
+        body = response.json() if entry == 'webhook' else response.json()['detail']
+        assert {key: body.get(key) for key in ('reconciliation_required', 'case_id', 'state')} == {
+            'reconciliation_required': True, 'case_id': case_id, 'state': state}
+    async with harness.sessions() as db:
+        assert not (await db.scalars(select(LiveSessionParticipant))).all()
+        cases = (await db.scalars(select(PaymentReconciliationCase))).all()
+        assert len(cases) == 1 and cases[0].state == state
+        tx = await db.get(PaymentTransaction, 'transaction')
+        assert tx.payment_status == ('Refunded' if state == 'refunded' else 'Pending')
+    assert live_completion == []
+
+
+@pytest.mark.parametrize('entry', ['status', 'return'])
+@pytest.mark.parametrize('actor', [None, 'other'])
+async def test_refund_receipt_still_requires_owner_before_provider(harness, live_completion, entry, actor):
+    if entry == 'status':
+        response = await harness.client.get(f'/api/payments/checkout/status/{SESSION}', headers=bearer(actor))
+    else:
+        response = await harness.client.post('/api/sessions/complete-payment', headers=bearer(actor),
+            json={'checkout_session_id': SESSION})
+    assert response.status_code == (401 if actor is None else (404 if entry == 'status' else 403))
+    assert harness.retrieved == []
+
+
+@pytest.mark.parametrize('entry', ['status', 'return'])
+async def test_refunded_case_does_not_bypass_provider_receipt_binding(harness, live_completion, entry):
+    from models import PaymentReconciliationCase
+    async with harness.sessions() as db:
+        db.add(PaymentReconciliationCase(transaction_id='transaction', session_id=SESSION,
+            payment_intent_id='intent-fixture', amount_cents=2500, currency='usd',
+            reason='live_session_unavailable', state='refunded', refund_id='refund-fixture'))
+        tx = await db.get(PaymentTransaction, 'transaction')
+        tx.payment_status = tx.status = 'Refunded'
+        await db.commit()
+    harness.session.amount_total = 1
+    if entry == 'status':
+        response = await harness.client.get(f'/api/payments/checkout/status/{SESSION}', headers=bearer())
+    else:
+        response = await harness.client.post('/api/sessions/complete-payment', headers=bearer(),
+            json={'checkout_session_id': SESSION})
+    assert response.status_code == 400, response.text
+    assert live_completion == []

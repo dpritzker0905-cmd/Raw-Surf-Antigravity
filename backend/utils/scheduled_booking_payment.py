@@ -11,7 +11,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from models import Booking, BookingParticipant, Notification, PaymentTransaction
+from models import Booking, BookingParticipant, Notification, PaymentReconciliationCase, PaymentTransaction
 from utils.credits import add_credits, deduct_credits
 from utils.payment_reconciliation import PaymentNeedsReconciliation
 
@@ -82,6 +82,10 @@ async def fulfill_scheduled_booking(db, transaction, session, booking_id=None):
     )
     if not valid:
         raise HTTPException(status_code=400, detail='Payment evidence does not match booking')
+    case = await db.scalar(select(PaymentReconciliationCase).where(
+        PaymentReconciliationCase.transaction_id == tx.id).with_for_update())
+    if case and case.state in ('refund_pending', 'review_required', 'refunded'):
+        raise PaymentNeedsReconciliation(tx.id, 'local_payment_state', session)
     if booking.status not in ('Pending Payment', 'Confirmed'):
         raise PaymentNeedsReconciliation(tx.id, 'booking_unavailable', session)
     paid = tx.payment_status.lower() == 'paid' and tx.status.lower() == 'completed'

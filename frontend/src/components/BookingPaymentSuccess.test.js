@@ -15,7 +15,7 @@ jest.mock('../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn
 jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
 const page = () => <BookingPaymentSuccess />;
 
-beforeEach(() => { jest.useFakeTimers(); mockUser = { id: 'buyer' }; apiClient.get.mockReset(); });
+beforeEach(() => { jest.useFakeTimers(); mockUser = { id: 'buyer' }; apiClient.get.mockReset(); sessionStorage.clear(); });
 afterEach(() => { jest.useRealTimers(); });
 const settle = async () => { await act(async () => { await Promise.resolve(); }); };
 
@@ -59,4 +59,23 @@ test('Check Again starts exactly one fresh bounded confirmation cycle', async ()
   fireEvent.click(screen.getByRole('button', { name: 'Check Again' }));
   await settle();
   expect(apiClient.get).toHaveBeenCalledTimes(7);
+});
+
+test.each([
+  ['refunded', 'Payment refunded'],
+  ['refund_pending', 'Refund pending'],
+])('links %s receipt state without claiming booking success or retrying', async (state, heading) => {
+  sessionStorage.setItem('raw-surf:checkout:buyer:scheduled:pro', JSON.stringify({ sessionId: 'receipt' }));
+  sessionStorage.setItem('raw-surf:checkout:other:scheduled:pro', JSON.stringify({ sessionId: 'receipt' }));
+  apiClient.get.mockRejectedValue({ response: { status: 409, data: {
+    detail: { reconciliation_required: true, state },
+  } } });
+  render(page()); await settle();
+  expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
+  expect(screen.getByRole('alert')).toHaveTextContent(/not confirmed/i);
+  expect(screen.queryByText('Session Booked!')).not.toBeInTheDocument();
+  await act(async () => { jest.advanceTimersByTime(12000); });
+  expect(apiClient.get).toHaveBeenCalledTimes(1);
+  expect(sessionStorage.getItem('raw-surf:checkout:buyer:scheduled:pro') === null).toBe(state === 'refunded');
+  expect(sessionStorage.getItem('raw-surf:checkout:other:scheduled:pro')).not.toBeNull();
 });

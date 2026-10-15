@@ -46,6 +46,7 @@ export const Bookings = () => {
   const tabFromUrl = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(tabFromUrl || 'lineup');  // Default to The Lineup tab, or use URL param
   const [loading, setLoading] = useState(true);
+  const [paymentNotice, setPaymentNotice] = useState(null);
 
   // Scroll <main> to top on mount so page always loads at the top
   useEffect(() => {
@@ -247,6 +248,12 @@ export const Bookings = () => {
           }
         } catch (error) {
           logger.error('Complete session payment error:', error);
+          if (error.response?.data?.detail?.reconciliation_required === true) {
+            if (error.response.data.detail.state === 'refunded') {
+              forgetConfirmedCheckout(user.id, 'live', checkoutSessionId);
+            }
+            setPaymentNotice(checkoutErrorMessage(error));
+          }
           toast.error(checkoutErrorMessage(error, 'Payment could not be confirmed. Reload to retry this return link.'));
           return; // Retain the receipt URL so a reload can safely retry after a transient failure.
         }
@@ -401,6 +408,12 @@ export const Bookings = () => {
         </div>
 
         {/* Pending Invites Banner */}
+        {paymentNotice && (
+          <div role="alert" className={`mb-4 rounded-xl border border-amber-500 p-4 ${textPrimaryClass}`}>
+            <p>{paymentNotice}</p>
+            <p className="mt-2 text-sm">Reload this receipt link to check for an update.</p>
+          </div>
+        )}
         {pendingInvites.length > 0 && (
           <Card className="mb-4 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border-yellow-500/30">
             <CardContent className="py-3 px-4">
