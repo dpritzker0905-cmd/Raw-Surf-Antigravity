@@ -1,5 +1,10 @@
 # OpenAI app testing budget
 
+**LIVE, verified 2026-10-15:** PR336 merged/deployed as `a7c038919`; shared backend healthy. Budget initialized
+once with $1.25 conservative prior allowance, then two paid smoke requests reserved $0.70. Fresh process readback:
+**$1.95 reserved / $8.05 available**, at most 23 further $0.35 attempts. These are conservative reservations,
+not actual charges. Production frontend remains locked at `fc140024`. [Receipt](../weather-program/log/2026-10-15-openai-testing-cap.md).
+
 The shared dev/production backend has one lifetime$10 reservation ceiling. It covers photo analysis, descriptive
 tag suggestions, board scanning and GPT-4o review moderation. The lineup classifier and Gemini matcher do not call
 OpenAI despite older comments. This is an app-side limit, not an OpenAI-account billing setting; other programs or
@@ -23,6 +28,9 @@ direct API calls using the key are outside it.
 
 ## Activation
 
+First activation is complete; **do not initialize the live ledger again**. The commands below document the
+one-time procedure for an untouched closed ledger. Use the first, read-only command to inspect the existing budget.
+
 Apply only the reviewed private-budget migration after inspecting the deployed Alembic history; do not blindly
 upgrade other heads or adopt held payment migrations. Revision `6b8bb9b66da7` extends `2fd2888a0987` and creates
 only the private schema/table. It starts CLOSED with$10 reserved and initialized:false. Missing migration also
@@ -43,6 +51,16 @@ attempts. If other earlier app use is discovered, use a higher verified upper bo
 do not reset an initialized counter. Actual earlier provider charges and service tiers were not read from billing;
 the earlier full-context bound assumes standard pricing. Verify that assumption or use a higher verified allowance
 before initialization; an uninitialized ledger keeps paid calls paused.
+
+For the actual rollout, OpenAI's all-project/all-key usage dashboard showed six requests, 3,855 tokens and $0.01
+before initialization. This supports the deliberately larger $1.25 allowance. No account billing limit, key or
+auto-recharge setting was changed. The build log unexpectedly used `alembic stamp heads`, marked the new revision
+without its DDL and removed two previously recorded heads. The runtime preflight refused to proceed on that
+state. The exact reviewed migration was then executed through Alembic Operations in one transaction, restoring
+the two verified head records without running their migrations. Final heads are `6b8bb9b66da7`, `a107b7db4f12`
+and `avatar_url_text_001`; private table/RLS/denied public-role privileges verified. Current Settings displayed
+`alembic upgrade heads`, unlike that build's logged command; this session did not change the build setting.
+Verify actual build logs and table state on later deployments; revision markers alone are not DDL proof.
 
 ## Remove the cap when ready
 

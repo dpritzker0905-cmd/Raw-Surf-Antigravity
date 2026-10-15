@@ -16,7 +16,8 @@ No secret values, bearer tokens, connection strings or raw customer media belong
   The owner chose OpenAI after comparing Gemini and reported funding $10 for testing. Do not replace keys or
   switch providers without a new instruction. No real app users yet, per the owner's budget clarification.
 - Keep production frontend publishing locked. Shared Render backend changes affect both dev and production.
-  Prior explicit deployment permission concerned PR334 and PR335; PR336 is not merged/deployed by this record.
+  The owner subsequently explicitly authorized PR336 dev merge after CI, shared backend deployment and cap smoke;
+  these completed below. This does not authorize a production frontend publish or removal of the guard.
 - Add a removable lifetime $10 app budget. Stated conservative implementation assumption: account for $1.25
   of earlier documented tests first, leaving $8.75. This is an allowance, not a measured billing invoice.
 
@@ -26,9 +27,9 @@ No secret values, bearer tokens, connection strings or raw customer media belong
 | --- | --- | --- |
 | Authentication/ownership | [PR334](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/334), squash `48877804c0747afa347858067b55f9f3c128cde0` | Shared backend deployed at byte-equivalent `363c6d738`; 46 public HTTP checks passed, fixtures removed and zero remaining verified |
 | Real OpenAI vision | [PR335](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/335), qualified `83ca36160b862e7b964e5201d1ecc584aa10c34d`, squash `f2d339e64a086537a010b158a33840babd85d5b0` | Shared backend and dev frontend deployed; production frontend remains locked at `fc140024` |
-| Lifetime app budget | [PR336](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/336), implementation `73422d4be` | Open, not merged, no live migration/initialization/environment/deployment performed. First hosted PostgreSQL safety job passed; broader qualification pending |
+| Lifetime app budget | [PR336](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/336), qualified `0a991137d`, squash `a7c038919d7aca8637ea1e5e8981bb2e2331830a` | All 19 hosted contexts accepted (18 success/one neutral); shared backend live, private migration/one-time initialization completed; closed and paid smoke passed. Fresh counter $1.95 reserved/$8.05 available |
 
-PR335 Render service `srv-d7fhiu7lk1mc73debje0`, deploy `dep-db8jlt6q1p3s738v7j0g`, live source `f2d339e64`.
+PR335 Render deploy `dep-db8jlt6q1p3s738v7j0g`, live source `f2d339e64` (private service locator omitted).
 Dev Netlify deploy `6ad13c86685b0990da0280a7` serves `f2d339e6`. Health read back healthy with matching version,
 database connected and scheduler running. These are historical observations, not a current live-state guarantee.
 
@@ -38,6 +39,12 @@ No persistent test fixtures or customer photos were sent. These used short-lived
 normal password logins were separately tested in PR334's smoke. Real stored-media/photos, visual accuracy and
 device workflows remain unverified. Conservative bound for the four calls was $1.236; two earlier probes returned
 1209 input/183 output tokens in total. Actual billing and account-wide spending/auto-recharge settings were not read.
+
+The later PR336 activation read the OpenAI usage UI across all projects/keys: six prior requests, 3,855 tokens and
+$0.01. It retained the larger $1.25 allowance. Shared Render deploy `dep-db8khls9v7es73ejmkrg` succeeded in 3m00s
+on `a7c038919`; production frontend still locked/`fc140024`, dev frontend remains `f2d339e6`. No frontend rollout
+was needed. Two new paid synthetic photo/board requests each committed $0.35: $1.25 -> $1.60 -> $1.95. This
+leaves $8.05 (23 attempts). New-process status and PostgreSQL readback agree; one ledger row/zero probe rows.
 
 ## Provider behavior and budget design
 
@@ -73,12 +80,21 @@ published source; it runs the real migration and tests ACL/RLS, final-reservatio
 The reset-counter mutant is detected (20 attempts instead of one). No paid calls were needed for these tests.
 Local Python lacks declared pygrib/uvloop; it is not runtime parity. Supabase advisors were unavailable, not passed.
 
-Before activation: qualify the final PR336 hosted head, inspect the real migration graph/role, apply only the
-reviewed budget migration, initialize once using the prior allowance, deploy the shared backend and verify live
-paid-call denial before declaring the cap active. Preserve production frontend lock. Do not call the guard live
-merely because unit tests or CI passed. Verify any new spending since this record before initialization. Earlier
-calls omitted service tier, so the $1.25 full-context opening allowance assumes standard pricing; verify actual
-prior tier/spend or use a higher verified allowance before initializing. The closed-start guard prevents guessing.
+Final [CI38809505167](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38809505167) passed on
+`0a991137d`: PostgreSQL33, estate1650 (projected reference confirmed, zero silent files), frontend430 suites/5558
+tests/build, chain2444, composition2658/67skip/zero failures or errors. Merge tree equality was checked before deploy.
+Live acceptance: three authenticated public vision routes returned budget503 while closed; three missing-auth
+requests returned401; deployed helper consumed the final reservation and denied another, and moderation skipped
+its paid call, within an outer transaction that rolled back. Two paid synthetic HTTPS vision calls then passed
+with the expected durable debits. Healthy matching version before/after. No persistent user/media fixtures.
+
+Deployment repair to remember: the build log ran `alembic stamp heads`, not its current Settings display of
+`alembic upgrade heads`. It changed three prior revision records into only6b8 without creating the private schema.
+Preflight stopped. The exact hash-matching migration was applied using Alembic Operations in one PostgreSQL
+transaction, restoring the two verified unrelated head records without executing unrelated migrations. Final
+three heads, RLS/no policies and denied anon/authenticated privileges were verified. Do not trust a stamp as proof
+that DDL ran. This session did not change Render build settings. Guard/counter stay enabled and persistent;
+do not reinitialize. Real stored-media/device acceptance remains open. See the session receipt before future changes.
 
 ## Sources to recall
 

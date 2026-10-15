@@ -54,3 +54,76 @@ and SDK regression assertions. Fresh integrated107 passed/1 PostgreSQL skip in13
 earlier bound assumption, not a live-provider measurement. Historical calls omitted tier: the1.25 opening allowance
 requires prior tier/spend verification or a higher verified allowance before initialization. Closed-start migration
 keeps paid use paused if not initialized. Ledger1241 records this correction. Full memory handoff/runbook updated.
+
+## Owner-authorized merge and shared deployment
+
+Owner: "Once CI passes, merge PR #336 into dev, deploy the $10 cap to the shared backend, and smoke-test it.
+Keep the production frontend locked." All final-head contexts on0a991137d72b813b65bd81719b276a2ef4325a19 were
+accepted:18success/one neutral informational, no pending/failing. CI38809505167 success; PostgreSQL33passed,
+estate1650passed/309selected/zero silent (matches projection), frontend430suites/5558tests/build, chain2444passed,
+composition2658passed/67skipped/zero failed or errors. PR336 squash merged2026-10-15T21:41:58Z as
+a7c038919d7aca8637ea1e5e8981bb2e2331830a. Exact merge tree equals qualified source (git diff exit0).
+
+Manual shared Render deploy dep-db8khls9v7es73ejmkrg started21:42:47Z, succeeded/live in3m00s on exacta7c038919.
+Shared Render service. No Netlify frontend deployment was requested/performed; Auto Publishing Locked
+and productionfc140024 read back before/after. Existing dev deployment remainsf2d339e6.
+
+Pre-deploy runtime DB query saw the exact three heads a107b7db4f12/2fd2888a0987/avatar_url_text_001, budget absent,
+backend rolepostgres with BYPASSRLS and guard mode defaulttrue. OpenAI usage UI, all projects/all keys, showed
+six prior requests/3855tokens/$0.01 before initialization, supporting the conservative1.25prior allowance.
+No key value copied and no billing limit, auto-recharge or credential change.
+
+### Build stamp mismatch and bounded migration repair
+
+New runtime health200/healthy/exacta7c matched, but preflight refused because Alembic reported only6b8bb9b66da7
+and the private schema/table was absent. No DDL ran from that refused attempt. Actual build log21:43:54Z says
+stamp_revision a107b7db4f12,2fd2888a0987,avatar_url_text_001 ->6b8bb9b66da7; build command was pip install plus
+alembic stamp heads. Current Settings displayed pip install plus alembic upgrade heads. This session did not
+change the build setting; the discrepancy's cause is unverified. Do not infer that stamp markers applied DDL.
+
+Deployed migration SHA256c796fdc946537f29ec522bbd2baf85ba4234499d3b2f4cc8436d99c1eea7aba7 equals local reviewed file.
+In one PostgreSQL transaction with bounded lock/statement timeouts: assert exact single stamped6b8 and absent
+schema; execute that migration's upgrade via Alembic Operations; restore the two verified prior head records;
+assert final heads6b8/a107/avatar. No unrelated migration ran. Verified RLS enabled, zero policies, no anon or
+authenticated schema/table privileges, closed10USD row/initializedfalse; only then commit. Backend role already
+privileged; no additional grant. Ledger1244 records the migration and metadata repair.
+
+### Closed and active cap acceptance
+
+Private smoke code was supplied to the running container, with temporary JWTs only in memory and synthetic
+512px board drawings. Initial harness used base64 for suggest-tags, whose contract requires URL; it stopped on
+validation, after analyze-photo had denied503. Corrected harness to the existing URL contract; no source change
+or paid request resulted from that correction. Corrected closed-phase results: all three authenticated public
+vision routes503 with budget-paused message; zero paid attempts and real closed counter unchanged.
+
+Exhaustion proof used the deployed helper/real PostgreSQL in a separate script process: random probe ledger ID
+inside one outer transaction, session commits through savepoints;9.65 ->10 on last allowed reserve; further paid
+reserve denied and review moderation returned its safe budget-unavailable fail-open result without a provider
+call. Finally roll back the outer transaction; probe count0 and actual ledger unchanged. This was isolated
+runtime helper acceptance, not a public HTTP request with an exhausted initialized real counter; CI separately
+proves20 concurrent final-reservation attempts allow exactlyone.
+
+One-time operator initializer then recorded prior1.25 and initializedtrue. Two bounded public HTTPS paid checks:
+photo analysis200/zero people and board scan200/savedfalse/no resource ID. Each independently verified its durable
+0.35 debit:1.25 ->1.60 ->1.95. Three unauthenticated route requests returned401. No automatic retries, persisted
+profiles/media/boards/tags, customer image or secret output. Fresh process status:initializedtrue/limit10/reserved1.95;
+fresh DB read:one ledger row/zero probe rows and exact expected three heads. Final public health200healthy on
+a7c038919; production service-workerfc140024 unchanged and Netlify publishing still locked. At most8.05USD/23
+further reservations remain. Reservations are conservative, not actual provider invoices. No further paid calls
+are required for this acceptance. Pricing expiry2026-11-15 UTC and operator opt-out false remain as implemented.
+
+Receipt branch codex/openai-cap-deploy-record is a documentation successor of mergeddeva7c038919; deployed
+source staysa7c038919. Ledger1242merge/1243deployment start/1244private migration/1245initialization/1246live
+acceptance/1247memory receipt. Canonical dev ledger prefix retained. No weather/payment runtime/flag or served
+weather number changed; real stored-media/device/identity accuracy and account-wide caps remain separate.
+
+Final Render last-hour ERROR text search returned only the informational L2 restore13411products/0errors line;
+no application ERROR entry appeared in that bounded UI query. Live health remained healthy after smoke. This is
+a bounded deployment-log check, not a claim of whole-app monitoring or real-media accuracy.
+
+Publication audit initially rejected a private service locator in the new unpublished receipt. Original draft
+evidence was retained privately outside the repository. The exact canonical dev ledger/log byte prefixes were
+asserted and retained; six own unpublished events were reconstructed with the official writer, original acted-at
+times and sanitized evidence, and the unpublished log suffix sanitized. No published line or live state changed.
+Ledger1248 records this publication correction; no audit guard was weakened. The shared handoff also omits that
+locator. The deployment ID and PR/source receipts remain sufficient to find the private dashboard.
