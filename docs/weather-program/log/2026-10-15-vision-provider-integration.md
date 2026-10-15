@@ -107,3 +107,48 @@ Superseded CI38799673246 and Lighthouse38799673072 on prior head1e723032a were c
 final head to free capacity; final-head checks were allowed to finish. The PR description now contains the actual
 hosted totals and run link. A local record-only successor preserves this receipt without changing the qualified
 public PR head or restarting its checks. No merge, dev push, Render deployment, credential or live flag change.
+
+## Authorized PR335 shared rollout and endpoint smoke
+
+Direct owner authorization: "Go ahead and merge PR #335 into dev, deploy it to the shared backend, and smoke-test
+the vision features. Keep the production frontend locked and stay within the $10 testing budget."
+
+Fresh PR335 readback remained CLEAN/MERGEABLE at checked83ca36160; all required hosted checks succeeded.
+Merged at2026-10-15T20:42:37Z asf2d339e64a086537a010b158a33840babd85d5b0 with deployment-skip markers for a
+controlled manual rollout. Full merge tree equals qualified83ca36160. Fresh remote DEV matched immediately before
+Render action. The specific-commit dialog warned it would disable Auto-Deploy; canceled it and used Deploy latest
+commit after confirming DEV, preserving service settings. Render succeeded/live on exactf2d339e64; public health
+matched before/after smoke. No key, billing, flags, production publish/unlock or main change.
+
+Four paid public HTTPS requests against deployed routes passed: analyze-photo on synthetic board graphic;
+suggest-tags on the public Raw Surf logo; scan-surfboard reads SURF/TEST, unknown brand/model null and saved:false;
+scan-surfboard on logo returns board_detected:false and saved:false. All output validated with deployed Pydantic
+schemas. Ten additional cases passed without provider calls: three routes each missing/invalid JWT401, nonexistent
+gallery/board404, invalid base64400 and private-image URL400. Total14 endpoint cases plus two matching health checks.
+Used ten-minute real-signed JWTs with random synthetic subjects, kept only in memory; no normal login claim, customer
+photo, persisted fixture/account/tag/board write or cleanup required. Existing cross-owner403 coverage remains hosted
+test evidence, not a new persisted-owner public smoke result. No additional model calls requested after these four.
+
+Model default GPT-5.4 mini confirmed from running environment without exposing key values. The app does not return
+provider usage, so actual tokens/charges unknown. Official model pricing checked today:$0.75/M input,$4.50/M output.
+A deliberately conservative400k-input+2000-output bound per request caps this run at$1.236, within$10; not an actual
+charge. Earlier two successful synthetic provider probes used1209 input/183 output tokens. No account/project HARD
+spending cap or auto-recharge restriction was verified/changed. Continuing shared DEV/production calls are paid and
+are not constrained by this manual four-call limit; app concurrency/timeouts/output limits are not monetary budgets.
+
+Public health20:50:34Z: matchingf2d339e64, healthy, database connected, scheduler running, L2 restore complete13466,
+no restore errors and zero5xx in observed request telemetry. A startup connection-limit warning was visible in Render;
+the subsequent database and readiness checks passed. This is recovery observation, not proof against future contention.
+Real stored relative media, real surf photos, device/browser/manual-assignment acceptance remain unverified.
+
+Record correction: merged STATE anchored at1224 while its valid ACTIONS prefix actually ended1229. Existing verify
+accepted that older valid anchor. This receipt preserves every canonical line and moves the local anchor to the actual
+new head. It does not claim the prior green ledger check proved anchor freshness. Master retains combined canonical
+record reconciliation; no wholesale import of the master's older unpublished PR331 ledger fork.
+
+Dev frontend retry succeeded with exactf2d339e64 after backend smoke. Public readback20:52:07Z-20:52:08Z:
+DEV service workerf2d339e6/200, productionfc140024/200, DEV map HTML200, shared backend healthyf2d339e64 with
+DB connected and L2 complete13466/no restore errors. Production publishing remained locked; no Publish/Unlock.
+Private deployment receipt contains service/deployment identifiers outside this public repo. Source smoke script
+contains only environment-variable names; no bearer/key value was copied. Local deployment-record branch carries
+these receipts without a records-only push triggering another shared restart. No served weather number changed.
