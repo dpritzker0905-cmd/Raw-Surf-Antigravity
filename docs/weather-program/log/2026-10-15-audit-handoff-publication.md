@@ -9,3 +9,5 @@ Only the handoff, its two audit reports, this publication log, and required ledg
 Validation: exact file allowlist against the base, unchanged audit-report blobs, relative report-link presence, ledger-chain verification and remote branch readback. Raw external evidence remains machine-local. This branch is published for retrieval; it is not merged into dev or main.
 
 Correction: the push was rejected by automatic approval review before execution. This branch is LOCAL ONLY. Explicit approval is required to publish the handoff, two forensic reports, publication log and ledger/state records to the public repository. No remote branch was created by this attempt.
+
+Publication completed: the owner explicitly approved all six files for the public GitHub repository. Push succeeded; git ls-remote independently returned 15b13bf3fda4c32ed6e44b43deb35f34c2bfc467 for refs/heads/codex/audit-handoff-docs-2026-10-15. The earlier approval block is resolved. This follow-up commit records that result and updates the handoff retrieval instructions. No other work or branch was published.
