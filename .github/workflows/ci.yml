@@ -1791,7 +1791,8 @@ jobs:
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
           # Reflection review fixes add34 offline AI ownership/availability cases to projected1545.
           # Selector-owned estate file; projected1579, preserving margin2. Hosted CI must confirm.
-          MIN_PASSED = 1577
+          # Vision provider contracts add39 estate cases: projected1618, margin2.
+          MIN_PASSED = 1616
 
           try:
               root = ET.parse('estate.xml').getroot()

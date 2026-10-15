@@ -1,13 +1,13 @@
 """
 Authenticated photo tagging and relationship-based photo lookup.
-Image-analysis routes report unavailable until a real provider is integrated.
+Image analysis uses OpenAI; people are tagged only through explicit user selection.
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone
 import json
@@ -18,18 +18,18 @@ from models import Profile, GalleryItem, Notification, RoleEnum
 from models import AnalyticsEvent, Booking, BookingParticipant, LiveSession, LiveSessionParticipant, PhotoTag
 
 # Vision helpers extracted to ai_vision.py (v94 audit)
-from .ai_vision import analyze_image_with_vision, compare_faces
+from .ai_vision import analyze_image_with_vision, analyze_surfboard_with_vision, MAX_ENCODED_LENGTH
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 class AnalyzePhotoRequest(BaseModel):
-    image_url: Optional[str] = None
-    image_base64: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=8192)
+    image_base64: Optional[str] = Field(default=None, max_length=MAX_ENCODED_LENGTH)
 
 
 class SuggestTagRequest(BaseModel):
-    image_url: str
+    image_url: str = Field(max_length=8192)
     gallery_item_id: Optional[str] = None
 
 
@@ -69,77 +69,28 @@ async def suggest_surfer_tags(
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Analyze a photo and suggest which registered surfers might be in it.
-    Uses AI vision to compare with profile photos.
-    """
-    # Analyze the main photo first
-    analysis = await analyze_image_with_vision(data.image_url, is_base64=False)
-    
-    if analysis.get("people_count", 0) == 0:
-        return {
-            "success": True,
-            "analysis": analysis,
-            "suggested_tags": [],
-            "message": "No people detected in the photo"
-        }
-    
-    # Get all surfers with profile photos
-    surfer_roles = [RoleEnum.GROM, RoleEnum.SURFER, RoleEnum.COMP_SURFER, RoleEnum.PRO]
-    result = await db.execute(
-        select(Profile)
-        .where(Profile.role.in_(surfer_roles))
-        .where(Profile.avatar_url.isnot(None))
-        .limit(50)  # Limit to prevent too many comparisons
-    )
-    surfers = result.scalars().all()
-    
-    profile_photos = [
-        {"id": s.id, "name": s.full_name, "avatar_url": s.avatar_url}
-        for s in surfers if s.avatar_url
-    ]
-    
-    # Fetch registered surfboard data for board-based identification
-    from models import Surfboard
-    surfer_ids = [p["id"] for p in profile_photos]
-    board_result = await db.execute(
-        select(Surfboard).where(Surfboard.user_id.in_(surfer_ids))
-    )
-    boards = board_result.scalars().all()
-    surfboard_data = [
-        {
-            "user_id": b.user_id,
-            "brand": b.brand,
-            "model": b.model,
-            "board_type": b.board_type,
-            "length_feet": b.length_feet,
-            "length_inches": b.length_inches,
-        }
-        for b in boards
-    ]
-    
-    # Compare faces + surfboard context
-    matches = await compare_faces(data.image_url, profile_photos, surfboard_data)
-    
-    # Enrich matches with profile data
-    suggested_tags = []
-    for match in matches:
-        profile = next((p for p in profile_photos if p["id"] == match.get("profile_id")), None)
-        if profile:
-            suggested_tags.append({
-                "profile_id": profile["id"],
-                "name": profile["name"],
-                "avatar_url": profile["avatar_url"],
-                "confidence": match.get("confidence", "low"),
-                "reasoning": match.get("reasoning", ""),
-                "board_match": match.get("board_match", False)
-            })
-    
+    """Describe an owned photo for manual tagging; never identify people from pixels."""
+    image_url = data.image_url
+    if data.gallery_item_id:
+        item_result = await db.execute(
+            select(GalleryItem).where(GalleryItem.id == data.gallery_item_id,
+                                      GalleryItem.photographer_id == current_user_id)
+        )
+        item = item_result.scalar_one_or_none()
+        if item is None:
+            raise HTTPException(404, "Gallery item not found or not owned by you")
+        if item.media_type == "video":
+            raise HTTPException(400, "Choose a photo for image analysis")
+        # The owned item's media is authoritative; never analyze a substituted request URL.
+        image_url = item.preview_url or item.original_url
+    analysis = await analyze_image_with_vision(image_url)
     return {
         "success": True,
         "analysis": analysis,
-        "suggested_tags": suggested_tags,
-        "people_detected": analysis.get("people_count", 0)
+        "visual_tags": analysis["visual_tags"],
+        "suggested_tags": [],  # Legacy person-match contract; no biometric identity inference.
+        "people_detected": analysis["people_count"],
+        "message": "Review the visual tags and select known session participants manually.",
     }
 
 
@@ -609,8 +560,8 @@ async def ai_face_match(
 # ===================== AI Surfboard Scanner =====================
 
 class ScanSurfboardRequest(BaseModel):
-    image_url: Optional[str] = None
-    image_base64: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=8192)
+    image_base64: Optional[str] = Field(default=None, max_length=MAX_ENCODED_LENGTH)
     surfboard_id: Optional[str] = None  # Link analysis to a specific board
 
 
@@ -620,7 +571,7 @@ async def scan_surfboard_image(
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Validate ownership but never save invented attributes as image analysis."""
+    """Return observed board attributes for review, after validating optional board ownership."""
     if not data.image_url and not data.image_base64:
         raise HTTPException(status_code=400, detail="Provide either image_url or image_base64")
 
@@ -633,4 +584,13 @@ async def scan_surfboard_image(
         if board.user_id != current_user_id:
             raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
 
-    raise HTTPException(status_code=503, detail="Surfboard image analysis is unavailable until an image-analysis provider is integrated.")
+    analysis = await analyze_surfboard_with_vision(
+        data.image_base64 or data.image_url, is_base64=bool(data.image_base64)
+    )
+    return {
+        "success": True,
+        "analysis": analysis,
+        "surfboard_id": data.surfboard_id,
+        "saved": False,
+        "message": "Review detected attributes before saving them to your surfboard.",
+    }

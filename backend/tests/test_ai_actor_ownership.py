@@ -37,7 +37,8 @@ def result(value=None):
 
 
 @pytest.fixture
-async def boundary():
+async def boundary(monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     db = MagicMock()
     db.execute = AsyncMock(return_value=result())
     db.commit = AsyncMock()
