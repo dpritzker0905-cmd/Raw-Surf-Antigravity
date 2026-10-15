@@ -1,19 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useTheme } from '../../contexts/ThemeContext';
 import apiClient from '../../lib/apiClient';
 import { Plus, X, Loader2, Waves } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { toast } from 'sonner';
 import { BOARD_TYPES, FIN_SETUPS, CONDITIONS } from './constants';
+import { ImageVisionPanel } from '../vision/ImageVisionPanel';
 
 export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
   const isEditing = !!board?.id;
   
   const [loading, setLoading] = useState(false);
@@ -103,6 +101,21 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
       photo_urls: prev.photo_urls.filter((_, i) => i !== index)
     }));
   };
+
+  const applyScanSuggestions = (analysis) => {
+    setFormData(previous => {
+      const suggested = {
+        brand: analysis.brand, model: analysis.model, description: analysis.description,
+        board_type: BOARD_TYPES.some(type => type.value === analysis.board_type) ? analysis.board_type : null,
+        fin_setup: FIN_SETUPS.some(setup => setup.value === analysis.fin_setup) ? analysis.fin_setup : null,
+      };
+      const next = { ...previous };
+      Object.entries(suggested).forEach(([field, value]) => {
+        if (!previous[field]?.trim() && typeof value === 'string' && value.trim()) next[field] = value;
+      });
+      return next;
+    });
+  };
   
   const handleSubmit = async () => {
     // Client-side validation: reject negative dimensions
@@ -151,18 +164,19 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
     }
   };
   
-  const textPrimary = isLight ? 'text-gray-900' : 'text-white';
-  const inputBg = isLight ? 'bg-white border-gray-300' : 'bg-zinc-800 border-zinc-700';
+  const textPrimary = 'text-foreground';
+  const inputBg = 'bg-background border-border text-foreground';
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className={`${isLight ? 'bg-white' : 'bg-zinc-900'} border-zinc-800 max-w-lg p-0 flex flex-col`}>
+      <DialogContent className="bg-background text-foreground border-border max-w-lg p-0 flex flex-col">
         {/* Fixed Header */}
-        <DialogHeader className="p-4 pb-2 border-b border-zinc-800 flex-shrink-0">
+        <DialogHeader className="p-4 pb-2 border-b border-border flex-shrink-0">
           <DialogTitle className={`text-xl font-bold ${textPrimary} flex items-center gap-2`}>
             <Waves className="w-5 h-5 text-cyan-400" />
             {isEditing ? 'Edit Surfboard' : 'Add to Quiver'}
           </DialogTitle>
+          <DialogDescription className="text-muted-foreground">Add photos and board details. Review any scan suggestions before saving.</DialogDescription>
         </DialogHeader>
         
         {/* Scrollable Content */}
@@ -175,26 +189,27 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <div key={idx} className="relative aspect-square rounded-lg overflow-hidden group">
                   <img loading="lazy" decoding="async" src={url} alt="" className="w-full h-full object-cover" />
                   <button
+                    type="button" aria-label={`Remove board photo ${idx + 1}`}
                     onClick={() => handleRemovePhoto(idx)}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                   >
                     <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
               {formData.photo_urls.length < 5 && (
-                <label className={`aspect-square rounded-lg border-2 border-dashed ${isLight ? 'border-gray-300 hover:border-cyan-400' : 'border-zinc-700 hover:border-cyan-500'} flex items-center justify-center cursor-pointer transition-colors`}>
+                <label className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary flex items-center justify-center cursor-pointer transition-colors focus-within:ring-2 focus-within:ring-ring">
                   {uploading ? (
                     <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
                   ) : (
-                    <Plus className={`w-6 h-6 ${isLight ? 'text-gray-400' : 'text-zinc-500'}`} />
+                    <Plus className="w-6 h-6 text-muted-foreground" />
                   )}
                   <input aria-label="Upload file"
                     type="file"
                     accept="image/*"
                     multiple
                     onChange={handlePhotoUpload}
-                    className="hidden"
+                    className="sr-only"
                     disabled={uploading}
                   />
                 </label>
@@ -203,10 +218,13 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
           </div>
           
           {/* Brand & Model */}
+          <ImageVisionPanel key={`${isOpen}-${board?.id || 'new'}`} kind="board" boardId={board?.id}
+            images={formData.photo_urls.map(url => ({ id: url, url }))} onApply={applyScanSuggestions} />
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className={textPrimary}>Brand / Shaper</Label>
               <Input
+                aria-label="Brand / Shaper"
                 value={formData.brand}
                 onChange={(e) => setFormData(p => ({ ...p, brand: e.target.value }))}
                 placeholder="e.g. Channel Islands"
@@ -216,6 +234,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
             <div>
               <Label className={textPrimary}>Model</Label>
               <Input
+                aria-label="Model"
                 value={formData.model}
                 onChange={(e) => setFormData(p => ({ ...p, model: e.target.value }))}
                 placeholder="e.g. Sampler"
@@ -237,7 +256,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   placeholder="5"
                   className={inputBg}
                 />
-                <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>ft</p>
+                <p className={`text-xs text-muted-foreground text-center mt-1`}>ft</p>
               </div>
               <div className="col-span-1">
                 <Input aria-label="10"
@@ -248,7 +267,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   placeholder="10"
                   className={inputBg}
                 />
-                <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>in</p>
+                <p className={`text-xs text-muted-foreground text-center mt-1`}>in</p>
               </div>
               <div className="col-span-1">
                 <Input aria-label="19.5"
@@ -260,7 +279,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   placeholder="19.5"
                   className={inputBg}
                 />
-                <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>width</p>
+                <p className={`text-xs text-muted-foreground text-center mt-1`}>width</p>
               </div>
               <div className="col-span-1">
                 <Input aria-label="2.5"
@@ -272,7 +291,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   placeholder="2.5"
                   className={inputBg}
                 />
-                <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>thick</p>
+                <p className={`text-xs text-muted-foreground text-center mt-1`}>thick</p>
               </div>
               <div className="col-span-1">
                 <Input aria-label="28.5"
@@ -284,7 +303,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                   placeholder="28.5"
                   className={inputBg}
                 />
-                <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'} text-center mt-1`}>liters</p>
+                <p className={`text-xs text-muted-foreground text-center mt-1`}>liters</p>
               </div>
             </div>
           </div>
@@ -297,7 +316,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <SelectTrigger className={inputBg}>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
-                <SelectContent className={isLight ? 'bg-white' : 'bg-zinc-900'}>
+                <SelectContent className="bg-popover text-popover-foreground">
                   {BOARD_TYPES.map(t => (
                     <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                   ))}
@@ -310,7 +329,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <SelectTrigger className={inputBg}>
                   <SelectValue placeholder="Select fins" />
                 </SelectTrigger>
-                <SelectContent className={isLight ? 'bg-white' : 'bg-zinc-900'}>
+                <SelectContent className="bg-popover text-popover-foreground">
                   {FIN_SETUPS.map(f => (
                     <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                   ))}
@@ -326,7 +345,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <SelectTrigger className={inputBg}>
                 <SelectValue placeholder="Select condition" />
               </SelectTrigger>
-              <SelectContent className={isLight ? 'bg-white' : 'bg-zinc-900'}>
+              <SelectContent className="bg-popover text-popover-foreground">
                 {CONDITIONS.map(c => (
                   <SelectItem key={c.value} value={c.value}>
                     <span className={c.color}>{c.label}</span>
@@ -364,11 +383,11 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
         </div>
         
         {/* Fixed Footer */}
-        <DialogFooter className="p-4 pt-2 border-t border-zinc-800 flex-shrink-0 gap-2">
+        <DialogFooter className="p-4 pt-2 border-t border-border flex-shrink-0 gap-2">
           <Button variant="outline" onClick={onClose} className="flex-1 sm:flex-none">Cancel</Button>
-          <Button aria-label="Loader2" 
+          <Button aria-label={isEditing ? 'Save Changes' : 'Add Board'}
             onClick={handleSubmit}
-            disabled={loading}
+            disabled={loading || uploading}
             className="flex-1 sm:flex-none bg-gradient-to-r from-cyan-500 to-blue-600"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : isEditing ? 'Save Changes' : 'Add Board'}
