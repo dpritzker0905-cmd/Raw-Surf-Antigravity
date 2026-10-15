@@ -189,6 +189,7 @@ async def test_reservation_is_committed_before_provider_attempt(ledger, monkeypa
         # Independent connection can see the debit while the network call is executing.
         assert await consumed(ledger[1]) == 350_000
         assert json.loads(request.content)["model"] == "gpt-5.4-mini-2026-03-17"
+        assert json.loads(request.content)["service_tier"] == "default"
         return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {"refusal": "offline"}}]})
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kwargs: original(transport=httpx.MockTransport(handler), **kwargs))
@@ -253,6 +254,7 @@ async def test_moderation_reserves_once_and_disables_sdk_retries(ledger, monkeyp
     assert options["max_retries"] == 0 and options["base_url"] == "https://api.openai.com/v1"
     assert create.await_count == 1 and await consumed(ledger[1]) == 350_000
     assert create.call_args.kwargs["model"] == "gpt-4o-2024-08-06"
+    assert create.call_args.kwargs["service_tier"] == "default"
     assert "private provider error" not in result["error"]
 
 

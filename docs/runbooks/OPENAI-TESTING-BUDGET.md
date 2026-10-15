@@ -10,7 +10,8 @@ direct API calls using the key are outside it.
 - Every paid request commits a$0.35 debit in PostgreSQL BEFORE one provider attempt. Concurrent workers/restarts
   share the same row. No midnight/month/key rotation or deployment reset. No SDK retries.
 - Full model context plus bounded output costs at most$0.309 for GPT-5.4 mini and$0.321 for GPT-4o at reviewed
-  prices. The guard pins the known snapshots. Unrecognized models, increased output limits or pricing review
+  standard prices. Both callers explicitly select `service_tier=default`; project-level priority defaults must
+  not increase the reservation's cost bound. The guard pins known snapshots. Unrecognized models, increased output limits or pricing review
   expiry (2026-11-15 UTC) fail closed. Unknown configuration values also fail closed.
 - No refunds: timeout, cancellation, refusal, invalid output or lost acknowledgement might still be billed.
   This deliberately stops testing early. Counter values are conservative reservations, not provider invoices.
@@ -39,7 +40,9 @@ earlier/outstanding app calls. For this testing rollout the owner clarified ther
 implementation assumption reserves$1.25 for the earlier documented six synthetic/public-image requests (the four-call
 worst-case bound$1.236 plus the prior two small probes is below$1.25). This leaves$8.75, at most25 further$0.35
 attempts. If other earlier app use is discovered, use a higher verified upper bound before first initialization;
-do not reset an initialized counter. Actual earlier provider charges were not read from billing.
+do not reset an initialized counter. Actual earlier provider charges and service tiers were not read from billing;
+the earlier full-context bound assumes standard pricing. Verify that assumption or use a higher verified allowance
+before initialization; an uninitialized ledger keeps paid calls paused.
 
 ## Remove the cap when ready
 

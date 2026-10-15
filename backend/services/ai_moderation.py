@@ -74,7 +74,8 @@ async def moderate_review_content(review_text: str) -> dict:
                 {"role": "user", "content": f"Review the following content and determine if it should be approved or flagged:\n\n\"{review_text}\""}
             ],
             temperature=0,
-            max_tokens=100
+            max_tokens=100,
+            service_tier="default",
         )
 
         response_text = response.choices[0].message.content.strip()

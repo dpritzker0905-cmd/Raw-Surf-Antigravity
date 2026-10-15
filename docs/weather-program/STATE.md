@@ -14,6 +14,8 @@ is a claim, not a measurement.
 
 ## Now
 
+- **OpenAI cap pricing correction (2026-10-15):** both paid call paths now explicitly use standard service tier; omitted tier can inherit higher project pricing. Latest offline107 pass/1 PostgreSQL-only skip after the fix; final hosted head qualification pending. The earlier $1.25 allowance assumes standard prior pricing; verify tier/spend or use a higher verified allowance before the one-time initialization. Cap remains NOT LIVE, and migration starts closed. Ledger1241 supersedes that assumption in1237; [complete AI memory](../runbooks/AI-SESSION-HANDOFF-2026-10-15.md).
+
 - **2026-10-15: OpenAI lifetime $10 app testing cap in PR336; NOT LIVE.** Shared PostgreSQL pre-debit covers vision and paid review moderation, fails closed, survives restarts and concurrency, and can be disabled with `OPENAI_TEST_BUDGET_ENABLED=false` while retaining its counter. Conservative prior allowance $1.25 leaves $8.75 (at most 25 further attempts). Local integrated107 pass/1 PostgreSQL skip; first hosted PostgreSQL migration/RLS/concurrency job passed on73422d4be, broader/final-head CI pending. No database, Render environment or billing change yet. Owner requested durable memory: [AI handoff and history](../runbooks/AI-SESSION-HANDOFF-2026-10-15.md), [activation/runbook](../runbooks/OPENAI-TESTING-BUDGET.md), [session](log/2026-10-15-openai-testing-cap.md).
 
 - **2026-10-15: qualified PR331 DEV frontend now deployed at `9405b91f`**, direct owner approval in the vision session. Netlify branch-deploy/dev successful; public DEV service worker9405b91f and map HTML200 read18:34Z. Production remainsfc140024; backend healthy363c6d738. OpenAI feature excluded; no production publish/unlock/settings/flags/Render action. Master owns canonical combined reconciliation; broader functional acceptance remains open. [Local receipt](log/2026-10-15-vision-provider-integration.md).
@@ -2319,7 +2321,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1240, sha256 6a5a2697eab6636502f5ed4a586a27f6abef786a701a18879d4349961e3d9304**
+  **Ledger head: seq 1241, sha256 b3af7d6a5c9bf12b090376bb23fdf463f6fcbc0692354f9c99df40c50fcc8005**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

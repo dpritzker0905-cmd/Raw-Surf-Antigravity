@@ -49,7 +49,8 @@ configuration is stale; the Cloudinary helper classifies filenames/descriptions 
 
 The new budget guards both paid call sites: `routes/ai/ai_vision.py` and `services/ai_moderation.py`. One atomic
 PostgreSQL UPDATE commits a $0.35 reservation before each provider attempt. Pinned snapshots and bounded output
-make this conservative at reviewed prices. No refunds, retries, automatic resets or public mutation endpoint.
+make this conservative at reviewed prices; both callers explicitly pin `service_tier=default` to prevent project
+priority defaults from raising the bound. No refunds, retries, automatic resets or public mutation endpoint.
 Missing/uninitialized ledger, DB errors, unknown settings/models and pricing expiry (2026-11-15 UTC) stop paid calls.
 Vision returns a safe 503; review moderation preserves its earlier fail-open review behavior without a paid call.
 
@@ -75,7 +76,9 @@ Local Python lacks declared pygrib/uvloop; it is not runtime parity. Supabase ad
 Before activation: qualify the final PR336 hosted head, inspect the real migration graph/role, apply only the
 reviewed budget migration, initialize once using the prior allowance, deploy the shared backend and verify live
 paid-call denial before declaring the cap active. Preserve production frontend lock. Do not call the guard live
-merely because unit tests or CI passed. Verify any new spending since this record before initialization.
+merely because unit tests or CI passed. Verify any new spending since this record before initialization. Earlier
+calls omitted service tier, so the $1.25 full-context opening allowance assumes standard pricing; verify actual
+prior tier/spend or use a higher verified allowance before initializing. The closed-start guard prevents guessing.
 
 ## Sources to recall
 

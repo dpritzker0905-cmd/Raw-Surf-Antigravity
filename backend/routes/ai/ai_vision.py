@@ -105,7 +105,7 @@ async def _infer(image_data: str, is_base64: bool, schema, prompt: str) -> dict:
                     ],
                     "response_format": {"type": "json_schema", "json_schema": {
                         "name": schema.__name__, "strict": True, "schema": schema.model_json_schema()}},
-                    "max_completion_tokens": 2000, "store": False,
+                    "max_completion_tokens": 2000, "store": False, "service_tier": "default",
                 },
             )
         if response.status_code in (401, 403, 429) or response.status_code >= 500:

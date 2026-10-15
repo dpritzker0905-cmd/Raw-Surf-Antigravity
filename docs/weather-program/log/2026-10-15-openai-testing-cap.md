@@ -47,3 +47,10 @@ source links, historical versus active state, conservative prior allowance, remo
 Tree Ring guidelines read; no existing CLI/project store available, so no install or Tree Ring capture claimed.
 The existing tracked project memory remains canonical. Ledger1238-1240 records push, PR and explicit memory request.
 Memory audit:0 FAIL,14 inherited WARN,24 NOTE; warnings concern existing weather commitments outside this AI task.
+
+Final pricing review found omitted service_tier inherits OpenAI project settings; potentially higher priority
+pricing invalidates a standard-price bound. Both paid paths now explicitly set service_tier=default, with transport
+and SDK regression assertions. Fresh integrated107 passed/1 PostgreSQL skip in13.69s. This is a correction to the
+earlier bound assumption, not a live-provider measurement. Historical calls omitted tier: the1.25 opening allowance
+requires prior tier/spend verification or a higher verified allowance before initialization. Closed-start migration
+keeps paid use paused if not initialized. Ledger1241 records this correction. Full memory handoff/runbook updated.
