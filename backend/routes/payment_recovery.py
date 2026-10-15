@@ -10,7 +10,7 @@ import stripe
 
 from database import get_db
 from deps.admin_auth import get_current_admin
-from models import Booking, LiveSession, LiveSessionParticipant, PaymentReconciliationCase, PaymentTransaction, Profile
+from models import CheckoutIntent, Booking, LiveSession, LiveSessionParticipant, PaymentReconciliationCase, PaymentTransaction, Profile
 from utils.payment_reconciliation import PaymentNeedsReconciliation, receipt_identity, record_case
 from utils.scheduled_booking_payment import field, fulfill_scheduled_booking, is_scheduled_booking, metadata_of
 
@@ -44,7 +44,8 @@ async def scan_pending(admin: Profile = Depends(get_current_admin), db: AsyncSes
     """Explicit bounded scan, never a background sweep against a shared live service."""
     require_provider()
     query = select(PaymentTransaction.id).where(
-        PaymentTransaction.payment_status == 'Pending', PaymentTransaction.status == 'Pending'
+        PaymentTransaction.payment_status == 'Pending', PaymentTransaction.status == 'Pending',
+        ~PaymentTransaction.session_id.startswith('pending:')
     )
     if after_id is not None:
         query = query.where(PaymentTransaction.id > after_id)
@@ -189,3 +190,70 @@ async def refund_case(case_id: str, admin: Profile = Depends(get_current_admin),
             case.state, case.last_error_type = 'review_required', 'RefundNotSucceeded'
     await db.commit()
     return representation(case)
+
+
+# Owner recovery is distinct from the admin-only reconciliation queue.
+from core.security import get_current_user_id
+from pydantic import BaseModel, Field
+from utils.checkout_intents import bind as bind_intent, resume as resume_intent
+checkout_router = APIRouter(prefix='/payments/checkout-intents')
+
+
+def intent_representation(intent):
+    return {key: getattr(intent,key) for key in (
+        'id','kind','state','transaction_id','booking_id','session_id','amount_cents',
+        'first_attempt_at','last_error_type','created_at','updated_at')}
+
+
+@checkout_router.get('')
+async def owner_intents(user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+                        limit: int = Query(25,ge=1,le=100), after_id: str | None = Query(None,max_length=36)):
+    query=select(CheckoutIntent).where(CheckoutIntent.user_id==user_id)
+    if after_id is not None:
+        query=query.where(CheckoutIntent.id>after_id)
+    rows=(await db.scalars(query.order_by(CheckoutIntent.id).limit(limit))).all()
+    return {'intents':[intent_representation(row) for row in rows],
+            'next_cursor':rows[-1].id if len(rows)==limit else None}
+
+
+@checkout_router.post('/{intent_id}/resume')
+async def owner_resume(intent_id: str, user_id: str = Depends(get_current_user_id),
+                        db: AsyncSession = Depends(get_db)):
+    intent=await db.get(CheckoutIntent,intent_id)
+    if intent is None:
+        raise HTTPException(status_code=404,detail='Checkout intent not found')
+    if intent.user_id!=user_id:
+        raise HTTPException(status_code=403,detail='Cannot resume another purchaser checkout')
+    await db.rollback()
+    return await resume_intent(db,intent_id,STRIPE_API_KEY)
+
+
+@router.get('/checkout-intents')
+async def admin_intents(admin: Profile = Depends(get_current_admin),db: AsyncSession = Depends(get_db),
+                        limit: int = Query(25,ge=1,le=100),after_id: str | None = Query(None,max_length=36)):
+    query=select(CheckoutIntent)
+    if after_id is not None:
+        query=query.where(CheckoutIntent.id>after_id)
+    rows=(await db.scalars(query.order_by(CheckoutIntent.id).limit(limit))).all()
+    return {'intents':[intent_representation(row) for row in rows],
+            'next_cursor':rows[-1].id if len(rows)==limit else None}
+
+
+class AttachCheckout(BaseModel):
+    session_id: str = Field(min_length=1,max_length=255)
+
+
+@router.post('/checkout-intents/{intent_id}/attach')
+async def admin_attach(intent_id: str,data: AttachCheckout,admin: Profile = Depends(get_current_admin),
+                       db: AsyncSession = Depends(get_db)):
+    require_provider()
+    if data.session_id.startswith('pending:'):
+        raise HTTPException(status_code=400,detail='A real provider session is required')
+    try:
+        session=await run_in_threadpool(stripe.checkout.Session.retrieve,data.session_id,api_key=STRIPE_API_KEY)
+    except stripe.error.StripeError as exc:
+        raise HTTPException(status_code=502,detail='Provider verification unavailable') from exc
+    if field(session,'id')!=data.session_id:
+        raise HTTPException(status_code=400,detail='Provider session identity mismatch')
+    intent,_=await bind_intent(db,intent_id,session)
+    return intent_representation(intent)

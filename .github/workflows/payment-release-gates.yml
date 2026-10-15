@@ -7,6 +7,10 @@ on:
       - 'backend/models/payment*'
       - 'backend/models/__init__.py'
       - 'backend/alembic/versions/payment_reconciliation_001.py'
+      - 'backend/alembic/versions/checkout_intent_001.py'
+      - 'backend/models/checkout_intent.py'
+      - 'backend/utils/checkout_intents.py'
+      - 'backend/tests/test_checkout_intent_integrity.py'
       - 'backend/routes/bookings/**'
       - 'backend/routes/sessions/**'
       - 'backend/routes/payment_recovery.py'
@@ -65,7 +69,7 @@ jobs:
                   output.write(f'{name}={value}\n')
           PY
       - name: Exercise real row locks and durable payment recovery
-        run: python -m pytest tests/test_payment_postgres_concurrency.py tests/test_payment_reconciliation.py -q --junitxml=payment-gates.xml
+        run: python -m pytest tests/test_payment_postgres_concurrency.py tests/test_payment_reconciliation.py tests/test_checkout_intent_integrity.py -q --junitxml=payment-gates.xml
       - name: Refuse missing or skipped qualification
         run: |
           python - <<'PY'
@@ -75,6 +79,6 @@ jobs:
           for suite in suites:
               for name in totals:
                   totals[name] += int(suite.get(name, 0))
-          assert totals['tests'] >= 31 and not any(totals[k] for k in ('failures', 'errors', 'skipped')), totals
+          assert totals['tests'] >= 74 and not any(totals[k] for k in ('failures', 'errors', 'skipped')), totals
           print('PostgreSQL payment gate:', totals['tests'], 'passed; no skipped qualification.')
           PY

@@ -105,3 +105,5 @@ from .admin_ops import (  # noqa: F401
     AutomatedReport, APIKey, ChangelogEntry, PlatformMetrics,
     PlatformSettings,
 )
+
+from .checkout_intent import CheckoutIntent

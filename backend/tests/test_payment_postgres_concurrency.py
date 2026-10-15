@@ -149,3 +149,72 @@ async def test_reconciliation_migration_matches_bootstrap_and_denies_public_role
         for role in ('anon', 'authenticated'):
             assert not await conn.scalar(text("SELECT has_table_privilege(:role, 'payment_reconciliation_cases', 'SELECT')"), {'role': role})
         assert await conn.scalar(text("SELECT has_table_privilege('service_role', 'payment_reconciliation_cases', 'SELECT')"))
+
+
+@pytest.mark.parametrize('kind',['scheduled','live'])
+async def test_concurrent_preparations_commit_one_purchase(harness,live,monkeypatch,kind):
+    import uuid
+    from models import CheckoutIntent
+    from test_checkout_intent_integrity import purchase,receipt
+    replies={}
+    def create(**params):return replies.setdefault(params['idempotency_key'],receipt(params))
+    monkeypatch.setattr(harness.module.stripe.checkout.Session,'create',create)
+    monkeypatch.setattr(harness.module.stripe.checkout.Session,'retrieve',lambda *a,**kw:next(iter(replies.values())))
+    route,body=purchase(kind);headers=dict(bearer(),**{'Idempotency-Key':str(uuid.uuid4())})
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(Profile).where(Profile.id=='owner').with_for_update())
+        tasks=[asyncio.create_task(harness.client.post(route,json=body,headers=headers)) for _ in range(2)]
+        await observed_lock_wait(harness)
+        await blocker.commit()
+        results=await asyncio.wait_for(asyncio.gather(*tasks),20)
+    assert [r.status_code for r in results]==[200,200],[r.text for r in results]
+    assert len(replies)==1
+    async with harness.sessions() as db:
+        assert len((await db.scalars(select(CheckoutIntent))).all())==1
+        assert len((await db.scalars(select(PaymentTransaction))).all())==2
+        assert (await db.get(Profile,'owner')).credit_balance==(60 if kind=='scheduled' else 80)
+        assert len((await db.scalars(select(CreditTransaction))).all())==(1 if kind=='scheduled' else 0)
+
+
+async def test_intent_retry_and_paid_webhook_do_not_invert_buyer_locks(harness,monkeypatch):
+    import uuid
+    from test_checkout_intent_integrity import purchase,receipt
+    route,body=purchase('scheduled');headers=dict(bearer(),**{'Idempotency-Key':str(uuid.uuid4())})
+    def create(**params):
+        harness.session=receipt(params)
+        return harness.session
+    monkeypatch.setattr(harness.module.stripe.checkout.Session,'create',create)
+    r=await harness.client.post(route,json=body,headers=headers);assert r.status_code==200,r.text
+    harness.session.payment_status='paid';harness.session.status='complete'
+    async with harness.sessions() as blocker:
+        await blocker.scalar(select(Profile).where(Profile.id=='owner').with_for_update())
+        paid=asyncio.create_task(webhook(harness))
+        await observed_lock_wait(harness)
+        retry=asyncio.create_task(harness.client.post(route,json=body,headers=headers))
+        await blocker.commit()
+        a,b=await asyncio.wait_for(asyncio.gather(paid,retry),20)
+    assert a.status_code==200 and b.status_code==409,(a.text,b.text)
+    async with harness.sessions() as db:
+        assert (await db.get(Profile,'owner')).credit_balance==60
+        assert len((await db.scalars(select(CreditTransaction))).all())==3
+
+
+async def test_checkout_intent_migration_has_bootstrap_parity_and_private_access(harness):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy import inspect
+    from models import CheckoutIntent
+    path=Path(__file__).parents[1]/'alembic/versions/checkout_intent_001.py'
+    spec=importlib.util.spec_from_file_location('orphan_intent_migration',path)
+    migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+    def exercise(connection):
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.downgrade();migration.upgrade()
+        assert {c['name']:c['nullable'] for c in inspect(connection).get_columns('checkout_intents')}=={
+            c.name:c.nullable for c in CheckoutIntent.__table__.columns}
+    async with harness.engine.begin() as conn:
+        await conn.run_sync(exercise)
+        assert await conn.scalar(text("SELECT relrowsecurity FROM pg_class WHERE oid='checkout_intents'::regclass"))
+        for role in ('anon','authenticated'):
+            assert not await conn.scalar(text("SELECT has_table_privilege(:role,'checkout_intents','SELECT')"),{'role':role})
+        assert await conn.scalar(text("SELECT has_table_privilege('service_role','checkout_intents','SELECT')"))

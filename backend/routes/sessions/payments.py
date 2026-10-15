@@ -64,6 +64,9 @@ async def complete_session_payment(
     if owner_tx.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot complete another user's payment")
 
+    if data.checkout_session_id.startswith('pending:'):
+        raise HTTPException(status_code=409, detail='Checkout creation pending; resume its intent')
+
     # Newly created checkouts always use the real provider, including test-mode
     # sessions. Keep legacy emulation confined to its existing local-only boundary.
     used_emulator = (data.checkout_session_id.startswith("cs_test_") and checkout_emulation_allowed()

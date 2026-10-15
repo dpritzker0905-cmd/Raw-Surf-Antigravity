@@ -79,7 +79,9 @@ async def harness(tmp_path, schema, monkeypatch):
         return session
     def create(**kwargs):
         created.append(kwargs)
-        return SimpleNamespace(id='new-checkout', url='https://checkout.example.invalid/session')
+        return SimpleNamespace(id='new-checkout', url='https://checkout.example.invalid/session',
+            status='open', payment_status='unpaid', currency='usd', metadata=dict(kwargs['metadata']),
+            amount_total=kwargs['line_items'][0]['price_data']['unit_amount'], expires_at=kwargs['expires_at'])
     monkeypatch.setattr(module.stripe.checkout.Session, 'retrieve', retrieve)
     monkeypatch.setattr(module.stripe.checkout.Session, 'create', create)
     monkeypatch.setattr(module, 'stripe_mcp_server', SimpleNamespace(DB_PATH='unused',
@@ -338,7 +340,7 @@ async def test_missing_provider_configuration_fails_before_creation(harness, mon
 
 
 @pytest.mark.parametrize('invalid', ['provider-failure', 'negative-credit', 'negative-duration'])
-async def test_failed_creation_leaves_no_reservation_or_debit(harness, monkeypatch, invalid):
+async def test_creation_failure_retains_only_durable_unknown_reservation(harness, monkeypatch, invalid):
     data = dict(photographer_id='pro', location='Fixture beach', duration=60, apply_credits=20,
                 session_date=(datetime.now(timezone.utc) + timedelta(days=11)).isoformat(),
                 origin_url='https://frontend.example.invalid')
@@ -353,9 +355,19 @@ async def test_failed_creation_leaves_no_reservation_or_debit(harness, monkeypat
     before = await snapshot(harness)
     response = await harness.client.post('/api/bookings/create-with-stripe', headers=bearer(), json=data)
     assert response.status_code == (502 if invalid == 'provider-failure' else 400), response.text
-    assert await snapshot(harness) == before
-    async with harness.sessions() as db:
-        assert (await db.scalars(select(Booking.id))).all() == ['booking']
+    if invalid == 'provider-failure':
+        after=await snapshot(harness)
+        assert after[:3]==before[:3] and after[3:]==(60,1,0)
+        async with harness.sessions() as db:
+            assert len((await db.scalars(select(Booking.id))).all())==2
+            from models import CheckoutIntent
+            intent=(await db.scalars(select(CheckoutIntent))).one()
+            tx=await db.get(PaymentTransaction,intent.transaction_id)
+            assert intent.state=='creating' and tx.session_id.startswith('pending:')
+    else:
+        assert await snapshot(harness) == before
+        async with harness.sessions() as db:
+            assert (await db.scalars(select(Booking.id))).all() == ['booking']
 
 
 @pytest_asyncio.fixture
@@ -418,7 +430,7 @@ async def test_legacy_deposit_metadata_still_routes_to_wallet(harness):
 
 
 @pytest.mark.parametrize('path', ['scheduled', 'live'])
-async def test_local_creation_commit_failure_expires_remote_session(harness, live, monkeypatch, path):
+async def test_preparation_commit_failure_never_calls_provider(harness, live, monkeypatch, path):
     expired = []
     monkeypatch.setattr(harness.module.stripe.checkout.Session, 'expire', lambda identifier, **kw: expired.append(identifier))
     async def fail(self):
@@ -435,7 +447,7 @@ async def test_local_creation_commit_failure_expires_remote_session(harness, liv
     before = await snapshot(harness)
     response = await harness.client.post(route, headers=bearer(), json=data)
     assert response.status_code == 500
-    assert expired == ['new-checkout']
+    assert expired == [] and harness.created == []
     assert await snapshot(harness) == before
 
 

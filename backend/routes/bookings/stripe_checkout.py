@@ -4,7 +4,7 @@ bookings/stripe_checkout.py — Stripe checkout session creation, payment succes
 
 Extracted from payments.py (v90) to comply with <800 LOC governance.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -24,7 +24,7 @@ from models import (
 )
 from utils.credits import deduct_credits
 from utils.scheduled_booking_payment import cents, fulfill_scheduled_booking
-from utils.checkout_persistence import commit_checkout
+from utils.checkout_intents import identity, existing as find_checkout, prepare, resume
 from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 from core.security import get_current_user_id
 
@@ -57,7 +57,8 @@ class UpdateSplitsRequest(BaseModel):
 async def create_booking_with_stripe(
     data: CreateBookingWithStripeRequest,
     user_id: str = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""
     if not STRIPE_API_KEY:
@@ -66,10 +67,20 @@ async def create_booking_with_stripe(
         raise HTTPException(status_code=400, detail='Invalid duration')
     cents(data.apply_credits or 0)
 
+    key, fingerprint = identity('scheduled', data, request_key)
+    intent_id = await find_checkout(db, user_id, 'scheduled', key, fingerprint)
+    if intent_id:
+        await db.rollback()
+        return await resume(db, intent_id, STRIPE_API_KEY)
+
     user_result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update())
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    intent_id = await find_checkout(db, user_id, 'scheduled', key, fingerprint)
+    if intent_id:
+        await db.rollback()
+        return await resume(db, intent_id, STRIPE_API_KEY)
     
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == data.photographer_id)
@@ -120,7 +131,7 @@ async def create_booking_with_stripe(
         max_participants=data.max_participants, total_price=total_price,
         price_per_person=total_price, allow_splitting=data.allow_splitting,
         description=data.description, status='Pending Payment',
-        pending_payment_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30)
+        pending_payment_expires_at=datetime.now(timezone.utc) + timedelta(minutes=31)
     )
     db.add(booking)
     await db.flush()
@@ -143,49 +154,19 @@ async def create_booking_with_stripe(
         'type': 'scheduled_booking', 'user_id': user_id, 'booking_id': str(booking.id),
         'photographer_id': data.photographer_id, 'credits_applied': str(credits_applied),
     }
-    try:
-        checkout_session = await run_in_threadpool(
-            stripe.checkout.Session.create,
-            api_key=STRIPE_API_KEY, payment_method_types=['card'], mode='payment',
-            customer_email=user.email, client_reference_id=str(booking.id),
-            line_items=[{'price_data': {'currency': 'usd', 'unit_amount': cents(amount_to_charge),
-                                      'product_data': {'name': 'Scheduled surf session'}}, 'quantity': 1}],
-            success_url=success_url, cancel_url=cancel_url, metadata=metadata,
-            idempotency_key=f'scheduled-booking:{booking.id}',
-            expires_at=int((datetime.now(timezone.utc) + timedelta(minutes=31)).timestamp()),
-        )
-        # Match the provider deadline (31 minutes gives its 30-minute minimum a
-        # transport margin) rather than cancelling a still-open checkout at 30m.
-        expiry = getattr(checkout_session, 'expires_at', None)
-        if expiry:
-            booking.pending_payment_expires_at = datetime.fromtimestamp(expiry, timezone.utc)
-    except stripe.error.StripeError as exc:
-        await db.rollback()
-        logger.warning('Scheduled checkout provider creation failed: %s', type(exc).__name__)
-        raise HTTPException(status_code=502, detail='Payment provider unavailable') from exc
+    params = dict(mode='payment', payment_method_types=['card'], customer_email=user.email, client_reference_id=str(booking.id),
+        line_items=[{'price_data': {'currency': 'usd', 'unit_amount': cents(amount_to_charge),
+                                  'product_data': {'name': 'Scheduled surf session'}}, 'quantity': 1}],
+        success_url=success_url, cancel_url=cancel_url, metadata=metadata,
+        expires_at=int(booking.pending_payment_expires_at.timestamp()))
+    db.add(BookingParticipant(booking_id=booking.id, participant_id=user_id, invite_type='direct',
+        paid_amount=credits_applied, payment_status='Pending', payment_method='stripe', status='pending'))
+    intent_id = await prepare(db, user_id=user_id, kind='scheduled', key=key, fingerprint=fingerprint,
+        params=params, metadata=metadata, amount_cents=cents(amount_to_charge), booking_id=booking.id,
+        response=dict(booking_id=booking.id, amount_to_charge=amount_to_charge,
+                      credits_applied=credits_applied, remaining_credits=remaining_credits))
+    return await resume(db, intent_id, STRIPE_API_KEY)
 
-    transaction = PaymentTransaction(
-        user_id=user_id, session_id=checkout_session.id,
-        amount=amount_to_charge, currency="usd",
-        payment_status="Pending", status="Pending",
-        transaction_metadata=json.dumps(metadata)
-    )
-    db.add(transaction)
-    
-    participant = BookingParticipant(
-        booking_id=booking.id, participant_id=user_id,
-        invite_type='direct', paid_amount=credits_applied,
-        payment_status='Pending', payment_method='stripe', status='pending'
-    )
-    db.add(participant)
-    
-    await commit_checkout(db, checkout_session, STRIPE_API_KEY)
-    
-    return {
-        "checkout_url": checkout_session.url, "session_id": checkout_session.id,
-        "booking_id": booking.id, "amount_to_charge": amount_to_charge,
-        "credits_applied": credits_applied, "remaining_credits": remaining_credits
-    }
 
 
 @router.get("/bookings/payment-success")
@@ -203,6 +184,8 @@ async def booking_payment_success(
         raise HTTPException(status_code=404, detail='Transaction not found')
     if transaction.user_id != user_id:
         raise HTTPException(status_code=403, detail="Cannot confirm another user's payment")
+    if session_id.startswith('pending:'):
+        raise HTTPException(status_code=409, detail='Checkout creation pending; resume its intent')
     try:
         session = await run_in_threadpool(stripe.checkout.Session.retrieve, session_id, api_key=STRIPE_API_KEY)
         booking, _ = await fulfill_scheduled_booking(db, transaction, session, booking_id)

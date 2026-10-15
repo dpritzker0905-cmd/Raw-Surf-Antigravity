@@ -19,8 +19,9 @@ from utils.scheduled_booking_payment import fulfill_scheduled_booking, is_schedu
 from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 
 router = APIRouter()
-from routes.payment_recovery import router as recovery_router
+from routes.payment_recovery import router as recovery_router, checkout_router
 router.include_router(recovery_router)
+router.include_router(checkout_router)
 logger = logging.getLogger(__name__)
 
 import stripe
@@ -283,6 +284,8 @@ async def get_checkout_status(
     transaction = result.scalar_one_or_none()
     if not transaction or transaction.user_id != user_id:
         raise HTTPException(status_code=404, detail="Checkout session not found")
+    if session_id.startswith('pending:'):
+        raise HTTPException(status_code=409, detail='Checkout creation pending; resume its intent')
     host_url = str(request.base_url).rstrip('/')
     webhook_url = f"{host_url}/api/webhook/stripe"
     
@@ -422,6 +425,15 @@ async def stripe_webhook(
             )
             transaction = result.scalar_one_or_none()
             
+            if transaction is None and webhook_response.event_type in (
+                'checkout.session.completed','checkout.session.async_payment_succeeded'
+            ):
+                session=webhook_response.raw_event.get('data',{}).get('object',{})
+                intent_id=session.get('metadata',{}).get('checkout_intent_id')
+                if intent_id:
+                    from utils.checkout_intents import bind
+                    _,transaction=await bind(db,intent_id,session)
+
             if transaction:
                 if webhook_response.payment_status == "paid":
                     if is_scheduled_booking(transaction):

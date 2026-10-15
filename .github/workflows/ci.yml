@@ -1795,7 +1795,8 @@ jobs:
           # PostgreSQL/provider/hosted release qualification remains outstanding.
           # Payment reconciliation: +24 executed estate controls -> projected1648, margin2.
           # PostgreSQL concurrency is separately required by payment-release-gates.yml.
-          MIN_PASSED = 1646
+          # Orphan checkout: +39 executed estate controls -> projected1687, margin2.
+          MIN_PASSED = 1685
 
           try:
               root = ET.parse('estate.xml').getroot()
