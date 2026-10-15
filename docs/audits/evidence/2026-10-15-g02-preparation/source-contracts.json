@@ -1,0 +1,272 @@
+{
+  "at": "2026-10-15T01:12:30Z",
+  "scope": "Read-only immutable-source ordering and contract preparation; no runtime test, provider call, migration or gate acceptance",
+  "candidate": "7d0538c9d403b511103367532d77cf2f00860740",
+  "verifiedRemoteDev": "131d5d9e434124d9bf510edb9eed2e8238723313",
+  "candidateAncestorOfDev": false,
+  "paymentOwnerStatus": "Unconfirmed; no matching payment task identified in current 50-task listing. Existing candidate and mutable checkout must not be changed.",
+  "files": [
+    {
+      "path": "backend/routes/bookings/stripe_checkout.py",
+      "sha256GitBlob": "68613d87d71d730ed15e4746048f2e6a6ba237102501c6a96030fbd7eca40e7c",
+      "functions": [
+        {
+          "name": "create_booking_with_stripe",
+          "line": 57,
+          "relevantCalls": [
+            {
+              "line": 126,
+              "call": "db.flush"
+            },
+            {
+              "line": 147,
+              "call": "run_in_threadpool(stripe.checkout.Session.create)"
+            },
+            {
+              "line": 182,
+              "call": "commit_checkout"
+            }
+          ]
+        },
+        {
+          "name": "booking_payment_success",
+          "line": 192,
+          "relevantCalls": [
+            {
+              "line": 208,
+              "call": "fulfill_scheduled_booking"
+            },
+            {
+              "line": 209,
+              "call": "db.commit"
+            },
+            {
+              "line": 212,
+              "call": "record_case"
+            }
+          ]
+        },
+        {
+          "name": "nudge_crew_member",
+          "line": 263,
+          "relevantCalls": [
+            {
+              "line": 281,
+              "call": "db.commit"
+            }
+          ]
+        },
+        {
+          "name": "nudge_all_pending",
+          "line": 286,
+          "relevantCalls": [
+            {
+              "line": 307,
+              "call": "db.commit"
+            }
+          ]
+        },
+        {
+          "name": "update_payment_splits",
+          "line": 312,
+          "relevantCalls": [
+            {
+              "line": 335,
+              "call": "db.commit"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "backend/routes/sessions/join.py",
+      "sha256GitBlob": "ab34e175e58b814f5b09094e7bf9e64789086cb08d0a173e1587970764401c3f",
+      "functions": [
+        {
+          "name": "join_session",
+          "line": 26,
+          "relevantCalls": [
+            {
+              "line": 160,
+              "call": "run_in_threadpool(stripe.checkout.Session.create)"
+            },
+            {
+              "line": 192,
+              "call": "commit_checkout"
+            },
+            {
+              "line": 397,
+              "call": "db.flush"
+            },
+            {
+              "line": 420,
+              "call": "db.commit"
+            },
+            {
+              "line": 495,
+              "call": "db.commit"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "backend/utils/checkout_persistence.py",
+      "sha256GitBlob": "347354351a7d74aab397f38ed2f3be7969813e2af1d3f7c45bdbe0c78343da22",
+      "functions": [
+        {
+          "name": "commit_checkout",
+          "line": 12,
+          "relevantCalls": [
+            {
+              "line": 14,
+              "call": "db.commit"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "backend/routes/payment_recovery.py",
+      "sha256GitBlob": "6a02d152d3be75197bcc3ffa94ceb80b84c8023baac93baa6018735ab260265e",
+      "functions": [
+        {
+          "name": "scan_pending",
+          "line": 42,
+          "relevantCalls": [
+            {
+              "line": 69,
+              "call": "fulfill_scheduled_booking"
+            },
+            {
+              "line": 70,
+              "call": "db.commit"
+            },
+            {
+              "line": 74,
+              "call": "record_case"
+            },
+            {
+              "line": 77,
+              "call": "record_case"
+            }
+          ]
+        },
+        {
+          "name": "refund_case",
+          "line": 110,
+          "relevantCalls": [
+            {
+              "line": 146,
+              "call": "db.commit"
+            },
+            {
+              "line": 151,
+              "call": "db.commit"
+            },
+            {
+              "line": 167,
+              "call": "db.commit"
+            },
+            {
+              "line": 190,
+              "call": "db.commit"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "path": "backend/routes/subscriptions_billing/payments.py",
+      "sha256GitBlob": "ed96b96ab0f02c810af534e2ce49b0dab7e79dafa5e035387f8cee778b70f311",
+      "functions": [
+        {
+          "name": "create_checkout_session",
+          "line": 144,
+          "relevantCalls": [
+            {
+              "line": 235,
+              "call": "stripe_checkout.create_checkout_session"
+            },
+            {
+              "line": 248,
+              "call": "db.commit"
+            }
+          ]
+        },
+        {
+          "name": "get_checkout_status",
+          "line": 269,
+          "relevantCalls": [
+            {
+              "line": 305,
+              "call": "fulfill_scheduled_booking"
+            },
+            {
+              "line": 308,
+              "call": "db.commit"
+            },
+            {
+              "line": 315,
+              "call": "db.commit"
+            },
+            {
+              "line": 326,
+              "call": "record_case"
+            }
+          ]
+        },
+        {
+          "name": "stripe_webhook",
+          "line": 337,
+          "relevantCalls": [
+            {
+              "line": 373,
+              "call": "db.commit"
+            },
+            {
+              "line": 393,
+              "call": "db.commit"
+            },
+            {
+              "line": 411,
+              "call": "db.commit"
+            },
+            {
+              "line": 433,
+              "call": "fulfill_scheduled_booking"
+            },
+            {
+              "line": 436,
+              "call": "db.commit"
+            },
+            {
+              "line": 442,
+              "call": "record_case"
+            }
+          ]
+        },
+        {
+          "name": "update_photographer_pricing",
+          "line": 536,
+          "relevantCalls": [
+            {
+              "line": 562,
+              "call": "db.commit"
+            }
+          ]
+        },
+        {
+          "name": "create_identity_verification_session",
+          "line": 599,
+          "relevantCalls": [
+            {
+              "line": 643,
+              "call": "db.commit"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

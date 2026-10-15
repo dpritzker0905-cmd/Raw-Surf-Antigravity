@@ -186,7 +186,7 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
     <div className={`border rounded-2xl p-6 space-y-6 ${cardBgClass}`}>
       
       {/* Header Tab Toggles */}
-      <div className={`flex gap-2 border-b pb-4 ${tabBorderClass}`}>
+      <div className={`flex flex-wrap gap-2 border-b pb-4 ${tabBorderClass}`}>
         <Button 
           variant={activePane === 'watermark' ? 'default' : 'ghost'}
           onClick={() => setActivePane('watermark')}
@@ -340,7 +340,7 @@ export const ProStudioManager = ({ gallery, galleryId, sessionParticipants, them
                 />
               </div>
 
-              <Button onClick={handleUpdateWatermarkSettings} className={buttonHighlightClass}>
+              <Button onClick={handleUpdateWatermarkSettings} className={`${buttonHighlightClass} max-w-full h-auto whitespace-normal text-left`}>
                 Apply Custom Watermark Settings
               </Button>
             </div>

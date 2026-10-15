@@ -15,6 +15,9 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePersona } from '../../contexts/PersonaContext';
+import { liveSessionJoinOutcome } from '../../utils/liveSessionJoin';
+import { navigateToLiveCheckout } from '../../utils/liveSessionCheckout';
+import LiveSessionCheckoutPending from '../booking/LiveSessionCheckoutPending';
 
 const CAMERA_AUTHORIZED_KEY = 'raw_surf_camera_authorized';
 
@@ -24,6 +27,9 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const joinInFlightRef = useRef(false);
+  const successTimerRef = useRef(null);
+  const mountedRef = useRef(true);
   
   // Check if camera was previously authorized
   const isCameraAuthorized = localStorage.getItem(CAMERA_AUTHORIZED_KEY) === 'true';
@@ -34,6 +40,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('credits');
   const [permissionDenied, setPermissionDenied] = useState(false);
+  const [checkout, setCheckout] = useState(null);
   
   // Calculate session pricing
   const sessionBuyinPrice = photographer?.session_price || photographer?.live_buyin_price || 25;
@@ -164,6 +171,8 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
   
   // Handle join session
   const handleJoinSession = async () => {
+    if (joinInFlightRef.current || checkout) return;
+    joinInFlightRef.current = true;
     setLoading(true);
     try {
       // Upload selfie to server first (if captured)
@@ -171,6 +180,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       if (selfieUrl) {
         uploadedSelfieUrl = await uploadSelfie(selfieUrl);
       }
+      if (!mountedRef.current) return;
       
       // Get effective role for God Mode support - pass user's actual role
       const effectiveRole = getEffectiveRole(user?.role);
@@ -182,7 +192,17 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
         // Pass effective role for God Mode persona validation
         effective_role: isGodMode && activePersona ? effectiveRole : null
       });
+
+      if (!mountedRef.current) return;
       
+      const outcome = liveSessionJoinOutcome(response.data);
+      if (outcome.type === 'checkout') {
+        setCheckout(outcome);
+        setStep('checkout');
+        navigateToLiveCheckout(outcome.url);
+        return;
+      }
+
       if (paymentMethod === 'credits') {
         updateUser({ credit_balance: response.data.remaining_credits });
       }
@@ -190,19 +210,26 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       setStep('success');
       toast.success('You\'re in the session!');
       
-      setTimeout(() => {
+      successTimerRef.current = setTimeout(() => {
         onSuccess?.(response.data);
       }, 2000);
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to join session');
+      if (!mountedRef.current) return;
+      toast.error(error.response?.data?.detail || error.message || 'Failed to join session');
     } finally {
-      setLoading(false);
+      joinInFlightRef.current = false;
+      if (mountedRef.current) setLoading(false);
     }
   };
   
   // Cleanup on unmount
   useEffect(() => {
-    return () => stopCamera();
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      stopCamera();
+      clearTimeout(successTimerRef.current);
+    };
   }, [stopCamera]);
   
   // Keyboard shortcut for closing map/drawer
@@ -326,6 +353,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       
       {/* Step Content */}
       <div className="p-4">
+        {step === 'checkout' && checkout && <LiveSessionCheckoutPending checkout={checkout} />}
         {/* Step 1: Selfie Capture */}
         {step === 'selfie' && (
           <div className="space-y-4">
@@ -443,6 +471,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               {/* Credits Option */}
               <button
                 onClick={() => setPaymentMethod('credits')}
+                aria-pressed={paymentMethod === 'credits'}
                 disabled={!hasEnoughCredits}
                 className={`w-full flex items-center gap-4 p-4 rounded-lg border transition-all ${
                   paymentMethod === 'credits'
@@ -470,6 +499,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
               {/* Card Option */}
               <button
                 onClick={() => setPaymentMethod('card')}
+                aria-pressed={paymentMethod === 'card'}
                 className={`w-full flex items-center gap-4 p-4 rounded-lg border transition-all ${
                   paymentMethod === 'card'
                     ? 'border-yellow-400 bg-yellow-400/10'
@@ -525,7 +555,7 @@ const JumpInFlow = ({ photographer, onBack, onSuccess }) => {
       {/* Fixed Bottom Button - Pay Now - Absolute positioned */}
       {step === 'payment' && (
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-zinc-800 bg-zinc-900" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
-          <Button aria-label="Loader2"
+          <Button aria-label="Pay now"
             onClick={handleJoinSession}
             disabled={loading || (paymentMethod === 'credits' && !hasEnoughCredits)}
             className="w-full h-12 bg-gradient-to-r from-yellow-400 to-orange-400 text-black font-bold text-lg"

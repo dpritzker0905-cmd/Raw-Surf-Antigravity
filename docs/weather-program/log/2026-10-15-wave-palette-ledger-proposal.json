@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-15T00:28:49.782Z",
+  "actor": "codex-wave-palette",
+  "status": "proposed-not-appended",
+  "reason": "Weather task owns the active shared ACTIONS/STATE chain; acknowledgment pending",
+  "authorization": "Implement locally and record source-linked tests/receipts. DARK MODE MUST NOT CHANGE.",
+  "action": "Local beach/light marine wave-height palette clarity repair on isolated branch; no served number or rollout change",
+  "branch": "codex/marine-wave-palette-clarity-2026-10-14",
+  "base": "131d5d9e434124d9bf510edb9eed2e8238723313",
+  "evidence": [
+    "docs/weather-program/wave-palette-clarity-2026-10-15.json",
+    "docs/weather-program/log/2026-10-15-wave-palette-clarity.md",
+    "local evidence/REVIEW.html"
+  ],
+  "verified": "Source hashes, dark GPU/legend parity, source-linked tests/build/lint/LOC, complete before/after app receipts",
+  "rollback": "Revert the isolated local repair before integration, or set __RAW_DISABLE_MARINE_WAVE_PALETTE__=true before page load and reload",
+  "integration": "After explicit rollout/ledger ownership coordination, append through backend/scripts/action_ledger.py against the current shared head; do not hand-edit or overwrite existing history"
+}
