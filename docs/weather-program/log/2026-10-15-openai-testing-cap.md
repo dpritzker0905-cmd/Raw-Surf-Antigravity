@@ -127,3 +127,8 @@ asserted and retained; six own unpublished events were reconstructed with the of
 times and sanitized evidence, and the unpublished log suffix sanitized. No published line or live state changed.
 Ledger1248 records this publication correction; no audit guard was weakened. The shared handoff also omits that
 locator. The deployment ID and PR/source receipts remain sufficient to find the private dashboard.
+
+Published documentation receiptd999ee819 on codex/openai-cap-deploy-record, exact remote SHA read back; PR336
+description now links the live receipt and all hosted counts. Ledger1249 records publication, with this anchor
+follow-up on the same receipt branch. No new dev commit, deployment, runtime setting or provider call from these
+documentation updates. Publication checks:ledger valid and memory audit0FAIL/14inheritedWARN/24NOTE.
