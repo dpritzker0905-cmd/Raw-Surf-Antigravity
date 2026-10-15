@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Vision UI candidate on codex/vision-ui-workflows:** board Scan and main Gallery Hub explicit description/visual-tag review implemented from dev a7c038919; no backend/config change. Focused20 passed, build/lint gate passed; full/hosted/dev acceptance pending. Live read-only cap3.70 reserved/6.30 remaining, enabled; production Auto Publishing Locked/fc140024. No served weather change. [Lane log](log/2026-10-15-vision-ui-workflows.md).
+- **Vision UI candidate on codex/vision-ui-workflows:** board Scan and main Gallery Hub explicit description/visual-tag review implemented from dev a7c038919; no backend/config change. Full434suites/5568tests passed, build/lint gate passed; PR337 hosted/dev acceptance pending, source bcebc1765. Live read-only cap3.70 reserved/6.30 remaining, enabled; production Auto Publishing Locked/fc140024. No served weather change. [Lane log](log/2026-10-15-vision-ui-workflows.md).
 
 - **OpenAI cap pricing correction (2026-10-15):** both paid call paths now explicitly use standard service tier; omitted tier can inherit higher project pricing. Latest offline107 pass/1 PostgreSQL-only skip after the fix; final hosted head qualification pending. The earlier $1.25 allowance assumes standard prior pricing; verify tier/spend or use a higher verified allowance before the one-time initialization. Cap remains NOT LIVE, and migration starts closed. Ledger1241 supersedes that assumption in1237; [complete AI memory](../runbooks/AI-SESSION-HANDOFF-2026-10-15.md).
 
@@ -2323,7 +2323,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1243, sha256 df3c80636e30eb7a80a45f4f2219ad7c4028acd4212b894d3622339716fe5b5c**
+  **Ledger head: seq 1245, sha256 99b164dc49f8139bb90342c05e79123a53f52a5a976ded3c9e4cf634f2edfd47**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

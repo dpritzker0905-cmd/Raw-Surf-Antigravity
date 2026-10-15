@@ -29,3 +29,10 @@ Fresh full suite and hosted/dev acceptance are pending at this candidate record.
 The prior real-upload session ended with enabled budget 3.70 reserved / 6.30 remaining. This is a conservative
 reservation bound, not provider charges. Read live again before any paid browser acceptance; never reset it.
 Production frozen frontend fc140024 must remain locked.
+
+## Local qualification and publication
+
+Final full frontend434 suites/5568 tests passed after accessible toolbar names were disambiguated.
+PR337 opened against dev from source bcebc1765535f5b81d00cd66255c798d533f9ec3; hosted checks and
+Netlify preview started. Live read-only process confirmed effective budget true, initialized true, limit10,
+reserved3.70. Netlify showed Auto Publishing Locked and frozen fc140024. No paid call or deployment in this step.
