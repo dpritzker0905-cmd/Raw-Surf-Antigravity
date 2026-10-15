@@ -66,3 +66,20 @@ No customer media or real credential appeared in code/output. The remaining acco
 This resolves the earlier quota blocker for the final model. The probe reproduced the local adapter's request
 settings and equivalent Pydantic schemas; it did not execute the local adapter inside Render or exercise the
 undeployed application routes. Real-photo quality, hosted CI and deployment acceptance remain pending.
+
+## Separate qualified DEV frontend deployment
+
+The master release task requested use of this session's working authenticated Netlify browser after its own
+frontend/config parity and current weather/payment testing-window checks. Its reported qualified PR331 frontend
+matches remote DEV9405b91f. This is independent of the local OpenAI integration, which remains excluded.
+
+Direct owner confirmation in this chat: "Deploy dev at 9405b91f". Fresh `git ls-remote` confirmed full approved SHA
+`9405b91fca838e9178f408f0a3d725899570d5d1`. Used the existing dev branch deployment's Options > Retry with latest
+branch commit. Netlify readback: successful, branch-deploy/dev, exact approved SHA; build18:30:48Z to18:33:05Z.
+No production Publish/Unlock, settings, flags, source push or Render action occurred.
+
+Public readback18:34:12Z to18:34:13Z: DEV service-worker version9405b91f/HTTP200; production stillfc140024/HTTP200;
+backend healthy at363c6d738; DEV `/map` HTML shell200. Netlify success header was screenshot-reviewed. These are
+deployment identity/availability checks, not native/browser functional, checkout, weather or OpenAI acceptance.
+Detailed deployment identifier and scalar receipt are retained outside tracked public docs in the session artifact.
+Master owns canonical combined ledger/STATE reconciliation; this branch's local receipt is a proposal, not a DEV push.
