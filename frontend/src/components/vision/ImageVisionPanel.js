@@ -2,9 +2,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { Button } from '../ui/button';
+import { useThemeName } from '../../contexts/ThemeContext';
 
 // One explicit scan per photo: never batch paid requests or infer profile identities.
 export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) => {
+  const theme = useThemeName();
+  const photoFieldTheme = theme === 'beach' ? 'bg-amber-50 text-amber-900' : 'bg-background text-foreground';
   const [selectedId, setSelectedId] = useState('');
   const [analysis, setAnalysis] = useState(null);
   const [error, setError] = useState('');
@@ -64,8 +67,8 @@ export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) =
           {isBoard ? 'Board photo to scan' : 'Photo to analyze'}
           <select aria-label={isBoard ? 'Board photo to scan' : 'Photo to analyze'}
             value={image.id} onChange={event => setSelectedId(event.target.value)}
-            className="mt-1 block w-full rounded border border-border bg-background p-2 text-foreground">
-            {images.map((item, index) => <option key={item.id} value={item.id}>
+            className={`mt-1 block w-full rounded border border-border p-2 ${photoFieldTheme}`}>
+            {images.map((item, index) => <option key={item.id} value={item.id} className={photoFieldTheme}>
               {item.label || `Photo ${index + 1}`}
             </option>)}
           </select>
