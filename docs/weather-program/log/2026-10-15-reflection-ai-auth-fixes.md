@@ -28,3 +28,7 @@ database migration, merge or deployment changes; no served weather number change
   generic client unavailable-feature errors, and real-provider integration.
 - Action ledger seq1211 records the local patch. PR publication and hosted receipt
   are recorded below when available. No merge/deploy is authorized by this request.
+
+## PR publication
+
+PR [#334](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/334) is OPEN against dev; source18135e9761472a7100e33a68b059dd69112d4891 was read back. Ledger seq1212-1214 records the push, PR and audit-record publication. Hosted CI is pending for the final audit-record head. No merge, deploy, runtime flag or served weather number changed.
