@@ -145,3 +145,8 @@ Source-trace correction before publication: the queue-confidence mismatch suspic
 `backend/routes/surfer_gallery/gallery_core.py:257` explicitly maps cq.ai_confidence to response `confidence`
 (line287), matching ClaimQueueItem. The typed response schema alone was insufficient evidence. This is a working
 field mapping, not a bug. Manual/self-claim numeric scores still describe recorded provenance, not model accuracy.
+
+Receipt commit9737a5d0a published on codex/vision-ui-final-dev-receipt and exact remote SHA read back.
+Ledger1254 records the publication; this final checkpoint keeps the anchor current. Receipt branch is separate
+from deployed dev48284a5e; source PR337/338 are already merged. Docs audit0FAIL14inheritedWARN24NOTE,
+byte-exact canonical ledger prefix verified and gitleaks found no leaks. No further deployment or provider call.
