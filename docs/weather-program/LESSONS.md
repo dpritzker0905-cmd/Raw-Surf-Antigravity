@@ -1275,3 +1275,20 @@ A stored estimate can be estimated again in a browser branch with different sour
   read required checks, strict, linear history, admin enforcement and rulesets together, and say which merge METHODS and which
   BYPASSES exist before proposing one; (2) name the setting's exact address; (3) a session never edits branch protection: it
   is the owner's security setting.
+
+
+### 2026-10-15 — Durable intent precedes every external checkout side effect
+
+- The recoverable purchase is not the response URL. Commit identity, frozen provider parameters and any purchaser credit reservation before the SDK; commit the attempt checkpoint before calling it. Response loss and commit-ack loss must reuse one purchase, not create a new request identity. Never store API credentials with frozen parameters.
+- A binding can be lost by a later rollback. Commit verified session identity before entering fulfillment that may deliberately roll back into a reconciliation case. Refresh terminal transaction state when an older open snapshot returns; recheck current availability after provider I/O before returning its URL.
+- Preserve the existing payment-method contract during a recovery repair. Removing card-only parameters silently adds delayed-payment lifecycle requirements. A guard placed in a similarly named method broke a neighboring deposit route; independent review plus an actual neighboring-route regression found it.
+- Unknown outcomes do not justify a fresh idempotency key, new deadline or automatic refund. Respect provider retention and creation-deadline limits; expose explicit owner/operator recovery and keep terminal case evidence. A pending credit reservation is not a photographer time-slot reservation.
+- Compare inherited failures with immutable parent source. The same two old rollback expectations failed before/after; record them as a remaining red gate rather than weaken the tests or claim a fully green regression run. Local provider creation proof and real database contention do not certify hosted deployment, full UI or exact runtime parity.
+- Isolation includes old test artifacts. The previous local database config failed its disposable-name guard, so this session created and stopped its own new cluster. Shared wind work, frozen candidate refs and current master adoption sequencing were preserved. Evidence: `docs/audits/2026-10-15-orphan-checkout-repair.md`, code46a1d1b8.
+
+
+### 2026-10-15 — Publication, DEV adoption and rollout are separate facts
+
+- Read the target and current rollout ownership before integration. An older branch can carry valid payment code and a diverged weather-memory ledger; publish the source without merging that history over newer wind work. Adopt confirmed records on the latest DEV and append new actions onto its exact ledger prefix.
+- Provider deployment skips suppress this push, not later rollouts. Render supports `[skip render]`; Netlify supports `[skip netlify]` and explicitly deploys deferred changes on the next unskipped commit. Do not place unqualified schema-dependent code in DEV merely because this one push can skip deployment.
+- Match a result to its boundary: fresh bounded152 passed, prior actual PG74 passed, inherited wider-suite2 failures remain open. Remote SHA read-back proves branch publication; it does not prove hosted CI, deployed schema, paid frontend acceptance or weather readiness. Evidence: `docs/audits/2026-10-15-orphan-checkout-repair.md`.
