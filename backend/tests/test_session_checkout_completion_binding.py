@@ -72,7 +72,7 @@ def test_test_shaped_id_is_verified_with_stripe_when_emulation_is_not_allowed(ow
             headers=bearer("usr_surfer"),
         )
     assert response.status_code == 400
-    retrieve.assert_called_once_with("cs_test_abc")
+    retrieve.assert_called_once_with("cs_test_abc", api_key=payments.STRIPE_API_KEY)
     emulator.assert_not_called()
 
 

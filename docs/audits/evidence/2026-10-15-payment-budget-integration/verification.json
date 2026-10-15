@@ -1,0 +1,21 @@
+{
+  "local_postgres": {
+    "passed": 123,
+    "skipped": 0,
+    "runtime_parity": "9 declared packages absent; hosted strict check required",
+    "tests": [
+      "test_payment_postgres_concurrency.py",
+      "test_payment_migration_readiness.py",
+      "test_payment_reconciliation.py",
+      "test_checkout_intent_integrity.py",
+      "test_sessions_payments_rollback.py",
+      "test_live_checkout_fulfillment.py"
+    ]
+  },
+  "local_floor_controls": 36,
+  "local_production_build_exit": 0,
+  "local_estate": "blocked collection: PyYAML absent",
+  "local_frontend": "first full run12 shell-process failures; unrestricted full rerun pending",
+  "hosted": "pending",
+  "shared_database_or_deployment_action": false
+}

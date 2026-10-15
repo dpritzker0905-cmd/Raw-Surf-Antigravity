@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { checkoutPurchase, checkoutErrorMessage } from '../lib/checkoutPurchase';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -227,7 +228,8 @@ export const ScheduledBookingDrawer = ({
       // If there's an amount to charge and user selected card payment
       if (amountToCharge > 0 && paymentMethod === 'card') {
         // Create booking with pending payment status and redirect to Stripe
-        const response = await apiClient.post(`/bookings/create-with-stripe`, {
+        const response = await checkoutPurchase({ ownerId: user.id, kind: 'scheduled', scope: photographer.id,
+          route: '/bookings/create-with-stripe', body: {
           photographer_id: photographer.id,
           location: impactZone.description,
           session_date: sessionDateTime.toISOString(),
@@ -244,18 +246,16 @@ export const ScheduledBookingDrawer = ({
           impact_zone_type: impactZone.type,
           impact_zone_preset: impactZone.preset_id || null,
           origin_url: window.location.origin
-        });
+        } });
         
-        // Update credits if partially applied
-        if (appliedCredits > 0 && response.data.remaining_credits !== undefined) {
-          updateUser({ credit_balance: response.data.remaining_credits });
-        }
+        // A resumed response contains the original balance snapshot. The return page refreshes it.
         
         // Redirect to Stripe checkout
         if (response.data.checkout_url) {
           window.location.href = response.data.checkout_url;
           return;
         }
+        throw new Error('Checkout is pending. Retry this purchase; do not create another.');
       }
       
       // Full credit payment or credits cover everything
@@ -337,9 +337,9 @@ export const ScheduledBookingDrawer = ({
       
       // Handle time slot conflict specifically
       if (error.response?.status === 409) {
-        toast.error(error.response?.data?.detail || 'This time slot is already booked. Please select a different time.');
+        toast.error(checkoutErrorMessage(error, 'This time slot is already booked. Please select a different time.'));
       } else {
-        toast.error(error.response?.data?.detail || 'Failed to create booking');
+        toast.error(checkoutErrorMessage(error, 'Failed to create booking'));
       }
     } finally {
       setLoading(false);

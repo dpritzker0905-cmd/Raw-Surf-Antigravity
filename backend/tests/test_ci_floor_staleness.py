@@ -466,8 +466,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Bounded wind native recovery: +14 guards (one new file) on hosted 2541 / 188 files (floor 2549).
 # Actor-route binding batch 2: +69 estate (existing file) on hosted 1475 / 306 files (floor 1542).
 # Bounded wind background build: +17 guards (one new file) on hosted 2641 / 194 files (floor 2652).
-# Reflection AI route ownership/availability: +34 estate cases; projected1579, margin2.
-_FLOOR_SET_FROM = {"guards": 2658, "chain": 2444, "estate": 1650}
+# Combined DEV budget/vision1650 + disjoint payment159 = projected1809, margin2.
+_FLOOR_SET_FROM = {"guards": 2658, "chain": 2444, "estate": 1809}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

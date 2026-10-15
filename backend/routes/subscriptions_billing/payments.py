@@ -15,8 +15,14 @@ from database import get_db
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
 from utils.payment_fulfillment import fulfill_wallet_payment
+from utils.live_session_payment import complete_live_session_payment, is_live_session_payment
+from utils.scheduled_booking_payment import fulfill_scheduled_booking, is_scheduled_booking
+from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 
 router = APIRouter()
+from routes.payment_recovery import router as recovery_router, checkout_router
+router.include_router(recovery_router)
+router.include_router(checkout_router)
 logger = logging.getLogger(__name__)
 
 import stripe
@@ -73,11 +79,13 @@ class StripeCheckout:
         session = stripe.checkout.Session.retrieve(session_id)
         class LocalStatus:
             def __init__(self, s):
+                self.id = s.id
                 self.payment_status = s.payment_status
                 self.amount_total = s.amount_total
                 self.status = s.status
                 self.currency = s.currency
                 self.metadata = s.metadata
+                self.payment_intent = getattr(s, 'payment_intent', None)
         return LocalStatus(session)
 
     async def handle_webhook(self, body: bytes, signature: str) -> WebhookResponse:
@@ -277,6 +285,8 @@ async def get_checkout_status(
     transaction = result.scalar_one_or_none()
     if not transaction or transaction.user_id != user_id:
         raise HTTPException(status_code=404, detail="Checkout session not found")
+    if session_id.startswith('pending:'):
+        raise HTTPException(status_code=409, detail='Checkout creation pending; resume its intent')
     host_url = str(request.base_url).rstrip('/')
     webhook_url = f"{host_url}/api/webhook/stripe"
     
@@ -295,8 +305,14 @@ async def get_checkout_status(
         if transaction:
             # Only update if not already processed
             if status.payment_status == "paid":
-                await fulfill_wallet_payment(db, transaction)
-                await db.commit()
+                if is_scheduled_booking(transaction):
+                    await fulfill_scheduled_booking(db, transaction, status)
+                elif is_live_session_payment(transaction):
+                    await complete_live_session_payment(db, transaction, status)
+                else:
+                    await fulfill_wallet_payment(db, transaction)
+                if not is_live_session_payment(transaction):
+                    await db.commit()
                 logger.info(f"Payment completed for session {session_id}")
             
             elif status.status == "expired" and transaction.status != "completed":
@@ -313,6 +329,8 @@ async def get_checkout_status(
             "metadata": status.metadata
         }
     
+    except PaymentNeedsReconciliation as problem:
+        raise HTTPException(status_code=409, detail=await record_case(db, problem)) from problem
     except HTTPException:
         await db.rollback()
         raise
@@ -411,14 +429,37 @@ async def stripe_webhook(
             )
             transaction = result.scalar_one_or_none()
             
+            if transaction is None and webhook_response.event_type in (
+                'checkout.session.completed','checkout.session.async_payment_succeeded'
+            ):
+                session=webhook_response.raw_event.get('data',{}).get('object',{})
+                intent_id=session.get('metadata',{}).get('checkout_intent_id')
+                if intent_id:
+                    from utils.checkout_intents import bind
+                    _,transaction=await bind(db,intent_id,session)
+
             if transaction:
                 if webhook_response.payment_status == "paid":
-                    await fulfill_wallet_payment(db, transaction)
-                    await db.commit()
+                    if is_scheduled_booking(transaction) or is_live_session_payment(transaction):
+                        if webhook_response.event_type not in (
+                            'checkout.session.completed', 'checkout.session.async_payment_succeeded'
+                        ):
+                            return {'status': 'received'}
+                        session = webhook_response.raw_event.get('data', {}).get('object', {})
+                        if is_scheduled_booking(transaction):
+                            await fulfill_scheduled_booking(db, transaction, session)
+                        else:
+                            await complete_live_session_payment(db, transaction, session)
+                    else:
+                        await fulfill_wallet_payment(db, transaction)
+                    if not is_live_session_payment(transaction):
+                        await db.commit()
                     logger.info(f"Webhook: Payment completed for {webhook_response.session_id}")
         
         return {"status": "received"}
     
+    except PaymentNeedsReconciliation as problem:
+        return dict(status='received', **await record_case(db, problem))
     except HTTPException:
         await db.rollback()
         raise

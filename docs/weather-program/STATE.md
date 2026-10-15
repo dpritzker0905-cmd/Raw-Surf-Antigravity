@@ -14,6 +14,8 @@ is a claim, not a measurement.
 
 ## Now
 
+- **Payment/budget integration candidate (isolated; no DEV merge/deploy):** codex/payment-budget-integration starts from DEV5ec87562d, preserves frozen PR333/bd7920fbd and all34 unadapted payment blobs. Adds no-DDL payment_budget_merge_001 joining checkout and budget heads. Actual disposable PG123/0skip plus36 floor controls and production build passed; exact hosted qualification pending. Budget migration/env/server/weather source preserved. Shared DB identity/schema/access/backup/deterministic execution/operator/deployed acceptance remain held. [Session log](log/2026-10-15-payment-budget-integration.md).
+
 - **Vision UI candidate on codex/vision-ui-workflows:** board Scan and main Gallery Hub explicit description/visual-tag review implemented from dev a7c038919; no backend/config change. Full434suites/5568tests passed, build/lint gate passed; PR337 hosted/dev acceptance pending, source bcebc1765. Live read-only cap3.70 reserved/6.30 remaining, enabled; production Auto Publishing Locked/fc140024. No served weather change. [Lane log](log/2026-10-15-vision-ui-workflows.md).
 
 - **OpenAI cap pricing correction (2026-10-15):** both paid call paths now explicitly use standard service tier; omitted tier can inherit higher project pricing. Latest offline107 pass/1 PostgreSQL-only skip after the fix; final hosted head qualification pending. The earlier $1.25 allowance assumes standard prior pricing; verify tier/spend or use a higher verified allowance before the one-time initialization. Cap remains NOT LIVE, and migration starts closed. Ledger1241 supersedes that assumption in1237; [complete AI memory](../runbooks/AI-SESSION-HANDOFF-2026-10-15.md).

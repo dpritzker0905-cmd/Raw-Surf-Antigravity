@@ -4,7 +4,7 @@ bookings/stripe_checkout.py — Stripe checkout session creation, payment succes
 
 Extracted from payments.py (v90) to comply with <800 LOC governance.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
@@ -15,15 +15,17 @@ import json
 import logging
 import os
 import stripe
-import stripe_mcp_server
-import sqlite3
+from starlette.concurrency import run_in_threadpool
 
 from database import get_db
 from models import (
     Profile, Booking, BookingParticipant,
     Notification, PaymentTransaction
 )
-from utils.credits import deduct_credits, add_credits
+from utils.credits import deduct_credits
+from utils.scheduled_booking_payment import cents, fulfill_scheduled_booking
+from utils.checkout_intents import identity, existing as find_checkout, prepare, resume
+from utils.payment_reconciliation import PaymentNeedsReconciliation, record_case
 from core.security import get_current_user_id
 
 from .crud import (
@@ -55,39 +57,57 @@ class UpdateSplitsRequest(BaseModel):
 async def create_booking_with_stripe(
     data: CreateBookingWithStripeRequest,
     user_id: str = Depends(get_current_user_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    request_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""
-    from routes.notifications.push import notify_booking
-    
-    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail='Payment processing not configured')
+    key, fingerprint = identity('scheduled', data, request_key)
+    intent_id = await find_checkout(db, user_id, 'scheduled', key, fingerprint)
+    if intent_id:
+        await db.rollback()
+        return await resume(db, intent_id, STRIPE_API_KEY)
+    if data.duration <= 0:
+        raise HTTPException(status_code=400, detail=dict(message='Invalid duration', checkout_intent_created=False))
+    try:
+        cents(data.apply_credits or 0)
+    except HTTPException as exc:
+        raise HTTPException(status_code=exc.status_code,
+            detail=dict(message=exc.detail, checkout_intent_created=False)) from exc
+
+    user_result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update())
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    intent_id = await find_checkout(db, user_id, 'scheduled', key, fingerprint)
+    if intent_id:
+        await db.rollback()
+        return await resume(db, intent_id, STRIPE_API_KEY)
     
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == data.photographer_id)
     )
     photographer = photographer_result.scalar_one_or_none()
     if not photographer:
-        raise HTTPException(status_code=404, detail="Photographer not found")
+        raise HTTPException(status_code=404, detail=dict(message='Photographer not found', checkout_intent_created=False))
     
     try:
         session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid date format")
+        raise HTTPException(status_code=400, detail=dict(message='Invalid date format', checkout_intent_created=False))
     
     conflict = await check_time_slot_conflict(
         db=db, photographer_id=data.photographer_id,
         session_date=session_date, duration=data.duration
     )
     if conflict:
-        raise HTTPException(status_code=409, detail=conflict["message"])
+        raise HTTPException(status_code=409, detail=dict(message=conflict['message'], checkout_intent_created=False))
     
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0
     duration_multipliers = {60: 1, 120: 1.8, 180: 2.5, 240: 3, 480: 5}
     multiplier = duration_multipliers.get(data.duration, data.duration / 60)
-    total_price = hourly_rate * multiplier
+    total_price = cents(hourly_rate * multiplier) / 100
     
     credits_applied = 0
     remaining_credits = user.credit_balance or 0
@@ -98,17 +118,15 @@ async def create_booking_with_stripe(
         user_balance_rounded = round(user.credit_balance or 0, 2)
         
         if apply_credits_rounded > user_balance_rounded:
-            raise HTTPException(status_code=400, detail="Insufficient credit balance")
+            raise HTTPException(status_code=400, detail=dict(message='Insufficient credit balance', checkout_intent_created=False))
         credits_applied = min(apply_credits_rounded, total_price_rounded)
     
     amount_to_charge = round(total_price - credits_applied, 2)
     if amount_to_charge < 0:
         amount_to_charge = 0
     if amount_to_charge <= 0:
-        raise HTTPException(status_code=400, detail="No amount to charge. Use regular booking endpoint.")
-    
-    import secrets
-    import string
+        raise HTTPException(status_code=400,
+            detail=dict(message='No amount to charge. Use regular booking endpoint.', checkout_intent_created=False))
     
     booking = Booking(
         photographer_id=data.photographer_id, creator_id=user_id,
@@ -117,75 +135,14 @@ async def create_booking_with_stripe(
         max_participants=data.max_participants, total_price=total_price,
         price_per_person=total_price, allow_splitting=data.allow_splitting,
         description=data.description, status='Pending Payment',
-        pending_payment_expires_at=datetime.now(timezone.utc) + timedelta(minutes=30)
+        pending_payment_expires_at=datetime.now(timezone.utc) + timedelta(minutes=31)
     )
     db.add(booking)
     await db.flush()
     
     success_url = f"{data.origin_url}/bookings/success?session_id={{CHECKOUT_SESSION_ID}}&booking_id={booking.id}"
     cancel_url = f"{data.origin_url}/bookings/cancel?booking_id={booking.id}"
-    session_time_str = session_date.strftime('%b %d at %I:%M %p')
-    
-    # Get or create stripe customer ID mapping in stripe-mcp cache
-    customer_id = None
-    try:
-        conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-        cursor = conn.cursor()
-        cursor.execute("SELECT customer_id FROM stripe_customers WHERE supabase_user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        if row:
-            customer_id = row[0]
-        else:
-            import uuid
-            customer_id = f"cus_test_{uuid.uuid4().hex[:12]}"
-            cursor.execute(
-                "INSERT INTO stripe_customers (customer_id, email, name, supabase_user_id, subscription_status, created_at) VALUES (?, ?, ?, ?, 'inactive', datetime('now'))",
-                (customer_id, user.email, user.full_name, user_id)
-            )
-            conn.commit()
-        conn.close()
-    except Exception as e:
-        logger.error(f"Failed to lookup/create stripe customer mapping: {e}")
-        customer_id = f"cus_test_fallback_{user_id[:8]}"
 
-    try:
-        # Route checkout session creation through stripe-mcp server tool function
-        checkout_session = stripe_mcp_server.stripe_create_checkout_session(
-            customer_id=customer_id,
-            amount=amount_to_charge,
-            currency="usd",
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata_dict={
-                'user_id': user_id,
-                'booking_id': str(booking.id),
-                'photographer_id': data.photographer_id,
-                'credits_applied': str(credits_applied),
-                'type': 'scheduled_booking'
-            }
-        )
-    except Exception as e:
-        logger.error(f"Stripe MCP error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
-    
-    transaction = PaymentTransaction(
-        user_id=user_id, session_id=checkout_session["checkout_session_id"],
-        amount=amount_to_charge, currency="usd",
-        payment_status="Pending", status="Pending",
-        transaction_metadata=json.dumps({
-            'booking_id': booking.id, 'credits_applied': credits_applied,
-            'photographer_id': data.photographer_id
-        })
-    )
-    db.add(transaction)
-    
-    participant = BookingParticipant(
-        booking_id=booking.id, participant_id=user_id,
-        invite_type='direct', paid_amount=credits_applied,
-        payment_status='Pending', payment_method='stripe', status='pending'
-    )
-    db.add(participant)
-    
     if credits_applied > 0:
         success, remaining_credits, error = await deduct_credits(
             user_id=user_id, amount=credits_applied,
@@ -197,138 +154,60 @@ async def create_booking_with_stripe(
         if not success:
             raise HTTPException(status_code=400, detail=error or "Failed to apply credits")
     
-    await db.commit()
-    
-    return {
-        "checkout_url": checkout_session["url"], "session_id": checkout_session["checkout_session_id"],
-        "booking_id": booking.id, "amount_to_charge": amount_to_charge,
-        "credits_applied": credits_applied, "remaining_credits": remaining_credits
+    metadata = {
+        'type': 'scheduled_booking', 'user_id': user_id, 'booking_id': str(booking.id),
+        'photographer_id': data.photographer_id, 'credits_applied': str(credits_applied),
     }
+    params = dict(mode='payment', payment_method_types=['card'], customer_email=user.email, client_reference_id=str(booking.id),
+        line_items=[{'price_data': {'currency': 'usd', 'unit_amount': cents(amount_to_charge),
+                                  'product_data': {'name': 'Scheduled surf session'}}, 'quantity': 1}],
+        success_url=success_url, cancel_url=cancel_url, metadata=metadata,
+        expires_at=int(booking.pending_payment_expires_at.timestamp()))
+    db.add(BookingParticipant(booking_id=booking.id, participant_id=user_id, invite_type='direct',
+        paid_amount=credits_applied, payment_status='Pending', payment_method='stripe', status='pending'))
+    intent_id = await prepare(db, user_id=user_id, kind='scheduled', key=key, fingerprint=fingerprint,
+        params=params, metadata=metadata, amount_cents=cents(amount_to_charge), booking_id=booking.id,
+        response=dict(booking_id=booking.id, amount_to_charge=amount_to_charge,
+                      credits_applied=credits_applied, remaining_credits=remaining_credits))
+    return await resume(db, intent_id, STRIPE_API_KEY)
+
 
 
 @router.get("/bookings/payment-success")
 async def booking_payment_success(
     session_id: str, booking_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Handle successful Stripe payment for booking - converts to credits"""
-    from routes.notifications.push import notify_booking
-    
-    if session_id.startswith("cs_test_"):
-        # Emulate checkout retrieve through mock stripe-mcp server tool path
-        payment_status = 'paid'
-        try:
-            conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-            cursor = conn.cursor()
-            # Transition mock payment intent status to succeeded
-            cursor.execute("SELECT payment_intent_id, metadata FROM stripe_payments WHERE status = 'requires_payment_method'")
-            pending_payments = cursor.fetchall()
-            for pi_id, meta_str in pending_payments:
-                meta = json.loads(meta_str or "{}")
-                if str(meta.get("booking_id")) == str(booking_id):
-                    cursor.execute("UPDATE stripe_payments SET status = 'succeeded' WHERE payment_intent_id = ?", (pi_id,))
-                    conn.commit()
-                    break
-            conn.close()
-        except Exception as e:
-            logger.error(f"Failed to auto-succeed mock stripe payment in cache: {e}")
-    else:
-        try:
-            checkout_session = stripe.checkout.Session.retrieve(session_id)
-            payment_status = checkout_session.payment_status
-        except stripe.error.StripeError as e:
-            logger.error(f"Stripe error: {str(e)}")
-            raise HTTPException(status_code=500, detail="Payment verification error")
-    
-    if payment_status != 'paid':
-        raise HTTPException(status_code=400, detail="Payment not completed")
-    
-    booking_result = await db.execute(
-        select(Booking).where(Booking.id == booking_id)
-        .options(selectinload(Booking.photographer))
-    )
-    booking = booking_result.scalar_one_or_none()
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    
-    user_result = await db.execute(select(Profile).where(Profile.id == booking.creator_id))
-    user = user_result.scalar_one_or_none()
-    
-    tx_result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-    )
-    transaction = tx_result.scalar_one_or_none()
-    
-    if transaction and transaction.payment_status != 'paid':
-        transaction.payment_status = 'paid'
-        transaction.status = 'completed'
-        
-        if user:
-            await add_credits(
-                user_id=booking.creator_id, amount=transaction.amount,
-                transaction_type='stripe_topup', db=db,
-                description=f'Payment for booking with {booking.photographer.full_name}',
-                reference_type='booking', reference_id=booking.id
-            )
-            await deduct_credits(
-                user_id=booking.creator_id, amount=transaction.amount,
-                transaction_type='booking_payment', db=db,
-                description=f'Scheduled session with {booking.photographer.full_name}',
-                reference_type='booking', reference_id=booking.id,
-                counterparty_id=booking.photographer_id
-            )
-    
-    booking.status = 'Confirmed'
-    booking.escrow_amount = booking.total_price * 0.80
-    booking.escrow_status = 'held'
-    
-    participant_result = await db.execute(
-        select(BookingParticipant).where(
-            and_(
-                BookingParticipant.booking_id == booking_id,
-                BookingParticipant.participant_id == booking.creator_id
-            )
-        )
-    )
-    participant = participant_result.scalar_one_or_none()
-    if participant:
-        participant.payment_status = 'Paid'
-        participant.status = 'confirmed'
-        participant.paid_amount = booking.total_price
-    
-    session_time_str = booking.session_date.strftime('%b %d at %I:%M %p')
-    
-    photographer_notification = Notification(
-        user_id=booking.photographer_id, type='booking_confirmed',
-        title='New Booking Confirmed!',
-        body=f'{user.full_name if user else "A surfer"} booked a session at {booking.location} on {session_time_str}',
-        data=json.dumps({"booking_id": booking.id, "session_date": booking.session_date.isoformat(), "location": booking.location})
-    )
-    db.add(photographer_notification)
-    
-    surfer_notification = Notification(
-        user_id=booking.creator_id, type='booking_confirmation',
-        title='Session Booked!',
-        body=f'Your session with {booking.photographer.full_name} is confirmed for {session_time_str}',
-        data=json.dumps({"booking_id": booking.id, "session_date": booking.session_date.isoformat()})
-    )
-    db.add(surfer_notification)
-    
+    """Verify an owner's provider session, then apply the shared atomic fulfillment."""
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail='Payment processing not configured')
+    transaction = (await db.scalars(select(PaymentTransaction).where(
+        PaymentTransaction.session_id == session_id))).one_or_none()
+    if transaction is None:
+        raise HTTPException(status_code=404, detail='Transaction not found')
+    if transaction.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot confirm another user's payment")
+    if session_id.startswith('pending:'):
+        raise HTTPException(status_code=409, detail='Checkout creation pending; resume its intent')
     try:
-        await notify_booking(
-            user_id=booking.photographer_id, title='New Booking Confirmed!',
-            message=f'{user.full_name if user else "A surfer"} booked a session on {session_time_str}', db=db
-        )
-        await notify_booking(
-            user_id=booking.creator_id, title='Session Booked!',
-            message=f'Your session with {booking.photographer.full_name} is confirmed', db=db
-        )
-    except Exception as e:
-        logger.warning(f"Failed to send push notifications: {e}")
-    
-    await db.commit()
-    
-    return {"success": True, "message": "Booking confirmed!", "booking_id": booking.id, "status": "Confirmed"}
+        session = await run_in_threadpool(stripe.checkout.Session.retrieve, session_id, api_key=STRIPE_API_KEY)
+        booking, _ = await fulfill_scheduled_booking(db, transaction, session, booking_id)
+        await db.commit()
+        return {'success': True, 'message': 'Booking confirmed!', 'booking_id': booking.id, 'status': booking.status}
+    except PaymentNeedsReconciliation as problem:
+        raise HTTPException(status_code=409, detail=await record_case(db, problem)) from problem
+    except stripe.error.StripeError as exc:
+        await db.rollback()
+        logger.warning('Scheduled checkout verification failed: %s', type(exc).__name__)
+        raise HTTPException(status_code=502, detail='Payment verification unavailable') from exc
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as exc:
+        await db.rollback()
+        logger.exception('Scheduled booking fulfillment failed')
+        raise HTTPException(status_code=500, detail='Payment processing failed') from exc
 
 
 # ═══ CREW PAYMENT MANAGEMENT ═══════════════════════════════════════════════
