@@ -1,0 +1,149 @@
+{
+  "verified_at": "2026-10-15T17:34:21.456477+00:00",
+  "target_dev": "9405b91fca838e9178f408f0a3d725899570d5d1",
+  "preserved_dev_entries": 1221,
+  "replayed_payment_actions": 34,
+  "mapping": [
+    {
+      "old_seq": 1217,
+      "new_seq": 1222
+    },
+    {
+      "old_seq": 1218,
+      "new_seq": 1223
+    },
+    {
+      "old_seq": 1219,
+      "new_seq": 1224
+    },
+    {
+      "old_seq": 1220,
+      "new_seq": 1225
+    },
+    {
+      "old_seq": 1221,
+      "new_seq": 1226
+    },
+    {
+      "old_seq": 1222,
+      "new_seq": 1227
+    },
+    {
+      "old_seq": 1223,
+      "new_seq": 1228
+    },
+    {
+      "old_seq": 1224,
+      "new_seq": 1229
+    },
+    {
+      "old_seq": 1225,
+      "new_seq": 1230
+    },
+    {
+      "old_seq": 1226,
+      "new_seq": 1231
+    },
+    {
+      "old_seq": 1227,
+      "new_seq": 1232
+    },
+    {
+      "old_seq": 1228,
+      "new_seq": 1233
+    },
+    {
+      "old_seq": 1229,
+      "new_seq": 1234
+    },
+    {
+      "old_seq": 1230,
+      "new_seq": 1235
+    },
+    {
+      "old_seq": 1231,
+      "new_seq": 1236
+    },
+    {
+      "old_seq": 1232,
+      "new_seq": 1237
+    },
+    {
+      "old_seq": 1233,
+      "new_seq": 1238
+    },
+    {
+      "old_seq": 1234,
+      "new_seq": 1239
+    },
+    {
+      "old_seq": 1235,
+      "new_seq": 1240
+    },
+    {
+      "old_seq": 1236,
+      "new_seq": 1241
+    },
+    {
+      "old_seq": 1237,
+      "new_seq": 1242
+    },
+    {
+      "old_seq": 1238,
+      "new_seq": 1243
+    },
+    {
+      "old_seq": 1239,
+      "new_seq": 1244
+    },
+    {
+      "old_seq": 1240,
+      "new_seq": 1245
+    },
+    {
+      "old_seq": 1241,
+      "new_seq": 1246
+    },
+    {
+      "old_seq": 1242,
+      "new_seq": 1247
+    },
+    {
+      "old_seq": 1243,
+      "new_seq": 1248
+    },
+    {
+      "old_seq": 1244,
+      "new_seq": 1249
+    },
+    {
+      "old_seq": 1245,
+      "new_seq": 1250
+    },
+    {
+      "old_seq": 1246,
+      "new_seq": 1251
+    },
+    {
+      "old_seq": 1247,
+      "new_seq": 1252
+    },
+    {
+      "old_seq": 1248,
+      "new_seq": 1253
+    },
+    {
+      "old_seq": 1249,
+      "new_seq": 1254
+    },
+    {
+      "old_seq": 1250,
+      "new_seq": 1255
+    }
+  ],
+  "qualified_application_source": "8c78754cb13a6227df34f604d7aeb84b37ffc3e0",
+  "frontend_backend_workflows_byte_identical_to_qualified_source": true,
+  "incoming_ai_log_preserved": true,
+  "own_deployment": false,
+  "own_hosted_schema_write": false
+}

@@ -3,6 +3,7 @@ import { X, Camera, CreditCard, Coins, Check, Loader2, RefreshCw } from 'lucide-
 import { Button } from './ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
+import { checkoutPurchase, checkoutErrorMessage } from '../lib/checkoutPurchase';
 import { toast } from 'sonner';
 import { getFullUrl } from '../utils/media';
 import logger from '../utils/logger';
@@ -125,12 +126,16 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
     
     setLoading(true);
     try {
-      const response = await apiClient.post(`/sessions/join?surfer_id=${user.id}`, {
+      const body = {
         photographer_id: photographer.id,
         selfie_url: selfieUrl || null,
         payment_method: paymentMethod,
         origin_url: window.location.origin
-      });
+      };
+      const route = `/sessions/join?surfer_id=${user.id}`;
+      const response = paymentMethod === 'card'
+        ? await checkoutPurchase({ ownerId: user.id, kind: 'live', scope: photographer.id, route, body })
+        : await apiClient.post(route, body);
       
       // Handle Stripe redirect for card payments
       if (response.data.requires_payment && response.data.checkout_url) {
@@ -157,8 +162,7 @@ export const JumpInSessionModal = ({ photographer, onClose, onSuccess }) => {
       }, 2000);
     } catch (error) {
       logger.error('Join session error:', error);
-      const message = error.response?.data?.detail || 'Failed to join session';
-      toast.error(typeof message === 'string' ? message : 'Failed to join session');
+      toast.error(checkoutErrorMessage(error, 'Failed to join session'));
     } finally {
       setLoading(false);
     }

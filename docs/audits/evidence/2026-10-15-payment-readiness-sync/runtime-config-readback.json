@@ -1,0 +1,20 @@
+{
+  "verified_at": "2026-10-15T16:11:00Z",
+  "source": "Authorized read-only Render dashboard inspection; explicit owner approval for private DATABASE_URL identity comparison",
+  "configured_branch": "dev",
+  "build_command": "pip install -r backend/requirements.txt && cd backend && alembic upgrade heads",
+  "start_command": "cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT",
+  "configured_role": "postgres",
+  "matches_preflight_primary_project": true,
+  "matches_separate_dev_project": false,
+  "credential_printed_or_saved": false,
+  "credential_masking_restored": true,
+  "settings_changed": false,
+  "migration_or_deployment_triggered": false,
+  "limits": [
+    "Configuration inspection does not execute a database login or prove effective SQL identity on a running connection.",
+    "The prior read-only catalog found both new payment tables absent; no migration was applied in this session.",
+    "Post-apply table ownership, RLS, grants and application access require a separate authorized verification.",
+    "This readback does not certify a currently deployed revision or grant wind/F2/service-restart clearance."
+  ]
+}

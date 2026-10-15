@@ -1,0 +1,190 @@
+# Payment release readiness — 2026-10-15 (UTC)
+
+The buyer refund-receipt repair is **qualified on source `3342f9b0f`**. All six hosted workflows passed:123 PostgreSQL tests without skips,46/46 runtime pins,19 payment UI controls,42 production-browser fixture cases across three themes/two sizes,431 frontend suites/5,571 tests,1,738 estate tests with no silent exclusions,2,444 chain and2,658 simulation guards. Actual React/real-handler replay of the exact prior owned refunded Stripe sandbox receipt now shows a persistent refunded notice, with no entitlement or wallet movement and no new charge/refund. Memory-only closeout retains identical runtime/workflows. **Do not merge or deploy yet:** migration/build authorization, effective post-apply access, deployed acceptance and master/operator/historical-orphan integration remain holds. No wind change. See [refund receipt log](../weather-program/log/2026-10-15-payment-refund-receipt.md).
+
+Historical qualification before this repair: Payment application source `8c78754cb` is fully qualified; the isolated candidate also preserves DEV `9405b91fc`, whose later change contains documentation only. **All six hosted workflows passed**, including the full combined backend/frontend checks, 99 PostgreSQL tests with no skips, 46/46 runtime pins, 16 payment UI controls and 12 production-bundle fixture browser cases. The actual React-to-Stripe success/ended/replay/refund journey is confirmed on unchanged frontend/payment runtime source. The sync preserves incoming AI fixes, wind source and DEV ledger history. **Do not merge or deploy yet:** migration/build authorization and post-apply access, deployed callback/UI acceptance and coordinated master/operator/buyer-case integration remain holds.
+
+## Scope and source
+
+- Branch `codex/payment-release-readiness` starts at current DEV `1dbb0bbd475738a1e764be6dd380dff55090846a`, the documentation-only PR332 merge. It selects payment source/tests from code `46a1d1b8`, including prerequisites `a85ff76c` and `48c056a5`; it does not import historical candidate memory or unrelated post ownership changes.
+- Frozen parent `codex/booking-payment-post-repairs` at `7d0538c9` and all local Claude refs are unchanged. Map, forecast service, wind decision and SCOREBOARD files match DEV. No served forecast number or scientific gain is claimed.
+- Commit and PR title carry `[skip render] [skip netlify]`. Publication to an isolated branch is not DEV adoption, migration application or deployment. A later unskipped DEV push could deploy deferred changes, so the holds apply before adoption.
+
+## Qualification history before the buyer refund repair
+
+| Gate | Confirmed result | Limit |
+| --- | --- | --- |
+| Inherited rollback failures | Original tests reproduced two failures. Four replacement HTTP/ORM controls exercise the current contract: provider failure stays Pending; incomplete receipts have no side effects; failed verified fulfillment creates one durable case on replay and never refunds automatically. | Assertions reflect the recovery contract, not the obsolete automatic-refund expectation. |
+| PostgreSQL contention | Final dedicated run: **99 passed, 0 failed/errors/skipped**, PostgreSQL17.11, Python3.12. Includes migration, callback, intent, reconciliation, refund and commit-loss controls. | Disposable loopback database only; not hosted data. |
+| Mixed-method live race | Before: paid-card callback409 while credits join200. After shared photographer/live locks and buyer `FOR NO KEY UPDATE`: card200, credit rejection400, one participation, unchanged wallet and no credit debit. Tests wait for actual SQL lock contention. | No claim that a duplicate entitlement was observed in the RED run. |
+| Live recovery integration | Signed callbacks, owner status/return and admin scan use one receipt-bound fulfillment transaction. Final commit failure rolls back entitlement and records a case; successful recovery closes an open case as fulfilled. All-method participation checks precede granting entitlement. | Database notifications verified; push delivery is not certified. Unreachable legacy emulator branch remains cleanup debt. |
+| Migration graph | Actual Alembic graph joins **all three** existing DEV heads: `2fd2888a0987`, `a107b7db4f12`, `avatar_url_text_001`; new single head `checkout_intent_001`. Real upgrade from stamped DEV heads preserves fixture commerce rows, enables RLS, revokes anon/authenticated CRUD and grants service_role CRUD. Empty new checkout table downgrade/upgrade preserves old rows. | Fixture starts with representative existing schema and stamps DEV heads; it does not replay every historical migration from an empty database. Hosted heads/roles/catalog subsequently verified read-only; see the receipt below. New tables are not applied. Never drop tables with unresolved purchases. |
+| Buyer retry/return | Request key and exact purchase body saved before network; unknown outcomes reuse identity, known intents resume. Only explicit server proof of no intent permits corrected details to use a fresh key. Actual subscription-covered live response accepted. Return polling is bounded, manual retry works, failed confirmation retains recovery context. | Session storage is browser-local; cross-device/operator recovery still needs the documented API and later operator integration. |
+| UI | **16 tests in3 suites passed** on3e70a393. Fresh production build passed. **12 production-bundle browser cases passed**: success/reconciliation states × light/dark/beach × mobile390×844/desktop1280×800, no page error or horizontal overflow. | Browser API responses are local fixtures. This is not a deployed full-site E2E result. |
+| Real Stripe sandbox | Four paid browser journeys against actual test-mode Stripe: scheduled/live return200 and replay200; cancelled/ended return409 and replay409. Four real signed CLI-forwarded callbacks returned200. Two durable cases refunded through app-admin API, each replayed once. Provider retrieval confirms all four paid, test mode and exactly one successful full refund each; successful fixture purchases refunded separately for cleanup. | Disposable app database, locally forwarded callbacks and fixture identities. No hosted webhook/configuration change and no live charge. Test form follows [Stripe testing guidance](https://docs.stripe.com/testing). |
+| Neighbor regressions | **97 passed, 0 failed/errors/skipped** in booking integrity, receipt binding and floor controls. Backend critical flake8 passed; all673 production Python files within800LOC. Frontend lint ratchet passed with existing86 errors/917 warnings. | Lint ratchet success does not mean lint-clean. |
+| Independent challenge | Three bounded, same-model fresh-context source review cycles found and corrected callback commit, retry, response-contract and locking gaps; final review found no further substantive blockers. | Reviewer performed source inspection; execution evidence is the measured parent-session runs. No cross-model review claimed. |
+
+## Remaining release holds, in order
+
+1. **Hosted migration application and post-apply access.** The authorized READ ONLY catalog preflight matches all3DEV heads/key types and confirms both new tables are absent. The private Render readback confirms its configured primary-project/postgres connection and Alembic-before-uvicorn build command. A build itself can change shared schema. Obtain an explicitly authorized, coordinated window before applying; then verify actual connection identity, Alembic head, table ownership, RLS, anon/authenticated revokes and effective backend access. No hosted migration/build/restart was performed.
+2. **Master/operator integration.** Master owns operator frontend, cadence, alerts and historical orphan investigation. Payment APIs can list/scan/attach/resume/refund. Buyer receipt linking is repaired on isolated source3342: authenticated live/scheduled returns expose pending/review/refunded case state; confirmed refunds clear only the matching owner recovery context. No operator UI, refund-event ingestion, historical backfill or cross-device buyer recovery was added. Buyer status updates on receipt reload after the case changes. Preserve unequal shared contributions and user/photographer follows/subscriptions in the joint walkthrough. Claude wind/F2 acceptance and rollout clearance are separate.
+3. **Hosted rollout acceptance after authorization.** Verify signed callbacks, real return URLs, effective application-role access and deployed UI on the released revision after the migration is qualified. Local actual React/Stripe acceptance and fixture theme/size checks do not certify the deployed whole app. Preserve unresolved intent/case records on rollback. Branch publication is not DEV adoption or deployment.
+
+Combined-revision qualification is complete on source `3e70a393`: all hosted workflows succeeded. Results and scope are recorded below. No broad audit or wind experiment is reopened.
+
+## Reproducible evidence
+
+Run backend commands from `backend/`. Set `PAYMENT_TEST_DATABASE_URL` only to an owned disposable PostgreSQL database; `TESTING=1` and `PYTHON_DOTENV_DISABLED=1` prevent accidental hosted fixture use.
+
+```text
+python -m pytest tests/test_payment_postgres_concurrency.py tests/test_payment_migration_readiness.py tests/test_payment_reconciliation.py tests/test_checkout_intent_integrity.py tests/test_sessions_payments_rollback.py tests/test_live_checkout_fulfillment.py -q
+python -m pytest tests/test_booking_payment_integrity.py tests/test_session_checkout_completion_binding.py tests/test_ci_floor_staleness.py -q
+python scripts/ci_test_lanes.py --assert-partition
+```
+
+Current partition after PR334 sync:674 tracked tests,195 guards,163 chain,313 estate,2 existing exclusions,1 existing quarantine. No test was silently excluded to get green. Ignored final JUnit receipt SHA256: PG99 `bb9c7c85ad41bb83cc85afe1141ba8a127a37cc9ca74323e358d400b1556fa57`; neighbor97 `8c7fa2fda1a9c5723edd1ad9aa6e56479f878fe21128c6f14e135c1627ec65dc`. The two runs cover196 distinct cases. Sandbox browser/provider readbacks and screenshots remain ignored; no secret values are tracked.
+
+Owned test PostgreSQL and journey server stopped; both ports confirmed closed; owned Stripe listener count0. No shared process or Claude work was stopped.
+
+
+## Hosted readback — 2026-10-15 03:27Z
+
+- Isolated source `052055ad162a9aaa41a82db64795595fc0bde4b3` published and read back on origin; [draft PR333](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/333) targets DEV. No DEV code merge or deployment.
+- [Payment gate38675679673](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38675679673) **SUCCESS**: Linux Python3.12 strict parity46/46pins; real PostgreSQL99passed/0skip; UI13/3suites; production build and12 fixture browser scenarios passed. This closes dedicated hosted payment/runtime and local-artifact UI qualification.
+- [General CI38675679552](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38675679552): estate312selected/310producing/1680passed/2879skipped/0silent; full frontend426suites/5510tests/0fail plus build passed. Expected opt-in PG cases skip only in the default estate; the dedicated gate executes them with0skip. Frontend floor is refreshed to the actual zero-margin426/5510; backend estate projection1680 was confirmed. Two long forecast regression lanes still running at this reading; no general all-green claim yet.
+- Authorized Supabase primary-project SQL Editor supplied the missing schema evidence without exporting credentials. Two bounded catalog queries used `BEGIN READ ONLY` and `ROLLBACK`; result explicitly reported `transaction_read_only=on`. Actual Alembic heads exactly match all3 in the rehearsal. Referenced profiles/bookings/payment_transactions PKs and varchar(36) IDs match, required existing commerce tables and payment/expiry/escrow columns exist. `postgres` and `service_role` bypass RLS; anon/authenticated do not. New checkout/reconciliation tables are absent as expected before apply. No customer records queried and no schema changed. A private diagnostic snippet may remain in the dashboard; no credential/configuration or application data changed.
+- **What remains:** reviewed migration application before serving new code; effective backend-role grants on the new tables after apply; separately authorized hosted rollout/callback/UI acceptance; master operator/historical-orphan integration and coordinated wind rollout. The browser's postgres catalog view does not identify the backend's configured connection role. No hosted migration or deployment was authorized/performed here.
+
+The earlier credential-search finding remains true; it is superseded as an access blocker by the authorized dashboard read. No local/CI/sandbox result is relabeled as hosted end-to-end payment acceptance.
+
+
+## Existing-product context retained for the later joint walkthrough
+
+Master forwarded owner context during qualification: sessions may have multiple participants with unequal contributions; following/subscribing to a user or photographer is an existing relationship feature, distinct from platform subscription plans. UI wording, displayed allocations and route variables must match those contracts. Retain these as acceptance constraints, not verified whole-product behavior. This batch's individual scheduled/live payment proof does not certify every multi-participant allocation or relationship-subscription path. Trace those actual paths before calling a simplified checkout complete; no equal-share restriction or broad new audit was introduced here. Master retains the later joint walkthrough and integration ownership.
+
+
+**Migration sequencing constraint:** `backend/server.py` startup can create missing ORM tables with `Base.metadata.create_all`; that path does not apply these Alembic RLS/revoke/grant statements. Apply and verify the reviewed migrations before the first candidate backend restart. Do not rely on startup auto-creation as schema qualification. If tables already appeared outside Alembic, stop and inspect their version/privileges rather than blindly applying a duplicate create-table migration. This session changed neither startup code nor hosted schema.
+
+
+## Final application-source and ownership checkpoint
+
+- General CI38675679552 on application source052055ad completed **SUCCESS**: guards2658passed/67expectedskips, chain2444passed/0skip, estate1680passed/2879expectedskips/0silent; full frontend426/5510 and build passed. Follow-up dedicated gate38676554649 onfe0ef579 also **SUCCESS**, including46/46pin parity, PG99/0skip, UI13 andbrowser12. Backend application source remains byte-identical to052055ad.
+- Subsequent screenshot inspection found an inherited unverified50XP award and unreadable beach-mode outline-button text on the payment success page. Mounted actual-response control and production-bundle control both failed before repair. Removed the unsupported award and applied existing theme text colors to the outline actions. Fresh focused UI14/3 and lint ratchet pass; rebuild passed, enhanced12-case browser run follows. Full frontend projection becomes5511, zero margin retained. These latest UI changes require their own hosted result; earlier13-test/5510 receipts are not relabeled as final.
+- This chat owns `frontend/src/components/JumpInSessionModal.js` (active card join), `frontend/src/components/Bookings.js` (live receipt return), `frontend/src/components/ScheduledBookingDrawer.js` (scheduled purchase), `frontend/src/components/BookingPaymentSuccess.js` (scheduled confirmation) and `frontend/src/lib/checkoutPurchase.js` (durable browser identity/retry), plus their selected tests and browser gate. Master commerce/recap App/Gallery/route work is not included. Trace the active JumpInSessionModal → Bookings → verified fulfillment seam when integrating the separate commerce routes.
+- Before adoption, fetch DEV again and preserve its canonical ledger prefix; rechain this candidate's actions if other records land first. Do not import an old STATE/ledger wholesale or silently adopt advanced payment runtime/migrations into another batch. Source and hosted/runtime migration prerequisites stay with this isolated PR.
+
+
+2026-10-15 03:39Z — Enhanced production-bundle browser run completed12passed after the final UI correction, including receipt-only claims and actual secondary-button color in all3themes/2sizes. Corrected beach screenshot visually inspected. Backend unchanged from already-qualified source; latest hosted UI/full-frontend result still pending publication.
+
+
+2026-10-15 03:46Z — Final sourcef1bfa2ac hosted gate38677418807 SUCCESS:46/46pins,PG99/0skip,UI14/3,build and enhancedbrowser12. Full frontend job116234088913 passed426suites/5511tests/0fail. Remaining general backend lanes still executing; no current all-green claim. Render dashboard opened login/maintenance notice, so effective configured backend role/start command not inspected; no authentication/configuration change.
+These final-source receipts supersede the earlier pending-UI qualification. The backend is byte-identical to the twice-qualified052055ad/fe0ef579 source.
+
+
+## Conservative checkpoint — 2026-10-15 03:51Z
+
+Published source: f1bfa2ac410df86118836991442737014b36bbaa, codex/payment-release-readiness, draft PR333. Remote DEV1dbb0bbd was unchanged at03:48Z. Final hosted payment gate38677418807 SUCCESS (46/46pins,PG99/0skip,UI14/build/browser12); full frontend426/5511 and estate1680/0silent passed. Two final general backend lanes still running at03:48Z; no failures reported, none cancelled. Earlier complete source CI passed on the identical backend. Do not relabel earlier receipts as final-head whole-CI completion.
+
+Wrap-up entry had only final-report/session-log receipts dirty;149d0514 saved those locally. Complete current STATE/BRAIN/ledger and this handoff in a second local docs-only checkpoint, then stop. Leave these records unpushed to avoid starting new suites during wrap-up; published application source remainsf1bfa2ac. Owned local PostgreSQL/server/listener are stopped, fixture charges refunded; ignored receipts/source manifest retained. No deployment, DEV merge, migration apply or wind change.
+
+Remaining blockers: final general-CI readback; reviewed migration-before-startup sequencing; effective configured backend role/new-table permissions after apply (Render inspection stopped at login/maintenance notice); separately authorized hosted callback/UI acceptance and coordinated master/operator/historical-orphan integration. Both new tables absent in authorized primary-project READ ONLY catalog check.
+
+Active path: JumpInSessionModal card join → Bookings receipt return → verified shared live fulfillment; scheduled drawer → BookingPaymentSuccess. Separate/legacy checkout components do not certify this active path. Fixture production-bundle browser controls and actual API/provider sandbox journeys are distinct; combined active React/provider acceptance remains later integration work. Preserve shared sessions with unequal contributions and user/photographer follows/subscriptions as existing-product constraints, distinct from platform plans, for the later joint walkthrough. No broad new audit or duplicate repair.
+
+Next session: read this report/STATE/lessons; inspect existing CI38677418826 before starting duplicates; fetch DEV/master PR331; preserve/rechain onto its exact canonical ledger prefix before any adoption. Review/publish local documentation checkpoint when appropriate, then resolve runtime-role/apply prerequisites in an authorized secure environment. No schema write or deployment without authorization. No new long repair/audit/suite/context during this closeout.
+
+
+## Resumed current-DEV sync — 2026-10-15 16:02Z
+
+All hosted checks on publishedf1bfa2ac have now succeeded; the two previously pending broad backend lanes are closed by CI38677418826. PR333 remains draft. DEV advanced tob660815e through PR331 (merged03:50:09Z). The local candidate merges this DEV without payment-source overlap; only STATE/ACTIONS conflicted. DEV1210 action bytes are preserved, duplicate merge332 retained once,17 historical payment actions reconstructed via CLI with original acted-at times. Evidence mapping: evidence/2026-10-15-payment-readiness-sync/ledger-reconciliation.json.
+
+Post-sync focused97backend and14UI/3suites pass. Backend and5owned payment frontend files match qualifiedf1; approved DEV map/services/DECISIONS/SCOREBOARD remain exact. These focused checks do not replace combined-head full/browser/hosted or actual active React/provider acceptance. No new broad audit, live provider test, migration, deployment or wind/F2 experiment. This chat holds no active testing load and cannot clear another owner's wind/F2/shared Render window. Master controls release scheduling.
+
+Active entry parents are BookingsModals, MapPageModals and UnifiedSpotDrawer; App routes mount Bookings and BookingPaymentSuccess. Keep master App/hub/recap/gallery connector edits distinct from the payment-owned5files/helper, backend routes and2migrations. The unbundled legacy JumpIn path remains insufficient acceptance. Configured backend role/apply sequencing and later unequal-contribution/user-photographer-subscription walkthrough remain explicit.
+
+
+## Runtime configuration confirmed - 2026-10-15 16:11Z
+
+With explicit owner approval, privately compared the existing Render DATABASE_URL and returned only role/target booleans. It targets the same primary Supabase project used by the prior READ ONLY catalog preflight, with the postgres role; it does not target the separate Dev project. The value was hidden again, never printed, copied to clipboard or saved. Both backend/database.py and Alembic env.py read DATABASE_URL without dotenv override. This closes configured target/role identification; it does not prove a newly executed SQL connection's effective role.
+
+The actual service Build Command is `pip install -r backend/requirements.txt && cd backend && alembic upgrade heads`; Start Command is `cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT`. This confirms migration-before-start sequencing is configured. It also means triggering a build can write the shared database before a new instance starts; a failed or cancelled deployment is not proof of no migration. No settings, schema, deployment, service or customer data changed. Readback evidence: `evidence/2026-10-15-payment-readiness-sync/runtime-config-readback.json`.
+
+The prior catalog found both new tables absent. Before release, obtain a coordinated migration/build window, review the upgrade, apply only with authorization, then verify Alembic head, ownership, RLS, anon/auth revokes and actual application access. Preserve unresolved checkout/reconciliation records. The new combined revision still needs its own full/build/browser/hosted qualification and active React/provider acceptance; published f1's green checks remain evidence for f1. Local sync commit is `99e723833ba9cf018c4429b3c85f6643255de0a9`; the remote branch remains f1 at this checkpoint. No shared testing-window clearance is implied.
+
+
+## Combined revision and active React/provider acceptance — 2026-10-15 16:45Z
+
+The owner requested publication and completion of the active flow. Synced `35b295a1` was pushed and read back; PR333 became MERGEABLE while remaining draft. General CI38768451165 **SUCCESS** measured431 frontend suites / 5,566 tests, estate:312 selected,310 producing results,1,680 passed and0 silent files; dedicated CI38768451261 passed99 PostgreSQL tests /0 skips,46/46 matching pins,14 UI tests and12 browser cases. All other35 workflows succeeded.
+
+The actual local production App routes mounted Bookings and JumpInSessionModal. Browser card selection created a real sandbox Checkout through the app's real join route and Stripe SDK. Signed CLI-forwarded webhook200 and React complete-payment200 granted exactly one active $25 participation; wallet80,0 credit debits and0 cases. A second actual React checkout paid after the disposable session ended: signed webhook200, React return409 and repeated return409, exactly one `live_session_unavailable` case, no second entitlement, no new checkout on reload and wallet80 unchanged.
+
+That real return exposed an error-contract gap: structured reconciliation detail had no message, so the buyer saw only HTTP409. Two focused regressions failed before the minimal checkoutPurchase helper correction and pass afterward. All3 payment UI suites pass16 tests; production build succeeds with inherited warnings. Reload of the same real paid receipt visibly showed the review/do-not-pay-again/support message. The actual app-admin refund endpoint returned200 twice on the one case. Independent Stripe retrieval verified both sandbox charges fully refunded exactly once (successful fixture purchase refunded separately for cleanup); case terminal state refunded and no extra entitlement/debit. The live return after refund still emits its pre-existing string reconciliation error; a buyer-facing link/readback of resolved-case status remains an integration/UX follow-up. The structured-refunded helper unit control does not certify that endpoint path.
+
+Source `3e70a393` is pushed separately with provider skips. [Dedicated38770725532](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38770725532) SUCCESS:99 PostgreSQL tests /0 skips,46/46 matching pins,16 UI tests /3 suites,a production build and12 fixture browser cases. Its completed full frontend job116545516914 passed431 suites /5,568 tests; the zero-margin floor matches that result. [General CI38770725600](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38770725600) completed **SUCCESS**: all11 jobs passed; simulation guards2,658passed/66skipped/1existingxfail, forecast chain2,444passed, estate1,680passed/2,879expectedskips/0silent. Dedicated payment execution has0skips. Lighthouse38770725611, ledger38770725654, encoding38770725690 and LOC38770725627 also succeeded. No backend change from the already-qualified combined source.
+
+Boundary: real React/payment handlers/Stripe SDK/provider/signature verification, disposable loopback PostgreSQL schema, fixture identities/read feeds and existing harness dependency doubles. This is local integration acceptance, not a deployed whole-app test. The real provider walkthrough used the desktop/light active live flow; the12 theme/size checks use local API fixtures. No real customer charge, hosted data write, service setting change, migration, restart or deployment. Owned server/listener stopped, owned PostgreSQL stopped, both ports closed and owned Stripe process count0; all257 local Claude refs and frozen parent unchanged, DEV map/services/DECISIONS/SCOREBOARD blobs exact. No new audit cycle or wind/F2 verdict.
+
+Sanitized receipt: [combined-react-provider.json](evidence/2026-10-15-payment-readiness-sync/combined-react-provider.json). Raw provider identifiers, fixture receipts and screenshots remain ignored locally; only hashes/counts/invariants are public. Remaining release work is reviewed and explicitly authorized migration/build scheduling, effective application-role access/RLS/grants after apply, deployed signed callback/UI acceptance and master operator/historical-orphan/buyer-case integration. Publication does not adopt or deploy DEV.
+
+
+## Concurrent DEV advance / PR334 sync — 2026-10-15 17:13Z
+
+DEV advanced during final documentation CI fromb660815e to363c6d73 through the separately authorized AI ownership PR334 and its receipt. The payment branch now incorporates that work. The4conflicts were CI estate floors, their source-reference test, STATE and ACTIONS; application sources had no conflict. Preserve both deltas:1545base +135payment +34AI =1714executed estate controls, margin2 ->1712floor. Fresh focused payment/receipt/floor/AI tests pass131/0skip; local environment still lacks9declared packages, so hosted parity remains the runtime authority.
+
+All frontend/payment runtime files match6efb9152/3e70a393 exactly; DEV AI routes/review moderation/test/log and wind/map/services/DECISIONS/SCOREBOARD match new DEV. The actual React/provider receipt is not rerun or relabeled as acceptance of unrelated AI routes. No new sandbox charge, test service, shared load, migration or deployment. DEV1216 action bytes are retained exactly;29payment actions reappended only through the canonical CLI with original acted-at timestamps. PR334 merge record retained once; prior mapping stays historical. New mapping: [ledger-reconciliation-pr334.json](evidence/2026-10-15-payment-readiness-sync/ledger-reconciliation-pr334.json). Fresh combined hosted CI must confirm the1714projection; no previous all-green receipt is relabeled as this new head.
+
+
+## Latest combined-source qualification — 2026-10-15 17:31Z
+
+Source `8c78754cb13a6227df34f604d7aeb84b37ffc3e0` is published and read back on the isolated branch, incorporating current DEV `363c6d73`. [General CI38775745105](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38775745105) **SUCCESS**, all11jobs: simulation guards2,658passed/66skipped/1existingxfail; forecast chain2,444passed; estate1,714passed/2,879expectedskips,313selected files/311producing/0silent; full frontend431suites/5,568tests plus build. This confirms the combined estate projection, with floor1,712 preserving margin2.
+
+[Payment gate38775745059](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38775745059) **SUCCESS**: Linux Python3.12 strict46/46matching pins,99PostgreSQL/0skip,16UI/3suites,production build and12fixturebrowser cases. Lighthouse38775745134, ledger38775745014, encoding38775744985 and LOC38775745028 also succeeded. Earlier documentation-only6efb9152 checks also completed green before this new sync; those are not substituted for8c results.
+
+The actual React/provider receipt remains valid for the unchanged frontend/payment runtime; no additional sandbox payment was needed for the unrelated incoming AI fixes. Canonical memory and lessons record exact source/counts and the remaining migration, effective post-apply access, deployed acceptance and operator/buyer-case linking holds. No DEV adoption, hosted schema mutation, build/restart/deployment or wind/F2 change. This final evidence update is documentation only.
+
+
+## Final documentation-only DEV sync — 2026-10-15 17:35Z
+
+DEV advanced again to `9405b91fc` while combined qualification completed. That delta changes only ACTIONS, STATE and the other session's AI authorization log; no application source, dependencies, migrations or CI workflow changed. Its separately authorized shared deployment/smoke receipt is retained exactly as the other session's record, not independently claimed as a payment deployment by this chat. This session did not trigger that deployment or apply/deploy the isolated payment candidate.
+
+The candidate retains the exact1,221-entry newest DEV ledger prefix and reconstructs34payment actions through the canonical CLI with original acted-at times. New mapping: [ledger-reconciliation-live-receipt.json](evidence/2026-10-15-payment-readiness-sync/ledger-reconciliation-live-receipt.json). Frontend, backend and workflows are byte-identical to all-green source8c78754cb. The completed runtime/PG/UI/provider qualification is therefore unchanged; the fresh checks for this sync are ledger-prefix, memory, source-equality and incoming-log preservation. Automatic CI may run again on the documentation-only publication; no new application revision is being claimed tested. All remaining payment migration/access/deployed/operator/buyer-case holds stay in force.
+
+
+## Buyer refund-receipt repair — source3342f9b0f
+
+The active buyer return now receives the existing durable case state after owner and
+provider receipt binding. Live and scheduled fulfillment refuse refund/review cases
+before entitlement, including inconsistent legacy transaction fields. Signed callback
+replays retain their200 envelope; buyer status/return use structured409.
+
+| Case state | Buyer behavior | Recovery and integrity |
+| --- | --- | --- |
+| `open` / `review_required` | Review/support notice; no confirmation claim | Original receipt URL and purchase recovery context retained. Review-required cases block entitlement. |
+| `refund_pending` | Refund pending; session/booking not confirmed; do not pay again | Matching recovery context retained; no new refund or entitlement. |
+| `refunded` | Payment refunded; session/booking not confirmed | Only authenticated buyer matching receipt context cleared; another buyer record remains; receipt URL retained. |
+
+Before:15selected backend regressions failed/9passed,2mounted scheduled UI regressions
+failed/5passed; a strengthened terminal-context assertion failed1/passed6.
+After:123disposable PostgreSQL/0skip,46/46hosted runtime pins,19focusedUI;42production
+browser fixture cases across3themes/2sizes. Full frontend431suites/5571tests and
+estate1738passes/2879expectedskips/313selected/311producing/0silent succeeded.
+[General CI38781322961](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38781322961) completed SUCCESS, all11 jobs: chain2,444passed; sim2,658passed/66skipped/1existingxfail. [Payment38781322965](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38781322965) SUCCESS. Lighthouse38781322761, ledger38781323038, encoding38781322923 and LOC38781322906 also SUCCESS. All projections confirmed on this exact source.
+
+Actual mounted production React/real handler/Stripe SDK replay reused the exact prior
+owned refunded sandbox receipt. Independent provider retrieval confirmed test mode and
+one full succeeded matching refund. Reconstructed disposable local records returned
+structured409/refunded; visible persistent role-alert, no participant, wallet80, no
+credit movement; reload preserved the result and original receipt URL. No new charge
+or refund. This is local integration evidence, not a new full checkout or deployed test.
+
+No new schema/provider SDK/refund endpoint, operator UI, refund-event ingestion,
+historical backfill or cross-device recovery. Current admin refund handler already
+writes pending case and Reconciliation transaction status atomically; the extra stale
+Pending-state test is defensive legacy drift coverage, not an observed duplicate grant
+from that handler. Buyer refresh observes local case updates on receipt reload.
+
+Evidence: [refund-receipt-link.json](evidence/2026-10-15-payment-readiness-sync/refund-receipt-link.json),
+[session log](../weather-program/log/2026-10-15-payment-refund-receipt.md).
+Owned acceptance services stopped;257Claude refs and frozen parent preserved; no
+wind/F2 change, DEV adoption, migration/build/restart/deployment by this session.

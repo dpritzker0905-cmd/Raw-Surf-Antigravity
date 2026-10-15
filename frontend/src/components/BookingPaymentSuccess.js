@@ -2,11 +2,13 @@
  * Booking Payment Success Page
  * Handles Stripe payment confirmation for scheduled bookings
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
-import { CheckCircle, Loader2, XCircle, Calendar, MapPin, Camera, Sparkles, Gift } from 'lucide-react';
+import { forgetConfirmedCheckout } from '../lib/checkoutPurchase';
+import { useTheme } from '../contexts/ThemeContext';
+import { CheckCircle, Loader2, XCircle, Calendar, MapPin, Camera, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import logger from '../utils/logger';
@@ -22,7 +24,12 @@ const BookingPaymentSuccess = () => {
   
   const [status, setStatus] = useState('checking');
   const [_bookingData, setBookingData] = useState(null);
-  const [pollAttempts, setPollAttempts] = useState(0);
+  const [retryCycle, setRetryCycle] = useState(0);
+  const updateUserRef = useRef(updateUser);
+  updateUserRef.current = updateUser;
+  const { theme } = useTheme();
+  const primary = theme === 'dark' ? 'text-white' : 'text-zinc-900';
+  const secondary = theme === 'dark' ? 'text-gray-400' : 'text-zinc-600';
   const maxAttempts = 5;
 
   useEffect(() => {
@@ -30,49 +37,49 @@ const BookingPaymentSuccess = () => {
       setStatus('error');
       return;
     }
-
+    if (!user?.id) return;
+    let cancelled = false;
+    let timer;
+    let attempts = 0;
     const confirmBookingPayment = async () => {
+      attempts += 1;
       try {
         const response = await apiClient.get(
-          `/bookings/payment-success?session_id=${sessionId}&booking_id=${bookingId}`
+          `/bookings/payment-success?session_id=${encodeURIComponent(sessionId)}&booking_id=${encodeURIComponent(bookingId)}`
         );
-        
+        if (cancelled) return;
         if (response.data.success) {
           setStatus('success');
           setBookingData(response.data);
-          
-          // Refresh user data to get updated credit balance
+          forgetConfirmedCheckout(user.id, 'scheduled', sessionId);
           try {
-            const profileResponse = await apiClient.get(`/profiles/${user?.id}`);
-            if (profileResponse.data?.credit_balance !== undefined) {
-              updateUser({ credit_balance: profileResponse.data.credit_balance });
+            const profile = await apiClient.get(`/profiles/${user.id}`);
+            if (!cancelled && profile.data?.credit_balance !== undefined) {
+              updateUserRef.current({ credit_balance: profile.data.credit_balance });
             }
-          } catch (e) {
-            logger.warn('Could not refresh user data');
-          }
-        } else {
-          // Try again
-          if (pollAttempts < maxAttempts) {
-            setPollAttempts(prev => prev + 1);
-            setTimeout(confirmBookingPayment, 2000);
-          } else {
-            setStatus('timeout');
-          }
+          } catch (_) { logger.warn('Could not refresh user data'); }
+          return;
         }
       } catch (error) {
-        logger.error('Booking confirmation error:', error);
-        
-        if (pollAttempts < maxAttempts && error.response?.status !== 400) {
-          setPollAttempts(prev => prev + 1);
-          setTimeout(confirmBookingPayment, 2000);
-        } else {
+        if (cancelled) return;
+        const code = error.response?.status;
+        if (code === 409 && error.response?.data?.detail?.reconciliation_required) {
+          const state = error.response.data.detail.state;
+          if (state === 'refunded') forgetConfirmedCheckout(user.id, 'scheduled', sessionId);
+          setStatus(['refunded', 'refund_pending'].includes(state) ? state : 'review');
+          return;
+        }
+        if (code >= 400 && code < 500) {
           setStatus('error');
+          return;
         }
       }
+      if (attempts <= maxAttempts) timer = setTimeout(confirmBookingPayment, 2000);
+      else setStatus('timeout');
     };
-
     confirmBookingPayment();
-  }, [sessionId, bookingId, pollAttempts, user?.id, updateUser]);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [sessionId, bookingId, user?.id, retryCycle]);
 
   const renderContent = () => {
     switch (status) {
@@ -80,11 +87,24 @@ const BookingPaymentSuccess = () => {
         return (
           <div data-testid="booking-payment-success" className="text-center">
             <Loader2 className="w-16 h-16 text-yellow-400 animate-spin mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-white mb-2">Confirming Your Booking...</h2>
-            <p className="text-gray-400">Please wait while we process your payment</p>
+            <h2 className={`text-2xl font-bold mb-2 ${primary}`}>Confirming Your Booking...</h2>
+            <p className={secondary}>Please wait while we process your payment</p>
           </div>
         );
       
+      case 'refunded':
+      case 'refund_pending':
+      case 'review':
+        return <div role="alert" className="text-center">
+          <h2 className={`text-2xl font-bold mb-2 ${primary}`}>{status === 'refunded' ? 'Payment refunded' : status === 'refund_pending' ? 'Refund pending' : 'Payment needs review'}</h2>
+          <p className={`mb-6 ${secondary}`}>{status === 'refunded'
+            ? 'Your payment was refunded. This booking was not confirmed.'
+            : status === 'refund_pending'
+              ? 'Your refund is pending. This booking was not confirmed. Do not pay again.'
+              : 'We could not confirm this booking. Check your bookings or contact support before paying again.'}</p>
+          <Button onClick={() => navigate('/bookings?tab=scheduled')}>View Bookings</Button>
+        </div>;
+
       case 'success':
         return (
           <div className="text-center">
@@ -98,8 +118,8 @@ const BookingPaymentSuccess = () => {
               </div>
             </div>
             
-            <h2 className="text-2xl font-bold text-white mb-2">Session Booked!</h2>
-            <p className="text-gray-400 mb-6">
+            <h2 className={`text-2xl font-bold mb-2 ${primary}`}>Session Booked!</h2>
+            <p className={`mb-6 ${secondary}`}>
               Your payment was successful and your session is confirmed.
             </p>
             
@@ -127,13 +147,6 @@ const BookingPaymentSuccess = () => {
               </div>
             </div>
             
-            {/* XP Earned */}
-            <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 mb-6 max-w-md mx-auto">
-              <Gift className="w-5 h-5 text-purple-400" />
-              <span className="font-medium text-white">+50 XP earned!</span>
-              <Badge className="bg-purple-500/20 text-purple-400 text-xs">Passport</Badge>
-            </div>
-            
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
@@ -145,7 +158,7 @@ const BookingPaymentSuccess = () => {
               <Button
                 variant="outline"
                 onClick={() => navigate('/feed')}
-                className="border-zinc-700"
+                className={`border-zinc-700 ${primary}`}
               >
                 Back to Feed
               </Button>
@@ -159,13 +172,13 @@ const BookingPaymentSuccess = () => {
             <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
               <Loader2 className="w-12 h-12 text-amber-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Still Processing...</h2>
-            <p className="text-gray-400 mb-6">
+            <h2 className={`text-2xl font-bold mb-2 ${primary}`}>Still Processing...</h2>
+            <p className={`mb-6 ${secondary}`}>
               Your payment is being processed. This may take a moment.
             </p>
             <Button
               onClick={() => {
-                setPollAttempts(0);
+                setRetryCycle(value => value + 1);
                 setStatus('checking');
               }}
               className="bg-yellow-500 hover:bg-yellow-600 text-black"
@@ -182,8 +195,8 @@ const BookingPaymentSuccess = () => {
             <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
               <XCircle className="w-12 h-12 text-red-400" />
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Something Went Wrong</h2>
-            <p className="text-gray-400 mb-6">
+            <h2 className={`text-2xl font-bold mb-2 ${primary}`}>Something Went Wrong</h2>
+            <p className={`mb-6 ${secondary}`}>
               We couldn't confirm your booking. Please check your bookings or contact support.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -196,7 +209,7 @@ const BookingPaymentSuccess = () => {
               <Button
                 variant="outline"
                 onClick={() => navigate('/messages')}
-                className="border-zinc-700"
+                className={`border-zinc-700 ${primary}`}
               >
                 Contact Support
               </Button>
@@ -207,7 +220,7 @@ const BookingPaymentSuccess = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className={`min-h-screen flex items-center justify-center p-4 ${theme === 'dark' ? 'bg-zinc-950' : theme === 'beach' ? 'bg-orange-50' : 'bg-white'}`}>
       <div className="max-w-lg w-full">
         {renderContent()}
       </div>
