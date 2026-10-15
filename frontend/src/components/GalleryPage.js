@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePricing } from '../contexts/PricingContext';
@@ -23,6 +23,7 @@ import { GalleryFolderList } from './gallery/GalleryFolderList';
 
 // Extracted gallery folder modals
 import { GalleryFolderModals } from './gallery/GalleryFolderModals';
+import { TagAssignModal } from './gallery/GalleryModals';
 import { GalleryPricingCard } from './gallery/GalleryPricingCard';
 import GromHighlightsCard from './gallery/GromHighlightsCard';
 import { ProStudioManager } from './gallery/ProStudioManager';
@@ -34,7 +35,7 @@ import useGalleryActions from '../hooks/useGalleryActions';
 import PullToRefreshIndicator from './ui/PullToRefreshIndicator';
 import { GallerySkeleton } from './ui/SkeletonVariants';
 
-export const GalleryPage = () => {
+export const GalleryPage = ({ initialRecapData = null }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -53,8 +54,8 @@ export const GalleryPage = () => {
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedGallery, setSelectedGallery] = useState(null);
-  const [galleryItems, setGalleryItems] = useState([]); // Items in selected gallery
+  const [selectedGallery, setSelectedGallery] = useState(initialRecapData?.gallery || null);
+  const [galleryItems, setGalleryItems] = useState(initialRecapData?.items || []); // Items in selected gallery
   const [galleryItemsLoading, setGalleryItemsLoading] = useState(false);
   const [showAddToGalleryModal, setShowAddToGalleryModal] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState(null);
@@ -111,9 +112,10 @@ export const GalleryPage = () => {
   
   // Tag & Assign modal state
   const [showTagAssignModal, setShowTagAssignModal] = useState(false);
-  const [participants, setParticipants] = useState([]);
+  const [participants, setParticipants] = useState(initialRecapData?.participants || []);
+  const initialRosterGallery = useRef(initialRecapData?.gallery?.id);
   const [participantsLoading, setParticipantsLoading] = useState(false);
-  const [sessionInfo, setSessionInfo] = useState(null);
+  const [sessionInfo, setSessionInfo] = useState(initialRecapData?.session || null);
   const [distributeLoading, setDistributeLoading] = useState({});
   const [distributeAllLoading, setDistributeAllLoading] = useState(false);
   const [distributeProgress, setDistributeProgress] = useState(null); // { current, total }
@@ -194,6 +196,7 @@ export const GalleryPage = () => {
   useEffect(() => {
     const fetchWatermarkPreview = async () => {
       if (!user?.id || !canSellPhotos) return;
+      if (initialRecapData && !showWatermarkSettings) return;
       
       try {
         // Get watermark settings
@@ -226,7 +229,7 @@ export const GalleryPage = () => {
     };
     
     fetchWatermarkPreview();
-  }, [user?.id, canSellPhotos, showWatermarkSettings]); // Re-fetch when modal closes
+  }, [user?.id, canSellPhotos, showWatermarkSettings, initialRecapData]); // Recap preview starts when its tool is opened
 
   // Fetch linked Groms for tagging (Grom Parents only)
   // ============ HANDLERS EXTRACTED TO hooks/useGalleryActions.js ============
@@ -272,9 +275,10 @@ export const GalleryPage = () => {
 
   // Auto-fetch participants when selected gallery changes
   useEffect(() => {
-    if (selectedGallery?.id) {
+    if (selectedGallery?.id && selectedGallery.id !== initialRosterGallery.current) {
       fetchParticipants(selectedGallery.id);
     }
+    initialRosterGallery.current = null;
   }, [selectedGallery?.id]);
 
   // Pull-to-refresh for mobile - triggers gallery refresh on swipe-down
@@ -295,14 +299,14 @@ export const GalleryPage = () => {
     <div ref={galleryPullRef} className="p-4 max-w-6xl mx-auto" data-testid="gallery-page">
       <PullToRefreshIndicator isPulling={galleryPulling} progress={galleryPullProgress} isRefreshing={galleryPtrRefreshing} />
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Camera className="w-7 h-7 text-yellow-400" />
-            Gallery Hub
+              {initialRecapData ? 'Session Recap' : 'Gallery Hub'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {gallery.length} items {"\u2022"} Manage your sessions, folders & distribution
+            {initialRecapData && selectedGallery ? galleryItems.length : gallery.length} items {"\u2022"} Manage your sessions, folders & distribution
           </p>
         </div>
         
@@ -321,6 +325,7 @@ export const GalleryPage = () => {
       {selectedGallery && (
         <PostSessionSummary
           gallery={selectedGallery}
+          heading={initialRecapData ? 'Session Gallery' : undefined}
           participants={participants}
           onDistributeAll={handleDistributeAll}
           onOpenTagAssign={handleOpenTagAssign}
@@ -659,6 +664,13 @@ export const GalleryPage = () => {
 
       {/* All Media section removed -- photographers upload into session folders only */}
 
+      <TagAssignModal {...{
+        showTagAssignModal, setShowTagAssignModal, selectedGallery, selectedItems, galleryItems,
+        participantsLoading, participants, aiAutoTagLoading, handleAiAutoTag, batchTagLoading,
+        distributeLoading, handleBatchTagToSurfer, distributeAllLoading, handleDistributeAll,
+        sessionInfo, manualSurferSearch, setManualSurferSearch, handleSearchSurfers,
+        searchLoading, searchResults,
+      }} />
       {/* Upload Modal */}
       <UploadPhotoModal
         isOpen={showUploadModal}

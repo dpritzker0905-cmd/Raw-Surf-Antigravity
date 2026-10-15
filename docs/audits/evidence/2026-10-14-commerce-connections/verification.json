@@ -1,0 +1,30 @@
+{
+  "base_commit": "131d5d9e434124d9bf510edb9eed2e8238723313",
+  "focused_tests": {
+    "before_jumpin": "18 failed,2passed",
+    "before_gallery": "6failed,1passed",
+    "after": 33,
+    "runners": [
+      "craco",
+      "direct react-scripts"
+    ]
+  },
+  "browser_cases": 18,
+  "build": "passed with existing warnings",
+  "lint_ratchet": "passed,baseline unchanged",
+  "touched_lint": "0errors,4existingwarnings",
+  "unrun": [
+    "provider",
+    "wholeReactreturn/cancel/refund",
+    "whole-app",
+    "physicaldevices",
+    "hostedCI",
+    "devrollout"
+  ],
+  "source_sha256": {
+    "frontend/src/components/spot-hub/JumpInFlow.js": "ed0b757d8b24186bef2d46f5a82a8fe3d66476b486dda9832eee74e414654d7c",
+    "frontend/src/components/spot-drawer/JumpInFlow.js": "4ed7c674b9814333c860ff26df4a06d0c53f7334d513123cc8a83cb51fa2ff58",
+    "frontend/src/hooks/usePublicGalleryActions.js": "0a2679be123ccaad60e9a97c9583f3bbc80b02ca15e965d71d1cd3bfb5257259",
+    "frontend/src/hooks/useSurferGalleryActions.js": "c0baa66028fb235ea64c1846bea4b08625508dab78a10a0f00b907eab5d419f6"
+  }
+}

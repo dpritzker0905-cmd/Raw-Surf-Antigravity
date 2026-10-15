@@ -1,0 +1,98 @@
+{
+  "at": "2026-10-15T03:25:16.136425+00:00",
+  "baseDev": "1dbb0bbd475738a1e764be6dd380dff55090846a",
+  "branch": "codex/master-plan-qualified-dev-batch-2026-10-15",
+  "frozenSources": {
+    "commerce": "b220a2e89fad9224b89974724446d975348cf05c",
+    "wave": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+    "recap": "b43384a9359ec1c19c6c790a8dba10c57d37b238"
+  },
+  "all82SourceBlobsMatch": true,
+  "qualification": {
+    "frontendFull": {
+      "suitesTotal": 428,
+      "testsTotal": 5552,
+      "passedSuites": 427,
+      "passedTests": 5540,
+      "failedTests": 12,
+      "failedSuite": "netlifyIconStoredTailScope.test.js",
+      "reason": "Windows sandbox child Bash returned3221225794; unchanged scope suite outside restriction passes12/12 without source changes"
+    },
+    "netlifyScopeRecheck": {
+      "passed": 12,
+      "failed": 0,
+      "realInstallNetworkOrBuildExecuted": false
+    },
+    "productionBuild": "PASS with existing warnings; repository compiler/lint plugin, private cache/output; no local SW stamping",
+    "compiledRuntimeSourceMatches": 13,
+    "unbundledLegacyModules": 5,
+    "lint": {
+      "files": 1320,
+      "existingErrors": 86,
+      "existingWarnings": 917,
+      "baselineIncrease": false
+    },
+    "loc": "12 grandfathered/no new or regressed",
+    "recapBrowser": {
+      "cases": 51,
+      "checks": 222,
+      "failed": 0
+    },
+    "legacyCheckoutBrowser": {
+      "cases": 18,
+      "failed": 0,
+      "scope": "Real standalone legacy components, not current App imports"
+    },
+    "backendAndExcludedRuntime": "Byte-identical backend tree to live f932; wind engine/shaders/forecast engine and migrations unchanged from DEV1dbb"
+  },
+  "logs": [
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/frontend-full.log.gz",
+      "uncompressedSha256": "436aa883f2c3f15baddc56d4e28a3f898eb26ceb92a06e18945eb2152df8d246"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/netlify-scope-recheck.log.gz",
+      "uncompressedSha256": "16e198e8ae7d22b3558b27aad1b2e143a31b257f1d22fce55c1a13a173553706"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/production-build.log.gz",
+      "uncompressedSha256": "cdb460dccc2af1577788a02ee2493b3876f2b99923b56dc7adf3a0abb045e783"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/lint.log.gz",
+      "uncompressedSha256": "c95c8964edbc268b57180ee229bba34c013c9d015902a264fbf1c7b8383de3db"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/loc.log.gz",
+      "uncompressedSha256": "cd6741f3dce60237dbbb773c2eaaa862aa249a7b97626b8bd02835e71509e77c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/compiled-source-readback.json.gz",
+      "uncompressedSha256": "7987488db1325e9d261239baf13ade838fe6e69d1f6b151210d942dd08c29cf9"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/recap-browser.json.gz",
+      "uncompressedSha256": "b7e77e70debab1f827440a246b3c85a4cd5c05ca08d5012d813eed496a92062f"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-qualified-dev-batch/legacy-checkout-browser.json.gz",
+      "uncompressedSha256": "2ed14ead3fb6a06c5573d54449f85130e12b428c848cc21c4ede3e6c7ce5a24c"
+    }
+  ],
+  "releaseBoundary": "Owner reaffirms testing window and receives WIND/WAVE/latency handoff; release is separately authorized. Exact final head hosted CI/preview still pending. No unfinished F2 or payment runtime, migrations, settings/security/customer/flags changes.",
+  "open": [
+    "Current App checkout/provider/missing-return/operator/private media acceptance",
+    "physical iOS/Android/Safari/thermal and native weather controls",
+    "fixed-valid-instant WIND/WAVE zoom consistency and unquantified timeline latency, existing owner",
+    "deployed exact head/bundle/serviceworker and runtime behavior",
+    "all12 launch gates remain open"
+  ],
+  "frontendBaselineReadback": {
+    "publicDevServiceWorker": "131d5d9e",
+    "observedAt": "2026-10-15T03:17:47Z"
+  },
+  "renderBaselineReadback": {
+    "liveSource": "f9320c27dc0863db727e674a6f38cd6a4a1d1438",
+    "finishedAt": "2026-10-13T02:32:47.721431Z"
+  }
+}
