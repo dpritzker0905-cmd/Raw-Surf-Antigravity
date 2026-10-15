@@ -40,6 +40,10 @@ def provider(monkeypatch):
     key = secrets.token_urlsafe(36)
     monkeypatch.setenv("OPENAI_API_KEY", key)
     monkeypatch.delenv("OPENAI_VISION_MODEL", raising=False)
+    # These tests isolate provider transport. Durable cap/deny behavior has its own suite.
+    from services.openai_budget import MODEL_SNAPSHOTS
+    monkeypatch.setattr(ai_vision, "reserve_openai_request", AsyncMock(
+        side_effect=lambda model, tokens: MODEL_SNAPSHOTS.get(model, model)))
 
     state = {"payload": PHOTO, "status": 200, "finish_reason": "stop", "refusal": None}
 
@@ -67,7 +71,7 @@ async def test_photo_reaches_provider_with_actual_image(provider):
     body = json.loads(calls[0].content)
     assert body["messages"][1]["content"][1]["image_url"]["url"] == url
     assert body["response_format"]["json_schema"]["strict"] is True
-    assert body["model"] == "gpt-5.4-mini" and "temperature" not in body
+    assert body["model"] == "gpt-5.4-mini-2026-03-17" and "temperature" not in body
     assert body["store"] is False
     assert calls[0].headers["Authorization"] == "Bearer " + key
     assert key not in str(calls[0].url)

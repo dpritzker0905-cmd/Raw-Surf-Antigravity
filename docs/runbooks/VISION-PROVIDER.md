@@ -1,7 +1,20 @@
 # Photo and surfboard vision provider
 
-Local integration: `codex/openai-vision-integration`. Not deployed. Synthetic live provider checks passed;
-deployed endpoint and real-photo acceptance remain pending.
+PR335 merged into dev as `f2d339e64` and deployed to the shared backend on2026-10-15. Four paid public-endpoint
+smoke requests passed with synthetic/public images; real-photo, stored-media and device acceptance remain pending.
+
+## Testing budget and continuing exposure
+
+The owner authorized deployment plus smoke tests within a$10 testing budget. This run was manually capped at four
+paid requests;14 endpoint cases and two matching-source health checks passed, with no persistent fixtures. Tests used
+short-lived signed tokens with synthetic subjects, not normal account-login flows. Exact provider token usage and
+actual billing charges were not exposed by these application endpoints. At the checked GPT-5.4 mini prices of$0.75/M
+input and$4.50/M output tokens, an intentionally conservative400k-input/2000-output bound per call is$1.236 for all
+four calls; this is an upper bound, not an observed charge. The actual512px inputs and short outputs are much smaller.
+
+This manual test limit does not enforce continuing application spending. Semaphore/timeouts/image/output bounds
+are not dollar, per-user or per-time budgets. No account/project hard spending cap or auto-recharge restriction was
+verified or changed. Shared dev/production users can continue to make paid calls using the deployed backend.
 
 ## Configuration
 

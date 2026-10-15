@@ -18,6 +18,36 @@ on:
     branches: [dev, main]
 
 jobs:
+  openai-budget-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: budget_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d budget_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+      - name: Verify real PostgreSQL budget races, persistence and private migration
+        working-directory: backend
+        env:
+          OPENAI_BUDGET_POSTGRES_TEST: '1'
+        run: python -m pytest tests/test_openai_budget.py -q --timeout=60
+
   lint-and-build:
     runs-on: ubuntu-latest
 
@@ -1791,8 +1821,9 @@ jobs:
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
           # Reflection review fixes add34 offline AI ownership/availability cases to projected1545.
           # Selector-owned estate file; projected1579, preserving margin2. Hosted CI must confirm.
-          # Vision provider contracts add39 estate cases: projected1618, margin2.
-          MIN_PASSED = 1616
+          # Budget contracts add32 executed estate cases: projected1650, margin2.
+          # One private-migration case runs in openai-budget-postgres, not SQLite estate.
+          MIN_PASSED = 1648
 
           try:
               root = ET.parse('estate.xml').getroot()
