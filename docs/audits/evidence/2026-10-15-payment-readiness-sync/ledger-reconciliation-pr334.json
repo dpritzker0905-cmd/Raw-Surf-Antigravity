@@ -1,0 +1,163 @@
+{
+  "verified_at": "2026-10-15T17:11:42.861398+00:00",
+  "target_dev": "363c6d738d8cf883022562ae1825f75015c9e17d",
+  "prior_payment": "6efb91521a8da761e7a1a78845749ea69ac1e327",
+  "preserved_dev_entries": 1216,
+  "replayed_payment_actions": 29,
+  "mapping": [
+    {
+      "old_seq": 1211,
+      "new_seq": 1217,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1212,
+      "new_seq": 1218,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1213,
+      "new_seq": 1219,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1214,
+      "new_seq": 1220,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1215,
+      "new_seq": 1221,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1216,
+      "new_seq": 1222,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1217,
+      "new_seq": 1223,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1218,
+      "new_seq": 1224,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1219,
+      "new_seq": 1225,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1220,
+      "new_seq": 1226,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1221,
+      "new_seq": 1227,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1222,
+      "new_seq": 1228,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1223,
+      "new_seq": 1229,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1224,
+      "new_seq": 1230,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1225,
+      "new_seq": 1231,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1226,
+      "new_seq": 1232,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1227,
+      "new_seq": 1233,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1228,
+      "new_seq": 1234,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1229,
+      "new_seq": 1235,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1230,
+      "new_seq": 1236,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1231,
+      "new_seq": 1237,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1232,
+      "new_seq": 1238,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1233,
+      "new_seq": 1239,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1234,
+      "new_seq": 1240,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1235,
+      "new_seq": 1241,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1236,
+      "new_seq": 1242,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1237,
+      "new_seq": 1243,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1238,
+      "new_seq": 1244,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    },
+    {
+      "old_seq": 1239,
+      "new_seq": 1245,
+      "disposition": "reappended through canonical CLI onto exact PR334 DEV prefix"
+    }
+  ],
+  "combined_estate_projection": 1714,
+  "combined_estate_floor": 1712,
+  "wind_source_overlap": false,
+  "payment_runtime_overlap": false,
+  "focused_passed": 131,
+  "focused_skipped": 0,
+  "focused_junit_sha256": "dc5bf244720245990f89ed27a3b45a9de94f249a2f64aeca4a56eac375670c04",
+  "frontend_payment_runtime_match": "3e70a393",
+  "incoming_ai_and_wind_source_preserved": true
+}

@@ -1794,9 +1794,9 @@ jobs:
           # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
           # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
-          # Payment candidate: +135 executed estate controls from1545 ->1680; margin2.
-          # New opt-in PostgreSQL cases do not inflate this default-lane projection.
-          MIN_PASSED = 1678
+          # Payment+135 and Reflection AI+34 on verified1545 -> projected1714; margin2.
+          # Dedicated PostgreSQL controls still run separately without skips.
+          MIN_PASSED = 1712
 
           try:
               root = ET.parse('estate.xml').getroot()
