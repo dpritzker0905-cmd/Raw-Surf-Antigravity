@@ -131,7 +131,8 @@ jobs:
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
             // Own hosted source052055ad CI38675679552 job116228616308:426suites/5510tests.
             // Refresh the inherited stale floor from that reading; preserve zero margin.
-            const MIN_SUITES = 426, MIN_TESTS = 5510;
+            // +1 receipt-truth control removes an unsupported XP award; projected5511.
+            const MIN_SUITES = 426, MIN_TESTS = 5511;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

@@ -54,3 +54,22 @@ Owned test PostgreSQL and journey server stopped; both ports confirmed closed; o
 - **What remains:** reviewed migration application before serving new code; effective backend-role grants on the new tables after apply; separately authorized hosted rollout/callback/UI acceptance; master operator/historical-orphan integration and coordinated wind rollout. The browser's postgres catalog view does not identify the backend's configured connection role. No hosted migration or deployment was authorized/performed here.
 
 The earlier credential-search finding remains true; it is superseded as an access blocker by the authorized dashboard read. No local/CI/sandbox result is relabeled as hosted end-to-end payment acceptance.
+
+
+## Existing-product context retained for the later joint walkthrough
+
+Master forwarded owner context during qualification: sessions may have multiple participants with unequal contributions; following/subscribing to a user or photographer is an existing relationship feature, distinct from platform subscription plans. UI wording, displayed allocations and route variables must match those contracts. Retain these as acceptance constraints, not verified whole-product behavior. This batch's individual scheduled/live payment proof does not certify every multi-participant allocation or relationship-subscription path. Trace those actual paths before calling a simplified checkout complete; no equal-share restriction or broad new audit was introduced here. Master retains the later joint walkthrough and integration ownership.
+
+
+**Migration sequencing constraint:** `backend/server.py` startup can create missing ORM tables with `Base.metadata.create_all`; that path does not apply these Alembic RLS/revoke/grant statements. Apply and verify the reviewed migrations before the first candidate backend restart. Do not rely on startup auto-creation as schema qualification. If tables already appeared outside Alembic, stop and inspect their version/privileges rather than blindly applying a duplicate create-table migration. This session changed neither startup code nor hosted schema.
+
+
+## Final application-source and ownership checkpoint
+
+- General CI38675679552 on application source052055ad completed **SUCCESS**: guards2658passed/67expectedskips, chain2444passed/0skip, estate1680passed/2879expectedskips/0silent; full frontend426/5510 and build passed. Follow-up dedicated gate38676554649 onfe0ef579 also **SUCCESS**, including46/46pin parity, PG99/0skip, UI13 andbrowser12. Backend application source remains byte-identical to052055ad.
+- Subsequent screenshot inspection found an inherited unverified50XP award and unreadable beach-mode outline-button text on the payment success page. Mounted actual-response control and production-bundle control both failed before repair. Removed the unsupported award and applied existing theme text colors to the outline actions. Fresh focused UI14/3 and lint ratchet pass; rebuild passed, enhanced12-case browser run follows. Full frontend projection becomes5511, zero margin retained. These latest UI changes require their own hosted result; earlier13-test/5510 receipts are not relabeled as final.
+- This chat owns `frontend/src/components/JumpInSessionModal.js` (active card join), `frontend/src/components/Bookings.js` (live receipt return), `frontend/src/components/ScheduledBookingDrawer.js` (scheduled purchase), `frontend/src/components/BookingPaymentSuccess.js` (scheduled confirmation) and `frontend/src/lib/checkoutPurchase.js` (durable browser identity/retry), plus their selected tests and browser gate. Master commerce/recap App/Gallery/route work is not included. Trace the active JumpInSessionModal → Bookings → verified fulfillment seam when integrating the separate commerce routes.
+- Before adoption, fetch DEV again and preserve its canonical ledger prefix; rechain this candidate's actions if other records land first. Do not import an old STATE/ledger wholesale or silently adopt advanced payment runtime/migrations into another batch. Source and hosted/runtime migration prerequisites stay with this isolated PR.
+
+
+2026-10-15 03:39Z — Enhanced production-bundle browser run completed12passed after the final UI correction, including receipt-only claims and actual secondary-button color in all3themes/2sizes. Corrected beach screenshot visually inspected. Backend unchanged from already-qualified source; latest hosted UI/full-frontend result still pending publication.

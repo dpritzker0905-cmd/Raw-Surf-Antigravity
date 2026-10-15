@@ -72,6 +72,12 @@ async function run() {
           const color = await heading.evaluate(element => getComputedStyle(element).color);
           assert.equal(color === 'rgb(255, 255, 255)', theme === 'dark');
           if (state === 'review') assert.equal(await page.getByRole('alert').count(), 1);
+          if (state === 'success') {
+            assert.equal(await page.getByText(/XP earned/i).count(), 0);
+            const backColor = await page.getByRole('button', { name: 'Back to Feed' })
+              .evaluate(element => getComputedStyle(element).color);
+            assert.equal(backColor === 'rgb(255, 255, 255)', theme === 'dark');
+          }
           await page.screenshot({ path: path.join(output, `${theme}-${device}-${state}.png`) });
           rows.push({ theme, device, state, confirmations, pageErrors: errors.length, horizontalOverflow: false });
           await context.close();

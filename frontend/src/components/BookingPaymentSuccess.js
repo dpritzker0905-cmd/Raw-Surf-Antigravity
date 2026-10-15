@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import { forgetConfirmedCheckout } from '../lib/checkoutPurchase';
 import { useTheme } from '../contexts/ThemeContext';
-import { CheckCircle, Loader2, XCircle, Calendar, MapPin, Camera, Sparkles, Gift } from 'lucide-react';
+import { CheckCircle, Loader2, XCircle, Calendar, MapPin, Camera, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import logger from '../utils/logger';
@@ -139,13 +139,6 @@ const BookingPaymentSuccess = () => {
               </div>
             </div>
             
-            {/* XP Earned */}
-            <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 mb-6 max-w-md mx-auto">
-              <Gift className="w-5 h-5 text-purple-400" />
-              <span className="font-medium text-white">+50 XP earned!</span>
-              <Badge className="bg-purple-500/20 text-purple-400 text-xs">Passport</Badge>
-            </div>
-            
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
@@ -157,7 +150,7 @@ const BookingPaymentSuccess = () => {
               <Button
                 variant="outline"
                 onClick={() => navigate('/feed')}
-                className="border-zinc-700"
+                className={`border-zinc-700 ${primary}`}
               >
                 Back to Feed
               </Button>
@@ -208,7 +201,7 @@ const BookingPaymentSuccess = () => {
               <Button
                 variant="outline"
                 onClick={() => navigate('/messages')}
-                className="border-zinc-700"
+                className={`border-zinc-700 ${primary}`}
               >
                 Contact Support
               </Button>

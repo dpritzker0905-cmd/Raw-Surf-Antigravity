@@ -26,6 +26,13 @@ test('waits for authenticated identity before confirming a booking receipt', asy
   expect(apiClient.get).not.toHaveBeenCalled();
 });
 
+test('confirmed booking does not invent an XP award absent from the receipt', async () => {
+  apiClient.get.mockResolvedValue({ data: { success: true, booking_id: 'booking', status: 'Confirmed' } });
+  render(page()); await settle();
+  expect(screen.getByRole('heading', { name: 'Session Booked!' })).toBeInTheDocument();
+  expect(screen.queryByText(/XP earned/i)).not.toBeInTheDocument();
+});
+
 test('transient confirmation failures have a bounded retry budget', async () => {
   apiClient.get.mockRejectedValue({ response: { status: 503 } });
   render(page()); await settle();
