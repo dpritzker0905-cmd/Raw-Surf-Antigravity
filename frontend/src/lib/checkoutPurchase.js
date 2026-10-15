@@ -10,6 +10,11 @@ const comparable = body => {
 
 export const checkoutErrorMessage = (error, fallback = 'Checkout could not be confirmed. Retry this purchase.') => {
   const detail = error?.response?.data?.detail;
+  if (detail?.reconciliation_required === true) {
+    return detail.state === 'refunded'
+      ? 'Your payment was refunded. This session was not confirmed.'
+      : 'This payment requires review before the session can be confirmed. Do not pay again; contact support.';
+  }
   return typeof detail === 'string' ? detail : detail?.message || error?.message || fallback;
 };
 

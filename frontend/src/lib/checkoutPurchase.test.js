@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { checkoutPurchase, forgetConfirmedCheckout } from './checkoutPurchase';
+import { checkoutPurchase, forgetConfirmedCheckout, checkoutErrorMessage } from './checkoutPurchase';
 
 jest.mock('./apiClient', () => ({ __esModule: true, default: { post: jest.fn() } }));
 const purchase = { ownerId: 'buyer', kind: 'scheduled', scope: 'pro', route: '/bookings/create-with-stripe',
@@ -83,4 +83,14 @@ test('card request covered by quota accepts the actual live join response withou
   const response = await checkoutPurchase({ ...purchase, kind: 'live', route: '/sessions/join?surfer_id=buyer' });
   expect(response.data.subscription_covered).toBe(true);
   expect(Object.keys(sessionStorage)).toHaveLength(0);
+});
+
+test.each([
+  ['open', 'This payment requires review before the session can be confirmed. Do not pay again; contact support.'],
+  ['refunded', 'Your payment was refunded. This session was not confirmed.'],
+])('structured %s reconciliation gives the buyer an actionable receipt message', (state, expected) => {
+  const error = { message: 'Request failed with status code 409', response: { status: 409, data: {
+    detail: { reconciliation_required: true, case_id: 'case-1', state },
+  } } };
+  expect(checkoutErrorMessage(error)).toBe(expected);
 });
