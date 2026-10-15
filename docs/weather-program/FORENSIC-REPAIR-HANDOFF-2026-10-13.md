@@ -25,7 +25,7 @@ Evidence root, abbreviated **E** below:
 
 `C:/Users/David/.codex/visualizations/2026/10/09/01a1224e-394f-7062-b9f3-7a6d0ce6cc81`
 
-At handoff creation these reports and evidence were local. Publication update (2026-10-15): this handoff and both linked audit reports are preserved on remote branch `codex/audit-handoff-docs-2026-10-15`, based on dev `b660815e`, independently of the active repair branch. The external evidence directory remains machine-local and is not included in this documentation publication. These are historical audit findings, not a claim that every finding remains open; reconcile current repair logs and ownership before editing. Fetch this documentation branch in a fresh clone/context to access these files. No application repairs are included.
+At handoff creation these reports and evidence were local. Publication update (2026-10-15): this handoff and both linked audit reports are committed on local branch `codex/audit-handoff-docs-2026-10-15`, based on dev `b660815e`, independently of the active repair branch. The external evidence directory remains machine-local and is not included in this documentation publication. These are historical audit findings, not a claim that every finding remains open; reconcile current repair logs and ownership before editing. Public push is pending explicit approval after automatic approval review rejected the six-file publication payload. A fresh local context can read this branch; another clone cannot fetch it until publication is approved. No application repairs are included.
 
 ## Startup and working rules
 

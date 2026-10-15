@@ -7,3 +7,5 @@ Base: `b660815e49dee689661d8f81ddfe8d0bc4c2fde8`. Audit document source: `e8b664
 Only the handoff, its two audit reports, this publication log, and required ledger/anchor records are included. The shared repair checkout, index, active branch and untracked files are not used for staging and are not modified. No application source, repair artifacts, served numbers, flags, deployment settings or production state change. The source audit commit also contained repairs; those repairs and their ancestry are intentionally excluded.
 
 Validation: exact file allowlist against the base, unchanged audit-report blobs, relative report-link presence, ledger-chain verification and remote branch readback. Raw external evidence remains machine-local. This branch is published for retrieval; it is not merged into dev or main.
+
+Correction: the push was rejected by automatic approval review before execution. This branch is LOCAL ONLY. Explicit approval is required to publish the handoff, two forensic reports, publication log and ledger/state records to the public repository. No remote branch was created by this attempt.
