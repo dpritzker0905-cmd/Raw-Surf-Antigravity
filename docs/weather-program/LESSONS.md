@@ -1320,3 +1320,6 @@ A stored estimate can be estimated again in a browser branch with different sour
 
 
 - **2026-10-15 sync confirmation:** Hosted source8c78754cb confirmed the combined projection exactly:1,714estate passes/0silent, alongside99PostgreSQL/0skip,46matching pins,16UI and12fixturebrowser cases. General CI38775745105 and payment38775745059 both succeeded. Keep earlier receipts tied to earlier sources; byte-equal payment/frontend files retain their real provider evidence scope, while fresh combined CI verifies the imported backend batch. No migration or deployment clearance follows from branch publication.
+
+
+- **2026-10-15 documentation-only target advance:** A concurrent DEV receipt can conflict even after application CI passes. Inspect the actual delta:9405b91fc changed only shared memory/logs. Preserve its exact1,221-entry prefix and other writer log, reconstruct isolated records through the CLI, and prove frontend/backend/workflow byte equality to qualified8c before reusing runtime evidence. A separate session's deployment receipt is provenance, not this chat's deployment or permission to release the held payment candidate. Repeat source/memory checks; do not repeat real provider purchases for a documentation-only sync.
