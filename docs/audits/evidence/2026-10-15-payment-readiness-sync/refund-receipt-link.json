@@ -1,0 +1,135 @@
+{
+  "application_source": "3342f9b0f0634c57612532b03ca915668c1bc570",
+  "target_dev": "9405b91fca838e9178f408f0a3d725899570d5d1",
+  "before": {
+    "backend_selected_failed": 15,
+    "backend_selected_passed": 9,
+    "scheduled_ui_failed": 2,
+    "scheduled_ui_passed": 5,
+    "terminal_context_failed": 1,
+    "terminal_context_passed": 6
+  },
+  "local_after": {
+    "postgresql_passed": 123,
+    "postgresql_skipped": 0,
+    "focused_ui_passed": 19,
+    "combined_adjacent_passed": 131,
+    "floor_controls_included_in_adjacent": 36,
+    "runtime_parity": "9 declared packages absent locally; require hosted parity",
+    "production_build": "passed"
+  },
+  "actual_buyer_return": {
+    "production_react": true,
+    "actual_payment_handler": true,
+    "provider_test_mode": true,
+    "previous_owned_receipt_reused": true,
+    "local_records_reconstructed": true,
+    "full_matching_refund_succeeded": true,
+    "new_charges": 0,
+    "new_refunds": 0,
+    "response_status": 409,
+    "case_state": "refunded",
+    "case_count": 1,
+    "participants": 0,
+    "wallet_balance": 80,
+    "credit_movements": 0,
+    "persistent_notice": "Your payment was refunded. This session was not confirmed.",
+    "receipt_url_retained": true,
+    "reload_verified": true
+  },
+  "hashes": {
+    "backend/utils/live_session_payment.py": "a84d54ac3c299f089bacd1ae647c1762c0b7aaedcad7cf26a01cfd6eda8dec08",
+    "backend/utils/scheduled_booking_payment.py": "0ec7fe7366dab627ed3c14a304655fea3ed7bf57279a2027990dfd2ed0469d82",
+    "frontend/src/components/Bookings.js": "cc47490a7397720d3536edcd050606ba5b861b59f77f11e5e11746d2f946e6f3",
+    "frontend/src/components/BookingPaymentSuccess.js": "c6eb0b18a2196c2f61f12e1818659d354242ceab95b869e68c938b49c8e7648d",
+    "frontend/src/lib/checkoutPurchase.js": "5524bbfd8de3fe32e3ce26231ce1c9ff77171cfc19804253521814f1ee7ea5d4",
+    "frontend/scripts/payment-readiness-browser.cjs": "b92ae78dd9f93a1c9dc47d0568bf06971b3fa97e659ca99cd3f1a9053cc37728"
+  },
+  "private_receipt_sha256": "1dfb0054311fd082945f8911b7d05da9af7f9ca4a5dfd983ce75c8fc08f1ef68",
+  "screenshot_sha256": "a019352ad551bdc3fd10d3484d5b4f73accd1bf832e8b64ad048c78a1fe7d514",
+  "prior_23f_workflows": "all six succeeded; CI38778681404, payment38778681397",
+  "new_source_hosted_ci": {
+    "general_run": 38781322961,
+    "general_status": "success",
+    "payment_run": 38781322965,
+    "payment_conclusion": "success",
+    "postgresql_passed": 123,
+    "postgresql_skipped": 0,
+    "runtime_pins_matched": 46,
+    "runtime_pins_declared": 46,
+    "focused_ui_passed": 19,
+    "production_fixture_browser_cases": 42,
+    "themes": [
+      "light",
+      "dark",
+      "beach"
+    ],
+    "devices": [
+      "desktop",
+      "mobile"
+    ],
+    "frontend_suites": 431,
+    "frontend_tests": 5571,
+    "estate_passed": 1738,
+    "estate_expected_skips": 2879,
+    "estate_selected_files": 313,
+    "estate_producing_files": 311,
+    "estate_silent_files": 0,
+    "general_jobs_succeeded": 11,
+    "forecast_chain_passed": 2444,
+    "simulation_passed": 2658,
+    "simulation_skipped": 66,
+    "simulation_existing_xfail": 1,
+    "all_six_workflows": [
+      {
+        "conclusion": "success",
+        "databaseId": 38781322906,
+        "headSha": "3342f9b0f0634c57612532b03ca915668c1bc570",
+        "name": "LOC Governance Check",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 38781323038,
+        "headSha": "3342f9b0f0634c57612532b03ca915668c1bc570",
+        "name": "Weather Program Ledger",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 38781322923,
+        "headSha": "3342f9b0f0634c57612532b03ca915668c1bc570",
+        "name": "Encoding Guard",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 38781322761,
+        "headSha": "3342f9b0f0634c57612532b03ca915668c1bc570",
+        "name": "Lighthouse CI",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 38781322965,
+        "headSha": "3342f9b0f0634c57612532b03ca915668c1bc570",
+        "name": "Payment PostgreSQL gate",
+        "status": "completed"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 38781322961,
+        "headSha": "3342f9b0f0634c57612532b03ca915668c1bc570",
+        "name": "CI",
+        "status": "completed"
+      }
+    ]
+  },
+  "protected": {
+    "claude_refs_unchanged": 257,
+    "frozen_parent": "7d0538c9d403b511103367532d77cf2f00860740",
+    "no_wind_or_forecast_source_changes": true,
+    "no_deploy_or_hosted_migration": true
+  },
+  "final_memory_scope": "Documentation-only closeout; frontend/backend/workflows unchanged from qualified application source."
+}

@@ -1,6 +1,6 @@
 # Payment release readiness — 2026-10-15 (UTC)
 
-Current isolated refund-receipt repair is under qualification. Actual React now displays a confirmed refund from the previously failing owned sandbox receipt; provider verification and disposable database readback confirm no entitlement or wallet movement. Focused19UI tests pass. PostgreSQL/full combined CI and the expanded42fixture-browser matrix are still pending. Migration/build authorization, post-apply access, deployed acceptance and master/operator/historical-orphan integration remain holds. No deployment or wind change. See [refund receipt log](../weather-program/log/2026-10-15-payment-refund-receipt.md).
+The buyer refund-receipt repair is **qualified on source `3342f9b0f`**. All six hosted workflows passed:123 PostgreSQL tests without skips,46/46 runtime pins,19 payment UI controls,42 production-browser fixture cases across three themes/two sizes,431 frontend suites/5,571 tests,1,738 estate tests with no silent exclusions,2,444 chain and2,658 simulation guards. Actual React/real-handler replay of the exact prior owned refunded Stripe sandbox receipt now shows a persistent refunded notice, with no entitlement or wallet movement and no new charge/refund. Memory-only closeout retains identical runtime/workflows. **Do not merge or deploy yet:** migration/build authorization, effective post-apply access, deployed acceptance and master/operator/historical-orphan integration remain holds. No wind change. See [refund receipt log](../weather-program/log/2026-10-15-payment-refund-receipt.md).
 
 Historical qualification before this repair: Payment application source `8c78754cb` is fully qualified; the isolated candidate also preserves DEV `9405b91fc`, whose later change contains documentation only. **All six hosted workflows passed**, including the full combined backend/frontend checks, 99 PostgreSQL tests with no skips, 46/46 runtime pins, 16 payment UI controls and 12 production-bundle fixture browser cases. The actual React-to-Stripe success/ended/replay/refund journey is confirmed on unchanged frontend/payment runtime source. The sync preserves incoming AI fixes, wind source and DEV ledger history. **Do not merge or deploy yet:** migration/build authorization and post-apply access, deployed callback/UI acceptance and coordinated master/operator/buyer-case integration remain holds.
 
@@ -10,7 +10,7 @@ Historical qualification before this repair: Payment application source `8c78754
 - Frozen parent `codex/booking-payment-post-repairs` at `7d0538c9` and all local Claude refs are unchanged. Map, forecast service, wind decision and SCOREBOARD files match DEV. No served forecast number or scientific gain is claimed.
 - Commit and PR title carry `[skip render] [skip netlify]`. Publication to an isolated branch is not DEV adoption, migration application or deployment. A later unskipped DEV push could deploy deferred changes, so the holds apply before adoption.
 
-## Repairs and verification
+## Qualification history before the buyer refund repair
 
 | Gate | Confirmed result | Limit |
 | --- | --- | --- |
@@ -28,7 +28,7 @@ Historical qualification before this repair: Payment application source `8c78754
 ## Remaining release holds, in order
 
 1. **Hosted migration application and post-apply access.** The authorized READ ONLY catalog preflight matches all3DEV heads/key types and confirms both new tables are absent. The private Render readback confirms its configured primary-project/postgres connection and Alembic-before-uvicorn build command. A build itself can change shared schema. Obtain an explicitly authorized, coordinated window before applying; then verify actual connection identity, Alembic head, table ownership, RLS, anon/authenticated revokes and effective backend access. No hosted migration/build/restart was performed.
-2. **Master/operator integration and buyer case status.** Master owns operator frontend, cadence, alerts and historical orphan investigation. Payment APIs can list/scan/attach/resume/refund. Link the resolved-case/refund state into the active buyer receipt experience; current live return after terminal refund still returns a string reconciliation error. No operator UI, historical backfill or cross-device buyer recovery was added. Preserve unequal shared contributions and user/photographer follows/subscriptions in the joint walkthrough. Claude wind/F2 acceptance and rollout clearance are separate.
+2. **Master/operator integration.** Master owns operator frontend, cadence, alerts and historical orphan investigation. Payment APIs can list/scan/attach/resume/refund. Buyer receipt linking is repaired on isolated source3342: authenticated live/scheduled returns expose pending/review/refunded case state; confirmed refunds clear only the matching owner recovery context. No operator UI, refund-event ingestion, historical backfill or cross-device buyer recovery was added. Buyer status updates on receipt reload after the case changes. Preserve unequal shared contributions and user/photographer follows/subscriptions in the joint walkthrough. Claude wind/F2 acceptance and rollout clearance are separate.
 3. **Hosted rollout acceptance after authorization.** Verify signed callbacks, real return URLs, effective application-role access and deployed UI on the released revision after the migration is qualified. Local actual React/Stripe acceptance and fixture theme/size checks do not certify the deployed whole app. Preserve unresolved intent/case records on rollback. Branch publication is not DEV adoption or deployment.
 
 Combined-revision qualification is complete on source `3e70a393`: all hosted workflows succeeded. Results and scope are recorded below. No broad audit or wind experiment is reopened.
@@ -149,3 +149,42 @@ The actual React/provider receipt remains valid for the unchanged frontend/payme
 DEV advanced again to `9405b91fc` while combined qualification completed. That delta changes only ACTIONS, STATE and the other session's AI authorization log; no application source, dependencies, migrations or CI workflow changed. Its separately authorized shared deployment/smoke receipt is retained exactly as the other session's record, not independently claimed as a payment deployment by this chat. This session did not trigger that deployment or apply/deploy the isolated payment candidate.
 
 The candidate retains the exact1,221-entry newest DEV ledger prefix and reconstructs34payment actions through the canonical CLI with original acted-at times. New mapping: [ledger-reconciliation-live-receipt.json](evidence/2026-10-15-payment-readiness-sync/ledger-reconciliation-live-receipt.json). Frontend, backend and workflows are byte-identical to all-green source8c78754cb. The completed runtime/PG/UI/provider qualification is therefore unchanged; the fresh checks for this sync are ledger-prefix, memory, source-equality and incoming-log preservation. Automatic CI may run again on the documentation-only publication; no new application revision is being claimed tested. All remaining payment migration/access/deployed/operator/buyer-case holds stay in force.
+
+
+## Buyer refund-receipt repair — source3342f9b0f
+
+The active buyer return now receives the existing durable case state after owner and
+provider receipt binding. Live and scheduled fulfillment refuse refund/review cases
+before entitlement, including inconsistent legacy transaction fields. Signed callback
+replays retain their200 envelope; buyer status/return use structured409.
+
+| Case state | Buyer behavior | Recovery and integrity |
+| --- | --- | --- |
+| `open` / `review_required` | Review/support notice; no confirmation claim | Original receipt URL and purchase recovery context retained. Review-required cases block entitlement. |
+| `refund_pending` | Refund pending; session/booking not confirmed; do not pay again | Matching recovery context retained; no new refund or entitlement. |
+| `refunded` | Payment refunded; session/booking not confirmed | Only authenticated buyer matching receipt context cleared; another buyer record remains; receipt URL retained. |
+
+Before:15selected backend regressions failed/9passed,2mounted scheduled UI regressions
+failed/5passed; a strengthened terminal-context assertion failed1/passed6.
+After:123disposable PostgreSQL/0skip,46/46hosted runtime pins,19focusedUI;42production
+browser fixture cases across3themes/2sizes. Full frontend431suites/5571tests and
+estate1738passes/2879expectedskips/313selected/311producing/0silent succeeded.
+[General CI38781322961](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38781322961) completed SUCCESS, all11 jobs: chain2,444passed; sim2,658passed/66skipped/1existingxfail. [Payment38781322965](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38781322965) SUCCESS. Lighthouse38781322761, ledger38781323038, encoding38781322923 and LOC38781322906 also SUCCESS. All projections confirmed on this exact source.
+
+Actual mounted production React/real handler/Stripe SDK replay reused the exact prior
+owned refunded sandbox receipt. Independent provider retrieval confirmed test mode and
+one full succeeded matching refund. Reconstructed disposable local records returned
+structured409/refunded; visible persistent role-alert, no participant, wallet80, no
+credit movement; reload preserved the result and original receipt URL. No new charge
+or refund. This is local integration evidence, not a new full checkout or deployed test.
+
+No new schema/provider SDK/refund endpoint, operator UI, refund-event ingestion,
+historical backfill or cross-device recovery. Current admin refund handler already
+writes pending case and Reconciliation transaction status atomically; the extra stale
+Pending-state test is defensive legacy drift coverage, not an observed duplicate grant
+from that handler. Buyer refresh observes local case updates on receipt reload.
+
+Evidence: [refund-receipt-link.json](evidence/2026-10-15-payment-readiness-sync/refund-receipt-link.json),
+[session log](../weather-program/log/2026-10-15-payment-refund-receipt.md).
+Owned acceptance services stopped;257Claude refs and frozen parent preserved; no
+wind/F2 change, DEV adoption, migration/build/restart/deployment by this session.
