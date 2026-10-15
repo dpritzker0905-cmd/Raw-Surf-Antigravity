@@ -83,3 +83,13 @@ backend healthy at363c6d738; DEV `/map` HTML shell200. Netlify success header wa
 deployment identity/availability checks, not native/browser functional, checkout, weather or OpenAI acceptance.
 Detailed deployment identifier and scalar receipt are retained outside tracked public docs in the session artifact.
 Master owns canonical combined ledger/STATE reconciliation; this branch's local receipt is a proposal, not a DEV push.
+
+## PR335 publication
+
+Owner requested: "Can you open a PR for the OpenAI vision integration and make sure hosted CI passes before we
+deploy it?" Fresh remote DEV remains9405b91f. Published the existing feature branch normally and opened
+[PR335](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/335) against dev, attached to this task.
+Description distinguishes synthetic live provider checks from undeployed endpoint/real-photo acceptance, retains
+the shared-backend rollout boundary and notes the existing manual-assignment authorization backlog. Hosted checks
+must pass on the final publication head; no merge, Render deployment or credential change authorized/performed.
+Ledger1228-1229 records publication and PR creation. No served weather number changes.
