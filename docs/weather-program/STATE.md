@@ -14,6 +14,8 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-15: OpenAI lifetime $10 app testing cap implemented locally; NOT LIVE.** Shared PostgreSQL pre-debit covers vision and paid review moderation, fails closed, survives restarts and concurrency, and can be disabled with `OPENAI_TEST_BUDGET_ENABLED=false` while retaining its counter. Conservative prior allowance $1.25 leaves $8.75 (at most 25 further attempts). Local budget32 pass/1 PostgreSQL skip; dedicated PostgreSQL migration/RLS/concurrency CI pending. No database, Render environment or billing change yet. [Activation/runbook](../runbooks/OPENAI-TESTING-BUDGET.md), [session](log/2026-10-15-openai-testing-cap.md).
+
 - **2026-10-15: qualified PR331 DEV frontend now deployed at `9405b91f`**, direct owner approval in the vision session. Netlify branch-deploy/dev successful; public DEV service worker9405b91f and map HTML200 read18:34Z. Production remainsfc140024; backend healthy363c6d738. OpenAI feature excluded; no production publish/unlock/settings/flags/Render action. Master owns canonical combined reconciliation; broader functional acceptance remains open. [Local receipt](log/2026-10-15-vision-provider-integration.md).
 
 - **2026-10-15: PR335 MERGED and DEPLOYED**: qualified83ca36160 merged dev asf2d339e64; exact merge tree verified. Shared backend live/healthy and dev frontend servesf2d339e6; production frontend remains locked/fc140024. Owner explicitly authorized shared rollout within$10 testing budget. Four paid synthetic/public-image requests passed;14 HTTP cases plus2health checks, no persistent fixtures/customer photos. Conservative smoke cost bound$1.236, actual tokens/charges unknown; account hard cap unverified and ongoing shared paid use not budget-enforced. Hosted frontend430/5558, estate1618, chain2444, composition2658/66skip/1xfail passed. Real stored-media/photos/device/manual-assignment acceptance pending. Deployment receipts local on `codex/vision-335-deploy-record`; canonical reconciliation pending. [Receipt](log/2026-10-15-vision-provider-integration.md).
@@ -2317,7 +2319,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1236, sha256 c1b5386998fd43b804b55da193e653163f92438da26a70e19a742db9fd437845**
+  **Ledger head: seq 1237, sha256 22835e0772af25ef566ce211551233b26dd1f2e22ccb9f3d0fb9cfa492e250d8**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

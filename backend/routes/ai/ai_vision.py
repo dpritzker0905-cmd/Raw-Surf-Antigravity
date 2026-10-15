@@ -15,6 +15,7 @@ from PIL import Image, UnidentifiedImageError
 from pydantic import ValidationError
 
 from .vision_schemas import PhotoAnalysis, BoardAnalysis
+from services.openai_budget import reserve_openai_request
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -87,12 +88,14 @@ async def _infer(image_data: str, is_base64: bool, schema, prompt: str) -> dict:
     except asyncio.TimeoutError:
         raise HTTPException(503, "Image analysis is busy; try again shortly") from None
     try:
+        model = os.environ.get("OPENAI_VISION_MODEL", "").strip() or "gpt-5.4-mini"
+        model = await reserve_openai_request(model, 2000)
         async with httpx.AsyncClient(timeout=httpx.Timeout(45, connect=10), follow_redirects=False) as client:
             response = await client.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={"Authorization": "Bearer " + key},
                 json={
-                    "model": os.environ.get("OPENAI_VISION_MODEL", "").strip() or "gpt-5.4-mini",
+                    "model": model,
                     "messages": [
                         {"role": "system", "content": _COMMON_PROMPT + " " + prompt},
                         {"role": "user", "content": [

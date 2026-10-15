@@ -7,6 +7,7 @@ import os
 import json
 import logging
 from dotenv import load_dotenv
+from services.openai_budget import reserve_openai_request, BudgetUnavailable
 
 load_dotenv()
 
@@ -64,10 +65,10 @@ async def moderate_review_content(review_text: str) -> dict:
 
     try:
         from openai import AsyncOpenAI
-        client = AsyncOpenAI(api_key=api_key)
-
+        model = await reserve_openai_request("gpt-4o", 100)
+        client = AsyncOpenAI(api_key=api_key, base_url="https://api.openai.com/v1", max_retries=0)
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model=model,
             messages=[
                 {"role": "system", "content": MODERATION_SYSTEM_PROMPT},
                 {"role": "user", "content": f"Review the following content and determine if it should be approved or flagged:\n\n\"{review_text}\""}
@@ -90,6 +91,9 @@ async def moderate_review_content(review_text: str) -> dict:
             "reason": result.get("reason", "")
         }
 
+    except BudgetUnavailable:
+        # Preserve the existing moderation fail-open contract, without a paid call.
+        return {"approved": True, "reason": "", "error": "AI moderation paused: testing budget unavailable"}
     except json.JSONDecodeError:
         # If JSON parsing fails, check for keywords
         response_lower = response_text.lower()
@@ -99,8 +103,8 @@ async def moderate_review_content(review_text: str) -> dict:
 
     except Exception as e:
         # On error, fail open (allow the review but log the error)
-        logger.error(f"AI moderation error: {str(e)}")
-        return {"approved": True, "reason": "", "error": str(e)}
+        logger.error("AI moderation provider unavailable")
+        return {"approved": True, "reason": "", "error": "AI moderation unavailable"}
 
 
 async def moderate_batch(reviews: list) -> list:
