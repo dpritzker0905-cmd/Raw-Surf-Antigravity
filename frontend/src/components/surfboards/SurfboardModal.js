@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useThemeName } from '../../contexts/ThemeContext';
 import apiClient from '../../lib/apiClient';
 import { Plus, X, Loader2, Waves } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -12,6 +13,7 @@ import { BOARD_TYPES, FIN_SETUPS, CONDITIONS } from './constants';
 import { ImageVisionPanel } from '../vision/ImageVisionPanel';
 
 export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
+  const theme = useThemeName();
   const isEditing = !!board?.id;
   
   const [loading, setLoading] = useState(false);
@@ -165,7 +167,8 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
   };
   
   const textPrimary = 'text-foreground';
-  const inputBg = 'bg-background border-border text-foreground';
+  const inputBg = theme === 'beach' ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-background border-border text-foreground';
+  const selectBg = theme === 'beach' ? 'bg-amber-50 text-amber-900' : 'bg-popover text-popover-foreground';
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -316,7 +319,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <SelectTrigger className={inputBg}>
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover text-popover-foreground">
+                <SelectContent className={selectBg}>
                   {BOARD_TYPES.map(t => (
                     <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                   ))}
@@ -329,7 +332,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
                 <SelectTrigger className={inputBg}>
                   <SelectValue placeholder="Select fins" />
                 </SelectTrigger>
-                <SelectContent className="bg-popover text-popover-foreground">
+                <SelectContent className={selectBg}>
                   {FIN_SETUPS.map(f => (
                     <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                   ))}
@@ -345,7 +348,7 @@ export const SurfboardModal = ({ isOpen, onClose, board, onSave, userId }) => {
               <SelectTrigger className={inputBg}>
                 <SelectValue placeholder="Select condition" />
               </SelectTrigger>
-              <SelectContent className="bg-popover text-popover-foreground">
+              <SelectContent className={selectBg}>
                 {CONDITIONS.map(c => (
                   <SelectItem key={c.value} value={c.value}>
                     <span className={c.color}>{c.label}</span>

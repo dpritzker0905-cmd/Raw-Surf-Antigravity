@@ -164,8 +164,8 @@ jobs:
             // +1 receipt-truth control removes an unsupported XP award; projected5511.
             // Combined35b295a1 CI38768451165 observed431suites/5566tests.
             // +2 actual reconciliation-response message controls; preserve zero margin.
-            // DEV PR337434/5568 + disjoint payment3/19 = projected437/5587.
-            const MIN_SUITES = 437, MIN_TESTS = 5587;
+            // DEV beach contrast434/5570 + disjoint payment3/19 = projected437/5589.
+            const MIN_SUITES = 437, MIN_TESTS = 5589;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

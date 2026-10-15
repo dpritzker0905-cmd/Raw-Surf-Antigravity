@@ -17,6 +17,7 @@ test.each(['light', 'dark', 'beach'])('%s: scans only the explicitly chosen owne
     overall_description: 'A wooden board.', people_count: 0, visual_tags: ['wood grain'],
   } } });
   render(<ThemeProvider><ImageVisionPanel images={images} /></ThemeProvider>);
+  expect(screen.getByLabelText('Photo to analyze')).toHaveClass(theme === 'beach' ? 'bg-amber-50' : 'bg-background');
   expect(apiClient.post).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText('Photo to analyze'), { target: { value: 'another-photo' } });
   fireEvent.click(screen.getByRole('button', { name: 'Scan Photo' }));

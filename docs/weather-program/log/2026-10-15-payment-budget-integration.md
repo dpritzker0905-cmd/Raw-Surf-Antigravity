@@ -48,3 +48,13 @@ Real disposable PostgreSQL gate123 passed/0 skipped in261.13s, including combine
 and initialized budget preservation; optimized production build exit0. Existing Python
 runtime still lacks9 declared packages: these are local behavior receipts, not parity proof.
 The exact hosted candidate must independently pass strict parity and all release workflows.
+
+## Publication and concurrent DEV sync
+
+Published source aa7845039 as draft PR339; PR333 stillbd7920fbd. Full unrestricted frontend
+437 suites/5587tests passed. Draft initially had no CI because DEV advanced to48284a5e3
+with the vision beach-field fix, creating ledger/STATE conflicts. Synced that source unchanged;
+kept DEV ledger as exact prefix and reconstructed only this lane's two actions via CLI.
+The two additional board theme cases project437suites/5589tests now; hosted must confirm.
+Budget reservation figures from earlier retained receipts are historical; no cap read/reset here.
+Owned disposable PostgreSQL stopped and port no longer listening after123/0skip proof.
