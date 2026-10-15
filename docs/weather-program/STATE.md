@@ -14,6 +14,8 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-15 publication read-back:** source branch0cc72995 independently confirmed; docs-only PR332 merged to DEV1dbb0bbd. DEV now carries the verified report/brain/state/lessons while payment code remains isolated. Final-head hosted ledger passed; post-merge backendf9320c27 and DEV frontend131d5d9e unchanged, healthy uptime47h40m. Wind runtime/decisions/scoreboard and all Claude refs unchanged. No deployment, schema change or closure of payment release holds. Candidate ledger here is branch-local; DEV retains its own1176-entry prefix plus1177-1179.
+
 - **2026-10-15: orphan checkout creation repaired and PUBLISHED on `codex/orphan-checkout-intent`; NOT MERGED/DEPLOYED. Remote branch39d5e81d read back; fresh bounded152 passed.** Code `46a1d1b8`, frozen parent `7d0538c9` unchanged. Durable scheduled/live purchase/attempt before Stripe; fixed-identity response-loss recovery, verified session attachment and bounded owner/admin APIs. Actual PG17.11:74 passed/0 skipped; two real unpaid sandbox checkout identities recovered after lost responses and expired. Broader197 passed/2 failures reproduced on exact parent; no full-green claim. [Report](../audits/2026-10-15-orphan-checkout-repair.md), [log](log/2026-10-15-orphan-checkout-intent.md). Hosted/runtime/migration/UI and separate operator/missing-live-return gates remain open; master adopts source delta after held batch, not old shared memory wholesale. Claude wind/source/refs excluded; no current wind verdict asserted. Existing14 overdue commitments remain open. No served forecast number or SCOREBOARD gain. This supersedes only the earlier candidate's new scheduled/live orphan-creation hold at the local qualification boundary.
 
 - **2026-10-11: payment/ownership repairs and audit memory PUBLISHED to isolated `codex/booking-payment-post-repairs`; NOT MERGED OR DEPLOYED.** Initial GitHub remote read-back matches `e7ef5d03`; code `48c056a5` and earlier repairs included. Fresh fetch/ancestry: dev `e0af8885`, no incoming commits, so no rebase/merge needed. [Publication log](log/2026-10-11-payment-push-sync.md). Claude local refs and dev/main unchanged; wind/frontend/forecast source, weather decisions and scoreboard match dev. Memory/lessons publication stays on this branch; later integration must preserve any intervening shared-memory/ledger changes. Prior local31 PG/115 regression evidence retained; hosted CI, durable checkout creation, runtime/migration/full frontend release holds remain open. Claude wind polling verdict PENDING/EXCLUDED. No forecast-number change or SCOREBOARD gain. This publication supersedes prior audit/repair entries' historical "no push/not shared" status only; it does not certify or merge their changes.
@@ -1821,7 +1823,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1061, sha256 eeffcb0a59fc57ba08feadb7c45cd3e3d0621543d1ce8ebd18fabed2a7dcb899**
+  **Ledger head: seq 1062, sha256 87124c173a1dc76b23550743704438c423caf821db54de158a548b21580c0a83**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
