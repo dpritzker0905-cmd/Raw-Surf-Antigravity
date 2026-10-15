@@ -9,3 +9,5 @@
 - No code, provider, schema, forecast number or SCOREBOARD gain. Publication is not CI/deployment acceptance; Claude wind verdict is excluded.
 
 Evidence and operator API/adoption/rollback contract: `docs/audits/2026-10-15-orphan-checkout-repair.md`. DEV publication/merge pending read-back at this record.
+
+PR332 opened for six docs/memory paths against DEV131d5d9e. Hosted ledger check on29bd8829 succeeded. Lightweight read-back: backend healthy, version stillf9320c27 and uptime47h38m; DEV frontend BUILD_VERSION131d5d9e. No newer DEV E2E run since October13. General project CI is still running; the qualified boundary here is docs/ledger integrity, not payment source acceptance. Merge is authorized by the owner's safe-DEV publication request, with provider deployment skips and no runtime/source changes.
