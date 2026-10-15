@@ -1317,3 +1317,6 @@ A stored estimate can be estimated again in a browser branch with different sour
 
 
 - **2026-10-15 concurrent-sync addendum:** Recheck the remote target before final publication: DEV advanced by PR334 while a documentation-only CI run was finishing. Preserve the newer ledger as an exact prefix and replay isolated historical actions through the CLI with timestamps/mapping; retain the incoming source/log exactly. Conflicting coverage projections add:1545base+135payment+34AI=1714, preserving margin2 at1712. Focused combined131controls and source equality checks passed; hosted confirmation remains required before claiming the new combined head is green. An unchanged frontend/payment runtime retains its measured provider receipt scope, but does not certify the newly imported AI routes.
+
+
+- **2026-10-15 sync confirmation:** Hosted source8c78754cb confirmed the combined projection exactly:1,714estate passes/0silent, alongside99PostgreSQL/0skip,46matching pins,16UI and12fixturebrowser cases. General CI38775745105 and payment38775745059 both succeeded. Keep earlier receipts tied to earlier sources; byte-equal payment/frontend files retain their real provider evidence scope, while fresh combined CI verifies the imported backend batch. No migration or deployment clearance follows from branch publication.

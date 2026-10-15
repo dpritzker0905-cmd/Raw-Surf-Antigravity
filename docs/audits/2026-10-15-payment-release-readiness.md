@@ -1,6 +1,6 @@
 # Payment release readiness — 2026-10-15 (UTC)
 
-The payment candidate is resynced to concurrently advanced DEV `363c6d73` (PR334), without changing payment runtime, frontend or wind source. The earlier combined payment source `3e70a393` passed all hosted checks and the actual React-to-Stripe success/ended/replay/refund journey; its files are retained exactly. The latest sync preserves DEV AI fixes and the exact1216-entry ledger prefix, combines estate projections to1714/floor1712 and passes131local payment/receipt/floor/AI controls. **Fresh hosted qualification of this latest combined revision is pending. Do not merge or deploy:** migration/build authorization and post-apply access, deployed callback/UI acceptance and coordinated master/operator/buyer-case integration remain holds.
+Payment repair source `8c78754cb` is pushed and safely synced with DEV `363c6d73` (PR334). **All six hosted workflows passed**, including the full combined backend/frontend checks, 99 PostgreSQL tests with no skips, 46/46 runtime pins, 16 payment UI controls and 12 production-bundle fixture browser cases. The actual React-to-Stripe success/ended/replay/refund journey is confirmed on unchanged frontend/payment runtime source. The sync preserves incoming AI fixes, wind source and DEV ledger history. **Do not merge or deploy yet:** migration/build authorization and post-apply access, deployed callback/UI acceptance and coordinated master/operator/buyer-case integration remain holds.
 
 ## Scope and source
 
@@ -41,7 +41,7 @@ python -m pytest tests/test_booking_payment_integrity.py tests/test_session_chec
 python scripts/ci_test_lanes.py --assert-partition
 ```
 
-Partition:673 tracked tests,195 guards,163 chain,312 estate,2 existing exclusions,1 existing quarantine. No test was silently excluded to get green. Ignored final JUnit receipt SHA256: PG99 `bb9c7c85ad41bb83cc85afe1141ba8a127a37cc9ca74323e358d400b1556fa57`; neighbor97 `8c7fa2fda1a9c5723edd1ad9aa6e56479f878fe21128c6f14e135c1627ec65dc`. The two runs cover196 distinct cases. Sandbox browser/provider readbacks and screenshots remain ignored; no secret values are tracked.
+Current partition after PR334 sync:674 tracked tests,195 guards,163 chain,313 estate,2 existing exclusions,1 existing quarantine. No test was silently excluded to get green. Ignored final JUnit receipt SHA256: PG99 `bb9c7c85ad41bb83cc85afe1141ba8a127a37cc9ca74323e358d400b1556fa57`; neighbor97 `8c7fa2fda1a9c5723edd1ad9aa6e56479f878fe21128c6f14e135c1627ec65dc`. The two runs cover196 distinct cases. Sandbox browser/provider readbacks and screenshots remain ignored; no secret values are tracked.
 
 Owned test PostgreSQL and journey server stopped; both ports confirmed closed; owned Stripe listener count0. No shared process or Claude work was stopped.
 
@@ -131,3 +131,12 @@ Sanitized receipt: [combined-react-provider.json](evidence/2026-10-15-payment-re
 DEV advanced during final documentation CI fromb660815e to363c6d73 through the separately authorized AI ownership PR334 and its receipt. The payment branch now incorporates that work. The4conflicts were CI estate floors, their source-reference test, STATE and ACTIONS; application sources had no conflict. Preserve both deltas:1545base +135payment +34AI =1714executed estate controls, margin2 ->1712floor. Fresh focused payment/receipt/floor/AI tests pass131/0skip; local environment still lacks9declared packages, so hosted parity remains the runtime authority.
 
 All frontend/payment runtime files match6efb9152/3e70a393 exactly; DEV AI routes/review moderation/test/log and wind/map/services/DECISIONS/SCOREBOARD match new DEV. The actual React/provider receipt is not rerun or relabeled as acceptance of unrelated AI routes. No new sandbox charge, test service, shared load, migration or deployment. DEV1216 action bytes are retained exactly;29payment actions reappended only through the canonical CLI with original acted-at timestamps. PR334 merge record retained once; prior mapping stays historical. New mapping: [ledger-reconciliation-pr334.json](evidence/2026-10-15-payment-readiness-sync/ledger-reconciliation-pr334.json). Fresh combined hosted CI must confirm the1714projection; no previous all-green receipt is relabeled as this new head.
+
+
+## Latest combined-source qualification — 2026-10-15 17:31Z
+
+Source `8c78754cb13a6227df34f604d7aeb84b37ffc3e0` is published and read back on the isolated branch, incorporating current DEV `363c6d73`. [General CI38775745105](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38775745105) **SUCCESS**, all11jobs: simulation guards2,658passed/66skipped/1existingxfail; forecast chain2,444passed; estate1,714passed/2,879expectedskips,313selected files/311producing/0silent; full frontend431suites/5,568tests plus build. This confirms the combined estate projection, with floor1,712 preserving margin2.
+
+[Payment gate38775745059](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38775745059) **SUCCESS**: Linux Python3.12 strict46/46matching pins,99PostgreSQL/0skip,16UI/3suites,production build and12fixturebrowser cases. Lighthouse38775745134, ledger38775745014, encoding38775744985 and LOC38775745028 also succeeded. Earlier documentation-only6efb9152 checks also completed green before this new sync; those are not substituted for8c results.
+
+The actual React/provider receipt remains valid for the unchanged frontend/payment runtime; no additional sandbox payment was needed for the unrelated incoming AI fixes. Canonical memory and lessons record exact source/counts and the remaining migration, effective post-apply access, deployed acceptance and operator/buyer-case linking holds. No DEV adoption, hosted schema mutation, build/restart/deployment or wind/F2 change. This final evidence update is documentation only.
