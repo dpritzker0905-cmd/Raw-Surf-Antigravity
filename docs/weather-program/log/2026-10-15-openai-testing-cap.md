@@ -38,3 +38,12 @@ not yet performed by this implementation receipt; production frontend remains lo
 Fresh integrated check after migration privilege-test additions:107 passed/1 PostgreSQL-only skipped in budget,
 vision and CI-floor suites. Ledger verify1237 entries OK; exact STATE anchor advanced to1237. Remote dev remains
 f2d339e64 before publication. No paid call or live setting/database change during these checks.
+
+Published implementation73422d4be and PR336 against dev. CI38808589933 first PostgreSQL job succeeded (actual
+migration/ACL/RLS/race/persistence suite); broader CI still running at memory capture. No merge or live activation.
+Owner then requested durable memory of all work. Added docs/runbooks/AI-SESSION-HANDOFF-2026-10-15.md as the
+navigation record for optional Reflection, PR334 authentication, PR335 vision deployment and PR336 budget, with
+source links, historical versus active state, conservative prior allowance, removal instructions and next gates.
+Tree Ring guidelines read; no existing CLI/project store available, so no install or Tree Ring capture claimed.
+The existing tracked project memory remains canonical. Ledger1238-1240 records push, PR and explicit memory request.
+Memory audit:0 FAIL,14 inherited WARN,24 NOTE; warnings concern existing weather commitments outside this AI task.
