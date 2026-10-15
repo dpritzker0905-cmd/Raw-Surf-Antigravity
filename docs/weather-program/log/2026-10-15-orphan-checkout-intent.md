@@ -13,3 +13,5 @@
 Final read-back: ledger1059 verified append-only against frozen parent; memory audit0 FAIL/14 existing WARN/12 NOTE. Sandbox key absent from all tracked files; private fixtures ignored; Claude refs and frozen parent unchanged. Broader199-case receipt retains2 inherited failures. No push or deployment.
 
 Publication preparation: owner requested safe sync, orphan repair push and safe DEV adoption. Fresh bounded controls152 passed; DEV131d5d9e fetched, with coordinated rollout still held. Publish the isolated candidate with provider deployment skips; DEV adoption is limited to confirmed records, preserving current wind/memory history. No code, schema, provider or forecast changes in this publication step.
+
+Confirmed publication: Remote read-back confirmed codex/orphan-checkout-intent at39d5e81d109ddcaed82723e7ced24ed16ca6ae5f; frozen parent7d0538c9 and all local Claude branch refs unchanged. No DEV code merge, deployment, live migration or wind verdict. Fresh bounded152 passed; receipt SHA256 3ef39ab6980ffc09431548f6e7a90fec08a1b943a189facf3982a68e9406c5d7. Prior PG74 proof and inherited2 wider-suite failures remain separate.
