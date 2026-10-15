@@ -1,9 +1,19 @@
 # Photo and surfboard vision provider
 
-PR335 merged into dev as `f2d339e64` and deployed to the shared backend on2026-10-15. Four paid public-endpoint
-smoke requests passed with synthetic/public images; real-photo, stored-media and device acceptance remain pending.
+The shared backend serves the OpenAI integration and enabled lifetime budget at `a7c038919`.
+PR337/338 added the main Gallery Hub review and board Scan controls; dev frontend serves `48284a5e`.
+Real uploaded-photo analysis and board scan/review/save passed in dev. Production frontend remains locked at
+`fc140024`. [Current acceptance receipt](../weather-program/log/2026-10-15-vision-ui-workflows.md).
 
-## Testing budget and continuing exposure
+## Using the controls
+
+- Gallery Hub: open a folder, choose AI Tag, select a photo, then Scan Photo. Review the description and visual
+  tags; select known surfers manually. Analysis does not identify people or assign them automatically.
+- Boards: Add/Edit Board, upload/select a photo, then Scan Surfboard. Review the observations, choose
+  Use suggestions in empty fields, then explicitly Save. Entered values are preserved; dimensions are not inferred.
+- Each scan is explicit and sends one image to OpenAI. Errors are displayed without automatic paid retries.
+
+## Historical initial smoke and current budget
 
 The owner authorized deployment plus smoke tests within a$10 testing budget. This run was manually capped at four
 paid requests;14 endpoint cases and two matching-source health checks passed, with no persistent fixtures. Tests used
@@ -12,9 +22,10 @@ actual billing charges were not exposed by these application endpoints. At the c
 input and$4.50/M output tokens, an intentionally conservative400k-input/2000-output bound per call is$1.236 for all
 four calls; this is an upper bound, not an observed charge. The actual512px inputs and short outputs are much smaller.
 
-This manual test limit does not enforce continuing application spending. Semaphore/timeouts/image/output bounds
-are not dollar, per-user or per-time budgets. No account/project hard spending cap or auto-recharge restriction was
-verified or changed. Shared dev/production users can continue to make paid calls using the deployed backend.
+PR336 superseded that initial manual-only limit with the deployed shared lifetime $10 app guard. The latest
+readback is $5.10 reserved / $4.90 available, enabled and initialized; these are conservative reservations, not
+invoices. Never reset the counter. [Budget operation and removal](OPENAI-TESTING-BUDGET.md).
+Other programs/direct calls using the key are outside this app guard; account billing settings were not changed.
 
 ## Configuration
 

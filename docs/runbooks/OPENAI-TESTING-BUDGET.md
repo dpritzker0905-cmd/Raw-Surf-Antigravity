@@ -1,5 +1,10 @@
 # OpenAI app testing budget
 
+Live on 2026-10-15: PR336 merged/deployed as `a7c038919`; guard enabled, initialized, $5.10 reserved of $10,
+$4.90 available (14 further $0.35 attempts). Read this again before paid testing; reservations are not invoices.
+Dev frontend `48284a5e` uses the same guarded backend. Production frontend stays locked at `fc140024`.
+[Latest UI/provider acceptance and counter receipt](../weather-program/log/2026-10-15-vision-ui-workflows.md).
+
 The shared dev/production backend has one lifetime$10 reservation ceiling. It covers photo analysis, descriptive
 tag suggestions, board scanning and GPT-4o review moderation. The lineup classifier and Gemini matcher do not call
 OpenAI despite older comments. This is an app-side limit, not an OpenAI-account billing setting; other programs or
@@ -22,6 +27,9 @@ direct API calls using the key are outside it.
   mutation/status API. Backend must use the migration owner or an appropriately privileged private backend role.
 
 ## Activation
+
+Activation is already complete for the shared backend. The commands below document initial setup; do not apply
+the migration or initialize again during ordinary testing. Use the first, read-only status command to check usage.
 
 Apply only the reviewed private-budget migration after inspecting the deployed Alembic history; do not blindly
 upgrade other heads or adopt held payment migrations. Revision `6b8bb9b66da7` extends `2fd2888a0987` and creates
