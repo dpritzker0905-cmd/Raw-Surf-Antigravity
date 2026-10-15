@@ -11,3 +11,5 @@
 - Detailed evidence, API contract, limits and adoption/rollback instructions: `docs/audits/2026-10-15-orphan-checkout-repair.md`.
 
 Final read-back: ledger1059 verified append-only against frozen parent; memory audit0 FAIL/14 existing WARN/12 NOTE. Sandbox key absent from all tracked files; private fixtures ignored; Claude refs and frozen parent unchanged. Broader199-case receipt retains2 inherited failures. No push or deployment.
+
+Publication preparation: owner requested safe sync, orphan repair push and safe DEV adoption. Fresh bounded controls152 passed; DEV131d5d9e fetched, with coordinated rollout still held. Publish the isolated candidate with provider deployment skips; DEV adoption is limited to confirmed records, preserving current wind/memory history. No code, schema, provider or forecast changes in this publication step.
