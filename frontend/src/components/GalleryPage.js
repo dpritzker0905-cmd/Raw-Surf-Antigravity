@@ -461,7 +461,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
                     <Copy className="w-4 h-4 mr-1" />
                     Copy
                   </Button>
-                  <Button aria-label="Loader2"
+                  <Button aria-label="AI Tag selected photos"
                     size="sm"
                     variant="outline"
                     className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"
@@ -522,7 +522,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
                     <Plus className="w-4 h-4 mr-1" />
                     Upload
                   </Button>
-                  <Button aria-label="Loader2"
+                  <Button aria-label="AI Tag folder photos"
                     size="sm"
                     variant="outline"
                     className="border-cyan-600 text-cyan-400 hover:bg-cyan-500/10 flex-shrink-0"

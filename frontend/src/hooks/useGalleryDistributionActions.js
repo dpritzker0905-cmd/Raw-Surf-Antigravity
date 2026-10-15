@@ -20,7 +20,6 @@ export const useGalleryDistributionActions = ({
   setDistributeLoading,
   setDistributeAllLoading,
   setDistributeProgress,
-  setAiAutoTagLoading,
   setBatchTagLoading,
   setShowBatchTagPicker,
   setSearchLoading,
@@ -120,34 +119,8 @@ export const useGalleryDistributionActions = ({
     }
   };
 
-  const handleAiAutoTag = async () => {
-    if (!selectedGallery) return;
-    setAiAutoTagLoading(true);
-    try {
-      const response = await apiClient.post(
-        `/gallery/trigger-ai-match?photographer_id=${user.id}`,
-        { 
-          gallery_id: selectedGallery.id,
-          item_ids: bulkSelectMode && selectedItems.size > 0 ? Array.from(selectedItems) : undefined
-        }
-      );
-      const matched = response.data.matches_found || 0;
-      const processed = response.data.items_processed || 0;
-      if (matched > 0) {
-        toast.success(`AI matched ${matched} items to surfers! (${processed} processed)`);
-      } else {
-        toast.info(`AI processed ${processed} items -- no confident matches found. Try manual tagging.`);
-      }
-      if (selectedGallery) {
-        await fetchGalleryItems(selectedGallery.id);
-        await fetchParticipants(selectedGallery.id);
-      }
-    } catch (error) {
-      toast.error(getErrorMessage(error, 'AI auto-tag failed'));
-    } finally {
-      setAiAutoTagLoading(false);
-    }
-  };
+  // Open explicit photo analysis; identity tags always require manual selection.
+  const handleAiAutoTag = handleOpenTagAssign;
 
   const handleBatchTagToSurfer = async (surferId, surferName) => {
     const itemsToTag = selectedItems.size > 0 ? selectedItems : new Set(galleryItems.map(i => i.id));

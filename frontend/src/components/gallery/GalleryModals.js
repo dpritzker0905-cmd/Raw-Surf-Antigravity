@@ -13,11 +13,12 @@ import {
   CheckCircle, Send, UserPlus, RotateCcw, Radio
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
+import { ImageVisionPanel } from '../vision/ImageVisionPanel';
 
 export const TagAssignModal = ({
   showTagAssignModal, setShowTagAssignModal,
   selectedGallery, selectedItems, galleryItems,
-  participantsLoading, participants, aiAutoTagLoading, handleAiAutoTag,
+  participantsLoading, participants,
   batchTagLoading, distributeLoading, handleBatchTagToSurfer,
   distributeAllLoading, handleDistributeAll, sessionInfo,
   manualSurferSearch, setManualSurferSearch, handleSearchSurfers,
@@ -75,6 +76,11 @@ export const TagAssignModal = ({
                   </div>
                 </div>
     
+                <ImageVisionPanel key={selectedGallery?.id || 'gallery'} images={
+                  galleryItems.filter(item => item.media_type !== 'video' && (selectedItems.size === 0 || selectedItems.has(item.id)))
+                    .map(item => ({ id: item.id, url: item.preview_url || item.original_url, label: item.title }))
+                } />
+
  {/* GG Session Participants Section GG */}
                 {participantsLoading ? (
                   <div className="flex items-center justify-center py-8">
@@ -88,12 +94,6 @@ export const TagAssignModal = ({
                         <Users className="w-4 h-4 text-purple-400" />
                         Session Participants ({participants.length})
                       </h3>
-                      {/* AI Auto-tag shortcut */}
-                      <Button aria-label="AI Match All" size="sm" variant="ghost" className="text-xs text-cyan-400 hover:text-cyan-300 h-7 px-2"
-                        onClick={() => { setShowTagAssignModal(false); handleAiAutoTag(); }}
-                        disabled={aiAutoTagLoading}>
-                        <Sparkles className="w-3 h-3 mr-1" /> AI Match All
-                      </Button>
                     </div>
                     
                     {participants.map((p) => {
