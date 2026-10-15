@@ -1,0 +1,302 @@
+[
+  {
+    "file": "1-light-320-ready-manual-dialog.png",
+    "bytes": 38002,
+    "sha256": "cc6e7a40de9161d4f44ec8b3d258e2a50bb35f9a82a0056abf1e981df6abd347"
+  },
+  {
+    "file": "1-light-320-ready.png",
+    "bytes": 140767,
+    "sha256": "1e782b7feecb9b81184edbdb0a715164b365e83cfe6dc96077582ef16bbd8786"
+  },
+  {
+    "file": "10-light-360-missing.png",
+    "bytes": 39364,
+    "sha256": "5744f4ca8db81aa5a9f75c95caa9094e41897e7f2caccba4762d066b91cb8d9f"
+  },
+  {
+    "file": "11-light-360-denied.png",
+    "bytes": 11335,
+    "sha256": "2efe5a4702ddc35ed53d7558735fbaae4dbb9300d0f1126f5a37e1d211d5744b"
+  },
+  {
+    "file": "12-light-360-not-found.png",
+    "bytes": 11196,
+    "sha256": "d75b47e1d02ae0e69de1adaba2d5c11de81d48a8b5dc84f80d46f37f1f561778"
+  },
+  {
+    "file": "13-light-360-malformed-list.png",
+    "bytes": 11181,
+    "sha256": "05c2d67fb43b134c1c379e61d00e105f34015fc92281d9d184eb4b565015fd26"
+  },
+  {
+    "file": "14-light-360-malformed-roster.png",
+    "bytes": 11181,
+    "sha256": "05c2d67fb43b134c1c379e61d00e105f34015fc92281d9d184eb4b565015fd26"
+  },
+  {
+    "file": "15-light-360-malformed-items.png",
+    "bytes": 11181,
+    "sha256": "05c2d67fb43b134c1c379e61d00e105f34015fc92281d9d184eb4b565015fd26"
+  },
+  {
+    "file": "16-light-360-retry.png",
+    "bytes": 149482,
+    "sha256": "0248a8823beaa25e401a3922d4401036a711d01b148b85a527a3dcded224167d"
+  },
+  {
+    "file": "17-light-360-multiple.png",
+    "bytes": 153058,
+    "sha256": "db653e4325d1e6e4e64d8256b971447fc709042d97dad555152fa1ef6761fb3d"
+  },
+  {
+    "file": "18-light-360-empty.png",
+    "bytes": 145653,
+    "sha256": "19fa6b29a68c49c372001e90e64c265ed6cd89b41b071127f8c32ef7d8f2cad1"
+  },
+  {
+    "file": "19-light-360-old.png",
+    "bytes": 102683,
+    "sha256": "00773db854ac2d8a95e4433dd84d14055a48dfde79d54af20cad754378cc159b"
+  },
+  {
+    "file": "2-light-844-ready-manual-dialog.png",
+    "bytes": 38656,
+    "sha256": "33b634704699a5b34b34541b1d5f58a9c4ef2791f057b4921b4fadc653403047"
+  },
+  {
+    "file": "2-light-844-ready.png",
+    "bytes": 164330,
+    "sha256": "ba9b60ba69d19df6e1a43af1548d2d44efcfb97f3e4e688624dca50e784ed1df"
+  },
+  {
+    "file": "20-light-360-long-title.png",
+    "bytes": 156533,
+    "sha256": "94a5d05461dae9c6982ea02faaf192d20508b349ae28fe40d724c19335d50603"
+  },
+  {
+    "file": "21-light-360-slow.png",
+    "bytes": 149339,
+    "sha256": "ca2bb609a5b04dd86e25f49e636a1a3957ec2e79cca4ea1f2bf8d138a2739bbd"
+  },
+  {
+    "file": "22-light-360-action-error.png",
+    "bytes": 151357,
+    "sha256": "f0cdf0c7472eb2793d93634cb43760bcaab06dc49da5be798a0bd2b24fb90470"
+  },
+  {
+    "file": "23-light-360-manual-assignment.png",
+    "bytes": 151803,
+    "sha256": "4ed41d66c3333fd0bf34b1f4c12bf8c7fbb21ed6a02276fe42ced3a92d75c1ba"
+  },
+  {
+    "file": "24-dark-360-missing.png",
+    "bytes": 38759,
+    "sha256": "17a7315bf1982e6fd1a2d6b77940d7837fd92477c860dbd2826abfa81d61fa33"
+  },
+  {
+    "file": "25-dark-360-denied.png",
+    "bytes": 11029,
+    "sha256": "998f2bb4cc0251f20643ba679ba0b3d1a80293fe7f38c7341787770129170852"
+  },
+  {
+    "file": "26-dark-360-not-found.png",
+    "bytes": 10933,
+    "sha256": "1b924b78d059496dae3eefaa9fdf28e609c5f102b3f9ef54831dcdf390f66c7d"
+  },
+  {
+    "file": "27-dark-360-malformed-list.png",
+    "bytes": 10903,
+    "sha256": "237db383d1403df4c706bb49944688517032f9bd308da95345e507da473dc40a"
+  },
+  {
+    "file": "28-dark-360-malformed-roster.png",
+    "bytes": 10903,
+    "sha256": "237db383d1403df4c706bb49944688517032f9bd308da95345e507da473dc40a"
+  },
+  {
+    "file": "29-dark-360-malformed-items.png",
+    "bytes": 10903,
+    "sha256": "237db383d1403df4c706bb49944688517032f9bd308da95345e507da473dc40a"
+  },
+  {
+    "file": "3-light-1440-ready-manual-dialog.png",
+    "bytes": 111813,
+    "sha256": "19843240cd7115cae3ef97a0105dd3704be507bf3946aee97c5abf2993e63bc4"
+  },
+  {
+    "file": "3-light-1440-ready.png",
+    "bytes": 192234,
+    "sha256": "94ccc2525b6c4a24345554541920e5de3644568b00e960fd94e7812f5e696e78"
+  },
+  {
+    "file": "30-dark-360-retry.png",
+    "bytes": 159609,
+    "sha256": "00e7a15bebbd05554329e51ffdd325beb732d9812b9590e55cc4af4992203aa0"
+  },
+  {
+    "file": "31-dark-360-multiple.png",
+    "bytes": 163160,
+    "sha256": "07b627d7d8cbb67b6dd595a2f86c2c403d700b2040a9bed5de520d8bd82f7e0d"
+  },
+  {
+    "file": "32-dark-360-empty.png",
+    "bytes": 156408,
+    "sha256": "f1d7764c6d3f663ec34837c83b8f7043e31483a9b89cc6099f52dcedd634cf60"
+  },
+  {
+    "file": "33-dark-360-old.png",
+    "bytes": 100925,
+    "sha256": "c6a64ec723d7f01bd48da297a75beac78fd4ae5758127601ef196cde57482782"
+  },
+  {
+    "file": "34-dark-360-long-title.png",
+    "bytes": 167570,
+    "sha256": "957cfc8c9e4a113d2418f1a5951d12a4f660c057b8da6c065efa28c70d3086a2"
+  },
+  {
+    "file": "35-dark-360-slow.png",
+    "bytes": 159524,
+    "sha256": "8271942a6df5952ff777c499b30adaabd9f9e940cf7ac52562f011baf4a28939"
+  },
+  {
+    "file": "36-dark-360-action-error.png",
+    "bytes": 161166,
+    "sha256": "d52f144b95120e8842c38962c81f346e2f2062ee87d73825527a7f4027236039"
+  },
+  {
+    "file": "37-dark-360-manual-assignment.png",
+    "bytes": 161698,
+    "sha256": "b50d110e0f4d9769191652dcd9bf0e204c05f6d15d163c845ca71e875748f928"
+  },
+  {
+    "file": "38-beach-360-missing.png",
+    "bytes": 38225,
+    "sha256": "a531a74185d5fef0dab23309c996647fbcf7e4f90d9f417f439bc97c73e3786a"
+  },
+  {
+    "file": "39-beach-360-denied.png",
+    "bytes": 10800,
+    "sha256": "4583186014170479b45c8bf74e68144ad208cc3e7f9004024cf097eec9b0f608"
+  },
+  {
+    "file": "4-dark-320-ready-manual-dialog.png",
+    "bytes": 37219,
+    "sha256": "67dae712a5b24267d0abcdb73ad945240f30bb915c9ce50150717d4f3c3689aa"
+  },
+  {
+    "file": "4-dark-320-ready.png",
+    "bytes": 152517,
+    "sha256": "62af03eb7f937c2e87afcb95673f1ac05088f1c8784456ae6a23fae16a83b8fa"
+  },
+  {
+    "file": "40-beach-360-not-found.png",
+    "bytes": 10699,
+    "sha256": "27678448e2d921fe8391a347edf0e18a6709664baf783056979743a37ff53641"
+  },
+  {
+    "file": "41-beach-360-malformed-list.png",
+    "bytes": 10692,
+    "sha256": "3695186e08205982ff730ea3563e55482853a22eb90d181544663d6fc96b0eac"
+  },
+  {
+    "file": "42-beach-360-malformed-roster.png",
+    "bytes": 10692,
+    "sha256": "3695186e08205982ff730ea3563e55482853a22eb90d181544663d6fc96b0eac"
+  },
+  {
+    "file": "43-beach-360-malformed-items.png",
+    "bytes": 10692,
+    "sha256": "3695186e08205982ff730ea3563e55482853a22eb90d181544663d6fc96b0eac"
+  },
+  {
+    "file": "44-beach-360-retry.png",
+    "bytes": 157748,
+    "sha256": "98805be0bd1cc29208bb3ee05fce22b41842f68cae45d9a8ad1fcb0ac73614cd"
+  },
+  {
+    "file": "45-beach-360-multiple.png",
+    "bytes": 160801,
+    "sha256": "a3a0405f233e73ea59009f2edc2c21f7a40bd716eb1c265f330024b5fc0dd8c8"
+  },
+  {
+    "file": "46-beach-360-empty.png",
+    "bytes": 154714,
+    "sha256": "c79aef7c92e4afb86bfc1822ffc74f4c7e2f805566411d438b09dd26765266dd"
+  },
+  {
+    "file": "47-beach-360-old.png",
+    "bytes": 100629,
+    "sha256": "7052cc2f8277ef1b0e8523d21350107d81cf5d18ef5fa86b80418f720fef1a70"
+  },
+  {
+    "file": "48-beach-360-long-title.png",
+    "bytes": 165658,
+    "sha256": "f2b6aa91682b6ccda2d85b4b92bf4010e0d001c0e25448c6a56ba74f37be8e89"
+  },
+  {
+    "file": "49-beach-360-slow.png",
+    "bytes": 157503,
+    "sha256": "b0216b4d2f9ca337ac4ca5cb5ddd19087cfc47755e90681cf1ea7a9e06891564"
+  },
+  {
+    "file": "5-dark-844-ready-manual-dialog.png",
+    "bytes": 38139,
+    "sha256": "cf0007b547e1d3dcdc91984d3475dcffa1b2652c84c8f06c4183c98acbfca20a"
+  },
+  {
+    "file": "5-dark-844-ready.png",
+    "bytes": 178108,
+    "sha256": "e4b57e5b1357b06b8862cf210984c230cc6c36ecf13900941eb95d47402269f5"
+  },
+  {
+    "file": "50-beach-360-action-error.png",
+    "bytes": 159246,
+    "sha256": "8b295765b28f6c6b7aac6c5bcad622286ec5a0da460e3a6500e1f097239c6c1d"
+  },
+  {
+    "file": "51-beach-360-manual-assignment.png",
+    "bytes": 159769,
+    "sha256": "aa52464d82897c2e4807162823a3cdd07407277d3e6023d898138d404e9c9d47"
+  },
+  {
+    "file": "6-dark-1440-ready-manual-dialog.png",
+    "bytes": 114273,
+    "sha256": "3205504003e7e153e8138b566468c02b20ab02debf3b70a52a2f61a419a9b3ab"
+  },
+  {
+    "file": "6-dark-1440-ready.png",
+    "bytes": 217961,
+    "sha256": "70d416fe3da9f0bcbc50d2ed0b1ba0563bb1429439f001cc3a1ddcb2de368332"
+  },
+  {
+    "file": "7-beach-320-ready-manual-dialog.png",
+    "bytes": 37372,
+    "sha256": "8526ca22adcb3f9b98b89a5081f035387d429543d691126ede499017f8dbbab1"
+  },
+  {
+    "file": "7-beach-320-ready.png",
+    "bytes": 149285,
+    "sha256": "435a8afcb389bf2f19ad70ed76172579cd30ae1706b7853647d35c48c5366eea"
+  },
+  {
+    "file": "8-beach-844-ready-manual-dialog.png",
+    "bytes": 38731,
+    "sha256": "1daa75e857abd2f7bac985fcfe6441fcbf203bb755e9f295cefc0386a573a1de"
+  },
+  {
+    "file": "8-beach-844-ready.png",
+    "bytes": 173590,
+    "sha256": "b2da97577d7fc810227ff59271a8d7050885222fe052c7bfe4d9ec3198a6682b"
+  },
+  {
+    "file": "9-beach-1440-ready-manual-dialog.png",
+    "bytes": 117524,
+    "sha256": "d19b8d29d09a2c03764046cf65651495023677a5e4e8ec075e0fe26ae1dd5dab"
+  },
+  {
+    "file": "9-beach-1440-ready.png",
+    "bytes": 209775,
+    "sha256": "42de63b3f7e15fdf5c7ec2b2f62ac995fddd684c93a6cd4de6551e59a742eba2"
+  }
+]

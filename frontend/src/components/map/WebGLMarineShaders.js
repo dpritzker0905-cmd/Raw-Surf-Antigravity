@@ -4,6 +4,8 @@
  * Extracted from WebGLMarineEngine.js for code modularity and LOC compliance.
  */
 
+import { MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL } from './marineWavePalette';
+
 export const HEATMAP_VS = `
 attribute highp vec2 a_grid_uv;
 uniform mat4 u_matrix;
@@ -221,7 +223,9 @@ float getSurfT(float h) {
   }
 }
 
+${MARINE_WAVE_PALETTE_GLSL}
 vec3 getThemedWaveColor(float h, float theme, float surfMode) {
+  ${MARINE_WAVE_PALETTE_CALL_GLSL}
   // Reuse the existing per-theme ramps (already theme-aware: beach/light/dark) but pick the height->color
   // mapping by mode so the surf coastal band uses the full ramp across the surf range.
   float t = surfMode > 0.5 ? getSurfT(h) : getNonlinearT(h);

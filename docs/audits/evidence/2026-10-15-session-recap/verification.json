@@ -1,0 +1,120 @@
+{
+  "at": "2026-10-15T02:28:29Z",
+  "scope": "Local G03/MAP-F02 frontend connection, not hosted/browser/provider/whole-app acceptance",
+  "baseline": "131d5d9e434124d9bf510edb9eed2e8238723313",
+  "branch": "codex/master-plan-recap-connection-2026-10-15",
+  "sourceFiles": [
+    {
+      "path": "frontend/src/App.js",
+      "rawSha256": "21591df54ff462cbc332d41e3b0aaa94e86a53185a9c12bdca2da7bb0419c42c",
+      "gitLfSha256": "21591df54ff462cbc332d41e3b0aaa94e86a53185a9c12bdca2da7bb0419c42c",
+      "lines": 237
+    },
+    {
+      "path": "frontend/src/components/GalleryPage.js",
+      "rawSha256": "9d0f527f36ef2deb45764b5843555281c3b3a26c853c5a7d2f3566d12f60ed6b",
+      "gitLfSha256": "9d0f527f36ef2deb45764b5843555281c3b3a26c853c5a7d2f3566d12f60ed6b",
+      "lines": 784
+    },
+    {
+      "path": "frontend/src/components/gallery/PostSessionSummary.js",
+      "rawSha256": "40f4dd192c932f9d7d2d773521a3329941af4c7b809590628339693495f19721",
+      "gitLfSha256": "40f4dd192c932f9d7d2d773521a3329941af4c7b809590628339693495f19721",
+      "lines": 191
+    },
+    {
+      "path": "frontend/src/pages/SessionRecapPage.js",
+      "rawSha256": "f6fb08247b2880e0a9af306ae32e3a6c6c3577cc7dc819c43738f7f2fe7234c2",
+      "gitLfSha256": "f6fb08247b2880e0a9af306ae32e3a6c6c3577cc7dc819c43738f7f2fe7234c2",
+      "lines": 115
+    },
+    {
+      "path": "frontend/src/pages/SessionRecapPage.route.test.js",
+      "rawSha256": "a07c5fd060513ec0eb534ef0f244cb7b071ee0e8489f69f1309e675bee60d0f1",
+      "gitLfSha256": "a07c5fd060513ec0eb534ef0f244cb7b071ee0e8489f69f1309e675bee60d0f1",
+      "lines": 145
+    },
+    {
+      "path": "frontend/src/components/GalleryPage.recap.test.js",
+      "rawSha256": "25647fd643ee081a950548c7a3ff5fb348dd166405e69187fe3cb03b33200cfa",
+      "gitLfSha256": "25647fd643ee081a950548c7a3ff5fb348dd166405e69187fe3cb03b33200cfa",
+      "lines": 81
+    }
+  ],
+  "checks": {
+    "routeBefore": {
+      "failed": 8,
+      "passed": 0,
+      "setupErrors": 0
+    },
+    "consumerWriteGuardBefore": {
+      "failed": 3,
+      "passed": 1
+    },
+    "focusedFinal": {
+      "suites": 2,
+      "passed": 12,
+      "failed": 0,
+      "exit": 0
+    },
+    "productionBuild": {
+      "node": "24.21.0",
+      "exit": 0,
+      "warnings": "existing",
+      "mapboxTokenEmbedded": false,
+      "scope": "local working-tree compilation; deployed version/SW identity unrun"
+    },
+    "eslintRatchet": {
+      "exit": 0,
+      "files": 1313,
+      "existingErrors": 86,
+      "existingWarnings": 917,
+      "baselineIncrease": false
+    },
+    "locRatchet": {
+      "exit": 0,
+      "grandfathered": 12,
+      "newViolations": 0,
+      "regressed": 0
+    }
+  },
+  "excludedSetupRuns": [
+    "CRA/Jest react-router-dom exports resolution: zero tests executed",
+    "consumer fixture omitted fetchParticipants callback",
+    "heading selector omitted existing status badge"
+  ],
+  "unrun": [
+    "native/pixel/responsive/browser acceptance",
+    "mounted API authorization/privacy and media/provider entitlement journeys",
+    "hosted final-head qualification",
+    "post-integration version/serviceworker and runtime behavior"
+  ],
+  "logs": [
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-route-before-v2.log.gz",
+      "uncompressedSha256": "e038b9f98e9316a8b146bae20801e1af3ec2f3ae7161127fc958882208382b85"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-consumer-before-write-guard-v2.log.gz",
+      "uncompressedSha256": "b6dab710b3d256d68a9439bdb208bf6469ec3bb4b82b215bffb0a7c5e72edbbe"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-focused-final-v4.log.gz",
+      "uncompressedSha256": "122088455fbeb38f7c13dcef7ec48a44d913bd360e404eca3c4397c27dc34c02"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-production-build-final.log.gz",
+      "uncompressedSha256": "54521fbff325b9468194f494acf17e26d334b313f7f27f12caf99ea1a09593a6"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-lint-ratchet.log.gz",
+      "uncompressedSha256": "a0349347769c7ed60650d77c38e9f7a08614478af9c22d50898f8a79a86cc899"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-loc-ratchet.log.gz",
+      "uncompressedSha256": "89587637ad9262faf2dc30731bf31d2cc495fb4943f3f0d20b68ea328029e058"
+    }
+  ],
+  "flagsBackendSchemaPaymentsDependenciesChanged": false,
+  "sourcePublication": "none; PR331 b220 unchanged; no DEV/main/production update"
+}

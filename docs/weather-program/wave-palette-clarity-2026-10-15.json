@@ -1,0 +1,931 @@
+{
+  "at": "2026-10-15T00:27:55.696Z",
+  "host": "THUNDER",
+  "base": "131d5d9e434124d9bf510edb9eed2e8238723313",
+  "branch": "codex/marine-wave-palette-clarity-2026-10-14",
+  "scope": "Local marine wave-height palette repair; no PR or rollout",
+  "sources": [
+    {
+      "file": "frontend/src/components/map/marineWavePalette.js",
+      "sha256": "11bf134e8fb1a51d66160e26976c3a4c65aaca07e48034b4f35ecdbebcd64c4e"
+    },
+    {
+      "file": "frontend/src/components/map/WebGLMarineShaders.js",
+      "sha256": "f9662c16b477b00904c197e7782a7247f2a5d0817e243da898140d19674f06b3"
+    },
+    {
+      "file": "frontend/src/components/map/colorScales.js",
+      "sha256": "2b274213420b7c404d0b2743f251e56a202244e97e552f5d09be4f95fdb6f720"
+    },
+    {
+      "file": "frontend/src/components/map/MapWeatherControls.js",
+      "sha256": "f6b8cdbf0a61e1e9fcaa5d6b3889193ed7edeb9199f9cb62eeb1cc35fa200709"
+    }
+  ],
+  "invariants": [
+    {
+      "file": "frontend/src/components/map/WebGLMarineEngine.js",
+      "sha256": "571a12ac192f66232f0a19b33a6e8c77f513afa4d88aa2889d4c770ef392c090",
+      "unchanged": true
+    },
+    {
+      "file": "frontend/src/components/map/WebGLMarineParticleShaders.js",
+      "sha256": "285ba2a40b66939957e6a78ee6cf1cda837d3701c8c4a57f576eaa88110fe6a1",
+      "unchanged": true
+    },
+    {
+      "file": "frontend/src/components/map/WindColorRamp.js",
+      "sha256": "4c6f2aea4eb245bb44ef1b62468609292f29588f111c50d7de36ab44014e3055",
+      "unchanged": true
+    },
+    {
+      "file": "frontend/src/components/map/heightUnits.js",
+      "sha256": "b208a4e9a3b188d47391fee41920ca6f5bdce8b56fc0b8bab2c0eddfaa34c875",
+      "unchanged": true
+    },
+    {
+      "file": "frontend/src/components/map/surfRating.js",
+      "sha256": "b4a6d7c261d63ff38d2d7fdc2bfe829392d211c78a650096ab739748ce6cbff7",
+      "unchanged": true
+    },
+    {
+      "file": "frontend/src/components/map/backendWeatherServiceClient.js",
+      "sha256": "57310f261e8e90223bf43c22d1e70d9e15dd908d86ae612858fe23c710e1f1f7",
+      "unchanged": true
+    }
+  ],
+  "gpu": {
+    "renderer": "ANGLE (AMD, AMD Radeon(TM) 890M Graphics (0x0000150E) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "rawDarkExact": true,
+    "fullShaderDarkExact": true,
+    "rollbackRowsExact": true,
+    "before": [
+      {
+        "theme": "beach",
+        "pairs": [
+          {
+            "a": 0.6,
+            "b": 1.2,
+            "deltaE00": {
+              "normal": 47.41226320945243,
+              "protan": 15.561149983235463,
+              "deutan": 31.047793400322707,
+              "tritan": 53.846201801740435
+            },
+            "worst": 15.561149983235463
+          },
+          {
+            "a": 1.2,
+            "b": 1.8,
+            "deltaE00": {
+              "normal": 6.592320933841407,
+              "protan": 6.40391385627186,
+              "deutan": 4.830576258983449,
+              "tritan": 5.842548543991098
+            },
+            "worst": 4.830576258983449
+          },
+          {
+            "a": 1.8,
+            "b": 2.4,
+            "deltaE00": {
+              "normal": 5.458680774837425,
+              "protan": 6.360772177438193,
+              "deutan": 4.095840075125473,
+              "tritan": 4.937853097114347
+            },
+            "worst": 4.095840075125473
+          },
+          {
+            "a": 2.4,
+            "b": 3,
+            "deltaE00": {
+              "normal": 2.632257439919854,
+              "protan": 3.118110288623314,
+              "deutan": 2.4218245405121155,
+              "tritan": 2.5789989462297527
+            },
+            "worst": 2.4218245405121155
+          },
+          {
+            "a": 3,
+            "b": 3.6,
+            "deltaE00": {
+              "normal": 2.7254189911071,
+              "protan": 3.1325211816409277,
+              "deutan": 2.505702069656286,
+              "tritan": 2.6762981167080278
+            },
+            "worst": 2.505702069656286
+          },
+          {
+            "a": 3.6,
+            "b": 4.2,
+            "deltaE00": {
+              "normal": 2.6705715375086583,
+              "protan": 2.788681853858425,
+              "deutan": 2.4863781540637824,
+              "tritan": 2.631833476102848
+            },
+            "worst": 2.4863781540637824
+          },
+          {
+            "a": 4.2,
+            "b": 5,
+            "deltaE00": {
+              "normal": 3.7259422173640484,
+              "protan": 3.6666728919193834,
+              "deutan": 3.402745563082265,
+              "tritan": 3.655857167321238
+            },
+            "worst": 3.402745563082265
+          },
+          {
+            "a": 5,
+            "b": 6.1,
+            "deltaE00": {
+              "normal": 8.75323499493617,
+              "protan": 10.627094830141788,
+              "deutan": 7.537085582361552,
+              "tritan": 8.479617008537614
+            },
+            "worst": 7.537085582361552
+          },
+          {
+            "a": 6.1,
+            "b": 8,
+            "deltaE00": {
+              "normal": 17.407622840586562,
+              "protan": 19.727383893341088,
+              "deutan": 15.39466227467039,
+              "tritan": 16.697814770728506
+            },
+            "worst": 15.39466227467039
+          },
+          {
+            "a": 8,
+            "b": 10,
+            "deltaE00": {
+              "normal": 20.752862712486326,
+              "protan": 17.238210030275177,
+              "deutan": 16.41011572817894,
+              "tritan": 20.341083124602484
+            },
+            "worst": 16.41011572817894
+          }
+        ],
+        "midHighWorst": 2.4218245405121155,
+        "fieldWorst": 1.446217625767495
+      },
+      {
+        "theme": "light",
+        "pairs": [
+          {
+            "a": 0.6,
+            "b": 1.2,
+            "deltaE00": {
+              "normal": 41.403304923166765,
+              "protan": 43.5992063997512,
+              "deutan": 32.86837918783464,
+              "tritan": 13.547708760193867
+            },
+            "worst": 13.547708760193867
+          },
+          {
+            "a": 1.2,
+            "b": 1.8,
+            "deltaE00": {
+              "normal": 11.113649316597582,
+              "protan": 7.723936750513064,
+              "deutan": 5.1094788476161925,
+              "tritan": 6.354742742630259
+            },
+            "worst": 5.1094788476161925
+          },
+          {
+            "a": 1.8,
+            "b": 2.4,
+            "deltaE00": {
+              "normal": 8.824068200403255,
+              "protan": 4.947029818261713,
+              "deutan": 1.1901353136309891,
+              "tritan": 10.981775278694702
+            },
+            "worst": 1.1901353136309891
+          },
+          {
+            "a": 2.4,
+            "b": 3,
+            "deltaE00": {
+              "normal": 5.31766460637022,
+              "protan": 2.7500891547581303,
+              "deutan": 4.44957460896707,
+              "tritan": 24.28333016383637
+            },
+            "worst": 2.7500891547581303
+          },
+          {
+            "a": 3,
+            "b": 3.6,
+            "deltaE00": {
+              "normal": 6.691235045838403,
+              "protan": 3.474297273552336,
+              "deutan": 6.106266640493786,
+              "tritan": 11.696566364962344
+            },
+            "worst": 3.474297273552336
+          },
+          {
+            "a": 3.6,
+            "b": 4.2,
+            "deltaE00": {
+              "normal": 7.121464399067018,
+              "protan": 4.107515283513404,
+              "deutan": 8.097944614469467,
+              "tritan": 6.60905366126664
+            },
+            "worst": 4.107515283513404
+          },
+          {
+            "a": 4.2,
+            "b": 5,
+            "deltaE00": {
+              "normal": 10.754101263652935,
+              "protan": 8.31376848999915,
+              "deutan": 21.78437108895425,
+              "tritan": 7.150574571930145
+            },
+            "worst": 7.150574571930145
+          },
+          {
+            "a": 5,
+            "b": 6.1,
+            "deltaE00": {
+              "normal": 8.745460031169655,
+              "protan": 10.559085164624774,
+              "deutan": 9.196170455557139,
+              "tritan": 8.888763515402694
+            },
+            "worst": 8.745460031169655
+          },
+          {
+            "a": 6.1,
+            "b": 8,
+            "deltaE00": {
+              "normal": 17.911727350574115,
+              "protan": 20.696856877007356,
+              "deutan": 13.499431769730577,
+              "tritan": 18.118831623687473
+            },
+            "worst": 13.499431769730577
+          },
+          {
+            "a": 8,
+            "b": 10,
+            "deltaE00": {
+              "normal": 26.170321120815387,
+              "protan": 19.705164143427012,
+              "deutan": 13.932737366988704,
+              "tritan": 24.228695952157146
+            },
+            "worst": 13.932737366988704
+          }
+        ],
+        "midHighWorst": 1.1901353136309891,
+        "fieldWorst": 0.8992669714222441
+      },
+      {
+        "theme": "dark",
+        "pairs": [
+          {
+            "a": 0.6,
+            "b": 1.2,
+            "deltaE00": {
+              "normal": 29.54965966452022,
+              "protan": 37.81719932274305,
+              "deutan": 40.20834712492707,
+              "tritan": 8.768396964746811
+            },
+            "worst": 8.768396964746811
+          },
+          {
+            "a": 1.2,
+            "b": 1.8,
+            "deltaE00": {
+              "normal": 35.629165619160865,
+              "protan": 27.76900288820093,
+              "deutan": 24.338318938724736,
+              "tritan": 20.82598143233369
+            },
+            "worst": 20.82598143233369
+          },
+          {
+            "a": 1.8,
+            "b": 2.4,
+            "deltaE00": {
+              "normal": 27.722428832279103,
+              "protan": 23.864980629654454,
+              "deutan": 17.521680971486457,
+              "tritan": 17.829975534277366
+            },
+            "worst": 17.521680971486457
+          },
+          {
+            "a": 2.4,
+            "b": 3,
+            "deltaE00": {
+              "normal": 4.596546071362525,
+              "protan": 1.8556106844383544,
+              "deutan": 4.258125292365454,
+              "tritan": 14.086454352420539
+            },
+            "worst": 1.8556106844383544
+          },
+          {
+            "a": 3,
+            "b": 3.6,
+            "deltaE00": {
+              "normal": 6.620917218559291,
+              "protan": 2.7459502686273947,
+              "deutan": 6.33117666510492,
+              "tritan": 28.42141980736202
+            },
+            "worst": 2.7459502686273947
+          },
+          {
+            "a": 3.6,
+            "b": 4.2,
+            "deltaE00": {
+              "normal": 7.809394508035851,
+              "protan": 3.654445556872503,
+              "deutan": 7.874113054926987,
+              "tritan": 10.72153262663843
+            },
+            "worst": 3.654445556872503
+          },
+          {
+            "a": 4.2,
+            "b": 5,
+            "deltaE00": {
+              "normal": 11.426700614188146,
+              "protan": 6.6084804744053915,
+              "deutan": 13.344956622478245,
+              "tritan": 10.285043337327162
+            },
+            "worst": 6.6084804744053915
+          },
+          {
+            "a": 5,
+            "b": 6.1,
+            "deltaE00": {
+              "normal": 4.649517747966003,
+              "protan": 7.1610112070892,
+              "deutan": 3.3676055978148525,
+              "tritan": 4.996035287229941
+            },
+            "worst": 3.3676055978148525
+          },
+          {
+            "a": 6.1,
+            "b": 8,
+            "deltaE00": {
+              "normal": 15.229069285081945,
+              "protan": 19.134267794330604,
+              "deutan": 10.719297829348568,
+              "tritan": 15.421895341819665
+            },
+            "worst": 10.719297829348568
+          },
+          {
+            "a": 8,
+            "b": 10,
+            "deltaE00": {
+              "normal": 28.200337250189936,
+              "protan": 24.87211127234776,
+              "deutan": 17.88520373530032,
+              "tritan": 25.541175335530895
+            },
+            "worst": 17.88520373530032
+          }
+        ],
+        "midHighWorst": 1.8556106844383544,
+        "fieldWorst": 1.381178235284026
+      }
+    ],
+    "after": [
+      {
+        "theme": "beach",
+        "pairs": [
+          {
+            "a": 0.6,
+            "b": 1.2,
+            "deltaE00": {
+              "normal": 42.24643107901379,
+              "protan": 20.836234833372608,
+              "deutan": 34.698980632521014,
+              "tritan": 51.83277686159781
+            },
+            "worst": 20.836234833372608
+          },
+          {
+            "a": 1.2,
+            "b": 1.8,
+            "deltaE00": {
+              "normal": 14.112437118879878,
+              "protan": 11.082745481418522,
+              "deutan": 8.009322279892233,
+              "tritan": 10.445937003225662
+            },
+            "worst": 8.009322279892233
+          },
+          {
+            "a": 1.8,
+            "b": 2.4,
+            "deltaE00": {
+              "normal": 12.209062140601475,
+              "protan": 12.69404726811804,
+              "deutan": 8.048141147240663,
+              "tritan": 10.229357010683206
+            },
+            "worst": 8.048141147240663
+          },
+          {
+            "a": 2.4,
+            "b": 3,
+            "deltaE00": {
+              "normal": 7.619159963607887,
+              "protan": 7.149692419441677,
+              "deutan": 7.365781651585467,
+              "tritan": 7.241982381022322
+            },
+            "worst": 7.149692419441677
+          },
+          {
+            "a": 3,
+            "b": 3.6,
+            "deltaE00": {
+              "normal": 8.008460016242235,
+              "protan": 6.926992866517964,
+              "deutan": 8.424420085288117,
+              "tritan": 7.570218533391198
+            },
+            "worst": 6.926992866517964
+          },
+          {
+            "a": 3.6,
+            "b": 4.2,
+            "deltaE00": {
+              "normal": 7.658559001391238,
+              "protan": 6.989560718477305,
+              "deutan": 7.903411217724113,
+              "tritan": 6.822422921561948
+            },
+            "worst": 6.822422921561948
+          },
+          {
+            "a": 4.2,
+            "b": 5,
+            "deltaE00": {
+              "normal": 10.368589928174403,
+              "protan": 10.384124470922806,
+              "deutan": 10.57644698470834,
+              "tritan": 8.665851357805142
+            },
+            "worst": 8.665851357805142
+          },
+          {
+            "a": 5,
+            "b": 6.1,
+            "deltaE00": {
+              "normal": 13.042343696752656,
+              "protan": 13.3415239461888,
+              "deutan": 12.81174900804584,
+              "tritan": 12.94084315400966
+            },
+            "worst": 12.81174900804584
+          },
+          {
+            "a": 6.1,
+            "b": 8,
+            "deltaE00": {
+              "normal": 28.536078152916208,
+              "protan": 30.29336983494117,
+              "deutan": 26.31454400493018,
+              "tritan": 28.380832998631554
+            },
+            "worst": 26.31454400493018
+          },
+          {
+            "a": 8,
+            "b": 10,
+            "deltaE00": {
+              "normal": 23.111990670566335,
+              "protan": 20.649419449180016,
+              "deutan": 18.837756431274634,
+              "tritan": 21.436434934788295
+            },
+            "worst": 18.837756431274634
+          }
+        ],
+        "midHighWorst": 6.822422921561948,
+        "fieldWorst": 4.120582944024016
+      },
+      {
+        "theme": "light",
+        "pairs": [
+          {
+            "a": 0.6,
+            "b": 1.2,
+            "deltaE00": {
+              "normal": 37.95254335304023,
+              "protan": 40.59002724231007,
+              "deutan": 30.258222119317512,
+              "tritan": 8.38124220635158
+            },
+            "worst": 8.38124220635158
+          },
+          {
+            "a": 1.2,
+            "b": 1.8,
+            "deltaE00": {
+              "normal": 18.13080546924671,
+              "protan": 15.983648823335136,
+              "deutan": 13.117691908830961,
+              "tritan": 14.930460137191586
+            },
+            "worst": 13.117691908830961
+          },
+          {
+            "a": 1.8,
+            "b": 2.4,
+            "deltaE00": {
+              "normal": 15.649270082961083,
+              "protan": 11.414322209401334,
+              "deutan": 8.20835898704506,
+              "tritan": 29.73907301800096
+            },
+            "worst": 8.20835898704506
+          },
+          {
+            "a": 2.4,
+            "b": 3,
+            "deltaE00": {
+              "normal": 8.01034704720967,
+              "protan": 5.205861158446602,
+              "deutan": 7.8175754646093285,
+              "tritan": 14.988897232262602
+            },
+            "worst": 5.205861158446602
+          },
+          {
+            "a": 3,
+            "b": 3.6,
+            "deltaE00": {
+              "normal": 8.676573592750197,
+              "protan": 5.830746141842609,
+              "deutan": 9.238573419230386,
+              "tritan": 9.050326970332964
+            },
+            "worst": 5.830746141842609
+          },
+          {
+            "a": 3.6,
+            "b": 4.2,
+            "deltaE00": {
+              "normal": 9.171076720702613,
+              "protan": 6.765770552108031,
+              "deutan": 11.705014087686767,
+              "tritan": 8.295432854712974
+            },
+            "worst": 6.765770552108031
+          },
+          {
+            "a": 4.2,
+            "b": 5,
+            "deltaE00": {
+              "normal": 12.042681172422993,
+              "protan": 10.406271498634634,
+              "deutan": 19.369712870200388,
+              "tritan": 10.588097042220815
+            },
+            "worst": 10.406271498634634
+          },
+          {
+            "a": 5,
+            "b": 6.1,
+            "deltaE00": {
+              "normal": 7.399612682163681,
+              "protan": 9.53616440298831,
+              "deutan": 6.596095775347985,
+              "tritan": 7.557317193888897
+            },
+            "worst": 6.596095775347985
+          },
+          {
+            "a": 6.1,
+            "b": 8,
+            "deltaE00": {
+              "normal": 14.776380128945688,
+              "protan": 15.40440260721892,
+              "deutan": 10.716014288943539,
+              "tritan": 14.971205157841169
+            },
+            "worst": 10.716014288943539
+          },
+          {
+            "a": 8,
+            "b": 10,
+            "deltaE00": {
+              "normal": 23.301839127989858,
+              "protan": 14.985717987816889,
+              "deutan": 10.167122113783462,
+              "tritan": 21.747390138793087
+            },
+            "worst": 10.167122113783462
+          }
+        ],
+        "midHighWorst": 5.205861158446602,
+        "fieldWorst": 3.831960603863833
+      },
+      {
+        "theme": "dark",
+        "pairs": [
+          {
+            "a": 0.6,
+            "b": 1.2,
+            "deltaE00": {
+              "normal": 29.54965966452022,
+              "protan": 37.81719932274305,
+              "deutan": 40.20834712492707,
+              "tritan": 8.768396964746811
+            },
+            "worst": 8.768396964746811
+          },
+          {
+            "a": 1.2,
+            "b": 1.8,
+            "deltaE00": {
+              "normal": 35.629165619160865,
+              "protan": 27.76900288820093,
+              "deutan": 24.338318938724736,
+              "tritan": 20.82598143233369
+            },
+            "worst": 20.82598143233369
+          },
+          {
+            "a": 1.8,
+            "b": 2.4,
+            "deltaE00": {
+              "normal": 27.722428832279103,
+              "protan": 23.864980629654454,
+              "deutan": 17.521680971486457,
+              "tritan": 17.829975534277366
+            },
+            "worst": 17.521680971486457
+          },
+          {
+            "a": 2.4,
+            "b": 3,
+            "deltaE00": {
+              "normal": 4.596546071362525,
+              "protan": 1.8556106844383544,
+              "deutan": 4.258125292365454,
+              "tritan": 14.086454352420539
+            },
+            "worst": 1.8556106844383544
+          },
+          {
+            "a": 3,
+            "b": 3.6,
+            "deltaE00": {
+              "normal": 6.620917218559291,
+              "protan": 2.7459502686273947,
+              "deutan": 6.33117666510492,
+              "tritan": 28.42141980736202
+            },
+            "worst": 2.7459502686273947
+          },
+          {
+            "a": 3.6,
+            "b": 4.2,
+            "deltaE00": {
+              "normal": 7.809394508035851,
+              "protan": 3.654445556872503,
+              "deutan": 7.874113054926987,
+              "tritan": 10.72153262663843
+            },
+            "worst": 3.654445556872503
+          },
+          {
+            "a": 4.2,
+            "b": 5,
+            "deltaE00": {
+              "normal": 11.426700614188146,
+              "protan": 6.6084804744053915,
+              "deutan": 13.344956622478245,
+              "tritan": 10.285043337327162
+            },
+            "worst": 6.6084804744053915
+          },
+          {
+            "a": 5,
+            "b": 6.1,
+            "deltaE00": {
+              "normal": 4.649517747966003,
+              "protan": 7.1610112070892,
+              "deutan": 3.3676055978148525,
+              "tritan": 4.996035287229941
+            },
+            "worst": 3.3676055978148525
+          },
+          {
+            "a": 6.1,
+            "b": 8,
+            "deltaE00": {
+              "normal": 15.229069285081945,
+              "protan": 19.134267794330604,
+              "deutan": 10.719297829348568,
+              "tritan": 15.421895341819665
+            },
+            "worst": 10.719297829348568
+          },
+          {
+            "a": 8,
+            "b": 10,
+            "deltaE00": {
+              "normal": 28.200337250189936,
+              "protan": 24.87211127234776,
+              "deutan": 17.88520373530032,
+              "tritan": 25.541175335530895
+            },
+            "worst": 17.88520373530032
+          }
+        ],
+        "midHighWorst": 1.8556106844383544,
+        "fieldWorst": 1.381178235284026
+      }
+    ]
+  },
+  "app": {
+    "before": {
+      "stages": 18,
+      "pageErrors": 0,
+      "glErrors": 0,
+      "mapbox": {
+        "200": 269,
+        "404": 86
+      }
+    },
+    "after": {
+      "stages": 18,
+      "pageErrors": 0,
+      "glErrors": 0,
+      "mapbox": {
+        "200": 269,
+        "404": 86
+      }
+    },
+    "darkLegendExact": true
+  },
+  "timings": [
+    {
+      "id": "before-beach-desktop",
+      "raf": {
+        "n": 63,
+        "p50": 17,
+        "p95": 19
+      },
+      "resources": {
+        "drawCalls": 3,
+        "textureCount": 13,
+        "shaderCompileCount": 6
+      },
+      "controls": {
+        "unitToMeters": true,
+        "playbackBefore": 0,
+        "pauseVisible": true,
+        "playbackAfter": 0,
+        "stepBefore": "6",
+        "stepAfter": "7",
+        "stepGridHour": 0,
+        "drawerReopened": true,
+        "mousePanMoved": true
+      }
+    },
+    {
+      "id": "after-beach-desktop",
+      "raf": {
+        "n": 61,
+        "p50": 17,
+        "p95": 21
+      },
+      "resources": {
+        "drawCalls": 3,
+        "textureCount": 13,
+        "shaderCompileCount": 6
+      },
+      "controls": {
+        "unitToMeters": true,
+        "playbackBefore": 0,
+        "pauseVisible": true,
+        "playbackAfter": 0,
+        "stepBefore": "6",
+        "stepAfter": "7",
+        "stepGridHour": 0,
+        "drawerReopened": true,
+        "mousePanMoved": true
+      }
+    },
+    {
+      "id": "before-light-phone",
+      "raf": {
+        "n": 63,
+        "p50": 16,
+        "p95": 19
+      },
+      "resources": {
+        "drawCalls": 3,
+        "textureCount": 13,
+        "shaderCompileCount": 6
+      },
+      "controls": {
+        "mobileSheetOpened": true,
+        "unitToMeters": true,
+        "playbackBefore": 0,
+        "pauseVisible": true,
+        "playbackAfter": 0,
+        "stepBefore": "6",
+        "stepAfter": "7",
+        "stepGridHour": 0,
+        "mobileSheetClosed": true,
+        "mousePanMoved": true,
+        "emulatedTouchMoved": true
+      }
+    },
+    {
+      "id": "after-light-phone",
+      "raf": {
+        "n": 63,
+        "p50": 16,
+        "p95": 19
+      },
+      "resources": {
+        "drawCalls": 3,
+        "textureCount": 13,
+        "shaderCompileCount": 6
+      },
+      "controls": {
+        "mobileSheetOpened": true,
+        "unitToMeters": true,
+        "playbackBefore": 0,
+        "pauseVisible": true,
+        "playbackAfter": 0,
+        "stepBefore": "6",
+        "stepAfter": "7",
+        "stepGridHour": 0,
+        "mobileSheetClosed": true,
+        "mousePanMoved": true,
+        "emulatedTouchMoved": true
+      }
+    }
+  ],
+  "checks": {
+    "mapAndLegend": {
+      "suites": 317,
+      "tests": 4583,
+      "exit": 0
+    },
+    "playbackHook": {
+      "tests": 18,
+      "exit": 0
+    },
+    "newPaletteTests": {
+      "tests": 10,
+      "includedInMapCount": true
+    },
+    "build": {
+      "exit": 0,
+      "existingWarnings": true
+    },
+    "lintDebtRatchet": {
+      "exit": 0,
+      "existingErrors": 86,
+      "existingWarnings": 917
+    },
+    "locRatchet": {
+      "exit": 0,
+      "growingGrandfatheredFiles": 0
+    },
+    "diffCheck": {
+      "exit": 0
+    }
+  },
+  "limits": [
+    "Mobile is desktop emulation on AMD GPU, not physical iOS/Android",
+    "Synthetic weather fixture only; forecast accuracy/live served-frame acceptance unverified",
+    "Initial capture runs overlapped; only sequential timing receipts used for comparison",
+    "Mapbox existing asset404s match before/after",
+    "Shared ledger and rollout acknowledgment pending; proposed receipt only",
+    "UI cadence advances6→7 but synthetic resident grid stays0 in both arms; live forecast-frame advancement not qualified"
+  ]
+}

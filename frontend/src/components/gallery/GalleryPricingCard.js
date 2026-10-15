@@ -23,7 +23,7 @@ export const GalleryPricingCard = ({
   return (
         <Card className="mb-6 bg-card border-border">
           <CardHeader className="cursor-pointer" onClick={() => setPricingCollapsed(!pricingCollapsed)}>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-lg text-foreground flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-green-400" />
                 Gallery Pricing

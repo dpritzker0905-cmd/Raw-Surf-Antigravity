@@ -1,0 +1,100 @@
+{
+  "verified_at": "2026-10-15T16:02:41.889222+00:00",
+  "target_dev": "b660815e49dee689661d8f81ddfe8d0bc4c2fde8",
+  "prior_local": "bb0af13c654184dec1b9cad07c4eda375e5ebd69",
+  "published_payment": "f1bfa2ac410df86118836991442737014b36bbaa",
+  "preserved_dev_entries": 1210,
+  "replayed_payment_actions": 17,
+  "mapping": [
+    {
+      "old_seq": 1180,
+      "new_seq": 1180,
+      "disposition": "existing DEV pr_merge retained once"
+    },
+    {
+      "old_seq": 1181,
+      "new_seq": 1211,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1182,
+      "new_seq": 1212,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1183,
+      "new_seq": 1213,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1184,
+      "new_seq": 1214,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1185,
+      "new_seq": 1215,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1186,
+      "new_seq": 1216,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1187,
+      "new_seq": 1217,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1188,
+      "new_seq": 1218,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1189,
+      "new_seq": 1219,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1190,
+      "new_seq": 1220,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1191,
+      "new_seq": 1221,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1192,
+      "new_seq": 1222,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1193,
+      "new_seq": 1223,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1194,
+      "new_seq": 1224,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1195,
+      "new_seq": 1225,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1196,
+      "new_seq": 1226,
+      "disposition": "reappended through canonical CLI"
+    },
+    {
+      "old_seq": 1197,
+      "new_seq": 1227,
+      "disposition": "reappended through canonical CLI"
+    }
+  ]
+}
