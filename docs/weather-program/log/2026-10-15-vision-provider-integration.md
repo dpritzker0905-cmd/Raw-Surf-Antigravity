@@ -93,3 +93,17 @@ Description distinguishes synthetic live provider checks from undeployed endpoin
 the shared-backend rollout boundary and notes the existing manual-assignment authorization backlog. Hosted checks
 must pass on the final publication head; no merge, Render deployment or credential change authorized/performed.
 Ledger1228-1229 records publication and PR creation. No served weather number changes.
+
+## Final hosted verification
+
+PR335 final published head83ca36160b862e7b964e5201d1ecc584aa10c34d: CI38799749502 succeeded. Hosted frontend430
+suites/5558 tests passed; estate1618 passed/2865 skipped (projection1618 confirmed, floor1616); forecast chain2444
+passed; simulation composition2658 passed/66 skipped/1 xfailed. Build, lint, imports, BOLA, floors, file size, ledger,
+encoding, LOC and Lighthouse passed. Netlify preview/header/redirect checks passed; informational Pages changed
+is NEUTRAL. GitHub readback reports CLEAN/MERGEABLE with18 success contexts,1 neutral,0 pending/failures.
+Public preview service worker returns200/version83ca3616. This does not exercise the undeployed backend routes.
+
+Superseded CI38799673246 and Lighthouse38799673072 on prior head1e723032a were canceled after publishing the
+final head to free capacity; final-head checks were allowed to finish. The PR description now contains the actual
+hosted totals and run link. A local record-only successor preserves this receipt without changing the qualified
+public PR head or restarting its checks. No merge, dev push, Render deployment, credential or live flag change.
