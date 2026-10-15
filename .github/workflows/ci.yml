@@ -129,7 +129,9 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 380, MIN_TESTS = 4190;
+            // Own hosted source052055ad CI38675679552 job116228616308:426suites/5510tests.
+            // Refresh the inherited stale floor from that reading; preserve zero margin.
+            const MIN_SUITES = 426, MIN_TESTS = 5510;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

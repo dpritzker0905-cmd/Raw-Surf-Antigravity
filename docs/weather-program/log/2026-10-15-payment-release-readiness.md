@@ -12,3 +12,8 @@
 - Memory audit0FAIL/14WARN/24NOTE: inherited weather commitments remain visible and outside this payment batch. No wind verdict, served-number change or SCOREBOARD gain. Master retains separate operator/frontend, historical orphan and coordinated commerce/weather rollout ownership.
 
 Report and remaining schema/hosted/integration holds: `docs/audits/2026-10-15-payment-release-readiness.md`. Publication and hosted CI readbacks will be appended here.
+
+
+2026-10-15 03:27Z — Published052055ad and opened draft PR333, remote SHA read back. Dedicated hosted payment gate38675679673 SUCCESS with strict46/46pin parity, PG99/0skip, UI13/3, build and12 local fixture browser cases. General CI estate1680/312selected/0silent and full frontend426/5510 passed; frontend inherited stale floor refreshed to actual zero-margin426/5510. Long forecast lanes still pending; no general all-green claim.
+
+Hosted access hold resolved through existing authorized Supabase browser session: two catalog-only BEGIN READ ONLY / ROLLBACK queries explicitly return read_only=on. Primary-project actual3heads exactly match rehearsal; existing referenced PKs/varchar(36) IDs and required payment columns verified; expected roles/RLS bypass present; both new tables absent. No credential exported, customer records read or schema changed. Backend connection-role mapping/new-table effective grants remain rollout checks. Agent database tab closed; private diagnostic snippet may remain. Earlier no-local-credential finding remains true but is no longer the only way to preflight.

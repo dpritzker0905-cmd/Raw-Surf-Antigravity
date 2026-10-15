@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
+      - '.github/workflows/ci.yml'
+      - 'backend/requirements*.txt'
+      - 'backend/alembic.ini'
+      - 'backend/alembic/env.py'
       - 'backend/models/payment*'
       - 'backend/models/__init__.py'
       - 'backend/alembic/versions/payment_reconciliation_001.py'
