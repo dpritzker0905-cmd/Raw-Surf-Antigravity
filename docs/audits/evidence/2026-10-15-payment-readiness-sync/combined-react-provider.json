@@ -1,0 +1,95 @@
+{
+  "verified_at": "2026-10-15T16:55:27.549714+00:00",
+  "combined_revision": "35b295a1639f990eb1fa78269fbbd7868e5a5438",
+  "message_revision": "3e70a393d306b595cb982a31635ba6b9c4e2205d",
+  "target_dev": "b660815e49dee689661d8f81ddfe8d0bc4c2fde8",
+  "scope": "Actual production React Bookings/JumpInSessionModal, actual payment handlers and Stripe SDK; fixture identities/read feeds/dependency doubles; disposable loopback PostgreSQL schema; signed Stripe CLI callbacks. Not deployed whole-app acceptance.",
+  "sandbox_paid_journeys": 2,
+  "signed_callbacks_200": 2,
+  "success": {
+    "return_200": true,
+    "active_participations": 1,
+    "cases": 0,
+    "wallet_balance": 80,
+    "credit_debits": 0
+  },
+  "ended": {
+    "case_reason": "live_session_unavailable",
+    "cases": 1,
+    "extra_entitlements": 0,
+    "new_purchase_on_reload": false,
+    "actionable_review_text_observed": true,
+    "open_case_returns_409": 3,
+    "returns_409_including_post_refund": 4
+  },
+  "refund": {
+    "admin_endpoint_200_calls": 2,
+    "terminal_case": "refunded",
+    "provider_full_refund_count": 2,
+    "each_provider_charge_refunded_once": true,
+    "buyer_terminal_refund_message": "Not certified: live return currently emits the existing string reconciliation error after refund; refund status verified through app admin API and Stripe retrieval."
+  },
+  "local_build": "Direct craco production build passed with inherited warnings; npm script uses POSIX env assignment on Windows.",
+  "local_ui": {
+    "suites": 3,
+    "passed": 16,
+    "regression_red_failed": 2
+  },
+  "local_evidence_sha256": {
+    "live-success-state.local.json": "138f21a80c9d70de01e5b03edd3ab57ae2b4cef9dfdaf848bb17df72e2d0c091",
+    "ended-final-open-state.local.json": "1f9dece6e1f4417a32fd8c9e8d62000ce27b69424824a4d95813191ec065a988",
+    "case-refund-1.local.json": "1dfb0054311fd082945f8911b7d05da9af7f9ca4a5dfd983ce75c8fc08f1ef68",
+    "case-refund-2.local.json": "1dfb0054311fd082945f8911b7d05da9af7f9ca4a5dfd983ce75c8fc08f1ef68",
+    "provider-refund-cleanup.local.json": "977f835694af24150b1e655cd8d69483dd87f5cc26f559c58c62b038d10204c0",
+    "final-state.local.json": "0b41aff031ce94fa5779fae71291b3f156900e9757838902ee744f9e3fdfeecd",
+    "live-success.jpg": "86de27c27055a02d6a9c3cbb574235cd283495c7ea598ddf78ac0cf410cc94c8",
+    "ended-return-fixed.jpg": "227a948f7a3545987811d9246d5c52529506ab5f64e8c8f5fa93bb9bb1ef2190"
+  },
+  "cleanup": "Owned journey server and Stripe listener terminated; owned PostgreSQL stopped; loopback ports49712/51337 confirmed closed; fixture sandbox charges fully refunded.",
+  "deployment": false,
+  "hosted_schema_write": false,
+  "isolation": {
+    "claude_local_refs_unchanged": true,
+    "wind_map_services_decisions_scoreboard_match_dev": true,
+    "frozen_payment_parent_unchanged": true
+  },
+  "ci": {
+    "combined35": {
+      "general_run": 38768451165,
+      "conclusion": "success",
+      "frontend_suites": 431,
+      "frontend_tests": 5566,
+      "estate_passed": 1680
+    },
+    "source3e": {
+      "dedicated_run": 38770725532,
+      "dedicated_conclusion": "success",
+      "postgres_passed": 99,
+      "postgres_skipped": 0,
+      "matching_pins": 46,
+      "ui_passed": 16,
+      "fixture_browsers_passed": 12,
+      "full_frontend_job": 116545516914,
+      "frontend_suites": 431,
+      "frontend_tests": 5568,
+      "general_run": 38770725600,
+      "general_conclusion": "success",
+      "general_jobs_passed": 11,
+      "simulation_guards_passed": 2658,
+      "simulation_guards_skipped": 66,
+      "simulation_guards_existing_xfail": 1,
+      "forecast_chain_passed": 2444,
+      "estate_passed": 1680,
+      "estate_expected_skipped": 2879,
+      "estate_silent_files": 0,
+      "all_other_workflows": "success"
+    }
+  },
+  "ci_evidence_sha256": {
+    "payment-message-dedicated-ci.local.txt": "7a23c5006c33d0fb919ed0c90dc1d7ac2399e8a6e9150106a4247be56b975da7",
+    "payment-message-full-frontend-ci.local.txt": "d0aa5115fa6234a89b40fb61649b0f38cdf20ddb897dc03a1c45098bada94f76",
+    "payment-message-backend-forecast-chain-guards.local.txt": "f210cd96b6ee847ffce2c5b5b601effd1b6d5f56c60ef119ffc73d5e1b84c5c3",
+    "payment-message-backend-estate-coverage.local.txt": "5207eb3cf6067842760487e07b81d774487f99f862cd017eed0124fbdb27a7e0",
+    "payment-message-backend-sim-composition-guards.local.txt": "7759a7bbfe372e4d4c020bd4090b035932007d93f7c85e1019506e9dc5ffeea0"
+  }
+}
