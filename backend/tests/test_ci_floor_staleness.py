@@ -471,7 +471,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # (floors 2668 / 2467; chain files 163 -> 164).
 # Thinned series frames keep their cells' bounds (dark): +20 guards (one new file) on hosted 2674 / 196 files (floor 2688; files 197).
 # Same PR after the independent review: +10 guards (the same file) on hosted 2694 / 197 files (floor 2698).
-_FLOOR_SET_FROM = {"guards": 2704, "chain": 2473, "estate": 1674}
+# Merge-at-commit manifest publication (dark): +40 guards (one new file, plus 1 strict xfail) on hosted 2704 / 197 files (floor 2738; files 198).
+_FLOOR_SET_FROM = {"guards": 2744, "chain": 2473, "estate": 1674}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
