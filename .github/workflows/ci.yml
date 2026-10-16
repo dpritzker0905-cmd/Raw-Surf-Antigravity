@@ -866,7 +866,11 @@ jobs:
           # on dev 9e11676c (CI 38013820511: 194 files, 2641 passed, 67 skipped) -> projected 2658/195; 2658 - 6 = 2652.
           # This PR must read 195 files / 2658.
           # Spot-details deadline/legacy compatibility adds11 guards cases: projected2669/196, margin6.
-          MIN_FILES, MIN_PASSED = 196, 2663
+          # ⬆ 196/2663 → 196/2668 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (the accuracy monitor reads the
+          # skill ledger's scored day objects): five cases in test_forecast_accuracy_monitor.py, an existing guards file;
+          # hosted reading on dev db453937 (CI 38844443190: 196 files, 2669 passed, 67 skipped) -> projected 2674/196;
+          # 2674 - 6 = 2668. This PR must read 196 files / 2674.
+          MIN_FILES, MIN_PASSED = 196, 2668
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1419,7 +1423,12 @@ jobs:
           # pooled fetcher noaa_hrrr_wind_fetcher.py joins POOLED_FETCHERS in test_fetcher_http_pooling.py (2 parametrized
           # cases); hosted reading on dev db037eaf (CI 37971676215: 163 files, 2442 passed) -> projected 2444/163;
           # 2444 - 6 = 2438. This PR must read 163 files / 2444.
-          MIN_FILES, MIN_PASSED = 163, 2438
+          # ⬆ 163/2438 → 164/2467 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (the skill ledger's scored archive moves
+          # to one object per UTC day after scored-2026-10.json hit Storage's 50 MiB limit): tests/test_skill_scored_archive.py
+          # (13, a new file selector-verified into this lane) plus 16 in test_forecast_skill_retention.py; hosted reading on
+          # dev db453937 (CI 38844443190: 163 files, 2444 passed) -> projected 2473/164; 2473 - 6 = 2467.
+          # This PR must read 164 files / 2473.
+          MIN_FILES, MIN_PASSED = 164, 2467
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

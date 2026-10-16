@@ -5,6 +5,7 @@ regression, and the repo's own history is full of guards that could not fire (th
 block validates wiring, the offload guard bans names not shapes). Every gate here is therefore
 tested in BOTH directions: the healthy case passes AND the breach case fires. A monitor whose
 red path is untested is the same theatre this audit exists to end."""
+import json
 from datetime import datetime, timedelta, timezone
 
 from scripts.forecast_accuracy_monitor import (
@@ -371,7 +372,7 @@ def test_main_reads_last_months_archive_across_a_month_boundary(monkeypatch, cap
     monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
     monkeypatch.setattr(fam, "_fetch_json", lambda url, timeout=60: report)
-    monkeypatch.setattr(fam, "_fetch_l2", lambda key, timeout=30: l2.get(key))
+    monkeypatch.setattr(fam, "_fetch_l2", lambda key, timeout=30: l2.get(key, fam.ABSENT))
     monkeypatch.setattr("sys.argv", ["forecast_accuracy_monitor.py", "--as-of", now.isoformat()])
     fam.main()
     out = capsys.readouterr().out
@@ -408,7 +409,7 @@ def _run_main_at(monkeypatch, capsys, now, l2):
 
     def fake_l2(key, timeout=30):
         fetched.append(key)
-        return l2.get(key)
+        return l2.get(key, fam.ABSENT)      # an object that was never written answers "absent"; None = unreadable
     monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
     monkeypatch.setattr(fam, "_fetch_json", lambda url, timeout=60: report)
@@ -439,6 +440,84 @@ def test_the_paired_gate_does_not_fetch_last_month_after_the_first_week(monkeypa
     out, fetched = _run_main_at(monkeypatch, capsys, now, l2)
     assert "calibration/skill/scored-2026-09.json" not in fetched, fetched
     assert any(l.startswith("  vs persistence") and "we win" in l for l in out.splitlines()), out
+
+
+# ---------------------------------------------------------------------------------------------
+# DAY OBJECTS (2026-10-16). `scored-2026-10.json` reached Storage's 50 MiB object limit and 49 ledger passes
+# failed on it, so from October new scored rows are one object per UTC day and the monthly object is frozen.
+# The monitor must read the frozen month AND the days, and keep the rule it had: an object it could not read
+# is a blind archive (REFUSED), never an empty one. A missing day object is normal; an unreadable one is not.
+# ---------------------------------------------------------------------------------------------
+
+def test_liveness_sees_rows_scored_into_day_objects(monkeypatch, capsys):
+    now = datetime(2026, 10, 20, 7, 0, tzinfo=timezone.utc)
+    l2 = {"calibration/skill/scored-2026-10.json": [{"target_time": datetime(2026, 10, 10, tzinfo=timezone.utc).isoformat()}],
+          "calibration/skill/scored-2026-10-20.json": [{"target_time": (now - timedelta(hours=2)).isoformat()}],
+          "calibration/history/residuals-2026-10.json": []}
+    out, _ = _run_main_at(monkeypatch, capsys, now, l2)
+    assert "newest scored target 2026-10-20T05:00Z is 2.0 h old" in out, out
+    assert "STOPPED SCORING" not in out
+
+
+def test_an_unreadable_day_object_is_blind_not_quiet(monkeypatch, capsys):
+    now = datetime(2026, 10, 20, 7, 0, tzinfo=timezone.utc)
+    l2 = {"calibration/skill/scored-2026-10.json": [{"target_time": (now - timedelta(hours=2)).isoformat()}],
+          "calibration/skill/scored-2026-10-20.json": None,          # None = the read failed
+          "calibration/history/residuals-2026-10.json": []}
+    out, _ = _run_main_at(monkeypatch, capsys, now, l2)
+    # The line that only prints when the rows are UNREAD (not merely few): the combined verdict is RED here
+    # because this fixture's empty residual history is RED, and RED outranks REFUSED.
+    assert "scored segment: not readable" in out, out
+
+
+def test_a_month_with_only_day_objects_grades_normally(monkeypatch, capsys):
+    """From November there is no monthly object. Its absence must not blind the monitor."""
+    now = datetime(2026, 11, 20, 7, 0, tzinfo=timezone.utc)
+    l2 = {"calibration/skill/scored-2026-11-15.json": _pair_rows(260, now - timedelta(days=5), "N"),
+          "calibration/skill/scored-2026-11-20.json": [{"target_time": (now - timedelta(hours=2)).isoformat()}],
+          "calibration/history/residuals-2026-11.json": []}
+    out, _ = _run_main_at(monkeypatch, capsys, now, l2)
+    assert "REFUSED" not in out and "UNMEASURED" not in out and "STOPPED SCORING" not in out, out
+    assert any(l.startswith("  vs persistence") and "we win" in l for l in out.splitlines()), out
+
+
+def test_a_pre_switch_month_with_no_monthly_object_is_still_blind(monkeypatch, capsys):
+    """September's archive is one frozen object; if it is gone, that is a lost archive, not a quiet month."""
+    now = datetime(2026, 9, 20, 7, 0, tzinfo=timezone.utc)
+    out, _ = _run_main_at(monkeypatch, capsys, now, {"calibration/history/residuals-2026-09.json": []})
+    assert "scored segment: not readable" in out, out
+
+
+def _http_error(code, body):
+    import io
+    import urllib.error
+    return urllib.error.HTTPError("https://storage.example.invalid/x", code, "err", {},
+                                  io.BytesIO(json.dumps(body).encode()))
+
+
+NO_SUCH_KEY = {"statusCode": "404", "code": "NoSuchKey", "error": "not_found", "message": "Object not found"}
+
+
+def test_fetch_l2_tells_an_absent_object_from_an_unreadable_one(monkeypatch):
+    import urllib.error
+    import scripts.forecast_accuracy_monitor as fam
+    monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    unreadable = [
+        _http_error(503, {}),
+        _http_error(400, {"statusCode": "400", "code": "InvalidJWT", "message": "Invalid JWT"}),
+        _http_error(400, {"statusCode": "404", "code": "NoSuchBucket", "error": "Bucket not found"}),
+        urllib.error.URLError("synthetic connection failure"),
+    ]
+
+    def answer(exc):
+        def urlopen(req, timeout=30):
+            raise exc
+        monkeypatch.setattr(fam.urllib.request, "urlopen", urlopen)
+        return fam._fetch_l2("calibration/skill/scored-2026-10-20.json")
+
+    assert answer(_http_error(400, NO_SUCH_KEY)) is fam.ABSENT
+    assert [answer(exc) for exc in unreadable] == [None] * len(unreadable)
 
 
 def _assert_loaded_archive_label_with_verdict(ours, theirs, win, expected):

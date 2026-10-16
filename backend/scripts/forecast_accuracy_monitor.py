@@ -48,8 +48,10 @@ import argparse
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -428,9 +430,29 @@ def _fetch_json(url, timeout=60):
         return None
 
 
+class _Absent(tuple):
+    """What `_fetch_l2` returns for an object Storage positively says does not exist. Empty on purpose."""
+
+
+ABSENT = _Absent()      # compare with `is`; None stays "could not read it", which is a different answer
+
+
+def _storage_says_missing(err):
+    """True when an HTTPError is Storage's own "this object does not exist" (it answers HTTP 400 with the real
+    status in the body), judged by the same predicate the strict ledger reader uses. A missing bucket, a bad
+    token, a proxy's HTML page or a 5xx is NOT absence: it must stay unreadable."""
+    from services.weather_pipeline.l2_retry import is_missing_object
+    try:
+        body = err.read()
+    except Exception:
+        return False
+    return is_missing_object(SimpleNamespace(status_code=err.code, json=lambda: json.loads(body)))
+
+
 def _fetch_l2(key, timeout=30):
     """Storage REST GET mirroring buoy_calibration.load_calibration_l2 (stdlib, so this script
-    stays runnable with no dependencies). Returns parsed JSON, or None."""
+    stays runnable with no dependencies). Returns parsed JSON; ABSENT when the object does not exist;
+    None when it could not be read."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     tok = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not tok:
@@ -441,9 +463,37 @@ def _fetch_l2(key, timeout=30):
             headers={"Authorization": "Bearer %s" % tok, "apikey": tok})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.load(r)
+    except urllib.error.HTTPError as e:
+        if _storage_says_missing(e):
+            return ABSENT
+        print("L2 read failed: %s -> %s" % (key, e))
+        return None
     except Exception as e:
         print("L2 read failed: %s -> %s" % (key, e))
         return None
+
+
+class _Unreadable(Exception):
+    """A scored object exists but could not be read."""
+
+
+def _fetch_scored_month(month, through):
+    """The month's scored rows: its monthly object plus, from 2026-10, every day object up to `through`
+    (skill_scored_archive.py says why). None when ANY part could not be read, or when a month before the switch
+    has no monthly object at all: an unread archive is a blind monitor, never an empty one. A missing DAY
+    object is normal (most days of a month are not written yet), as is a segmented month with no monthly one."""
+    from services.weather_pipeline.skill_scored_archive import read_month, segmented
+
+    def load(key):
+        got = _fetch_l2(key)
+        if got is None:
+            raise _Unreadable(key)
+        return ([], False) if got is ABSENT else (got, True)
+    try:
+        rows, exists = read_month(month, through, load)
+    except _Unreadable:
+        return None
+    return rows if exists or segmented(month) else None
 
 
 def main():
@@ -493,7 +543,8 @@ def main():
         rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
         print("\n".join(rl))
         code = combine(code, rc)
-        scored_rows = _fetch_l2("calibration/skill/scored-%s.json" % month)
+        through = (now + timedelta(days=1)).date()       # scoring tolerance lets a row's target sit past `now`
+        scored_rows = _fetch_scored_month(month, through)
         # THE MONTH SEAM (2026-10-02): the archive is keyed by month but the paired gate grades the
         # TRAILING SEVEN DAYS, so for the first week of a month its window reaches into last month's
         # file. Handing it this month's alone read `n_paired=56 < 200` -> REFUSED on 2026-10-02, a
@@ -502,7 +553,7 @@ def main():
         window_rows = scored_rows
         if scored_rows is not None and now - month_start < timedelta(days=PAIRED_WINDOW_DAYS):
             prev_month = (month_start - timedelta(days=1)).strftime("%Y-%m")
-            window_rows = (_fetch_l2("calibration/skill/scored-%s.json" % prev_month) or []) + scored_rows
+            window_rows = (_fetch_scored_month(prev_month, through) or []) + scored_rows
         sc, sl = evaluate_scored_segment(window_rows, now, cfg=cfg)
         print("\n".join(sl))
         code = combine(code, sc)
