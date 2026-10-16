@@ -878,7 +878,11 @@ jobs:
           # when the width does not divide the stride, all four sites; flag OFF at all four sites; the strided read's
           # longitudes); hosted reading on this PR's head dcc46b733 (CI 38928415298: 197 files, collected 2761, 2694 passed,
           # 67 skipped) -> projected 2704/197; 2704 - 6 = 2698. This PR must read 197 files / 2704.
-          MIN_FILES, MIN_PASSED = 197, 2698
+          # ⬆ 197/2698 → 198/2821 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (manifest publication in one step, dark):
+          # tests/test_manifest_one_step_publish.py (123 collected, all passing, no xfail), a new file selector-verified into this
+          # lane; hosted reading on dev (backend unchanged since #343, CI 38934795577: 197 files, collected 2771, 2704 passed,
+          # 67 skipped) -> projected 2827/198; 2827 - 6 = 2821. This PR must read 198 files / 2827.
+          MIN_FILES, MIN_PASSED = 198, 2821
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
