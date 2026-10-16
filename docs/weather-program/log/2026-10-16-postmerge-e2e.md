@@ -32,3 +32,26 @@ only this exactGET for declared test-surfer-id/admin-user-id, returning pending_
 badge remains scoped likewise. Three Node contracts passed, including negatives for real identities,
 other origins, auth/weather/spot endpoints and mutations. App/backend source remains deployed ae13bade.
 No full E2E success claimed yet; next verification uses corrected harness against unchanged DEV app.
+
+Published repair43ffb99c6 and opened/attached draftPR341 againstdev. Full workflow38836406336 runs
+all72tests/3files/fourbrowserprojects once without retries against unchanged deployedDEVae13bade.
+Application/backend diff versusdev empty. Source head stays frozen while E2E and hostedPRchecks run.
+Fresh live cap enabledtrue/initialized5.45reserved/4.55available; production Auto Publishing Locked,
+publicworkerfc140024, DEVworkerae13bade. No provider requests, deployments, flags, settings or migrations.
+Ledger1269-1271 records publication, PR and full verification dispatch. Final browser result pending.
+
+Full corrected run38836406336 completed01:59:55Z:62passed9existing-skips1failed in16.7minutes.
+All map controls, model switches, renderer continuity/rapid gestures and controlledtransport cases pass.
+One Chrome Explore case stayed signed in at Unable to load this spot / Try again. No locker badge401;
+admin event-dashboard401s are separate, expected by existing admin suppression. Screenshot proves the
+error/recovery screen, not which transport or response caused it; prior run lacks that request telemetry.
+All14PRsourcechecks passed at43ffb99c6 (CI38836457374), CLEAN.
+
+New candidate records exact-selected-spot request status/failure/duration and exercises one explicit
+visible manual recovery ONLY for recorded network failure or502/503/504. Final real-hub success stays
+mandatory, with existing90s test/60s assertions unchanged. Invalid successful payloads,500/authfaults
+and persistent unavailability fail. First fault is always retained in JSONattachment/console, never
+silently retried away. Added a companion per-browser503fault-to-real-backend200 control proving this
+branch requires manual recovery, exactly two requests, actual final data and no automatic retry.
+Suite discovery76cases, no new skip. Nodebadgecontracts3pass and syntax pass; new head needs full hosted
+qualification. No application/backend code, paid provider request, deploy or settings change.
