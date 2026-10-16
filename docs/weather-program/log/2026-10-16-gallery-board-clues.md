@@ -137,3 +137,8 @@ read back after smoke; production frontend unchanged. Shared backend rollout exp
 Source CI38828606865 remains all16SUCCESS. Post-merge broad E2E38830529934 still in progress at00:53Z;
 not represented as completed by this board-clue smoke. Ledger1261-1265 records merge, rollout, fixtures,
 single paid test and cleanup. No served weather number changed.
+
+Release receipt1158039f56c3df37f62b288bf85ea0f25c964fd0 published on codex/board-clues-340-deploy-record
+and exact remote read back. Ledger1266 records publication; this metadata checkpoint advances its anchor.
+Docs audit0FAIL14inheritedWARN24NOTE, canonical prefix valid, gitleaks/precommit no leaks. Code unchanged.
+Broad post-merge E2E38830529934 still in progress at00:56Z; no extra provider or deployment action.
