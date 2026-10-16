@@ -469,7 +469,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Reflection AI route ownership/availability: +34 estate cases; projected1579, margin2.
 # Skill-ledger day objects: +5 guards (existing monitor file) and +29 chain (one new file) on hosted 2669 / 2444
 # (floors 2668 / 2467; chain files 163 -> 164).
-_FLOOR_SET_FROM = {"guards": 2674, "chain": 2473, "estate": 1674}
+# Thinned series frames keep their cells' bounds (dark): +20 guards (one new file) on hosted 2674 / 196 files (floor 2688; files 197).
+_FLOOR_SET_FROM = {"guards": 2694, "chain": 2473, "estate": 1674}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

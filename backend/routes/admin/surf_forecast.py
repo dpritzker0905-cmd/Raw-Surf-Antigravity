@@ -33,6 +33,10 @@ _RATING_FLAGS = {
     "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
     "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),
+    # WHERE A FIELD IS DRAWN, never which cells or values (tests/test_series_thin_node_bounds.py): a thinned world frame
+    # kept the ORIGINAL bounds, so the client drew it up to 4 deg too far north; on, it carries the bounds of the cells it kept.
+    "SERIES_THIN_NODE_BOUNDS": ("0", "A thinned series frame carries the bounds of the cells it kept, so the client draws it "
+                                     "where its cells are (off: up to 4 deg too far north on a thinned world frame)", "Render env"),
     "MANIFEST_IMMUTABLE_PUBLICATION": ("0", "Publish unique create-only manifest copies only after durable upload acknowledgment", "Render env + ingestion/precompute/monitor together"),
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),

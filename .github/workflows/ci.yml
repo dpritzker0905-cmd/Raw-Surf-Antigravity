@@ -870,7 +870,11 @@ jobs:
           # skill ledger's scored day objects): five cases in test_forecast_accuracy_monitor.py, an existing guards file;
           # hosted reading on dev db453937 (CI 38844443190: 196 files, 2669 passed, 67 skipped) -> projected 2674/196;
           # 2674 - 6 = 2668. This PR must read 196 files / 2674.
-          MIN_FILES, MIN_PASSED = 196, 2668
+          # ⬆ 196/2668 → 197/2688 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (thinned series frames carry the bounds
+          # of the cells they kept, dark): tests/test_series_thin_node_bounds.py (20), a new file selector-verified into
+          # this lane; hosted reading on #342's head 56bf81dda, a tree identical to dev 66a320e5 (CI 38913422185: 196 files,
+          # 2674 passed, 67 skipped) -> projected 2694/197; 2694 - 6 = 2688. This PR must read 197 files / 2694.
+          MIN_FILES, MIN_PASSED = 197, 2688
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
