@@ -136,7 +136,8 @@ def _stride_clipped_grid(product, stride: int, mode: str = "stride") -> bool:
     `mode` is `thinning_mode(layer, domain)`, the SAME value grid_series passes: this is where the world
     page's far-zoom frames are thinned, so 'max' here is what keeps the Florida swell on an 8-deg lattice.
     """
-    from services.weather_pipeline.series_vector_budget import decimate_vectors
+    from services.weather_pipeline.series_vector_budget import (
+        decimate_vectors, node_extent_bounds, thin_node_bounds_enabled)
     grid = getattr(product, "grid", None)
     if grid is None:
         return False
@@ -147,6 +148,14 @@ def _stride_clipped_grid(product, stride: int, mode: str = "stride") -> bool:
     diagnostics = dict(grid.diagnostics or {})
     diagnostics["load_stride"] = stride
     grid.diagnostics = diagnostics
+    if thin_node_bounds_enabled() and getattr(grid, "bounds", None) is not None:
+        # SERIES_THIN_NODE_BOUNDS: the kept cells' own extents, and the product's served coverage/bbox follow them,
+        # exactly as _apply_identity_clip writes them, so the strided read and this path stay identical.
+        bounds = node_extent_bounds(grid.vectors, grid.bounds)
+        if bounds is not grid.bounds:
+            grid.bounds = bounds
+            product.coverage = bounds
+            product.served_bbox = f"{bounds.west:.4f},{bounds.south:.4f},{bounds.east:.4f},{bounds.north:.4f}"
     return True
 
 
@@ -216,6 +225,11 @@ def _identity_clip_bounds(product, clip, stride):
                 or (grid.cols, grid.rows) != (len(range(0, cols, stride)), len(range(0, rows, stride)))
                 or len(grid.vectors or []) != grid.cols * grid.rows):
             return None
+        from services.weather_pipeline.series_vector_budget import thin_node_bounds_enabled
+        if thin_node_bounds_enabled():
+            # SERIES_THIN_NODE_BOUNDS: the strided grid keeps lattice cells 0, s, 2s, ... so its extents are those of
+            # lats[::stride] / lons[::stride], not the whole lattice's (north 80, not 84, for a 181 x 83 world).
+            lats, lons = lats[::stride], lons[::stride]
         return CoverageBounds(west=min(lons), south=min(lats), east=max(lons), north=max(lats))
     except Exception:
         return None

@@ -22,6 +22,8 @@ from services.weather_pipeline.series_source_policy import (
 
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
+    node_extent_bounds,
+    thin_node_bounds_enabled,
     thinning_mode,
     stamp_build_time_bound,
     stride_for,
@@ -140,6 +142,8 @@ def _apply_build_stride(product, stride: int, mode: str = "stride") -> bool:
         if out is None:
             return False
         g.vectors, g.cols, g.rows = out
+        if thin_node_bounds_enabled() and getattr(g, "bounds", None) is not None:
+            g.bounds = node_extent_bounds(g.vectors, g.bounds)      # rebinds a new object: never mutates a shared one
         return True
     except Exception:
         logger.exception("[series-build-bound] frame decimation failed; serving that frame whole")
