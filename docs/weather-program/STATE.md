@@ -14,7 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
-- **Saved-board Gallery Hub clues candidate, not live:** codex/gallery-board-clues compares image-only held/ridden equipment observations locally with linked session participants' saved boards. Transparent overlap/conflicts, ties retained, explicit single-photo manual review; no identity score or automatic tag/claim. Same single guarded request, no saved profiles/boards sent to OpenAI. Local129backendpass/1PostgreSQLskip,36floorchecks,434frontend/5578tests/build/lint passed;390x844light/dark/beach local mock layouts checked. Fresh live read-only cap enabled/initialized5.10reserved/4.90available, production workerfc140024 unchanged; zero paid calls/deployments for this task. Hosted exact-head/release qualification pending. [Candidate receipt](log/2026-10-16-gallery-board-clues.md).
+- **PR340 saved-board Gallery Hub clues, not live:** codex/gallery-board-clues compares image-only held/ridden equipment observations locally with linked session participants' saved boards. Transparent overlap/conflicts, ties retained, explicit single-photo manual review; no identity score or automatic tag/claim. Same single guarded request, no saved profiles/boards sent to OpenAI. Local129backendpass/1PostgreSQLskip,36floorchecks,434frontend/5578tests/build/lint passed;390x844light/dark/beach local mock layouts checked. Fresh live read-only cap enabled/initialized5.10reserved/4.90available, production workerfc140024 unchanged; zero paid calls/deployments for this task. Hosted exact-head/release qualification pending. [Candidate receipt](log/2026-10-16-gallery-board-clues.md).
 
 - **PR337/338 merged; dev frontend live48284a5e:** Gallery Hub description/visual-tag review and board scan/apply/save passed with a real uploaded photo; entered board values preserved. Beach field contrast fixed and verified live. PR338 all20 contexts accepted; hosted434suites/5570tests/build passed. Enabled lifetime reservations5.10/10, available4.90; production Auto Publishing Locked/fc140024, shared backend healthya7c038919 unchanged. Disposable gallery/item/board and two storage objects removed, original quiver retained. Approved viewport override had no effect and was reset; real390x844 local component frames passed light/dark/beach with mocked API, not full deployed mobile/provider proof. Broad E2E38821861231 passed frontend-source gate, failed backend SHA equality gate, Run E2E skipped. [Final receipt](log/2026-10-15-vision-ui-workflows.md).
 
@@ -2327,7 +2327,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1256, sha256 7bb52b544c4d5c27e4a5f79c292f5fdcc68f045aa902bc6bde696789758082b7**
+  **Ledger head: seq 1257, sha256 25fdd359d98bd34bd1989175bd8f9345a8d11e6ba08d8127f86fade259afcfe7**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
