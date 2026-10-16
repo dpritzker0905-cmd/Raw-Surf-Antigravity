@@ -181,6 +181,7 @@ class Chain:
         self.delete_requests = []
         self.list_fault = self.delete_fault = None      # "raise" | an HTTP status
         self.unexpected = []              # requests nothing here knows how to answer
+        self.extra_rows = []              # raw rows the listing also returns (to hand retention timestamps it cannot read)
 
     # ── what the code under test calls ──
     def read_pointer(self):
@@ -292,6 +293,7 @@ class Chain:
         rows = [{"name": key[len("manifests/"):], "created_at": self.created.get(key, self.now).isoformat(),
                  "updated_at": self.created.get(key, self.now).isoformat()}
                 for key in self.objects if key.startswith("manifests/") and body["search"] in key]
+        rows += [dict(row) for row in self.extra_rows]
         rows.sort(key=lambda row: row["name"], reverse=body["sortBy"]["order"] == "desc")
         return _StorageResponse(200, rows[body["offset"]:body["offset"] + body["limit"]])
 

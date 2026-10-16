@@ -49,8 +49,9 @@ def test_the_exit_hook_gives_up_loudly_after_its_extra_rounds_and_leaves_the_hea
     chain.pointer_faults.extend(["none"] * 200)                      # the pointer row stays unreadable
     parked.run()                                                     # the job: 5 attempts
     assert len(chain.kinds("read_pointer")) == mps.MAX_ATTEMPTS
-    mps._flush_at_exit()                                             # EXIT_ROUNDS more rounds of MAX_ATTEMPTS
-    assert len(chain.kinds("read_pointer")) == mps.MAX_ATTEMPTS * (1 + mps.EXIT_ROUNDS)
+    assert mps.EXIT_ROUNDS == 3 and mps.MAX_ATTEMPTS == 5
+    mps._flush_at_exit()                                             # 3 more rounds of 5 attempts
+    assert len(chain.kinds("read_pointer")) == 5 + 3 * 5
     assert chain.cas_calls == [] and chain.generation == 5
     assert mps._slot.pending is not None
     out = capsys.readouterr().out
@@ -71,7 +72,7 @@ def test_the_exit_hook_stops_at_its_wall_clock_budget(chain, store, parked, slee
     monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 120.0)
     mps._flush_at_exit()
     extra = len(chain.kinds("read_pointer")) - reads_before
-    assert 0 < extra < mps.MAX_ATTEMPTS * mps.EXIT_ROUNDS, extra
+    assert 0 < extra < mps.MAX_ATTEMPTS, "the budget ended the very first round early, not after whole rounds: %d" % extra
     assert mps._slot.pending is not None and capsys.readouterr().out.startswith("::error::[Manifest Publish]")
 
 

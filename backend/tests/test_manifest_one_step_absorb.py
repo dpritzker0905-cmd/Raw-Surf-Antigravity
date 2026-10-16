@@ -108,6 +108,26 @@ def test_an_unreadable_published_head_does_not_stop_the_save_from_publishing(cha
     assert any("absorb" in r.getMessage() for r in caplog.records)
 
 
+def test_an_exclusion_still_pending_is_not_folded_back_by_an_absorb_that_names_no_exclusions_of_its_own(chain, store, inline):
+    """The prune of BASE[0] is pending while the head published BEFORE it (which still names BASE[0]) is un-absorbed: the
+    decision-time absorb of the next prune helper passes no exclusions, so the pending ones are what protect the manifest."""
+    manifest = _snapshot(BASE + PILOTS_NEW)
+    seen = []
+
+    def absorb_during_the_second_publish():
+        mps.absorb_published_head(manifest)
+        seen.append({p.filename for p in manifest.products})
+
+    def prune_during_the_first_publish():
+        manifest.products = [p for p in manifest.products if p.filename != BASE[0]]
+        chain.during_upload = absorb_during_the_second_publish
+        mps.submit_manifest_publish(store, manifest, exclude_keys=[BASE[0]])
+    chain.during_upload = prune_during_the_first_publish
+    mps.submit_manifest_publish(store, manifest)
+    assert seen and BASE[0] not in seen[0], "a pruned entry (object deleted) was folded back into the in-memory manifest"
+    assert BASE[0] not in chain.head_files()
+
+
 def test_with_the_flag_off_the_absorb_is_a_no_op_even_when_the_slot_holds_a_head(chain, monkeypatch):
     mps._slot.head = mps._Head(chain.objects[chain.head_key])
     monkeypatch.setenv(FLAG, "0")

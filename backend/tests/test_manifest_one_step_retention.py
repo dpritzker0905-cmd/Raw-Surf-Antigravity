@@ -142,6 +142,16 @@ def test_a_copy_whose_age_cannot_be_read_is_kept(chain, store, inline):
     assert copy_key(2) in chain.objects
 
 
+@pytest.mark.parametrize("stamps", [{}, {"created_at": "2026-01-01T00:00:00"}, {"created_at": None, "updated_at": ""}],
+                         ids=["no-timestamps", "naive-timestamp", "empty-timestamps"])
+def test_a_row_without_a_usable_timezone_aware_timestamp_is_kept(chain, store, inline, stamps):
+    settle_at(chain, 20)
+    key = copy_key(2, "ee")
+    chain.extra_rows.append(dict(name=key[len("manifests/"):], **stamps))             # Storage lists it; its age cannot be known
+    publish(store)
+    assert key not in {k for _, prefixes, _ in chain.delete_requests for k in prefixes}
+
+
 def test_one_batch_is_capped_and_the_backlog_drains_over_the_next_wins(chain, store, inline):
     assert mps.RETENTION_DELETE_LIMIT == 50 and mps.RETENTION_SCAN_LIMIT == 100
     settle_at(chain, 130)

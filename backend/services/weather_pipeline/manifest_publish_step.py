@@ -46,6 +46,12 @@ the designated writer): `submit_manifest_publish` is exactly the three lines it 
 `absorb_published_head` does nothing.
 
 Where to flip it: the L2 writers' workflow env together (forecast-ingest, forecast-ingest-pilots, precompute), not Render.
+
+KNOWN LIMITS. (1) The pointer ROW must already exist: `read_pointer` answers None both for "no row" and for "unreadable", so an
+empty table is a failed read for ever and the lane never bootstraps it (one flag-off publish creates the row). (2) Flip the flag on
+every L2 writer together: a writer still on the old path names its objects `manifest-g<N>.json` and overwrites in place, which can
+land on a winner's object. (3) A head object that cannot be fetched for a reason other than a definite miss blocks publishing
+until it can (fail closed: an unmerged snapshot is never published over it).
 """
 import atexit
 import json
@@ -384,10 +390,8 @@ def _retire_old_copies(generation, head_key):
                 continue
             try:
                 stamps = [datetime.fromisoformat(row[field].replace("Z", "+00:00")) for field in ("created_at", "updated_at") if row.get(field)]
-                if not stamps or any(stamp.tzinfo is None for stamp in stamps):
-                    continue
-                if (now - max(stamps)).total_seconds() < RETENTION_GRACE_SECONDS:
-                    continue
+                if (now - max(stamps)).total_seconds() < RETENTION_GRACE_SECONDS:      # no stamp: max() raises; naive stamp: the
+                    continue                                                           # subtraction raises; both fail closed below
             except (TypeError, ValueError, AttributeError):
                 continue
             doomed.append(key)
