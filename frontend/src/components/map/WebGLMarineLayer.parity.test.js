@@ -21,6 +21,7 @@ import {
 } from './marineController';
 import { isInCooldown } from './marineControllerUtils';
 import { getSharedValidTime } from './backendWeatherServiceClient';
+import { computeHeatmapStatus } from './forecastDiagnostics';
 import { createCustomLayer, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 
 jest.mock('./WebGLMarineEngine', () => ({
@@ -449,7 +450,7 @@ describe('part 2: the upload republishes the record', () => {
       const h = drawn();
       h.update({ data: { vectors: [], __unsupportedLayer: true }, revision: 3 });
       expect(parity()).toEqual({ requestedHour: 0, renderedDataHour: null, parity: false, reason: 'no_data_rendered' });
-      expect(status().status).toBe('retained_previous_hour');
+      expect(status()).toBeNull(); // nothing is retained, so no "retained" status is written (review finding, see the badge tests below)
     });
 
     test('a non-renderable frame after a model switch clears the engine: the record says nothing is drawn', () => {
@@ -493,5 +494,125 @@ describe('part 2: the upload republishes the record', () => {
       expect(window.__WEBGL_MARINE_UPLOAD_COUNT__).toBe(1);
       expect(window.__WEBGL_MARINE_UPLOAD_DIAG__.renderAccepted).toBe(true); // the code AFTER the republish still ran
     });
+  });
+});
+
+// REVIEW FINDING (2026-10-16): the clear sites republished a retained_previous_hour STATUS for an active layer with an emptied
+// engine. MapForecastOverlay memoizes computeHeatmapStatus on [renderMarineData, model, layer, hour] and reads the global at
+// RENDER time, i.e. before the layer's effects of that commit. After the clear, the next good frame's overlay render captured the
+// stale status; the republish then nulled the global but the memo was not recomputed, so the "retained stale" badge stuck.
+// These tests run WITHOUT the hold kill switches (the clear sites really fire) and mirror the overlay memo in a parent.
+describe('the badge after a clear and a good frame (a consumer that memoizes before the layer effects)', () => {
+  beforeEach(() => {
+    delete window.__RAW_DISABLE_CLEAR_HOLD__;
+    delete window.__RAW_DISABLE_SWITCH_HOLD__;
+    window.__RAW_SWITCH_HOLD_TTL_MS__ = 0; // an EXPIRED switch hold: the clear really happens
+  });
+  afterEach(() => {
+    delete window.__RAW_SWITCH_HOLD_TTL_MS__;
+    delete window.__MARINE_HEATMAP_STATUS__;
+  });
+
+  // Mirrors MapForecastOverlay: useMemo(computeHeatmapStatus, [renderMarineData, activeModel, activeLayer, timeOffsetHours]).
+  function Overlay(props) {
+    const badge = React.useMemo(
+      () => computeHeatmapStatus({ activeModel: props.activeModel, activeLayer: 'waves', renderMarineData: props.data }),
+      [props.data, props.activeModel, 'waves', props.timeOffsetHours]
+    );
+    Overlay.badge = badge;
+    return <WebGLMarineLayer {...props} />;
+  }
+  function overlayHarness(over = {}) {
+    const map = makeMap();
+    let props = {
+      mapInstance: map, active: true, data: frame({ hour: 0 }), revision: 1, onAddedChange: jest.fn(), onError: jest.fn(),
+      beforeId: undefined, theme: 'dark', activeLayers: ['waves'], activeModel: 'GFS', timeOffsetHours: 0, ...over,
+    };
+    const utils = render(<Overlay {...props} />);
+    return { update(next) { props = { ...props, ...next }; utils.rerender(<Overlay {...props} />); } };
+  }
+
+  // Every value ever assigned to the status global from now on.
+  function recordStatusWrites() {
+    const writes = [];
+    let value = window.__MARINE_HEATMAP_STATUS__;
+    Object.defineProperty(window, '__MARINE_HEATMAP_STATUS__', {
+      configurable: true, enumerable: true,
+      get: () => value,
+      set: (v) => { value = v; writes.push(v && v.status ? v.status : v); },
+    });
+    return writes;
+  }
+
+  // The two clear sites that fire with no hold: scenario name -> [prop change that clears, model of the next good frame].
+  const CLEARS = {
+    'an unsupported-layer clear': [{ data: { vectors: [], __unsupportedLayer: true }, revision: 3 }, 'GFS'],
+    'an expired switch hold (TTL 0)': [{ activeModel: 'EURO', data: { vectors: [], __renderable: false }, revision: 3 }, 'EURO'],
+  };
+
+  describe.each(Object.keys(CLEARS))('%s, then a good frame', (name) => {
+    const [clearProps, nextModel] = CLEARS[name];
+    const drawnThenCleared = () => {
+      const h = overlayHarness();
+      h.update({ revision: 2 });
+      expect(parity().parity).toBe(true);
+      expect(window.__WEBGL_MARINE_UPLOAD_COUNT__).toBeGreaterThanOrEqual(1); // a frame really was uploaded
+      const writes = recordStatusWrites();
+      h.update(clearProps);
+      return { h, writes };
+    };
+
+    test('the clear publishes nothing-drawn in the parity record and writes no retained status', () => {
+      const { writes } = drawnThenCleared();
+      expect(parity()).toEqual({ requestedHour: 0, renderedDataHour: null, parity: false, reason: 'no_data_rendered' });
+      expect(writes).not.toContain('retained_previous_hour');
+      expect(window.__MARINE_HEATMAP_STATUS__ == null || window.__MARINE_HEATMAP_STATUS__.status !== 'retained_previous_hour').toBe(true);
+    });
+
+    test('the badge a consumer memoized before the layer effects ends null once the next good frame is drawn', () => {
+      const { h } = drawnThenCleared();
+      h.update({ data: frame({ hour: 0, model: nextModel, seed: 5 }), revision: 4 });
+      expect(parity()).toEqual({ requestedHour: 0, renderedDataHour: 0, parity: true, reason: 'parity_match' });
+      expect(window.__MARINE_HEATMAP_STATUS__ ?? null).toBeNull();
+      expect(Overlay.badge).toBeNull();
+    });
+  });
+
+  test('POSITIVE CONTROL: a real retained hour (an older frame drawn for a later hour) still reaches the badge', () => {
+    const h = overlayHarness();
+    h.update({ revision: 2 });
+    h.update({ timeOffsetHours: 5 }); // hour 0 stays drawn while hour 5 is asked for
+    expect(parity()).toEqual({ requestedHour: 5, renderedDataHour: 0, parity: false, reason: 'retained_previous' });
+    expect(window.__MARINE_HEATMAP_STATUS__.status).toBe('retained_previous_hour');
+    h.update({ revision: 3 }); // the overlay's memo re-reads on its dependencies; revision alone is not one, hour is
+    h.update({ timeOffsetHours: 6 });
+    expect(Overlay.badge).toBe('retained_stale_warning');
+  });
+
+  test('first activation is unchanged: the effect still writes the status, and the good frame clears it', () => {
+    const h = overlayHarness({ data: null, revision: 0 });
+    expect(window.__MARINE_HEATMAP_STATUS__.status).toBe('retained_previous_hour');
+    h.update({ data: frame({ hour: 0 }) }); // refeed upload
+    expect(parity().parity).toBe(true);
+    expect(window.__MARINE_HEATMAP_STATUS__).toBeNull();
+  });
+});
+
+describe('a good upload clears a stale coverage or retained status (layer level)', () => {
+  test.each(['retained_previous_hour', 'no_backend_coverage', 'no_copernicus_coverage'])('%s', (stale) => {
+    const h = harness({ data: null, revision: 1 });
+    window.__MARINE_HEATMAP_STATUS__ = { status: stale };
+    h.update({ data: frame({ hour: 0 }) });
+    expect(parity().parity).toBe(true);
+    expect(status()).toBeNull();
+  });
+
+  test.each(['rate_limited_cached', 'response_too_large_prevented'])('a %s status is left alone', (other) => {
+    const h = harness({ data: null, revision: 1 });
+    const before = { status: other };
+    window.__MARINE_HEATMAP_STATUS__ = before;
+    h.update({ data: frame({ hour: 0 }) });
+    expect(parity().parity).toBe(true);
+    expect(status()).toBe(before);
   });
 });

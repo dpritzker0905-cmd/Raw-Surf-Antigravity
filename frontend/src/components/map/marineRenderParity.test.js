@@ -291,3 +291,93 @@ describe('republishRenderParityAfterUpload: the post-upload call, from the layer
     expect(parity().parity).toBe(true);
   });
 });
+
+// REVIEW FINDING (2026-10-16): at a clear the republish judged an ACTIVE layer with an emptied engine and wrote
+// __MARINE_HEATMAP_STATUS__ = retained_previous_hour (renderedHour null). computeHeatmapStatus turns that into the user-visible
+// "retained stale" badge, MapForecastOverlay memoizes it before the layer's effects run, and the republish that nulls the global
+// after the next good frame never recomputes the memo: the badge stuck. Nothing was retained either. The republish therefore must
+// not WRITE a status when there is nothing drawn; it still writes the parity record (the stale-true fix) and still CLEARS a stale one.
+describe('the status is not written when nothing is drawn (writeStatusWhenNoData)', () => {
+  const refs = (over = {}) => ({
+    timeOffsetHoursRef: { current: 0 },
+    activeRef: { current: true },
+    activeModelRef: { current: 'GFS' },
+    mapRef: { current: map() },
+    activeLayersRef: { current: ['waves'] },
+    lastUploadedGridRef: { current: emptySig() },
+    ...over,
+  });
+  const NOTHING_DRAWN = { requestedHour: 0, renderedDataHour: null, parity: false, reason: 'no_data_rendered' };
+
+  test('the republish of an emptied engine leaves a null status null and still publishes no_data_rendered', () => {
+    window.__MARINE_HEATMAP_STATUS__ = null;
+    republishRenderParityAfterUpload(refs());
+    expect(parity()).toEqual(NOTHING_DRAWN);
+    expect(status()).toBeNull();
+  });
+
+  test('it leaves an unset status unset', () => {
+    republishRenderParityAfterUpload(refs());
+    expect(parity()).toEqual(NOTHING_DRAWN);
+    expect(status()).toBeUndefined();
+  });
+
+  test('it leaves an orchestrator-written status object untouched (same reference, same fields)', () => {
+    const orchestrator = { status: 'no_backend_coverage', requestedHour: 72, renderedHour: 0, coverageRejected: true, retainedPrevious: true, blockedReason: 'cache_coverage_exceeded' };
+    window.__MARINE_HEATMAP_STATUS__ = orchestrator;
+    republishRenderParityAfterUpload(refs());
+    expect(status()).toBe(orchestrator);
+    expect(orchestrator).toEqual({ status: 'no_backend_coverage', requestedHour: 72, renderedHour: 0, coverageRejected: true, retainedPrevious: true, blockedReason: 'cache_coverage_exceeded' });
+  });
+
+  test('a record with vectorsLength 0 counts as nothing drawn even if it still carries an hour', () => {
+    republishRenderParityAfterUpload(refs({ lastUploadedGridRef: { current: sig({ vectorsLength: 0, renderedDataHour: 7 }) } }));
+    expect(parity()).toEqual({ requestedHour: 0, renderedDataHour: null, parity: false, reason: 'no_data_rendered' });
+    expect(status()).toBeUndefined();
+  });
+
+  test('publishRenderParity itself honours the option: false suppresses the write when nothing is drawn', () => {
+    publishRenderParity(args({ lastSig: emptySig(), writeStatusWhenNoData: false }));
+    expect(parity()).toEqual(NOTHING_DRAWN);
+    expect(status()).toBeUndefined();
+  });
+
+  test('the effect path keeps its first-activation write: the default is to write', () => {
+    publishRenderParity(args({ lastSig: emptySig() }));
+    expect(status()).toEqual({ status: 'retained_previous_hour', model: 'GFS', layer: 'waves', hour: 0, renderedHour: null, retainedPrevious: true });
+  });
+
+  test('writeStatusWhenNoData: true writes it explicitly', () => {
+    publishRenderParity(args({ lastSig: emptySig(), writeStatusWhenNoData: true }));
+    expect(status().status).toBe('retained_previous_hour');
+  });
+
+  test('the option only concerns nothing-drawn: an older hour drawn still writes retained_previous_hour with its hours', () => {
+    publishRenderParity(args({ requestedHour: 72, writeStatusWhenNoData: false }));
+    expect(status()).toEqual({ status: 'retained_previous_hour', model: 'GFS', layer: 'waves', hour: 72, renderedHour: 0, retainedPrevious: true });
+    window.__MARINE_HEATMAP_STATUS__ = undefined;
+    republishRenderParityAfterUpload(refs({ timeOffsetHoursRef: { current: 72 }, lastUploadedGridRef: { current: sig() } }));
+    expect(status().renderedHour).toBe(0);
+  });
+
+  test('an inactive layer with nothing drawn still reads layer_inactive and writes no status', () => {
+    republishRenderParityAfterUpload(refs({ activeRef: { current: false } }));
+    expect(parity()).toEqual({ requestedHour: 0, renderedDataHour: null, parity: false, reason: 'layer_inactive' });
+    expect(status()).toBeUndefined();
+  });
+
+  test.each(['retained_previous_hour', 'no_backend_coverage', 'no_copernicus_coverage'])(
+    'a good upload (parity true) still clears a stale %s status', (stale) => {
+      window.__MARINE_HEATMAP_STATUS__ = { status: stale };
+      republishRenderParityAfterUpload(refs({ lastUploadedGridRef: { current: sig() } }));
+      expect(parity().parity).toBe(true);
+      expect(status()).toBeNull();
+    });
+
+  test.each(['rate_limited_cached', 'response_too_large_prevented'])('a good upload leaves a %s status alone', (other) => {
+    const before = { status: other };
+    window.__MARINE_HEATMAP_STATUS__ = before;
+    republishRenderParityAfterUpload(refs({ lastUploadedGridRef: { current: sig() } }));
+    expect(status()).toBe(before);
+  });
+});

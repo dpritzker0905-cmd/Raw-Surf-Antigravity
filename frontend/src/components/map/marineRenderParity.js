@@ -27,7 +27,9 @@ import { uploadedGridServesHour } from './marineHourInstant';
 const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const activeMarineLayer = (activeLayers) => activeLayers?.find(l => MARINE_LAYERS.includes(l)) || 'waves';
 
-export function publishRenderParity({ requestedHour, active, activeModel, mapInstance, activeLayers, lastSig }) {
+// writeStatusWhenNoData (default true = the effect's behaviour, first activation included): false skips WRITING the heat-map status when
+// nothing is drawn (see republishRenderParityAfterUpload). Clearing a stale status when parity holds is never skipped.
+export function publishRenderParity({ requestedHour, active, activeModel, mapInstance, activeLayers, lastSig, writeStatusWhenNoData = true }) {
   if (typeof window === 'undefined') return;
 
   const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
@@ -97,7 +99,7 @@ export function publishRenderParity({ requestedHour, active, activeModel, mapIns
     reason
   };
 
-  if (active && !parity) {
+  if (active && !parity && (renderedDataHour !== null || writeStatusWhenNoData)) {
     let statusValue = 'retained_previous_hour';
     if (reason === 'cooldownActive') {
       statusValue = 'rate_limited_cached';
@@ -124,6 +126,9 @@ export function publishRenderParity({ requestedHour, active, activeModel, mapIns
 // The upload path's second call (see the header): the same record, judged against the frame that was JUST drawn (or cleared).
 // Reads the layer's current refs, never props, so it is right whichever effect or async path ran the upload. Never throws into
 // the caller: the upload it follows has already succeeded, and a diagnostic must not undo that.
+// It never WRITES the heat-map status for an emptied engine (writeStatusWhenNoData: false): MapForecastOverlay memoizes the badge from
+// that global before the layer's effects run, so a status written at a clear, then nulled after the next good frame, left the
+// "retained stale" badge stuck on a memo nothing recomputed (and nothing was retained). The parity record is still written.
 export function republishRenderParityAfterUpload(refs) {
   try {
     if (typeof window === 'undefined' || window.__RAW_DISABLE_PARITY_REPUBLISH__ === true) return;
@@ -134,6 +139,7 @@ export function republishRenderParityAfterUpload(refs) {
       mapInstance: refs.mapRef.current,
       activeLayers: refs.activeLayersRef.current,
       lastSig: refs.lastUploadedGridRef.current,
+      writeStatusWhenNoData: false,
     });
   } catch (e) { /* diagnostic record only */ }
 }
