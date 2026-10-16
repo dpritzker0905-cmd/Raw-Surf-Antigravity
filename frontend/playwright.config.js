@@ -57,6 +57,10 @@ module.exports = defineConfig({
   // not move, the next measurement is the Playwright HTML report artifacts (traces/screenshots),
   // which say whether the page was still spinning at the deadline or had already rendered.
   timeout: 90000,
+  // Finish inside the workflow's 40-minute test-step bound so Playwright can flush its
+  // failure report. Run38830529934 was killed by Actions with zero report artifacts.
+  // This remains a failing deadline, never a skip or a longer per-test allowance.
+  globalTimeout: process.env.CI ? 35 * 60 * 1000 : undefined,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
