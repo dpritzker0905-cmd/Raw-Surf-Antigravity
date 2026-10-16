@@ -74,3 +74,52 @@ test('no board detected cannot be applied; empty photo list cannot incur a charg
   await waitFor(() => expect(screen.getByText(/No surfboard detected/)).toBeInTheDocument());
   expect(screen.queryByRole('button', { name: 'Use suggestions in empty fields' })).not.toBeInTheDocument();
 });
+
+test.each(['light', 'dark', 'beach'])('board clues in %s keep ambiguous candidates, evidence and manual review', async theme => {
+  localStorage.setItem('raw-surf-theme', theme);
+  const clues = ['Alex', 'Sam'].map((full_name, i) => ({
+    surfer_id: String(i), full_name, username: full_name.toLowerCase(), board_id: String(i),
+    board_label: 'Coastal Fish', person_index: 0, relationship: 'holding', strength: 'limited',
+    evidence: [{ field: 'board_type', observed: 'fish', saved: 'fish' }],
+    conflicts: [{ field: 'tail_shape', observed: 'round', saved: 'swallow' }], requires_manual_review: true,
+  }));
+  apiClient.post.mockResolvedValue({ data: { success: true, analysis: {
+    overall_description: 'A person holding a board', people_count: 1, people: [{ position: 'left' }], visual_tags: [],
+  }, board_clues: clues, board_clue_status: 'ready', board_clues_truncated: true } });
+  const review = jest.fn();
+  render(<ThemeProvider><ImageVisionPanel images={images} includeBoardClues onReviewPhoto={review} /></ThemeProvider>);
+  expect(apiClient.post).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Scan Photo' }));
+  expect(await screen.findByRole('region', { name: 'Saved board clues' })).toBeInTheDocument();
+  expect(screen.getByText('Alex')).toBeInTheDocument();
+  expect(screen.getByText('Sam')).toBeInTheDocument();
+  expect(screen.getAllByText('Limited board clue')).toHaveLength(2);
+  expect(screen.getAllByText(/Details differ/)).toHaveLength(2);
+  expect(screen.getByText(/Other possible overlaps may be omitted/)).toBeInTheDocument();
+  expect(screen.queryByText(/% match/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Use only this photo for manual assignment' }));
+  expect(review).toHaveBeenCalledWith('owned-photo');
+  expect(apiClient.post).toHaveBeenCalledTimes(1);
+  expect(apiClient.post).toHaveBeenCalledWith('/ai/suggest-tags', {
+    image_url: images[0].url, gallery_item_id: 'owned-photo', include_board_clues: true,
+  });
+  fireEvent.change(screen.getByLabelText('Photo to analyze'), { target: { value: 'another-photo' } });
+  expect(screen.queryByRole('region', { name: 'Saved board clues' })).not.toBeInTheDocument();
+  expect(review).toHaveBeenCalledTimes(1);
+});
+
+test.each([
+  ['no_linked_session', /Link this folder to a session/],
+  ['no_saved_boards', /no saved board details/],
+  ['ready', /No usable board overlap/],
+  [undefined, /Saved board clues are unavailable/],
+])('board clue status %s does not fabricate candidates or trigger more paid calls', async (status, message) => {
+  apiClient.post.mockResolvedValue({ data: { success: true, analysis: {
+    overall_description: 'A board alone', people_count: 0, visual_tags: [],
+  }, board_clues: [], board_clue_status: status } });
+  render(<ImageVisionPanel images={images} includeBoardClues />);
+  fireEvent.click(screen.getByRole('button', { name: 'Scan Photo' }));
+  expect(await screen.findByText(message)).toBeInTheDocument();
+  expect(screen.getByRole('list', { name: 'Possible board overlaps' })).toBeEmptyDOMElement();
+  expect(apiClient.post).toHaveBeenCalledTimes(1);
+});

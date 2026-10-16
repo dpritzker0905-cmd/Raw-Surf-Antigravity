@@ -16,7 +16,8 @@ No secret values, bearer tokens, connection strings or raw customer media belong
   The owner chose OpenAI after comparing Gemini and reported funding $10 for testing. Do not replace keys or
   switch providers without a new instruction. No real app users yet, per the owner's budget clarification.
 - Keep production frontend publishing locked. Shared Render backend changes affect both dev and production.
-  Prior explicit deployment permission concerned PR334 and PR335; PR336 is not merged/deployed by this record.
+  The owner also authorized PR336's shared-backend cap rollout and PR337/338's dev frontend UI/testing.
+  The cap is live; the UI-only task made no backend/configuration change or production frontend publication.
 - Add a removable lifetime $10 app budget. Stated conservative implementation assumption: account for $1.25
   of earlier documented tests first, leaving $8.75. This is an allowance, not a measured billing invoice.
 
@@ -26,9 +27,10 @@ No secret values, bearer tokens, connection strings or raw customer media belong
 | --- | --- | --- |
 | Authentication/ownership | [PR334](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/334), squash `48877804c0747afa347858067b55f9f3c128cde0` | Shared backend deployed at byte-equivalent `363c6d738`; 46 public HTTP checks passed, fixtures removed and zero remaining verified |
 | Real OpenAI vision | [PR335](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/335), qualified `83ca36160b862e7b964e5201d1ecc584aa10c34d`, squash `f2d339e64a086537a010b158a33840babd85d5b0` | Shared backend and dev frontend deployed; production frontend remains locked at `fc140024` |
-| Lifetime app budget | [PR336](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/336), implementation `73422d4be` | Open, not merged, no live migration/initialization/environment/deployment performed. First hosted PostgreSQL safety job passed; broader qualification pending |
+| Lifetime app budget | [PR336](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/336), qualified `0a991137d`, merged `a7c038919` | Shared backend deployed, private migration initialized once; enabled guard. Latest reservations $5.10 / $10; never reset |
+| Gallery Hub and board Scan | [PR337](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/337), merged `5ec87562d`; [PR338](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/338), merged `48284a5e` | Dev live; real uploaded-photo analysis, descriptive suggestions and board review/apply/save passed. Beach field contrast fixed. Production frontend locked |
 
-PR335 Render service `srv-d7fhiu7lk1mc73debje0`, deploy `dep-db8jlt6q1p3s738v7j0g`, live source `f2d339e64`.
+Historical PR335 backend source `f2d339e64` (superseded by the capped `a7c038919` deployment).
 Dev Netlify deploy `6ad13c86685b0990da0280a7` serves `f2d339e6`. Health read back healthy with matching version,
 database connected and scheduler running. These are historical observations, not a current live-state guarantee.
 
@@ -36,7 +38,8 @@ Vision smoke: four paid synthetic/public-image requests; 14 HTTP cases plus two 
 photo analysis, descriptive suggestions, board reading and no-board handling, plus authentication/invalid inputs.
 No persistent test fixtures or customer photos were sent. These used short-lived signed synthetic-subject tokens;
 normal password logins were separately tested in PR334's smoke. Real stored-media/photos, visual accuracy and
-device workflows remain unverified. Conservative bound for the four calls was $1.236; two earlier probes returned
+device workflows were unverified in that initial smoke. The newer UI receipt below records real stored/uploaded
+photo and board acceptance; full deployed mobile acceptance remains unverified. Conservative bound for the four calls was $1.236; two earlier probes returned
 1209 input/183 output tokens in total. Actual billing and account-wide spending/auto-recharge settings were not read.
 
 ## Provider behavior and budget design
@@ -73,12 +76,17 @@ published source; it runs the real migration and tests ACL/RLS, final-reservatio
 The reset-counter mutant is detected (20 attempts instead of one). No paid calls were needed for these tests.
 Local Python lacks declared pygrib/uvloop; it is not runtime parity. Supabase advisors were unavailable, not passed.
 
-Before activation: qualify the final PR336 hosted head, inspect the real migration graph/role, apply only the
-reviewed budget migration, initialize once using the prior allowance, deploy the shared backend and verify live
-paid-call denial before declaring the cap active. Preserve production frontend lock. Do not call the guard live
-merely because unit tests or CI passed. Verify any new spending since this record before initialization. Earlier
-calls omitted service tier, so the $1.25 full-context opening allowance assumes standard pricing; verify actual
-prior tier/spend or use a higher verified allowance before initializing. The closed-start guard prevents guessing.
+PR336 activation is complete; never reinitialize or reset its ledger. Latest live read-only status was enabled,
+initialized, $5.10 reserved / $4.90 available after four additional paid attempts in this UI task. The opening
+$1.25 allowance is conservative accounting rather than a billing measurement. Preserve production frontend lock.
+
+PR338's exact checked head `c6afdc866113b6ba19a6b18a04ef1e5f3021bf5d` passed all20 contexts
+(19success/one neutral); hosted frontend434suites/5570tests and build passed. Dev deploy
+`6ad164925cb9cf4277547969` serves `48284a5e`; shared backend remains `a7c038919`.
+Real dev/provider checks are separate from the local390x844 component harness, which uses mocked responses.
+The viewport override had no effect and was reset. Broad E2E run38821861231 passed the exact frontend gate,
+failed the backend SHA equality gate (intentionally retained capped backend), and skipped Run E2E. Do not report
+whole-app E2E as passed or deploy the backend merely to satisfy SHA equality.
 
 ## Sources to recall
 
@@ -87,6 +95,7 @@ prior tier/spend or use a higher verified allowance before initializing. The clo
 - [Vision behavior/runbook](VISION-PROVIDER.md)
 - [Budget activation and removal runbook](OPENAI-TESTING-BUDGET.md)
 - [Budget implementation/session log](../weather-program/log/2026-10-15-openai-testing-cap.md)
+- [Gallery/board UI source, CI, real photo tests and final deployment receipt](../weather-program/log/2026-10-15-vision-ui-workflows.md)
 - [Current shared state](../weather-program/STATE.md) and hash-chained `ACTIONS.jsonl` in the same directory
 
 The repository is the cross-machine memory of record. Logs/ledgers are append-only; update STATE by exact

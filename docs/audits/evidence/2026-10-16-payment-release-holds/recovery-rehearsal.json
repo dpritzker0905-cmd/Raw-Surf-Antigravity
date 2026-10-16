@@ -1,0 +1,34 @@
+{
+  "qualified_source": "d2150f968db1013e57cc0d135583e207c4d81597",
+  "postgres_version": "17.11",
+  "tracked_read_only_preflight_completed_and_rolled_back": true,
+  "scope": "Synthetic owned loopback databases; no customer data or provider calls",
+  "injected_failure_rolled_back_all_payment_ddl_and_version_changes": true,
+  "libpq_options_reached_actual_alembic_connection": {
+    "lock_timeout": "1s",
+    "statement_timeout": "5s",
+    "idle_in_transaction_session_timeout": "10s"
+  },
+  "successful_upgrade_preserved_budget_identity_row_and_existing_commerce": true,
+  "exact_target_repeat_preserved_populated_rows": true,
+  "populated_recovery": {
+    "checkout_intents": 2,
+    "payment_reconciliation_cases": 1,
+    "payment_transactions": 2,
+    "credit_transactions": 1,
+    "budget_reserved_microdollars": 5100000,
+    "budget_initialized": true
+  },
+  "custom_dump_restored_into_separate_owned_database": true,
+  "row_fingerprint": "a768324cbc9d4d605235ed9a55682dbedf65a55ae34b3676794b862a355ee0cf",
+  "security_constraints_indexes_acl_fingerprint": "82f0ba771ab6191bec6b9994f19ff4bce71e773f5005cc34154167508dc3a6e1",
+  "restored_rows_security_constraints_indexes_acl_match": true,
+  "dump_sha256": "44efcd1c66ff9a64faf6e253d482ff699512c95ccaa7354445c07df46f755092",
+  "dump_bytes": 483485,
+  "initial_raw_acl_comparison": "Explicit owner-only ACL versus implicit default ACL differed after restore. Complete aclexplode/acldefault normalization, effective grants, owner, PUBLIC/grantors/grant-options, RLS, constraints and indexes then matched.",
+  "live_server_version": "17.6",
+  "live_backup_or_restore_proven": false,
+  "rehearsal_databases_removed": true,
+  "preexisting_local_roles_reused": true,
+  "initial_preflight_fixture_failure": "The production-named postgres role did not exist in the local fixture. The read-only script now selects existing checked roles plus current_user; exact script passed and rolled back."
+}

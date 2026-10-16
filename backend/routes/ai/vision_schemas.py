@@ -51,3 +51,29 @@ class BoardAnalysis(VisionOutput):
                                            ("brand", "model", "board_type", "fin_setup", "tail_shape")):
             raise ValueError("Cannot describe an absent board")
         return self
+
+
+class HeldBoardObservation(VisionOutput):
+    """Image-only equipment facts, associated with a position rather than an identity."""
+    person_index: int = Field(ge=0, le=99)
+    relationship: Literal["holding", "riding", "nearby", "unknown"]
+    colors: list[Literal["white", "black", "blue", "red", "green", "yellow", "orange",
+                         "pink", "purple", "brown", "grey"]] = Field(max_length=6)
+    patterns: list[Literal["stripes", "checkerboard", "flames", "wood grain", "gradient"]] = Field(max_length=5)
+    visible_text: list[str] = Field(max_length=8)
+    board_type: str | None = Field(max_length=50)
+    fin_setup: str | None = Field(max_length=50)
+    tail_shape: str | None = Field(max_length=50)
+    confidence: Literal["low", "medium", "high"]
+
+
+class BoardCluePhotoAnalysis(PhotoAnalysis):
+    board_observations: list[HeldBoardObservation] = Field(max_length=8)
+
+    @model_validator(mode="after")
+    def observed_person_exists(self):
+        if any(b.person_index >= len(self.people) for b in self.board_observations):
+            raise ValueError("Board observation must reference a described person")
+        if any(len(text) > 100 for b in self.board_observations for text in b.visible_text):
+            raise ValueError("Board labels must be short")
+        return self

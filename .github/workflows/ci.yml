@@ -164,8 +164,8 @@ jobs:
             // +1 receipt-truth control removes an unsupported XP award; projected5511.
             // Combined35b295a1 CI38768451165 observed431suites/5566tests.
             // +2 actual reconciliation-response message controls; preserve zero margin.
-            // DEV beach contrast434/5570 + disjoint payment3/19 = projected437/5589.
-            const MIN_SUITES = 437, MIN_TESTS = 5589;
+            // Hosted PR340 CI38828606865 observed434/5578 + disjoint payment3/19.
+            const MIN_SUITES = 437, MIN_TESTS = 5597;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1825,9 +1825,9 @@ jobs:
           # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
           # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
-          # Combined DEV budget/vision1650 + disjoint payment159 = projected1809, margin2.
-          # PostgreSQL migration controls execute separately; hosted CI must confirm.
-          MIN_PASSED = 1807
+          # Hosted PR340 CI38828606865 observed1674; disjoint payment159 => projected1833.
+          # Preserve margin2; PostgreSQL migration controls execute separately.
+          MIN_PASSED = 1831
 
           try:
               root = ET.parse('estate.xml').getroot()

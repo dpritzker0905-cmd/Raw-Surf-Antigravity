@@ -17,7 +17,7 @@ import { ImageVisionPanel } from '../vision/ImageVisionPanel';
 
 export const TagAssignModal = ({
   showTagAssignModal, setShowTagAssignModal,
-  selectedGallery, selectedItems, galleryItems,
+  selectedGallery, selectedItems, setSelectedItems, galleryItems,
   participantsLoading, participants,
   batchTagLoading, distributeLoading, handleBatchTagToSurfer,
   distributeAllLoading, handleDistributeAll, sessionInfo,
@@ -76,7 +76,8 @@ export const TagAssignModal = ({
                   </div>
                 </div>
     
-                <ImageVisionPanel key={selectedGallery?.id || 'gallery'} images={
+                <ImageVisionPanel key={selectedGallery?.id || 'gallery'} includeBoardClues
+                  onReviewPhoto={setSelectedItems ? id => setSelectedItems(new Set([id])) : undefined} images={
                   galleryItems.filter(item => item.media_type !== 'video' && (selectedItems.size === 0 || selectedItems.has(item.id)))
                     .map(item => ({ id: item.id, url: item.preview_url || item.original_url, label: item.title }))
                 } />

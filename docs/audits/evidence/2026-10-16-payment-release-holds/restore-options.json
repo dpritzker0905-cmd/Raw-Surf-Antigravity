@@ -1,0 +1,48 @@
+{
+  "verified_date_utc": "2026-10-16",
+  "existing_dev_project": {
+    "initial_health": "Unhealthy",
+    "later_health": "Healthy",
+    "existing_migrations": true,
+    "recent_requests": true,
+    "active_connections": true,
+    "disposable_isolation_proven": false,
+    "user_identified_as_possible_backup": true,
+    "schema_verification": {
+      "verified_at": "2026-10-16T00:54:11.514385+00:00",
+      "server_version": "17.6",
+      "read_only": "on",
+      "alembic_history": false,
+      "profiles": true,
+      "bookings": true,
+      "payment_transactions": true,
+      "credit_transactions": true,
+      "checkout_intents": false,
+      "reconciliation_cases": false,
+      "private_budget": false,
+      "verdict": "Not a current recovery copy of the runtime database; budget and Alembic history absent. No overwrite/reset/restore."
+    }
+  },
+  "provider_independent_clone_preview": {
+    "monthly_compute_usd": 9.68,
+    "monthly_disk_usd": 0.5,
+    "monthly_total_usd": 10.18,
+    "same_provider_organization_and_region": true,
+    "preview_canceled": true,
+    "resource_created": false,
+    "spend_authorized": false
+  },
+  "clone_risk_probe": {
+    "verified_at": "2026-10-16T00:48:03.315269+00:00",
+    "pg_cron_installed": false,
+    "pg_net_installed": false,
+    "http_installed": false,
+    "wrappers_installed": false,
+    "supabase_vault_installed": true,
+    "cron_job_relation_present": false,
+    "all_external_execution_excluded": false
+  },
+  "recommendation": "Use a completed newer hosted backup containing the repaired budget, then an independently approved unattached new project; preserve both existing shared databases. Secure logical export is an alternative needing a destination and transfer/key plan.",
+  "established_private_logical_destination_identified": false,
+  "actual_customer_export_or_restore": false
+}

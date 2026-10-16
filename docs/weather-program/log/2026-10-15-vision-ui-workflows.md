@@ -82,3 +82,71 @@ wait while dev was stillf2d339e6. Node/dependency/browser setup, exact backend-s
 This is unqualified frontend/browser coverage, not an observed browser regression. It does not invalidate the
 separately evidenced cap backend/migration/accounting/denial smoke. PR337 hosted results and this task's manual
 vision acceptance have their own exact sources above; no broad E2E pass is claimed for the split frontend/backend.
+
+## Final contrast qualification, deployment and cleanup (23:50Z)
+
+PR338 exact checked head c6afdc866113b6ba19a6b18a04ef1e5f3021bf5d passed all20 contexts (19success/one neutral).
+CI38823251816 hosted frontend434suites/5570tests and build passed; composition succeeded. Local seven focused
+suites22tests and changed-file lint passed. The small contrast change added two tests. Merged23:40:46Z as
+48284a5e307f65f24b6b9287ed9332598deaf0e7; merge tree equals checked head. Skip markers retained deployment control.
+Dev-only Netlify6ad164925cb9cf4277547969 serves48284a5e; live Gallery Hub chooser and board Brand field computed
+rgb120,53,15 on rgb255,251,235 (8.75:1). The entered QA shaper and6ft remained visible with saved scan description.
+No additional provider attempt for this visual follow-up. Production Auto Publishing Locked and workerfc140024;
+shared backend healthya7c038919, unchanged. No backend deploy/restart, key, migration, budget or flag change.
+
+Approved browser viewport override returned success but had no effect; reset it. An isolated local harness built
+from the actual candidate components instead rendered real390x844 iframe browsing contexts (client/scroll width390,
+height844). Light/dark/beach layouts, scrolling/focus, mocked scan/results/apply and preserving entered shaper passed.
+The side-by-side page's left is photo description/visual-tag review and manual surfer assignment; right is board
+scan/review/apply before explicit save. All responses labeled Local mocked are synthetic, with no provider network.
+This is responsive component evidence, not whole deployed app/device or matching evidence. The earlier real dev
+tests used the uploaded licensed image and OpenAI. Scene/board analysis does not establish a rider's account identity.
+
+Broad postmerge E2E38821861231 passed exact frontend gate at23:11:55Z but failed exact backend gate at23:28:59Z;
+Run E2E was skipped. The shared backend intentionally stays on the qualified capped a7 source. No backend rollout
+was performed merely to make frontend/backend SHAs equal; premerge source checks/manual UI evidence remain separate.
+
+Cleanup verified exact QA gallery/item/board IDs and common owner, non-sale state, no purchases/tags/assignments,
+and two-board pre-count. First guard stopped before any deletion because the saved form stores unknown model as
+an empty string, not SQL null. Read-only verification confirmed the empty string; narrowed correction accepted
+that unknown representation. This corrects the earlier shorthand null-model claim: no model was invented.
+Removed only those records and two deduplicated original/preview storage objects through the storage API; exact
+filename listing confirmed absence. Fresh DB read: gallery0, items0, board0; original quiver count1. No profile
+created/deleted, customer data changed, or notifications/assignments/purchases made. Storage cache purge not claimed.
+Final read-only budget: effective enabled true, initialized true, limit10, reserved5.10, available4.90. Four paid
+attempts in this task permanently reserved1.40; one provider failure and one isolated diagnostic included. No refund,
+reset, cap opt-out or additional paid acceptance. Counter values are conservative reservations, not actual invoices.
+
+Canonical docs updated by exact replacements, logs/ledger appended from canonical dev prefix, without importing
+the conflicting historical receipt-branch suffix. No served weather number changed and no scoreboard gain claimed.
+
+## Source-only linkage map at48284a5e
+
+Read-only follow-up on the intended quiver/photo/claim relationship; no additional implementation, tests, provider
+calls or customer queries. The new controls do not complete a board-to-rider matching pipeline.
+
+| Path | Connected source and concrete limit |
+| --- | --- |
+| Profile quiver | `frontend/src/components/surfboards/SurfboardModal.js` calls the shared `ImageVisionPanel`; `backend/routes/ai/ai_tagging.py:568` checks JWT and optional board owner, returns saved:false. Explicit apply fills empty form fields; Save uses existing board CRUD in `backend/routes/surf_data/surfboards.py`. No identity association or match evidence is persisted by Scan. |
+| Main Gallery Hub | `frontend/src/hooks/useGalleryDistributionActions.js:123` opens Tag & Assign; `GalleryModals.js` embeds photo analysis. `/ai/suggest-tags` in `ai_tagging.py:66` checks item owner and uses its stored URL, returns descriptive visual_tags and an empty suggested_tags identity list. It does not read the quiver, existing claims or participant reference images. |
+| Manual assignment | `useGalleryDistributionActions.js:125` posts `/gallery/{id}/tag-item`; `backend/routes/gallery/distribution_tagging.py:34` checks supplied photographer/gallery and item membership, then `services/gallery_distribution.py:293` persists SurferGalleryItem, manual provenance and a claimed training-queue record. This path is source-connected but was not executed against real surfers in this task. Caller-to-photographer binding is not shown in that handler; do not treat this bounded trace as full authority qualification. |
+| Recalled suggestions | `/ai/face-match` at `ai_tagging.py:442` retrieves prior PhotoTag, pending claim-queue and participant-context records with static/default scores; despite its name it does not inspect pixels or use saved board scan details. The public-gallery action calls that endpoint. Existing labels/scores do not demonstrate a calibrated match. |
+| Legacy quiver matching | `services/ai_lineup_match.py:24` queries Surfboard for primary_color/secondary_color, but those fields are absent from the current Surfboard model. Its analyzer at65 passes filename and participant-description text to Cloudinary classification, then derives reasons/scores from text/categories. Main Hub no longer invokes `/gallery/trigger-ai-match`. This legacy path cannot be counted as working image-backed quiver matching. `ai_gemini_matcher.py` has separate provider/reference logic but bounded caller search found health-only imports, not a new Gallery Hub call. |
+| Review and claim fallback | `frontend/src/hooks/useSurferGalleryActions.js:49` loads claim queue and posts action; `components/surfer-gallery/ClaimQueueItem.js` offers That's me/Not me. `backend/routes/surfer_gallery/claims.py:46` checks queue owner/pending state then writes SurferGalleryItem and claimed/rejected state. `surfer_gallery_review_pkg/self_claim.py:26` supports authenticated session-participant self-claim, writes pending_selection (not a paid entitlement) and manual training metadata. No current frontend `/self-claim` caller found in this bounded search. Separate TaggedPhotoModal claim posts `/gallery/items/{id}/claim`, whose handler checks current tagged user/free eligibility and serializes duplicate purchases. These paths were not live exercised by this UI task. |
+
+Additional gaps: claim UI reads `item.confidence` while the queue schema names `ai_confidence` (no normalization in
+the fetching hook); manual/self-claim numeric scores1.0/0.95 are provenance conventions, not measured model accuracy.
+`services/ai_identity_matching.py` deliberately returns unavailable/zero and `/gallery/{id}/find-me` returns503
+before charging or writing claims. No active matcher training/learning from the recorded training rows was found
+in this bounded trace. Stronger evidence fusion, uncertainty handling, actual review/claim wiring, ownership
+qualification and live end-to-end acceptance remain separate work. Board resemblance is a clue, never identity proof.
+
+Source-trace correction before publication: the queue-confidence mismatch suspicion above is ruled out.
+`backend/routes/surfer_gallery/gallery_core.py:257` explicitly maps cq.ai_confidence to response `confidence`
+(line287), matching ClaimQueueItem. The typed response schema alone was insufficient evidence. This is a working
+field mapping, not a bug. Manual/self-claim numeric scores still describe recorded provenance, not model accuracy.
+
+Receipt commit9737a5d0a published on codex/vision-ui-final-dev-receipt and exact remote SHA read back.
+Ledger1254 records the publication; this final checkpoint keeps the anchor current. Receipt branch is separate
+from deployed dev48284a5e; source PR337/338 are already merged. Docs audit0FAIL14inheritedWARN24NOTE,
+byte-exact canonical ledger prefix verified and gitleaks found no leaks. No further deployment or provider call.

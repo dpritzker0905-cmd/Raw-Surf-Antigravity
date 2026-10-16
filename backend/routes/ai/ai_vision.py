@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from PIL import Image, UnidentifiedImageError
 from pydantic import ValidationError
 
-from .vision_schemas import PhotoAnalysis, BoardAnalysis
+from .vision_schemas import PhotoAnalysis, BoardAnalysis, BoardCluePhotoAnalysis
 from services.openai_budget import reserve_openai_request
 
 logger = logging.getLogger(__name__)
@@ -143,6 +143,18 @@ async def analyze_surfboard_with_vision(image_data: str, is_base64: bool = False
                         "Describe the main surfboard. Extract brand and model ONLY from clearly readable text. "
                         "Do not guess a model, dimensions or hidden fins. Unknown attributes must be null. "
                         "visible_text contains legible board labels. If no board is visible, board_detected is false.")
+
+
+async def analyze_board_clue_photo(image_data: str) -> dict:
+    return await _infer(image_data, False, BoardCluePhotoAnalysis,
+                        "Describe the scene and people for manual review. Also describe visible surfboards, associating "
+                        "each with its zero-based person_index in people. Set relationship to holding or riding ONLY "
+                        "when that connection is clearly visible; otherwise nearby or unknown. Never associate a board "
+                        "merely because a person is close to it. Describe equipment only, not bodies or faces. "
+                        "Read visible_text only from legible board labels, never infer brands/models. "
+                        "Unknown board type, fin setup and tail shape must be null. Hidden features stay unknown. "
+                        "Do not estimate dimensions. Use empty board_observations if no person/board connection is visible. "
+                        "Leave location_hints empty. No names or account identities are provided or requested.")
 
 
 async def compare_faces(photo_data: str, profile_photos: List[dict],

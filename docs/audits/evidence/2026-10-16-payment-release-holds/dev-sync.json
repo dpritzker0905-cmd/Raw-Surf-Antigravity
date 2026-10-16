@@ -1,0 +1,29 @@
+{
+  "base": "ae13bade2d87846b43087034d8f39b0c20b66a52",
+  "prior_base": "48284a5e307f65f24b6b9287ed9332598deaf0e7",
+  "prior_qualified_source": "d2150f968db1013e57cc0d135583e207c4d81597",
+  "conflicts": [
+    ".github/workflows/ci.yml",
+    "backend/tests/test_ci_floor_staleness.py",
+    "docs/weather-program/ACTIONS.jsonl",
+    "docs/weather-program/STATE.md"
+  ],
+  "canonical_ledger_exact_prefix_entries": 1257,
+  "original_payment_entries": "1249 through1253 on the payment branch",
+  "reconciled_canonical_entries": "1258 through1262",
+  "independently_observed_dev_ci": {
+    "run": 38828606865,
+    "source": "b5bec0785d1ebe58d6493750ff371330f6c3f332",
+    "frontend_suites": 434,
+    "frontend_tests": 5578,
+    "estate_passed": 1674
+  },
+  "combined_projection": {
+    "frontend_suites": 437,
+    "frontend_tests": 5597,
+    "estate_passed": 1833,
+    "estate_floor": 1831
+  },
+  "combined_hosted_verification": "pending",
+  "dev_merge_or_deploy": false
+}
