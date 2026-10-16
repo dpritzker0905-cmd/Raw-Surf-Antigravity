@@ -38,6 +38,10 @@ _RATING_FLAGS = {
     "SERIES_THIN_NODE_BOUNDS": ("0", "A thinned series frame carries the bounds of the cells it kept, so the client draws it "
                                      "where its cells are (off: up to 4 deg too far north on a thinned world frame)", "Render env"),
     "MANIFEST_IMMUTABLE_PUBLICATION": ("0", "Publish unique create-only manifest copies only after durable upload acknowledgment", "Render env + ingestion/precompute/monitor together"),
+    "MANIFEST_MERGE_AT_COMMIT": ("0", "Merge the manifest snapshot against the pointer head at commit time (3-way by product id) and CAS from "
+                                      "the generation merged against, so a writer that published between reconcile and publish is no "
+                                      "longer overwritten; no basis or any failure = the single-read publish",
+                                 "ingestion + pilots + precompute workflow env (the L2 writers); Render env only if it runs with L2_WRITER=1"),
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
     "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),

@@ -168,6 +168,16 @@ def publish_run_keyed(store, manifest_bytes: bytes, upload_fn, delete_fn) -> Opt
     if os.environ.get("MANIFEST_IMMUTABLE_PUBLICATION", "0") == "1":
         from services.weather_pipeline.manifest_immutable import publish_immutable
         return publish_immutable(manifest_bytes, upload_fn)
+    if os.environ.get("MANIFEST_MERGE_AT_COMMIT", "0") == "1":
+        # Dark lane (2026-10-16): merge against the head this CAS is about to replace. `handled` False means
+        # "no basis / gave up / failed": the single-read publish below runs exactly as it always has.
+        try:
+            from services.weather_pipeline.manifest_merge_commit import commit_merged
+            handled, merged_key = commit_merged(manifest_bytes, upload_fn, delete_fn)
+            if handled:
+                return merged_key
+        except Exception as e:
+            logger.warning(f"[Manifest Merge] merge-at-commit failed, falling back to the single-read publish: {e}")
     try:
         current = read_pointer()
         run_id = os.environ.get("GITHUB_RUN_ID")
@@ -206,6 +216,28 @@ def publish_run_keyed(store, manifest_bytes: bytes, upload_fn, delete_fn) -> Opt
         return key
     except Exception as e:
         logger.warning(f"[Manifest Pointer] publish failed (legacy lane unaffected): {e}")
+        return None
+
+
+def fetch_manifest_object(manifest_key: str) -> Optional[bytes]:
+    """GET one run-keyed manifest object BY KEY. The merge-at-commit lane resolves the pointer row itself, so the
+    bytes it merges against are the generation it will CAS from (fetch_pointed_manifest re-reads the pointer and
+    can hand back a newer generation than the caller saw). None on any failure; never raises."""
+    if not pointer_enabled() or not manifest_key:
+        return None
+    base, headers = _rest_base_and_headers()
+    if not base:
+        return None
+    try:
+        import requests
+        from services.weather_pipeline.store import WEATHER_BUCKET
+        resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{manifest_key}", headers=headers, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"[Manifest Pointer] manifest GET {manifest_key} → HTTP {resp.status_code}")
+            return None
+        return resp.content
+    except Exception as e:
+        logger.warning(f"[Manifest Pointer] manifest GET {manifest_key} failed: {e}")
         return None
 
 

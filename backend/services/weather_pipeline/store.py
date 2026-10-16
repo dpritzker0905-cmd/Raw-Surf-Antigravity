@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 from services.weather_pipeline.copernicus_validator import is_test_environment
 from services.weather_pipeline.persistence_diagnostics import PersistenceListingProbe
+from services.weather_pipeline import manifest_merge_commit as _merge_commit
 
 _persistence_listing_probe = PersistenceListingProbe()
 
@@ -105,7 +106,10 @@ def dump_manifest_for_l2(manifest) -> bytes:
     Local-only saves (_save_manifest) deliberately do NOT stamp, so a restored L2 copy keeps its
     upstream attribution on the serve box."""
     manifest.written_by = _l2_writer_identity()
-    return manifest.model_dump_json(indent=2).encode("utf-8")
+    data = manifest.model_dump_json(indent=2).encode("utf-8")
+    if _merge_commit.merge_at_commit_enabled():
+        _merge_commit.register_basis_for_bytes(manifest, data)   # MANIFEST_MERGE_AT_COMMIT: bytes unchanged
+    return data
 
 
 def _fetch_remote_manifest_products() -> Optional[list]:
@@ -189,7 +193,9 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     NOTE this narrows the corruption window from "the other process's entire run duration" down
     to "the gap between this reconcile call and our upload landing" (one HTTP round trip on the
     process's serial _manifest_executor) — it is NOT full compare-and-swap, so a same-instant
-    double-write can still race.
+    double-write can still race. MANIFEST_MERGE_AT_COMMIT (dark; manifest_merge_commit.py) closes
+    that window: this call also records WHICH generation it merged against, and the publish
+    re-merges if the head moved before the pointer swap.
 
     PRUNE CALL SITES (2026-07-14 fast-follow) pass `exclude_keys` = the product ids they just
     deleted: those entries are still present in the fresh remote manifest (our prune hasn't
@@ -203,10 +209,20 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     Never raises: any failure leaves the local snapshot as the sole upload basis (pre-fix
     behavior). Kill switch: MANIFEST_MERGE_ON_UPLOAD=0.
     """
+    merge_basis = _merge_commit.merge_at_commit_enabled()
+    if merge_basis:
+        _merge_commit.set_pending_basis(manifest, None)   # a basis is only ever the one THIS call captures
     if os.environ.get("MANIFEST_MERGE_ON_UPLOAD", "1") == "0":
         return 0
     try:
-        remote_products = _fetch_remote_manifest_products()
+        remote_products = None
+        if merge_basis:
+            # MANIFEST_MERGE_AT_COMMIT: ONE pointer row + ONE GET feeds both the fold below and the basis the
+            # commit will merge against, so they describe the same generation. (None, None) = lane inert.
+            basis, remote_products = _merge_commit.capture_basis()
+            _merge_commit.set_pending_basis(manifest, basis)
+        if remote_products is None:
+            remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
         # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
