@@ -886,7 +886,11 @@ jobs:
           # lines fail File Size Governance) and grew to 188 cases in 7 files (tests/test_manifest_one_step_{absorb,coalescing,
           # exit,pointer,publish,retention,sites}.py, all claimed by this lane; tests/_manifest_chain_harness.py is a helper with
           # no tests); the same dev reading (2704 / 197 files) -> projected 2892/204; 2892 - 6 = 2886. This PR must read 204 files / 2892.
-          MIN_FILES, MIN_PASSED = 204, 2886
+          # ⬆ 204/2886 → 206/2950 in the same PR, after review 4 and round 5 (default-off lane): 252 cases in 9 files, the two new files
+          # being tests/test_manifest_one_step_recovery.py (17) and tests/test_manifest_one_step_table.py (38), the rest grown in place;
+          # hosted reading on the previous head c02e809e2 (CI 38970054995: 204 files, 2892 passed, 66 skipped, 1 xfailed) plus 64
+          # -> projected 2956/206; 2956 - 6 = 2950. This PR must read 206 files / 2956.
+          MIN_FILES, MIN_PASSED = 206, 2950
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
