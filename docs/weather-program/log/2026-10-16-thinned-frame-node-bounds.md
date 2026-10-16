@@ -170,3 +170,17 @@ Owner, 14:06 EDT (dictated): "go ahead and merge the 345 and the 346. Once their
 - #350: round 4 result, my own re-run of its gates, floors redone for the final test-file list, review 4, then the owner's word to merge and, separately, to set the flag in the L2 writers' env.
 - #352: merge after the last line of the day is in it.
 - Known gap: CI never executes the GL pixel assertion (skipped on every project); a lane that can run GL would close it.
+
+## Update, the flip (ledger 1321-1322)
+
+**Done on the owner's word (17:23 EDT): `SERIES_THIN_NODE_BOUNDS=1` on Render.** One thing I had not known when I asked: Render was still running the 03:13Z build (db45393), because every commit since carried `[skip render]` (the service's events list `commit_ignored` for each), so #343's code was not on the box at all. The environment-variable call itself triggered a deploy of the dev tip (a74bf1f83): the only backend difference between the two builds is #342 (a CI-side path) and #343 (this flag), 12 files. Health read 38 s after the new build started, `restore_status` complete (13167 restored) at 47 s, 0.24 to 0.76 s around the reads, except 2.2 s right after the first (cold) world page. I should have told the owner a deploy was part of the flip before asking; it is recorded in the ledger line instead.
+
+**What I could and could not read live.** Two light world `grid_series` reads (1 frame, then 6 frames = stride 2) show bounds equal to the node extent, which does not discriminate (stride 2 keeps the last row of an 83-row grid, so flag-off bounds are identical). The discriminating read is a stride-4 page (the app's 48-frame pages): north 80 instead of 84. My 24-frame request for stride 3 was refused by the permission classifier as load on the live box; I did not retry or work around it. The read-back is commitment 1322 (due 2026-10-19), to be taken from a normal dev-site load, with the owner's eye on the hurricane position.
+
+**#350, round 4 (the builder's report; my re-run).** Three commits on top of the first cut: the pure split (same 123 tests), the fixes (absorb the head on the caller thread, spent exclusions as {id: sequence}, an atexit flush with a loud annotation, CAS on generation AND key, a legacy fallback on a definite missing head only, the lane's own count-based retention ring, the cleaned-resave path routed through the helper), and a strengthening commit after five mutation survivors. 188 tests in 7 files, every file under 800 lines. I re-ran: the 188 pass; the partition check says every tracked backend test file is claimed by exactly one lane (guards 204); flake8 gate 0; file-size gate 0 violations; `loc_ratchet.py` New 0 Regressed 0; the floor and flag-parity tests pass. Floors moved in the same branch to 204 files / 2886 (`_FLOOR_SET_FROM` 2892); hosted CI is the authority. NOT run by me: the builder's 872-test wide regression (21 minutes), nothing against real Supabase. Independent review 4 is running.
+
+**Owed now (replaces the previous Owed list where it differs).**
+- Commitment 1322: the stride-4 read-back and the owner's eye on the dev site (due 2026-10-19).
+- #353: the owner's word to merge (ships ON, kill `__RAW_DISABLE_PARITY_REPUBLISH__`).
+- #350: review 4's verdict, the hosted floor reading (must be 204 files / 2892), a merge of dev into the branch, then the owner's word to merge and, separately, to set the flag in the L2 writers' env.
+- #352: merge after the last line of the day is in it.
