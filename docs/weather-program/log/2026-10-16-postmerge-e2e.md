@@ -149,3 +149,29 @@ as did its model-switching cases. Chrome log then stopped advancing after test24
 GitHub still in_progress, no artifact/terminal verdict. Render opt-in spot-details200 responses
 observed03:25:32Z/03:25:41Z and03:32:04Z/03:32:14Z; they do not prove browser acceptance or
 locate the stall. Await bounded report, do not equate these200s with a green run. Ledger1283.
+
+## Final acceptance, 2026-10-16 03:40Z
+
+Post-merge E2E38844443293 **SUCCESS**, exact db45393778a3112a022a4f12542b7e5bef3e3e09,
+finished03:38:14Z. Retained report307261bytes, embedded report.json: total76, expected67,
+unexpected0, flaky0, skipped9, oktrue. Stdout independently has67passing case lines,9skip lines,
+0failed case lines and0retry markers. The9pre-existing capability/fixme skips remain unchanged;
+this is not proof of skipped Firefox/mobile rendering or the fixme pixel-truth assertion.
+All17 post-merge check contexts SUCCESS, including source CI and this actual live E2E run.
+
+Chrome real spot navigation passed03:25:33Z,200/8178ms/no manual recovery. Its injected503
+control passed03:25:42Z with one explicitmanual recovery, exactly2requests and real200/5310ms.
+Firefox and DesktopSafari real spot/recovery cases also passed. The apparent Chrome stall was
+GitHub's live log display stopping after test24, NOT a test-worker stall: completed stdout shows
+continuous subsequent progress. No new fix, rerun, timeout increase or extra live load was needed.
+
+Post-run health healthy/exactmerge; database/scheduler pass, restorecomplete0errors. Fresh shell
+on new instance again capenabledtrue, initializedtrue, limit10, reserved5.45/available4.55.
+Netlify production Auto Publishing Locked at fullfc140024f95df9e01634f63bc6422aff8d97f7df;
+DEV successfuldb453937. No paid OpenAI calls or budget reset/refund/settings/keys/weatherflag change.
+PR341 description and release memory updated; checkpoint93fecba4f published/read back exactly.
+Ledger1284-1285 records checkpoint publication and final acceptance. Final docs-only receipt
+will publish on the same release-record branch, leaving deployeddev/source unchanged.
+
+Run: https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38844443293
+PR: https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/341
