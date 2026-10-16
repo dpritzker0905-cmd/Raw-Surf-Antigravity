@@ -5,9 +5,11 @@ clone proposal is rejected. No project, subscription, PITR add-on or restore was
 
 The preferred alternative is a **fresh encrypted logical payment backup and a disposable
 restore on the existing local PostgreSQL installation**. It can avoid a new subscription
-and does not require overwriting either existing Supabase database. Real export, private
-storage/key custody and real restore remain unperformed; this is a concrete execution
-plan supported by dependency inspection and synthetic mechanics, not a closed release gate.
+and does not require overwriting either existing Supabase database. **Execution update:**
+the owner authorized this plan and real export, private archive/key custody, transport and
+actual selected payment-dataset recovery now passed. See the [real recovery receipt](2026-10-16-real-payment-recovery.md).
+The feasibility observations and implementation plan below describe the pre-execution
+checkpoint; their historical unperformed/held statements are superseded by that receipt.
 
 ## Confirmed feasibility
 

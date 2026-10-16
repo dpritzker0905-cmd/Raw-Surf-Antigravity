@@ -10,14 +10,14 @@ Claude's wind source, decisions, scoreboard and pending observations remain outs
 | Existing commerce schema and migration privileges | PASS: seven expected tables/columns, varchar(36) ids and id PKs; public CREATE/USAGE, referenced-table REFERENCES and Alembic version CRUD verified | Verify actual new-table constraints/indexes/ACL/RLS after approved application |
 | Existing private budget | PASS: initialized,5100000 microdollars reserved; private schema/RLS/access intact; no unexpected creator default grants | Preserve row and security; never reset/reinitialize or replay budget DDL |
 | Migration atomicity and populated recovery mechanics | PASS on synthetic PostgreSQL17.11: injected failure rolls back both payment tables and version changes; exact target, rerun and separate logical restore preserve data/security | This is not a real hosted backup/restore receipt or PostgreSQL17.6 execution |
-| Fresh real backup and isolated restore | HELD: seven completed physical snapshots; newest October15 07:57:45Z predates the budget repair; PITR disabled | Use the owner-selected no-new-project logical-backup/local-restore plan; actual export/restore remains held |
+| Fresh real backup and isolated restore | PASS for real payment snapshot01:53:05Z: encrypted13table/3enum archive, private retained copies/key custody and actual local17.11 recovery verified | Refresh immediately before release; [real recovery receipt](2026-10-16-real-payment-recovery.md); whole Supabase/offsite/continuous recovery remains separate |
 | Deterministic shared execution | PARTIAL: immutable migration/source manifest and actual-connection timeout mechanics verified locally | Resolve/avoid the historical Settings/build discrepancy through a reviewed explicit artifact execution; no shared execution yet |
-| Current combined revision | Reconciliation with DEVae13bade2 includes saved-board clues; frozen PR333 retained | PASS source55f091aa9: all18 checks/six workflows; frontend437/5597, estate1833/0silent, PG123/0skip; final documentation-only revision checked separately |
+| Current combined revision | Reconciliation with DEVae13bade2 includes saved-board clues; frozen PR333 retained | PASS source55f091aa9 and docs90d83bb7: all18 checks/six workflows; frontend437/5597, estate1833/0silent, PG123/0skip; subsequent docs exact-head checks remain separate |
 | Operator and deployed payment acceptance | HELD independently | Establish operator recovery/scan/case coverage and coordinated callback/return/refund/UI acceptance during an authorized release |
 
 ## Direct database evidence
 
-The authorized Render shell used its existing DATABASE_URL privately, with read-only
+During the initial baseline check, the authorized Render shell used its existing DATABASE_URL privately, with read-only
 defaults,5s statement timeout,1s lock timeout, explicit rollback and close. No customer
 rows or credentials were displayed, exported or stored. Only the non-customer budget
 setting row and catalog/schema metadata were queried. Actual runtime source was
@@ -170,6 +170,7 @@ historical investigation, not the current recommendation. Use the [no-new-projec
 plan](2026-10-16-no-new-project-recovery.md): fresh encrypted logical payment backup,
 complete eleven-table FK closure plus history/budget and three enums, then restore into
 the existing owned local PostgreSQL. No need to wait for a scheduled snapshot for a logical
-export. Real private destination, key custody, secure transport and actual restore remain
-held; the synthetic encryption/tamper controls passed. No new paid project, shared-instance
-database/role, bucket, credential or customer export was created.
+export. The subsequent owner-authorized [real encrypted payment backup and local restore](2026-10-16-real-payment-recovery.md)
+verified private destination/key custody, secure transfer and actual selected-dataset recovery.
+No new paid project, shared-instance database/role, bucket or provider credential was created;
+the real customer-data archive is retained only encrypted in private local storage.
