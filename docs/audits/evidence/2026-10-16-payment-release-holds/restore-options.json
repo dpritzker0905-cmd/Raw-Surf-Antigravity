@@ -30,7 +30,8 @@
     "same_provider_organization_and_region": true,
     "preview_canceled": true,
     "resource_created": false,
-    "spend_authorized": false
+    "spend_authorized": false,
+    "owner_rejected_new_paid_project": true
   },
   "clone_risk_probe": {
     "verified_at": "2026-10-16T00:48:03.315269+00:00",
@@ -42,7 +43,7 @@
     "cron_job_relation_present": false,
     "all_external_execution_excluded": false
   },
-  "recommendation": "Use a completed newer hosted backup containing the repaired budget, then an independently approved unattached new project; preserve both existing shared databases. Secure logical export is an alternative needing a destination and transfer/key plan.",
+  "recommendation": "Owner rejects any new paid project. Use fresh encrypted logical payment backup and existing local PostgreSQL; real secure transport/destination/key custody and restore remain held. See no-new-project recovery plan.",
   "established_private_logical_destination_identified": false,
   "actual_customer_export_or_restore": false
 }

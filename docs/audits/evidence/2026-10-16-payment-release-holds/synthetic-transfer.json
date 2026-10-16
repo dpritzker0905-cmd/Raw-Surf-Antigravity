@@ -1,0 +1,15 @@
+{
+  "scope": "262144 random synthetic bytes from existing Render native runtime to owned local workspace; no customer data or database connection",
+  "receiver_version": "0.24.0",
+  "receiver_environment": "isolated scratch venv; application dependencies unchanged",
+  "receiver_listening_socket_disabled": true,
+  "receiver_exit": 0,
+  "received_bytes": 262144,
+  "received_sha256": "95c786a87b28a14de5f766d0dc11328f35605d0f0408ac0109d39b121c4b5aab",
+  "source_checksum_match": true,
+  "new_paid_resource_or_persistent_access": false,
+  "real_backup_transferred": false,
+  "source_sha256": "95c786a87b28a14de5f766d0dc11328f35605d0f0408ac0109d39b121c4b5aab",
+  "sender_exit": 0,
+  "remote_probe_removed": true
+}

@@ -10,9 +10,9 @@ Claude's wind source, decisions, scoreboard and pending observations remain outs
 | Existing commerce schema and migration privileges | PASS: seven expected tables/columns, varchar(36) ids and id PKs; public CREATE/USAGE, referenced-table REFERENCES and Alembic version CRUD verified | Verify actual new-table constraints/indexes/ACL/RLS after approved application |
 | Existing private budget | PASS: initialized,5100000 microdollars reserved; private schema/RLS/access intact; no unexpected creator default grants | Preserve row and security; never reset/reinitialize or replay budget DDL |
 | Migration atomicity and populated recovery mechanics | PASS on synthetic PostgreSQL17.11: injected failure rolls back both payment tables and version changes; exact target, rerun and separate logical restore preserve data/security | This is not a real hosted backup/restore receipt or PostgreSQL17.6 execution |
-| Fresh real backup and isolated restore | HELD: seven completed physical snapshots; newest October15 07:57:45Z predates the budget repair; PITR disabled | Verify a newer snapshot includes repaired state, then perform a separately authorized isolated restore |
+| Fresh real backup and isolated restore | HELD: seven completed physical snapshots; newest October15 07:57:45Z predates the budget repair; PITR disabled | Use the owner-selected no-new-project logical-backup/local-restore plan; actual export/restore remains held |
 | Deterministic shared execution | PARTIAL: immutable migration/source manifest and actual-connection timeout mechanics verified locally | Resolve/avoid the historical Settings/build discrepancy through a reviewed explicit artifact execution; no shared execution yet |
-| Current combined revision | Reconciliation with DEVae13bade2 includes saved-board clues; frozen PR333 retained | New combined hosted qualification required; old d215 results cannot certify new source |
+| Current combined revision | Reconciliation with DEVae13bade2 includes saved-board clues; frozen PR333 retained | PASS source55f091aa9: all18 checks/six workflows; frontend437/5597, estate1833/0silent, PG123/0skip; final documentation-only revision checked separately |
 | Operator and deployed payment acceptance | HELD independently | Establish operator recovery/scan/case coverage and coordinated callback/return/refund/UI acceptance during an authorized release |
 
 ## Direct database evidence
@@ -67,7 +67,8 @@ the same organization/region, with additional monthly compute$9.68 and disk$0.50
 **$10.18/month displayed total**. Only the preview was opened, then canceled. Nothing
 was created or purchased. Reconfirm the quote before any later approval/action.
 
-Recommended route: obtain a completed newer provider snapshot, verify the restored
+Earlier proposed route (superseded by the owner's no-paid-project constraint below):
+obtain a completed newer provider snapshot, verify the restored
 budget/history and commerce schema in a new unattached project, then rehearse the exact
 payment target there. This keeps the data in the existing provider organization and
 avoids overwriting either shared database or exporting credentials/customer records to
@@ -161,3 +162,14 @@ shared execution itself remains unperformed and held.
 
 Evidence: [sanitized receipts](evidence/2026-10-16-payment-release-holds/),
 [previous qualification](2026-10-15-payment-budget-integration.md).
+
+## Owner cost constraint and selected alternative
+
+The owner subsequently rejected creating any new paid project. The clone quote above is
+historical investigation, not the current recommendation. Use the [no-new-project recovery
+plan](2026-10-16-no-new-project-recovery.md): fresh encrypted logical payment backup,
+complete eleven-table FK closure plus history/budget and three enums, then restore into
+the existing owned local PostgreSQL. No need to wait for a scheduled snapshot for a logical
+export. Real private destination, key custody, secure transport and actual restore remain
+held; the synthetic encryption/tamper controls passed. No new paid project, shared-instance
+database/role, bucket, credential or customer export was created.

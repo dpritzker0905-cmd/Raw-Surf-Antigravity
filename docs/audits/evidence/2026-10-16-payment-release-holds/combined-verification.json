@@ -1,0 +1,38 @@
+{
+  "source": "55f091aa91c5f8505be3fbfa03c4eb6a4d82e156",
+  "all18_checks_success": true,
+  "local_payment": {
+    "passed": 123,
+    "skipped": 0,
+    "seconds": 218.92,
+    "missing_declared_packages": 9
+  },
+  "jobs": {
+    "116755111523": [
+      "1833 passed, 2880 skipped, 754 warnings in 245.52s (0:04:05)",
+      "estate: 316 files selected, 314 produced results, 1833 passed, 0 silent."
+    ],
+    "116755111544": [
+      "Test Suites: 437 passed, 437 total",
+      "Tests:       5597 passed, 5597 total"
+    ],
+    "116755111277": [
+      "env parity OK: python 3.12, 46/46 pins match",
+      "123 passed, 160 warnings in 141.55s (0:02:21)",
+      "PostgreSQL payment gate: 123 passed; no skipped qualification."
+    ],
+    "116755110960": [
+      "Test Suites: 3 passed, 3 total",
+      "Tests:       19 passed, 19 total",
+      "Payment production-bundle browser acceptance: 42 passed; all API responses local fixtures."
+    ],
+    "116755111486": [
+      "2658 passed, 66 skipped, 1 xfailed, 12 warnings in 907.64s (0:15:07)",
+      "collected 2725 tests across 195 files -> 2658 passed, 67 skipped, 0 failed, 0 errors"
+    ],
+    "116755111516": [
+      "2444 passed, 7 warnings in 794.20s (0:13:14)",
+      "collected 2444 tests across 163 files -> 2444 passed, 0 skipped, 0 failed, 0 errors"
+    ]
+  }
+}

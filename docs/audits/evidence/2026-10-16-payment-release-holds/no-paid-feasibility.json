@@ -1,0 +1,54 @@
+{
+  "verified_at": "2026-10-16T01:06:47.080271+00:00",
+  "read_only": true,
+  "new_paid_project_forbidden": true,
+  "whole_database_physical_bytes": 126897299,
+  "role_createdb": true,
+  "role_createrole": true,
+  "additional_database_or_role_created": false,
+  "backup_archive_named_bucket_count": 0,
+  "payment_foreign_key_closure": [
+    "booking_participants",
+    "bookings",
+    "credit_transactions",
+    "dispatch_requests",
+    "gear_catalog",
+    "live_session_participants",
+    "live_sessions",
+    "payment_transactions",
+    "posts",
+    "profiles",
+    "surf_spots"
+  ],
+  "additional_baseline_tables": [
+    "public.alembic_version",
+    "ai_budget_private.openai_budget"
+  ],
+  "enum_dependencies": [
+    "dispatchrequeststatusenum",
+    "gearcategory",
+    "roleenum"
+  ],
+  "custom_trigger_functions": [],
+  "closure_tables_rls_enabled": true,
+  "closure_policy_counts_all_zero": true,
+  "local_postgres_installed": "17.11",
+  "docker_installed": false,
+  "wsl_installed": false,
+  "selected_route": "Fresh encrypted logical payment backup plus existing owned loopback PostgreSQL restore; secure destination/key custody/transport and actual data restore not yet established",
+  "actual_customer_export": false,
+  "actual_recovery_gate_closed": false,
+  "transport_candidate": {
+    "render_existing_magic_wormhole": true,
+    "render_cryptography": true,
+    "local_magic_wormhole_installed": true,
+    "local_render_cli_or_ssh_keys_found": false,
+    "synthetic_transfer_verified": true,
+    "customer_transfer_performed": false,
+    "local_tool_version": "0.24.0",
+    "synthetic_bytes": 262144,
+    "checksums_match": true,
+    "remote_probe_removed": true,
+    "one_use_code_retained": false
+  }
+}

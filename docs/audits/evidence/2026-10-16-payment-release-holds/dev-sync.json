@@ -24,6 +24,18 @@
     "estate_passed": 1833,
     "estate_floor": 1831
   },
-  "combined_hosted_verification": "pending",
-  "dev_merge_or_deploy": false
+  "combined_hosted_verification": "All18 checks/six workflows SUCCESS; exact source receipts retained",
+  "dev_merge_or_deploy": false,
+  "combined_source": "55f091aa91c5f8505be3fbfa03c4eb6a4d82e156",
+  "combined_observed": {
+    "frontend_suites": 437,
+    "frontend_tests": 5597,
+    "estate_passed": 1833,
+    "estate_skipped": 2880,
+    "estate_selected_files": 316,
+    "estate_producing_files": 314,
+    "silent_files": 0,
+    "postgres_payment_passed": 123,
+    "postgres_skipped": 0
+  }
 }
