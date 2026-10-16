@@ -209,16 +209,17 @@ def test_a_head_that_never_settles_is_never_overwritten_unmerged_and_the_snapsho
     assert set(PILOTS_NEW) <= set(chain.head_files()) and len(chain.wins()) == 1
 
 
-def test_the_lost_ack_of_a_cas_that_landed_is_harmless(chain, store, parked):
-    """cas_advance answered False although the row advanced to OUR object. The next attempt reads that head, merges our
-    snapshot into our own object (nothing to add) and publishes one more, identical, generation."""
+def test_the_lost_ack_of_a_cas_that_landed_is_settled_once_and_the_head_is_right(chain, store, parked):
+    """cas_advance answered False although the row advanced to OUR object. Round 3 re-merged and published one more, identical,
+    generation; the pointer is now looked at, names our object, and the swap is settled as the win it was
+    (tests/test_manifest_one_step_recovery.py has the full schedule)."""
     submit(store, BASE + PILOTS_NEW)
     chain.cas_faults = ["lost_ack"]
     parked.run()
-    assert [(c["expected"], c["won"]) for c in chain.cas_calls] == [(5, True), (6, True)]
-    assert chain.generation == 7
+    assert [(c["expected"], c["won"]) for c in chain.cas_calls] == [(5, True)]
+    assert chain.generation == 6
     assert chain.head_files() == sorted(BASE + PILOTS_NEW)
-    assert chain.objects[chain.head_key] != b"" and _files(chain.objects[chain.cas_calls[0]["key"]]) == chain.head_files()
+    assert _files(chain.objects[chain.cas_calls[0]["key"]]) == chain.head_files()
 
 
 def test_an_entry_this_process_pruned_does_not_come_back_from_a_head_that_still_holds_it(chain, store, parked):
@@ -393,7 +394,7 @@ def test_an_exclusion_does_not_outlive_its_publish_when_a_save_lands_during_that
 def _exclusions_each_publish_carried(monkeypatch):
     seen = []
     real = mps._attempt_once
-    monkeypatch.setattr(mps, "_attempt_once", lambda pending: seen.append(sorted(pending.excludes)) or real(pending))
+    monkeypatch.setattr(mps, "_attempt_once", lambda pending, deadline=None: seen.append(sorted(pending.excludes)) or real(pending, deadline))
     return seen
 
 

@@ -169,7 +169,10 @@ class Chain:
         self.pointer_faults = []          # consumed one per read_pointer: "none"
         self.fetch_faults = []            # consumed one per fetch_manifest_object: "none"
         self.upload_faults = []           # consumed one per strict manifests/ upload: "429" | "lost_ack" | "none_ack"
-        self.cas_faults = []              # consumed one per cas_advance: "lost_ack" | "error"
+        self.cas_faults = []              # consumed one per cas_advance: "lost_ack" | "lost_ack_then_foreign" | "error"
+        self.after_landing = None         # runs right after a "lost_ack_then_foreign" swap landed (another writer got in first)
+        self.timeouts = []                # (what, timeout) per network call: None = the call kept its own default
+        self.on_call = None               # runs at the start of every network call (a test moves its clock here)
         self.before_cas = None            # single-shot hooks
         self.during_upload = None
         self.during_legacy_put = None
@@ -184,12 +187,19 @@ class Chain:
         self.extra_rows = []              # raw rows the listing also returns (to hand retention timestamps it cannot read)
 
     # ── what the code under test calls ──
-    def read_pointer(self):
+    def _call(self, what, timeout):
+        self.timeouts.append((what, timeout))
+        if self.on_call:
+            self.on_call()
+
+    def read_pointer(self, timeout=None):
+        self._call("read_pointer", timeout)
         self.events.append(("read_pointer",))
         fault = self.pointer_faults.pop(0) if self.pointer_faults else None
         return None if fault == "none" else {"generation": self.generation, "manifest_key": self.head_key}
 
-    def fetch_manifest_object(self, key):
+    def fetch_manifest_object(self, key, timeout=None):
+        self._call("fetch", timeout)
         self.events.append(("fetch", key))
         fault = self.fetch_faults.pop(0) if self.fetch_faults else None
         if fault == "none":
@@ -206,23 +216,28 @@ class Chain:
         data = self.objects.get(self.head_key) or self.objects.get("manifest.json")
         return None if data is None else (json.loads(data).get("products") or [])
 
-    def cas_advance(self, expected_generation, manifest_key, run_id, written_by, expected_key=None):
+    def cas_advance(self, expected_generation, manifest_key, run_id, written_by, expected_key=None, timeout=None):
         """`UPDATE ... WHERE generation = expected [AND manifest_key = expected_key]`."""
+        self._call("cas", timeout)
         if self.before_cas:
             hook, self.before_cas = self.before_cas, None
             hook()
         fault = self.cas_faults.pop(0) if self.cas_faults else None
         won = (expected_generation == self.generation and (expected_key is None or expected_key == self.head_key)
                and fault != "error")
+        mp._cas_answer.value = "won" if (won and fault is None) else ("lost" if fault is None else "unknown")
         self.cas_calls.append({"expected": expected_generation, "won": won, "key": manifest_key, "expected_key": expected_key,
                                "files": _files(self.objects[manifest_key]) if manifest_key in self.objects else None})
         self.events.append(("cas", expected_generation, manifest_key, won))
         if won:
             self.generation += 1
             self.head_key = manifest_key
-        return False if fault == "lost_ack" else won
+        if won and fault == "lost_ack_then_foreign" and self.after_landing:
+            self.after_landing()
+        return False if fault in ("lost_ack", "lost_ack_then_foreign") else won
 
-    def upload(self, key, data, *, strict=False, overwrite=True):
+    def upload(self, key, data, *, strict=False, overwrite=True, timeout=None):
+        self._call("upload:" + ("unique" if key.startswith("manifests/") else key), timeout)
         self.uploads.append((key, strict, overwrite))
         self.events.append(("upload", key, strict, overwrite))
         if key.startswith("manifests/") and self.during_upload:
@@ -267,7 +282,10 @@ class Chain:
 
     def foreign_publish(self, *edits, key=None):
         """Another writer's commit. `key="unique"` names its object like a one-step publisher would."""
-        doc = json.loads(self.objects.get(self.head_key) or self.objects["manifest.json"])      # a missing head: what the old path left
+        try:
+            doc = json.loads(self.objects.get(self.head_key) or self.objects["manifest.json"])
+        except ValueError:                                                                    # a missing or unusable head: what the old path left
+            doc = json.loads(self.objects["manifest.json"])
         for edit in edits:
             doc["products"] = edit(doc["products"])
         doc["written_by"] = "designated:gh-run-other"
@@ -284,6 +302,7 @@ class Chain:
             self.unexpected.append(("POST", url))
             raise AssertionError("unexpected POST " + url)
         body = kwargs["json"]
+        self._call("list", kwargs.get("timeout"))
         self.list_requests.append((url, body, kwargs.get("timeout")))
         self.events.append(("list",))
         if self.list_fault == "raise":
@@ -297,11 +316,23 @@ class Chain:
         rows.sort(key=lambda row: row["name"], reverse=body["sortBy"]["order"] == "desc")
         return _StorageResponse(200, rows[body["offset"]:body["offset"] + body["limit"]])
 
+    def storage_get(self, url, **kwargs):
+        """requests.get: only Storage's cache-busted GET of the legacy manifest.json is known here."""
+        if "/storage/v1/object/weather-products/manifest.json?cb=" not in url:
+            self.unexpected.append(("GET", url))
+            raise AssertionError("unexpected GET " + url)
+        self._call("legacy_get", kwargs.get("timeout"))
+        self.events.append(("fetch_legacy",))
+        if "manifest.json" not in self.objects:
+            return _StorageResponse(404, {"statusCode": "404", "error": "not_found", "message": "Object not found"})
+        return _StorageResponse(200, None, content=self.objects["manifest.json"])
+
     def storage_delete(self, url, **kwargs):
         if not url.endswith("/storage/v1/object/weather-products"):
             self.unexpected.append(("DELETE", url))
             raise AssertionError("unexpected DELETE " + url)
         prefixes = kwargs["json"]["prefixes"]
+        self._call("delete", kwargs.get("timeout"))
         self.delete_requests.append((url, prefixes, kwargs.get("timeout")))
         self.events.append(("delete_batch", len(prefixes)))
         if self.delete_fault == "raise":
@@ -319,9 +350,10 @@ class Chain:
 
 
 class _StorageResponse:
-    def __init__(self, status_code, body):
+    def __init__(self, status_code, body, content=None):
         self.status_code, self._body = status_code, body
-        self.text = json.dumps(body)
+        self.content = content if content is not None else json.dumps(body).encode("utf-8")
+        self.text = self.content.decode("utf-8", "replace")
 
     def json(self):
         return self._body
@@ -333,8 +365,8 @@ class FakeStore:
     def __init__(self, chain):
         self.chain = chain
 
-    def _upload_to_supabase(self, filename, data_bytes, *, strict=False, overwrite=True):
-        return self.chain.upload(filename, data_bytes, strict=strict, overwrite=overwrite)
+    def _upload_to_supabase(self, filename, data_bytes, *, strict=False, overwrite=True, timeout=None):
+        return self.chain.upload(filename, data_bytes, strict=strict, overwrite=overwrite, timeout=timeout)
 
     def _delete_from_supabase(self, filename):
         self.chain.delete(filename)
@@ -359,6 +391,7 @@ def chain(monkeypatch):
     import requests
     monkeypatch.setattr(mp, "_rest_base_and_headers", lambda: ("https://storage.invalid", {"apikey": "test-key"}))
     monkeypatch.setattr(requests, "post", c.storage_post)
+    monkeypatch.setattr(requests, "get", c.storage_get)
     monkeypatch.setattr(requests, "delete", c.storage_delete)
     monkeypatch.setattr(mps, "_utcnow", lambda: c.now)
     yield c

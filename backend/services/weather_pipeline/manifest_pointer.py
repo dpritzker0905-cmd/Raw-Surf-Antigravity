@@ -27,6 +27,7 @@ and bounded age/generation retention; default off preserves the legacy writer.
 import os
 import json
 import logging
+import sys
 import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -39,6 +40,9 @@ KEEP_RUN_KEYED = 5  # ring of retained run-keyed manifests (readers mid-GET stay
 
 _disabled_for_process = False
 _disable_lock = threading.Lock()
+_cas_answer = threading.local()
+AMBIGUOUS_404_ERROR_EVERY = 5   # one-step lane: a 404 that does not say the table is gone is logged at ERROR 1st, 6th, 11th ... time
+_ambiguous_404s = 0
 _suppressed = threading.local()
 
 
@@ -63,13 +67,60 @@ def pointer_enabled() -> bool:
     return not _disabled_for_process
 
 
-def _disable_for_process(reason: str):
+def last_cas_answer() -> str:
+    """How the last cas_advance on THIS thread ended: "won"; "lost" (HTTP 200 and no row: the precondition missed, so the swap
+    certainly did not apply); or "unknown" (a timeout, a 5xx, anything else: it MAY have applied and only its answer was lost)."""
+    return getattr(_cas_answer, "value", "unknown")
+
+
+def _disable_for_process(reason: str, loud: bool = False):
     global _disabled_for_process
     with _disable_lock:
         if not _disabled_for_process:
             _disabled_for_process = True
             logger.warning(f"[Manifest Pointer] Lane disabled for this process: {reason} "
                            f"(legacy manifest.json path continues unaffected)")
+            if loud:
+                # Pointer-first readers resolve the pointer and never look at manifest.json: everything this process registers from
+                # here on is invisible to them. A GitHub annotation, because a warning in a log nobody reads is how that goes unseen.
+                sys.stdout.write(f"::error::[Manifest Pointer] pointer table missing ({reason}): this process's later manifest "
+                                 f"registrations reach manifest.json only, and pointer-first readers will NOT see them\n")
+                sys.stdout.flush()
+
+
+def _one_step_lane_on() -> bool:
+    return os.environ.get("MANIFEST_PUBLISH_ONE_STEP", "0") == "1"
+
+
+def _table_missing(resp) -> bool:
+    """Does this answer to a pointer-table request mean the table is GONE (so the lane may latch off for the process)?
+
+    Flag off: the old standard, untouched: any 404, or a 400 carrying 42P01.
+    One-step lane: only an answer that SAYS so: a JSON body with Postgres' `42P01` or PostgREST's `relation "..." does not exist`
+    message, status 400 or 404 (the same standard `_definite_miss` applies to objects). Anything else is not evidence: a PostgREST
+    schema-cache miss (PGRST205), a proxy's 404 page, an empty 404 all happen to a healthy deployment, and latching on them
+    turned one transient read into the lossy old path for the rest of the process. Those are retried like any 5xx."""
+    if not _one_step_lane_on():
+        return resp.status_code == 404 or (resp.status_code == 400 and "42P01" in resp.text)
+    if resp.status_code not in (400, 404):
+        return False
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    if not isinstance(body, dict):
+        return False
+    message = body.get("message")
+    return body.get("code") == "42P01" or (isinstance(message, str) and message.startswith("relation ") and message.endswith(" does not exist"))
+
+
+def _note_ambiguous_404(what: str, resp):
+    """One-step lane: a 404 that is NOT a definite table-missing answer. Counted; ERROR the first time and every Nth after."""
+    global _ambiguous_404s
+    _ambiguous_404s += 1
+    level = logging.ERROR if _ambiguous_404s % AMBIGUOUS_404_ERROR_EVERY == 1 else logging.WARNING
+    logger.log(level, f"[Manifest Pointer] {what}: HTTP 404 that does not say the pointer table is gone ({resp.text[:200]!r}); "
+                      f"treated as transient (#{_ambiguous_404s}); the lane is NOT disabled")
 
 
 def _rest_base_and_headers() -> Tuple[Optional[str], Optional[dict]]:
@@ -88,8 +139,8 @@ def run_keyed_manifest_key(generation: int) -> str:
     return f"manifests/manifest-g{generation:012d}.json"
 
 
-def read_pointer() -> Optional[dict]:
-    """Resolve the current pointer row. Never raises; None on any failure."""
+def read_pointer(timeout: float = 8) -> Optional[dict]:
+    """Resolve the current pointer row. Never raises; None on any failure. `timeout`: the one-step exit flush passes what is left of its budget."""
     if not pointer_enabled():
         return None
     base, headers = _rest_base_and_headers()
@@ -99,10 +150,14 @@ def read_pointer() -> Optional[dict]:
         import requests
         resp = requests.get(
             f"{base}/rest/v1/{POINTER_TABLE}?id=eq.1&select=generation,manifest_key,run_id,written_by,updated_at",
-            headers=headers, timeout=8,
+            headers=headers, timeout=timeout,
         )
-        if resp.status_code == 404 or (resp.status_code == 400 and "42P01" in resp.text):
-            _disable_for_process(f"pointer table missing (HTTP {resp.status_code}) — migration not applied yet")
+        if _table_missing(resp):
+            _disable_for_process(f"pointer table missing (HTTP {resp.status_code}) — migration not applied yet",
+                                 loud=_one_step_lane_on())
+            return None
+        if resp.status_code == 404 and _one_step_lane_on():
+            _note_ambiguous_404("read", resp)
             return None
         if resp.status_code != 200:
             logger.warning(f"[Manifest Pointer] read HTTP {resp.status_code}: {resp.text[:200]}")
@@ -137,12 +192,13 @@ def _insert_initial(manifest_key: str, run_id: Optional[str], written_by: str) -
 
 
 def cas_advance(expected_generation: int, manifest_key: str, run_id: Optional[str], written_by: str,
-                expected_key: Optional[str] = None) -> bool:
+                expected_key: Optional[str] = None, timeout: float = 8) -> bool:
     """Compare-and-swap the pointer forward. True only if OUR row landed.
 
     `expected_key` (manifest_publish_step): also require the row to still NAME that object, not just carry that generation
     NUMBER. A pointer restored to an older generation and advanced again by another writer reuses numbers, and a swap on the
     number alone would win with bytes merged against a different head (ABA). None = the generation alone, as every other caller."""
+    _cas_answer.value = "unknown"
     base, headers = _rest_base_and_headers()
     if not base:
         return False
@@ -160,15 +216,20 @@ def cas_advance(expected_generation: int, manifest_key: str, run_id: Optional[st
                 "written_by": written_by,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }),
-            timeout=8,
+            timeout=timeout,
         )
-        if resp.status_code == 404 or (resp.status_code == 400 and "42P01" in resp.text):
-            _disable_for_process(f"pointer table missing (HTTP {resp.status_code}) — migration not applied yet")
+        if _table_missing(resp):
+            _disable_for_process(f"pointer table missing (HTTP {resp.status_code}) — migration not applied yet",
+                                 loud=_one_step_lane_on())
+            return False
+        if resp.status_code == 404 and _one_step_lane_on():
+            _note_ambiguous_404("swap", resp)
             return False
         if resp.status_code not in (200, 201):
             logger.warning(f"[Manifest Pointer] CAS HTTP {resp.status_code}: {resp.text[:200]}")
             return False
         rows = resp.json()
+        _cas_answer.value = "won" if rows else "lost"
         return bool(rows)  # empty list = precondition lost (another writer advanced first)
     except Exception as e:
         logger.warning(f"[Manifest Pointer] CAS failed: {e}")
@@ -263,7 +324,7 @@ def _definite_miss(resp) -> bool:
     return isinstance(body, dict) and body.get("error") == "not_found"
 
 
-def fetch_manifest_object(key: str):
+def fetch_manifest_object(key: str, timeout: float = 30):
     """GET one run-keyed manifest object by the key the pointer row names (plain GET, immutable object).
 
     The one-step publisher reads the head BY KEY, so the bytes it merges are the bytes of the generation it will
@@ -278,7 +339,7 @@ def fetch_manifest_object(key: str):
     try:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
-        resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}", headers=headers, timeout=30)
+        resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}", headers=headers, timeout=timeout)
         if resp.status_code != 200:
             logger.warning(f"[Manifest Pointer] manifest object GET {key} -> HTTP {resp.status_code}")
             return MISSING if _definite_miss(resp) else None

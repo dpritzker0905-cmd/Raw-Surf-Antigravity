@@ -71,6 +71,7 @@ logger = logging.getLogger(__name__)
 
 FLAG = "MANIFEST_PUBLISH_ONE_STEP"
 MAX_ATTEMPTS = 5
+UNUSABLE_HEAD_ATTEMPTS = 3   # consecutive attempts that fetch the SAME head key and cannot parse it, before it is treated like a missing one
 BACKOFF_BASE_SECONDS = 0.25
 BACKOFF_CAP_SECONDS = 3.0
 EXIT_ROUNDS = 3              # extra rounds of MAX_ATTEMPTS at interpreter exit (see _flush_at_exit)
@@ -89,6 +90,25 @@ _utcnow = lambda: datetime.now(timezone.utc)  # noqa: E731  (injectable: the ret
 def _store_module():
     from services.weather_pipeline import store
     return store
+
+
+class _OutOfBudget(Exception):
+    """The exit flush's wall-clock budget is spent: the next network call is not made."""
+
+
+def _timeout_kw(deadline, default):
+    """Keyword arguments for ONE network call. Outside the exit flush (no deadline): none, the call keeps its own timeout. Inside it:
+    the call's own default or what is left of the budget, whichever is LESS; and when nothing is left the call is not made."""
+    if deadline is None:
+        return {}
+    left = deadline - _monotonic()
+    if left <= 0:
+        raise _OutOfBudget("the exit budget is spent")
+    return {"timeout": min(default, left)}
+
+
+def _cap(deadline, default):
+    return _timeout_kw(deadline, default).get("timeout", default)
 
 
 def backoff_seconds(retry: int) -> float:
@@ -127,11 +147,13 @@ class _Pending:
     sequence <= s (the head it wrote no longer names those ids), so those are dropped from whatever is pending behind it; an id a
     LATER submit names again keeps its newer sequence and rides on. Without this an exclusion would ride on every publish for as
     long as saves keep landing during publishes, and erase another writer's later re-registration of the same key."""
-    __slots__ = ("store", "snapshot", "excludes", "sequence", "merged")
+    __slots__ = ("store", "snapshot", "excludes", "sequence", "merged", "attempted", "unconfirmed")
 
     def __init__(self, store, snapshot, excludes, sequence):
         self.store, self.snapshot, self.excludes, self.sequence = store, snapshot, excludes, sequence
         self.merged = None                  # the bytes this snapshot was published as, once it has been
+        self.attempted = {}                 # {unique key: (merged bytes, target generation)} of the newest swap that may have landed
+        self.unconfirmed = None             # {excluded id: the head's entry for it, or None} as seen by that swap's attempt
 
 
 class _Head:
@@ -148,6 +170,7 @@ class _Slot:
         self.pending = None                 # _Pending or None
         self.head = None                    # _Head or None
         self.sequence = 0                   # submits so far
+        self.unusable = {}                  # {head key: consecutive attempts that fetched it and could not parse it}
         self.scheduled = False              # a job is queued or running on the manifest executor
 
 
@@ -170,7 +193,10 @@ def submit_manifest_publish(store, manifest, exclude_keys=None):
         slot.sequence += 1
         excludes = dict(slot.pending.excludes) if slot.pending is not None else {}     # snapshots are cumulative: they add up
         excludes.update(dict.fromkeys(exclude_keys, slot.sequence))
-        slot.pending = _Pending(store, snapshot, excludes, slot.sequence)
+        newest = _Pending(store, snapshot, excludes, slot.sequence)
+        if slot.pending is not None:                                      # a swap that may have landed unheard belongs to the lineage
+            newest.attempted, newest.unconfirmed = slot.pending.attempted, slot.pending.unconfirmed
+        slot.pending = newest
         schedule = not slot.scheduled
         slot.scheduled = True
     if schedule:
@@ -283,7 +309,7 @@ def _publish(pending, deadline=None) -> bool:
                 if deadline is not None and _monotonic() >= deadline:
                     break
                 _sleep(backoff_seconds(number - 1))
-            if _attempt(pending, number):
+            if _attempt(pending, number, deadline):
                 return True
         logger.error(
             f"[Manifest Publish] NOT published after {MAX_ATTEMPTS} attempts: the pointer, the unique manifest objects "
@@ -293,9 +319,9 @@ def _publish(pending, deadline=None) -> bool:
     return False
 
 
-def _attempt(pending, number) -> bool:
+def _attempt(pending, number, deadline=None) -> bool:
     try:
-        return _attempt_once(pending)
+        return _attempt_once(pending, deadline)
     except Exception as exc:
         logger.warning(f"[Manifest Publish] attempt {number}/{MAX_ATTEMPTS} failed: {type(exc).__name__}: {exc}")
         return False
@@ -309,11 +335,79 @@ def _head_products(head_bytes):
     return products
 
 
-def _attempt_once(pending) -> bool:
-    """One read-merge-CAS. True = published (or, with no pointer lane at all, written the old way). False = try again."""
+def _legacy_products(deadline=None):
+    """The legacy manifest.json's products, read DIRECTLY (cache-busted GET), never through the pointer: the pointed head is exactly
+    what is missing or unusable when this is called. None when it cannot be read or is not a manifest."""
+    base, headers = mp._rest_base_and_headers()
+    if not base:
+        return None
+    try:
+        import requests
+        store_mod = _store_module()
+        reply = requests.get(store_mod.manifest_download_url(base, store_mod.WEATHER_BUCKET), headers={
+            **headers, "Cache-Control": "no-cache", "Pragma": "no-cache"}, **(_timeout_kw(deadline, 15) or {"timeout": 15}))
+        return _head_products(reply.content) if reply.status_code == 200 else None
+    except Exception as exc:
+        logger.warning(f"[Manifest Publish] the legacy manifest.json could not be read: {type(exc).__name__}: {exc}")
+        return None
+
+
+def _entries_by_id(products, ids):
+    """{id: raw entry} for the `ids` the raw product list names."""
+    found = {}
+    for raw in products:
+        pid = (raw.get("product_id") or raw.get("filename")) if isinstance(raw, dict) else None
+        if pid in ids:
+            found[pid] = raw
+    return found
+
+
+def _adopt_landed(pending, row, deadline=None) -> bool:
+    """True when the pointer names an object THIS publish uploaded: its swap landed although the answer never came back. It is then
+    settled exactly like a confirmed win (retention, the legacy refresh, the books), instead of being merged and published again."""
+    key = row.get("manifest_key") if isinstance(row, dict) else None
+    landed = pending.attempted.get(key)
+    if landed is None:
+        return False
+    merged, generation, sequence = landed
+    if sequence != pending.sequence:
+        # An OLDER snapshot's swap landed (its job ran out of attempts before it could look). Nothing of THIS snapshot is published,
+        # so there is nothing to settle; what that swap applied is spent, and the head is an ordinary one to merge against.
+        logger.warning(f"[Manifest Publish] the head {key} is an older snapshot's swap, which landed unconfirmed; its exclusions are spent")
+        pending.excludes = {k: n for k, n in pending.excludes.items() if n > sequence}
+        pending.attempted, pending.unconfirmed = {}, None
+        return False
+    logger.warning(f"[Manifest Publish] the swap to g{generation} -> {key} landed although its answer was lost; settling it as a win")
+    pending.merged, pending.attempted, pending.unconfirmed = merged, {}, None
+    _after_win(pending.store, generation, key, merged, deadline)
+    return True
+
+
+def _effective_excludes(pending, head_products):
+    """The ids to keep out of this merge. After a swap that MAY have landed (its answer was lost), an excluded id whose entry in the
+    head has CHANGED since that attempt saw it is another writer's newer registration of the same key, not the entry whose object we
+    deleted: it is kept, and its exclusion is spent. Everything else stays excluded. (After a swap that certainly did not land there
+    is nothing to refine: `unconfirmed` is None.)"""
+    excludes = set(pending.excludes)
+    seen = pending.unconfirmed
+    if not seen or not excludes:
+        return excludes
+    now = _entries_by_id(head_products, excludes & set(seen))
+    changed = {pid for pid, entry in now.items() if entry != seen.get(pid)}
+    if changed:
+        logger.warning(f"[Manifest Publish] {len(changed)} excluded id(s) were registered again since the unconfirmed swap "
+                       f"(e.g. {sorted(changed)[0]}): kept")
+        excludes -= changed
+        pending.excludes = {k: n for k, n in pending.excludes.items() if k not in changed}
+    return excludes
+
+
+def _attempt_once(pending, deadline=None) -> bool:
+    """One read-merge-CAS. True = published (or, with no pointer lane at all, written the old way). False = try again.
+    `deadline`: set only by the exit flush; every network call is then capped by what is left of it (see `_timeout_kw`)."""
     from services.weather_pipeline.schemas import PipelineManifest
     store_mod = _store_module()
-    row = mp.read_pointer()
+    row = mp.read_pointer(**_timeout_kw(deadline, 8))
     if row is None:
         if not mp.pointer_enabled():                                     # the table is missing: permanent
             _publish_old_path(pending)
@@ -324,42 +418,63 @@ def _attempt_once(pending) -> bool:
     if type(generation) is not int or not 1 <= generation < 999999999999 or not head_key:
         logger.warning(f"[Manifest Publish] unusable pointer row: generation={generation!r} key={head_key!r}")
         return False
-    head_bytes = mp.fetch_manifest_object(head_key)
+    if _adopt_landed(pending, row, deadline):
+        return True
+    head_bytes = mp.fetch_manifest_object(head_key, **_timeout_kw(deadline, 30))
+    legacy = None
     if head_bytes is mp.MISSING:
         # The pointer names an object that does not exist (an old-path writer's failed upload, or a deletion). Merge against the
         # legacy manifest.json instead. The swap below still names generation g AND this key, so a writer that commits meanwhile
         # wins over us, and a STALE legacy file can never replace a head that moved.
-        logger.warning(f"[Manifest Publish] the head object {head_key} is missing; merging against the legacy manifest.json")
-        head_products = store_mod._fetch_remote_manifest_products()
-        if head_products is None:
-            logger.warning("[Manifest Publish] the legacy manifest.json could not be read either")
-            return False
+        legacy = f"the head object {head_key} is missing"
+        logger.warning(f"[Manifest Publish] {legacy}; merging against the legacy manifest.json")
     elif head_bytes is None:
         logger.warning(f"[Manifest Publish] the head object {head_key} could not be read")
         return False
     else:
-        head_products = _head_products(head_bytes)
+        try:
+            head_products = _head_products(head_bytes)
+            _slot.unusable = {}
+        except ValueError as exc:                                        # not JSON, or not a manifest
+            failures = _slot.unusable.get(head_key, 0)
+            if failures < UNUSABLE_HEAD_ATTEMPTS:
+                _slot.unusable = {head_key: failures + 1}                # a transient fetch failure never gets this far: it does not count
+                raise
+            legacy = f"the head object {head_key} could not be parsed in {failures} consecutive attempts ({exc})"
+            logger.error(f"[Manifest Publish] {legacy}; treating it as unusable and merging against the legacy manifest.json")
+    if legacy is not None:
+        head_products = _legacy_products(deadline)
+        if head_products is None:
+            logger.warning("[Manifest Publish] the legacy manifest.json could not be read either")
+            return False
     del head_bytes
+    excludes = _effective_excludes(pending, head_products)
     manifest = PipelineManifest.model_validate_json(pending.snapshot)     # the ORIGINAL snapshot, every attempt
-    store_mod.reconcile_manifest_products_for_upload(
-        manifest, exclude_keys=set(pending.excludes), remote_products=head_products)
+    store_mod.reconcile_manifest_products_for_upload(manifest, exclude_keys=excludes, remote_products=head_products)
     merged = store_mod.dump_manifest_for_l2(manifest)
+    seen = _entries_by_id(head_products, excludes) if excludes else {}
     del manifest, head_products
     key = f"manifests/manifest-g{generation + 1:012d}-{uuid4().hex}.json"
-    if pending.store._upload_to_supabase(key, merged, strict=True, overwrite=False) is not True:
+    if pending.store._upload_to_supabase(key, merged, strict=True, overwrite=False, **_timeout_kw(deadline, 30)) is not True:
         logger.warning(f"[Manifest Publish] {key} was not acknowledged; it is never swapped in")
         return False
+    pending.attempted = {key: (merged, generation + 1, pending.sequence)}      # from here on this swap MAY land unheard
+    pending.unconfirmed = {pid: seen.get(pid) for pid in excludes}
     if not mp.cas_advance(generation, key, os.environ.get("GITHUB_RUN_ID"), store_mod._l2_writer_identity(),
-                          expected_key=head_key):
-        logger.warning(f"[Manifest Publish] CAS from generation {generation} lost (or its answer was lost); merging again")
-        return False
-    pending.merged = merged
+                          expected_key=head_key, **_timeout_kw(deadline, 8)):
+        if mp.last_cas_answer() == "lost":                               # a clean "precondition missed": it certainly did not apply
+            pending.attempted, pending.unconfirmed = {}, None
+            logger.warning(f"[Manifest Publish] CAS from generation {generation} lost to another writer; merging again")
+            return False
+        logger.warning(f"[Manifest Publish] CAS from generation {generation} was not confirmed; looking at the pointer")
+        return _adopt_landed(pending, mp.read_pointer(**_timeout_kw(deadline, 8)), deadline)
+    pending.merged, pending.attempted, pending.unconfirmed = merged, {}, None
     logger.info(f"[Manifest Publish] advanced g{generation}->g{generation + 1} -> {key}")
-    _after_win(pending.store, generation + 1, key, merged)
+    _after_win(pending.store, generation + 1, key, merged, deadline)
     return True
 
 
-def _retire_old_copies(generation, head_key):
+def _retire_old_copies(generation, head_key, deadline=None):
     """After a WON swap at `generation`: ONE bounded listing and ONE bounded batch delete of the unique copies this lane leaves.
 
     manifest_immutable's retention keeps every copy younger than an hour whatever its generation, which suits a writer that
@@ -375,7 +490,8 @@ def _retire_old_copies(generation, head_key):
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
         listing = requests.post(
-            f"{base}/storage/v1/object/list/{WEATHER_BUCKET}", headers=headers, timeout=RETENTION_TIMEOUT_SECONDS,
+            f"{base}/storage/v1/object/list/{WEATHER_BUCKET}", headers=headers,
+            timeout=_cap(deadline, RETENTION_TIMEOUT_SECONDS),
             json={"prefix": "manifests", "search": "manifest-g", "limit": RETENTION_SCAN_LIMIT, "offset": 0,
                   "sortBy": {"column": "name", "order": "asc"}})
         rows = listing.json() if listing.status_code == 200 else None
@@ -398,17 +514,20 @@ def _retire_old_copies(generation, head_key):
             if len(doomed) == RETENTION_DELETE_LIMIT:
                 break
         if doomed:
-            deleted = requests.delete(f"{base}/storage/v1/object/{WEATHER_BUCKET}", headers=headers,
-                                      timeout=RETENTION_TIMEOUT_SECONDS, json={"prefixes": doomed})
+            deleted = requests.delete(f"{base}/storage/v1/object/{WEATHER_BUCKET}", headers=headers, json={"prefixes": doomed},
+                                      timeout=_cap(deadline, RETENTION_TIMEOUT_SECONDS))
             if deleted.status_code not in (200, 204):
                 logger.warning(f"[Manifest Publish] retention delete of {len(doomed)} copies not acknowledged (HTTP {deleted.status_code})")
     except Exception as exc:
         logger.warning(f"[Manifest Publish] retention after g{generation} deferred: {type(exc).__name__}: {exc}")
 
 
-def _after_win(store, generation, head_key, merged):
-    """Best effort, in this order: retire old unique copies, then refresh the readers' fallback manifest.json."""
-    _retire_old_copies(generation, head_key)
+def _after_win(store, generation, head_key, merged, deadline=None):
+    """Best effort, in this order: retire old unique copies, then refresh the readers' fallback manifest.json. In the exit flush
+    (`deadline` set) the refresh is left to the next publish: it is a PUT that retries, and the budget is a promise."""
+    _retire_old_copies(generation, head_key, deadline)
+    if deadline is not None:
+        return
     try:
         with mp.publish_run_keyed_suppressed():
             store._upload_to_supabase("manifest.json", merged)
@@ -417,8 +536,14 @@ def _after_win(store, generation, head_key, merged):
 
 
 def _publish_old_path(pending):
-    """No pointer lane exists (table missing), so there is nothing to compare-and-swap: today's path, once."""
+    """The pointer table is definitely gone (`manifest_pointer` latched on an answer that SAYS so), so there is nothing to
+    compare-and-swap: today's path, once. Loud, because pointer-first readers never look at manifest.json."""
     from services.weather_pipeline.schemas import PipelineManifest
+    message = ("[Manifest Publish] the pointer table is missing: this snapshot goes to manifest.json only, and pointer-first "
+               "readers will NOT see it (nor anything else this process registers from now on)")
+    logger.error(message)
+    sys.stdout.write(f"::error::{message}\n")
+    sys.stdout.flush()
     store_mod = _store_module()
     manifest = PipelineManifest.model_validate_json(pending.snapshot)
     store_mod.reconcile_manifest_products_for_upload(manifest, exclude_keys=set(pending.excludes))

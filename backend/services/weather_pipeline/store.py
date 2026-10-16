@@ -388,7 +388,7 @@ class ProductStore:
     # ── Supabase Storage L2 helpers ──────────────────────────────────────
 
     def _upload_to_supabase(self, filename: str, data_bytes: bytes, *,
-                            strict: bool = False, overwrite: bool = True):
+                            strict: bool = False, overwrite: bool = True, timeout: float = 30):
         """Upload to L2; strict mode raises on failure and returns True on HTTP acknowledgment.
 
         Uses the Storage REST API directly (via requests) instead of storage3's sync .upload(): in the
@@ -443,7 +443,7 @@ class ProductStore:
             #   create-only (overwrite=False) where a retry after a lost ack manufactures a duplicate,
             #   and all of them sit behind their callers' own pending/redo protocols
             #   (test_forecast_skill_retention pins exact write attempts). Leave those alone.
-            send = lambda: requests.post(url, headers=headers, data=data_bytes, timeout=30)  # noqa: E731
+            send = lambda: requests.post(url, headers=headers, data=data_bytes, timeout=timeout)  # noqa: E731
             if overwrite and ("/" not in filename or filename.startswith("manifests/")):
                 from services.weather_pipeline.l2_retry import post_with_retry
                 resp, retries = post_with_retry(send, filename)

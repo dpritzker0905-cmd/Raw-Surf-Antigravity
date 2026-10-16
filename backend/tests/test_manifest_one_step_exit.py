@@ -130,3 +130,69 @@ def test_at_real_interpreter_exit_a_publish_that_cannot_happen_is_annotated_and_
     done = _run_script(forever=True)
     assert done.returncode == 0, done.stderr[-800:]
     assert "::error::[Manifest Publish]" in done.stdout and "RESULT wins=0 pending=True" in done.stdout, done.stdout
+
+
+# ── the budget bounds every call, not just every attempt (round-5 finding 7) ─────────────────────────────────────────────
+# One attempt can run 100+ s (30 s head GET + 30 s upload + a retrying legacy PUT), so a deadline checked only BETWEEN attempts
+# bounds the flush at about 300 s, not 120. Inside the flush every network call now gets min(its own timeout, what is left), is not
+# made at all when nothing is left, and the legacy manifest.json refresh (a retrying PUT, best effort) is left to the next publish.
+
+def test_the_documented_exit_budget_and_rounds_are_what_the_code_uses():
+    """Pinned WITHOUT overriding the constants asserted on (a mutant that made 120 s into 1200 s survived a test that set it)."""
+    assert mps.EXIT_BUDGET_SECONDS == 120 and mps.EXIT_ROUNDS == 3 and mps.MAX_ATTEMPTS == 5
+
+
+def _pending_after_a_failed_job(chain, store, parked, files=None):
+    submit(store, files or (BASE[1:] + PILOTS_NEW), exclude_keys=[BASE[0]])
+    chain.pointer_faults.extend(["none"] * mps.MAX_ATTEMPTS)
+    parked.run()
+    assert mps._slot.pending is not None
+    chain.timeouts.clear()
+
+
+def test_outside_the_exit_flush_no_network_call_is_given_a_timeout(chain, store, parked):
+    """A normal job keeps every call's own timeout (the lane's calls are identical to before this fix)."""
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    assert chain.timeouts and all(timeout is None for what, timeout in chain.timeouts if what not in ("list", "delete")), chain.timeouts
+    assert dict(chain.timeouts)["list"] == 5, "retention keeps its own 5 s"
+
+
+def test_in_the_exit_flush_each_call_is_capped_by_its_own_default_when_the_budget_is_ample(chain, store, parked, sleeps, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    mps._flush_at_exit()
+    assert chain.wins() and mps._slot.pending is None
+    assert dict(chain.timeouts) == {"read_pointer": 8, "fetch": 30, "upload:unique": 30, "cas": 8, "list": 5}, chain.timeouts
+    assert not [u for u in chain.uploads if u[0] == "manifest.json"], "the exit flush must not start a retrying legacy PUT"
+
+
+def test_in_the_exit_flush_each_call_is_capped_by_what_is_left_of_the_budget(chain, store, parked, sleeps, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 4.0)
+    mps._flush_at_exit()
+    assert chain.wins()
+    assert dict(chain.timeouts) == {"read_pointer": 4, "fetch": 4, "upload:unique": 4, "cas": 4, "list": 4}, chain.timeouts
+
+
+def test_a_call_that_eats_the_budget_stops_the_attempt_before_the_next_call(chain, store, parked, sleeps, monkeypatch, capsys):
+    """Every call takes 50 s of a 120 s budget: the 8 s read, the 30 s head GET, then the upload with the 20 s that is left, and the
+    swap is NOT attempted (nothing is left to spend on it)."""
+    _pending_after_a_failed_job(chain, store, parked)
+    clock = [1000.0]
+    monkeypatch.setattr(mps, "_monotonic", lambda: clock[0])
+    chain.on_call = lambda: clock.__setitem__(0, clock[0] + 50.0)
+    mps._flush_at_exit()
+    assert [what for what, _ in chain.timeouts] == ["read_pointer", "fetch", "upload:unique"], chain.timeouts
+    assert dict(chain.timeouts)["upload:unique"] == 20
+    assert chain.cas_calls == [] and mps._slot.pending is not None
+    assert capsys.readouterr().out.startswith("::error::[Manifest Publish]")
+
+
+def test_no_call_at_all_is_made_once_the_budget_is_spent(chain, store, parked, sleeps, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 0.0)
+    mps._flush_at_exit()
+    assert chain.timeouts == [] and chain.cas_calls == []
