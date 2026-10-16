@@ -96,6 +96,8 @@ def test_node_extent_bounds_refuse_what_they_cannot_prove(vectors):
 
 
 def test_node_extent_bounds_never_touch_a_window_that_crosses_the_antimeridian():
+    # The explicit west > east guard is belt and braces: the containment check refuses these cells on its own (every cell is
+    # "outside" a window whose west exceeds its east), so removing the guard alone is an equivalent mutant (review, 2026-10-16).
     fallback = {"west": 170.0, "south": 0.0, "east": -170.0, "north": 20.0}     # west > east
     assert svb.node_extent_bounds([{"lat": 5.0, "lng": 175.0}, {"lat": 9.0, "lng": -175.0}], fallback=fallback) is fallback
 
@@ -184,3 +186,71 @@ def test_the_flag_does_not_change_which_cells_are_served(monkeypatch, tmp_path):
     on = _serve(_store(tmp_path, _raw_world())).grid
     assert [(_lat(v), _lng(v), v.speed) for v in off.vectors] == [(_lat(v), _lng(v), v.speed) for v in on.vectors]
     assert (off.cols, off.rows) == (on.cols, on.rows)
+
+
+# ---- review gaps (independent review, 2026-10-16): the EAST edge, the strided read's longitudes, flag OFF per dict site ----
+
+def _thin_at_site(site, east=176.0):
+    """Thin a 179 x 83 world (lng -180..176, width NOT a multiple of the stride) by 4 at one of the four sites and return
+    (bounds, cols, rows, vectors). 178 intervals / 4 leaves a remainder, so the last kept column is 172, not 176."""
+    if site == "product-build":
+        product = _product(east=east)
+        assert _apply_build_stride(product, 4, "stride")
+        g = product.grid
+        return g.bounds, g.cols, g.rows, g.vectors
+    if site == "mid-tier-clip":
+        product = _product(east=east)
+        assert mid_res_tier._stride_clipped_grid(product, 4)
+        g = product.grid
+        return g.bounds, g.cols, g.rows, g.vectors
+    if site == "response-frame":
+        raw = _raw_world(east=east)["grid"]
+        frame = {"vectors": raw["vectors"], "cols": raw["cols"], "rows": raw["rows"], "bounds": dict(raw["bounds"])}
+        assert svb._decimate_frame(frame, 4)
+        return frame["bounds"], frame["cols"], frame["rows"], frame["vectors"]
+    data = _raw_world(east=east)
+    assert svb.stride_raw_grid_dicts(data, 4)
+    g = data["grid"]
+    return g["bounds"], g["cols"], g["rows"], g["vectors"]
+
+
+SITES = ["product-build", "mid-tier-clip", "response-frame", "load-time"]
+
+
+@pytest.mark.parametrize("site", SITES)
+def test_the_east_edge_follows_the_kept_columns_too_when_the_width_does_not_divide_the_stride(monkeypatch, site):
+    """Every other fixture is a 181-column world at strides 2-4, whose last column is always kept, so a fix that moved only the
+    NORTH edge would pass them. Here the last kept column is 172 and the source's east is 176."""
+    monkeypatch.setenv(FLAG, "1")
+    bounds, cols, rows, vectors = _thin_at_site(site)
+    west, south, east, north = _b(bounds)
+    assert (cols, rows) == (45, 21)
+    assert (west, south, east, north) == (-180.0, -80.0, 172.0, 80.0)
+    assert worst_offset_deg(bounds, cols, rows, vectors) == pytest.approx(0.0, abs=1e-6)
+
+
+@pytest.mark.parametrize("site", SITES)
+def test_the_same_fixture_with_the_flag_off_keeps_the_source_bounds_and_the_offset(monkeypatch, site):
+    """Flag OFF at EVERY site, not only `_apply_build_stride`: forcing the switch on in the two dict sites alone used to pass
+    every test in the series lane."""
+    monkeypatch.delenv(FLAG, raising=False)
+    bounds, cols, rows, vectors = _thin_at_site(site)
+    assert _b(bounds) == (-180.0, -80.0, 176.0, 84.0)
+    assert (cols, rows) == (45, 21)
+    assert worst_offset_deg(bounds, cols, rows, vectors) == pytest.approx(4.0)
+
+
+@pytest.mark.parametrize("strided_read", [True, False], ids=["strided-read", "legacy-full-read"])
+def test_the_strided_read_takes_the_east_edge_from_the_lattice_longitudes_too(monkeypatch, tmp_path, strided_read):
+    """`_identity_clip_bounds` slices BOTH axes; dropping the longitude slice used to pass every test. A stride that does not
+    divide the world (180 intervals / 7) keeps columns 0, 7, ..., 175 of the 181, i.e. lng -180..170, and the strided read must
+    agree with the legacy read-clip-stride path about it. (The mid tier pads a narrower store to the request, so the stride
+    is how this case is reached.)"""
+    monkeypatch.setenv(FLAG, "1")
+    store = _store(tmp_path, _raw_world())
+    served = _serve(store, series_stride=7) if strided_read else _old_path(store, monkeypatch, series_stride=7)
+    g = served.grid
+    assert (g.cols, g.rows) == (26, 12)
+    assert _b(g.bounds) == (-180.0, -80.0, 170.0, 74.0)
+    assert worst_offset_deg(g.bounds, g.cols, g.rows, g.vectors) == pytest.approx(0.0, abs=1e-6)
+    assert served.served_bbox == "-180.0000,-80.0000,170.0000,74.0000"

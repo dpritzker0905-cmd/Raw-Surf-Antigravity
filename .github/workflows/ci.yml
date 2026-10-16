@@ -874,7 +874,11 @@ jobs:
           # of the cells they kept, dark): tests/test_series_thin_node_bounds.py (20), a new file selector-verified into
           # this lane; hosted reading on #342's head 56bf81dda, a tree identical to dev 66a320e5 (CI 38913422185: 196 files,
           # 2674 passed, 67 skipped) -> projected 2694/197; 2694 - 6 = 2688. This PR must read 197 files / 2694.
-          MIN_FILES, MIN_PASSED = 197, 2688
+          # ⬆ 197/2688 → 197/2698 in the same PR, after the independent review: +10 cases in the SAME file (the east edge
+          # when the width does not divide the stride, all four sites; flag OFF at all four sites; the strided read's
+          # longitudes); hosted reading on this PR's head dcc46b733 (CI 38928415298: 197 files, collected 2761, 2694 passed,
+          # 67 skipped) -> projected 2704/197; 2704 - 6 = 2698. This PR must read 197 files / 2704.
+          MIN_FILES, MIN_PASSED = 197, 2698
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

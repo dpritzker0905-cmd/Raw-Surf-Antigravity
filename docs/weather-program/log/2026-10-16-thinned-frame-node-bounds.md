@@ -52,3 +52,43 @@ authority. This log does not claim them.
   `bounds` against its first/last cell on the live `/grid_series` (ONE short read, `/api/health` probed before and after).
 - Manifest CAS-from-merge fix: the owner's approval first (shared production writer).
 - Step 4, the instrumented offline scrub replay, in the mock backend only: not started.
+
+## Hosted CI, first head (closes commitment seq 1286)
+
+CI run 38928415298 on code head `dcc46b733`: 12 of 12 jobs green. Guards `collected 2761 tests across 197 files -> 2694 passed, 67 skipped, 0 failed`;
+chain `collected 2473 tests across 164 files -> 2473 passed`. Both equal the projection. (Local chain lane also 2473; the local guards lane was stopped at ~28%
+with no failure and is not claimed.)
+
+## Owner's word, and why only half of it was acted on
+
+Owner, 2026-10-16 12:32 EDT: "Flip and merge if its the best path forward". Merge: yes, once the review's test gaps are closed. Flip: HELD, for these reasons
+(all measured or read from code; none is a render):
+
+1. **Production shares the flag and does not get the benefit.** Production's frontend is frozen at `fc140024`, which does NOT contain #279 (`bfcfb8762`,
+   `git merge-base --is-ancestor` says so): it reads `bounds` as cell EDGES (texel i at south + (i+0.5) span/n), not as point-registered extents. By arithmetic on
+   the real shapes the flag leaves that client where it was (181 x 83 stride 4: worst 3.90 -> 3.81 deg, mean 2.00 -> 2.00; 181 x 80: worst 3.95 -> 3.80, mean
+   3.00 -> 2.00; a stride-3 frame mean 1.25 -> 1.50). One Render env var serves dev AND production, so production would take any side effect for no gain.
+2. **Independent review (a fresh reviewer, given the diff and the intent, not my conclusion).** Flag OFF is byte-identical to dev; flag ON is right at all four
+   sites for every input probed. It then found client-side consequences of a SHORTER north edge that nobody has measured (all REASONED from the client code, not run):
+   (a) `bboxContains(entry.bounds, viewport)` (`marineGridSeries.js:586,632`): a viewport whose north edge falls in (80, 84] goes from series hit to miss, and
+   `useMarineScrubSettle.js:468-486` then fetches `/grid` per hour instead of committing the warmed frame; (b) point sampling above the new north edge returns null
+   (`forecastHelpers.js:385`, `useSpotRatings.js:70`); (c) `WebGLMarineTextureEncoder.js:567-573` compares mask bounds field by field, so every thinned <-> exact swap
+   (the two frames now differ) rebuilds the world mask, which used to be reused; (d) the overlay mask mode, mask retain, stale stamp and arbiter coverage also read
+   bounds. Longitude-based "world" tests (>= 340/350/359) are unaffected for the 181-column world at strides 2-4 and would flip only for odd grid/stride pairs.
+3. **The fix is aimed at the dev client**, where it removes a 4-6 deg draw offset and plausibly the "apparent position alternates with resolution" report (a thinned
+   frame is drawn 2-4 deg north of an exact one). That link is still NOT established.
+
+Recommendation recorded: merge flag-off; measure (a) and (c) on the dev client in the offline mock (step 4's harness doubles as this A/B); flip when production's
+client reads bounds like dev's (#279 shipped) or when the flag is request-scoped, whichever comes first, on the owner's word.
+
+## Review gaps closed in this PR (tests only, no production change)
+
+Mutation runs by the reviewer showed 20 tests passed against: a fix that moves only the NORTH edge, a mid-tier fix that drops the longitude slice, and the switch forced on
+in the two dict sites alone. Added 10 cases (same file): east edge when the width does not divide the stride at all four sites; the same fixture with the flag OFF at all
+four sites; the strided read vs the legacy path at stride 7 (181 columns -> 26, east 170). Now killed: north-only (5 tests fail), longitudes dropped (1), dict sites forced
+on (2), always on (6), helper returns its fallback (16), identity no-op (3). The control (no mutant) passes. One mutant survives by construction: deleting the explicit
+`west > east` guard (the containment check refuses those cells on its own); the test comment says so. Floors move in the same commit: guards MIN_PASSED 2688 -> 2698,
+`_FLOOR_SET_FROM` guards 2704 (reading 2704 on 197 files). Not fixed, harmless: top-level `resp["bounds"]` is not rebound (the client never reads it), and
+`_apply_build_stride` leaves `product.coverage`/`served_bbox` at the old values on hour 0 (series frames do not serialise them).
+
+SCOREBOARD: new instrument S21 plus BEFORE and AFTER (offline) rows. The live read-back row follows a flip.
