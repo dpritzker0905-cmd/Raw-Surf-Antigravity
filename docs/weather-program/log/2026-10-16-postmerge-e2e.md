@@ -55,3 +55,39 @@ silently retried away. Added a companion per-browser503fault-to-real-backend200 
 branch requires manual recovery, exactly two requests, actual final data and no automatic retry.
 Suite discovery76cases, no new skip. Nodebadgecontracts3pass and syntax pass; new head needs full hosted
 qualification. No application/backend code, paid provider request, deploy or settings change.
+
+Published2797872bf and dispatched76case38838733164, no retry. Its Mobile Safari control injected one
+503, clicked visible Try again, then the real selected-spot request failed after15016ms. Metadata:
+first live test request1792116535937 ->200 in5623ms; recovery request1792116546361 ->networkfail15016ms.
+Render matching public spot-details completion at02:09:24Z is about18s after that second start, beyond
+client15s. This is a real availability boundary, not permission to keep retrying. Cancelled superseded
+harness-only run; terminalcancelled, one8108649byte artifact retained. No full76case success claimed.
+
+Inspected retained error-context and screenshot for43head Chrome signed-in unavailable screen; focused
+original3error-contexts showed login. Reports downloaded privately; videos retained but UNREVIEWED.
+No traces recorded (credential-bearing context policy). Request timing establishes the late response;
+code inspection identifies the optional11day forecast await before metadata as an unbounded seam, not
+an attribution of all latency to one internal phase. No performance-window unaffected claim.
+
+Actual app repair: bound optional forecast enrichment8s using cancellation; preserve spot metadata,
+return forecast_status unavailable with None/empty readings on timeout/error, and keep valid forecast
+composition/model/spot identity unchanged. UI labels Forecast temporarily unavailable and offers one
+manual Retry forecast, theme-aware in light/dark/beach. No automatic retry, new provider, altered math,
+source/cache/clock/flags/schema or OpenAI budget change. Metadata DB waits are not claimed hard-bounded;
+live after evidence is still required. This changes availability under a slow forecast, no numeric
+calculation; no served weather number formula changed and no runtime rollout yet.
+
+Regression RED: backend8failed2pass (stalled await/absent availability), UI3failed23pass. GREEN:
+23backend including10new+13adjacent composition/spot-reference controls;36focusedUI;36floorchecks;
+build and lint passed. Original restricted Windows backend run stalled and was stopped; escalated
+isolated run completed. CRA direct Jest invocation discovered no tests on Windows; project Craco
+configuration exercised the real26loading cases correctly. Local Python still lacks2declaredpackages,
+so hosted results are authority. New file is guards196 (not estate); projected2668passes, floor2662,
+margin6 preserved. Full frontend verification pending at this checkpoint. Shared rollout and real
+76case after acceptance remain pending; owner will review the concrete application change first.
+Ledger1273-1275 records dispatch, cancellation/diagnosis and source repair.
+
+Full local frontend434suites/5581tests passed (205.5s); build completed with inheritedwarnings and
+lint-debt gate passed. No tracked generated build files. Canonical ledger prefix verified, docs audit
+0FAIL14inheritedWARN24NOTE. New application candidate now moves to its own hosted qualification;
+prior43/279source results are not inherited and live rollout remains pending.

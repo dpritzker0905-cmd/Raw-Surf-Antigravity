@@ -10,6 +10,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 import httpx
 import logging
+import asyncio
 
 from database import get_db
 from models import Profile, SurfSpot, Post, SurfReport
@@ -31,6 +32,9 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
+
+# Forecast enrichment is optional; leave room for metadata queries under the client's 15s budget.
+SPOT_FORECAST_TIMEOUT_SECONDS = 8
 
 
 @router.get("/explore/spot-details/{spot_id}")
@@ -81,18 +85,26 @@ async def get_spot_details(
         "best_swell": getattr(spot, 'best_swell', None),
         "current_conditions": None,
         "forecast": [],
+        "forecast_status": "unavailable",
         "forecast_days_allowed": forecast_days_after_today
     }
     
     # Fetch real-time conditions and forecast using unified service
     try:
-        conditions_data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
-            spot_id=spot.id
+        conditions_data = await asyncio.wait_for(
+            point_resolution_service.resolve_spot_conditions(
+                model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
+                spot_id=spot.id
+            ),
+            timeout=SPOT_FORECAST_TIMEOUT_SECONDS,
         )
         if conditions_data:
             spot_data["current_conditions"] = conditions_data.get("current_conditions")
             spot_data["forecast"] = conditions_data.get("forecast", [])
+            if spot_data["current_conditions"] is not None or spot_data["forecast"]:
+                spot_data["forecast_status"] = "ready"
+    except TimeoutError:
+        logger.warning("Forecast deadline exceeded for spot %s; returning known metadata", spot.id)
     except Exception as e:
         logger.error(f"Error fetching conditions for {spot.name} via service: {e}")
     

@@ -174,3 +174,24 @@ it.each(['rejected', 'empty'])('optional %s responses preserve the valid spot', 
   expect(await screen.findByTestId('close-spothub-btn')).toBeInTheDocument();
   expect(screen.queryByText('Unable to load this spot')).not.toBeInTheDocument();
 });
+
+it.each(['dark', 'light', 'beach'])('keeps metadata and an honest manual forecast retry in %s', async (theme) => {
+  mockTheme = theme;
+  let attempts = 0;
+  respond(() => Promise.resolve({ data: {
+    ...spot().data,
+    forecast_status: ++attempts === 1 ? 'unavailable' : 'ready',
+    current_conditions: attempts === 1 ? null : { wave_height_ft: 2.3, label: 'Waist High' },
+    forecast: [],
+  } }));
+  render(<SpotHub />);
+  expect(await screen.findByTestId('close-spothub-btn')).toBeInTheDocument();
+  expect(screen.getByText('Forecast temporarily unavailable')).toBeInTheDocument();
+  expect(screen.queryByText(/^0(?:\.0+)?ft$/)).not.toBeInTheDocument();
+  expect(detailCalls()).toHaveLength(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry forecast', exact: true }));
+  await waitFor(() => expect(detailCalls()).toHaveLength(2));
+  await waitFor(() => expect(screen.queryByText('Forecast temporarily unavailable')).not.toBeInTheDocument());
+  expect(screen.getAllByText('2.3ft').length).toBeGreaterThan(0);
+  expect(screen.getByTestId('close-spothub-btn')).toBeInTheDocument();
+});
