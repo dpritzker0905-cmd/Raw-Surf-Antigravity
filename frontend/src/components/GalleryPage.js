@@ -665,7 +665,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
       {/* All Media section removed -- photographers upload into session folders only */}
 
       <TagAssignModal {...{
-        showTagAssignModal, setShowTagAssignModal, selectedGallery, selectedItems, galleryItems,
+        showTagAssignModal, setShowTagAssignModal, selectedGallery, selectedItems, setSelectedItems, galleryItems,
         participantsLoading, participants, aiAutoTagLoading, handleAiAutoTag, batchTagLoading,
         distributeLoading, handleBatchTagToSurfer, distributeAllLoading, handleDistributeAll,
         sessionInfo, manualSurferSearch, setManualSurferSearch, handleSearchSurfers,

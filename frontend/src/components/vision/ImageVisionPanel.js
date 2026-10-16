@@ -3,13 +3,15 @@ import apiClient from '../../lib/apiClient';
 import { getFullUrl } from '../../utils/media';
 import { Button } from '../ui/button';
 import { useThemeName } from '../../contexts/ThemeContext';
+import { BoardClueReview } from './BoardClueReview';
 
 // One explicit scan per photo: never batch paid requests or infer profile identities.
-export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) => {
+export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply, includeBoardClues = false, onReviewPhoto }) => {
   const theme = useThemeName();
   const photoFieldTheme = theme === 'beach' ? 'bg-amber-50 text-amber-900' : 'bg-background text-foreground';
   const [selectedId, setSelectedId] = useState('');
   const [analysis, setAnalysis] = useState(null);
+  const [boardReview, setBoardReview] = useState(null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const request = useRef(0);
@@ -23,10 +25,11 @@ export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) =
     request.current += 1;
     busy.current = false;
     setAnalysis(null);
+    setBoardReview(null);
     setError('');
     setPending(false);
     return () => { request.current += 1; };
-  }, [imageId, imageUrl, kind, boardId]);
+  }, [imageId, imageUrl, kind, boardId, includeBoardClues]);
 
   const scan = async () => {
     if (!imageUrl || busy.current) return;
@@ -35,16 +38,21 @@ export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) =
     setPending(true);
     setError('');
     setAnalysis(null);
+    setBoardReview(null);
     try {
       const payload = isBoard
         ? { image_url: imageUrl, ...(boardId ? { surfboard_id: boardId } : {}) }
-        : { image_url: imageUrl, gallery_item_id: imageId };
+        : { image_url: imageUrl, gallery_item_id: imageId, ...(includeBoardClues ? { include_board_clues: true } : {}) };
       const { data } = await apiClient.post(isBoard ? '/ai/scan-surfboard' : '/ai/suggest-tags', payload);
       if (version !== request.current) return;
       if (!data.success || !data.analysis || typeof data.analysis !== 'object') {
         throw new Error('Image analysis did not return a result.');
       }
       setAnalysis(data.analysis);
+      if (!isBoard && includeBoardClues) setBoardReview({
+        clues: data.board_clues || [], status: data.board_clue_status,
+        truncated: data.board_clues_truncated, people: data.analysis.people || [],
+      });
     } catch (failure) {
       if (version === request.current) {
         const detail = failure.response?.data?.detail;
@@ -79,7 +87,9 @@ export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) =
       <p className="text-xs text-muted-foreground">
         {isBoard
           ? 'Scanning sends this photo to OpenAI. Review suggestions before saving; measurements are not estimated.'
-          : 'Scanning sends one photo to OpenAI for a description and visual tags. Select known surfers manually; faces are not matched to profiles.'}
+          : includeBoardClues
+            ? 'Scanning sends one photo to OpenAI. Visible board details are compared locally with linked participants’ saved boards for manual review. Saved boards and profiles are not sent to OpenAI.'
+            : 'Scanning sends one photo to OpenAI for a description and visual tags. Select known surfers manually; faces are not matched to profiles.'}
       </p>
       <Button type="button" variant="outline" disabled={!image || pending} onClick={scan}>
         {pending ? 'Scanning…' : isBoard ? 'Scan Surfboard' : 'Scan Photo'}
@@ -106,6 +116,12 @@ export const ImageVisionPanel = ({ images, kind = 'photo', boardId, onApply }) =
             {analysis.visual_tags?.map((tag, index) => <li key={`${index}-${tag}`} className="rounded border border-border px-2 py-1">{tag}</li>)}
           </ul>
           <p className="text-xs text-muted-foreground">These descriptions do not identify people. Use manual assignment below.</p>
+          {boardReview && <BoardClueReview {...boardReview} />}
+          {boardReview && onReviewPhoto && <>
+            <p className="text-xs text-muted-foreground">Board clues apply only to the photo shown. Limit the selection before assigning it to a surfer.</p>
+            <Button type="button" variant="outline" className="h-auto whitespace-normal text-left"
+              onClick={() => onReviewPhoto(imageId)}>Use only this photo for manual assignment</Button>
+          </>}
         </>}
       </div>}
     </section>
