@@ -91,3 +91,28 @@ Full local frontend434suites/5581tests passed (205.5s); build completed with inh
 lint-debt gate passed. No tracked generated build files. Canonical ledger prefix verified, docs audit
 0FAIL14inheritedWARN24NOTE. New application candidate now moves to its own hosted qualification;
 prior43/279source results are not inherited and live rollout remains pending.
+
+## Final compatibility protection,2026-10-16 02:51Z
+
+Published60857ebe3ea76dd06255ee7acfb38caa29ed6463 passed16contextsSUCCESS. CI38840559870 success;
+guards2735collected/196files -> raw2668pass66skip1xfail, normalized2668pass67skip0failed0errors.
+Do not inherit these results for later compatibility bytes.
+
+Read frozen production sourcefc140024: apiClient timeout60000; DEV has15000. Production SpotHub
+conditionally renders current_conditions and nonemptyforecasts, so it tolerates missingdata but cannot
+show the new availability message. Preserve its EXISTING forecastwait and values, rather than imposing
+DEV's8s optional deadline on all clients. Final API adds allow_partial_forecast=False; only updatedDEV
+requests explicitly sendTrue. New component can present partialavailability and manualRetryforecast.
+No global weather flag activation, math/source/cache/clock/horizon change or production frontend update.
+
+Added default/legacy-client compatibility regression (resolver deliberately slower than artificialnew
+budget but must return unchanged values); per-theme UI assertions require the explicit opt-in query.
+Local60backend checks pass (11new+13adjacent+36floor);36focusedUI pass. Real isolated ASGI requests:
+legacy200/ready/value-preserved vs opt-in200/unavailable/metadata-preserved, exactlyonecancelledlookup.
+This is local fakeDB/provider evidence, not live after acceptance. Initial scoped HTTP check also
+returnedmetadata/unavailable correctly; its1.259s included local mapperstartup and is not a strict
+wall-clock or production latency guarantee. Metadata DBwaits remain separately unbounded.
+New guard projection2669passed/196files; floor2663 preserves6margin; estate1674/chain2444 unchanged.
+Source syntax/lint/diff pass. The current gate is fresh exact-head hosted qualification, then repair
+rollout under the direct fix request and standing dev/shared-backend constraints. No rollout yet;
+cap enabled and production frontend locked, no paid provider call. Ledger1276 records this refinement.

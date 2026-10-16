@@ -865,8 +865,8 @@ jobs:
           # asked for, dark): tests/test_wind_bg_build_bounded.py (17), selector-verified into this lane; hosted reading
           # on dev 9e11676c (CI 38013820511: 194 files, 2641 passed, 67 skipped) -> projected 2658/195; 2658 - 6 = 2652.
           # This PR must read 195 files / 2658.
-          # Spot-details forecast deadline adds10 guards cases /1file: projected2668/196, margin6.
-          MIN_FILES, MIN_PASSED = 196, 2662
+          # Spot-details deadline/legacy compatibility adds11 guards cases: projected2669/196, margin6.
+          MIN_FILES, MIN_PASSED = 196, 2663
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

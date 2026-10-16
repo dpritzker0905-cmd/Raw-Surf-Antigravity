@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 
-# Forecast enrichment is optional; leave room for metadata queries under the client's 15s budget.
+# Opt-in metadata-first clients leave room for queries under their 15s request budget.
 SPOT_FORECAST_TIMEOUT_SECONDS = 8
 
 
@@ -42,6 +42,7 @@ async def get_spot_details(
     spot_id: str,
     subscription_tier: str = "free",
     model: str = Query("GFS", pattern="^(GFS|ICON|EURO)$"),
+    allow_partial_forecast: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -91,13 +92,14 @@ async def get_spot_details(
     
     # Fetch real-time conditions and forecast using unified service
     try:
-        conditions_data = await asyncio.wait_for(
-            point_resolution_service.resolve_spot_conditions(
-                model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
-                spot_id=spot.id
-            ),
-            timeout=SPOT_FORECAST_TIMEOUT_SECONDS,
+        forecast_request = point_resolution_service.resolve_spot_conditions(
+            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
+            spot_id=spot.id
         )
+        # Older clients (including the locked production frontend) retain their existing wait.
+        # Only clients that can present partial forecast availability opt into this contract.
+        conditions_data = (await asyncio.wait_for(forecast_request, SPOT_FORECAST_TIMEOUT_SECONDS)
+                           if allow_partial_forecast else await forecast_request)
         if conditions_data:
             spot_data["current_conditions"] = conditions_data.get("current_conditions")
             spot_data["forecast"] = conditions_data.get("forecast", [])

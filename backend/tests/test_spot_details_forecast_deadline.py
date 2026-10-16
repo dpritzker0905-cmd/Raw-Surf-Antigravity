@@ -20,7 +20,8 @@ def database(spot_exists=True):
 
 
 async def read(db):
-    return await route.get_spot_details("deadline-spot", subscription_tier="premium", model="ICON", db=db)
+    return await route.get_spot_details("deadline-spot", subscription_tier="premium", model="ICON",
+                                       allow_partial_forecast=True, db=db)
 
 
 @pytest.mark.asyncio
@@ -55,6 +56,22 @@ async def test_ready_forecast_keeps_composition_and_request_identity(monkeypatch
     assert result["current_conditions"] == conditions["current_conditions"]
     assert result["forecast"] == conditions["forecast"] and result["forecast_status"] == "ready"
     resolver.assert_awaited_once_with(model="ICON", lat=28.4, lng=-80.6, forecast_days=11, spot_id="deadline-spot")
+
+
+@pytest.mark.asyncio
+async def test_older_clients_keep_their_existing_forecast_wait(monkeypatch):
+    conditions = {"current_conditions": {"wave_height_ft": 2.3}, "forecast": []}
+
+    async def slower_than_new_budget(**kwargs):
+        await asyncio.sleep(0.02)
+        return conditions
+
+    monkeypatch.setattr(route, "SPOT_FORECAST_TIMEOUT_SECONDS", 0.001)
+    monkeypatch.setattr(route.point_resolution_service, "resolve_spot_conditions", slower_than_new_budget)
+    # Deliberately omit the opt-in, just as the pinned production client does.
+    result = await route.get_spot_details("deadline-spot", subscription_tier="premium", model="ICON", db=database())
+    assert result["forecast_status"] == "ready"
+    assert result["current_conditions"] == conditions["current_conditions"]
 
 
 @pytest.mark.asyncio

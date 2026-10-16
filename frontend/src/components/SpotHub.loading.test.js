@@ -189,6 +189,7 @@ it.each(['dark', 'light', 'beach'])('keeps metadata and an honest manual forecas
   expect(screen.getByText('Forecast temporarily unavailable')).toBeInTheDocument();
   expect(screen.queryByText(/^0(?:\.0+)?ft$/)).not.toBeInTheDocument();
   expect(detailCalls()).toHaveLength(1);
+  expect(detailCalls()[0][0]).toContain('&allow_partial_forecast=true');
   fireEvent.click(screen.getByRole('button', { name: 'Retry forecast', exact: true }));
   await waitFor(() => expect(detailCalls()).toHaveLength(2));
   await waitFor(() => expect(screen.queryByText('Forecast temporarily unavailable')).not.toBeInTheDocument());
