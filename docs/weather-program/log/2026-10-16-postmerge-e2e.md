@@ -116,3 +116,36 @@ New guard projection2669passed/196files; floor2663 preserves6margin; estate1674/
 Source syntax/lint/diff pass. The current gate is fresh exact-head hosted qualification, then repair
 rollout under the direct fix request and standing dev/shared-backend constraints. No rollout yet;
 cap enabled and production frontend locked, no paid provider call. Ledger1276 records this refinement.
+
+## Approved release, 2026-10-16 03:19Z
+
+Final frozen source7afa9fb37fb9bb6415a914808934f6a842ae6878 passed all16 hosted contexts;
+CI38842605958 guards2736collected/196files -> raw2669passed66skipped1xfail, normalized
+2669passed67skipped0failed0errors. PR341 ready/CLEAN. Earlier merge attempt was rejected by
+automatic approval review pending explicit permission for this new PR. Owner then directly answered
+the concrete release question: "Merge, deploy, and verify". Fresh escalated GitHub read confirmed
+OPEN/ready/CLEAN exact7afa/all16SUCCESS before the successful exact-head squash merge.
+
+PR341 merged03:13:31Z as db45393778a3112a022a4f12542b7e5bef3e3e09; fetched remote dev exact,
+entire tree byte-equivalent to qualified7afa. Skip Render/Netlify markers preserved manual rollout.
+Shared Render manual latest commit live03:17:49Z; DEV Netlify retry latest branch commit successful.
+Public03:18 health exactdb453937, healthy, database/scheduler pass, restorecomplete0errors.
+DEV service workerdb453937; production workerfc140024 and Auto Publishing Locked.
+Fresh restarted backend shell: capenabledtrue, initializedtrue, limit10, reserved5.45 (available4.55).
+No reset, refund, initialization, key/setting/weather-flag changes or paid OpenAI call.
+
+Single automatic post-merge E2E38844443293 targets this merge. Exact frontend gate passed;
+install/backend readiness/browser acceptance pending at this checkpoint. Do not inherit older
+failed/cancelled run verdicts or call the live browser run green before completion.
+
+Correction to ledger1278: its non-escalated gh read failed network; the stated OPEN readback was
+not freshly obtained then. The rejection occurred before merge execution. This release's fresh
+escalated premerge and postmerge reads supply the actual evidence. Ledger1279-1282 records
+explicit approval, merge, correction and verified rollout. Release receipt branch starts at exactdev.
+
+Post-merge source CI38844443190 SUCCESS. E2E both exact version/readiness gates passed; Mobile
+Safari real spot navigation200/12380ms, forced503/manual-recovery then real200/13170ms passed,
+as did its model-switching cases. Chrome log then stopped advancing after test24 (Explore cards).
+GitHub still in_progress, no artifact/terminal verdict. Render opt-in spot-details200 responses
+observed03:25:32Z/03:25:41Z and03:32:04Z/03:32:14Z; they do not prove browser acceptance or
+locate the stall. Await bounded report, do not equate these200s with a green run. Ledger1283.
