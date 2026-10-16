@@ -467,7 +467,9 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Actor-route binding batch 2: +69 estate (existing file) on hosted 1475 / 306 files (floor 1542).
 # Bounded wind background build: +17 guards (one new file) on hosted 2641 / 194 files (floor 2652).
 # Reflection AI route ownership/availability: +34 estate cases; projected1579, margin2.
-_FLOOR_SET_FROM = {"guards": 2669, "chain": 2444, "estate": 1674}
+# Skill-ledger day objects: +5 guards (existing monitor file) and +29 chain (one new file) on hosted 2669 / 2444
+# (floors 2668 / 2467; chain files 163 -> 164).
+_FLOOR_SET_FROM = {"guards": 2674, "chain": 2473, "estate": 1674}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
