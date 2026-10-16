@@ -55,39 +55,83 @@ def field(lat, lng, h):
     return round(hs, 3), round(direction, 1), round(6.5 + 1.1 * hs, 2)
 
 
-# Provider fields MIRROR PRODUCTION (read from the real manifest 2026-10-16: every GFS marine waves entry is provider
-# "open-meteo", upstream_provider "noaa", source_dataset "ncep_gfswave025"). They are load-bearing: WebGLMarineLayer drops a frame
-# whose grid provider is not whitelisted ("noaa" is not) and silently keeps the previous hour. The first cut said "noaa" and
-# produced a scrub that never rendered, which looked like an app bug and was this fixture (ledger 1297).
-def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES):
+# Provider fields MIRROR PRODUCTION (read from the real manifest 2026-10-16). They are load-bearing: WebGLMarineLayer drops a frame
+# whose grid provider is not whitelisted and silently keeps the previous hour. The first cut said "noaa" for GFS and produced a
+# scrub that never rendered, which looked like an app bug and was this fixture (ledger 1297).
+#   GFS waves   : provider "open-meteo", upstream_provider "noaa", source_dataset "ncep_gfswave025"
+#   ICON waves  : provider "open-meteo", upstream_provider "dwd",  source_dataset "dwd_gwam"        (native, to hour 168)
+#   ICON beyond : provider "estimated", upstream_provider None, source_dataset "estimated_blend", is_estimated True,
+#                 is_forecast_authoritative False, model_run_time None / status "conflicting", estimate_basis
+#                 {"type": "icon_persistence_gfs_blend", "native_limit_hours": 168, ...}   (hours 171 to 336)
+ICON_NATIVE_HOURS = 168
+SCALE = {"GFS": 1.0, "ICON": 0.92}
+STEMS = {"GFS": "gfs_marine_waves_", "ICON": "icon_marine_waves_"}
+
+
+def provider_fields(model, estimated):
+    if estimated:
+        return {"provider": "estimated", "upstream_provider": None, "source_dataset": "estimated_blend"}
+    if model == "ICON":
+        return {"provider": "open-meteo", "upstream_provider": "dwd", "source_dataset": "dwd_gwam"}
+    return {"provider": "open-meteo", "upstream_provider": "noaa", "source_dataset": "ncep_gfswave025"}
+
+
+def estimate_basis(valid_time, region_id):
+    stamp = valid_time.strftime("%Y%m%dT%H%M%SZ")
+    return {
+        "type": "icon_persistence_gfs_blend", "target_valid_time": valid_time.isoformat(), "layer": "waves",
+        "region_id": region_id, "tile_id": region_id, "native_limit_hours": ICON_NATIVE_HOURS,
+        "gfs_anchor_product_id": f"gfs_marine_waves_{region_id}_{stamp}.json", "gfs_target_product_id": f"gfs_marine_waves_{region_id}_{stamp}.json",
+        "icon_anchor_product_id": None, "icon_target_product_id": None,
+        "weights": {"persistence": 0.6625, "gfs": 0.3375, "icon": 0.0}, "confidence": 0.98,
+        "anchor_delta_hours": 0.0, "target_delta_hours": 0.0, "cycle_semantics": "shared_contributor_cycle", "cycle_sources": [],
+    }
+
+
+def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES, model="GFS", estimated=False):
     rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
     cols = int(round((bounds["east"] - bounds["west"]) / res)) + 1
+    scale = SCALE[model]
     vectors = []
     for r in range(rows):
         lat = round(bounds["south"] + r * res, 4)
         for c in range(cols):
             lng = round(bounds["west"] + c * res, 4)
             hs, direction, period = field(lat, lng, h)
+            hs = round(max(0.15, hs * scale), 3)
             rad = math.radians(direction)
             vectors.append({"lat": lat, "lng": lng, "speed": hs, "direction": direction,
                             "u": round(hs * math.sin(rad), 4), "v": round(hs * math.cos(rad), 4),
                             "period": period, "is_valid": True})
     iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
-    return {
-        "model": "GFS", "provider": "open-meteo", "domain": "marine", "layer": "waves",
-        "run_time": iso(run_time), "model_run_time": iso(run_time), "model_run_time_status": "known",
-        "ingested_at": iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
-        "is_forecast_authoritative": True, "is_estimated": False,
+    body = {
+        "model": model, "domain": "marine", "layer": "waves",
+        "run_time": iso(run_time + timedelta(hours=4)) if estimated else iso(run_time),
+        "model_run_time": None if estimated else iso(run_time), "model_run_time_status": "conflicting" if estimated else "known",
+        "ingested_at": None if estimated else iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
+        "is_forecast_authoritative": not estimated, "is_estimated": estimated,
+        "estimate_basis": estimate_basis(valid_time, region_id) if estimated else None,
         "coverage": COVERAGE,
         "grid": {"bounds": dict(bounds), "cols": cols, "rows": rows, "vectors": vectors, "diagnostics": {"source": "stored"}},
         "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft",
-        "product_id": filename, "source_variables": ["wave_height"], "freshness_sec": 3600,
+        "product_id": filename, "source_variables": ["wave_height"], "freshness_sec": 1800 if estimated else 3600,
         "region_id": region_id, "coverage_mode": "global_tile", "resolution": None,
-        "upstream_provider": "noaa", "source_dataset": "ncep_gfswave025",
     }
+    body.update(provider_fields(model, estimated))
+    return body
 
 
-def build_store(directory, horizon_hours, step_hours, now=None):
+def manifest_entry(body, filename, res, bounds_unused=None):
+    keys = ("model", "provider", "domain", "layer", "run_time", "model_run_time", "model_run_time_status", "ingested_at",
+            "freshness_sec", "is_forecast_authoritative", "coverage", "is_estimated", "estimate_basis", "region_id",
+            "coverage_mode", "upstream_provider", "source_dataset")
+    entry = {k: body[k] for k in keys}
+    entry.update({"valid_time_start": body["valid_time"], "valid_time_end": body["valid_time"], "resolution": res,
+                  "filename": filename, "product_id": filename})
+    return entry
+
+
+def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON")):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     now = now or datetime.now(timezone.utc)
@@ -96,25 +140,22 @@ def build_store(directory, horizon_hours, step_hours, now=None):
     run_time = first - timedelta(hours=first.hour % 6)
     entries = []
     n = int(horizon_hours // step_hours) + 3
-    iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
     for i in range(n):
         vt = first + timedelta(hours=i * step_hours)
         stamp = vt.strftime("%Y%m%dT%H%M%SZ")
-        for region_id, bounds, res, stem in TIERS:
-            filename = f"{stem}{stamp}.json"
-            body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res)
-            (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
-            entries.append({
-                "model": "GFS", "provider": "open-meteo", "domain": "marine", "layer": "waves", "run_time": iso(run_time),
-                "model_run_time": iso(run_time), "model_run_time_status": "known", "ingested_at": iso(run_time + timedelta(hours=4)),
-                "valid_time_start": iso(vt), "valid_time_end": iso(vt), "resolution": res, "freshness_sec": 3600,
-                "is_forecast_authoritative": True, "coverage": COVERAGE, "filename": filename, "product_id": filename,
-                "region_id": region_id, "coverage_mode": "global_tile", "upstream_provider": "noaa", "source_dataset": "ncep_gfswave025",
-            })
+        for model in models:
+            estimated = model == "ICON" and (vt - run_time) > timedelta(hours=ICON_NATIVE_HOURS)
+            for region_id, bounds, res, gfs_stem in TIERS:
+                suffix = "_estimated" if estimated else ""
+                filename = f"{STEMS[model]}{gfs_stem.split('waves_')[1]}{stamp}{suffix}.json"
+                body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated)
+                (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+                entries.append(manifest_entry(body, filename, res))
     (directory / "manifest.json").write_text(
         json.dumps({"last_manifest_update": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": entries}),
         encoding="utf-8")
-    return {"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"), "frames": n, "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    return {"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"), "frames": n, "models": list(models),
+            "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
 def main():
@@ -124,6 +165,7 @@ def main():
     ap.add_argument("--thin-bounds", choices=["0", "1"], default="0")
     ap.add_argument("--horizon", type=int, default=336)
     ap.add_argument("--step", type=int, default=3)
+    ap.add_argument("--models", default="GFS,ICON")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
 
@@ -148,7 +190,7 @@ def main():
     sys.path.insert(0, str(BACKEND))
     os.chdir(BACKEND)
 
-    meta = build_store(args.dir, args.horizon, args.step) if not (Path(args.dir) / "manifest.json").exists() else {"reused": True}
+    meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(','))) if not (Path(args.dir) / "manifest.json").exists() else {"reused": True}
     print(json.dumps({"store": meta, "thin_bounds": args.thin_bounds}), flush=True)
     if args.build_only:
         return
