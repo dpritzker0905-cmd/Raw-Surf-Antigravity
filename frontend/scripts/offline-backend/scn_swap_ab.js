@@ -6,6 +6,8 @@
 const fs = require('fs');
 const L = require('./ab_lib.js');
 const PORT = +(process.env.PORT || 4100);
+// LAT_SERIES / LAT_GRID (ms) hold each /grid_series page / /grid reply back, to replay live-like latency (the live box answers a 48-frame world page in ~7-13 s).
+const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const read = () => {
@@ -21,7 +23,7 @@ const read = () => {
 };
 
 (async () => {
-  const { browser, page, log } = await L.launch({ port: PORT });
+  const { browser, page, log } = await L.launch({ port: PORT, hooks: { beforeWeather: async (url) => { const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
   const timeline = []; let last = ''; let stop = false;
   const sampler = (async () => {
     while (!stop) {
@@ -67,6 +69,6 @@ const read = () => {
       errors: log.errors.length, blockedWs: log.blockedWs.length, per,
     };
     console.log(JSON.stringify(summary, null, 1));
-    if (process.env.AB_OUT) fs.writeFileSync(process.env.AB_OUT, JSON.stringify({ summary, marks, timeline }, null, 1));
+    if (process.env.AB_OUT) fs.writeFileSync(process.env.AB_OUT, JSON.stringify({ summary, marks, timeline, requests: log.requests.map((r) => ({ t: r.t, ms: r.ms, path: r.path, vt: r.q && r.q.valid_time, hours: r.q && r.q.hours ? r.q.hours.split(',').length : undefined, first: r.q && r.q.hours ? r.q.hours.split(',')[0] : undefined, status: r.status })) }, null, 1));
   } finally { stop = true; await browser.close(); }
 })().catch((e) => { console.error('FAIL', e.message); process.exit(1); });
