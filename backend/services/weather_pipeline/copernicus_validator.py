@@ -270,10 +270,7 @@ def quarantine_invalid_copernicus_products_helper(store):
 
 def prune_old_products_helper(store, before_time: datetime):
     """Cleans up old JSON product files that fall before the cutoff date."""
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
@@ -292,9 +289,7 @@ def prune_old_products_helper(store, before_time: datetime):
     try:
         # exclude_keys: the entries just deleted are still in the remote manifest — folding them
         # back would resurrect dangling references to L2 objects we just destroyed (audit #28).
-        reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
-        manifest_json = dump_manifest_for_l2(manifest)
-        _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+        submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
     except Exception as e:
         logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
 
@@ -314,10 +309,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
     if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
         from services.weather_pipeline.prune_verified_cycles import prune_verified_cycles
         return prune_verified_cycles(store)
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
     manifest = store.get_manifest()
 
     # PROVENANCE-AWARE ranking (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed
@@ -360,9 +352,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
         manifest.last_manifest_update = datetime.now(timezone.utc)
         store._save_manifest(manifest)
         try:
-            reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
-            manifest_json = dump_manifest_for_l2(manifest)
-            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+            submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit after duplicate sweep failed: {e}")
         logger.info(f"[Product Store] Duplicate-valid_time sweep pruned {pruned} superseded products.")
@@ -407,10 +397,7 @@ def prune_superseded_products_helper(
                          or (region_id and product.region_id is None and product.coverage_mode == 'global_tile')))
 
         return prune_verified_cycles(store, lane)
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
@@ -465,9 +452,7 @@ def prune_superseded_products_helper(
         manifest.products = remaining_products
         store._save_manifest(manifest)
         try:
-            reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
-            manifest_json = dump_manifest_for_l2(manifest)
-            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+            submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
             logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")

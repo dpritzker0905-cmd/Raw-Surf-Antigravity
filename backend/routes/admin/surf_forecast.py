@@ -38,6 +38,12 @@ _RATING_FLAGS = {
     "SERIES_THIN_NODE_BOUNDS": ("0", "A thinned series frame carries the bounds of the cells it kept, so the client draws it "
                                      "where its cells are (off: up to 4 deg too far north on a thinned world frame)", "Render env"),
     "MANIFEST_IMMUTABLE_PUBLICATION": ("0", "Publish unique create-only manifest copies only after durable upload acknowledgment", "Render env + ingestion/precompute/monitor together"),
+    # WHAT THE MANIFEST HOLDS, not how it is computed: the L2 writers read the head, merge and compare-and-swap in ONE step
+    # on the manifest executor (services/weather_pipeline/manifest_publish_step.py), so one writer's snapshot can no longer erase
+    # another's registrations (2026-10-16, 14 EURO wind frames). Only the L2 WRITERS read it; Render serves and never writes.
+    "MANIFEST_PUBLISH_ONE_STEP": ("0", "Manifest writers merge against the head they will compare-and-swap from, in one retried "
+                                       "coalesced step; an unmerged snapshot is never published over a moved head",
+                                  "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the L2 writers); NOT Render"),
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
     "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),

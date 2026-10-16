@@ -171,7 +171,7 @@ def _past_retention(valid_time_start, cutoff) -> bool:
         return False
 
 
-def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
+def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_products=None) -> int:
     """MANIFEST CONCURRENCY (2026-07-14, next-phase queue #1): manifest.json has no If-Match/CAS
     precondition, so two ingest processes (core + pilots) racing the upload each re-serialize
     their OWN full in-memory snapshot — whichever lands last silently erases every registration
@@ -202,11 +202,17 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     their metadata update reverts until their next registration.
     Never raises: any failure leaves the local snapshot as the sole upload basis (pre-fix
     behavior). Kill switch: MANIFEST_MERGE_ON_UPLOAD=0.
+
+    `remote_products` (manifest_publish_step, 2026-10-16): the head's raw product list, when the caller already holds the
+    head it will CAS against. None = fetch as above; any list (even []) is used as given and a failure RAISES, because a
+    swallowed one would hand a compare-and-swap an unmerged snapshot that looks merged.
     """
     if os.environ.get("MANIFEST_MERGE_ON_UPLOAD", "1") == "0":
         return 0
+    supplied = remote_products is not None
     try:
-        remote_products = _fetch_remote_manifest_products()
+        if not supplied:
+            remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
         # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
@@ -266,6 +272,8 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
                         f"concurrent-writer entries before upload.")
         return len(folded)
     except Exception as e:
+        if supplied:
+            raise
         logger.warning(f"[Product Store] Manifest reconciliation skipped (upload proceeds with local snapshot): {e}")
         return 0
 

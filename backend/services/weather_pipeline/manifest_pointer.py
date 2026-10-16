@@ -28,6 +28,7 @@ import os
 import json
 import logging
 import threading
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Optional, Tuple
 
@@ -38,6 +39,22 @@ KEEP_RUN_KEYED = 5  # ring of retained run-keyed manifests (readers mid-GET stay
 
 _disabled_for_process = False
 _disable_lock = threading.Lock()
+_suppressed = threading.local()
+
+
+@contextmanager
+def publish_run_keyed_suppressed():
+    """On THIS thread, publish_run_keyed is a no-op for the duration of the block.
+
+    manifest_publish_step commits a merged snapshot through the pointer itself and only then PUTs the same bytes to the
+    legacy manifest.json (the readers' fallback). That PUT ends in publish_run_keyed, which would read the pointer
+    again and publish a second generation, from a fresh read, with bytes that never saw the head it moved to."""
+    previous = getattr(_suppressed, "active", False)
+    _suppressed.active = True
+    try:
+        yield
+    finally:
+        _suppressed.active = previous
 
 
 def pointer_enabled() -> bool:
@@ -163,6 +180,8 @@ def publish_run_keyed(store, manifest_bytes: bytes, upload_fn, delete_fn) -> Opt
     Returns the published key, or None (lane disabled / CAS lost / any failure).
     Never raises: the legacy lane must be unaffected by ANY failure here.
     """
+    if getattr(_suppressed, "active", False):
+        return None  # manifest_publish_step already committed these bytes through the pointer
     if not pointer_enabled():
         return None
     if os.environ.get("MANIFEST_IMMUTABLE_PUBLICATION", "0") == "1":
@@ -206,6 +225,30 @@ def publish_run_keyed(store, manifest_bytes: bytes, upload_fn, delete_fn) -> Opt
         return key
     except Exception as e:
         logger.warning(f"[Manifest Pointer] publish failed (legacy lane unaffected): {e}")
+        return None
+
+
+def fetch_manifest_object(key: str) -> Optional[bytes]:
+    """GET one run-keyed manifest object by the key the pointer row names (plain GET, immutable object).
+
+    The one-step publisher reads the head BY KEY, so the bytes it merges are the bytes of the generation it will
+    compare-and-swap from, never a second read that could belong to a later generation. Never raises; None on any
+    failure (the caller treats that as a failed attempt, not as 'no head')."""
+    if not key:
+        return None
+    base, headers = _rest_base_and_headers()
+    if not base:
+        return None
+    try:
+        import requests
+        from services.weather_pipeline.store import WEATHER_BUCKET
+        resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}", headers=headers, timeout=30)
+        if resp.status_code != 200:
+            logger.warning(f"[Manifest Pointer] manifest object GET {key} -> HTTP {resp.status_code}")
+            return None
+        return resp.content
+    except Exception as e:
+        logger.warning(f"[Manifest Pointer] manifest object fetch failed for {key}: {e}")
         return None
 
 
