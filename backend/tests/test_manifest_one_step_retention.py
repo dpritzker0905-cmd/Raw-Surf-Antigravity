@@ -5,6 +5,7 @@ writer that publishes every few minutes and ruinous for this lane, which publish
 spacing, none deleted, about 16 MB each. The lane therefore retires its own copies after each WON swap at generation G: ONE bounded
 listing, and ONE bounded batch delete of the objects whose generation is <= G-5 AND that are older than a short grace. The chain
 fixture does not stub retention: it runs for real against the Chain's Storage and clock."""
+import logging
 from datetime import timedelta
 
 import pytest
@@ -68,6 +69,16 @@ def test_the_head_and_the_newest_generations_survive_however_old_they_are(chain,
     publish(store)
     assert chain.head_key in chain.objects and generations_left(chain) == [17, 18, 19, 20, 21]
     assert chain.head_key not in {key for _, prefixes, _ in chain.delete_requests for key in prefixes}
+
+
+def test_a_copy_touched_within_the_grace_is_kept_even_though_it_was_created_long_ago(chain, store, inline):
+    """The age is the NEWER of created_at and updated_at (a reader, or a replaced object, restarts the grace): a fake whose two
+    stamps differ, which the default one (created == updated) could never show."""
+    settle_at(chain, 20)
+    seed(chain, [3, 4], age_seconds=3600)
+    chain.updated[copy_key(3)] = chain.now - timedelta(seconds=10)
+    publish(store)
+    assert 3 in generations_left(chain) and 4 not in generations_left(chain)
 
 
 def test_a_copy_younger_than_the_grace_is_kept_even_when_its_generation_is_old(chain, store, inline):
@@ -199,3 +210,27 @@ def test_without_storage_configuration_retention_is_skipped_quietly(chain, store
     seed(chain, range(1, 20), age_seconds=3600)
     publish(store)
     assert len(chain.wins()) == 1 and chain.list_requests == []
+
+
+# ── the gauge: how many unique copies are standing, how many this win deleted (round-5 finding 6) ─────────────────────────
+
+def test_one_info_line_after_retention_says_how_many_copies_stand_and_how_many_were_deleted(chain, store, inline, caplog):
+    import re
+    settle_at(chain, 20)
+    seed(chain, range(1, 20), age_seconds=3600)
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    lines = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage()]
+    assert len(lines) == 1, lines
+    match = re.search(r"(\d+) unique manifest cop\w+ standing.* (\d+) deleted", lines[0])
+    assert match and (int(match[1]), int(match[2])) == (21, 16), lines[0]
+
+
+def test_the_gauge_says_so_when_the_listing_was_capped_and_when_nothing_was_deleted(chain, store, inline, caplog):
+    settle_at(chain, 130)
+    seed(chain, range(100, 130), age_seconds=10)                    # nothing old enough
+    seed(chain, range(1, 100), age_seconds=10)
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
+    assert "0 deleted" in line and "capped" in line and "100" in line, line

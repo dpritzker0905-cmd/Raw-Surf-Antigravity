@@ -90,7 +90,7 @@ def test_fetch_manifest_object_returns_the_bytes_of_the_object_named_by_the_key(
     assert mp.fetch_manifest_object(key) == b'{"products": []}'
     url, kwargs = storage_get.calls[0]
     assert url == "https://storage.invalid/storage/v1/object/weather-products/" + key
-    assert kwargs["headers"] == {"apikey": "test-key"} and kwargs["timeout"] > 0
+    assert kwargs["headers"] == {"apikey": "test-key"} and kwargs["timeout"] == 30
 
 
 @pytest.mark.parametrize("answer", [_Response(404, b"not found"), _Response(500, b"boom"), _Response(429, b"SlowDown"),

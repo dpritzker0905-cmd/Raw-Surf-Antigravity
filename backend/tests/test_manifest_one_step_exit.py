@@ -62,7 +62,7 @@ def test_the_exit_hook_stops_at_its_wall_clock_budget(chain, store, parked, slee
     submit(store, BASE[1:] + PILOTS_NEW)
     chain.pointer_faults.extend(["none"] * 200)
     parked.run()
-    reads_before = len(chain.kinds("read_pointer"))
+    reads_before, sleeps_before = len(chain.kinds("read_pointer")), len(sleeps)
     now = [1000.0]
 
     def monotonic():
@@ -73,6 +73,7 @@ def test_the_exit_hook_stops_at_its_wall_clock_budget(chain, store, parked, slee
     mps._flush_at_exit()
     extra = len(chain.kinds("read_pointer")) - reads_before
     assert 0 < extra < mps.MAX_ATTEMPTS, "the budget ended the very first round early, not after whole rounds: %d" % extra
+    assert len(sleeps) == sleeps_before, "a backoff sleep was taken after the budget was spent"
     assert mps._slot.pending is not None and capsys.readouterr().out.startswith("::error::[Manifest Publish]")
 
 

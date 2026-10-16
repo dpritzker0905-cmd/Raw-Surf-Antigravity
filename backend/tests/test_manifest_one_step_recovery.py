@@ -16,7 +16,6 @@ from datetime import timedelta
 
 import pytest
 
-from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
 from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
 from tests._manifest_chain_harness import (  # noqa: F401,F811
@@ -149,9 +148,11 @@ def test_transient_failures_between_the_unparseable_reads_neither_count_nor_rese
     submit(store, BASE + PILOTS_NEW)
     parked.run()
     assert chain.cas_calls == [] and chain.kinds("fetch_legacy") == [], "a transient failure counted toward the three"
+    sleeps_before = len(sleeps)
     submit(store, BASE + PILOTS_NEW + [LATTICE[0]])
     parked.run()
     assert [c["won"] for c in chain.cas_calls] == [True], "the three unparseable reads did not carry over to the next job"
+    assert len(sleeps) == sleeps_before, "the next job should fall back on its FIRST attempt: the count was lost between jobs"
 
 
 def test_an_unparseable_head_that_has_moved_by_the_time_we_swap_is_never_overwritten(chain, store, parked, sleeps):

@@ -74,7 +74,7 @@ def test_after_a_publish_the_next_save_finds_the_other_writers_entries_in_its_in
     assert chain.head_files() == sorted(BASE[:1] + LATTICE + PILOTS_NEW)
 
 
-def test_the_head_is_absorbed_once_per_publish_cycle_not_once_per_save_and_with_no_io(chain, store, inline, monkeypatch):
+def test_the_head_is_absorbed_once_per_publish_cycle_not_once_per_save_and_with_no_io(chain, store, inline, monkeypatch, caplog):
     manifest = _snapshot(BASE)
     mps.submit_manifest_publish(store, manifest)                                         # publish 1 (inline): a head to absorb
     monkeypatch.setattr(store_mod, "_manifest_executor", RecordingExecutor())            # from now on jobs wait
@@ -82,9 +82,11 @@ def test_the_head_is_absorbed_once_per_publish_cycle_not_once_per_save_and_with_
     monkeypatch.setattr(store_mod, "reconcile_manifest_products_for_upload",
                         lambda m, **kw: calls.append(sorted(kw)) or real(m, **kw))
     events_before = list(chain.events)
-    for _ in range(4):
-        mps.submit_manifest_publish(store, manifest)
+    with caplog.at_level(logging.WARNING):
+        for _ in range(4):
+            mps.submit_manifest_publish(store, manifest)
     assert calls == [["exclude_keys", "remote_products"]], calls
+    assert not [r for r in caplog.records if "absorb" in r.getMessage()], "a second absorb tried to parse a head already absorbed"
     assert chain.events == events_before, "absorbing the head did I/O on the caller's thread"
 
 

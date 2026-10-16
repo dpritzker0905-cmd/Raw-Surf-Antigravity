@@ -180,6 +180,7 @@ class Chain:
         # Storage's listing and bulk delete (what retention talks to), with a clock the tests move.
         self.now = datetime.now(timezone.utc)
         self.created = {}                 # key -> the clock when the object was stored
+        self.updated = {}                 # key -> a later "updated_at" the listing should report (default: same as created)
         self.list_requests = []           # (url, json body, timeout)
         self.delete_requests = []
         self.list_fault = self.delete_fault = None      # "raise" | an HTTP status
@@ -310,7 +311,7 @@ class Chain:
         if self.list_fault:
             return _StorageResponse(self.list_fault, {"error": "boom"})
         rows = [{"name": key[len("manifests/"):], "created_at": self.created.get(key, self.now).isoformat(),
-                 "updated_at": self.created.get(key, self.now).isoformat()}
+                 "updated_at": self.updated.get(key, self.created.get(key, self.now)).isoformat()}
                 for key in self.objects if key.startswith("manifests/") and body["search"] in key]
         rows += [dict(row) for row in self.extra_rows]
         rows.sort(key=lambda row: row["name"], reverse=body["sortBy"]["order"] == "desc")

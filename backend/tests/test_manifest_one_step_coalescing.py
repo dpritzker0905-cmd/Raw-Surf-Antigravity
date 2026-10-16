@@ -133,6 +133,8 @@ def test_the_backoff_is_jittered_exponential_and_bounded():
     assert len(set(waits[1])) > 1, "no jitter"
     assert all(0 < w <= 3 for ws in waits.values() for w in ws)
     assert max(waits[4]) > max(waits[1]) * 2, "no growth"
+    assert mps.BACKOFF_CAP_SECONDS == 3 and all(0 < mps.backoff_seconds(n) <= 3 for n in range(1, 40) for _ in range(20)), \
+        "the wait is capped at 3 s however many attempts there have been"
 
 
 def test_cost_of_publishing_a_16k_entry_manifest_in_one_step(chain, store, inline, capsys):

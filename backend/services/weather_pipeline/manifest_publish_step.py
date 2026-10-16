@@ -25,10 +25,12 @@ was not acknowledged, a CAS that lost (or whose answer was lost) all send the at
 MAX_ATTEMPTS the pointer, the unique objects and the legacy manifest.json are untouched, the failure is logged at ERROR
 and the snapshot stays pending for the next job (and, at interpreter exit, `_flush_at_exit` tries again on the main thread
 with a bounded extra budget and raises a GitHub error annotation if it still cannot). There is NO fall-back to the old
-publish path, whatever failed, EXCEPT the one case where there is no pointer lane at all (the table is missing: permanent,
-nothing to protect). One more case is not a failure: when Storage says DEFINITELY that the head object does not exist
-(`manifest_pointer.MISSING`, never a 5xx or a timeout), the merge is made against the legacy manifest.json, and the swap still
-names g and the missing key, so a concurrent writer wins over us.
+publish path, whatever failed, EXCEPT the one case where there is no pointer lane at all: only an answer that SAYS the relation
+does not exist (42P01) latches the lane off for the process, loudly (`::error::`); any other 404 (PGRST205, a proxy page, an
+empty body) is a transient failure like a 5xx (`manifest_pointer._table_missing`). A head that is DEFINITELY missing
+(`manifest_pointer.MISSING`, never a 5xx or a timeout), or that has been fetched and could not be parsed on UNUSABLE_HEAD_ATTEMPTS
+consecutive attempts, is not a failure either: the merge is made against the legacy manifest.json (read directly, not through the
+pointer), and the swap still names g and that head key, so a concurrent writer wins over us. A transient fetch failure never counts.
 
 After a WON CAS the job retires old unique copies (`_retire_old_copies`: this lane's OWN retention, generation <= G-5 and older
 than a short grace, one listing and one batch delete), then PUTs the merged bytes to the legacy manifest.json (the readers'
@@ -41,6 +43,20 @@ Exclusions (the ids a prune deleted) carry the sequence of the submit that named
 from whatever is pending behind it, so one prune is never applied to a later publish that would erase a legitimate
 re-registration by another writer.
 
+A swap whose ANSWER is lost (a timeout or 5xx after the server may have applied it; `manifest_pointer.last_cas_answer()` says
+"unknown", as opposed to a clean "lost") is the one case where we cannot know whether we are the head. THE RULE, using only what
+can be observed: (1) straight after such a swap, and again at the start of every attempt, the pointer is read; if its head key IS
+an object this publish uploaded, the swap landed and is settled exactly like a confirmed win (retention, legacy refresh, the books;
+if the object belongs to an OLDER snapshot only that snapshot's exclusions are spent and the head is merged against normally). (2) If
+the head has already moved past ours, landing can no longer be observed: the row we wrote is overwritten and the objects carry no
+parent link. The retry then treats the swap as NOT landed (so an entry whose object we deleted is never resurrected), with one
+refinement: an excluded id whose entry in the head differs from the entry the unconfirmed attempt saw is another writer's newer
+registration and is kept. A re-registration byte-identical to the entry we pruned is indistinguishable from it and is excluded
+once; that window is the swap's own timeout plus the backoff, and it closes at the next ingest of that frame.
+
+The exit flush gives every network call min(its own timeout, what is left of EXIT_BUDGET_SECONDS), makes none when nothing is left,
+and does not start the (retrying) legacy refresh; it bounds the flush at the budget plus at most one in-flight call.
+
 Flag off, or the lane unavailable (pointer disabled, MANIFEST_IMMUTABLE_PUBLICATION=1, MANIFEST_MERGE_ON_UPLOAD=0, not
 the designated writer): `submit_manifest_publish` is exactly the three lines it replaced at the six call sites, and
 `absorb_published_head` does nothing.
@@ -48,10 +64,23 @@ the designated writer): `submit_manifest_publish` is exactly the three lines it 
 Where to flip it: the L2 writers' workflow env together (forecast-ingest, forecast-ingest-pilots, precompute), not Render.
 
 KNOWN LIMITS. (1) The pointer ROW must already exist: `read_pointer` answers None both for "no row" and for "unreadable", so an
-empty table is a failed read for ever and the lane never bootstraps it (one flag-off publish creates the row). (2) Flip the flag on
-every L2 writer together: a writer still on the old path names its objects `manifest-g<N>.json` and overwrites in place, which can
-land on a winner's object. (3) A head object that cannot be fetched for a reason other than a definite miss blocks publishing
-until it can (fail closed: an unmerged snapshot is never published over it).
+empty table is a failed read for ever and the lane never bootstraps it (one flag-off publish creates the row). (2) THE LANE MUST BE
+FLIPPED ON ALL L2 WRITERS TOGETHER (forecast-ingest, pilots, precompute): a writer still on the old path names its objects
+`manifest-g<N>.json` and overwrites in place, which can land on a winner's object. (3) A head object that cannot be fetched for a
+reason other than a definite miss blocks publishing until it can (fail closed: an unmerged snapshot is never published over it).
+(4) PGRST205 is what a table that was never created also answers; it is treated as transient, so a deployment that really lacks the
+table retries and errors loudly instead of falling back (the operator fixes the migration, not the lane).
+(5) Two caller threads can race: the snapshot is dumped BEFORE the lock and its sequence assigned INSIDE it, so thread A's older
+bytes can be sequenced after thread B's newer ones and be the ones published (for instance after a prune). The window is
+microseconds; the old single queue had the same inversion; a later save republishes the truth.
+(6) A key that two writers update with EQUAL run_time keeps the snapshot's (possibly older) copy of the entry: reconcile only
+prefers a strictly NEWER remote run, exactly as with the flag off.
+(7) The test harness (tests/_manifest_chain_harness.py) is a model, and does not exercise: PostgREST decoding of the %2F in the
+`manifest_key=eq.` filter (the fake compares strings), a listing whose created_at and updated_at differ except where a test sets
+them, Storage's real listing order (the fake sorts by Python string order), the timing of a 429 (stubbed), real multi-process
+contention (concurrency is hook-injected in one process, plus threads in a few tests). NEVER EXAMINED: real PostgREST / Storage
+behaviour, SIGTERM and cancelled runs (a cancelled GitHub run kills the process before atexit), and a real `requests` call inside
+`atexit` after `threading._shutdown` (the subprocess tests prove the ORDER, with an in-memory pointer).
 """
 import atexit
 import json
@@ -513,11 +542,19 @@ def _retire_old_copies(generation, head_key, deadline=None):
             doomed.append(key)
             if len(doomed) == RETENTION_DELETE_LIMIT:
                 break
+        removed = 0
         if doomed:
             deleted = requests.delete(f"{base}/storage/v1/object/{WEATHER_BUCKET}", headers=headers, json={"prefixes": doomed},
                                       timeout=_cap(deadline, RETENTION_TIMEOUT_SECONDS))
-            if deleted.status_code not in (200, 204):
+            if deleted.status_code in (200, 204):
+                removed = len(doomed)
+            else:
                 logger.warning(f"[Manifest Publish] retention delete of {len(doomed)} copies not acknowledged (HTTP {deleted.status_code})")
+        # The gauge: storage growth (about 16 MB a copy) is otherwise invisible until a quota says so.
+        standing = sum(1 for row in rows[:RETENTION_SCAN_LIMIT] if isinstance(row, dict) and isinstance(row.get("name"), str)
+                       and _COPY_NAME.fullmatch(row["name"]))
+        capped = f" (listing capped at {RETENTION_SCAN_LIMIT}: there may be more)" if len(rows) >= RETENTION_SCAN_LIMIT else ""
+        logger.info(f"[Manifest Publish] retention at g{generation}: {standing} unique manifest copies standing{capped}, {removed} deleted")
     except Exception as exc:
         logger.warning(f"[Manifest Publish] retention after g{generation} deferred: {type(exc).__name__}: {exc}")
 

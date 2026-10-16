@@ -36,6 +36,7 @@ DEFINITE = {
     "404-42P01": (404, json.dumps(UNDEFINED_TABLE).encode()),
     "400-42P01": (400, json.dumps(UNDEFINED_TABLE).encode()),
     "404-relation-message": (404, json.dumps(RELATION_MESSAGE_ONLY).encode()),
+    "404-42P01-localized-message": (404, json.dumps({"code": "42P01", "message": "la relation « x » n'existe pas"}).encode()),
 }
 
 
@@ -76,7 +77,8 @@ def http(monkeypatch):
 
 
 def _calls(which):
-    return {"read": lambda: mp.read_pointer(), "cas": lambda: mp.cas_advance(5, "manifests/new.json", None, "designated:test", expected_key="k")}[which]
+    return {"read": lambda: mp.read_pointer(),
+            "cas": lambda: mp.cas_advance(5, "manifests/new.json", None, "designated:test", expected_key="k")}[which]
 
 
 # ── the standard itself ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -206,4 +208,4 @@ def test_a_definite_missing_table_runs_the_old_path_once_and_the_lane_is_inert_a
     assert mp.pointer_enabled() is False and mps.one_step_active() is False
     assert [u[0] for u in chain.uploads] == ["manifest.json"] and chain.cas_calls == []
     out = capsys.readouterr().out
-    assert out.count("::error::") >= 1 and "pointer" in out.lower()
+    assert out.count("::error::") == 2 and "pointer" in out.lower(), "the latch and the old path each say so"
