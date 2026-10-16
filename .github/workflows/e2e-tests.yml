@@ -200,5 +200,9 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: playwright-report
-          path: frontend/playwright-report/
+          # Per-test evidence exists even if the process is killed before HTML is finalized.
+          # Tracing stays disabled: authenticated storageState must never enter artifacts.
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
           retention-days: 14

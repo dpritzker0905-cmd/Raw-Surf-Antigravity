@@ -9,6 +9,14 @@ const { URL } = require('node:url');
 async function stubSeededMessageBadge(page, userIds) {
   let fulfilled = 0;
   const origin = new URL(process.env.REACT_APP_BACKEND_URL || 'https://raw-surf-antigravity.onrender.com').origin;
+  // Record only method/path/status, never headers, query strings or browser storage.
+  // A refused incidental request can redirect these synthetic sessions away from the subject.
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (url.origin === origin && response.status() === 401) {
+      console.log(`[SEEDED UI AUTH] ${response.request().method()} ${url.pathname} -> 401`);
+    }
+  });
   for (const id of userIds) {
     if (!['test-surfer-id', 'admin-user-id'].includes(id)) {
       throw new Error('Message badge fixture requires a declared synthetic UI identity');
