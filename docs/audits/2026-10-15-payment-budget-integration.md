@@ -1,7 +1,7 @@
 # Payment / existing budget integration candidate
 
 The isolated branch codex/payment-budget-integration combines the frozen PR333 payment
-repair with current DEV5ec87562d (including PR335/336/337). It changes no wind source,
+repair with DEV48284a5e3 (including PR335/336/337 and the later beach-field contrast fix). It changes no wind source,
 provider settings, credentials or live state. PR333 remains bd7920fbd and is not rewritten.
 
 Thirty-four imported payment paths are byte-identical Git blobs. The four adaptations are
@@ -11,12 +11,16 @@ migration parents and the released budget migration remain unchanged. From the r
 baseline6b/a107/avatar, only payment_reconciliation_001, checkout_intent_001 and the merge
 run. No stamp is proposed for a live database.
 
-Regression before: combined graph had two heads. After: real disposable PostgreSQL123
-passed/0skip, including real upgrade, initialized private budget reservation/RLS/ACL/identity
-preservation, retained commerce rows and repeat-upgrade safety. Floor controls36 passed;
-production build passed. Full frontend rerun and all exact-source hosted checks pending.
-Local interpreter lacks9 declared packages; estate collection hit missing PyYAML. Counts
-437suites/5587frontend and1809estate are projections until fresh hosted confirmation.
+Regression before: combined graph had two heads. After: source0597cedd2 passed all18
+hosted checks across six workflows. Declared Python3.12 matched46/46pins; real PostgreSQL
+123 passed/0skip including initialized budget row/schema/RLS/ACL/identity and commerce
+preservation. Payment UI19tests and production-bundle browser42 local fixturecases passed.
+Full frontend437suites/5589tests and build passed. Estate1809pass/2880expectedskips,
+315selected/313producing/0silent; chain2444pass; simulation2658pass/66skip/1existingxfail;
+budget PostgreSQL33pass. Both CI count projections are confirmed; floors1807 and437/5589.
+Local floor controls36 passed. Windows missing PyYAML and restricted native-shell failures
+remain documented local limits; full declared hosted checks passed. The final evidence
+commit changes documentation only and preserves the qualified application/tests/workflows.
 
 [Source manifest](evidence/2026-10-15-payment-budget-integration/source-manifest.json).
 [Verification](evidence/2026-10-15-payment-budget-integration/verification.json).

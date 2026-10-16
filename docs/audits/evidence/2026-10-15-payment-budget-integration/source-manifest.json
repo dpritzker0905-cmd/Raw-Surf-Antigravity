@@ -1,11 +1,11 @@
 {
-  "dev_base": "5ec87562d45abef96c97d1f160de39ee0d176b84",
+  "dev_base": "48284a5e307f65f24b6b9287ed9332598deaf0e7",
   "frozen_payment_head": "bd7920fbd9025188c540e4ca107e452270ddc714",
   "frozen_paths": [
     {
       "path": ".github/workflows/ci.yml",
       "frozen_blob": "2db4ae6b078839d4488e0ab81603c658dcc4d7d6",
-      "candidate_blob": "b87728759ff10706fe33333fa10ce333eb18cc38",
+      "candidate_blob": "5e81303b9c268524f7809b68317b85a5d124a84c",
       "adapted_for_combined_revision": true
     },
     {
@@ -233,5 +233,6 @@
   ],
   "new_migration": "backend/alembic/versions/payment_budget_merge_001.py",
   "unchanged_payment_paths": 34,
-  "protected_dev_budget_runtime_weather_files_unchanged": true
+  "protected_dev_budget_runtime_weather_files_unchanged": true,
+  "initial_dev_base": "5ec87562d45abef96c97d1f160de39ee0d176b84"
 }

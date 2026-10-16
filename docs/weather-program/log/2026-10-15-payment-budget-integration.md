@@ -58,3 +58,15 @@ kept DEV ledger as exact prefix and reconstructed only this lane's two actions v
 The two additional board theme cases project437suites/5589tests now; hosted must confirm.
 Budget reservation figures from earlier retained receipts are historical; no cap read/reset here.
 Owned disposable PostgreSQL stopped and port no longer listening after123/0skip proof.
+
+## Confirmed hosted payment boundary
+
+Source0597cedd2, payment workflow38825295911: strict Python3.12 parity46/46 pins,
+real PostgreSQL123 passed/0skip, payment UI19tests/3suites, production-bundle fixture
+browser42cases passed. Latest DEV theme source also passed local five suites29tests.
+Budget CI job is structurally identical to current DEV; merge revision paths explicitly
+trigger payment qualification. Broad source CI is still running at this checkpoint.
+
+Ledger CLI inspection corrected an operational assumption: append prints but does not
+advance STATE's anchor. A valid older anchor passes anti-truncation verification. This
+session explicitly advanced it to the current tip; the closeout lesson records that check.
