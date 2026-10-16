@@ -23,3 +23,12 @@ deployed ae13bade at this checkpoint. Local evidence safeguard gives Playwright 
 deadline before Actions40minute kill and retains per-test artifacts even before HTML report finalization.
 Narrow diagnostic logging records only backend401 method/path/status, no query/headers/storage/keys.
 No served weather number changed. Investigation remains open; ledger1267 records first diagnostic.
+
+Single-journey diagnostic38836004086 on eb640fda7 reproduced401 before hub failure at login:
+GET /api/surfer-gallery/claim-queue-count/test-surfer-id. Render filtered request logs corroborate this
+path for original and bounded3case runs. This is the unfixtured incidental locker navigation badge,
+not a failed spot/weather response. Repair renames shared seeded helper to seededUiBadges and adds
+only this exactGET for declared test-surfer-id/admin-user-id, returning pending_count0. Existing message
+badge remains scoped likewise. Three Node contracts passed, including negatives for real identities,
+other origins, auth/weather/spot endpoints and mutations. App/backend source remains deployed ae13bade.
+No full E2E success claimed yet; next verification uses corrected harness against unchanged DEV app.

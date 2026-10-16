@@ -25,7 +25,7 @@
  * exist". ⇒ A SETUP ASSERTION MUST PIN WHERE IT LANDED, not merely that something rendered.
  */
 const { test, expect } = require('@playwright/test');
-const { stubSeededMessageBadge } = require('./seededMessageBadge');
+const { stubSeededUiBadges } = require('./seededUiBadges');
 
 // The same stub the weather spec uses. Measured sufficient to pass the route guard.
 const standardUser = {
@@ -39,7 +39,7 @@ const standardUser = {
 };
 
 async function signIn(page) {
-  const badgeRequests = await stubSeededMessageBadge(page, [standardUser.id]);
+  const badgeRequests = await stubSeededUiBadges(page, [standardUser.id]);
   await page.goto('/auth', { waitUntil: 'domcontentloaded' });
   // Wait for the real access-code verification before leaving this document. In Safari trace
   // 34515311331, navigating early cancelled verification and the gate cleared its stored code.
@@ -91,7 +91,7 @@ test.describe('Anonymous access control', () => {
 });
 
 test.describe('Explore', () => {
-  // This seeded-user journey needs its incidental badge fixture to own the request.
+  // This seeded-user journey needs its incidental badge fixtures to own the request.
   // Service workers can bypass page.route; anonymous journeys keep service workers enabled.
   test.use({ serviceWorkers: 'block' });
   test.beforeEach(async ({ page }) => {
@@ -102,7 +102,7 @@ test.describe('Explore', () => {
     await expect(page).toHaveURL(/\/explore/, { timeout: 15000 });
     await expect(page.locator('[data-testid="explore-page"]')).toBeVisible({ timeout: 60000 });
     await expect.poll(badgeRequests, {
-      message: 'the seeded identity message badge used its declared UI fixture', timeout: 15000,
+      message: 'the seeded identity navigation badges used its declared UI fixture', timeout: 15000,
     }).toBeGreaterThan(0);
   });
 

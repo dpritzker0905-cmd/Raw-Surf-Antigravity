@@ -189,6 +189,7 @@ jobs:
           # Arguments are quoted array entries, never interpolated shell source.
           # Push acceptance keeps the full suite and existing retries; filters are dispatch-only.
           # Credential-bearing browser contexts must stay untraced, including diagnostics.
+          node --test scripts/seededUiBadges.test.cjs
           args=(--reporter=list,html --trace=off)
           if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
           if [ -n "$E2E_PROJECT" ]; then args+=(--project "$E2E_PROJECT"); fi
