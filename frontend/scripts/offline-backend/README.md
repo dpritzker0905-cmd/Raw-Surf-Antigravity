@@ -11,6 +11,8 @@ Render box, the database or a bucket, so it can be run as often as needed (the 2
 | `scn_swap_ab.js` | Scrub replay (jumps of +24, +72, Home, +144, +288, Home) sampling the app's own diagnostics (`__MARINE_RENDER_HOUR_PARITY__`, `__WEBGL_MARINE_UPLOAD_*`, the mask encode mode, a texture-upload spy). |
 | `scn_why.js` | After one far jump, dumps the app's own account of why the requested hour is or is not rendered. |
 | `scn_gap_variants.js` | Varies zoom, wait time and camera nudges around that jump. |
+| `scn_drop.js` | After one far jump, reads the layer's own drop record (`__SWELL2_LAST_DROP__`, the upload reason, the parity). It is how the "stuck scrub" turned out to be a fixture mistake. |
+| `scn_position.js` + `cmp_position.js` | WHERE is the field drawn? The same hour and camera rendered as the THINNED world series frame (the exact `/grid` held back by a `beforeWeather` hook) and as the EXACT frame, then cross-correlated on luminance rows. `AB_DIR=<dir>` saves the screenshots; `cmp_position.js <dir>` compares the two servers. A null control (exact vs exact) must read 0 px. |
 
 ```bash
 # from the repo root, with the backend's venv and a built frontend/build
@@ -24,6 +26,10 @@ PORT=4100 node frontend/scripts/offline-backend/scn_swap_ab.js     # and PORT=41
 * The **backend side is exact**: thinning, the mid-res tier, the bounds rewrite and every response schema are the production code
   over stored files shaped like production's. Latency is whatever this machine gives; it is not the 1-CPU box's.
 * The **data is invented** (a smooth climate plus a moving vortex). Nothing here is a forecast or a number the product serves.
+* **Provider fields are load-bearing and must mirror production.** `WebGLMarineLayer` silently drops a frame whose grid provider is not
+  whitelisted and keeps the previous hour. The first cut used `provider: "noaa"` (production's GFS waves are `provider: "open-meteo"`,
+  `upstream_provider: "noaa"`, `source_dataset: "ncep_gfswave025"`) and produced a forward scrub that never rendered, which looked like an
+  app bug for an hour. Before believing a surprising client behaviour here, read `window.__SWELL2_LAST_DROP__` and the parity object.
 * The **client is the production bundle** in headless Chrome. A behaviour seen here is a lead for the real app, not a finding about
   it, until it is also seen on the real app (the owner's logs, a recording, or a read-only look at the deployed site).
 * Third-party reads still happen (basemap tiles, fonts): they are the same GETs any visitor makes, not our backend.

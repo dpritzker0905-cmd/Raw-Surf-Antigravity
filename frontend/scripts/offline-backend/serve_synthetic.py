@@ -55,6 +55,10 @@ def field(lat, lng, h):
     return round(hs, 3), round(direction, 1), round(6.5 + 1.1 * hs, 2)
 
 
+# Provider fields MIRROR PRODUCTION (read from the real manifest 2026-10-16: every GFS marine waves entry is provider
+# "open-meteo", upstream_provider "noaa", source_dataset "ncep_gfswave025"). They are load-bearing: WebGLMarineLayer drops a frame
+# whose grid provider is not whitelisted ("noaa" is not) and silently keeps the previous hour. The first cut said "noaa" and
+# produced a scrub that never rendered, which looked like an app bug and was this fixture (ledger 1297).
 def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES):
     rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
     cols = int(round((bounds["east"] - bounds["west"]) / res)) + 1
@@ -70,7 +74,7 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
                             "period": period, "is_valid": True})
     iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
     return {
-        "model": "GFS", "provider": "noaa", "domain": "marine", "layer": "waves",
+        "model": "GFS", "provider": "open-meteo", "domain": "marine", "layer": "waves",
         "run_time": iso(run_time), "model_run_time": iso(run_time), "model_run_time_status": "known",
         "ingested_at": iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
         "is_forecast_authoritative": True, "is_estimated": False,
@@ -79,7 +83,7 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
         "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft",
         "product_id": filename, "source_variables": ["wave_height"], "freshness_sec": 3600,
         "region_id": region_id, "coverage_mode": "global_tile", "resolution": None,
-        "upstream_provider": "noaa", "source_dataset": "synthetic",
+        "upstream_provider": "noaa", "source_dataset": "ncep_gfswave025",
     }
 
 
@@ -101,11 +105,11 @@ def build_store(directory, horizon_hours, step_hours, now=None):
             body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res)
             (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
             entries.append({
-                "model": "GFS", "provider": "noaa", "domain": "marine", "layer": "waves", "run_time": iso(run_time),
+                "model": "GFS", "provider": "open-meteo", "domain": "marine", "layer": "waves", "run_time": iso(run_time),
                 "model_run_time": iso(run_time), "model_run_time_status": "known", "ingested_at": iso(run_time + timedelta(hours=4)),
                 "valid_time_start": iso(vt), "valid_time_end": iso(vt), "resolution": res, "freshness_sec": 3600,
                 "is_forecast_authoritative": True, "coverage": COVERAGE, "filename": filename, "product_id": filename,
-                "region_id": region_id, "coverage_mode": "global_tile", "upstream_provider": "noaa", "source_dataset": "synthetic",
+                "region_id": region_id, "coverage_mode": "global_tile", "upstream_provider": "noaa", "source_dataset": "ncep_gfswave025",
             })
     (directory / "manifest.json").write_text(
         json.dumps({"last_manifest_update": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": entries}),

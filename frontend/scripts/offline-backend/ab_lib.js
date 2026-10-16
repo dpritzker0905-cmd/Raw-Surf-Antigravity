@@ -36,7 +36,7 @@ const TEX_SPY = () => {
   patch(window.WebGL2RenderingContext && WebGL2RenderingContext.prototype);
 };
 
-async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true } = {}) {
+async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {} } = {}) {
   if (!port) throw new Error('launch({ port }) needs the synthetic backend port');
   const args = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-unsafe-swiftshader'];
   if (gpu) args.push('--use-angle=d3d11');
@@ -66,6 +66,7 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true } 
       if (url.pathname.startsWith('/api/weather/') && method === 'GET') {
         const t = Date.now();
         try {
+          if (hooks.beforeWeather) await hooks.beforeWeather(url);   // a scenario may hold a request back (e.g. the exact /grid)
           const resp = await route.fetch({ url: `http://127.0.0.1:${port}${url.pathname}${url.search}` });
           const rec = { t: t - log.t0, ms: Date.now() - t, path: url.pathname.replace('/api/weather', ''), q: Object.fromEntries(url.searchParams.entries()), status: resp.status() };
           log.requests.push(rec);
