@@ -209,9 +209,11 @@ def _no_merge_state_leaks_between_tests():
     from services.weather_pipeline import manifest_merge_commit as mmc
     mmc._bases.clear()
     mmc._local.__dict__.clear()
+    mmc._basis_cache = None
     yield
     mmc._bases.clear()
     mmc._local.__dict__.clear()
+    mmc._basis_cache = None
 
 
 def prepare(own_files, exclude_keys=None):
@@ -556,12 +558,13 @@ def test_merge_at_commit_stands_aside_for_the_immutable_publication_lane(chain, 
     assert chain.object_reads == []
 
 
-def test_merge_basis_registry_remembers_eight_snapshots_and_forgets_the_oldest(merge_on, caplog):
-    """The registry is process memory (one basis is a digest per product, ~16k of them): it is bounded. The
-    serial manifest executor never has more than a handful of snapshots queued, so the OLDEST falls out first and
-    an evicted snapshot is published by the old path, with a warning, not guessed at."""
+def test_merge_basis_registry_forgets_the_oldest_beyond_its_bound(merge_on, caplog, monkeypatch):
+    """The registry is process memory and is bounded; beyond the bound the OLDEST snapshot falls out and is published
+    by the old path, with a warning, not guessed at."""
+    from services.weather_pipeline import manifest_merge_commit as mmc
+    monkeypatch.setattr(mmc, "MAX_REGISTERED", 3)
     chain = merge_on
-    snapshots = [prepare(BASE + ["euro_wind_wind_global_mid_20261026T%02d0000Z.json" % i]) for i in range(9)]
+    snapshots = [prepare(BASE + ["euro_wind_wind_global_mid_20261026T%02d0000Z.json" % i]) for i in range(4)]
     chain.foreign_publish(adding(*LATTICE))
     with caplog.at_level(logging.WARNING):
         assert publish(chain, snapshots[-1])                              # the newest: merged
@@ -571,6 +574,50 @@ def test_merge_basis_registry_remembers_eight_snapshots_and_forgets_the_oldest(m
     with caplog.at_level(logging.WARNING):
         assert publish(chain, snapshots[0])                               # the oldest: evicted, old path
     assert "no merge basis" in caplog.text
+
+
+def test_merge_basis_registry_is_deep_enough_for_a_per_product_save_backlog():
+    """Every per-product save queues its own manifest upload behind ONE worker, and a reconcile (one GET) is faster than an
+    upload (a 16 MB PUT, the run-keyed copy, the CAS), so the backlog can run to dozens. The executor is FIFO: a registry of
+    8 would evict exactly the OLDEST (most stale) snapshots, the ones the lane exists for, back onto the buggy path. Keys
+    are hashes and the bases behind them are shared per head generation, so depth costs almost nothing."""
+    from services.weather_pipeline import manifest_merge_commit as mmc
+    assert mmc.MAX_REGISTERED >= 128
+
+
+def test_snapshots_merged_against_one_head_share_one_basis(merge_on):
+    """A basis is a digest per product (~16k). Snapshots reconciled against the SAME head generation share one, so a backlog
+    of queued snapshots costs a hash each, not a copy of the digests (and the hashing is done once per head)."""
+    from services.weather_pipeline import manifest_merge_commit as mmc
+    chain = merge_on
+    first, _ = mmc.capture_basis()
+    again, _ = mmc.capture_basis()
+    assert first is not None and again is first
+    chain.foreign_publish(adding(*LATTICE))
+    moved, _ = mmc.capture_basis()
+    assert moved is not first and moved["generation"] == first["generation"] + 1
+    assert set(LATTICE) <= set(moved["products"]) and not set(LATTICE) & set(first["products"])
+
+
+@pytest.mark.parametrize("ours_later", [True, False], ids=["ours-later", "head-later"])
+def test_a_merged_manifest_carries_the_later_last_manifest_update(merge_on, ours_later):
+    """The merged document is the head's with merged products; `last_manifest_update` must not move BACKWARDS when our
+    snapshot is the newer write (anything reading the manifest's age would see a staler manifest than was published)."""
+    from datetime import timedelta
+    chain = merge_on
+    manifest = _manifest(BASE + PILOTS_NEW)
+    manifest.last_manifest_update = RUN_TIME + timedelta(hours=1 if ours_later else 0)
+    reconcile_manifest_products_for_upload(manifest)
+    ours = dump_manifest_for_l2(manifest)
+    chain.foreign_publish(adding(*LATTICE))
+    head_doc = json.loads(chain.objects[chain.head_key])
+    head_doc["last_manifest_update"] = (RUN_TIME + timedelta(hours=0 if ours_later else 2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    chain.objects[chain.head_key] = json.dumps(head_doc).encode("utf-8")
+    assert publish(chain, ours)
+    assert set(LATTICE) <= set(chain.head_files())                          # it WAS a merge
+    stamp = json.loads(chain.objects[chain.head_key])["last_manifest_update"]
+    got = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    assert got == RUN_TIME + timedelta(hours=1 if ours_later else 2)
 
 
 def test_merge_at_commit_a_repeated_product_id_cannot_be_merged_and_falls_back(merge_on, caplog):

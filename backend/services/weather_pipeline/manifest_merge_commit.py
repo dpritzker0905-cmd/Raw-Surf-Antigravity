@@ -45,9 +45,14 @@ logger = logging.getLogger(__name__)
 
 FLAG = "MANIFEST_MERGE_AT_COMMIT"
 MAX_ATTEMPTS = 3
-MAX_REGISTERED = 8                     # snapshots queued behind the single manifest executor; oldest evicted first
+# Snapshots queued behind the single manifest executor, oldest evicted first. Every per-product save queues its own upload and a
+# reconcile (one GET) is faster than an upload (a 16 MB PUT + the run-keyed copy + the CAS), so a backlog can run to dozens;
+# the executor is FIFO, so a small bound would evict exactly the OLDEST (most stale) snapshots, the ones this lane is for.
+# A key is a 64-char hash and the basis behind it is shared per head generation (`_basis_cache`), so depth is cheap.
+MAX_REGISTERED = 256
 
 _bases = OrderedDict()                 # sha256(serialized bytes) -> basis
+_basis_cache = None                    # (generation, key, basis) of the last head captured: one digest map per head
 _bases_lock = threading.Lock()
 _local = threading.local()             # .pending = (manifest, basis) between reconcile and dump; .reputting
 
@@ -88,6 +93,20 @@ def _by_id(products: list, whose: str) -> dict:
     return out
 
 
+def _later_stamp(ours, theirs):
+    """Whichever `last_manifest_update` is later (the original string), else the head's: a merged manifest must not read
+    OLDER than the snapshot that was just published. Unparseable on either side -> the head's, as before."""
+    from datetime import datetime, timezone
+
+    def parse(value):
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    try:
+        return ours if parse(ours) > parse(theirs) else theirs
+    except Exception:
+        return theirs
+
+
 def _generation(head) -> Optional[int]:
     generation = head.get("generation") if isinstance(head, dict) else None
     return generation if type(generation) is int and generation >= 1 else None
@@ -108,12 +127,18 @@ def capture_basis() -> Tuple[Optional[dict], Optional[list]]:
         if body is None:
             return None, None
         products = _products_of(json.loads(body.decode("utf-8")))
+        global _basis_cache
+        cached = _basis_cache
+        if cached is not None and cached[0] == generation and cached[1] == head["manifest_key"]:
+            return cached[2], products         # the same head: share its digests (a backlog of snapshots, one hash pass)
         try:
             digests = {pid: entry_digest(raw) for pid, raw in _by_id(products, "head").items()}
         except Unmergeable as e:
             logger.warning(f"[Manifest Merge] no basis captured, {e}")
             return None, products
-        return {"generation": generation, "key": head["manifest_key"], "products": digests}, products
+        basis = {"generation": generation, "key": head["manifest_key"], "products": digests}
+        _basis_cache = (generation, head["manifest_key"], basis)
+        return basis, products
     except Exception as e:
         logger.warning(f"[Manifest Merge] no basis captured: {e}")
         return None, None
@@ -176,6 +201,8 @@ def three_way_merge(basis: dict, ours_bytes: bytes, head_bytes: bytes) -> bytes:
     result["products"] = list(merged.values())
     if "written_by" in ours_doc:
         result["written_by"] = ours_doc["written_by"]
+    if "last_manifest_update" in ours_doc:
+        result["last_manifest_update"] = _later_stamp(ours_doc["last_manifest_update"], head_doc.get("last_manifest_update"))
     return json.dumps(result, indent=2, ensure_ascii=False).encode("utf-8")
 
 
