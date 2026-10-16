@@ -12,6 +12,7 @@ Render box, the database or a bucket, so it can be run as often as needed (the 2
 | `scn_why.js` | After one far jump, dumps the app's own account of why the requested hour is or is not rendered. |
 | `scn_gap_variants.js` | Varies zoom, wait time and camera nudges around that jump. |
 | `scn_drop.js` | After one far jump, reads the layer's own drop record (`__SWELL2_LAST_DROP__`, the upload reason, the parity). It is how the "stuck scrub" turned out to be a fixture mistake. |
+| `scn_home_latency.js` | Live-like latency (`LAT_SERIES` ms per `/grid_series` page, `LAT_GRID` ms per `/grid`, defaults 8000/3000) and a far scrub then Home: compares the app's parity record with what the ENGINE actually holds (grid `hourOffset`, truth tag, upload content hash). `scn_swap_ab.js` takes the same `LAT_*` variables and records the request log in `AB_OUT`. |
 | `scn_position.js` + `cmp_position.js` | WHERE is the field drawn? The same hour and camera rendered as the THINNED world series frame (the exact `/grid` held back by a `beforeWeather` hook) and as the EXACT frame, then cross-correlated on luminance rows. `AB_DIR=<dir>` saves the screenshots; `cmp_position.js <dir>` compares the two servers. A null control (exact vs exact) must read 0 px. |
 
 ```bash
@@ -32,4 +33,5 @@ PORT=4100 node frontend/scripts/offline-backend/scn_swap_ab.js     # and PORT=41
   app bug for an hour. Before believing a surprising client behaviour here, read `window.__SWELL2_LAST_DROP__` and the parity object.
 * The **client is the production bundle** in headless Chrome. A behaviour seen here is a lead for the real app, not a finding about
   it, until it is also seen on the real app (the owner's logs, a recording, or a read-only look at the deployed site).
+* Under injected latency the layer's `__MARINE_RENDER_HOUR_PARITY__` / `__MARINE_HEATMAP_STATUS__` can read `retained_previous_hour` for 15+ s while the engine already holds the right hour (the parity effect runs before the upload and nothing re-runs it). Judge what is DRAWN by the engine's held grid and the upload content hash, not by that record.
 * Third-party reads still happen (basemap tiles, fonts): they are the same GETs any visitor makes, not our backend.
