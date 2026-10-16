@@ -136,15 +136,22 @@ def _insert_initial(manifest_key: str, run_id: Optional[str], written_by: str) -
         return False
 
 
-def cas_advance(expected_generation: int, manifest_key: str, run_id: Optional[str], written_by: str) -> bool:
-    """Compare-and-swap the pointer forward. True only if OUR row landed."""
+def cas_advance(expected_generation: int, manifest_key: str, run_id: Optional[str], written_by: str,
+                expected_key: Optional[str] = None) -> bool:
+    """Compare-and-swap the pointer forward. True only if OUR row landed.
+
+    `expected_key` (manifest_publish_step): also require the row to still NAME that object, not just carry that generation
+    NUMBER. A pointer restored to an older generation and advanced again by another writer reuses numbers, and a swap on the
+    number alone would win with bytes merged against a different head (ABA). None = the generation alone, as every other caller."""
     base, headers = _rest_base_and_headers()
     if not base:
         return False
     try:
         import requests
+        from urllib.parse import quote
+        key_filter = f"&manifest_key=eq.{quote(expected_key, safe='')}" if expected_key is not None else ""
         resp = requests.patch(
-            f"{base}/rest/v1/{POINTER_TABLE}?id=eq.1&generation=eq.{expected_generation}",
+            f"{base}/rest/v1/{POINTER_TABLE}?id=eq.1&generation=eq.{expected_generation}{key_filter}",
             headers={**headers, "Prefer": "return=representation"},
             data=json.dumps({
                 "generation": expected_generation + 1,
@@ -228,12 +235,41 @@ def publish_run_keyed(store, manifest_bytes: bytes, upload_fn, delete_fn) -> Opt
         return None
 
 
-def fetch_manifest_object(key: str) -> Optional[bytes]:
+class _Missing:
+    """What `fetch_manifest_object` answers when Storage says, definitely, that the object does not exist."""
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self):
+        return "MISSING"
+
+
+MISSING = _Missing()
+
+
+def _definite_miss(resp) -> bool:
+    """True only when Storage says THIS OBJECT is not there (l2_retry.is_missing_object, plus a plain 404 carrying Supabase's own
+    `not_found` body). A proxy's 404 page, a missing bucket and a bad key are not."""
+    from services.weather_pipeline.l2_retry import is_missing_object
+    if is_missing_object(resp):
+        return True
+    if resp.status_code != 404:
+        return False
+    try:
+        body = resp.json()
+    except ValueError:
+        return False
+    return isinstance(body, dict) and body.get("error") == "not_found"
+
+
+def fetch_manifest_object(key: str):
     """GET one run-keyed manifest object by the key the pointer row names (plain GET, immutable object).
 
     The one-step publisher reads the head BY KEY, so the bytes it merges are the bytes of the generation it will
-    compare-and-swap from, never a second read that could belong to a later generation. Never raises; None on any
-    failure (the caller treats that as a failed attempt, not as 'no head')."""
+    compare-and-swap from, never a second read that could belong to a later generation. Never raises. Answers the bytes;
+    MISSING when Storage definitely has no such object (the head was never written, or was deleted); None on anything else
+    (a 5xx, a 429, a timeout: transient, the caller retries)."""
     if not key:
         return None
     base, headers = _rest_base_and_headers()
@@ -245,7 +281,7 @@ def fetch_manifest_object(key: str) -> Optional[bytes]:
         resp = requests.get(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{key}", headers=headers, timeout=30)
         if resp.status_code != 200:
             logger.warning(f"[Manifest Pointer] manifest object GET {key} -> HTTP {resp.status_code}")
-            return None
+            return MISSING if _definite_miss(resp) else None
         return resp.content
     except Exception as e:
         logger.warning(f"[Manifest Pointer] manifest object fetch failed for {key}: {e}")

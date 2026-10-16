@@ -15,29 +15,19 @@ publishes the snapshot unmerged: it is retried, and after five attempts it stays
 This file: the publish scenarios (the reviewers' defects included). `Chain` (tests/_manifest_chain_harness.py) is production-faithful
 where it matters; the merge, serializer, publish_run_keyed and the call sites are the real code; any real HTTP request fails the test.
 """
-import json
 import logging
-import re
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
+from datetime import timedelta
 
 import pytest
 
 import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
-from services.weather_pipeline import store_helpers
-from services.weather_pipeline.schemas import (
-    CoverageBounds, GridVector, ManifestProduct, NormalizedGrid, NormalizedProduct, PipelineManifest,
-)
-from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2, reconcile_manifest_products_for_upload
-from tests._manifest_chain_harness import (  # noqa: F401,F811  (fixtures are used by name; the autouse ones apply here)
-    BASE, FLAG, LATTICE, NEW_RUN, OLD_RUN, PILOTS_NEW, PRUNED, RUN_TIME, SAVES, UNIQUE_KEY, VALID, BOUNDS,
-    Chain, FakeStore, InlineExecutor, RecordingExecutor,
-    _entry, _files, _fresh_slot, _iso, _keep_moving, _no_network, _raw_entry, _raw_wind, _snapshot, _wind,
-    adding, chain, changing, inline, parked, removing, sleeps, store, submit,
+from services.weather_pipeline.store import dump_manifest_for_l2
+from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
+from tests._manifest_chain_harness import (  # noqa: F401,F811
+    BASE, LATTICE, PILOTS_NEW, RUN_TIME, UNIQUE_KEY, _files, _iso, _keep_moving, _raw_wind, _snapshot, adding,
+    chain, changing, inline, parked, removing, sleeps, store, submit,
 )
 
 
@@ -324,7 +314,7 @@ def _order(chain):
     return [e[0] if e[0] != "upload" else e[1] for e in chain.events]
 
 
-def test_a_won_cas_prunes_retention_then_puts_the_merged_bytes_to_the_legacy_manifest_without_republishing(
+def test_a_won_cas_runs_retention_then_puts_the_merged_bytes_to_the_legacy_manifest_without_republishing(
         chain, store, parked):
     submit(store, BASE + PILOTS_NEW)
     chain.foreign_publish(adding(*LATTICE))
@@ -332,18 +322,18 @@ def test_a_won_cas_prunes_retention_then_puts_the_merged_bytes_to_the_legacy_man
     won = chain.wins()
     assert len(won) == 1 and chain.generation == 7
     order = _order(chain)
-    assert order.index("cas") < order.index("prune") < order.index("manifest.json"), order
-    assert chain.kinds("prune") == [("prune", 7)], "prune_immutable_copies(g+1) where g is the generation merged against"
+    assert order.index("cas") < order.index("list") < order.index("manifest.json"), order
+    assert len(chain.list_requests) == 1, "one retention listing per won swap"
     assert chain.objects["manifest.json"] == chain.objects[chain.head_key], "the legacy copy holds the MERGED bytes"
     assert chain.nested_publishes == [None], "the legacy PUT must not publish a second generation"
     assert chain.deleted == []
 
 
-def test_a_lost_cas_neither_prunes_nor_touches_the_legacy_manifest(chain, store, parked):
+def test_a_lost_cas_neither_runs_retention_nor_touches_the_legacy_manifest(chain, store, parked):
     submit(store, BASE + PILOTS_NEW)
     chain.before_cas = lambda: chain.foreign_publish(adding(*LATTICE))
     parked.run()
-    assert chain.kinds("prune") == [("prune", 7)]
+    assert len(chain.list_requests) == 1, "retention runs after the swap that WON, not after the one that lost"
     order = _order(chain)
     assert order.count("manifest.json") == 1 and order.index("manifest.json") > max(
         i for i, kind in enumerate(order) if kind == "cas")
@@ -358,10 +348,8 @@ def test_a_failing_legacy_put_does_not_undo_the_pointer_win_and_raises_nothing(c
     assert len(chain.wins()) == 1
 
 
-def test_a_failing_retention_prune_does_not_undo_the_pointer_win_or_skip_the_legacy_put(chain, store, parked, monkeypatch):
-    from services.weather_pipeline import manifest_immutable
-    monkeypatch.setattr(manifest_immutable, "prune_immutable_copies",
-                        lambda generation, **kwargs: (_ for _ in ()).throw(RuntimeError("listing failed")))
+def test_a_failing_retention_does_not_undo_the_pointer_win_or_skip_the_legacy_put(chain, store, parked):
+    chain.list_fault = "raise"
     submit(store, BASE + PILOTS_NEW)
     parked.run()
     assert chain.generation == 6 and chain.objects["manifest.json"] == chain.objects[chain.head_key]
@@ -382,3 +370,164 @@ def test_a_pointer_lane_that_is_disabled_for_good_runs_the_old_path_once(chain, 
     assert chain.kinds("fetch_remote") == [("fetch_remote",)]
     assert _files(chain.objects["manifest.json"]) == sorted(BASE + PILOTS_NEW + LATTICE)
     assert chain.cas_calls == []
+
+
+# ── an exclusion belongs to the publish that applied it (round-4 findings P1, P1b) ───────────────────────────────────────
+
+LATER = "euro_wind_wind_global_mid_20261026T000000Z.json"
+
+
+def test_an_exclusion_does_not_outlive_its_publish_when_a_save_lands_during_that_publish(chain, store, inline):
+    """P1. The prune of x is published; the NEXT ordinary save lands while that publish uploads, so it is coalesced into the
+    pending slot with the old exclusion still on it. Another writer then re-registers x (a NEW object under the same key). The
+    exclusion was spent by the publish that applied it: carrying it into the next publish erases that writer's registration."""
+    x = BASE[0]
+    chain.during_upload = lambda: submit(store, BASE[1:] + PILOTS_NEW + [LATER])
+    chain.during_legacy_put = lambda: chain.foreign_publish(adding(x))                 # job 1 has won; x comes back, legitimately
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[x])
+    assert len(chain.wins()) == 2
+    assert x in chain.head_files(), "the other writer's re-registration of x was erased by a spent exclusion"
+    assert LATER in chain.head_files()
+
+
+def _exclusions_each_publish_carried(monkeypatch):
+    seen = []
+    real = mps._attempt_once
+    monkeypatch.setattr(mps, "_attempt_once", lambda pending: seen.append(sorted(pending.excludes)) or real(pending))
+    return seen
+
+
+def test_one_exclusion_rides_on_one_publish_not_on_every_publish_while_saves_keep_landing(chain, store, inline, monkeypatch):
+    """P1b. Every publish sees one more save land during it, six times over. The single prune's exclusion must be applied
+    by the first publish and by no other."""
+    x = BASE[0]
+    seen = _exclusions_each_publish_carried(monkeypatch)
+    rounds = {"n": 0}
+
+    def next_save():
+        rounds["n"] += 1
+        if rounds["n"] <= 6:
+            chain.during_upload = next_save
+            submit(store, BASE[1:] + PILOTS_NEW + ["euro_wind_wind_global_mid_202610%02dT000000Z.json" % (26 + rounds["n"])])
+    chain.during_upload = next_save
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[x])
+    assert len(chain.wins()) == 7
+    assert seen[0] == [x] and all(carried == [] for carried in seen[1:]), seen
+
+
+def test_an_id_named_again_by_a_later_submit_keeps_its_exclusion_for_the_publish_that_follows(chain, store, inline, monkeypatch):
+    """Dropping is by SEQUENCE: the exclusion a submit made BEFORE the winning snapshot is spent, the one a later submit
+    made for the same id is not (that prune has not been applied by anyone yet)."""
+    x = BASE[0]
+    seen = _exclusions_each_publish_carried(monkeypatch)
+
+    def two_more():
+        submit(store, BASE[1:] + PILOTS_NEW + [LATER])                                    # a save: no exclusions of its own
+        submit(store, BASE[1:] + PILOTS_NEW + [LATER], exclude_keys=[x])                  # x pruned AGAIN after job 1's snapshot
+    chain.during_upload = two_more
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[x])
+    assert seen == [[x], [x]], seen
+    assert x not in chain.head_files()
+
+
+def test_a_failed_publish_keeps_its_exclusions_for_the_next_one(chain, store, parked, sleeps, monkeypatch):
+    seen = _exclusions_each_publish_carried(monkeypatch)
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[BASE[0]])
+    chain.pointer_faults.extend(["none"] * 5)
+    parked.run()
+    assert chain.cas_calls == []
+    submit(store, BASE[1:] + PILOTS_NEW + [LATER])
+    parked.run()
+    assert seen[-1] == [BASE[0]] and BASE[0] not in chain.head_files()
+
+
+# ── ABA: the swap names the head it merged against, not just its generation number (round-4 finding P3) ─────────────────
+
+def test_a_pointer_rolled_back_and_re_advanced_to_the_same_generation_number_does_not_let_our_swap_win(chain, store, parked):
+    """P3. We read generation 5 and merge against its object. An operator restores the pointer to generation 4, and another
+    writer commits generation 5 AGAIN, under a different key and with different content. A CAS on the generation number alone
+    would win with bytes that never saw that head. The swap also names the key it merged against, so it loses and the retry
+    merges against the head that really is there."""
+    old_key = "manifests/manifest-g000000000004.json"
+    chain.objects[old_key] = chain.objects[chain.head_key]
+
+    def rollback_then_foreign_commit():
+        chain.generation, chain.head_key = 4, old_key
+        chain.foreign_publish(adding(*LATTICE), key="unique")
+    submit(store, BASE + PILOTS_NEW)
+    chain.during_upload = rollback_then_foreign_commit
+    parked.run()
+    assert set(LATTICE) <= set(chain.head_files()), "won a CAS from g5 with bytes merged against a DIFFERENT g5"
+    assert [c["won"] for c in chain.cas_calls] == [False, True]
+
+
+def test_the_swap_names_the_key_of_the_head_it_merged_against(chain, store, parked):
+    chain.foreign_publish(adding(*LATTICE))
+    merged_against = chain.head_key
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    assert [(c["expected"], c["expected_key"]) for c in chain.cas_calls] == [(6, merged_against)]
+
+
+# ── a head object that is definitely missing must not wedge the lane (round-4 finding P7) ────────────────────────────────
+
+def _legacy_manifest(chain, files):
+    """What an old-path writer left in the legacy manifest.json."""
+    chain.objects["manifest.json"] = dump_manifest_for_l2(_snapshot(files))
+
+
+def test_a_missing_head_object_is_merged_against_the_legacy_manifest_and_swapped_from_the_same_generation(
+        chain, store, parked):
+    """P7. The pointer names an object that is not there (an old-path writer whose non-strict upload failed committed it, or
+    it was deleted). Before: every attempt of every job failed at the fetch, for ever. Now a definite miss merges against the
+    legacy manifest.json, and the swap still names generation g and the missing key, so a concurrent writer wins over us."""
+    _legacy_manifest(chain, BASE + LATTICE)
+    missing = chain.head_key
+    chain.objects.pop(missing)
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    assert [(c["expected"], c["expected_key"], c["won"]) for c in chain.cas_calls] == [(5, missing, True)]
+    assert chain.head_files() == sorted(BASE + LATTICE + PILOTS_NEW)
+
+
+def test_the_lane_keeps_publishing_after_the_missing_head_is_replaced_by_our_own_object(chain, store, parked):
+    _legacy_manifest(chain, BASE)
+    chain.objects.pop(chain.head_key)
+    for i in range(3):
+        submit(store, BASE + PILOTS_NEW + ["euro_wind_wind_global_mid_202611%02dT000000Z.json" % (1 + i)])
+        parked.run()
+    assert [c["won"] for c in chain.cas_calls] == [True, True, True]
+
+
+def test_a_writer_that_commits_while_we_merge_against_the_legacy_manifest_wins_over_us(chain, store, parked):
+    """The legacy manifest.json may be stale; what makes the fallback safe is the swap's key filter."""
+    _legacy_manifest(chain, BASE)
+    missing = chain.head_key
+    chain.objects.pop(missing)
+    submit(store, BASE + PILOTS_NEW)
+    chain.during_upload = lambda: chain.foreign_publish(adding(*LATTICE))
+    parked.run()
+    assert [(c["expected_key"], c["won"]) for c in chain.cas_calls] == [(missing, False), (chain.cas_calls[1]["expected_key"], True)]
+    assert chain.head_files() == sorted(BASE + LATTICE + PILOTS_NEW)
+
+
+def test_a_transient_failure_fetching_the_head_is_never_taken_for_a_missing_object(chain, store, parked, sleeps):
+    """The legacy manifest.json is STALE (it lacks core's frames). A 5xx or a timeout on the head GET is not 'the object is
+    gone': merging against the legacy file here would publish a snapshot that erases them."""
+    chain.foreign_publish(adding(*LATTICE))
+    _legacy_manifest(chain, BASE)
+    chain.fetch_faults.extend(["none"] * 5)
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    assert chain.kinds("fetch_legacy") == [] and chain.cas_calls == []
+    assert chain.head_files() == sorted(BASE + LATTICE)
+
+
+def test_a_missing_head_object_and_an_unreadable_legacy_manifest_is_a_failed_attempt(chain, store, parked, sleeps, caplog):
+    chain.objects.pop(chain.head_key)                                  # and there is no legacy manifest.json either
+    submit(store, BASE + PILOTS_NEW)
+    with caplog.at_level(logging.WARNING):
+        parked.run()
+    assert chain.cas_calls == [] and chain.uploads == []
+    assert len(chain.kinds("fetch_legacy")) == 5 and len(sleeps) == 4
+    assert any(r.levelno >= logging.ERROR for r in caplog.records)

@@ -40,8 +40,9 @@ def newer_collision(raw, current):
 
 
 def prune_verified_cycles(store, lane=None):
-    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
     winners, keep = {}, set()
     for product in manifest.products:
         identity = selection_identity(product)

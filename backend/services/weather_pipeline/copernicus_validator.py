@@ -270,8 +270,9 @@ def quarantine_invalid_copernicus_products_helper(store):
 
 def prune_old_products_helper(store, before_time: datetime):
     """Cleans up old JSON product files that fall before the cutoff date."""
-    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
     remaining_products = [p for p in manifest.products if not p.valid_time_start < before_time]
@@ -309,8 +310,9 @@ def prune_duplicate_valid_times_helper(store) -> int:
     if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
         from services.weather_pipeline.prune_verified_cycles import prune_verified_cycles
         return prune_verified_cycles(store)
-    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
 
     # PROVENANCE-AWARE ranking (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed
     # CMEMS fetch made the native job save ESTIMATED fallbacks with a newer run_time; a pure
@@ -397,8 +399,9 @@ def prune_superseded_products_helper(
                          or (region_id and product.region_id is None and product.coverage_mode == 'global_tile')))
 
         return prune_verified_cycles(store, lane)
-    from services.weather_pipeline.manifest_publish_step import submit_manifest_publish
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
     def _lane_match(p):

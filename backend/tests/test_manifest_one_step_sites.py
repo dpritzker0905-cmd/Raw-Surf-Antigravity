@@ -2,103 +2,20 @@
 hands the snapshot to the publisher and does no I/O on the caller's thread. Plus the flag's registry entry.
 
 The flag-off tests are CHARACTERIZATION tests: they were written and run green against the code BEFORE the call sites were touched."""
-import json
-import logging
-import re
-import threading
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
+from datetime import timedelta
 
 import pytest
 
 import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
-from services.weather_pipeline import store_helpers
-from services.weather_pipeline.schemas import (
-    CoverageBounds, GridVector, ManifestProduct, NormalizedGrid, NormalizedProduct, PipelineManifest,
+from services.weather_pipeline.schemas import PipelineManifest
+from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2
+from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
+from tests._manifest_chain_harness import (  # noqa: F401,F811
+    BASE, FLAG, NEW_RUN, RUN_TIME, VALID, InlineExecutor, RecordingExecutor, SITES, _entry, _raw_entry, chain,
+    parked, store, submit,
 )
-from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2, reconcile_manifest_products_for_upload
-from tests._manifest_chain_harness import (  # noqa: F401,F811  (fixtures are used by name; the autouse ones apply here)
-    BASE, FLAG, LATTICE, NEW_RUN, OLD_RUN, PILOTS_NEW, PRUNED, RUN_TIME, SAVES, UNIQUE_KEY, VALID, BOUNDS,
-    Chain, FakeStore, InlineExecutor, RecordingExecutor,
-    _entry, _files, _fresh_slot, _iso, _keep_moving, _no_network, _raw_entry, _raw_wind, _snapshot, _wind,
-    adding, chain, changing, inline, parked, removing, sleeps, store, submit,
-)
-
-
-def _normalized(name_run=OLD_RUN):
-    return NormalizedProduct(
-        model="GFS", provider="noaa", domain="marine", layer="waves", run_time=name_run, valid_time=VALID,
-        coverage=BOUNDS, region_id="gulf", is_forecast_authoritative=True, is_estimated=False, freshness_sec=0,
-        value_kind="height", value_unit="m", display_unit_hint="ft", source_variables=["hs"],
-        grid=NormalizedGrid(bounds=BOUNDS, cols=1, rows=1, vectors=[GridVector(lat=29, lng=-87, speed=2)]))
-
-
-def _verified(filename, cycle_hours, received_hours=0):
-    p = _entry(filename, provider="noaa", coverage_mode="regional_tile")
-    p.model_run_time = OLD_RUN + timedelta(hours=cycle_hours)
-    p.model_run_time_status = "known"
-    p.run_time = OLD_RUN + timedelta(hours=received_hours)
-    return p
-
-
-def _disk_store(tmp_path, products=()):
-    store = ProductStore(cache_dir=tmp_path)
-    store._save_manifest(PipelineManifest(products=list(products), last_manifest_update=RUN_TIME))
-    for p in products:
-        (tmp_path / p.filename).write_bytes(b"frame")
-    return store
-
-
-# Each driver: (store, monkeypatch) -> runs ONE call site against a store that holds its fixtures; returns the
-# `exclude_keys` the site is expected to hand reconcile (None = it passes none).
-def _drive_save_product(tmp_path, monkeypatch):
-    store = _disk_store(tmp_path)
-    store_helpers.save_product_helper(store, _normalized())
-    return store, None
-
-
-def _drive_save_batch(tmp_path, monkeypatch):
-    store = _disk_store(tmp_path)
-    assert store_helpers.save_products_batch_helper(store, [(_normalized(), 0.25)]) == 1
-    return store, None
-
-
-def _drive_prune_old(tmp_path, monkeypatch):
-    store = _disk_store(tmp_path, [_entry("old.json", old=True), _entry("new.json", newer=True)])
-    store.prune_old_products(VALID - timedelta(days=2))
-    return store, {"old.json"}
-
-
-def _drive_duplicate_sweep(tmp_path, monkeypatch):
-    store = _disk_store(tmp_path, [_entry("old.json"), _entry("new.json", newer=True)])
-    assert store.prune_duplicate_valid_times() == 1
-    return store, {"old.json"}
-
-
-def _drive_superseded(tmp_path, monkeypatch):
-    store = _disk_store(tmp_path, [_entry("old.json"), _entry("new.json", newer=True)])
-    store.prune_superseded_products("GFS", "marine", "waves", "gulf", NEW_RUN)
-    return store, {"old.json"}
-
-
-def _drive_verified_cycles(tmp_path, monkeypatch):
-    monkeypatch.setenv("INGEST_PRUNE_VERIFIED_CYCLES", "1")
-    store = _disk_store(tmp_path, [_verified("older.json", -6, received_hours=1), _verified("newest.json", 0)])
-    assert store.prune_duplicate_valid_times() == 1
-    return store, {"older.json"}
-
-
-SITES = {
-    "store_helpers.save_product_helper": _drive_save_product,
-    "store_helpers.save_products_batch_helper": _drive_save_batch,
-    "copernicus_validator.prune_old_products_helper": _drive_prune_old,
-    "copernicus_validator.prune_duplicate_valid_times_helper": _drive_duplicate_sweep,
-    "copernicus_validator.prune_superseded_products_helper": _drive_superseded,
-    "prune_verified_cycles.prune_verified_cycles": _drive_verified_cycles,
-}
 
 
 @pytest.fixture
@@ -189,7 +106,12 @@ def test_flag_on_each_call_site_hands_its_snapshot_to_the_publisher_and_does_no_
     monkeypatch.setattr(store_mod, "_upload_executor", InlineExecutor())
     monkeypatch.setattr(ProductStore, "_cached_manifest", None)
     monkeypatch.setenv("MANIFEST_RETENTION_DAYS", "36500")
-    chain.foreign_publish(lambda products: products + [_raw_entry("old.json"), _raw_entry("older.json")])
+    other = dict(run_time=NEW_RUN + timedelta(hours=1), valid_time_start=VALID + timedelta(days=1),
+                 valid_time_end=VALID + timedelta(days=1))               # another writer's entry, in no site's way
+    chain.foreign_publish(lambda products: products + [
+        _raw_entry("old.json"), _raw_entry("older.json"), _raw_entry("other_writer.json", **other)])
+    mps._slot.head = mps._Head(dump_manifest_for_l2(                      # a publish this process already made
+        PipelineManifest(last_manifest_update=RUN_TIME, products=[_entry("other_writer.json", **other)])))
     store, expected_exclude = SITES[site](tmp_path, monkeypatch)
     io = [e for e in chain.events if e[0] in ("read_pointer", "fetch", "fetch_pointed", "cas")
           or (e[0] == "upload" and (e[1] == "manifest.json" or e[1].startswith("manifests/")))]
@@ -200,6 +122,7 @@ def test_flag_on_each_call_site_hands_its_snapshot_to_the_publisher_and_does_no_
     survivors = {p.filename for p in store.get_manifest().products}
     head = set(chain.head_files())
     assert survivors and survivors <= head and set(BASE) <= head
+    assert "other_writer.json" in survivors, "the caller's in-memory manifest did not absorb the published head"
     assert not (expected_exclude or set()) & head, "a pruned entry came back from the head"
 
 

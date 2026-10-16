@@ -1,29 +1,17 @@
 """The pointer-side pieces of the one-step publisher: reconcile(remote_products=), manifest_pointer.fetch_manifest_object,
 and publish_run_keyed's per-thread suppression."""
 import json
-import logging
-import re
 import threading
-from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 
 import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_pointer as mp
-from services.weather_pipeline import manifest_publish_step as mps
-from services.weather_pipeline import store_helpers
-from services.weather_pipeline.schemas import (
-    CoverageBounds, GridVector, ManifestProduct, NormalizedGrid, NormalizedProduct, PipelineManifest,
-)
-from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2, reconcile_manifest_products_for_upload
-from tests._manifest_chain_harness import (  # noqa: F401,F811  (fixtures are used by name; the autouse ones apply here)
-    BASE, FLAG, LATTICE, NEW_RUN, OLD_RUN, PILOTS_NEW, PRUNED, RUN_TIME, SAVES, UNIQUE_KEY, VALID, BOUNDS,
-    Chain, FakeStore, InlineExecutor, RecordingExecutor,
-    _entry, _files, _fresh_slot, _iso, _keep_moving, _no_network, _raw_entry, _raw_wind, _snapshot, _wind,
-    adding, chain, changing, inline, parked, removing, sleeps, store, submit,
-)
+from services.weather_pipeline.schemas import PipelineManifest
+from services.weather_pipeline.store import reconcile_manifest_products_for_upload
+from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
+from tests._manifest_chain_harness import RUN_TIME, _entry, _raw_entry  # noqa: F401,F811
 
 
 def test_reconcile_with_remote_products_merges_against_them_and_never_fetches(monkeypatch):
@@ -74,6 +62,9 @@ def test_reconcile_swallows_a_failure_when_it_fetches_but_raises_when_the_caller
 class _Response:
     def __init__(self, status_code=200, content=b"{}"):
         self.status_code, self.content, self.text = status_code, content, content.decode("utf-8", "replace")
+
+    def json(self):
+        return json.loads(self.content)
 
 
 @pytest.fixture
@@ -158,3 +149,70 @@ def test_the_suppression_is_per_thread(monkeypatch):
         worker.start()
         worker.join()
     assert seen == [True], "another thread's publish was silenced"
+
+
+# ── cas_advance(expected_key=): the swap also names the head it was merged against (ABA) ──────────────────────────────────
+
+@pytest.fixture
+def patched(monkeypatch):
+    """requests.patch, recorded: the pointer row's UPDATE."""
+    import requests
+    calls = []
+    monkeypatch.setattr(mp, "_rest_base_and_headers", lambda: ("https://db.invalid", {"apikey": "test-key"}))
+    monkeypatch.setattr(requests, "patch",
+                        lambda url, **kwargs: calls.append((url, kwargs)) or _Response(200, b'[{"generation": 6}]'))
+    return calls
+
+
+def test_cas_advance_without_an_expected_key_filters_on_the_generation_alone_as_before(patched):
+    assert mp.cas_advance(5, "manifests/manifest-g000000000006.json", "run-1", "designated:gh-run-1") is True
+    url, kwargs = patched[0]
+    assert url == "https://db.invalid/rest/v1/weather_manifest_pointer?id=eq.1&generation=eq.5"
+    body = json.loads(kwargs["data"])
+    assert body["generation"] == 6 and body["manifest_key"] == "manifests/manifest-g000000000006.json"
+
+
+def test_cas_advance_with_an_expected_key_also_filters_on_the_manifest_key_url_encoded(patched):
+    head = "manifests/manifest-g000000000005-" + "ab" * 16 + ".json"
+    assert mp.cas_advance(5, "manifests/manifest-g000000000006-" + "cd" * 16 + ".json", "run-1", "x", expected_key=head) is True
+    url, kwargs = patched[0]
+    assert url == ("https://db.invalid/rest/v1/weather_manifest_pointer?id=eq.1&generation=eq.5"
+                   "&manifest_key=eq.manifests%2Fmanifest-g000000000005-" + "ab" * 16 + ".json")
+    assert json.loads(kwargs["data"])["manifest_key"].startswith("manifests/manifest-g000000000006-"), \
+        "the new key is written, not the expected one"
+
+
+def test_an_expected_key_cannot_smuggle_a_second_filter_into_the_update(patched):
+    mp.cas_advance(5, "k", None, "x", expected_key="k&generation=eq.1")
+    url = patched[0][0]
+    assert url.count("&") == 2 and "%26" in url, url
+
+
+# ── fetch_manifest_object: a DEFINITE miss is not a transient failure (round-4 finding P7) ───────────────────────────────
+
+@pytest.mark.parametrize("status,body", [
+    (400, {"statusCode": "404", "error": "not_found", "message": "Object not found"}),      # what Supabase answers for a missing object
+    (400, {"code": "NoSuchKey"}),
+    (404, {"statusCode": "404", "error": "not_found", "message": "Object not found"}),
+    (404, {"code": "NoSuchKey"}),
+], ids=["400-not_found", "400-NoSuchKey", "404-not_found", "404-NoSuchKey"])
+def test_fetch_manifest_object_answers_MISSING_when_storage_says_the_object_does_not_exist(storage_get, status, body):
+    storage_get.answers.append(_Response(status, json.dumps(body).encode("utf-8")))
+    assert mp.fetch_manifest_object("manifests/manifest-g000000000006.json") is mp.MISSING
+
+
+@pytest.mark.parametrize("answer", [
+    _Response(404, b"<html>404 Not Found</html>"),                       # a proxy's page says nothing about the object
+    _Response(400, b'{"statusCode": "404", "error": "Bucket not found"}'),     # a missing BUCKET is not a missing object
+    _Response(400, b'{"error": "InvalidKey"}'),
+    _Response(500, b'{"code": "NoSuchKey"}'),
+    _Response(429, b'{"error": "SlowDown"}'),
+    RuntimeError("connection reset"),
+], ids=["404-html", "bucket", "invalid-key", "500", "429", "raises"])
+def test_fetch_manifest_object_answers_None_for_everything_that_is_not_a_definite_miss(storage_get, answer):
+    storage_get.answers.append(answer)
+    assert mp.fetch_manifest_object("manifests/manifest-g000000000006.json") is None
+
+
+def test_MISSING_is_falsy_and_distinct_from_the_bytes_and_from_None():
+    assert mp.MISSING is not None and not mp.MISSING and repr(mp.MISSING) == "MISSING"

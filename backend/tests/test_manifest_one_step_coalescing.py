@@ -1,27 +1,16 @@
 """MANIFEST_PUBLISH_ONE_STEP: the coalescing slot, the executor's exit, the backoff, and the cost of one publish."""
-import json
-import logging
-import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
 
 import pytest
 
 import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
-from services.weather_pipeline import store_helpers
-from services.weather_pipeline.schemas import (
-    CoverageBounds, GridVector, ManifestProduct, NormalizedGrid, NormalizedProduct, PipelineManifest,
-)
-from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2, reconcile_manifest_products_for_upload
-from tests._manifest_chain_harness import (  # noqa: F401,F811  (fixtures are used by name; the autouse ones apply here)
-    BASE, FLAG, LATTICE, NEW_RUN, OLD_RUN, PILOTS_NEW, PRUNED, RUN_TIME, SAVES, UNIQUE_KEY, VALID, BOUNDS,
-    Chain, FakeStore, InlineExecutor, RecordingExecutor,
-    _entry, _files, _fresh_slot, _iso, _keep_moving, _no_network, _raw_entry, _raw_wind, _snapshot, _wind,
-    adding, chain, changing, inline, parked, removing, sleeps, store, submit,
+from services.weather_pipeline.store import dump_manifest_for_l2
+from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
+from tests._manifest_chain_harness import (  # noqa: F401,F811
+    BASE, PILOTS_NEW, PRUNED, SAVES, InlineExecutor, _snapshot, adding, chain, inline, parked, store, submit,
 )
 
 

@@ -617,8 +617,12 @@ class ProductStore:
                     logger.info(f"[Product Store] Cleaned manifest saved locally with {len(pruned_ids)} pruned entries: {pruned_ids}")
                     # Cleaned manifest L2 resave (do not delete product files from Supabase blindly)
                     try:
-                        manifest_json = dump_manifest_for_l2(manifest)
-                        self._upload_to_supabase("manifest.json", manifest_json)
+                        from services.weather_pipeline.manifest_publish_step import one_step_active, submit_manifest_publish
+                        if one_step_active():  # the lane merges against the head it swaps from; this resave PUT a restore-time view over it
+                            submit_manifest_publish(self, manifest, exclude_keys=pruned_ids)
+                        else:
+                            manifest_json = dump_manifest_for_l2(manifest)
+                            self._upload_to_supabase("manifest.json", manifest_json)
                         logger.info("[Product Store] Cleaned manifest uploaded to L2 (Supabase)")
                     except Exception as e:
                         logger.warning(f"[Product Store] Cleaned manifest L2 upload failed: {e}")

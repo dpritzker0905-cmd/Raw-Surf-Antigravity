@@ -3,12 +3,8 @@
 `Chain` is the pointer row plus the object store, speaking production's names and signatures; the executors park or run the
 publisher's jobs; the fixtures wire all of it in. Import the fixtures by name into a test module (the autouse ones apply there)."""
 import json
-import logging
 import re
-import threading
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
 
 import pytest
 
@@ -19,7 +15,7 @@ from services.weather_pipeline import store_helpers
 from services.weather_pipeline.schemas import (
     CoverageBounds, GridVector, ManifestProduct, NormalizedGrid, NormalizedProduct, PipelineManifest,
 )
-from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2, reconcile_manifest_products_for_upload
+from services.weather_pipeline.store import ProductStore, dump_manifest_for_l2
 
 
 FLAG = "MANIFEST_PUBLISH_ONE_STEP"
@@ -178,6 +174,13 @@ class Chain:
         self.during_upload = None
         self.during_legacy_put = None
         self.fail_manifest_json_put = False
+        # Storage's listing and bulk delete (what retention talks to), with a clock the tests move.
+        self.now = datetime.now(timezone.utc)
+        self.created = {}                 # key -> the clock when the object was stored
+        self.list_requests = []           # (url, json body, timeout)
+        self.delete_requests = []
+        self.list_fault = self.delete_fault = None      # "raise" | an HTTP status
+        self.unexpected = []              # requests nothing here knows how to answer
 
     # ── what the code under test calls ──
     def read_pointer(self):
@@ -188,19 +191,29 @@ class Chain:
     def fetch_manifest_object(self, key):
         self.events.append(("fetch", key))
         fault = self.fetch_faults.pop(0) if self.fetch_faults else None
-        return None if fault == "none" else self.objects.get(key)
+        if fault == "none":
+            return None                                  # a transient failure: 5xx, timeout, 429
+        return self.objects[key] if key in self.objects else mp.MISSING    # a definite miss: HTTP 404 / NoSuchKey
 
     def fetch_pointed_manifest(self):
         self.events.append(("fetch_pointed",))
-        return self.objects[self.head_key]
+        return self.objects.get(self.head_key)
 
-    def cas_advance(self, expected_generation, manifest_key, run_id, written_by):
+    def fetch_legacy_products(self):
+        """store._fetch_remote_manifest_products(): the pointed object, else the legacy manifest.json, else None."""
+        self.events.append(("fetch_legacy",))
+        data = self.objects.get(self.head_key) or self.objects.get("manifest.json")
+        return None if data is None else (json.loads(data).get("products") or [])
+
+    def cas_advance(self, expected_generation, manifest_key, run_id, written_by, expected_key=None):
+        """`UPDATE ... WHERE generation = expected [AND manifest_key = expected_key]`."""
         if self.before_cas:
             hook, self.before_cas = self.before_cas, None
             hook()
         fault = self.cas_faults.pop(0) if self.cas_faults else None
-        won = expected_generation == self.generation and fault != "error"
-        self.cas_calls.append({"expected": expected_generation, "won": won, "key": manifest_key,
+        won = (expected_generation == self.generation and (expected_key is None or expected_key == self.head_key)
+               and fault != "error")
+        self.cas_calls.append({"expected": expected_generation, "won": won, "key": manifest_key, "expected_key": expected_key,
                                "files": _files(self.objects[manifest_key]) if manifest_key in self.objects else None})
         self.events.append(("cas", expected_generation, manifest_key, won))
         if won:
@@ -225,6 +238,7 @@ class Chain:
         if key == "manifest.json" and self.fail_manifest_json_put:
             raise RuntimeError("HTTP 503: SlowDown")
         self.objects[key] = data
+        self.created[key] = self.now
         if key == "manifest.json":
             self.nested_publishes.append(mp.publish_run_keyed(None, data, self.upload, self.delete))
         if fault == "lost_ack":
@@ -252,7 +266,7 @@ class Chain:
 
     def foreign_publish(self, *edits, key=None):
         """Another writer's commit. `key="unique"` names its object like a one-step publisher would."""
-        doc = json.loads(self.objects[self.head_key])
+        doc = json.loads(self.objects.get(self.head_key) or self.objects["manifest.json"])      # a missing head: what the old path left
         for edit in edits:
             doc["products"] = edit(doc["products"])
         doc["written_by"] = "designated:gh-run-other"
@@ -261,6 +275,54 @@ class Chain:
             key = "manifests/manifest-g%012d-%s.json" % (self.generation, "f0" * 16)
         self.head_key = key or mp.run_keyed_manifest_key(self.generation)
         self.objects[self.head_key] = json.dumps(doc, indent=2).encode("utf-8")
+        self.created[self.head_key] = self.now
+
+    # ── Storage, as requests.post / requests.delete reach it ──
+    def storage_post(self, url, **kwargs):
+        if not url.endswith("/storage/v1/object/list/weather-products"):
+            self.unexpected.append(("POST", url))
+            raise AssertionError("unexpected POST " + url)
+        body = kwargs["json"]
+        self.list_requests.append((url, body, kwargs.get("timeout")))
+        self.events.append(("list",))
+        if self.list_fault == "raise":
+            raise RuntimeError("connection reset")
+        if self.list_fault:
+            return _StorageResponse(self.list_fault, {"error": "boom"})
+        rows = [{"name": key[len("manifests/"):], "created_at": self.created.get(key, self.now).isoformat(),
+                 "updated_at": self.created.get(key, self.now).isoformat()}
+                for key in self.objects if key.startswith("manifests/") and body["search"] in key]
+        rows.sort(key=lambda row: row["name"], reverse=body["sortBy"]["order"] == "desc")
+        return _StorageResponse(200, rows[body["offset"]:body["offset"] + body["limit"]])
+
+    def storage_delete(self, url, **kwargs):
+        if not url.endswith("/storage/v1/object/weather-products"):
+            self.unexpected.append(("DELETE", url))
+            raise AssertionError("unexpected DELETE " + url)
+        prefixes = kwargs["json"]["prefixes"]
+        self.delete_requests.append((url, prefixes, kwargs.get("timeout")))
+        self.events.append(("delete_batch", len(prefixes)))
+        if self.delete_fault == "raise":
+            raise RuntimeError("connection reset")
+        if self.delete_fault:
+            return _StorageResponse(self.delete_fault, {"error": "boom"})
+        for key in prefixes:
+            self.objects.pop(key, None)
+            self.deleted.append(key)
+        return _StorageResponse(200, [])
+
+    def copies(self):
+        """The unique-named run-keyed objects still in Storage, oldest first."""
+        return sorted(key for key in self.objects if UNIQUE_KEY.fullmatch(key))
+
+
+class _StorageResponse:
+    def __init__(self, status_code, body):
+        self.status_code, self._body = status_code, body
+        self.text = json.dumps(body)
+
+    def json(self):
+        return self._body
 
 
 class FakeStore:
@@ -289,11 +351,16 @@ def chain(monkeypatch):
     monkeypatch.setattr(mp, "cas_advance", c.cas_advance)
     monkeypatch.setattr(mp, "fetch_manifest_object", c.fetch_manifest_object)
     monkeypatch.setattr(mp, "fetch_pointed_manifest", c.fetch_pointed_manifest)
+    monkeypatch.setattr(store_mod, "_fetch_remote_manifest_products", c.fetch_legacy_products)
     monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: True)
-    from services.weather_pipeline import manifest_immutable
-    monkeypatch.setattr(manifest_immutable, "prune_immutable_copies",
-                        lambda generation, **kwargs: c.events.append(("prune", generation)))
-    return c
+    # Retention is NOT stubbed: it runs for real against the Chain's Storage (listing, bulk delete, a clock).
+    import requests
+    monkeypatch.setattr(mp, "_rest_base_and_headers", lambda: ("https://storage.invalid", {"apikey": "test-key"}))
+    monkeypatch.setattr(requests, "post", c.storage_post)
+    monkeypatch.setattr(requests, "delete", c.storage_delete)
+    monkeypatch.setattr(mps, "_utcnow", lambda: c.now)
+    yield c
+    assert c.unexpected == [], "requests the harness could not answer: %s" % c.unexpected
 
 
 @pytest.fixture
@@ -355,3 +422,79 @@ SAVES = ["euro_wind_wind_global_mid_202610%02dT000000Z.json" % (26 + i) for i in
 
 
 PRUNED = ["euro_wind_wind_global_mid_202610%02dT060000Z.json" % (20 + i) for i in range(5)]
+
+
+# ── the six call sites, each driven against a disk store ──
+
+
+def _normalized(name_run=OLD_RUN):
+    return NormalizedProduct(
+        model="GFS", provider="noaa", domain="marine", layer="waves", run_time=name_run, valid_time=VALID,
+        coverage=BOUNDS, region_id="gulf", is_forecast_authoritative=True, is_estimated=False, freshness_sec=0,
+        value_kind="height", value_unit="m", display_unit_hint="ft", source_variables=["hs"],
+        grid=NormalizedGrid(bounds=BOUNDS, cols=1, rows=1, vectors=[GridVector(lat=29, lng=-87, speed=2)]))
+
+
+def _verified(filename, cycle_hours, received_hours=0):
+    p = _entry(filename, provider="noaa", coverage_mode="regional_tile")
+    p.model_run_time = OLD_RUN + timedelta(hours=cycle_hours)
+    p.model_run_time_status = "known"
+    p.run_time = OLD_RUN + timedelta(hours=received_hours)
+    return p
+
+
+def _disk_store(tmp_path, products=()):
+    store = ProductStore(cache_dir=tmp_path)
+    store._save_manifest(PipelineManifest(products=list(products), last_manifest_update=RUN_TIME))
+    for p in products:
+        (tmp_path / p.filename).write_bytes(b"frame")
+    return store
+
+
+# Each driver: (store, monkeypatch) -> runs ONE call site against a store that holds its fixtures; returns the
+# `exclude_keys` the site is expected to hand reconcile (None = it passes none).
+def _drive_save_product(tmp_path, monkeypatch):
+    store = _disk_store(tmp_path)
+    store_helpers.save_product_helper(store, _normalized())
+    return store, None
+
+
+def _drive_save_batch(tmp_path, monkeypatch):
+    store = _disk_store(tmp_path)
+    assert store_helpers.save_products_batch_helper(store, [(_normalized(), 0.25)]) == 1
+    return store, None
+
+
+def _drive_prune_old(tmp_path, monkeypatch):
+    store = _disk_store(tmp_path, [_entry("old.json", old=True), _entry("new.json", newer=True)])
+    store.prune_old_products(VALID - timedelta(days=2))
+    return store, {"old.json"}
+
+
+def _drive_duplicate_sweep(tmp_path, monkeypatch):
+    store = _disk_store(tmp_path, [_entry("old.json"), _entry("new.json", newer=True)])
+    assert store.prune_duplicate_valid_times() == 1
+    return store, {"old.json"}
+
+
+def _drive_superseded(tmp_path, monkeypatch):
+    store = _disk_store(tmp_path, [_entry("old.json"), _entry("new.json", newer=True)])
+    store.prune_superseded_products("GFS", "marine", "waves", "gulf", NEW_RUN)
+    return store, {"old.json"}
+
+
+def _drive_verified_cycles(tmp_path, monkeypatch):
+    monkeypatch.setenv("INGEST_PRUNE_VERIFIED_CYCLES", "1")
+    store = _disk_store(tmp_path, [_verified("older.json", -6, received_hours=1), _verified("newest.json", 0)])
+    assert store.prune_duplicate_valid_times() == 1
+    return store, {"older.json"}
+
+
+SITES = {
+    "store_helpers.save_product_helper": _drive_save_product,
+    "store_helpers.save_products_batch_helper": _drive_save_batch,
+    "copernicus_validator.prune_old_products_helper": _drive_prune_old,
+    "copernicus_validator.prune_duplicate_valid_times_helper": _drive_duplicate_sweep,
+    "copernicus_validator.prune_superseded_products_helper": _drive_superseded,
+    "prune_verified_cycles.prune_verified_cycles": _drive_verified_cycles,
+}
