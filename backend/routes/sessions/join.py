@@ -1,6 +1,6 @@
 """Sessions join — surfer join flow with payment."""
 from pydantic import BaseModel
-from fastapi import Depends, HTTPException, APIRouter
+from fastapi import Depends, HTTPException, APIRouter, Header
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,9 +12,11 @@ from models import AnalyticsEvent, CreditTransaction, LiveSession, LiveSessionPa
 
 from .schemas import JoinSessionRequest
 from utils.credits import deduct_credits
+from utils.scheduled_booking_payment import cents
+from utils.checkout_intents import identity, existing as find_checkout, prepare, resume
+from starlette.concurrency import run_in_threadpool
 from services import live_session_escrow
 import os, stripe, logging
-import stripe_mcp_server, sqlite3
 STRIPE_API_KEY = os.environ.get("STRIPE_SECRET_KEY") or os.environ.get("STRIPE_API_KEY")
 if STRIPE_API_KEY: stripe.api_key = STRIPE_API_KEY
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ async def join_session(
     surfer_id: str,
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
+    request_key: str | None = Header(None, alias="Idempotency-Key"),
 ):
     """
     Join a live session - SmugMug-style pricing:
@@ -51,10 +54,30 @@ async def join_session(
     if surfer_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot join a session on behalf of another user")
 
-    surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
+    if data.payment_method == 'card' and request_key is not None:
+        key, fingerprint = identity('live', data, request_key)
+        intent_id = await find_checkout(db, surfer_id, 'live', key, fingerprint)
+        if intent_id:
+            await db.rollback()
+            return await resume(db, intent_id, STRIPE_API_KEY)
+    surfer_query = select(Profile).where(Profile.id == surfer_id)
+    # Buyer -> photographer -> live, shared by every join method. NO KEY UPDATE
+    # serializes the wallet without blocking a paid callback's buyer FK check.
+    surfer_query = surfer_query.with_for_update(key_share=True)
+    surfer_result = await db.execute(surfer_query)
     surfer = surfer_result.scalar_one_or_none()
     if not surfer:
         raise HTTPException(status_code=404, detail="Surfer not found")
+
+    if data.payment_method == 'card':
+        active_session = (await db.scalars(select(LiveSession).where(
+            LiveSession.photographer_id == data.photographer_id, LiveSession.status == 'active'
+        ).order_by(LiveSession.created_at.desc()).limit(1))).one_or_none()
+        key, fingerprint = identity('live', data, request_key, active_session.id if active_session else None)
+        intent_id = await find_checkout(db, surfer_id, 'live', key, fingerprint)
+        if intent_id:
+            await db.rollback()
+            return await resume(db, intent_id, STRIPE_API_KEY)
     
     # Define roles that can join sessions (including Grom Parent as BUYER)
     # CaptureSession Core v2: Grom Parents are valid PARTICIPANTS (buyers) even though they can't CREATE sessions
@@ -81,13 +104,26 @@ async def join_session(
         select(Profile)
         .where(Profile.id == data.photographer_id)
         .options(selectinload(Profile.current_spot))
+        .with_for_update().execution_options(populate_existing=True)
     )
     photographer = photographer_result.scalar_one_or_none()
     if not photographer:
-        raise HTTPException(status_code=404, detail="Photographer not found")
+        raise HTTPException(status_code=404, detail=(dict(message='Photographer not found', checkout_intent_created=False)
+                                                    if data.payment_method == 'card' else 'Photographer not found'))
     
     if not photographer.is_shooting:
-        raise HTTPException(status_code=400, detail="Photographer is not currently shooting")
+        raise HTTPException(status_code=400, detail=(dict(message='Photographer is not currently shooting', checkout_intent_created=False)
+                                                    if data.payment_method == 'card' else 'Photographer is not currently shooting'))
+
+    active_session = await db.scalar(select(LiveSession).where(
+        LiveSession.photographer_id == data.photographer_id, LiveSession.status == 'active'
+    ).order_by(LiveSession.created_at.desc()).limit(1).with_for_update().execution_options(populate_existing=True))
+    if data.payment_method == 'card':
+        key, fingerprint = identity('live', data, request_key, active_session.id if active_session else None)
+        intent_id = await find_checkout(db, surfer_id, 'live', key, fingerprint)
+        if intent_id:
+            await db.rollback()
+            return await resume(db, intent_id, STRIPE_API_KEY)
     
     existing = await db.execute(
         select(LiveSessionParticipant)
@@ -96,7 +132,8 @@ async def join_session(
         .where(LiveSessionParticipant.status == 'active')
     )
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Already in this session")
+        raise HTTPException(status_code=400, detail=(dict(message='Already in this session', checkout_intent_created=False)
+                                                    if data.payment_method == 'card' else 'Already in this session'))
     
     # SmugMug-style pricing: buy-in price for the session
     buyin_price = photographer.live_buyin_price or photographer.session_price or 25.0
@@ -118,7 +155,7 @@ async def join_session(
     # Combined discount: platform + photographer subscription (capped at 50%)
     discount = min(platform_discount + photo_sub_discount, 0.50)
     
-    final_price = buyin_price * (1 - discount)
+    final_price = cents(buyin_price * (1 - discount)) / 100
     
     # Try to use subscription live_buyin quota (free session if quota available)
     sub_quota_result = await try_use_subscription_quota(
@@ -127,6 +164,7 @@ async def join_session(
     subscription_covered = sub_quota_result.get("used", False)
     if subscription_covered:
         final_price = 0.0  # Subscription covers this buy-in
+        data.payment_method = 'subscription'
     
     # ============ CARD PAYMENT: Create Stripe Checkout Session ============
     if data.payment_method == 'card':
@@ -134,9 +172,14 @@ async def join_session(
             raise HTTPException(status_code=500, detail="Payment processing not configured")
         
         origin_url = data.origin_url or "https://dev--rawsurf.netlify.app"
+
+        if active_session is None:
+            raise HTTPException(status_code=409, detail=dict(message='Live session is no longer available', checkout_intent_created=False))
         
         # Store session data for completion after payment
         session_data = {
+            "type": "live_session_join",
+            "live_session_id": active_session.id,
             "surfer_id": surfer_id,
             "photographer_id": data.photographer_id,
             "selfie_url": data.selfie_url,
@@ -145,65 +188,18 @@ async def join_session(
             "spot_name": photographer.current_spot.name if photographer.current_spot else "Live Session"
         }
         
-        # Get or create stripe customer ID mapping in stripe-mcp cache
-        customer_id = None
-        try:
-            conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-            cursor = conn.cursor()
-            cursor.execute("SELECT customer_id FROM stripe_customers WHERE supabase_user_id = ?", (surfer_id,))
-            row = cursor.fetchone()
-            if row:
-                customer_id = row[0]
-            else:
-                import uuid
-                customer_id = f"cus_test_{uuid.uuid4().hex[:12]}"
-                cursor.execute(
-                    "INSERT INTO stripe_customers (customer_id, email, name, supabase_user_id, subscription_status, created_at) VALUES (?, ?, ?, ?, 'inactive', datetime('now'))",
-                    (customer_id, surfer.email, surfer.full_name, surfer_id)
-                )
-                conn.commit()
-            conn.close()
-        except Exception as e:
-            logger.error(f"Failed to lookup/create stripe customer mapping: {e}")
-            customer_id = f"cus_test_fallback_{surfer_id[:8]}"
+        params = dict(customer_email=surfer.email, mode='payment', payment_method_types=['card'],
+            expires_at=int((datetime.now(timezone.utc)+timedelta(minutes=31)).timestamp()),
+            line_items=[{'price_data': {'currency': 'usd', 'unit_amount': cents(final_price),
+                                       'product_data': {'name': 'Live surf session'}}, 'quantity': 1}],
+            success_url=f"{origin_url}/bookings?session_payment=success&checkout_session_id={{CHECKOUT_SESSION_ID}}",
+            cancel_url=f"{origin_url}/bookings?session_payment=cancelled",
+            metadata={'type': 'live_session_join', 'live_session_id': active_session.id, 'surfer_id': surfer_id,
+                      'photographer_id': data.photographer_id, 'amount': str(final_price)})
+        intent_id = await prepare(db, user_id=surfer_id, kind='live', key=key, fingerprint=fingerprint,
+            params=params, metadata=session_data, amount_cents=cents(final_price), response={'requires_payment': True})
+        return await resume(db, intent_id, STRIPE_API_KEY)
 
-        try:
-            # Route checkout session creation through stripe-mcp server tool function
-            checkout_session = stripe_mcp_server.stripe_create_checkout_session(
-                customer_id=customer_id,
-                amount=final_price,
-                currency="usd",
-                success_url=f"{origin_url}/bookings?session_payment=success&checkout_session_id={{CHECKOUT_SESSION_ID}}",
-                cancel_url=f"{origin_url}/bookings?session_payment=cancelled",
-                metadata_dict={
-                    "type": "live_session_join",
-                    "surfer_id": surfer_id,
-                    "photographer_id": data.photographer_id,
-                    "amount": str(final_price)
-                }
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
-        
-        # Store pending transaction
-        transaction = PaymentTransaction(
-            user_id=surfer_id,
-            session_id=checkout_session["checkout_session_id"],
-            amount=final_price,
-            currency="usd",
-            payment_status="Pending",
-            status="Pending",
-            transaction_metadata=json.dumps(session_data)
-        )
-        db.add(transaction)
-        await db.commit()
-        
-        return {
-            "requires_payment": True,
-            "checkout_url": checkout_session["url"],
-            "session_id": checkout_session["checkout_session_id"]
-        }
-    
     # ============ CREDIT PAYMENT PROCESSING ============
     payment_processed = False
     new_balance = surfer.credit_balance

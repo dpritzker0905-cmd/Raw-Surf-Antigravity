@@ -1,0 +1,238 @@
+{
+  "dev_base": "48284a5e307f65f24b6b9287ed9332598deaf0e7",
+  "frozen_payment_head": "bd7920fbd9025188c540e4ca107e452270ddc714",
+  "frozen_paths": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "frozen_blob": "2db4ae6b078839d4488e0ab81603c658dcc4d7d6",
+      "candidate_blob": "5e81303b9c268524f7809b68317b85a5d124a84c",
+      "adapted_for_combined_revision": true
+    },
+    {
+      "path": ".github/workflows/payment-release-gates.yml",
+      "frozen_blob": "2c50796cc41d90bf4277fa556817817b50dabb41",
+      "candidate_blob": "273906cfd986f38d7eff1a6754f40a04ac93d4d4",
+      "adapted_for_combined_revision": true
+    },
+    {
+      "path": "backend/alembic/versions/checkout_intent_001.py",
+      "frozen_blob": "6fed3102c5d768cd6f121257d1f7bf9c96b75a08",
+      "candidate_blob": "6fed3102c5d768cd6f121257d1f7bf9c96b75a08",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/alembic/versions/payment_reconciliation_001.py",
+      "frozen_blob": "a94ce6ad1731340214dffcb59a2656e0501453f2",
+      "candidate_blob": "a94ce6ad1731340214dffcb59a2656e0501453f2",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/models/__init__.py",
+      "frozen_blob": "8e490a78e4c62350c4cfe63166aa90744493b02f",
+      "candidate_blob": "8e490a78e4c62350c4cfe63166aa90744493b02f",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/models/checkout_intent.py",
+      "frozen_blob": "30ff3c7534b3945e8ca5dd550c31990e96f93b4a",
+      "candidate_blob": "30ff3c7534b3945e8ca5dd550c31990e96f93b4a",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/models/payment_reconciliation.py",
+      "frozen_blob": "63b3ffa024396577c022e9b997ff1422b260cba0",
+      "candidate_blob": "63b3ffa024396577c022e9b997ff1422b260cba0",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/routes/bookings/booking_cancellation.py",
+      "frozen_blob": "0817a03cdeafde337ccb72be0fa481d8f70e07ee",
+      "candidate_blob": "0817a03cdeafde337ccb72be0fa481d8f70e07ee",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/routes/bookings/stripe_checkout.py",
+      "frozen_blob": "f00469592bc8d871a75859f34fea0ab372a16305",
+      "candidate_blob": "f00469592bc8d871a75859f34fea0ab372a16305",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/routes/payment_recovery.py",
+      "frozen_blob": "7e4903a3e0329d5f57dac4b595cca7c83694d47e",
+      "candidate_blob": "7e4903a3e0329d5f57dac4b595cca7c83694d47e",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/routes/sessions/join.py",
+      "frozen_blob": "4b8eb3a51fefad53a030ac6e9c46aad0d3181349",
+      "candidate_blob": "4b8eb3a51fefad53a030ac6e9c46aad0d3181349",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/routes/sessions/payments.py",
+      "frozen_blob": "6996e0ce92543f4e624f515c587e220e89b49113",
+      "candidate_blob": "6996e0ce92543f4e624f515c587e220e89b49113",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/routes/subscriptions_billing/payments.py",
+      "frozen_blob": "892a0b4d896936c0a40a76be9ae482e247f4ec77",
+      "candidate_blob": "892a0b4d896936c0a40a76be9ae482e247f4ec77",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/scheduler/bookings.py",
+      "frozen_blob": "5f3f3460eb9c9cce8807b57e962a0c6a3f1a9bb2",
+      "candidate_blob": "5f3f3460eb9c9cce8807b57e962a0c6a3f1a9bb2",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_booking_payment_integrity.py",
+      "frozen_blob": "3d1a442d23b977d511c0ef0affb98c3f3b5739f8",
+      "candidate_blob": "3d1a442d23b977d511c0ef0affb98c3f3b5739f8",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_checkout_intent_integrity.py",
+      "frozen_blob": "3184acca1c90cf021fd60c867dfead85a1892c35",
+      "candidate_blob": "3184acca1c90cf021fd60c867dfead85a1892c35",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_ci_floor_staleness.py",
+      "frozen_blob": "dca89ee5cdc5b80bfcfa980f0b14d564f8c5ddb7",
+      "candidate_blob": "df30373edc34a728ed594e3e2ebbd3881734b3f1",
+      "adapted_for_combined_revision": true
+    },
+    {
+      "path": "backend/tests/test_live_checkout_fulfillment.py",
+      "frozen_blob": "2d433dd78d369d7d86a6f3f9236b1ef281e82e64",
+      "candidate_blob": "2d433dd78d369d7d86a6f3f9236b1ef281e82e64",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_payment_migration_readiness.py",
+      "frozen_blob": "7efe975aae5f69f323294b877537399f45d0e655",
+      "candidate_blob": "a8ad2beaf934a183cb85c689e6ff5ddfb01b0e59",
+      "adapted_for_combined_revision": true
+    },
+    {
+      "path": "backend/tests/test_payment_postgres_concurrency.py",
+      "frozen_blob": "7d9443dd756ea2e0806f8857f4cf6d557224ddba",
+      "candidate_blob": "7d9443dd756ea2e0806f8857f4cf6d557224ddba",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_payment_reconciliation.py",
+      "frozen_blob": "c16ace3cb69d70b129735f0dc816b2bd8a13ef56",
+      "candidate_blob": "c16ace3cb69d70b129735f0dc816b2bd8a13ef56",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_session_checkout_completion_binding.py",
+      "frozen_blob": "f6b24c1b82681b9db2c38bbb65caa1324e3fe534",
+      "candidate_blob": "f6b24c1b82681b9db2c38bbb65caa1324e3fe534",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/tests/test_sessions_payments_rollback.py",
+      "frozen_blob": "ba89d6cbd204d86e773abe28fde4b556bae6a738",
+      "candidate_blob": "ba89d6cbd204d86e773abe28fde4b556bae6a738",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/utils/checkout_intents.py",
+      "frozen_blob": "1a50e3a040e20496003f262537e9d00c96d9de1c",
+      "candidate_blob": "1a50e3a040e20496003f262537e9d00c96d9de1c",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/utils/checkout_persistence.py",
+      "frozen_blob": "029f9a2dba0cd68e3eee08e7ba2d0fe54269867b",
+      "candidate_blob": "029f9a2dba0cd68e3eee08e7ba2d0fe54269867b",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/utils/live_session_payment.py",
+      "frozen_blob": "cbbb93a3658fa0ac40f2a87c58c978650ea7ed86",
+      "candidate_blob": "cbbb93a3658fa0ac40f2a87c58c978650ea7ed86",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/utils/payment_fulfillment.py",
+      "frozen_blob": "aa23ef0effefa37f03a4bfdd7cefe293b6b32d15",
+      "candidate_blob": "aa23ef0effefa37f03a4bfdd7cefe293b6b32d15",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/utils/payment_reconciliation.py",
+      "frozen_blob": "cda8ff85743b2c8cb2c79bd8e8030bc32ac6ef7b",
+      "candidate_blob": "cda8ff85743b2c8cb2c79bd8e8030bc32ac6ef7b",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "backend/utils/scheduled_booking_payment.py",
+      "frozen_blob": "42bd5ad28f8d8bd293e77d38f791034360663817",
+      "candidate_blob": "42bd5ad28f8d8bd293e77d38f791034360663817",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/scripts/payment-readiness-browser.cjs",
+      "frozen_blob": "c162e253859f6e0d4d732c7f64a4262ff7936bc6",
+      "candidate_blob": "c162e253859f6e0d4d732c7f64a4262ff7936bc6",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/components/BookingPaymentSuccess.js",
+      "frozen_blob": "965e082c210eadc5e0b13ce36e3e3993def82fbb",
+      "candidate_blob": "965e082c210eadc5e0b13ce36e3e3993def82fbb",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/components/BookingPaymentSuccess.test.js",
+      "frozen_blob": "ca21d9e5747fe2176a341e4bbc24865ea694674c",
+      "candidate_blob": "ca21d9e5747fe2176a341e4bbc24865ea694674c",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/components/Bookings.js",
+      "frozen_blob": "fa27dbd57a36d13f0be9563189c6f2aca4103c3a",
+      "candidate_blob": "fa27dbd57a36d13f0be9563189c6f2aca4103c3a",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/components/JumpInSessionModal.js",
+      "frozen_blob": "4d7de5cf9e1929cf382e740d2dd50f9c296d32b9",
+      "candidate_blob": "4d7de5cf9e1929cf382e740d2dd50f9c296d32b9",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/components/JumpInSessionModal.payment.test.js",
+      "frozen_blob": "d87a498279a626920b824773c43af13ce3d9d7cf",
+      "candidate_blob": "d87a498279a626920b824773c43af13ce3d9d7cf",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/components/ScheduledBookingDrawer.js",
+      "frozen_blob": "08950181a819a508cdb8143351b8ec4ec641adf0",
+      "candidate_blob": "08950181a819a508cdb8143351b8ec4ec641adf0",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/lib/checkoutPurchase.js",
+      "frozen_blob": "b2f0c9927f3256e5f3607ea65b43195c4e223403",
+      "candidate_blob": "b2f0c9927f3256e5f3607ea65b43195c4e223403",
+      "adapted_for_combined_revision": false
+    },
+    {
+      "path": "frontend/src/lib/checkoutPurchase.test.js",
+      "frozen_blob": "ad8e127feb19e5b01abecd56af014ec5c7fc1f5a",
+      "candidate_blob": "ad8e127feb19e5b01abecd56af014ec5c7fc1f5a",
+      "adapted_for_combined_revision": false
+    }
+  ],
+  "new_migration": "backend/alembic/versions/payment_budget_merge_001.py",
+  "unchanged_payment_paths": 34,
+  "protected_dev_budget_runtime_weather_files_unchanged": true,
+  "initial_dev_base": "5ec87562d45abef96c97d1f160de39ee0d176b84"
+}

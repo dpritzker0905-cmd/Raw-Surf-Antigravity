@@ -1,0 +1,14 @@
+{
+  "inspection_date_utc": "2026-10-16",
+  "project": "Primary shared Raw Surf database",
+  "scheduled_physical_backups": 7,
+  "completed_on_restore_to_new_project_page": 7,
+  "latest_backup_utc": "2026-10-15T07:57:45Z",
+  "latest_predates_budget_migration_and_initialization": true,
+  "pitr_enabled": false,
+  "restore_to_new_project_offered": true,
+  "live_restore_attempted": false,
+  "paid_resource_or_setting_changes": false,
+  "fresh_live_snapshot_and_real_isolated_restore_gate": "HELD",
+  "supabase_documentation": "https://supabase.com/docs/guides/platform/backups"
+}

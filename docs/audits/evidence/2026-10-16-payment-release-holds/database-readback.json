@@ -1,0 +1,37 @@
+{
+  "verified_at": "2026-10-16T00:38:45.844743+00:00",
+  "method": "Bounded SELECT probes through an isolated authorized Render shell, using runtime DATABASE_URL privately; default_transaction_read_only=on, statement_timeout=5s, lock_timeout=1s, explicit rollback and close",
+  "role": "postgres",
+  "session_user": "postgres",
+  "server_version": "17.6",
+  "transaction_read_only": "on",
+  "matches_primary_project": true,
+  "matches_separate_dev_project": false,
+  "runtime_source": "a7c038919d7aca8637ea1e5e8981bb2e2331830a",
+  "heads": [
+    "6b8bb9b66da7",
+    "a107b7db4f12",
+    "avatar_url_text_001"
+  ],
+  "new_payment_tables_present": false,
+  "existing_commerce_tables_checked": 7,
+  "missing_model_columns": [],
+  "all_id_types": "character varying(36)",
+  "all_primary_keys": "PRIMARY KEY (id)",
+  "current_role_can_create_public": true,
+  "budget": {
+    "initialized": true,
+    "reserved_microdollars": 5100000,
+    "rls": true,
+    "force_rls": false,
+    "policy_count": 0,
+    "check_constraint": "reserved_microdollars >= 0 AND reserved_microdollars <= 10000000",
+    "postgres_schema_usage_and_crud": true,
+    "anon_authenticated_service_role_schema_usage_and_crud": false
+  },
+  "table_default_grants_for_creator_global_and_public": [],
+  "customer_rows_read_or_exported": false,
+  "database_writes_or_migrations": false,
+  "existing_commerce_relation_bytes": 4079616,
+  "pg_dump_available_in_runtime": true
+}

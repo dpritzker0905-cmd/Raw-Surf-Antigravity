@@ -1,0 +1,71 @@
+{
+  "local_postgres": {
+    "passed": 123,
+    "skipped": 0,
+    "runtime_parity": "9 declared packages absent; hosted strict check required",
+    "tests": [
+      "test_payment_postgres_concurrency.py",
+      "test_payment_migration_readiness.py",
+      "test_payment_reconciliation.py",
+      "test_checkout_intent_integrity.py",
+      "test_sessions_payments_rollback.py",
+      "test_live_checkout_fulfillment.py"
+    ]
+  },
+  "local_floor_controls": 36,
+  "local_production_build_exit": 0,
+  "local_estate": "blocked collection: PyYAML absent",
+  "local_frontend": {
+    "initial_sandbox_run": "12 native Bash subprocess failures",
+    "unrestricted_full_run": {
+      "suites": 437,
+      "passed": 5587
+    },
+    "after_dev_theme_sync": {
+      "suites": 5,
+      "passed": 29
+    },
+    "latest_full_hosted": "437 suites/5589tests passed"
+  },
+  "hosted": {
+    "source": "0597cedd25aba185f1cbc9ac686ffe42395c550c",
+    "successful_checks": 18,
+    "successful_workflows": 6,
+    "python": "3.12",
+    "matching_pins": "46/46",
+    "postgres_payment": {
+      "passed": 123,
+      "skipped": 0
+    },
+    "payment_ui": {
+      "suites": 3,
+      "passed": 19
+    },
+    "payment_browser_fixture_cases": 42,
+    "full_frontend": {
+      "suites": 437,
+      "passed": 5589
+    },
+    "estate": {
+      "passed": 1809,
+      "expected_skips": 2880,
+      "selected_files": 315,
+      "producing_files": 313,
+      "silent_files": 0
+    },
+    "chain_passed": 2444,
+    "simulation": {
+      "passed": 2658,
+      "skipped": 66,
+      "existing_xfail": 1
+    },
+    "budget_postgres_passed": 33
+  },
+  "shared_database_or_deployment_action": false,
+  "source_candidate": "0597cedd25aba185f1cbc9ac686ffe42395c550c",
+  "synced_graph_and_floor": {
+    "passed": 37,
+    "postgres_only_skip": 1,
+    "real_postgres_qualification": "separate123/0skip receipt"
+  }
+}

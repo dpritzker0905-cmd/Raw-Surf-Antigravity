@@ -1,0 +1,12 @@
+{
+  "scope": "Existing synthetic PostgreSQL archive only; no real customer copy, upload, database connection, key persistence or provider change",
+  "plaintext_bytes": 483485,
+  "plaintext_sha256": "44efcd1c66ff9a64faf6e253d482ff699512c95ccaa7354445c07df46f755092",
+  "authenticated_roundtrip_exact": true,
+  "ciphertext_tamper_rejected": true,
+  "header_tamper_rejected": true,
+  "wrong_private_key_rejected": true,
+  "restore_input_only_after_full_authentication": true,
+  "real_secure_transport_verified": false,
+  "private_destination_or_key_custody_established": false
+}

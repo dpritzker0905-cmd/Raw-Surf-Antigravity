@@ -1,0 +1,19 @@
+{
+  "verified_at": "2026-10-16T00:48:03.315269+00:00",
+  "read_only": true,
+  "public_usage": true,
+  "alembic_version_select_insert_update_delete": true,
+  "references": {
+    "profiles": true,
+    "bookings": true,
+    "payment_transactions": true
+  },
+  "shared_migration_executed": false,
+  "alembic_version_privileges_verified_at": "2026-10-16T00:55:43.436117+00:00",
+  "alembic_version_privileges": {
+    "SELECT": true,
+    "INSERT": true,
+    "UPDATE": true,
+    "DELETE": true
+  }
+}

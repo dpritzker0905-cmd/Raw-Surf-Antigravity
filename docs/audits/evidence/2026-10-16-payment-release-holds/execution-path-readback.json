@@ -1,0 +1,14 @@
+{
+  "live_source": "a7c038919d7aca8637ea1e5e8981bb2e2331830a",
+  "deployment_timestamp_utc": "2026-10-15T21:42:47Z",
+  "actual_build_command_timestamp_utc": "2026-10-15T21:43:11Z",
+  "actual_build_command": "pip install -r backend/requirements.txt && cd backend && alembic stamp heads",
+  "actual_stamp_log_timestamp_utc": "2026-10-15T21:43:54Z",
+  "current_settings_build_command": "pip install -r backend/requirements.txt && cd backend && alembic upgrade heads",
+  "root_directory": "repository root",
+  "start_command": "cd backend && uvicorn server:app --host 0.0.0.0 --port $PORT",
+  "predeploy_command": "unset",
+  "discrepancy_cause": "unexplained; no causal claim from current Settings alone",
+  "settings_changed_or_deployment_triggered": false,
+  "isolated_target_and_timeout_mechanics": "locally qualified; not executed against shared database"
+}

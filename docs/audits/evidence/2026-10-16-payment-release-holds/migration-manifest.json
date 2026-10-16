@@ -1,0 +1,17 @@
+{
+  "source": "d2150f968db1013e57cc0d135583e207c4d81597",
+  "backend_git_tree": "5fe70cae23e346ac73e590d72220fac4a8e7dc3a",
+  "archive_sha256": "d18b69d000323c5ae3f5a18b2bf720fab5129949642ff3b61535393958667511",
+  "archive_bytes": 386652160,
+  "paths": {
+    "backend/alembic.ini": "3bd9f62a7b5c098072e04e0404b5e311110e1bbb",
+    "backend/alembic/env.py": "812eb477e681e87bae963a240c8884837c7e09dc",
+    "backend/alembic/versions/payment_reconciliation_001.py": "a94ce6ad1731340214dffcb59a2656e0501453f2",
+    "backend/alembic/versions/checkout_intent_001.py": "6fed3102c5d768cd6f121257d1f7bf9c96b75a08",
+    "backend/alembic/versions/payment_budget_merge_001.py": "677e74b53bb3ec63e2b2a44f997e96b3f5ce5a2b",
+    "backend/alembic/versions/6b8bb9b66da7_add_private_persistent_openai_testing_.py": "2206df20e066be12ced799177151eebff8676ca8"
+  },
+  "existing_commerce_models_unchanged_from_live_source": true,
+  "contains_tracked_backend_only_no_local_env": true,
+  "deployed_or_uploaded": false
+}

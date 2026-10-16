@@ -1,0 +1,106 @@
+{
+  "qualified_revision": "90d83bb7d30f79fe5abb68496a814482af3df0ca",
+  "qualified_source": "55f091aa91c5f8505be3fbfa03c4eb6a4d82e156",
+  "pr": {
+    "baseRefOid": "ae13bade2d87846b43087034d8f39b0c20b66a52",
+    "headRefOid": "90d83bb7d30f79fe5abb68496a814482af3df0ca",
+    "isDraft": true,
+    "mergeable": "MERGEABLE",
+    "state": "OPEN",
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/339"
+  },
+  "check_count": 18,
+  "all_checks_success": true,
+  "checks": [
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361213",
+      "name": "frontend-lint",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835423009/job/116763360977",
+      "name": "postgres-payment-controls",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361258",
+      "name": "backend-sim-composition-guards",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422971/job/116763360850",
+      "name": "lighthouse",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361214",
+      "name": "backend-floor-staleness",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835423020/job/116763360948",
+      "name": "verify",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361253",
+      "name": "backend-file-size-check",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835423009/job/116763360873",
+      "name": "payment-browser-controls",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835423065/job/116763361287",
+      "name": "check-encoding",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361080",
+      "name": "backend-estate-coverage",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361047",
+      "name": "backend-forecast-chain-guards",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763360869",
+      "name": "lint-and-build (24.21.0)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361122",
+      "name": "backend-import-check",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361035",
+      "name": "backend-bola-guard",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361150",
+      "name": "frontend-marine-composition-guards",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361177",
+      "name": "backend-lint",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422999/job/116763360879",
+      "name": "File Size Governance",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38835422962/job/116763361132",
+      "name": "openai-budget-postgres",
+      "state": "SUCCESS"
+    }
+  ]
+}

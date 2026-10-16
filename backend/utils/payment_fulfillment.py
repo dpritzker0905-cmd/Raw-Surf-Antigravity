@@ -25,8 +25,13 @@ def wallet_credit_amount(transaction):
     if not isinstance(metadata, dict):
         raise ValueError('Invalid payment metadata')
     kind = metadata.get('type')
-    if kind in ('subscription', 'photo_subscription'):
-        return None  # Dedicated subscription handlers own these entitlements.
+    if kind in ('subscription', 'photo_subscription', 'scheduled_booking', 'live_session_join'):
+        return None  # Dedicated handlers own these entitlements.
+    if not kind and (
+        all(key in metadata for key in ('booking_id', 'photographer_id', 'credits_applied'))
+        or all(key in metadata for key in ('surfer_id', 'photographer_id', 'amount'))
+    ):
+        return None  # Legacy booking records predate explicit local payment types.
     value = metadata.get('credits')
     if kind == 'request_a_pro_deposit':
         value = transaction.amount
