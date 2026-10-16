@@ -19,6 +19,8 @@ from models import AnalyticsEvent, Booking, BookingParticipant, LiveSession, Liv
 
 # Vision helpers extracted to ai_vision.py (v94 audit)
 from .ai_vision import analyze_image_with_vision, analyze_surfboard_with_vision, MAX_ENCODED_LENGTH
+from .ai_vision import analyze_board_clue_photo
+from .board_clues import load_board_candidates, compare_saved_boards, MAX_CLUES
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -31,6 +33,7 @@ class AnalyzePhotoRequest(BaseModel):
 class SuggestTagRequest(BaseModel):
     image_url: str = Field(max_length=8192)
     gallery_item_id: Optional[str] = None
+    include_board_clues: bool = False
 
 
 class ConfirmTagRequest(BaseModel):
@@ -71,6 +74,9 @@ async def suggest_surfer_tags(
 ):
     """Describe an owned photo for manual tagging; never identify people from pixels."""
     image_url = data.image_url
+    context = None
+    if data.include_board_clues and not data.gallery_item_id:
+        raise HTTPException(400, "Choose an owned gallery photo for board clues")
     if data.gallery_item_id:
         item_result = await db.execute(
             select(GalleryItem).where(GalleryItem.id == data.gallery_item_id,
@@ -83,13 +89,23 @@ async def suggest_surfer_tags(
             raise HTTPException(400, "Choose a photo for image analysis")
         # The owned item's media is authoritative; never analyze a substituted request URL.
         image_url = item.preview_url or item.original_url
-    analysis = await analyze_image_with_vision(image_url)
+        if data.include_board_clues:
+            context = await load_board_candidates(db, item, current_user_id)
+    if context and context["candidates"]:
+        # Only the photo goes to the provider. Profile/quiver comparison remains local.
+        analysis = await analyze_board_clue_photo(image_url)
+    else:
+        analysis = await analyze_image_with_vision(image_url)
+    clues = compare_saved_boards(analysis.get("board_observations", []), context["candidates"]) if context else []
     return {
         "success": True,
         "analysis": analysis,
         "visual_tags": analysis["visual_tags"],
         "suggested_tags": [],  # Legacy person-match contract; no biometric identity inference.
         "people_detected": analysis["people_count"],
+        "board_clues": clues[:MAX_CLUES],
+        "board_clue_status": context["status"] if context else "not_requested",
+        "board_clues_truncated": bool(context and context["truncated"]) or len(clues) > MAX_CLUES,
         "message": "Review the visual tags and select known session participants manually.",
     }
 

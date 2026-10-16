@@ -1823,7 +1823,8 @@ jobs:
           # Selector-owned estate file; projected1579, preserving margin2. Hosted CI must confirm.
           # Budget contracts add32 executed estate cases: projected1650, margin2.
           # One private-migration case runs in openai-budget-postgres, not SQLite estate.
-          MIN_PASSED = 1648
+          # Saved-board clue contracts add24 executed estate cases: projected1674, margin2.
+          MIN_PASSED = 1672
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -13,6 +13,14 @@ Real uploaded-photo analysis and board scan/review/save passed in dev. Productio
   Use suggestions in empty fields, then explicitly Save. Entered values are preserved; dimensions are not inferred.
 - Each scan is explicit and sends one image to OpenAI. Errors are displayed without automatic paid retries.
 
+## Saved-board clue candidate
+
+Saved-board clue candidate (not yet deployed): Gallery Hub's explicit scan can also compare observed held/ridden
+boards locally with saved board details for its linked session participants. Review names, board details, shared
+features and conflicts; use only the scanned photo for manual assignment before tagging. No automatic identity
+match, assignment or claim. Saved board/profile data is not sent to the provider; the same single guarded photo
+request covers observation. [Candidate and qualification](../weather-program/log/2026-10-16-gallery-board-clues.md).
+
 ## Historical initial smoke and current budget
 
 The owner authorized deployment plus smoke tests within a$10 testing budget. This run was manually capped at four

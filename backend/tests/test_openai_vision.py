@@ -246,3 +246,59 @@ async def test_board_owner_checked_before_inference_and_no_automatic_writes(api,
         assert r.json()["analysis"] == BOARD and r.json()["saved"] is False
     assert board.brand == "Saved brand"
     db.commit.assert_not_awaited()
+
+
+async def test_board_clues_reuse_one_guarded_photo_call_and_keep_profiles_local(api, provider, monkeypatch):
+    client, db = api
+    db.execute.return_value.scalar_one_or_none.return_value = SimpleNamespace(
+        preview_url="https://example.com/owned.jpg", original_url=None, media_type="image", gallery_id="gallery")
+    saved = {"surfer_id": "participant", "full_name": "Private local participant", "username": "local",
+             "board_id": "saved", "brand": "Coastal", "model": None, "board_type": "fish",
+             "fin_setup": None, "tail_shape": None, "description": "Blue board"}
+    monkeypatch.setattr(ai_tagging, "load_board_candidates", AsyncMock(return_value={
+        "status": "ready", "candidates": [saved], "truncated": False}))
+    observed = {"person_index": 0, "relationship": "holding", "colors": ["blue"], "patterns": [],
+                "visible_text": ["Coastal"], "board_type": "fish", "fin_setup": None, "tail_shape": None,
+                "confidence": "high"}
+    provider[2]["payload"] = {**PHOTO, "board_observations": [observed]}
+    r = await client.post("/api/ai/suggest-tags", headers=auth(), json={
+        "image_url": "https://example.com/swapped.jpg", "gallery_item_id": "owned", "include_board_clues": True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["board_clues"][0]["surfer_id"] == "participant" and data["suggested_tags"] == []
+    assert data["board_clues"][0]["requires_manual_review"] is True
+    assert len(provider[0]) == 1
+    body = provider[0][0].content.decode()
+    assert "Private local participant" not in body and '"saved"' not in body and "swapped.jpg" not in body
+    assert "BoardCluePhotoAnalysis" in body and "owned.jpg" in body
+    ai_vision.reserve_openai_request.assert_awaited_once_with("gpt-5.4-mini", 2000)
+    db.commit.assert_not_awaited()
+
+
+@pytest.mark.parametrize("case", ["missing_item", "foreign_photo", "foreign_gallery"])
+async def test_board_clue_ownership_fails_before_provider(api, provider, monkeypatch, case):
+    client, db = api
+    if case == "foreign_gallery":
+        db.execute.side_effect = [SimpleNamespace(scalar_one_or_none=lambda: SimpleNamespace(
+            gallery_id="foreign", preview_url="https://example.com/owned.jpg", media_type="image")),
+            SimpleNamespace(scalar_one_or_none=lambda: None)]
+    r = await client.post("/api/ai/suggest-tags", headers=auth(), json={
+        "image_url": "https://example.com/a.jpg", "include_board_clues": True,
+        **({} if case == "missing_item" else {"gallery_item_id": "foreign"})})
+    assert r.status_code == (400 if case == "missing_item" else 404)
+    assert provider[0] == []
+    ai_vision.reserve_openai_request.assert_not_awaited()
+
+
+async def test_board_clue_scan_respects_budget_denial_without_retry(api, provider, monkeypatch):
+    client, db = api
+    db.execute.return_value.scalar_one_or_none.return_value = SimpleNamespace(
+        preview_url="https://example.com/owned.jpg", media_type="image", gallery_id="gallery")
+    monkeypatch.setattr(ai_tagging, "load_board_candidates", AsyncMock(return_value={
+        "status": "ready", "candidates": [{"board_id": "saved"}], "truncated": False}))
+    ai_vision.reserve_openai_request.side_effect = HTTPException(503, "AI testing budget paused")
+    r = await client.post("/api/ai/suggest-tags", headers=auth(), json={
+        "image_url": "https://example.com/a.jpg", "gallery_item_id": "owned", "include_board_clues": True})
+    assert r.status_code == 503 and provider[0] == []
+    ai_vision.reserve_openai_request.assert_awaited_once()
+    db.commit.assert_not_awaited()
