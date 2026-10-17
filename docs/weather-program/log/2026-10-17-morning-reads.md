@@ -33,7 +33,7 @@ Rate: pilots publish ~250 per run, ~900 publishes a day, ~13 GiB a day. Runway t
 
 Fix: draft **PR 366** (`order: desc`; newest 100 names always contain the lane's copies; the backlog drains 50 per won swap; a hash-named orphan older than the 100th newest
 name is left, documented). Two tests seed 150 legacy names ahead of the copies and failed with the production gauge line before the change; 396 manifest tests pass;
-guards floor 3126 -> 3128. Independent review is running. Not in the PR: the 2,683 legacy files (47 GiB) — a dry-run-first deletion needs the owner's word.
+guards floor 3126 -> 3128. Independent review (ledger 1382): **APPROVE, no confirmed defect**; it executed a production-shaped drain (2,683 legacy names + 352 copies: 50 deleted per win for 7 wins, then 8 left) and 40 mutants (31 killed); the survivors that deserved tests (suffixed names, a 204 delete answer, no empty DELETE) are pinned in a second round (commit `657ddab26`, 434 tests, floor 3130). Caveats it executed: newest-first is blind if 100+ names this lane may not delete sort above its copies (a pointer reset), and the desc sort on the real Storage list is read from its API, not measured: the first live win should show ~100 standing (capped), 50 deleted for ~7 wins, then ~8 standing. Not in the PR: the 2,683 legacy files (47 GiB) — a dry-run-first deletion needs the owner's word.
 
 ## 3. EURO wind 503 (Codex S1): reproduced; cause not established
 
