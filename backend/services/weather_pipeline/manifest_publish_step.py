@@ -27,11 +27,21 @@ and the snapshot stays pending for the next job (and, at interpreter exit, `_flu
 with a bounded extra budget and raises a GitHub error annotation if it still cannot). There is NO fall-back to the old
 publish path, whatever failed, EXCEPT the one case where there is no pointer lane at all: only an answer that SAYS the relation
 does not exist (42P01) latches the lane off for the process, loudly (`::error::`); any other 404 (PGRST205, a proxy page, an
-empty body) is a transient failure like a 5xx (`manifest_pointer._table_missing`). A head that is DEFINITELY missing
-(`manifest_pointer.MISSING`, never a 5xx or a timeout), or that has been fetched and could not be parsed OR merged (any Exception, an
-interrupt never counts) on UNUSABLE_HEAD_ATTEMPTS consecutive attempts of the same key, is not a failure either: the merge is made
-against the legacy manifest.json (read directly, not through the pointer), and the swap still names g and that head key, so a
-concurrent writer wins over us. A transient fetch failure never counts. The ERROR names the key and the exception type.
+empty body) is a transient failure like a 5xx (`manifest_pointer._table_missing`).
+
+WHAT THE HEAD IS, AND WHEN THE LEGACY manifest.json MAY STAND IN FOR IT (the rule):
+  (a) A head that PARSES as a manifest (a JSON object with a products list) is REAL STATE, whatever is in it. Entries that cannot be
+      reconciled (not an object, or no string id) are left out of the merge, counted and logged (never quoted); every other entry,
+      the ones other writers registered above all, is kept. One writer's junk can neither raise in the merge nor cost another
+      writer a registration.
+  (b) The legacy file is the base ONLY for a head that is DEFINITELY missing (`manifest_pointer.MISSING`, never a 5xx or a timeout) or
+      that is not a manifest at all (not JSON, not an object, no products list) on UNUSABLE_HEAD_ATTEMPTS consecutive attempts of
+      the same key. The swap still names g and that head key, so a concurrent writer wins over us.
+  (c) ANY OTHER exception while merging a head that parses FAILS CLOSED: nothing is published, the legacy file is not consulted, a
+      `::error::` names the key and the exception TYPE (never its message, which can quote an entry) the 1st, 6th, 11th ... time
+      (MERGE_FAILURE_ERROR_EVERY), and it does not count toward (b). A defect of OUR OWN reconcile is the same case: loud, and the
+      head is never replaced by something stale.
+  (d) MemoryError and RecursionError never count toward (b); neither does a transient fetch failure. An interrupt is not an Exception.
 
 After a WON CAS the job retires old unique copies (`_retire_old_copies`: this lane's OWN retention, generation <= G-5 and older
 than a short grace, one listing and one batch delete), then PUTs the merged bytes to the legacy manifest.json (the readers'
@@ -45,11 +55,14 @@ from whatever is pending behind it, so one prune is never applied to a later pub
 re-registration by another writer.
 
 A swap whose ANSWER is lost (a timeout or 5xx after the server may have applied it; `manifest_pointer.last_cas_answer()` says
-"unknown", as opposed to a clean "lost") is the one case where we cannot know whether we are the head. THE RULE, using only what
-can be observed: (1) straight after such a swap, and again at the start of every attempt, the pointer is read; if its head key IS
-an object this publish uploaded (KEY EQUALITY alone, never a generation number: a foreign object can sit at ours), the swap landed and
+"unknown", as opposed to a clean "lost") is the one case where we cannot know whether we are the head. The memory of such swaps
+(`_Slot.attempted`, `unconfirmed`, `adopted`) belongs to the SLOT: it describes the pointer, which every snapshot shares, so it
+survives a save arriving before, during or after the swap and any number of coalesced saves, with no copy to go stale. It ends at a
+confirmed win (the pointer has moved, no older swap can land any more). THE RULE, using only what can be observed: (1) straight
+after such a swap, and again at the start of every attempt, the pointer is read; if its head key IS an object this publish uploaded (KEY EQUALITY alone, never a generation number: a foreign object can sit at ours), the swap landed and
 is settled exactly like a confirmed win (retention, legacy refresh, the books; if the object belongs to an OLDER snapshot only that
-snapshot's exclusions are spent and the head is merged against normally). The last ATTEMPTED_KEEP such keys are remembered, because an
+snapshot's exclusions are spent and the head is merged against normally; either way `adopted` records that the head is this process's
+own object, so no later message calls it untouched). The last ATTEMPTED_KEEP such keys are remembered, because an
 earlier unconfirmed swap can land after a later attempt has already lost; a clean "lost" forgets nothing, and a swap is remembered
 only once its request was actually issued (an attempt the exit budget stopped before the swap leaves nothing behind). (2) If
 the head has already moved past ours, landing can no longer be observed: the row we wrote is overwritten and the objects carry no
@@ -85,8 +98,8 @@ bytes can be sequenced after thread B's newer ones and be the ones published (fo
 microseconds; the old single queue had the same inversion; a later save republishes the truth.
 (6) A key that two writers update with EQUAL run_time keeps the snapshot's (possibly older) copy of the entry: reconcile only
 prefers a strictly NEWER remote run, exactly as with the flag off.
-(7) THE BASE OF A MERGE AGAINST AN UNUSABLE HEAD IS THE LEGACY manifest.json, WHICH CAN LAG THE POINTER. When the pointed head is
-missing, or is JSON that cannot be parsed or merged (UNUSABLE_HEAD_ATTEMPTS in a row), the merge is made against manifest.json, and
+(7) THE BASE OF A MERGE AGAINST A MISSING OR NON-MANIFEST HEAD IS THE LEGACY manifest.json, WHICH CAN LAG THE POINTER. When the pointed
+head is missing, or is not a manifest at all (UNUSABLE_HEAD_ATTEMPTS in a row; see the rule above), the merge is made against manifest.json, and
 that file is refreshed only after a win outside the exit flush (the exit flush leaves the refresh to the next publish) and by whoever
 last wrote it. It can therefore carry entries another writer has since pruned (they come back) or lack recent registrations (they
 are left out of THIS head; their writers' next save re-registers them). A better base exists in principle (the newest retained unique
@@ -95,7 +108,11 @@ is more surface than this fallback, which only ever runs after the pointed head 
 It is documented, logged at ERROR with the key and the exception type, and left to the operator (repair the head object).
 (8) THE GAUGE'S `standing` IS THE LISTING BEFORE THIS DELETE (at most RETENTION_SCAN_LIMIT, oldest generation first): what is left
 after the delete is standing - deleted.
-(9) The test harness (tests/_manifest_chain_harness.py) is a model, and does not exercise: PostgREST decoding of the %2F in the
+(9) "sent a swap whose answer never came back: whether the head moved is UNKNOWN" is OVER-CONSERVATIVE on purpose: any swap whose
+answer is not a clean win or a clean "precondition lost" counts, so it is also said after a 401/404/409 answer (the swap certainly
+did not apply, but nothing says so) and when the Supabase base URL is missing (cas_advance sent nothing). It can call a head that
+did not move unknown; it can never call one that may have moved untouched.
+(10) The test harness (tests/_manifest_chain_harness.py) is a model, and does not exercise: PostgREST decoding of the %2F in the
 `manifest_key=eq.` filter (the fake compares strings), a listing whose created_at and updated_at differ except where a test sets
 them, Storage's real listing order (the fake sorts by Python string order), the timing of a 429 (stubbed), real multi-process
 contention (concurrency is hook-injected in one process, plus threads in a few tests). NEVER EXAMINED: real PostgREST / Storage
@@ -121,7 +138,10 @@ logger = logging.getLogger(__name__)
 FLAG = "MANIFEST_PUBLISH_ONE_STEP"
 MAX_ATTEMPTS = 5
 UNUSABLE_HEAD_ATTEMPTS = 3   # consecutive attempts that fetch the SAME head key and cannot parse or merge it, before it is treated like a missing one
-ATTEMPTED_KEEP = 4           # swaps whose answer was lost that one snapshot remembers (bytes only for the newest): any of them may land late
+ATTEMPTED_KEEP = 4           # swaps whose answer was lost that the slot remembers (bytes only for the newest): any of them may land late
+UNTOUCHED_AT_EXIT = "never reached the pointer; the head is untouched"
+UNTOUCHED_AT_GIVE_UP = "the pointer, the unique manifest objects and the legacy manifest.json are untouched"
+MERGE_FAILURE_ERROR_EVERY = 5   # a merge that raised against a parseable head is annotated (::error::) the 1st, 6th, 11th ... time
 BACKOFF_BASE_SECONDS = 0.25
 BACKOFF_CAP_SECONDS = 3.0
 EXIT_ROUNDS = 3              # extra rounds of MAX_ATTEMPTS at interpreter exit (see _flush_at_exit)
@@ -190,13 +210,11 @@ class _Pending:
     sequence <= s (the head it wrote no longer names those ids), so those are dropped from whatever is pending behind it; an id a
     LATER submit names again keeps its newer sequence and rides on. Without this an exclusion would ride on every publish for as
     long as saves keep landing during publishes, and erase another writer's later re-registration of the same key."""
-    __slots__ = ("store", "snapshot", "excludes", "sequence", "merged", "attempted", "unconfirmed")
+    __slots__ = ("store", "snapshot", "excludes", "sequence", "merged")
 
     def __init__(self, store, snapshot, excludes, sequence):
         self.store, self.snapshot, self.excludes, self.sequence = store, snapshot, excludes, sequence
         self.merged = None                  # the bytes this snapshot was published as, once it has been
-        self.attempted = {}                 # {unique key: (merged bytes, target generation)} of the newest swap that may have landed
-        self.unconfirmed = None             # {excluded id: the head's entry for it, or None} as seen by that swap's attempt
 
 
 class _Head:
@@ -208,13 +226,23 @@ class _Head:
 
 
 class _Slot:
+    """Process-level state of the lane. The memory of swaps that may have landed unheard (`attempted`, `unconfirmed`, `adopted`) lives
+    HERE and not on a snapshot: it describes the POINTER, which every snapshot shares. Kept on the pending snapshot and copied to a
+    newer one at submit time it went stale whenever a save arrived before or during the swap (the copy was taken before `_remember`
+    ran) and again whenever a later attempt rebound the dict on the snapshot it was running. One owner, guarded by `lock`, has no
+    copy to forget. It is cleared by a confirmed win (after which an older swap can no longer land: the pointer has moved)."""
+
     def __init__(self):
         self.lock = threading.Lock()
         self.pending = None                 # _Pending or None
         self.head = None                    # _Head or None
         self.sequence = 0                   # submits so far
-        self.unusable = {}                  # {head key: consecutive attempts that fetched it and could not parse it}
+        self.unusable = {}                  # {head key: consecutive attempts that fetched it and it was not a manifest at all}
         self.scheduled = False              # a job is queued or running on the manifest executor
+        self.attempted = {}                 # {unique key: (merged bytes or None, target generation, submit sequence)} of swaps that may land
+        self.unconfirmed = None             # {excluded id: the head's entry for it, or None} as seen by the newest such swap's attempt
+        self.adopted = False                # a swap of this process was recognised as the head without a confirmed answer (until a win)
+        self.merge_failures = 0             # merges that raised against a parseable head, for the annotation cadence
 
 
 _slot = _Slot()
@@ -236,10 +264,7 @@ def submit_manifest_publish(store, manifest, exclude_keys=None):
         slot.sequence += 1
         excludes = dict(slot.pending.excludes) if slot.pending is not None else {}     # snapshots are cumulative: they add up
         excludes.update(dict.fromkeys(exclude_keys, slot.sequence))
-        newest = _Pending(store, snapshot, excludes, slot.sequence)
-        if slot.pending is not None:                                      # a swap that may have landed unheard belongs to the lineage
-            newest.attempted, newest.unconfirmed = slot.pending.attempted, slot.pending.unconfirmed
-        slot.pending = newest
+        slot.pending = _Pending(store, snapshot, excludes, slot.sequence)    # the swaps' memory is the slot's: nothing to carry
         schedule = not slot.scheduled
         slot.scheduled = True
     if schedule:
@@ -334,7 +359,8 @@ def _flush_at_exit():
         left = slot.pending
     if left is not None:
         message = (f"[Manifest Publish] NOT published at exit: the last manifest snapshot ({len(left.snapshot)} bytes, "
-                   f"{len(left.excludes)} exclusions) {_whether_the_head_moved(left)}; the next run must republish it")
+                   f"{len(left.excludes)} exclusions) {_whether_the_head_moved(UNTOUCHED_AT_EXIT)}; "
+                   f"the next run must republish it")
         logger.error(message)
         sys.stdout.write(f"::error::{message}\n")
         sys.stdout.flush()
@@ -344,13 +370,22 @@ def _register_exit_flush():
     atexit.register(_flush_at_exit)
 
 
-def _whether_the_head_moved(pending) -> str:
-    """What can honestly be said about the pointer when this snapshot is not published. A swap that was SENT and never answered
-    (`pending.attempted`) may have landed; saying the head is untouched after one would be false."""
-    if pending.attempted:
-        return ("sent a swap whose answer never came back: whether the head moved is UNKNOWN (it may carry this snapshot "
+def _whether_the_head_moved(untouched: str) -> str:
+    """What can honestly be said about the pointer when the pending snapshot is not published. `untouched` is the wording for the case
+    where this process has sent nothing that could have moved it.
+
+    A swap that was SENT and whose answer never came back may have landed: the head is UNKNOWN. A swap recognised as the head after the
+    fact (`adopted`) means the head is this process's own earlier object. Neither is 'untouched'. Over-conservative on purpose: the
+    UNKNOWN wording is also produced for a 401/404/409 answer (the swap certainly did not apply, but nothing says so) and when the
+    base URL is missing (nothing was sent at all). It can say 'unknown' about a head that did not move, never the reverse."""
+    with _slot.lock:
+        sent, adopted = bool(_slot.attempted), _slot.adopted
+    if sent:
+        return ("sent a swap whose answer never came back: whether the head moved is UNKNOWN (it may carry an earlier snapshot "
                 "already; a republish merges against whatever is there)")
-    return "never reached the pointer; the head is untouched"
+    if adopted:
+        return "never reached the pointer; the head was moved by an earlier swap of this process that landed unheard (and was recognised)"
+    return untouched
 
 
 def _publish(pending, deadline=None) -> bool:
@@ -363,8 +398,7 @@ def _publish(pending, deadline=None) -> bool:
                 _sleep(backoff_seconds(number - 1))
             if _attempt(pending, number, deadline):
                 return True
-        outcome = (_whether_the_head_moved(pending) if pending.attempted
-                   else "the pointer, the unique manifest objects and the legacy manifest.json are untouched")
+        outcome = _whether_the_head_moved(UNTOUCHED_AT_GIVE_UP)
         logger.error(f"[Manifest Publish] NOT published after {MAX_ATTEMPTS} attempts: {outcome}; "
                      f"the snapshot and its exclude_keys stay pending for the next job.")
     except Exception as exc:
@@ -380,12 +414,26 @@ def _attempt(pending, number, deadline=None) -> bool:
         return False
 
 
-def _head_products(head_bytes):
+def _entry_id(raw):
+    """The id reconcile reads from a raw entry (`product_id`, else `filename`), or None when that is not a non-empty string."""
+    pid = raw.get("product_id") or raw.get("filename") if isinstance(raw, dict) else None
+    return pid if isinstance(pid, str) and pid else None
+
+
+def _head_products(head_bytes, source="the head"):
+    """The raw product list of a manifest object. ValueError when the bytes are not a manifest AT ALL (not JSON, not an object, no
+    products list): that is the only case the legacy file may stand in for. Anything that parses as a manifest is real state: entries
+    that cannot be reconciled (not an object, or no string id) are left out of the merge, counted and logged (never quoted), and every
+    other entry is kept, so one writer's junk can neither raise in the merge nor cost another writer its registrations."""
     doc = json.loads(head_bytes)
     products = doc.get("products") if isinstance(doc, dict) else None
     if not isinstance(products, list):
         raise ValueError("the head object is not a manifest")
-    return products
+    usable = [raw for raw in products if _entry_id(raw)]
+    if len(usable) != len(products):
+        logger.warning(f"[Manifest Publish] {len(products) - len(usable)} of {len(products)} entries in {source} are not usable "
+                       f"(not an object, or no string id) and were left out of the merge")
+    return usable
 
 
 def _legacy_products(deadline=None):
@@ -399,7 +447,7 @@ def _legacy_products(deadline=None):
         store_mod = _store_module()
         reply = requests.get(store_mod.manifest_download_url(base, store_mod.WEATHER_BUCKET), headers={
             **headers, "Cache-Control": "no-cache", "Pragma": "no-cache"}, **(_timeout_kw(deadline, 15) or {"timeout": 15}))
-        return _head_products(reply.content) if reply.status_code == 200 else None
+        return _head_products(reply.content, "the legacy manifest.json") if reply.status_code == 200 else None
     except Exception as exc:
         logger.warning(f"[Manifest Publish] the legacy manifest.json could not be read: {type(exc).__name__}: {exc}")
         return None
@@ -418,23 +466,29 @@ def _entries_by_id(products, ids):
 def _adopt_landed(pending, row, deadline=None) -> bool:
     """True when the pointer names an object THIS publish uploaded: its swap landed although the answer never came back. It is then
     settled exactly like a confirmed win (retention, the legacy refresh, the books), instead of being merged and published again."""
+    slot = _slot
     key = row.get("manifest_key") if isinstance(row, dict) else None
-    landed = pending.attempted.get(key)
+    with slot.lock:
+        landed = slot.attempted.get(key)
     if landed is None:
         return False
     merged, generation, sequence = landed
     if sequence != pending.sequence:
         # An OLDER snapshot's swap landed (its job ran out of attempts before it could look). Nothing of THIS snapshot is published,
-        # so there is nothing to settle; what that swap applied is spent, and the head is an ordinary one to merge against.
+        # so there is nothing to settle; what that swap applied is spent, and the head is an ordinary one to merge against. The head
+        # IS this process's own object, though (`adopted`): until a win says otherwise, 'untouched' is not a thing to claim about it.
         logger.warning(f"[Manifest Publish] the head {key} is an older snapshot's swap, which landed unconfirmed; its exclusions are spent")
         pending.excludes = {k: n for k, n in pending.excludes.items() if n > sequence}
-        pending.attempted, pending.unconfirmed = {}, None
+        with slot.lock:
+            slot.attempted, slot.unconfirmed, slot.adopted = {}, None, True
         return False
     if merged is None:                                                   # an earlier attempt of THIS snapshot: its bytes were let go ...
         got = mp.fetch_manifest_object(key, **_timeout_kw(deadline, 30))  # ... and the head object IS those bytes
         merged = got if isinstance(got, (bytes, bytearray)) else None
     logger.warning(f"[Manifest Publish] the swap to g{generation} -> {key} landed although its answer was lost; settling it as a win")
-    pending.merged, pending.attempted, pending.unconfirmed = merged, {}, None
+    pending.merged = merged
+    with slot.lock:
+        slot.attempted, slot.unconfirmed, slot.adopted = {}, None, True
     _after_win(pending.store, generation, key, merged, deadline)
     return True
 
@@ -442,12 +496,14 @@ def _adopt_landed(pending, row, deadline=None) -> bool:
 def _remember(pending, key, merged, generation, view):
     """A swap was SENT and its answer is unknown: it may land at any time from now on. Remember its key (by key equality alone, never
     by generation) next to the last few earlier ones, and the entries of the excluded ids as that attempt saw them. Only the newest
-    attempt keeps its bytes; a clean loss never reaches here, so it can neither forget an earlier unknown swap nor reset `view`."""
-    kept = {k: (None, g, n) for k, (_, g, n) in pending.attempted.items()}
-    kept[key] = (merged, generation, pending.sequence)
-    while len(kept) > ATTEMPTED_KEEP:
-        del kept[next(iter(kept))]
-    pending.attempted, pending.unconfirmed = kept, view
+    attempt keeps its bytes; a clean loss never reaches here, so it can neither forget an earlier unknown swap nor reset `view`.
+    The memory is the SLOT's, so it does not matter which snapshot is pending, or was submitted when, relative to this call."""
+    with _slot.lock:
+        kept = {k: (None, g, n) for k, (_, g, n) in _slot.attempted.items()}
+        kept[key] = (merged, generation, pending.sequence)
+        while len(kept) > ATTEMPTED_KEEP:
+            del kept[next(iter(kept))]
+        _slot.attempted, _slot.unconfirmed = kept, view
 
 
 def _effective_excludes(pending, head_products):
@@ -456,7 +512,7 @@ def _effective_excludes(pending, head_products):
     deleted: it is kept, and its exclusion is spent. Everything else stays excluded. (After a swap that certainly did not land there
     is nothing to refine: `unconfirmed` is None.)"""
     excludes = set(pending.excludes)
-    seen = pending.unconfirmed
+    seen = _slot.unconfirmed
     if not seen or not excludes:
         return excludes
     now = _entries_by_id(head_products, excludes & set(seen))
@@ -478,6 +534,30 @@ def _merge(pending, head_products):
     store_mod.reconcile_manifest_products_for_upload(manifest, exclude_keys=excludes, remote_products=head_products)
     merged = store_mod.dump_manifest_for_l2(manifest)
     return merged, excludes, (_entries_by_id(head_products, excludes) if excludes else {})
+
+
+class _MergeFailed(Exception):
+    """The merge raised against a head that parses. Carries the exception TYPE only: a message can quote an entry."""
+
+
+def _merge_closed(pending, products, source):
+    """`_merge` for a head that is real state (it parsed as a manifest) or the legacy base. Any exception FAILS CLOSED: nothing is
+    published, the legacy manifest.json does not stand in for a head that parses, and it does not count toward that fallback. Loud:
+    a `::error::` naming the source and the exception type (never its message) the 1st, 6th, 11th ... time."""
+    try:
+        return _merge(pending, products)
+    except Exception as exc:
+        _slot.merge_failures += 1
+        count = _slot.merge_failures
+        message = (f"[Manifest Publish] merging the snapshot against {source} raised {type(exc).__name__}: failing closed, nothing is "
+                   f"published until this is fixed (failure #{count}); the legacy manifest.json is not a base for a head that parses")
+        if count % MERGE_FAILURE_ERROR_EVERY == 1:
+            logger.error(message)
+            sys.stdout.write(f"::error::{message}\n")
+            sys.stdout.flush()
+        else:
+            logger.warning(message)
+        raise _MergeFailed(f"the merge raised {type(exc).__name__}") from None
 
 
 def _attempt_once(pending, deadline=None) -> bool:
@@ -510,23 +590,26 @@ def _attempt_once(pending, deadline=None) -> bool:
         return False
     else:
         try:
-            merge = _merge(pending, _head_products(head_bytes))          # parse AND merge: either can fail on a head that is JSON but junk
-            _slot.unusable = {}
-        except Exception as exc:                                         # (an interrupt is not an Exception: it is never counted)
-            failures = _slot.unusable.get(head_key, 0)
-            if failures < UNUSABLE_HEAD_ATTEMPTS:
-                _slot.unusable = {head_key: failures + 1}                # a transient fetch failure never gets this far: it does not count
+            products = _head_products(head_bytes, head_key)
+        except ValueError as exc:                                        # NOT A MANIFEST AT ALL: not JSON, not an object, no products list
+            failures = _slot.unusable.get(head_key, 0)                   # (MemoryError, RecursionError, anything else: a failed attempt
+            if failures < UNUSABLE_HEAD_ATTEMPTS:                        # that counts for nothing; a transient fetch failure never gets here)
+                _slot.unusable = {head_key: failures + 1}
                 raise
-            legacy = f"the head object {head_key} could not be parsed or merged in {failures} consecutive attempts ({type(exc).__name__}: {exc})"
+            legacy = f"the head object {head_key} is not a manifest ({type(exc).__name__}: {exc}) in {failures} consecutive attempts"
             logger.error(f"[Manifest Publish] {legacy}; treating it as unusable and merging against the legacy manifest.json instead "
                          f"(which can lag the pointer: see KNOWN LIMITS)")
+        else:
+            _slot.unusable = {}
+            merge = _merge_closed(pending, products, head_key)
+            del products
     del head_bytes
     if legacy is not None:
         legacy_products = _legacy_products(deadline)
         if legacy_products is None:
             logger.warning("[Manifest Publish] the legacy manifest.json could not be read either")
             return False
-        merge = _merge(pending, legacy_products)
+        merge = _merge_closed(pending, legacy_products, "the legacy manifest.json")
         del legacy_products
     merged, excludes, seen = merge
     key = f"manifests/manifest-g{generation + 1:012d}-{uuid4().hex}.json"
@@ -541,7 +624,9 @@ def _attempt_once(pending, deadline=None) -> bool:
         _remember(pending, key, merged, generation + 1, {pid: seen.get(pid) for pid in excludes})      # the swap WAS sent: it may land
         logger.warning(f"[Manifest Publish] CAS from generation {generation} was not confirmed; looking at the pointer")
         return _adopt_landed(pending, mp.read_pointer(**_timeout_kw(deadline, 8)), deadline)
-    pending.merged, pending.attempted, pending.unconfirmed = merged, {}, None
+    pending.merged = merged
+    with _slot.lock:                                                     # a confirmed win: the pointer moved, no older swap can land now
+        _slot.attempted, _slot.unconfirmed, _slot.adopted = {}, None, False
     logger.info(f"[Manifest Publish] advanced g{generation}->g{generation + 1} -> {key}")
     _after_win(pending.store, generation + 1, key, merged, deadline)
     return True

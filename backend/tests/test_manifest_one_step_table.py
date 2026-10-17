@@ -355,23 +355,23 @@ def _gave_up_after(real_pointer, store, parked, http, sleeps, replies):
     http.patch[:] = replies
     submit(store, BASE + PILOTS_NEW)
     parked.run()
-    return mps._slot.pending
+    return mps._slot
 
 
 def test_through_the_real_function_a_clean_loss_remembers_nothing_and_an_unknown_answer_remembers_the_swap(
         real_pointer, store, parked, http, sleeps):
-    pending = _gave_up_after(real_pointer, store, parked, http, sleeps, [Reply(200, b"[]")])
-    assert http.patches == mps.MAX_ATTEMPTS and pending.attempted == {} and pending.unconfirmed is None, "a clean loss is not a lost answer"
-    mps._slot.pending = None
-    pending = _gave_up_after(real_pointer, store, parked, http, sleeps, [Reply(503, b"unavailable")])
-    assert pending is not None and len(pending.attempted) == mps.ATTEMPTED_KEEP, "an unknown answer may have applied: its key is remembered"
+    slot = _gave_up_after(real_pointer, store, parked, http, sleeps, [Reply(200, b"[]")])
+    assert http.patches == mps.MAX_ATTEMPTS and slot.attempted == {} and slot.unconfirmed is None, "a clean loss is not a lost answer"
+    slot.pending = None
+    slot = _gave_up_after(real_pointer, store, parked, http, sleeps, [Reply(503, b"unavailable")])
+    assert slot.pending is not None and len(slot.attempted) == mps.ATTEMPTED_KEEP, "an unknown answer may have applied: its key is remembered"
 
 
 @pytest.mark.parametrize("name", ["409-conflict", "401", "200-not-json", "timeout"])
 def test_through_the_real_function_every_answer_but_a_clean_loss_counts_as_unknown(real_pointer, store, parked, http, sleeps, name):
     reply = _cas_answers()[name][0]
-    pending = _gave_up_after(real_pointer, store, parked, http, sleeps, [reply])
-    assert len(pending.attempted) == mps.ATTEMPTED_KEEP
+    slot = _gave_up_after(real_pointer, store, parked, http, sleeps, [reply])
+    assert len(slot.attempted) == mps.ATTEMPTED_KEEP
 
 
 def test_the_real_pointer_calls_keep_their_8_second_default_and_honour_an_explicit_timeout(monkeypatch, http):

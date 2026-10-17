@@ -16,6 +16,7 @@ from datetime import timedelta
 
 import pytest
 
+import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_publish_step as mps
 from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
 from tests._manifest_chain_harness import (  # noqa: F401,F811
@@ -119,6 +120,7 @@ def test_after_a_clean_loss_the_exclusion_is_exactly_what_it_was_even_for_a_chan
 
 BAD_HEADS = {"garbage": b"<html>502 Bad Gateway</html>", "not_a_manifest": b'{"last_manifest_update": "x"}',
              "json_list": b"[1, 2, 3]"}
+BAD_HEAD_TYPES = {"garbage": "JSONDecodeError", "not_a_manifest": "ValueError", "json_list": "ValueError"}
 
 
 def legacy(chain, files):
@@ -138,6 +140,8 @@ def test_an_unparseable_head_is_merged_against_the_legacy_manifest_after_three_f
     assert [(c["expected"], c["expected_key"], c["won"]) for c in chain.cas_calls] == [(5, head, True)]
     assert chain.head_files() == sorted(BASE + LATTICE + PILOTS_NEW)
     assert len(sleeps) == 3 and len(chain.kinds("fetch_legacy")) == 1
+    error = next(r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR and head in r.getMessage())
+    assert BAD_HEAD_TYPES[bad] in error, "the ERROR must name the head key and the exception type: " + error
     assert any(r.levelno >= logging.ERROR and head in r.getMessage() for r in caplog.records), "the unusable head's key must be in the ERROR"
 
 
@@ -273,10 +277,10 @@ def test_only_the_newest_attempt_keeps_its_bytes_and_only_the_last_four_keys_are
     submit(store, BASE + PILOTS_NEW)
     parked.run()
     mps._flush_at_exit()
-    pending = mps._slot.pending
-    assert len(chain.cas_calls) == 20 and len(pending.attempted) == 4
-    assert [merged is not None for merged, _, _ in pending.attempted.values()] == [False, False, False, True]
-    assert list(pending.attempted) == [c["key"] for c in chain.cas_calls[-4:]]
+    remembered = mps._slot.attempted
+    assert len(chain.cas_calls) == 20 and len(remembered) == 4
+    assert [merged is not None for merged, _, _ in remembered.values()] == [False, False, False, True]
+    assert list(remembered) == [c["key"] for c in chain.cas_calls[-4:]]
 
 
 def test_the_adoption_is_by_key_equality_a_foreign_unique_object_at_our_generation_is_not_ours(chain, store, parked):
@@ -318,7 +322,6 @@ def test_a_swap_that_the_budget_never_let_out_leaves_nothing_remembered(chain, s
     submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
     chain.pointer_faults.extend(["none"] * mps.MAX_ATTEMPTS)
     parked.run()
-    pending = mps._slot.pending
     clock = [1000.0]
     monkeypatch.setattr(mps, "_monotonic", lambda: clock[0])
     chain.pointer_faults.clear()
@@ -330,43 +333,13 @@ def test_a_swap_that_the_budget_never_let_out_leaves_nothing_remembered(chain, s
     chain.upload = upload
     mps._flush_at_exit()
     assert chain.cas_calls == []
-    assert pending.unconfirmed is None and pending.attempted == {}, "no swap was sent, yet the attempt is remembered as one that may have landed"
+    assert mps._slot.unconfirmed is None and mps._slot.attempted == {}, "no swap was sent, yet the attempt is remembered as one that may have landed"
 
 
-# ── round 6, finding 3: ANY failure to parse or merge against the fetched head counts, not only a ValueError ─────────────────
-
-def test_a_head_that_parses_but_whose_entries_are_junk_self_heals_through_the_legacy_manifest(chain, store, parked, sleeps, caplog):
-    """The reviewer's P4: after three jobs 0 CAS calls and no fallback."""
-    import json
-    head = chain.head_key
-    chain.objects[head] = json.dumps({"products": [123, "x", None]}).encode()
-    legacy(chain, BASE + LATTICE)
-    submit(store, BASE + PILOTS_NEW)
-    with caplog.at_level(logging.WARNING):
-        parked.run()
-    assert [(c["expected_key"], c["won"]) for c in chain.cas_calls] == [(head, True)], "a junk head stalled the lane for good"
-    assert chain.head_files() == sorted(BASE + LATTICE + PILOTS_NEW)
-    errors = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR and head in r.getMessage()]
-    assert errors and "AttributeError" in errors[0], "the ERROR must name the key and the exception type"
-
-
-def test_a_recursion_error_while_parsing_the_head_counts_the_same_way(chain, store, parked, sleeps, monkeypatch):
-    legacy(chain, BASE + LATTICE)
-    head = chain.head_key
-    real = mps._head_products
-
-    def parse(data):
-        if chain.head_key == head and not chain.cas_calls and data == chain.objects[head]:
-            raise RecursionError("maximum recursion depth exceeded")
-        return real(data)
-    monkeypatch.setattr(mps, "_head_products", parse)
-    submit(store, BASE + PILOTS_NEW)
-    parked.run()
-    assert [(c["expected_key"], c["won"]) for c in chain.cas_calls] == [(head, True)]
-
+# ── round 6, finding 3 (superseded by round 7 finding 3, below): an interrupt is still never counted ───────────────────────────
 
 def test_an_interrupt_is_never_counted_as_a_bad_head(chain, store, parked, monkeypatch):
-    monkeypatch.setattr(mps, "_head_products", lambda data: (_ for _ in ()).throw(KeyboardInterrupt()))
+    monkeypatch.setattr(mps, "_head_products", lambda *args, **kwargs: (_ for _ in ()).throw(KeyboardInterrupt()))
     submit(store, BASE + PILOTS_NEW)
     with pytest.raises(KeyboardInterrupt):
         parked.run()
@@ -401,11 +374,10 @@ def test_when_the_older_attempts_object_cannot_be_fetched_the_win_is_settled_but
 def test_the_unusable_head_count_is_for_consecutive_attempts_on_the_same_key(chain, store, parked, sleeps, monkeypatch):
     """Junk head A twice, a different junk head B once, A again twice: A's count restarted when B intervened, so five attempts reach no
     fallback and publish nothing. (Counting across keys would reach the fallback on the fifth.)"""
-    import json
     from services.weather_pipeline import manifest_pointer as mp
     a = chain.head_key
     b = "manifests/manifest-g000000000005-" + "bb" * 16 + ".json"
-    chain.objects[a] = chain.objects[b] = json.dumps({"products": [123, "x", None]}).encode()
+    chain.objects[a] = chain.objects[b] = BAD_HEADS["garbage"]
     legacy(chain, BASE + LATTICE)
     reads, real = [], chain.read_pointer
 
@@ -417,3 +389,279 @@ def test_the_unusable_head_count_is_for_consecutive_attempts_on_the_same_key(cha
     submit(store, BASE + PILOTS_NEW)
     parked.run()
     assert len(reads) == mps.MAX_ATTEMPTS and chain.cas_calls == [], "the count leaked across head keys"
+
+
+# ── round 7, finding 1: the memory of unconfirmed swaps belongs to the SLOT, whenever a save arrives ───────────────────────────
+# Round 6 kept it on the pending snapshot and let a new save copy it by reference; `_remember` runs AFTER the swap returns, so a save
+# that arrived before or during the swap carried an empty memory, and every later attempt rebound a new dict on the OLD snapshot.
+# Result (the reviewer's P1/P2): the newer snapshot's exclusion erased a writer's re-registration, and the give-up wording said
+# "head untouched" although a swap had been sent. Nothing in the suite submitted while a swap was in flight.
+
+def _b_files():
+    return BASE[1:] + PILOTS_NEW + [LATTICE[0]]
+
+
+def _save_b_arrives(chain, store, monkeypatch, when, submit_b=None):
+    """Arrange for save B to be submitted at a chosen moment of snapshot A's FIRST swap (whose answer is lost, nothing applied):
+    `before` the swap is sent (during A's upload), `during` it, `after_answer` (when A backs off before its second attempt)."""
+    submit_b = submit_b or (lambda: submit(store, _b_files()))
+    if when == "before":
+        chain.during_upload = submit_b
+    elif when == "during":
+        chain.before_cas = submit_b
+    elif when == "after_answer":
+        fired = []
+        monkeypatch.setattr(mps, "_sleep", lambda seconds: fired or (fired.append(1), submit_b()))
+
+
+def _a_ends_then_its_first_swap_lands_late_and_w_re_registers_x(chain, monkeypatch):
+    """Between the end of A's job and B's first look at the pointer: A's swap applies (head = its object), then W re-registers X."""
+    landed, real_settle = [], mps._settle
+
+    def settle(slot, current, published):
+        if not published and not landed:
+            landed.append(1)
+            chain.generation, chain.head_key = chain.generation + 1, _first_key(chain)
+            chain.foreign_publish(newer_x)
+        return real_settle(slot, current, published)
+    monkeypatch.setattr(mps, "_settle", settle)
+    return landed
+
+
+@pytest.mark.parametrize("when", ["before", "during", "after_answer", "after_job"])
+def test_a_save_arriving_at_any_moment_of_an_unconfirmed_swap_inherits_what_the_swap_may_have_done(chain, store, parked, monkeypatch, when):
+    """The reviewer's P2. A prunes X; A's first swap is unconfirmed (nothing applied YET); A then cannot read the pointer and gives up.
+    B is next. Meanwhile A's swap lands and W re-registers X with a newer entry: B must keep W's X."""
+    chain.cas_faults = ["error"]
+    chain.pointer_faults = [None] + ["none"] * 5               # A: one swap, then six reads that fail (the one right after it too)
+    _save_b_arrives(chain, store, monkeypatch, when)
+    landed = _a_ends_then_its_first_swap_lands_late_and_w_re_registers_x(chain, monkeypatch)
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()
+    if when == "after_job":
+        submit(store, _b_files())
+        parked.run()
+    assert landed and len(chain.cas_calls) == 2, "A sent one swap, B one"
+    assert X in chain.head_files(), "B's inherited exclusion of X erased W's later registration"
+    assert chain.head_entry(X)["run_time"] != _raw_wind(X)["run_time"]
+    assert set(PILOTS_NEW) <= set(chain.head_files()) and LATTICE[0] in chain.head_files()
+
+
+@pytest.mark.parametrize("when", ["before", "during", "after_answer"])
+def test_the_exit_annotation_says_unknown_when_a_save_arrived_while_the_swap_was_unconfirmed(chain, store, parked, monkeypatch, capsys, when):
+    """The reviewer's P1: B survived as the pending snapshot with an empty memory, so the annotation said 'never reached the pointer;
+    the head is untouched' although A's swap had been sent and may have landed."""
+    chain.cas_faults = ["error"]
+    chain.pointer_faults = [None] + ["none"] * 400
+    _save_b_arrives(chain, store, monkeypatch, when)
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()
+    mps._flush_at_exit()
+    out = capsys.readouterr().out
+    assert len(chain.cas_calls) == 1 and mps._slot.pending is not None
+    assert "UNKNOWN" in out and "untouched" not in out, out
+
+
+def test_two_saves_queued_during_an_unconfirmed_swap_both_inherit_its_memory(chain, store, parked, monkeypatch):
+    chain.cas_faults = ["error"]
+    chain.pointer_faults = [None] + ["none"] * 5
+    chain.before_cas = lambda: (submit(store, _b_files()), submit(store, _b_files() + [LATTICE[1]]))
+    _a_ends_then_its_first_swap_lands_late_and_w_re_registers_x(chain, monkeypatch)
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()
+    assert X in chain.head_files() and LATTICE[1] in chain.head_files(), "the coalesced save lost the swap's memory"
+    assert mps._slot.pending is None
+
+
+# ── round 7, finding 3: a head that PARSES as a manifest is real state ────────────────────────────────────────────────────────
+# The rule (module docstring): (a) junk ENTRIES inside a parseable head are left out of the merge (counted and logged, never quoted),
+# every valid entry is kept; (b) the legacy manifest.json is the base ONLY for a head that is not a manifest at all, after
+# UNUSABLE_HEAD_ATTEMPTS attempts on the same key; (c) any other exception while merging fails CLOSED: nothing is published, a
+# `::error::` names the key and the exception TYPE (1st, 6th, 11th ...), and it does not count toward (b); (d) MemoryError and
+# RecursionError never count toward (b).
+
+JUNK = [123, "x", None, {"no_id": 1}, {"product_id": ["SECRET-LIST-ID"], "filename": "y"}, {"product_id": "", "filename": ""}]
+
+
+def _merge_failure_lines(out):
+    return [line for line in out.splitlines() if line.startswith("::error::") and "merging the snapshot" in line]
+
+
+def test_junk_entries_inside_a_valid_head_are_left_out_and_every_valid_entry_is_kept(chain, store, parked, sleeps, caplog, capsys):
+    """The reviewer's {"products": [123, "x", None, {valid...}]}: the valid entries are another writer's registrations."""
+    import json
+    legacy(chain, BASE)                                       # lags the pointer: it lacks W's registration of LATTICE[0]
+    head = chain.head_key
+    doc = json.loads(chain.objects[head])
+    doc["products"] = doc["products"] + [_raw_wind(LATTICE[0])] + JUNK
+    chain.objects[head] = json.dumps(doc).encode()
+    submit(store, BASE[1:] + PILOTS_NEW)
+    with caplog.at_level(logging.INFO):
+        parked.run()
+    assert [(c["expected_key"], c["won"]) for c in chain.cas_calls] == [(head, True)] and sleeps == [], "published on the first attempt"
+    assert chain.head_files() == sorted(BASE + PILOTS_NEW + [LATTICE[0]]), "a valid entry of another writer was dropped"
+    assert chain.kinds("fetch_legacy") == [], "a parseable head is real state: the legacy file is not its base"
+    lines = [r.getMessage() for r in caplog.records] + [capsys.readouterr().out]
+    assert any("6 of" in line and "entries" in line for line in lines), "how many entries were left out must be logged"
+    assert not any("SECRET" in line for line in lines), "entry contents must never be logged"
+
+
+def _w_registered_an_entry_our_reconcile_chokes_on(chain, monkeypatch):
+    """The reviewer's C2: the head (a good, parseable one) carries an entry that only OTHER writers' code writes; our reconcile raises
+    on it. The legacy manifest.json lags: it lacks W's two registrations."""
+    real = store_mod.reconcile_manifest_products_for_upload
+    poison = PILOTS_NEW[0]
+
+    def choke(manifest, exclude_keys=None, remote_products=None):
+        if remote_products and any(isinstance(p, dict) and p.get("filename") == poison for p in remote_products):
+            raise ValueError("cannot reconcile SECRET-ENTRY-TEXT")
+        return real(manifest, exclude_keys=exclude_keys, remote_products=remote_products)
+    monkeypatch.setattr(store_mod, "reconcile_manifest_products_for_upload", choke)
+    legacy(chain, BASE)
+    chain.foreign_publish(adding(poison, LATTICE[0]))
+    return poison
+
+
+def test_a_head_dependent_merge_failure_fails_closed_loudly_and_never_replaces_the_head_with_a_legacy_based_merge(
+        chain, store, parked, sleeps, caplog, capsys, monkeypatch):
+    assert mps.MERGE_FAILURE_ERROR_EVERY == 5
+    poison = _w_registered_an_entry_our_reconcile_chokes_on(chain, monkeypatch)
+    head, generation = chain.head_key, chain.generation
+    for _ in range(3):                                        # 3 jobs x 5 attempts = failures 1..15
+        submit(store, BASE[1:] + [LATTICE[1]])
+        with caplog.at_level(logging.WARNING):
+            parked.run()
+    out = capsys.readouterr().out
+    assert chain.cas_calls == [] and chain.generation == generation, "nothing may be published over a head we cannot merge"
+    assert chain.kinds("fetch_legacy") == [] and chain.uploads == [], "no legacy base, and nothing uploaded at all (not even unreferenced)"
+    assert poison in chain.head_files() and LATTICE[0] in chain.head_files(), "W's registrations are still the head"
+    lines = _merge_failure_lines(out)
+    assert len(lines) == 3, "the annotation is for failures 1, 6 and 11 of the 15: %s" % lines
+    assert [("failure #%d)" % n) in line for n, line in zip((1, 6, 11), lines)] == [True, True, True], lines
+    assert head in lines[0] and "ValueError" in lines[0], "it names the key and the exception TYPE"
+    assert "SECRET" not in out and not any("SECRET" in r.getMessage() for r in caplog.records), "entry text must never be logged"
+    assert mps._slot.unusable == {}, "a merge failure does not count toward the legacy fallback"
+
+
+def test_a_defect_in_our_own_reconcile_fails_closed_with_an_annotation_from_the_first_attempt(chain, store, parked, sleeps, capsys, monkeypatch):
+    """The reviewer's C1 (head-independent): nothing is published, and the first failure is already loud."""
+    monkeypatch.setattr(store_mod, "reconcile_manifest_products_for_upload", lambda *a, **kw: (_ for _ in ()).throw(TypeError("our bug")))
+    legacy(chain, BASE + LATTICE)
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    lines = _merge_failure_lines(capsys.readouterr().out)
+    assert chain.cas_calls == [] and chain.uploads == [] and len(lines) == 1 and "TypeError" in lines[0] and "our bug" not in lines[0]
+
+
+@pytest.mark.parametrize("error", [MemoryError, RecursionError], ids=["MemoryError", "RecursionError"])
+def test_a_memory_or_recursion_error_while_reading_the_head_never_counts_toward_the_legacy_fallback(
+        chain, store, parked, sleeps, monkeypatch, error):
+    legacy(chain, BASE + LATTICE)
+
+    def raises(*args, **kwargs):
+        raise error("transient")
+    monkeypatch.setattr(mps, "_head_products", raises)
+    for _ in range(3):                                        # 15 attempts on the same head key, across jobs
+        submit(store, BASE + PILOTS_NEW)
+        parked.run()
+    assert chain.cas_calls == [] and chain.kinds("fetch_legacy") == [] and mps._slot.unusable == {}
+
+
+def test_a_merge_failure_against_the_legacy_base_fails_closed_too(chain, store, parked, sleeps, capsys, monkeypatch):
+    """A head that is not a manifest gets the legacy file as its base after three attempts; if the merge against THAT raises, it is the
+    same fail-closed case, annotated with its source."""
+    chain.objects[chain.head_key] = BAD_HEADS["garbage"]
+    legacy(chain, BASE + LATTICE)
+    monkeypatch.setattr(store_mod, "reconcile_manifest_products_for_upload",
+                        lambda manifest, **kw: (_ for _ in ()).throw(ValueError("legacy base cannot be merged")))
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    lines = _merge_failure_lines(capsys.readouterr().out)
+    assert chain.cas_calls == [] and chain.kinds("fetch_legacy"), "the legacy base was read, then the merge failed closed"
+    assert lines and "the legacy manifest.json" in lines[0] and "ValueError" in lines[0]
+
+
+# ── round 7: the memory is cleared by a win, and only ever written under the slot lock ────────────────────────────────────────
+
+def test_a_win_ends_the_memory_of_earlier_unconfirmed_swaps(chain, store, parked, capsys):
+    """Once a swap wins, the pointer has moved: no earlier swap can land, so a later failure is not 'unknown'."""
+    chain.cas_faults = ["error"]                                # attempt 1: unconfirmed (nothing applied); attempt 2 wins
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    assert [c["won"] for c in chain.cas_calls] == [False, True]
+    assert mps._slot.attempted == {} and mps._slot.unconfirmed is None and not mps._slot.adopted
+    chain.pointer_faults.extend(["none"] * 400)
+    submit(store, BASE + PILOTS_NEW + LATTICE)
+    parked.run()
+    mps._flush_at_exit()
+    out = capsys.readouterr().out
+    assert "head is untouched" in out and "UNKNOWN" not in out, out
+
+
+class _CheckedSlot(mps._Slot):
+    """A slot that records every write to the swap memory made while the slot lock is NOT held."""
+    checking = False
+
+    def __init__(self):
+        super().__init__()
+        self.unguarded, self.guarded = [], 0
+        self.checking = True
+
+    def __setattr__(self, name, value):
+        if self.checking and name in ("attempted", "unconfirmed", "adopted"):
+            if self.lock.locked():
+                self.guarded += 1
+            else:
+                self.unguarded.append(name)
+        super().__setattr__(name, value)
+
+
+def _unknown_then_win(chain, store, parked, monkeypatch):
+    chain.cas_faults = ["error"]
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+
+
+def _own_swap_lands_unheard(chain, store, parked, monkeypatch):
+    chain.cas_faults = ["lost_ack"]
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+
+
+def _older_swap_lands_unheard(chain, store, parked, monkeypatch):
+    chain.cas_faults = ["error"]
+    chain.pointer_faults = [None] + ["none"] * 5
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()
+    submit(store, BASE[1:] + PILOTS_NEW + [LATTICE[0]])
+    chain.generation, chain.head_key = chain.generation + 1, _first_key(chain)
+    parked.run()
+
+
+@pytest.mark.parametrize("scenario", [_unknown_then_win, _own_swap_lands_unheard, _older_swap_lands_unheard],
+                         ids=["unknown-then-win", "own-adoption", "older-adoption"])
+def test_every_write_to_the_swap_memory_is_made_under_the_slot_lock(chain, store, parked, monkeypatch, scenario):
+    slot = _CheckedSlot()
+    monkeypatch.setattr(mps, "_slot", slot)
+    scenario(chain, store, parked, monkeypatch)
+    assert slot.guarded >= 2, "the scenario never wrote the memory"
+    assert slot.unguarded == [], "written without the slot lock: %s" % slot.unguarded
+
+
+def test_junk_entries_in_the_legacy_base_are_left_out_too(chain, store, parked, sleeps):
+    """The head object is definitely missing, so the legacy file is the base; it parses as a manifest, so it gets the same treatment."""
+    import json
+    head = chain.head_key
+    del chain.objects[head]
+    doc = json.loads(_legacy_bytes(BASE + LATTICE))
+    doc["products"] = doc["products"] + JUNK
+    chain.objects["manifest.json"] = json.dumps(doc).encode()
+    submit(store, BASE[1:] + PILOTS_NEW)
+    parked.run()
+    assert [(c["expected_key"], c["won"]) for c in chain.cas_calls] == [(head, True)] and sleeps == []
+    assert chain.head_files() == sorted(BASE + LATTICE + PILOTS_NEW)
+
+
+def _legacy_bytes(files):
+    from tests._manifest_chain_harness import dump_manifest_for_l2
+    return dump_manifest_for_l2(_snapshot(files))

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
+from datetime import timedelta
 
 import pytest
 
@@ -17,7 +18,9 @@ import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
 from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
-from tests._manifest_chain_harness import BASE, PILOTS_NEW, _keep_moving, _snapshot, chain, parked, sleeps, store, submit  # noqa: F401,F811
+from tests._manifest_chain_harness import (  # noqa: F401,F811
+    BASE, LATTICE, PILOTS_NEW, RUN_TIME, UNIQUE_KEY, _keep_moving, _raw_wind, _snapshot, chain, parked, sleeps, store, submit,
+)
 
 BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -359,3 +362,135 @@ def test_the_real_upload_keeps_its_30_second_default_and_honours_the_exit_flushs
     assert store_mod.ProductStore._upload_to_supabase(None, key, b"{}", strict=True, overwrite=overwrite) is True
     assert store_mod.ProductStore._upload_to_supabase(None, key, b"{}", strict=True, overwrite=overwrite, timeout=7) is True
     assert [kwargs["timeout"] for _, kwargs in real_upload] == [30, 7]
+
+
+# ── round 7, finding 2: after an adoption the head HAS moved; the wording must not call it untouched ─────────────────────────
+
+X = BASE[0]
+
+
+def _first_key(chain):
+    return next(key for key, _, _ in chain.uploads if UNIQUE_KEY.fullmatch(key))
+
+
+def _b_cannot_fetch_any_head(chain):
+    chain.fetch_faults = ["fine"] + ["none"] * 400           # A's one head read works; after that no head object can be fetched
+
+
+def test_after_an_older_snapshots_swap_landed_unheard_a_snapshot_that_cannot_send_one_does_not_call_the_head_untouched(
+        chain, store, parked, capsys, caplog):
+    """The reviewer's P3. A's swap is unconfirmed and A gives up; B is queued; A's swap lands; B reads the pointer, recognises the head
+    as A's object (so nothing is 'unknown' any more) and then cannot fetch it, so it sends nothing. The head is THIS PROCESS's own
+    earlier object: 'untouched' is false."""
+    chain.cas_faults = ["error"]
+    chain.pointer_faults = [None] + ["none"] * 5
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()
+    assert len(chain.cas_calls) == 1
+    submit(store, BASE[1:] + PILOTS_NEW + [LATTICE[0]])
+    chain.generation, chain.head_key = chain.generation + 1, _first_key(chain)
+    chain.fetch_faults = ["none"] * 400
+    import logging
+    with caplog.at_level(logging.ERROR):
+        parked.run()
+        mps._flush_at_exit()
+    out = capsys.readouterr().out
+    assert len(chain.cas_calls) == 1 and mps._slot.pending is not None
+    give_up = [r.getMessage() for r in caplog.records if "NOT published after" in r.getMessage()]
+    assert give_up and all("untouched" not in line for line in give_up), give_up
+    assert "untouched" not in out and "earlier swap of this process" in out, out
+
+
+def test_after_a_swap_was_settled_by_adoption_a_newer_snapshot_that_cannot_send_one_does_not_call_the_head_untouched(
+        chain, store, parked, capsys):
+    """Same, for the snapshot's OWN landed swap: A is settled as a win by the look at the pointer; B (queued during the swap) is next."""
+    chain.cas_faults = ["lost_ack"]
+    chain.before_cas = lambda: submit(store, BASE[1:] + PILOTS_NEW + [LATTICE[0]])
+    chain.fetch_faults = ["fine"] + ["none"] * 400
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()
+    mps._flush_at_exit()
+    out = capsys.readouterr().out
+    assert chain.generation == 6 and len(chain.cas_calls) == 1 and mps._slot.pending is not None
+    assert "untouched" not in out and "earlier swap of this process" in out, out
+
+
+def test_a_confirmed_win_ends_the_moved_by_us_state_so_a_later_failure_is_not_blamed_on_it(chain, store, parked, capsys):
+    chain.cas_faults = ["lost_ack"]
+    chain.before_cas = lambda: submit(store, BASE[1:] + PILOTS_NEW + [LATTICE[0]])
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    parked.run()                                              # A settled by adoption, B won normally
+    assert mps._slot.pending is None and not mps._slot.adopted
+    submit(store, BASE[1:] + PILOTS_NEW + LATTICE)
+    chain.pointer_faults.extend(["none"] * 400)
+    parked.run()
+    mps._flush_at_exit()
+    assert "head is untouched" in capsys.readouterr().out
+
+
+# ── round 7, finding 4: the adoption's object fetch is capped by the exit budget too ─────────────────────────────────────────
+
+def _two_unknown_swaps_then_the_first_lands_late(chain, store, parked):
+    """Only the newest unconfirmed swap keeps its bytes, so adopting the FIRST one fetches its object."""
+    chain.cas_faults = ["error", "error"]
+    chain.pointer_faults = [None, "none", None, "none", "none", "none", "none"]
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    assert len(chain.cas_calls) == 2 and mps._slot.pending is not None
+    first = _first_key(chain)
+    chain.generation, chain.head_key = chain.generation + 1, first
+    chain.timeouts.clear()
+    return first
+
+
+def test_the_adoption_fetch_in_the_exit_flush_is_capped_by_what_is_left_of_the_budget(chain, store, parked, monkeypatch):
+    first = _two_unknown_swaps_then_the_first_lands_late(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 4.0)
+    mps._flush_at_exit()
+    assert [timeout for what, timeout in chain.timeouts if what == "fetch"] == [4], chain.timeouts
+    assert mps._slot.pending is None and chain.generation == 6 and chain.head_key == first
+
+
+def test_the_adoption_fetch_keeps_its_own_30_second_default_when_the_budget_is_ample(chain, store, parked, monkeypatch):
+    _two_unknown_swaps_then_the_first_lands_late(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    mps._flush_at_exit()
+    assert [timeout for what, timeout in chain.timeouts if what == "fetch"] == [30]
+    assert mps._slot.pending is None
+
+
+def test_no_adoption_fetch_is_made_once_the_look_at_the_pointer_has_eaten_the_budget(chain, store, parked, monkeypatch):
+    _two_unknown_swaps_then_the_first_lands_late(chain, store, parked)
+    clock = [1000.0]
+    monkeypatch.setattr(mps, "_monotonic", lambda: clock[0])
+    real_read = chain.read_pointer
+
+    def read_pointer(timeout=None):
+        row = real_read(timeout=timeout)
+        clock[0] += 500.0
+        return row
+    monkeypatch.setattr(mp, "read_pointer", read_pointer)
+    mps._flush_at_exit()
+    assert not [what for what, _ in chain.timeouts if what == "fetch"], "a call was made with no budget left"
+    assert mps._slot.pending is not None
+
+
+# ── round 7, finding 1 (threads): the memory is the slot's, so the exit flush (main thread) sees what the executor thread learned ──
+
+def test_the_memory_of_an_unconfirmed_swap_crosses_from_the_executor_thread_to_the_exit_flush_on_the_main_thread(chain, store, monkeypatch):
+    """The job runs on the manifest executor's thread: swap A unconfirmed, a save B arrives DURING it (also on that thread), both give
+    up. The executor is joined (what interpreter exit does first). Then A's swap lands, W re-registers X, and the flush on the main
+    thread publishes B: it must know about A's swap, or B's exclusion of X erases W's registration."""
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="probe_manifest")
+    monkeypatch.setattr(store_mod, "_manifest_executor", executor)
+    chain.cas_faults = ["error"]
+    chain.pointer_faults = [None] + ["none"] * 10                    # A's six reads fail from the second one on, then B's five
+    chain.before_cas = lambda: submit(store, BASE[1:] + PILOTS_NEW + [LATTICE[0]])
+    submit(store, BASE[1:] + PILOTS_NEW, exclude_keys=[X])
+    executor.shutdown(wait=True)
+    assert len(chain.cas_calls) == 1 and mps._slot.pending is not None and mps._slot.attempted
+    chain.generation, chain.head_key = chain.generation + 1, _first_key(chain)
+    chain.foreign_publish(lambda products: products + [_raw_wind(X, run_time=RUN_TIME + timedelta(hours=6))])
+    mps._flush_at_exit()
+    assert mps._slot.pending is None and X in chain.head_files(), "the flush on the main thread did not know about the swap"
