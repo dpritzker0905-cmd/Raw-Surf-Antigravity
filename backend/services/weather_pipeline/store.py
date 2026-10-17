@@ -171,7 +171,7 @@ def _past_retention(valid_time_start, cutoff) -> bool:
         return False
 
 
-def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
+def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_products=None) -> int:
     """MANIFEST CONCURRENCY (2026-07-14, next-phase queue #1): manifest.json has no If-Match/CAS
     precondition, so two ingest processes (core + pilots) racing the upload each re-serialize
     their OWN full in-memory snapshot — whichever lands last silently erases every registration
@@ -202,11 +202,17 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     their metadata update reverts until their next registration.
     Never raises: any failure leaves the local snapshot as the sole upload basis (pre-fix
     behavior). Kill switch: MANIFEST_MERGE_ON_UPLOAD=0.
+
+    `remote_products` (manifest_publish_step, 2026-10-16): the head's raw product list, when the caller already holds the
+    head it will CAS against. None = fetch as above; any list (even []) is used as given and a failure RAISES, because a
+    swallowed one would hand a compare-and-swap an unmerged snapshot that looks merged.
     """
     if os.environ.get("MANIFEST_MERGE_ON_UPLOAD", "1") == "0":
         return 0
+    supplied = remote_products is not None
     try:
-        remote_products = _fetch_remote_manifest_products()
+        if not supplied:
+            remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
         # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
@@ -266,6 +272,8 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
                         f"concurrent-writer entries before upload.")
         return len(folded)
     except Exception as e:
+        if supplied:
+            raise
         logger.warning(f"[Product Store] Manifest reconciliation skipped (upload proceeds with local snapshot): {e}")
         return 0
 
@@ -380,7 +388,7 @@ class ProductStore:
     # ── Supabase Storage L2 helpers ──────────────────────────────────────
 
     def _upload_to_supabase(self, filename: str, data_bytes: bytes, *,
-                            strict: bool = False, overwrite: bool = True):
+                            strict: bool = False, overwrite: bool = True, timeout: float = 30):
         """Upload to L2; strict mode raises on failure and returns True on HTTP acknowledgment.
 
         Uses the Storage REST API directly (via requests) instead of storage3's sync .upload(): in the
@@ -435,7 +443,7 @@ class ProductStore:
             #   create-only (overwrite=False) where a retry after a lost ack manufactures a duplicate,
             #   and all of them sit behind their callers' own pending/redo protocols
             #   (test_forecast_skill_retention pins exact write attempts). Leave those alone.
-            send = lambda: requests.post(url, headers=headers, data=data_bytes, timeout=30)  # noqa: E731
+            send = lambda: requests.post(url, headers=headers, data=data_bytes, timeout=timeout)  # noqa: E731
             if overwrite and ("/" not in filename or filename.startswith("manifests/")):
                 from services.weather_pipeline.l2_retry import post_with_retry
                 resp, retries = post_with_retry(send, filename)
@@ -609,8 +617,12 @@ class ProductStore:
                     logger.info(f"[Product Store] Cleaned manifest saved locally with {len(pruned_ids)} pruned entries: {pruned_ids}")
                     # Cleaned manifest L2 resave (do not delete product files from Supabase blindly)
                     try:
-                        manifest_json = dump_manifest_for_l2(manifest)
-                        self._upload_to_supabase("manifest.json", manifest_json)
+                        from services.weather_pipeline.manifest_publish_step import one_step_active, submit_manifest_publish
+                        if one_step_active():  # the lane merges against the head it swaps from; this resave PUT a restore-time view over it
+                            submit_manifest_publish(self, manifest, exclude_keys=pruned_ids)
+                        else:
+                            manifest_json = dump_manifest_for_l2(manifest)
+                            self._upload_to_supabase("manifest.json", manifest_json)
                         logger.info("[Product Store] Cleaned manifest uploaded to L2 (Supabase)")
                     except Exception as e:
                         logger.warning(f"[Product Store] Cleaned manifest L2 upload failed: {e}")

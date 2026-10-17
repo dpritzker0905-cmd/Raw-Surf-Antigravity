@@ -878,11 +878,33 @@ jobs:
           # when the width does not divide the stride, all four sites; flag OFF at all four sites; the strided read's
           # longitudes); hosted reading on this PR's head dcc46b733 (CI 38928415298: 197 files, collected 2761, 2694 passed,
           # 67 skipped) -> projected 2704/197; 2704 - 6 = 2698. This PR must read 197 files / 2704.
+          # ⬆ 197/2698 → 198/2821 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (manifest publication in one step, dark):
+          # tests/test_manifest_one_step_publish.py (123 collected, all passing, no xfail), a new file selector-verified into this
+          # lane; hosted reading on dev (backend unchanged since #343, CI 38934795577: 197 files, collected 2771, 2704 passed,
+          # 67 skipped) -> projected 2827/198; 2827 - 6 = 2821. This PR must read 198 files / 2827.
+          # ⬆ 198/2821 → 204/2886 in the same PR, after review 3 and round 4: the one test file was split (new files over 800
+          # lines fail File Size Governance) and grew to 188 cases in 7 files (tests/test_manifest_one_step_{absorb,coalescing,
+          # exit,pointer,publish,retention,sites}.py, all claimed by this lane; tests/_manifest_chain_harness.py is a helper with
+          # no tests); the same dev reading (2704 / 197 files) -> projected 2892/204; 2892 - 6 = 2886. This PR must read 204 files / 2892.
+          # ⬆ 204/2886 → 206/2950 in the same PR, after review 4 and round 5 (default-off lane): 252 cases in 9 files, the two new files
+          # being tests/test_manifest_one_step_recovery.py (17) and tests/test_manifest_one_step_table.py (38), the rest grown in place;
+          # hosted reading on the previous head c02e809e2 (CI 38970054995: 204 files, 2892 passed, 66 skipped, 1 xfailed) plus 64
+          # -> projected 2956/206; 2956 - 6 = 2950. This PR must read 206 files / 2956.
+          # ⬆ 206/2950 → 206/3037 in the same PR, after review 5 and round 6 (default-off lane): +87 cases in the same nine files
+          # (no new file); hosted reading on the round-5 head a00d69b8e (CI 38981909208: 2956 passed, 66 skipped, 1 xfailed, as projected)
+          # plus 87 -> projected 3043/206; 3043 - 6 = 3037. This PR must read 206 files / 3043.
           # ⬆ 197/2698 → 197/2741 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the monitor grades the built consensus shadow
           # against its own definition at every lead, WARN only): +43 cases in the existing tests/test_forecast_accuracy_monitor.py
           # (44 -> 87, no new file); the dev reading is 2704 -> projected 2747; 2747 - 6 = 2741. This PR must read 197 files / 2747.
           # (The one-step manifest PR #350 also moves this lane: whichever merges second re-derives.)
-          MIN_FILES, MIN_PASSED = 197, 2741
+          # ⬆ 206/3037 → 206/3104 in the same PR, after review 6 and round 7, on top of #360 (the monitor's consensus check, +43 in this
+          # lane): +24 cases in the same nine files (no new file; 339 -> 363); the dev reading after #360 is 2747 -> projected 3110;
+          # 3110 - 6 = 3104. This PR must read 206 files / 3110.
+          # ⬆ 206/3104 → 207/3125 in the same PR, after review 7 and round 8 (default-off lane): +21 cases and ONE new file,
+          # tests/test_manifest_one_step_head.py (19, claimed by this lane; keeps test_manifest_one_step_recovery.py under 800 lines);
+          # 384 cases in 10 files; the dev reading after #360 is 2747 -> projected 3131/207; 3131 - 6 = 3125. This PR must read
+          # 207 files / 3131.
+          MIN_FILES, MIN_PASSED = 207, 3125
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

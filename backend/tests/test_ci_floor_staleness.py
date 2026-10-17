@@ -475,7 +475,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Surf-zone gate, on top of it: +141 chain (one new file; floor 2652, files 166) and +5 estate (existing file; floor 1677).
 # Monitor consensus-construction check: +43 guards (existing file; floor 2741, files 197).
 # Model-scoped scalar height switch, on top of it: +43 chain (existing file; floor 2695, files 166).
-_FLOOR_SET_FROM = {"guards": 2747, "chain": 2701, "estate": 1679}
+# Manifest publication in one step (dark), on top of the monitor check: +384 guards (ten new files, after the split and rounds 4 to 8) on hosted 2747 / 197 files (floor 3125; files 207).
+_FLOOR_SET_FROM = {"guards": 3131, "chain": 2701, "estate": 1679}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
