@@ -1904,7 +1904,11 @@ jobs:
           # tests/test_upl01_upload_identity.py adds 53 executed tests to the hosted 1781 read of PR 369
           # (CI: 313 files selected, 1781 passed): projected 1834; 1834 - 2 = 1832, margin 2.
           # This PR must read 314 files / 1834.
-          MIN_PASSED = 1832
+          # ⬆ 1832→1845 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (LA-SEC-02): the new estate file
+          # tests/test_sec02_crew_chat_socket.py adds 13 executed tests to the hosted 1834 read of PR 370
+          # (CI: 314 files selected, 1834 passed): projected 1847; 1847 - 2 = 1845, margin 2.
+          # This PR must read 315 files / 1847.
+          MIN_PASSED = 1845
 
           try:
               root = ET.parse('estate.xml').getroot()
