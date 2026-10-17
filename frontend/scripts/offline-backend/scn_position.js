@@ -53,6 +53,10 @@ const shiftPx = (a, b, maxShift = 90) => {            // the shift s (rows) that
     const shot = async () => { await sleep(1200); return page.screenshot({ clip: { x: info.x, y: info.y, width: info.w, height: info.h } }); };
     const state = () => page.evaluate(() => { const q = window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ || {}; return { par: window.__MARINE_RENDER_HOUR_PARITY__, vc: q.vectorCount, bounds: q.bounds, up: window.__WEBGL_MARINE_UPLOAD_COUNT__ }; });
 
+    if (process.env.AB_LIVE === '1') {                         // live pages take 10+ s: the thinned frame for hour 24 only exists once a 48-frame page has landed
+      const tw = Date.now(); while (Date.now() - tw < 75000 && !series.some((q) => q.frames >= 40)) await sleep(500);
+      await sleep(3000);
+    }
     hold.on = true;                                           // hold the exact /grid back so the thinned series frame stays resident
     await page.keyboard.press('PageUp');
     const thinnedOk = await waitFor(() => { const q = window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ || {}; const to = (v) => +String(v).split('->').pop(); return to(q.hour) === 24 && to(q.vectorCount) > 0 && to(q.vectorCount) < 3000; }, 20000);
