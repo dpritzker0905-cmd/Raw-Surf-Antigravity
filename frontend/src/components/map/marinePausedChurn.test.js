@@ -247,10 +247,14 @@ describe('uploadedGridServesHour (the layer render-hour parity behind "Stale Hou
 
   // No unit test mounts WebGLMarineLayer (a WebGL engine), so the wiring is asserted in SOURCE, house style
   // (marineCommitGate.wiring.test.js), each assertion with a negative control so an empty match cannot pass for clean.
+  // The parity expression moved out of the layer into marineRenderParity.js (2026-10-16); the layer calls it from its effect.
   const LAYER_SRC = fs.readFileSync(path.join(__dirname, 'WebGLMarineLayer.js'), 'utf8');
+  const PARITY_SRC = fs.readFileSync(path.join(__dirname, 'marineRenderParity.js'), 'utf8');
   it('the layer parity reads the instant rule, and the upload record carries the valid time it needs', () => {
-    expect(LAYER_SRC).toMatch(/const parity = active && renderedDataHour !== null &&\s*\(requestedHour === renderedDataHour \|\| uploadedGridServesHour\(lastSig, requestedHour, activeModel\)\)/);
+    expect(PARITY_SRC).toMatch(/const parity = active && renderedDataHour !== null &&\s*\(requestedHour === renderedDataHour \|\| uploadedGridServesHour\(lastSig, requestedHour, activeModel\)\)/);
+    expect(LAYER_SRC).toMatch(/publishRenderParity\(\{ requestedHour: timeOffsetHours, active, activeModel, mapInstance,/);
     expect(LAYER_SRC).toMatch(/renderedValidTime: \(grid\.grid && grid\.grid\.valid_time\) \|\| grid\.valid_time \|\| null,/);
-    expect(LAYER_SRC).not.toMatch(/const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;/);   // the old line is gone
+    expect(PARITY_SRC).not.toMatch(/const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;/);   // the old line is gone
+    expect(LAYER_SRC).not.toMatch(/const parity = /);                                                                             // and not back in the layer
   });
 });

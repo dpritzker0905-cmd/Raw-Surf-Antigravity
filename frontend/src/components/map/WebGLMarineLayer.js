@@ -7,11 +7,10 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
-import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
-import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
+import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
@@ -21,7 +20,7 @@ import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
-import { uploadedGridServesHour } from './marineHourInstant';
+import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -60,6 +59,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     renderedDataHour: null
   });
   const scrubUploadTimeoutRef = useRef(null);
+  // Re-judge the parity record against the frame an upload/clear just left in lastUploadedGridRef (marineRenderParity.js).
+  const republishParity = () => republishRenderParityAfterUpload({ timeOffsetHoursRef, activeRef, activeModelRef, mapRef, activeLayersRef, lastUploadedGridRef });
 
   // POST-BRIDGE RESIDENCY RE-STAMP (2026-07-16, the stuck-coarse-at-coastal-zoom leg the watchdog
   // trapped): a zoom-out bridge promotion swaps the ENGINE resident to the coarse-global, but
@@ -105,100 +106,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     timeOffsetHoursRef.current = timeOffsetHours;
   }, [active, mapInstance, onAddedChange, onError, data, theme, beforeId, activeLayers, activeModel, timeOffsetHours]);
 
+  // Render-hour parity record (window.__MARINE_RENDER_HOUR_PARITY__ / __MARINE_HEATMAP_STATUS__): marineRenderParity.js.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const requestedHour = timeOffsetHours;
-    const lastSig = lastUploadedGridRef.current;
-    
-    const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
-    // A frame labelled 15 IS offset 16's 12Z product at 3-hourly range: no "Stale Hour Retained" for it (marineHourInstant.js).
-    const parity = active && renderedDataHour !== null &&
-      (requestedHour === renderedDataHour || uploadedGridServesHour(lastSig, requestedHour, activeModel));
-    
-    let reason = 'parity_match';
-    if (!active) {
-      reason = 'layer_inactive';
-    } else if (renderedDataHour === null) {
-      reason = 'no_data_rendered';
-    } else if (!parity) {
-      let coverageMissing = false;
-      const isGfsBackend = getBackendWeatherFlag() && (activeModel === 'GFS' || !activeModel);
-      const isIconBackend = getBackendIconMarineFlag() && activeModel === 'ICON';
-      const isCopernicusBackend = getBackendCopernicusFlag() && activeModel === 'EURO';
-      const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
-
-      if (isBackendActive) {
-        const curLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-        let vpBounds = null;
-        if (mapInstance) {
-          try {
-            const b = mapInstance.getBounds();
-            vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-          } catch (e) {
-            vpBounds = null;
-          }
-        }
-        const cached = getModelSafeMarine(activeModel, requestedHour, curLayer, vpBounds);
-        if (!cached || cached.__staleHour || cached.__failureReason || cached.grid?.__failureReason) {
-          coverageMissing = true;
-        }
-      } else {
-        const cache = getMarineHourlyCache ? getMarineHourlyCache() : null;
-        if (cache?.results?.length) {
-          const timeArray = cache.results[0]?.hourly?.time;
-          const targetMs = Date.now() + requestedHour * 3600000;
-          const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-          if (timeArray?.[idx]) {
-            const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-            if (Math.abs(cachedMs - targetMs) > 3 * 3600000) {
-              coverageMissing = true;
-            }
-          } else {
-            coverageMissing = true;
-          }
-        } else {
-          coverageMissing = true;
-        }
-      }
-
-      if (coverageMissing) {
-        reason = 'coverageMissing';
-      } else if (isInCooldown('marine')) {
-        reason = 'cooldownActive';
-      } else {
-        reason = 'retained_previous';
-      }
-    }
-    
-    window.__MARINE_RENDER_HOUR_PARITY__ = {
-      requestedHour,
-      renderedDataHour,
-      parity,
-      reason
-    };
-
-    if (active && !parity) {
-      let statusValue = 'retained_previous_hour';
-      if (reason === 'cooldownActive') {
-        statusValue = 'rate_limited_cached';
-      } else if (reason === 'coverageMissing') {
-        statusValue = activeModel === 'EURO' ? 'no_copernicus_coverage' : 'no_backend_coverage';
-      }
-      window.__MARINE_HEATMAP_STATUS__ = {
-        status: statusValue,
-        model: activeModel,
-        layer: activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
-        hour: requestedHour,
-        renderedHour: renderedDataHour,
-        retainedPrevious: true
-      };
-    } else if (active && parity) {
-      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour' ||
-          window.__MARINE_HEATMAP_STATUS__?.status === 'no_copernicus_coverage' ||
-          window.__MARINE_HEATMAP_STATUS__?.status === 'no_backend_coverage') {
-        window.__MARINE_HEATMAP_STATUS__ = null;
-      }
-    }
+    publishRenderParity({ requestedHour: timeOffsetHours, active, activeModel, mapInstance, activeLayers: activeLayersRef.current, lastSig: lastUploadedGridRef.current });
   }, [timeOffsetHours, revision, active, activeModel]);
 
   const runDiagnosticsUpdate = (rejectionOrClearReason = null) => {
@@ -390,6 +300,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       uploadSig: uploadSigResidency,
       samples: diffResult.currSamples
     };
+    republishParity();
 
     if (!window.__WEBGL_MARINE_UPLOAD_COUNT__) window.__WEBGL_MARINE_UPLOAD_COUNT__ = 0;
     window.__WEBGL_MARINE_UPLOAD_COUNT__++;
@@ -933,6 +844,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
           sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
         };
+        republishParity();
         if (mapInstance) mapInstance.triggerRepaint();
       }
       return;
@@ -954,6 +866,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
             boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
             sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
           };
+          republishParity();
           if (mapInstance) mapInstance.triggerRepaint();
         }
         runDiagnosticsUpdate('unsupported_layer');
@@ -1064,6 +977,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
           sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
         };
+        republishParity();
 
         if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
         window.__WEBGL_MARINE_CLEAR_COUNT__++;

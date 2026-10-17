@@ -592,7 +592,7 @@ export const MapForecastOverlay = ({
     });
   }
 
-  // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (WebGLMarineLayer.js:197) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
+  // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (publishRenderParity in marineRenderParity.js, called from WebGLMarineLayer.js) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
   const heatmapStatus = useMemo(() => {
     return computeHeatmapStatus({ activeModel, activeLayer, renderMarineData });
   }, [renderMarineData, activeModel, activeLayer, timeOffsetHours]);
