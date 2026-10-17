@@ -6,6 +6,8 @@ from fastapi import Depends, File, Form, HTTPException, UploadFile, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
+from .identity import uploader_id
+from core.security import get_current_user_id
 from datetime import datetime
 from typing import Optional
 import uuid
@@ -14,7 +16,7 @@ import os
 import shutil
 import asyncio
 import logging
-from models import GalleryItem, Profile
+from models import Gallery, GalleryItem, Profile
 from .core import (
     UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE, STREAM_CHUNK_SIZE,
@@ -34,7 +36,7 @@ logger = logging.getLogger(__name__)
 @router.post("/upload/feed")
 async def upload_feed_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
+    user_id: str = Depends(uploader_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -237,7 +239,7 @@ MAX_WAVE_DURATION = 60  # seconds - music label compliance
 @router.post("/upload/wave")
 async def upload_wave_video(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
+    user_id: str = Depends(uploader_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -452,6 +454,7 @@ class FrameExportRequest(BaseModel):
 async def export_video_frame(
     item_id: str,
     payload: FrameExportRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -470,6 +473,13 @@ async def export_video_frame(
     if not source_item:
         raise HTTPException(status_code=404, detail="Video file item not found")
         
+    if source_item.photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="You can only export frames from your own videos")
+
+    target_gallery = (await db.execute(select(Gallery).where(Gallery.id == payload.gallery_id))).scalar_one_or_none()
+    if not target_gallery or target_gallery.photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="You can only export into your own gallery")
+
     if source_item.media_type != 'video':
         raise HTTPException(status_code=400, detail="Frame grab can only be executed on video files")
 

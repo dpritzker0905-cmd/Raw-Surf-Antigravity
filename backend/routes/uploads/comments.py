@@ -2,6 +2,7 @@
 from fastapi import Depends, File, Form, HTTPException, UploadFile, APIRouter
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
+from .identity import uploader_id
 import uuid
 import os
 import shutil
@@ -28,7 +29,7 @@ MAX_COMMENT_VIDEO_DURATION = 60  # seconds
 @router.post("/upload/comment")
 async def upload_comment_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
+    user_id: str = Depends(uploader_id),
     db: AsyncSession = Depends(get_db)
 ):
     """

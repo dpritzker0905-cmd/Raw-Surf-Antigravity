@@ -38,6 +38,8 @@ except ImportError:
     HEIF_SUPPORT = False
 
 from database import get_db
+from .identity import uploader_id
+from core.security import get_current_user_id
 from models import Profile, GalleryItem
 from utils.video_processor import (
     get_video_info, 
@@ -364,7 +366,8 @@ def add_watermark(
 
 @router.post("/upload")
 async def upload_general_file(
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     General file upload endpoint for selfies, profile photos, etc.
@@ -436,7 +439,7 @@ async def get_general_upload(filename: str):
 @router.post("/upload/story")
 async def upload_story_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...)
+    user_id: str = Depends(uploader_id)
 ):
     """Upload media for a story (image or video)"""
     # Validate file type
@@ -488,7 +491,7 @@ async def upload_story_media(
 @router.post("/upload/conditions")
 async def upload_conditions_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...)
+    user_id: str = Depends(uploader_id)
 ):
     """
     Upload conditions check media (photo or video) for a live session go-live.
@@ -563,7 +566,7 @@ async def get_conditions_media(user_id: str, filename: str):
 @router.post("/upload/gallery")
 async def upload_gallery_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
+    user_id: str = Depends(uploader_id),
     add_watermark_preview: bool = Form(True)
 ):
     """Upload media for gallery (creates watermarked preview).
@@ -632,7 +635,7 @@ async def upload_gallery_media(
 @router.post("/upload/avatar")
 async def upload_avatar(
     file: UploadFile = File(...),
-    user_id: str = Form(...)
+    user_id: str = Depends(uploader_id)
 ):
     """Upload user avatar"""
     if file.content_type not in ALLOWED_IMAGE_TYPES:

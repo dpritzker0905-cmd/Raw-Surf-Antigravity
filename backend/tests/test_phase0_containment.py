@@ -359,7 +359,7 @@ def _assert_unlinked(original_url, preview_url):
 
 
 async def test_gallery_upload_names_the_original_apart_from_its_preview(harness, storage):
-    response = await harness.client.post('/api/upload/gallery', data={'user_id': 'pro'},
+    response = await harness.client.post('/api/upload/gallery', data={'user_id': 'pro'}, headers=bearer('pro'),
                                          files={'file': ('a.png', _png(), 'image/png')})
     assert response.status_code == 200, response.text
     body = response.json()
@@ -368,7 +368,7 @@ async def test_gallery_upload_names_the_original_apart_from_its_preview(harness,
 
 
 async def test_photographer_upload_names_the_original_apart_from_its_preview(harness, storage):
-    response = await harness.client.post('/api/upload/photographer-gallery', data={'user_id': 'pro'},
+    response = await harness.client.post('/api/upload/photographer-gallery', data={'user_id': 'pro'}, headers=bearer('pro'),
                                          files={'file': ('a.png', _png(), 'image/png')})
     assert response.status_code == 200, response.text
     body = response.json()
@@ -385,7 +385,7 @@ async def test_a_failed_watermark_refuses_the_upload_and_publishes_nothing(harne
         raise upload_core.WatermarkError('fixture')
 
     monkeypatch.setattr(module, 'add_watermark', broken)
-    response = await harness.client.post(path, data={'user_id': 'pro'},
+    response = await harness.client.post(path, data={'user_id': 'pro'}, headers=bearer('pro'),
                                          files={'file': ('a.png', _png(), 'image/png')})
     assert response.status_code == 500, response.text
     assert storage == []
@@ -394,7 +394,7 @@ async def test_a_failed_watermark_refuses_the_upload_and_publishes_nothing(harne
 
 
 async def test_session_photo_upload_names_the_original_apart_from_its_preview(harness, storage):
-    response = await harness.client.post('/api/photos/upload', data={'photographer_id': 'pro'},
+    response = await harness.client.post('/api/photos/upload', data={'photographer_id': 'pro'}, headers=bearer('pro'),
                                          files={'file': ('a.png', _png(), 'image/png')})
     assert response.status_code == 200, response.text
     body = response.json()
@@ -402,7 +402,7 @@ async def test_session_photo_upload_names_the_original_apart_from_its_preview(ha
 
 
 async def test_session_photo_with_a_failed_preview_is_refused_not_published(harness, storage):
-    response = await harness.client.post('/api/photos/upload', data={'photographer_id': 'pro'},
+    response = await harness.client.post('/api/photos/upload', data={'photographer_id': 'pro'}, headers=bearer('pro'),
                                          files={'file': ('a.jpg', b'not an image at all', 'image/jpeg')})
     assert response.status_code == 500, response.text
     assert await scalar(harness.maker, select(GalleryItem).where(GalleryItem.id != 'item')) is None
@@ -549,7 +549,7 @@ async def test_the_buyer_with_their_token_still_gets_their_original(harness, pat
 async def test_heic_without_a_decoder_is_refused_before_anything_is_written(harness, storage, monkeypatch,
                                                                           path, field):
     monkeypatch.setattr(upload_core, 'HEIF_SUPPORT', False)
-    response = await harness.client.post(path, data={field: 'pro'},
+    response = await harness.client.post(path, data={field: 'pro'}, headers=bearer('pro'),
                                          files={'file': ('a.heic', b'fixture-heic-bytes', 'image/heic')})
     assert response.status_code == 415, response.text
     assert storage == []
@@ -562,7 +562,7 @@ async def test_the_watermark_benchmark_cleans_up_after_a_failure(harness, monkey
     scratch = tmp_path / 'tmpdir'
     scratch.mkdir()
     monkeypatch.setattr(tempfile, 'tempdir', str(scratch))
-    response = await harness.client.post('/api/uploads/test-watermark',
+    response = await harness.client.post('/api/uploads/test-watermark', headers=bearer('pro'),
                                          files={'file': ('a.jpg', b'not an image at all', 'image/jpeg')})
     assert response.status_code == 400, response.text
     assert list(scratch.iterdir()) == []

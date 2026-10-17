@@ -6,6 +6,8 @@ from fastapi import Depends, File, Form, HTTPException, UploadFile, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
+from .identity import uploader_id, photographer_uploader_id
+from core.security import get_current_user_id
 from datetime import datetime
 from typing import Optional
 import uuid
@@ -37,7 +39,7 @@ logger = logging.getLogger(__name__)
 @router.post("/upload/user-gallery")
 async def upload_user_gallery_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
+    user_id: str = Depends(uploader_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Upload media to user's personal gallery. Videos transcoded to 1080p."""
@@ -94,7 +96,7 @@ async def upload_user_gallery_media(
 
 @router.post("/upload/photographer-gallery")
 async def upload_photographer_gallery_media(
-    file: UploadFile = File(...), user_id: str = Form(...),
+    file: UploadFile = File(...), user_id: str = Depends(uploader_id),
     add_watermark_preview: bool = Form(True), db: AsyncSession = Depends(get_db)
 ):
     """Upload media for photographer's gallery. Paid photographers can upload 4K videos."""
@@ -252,7 +254,7 @@ async def upload_photographer_gallery_media(
 
 
 @router.post("/uploads/test-watermark")
-async def test_watermark_performance(file: UploadFile = File(...)):
+async def test_watermark_performance(file: UploadFile = File(...), current_user_id: str = Depends(get_current_user_id)):
     """Test watermarking performance. Target: <2 seconds for 5MB image."""
     import time
     import tempfile
@@ -289,7 +291,7 @@ async def test_watermark_performance(file: UploadFile = File(...)):
 
 @router.post("/photos/upload")
 async def upload_session_photo(
-    file: UploadFile = File(...), photographer_id: str = Form(...),
+    file: UploadFile = File(...), photographer_id: str = Depends(photographer_uploader_id),
     gallery_id: Optional[str] = Form(None), session_id: Optional[str] = Form(None),
     tagged_surfer_ids: Optional[str] = Form(None), price: Optional[float] = Form(None),
     is_session_photo: bool = Form(False), media_type: Optional[str] = Form(None),
