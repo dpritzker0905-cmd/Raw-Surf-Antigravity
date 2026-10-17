@@ -19,6 +19,12 @@
 #   314-802 /point calls). That is why the cron is 6-hourly, not hourly: the box is one shared CPU.
 # Exit contract (scripts/run_nearshore_validation.py): 0 GRADED · 1 REFUSED (a verdict; the report says why;
 # red, VA-03) · 2 INFRA (red).
+# ★ THE SURF-ZONE GATE (nearshore_gate.py; step "Surf-zone gate"): the report this lane writes is now GRADED, not only
+#   printed. After a GRADED run it WARNs on a standing bias (observed/modelled outside 0.85-1.15; 1.25 on run 38982682625,
+#   i.e. the served surf height ran 20 percent low against nearshore buoys) and goes RED on an aggregate MAE above 0.32 m
+#   or a ratio outside 0.6-1.6, but only after NEARSHORE_GATE_GRACE (default 2026-11-15: the date arms it). A report it
+#   cannot read REFUSES (never green when blind). KILL SWITCH: repo variable NEARSHORE_GATE=0 restores the previous
+#   behaviour exactly. Thresholds are NEARSHORE_GATE_* repo variables; each live value prints beside its measured basis.
 name: Nearshore Validation (WS-CAN-0076)
 run-name: ${{ (github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && vars.NEARSHORE_VAL_ENABLED == '1')) && 'Nearshore requested - see validation verdict' || 'Nearshore NOT GRADED - ARMED OFF' }}
 
@@ -208,6 +214,23 @@ jobs:
             exit 1
           fi
           echo "GRADED — nearshore_report.json"
+
+      # WS-CAN-0076 SURF-ZONE GATE. NO `if:` ON PURPOSE: the runner step above exits 1 (REFUSED) or 2 (INFRA) and fails
+      # the job, so this step runs only on a report the runner called GRADED, and an INFRA or REFUSED run is not
+      # reported a second time. Exit 1 = RED (after the grace date) or REFUSE (the gate is blind); WARN exits 0.
+      - name: Surf-zone gate (grade the report)
+        working-directory: backend
+        env:
+          NEARSHORE_GATE: ${{ vars.NEARSHORE_GATE }}
+          NEARSHORE_GATE_MAE_RED: ${{ vars.NEARSHORE_GATE_MAE_RED }}
+          NEARSHORE_GATE_GRACE: ${{ vars.NEARSHORE_GATE_GRACE }}
+          NEARSHORE_GATE_MIN_STATIONS: ${{ vars.NEARSHORE_GATE_MIN_STATIONS }}
+          NEARSHORE_GATE_RATIO_RED_LOW: ${{ vars.NEARSHORE_GATE_RATIO_RED_LOW }}
+          NEARSHORE_GATE_RATIO_WARN_LOW: ${{ vars.NEARSHORE_GATE_RATIO_WARN_LOW }}
+          NEARSHORE_GATE_RATIO_WARN_HIGH: ${{ vars.NEARSHORE_GATE_RATIO_WARN_HIGH }}
+          NEARSHORE_GATE_RATIO_RED_HIGH: ${{ vars.NEARSHORE_GATE_RATIO_RED_HIGH }}
+        run: |
+          python3 scripts/nearshore_gate_ci.py --report nearshore_report.json
 
       - name: Summary
         if: always()

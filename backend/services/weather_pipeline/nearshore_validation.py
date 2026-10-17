@@ -38,6 +38,11 @@ from services.weather_pipeline.consensus_product import CONSENSUS_MEMBERS, equal
 PAIRS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                           "data", "nearshore_validation_pairs.json")
 PAIRS_MAX_AGE_DAYS = 90.0     # regenerate with build_nearshore_pairs.py; staleness REFUSES
+# THE GRADED FLOOR (VA-03, 2026-10-08): a grade needs 30 distinct buoy readings. Before it, one matched spot-hour
+# graded. Measured on the 9 graded 24 h-backfill dispatches (2026-09-27..29): 24-98 station-hours, 8 of 9 at or
+# above 30; the one single-hour run read 7, which is why a scheduled slot now grades a 24 h backfill. It is the
+# RUNNER's policy (it passes it to build_report) and lives here, once, so nearshore_gate.py can import it too.
+GRADED_MIN_STATION_HOURS = 30
 THREDDS_RT = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime"
 UA = {"User-Agent": "raw-surf-nearshore-validation"}
 # THE LEGACY-FRICTION ARM (2026-09-28): cross-shelf friction went off by default (surf_transform.SHELF_CF_SCALE_DEFAULT,
