@@ -1900,7 +1900,11 @@ jobs:
           # estate files, tests/test_lazy_import_resolution.py (5) and tests/test_pay08_crew_pay.py (12), add 17
           # executed tests to the 1764 projected for Phase 0 (hosted read of Phase 0 confirmed: 311 files / 1764, CI 39058995687):
           # projected 1781; 1781 - 2 = 1779, margin 2. This PR must read 313 files / 1781.
-          MIN_PASSED = 1779
+          # ⬆ 1779→1832 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (LA-UPL-01): the new estate file
+          # tests/test_upl01_upload_identity.py adds 53 executed tests to the hosted 1781 read of PR 369
+          # (CI: 313 files selected, 1781 passed): projected 1834; 1834 - 2 = 1832, margin 2.
+          # This PR must read 314 files / 1834.
+          MIN_PASSED = 1832
 
           try:
               root = ET.parse('estate.xml').getroot()

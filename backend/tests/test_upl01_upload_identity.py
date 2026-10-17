@@ -94,8 +94,10 @@ async def harness(tmp_path, monkeypatch):
         stored.append((bucket, key))
         return f'https://cdn.fixture.invalid/{bucket}/{key}'
 
+    for module in (upload_comments, upload_core, upload_media, media_gallery):
+        if hasattr(module, 'UPLOAD_DIR'):
+            monkeypatch.setattr(module, 'UPLOAD_DIR', tmp_path / 'uploads')
     for module in (upload_core, media_gallery):
-        monkeypatch.setattr(module, 'UPLOAD_DIR', tmp_path / 'uploads')
         monkeypatch.setattr(module, 'upload_to_supabase_storage', record)
     (tmp_path / 'uploads').mkdir()
 
