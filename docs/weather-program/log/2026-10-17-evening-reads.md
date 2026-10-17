@@ -12,7 +12,10 @@ evicted_cap=0`. Pending fell from the 54000 cap. Scored pairs exist at lead 24 (
 (n=37). One pass: it shows the cap stopped evicting in that pass, not that it stays stopped. The 21:24Z pass
 (run 39070774151) is unread.
 
-## Commitment 1377 NOT met (ledger 1391): EURO wind has not recovered
-`/api/health/data` at 22:20Z: EURO/wind warn with a 22.3 h old model cycle (critical at 24 h, about 00:00Z), EURO/marine warn
-(mixed cycles), EURO/weather ok (10.3 h). GFS and ICON lanes sit at 8.8 h. The recovery seen at 17:04Z did not hold.
-1377 stays open. Cause is not yet diagnosed from this read; the ingest log for `ECMWF EURO-Wind` is the next read.
+## Commitment 1377: not met at 22:20Z, met by 22:52Z (ledger 1391, corrected by 1392)
+At 22:20Z `/api/health/data` read EURO/wind warn with a 22.3 h cycle (critical at 24 h), EURO/marine warn (mixed cycles),
+EURO/weather ok (10.3 h). That was recorded as "recovery did not hold". It was wrong: at 22:52Z every EURO lane is ok at a
+10.9 h cycle (the 12Z cycle) and overall health is ok. ECMWF had the whole 12Z cycle by then (HEAD 200 at steps 0, 144, 240).
+The cause of the wind lane trailing the weather lane for hours is NOT established (the 21:03Z ingest log was unreadable
+while the run was in progress). The daily pattern is the risk: the wind lane's cycle age reaches 22 h before the new cycle
+lands, 2 h under the 24 h critical threshold.
