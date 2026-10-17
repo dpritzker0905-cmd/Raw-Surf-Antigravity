@@ -51,7 +51,7 @@ from utils.video_processor import (
     MAX_GALLERY_WIDTH
 )
 from sqlalchemy import text
-from .storage import upload_public_media
+from .storage import unlinked_media_names, upload_public_media
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -160,6 +160,12 @@ def get_file_extension(content_type: str) -> str:
         "video/webm": ".webm"
     }
     return extensions.get(content_type, ".bin")
+
+
+class WatermarkError(RuntimeError):
+    """The preview could not be watermarked. The caller must refuse the upload: the old fallback
+    copied the paid original into the free preview's place (LA-GAL-02)."""
+
 
 def add_watermark(
     image_path: str,
@@ -343,9 +349,7 @@ def add_watermark(
     except Exception as e:
         processing_time_ms = (time.time() - start_time) * 1000
         logging.error(f"Watermark error after {processing_time_ms:.0f}ms: {e}")
-        # If watermarking fails, just copy the original
-        shutil.copy(image_path, output_path)
-        return output_path, processing_time_ms
+        raise WatermarkError(str(e)) from e
 
 
 @router.post("/upload")
@@ -566,8 +570,8 @@ async def upload_gallery_media(
     # Generate unique filename
     ext = get_file_extension(file.content_type)
     base_filename = str(uuid.uuid4())
-    original_filename = f"{base_filename}_original{ext}"
-    preview_filename = f"{base_filename}_preview{ext}"
+    # The original's name must not be derivable from the public preview's (LA-GAL-02).
+    original_filename, preview_filename = unlinked_media_names(ext)
     
     # Create gallery subdirectory (local working copy)
     gallery_dir = UPLOAD_DIR / "gallery" / user_id
@@ -583,7 +587,11 @@ async def upload_gallery_media(
     # Create watermarked preview
     watermark_time_ms = 0
     if add_watermark_preview:
-        _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+        try:
+            _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+        except WatermarkError:
+            original_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
     else:
         shutil.copy(original_path, preview_path)
     

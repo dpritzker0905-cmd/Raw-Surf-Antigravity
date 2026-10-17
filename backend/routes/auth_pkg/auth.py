@@ -374,16 +374,22 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     
-    # Verify password (allow login if no password set for legacy accounts)
-    if profile.password_hash:
-        try:
-            password_valid = verify_password(data.password, profile.password_hash)
-        except Exception:
-            logger.exception("Password verification failed for profile %s", profile.id)
-            raise HTTPException(status_code=401, detail="Invalid password")
+    # A password sign-in needs a stored password to check. Accounts without one (legacy and seeded
+    # rows) used to be let in on any password; they now create one through forgot-password, the same
+    # path change-password already points them to.
+    if not profile.password_hash:
+        raise HTTPException(
+            status_code=401,
+            detail="No password is set on this account. Use 'Forgot password' to create one.",
+        )
+    try:
+        password_valid = verify_password(data.password, profile.password_hash)
+    except Exception:
+        logger.exception("Password verification failed for profile %s", profile.id)
+        raise HTTPException(status_code=401, detail="Invalid password")
 
-        if not password_valid:
-            raise HTTPException(status_code=401, detail="Invalid password")
+    if not password_valid:
+        raise HTTPException(status_code=401, detail="Invalid password")
     
     # Check if suspended
     if profile.is_suspended:

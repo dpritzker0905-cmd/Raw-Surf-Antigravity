@@ -19,9 +19,10 @@ from .core import (
     UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE,
     SUPABASE_STORAGE_AVAILABLE,
-    upload_to_supabase_storage, get_file_extension, add_watermark,
+    upload_to_supabase_storage, get_file_extension, add_watermark, WatermarkError,
     _cached_file_response, _SHORT_CACHE,
 )
+from .storage import unlinked_media_names
 from utils.video_processor import (
     process_video_upload, generate_video_thumbnail
 )
@@ -175,8 +176,8 @@ async def upload_photographer_gallery_media(
         import gc
         ext = get_file_extension(file.content_type)
         base_filename = str(uuid.uuid4())
-        original_filename = f"{base_filename}_original{ext}"
-        preview_filename = f"{base_filename}_preview{ext}"
+        # The original's name must not be derivable from the public preview's (LA-GAL-02).
+        original_filename, preview_filename = unlinked_media_names(ext)
         original_path = gallery_dir / original_filename
         preview_path = gallery_dir / preview_filename
         content_size = len(content)
@@ -220,7 +221,11 @@ async def upload_photographer_gallery_media(
             gc.collect()
         watermark_time_ms = 0
         if add_watermark_preview:
-            _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+            try:
+                _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+            except WatermarkError:
+                original_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
             gc.collect()
         else:
             shutil.copy(original_path, preview_path)
@@ -301,14 +306,14 @@ async def upload_session_photo(
     gallery_dir.mkdir(parents=True, exist_ok=True)
     ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename else ('mp4' if is_video else 'jpg')
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"session_{timestamp}_{str(uuid.uuid4())[:8]}.{ext}"
+    # The original's name must not be derivable from the public preview's or thumbnail's (LA-GAL-02).
+    filename, preview_filename = unlinked_media_names(f".{ext}", prefix=f"session_{timestamp}_")
     file_path = gallery_dir / filename
     with open(file_path, 'wb') as f:
         f.write(content)
     original_url = f"/api/uploads/gallery/{photographer_id}/{filename}"
     preview_url = original_url
     if is_image:
-        preview_filename = f"preview_{filename}"
         preview_path = gallery_dir / preview_filename
         try:
             img = Image.open(io.BytesIO(content))
@@ -341,10 +346,14 @@ async def upload_session_photo(
             img.save(preview_path, quality=85)
             preview_url = f"/api/uploads/gallery/{photographer_id}/{preview_filename}"
         except Exception as e:
+            # The fallback here was preview_url = original_url: a failed watermark published the
+            # paid original as its own free preview. Refuse the upload instead (LA-GAL-02).
             logger.error(f"Watermark error: {e}")
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
     elif is_video:
         try:
-            thumbnail_filename = f"thumb_{filename.rsplit('.', 1)[0]}.jpg"
+            thumbnail_filename = f"thumb_{uuid.uuid4()}.jpg"
             thumbnail_path = gallery_dir / thumbnail_filename
             from utils.video_processor import generate_video_thumbnail as gen_thumb
             thumbnail_success = await gen_thumb(str(file_path), str(thumbnail_path))

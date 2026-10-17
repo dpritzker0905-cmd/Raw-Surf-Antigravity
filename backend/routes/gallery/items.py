@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import datetime, timezone, timedelta
 import json
 import uuid
@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -488,15 +489,28 @@ async def move_item_to_gallery(
 
 # ============ MANUAL SURFER ASSIGNMENT (Photographer Fallback) ============
 
+# The only access types an assignment may grant. Anything else is refused by validation (422)
+# instead of being stored as free text.
+AssignAccessType = Literal['pending_selection', 'included', 'gifted']
+
+
+def _require_photographer(caller_id: str, owner_id: str, body_photographer_id: str) -> None:
+    """The acting photographer is the token's subject. The body's photographer_id is kept for
+    client compatibility and must name the same person; it never decides ownership."""
+    if body_photographer_id != caller_id or owner_id != caller_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+
 class AssignSurferRequest(BaseModel):
     photographer_id: str
     surfer_id: str
-    access_type: str = 'pending_selection'  # 'pending_selection', 'included', 'gifted'
+    access_type: AssignAccessType = 'pending_selection'
 
 @router.post("/gallery/item/{item_id}/assign-surfer")
 async def assign_item_to_surfer(
     item_id: str,
     data: AssignSurferRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -513,19 +527,18 @@ async def assign_item_to_surfer(
     item = item_result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
-    if item.photographer_id != data.photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
+    _require_photographer(current_user_id, item.photographer_id, data.photographer_id)
+
     # Verify surfer exists
     surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
     if not surfer_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Surfer not found")
-    
+
     result = await manually_assign_item_to_surfer(
         db=db,
         gallery_item_id=item_id,
         surfer_id=data.surfer_id,
-        photographer_id=data.photographer_id,
+        photographer_id=current_user_id,
         access_type=data.access_type
     )
     
@@ -540,12 +553,13 @@ class BulkAssignRequest(BaseModel):
     photographer_id: str
     surfer_id: str
     item_ids: Optional[List[str]] = None  # If None, assigns all items in gallery
-    access_type: str = 'included'  # Default to 'included' for session-purchased content
+    access_type: AssignAccessType = 'included'  # Default to 'included' for session-purchased content
 
 @router.post("/gallery/{gallery_id}/assign-all-to-surfer")
 async def bulk_assign_to_surfer(
     gallery_id: str,
     data: BulkAssignRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -557,8 +571,7 @@ async def bulk_assign_to_surfer(
     gallery = gallery_result.scalar_one_or_none()
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != data.photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    _require_photographer(current_user_id, gallery.photographer_id, data.photographer_id)
     
     # Verify surfer exists
     surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
@@ -591,7 +604,7 @@ async def bulk_assign_to_surfer(
             db=db,
             gallery_item_id=item.id,
             surfer_id=data.surfer_id,
-            photographer_id=data.photographer_id,
+            photographer_id=current_user_id,
             access_type=data.access_type,
             gallery=gallery
         )
