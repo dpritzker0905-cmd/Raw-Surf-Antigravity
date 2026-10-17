@@ -544,3 +544,219 @@ def test_two_month_archive_label_preserves_healthy_verdict():
 
 def test_two_month_archive_label_preserves_measured_loss_verdict():
     _assert_loaded_archive_label_with_verdict(0.3, 0.2, 0.3, RED)
+
+
+# ---------------------------------------------------------------------------------------------
+# THE CONSENSUS CONSTRUCTION CONTROL (2026-10-17). The BUILT shadow lane (raw_surf:CONSENSUS) is DEFINED as the equal
+# GFS/EURO/ICON mean the ledger computes, and `forecast_skill_consensus.shadow.by_lead[*].shadow_minus_equal_m` is that
+# definition's own check. On the pass of 2026-10-16T23:20Z it read median 0.003 m at +24 h and 0.126 / 0.132 m at +48 / +72 h
+# (docs/weather-program/log/2026-10-17-served-height-gap.md, Table 7c), and nothing graded the +48/+72 h reads: the control
+# was only ever read at +24 h. This gate WARNS, never pages (a product-readiness fact, not an incident), and a missing or
+# thin read is an explicit NOT MEASURED line, never silence.
+# ---------------------------------------------------------------------------------------------
+import pytest  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from scripts.forecast_accuracy_monitor import _parse_iso, evaluate_consensus_construction  # noqa: E402
+from services.weather_pipeline.skill_consensus import MEMBERS, SHADOW, shadow_report  # noqa: E402
+
+LIVE = ((24, 2712, 0.003, -0.007), (48, 2784, 0.126, 0.093), (72, 2863, 0.132, 0.084))   # Table 7c: lead, n, median, bias
+GRACE = datetime(2026, 11, 15, tzinfo=timezone.utc)
+AFTER_GRACE = GRACE + timedelta(seconds=1)
+
+
+def _lead_entry(lead_h, median, n=2800, bias=0.09, **over):
+    """One `shadow.by_lead` entry in skill_consensus.shadow_report's exact shape (its keys, not invented ones)."""
+    return {"lead_h": lead_h, "n": n, "status": "scored",
+            "shadow": {"mae_m": 0.3, "bias_m": bias}, "equal": {"mae_m": 0.28, "bias_m": -0.03},
+            "served": {"mae_m": 0.3, "bias_m": -0.1},
+            "shadow_minus_equal_m": {"median": median, "p90": 0.4},
+            "shadow_over_served": {"p10": 0.9, "median": 1.1, "p90": 1.6}, "shadow_beats_served": False, **over}
+
+
+def _consensus_report(*entries):
+    return {**_report(), "forecast_skill_consensus": {"members": list(MEMBERS), "by_lead": [], "shadow": {
+        "source": SHADOW, "members": list(MEMBERS), "holdout_days": 7, "by_lead": list(entries), "by_region": {}}}}
+
+
+def _live(order=1):
+    return _consensus_report(*[_lead_entry(lead, med, n, bias) for lead, n, med, bias in LIVE[::order]])
+
+
+def _gate(report, now=NOW, **cfg):
+    """Lines of the gate. Every call also pins the invariants: it never pages or refuses, and no line can break out of
+    a GitHub workflow command (a '%' or a newline)."""
+    code, lines = evaluate_consensus_construction(report, now, {**default_cfg(), **cfg})
+    assert code == OK, "WARN only: this control must never page or refuse"
+    assert all("%" not in l and "\n" not in l and "\r" not in l for l in lines), lines
+    return lines
+
+
+def _gaps(lines):
+    return [l for l in lines if l.startswith("::warning::consensus construction GAP")]
+
+
+def _not_measured(lines):
+    return [l for l in lines if l.startswith("::warning::consensus construction: NOT MEASURED (")]
+
+
+def test_the_live_case_warns_at_48_and_72_and_not_at_24():
+    lines = _gate(_live())
+    gaps = _gaps(lines)
+    assert len(gaps) == 2 and "+48h" in gaps[0] and "+72h" in gaps[1] and "0.126 m" in gaps[0] and "0.132 m" in gaps[1]
+    assert "consensus construction +24h: median |shadow - equal| 0.003 m (n 2,712), shadow bias -0.007 m [basis: " in lines[0]
+    assert any(l.startswith("consensus construction +48h: median |shadow - equal| 0.126 m (n 2,784), shadow bias "
+                            "+0.093 m [basis: ") and "warn above 0.020 m" in l for l in lines)
+    assert not _not_measured(lines) and _gate(_live(order=-1)) == lines          # the order of the leads is not the output's
+
+
+def test_a_correct_build_is_quiet_the_positive_control():
+    lines = _gate(_consensus_report(_lead_entry(24, 0.003), _lead_entry(48, 0.004), _lead_entry(72, 0.005)))
+    assert len(lines) == 3 and not any(l.startswith("::") for l in lines)
+
+
+def test_the_gate_reads_the_producers_own_output():
+    """Rows -> skill_consensus.shadow_report -> the gate: pins the key names against the code that writes them."""
+    def ledger(lead_h, offset, n=250):
+        rows = []
+        for i in range(n):
+            key = {"buoy_id": "46%03d" % i, "lead_h": lead_h, "obs_hs_m": 1.0,
+                   "target_time": (NOW - timedelta(hours=1 + i % 100)).isoformat()}
+            hs = {"raw_surf": 1.0, "raw_surf:ICON": 1.3, "raw_surf:EURO": 1.1}
+            rows += [{**key, "source": s, "hs_m": h} for s, h in hs.items()]
+            rows.append({**key, "source": SHADOW, "hs_m": sum(hs.values()) / 3 + offset})
+        return rows
+    report = {**_report(), "forecast_skill_consensus": {"shadow": shadow_report(ledger(24, 0.0) + ledger(48, 0.126), NOW)}}
+    lines = _gate(report)
+    assert len(_gaps(lines)) == 1 and "+48h" in _gaps(lines)[0]
+    assert any(l.startswith("consensus construction +24h: median |shadow - equal| 0.000 m (n 250)") for l in lines)
+
+
+@pytest.mark.parametrize("report", [
+    None, _report(), {**_report(), "forecast_skill_consensus": "garbage"},
+    {**_report(), "forecast_skill_consensus": {"by_lead": []}},                       # no shadow block
+    _consensus_report(),                                                              # shadow block, no leads
+    {**_report(), "forecast_skill_consensus": {"shadow": {"by_lead": {"24": 1}}}},    # by_lead is not a list
+], ids=["no-report", "no-block", "garbage-block", "no-shadow", "no-leads", "by-lead-not-a-list"])
+def test_an_absent_block_is_NOT_MEASURED_never_silent(report):
+    lines = _gate(report)
+    assert len(lines) == 1 and _not_measured(lines)
+
+
+def test_thin_leads_are_not_graded_and_the_gate_says_NOT_MEASURED():
+    lines = _gate(_consensus_report(_lead_entry(24, 0.5, n=150), _lead_entry(48, 0.6, n=199),
+                                    {"lead_h": 72, "n": 5, "status": "insufficient"}))
+    assert not _gaps(lines) and len(_not_measured(lines)) == 1 and "200" in _not_measured(lines)[0]
+    assert sum("not graded" in l for l in lines) == 3
+
+
+def test_a_thin_lead_beside_a_graded_one_is_not_a_blind_gate():
+    lines = _gate(_consensus_report(_lead_entry(24, 0.5, n=150), _lead_entry(48, 0.126)))
+    assert len(_gaps(lines)) == 1 and "+48h" in _gaps(lines)[0] and not _not_measured(lines)
+
+
+@pytest.mark.parametrize("median, n, warns", [(0.020, 200, False), (0.021, 200, True), (0.5, 200, True), (0.5, 199, False)])
+def test_the_boundaries_are_strict_on_the_gap_and_inclusive_on_n(median, n, warns):
+    lines = _gate(_consensus_report(_lead_entry(48, median, n=n)))
+    assert bool(_gaps(lines)) is warns and bool(_not_measured(lines)) is (n == 199)
+
+
+def test_the_thresholds_are_tunable():
+    assert not _gaps(_gate(_live(), consensus_construction_warn_m=0.2))
+    assert _not_measured(_gate(_live(), consensus_construction_min_n=5000))
+
+
+def test_the_defaults_are_the_pinned_basis(monkeypatch):
+    monkeypatch.delenv("ACCURACY_CONSENSUS_CONSTRUCTION", raising=False)
+    cfg = default_cfg()
+    assert (cfg["consensus_construction"], cfg["consensus_construction_warn_m"], cfg["consensus_construction_min_n"],
+            cfg["consensus_construction_grace"]) == (True, 0.02, 200, GRACE)
+
+
+def test_the_grace_expires_by_date_and_stays_a_warning():
+    """Self-expiring like the other graces, but nothing here ever becomes a RED: a level that has held since the first
+    rows would be the permanently-red workflow Report 11.0 named. After the date the WARN says so, and still only warns."""
+    for now in (NOW, GRACE):                                  # on the instant itself the grace still holds
+        gaps = _gaps(_gate(_live(), now=now))
+        assert len(gaps) == 2 and all("grace until 2026-11-15T00:00Z" in g and "expired" not in g for g in gaps)
+    gaps = _gaps(_gate(_live(), now=AFTER_GRACE))
+    assert len(gaps) == 2 and all("grace expired 2026-11-15T00:00Z" in g for g in gaps)
+
+
+@pytest.mark.parametrize("value, enabled", [("0", False), ("1", True), ("", True), ("false", True), (" 0", True)])
+def test_the_kill_switch_is_the_exact_string_zero(monkeypatch, value, enabled):
+    monkeypatch.setenv("ACCURACY_CONSENSUS_CONSTRUCTION", value)
+    cfg = default_cfg()
+    assert cfg["consensus_construction"] is enabled
+    assert (evaluate_consensus_construction(_live(), NOW, cfg)[1] == []) is (not enabled)
+
+
+def test_the_kill_switch_removes_every_line_including_NOT_MEASURED(monkeypatch):
+    monkeypatch.setenv("ACCURACY_CONSENSUS_CONSTRUCTION", "0")
+    assert evaluate_consensus_construction(_report(), NOW, default_cfg()) == (OK, [])
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), -0.01, True, "0.5", None], ids=repr)
+def test_an_unusable_median_is_never_read_as_a_pass(bad):
+    lines = _gate(_consensus_report(_lead_entry(48, bad)))
+    assert not _gaps(lines) and len(_not_measured(lines)) == 1
+
+
+@pytest.mark.parametrize("bad_n", [True, "2800", 2800.5, None, -1], ids=repr)
+def test_an_unusable_n_is_never_graded(bad_n):
+    lines = _gate(_consensus_report(_lead_entry(48, 0.5, n=bad_n)), consensus_construction_min_n=1)   # any accepted n would grade
+    assert not _gaps(lines) and len(_not_measured(lines)) == 1
+
+
+def test_report_text_never_reaches_the_log():
+    """The block is aggregate and only numbers are printed: a hostile label or lead cannot inject a workflow command."""
+    hostile = "24\n::error::pwned 100%"
+    lines = _gate(_consensus_report(_lead_entry(hostile, 0.5), _lead_entry(24, None, status=hostile),
+                                    _lead_entry(48, 0.126, status=hostile, source=hostile)))
+    assert "pwned" not in "\n".join(lines) and len(_gaps(lines)) == 1
+
+
+def _main(monkeypatch, capsys, report, *argv, env=None):
+    import scripts.forecast_accuracy_monitor as fam
+    for k in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY", "ACCURACY_CONSENSUS_CONSTRUCTION"):
+        monkeypatch.delenv(k, raising=False)
+    for k, v in (env or {}).items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr(fam, "_fetch_json", lambda url, timeout=60: report)
+    monkeypatch.setattr("sys.argv", ["forecast_accuracy_monitor.py", "--as-of", NOW.isoformat(), *argv])
+    code = fam.main()
+    return code, capsys.readouterr().out
+
+
+def test_main_prints_the_lines_and_the_exit_code_stays_green(monkeypatch, capsys):
+    code, out = _main(monkeypatch, capsys, _live())
+    assert code == OK and "verdict: OK" in out
+    assert out.count("::warning::consensus construction GAP") == 2 and out.count("consensus construction +") >= 3
+
+
+@pytest.mark.parametrize("argv, env, expect", [
+    (("--consensus-construction-warn-m", "0.2"), None, lambda o: "GAP" not in o and "warn above 0.200 m" in o),
+    (("--consensus-construction-min-n", "5000"), None, lambda o: "NOT MEASURED" in o and "GAP" not in o),
+    (("--consensus-construction-grace", "2026-01-01"), None, lambda o: "grace expired 2026-01-01T00:00Z" in o),
+    ((), {"ACCURACY_CONSENSUS_CONSTRUCTION": "0"}, lambda o: "consensus construction" not in o),
+], ids=["warn-m", "min-n", "grace", "kill-switch"])
+def test_main_wires_every_flag_into_the_gate(monkeypatch, capsys, argv, env, expect):
+    code, out = _main(monkeypatch, capsys, _live(), *argv, env=env)
+    assert code == OK and expect(out), out
+
+
+def test_main_says_NOT_MEASURED_when_the_report_has_no_block(monkeypatch, capsys):
+    code, out = _main(monkeypatch, capsys, _report())
+    assert code == OK and out.count("::warning::consensus construction: NOT MEASURED (") == 1
+
+
+def test_the_workflow_wires_the_variables_and_its_defaults_are_the_scripts():
+    yml = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-accuracy-monitor.yml").read_text(encoding="utf-8")
+    cfg = default_cfg()
+    assert "ACCURACY_CONSENSUS_CONSTRUCTION: ${{ vars.ACCURACY_CONSENSUS_CONSTRUCTION || '1' }}" in yml
+    for flag, var, default, expect in (
+            ("--consensus-construction-warn-m", "ACCURACY_CONSENSUS_CONSTRUCTION_WARN_M", "0.02", cfg["consensus_construction_warn_m"]),
+            ("--consensus-construction-min-n", "ACCURACY_CONSENSUS_CONSTRUCTION_MIN_N", "200", cfg["consensus_construction_min_n"]),
+            ("--consensus-construction-grace", "ACCURACY_CONSENSUS_CONSTRUCTION_GRACE", "2026-11-15T00:00:00Z", cfg["consensus_construction_grace"])):
+        assert '%s "${{ vars.%s || \'%s\' }}"' % (flag, var, default) in yml
+        assert (_parse_iso(default) if "grace" in flag else type(expect)(default)) == expect
