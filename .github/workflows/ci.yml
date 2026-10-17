@@ -1466,7 +1466,10 @@ jobs:
           # report; #357 merged first, so this re-derives on top of it): tests/test_nearshore_gate.py (141, a new file
           # selector-verified into this lane); 2517 (the dev reading after #357) + 141 -> projected 2658/166; 2658 - 6 = 2652.
           # This PR must read 166 files / 2658.
-          MIN_FILES, MIN_PASSED = 166, 2652
+          # ⬆ 166/2652 → 166/2695 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the model-scoped scalar marine height switch,
+          # dark): +43 cases in the existing tests/test_sampler_scalar_marine_height.py (12 -> 55, no new file); the dev reading after
+          # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
+          MIN_FILES, MIN_PASSED = 166, 2695
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
