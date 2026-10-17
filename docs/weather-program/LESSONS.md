@@ -1304,3 +1304,14 @@ A stored estimate can be estimated again in a browser branch with different sour
 - Read the target and current rollout ownership before integration. An older branch can carry valid payment code and a diverged weather-memory ledger; publish the source without merging that history over newer wind work. Adopt confirmed records on the latest DEV and append new actions onto its exact ledger prefix.
 - Provider deployment skips suppress this push, not later rollouts. Render supports `[skip render]`; Netlify supports `[skip netlify]` and explicitly deploys deferred changes on the next unskipped commit. Do not place unqualified schema-dependent code in DEV merely because this one push can skip deployment.
 - Match a result to its boundary: fresh bounded152 passed, prior actual PG74 passed, inherited wider-suite2 failures remain open. Remote SHA read-back proves branch publication; it does not prove hosted CI, deployed schema, paid frontend acceptance or weather readiness. Evidence: `docs/audits/2026-10-15-orphan-checkout-repair.md`.
+
+
+### 2026-10-17 — A gauge that reads zero is a defect until the population it counts is shown
+
+- The one-step manifest lane's retention gauge read `0 unique manifest copies standing, 0 deleted` on 318 of 318 lines while Storage held 353 of them. The listing was 100 rows, oldest first, and 2,665 differently named
+  legacy files sorted ahead of every copy the lane made. Seven independent reviews and 396 passing tests missed it because every test seeded only the lane's own names. A bounded, sorted listing is only as good as the
+  population in the bucket it will meet: seed the production's pre-existing objects (read their names from `storage.objects` before writing the test), and read a zero from a gauge as "this cannot see its subject" until a
+  second instrument (here a metadata select) shows the subject is really absent.
+- A "first scheduled run" watch must include the storage and cost criteria, not only "no errors": the lane published correctly and quietly filled the bucket. The commitment that named "storage growth bounded" caught it on
+  the first read, which is the reason to name the criteria before enabling.
+- A logged count can be right and still describe the wrong thing: the gauge's own text said "listing capped at 100: there may be more". When a gauge states its blind spot, that sentence is the first thing to test.
