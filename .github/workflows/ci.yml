@@ -878,7 +878,11 @@ jobs:
           # when the width does not divide the stride, all four sites; flag OFF at all four sites; the strided read's
           # longitudes); hosted reading on this PR's head dcc46b733 (CI 38928415298: 197 files, collected 2761, 2694 passed,
           # 67 skipped) -> projected 2704/197; 2704 - 6 = 2698. This PR must read 197 files / 2704.
-          MIN_FILES, MIN_PASSED = 197, 2698
+          # ⬆ 197/2698 → 197/2741 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the monitor grades the built consensus shadow
+          # against its own definition at every lead, WARN only): +43 cases in the existing tests/test_forecast_accuracy_monitor.py
+          # (44 -> 87, no new file); the dev reading is 2704 -> projected 2747; 2747 - 6 = 2741. This PR must read 197 files / 2747.
+          # (The one-step manifest PR #350 also moves this lane: whichever merges second re-derives.)
+          MIN_FILES, MIN_PASSED = 197, 2741
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
