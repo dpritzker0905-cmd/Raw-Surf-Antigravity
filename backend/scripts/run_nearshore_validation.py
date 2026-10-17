@@ -47,15 +47,13 @@ from services.weather_pipeline.nearshore_validation import (   # noqa: E402
     transform_factors)
 from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
 from services.weather_pipeline.ndbc_nearshore import load_ndbc_pairs  # noqa: E402
-from services.weather_pipeline.nearshore_validation import LEGACY_SHELF_CF_SCALE  # noqa: E402
+from services.weather_pipeline.nearshore_validation import GRADED_MIN_STATION_HOURS, LEGACY_SHELF_CF_SCALE  # noqa: E402
 from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: E402
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
-# THE GRADED FLOOR (VA-03, 2026-10-08): a grade needs 30 distinct buoy readings. Before it, one matched spot-hour
-# graded. Measured on the 9 graded 24 h-backfill dispatches (2026-09-27..29): 24-98 station-hours, 8 of 9 at or
-# above 30; the one single-hour run read 7, which is why a scheduled slot now grades a 24 h backfill.
-GRADED_MIN_STATION_HOURS = 30
+# GRADED_MIN_STATION_HOURS (VA-03) is DEFINED in nearshore_validation, beside build_report, so the surf-zone gate
+# (nearshore_gate.py) reads the same one; it is imported above, never copied (a copy here fails its pin).
 
 
 def _fetch_json(url: str, timeout: float = 60.0) -> dict:
