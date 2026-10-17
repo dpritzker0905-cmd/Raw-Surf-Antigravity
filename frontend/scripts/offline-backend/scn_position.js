@@ -35,7 +35,14 @@ const shiftPx = (a, b, maxShift = 90) => {            // the shift s (rows) that
 (async () => {
   const PORT = +(process.env.PORT || 4100);
   const hold = { on: false };
-  const { browser, page } = await L.launch({ port: PORT, hooks: { beforeWeather: async (url) => { if (hold.on && url.pathname.endsWith('/grid')) { while (hold.on) await sleep(100); } } } });
+  const series = [];                                        // AB_LIVE=1: what each world /grid_series page's frames claim versus where their cells are
+  const afterWeather = async (url, resp) => {
+    if (!url.pathname.endsWith('/grid_series')) return;
+    const j = JSON.parse((await resp.body()).toString('utf8')); const f = (j.frames || [])[0]; if (!f) return;
+    let w = 1e9; let e = -1e9; let s = 1e9; let n = -1e9; for (const p of f.vectors || []) { if (p.lng < w) w = p.lng; if (p.lng > e) e = p.lng; if (p.lat < s) s = p.lat; if (p.lat > n) n = p.lat; }
+    series.push({ bbox: url.searchParams.get('bbox'), hours: (url.searchParams.get('hours') || '').split(',').length, frames: (j.frames || []).length, stride: j.decimated_stride || null, cols: f.cols, rows: f.rows, bounds: f.bounds, nodeExtent: { west: w, south: s, east: e, north: n }, boundsEqualNodeExtent: !!f.bounds && f.bounds.west === w && f.bounds.south === s && f.bounds.east === e && f.bounds.north === n });
+  };
+  const { browser, page } = await L.launch({ port: PORT, hooks: { afterWeather, beforeWeather: async (url) => { if (hold.on && url.pathname.endsWith('/grid')) { while (hold.on) await sleep(100); } } } });
   const waitFor = async (pred, ms) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { const v = await page.evaluate(pred); if (v) return v; await sleep(150); } return null; };
   try {
     await L.openMap(page); await L.jump(page, -30, 45, 2.6); await L.clickText(page, 'Waves'); await sleep(12000);
@@ -46,6 +53,10 @@ const shiftPx = (a, b, maxShift = 90) => {            // the shift s (rows) that
     const shot = async () => { await sleep(1200); return page.screenshot({ clip: { x: info.x, y: info.y, width: info.w, height: info.h } }); };
     const state = () => page.evaluate(() => { const q = window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ || {}; return { par: window.__MARINE_RENDER_HOUR_PARITY__, vc: q.vectorCount, bounds: q.bounds, up: window.__WEBGL_MARINE_UPLOAD_COUNT__ }; });
 
+    if (process.env.AB_LIVE === '1') {                         // live pages take 10+ s: the thinned frame for hour 24 only exists once a 48-frame page has landed
+      const tw = Date.now(); while (Date.now() - tw < 75000 && !series.some((q) => q.frames >= 40)) await sleep(500);
+      await sleep(3000);
+    }
     hold.on = true;                                           // hold the exact /grid back so the thinned series frame stays resident
     await page.keyboard.press('PageUp');
     const thinnedOk = await waitFor(() => { const q = window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ || {}; const to = (v) => +String(v).split('->').pop(); return to(q.hour) === 24 && to(q.vectorCount) > 0 && to(q.vectorCount) < 3000; }, 20000);
@@ -54,7 +65,7 @@ const shiftPx = (a, b, maxShift = 90) => {            // the shift s (rows) that
     const exactOk = await waitFor(() => { const q = window.__WEBGL_MARINE_UPLOAD_SIG_DIFF__ || {}; const to = (v) => +String(v).split('->').pop(); return to(q.hour) === 24 && to(q.vectorCount) > 10000; }, 25000);
     const exactState = await state(); const exactPng = exactOk ? await shot() : null; const exactPng2 = exactOk ? await shot() : null;
     const fs = require('fs'); const dir = process.env.AB_DIR; if (dir) { fs.mkdirSync(dir, { recursive: true }); if (thinnedPng) fs.writeFileSync(path.join(dir, `pos_${PORT}_thinned.png`), thinnedPng); if (exactPng) fs.writeFileSync(path.join(dir, `pos_${PORT}_exact.png`), exactPng); }
-    const out = { port: PORT, clip, thinnedResident: !!thinnedOk, exactResident: !!exactOk, thinnedState, exactState, degPerPx: +dLatPerPx.toFixed(4) };
+    const out = { port: PORT, live: process.env.AB_LIVE === '1', series, clip, thinnedResident: !!thinnedOk, exactResident: !!exactOk, thinnedState, exactState, degPerPx: +dLatPerPx.toFixed(4) };
     if (thinnedPng && exactPng) {
       const ht = heatRows(thinnedPng, clip); const he = heatRows(exactPng, clip); const he2 = heatRows(exactPng2, clip);
       const t = shiftPx(he, ht); const nul = shiftPx(he, he2);
