@@ -135,7 +135,11 @@ async def get_crew_chat_messages(
     reply_messages = {}
     if reply_to_ids:
         reply_result = await db.execute(
-            select(CrewChatMessage).where(CrewChatMessage.id.in_(reply_to_ids))
+            select(CrewChatMessage).where(
+                CrewChatMessage.id.in_(reply_to_ids),
+                CrewChatMessage.booking_id == booking_id,
+                CrewChatMessage.is_deleted.is_(False)
+            )
             .options(selectinload(CrewChatMessage.sender))
         )
         for reply_msg in reply_result.scalars().all():
@@ -219,17 +223,22 @@ async def send_crew_chat_message(
     reply_to_data = None
     if data.reply_to_id:
         reply_msg_result = await db.execute(
-            select(CrewChatMessage).where(CrewChatMessage.id == data.reply_to_id)
+            select(CrewChatMessage).where(
+                CrewChatMessage.id == data.reply_to_id,
+                CrewChatMessage.booking_id == booking_id,
+                CrewChatMessage.is_deleted.is_(False)
+            )
             .options(selectinload(CrewChatMessage.sender))
         )
         reply_msg = reply_msg_result.scalar_one_or_none()
-        if reply_msg:
-            reply_to_data = {
-                "id": reply_msg.id,
-                "sender_name": reply_msg.sender.full_name if reply_msg.sender else "Unknown",
-                "content": reply_msg.content[:100] + ("..." if len(reply_msg.content) > 100 else ""),
-                "message_type": reply_msg.message_type
-            }
+        if not reply_msg:
+            raise HTTPException(status_code=404, detail="Reply message not found")
+        reply_to_data = {
+            "id": reply_msg.id,
+            "sender_name": reply_msg.sender.full_name if reply_msg.sender else "Unknown",
+            "content": reply_msg.content[:100] + ("..." if len(reply_msg.content) > 100 else ""),
+            "message_type": reply_msg.message_type
+        }
     
     # Create message
     message = CrewChatMessage(
