@@ -37,6 +37,12 @@ calibration cron to attach forecast_skill_ops, and ~72 h for the surviving pendi
 to arrive. Absence pages after OPS_GRACE; scored=0 pages after SCORED_GRACE. No one has to
 remember to arm this monitor -- the dates do it.
 
+THE CONSENSUS CONSTRUCTION CONTROL (2026-10-17, WARN ONLY). The built consensus shadow lane (raw_surf:CONSENSUS) is DEFINED
+as the equal GFS/EURO/ICON mean the ledger computes; `forecast_skill_consensus.shadow.by_lead[*].shadow_minus_equal_m`
+is that definition's own check. It was read once, at +24 h (median 0.003 m), and never again: at +48/+72 h it reads
+0.126 / 0.132 m, one-sided high, and nothing graded it. `evaluate_consensus_construction` prints it every run and WARNS;
+it never pages (a product-readiness fact, not an incident) and an unreadable block is a NOT MEASURED line, never silence.
+
 Usage:
   python scripts/forecast_accuracy_monitor.py                      # against production
   python scripts/forecast_accuracy_monitor.py --base http://localhost:8000
@@ -46,10 +52,13 @@ ASCII output only (cp1252 Windows consoles).
 """
 import argparse
 import json
+import math
 import os
 import sys
+import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -62,6 +71,10 @@ SCORING_STALE_H_DEFAULT = 16.0                 # newest scored target older than
 # (~2 weeks of post-fix rows). That date now ARMS the gate instead of reminding a person to.
 PAIRED_GRACE_DEFAULT = "2026-08-22T00:00:00Z"
 PAIRED_WINDOW_DAYS = 7      # the paired gate's trailing window (`evaluate_scored_segment`'s `week`)
+# The consensus construction control's defaults (see evaluate_consensus_construction for the measured basis).
+CONSENSUS_CONSTRUCTION_WARN_M_DEFAULT = 0.02
+CONSENSUS_CONSTRUCTION_MIN_N_DEFAULT = 200
+CONSENSUS_CONSTRUCTION_GRACE_DEFAULT = "2026-11-15T00:00:00Z"
 
 # WHICH COMPARISONS MAY PAGE, AND WHY THEY DIFFER (WS-CAN-0026, 2026-08-12)
 #   persistence  = THE SKILL FLOOR. "Tomorrow = today" is the reference every operational centre
@@ -114,6 +127,13 @@ def default_cfg():
         # Liveness on the scored archive (2026-09-29): see evaluate_scoring_liveness for the measured basis.
         "scoring_stale_h": SCORING_STALE_H_DEFAULT,
         "liveness_from_archive": False,     # main() sets it when the archive is readable
+        # --- the consensus construction control (2026-10-17), WARN only ---
+        # Kill switch: ACCURACY_CONSENSUS_CONSTRUCTION=0 (the exact string) removes its lines and warnings: the monitor
+        # then behaves exactly as it did before the control.
+        "consensus_construction": os.environ.get("ACCURACY_CONSENSUS_CONSTRUCTION", "1") != "0",
+        "consensus_construction_warn_m": CONSENSUS_CONSTRUCTION_WARN_M_DEFAULT,
+        "consensus_construction_min_n": CONSENSUS_CONSTRUCTION_MIN_N_DEFAULT,
+        "consensus_construction_grace": _parse_iso(CONSENSUS_CONSTRUCTION_GRACE_DEFAULT),
     }
 
 
@@ -418,6 +438,88 @@ def evaluate_scored_segment(rows, now, paired=None, cfg=None):
     return code, lines
 
 
+def _finite(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _count(v):
+    return isinstance(v, int) and not isinstance(v, bool) and v >= 0
+
+
+def _construction_not_measured(why):
+    return ("::warning::consensus construction: NOT MEASURED (%s) -- the built CONSENSUS shadow is unchecked against its own "
+            "definition, the equal GFS/EURO/ICON mean. This is not a pass." % why)
+
+
+def evaluate_consensus_construction(report, now, cfg):
+    """(code, [lines]): does the BUILT consensus shadow match its own definition? Pure -- always (OK, lines).
+
+    Reads `forecast_skill_consensus.shadow.by_lead[*]` from the calibration report (skill_consensus.shadow_report writes
+    it): `shadow_minus_equal_m.median` is the median of |built shadow - the ledger's equal mean of the three members| over
+    the pairs where all four lanes were scored, `n` is that pair count, `shadow.bias_m` the shadow's own bias. One line per
+    lead; WARN when a lead with n >= min_n has a median above warn_m. A lead below min_n is printed and not graded; no
+    graded lead at all (block absent, shadow absent, every lead thin or unusable) is an explicit NOT MEASURED warning.
+    A lead the equal mean cannot be computed for (a member lane has no row on the same buoy-hour) never enters
+    `by_lead`: shadow_report keeps only pairs holding all three members and the shadow.
+
+    WHY IT WARNS AND NEVER PAGES. The control passed once, at +24 h (ledger seq 196), and was never read at +48/+72 h; the
+    2026-10-16T23:20Z pass reads median 0.003 / 0.126 / 0.132 m at +24/48/72 h (n 2,712 / 2,784 / 2,863), shadow bias
+    -0.007 / +0.093 / +0.084 m, and the monitor's CONSENSUS lane bias at +48 h read +0.081..+0.103 m in all 12 monitor reads
+    since 2026-10-03 (docs/weather-program/log/2026-10-17-served-height-gap.md, Tables 7c and 7e). That is a construction
+    defect in a product that is not served yet: a readiness fact for the owner's CONSENSUS_SERVE decision, not an incident.
+    A RED on a level that has held since the first rows would be the permanently-red workflow Report 11.0 named, and the
+    grace below only changes the WARN's wording after it expires: THIS GATE HAS NO RED, and adding one is its own decision.
+
+    THE BOUND. 0.02 m sits between the two regimes observed in that ONE week on ONE pass: a build that matches its
+    definition (+24 h, 0.003 m) and the defective leads (0.126 / 0.132 m, ~6x the bound). It is the evidence log's
+    candidate-B bound, not a tuned distribution quantile; the medians are rounded to 3 decimals in the report, so the
+    comparison is on the rounded value."""
+    if not cfg["consensus_construction"]:
+        return OK, []
+    block = report.get("forecast_skill_consensus") if isinstance(report, dict) else None
+    shadow = block.get("shadow") if isinstance(block, dict) else None
+    entries = shadow.get("by_lead") if isinstance(shadow, dict) else None
+    if not isinstance(entries, list) or not entries:
+        return OK, [_construction_not_measured(
+            "calibration report unavailable" if not isinstance(report, dict)
+            else "report carries no forecast_skill_consensus block" if not isinstance(block, dict)
+            else "forecast_skill_consensus carries no shadow block" if not isinstance(shadow, dict)
+            else "shadow block carries no leads")]
+    warn_m, min_n = cfg["consensus_construction_warn_m"], cfg["consensus_construction_min_n"]
+    grace = cfg["consensus_construction_grace"]
+    stamp = ("grace expired %s, still WARN only" if now > grace else "grace until %s") % grace.strftime("%Y-%m-%dT%H:%MZ")
+    lines, graded, biggest = [], 0, None
+    for e in sorted((e for e in entries if isinstance(e, dict) and _finite(e.get("lead_h"))), key=lambda e: e["lead_h"]):
+        lead, n = int(e["lead_h"]), e.get("n")
+        gap = e.get("shadow_minus_equal_m")
+        med = gap.get("median") if isinstance(gap, dict) else None
+        if not (_count(n) and _finite(med) and med >= 0):
+            lines.append("consensus construction +%dh: not graded (no usable median or n)" % lead)
+            continue
+        biggest = max(biggest or 0, n)
+        bias = e["shadow"].get("bias_m") if isinstance(e.get("shadow"), dict) else None
+        bias_s = "%+.3f m" % bias if _finite(bias) else "n/a"
+        head = "consensus construction +%dh: median |shadow - equal| %.3f m (n %s), shadow bias %s" % (
+            lead, med, format(n, ","), bias_s)
+        if n < min_n:
+            lines.append("%s [not graded: n %s < %d]" % (head, format(n, ","), min_n))
+            continue
+        graded += 1
+        lines.append("%s [basis: warn above %.3f m; one week to 2026-10-16 read 0.003 / 0.126 / 0.132 m at +24/48/72h, "
+                     "n 2,712..2,863]" % (head, warn_m))
+        if med > warn_m:
+            lines.append("::warning::consensus construction GAP at +%dh -- the built CONSENSUS shadow differs from the equal "
+                         "GFS/EURO/ICON mean it is defined as: median |shadow - equal| %.3f m > %.3f m on n %s pairs "
+                         "(shadow bias %s). A product-readiness fact, not an incident: it does not page, and "
+                         "CONSENSUS_SERVE would serve this built product, not that mean. [%s]"
+                         % (lead, med, warn_m, format(n, ","), bias_s, stamp))
+    if not graded:
+        lines.append(_construction_not_measured(
+            "no lead with a usable median reached n >= %d, largest usable n %s"
+            % (min_n, format(biggest, ",") if biggest is not None else "none")))
+    return OK, lines
+
+
 def _fetch_json(url, timeout=60):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-accuracy-monitor"})
@@ -428,9 +530,29 @@ def _fetch_json(url, timeout=60):
         return None
 
 
+class _Absent(tuple):
+    """What `_fetch_l2` returns for an object Storage positively says does not exist. Empty on purpose."""
+
+
+ABSENT = _Absent()      # compare with `is`; None stays "could not read it", which is a different answer
+
+
+def _storage_says_missing(err):
+    """True when an HTTPError is Storage's own "this object does not exist" (it answers HTTP 400 with the real
+    status in the body), judged by the same predicate the strict ledger reader uses. A missing bucket, a bad
+    token, a proxy's HTML page or a 5xx is NOT absence: it must stay unreadable."""
+    from services.weather_pipeline.l2_retry import is_missing_object
+    try:
+        body = err.read()
+    except Exception:
+        return False
+    return is_missing_object(SimpleNamespace(status_code=err.code, json=lambda: json.loads(body)))
+
+
 def _fetch_l2(key, timeout=30):
     """Storage REST GET mirroring buoy_calibration.load_calibration_l2 (stdlib, so this script
-    stays runnable with no dependencies). Returns parsed JSON, or None."""
+    stays runnable with no dependencies). Returns parsed JSON; ABSENT when the object does not exist;
+    None when it could not be read."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     tok = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not tok:
@@ -441,9 +563,37 @@ def _fetch_l2(key, timeout=30):
             headers={"Authorization": "Bearer %s" % tok, "apikey": tok})
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.load(r)
+    except urllib.error.HTTPError as e:
+        if _storage_says_missing(e):
+            return ABSENT
+        print("L2 read failed: %s -> %s" % (key, e))
+        return None
     except Exception as e:
         print("L2 read failed: %s -> %s" % (key, e))
         return None
+
+
+class _Unreadable(Exception):
+    """A scored object exists but could not be read."""
+
+
+def _fetch_scored_month(month, through):
+    """The month's scored rows: its monthly object plus, from 2026-10, every day object up to `through`
+    (skill_scored_archive.py says why). None when ANY part could not be read, or when a month before the switch
+    has no monthly object at all: an unread archive is a blind monitor, never an empty one. A missing DAY
+    object is normal (most days of a month are not written yet), as is a segmented month with no monthly one."""
+    from services.weather_pipeline.skill_scored_archive import read_month, segmented
+
+    def load(key):
+        got = _fetch_l2(key)
+        if got is None:
+            raise _Unreadable(key)
+        return ([], False) if got is ABSENT else (got, True)
+    try:
+        rows, exists = read_month(month, through, load)
+    except _Unreadable:
+        return None
+    return rows if exists or segmented(month) else None
 
 
 def main():
@@ -464,6 +614,9 @@ def main():
     ap.add_argument("--paired-reference-margin", type=float,
                     default=d["paired_reference_margin_m"])
     ap.add_argument("--scoring-stale-h", type=float, default=d["scoring_stale_h"])
+    ap.add_argument("--consensus-construction-warn-m", type=float, default=d["consensus_construction_warn_m"])
+    ap.add_argument("--consensus-construction-min-n", type=int, default=d["consensus_construction_min_n"])
+    ap.add_argument("--consensus-construction-grace", default=CONSENSUS_CONSTRUCTION_GRACE_DEFAULT)
     ap.add_argument("--as-of", default=None, help="Grade as if it were this UTC instant "
                     "(replay/dry-run only; does not change what is read).")
     args = ap.parse_args()
@@ -476,7 +629,11 @@ def main():
            "paired_min_n": args.paired_min_n,
            "paired_persistence_margin_m": args.paired_persistence_margin,
            "paired_reference_margin_m": args.paired_reference_margin,
-           "scoring_stale_h": args.scoring_stale_h}
+           "scoring_stale_h": args.scoring_stale_h,
+           "consensus_construction": d["consensus_construction"],
+           "consensus_construction_warn_m": args.consensus_construction_warn_m,
+           "consensus_construction_min_n": args.consensus_construction_min_n,
+           "consensus_construction_grace": _parse_iso(args.consensus_construction_grace) or d["consensus_construction_grace"]}
     now = _parse_iso(args.as_of) or datetime.now(timezone.utc)
     if args.as_of:
         print("::warning::REPLAY MODE -- grading as of %s, not now. Not a live verdict." % now)
@@ -488,12 +645,17 @@ def main():
     report = _fetch_json(args.base.rstrip("/") + "/api/weather/buoy-calibration")
     code, lines = evaluate_report(report, now, cfg)
     print("\n".join(lines))
+    cc, cl = evaluate_consensus_construction(report, now, cfg)      # WARN only: cc is always OK
+    if cl:
+        print("\n".join(cl))
+    code = combine(code, cc)
 
     if has_creds:
         rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
         print("\n".join(rl))
         code = combine(code, rc)
-        scored_rows = _fetch_l2("calibration/skill/scored-%s.json" % month)
+        through = (now + timedelta(days=1)).date()       # scoring tolerance lets a row's target sit past `now`
+        scored_rows = _fetch_scored_month(month, through)
         # THE MONTH SEAM (2026-10-02): the archive is keyed by month but the paired gate grades the
         # TRAILING SEVEN DAYS, so for the first week of a month its window reaches into last month's
         # file. Handing it this month's alone read `n_paired=56 < 200` -> REFUSED on 2026-10-02, a
@@ -502,7 +664,7 @@ def main():
         window_rows = scored_rows
         if scored_rows is not None and now - month_start < timedelta(days=PAIRED_WINDOW_DAYS):
             prev_month = (month_start - timedelta(days=1)).strftime("%Y-%m")
-            window_rows = (_fetch_l2("calibration/skill/scored-%s.json" % prev_month) or []) + scored_rows
+            window_rows = (_fetch_scored_month(prev_month, through) or []) + scored_rows
         sc, sl = evaluate_scored_segment(window_rows, now, cfg=cfg)
         print("\n".join(sl))
         code = combine(code, sc)

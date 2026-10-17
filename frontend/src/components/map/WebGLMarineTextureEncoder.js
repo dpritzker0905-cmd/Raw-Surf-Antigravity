@@ -1,6 +1,7 @@
 import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { applyPatchCarry } from './maskSmoothing';
+import { maskCoversWorldFrame } from './maskCoverReuse';
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
 import {
   getEncoderScratchBuffers,
@@ -564,11 +565,15 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         }
       } catch (e) { /* keep the caller's geojson */ }
 
-      const boundsChanged = !engine || !engine._cachedMaskBounds ||
+      // A cached WORLD mask whose bounds cover this world frame is reused (maskCoverReuse.js): a thinned series frame keeps the
+      // bounds of its kept cells (north 80) while the exact frame keeps north 84, and rebuilding the 4096 x 2048 mask on every swap
+      // cost 4-8 extra uploads per scrub jump. The engine samples the mask by its OWN cached bounds, so reuse is geometry-safe.
+      const boundsChanged = (!engine || !engine._cachedMaskBounds ||
         engine._cachedMaskBounds.west !== bounds.west ||
         engine._cachedMaskBounds.south !== bounds.south ||
         engine._cachedMaskBounds.east !== bounds.east ||
-        engine._cachedMaskBounds.north !== bounds.north;
+        engine._cachedMaskBounds.north !== bounds.north) &&
+        !(engine && engine._cachedMaskTex && maskCoversWorldFrame(engine._cachedMaskBounds, engine._cachedMaskTexDims, bounds));
 
       if (engine && engine._cachedMaskTex && effectiveGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
         maskTex = engine._cachedMaskTex;

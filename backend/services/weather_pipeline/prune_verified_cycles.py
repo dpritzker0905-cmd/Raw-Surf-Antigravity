@@ -40,10 +40,9 @@ def newer_collision(raw, current):
 
 
 def prune_verified_cycles(store, lane=None):
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2, reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
     winners, keep = {}, set()
     for product in manifest.products:
         identity = selection_identity(product)
@@ -69,8 +68,7 @@ def prune_verified_cycles(store, lane=None):
     manifest.last_manifest_update = datetime.now(timezone.utc)
     store._save_manifest(manifest)
     try:
-        reconcile_manifest_products_for_upload(manifest, exclude_keys=removed_ids)
-        _manifest_executor.submit(store._upload_to_supabase, 'manifest.json', dump_manifest_for_l2(manifest))
+        submit_manifest_publish(store, manifest, exclude_keys=removed_ids)
     except Exception as exc:
         logger.warning('[Product Store] Verified-cycle prune publication failed: %s', type(exc).__name__)
     return len(removed)

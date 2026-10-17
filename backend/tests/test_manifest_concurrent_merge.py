@@ -122,15 +122,18 @@ def test_kill_switch_disables_reconciliation(monkeypatch):
 
 
 def test_hot_save_paths_reconcile_before_every_upload():
-    """Guard against silently dropping the wire-up: both registration call sites must reconcile
-    immediately before dump_manifest_for_l2, not just at process start."""
+    """Guard against silently dropping the wire-up: both registration call sites hand their manifest to the single
+    publication helper (manifest_publish_step.submit_manifest_publish, 2026-10-16), whose flag-off path reconciles
+    immediately before dump_manifest_for_l2, not just at process start. (The exact call order and arguments of every
+    site are pinned behaviourally in tests/test_manifest_one_step_publish.py.)"""
     import inspect
-    from services.weather_pipeline import store_helpers
+    from services.weather_pipeline import manifest_publish_step, store_helpers
 
     for fn in (store_helpers.save_product_helper, store_helpers.save_products_batch_helper):
-        src = inspect.getsource(fn)
-        assert "reconcile_manifest_products_for_upload(manifest)" in src
-        assert src.index("reconcile_manifest_products_for_upload(manifest)") < src.index("dump_manifest_for_l2(manifest)")
+        assert "submit_manifest_publish(store, manifest)" in inspect.getsource(fn)
+    src = inspect.getsource(manifest_publish_step._submit_legacy)
+    assert "reconcile_manifest_products_for_upload(manifest)" in src
+    assert src.index("reconcile_manifest_products_for_upload(manifest)") < src.index("dump_manifest_for_l2(manifest)")
 
 
 def test_exclude_keys_prevents_resurrecting_pruned_entries(monkeypatch):
@@ -150,17 +153,20 @@ def test_exclude_keys_prevents_resurrecting_pruned_entries(monkeypatch):
 
 
 def test_prune_paths_reconcile_with_exclusions_before_every_upload():
-    """All three deletion sweeps must reconcile WITH their pruned-key exclusions before
-    dump_manifest_for_l2 — a bare reconcile there would resurrect just-pruned entries."""
+    """All three deletion sweeps must publish WITH their pruned-key exclusions, and the helper's flag-off path must
+    reconcile with them before dump_manifest_for_l2 — a bare reconcile there would resurrect just-pruned entries."""
     import inspect
     from services.weather_pipeline import copernicus_validator as cv
+    from services.weather_pipeline import manifest_publish_step
 
     for fn in (cv.prune_old_products_helper, cv.prune_duplicate_valid_times_helper,
                cv.prune_superseded_products_helper):
         src = inspect.getsource(fn)
-        call = "reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)"
-        assert call in src, f"{fn.__name__} missing exclusion-aware reconcile"
-        assert src.index(call) < src.index("dump_manifest_for_l2(manifest)")
+        assert "submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)" in src,             f"{fn.__name__} missing exclusion-aware publication"
+    src = inspect.getsource(manifest_publish_step._submit_legacy)
+    call = "reconcile_manifest_products_for_upload(manifest, exclude_keys=exclude_keys)"
+    assert call in src
+    assert src.index(call) < src.index("dump_manifest_for_l2(manifest)")
 
 
 def test_malformed_remote_entry_is_skipped_not_fatal(monkeypatch):

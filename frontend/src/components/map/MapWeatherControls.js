@@ -11,6 +11,7 @@ import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTick
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 import TimelineStatus from './TimelineStatus';
 import { forecastReadout } from './forecastReadout';
+import { marineWaveLegendGradientCSS } from './marineWavePalette';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 
@@ -210,19 +211,19 @@ export var MapWeatherControls = ({
 
     const config = {};
 
-    // Data-driven legends from BASE_CUSTOM_COLOR_SCALES
+    // Marine bars share the GPU height ramp; preserve every scale's value axis.
     Object.entries(LAYER_TO_VARIABLE).forEach(([layerId, variable]) => {
       const scale = BASE_CUSTOM_COLOR_SCALES[variable];
       if (scale) {
         config[layerId] = {
           label: LEGEND_LABELS[layerId] || layerId,
-          gradientCSS: buildGradientCSS(scale),
+          gradientCSS: HEIGHT_VARIABLES.includes(variable) ? marineWaveLegendGradientCSS(scale, theme) || buildGradientCSS(scale) : buildGradientCSS(scale),
           stops: buildStops(scale, variable, heightUnit),
         };
       }
     });
 
-    // Static legends for layers without custom color scales
+    // Other legends.
     config.satellite = {
       label: LEGEND_LABELS.satellite,
       gradientCSS: 'linear-gradient(to right, transparent, rgba(200,200,200,0.4), rgba(180,180,180,0.6), rgba(240,240,240,0.8), white)',
@@ -246,8 +247,7 @@ export var MapWeatherControls = ({
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
       stops: evenStops(['0', '.1', '.3', '.5', '2+']),
     };
-    // Temperature pair: tiles are colored by the OM library's registered 'temperature' scale
-    // (not BASE_CUSTOM), so the legend is a static approximation of that ramp in °F.
+    // Temperature legends approximate the OM library's registered scale in °F.
     config.temperature = {
       label: LEGEND_LABELS.temperature,
       gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9), rgba(200,40,40,0.9))',

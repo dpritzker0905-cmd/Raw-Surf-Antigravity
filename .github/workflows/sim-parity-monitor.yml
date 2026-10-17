@@ -140,6 +140,7 @@ jobs:
           SURF_REQUESTED_HORIZON: '0' # Dark: request-scoped spot forecast work
           COPERNICUS_TERMINAL_TIME_GUARD: '0' # Dark: fail once for dataset-wide temporal bounds
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: unique acknowledged manifest snapshots
+          MANIFEST_PUBLISH_ONE_STEP: '1' # ENABLED 2026-10-17 on the owner's explicit word (#350): read-merge-CAS in one step; ALL manifest writers together (forecast-ingest, pilots, precompute, sim-parity-monitor); NOT Render. Kill: set '0' in all four.
           SURF_PARTITIONS: '0'
           SURF_NEARSHORE_MOP: '0'
           RATING_OBS_GATE: '1'

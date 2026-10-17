@@ -1,0 +1,426 @@
+{
+  "scope": "Actual JumpIn consumers and themed pending UI; isolated API/context/navigation fixtures; no provider or app acceptance",
+  "results": [
+    {
+      "consumer": "hub",
+      "theme": "light",
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "light",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "dark",
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "dark",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "beach",
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "beach",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "hub",
+      "theme": "beach",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "light",
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "light",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "dark",
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "dark",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "beach",
+      "viewport": {
+        "width": 360,
+        "height": 800
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "beach",
+      "viewport": {
+        "width": 844,
+        "height": 390
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    },
+    {
+      "consumer": "drawer",
+      "theme": "beach",
+      "viewport": {
+        "width": 1440,
+        "height": 900
+      },
+      "requests": 1,
+      "navigation": 1,
+      "success": 0,
+      "horizontalOverflow": false,
+      "links": [
+        {
+          "text": "Continue to checkout",
+          "href": "https://checkout.stripe.com/c/pay/fixture"
+        },
+        {
+          "text": "View session bookings",
+          "href": "/bookings?tab=live_sessions"
+        }
+      ],
+      "screenshot": null
+    }
+  ],
+  "sources": {
+    "components/spot-hub/JumpInFlow.js": "ed0b757d8b24186bef2d46f5a82a8fe3d66476b486dda9832eee74e414654d7c",
+    "components/spot-drawer/JumpInFlow.js": "4ed7c674b9814333c860ff26df4a06d0c53f7334d513123cc8a83cb51fa2ff58",
+    "components/booking/LiveSessionCheckoutPending.js": "ed74edc1990e3cc54c18f2ac51fd31dc383784dcf5b485921dc597da700b9667",
+    "utils/liveSessionJoin.js": "b7aef12be9d8bf64bf7bf47b070ae308f974a02219a6556e2da1d369991a04e1"
+  },
+  "screenshot_status": "Blocked by Chrome font readiness timeout; no screenshots retained"
+}

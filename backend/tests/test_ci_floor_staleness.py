@@ -466,7 +466,18 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Bounded wind native recovery: +14 guards (one new file) on hosted 2541 / 188 files (floor 2549).
 # Actor-route binding batch 2: +69 estate (existing file) on hosted 1475 / 306 files (floor 1542).
 # Bounded wind background build: +17 guards (one new file) on hosted 2641 / 194 files (floor 2652).
-_FLOOR_SET_FROM = {"guards": 2658, "chain": 2444, "estate": 1545}
+# Reflection AI route ownership/availability: +34 estate cases; projected1579, margin2.
+# Skill-ledger day objects: +5 guards (existing monitor file) and +29 chain (one new file) on hosted 2669 / 2444
+# (floors 2668 / 2467; chain files 163 -> 164).
+# Thinned series frames keep their cells' bounds (dark): +20 guards (one new file) on hosted 2674 / 196 files (floor 2688; files 197).
+# Same PR after the independent review: +10 guards (the same file) on hosted 2694 / 197 files (floor 2698).
+# One-off scored-rows gate (read-only, to be removed after use): +44 chain (one new file), floor 2511, chain files 165.
+# Surf-zone gate, on top of it: +141 chain (one new file; floor 2652, files 166) and +5 estate (existing file; floor 1677).
+# Monitor consensus-construction check: +43 guards (existing file; floor 2741, files 197).
+# Model-scoped scalar height switch, on top of it: +43 chain (existing file; floor 2695, files 166).
+# Manifest publication in one step (dark), on top of the monitor check: +384 guards (ten new files, after the split and rounds 4 to 8) on hosted 2747 / 197 files (floor 3125; files 207).
+# Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
+_FLOOR_SET_FROM = {"guards": 3132, "chain": 2701, "estate": 1679}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

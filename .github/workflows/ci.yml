@@ -18,6 +18,36 @@ on:
     branches: [dev, main]
 
 jobs:
+  openai-budget-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: budget_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d budget_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+      - name: Verify real PostgreSQL budget races, persistence and private migration
+        working-directory: backend
+        env:
+          OPENAI_BUDGET_POSTGRES_TEST: '1'
+        run: python -m pytest tests/test_openai_budget.py -q --timeout=60
+
   lint-and-build:
     runs-on: ubuntu-latest
 
@@ -835,7 +865,50 @@ jobs:
           # asked for, dark): tests/test_wind_bg_build_bounded.py (17), selector-verified into this lane; hosted reading
           # on dev 9e11676c (CI 38013820511: 194 files, 2641 passed, 67 skipped) -> projected 2658/195; 2658 - 6 = 2652.
           # This PR must read 195 files / 2658.
-          MIN_FILES, MIN_PASSED = 195, 2652
+          # Spot-details deadline/legacy compatibility adds11 guards cases: projected2669/196, margin6.
+          # ⬆ 196/2663 → 196/2668 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (the accuracy monitor reads the
+          # skill ledger's scored day objects): five cases in test_forecast_accuracy_monitor.py, an existing guards file;
+          # hosted reading on dev db453937 (CI 38844443190: 196 files, 2669 passed, 67 skipped) -> projected 2674/196;
+          # 2674 - 6 = 2668. This PR must read 196 files / 2674.
+          # ⬆ 196/2668 → 197/2688 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (thinned series frames carry the bounds
+          # of the cells they kept, dark): tests/test_series_thin_node_bounds.py (20), a new file selector-verified into
+          # this lane; hosted reading on #342's head 56bf81dda, a tree identical to dev 66a320e5 (CI 38913422185: 196 files,
+          # 2674 passed, 67 skipped) -> projected 2694/197; 2694 - 6 = 2688. This PR must read 197 files / 2694.
+          # ⬆ 197/2688 → 197/2698 in the same PR, after the independent review: +10 cases in the SAME file (the east edge
+          # when the width does not divide the stride, all four sites; flag OFF at all four sites; the strided read's
+          # longitudes); hosted reading on this PR's head dcc46b733 (CI 38928415298: 197 files, collected 2761, 2694 passed,
+          # 67 skipped) -> projected 2704/197; 2704 - 6 = 2698. This PR must read 197 files / 2704.
+          # ⬆ 197/2698 → 198/2821 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (manifest publication in one step, dark):
+          # tests/test_manifest_one_step_publish.py (123 collected, all passing, no xfail), a new file selector-verified into this
+          # lane; hosted reading on dev (backend unchanged since #343, CI 38934795577: 197 files, collected 2771, 2704 passed,
+          # 67 skipped) -> projected 2827/198; 2827 - 6 = 2821. This PR must read 198 files / 2827.
+          # ⬆ 198/2821 → 204/2886 in the same PR, after review 3 and round 4: the one test file was split (new files over 800
+          # lines fail File Size Governance) and grew to 188 cases in 7 files (tests/test_manifest_one_step_{absorb,coalescing,
+          # exit,pointer,publish,retention,sites}.py, all claimed by this lane; tests/_manifest_chain_harness.py is a helper with
+          # no tests); the same dev reading (2704 / 197 files) -> projected 2892/204; 2892 - 6 = 2886. This PR must read 204 files / 2892.
+          # ⬆ 204/2886 → 206/2950 in the same PR, after review 4 and round 5 (default-off lane): 252 cases in 9 files, the two new files
+          # being tests/test_manifest_one_step_recovery.py (17) and tests/test_manifest_one_step_table.py (38), the rest grown in place;
+          # hosted reading on the previous head c02e809e2 (CI 38970054995: 204 files, 2892 passed, 66 skipped, 1 xfailed) plus 64
+          # -> projected 2956/206; 2956 - 6 = 2950. This PR must read 206 files / 2956.
+          # ⬆ 206/2950 → 206/3037 in the same PR, after review 5 and round 6 (default-off lane): +87 cases in the same nine files
+          # (no new file); hosted reading on the round-5 head a00d69b8e (CI 38981909208: 2956 passed, 66 skipped, 1 xfailed, as projected)
+          # plus 87 -> projected 3043/206; 3043 - 6 = 3037. This PR must read 206 files / 3043.
+          # ⬆ 197/2698 → 197/2741 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the monitor grades the built consensus shadow
+          # against its own definition at every lead, WARN only): +43 cases in the existing tests/test_forecast_accuracy_monitor.py
+          # (44 -> 87, no new file); the dev reading is 2704 -> projected 2747; 2747 - 6 = 2741. This PR must read 197 files / 2747.
+          # (The one-step manifest PR #350 also moves this lane: whichever merges second re-derives.)
+          # ⬆ 206/3037 → 206/3104 in the same PR, after review 6 and round 7, on top of #360 (the monitor's consensus check, +43 in this
+          # lane): +24 cases in the same nine files (no new file; 339 -> 363); the dev reading after #360 is 2747 -> projected 3110;
+          # 3110 - 6 = 3104. This PR must read 206 files / 3110.
+          # ⬆ 206/3104 → 207/3125 in the same PR, after review 7 and round 8 (default-off lane): +21 cases and ONE new file,
+          # tests/test_manifest_one_step_head.py (19, claimed by this lane; keeps test_manifest_one_step_recovery.py under 800 lines);
+          # 384 cases in 10 files; the dev reading after #360 is 2747 -> projected 3131/207; 3131 - 6 = 3125. This PR must read
+          # 207 files / 3131.
+          # ⬆ 207/3125 → 207/3126 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the manifest lane ENABLED in the four writer
+          # workflows, owner's explicit word): +1 case in the existing tests/test_manifest_one_step_sites.py (the four workflows carry
+          # the flag equally); hosted reading on dev after #350 (CI 38999853463 on the branch head: 3131 passed) -> projected 3132;
+          # 3132 - 6 = 3126. This PR must read 207 files / 3132.
+          MIN_FILES, MIN_PASSED = 207, 3126
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1388,7 +1461,23 @@ jobs:
           # pooled fetcher noaa_hrrr_wind_fetcher.py joins POOLED_FETCHERS in test_fetcher_http_pooling.py (2 parametrized
           # cases); hosted reading on dev db037eaf (CI 37971676215: 163 files, 2442 passed) -> projected 2444/163;
           # 2444 - 6 = 2438. This PR must read 163 files / 2444.
-          MIN_FILES, MIN_PASSED = 163, 2438
+          # ⬆ 163/2438 → 164/2467 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (the skill ledger's scored archive moves
+          # to one object per UTC day after scored-2026-10.json hit Storage's 50 MiB limit): tests/test_skill_scored_archive.py
+          # (13, a new file selector-verified into this lane) plus 16 in test_forecast_skill_retention.py; hosted reading on
+          # dev db453937 (CI 38844443190: 163 files, 2444 passed) -> projected 2473/164; 2473 - 6 = 2467.
+          # This PR must read 164 files / 2473.
+          # ⬆ 164/2467 → 165/2511 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the one-off, read-only scored-rows gate for the
+          # scalar-height flip, commitment 1335): tests/test_scored_rows_gate.py (44, a new file selector-verified into this lane);
+          # the same dev reading (CI 38844443190: 163 files, 2444 passed, then the #342 delta) -> projected 2517/165; 2517 - 6 = 2511.
+          # This PR must read 165 files / 2517. The file leaves with the gate: remove it and move this floor back in that PR.
+          # ⬆ 165/2511 → 166/2652 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the surf-zone gate on the nearshore judge's
+          # report; #357 merged first, so this re-derives on top of it): tests/test_nearshore_gate.py (141, a new file
+          # selector-verified into this lane); 2517 (the dev reading after #357) + 141 -> projected 2658/166; 2658 - 6 = 2652.
+          # This PR must read 166 files / 2658.
+          # ⬆ 166/2652 → 166/2695 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the model-scoped scalar marine height switch,
+          # dark): +43 cases in the existing tests/test_sampler_scalar_marine_height.py (12 -> 55, no new file); the dev reading after
+          # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
+          MIN_FILES, MIN_PASSED = 166, 2695
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1789,7 +1878,14 @@ jobs:
           # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
           # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
-          MIN_PASSED = 1543
+          # Reflection review fixes add34 offline AI ownership/availability cases to projected1545.
+          # Selector-owned estate file; projected1579, preserving margin2. Hosted CI must confirm.
+          # Budget contracts add32 executed estate cases: projected1650, margin2.
+          # One private-migration case runs in openai-budget-postgres, not SQLite estate.
+          # Saved-board clue contracts add24 executed estate cases: projected1674, margin2.
+          # Surf-zone gate workflow pins add 5 executed estate cases to test_nearshore_workflow_eligibility.py (an existing
+          # estate file): projected 1679, margin 2.
+          MIN_PASSED = 1677
 
           try:
               root = ET.parse('estate.xml').getroot()

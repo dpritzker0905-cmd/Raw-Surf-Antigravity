@@ -599,3 +599,7 @@ load-time check fires when the law is wrong.
 rule 1 asks for one place; moving it moves the checker's dark lines and pins); `light-margin-solve.mjs --dump-merged` with
 its reference file deleted would write today's rows under a note that names #318 (reachable only by deleting a tracked
 file); `windDarkRules.js` holds a third pair of dark map colours (`[28, 37, 48]`, `[11, 29, 46]`), neither the bench's.
+
+### Re-chain note (2026-10-17, when PR 330 was brought up to date with dev)
+
+The five ledger lines this close-out section cites as seq 1177 to 1181 (and the commit messages of this PR cite as 'ledger 1177' to 'ledger 1181') were written on a chain that dev has since moved past: dev's own 1177 to 1181 are different lines. The PR's lines were re-appended onto dev's chain verbatim (the original action times kept as acted_at, each marked reconstructed and carrying the old number in its evidence): 1177 is now 1367 (pr_merge #329), 1178 is 1368 (the owner's instruction of 2026-10-13 17:54Z), 1179 is 1369 (the finding about #327's unpushed commit), 1180 is 1370 (pr_open #330), 1181 is 1371 (the correction about the Jacobian's land step). Read every 'ledger 11xx' in this PR's records through that map.

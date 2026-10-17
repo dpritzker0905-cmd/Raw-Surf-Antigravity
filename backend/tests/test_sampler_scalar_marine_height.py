@@ -40,11 +40,11 @@ def _vec(lat, lng, speed, direction, u=None, v=None, period=10.0, valid=True):
                       is_valid=valid)
 
 
-def _product(vectors, domain="marine", layer="waves"):
+def _product(vectors, domain="marine", layer="waves", model="GFS"):
     cov = CoverageBounds(west=-157.75, south=21.25, east=-157.5, north=21.5)
     now = datetime(2026, 10, 1, 3, tzinfo=timezone.utc)
     return NormalizedProduct(
-        model="GFS", provider="open-meteo", domain=domain, layer=layer, run_time=now, valid_time=now,
+        model=model, provider="open-meteo", domain=domain, layer=layer, run_time=now, valid_time=now,
         is_forecast_authoritative=True, is_estimated=False, coverage=cov,
         grid=NormalizedGrid(bounds=cov, cols=2, rows=2, vectors=vectors),
         value_kind="wave_height" if domain == "marine" else "wind_speed", value_unit="m", display_unit_hint="ft",
@@ -53,8 +53,9 @@ def _product(vectors, domain="marine", layer="waves"):
     )
 
 
-def _mokapu(domain="marine", layer="waves"):
-    return _product([_vec(la, lo, s, d, u, v, p) for (la, lo), (s, d, u, v, p) in MOKAPU.items()], domain, layer)
+def _mokapu(domain="marine", layer="waves", model="GFS"):
+    return _product([_vec(la, lo, s, d, u, v, p) for (la, lo), (s, d, u, v, p) in MOKAPU.items()], domain, layer,
+                    model)
 
 
 def _pt(product, lat=BUOY[0], lng=BUOY[1]):
@@ -152,7 +153,7 @@ def test_the_scalar_answer_is_never_below_the_vector_answer(monkeypatch):
         assert on >= off - 1e-4
 
 
-def test_every_lane_that_samples_a_point_declares_the_switch_dark_and_equal():
+def test_every_lane_that_samples_a_point_declares_the_switch_flipped_and_equal():
     """Glyphs (precompute, core ingest) and the consensus builder (pilots) sample through this code; a flip
     in one lane alone would serve two interpolations of the same sea."""
     values = {}
@@ -162,7 +163,7 @@ def test_every_lane_that_samples_a_point_declares_the_switch_dark_and_equal():
                  if isinstance(st, dict) and "SAMPLER_SCALAR_HEIGHT" in (st.get("env") or {})]
         assert len(found) == 1, wf
         values[wf] = found[0]
-    assert set(values.values()) == {"0"}, values
+    assert set(values.values()) == {"1"}, values      # FLIPPED 2026-10-17 (GFS first, via SAMPLER_SCALAR_HEIGHT_MODELS)
 
 
 # ─── THE LEDGER'S SCALAR SHADOW LANE: paired buoy truth for the flip ─────────────────────────────────────────────
@@ -230,3 +231,208 @@ def test_both_ledger_lanes_declare_the_scalar_shadow_equal():
         assert len(found) == 1, wf
         values[wf] = found[0]
     assert len(set(values.values())) == 1, values
+
+
+# ─── MODEL SCOPE: the switch was keyed on DOMAIN, so flipping it moved EURO and ICON, which no scalar lane graded ──
+# 2026-10-17 the one-off scored-rows job returned GATE YES for GFS (raw_surf:GFS_SCALAR beats served in every graded
+# cell). EURO and ICON have no scalar shadow lane, and ICON already leans high (+0.06..+0.09 m) while the scalar is
+# one-sided upward. SAMPLER_SCALAR_HEIGHT_MODELS (default GFS) says which models the master switch applies to.
+# ★ `force_scalar_height()` (the ledger's measurement instrument) ignores the list on purpose; `model=None` keeps the
+# pre-list rule so no caller that cannot name its model regresses silently.
+
+MASTER, LIST = "SAMPLER_SCALAR_HEIGHT", "SAMPLER_SCALAR_HEIGHT_MODELS"
+VECTOR_M, SCALAR_M = 0.9795, 1.4547          # the Mokapu fixture's two answers (see the first two tests)
+ALL_THREE = {"GFS", "EURO", "ICON"}
+
+
+@pytest.fixture(autouse=True)
+def _no_ambient_model_list(monkeypatch):
+    """A developer's shell must not decide which models these tests treat as scalar."""
+    monkeypatch.delenv(LIST, raising=False)
+
+
+def _masked_vectors():
+    items = list(MOKAPU.items())
+    vecs = [_vec(la, lo, s, d, u, v, p) for (la, lo), (s, d, u, v, p) in items[:3]]
+    (la, lo), _ = items[3]
+    return vecs + [_vec(la, lo, 0.0, 0.0, valid=False)]            # a land corner
+
+
+def _masked_scalar_expected():
+    items = list(MOKAPU.items())
+    t = (BUOY[1] - -157.75) / 0.25
+    u = (BUOY[0] - 21.25) / 0.25
+    w = [(1 - t) * (1 - u), t * (1 - u), (1 - t) * u]
+    return sum(wi * s for wi, ((_, _), (s, *_)) in zip(w, items[:3])) / sum(w)
+
+
+def _both_call_sites(model):
+    """(4-corner point, ocean-masked point) of the Mokapu fixture sampled AS `model`: the sampler's two bilinear sites."""
+    four, masked = _pt(_mokapu(model=model)), _pt(_product(_masked_vectors(), model=model))
+    assert (four.interpolation_method, masked.interpolation_method) == ("bilinear", "bilinear_ocean_masked")
+    return four, masked
+
+
+def _vector_baseline(monkeypatch):
+    """What production serves today for each branch (the master switch dark)."""
+    monkeypatch.delenv(MASTER, raising=False)
+    four, masked = _both_call_sites("GFS")
+    assert four.speed == pytest.approx(VECTOR_M, abs=1e-4) and masked.speed < _masked_scalar_expected() - 0.01
+    return four, masked
+
+
+@pytest.mark.parametrize("model", ["GFS", "EURO", "ICON"])
+@pytest.mark.parametrize("listing", [None, "*", "GFS,EURO,ICON", "ICON"])
+def test_master_dark_no_model_reads_the_scalar_whatever_the_list_says(monkeypatch, model, listing):
+    """Null control: the new variable has no effect while the master switch is '0'."""
+    base_four, base_masked = _vector_baseline(monkeypatch)
+    if listing is not None:
+        monkeypatch.setenv(LIST, listing)
+    four, masked = _both_call_sites(model)
+    assert (four, masked) == (base_four, base_masked)
+
+
+def test_flag_on_with_the_default_list_gfs_reads_the_scalar_and_euro_and_icon_stay_the_vector(monkeypatch):
+    base_four, base_masked = _vector_baseline(monkeypatch)
+    monkeypatch.setenv(MASTER, "1")
+    four, masked = _both_call_sites("GFS")
+    assert four.speed == pytest.approx(SCALAR_M, abs=1e-4)
+    assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4)
+    for model in ("EURO", "ICON"):
+        # the WHOLE point, not just the height: EURO and ICON are identical to the dark answer
+        assert _both_call_sites(model) == (base_four, base_masked), model
+
+
+def test_star_applies_the_scalar_to_every_model_at_both_call_sites(monkeypatch):
+    _vector_baseline(monkeypatch)
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, "*")
+    for model in sorted(ALL_THREE):
+        four, masked = _both_call_sites(model)
+        assert four.speed == pytest.approx(SCALAR_M, abs=1e-4), model
+        assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4), model
+
+
+def test_a_list_that_names_icon_alone_moves_icon_only(monkeypatch):
+    base_four, base_masked = _vector_baseline(monkeypatch)
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, "ICON")
+    assert _both_call_sites("GFS") == (base_four, base_masked)
+    assert _both_call_sites("EURO") == (base_four, base_masked)
+    assert _both_call_sites("ICON")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
+
+
+def test_the_products_model_is_matched_without_regard_to_case_or_padding(monkeypatch):
+    monkeypatch.setenv(MASTER, "1")
+    assert _both_call_sites("gfs")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
+    assert _both_call_sites("euro")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)      # not listed, whatever its case
+    monkeypatch.setenv(LIST, "euro")
+    assert _both_call_sites("EURO")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
+    assert _both_call_sites(" Euro ")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
+    assert _both_call_sites("GFS")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)
+
+
+@pytest.mark.parametrize("listing, scalar_models", [
+    ("GFS", {"GFS"}),
+    ("gfs", {"GFS"}),
+    ("  gfs ,  icon  ", {"GFS", "ICON"}),
+    ("EURO,,ICON,", {"EURO", "ICON"}),
+    (",GFS", {"GFS"}),
+    ("euro, BOGUS", {"EURO"}),              # an unknown name is inert, not an error
+    ("*", ALL_THREE),
+    (" * ", ALL_THREE),
+    ("GFS,*", ALL_THREE),
+    # an EMPTY list names nobody (the repo convention: '' = none, as FORECAST_SKILL_COMPARE_MODELS and
+    # CONSENSUS_SERVE_KEEP_GFS); only `*` says "all", so a blank Render variable can never widen the flip
+    ("", set()),
+    ("   ", set()),
+    (",,", set()),
+])
+def test_list_parsing(monkeypatch, listing, scalar_models):
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, listing)
+    for model in sorted(ALL_THREE):
+        assert scalar_marine_height_enabled("marine", model) is (model in scalar_models), (listing, model)
+
+
+def test_an_unlisted_model_name_gets_the_vector_even_if_it_is_not_one_of_the_three(monkeypatch):
+    """CONSENSUS (the shadow product: GFS cells scaled by the equal mean) is not GFS, so it follows the list and
+    reads the vector by default. Pinned so a change is a decision, not an accident."""
+    monkeypatch.setenv(MASTER, "1")
+    assert not scalar_marine_height_enabled("marine", "CONSENSUS")
+    monkeypatch.setenv(LIST, "GFS,CONSENSUS")
+    assert scalar_marine_height_enabled("marine", "CONSENSUS")
+
+
+@pytest.mark.parametrize("unknown", [None, "", "   "])
+def test_a_caller_that_cannot_name_its_model_keeps_the_pre_list_rule(monkeypatch, unknown):
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, "ICON")                              # names nobody who is asking
+    assert scalar_marine_height_enabled("marine", unknown) is True
+    assert scalar_marine_height_enabled("MARINE", unknown) is True
+    assert not scalar_marine_height_enabled("wind", unknown)       # the domain gate is untouched
+    monkeypatch.setenv(MASTER, "0")
+    assert scalar_marine_height_enabled("marine", unknown) is False
+    monkeypatch.delenv(MASTER)
+    assert scalar_marine_height_enabled("marine", unknown) is False
+
+
+@pytest.mark.parametrize("value", ["true", "yes", "2", "01", " 1", "1 ", "on"])
+def test_only_the_exact_string_1_arms_the_master_switch(monkeypatch, value):
+    """A typo or a 'true' in an env panel must never flip a served number: the rule is `== "1"`, nothing looser."""
+    monkeypatch.setenv(LIST, "*")
+    monkeypatch.setenv(MASTER, value)
+    assert scalar_marine_height_enabled("marine", "GFS") is False
+    assert scalar_marine_height_enabled("marine") is False
+    assert _both_call_sites("GFS")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)
+
+
+def test_omitting_model_is_the_same_as_none(monkeypatch):
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, "ICON")
+    assert scalar_marine_height_enabled("marine") is scalar_marine_height_enabled("marine", None) is True
+
+
+def test_force_scalar_height_forces_a_model_the_list_does_not_name(monkeypatch):
+    """The ledger's GFS_SCALAR lane is the measurement instrument: it must scalar-sample whatever it is pointed at."""
+    from services.weather_pipeline.sampler import force_scalar_height
+    base_four, base_masked = _vector_baseline(monkeypatch)
+    with force_scalar_height():                                   # master dark, list default: EURO is not listed
+        four, masked = _both_call_sites("EURO")
+        assert four.speed == pytest.approx(SCALAR_M, abs=1e-4)
+        assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4)
+        assert not scalar_marine_height_enabled("wind", "EURO")  # still marine only
+    assert _both_call_sites("EURO") == (base_four, base_masked)  # restored on exit
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, "ICON")                              # master ON, and the list excludes GFS
+    assert not scalar_marine_height_enabled("marine", "GFS")
+    with force_scalar_height():
+        assert scalar_marine_height_enabled("marine", "GFS")
+    assert not scalar_marine_height_enabled("marine", "GFS")
+
+
+def test_no_call_site_in_the_sampler_omits_the_model():
+    """A third bilinear branch that forgets `model` would silently keep the pre-list rule for EURO and ICON."""
+    import ast
+    src = (BACKEND / "services" / "weather_pipeline" / "sampler.py").read_text(encoding="utf-8")
+    calls = [n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call)
+             and getattr(n.func, "id", None) == "scalar_marine_height_enabled"]
+    assert len(calls) == 2, "the two bilinear branches are the only call sites; a new one needs its own model argument"
+    for c in calls:
+        passed = len(c.args) >= 2 or any(k.arg == "model" for k in c.keywords)
+        assert passed, f"line {c.lineno}: scalar_marine_height_enabled() called without the product's model"
+
+
+def test_every_lane_declares_the_model_list_equal_and_at_the_code_default():
+    """The master switch is pinned equal across the three lanes for a reason: a flip in one alone serves two
+    interpolations of the same sea. The model list has the same hazard, so it is declared in the same three places."""
+    from services.weather_pipeline.sampler import SCALAR_HEIGHT_MODELS_DEFAULT
+    assert SCALAR_HEIGHT_MODELS_DEFAULT == "GFS"                  # GFS first; ICON/EURO join after their own lanes grade
+    values = {}
+    for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"):
+        d = yaml.safe_load((BACKEND.parent / ".github" / "workflows" / wf).read_text(encoding="utf-8"))
+        found = [st["env"][LIST] for j in d["jobs"].values() for st in j.get("steps", [])
+                 if isinstance(st, dict) and LIST in (st.get("env") or {})]
+        assert len(found) == 1, wf
+        values[wf] = found[0]
+    assert set(values.values()) == {SCALAR_HEIGHT_MODELS_DEFAULT}, values
