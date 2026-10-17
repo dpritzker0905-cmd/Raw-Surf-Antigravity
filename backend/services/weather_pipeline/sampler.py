@@ -51,7 +51,13 @@ def resolution_or_none(grid):
     return res if res and res > 0 else None
 
 
-def scalar_marine_height_enabled(domain: str) -> bool:
+# SAMPLER_SCALAR_HEIGHT_MODELS: which models the master switch applies to once it is flipped. GFS first: its scalar
+# lane (raw_surf:GFS_SCALAR) is the only one graded. EURO and ICON have none, and the scalar is one-sided upward
+# while ICON already leans high, so each joins only after its own shadow lane has been read.
+SCALAR_HEIGHT_MODELS_DEFAULT = "GFS"
+
+
+def scalar_marine_height_enabled(domain: str, model: Optional[str] = None) -> bool:
     """SAMPLER_SCALAR_HEIGHT (default '0', dark): interpolate a MARINE height as the scalar it is.
 
     ⛔ WHY (audit 2026-09-30). The bilinear branches below average the corners' (u, v) and report
@@ -71,9 +77,32 @@ def scalar_marine_height_enabled(domain: str) -> bool:
     a point (glyphs, hub, sim, the consensus builder, the skill ledger), so it flips ONLY on the
     owner's word, in every lane together: Render env, forecast-ingest.yml, forecast-ingest-pilots.yml
     and precompute.yml.
+
+    MODEL SCOPE (2026-10-17). The switch is keyed on DOMAIN, so flipping it alone would move EURO and ICON as well,
+    and only GFS has a scalar shadow lane that grades the answer (raw_surf:GFS_SCALAR). Once the master switch is on,
+    `model` (the product's, case- and padding-insensitive) must also be named in SAMPLER_SCALAR_HEIGHT_MODELS: a
+    comma-separated list, default GFS; `*` means every model; an EMPTY list names nobody (the repo's convention for
+    an empty model list: only `*` widens the flip); an unknown name is inert. While the master switch is '0' the
+    list has no effect at all.
+      * `model=None` (or blank) is a caller that cannot name its model: it keeps the rule it had before the list
+        existed (master on => scalar), so no such call site regresses silently. Both call sites in this file pass
+        `product.model`.
+      * `force_scalar_height()` (the skill ledger's GFS_SCALAR lane, the measurement instrument) forces the scalar for
+        a marine product WHATEVER the list says: the lane must measure the model it is pointed at, even one that is
+        not yet allowed to serve it.
     """
-    return (domain or "").lower() == "marine" and (
-        os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") == "1" or _FORCE_SCALAR.get())
+    if (domain or "").lower() != "marine":
+        return False
+    if _FORCE_SCALAR.get():
+        return True
+    if os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") != "1":
+        return False
+    name = (model or "").strip().upper()
+    if not name:
+        return True
+    listed = {m.strip().upper() for m in os.environ.get(
+        "SAMPLER_SCALAR_HEIGHT_MODELS", SCALAR_HEIGHT_MODELS_DEFAULT).split(",")}
+    return "*" in listed or name in listed
 
 
 # The skill ledger's shadow lane (forecast_skill.GFS_SCALAR) grades the scalar answer beside the served one while the
@@ -421,7 +450,7 @@ class PointSampler:
             interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
             if interp_dir < 0.0:
                 interp_dir += 360.0
-            if scalar_marine_height_enabled(product.domain):     # dark: see the helper's docstring
+            if scalar_marine_height_enabled(product.domain, product.model):     # dark: see the helper's docstring
                 interp_speed, interp_dir, interp_u, interp_v = _scalar_height_point(
                     corner_weights, interp_u, interp_v)
 
@@ -475,7 +504,7 @@ class PointSampler:
                 interp_dir = math.atan2(-interp_u, -interp_v) * (180.0 / math.pi)
                 if interp_dir < 0.0:
                     interp_dir += 360.0
-                if scalar_marine_height_enabled(product.domain):     # dark: the same rule as above
+                if scalar_marine_height_enabled(product.domain, product.model):     # dark: the same rule as above
                     interp_speed, interp_dir, interp_u, interp_v = _scalar_height_point(
                         valid_ocean_corners, interp_u, interp_v)
 

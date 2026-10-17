@@ -474,7 +474,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # One-off scored-rows gate (read-only, to be removed after use): +44 chain (one new file), floor 2511, chain files 165.
 # Surf-zone gate, on top of it: +141 chain (one new file; floor 2652, files 166) and +5 estate (existing file; floor 1677).
 # Monitor consensus-construction check: +43 guards (existing file; floor 2741, files 197).
-_FLOOR_SET_FROM = {"guards": 2747, "chain": 2658, "estate": 1679}
+# Model-scoped scalar height switch, on top of it: +43 chain (existing file; floor 2695, files 166).
+_FLOOR_SET_FROM = {"guards": 2747, "chain": 2701, "estate": 1679}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
