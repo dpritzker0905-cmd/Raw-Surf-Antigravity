@@ -30,7 +30,7 @@ const { muteColor, windBasemapMuteAmount, windBasemapWaterL, windBasemapLandL, w
 export const ramps = new Function('DARK_RULES', 'DARK_WHITE', 'WHITE_STREAK', 'solveDarkRules', 'windLandWhite', 'setWindLandDepthGate', 'BEACH_PATH', 'beachPathRows', 'LIGHT_PATH', 'lightTables',
   source(path.join(MAP, 'WindColorRamp.js')) + '; return { THEME_RAMPS, resolveLegendRamp, huePathStops, resolveDrawnField, resolveDrawnMarks, generateRampData, windDarkRulesOn, windWhiteStreakOn, windWhiteStrength };')(DARK_RULES, DARK_WHITE, WHITE_STREAK, solveDarkRules, windLandWhite, setWindLandDepthGate, BEACH_PATH, beachPathRows, LIGHT_PATH, lightTables);
 /** The window a sync would leave for `theme`: the mute's read-back, which the land's streak strength reads (D-026). */
-const winOf = (theme) => { const amount = windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1, landStep: amount > 0 && windLandStepAsked(theme, LEVERS) } }; };
+export const winOf = (theme) => { const amount = windBasemapMuteAmount(theme, LEVERS); return { ...LEVERS, __WIND_BASEMAP_MUTE__: { applied: amount > 0, theme, landL: amount > 0 ? windBasemapLandL(theme, LEVERS) : 1, landStep: amount > 0 && windLandStepAsked(theme, LEVERS) } }; };
 
 // The composite law, per theme (check.mjs MODEL; dark's land is the wind bench's own offline colour).
 export const MODEL = {

@@ -52,6 +52,7 @@ node check.mjs --before-depth   # the land as the mute alone leaves it (window._
 node check.mjs --as-uploaded [10-80:1]   # ALSO the field as the GPU draws it: the 8-bit texture by the shader's own lookup, at every maximum of the sweep (red under 5.0 with --strict, or under --as-uploaded-floor 4.9; --index255: by the table's index). OPT-IN: the owner has not set an as-drawn bar, and light and dark are under 5.0 by it
 node lut-lookup-gpu.cjs [swiftshader]   # which position the GPU reads in a 256-texel LINEAR texture (the law --as-uploaded models), read back from a GPU
 node mirror-model.mjs           # each theme's field over its own map, knot by knot, beside dark's (L*, C*, hue; see below)
+node mirror-jacobian.mjs [--json out.json]   # every lever against a streak's step at once: what a 10% turn of the white, the field's strength and the map moves, and a knot of wind, beside dark's (see below)
 ```
 
 `--look` resolves the field and the marks as the app does with that lever set (`resolveFieldRamp`, `resolveMarkRamp` in
@@ -150,10 +151,43 @@ laws; its lightness, chroma, hardest edge and colour-blind line move a lot (by t
 nearly flat; hardest edge 8.9 dE00 a knot; colour-blind 2.5 to 3.1). Light and beach (the multiply law) are not affected.
 `light-path-solve.mjs` reads dark through its own `darkOn`.
 
+## The Jacobian (`mirror-jacobian.mjs`): every lever against a streak's step, at once
+
+The owner, 2026-10-12: "use the jacobian lens to help see everything as a whole. To not miss any clues." Three lanes had each
+tuned one input against one reading at a few scenes, and each found its number did not hold in another (land against sea, a
+breeze against a storm, one zoom against another). This prints the matrix those were entries of, from the mirror model's own
+tables and laws (no GPU, no map load):
+
+- **Per ground and knot:** the ground under the wind (`G`), the room left above it, the white strength the app lays there
+  today (`w`: 0.75 over land with the land step, 0.55 over the sea), how far a piled-up streak steps off the ground at that
+  strength, that step over DARK's at the same knot, the strength at which the two would be equal (`w*`) and, where no white
+  reaches dark's step, how deep the ground would have to be (`G*`: the map's own term, which no streak setting can stand in for).
+- **The sign that makes a breeze and a storm disagree:** how each theme's ground moves per knot. From 6 to 16 kn dark's
+  ground gets LIGHTER with speed while light's and beach's get DARKER (or stand still), so a strength matched to dark at one
+  speed is off at another.
+- **The row for a streak's step:** what a 10% turn of the white, of the field's strength and of the map's lightness moves it
+  by, and what one knot of wind does, beside what a knot does to dark's own step.
+
+Dark is laid by the ENGINE's law here (alpha squared, the paragraph above), not the mirror model's, and over the REAL map's
+land (`[58, 71, 79]` at zoom 6, as `ground-run.js` read it), not the mirror model's offline land, which reads 11 L\* too dark
+under the wind and overstates dark's step over land. That law is written here a second time (LESSONS L-V60 rule 1 asks for one
+place): moving it is one change with the checker's dark lines. `--before-step` and `--before-depth` print the kills'
+pictures. It refuses to run if its ground for light or beach is not the mirror model's own.
+
+- **The model's ground against the bench** (the last table; L-V60 rule 2): the field alone over the real maps at zoom 6, by
+  speed, as `ground-run.js --strips 12` read it on a ramp. Dark agrees within 1.1 L\* on both grounds from 3 to 29 kn.
+  Light's ground is 1.3 L\* too dark in the model over the sea and 2.8 over land, beach's 2.3 and 4.1 (10 to 22 kn): the
+  model's light and beach map colours are not quite the real maps', and a ground too dark OVERSTATES that theme's step.
+  The bench reads are constants in the file, of one place and day: re-read them when a map colour, the mute or a field
+  table moves.
+**It is a model of ONE piled-up trail, not the moving picture:** read it for the sign and the size of a lever before turning
+one, and read the level on the bench (`scripts/wind-bench`: `ground-run.js`, `anatomy-run.js`), which has the veil (D-029),
+the trail's whole profile and near-calm air (D-030), none of which are in this model.
+
 ## Light's path: solving a table with the floor as a constraint (`light-path-*.mjs`)
 
-Light's field, streak row and legend bar from 1 to 32 kn are solved tables (`src/components/map/windLightPath.js`, DECISIONS
-D-024): dark's hue ORDER in light's own key. Three files made them, and can re-make them:
+Light's field (1 to 63 kn since its margin, below), its streak row (1 to 32 kn) and its legend bar (3 to 27 kn) are solved tables
+(`src/components/map/windLightPath.js`, DECISIONS D-024 and D-031): dark's hue ORDER in light's own key. Three files made them, and can re-make them:
 
 - **`light-path-lib.mjs`**: the colour-blind distance `cvd_check.py` scores, in plain JS (coloraide 8.13's Viénot protan and
   deutan, Brettel tritan, CIEDE2000 in CIELAB D65). `node light-path-lib.mjs --verify` scores 4,000 random pairs both ways and
@@ -186,7 +220,9 @@ followed. `LIGHT_PATH.field` is now that field moved by the smallest step that h
 | `--before-step` (the land at the sea's depth: a kill's picture, not solved for) | 5.006 -> 5.035 | 4.847 -> 4.935 | 123 -> 68 |
 
 No knot moves further than 0.11 dE00 on screen (10 kn; 2.1 summed over 37 rows); the streak row and the legend bar are not
-moved. `--strict --as-uploaded` still exits 1, for DARK's own line alone (4.97 at one maximum of 281).
+moved. `--strict --as-uploaded` still exits 1, for DARK's own line alone (4.97 at one maximum of 281). **"As drawn" is the
+texture and the GPU's lookup: the screen rounds each pixel to 8 bits once more, which nothing here models** (a crude model
+of it, from the review of this change, moves a pair by several times light's margin, before the margin and with it).
 
 `light-margin-solve.mjs` is the instrument, and can re-make the rows: it moves the on-screen colour by a step in CIELAB at
 each Beaufort stop from 3 to 63 kn, holds every bar the path was built on HARD (each is printed on the candidate's own rows),
@@ -194,7 +230,7 @@ gives each pair its own target on the table (the floor plus what the 8-bit round
 the candidate as drawn after each solve and raises the target of any pair still short. `node light-margin-solve.mjs --audit`
 reads the rows the app draws, pair by pair, on every land, with the move from the rows PR #318 merged (`--merged` reads those:
 `light-path-318.json`, the reference the solve moves FROM). The run that made the rows:
-`--solve --sum --maxmove 0.15 --floor 5.03 --seed 2`. What the cap on the largest move buys: capped at 0.25 two seeds put 0.12
+`--solve --land-l 0.90 --sum --maxmove 0.15 --floor 5.03 --seed 2 --gens 1500 --rounds 6` (re-run on this branch after the rows were built: the same rows, value for value). What the cap on the largest move buys: capped at 0.25 two seeds put 0.12
 and 0.21 dE00 on one row; at 0.15, 0.11 and 0.13; at 0.10 the solve held 5.0 as drawn but not 5.03; at 0.07 it left one of the
 path's bars (LESSONS L-V69 rule 3, L-V86). A margin under about 0.15 on the table does not survive the upload, and what the
 rounding takes is each pair's own.
