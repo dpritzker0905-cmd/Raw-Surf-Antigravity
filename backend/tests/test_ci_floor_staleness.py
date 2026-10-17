@@ -471,8 +471,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # (floors 2668 / 2467; chain files 163 -> 164).
 # Thinned series frames keep their cells' bounds (dark): +20 guards (one new file) on hosted 2674 / 196 files (floor 2688; files 197).
 # Same PR after the independent review: +10 guards (the same file) on hosted 2694 / 197 files (floor 2698).
-# Manifest publication in one step (dark): +339 guards (nine new files, after the split and rounds 4 to 6) on hosted 2704 / 197 files (floor 3037; files 206).
-_FLOOR_SET_FROM = {"guards": 3043, "chain": 2473, "estate": 1674}
+# One-off scored-rows gate (read-only, to be removed after use): +44 chain (one new file), floor 2511, chain files 165.
+# Surf-zone gate, on top of it: +141 chain (one new file; floor 2652, files 166) and +5 estate (existing file; floor 1677).
+# Monitor consensus-construction check: +43 guards (existing file; floor 2741, files 197).
+# Manifest publication in one step (dark), on top of the monitor check: +363 guards (nine new files, after the split and rounds 4 to 7) on hosted 2747 / 197 files (floor 3104; files 206).
+_FLOOR_SET_FROM = {"guards": 3110, "chain": 2658, "estate": 1679}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

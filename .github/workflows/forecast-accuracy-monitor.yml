@@ -31,6 +31,12 @@
 # ⏳ Self-expiring, like the ops/scored graces: WARN-only until ACCURACY_PAIRED_GRACE (default
 #   2026-08-22, this script's own stated revisit date), RED after. The date arms it, not a person.
 # 🔌 Kill switch: repo variable ACCURACY_PAIRED_GATE=0 restores the pre-08-12 behaviour exactly.
+# 2026-10-17 — THE CONSENSUS CONSTRUCTION CONTROL (WARN only, never a page): the built CONSENSUS shadow lane is defined
+#   as the equal GFS/EURO/ICON mean; `forecast_skill_consensus.shadow.by_lead[*].shadow_minus_equal_m` checks that. It read
+#   0.003 m at +24 h and 0.126 / 0.132 m at +48 / +72 h and nothing graded it. WARN when the median |shadow - equal| of a lead
+#   with n >= ACCURACY_CONSENSUS_CONSTRUCTION_MIN_N (200) exceeds ACCURACY_CONSENSUS_CONSTRUCTION_WARN_M (0.02 m); a block
+#   that is absent or thin at every lead prints `NOT MEASURED`. The WARN is marked `grace expired` after
+#   ACCURACY_CONSENSUS_CONSTRUCTION_GRACE (2026-11-15) and still only warns. 🔌 ACCURACY_CONSENSUS_CONSTRUCTION=0 removes it.
 # Thresholds tune via repo Actions variables (ACCURACY_*) — the script prints the measured basis
 # beside the live value on every run so a re-tune has provenance.
 #
@@ -70,6 +76,8 @@ jobs:
           BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           # WS-CAN-0026 kill switch. Read inside default_cfg(), so it also covers a manual run.
           ACCURACY_PAIRED_GATE: ${{ vars.ACCURACY_PAIRED_GATE || '1' }}
+          # Consensus construction control kill switch (WARN only; '0' removes its lines and warnings).
+          ACCURACY_CONSENSUS_CONSTRUCTION: ${{ vars.ACCURACY_CONSENSUS_CONSTRUCTION || '1' }}
         run: |
           set -o pipefail
           python3 scripts/forecast_accuracy_monitor.py \
@@ -81,4 +89,7 @@ jobs:
             --paired-grace "${{ vars.ACCURACY_PAIRED_GRACE || '2026-08-22T00:00:00Z' }}" \
             --paired-min-n "${{ vars.ACCURACY_PAIRED_MIN_N || '200' }}" \
             --paired-persistence-margin "${{ vars.ACCURACY_PAIRED_PERSISTENCE_MARGIN_M || '0.0' }}" \
-            --paired-reference-margin "${{ vars.ACCURACY_PAIRED_REFERENCE_MARGIN_M || '0.10' }}"
+            --paired-reference-margin "${{ vars.ACCURACY_PAIRED_REFERENCE_MARGIN_M || '0.10' }}" \
+            --consensus-construction-warn-m "${{ vars.ACCURACY_CONSENSUS_CONSTRUCTION_WARN_M || '0.02' }}" \
+            --consensus-construction-min-n "${{ vars.ACCURACY_CONSENSUS_CONSTRUCTION_MIN_N || '200' }}" \
+            --consensus-construction-grace "${{ vars.ACCURACY_CONSENSUS_CONSTRUCTION_GRACE || '2026-11-15T00:00:00Z' }}"
