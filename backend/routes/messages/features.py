@@ -133,7 +133,7 @@ class TypingRequest(BaseModel):
 
 
 @router.post("/messages/typing/{conversation_id}")
-async def update_typing(conversation_id: str, user_id: str, data: TypingRequest, db: AsyncSession = Depends(get_db)):
+async def update_typing(conversation_id: str, data: TypingRequest, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_user_id_from_jwt_or_query)):
     """Update typing indicator for a conversation"""
     from models import TypingIndicator
     

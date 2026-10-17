@@ -3,6 +3,7 @@ Posts management — settings, edit, delete, and reporting.
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -22,9 +23,9 @@ class PostSettingsUpdate(BaseModel):
 @router.patch("/posts/{post_id}/settings")
 async def update_post_settings(
     post_id: str,
-    user_id: str,
     settings: PostSettingsUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Update post settings (hide likes, disable comments)"""
     result = await db.execute(select(Post).where(Post.id == post_id))
@@ -62,9 +63,9 @@ class PostUpdate(BaseModel):
 @router.patch("/posts/{post_id}")
 async def update_post(
     post_id: str,
-    user_id: str,
     data: PostUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Update post caption, location, or session conditions"""
     from datetime import datetime as dt
@@ -110,8 +111,8 @@ async def update_post(
 @router.delete("/posts/{post_id}")
 async def delete_post(
     post_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Delete a post"""
     from models import Profile

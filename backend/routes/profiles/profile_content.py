@@ -8,6 +8,7 @@ Profile Content Routes - for Instagram-style profile tabs
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -452,7 +453,7 @@ async def get_saved_posts(
 
 
 @router.post("/posts/{post_id}/save")
-async def save_post(post_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def save_post(post_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_user_id_from_jwt_or_query)):
     """Save/bookmark a post"""
     # Check if already saved
     existing = await db.execute(
@@ -476,7 +477,7 @@ async def save_post(post_id: str, user_id: str, db: AsyncSession = Depends(get_d
 
 
 @router.delete("/posts/{post_id}/save")
-async def unsave_post(post_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def unsave_post(post_id: str, db: AsyncSession = Depends(get_db), user_id: str = Depends(get_user_id_from_jwt_or_query)):
     """Remove a saved post"""
     result = await db.execute(
         select(SavedPost)

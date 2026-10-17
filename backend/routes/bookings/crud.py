@@ -357,9 +357,9 @@ class BookingSettingsUpdate(BaseModel):
 @router.patch("/bookings/{booking_id}")
 async def update_booking_settings(
     booking_id: str,
-    user_id: str,
     data: BookingSettingsUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Update booking settings (split mode, auto-confirm, etc.)"""
     # Get booking

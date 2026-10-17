@@ -51,6 +51,30 @@ TOKEN_IDENTITY = [
     ("POST", "/api/photographer-request"),
     ("POST", "/api/photographer-requests/{request_id}/respond"),
     ("POST", "/api/photographer-requests/{request_id}/cancel"),
+    # Batch 3 (LA-SEC-03, 2026-10-17):
+    ("POST", "/api/promo-codes/validate"),
+    ("POST", "/api/support/tickets"),
+    ("PATCH", "/api/bookings/{booking_id}"),
+    ("POST", "/api/gamification/award-xp"),
+    ("POST", "/api/impact/instant-shakas/{shaka_id}/view"),
+    ("POST", "/api/ads/impression"),
+    ("POST", "/api/ads/click"),
+    ("PUT", "/api/crew/{crew_hash}/settings"),
+    ("POST", "/api/crews/saved"),
+    ("PUT", "/api/crews/saved/{crew_id}"),
+    ("DELETE", "/api/crews/saved/{crew_id}"),
+    ("POST", "/api/crews/saved/{crew_id}/use"),
+    ("POST", "/api/crews/saved/{crew_id}/set-default"),
+    ("POST", "/api/messages/typing/{conversation_id}"),
+    ("PATCH", "/api/posts/{post_id}/settings"),
+    ("PATCH", "/api/posts/{post_id}"),
+    ("DELETE", "/api/posts/{post_id}"),
+    ("POST", "/api/posts/{post_id}/save"),
+    ("DELETE", "/api/posts/{post_id}/save"),
+    ("POST", "/api/sessions/pricing"),
+    ("POST", "/api/friends/accept/{friend_request_id}"),
+    ("POST", "/api/friends/decline/{friend_request_id}"),
+    ("DELETE", "/api/friends/{friend_id}"),
 ]
 # The client names the actor (where, which field); it must equal the token's subject.
 NAMED_ACTOR = [
@@ -135,7 +159,8 @@ def _request(method, path, actor=None, where=None, field=None):
         if where == "query" and q.name == field:
             params[q.name] = actor
         elif q.required:
-            params[q.name] = "true" if q.field_info.annotation is bool else "x"
+            ann = q.field_info.annotation
+            params[q.name] = "true" if ann is bool else "1" if ann in (int, float) else "x"
     body = None
     if route.dependant.body_params:
         b = route.dependant.body_params[0]
