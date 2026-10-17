@@ -103,17 +103,26 @@ def test_invalid_auth_cannot_search_as_member(mentions_http, credential, context
     assert mentions_http.db.statements == []
 
 
-@pytest.mark.parametrize("actor", [None, "captain", "outsider"])
+@pytest.mark.parametrize("actor", [None, "outsider"])
 def test_outsider_cannot_disclose_booking_priority(mentions_http, actor):
     response = search(mentions_http, subject="outsider", actor=actor)
     assert response.status_code == 403
     assert len(mentions_http.db.statements) == 1
 
 
+@pytest.mark.parametrize("context", ["crew_chat", "dm", "comment", "post"])
+@pytest.mark.parametrize("subject,actor", [("outsider", "captain"), ("captain", "crew"), ("crew", "captain")])
+def test_a_legacy_user_id_that_is_not_the_caller_is_refused_before_any_read(mentions_http, context, subject, actor):
+    """A selector naming someone else is the attack itself, so it is refused (not ignored) with no database work."""
+    response = search(mentions_http, subject=subject, actor=actor, context=context)
+    assert response.status_code == 403
+    assert mentions_http.db.statements == []
+
+
 @pytest.mark.parametrize("subject", ["captain", "crew", "photographer"])
-@pytest.mark.parametrize("actor", [None, "captain", "outsider"])
-def test_authorized_roles_get_actual_booking_priority(mentions_http, subject, actor):
-    response = search(mentions_http, subject=subject, actor=actor)
+@pytest.mark.parametrize("own_selector", [False, True])
+def test_authorized_roles_get_actual_booking_priority(mentions_http, subject, own_selector):
+    response = search(mentions_http, subject=subject, actor=subject if own_selector else None)
     assert response.status_code == 200
     users = response.json()["users"]
     priority = {u["user_id"] for u in users if u["is_priority"]}
@@ -129,7 +138,7 @@ def test_unknown_booking_is_forbidden_before_profile_search(mentions_http, actor
 
 
 @pytest.mark.parametrize("context", ["crew_chat", "comment", "post"])
-@pytest.mark.parametrize("actor", [None, "crew"])
+@pytest.mark.parametrize("actor", [None, "captain"])
 def test_context_free_search_uses_verified_follow_graph(mentions_http, context, actor):
     response = search(mentions_http, actor=actor, context=context, context_id=None, query="", limit=1)
     assert response.status_code == 200
