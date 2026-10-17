@@ -1913,7 +1913,11 @@ jobs:
           # 35, info 44, jwt consumer 41, mentions 38, reply scope 46, dm mentions 69) to the hosted 1847 read of
           # PR 371 (CI: 315 files selected, 1847 passed): projected 2188; 2188 - 2 = 2186, margin 2.
           # This PR must read 322 files / 2188.
-          MIN_PASSED = 2186
+          # ⬆ 2186→2255 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (actor-route binding, batch 3): the existing
+          # binding file adds 69 executed tests (23 routes x 3) to the hosted 2188 read of PR 372
+          # (CI: 322 files selected, 2188 passed): projected 2257; 2257 - 2 = 2255, margin 2.
+          # This PR must read 322 files / 2257.
+          MIN_PASSED = 2255
 
           try:
               root = ET.parse('estate.xml').getroot()

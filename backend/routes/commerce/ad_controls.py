@@ -344,8 +344,8 @@ async def get_ad_analytics(
 @router.post("/ads/impression")
 async def track_ad_impression(
     variant_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Track an ad impression (called from frontend)"""
     try:
@@ -366,8 +366,8 @@ async def track_ad_impression(
 @router.post("/ads/click")
 async def track_ad_click(
     variant_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Track an ad click (called from frontend)"""
     try:

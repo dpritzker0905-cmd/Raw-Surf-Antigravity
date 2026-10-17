@@ -4,6 +4,7 @@ Friend finder, privacy settings, map visibility
 """
 
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
@@ -93,8 +94,8 @@ async def send_friend_request(
 @router.post("/accept/{friend_request_id}")
 async def accept_friend_request(
     friend_request_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Accept a friend request"""
     result = await db.execute(
@@ -122,8 +123,8 @@ async def accept_friend_request(
 @router.post("/decline/{friend_request_id}")
 async def decline_friend_request(
     friend_request_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Decline a friend request"""
     result = await db.execute(
@@ -146,8 +147,8 @@ async def decline_friend_request(
 @router.delete("/{friend_id}")
 async def remove_friend(
     friend_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Remove a friend (unfriend)"""
     result = await db.execute(

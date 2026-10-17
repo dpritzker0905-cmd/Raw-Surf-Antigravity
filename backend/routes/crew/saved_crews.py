@@ -3,6 +3,7 @@ Saved Crew Presets API
 Quick-start feature for Pro/Comp surfers to save and auto-load default crews
 """
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from pydantic import BaseModel
@@ -96,9 +97,9 @@ async def get_default_crew(
 
 @router.post("/crews/saved")
 async def create_saved_crew(
-    user_id: str,
     data: CreateSavedCrewRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Create a new saved crew preset"""
     # Verify user exists
@@ -150,9 +151,9 @@ async def create_saved_crew(
 @router.put("/crews/saved/{crew_id}")
 async def update_saved_crew(
     crew_id: str,
-    user_id: str,
     data: UpdateSavedCrewRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Update a saved crew preset"""
     result = await db.execute(
@@ -198,8 +199,8 @@ async def update_saved_crew(
 @router.delete("/crews/saved/{crew_id}")
 async def delete_saved_crew(
     crew_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Delete a saved crew preset"""
     result = await db.execute(
@@ -219,8 +220,8 @@ async def delete_saved_crew(
 @router.post("/crews/saved/{crew_id}/use")
 async def mark_crew_used(
     crew_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Mark a saved crew as used (updates usage stats)"""
     result = await db.execute(
@@ -245,8 +246,8 @@ async def mark_crew_used(
 @router.post("/crews/saved/{crew_id}/set-default")
 async def set_default_crew(
     crew_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Set a saved crew as the default for On-Demand sessions"""
     result = await db.execute(

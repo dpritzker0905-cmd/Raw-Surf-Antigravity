@@ -4,6 +4,7 @@ Handles crew statistics, badges, and leaderboard rankings
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, or_, and_, text, cast
 from sqlalchemy.dialects.postgresql import JSONB
@@ -411,10 +412,10 @@ async def get_user_crew_summary(
 @router.put("/crew/{crew_hash}/settings")
 async def update_crew_settings(
     crew_hash: str,
-    user_id: str,
     name: Optional[str] = None,
     is_public: Optional[bool] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """
     Update crew settings (name, privacy) - only members can update
