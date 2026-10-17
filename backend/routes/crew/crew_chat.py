@@ -107,11 +107,16 @@ async def get_crew_chat_messages(
     # Pagination cursor
     if before:
         before_msg = await db.execute(
-            select(CrewChatMessage).where(CrewChatMessage.id == before)
+            select(CrewChatMessage).where(
+                CrewChatMessage.id == before,
+                CrewChatMessage.booking_id == booking_id,
+                CrewChatMessage.is_deleted.is_(False),
+            )
         )
         before_msg = before_msg.scalar_one_or_none()
-        if before_msg:
-            query = query.where(CrewChatMessage.created_at < before_msg.created_at)
+        if before_msg is None:
+            raise HTTPException(status_code=400, detail="Invalid message cursor")
+        query = query.where(CrewChatMessage.created_at < before_msg.created_at)
     
     query = query.order_by(CrewChatMessage.created_at.desc()).limit(limit)
     
