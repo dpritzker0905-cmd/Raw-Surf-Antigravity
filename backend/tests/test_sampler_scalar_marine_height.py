@@ -153,7 +153,7 @@ def test_the_scalar_answer_is_never_below_the_vector_answer(monkeypatch):
         assert on >= off - 1e-4
 
 
-def test_every_lane_that_samples_a_point_declares_the_switch_dark_and_equal():
+def test_every_lane_that_samples_a_point_declares_the_switch_flipped_and_equal():
     """Glyphs (precompute, core ingest) and the consensus builder (pilots) sample through this code; a flip
     in one lane alone would serve two interpolations of the same sea."""
     values = {}
@@ -163,7 +163,7 @@ def test_every_lane_that_samples_a_point_declares_the_switch_dark_and_equal():
                  if isinstance(st, dict) and "SAMPLER_SCALAR_HEIGHT" in (st.get("env") or {})]
         assert len(found) == 1, wf
         values[wf] = found[0]
-    assert set(values.values()) == {"0"}, values
+    assert set(values.values()) == {"1"}, values      # FLIPPED 2026-10-17 (GFS first, via SAMPLER_SCALAR_HEIGHT_MODELS)
 
 
 # ─── THE LEDGER'S SCALAR SHADOW LANE: paired buoy truth for the flip ─────────────────────────────────────────────
