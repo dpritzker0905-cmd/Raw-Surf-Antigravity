@@ -336,7 +336,7 @@ async def send_crew_chat_message(
 @router.post("/crew-chat/{booking_id}/mark-read")
 async def mark_messages_read(
     booking_id: str,
-    user_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Mark all messages in the chat as read by this user"""
