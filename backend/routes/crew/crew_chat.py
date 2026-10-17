@@ -373,7 +373,7 @@ async def mark_messages_read(
 @router.get("/mentions/search")
 async def search_mentions(
     query: str,
-    user_id: str,
+    user_id: str = Depends(get_current_user_id),
     context: str = "crew_chat",
     context_id: Optional[str] = None,
     limit: int = 10,
@@ -384,7 +384,7 @@ async def search_mentions(
     
     Args:
         query: Search query (partial username or name)
-        user_id: Current user ID
+        user_id: Verified current user ID
         context: 'crew_chat', 'dm', 'comment', 'post'
         context_id: booking_id, conversation_id, etc.
         limit: Max results
@@ -394,6 +394,12 @@ async def search_mentions(
     2. Users the current user follows
     3. All public profiles matching query
     """
+    # Booking priority reveals private participation, even when profile names are public.
+    if context == "crew_chat" and context_id:
+        booking, _ = await verify_chat_access(context_id, user_id, db)
+        if not booking:
+            raise HTTPException(status_code=403, detail="You don't have access to this chat")
+
     results = await mentions_service.search_mentionable_users(
         query=query,
         current_user_id=user_id,
