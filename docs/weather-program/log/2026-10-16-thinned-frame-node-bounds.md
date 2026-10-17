@@ -184,3 +184,19 @@ Owner, 14:06 EDT (dictated): "go ahead and merge the 345 and the 346. Once their
 - #353: the owner's word to merge (ships ON, kill `__RAW_DISABLE_PARITY_REPUBLISH__`).
 - #350: review 4's verdict, the hosted floor reading (must be 204 files / 2892), a merge of dev into the branch, then the owner's word to merge and, separately, to set the flag in the L2 writers' env.
 - #352: merge after the last line of the day is in it.
+
+## Update, the owner's 19:24 ask (ledger 1325-1330)
+
+**Asked:** merge the parity fix and take the flip read-back, then test visually for jumping on pan or zoom.
+
+- **#353 MERGED** (f274fc793, ledger 1325); the dev site served it within minutes. Its push-triggered E2E failed at the Render wait (Render ignores `[skip render]` commits, so the backend never serves the commit and the lane gives up after 15 minutes): no test ran. A dispatch (38983302256) ran the lane: 65 passed, 2 flaky (booking-flow, Desktop Chrome, auth gating and spot-detail recovery, passed on retry), 9 skipped, 0 failed, 18.4 minutes (ledger 1326-1327). The box answered slowly for about three minutes after (health 3.6 to 8.2 s), then recovered.
+- **The dev site is behind the access-code screen,** which I cannot pass, so the visual test ran a local build of the same client against the real backend through a new opt-in harness mode (`AB_LIVE=1`, draft #354), read-only weather GETs, three scripted loads in about ten minutes, health probed before and after each (0.4 to 1.3 s, all 200).
+- **Read-back (ledger 1328).** The two 48-frame world pages the box serves now are stride 4 with `bounds.north` 80, equal to the last kept row; flag off would say 84. Thinned versus exact at the same hour and camera registers at 0 px live; the replay with the merged client and the flag off reads 30 px = 2.11 deg and with it on 0 px. Frozen-camera windows on real data (settle, one-stop zoom, 4-degree pan) show no redraw and at most 2 px (0.05 deg). The overlay image (thinned red, exact cyan; flag off, flag on, live) was sent to the owner. Limits: the flag-off value was not measured live, nor mask-sized upload counts, nor the owner's own look; commitment 1322 stays open for those.
+- **My first live scenario reached no thinned stage** (it pressed the scrub before the 48-frame page had landed) and recorded only the series bounds; the scenario now waits for the page. I note the extra live load it cost.
+- **#350, review 5 of round 5 (ledger 1330):** approve with changes; the stricter 404 standard must key off the lane being active, not the raw flag; a late-landing earlier unknown swap is forgotten; a head that parses but breaks reconcile never self-heals; two bookkeeping nits; the PostgREST missing-table answer (404 PGRST205) is documented as a limit. Round 6 is with the builder; the PR stays draft.
+
+**Owed now (replaces the previous Owed list where it differs).**
+- Commitment 1322 (due 2026-10-19): the owner's own look on the dev site for the position jump, and live mask-sized upload counts.
+- #354: the owner's word to merge (tooling only).
+- #350: round 6, my re-run, floors, the hosted reading, a merge of dev into the branch, then the owner's word to merge and, separately, to set the flag in the L2 writers' env.
+- The docs PR carrying ledger 1323-1330 (this one): merge once its checks are green.
