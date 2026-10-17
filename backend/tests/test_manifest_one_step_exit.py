@@ -339,7 +339,19 @@ def test_a_job_that_never_sent_a_swap_says_what_it_left_untouched_in_the_old_wor
     with caplog.at_level(logging.ERROR):
         parked.run()
     gave_up = next(r.getMessage() for r in caplog.records if "NOT published after" in r.getMessage())
-    assert "the pointer, the unique manifest objects and the legacy manifest.json are untouched" in gave_up, gave_up
+    assert "the pointer and the legacy manifest.json are untouched" in gave_up, gave_up
+    assert "unique create-only objects left by lost attempts may remain until retention removes them" in gave_up, gave_up
+    assert "unique manifest objects" not in gave_up, "the old wording claimed objects were untouched that lost attempts leave behind"
+
+
+def test_the_give_up_wording_is_true_after_five_lost_attempts_that_each_left_a_unique_object_behind(chain, store, parked, caplog):
+    """The reviewer's b2: five clean losses, five unreferenced unique objects in storage, and the message must not call them untouched."""
+    _keep_moving(chain, 10)
+    submit(store, BASE + PILOTS_NEW)
+    with caplog.at_level(logging.ERROR):
+        parked.run()
+    gave_up = next(r.getMessage() for r in caplog.records if "NOT published after" in r.getMessage())
+    assert len(chain.copies()) == mps.MAX_ATTEMPTS and "may remain until retention removes them" in gave_up, (chain.copies(), gave_up)
 
 
 @pytest.fixture
@@ -494,3 +506,17 @@ def test_the_memory_of_an_unconfirmed_swap_crosses_from_the_executor_thread_to_t
     chain.foreign_publish(lambda products: products + [_raw_wind(X, run_time=RUN_TIME + timedelta(hours=6))])
     mps._flush_at_exit()
     assert mps._slot.pending is None and X in chain.head_files(), "the flush on the main thread did not know about the swap"
+
+
+# ── round 8: the adoption fetch reads the HEAD's key ─────────────────────────────────────────────────────────────────────────
+
+def test_the_adoption_fetch_reads_the_head_key_not_the_newest_remembered_one(chain, store, parked, monkeypatch):
+    """Both objects exist in storage, so a fetch of the wrong key would answer with bytes: only the key shows it."""
+    first = _two_unknown_swaps_then_the_first_lands_late(chain, store, parked)
+    newest = list(mps._slot.attempted)[-1]
+    assert newest != first and newest in chain.objects
+    chain.events.clear()
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    mps._flush_at_exit()
+    assert chain.kinds("fetch") == [("fetch", first)], chain.kinds("fetch")
+    assert mps._slot.pending is None
