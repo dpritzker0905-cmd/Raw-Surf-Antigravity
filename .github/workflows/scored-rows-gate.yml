@@ -1,0 +1,68 @@
+# ONE-OFF. A read-only gate for the scalar-height flip. DELETE THIS FILE AFTER IT HAS BEEN USED.
+#
+# WHY (ledger commitment 1335, owner's choice 2026-10-17): the flip of SAMPLER_SCALAR_HEIGHT (D-001: served numbers change only
+# dark-then-flip, on the owner's word with evidence) has one gate left that the Forecast Accuracy Monitor cannot read: whether
+# the scalar-height lane loses to the served lane on any coast or in any FORECAST-height band, how much of its gain is bias and
+# how much is spread, and (commitment 1336) why the built CONSENSUS shadow reads high at +48/+72 h. Those need the skill ledger's
+# scored rows, which sit in Storage behind the service key. This job holds that key already (same secrets as the monitor) so
+# nothing has to be downloaded to a laptop.
+#
+# WHAT IT DOES: backend/scripts/scored_rows_gate.py reads the scored archive with the monitor's own loader and prints AGGREGATES
+# to the job log and $GITHUB_STEP_SUMMARY as markdown tables. This repository is PUBLIC and so are its Actions logs: no row, no
+# per-buoy line, no per-pair value is printed; a cell under n = 10 prints `n<10`; no artifact is uploaded.
+#
+# WHAT IT CANNOT DO: GET only, enforced in code (any other method, any request body, any host but the Supabase project raises).
+# No Storage write, no database write, no workflow dispatch, no network call to anything else. permissions: contents: read.
+#
+# WHEN IT RUNS: workflow_dispatch ONLY (no schedule, no push, no pull_request), and only on the OWNER'S WORD. GitHub runs a
+# workflow_dispatch file only if it exists on the DEFAULT branch (dev here), so merging this file to dev is the owner's first
+# word and dispatching it the second. Delete the file (and scripts/scored_rows_gate.py, services/weather_pipeline/
+# scored_rows_analysis.py, tests/test_scored_rows_gate.py with its floor entries) in the PR that records the result.
+name: Scored Rows Gate (ONE-OFF)
+
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: 'First target time to include (UTC ISO). Default: the first monitor read with GFS_SCALAR rows.'
+        required: false
+        default: '2026-10-03T00:00:00Z'
+      min_n:
+        description: 'Pairs a cell needs to decide the gate (never below 10).'
+        required: false
+        default: '100'
+      max_loss_m:
+        description: 'Largest MAE loss, in metres, the scalar lane may show against the served lane in any such cell.'
+        required: false
+        default: '0.005'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scored-rows-gate
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Scored rows gate (read-only, aggregates only)
+        working-directory: backend
+        env:
+          # The monitor's own pair, by name only; the values never appear in this file or in any output.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # Dispatch inputs go through the environment, never interpolated into the shell line.
+          GATE_SINCE: ${{ inputs.since }}
+          GATE_MIN_N: ${{ inputs.min_n }}
+          GATE_MAX_LOSS_M: ${{ inputs.max_loss_m }}
+        run: |
+          set -o pipefail
+          python3 scripts/scored_rows_gate.py \
+            --since "$GATE_SINCE" \
+            --min-n "$GATE_MIN_N" \
+            --max-loss "$GATE_MAX_LOSS_M"
