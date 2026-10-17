@@ -1436,7 +1436,11 @@ jobs:
           # (13, a new file selector-verified into this lane) plus 16 in test_forecast_skill_retention.py; hosted reading on
           # dev db453937 (CI 38844443190: 163 files, 2444 passed) -> projected 2473/164; 2473 - 6 = 2467.
           # This PR must read 164 files / 2473.
-          MIN_FILES, MIN_PASSED = 164, 2467
+          # ⬆ 164/2467 → 165/2608 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the surf-zone gate on the nearshore judge's
+          # report): tests/test_nearshore_gate.py (141, a new file selector-verified into this lane); the same dev reading as the
+          # previous entry (2473 passed after the skill-ledger entry) + 141 -> projected 2614/165; 2614 - 6 = 2608. This PR must read
+          # 165 files / 2614. (The one-off scored-rows gate PR adds its own +1 file / +44: whichever merges second re-derives.)
+          MIN_FILES, MIN_PASSED = 165, 2608
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1842,7 +1846,9 @@ jobs:
           # Budget contracts add32 executed estate cases: projected1650, margin2.
           # One private-migration case runs in openai-budget-postgres, not SQLite estate.
           # Saved-board clue contracts add24 executed estate cases: projected1674, margin2.
-          MIN_PASSED = 1672
+          # Surf-zone gate workflow pins add 5 executed estate cases to test_nearshore_workflow_eligibility.py (an existing
+          # estate file): projected 1679, margin 2.
+          MIN_PASSED = 1677
 
           try:
               root = ET.parse('estate.xml').getroot()
