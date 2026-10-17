@@ -63,4 +63,4 @@ Hypothesis, not a result: the members' period biases have opposite signs (GFS +0
 ## 5. Ledger
 
 1393 finding (the live readout). 1394 doc_write (this log, the SCOREBOARD row, STATE's head). 1395 commitment (read the `consensus` block after merge).
-The push and the PR opening are ledgered after they happened.
+1396 push (branch at 2b9e8bb63, read back with `git ls-remote`). 1397 pr_open (#375, DRAFT, base dev, `gh pr view` read back: OPEN, draft, MERGEABLE). Both were written after the actions happened.
