@@ -52,7 +52,7 @@ def test_a_won_swap_lists_once_and_deletes_in_one_batch_with_these_request_shape
     (list_url, list_body, list_timeout), = chain.list_requests
     assert list_url == "https://storage.invalid/storage/v1/object/list/weather-products"
     assert list_body == {"prefix": "manifests", "search": "manifest-g", "limit": 100, "offset": 0,
-                         "sortBy": {"column": "name", "order": "asc"}}
+                         "sortBy": {"column": "name", "order": "desc"}}
     assert list_timeout == 5
     (delete_url, prefixes, delete_timeout), = chain.delete_requests
     assert delete_url == "https://storage.invalid/storage/v1/object/weather-products" and delete_timeout == 5
@@ -244,3 +244,42 @@ def test_the_gauge_says_its_standing_count_is_taken_before_this_delete(chain, st
         publish(store)
     line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
     assert "standing before this delete" in line, line
+
+
+# ── the production population: first read of the lane in production, 2026-10-17 ──────────────────────────────────────────
+# 2,683 per-generation files from the legacy writers ("manifest-g000000144496.json": no hash) sort BEFORE every unique copy. The
+# oldest-first listing of 100 rows saw only those: 318 gauge lines read '0 standing, 0 deleted' while Storage held 353 unique
+# copies (5.2 GiB) and grew by about 15 MiB a publish. Every test above seeded only unique names, so none could see it.
+
+def legacy_key(generation):
+    return "manifests/manifest-g%012d.json" % generation
+
+
+def seed_legacy(chain, generations, age_seconds=86400 * 30):
+    for generation in generations:
+        key = legacy_key(generation)
+        chain.objects[key] = chain.objects[mps_base_key(chain)]
+        chain.created[key] = chain.now - timedelta(seconds=age_seconds)
+
+
+def test_legacy_per_generation_files_that_sort_first_do_not_hide_the_unique_copies(chain, store, inline):
+    seed_legacy(chain, range(1, 151))                               # more than one listing page of older, differently named files
+    settle_at(chain, 400)
+    seed(chain, range(380, 391), age_seconds=3600)
+    publish(store)                                                  # wins generation 401: every unique copy <= 396 is retired
+    (_, prefixes, _), = chain.delete_requests
+    assert sorted(prefixes) == [copy_key(g) for g in range(380, 391)]
+    assert generations_left(chain) == [400, 401]
+    assert all(legacy_key(g) in chain.objects for g in range(1, 151)), "retention never touches a name it does not own"
+
+
+def test_the_gauge_counts_the_unique_copies_even_when_legacy_files_outnumber_a_listing(chain, store, inline, caplog):
+    import re
+    seed_legacy(chain, range(1, 151))
+    settle_at(chain, 400)
+    seed(chain, range(380, 391), age_seconds=3600)
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
+    match = re.search(r"(\d+) unique manifest cop\w+ standing.* (\d+) deleted", line)
+    assert match and (int(match[1]), int(match[2])) == (13, 11), line

@@ -908,7 +908,11 @@ jobs:
           # workflows, owner's explicit word): +1 case in the existing tests/test_manifest_one_step_sites.py (the four workflows carry
           # the flag equally); hosted reading on dev after #350 (CI 38999853463 on the branch head: 3131 passed) -> projected 3132;
           # 3132 - 6 = 3126. This PR must read 207 files / 3132.
-          MIN_FILES, MIN_PASSED = 207, 3126
+          # ⬆ 207/3126 → 207/3128 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the one-step lane's retention lists NEWEST first;
+          # the first production reading showed it blind to its own copies): +2 cases in the existing
+          # tests/test_manifest_one_step_retention.py (23 -> 25, no new file); the dev reading after #364 is 3132 -> projected 3134;
+          # 3134 - 6 = 3128. This PR must read 207 files / 3134.
+          MIN_FILES, MIN_PASSED = 207, 3128
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
