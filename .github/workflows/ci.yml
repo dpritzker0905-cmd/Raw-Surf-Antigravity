@@ -904,7 +904,11 @@ jobs:
           # tests/test_manifest_one_step_head.py (19, claimed by this lane; keeps test_manifest_one_step_recovery.py under 800 lines);
           # 384 cases in 10 files; the dev reading after #360 is 2747 -> projected 3131/207; 3131 - 6 = 3125. This PR must read
           # 207 files / 3131.
-          MIN_FILES, MIN_PASSED = 207, 3125
+          # ⬆ 207/3125 → 207/3126 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the manifest lane ENABLED in the four writer
+          # workflows, owner's explicit word): +1 case in the existing tests/test_manifest_one_step_sites.py (the four workflows carry
+          # the flag equally); hosted reading on dev after #350 (CI 38999853463 on the branch head: 3131 passed) -> projected 3132;
+          # 3132 - 6 = 3126. This PR must read 207 files / 3132.
+          MIN_FILES, MIN_PASSED = 207, 3126
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

@@ -67,6 +67,7 @@ jobs:
           NODE_ENV: production
           RENDER: 'true'
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
+          MANIFEST_PUBLISH_ONE_STEP: '1' # ENABLED 2026-10-17 on the owner's explicit word (#350): read-merge-CAS in one step; ALL manifest writers together (forecast-ingest, pilots, precompute, sim-parity-monitor); NOT Render. Kill: set '0' in all four.
           FORECAST_JOB_STAGGER_SEC: '0'
           INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
           CONSENSUS_INGEST: '1'         # ARMED by the owner's merge of the arming PR (D-009; declared '0' by #164). '1' builds the equal GFS/EURO/ICON mean as the SHADOW model CONSENSUS in the pilots lane (consensus_ingest.py) and adds the `raw_surf:CONSENSUS` lane to the skill ledger that forecast-ingest.yml and precompute.yml run. Serves nothing either way. ARM ALL THREE TOGETHER: forecast-ingest-pilots.yml, forecast-ingest.yml, precompute.yml.

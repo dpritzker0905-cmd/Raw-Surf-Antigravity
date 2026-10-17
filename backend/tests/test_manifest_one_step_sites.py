@@ -138,3 +138,20 @@ def test_the_flag_is_registered_dark_and_points_at_the_l2_writers_not_render():
     assert default == "0", "a change to what the manifest publishes ships dark"
     assert "workflow" in where.lower() and "render" in where.lower() and where.lower().count("not render") == 1
     assert "pilots" in where.lower() and "precompute" in where.lower() and "forecast-ingest" in where.lower()
+
+
+def test_every_manifest_writer_workflow_sets_the_lane_flag_equally():
+    """ENABLED 2026-10-17 on the owner's explicit word: the lane is only correct when ALL manifest writers run it, so the four
+    writer workflows (forecast-ingest, pilots, precompute, sim-parity-monitor) must carry the same value; Render is NOT one of them."""
+    import pathlib
+
+    import yaml
+    root = pathlib.Path(__file__).resolve().parents[2] / ".github" / "workflows"
+    values = {}
+    for wf in ("forecast-ingest", "forecast-ingest-pilots", "precompute", "sim-parity-monitor"):
+        d = yaml.safe_load((root / (wf + ".yml")).read_text(encoding="utf-8"))
+        found = [st["env"]["MANIFEST_PUBLISH_ONE_STEP"] for j in d["jobs"].values() for st in j.get("steps", [])
+                 if isinstance(st, dict) and "MANIFEST_PUBLISH_ONE_STEP" in (st.get("env") or {})]
+        assert len(found) == 1, wf
+        values[wf] = found[0]
+    assert set(values.values()) == {"1"}, values
