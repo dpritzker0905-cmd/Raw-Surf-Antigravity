@@ -22,6 +22,7 @@ from .core import (
     upload_to_supabase_storage, get_file_extension,
     _cached_file_response, _SHORT_CACHE,
 )
+from .storage import unlinked_media_names
 from utils.video_processor import (
     get_video_info, process_video_from_path, process_video_upload,
     generate_video_thumbnail
@@ -488,9 +489,8 @@ async def export_video_frame(
         video_source = str(local_video_path)
 
     # 2. Setup output filenames
-    unique_id = str(uuid.uuid4())
-    frame_filename = f"exported_{unique_id}.jpg"
-    frame_preview_filename = f"preview_exported_{unique_id}.jpg"
+    # The original's name must not be derivable from the public preview's (LA-GAL-02).
+    frame_filename, frame_preview_filename = unlinked_media_names(".jpg", prefix="exported_")
     
     out_original_path = working_dir / frame_filename
     out_preview_path = working_dir / frame_preview_filename
@@ -568,8 +568,11 @@ async def export_video_frame(
             style=w_style
         )
     except Exception as e:
+        # The fallback here copied the original into the preview's place, publishing the paid
+        # frame as its own free preview. Refuse instead (LA-GAL-02).
         logger.warning(f"Failed to auto-watermark extracted frame: {e}")
-        shutil.copy(str(out_original_path), str(out_preview_path))
+        out_original_path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Could not create a preview for this frame")
 
     # 5. Persist original and preview files to Supabase Storage
     supabase_original = None

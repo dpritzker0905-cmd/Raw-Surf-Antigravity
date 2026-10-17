@@ -17,6 +17,8 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id
+from .ownership import AssignAccessType, require_gallery_photographer
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -49,6 +51,7 @@ router = APIRouter()
 async def trigger_gallery_distribution(
     gallery_id: str,
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -68,8 +71,7 @@ async def trigger_gallery_distribution(
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     # Must be a session-linked gallery
     if not gallery.live_session_id and not gallery.booking_id and not gallery.dispatch_id:
@@ -131,6 +133,7 @@ async def trigger_gallery_distribution(
 async def get_gallery_session_participants(
     gallery_id: str,
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -145,8 +148,7 @@ async def get_gallery_session_participants(
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     participants = []
     session_info = {
@@ -351,6 +353,7 @@ async def link_gallery_to_session(
     gallery_id: str,
     photographer_id: str,
     data: LinkSessionRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -365,8 +368,7 @@ async def link_gallery_to_session(
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     if not data.live_session_id and not data.booking_id and not data.dispatch_id:
         raise HTTPException(status_code=400, detail="Must provide live_session_id, booking_id, or dispatch_id")
@@ -429,7 +431,7 @@ async def link_gallery_to_session(
 
 class DistributeToSurferRequest(BaseModel):
     surfer_id: str
-    access_type: str = 'pending_selection'  # 'pending_selection', 'included', 'gifted'
+    access_type: AssignAccessType = 'pending_selection'
 
 
 @router.post("/gallery/{gallery_id}/distribute-to-surfer")
@@ -437,6 +439,7 @@ async def distribute_gallery_to_surfer(
     gallery_id: str,
     photographer_id: str,
     data: DistributeToSurferRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -455,8 +458,7 @@ async def distribute_gallery_to_surfer(
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     # Verify surfer exists
     surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))

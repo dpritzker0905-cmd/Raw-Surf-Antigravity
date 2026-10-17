@@ -206,15 +206,71 @@ async def create_booking_with_stripe(
     }
 
 
+def _booking_session_matches(checkout_session, booking_id: str, user_id: str, owed: float) -> bool:
+    """A paid session confirms a booking only if it was created for THAT booking, by its creator,
+    for the amount on the transaction record (Stripe totals are integer cents)."""
+    metadata = getattr(checkout_session, 'metadata', None) or {}
+    amount_total = getattr(checkout_session, 'amount_total', None)
+    return (
+        metadata.get('type') == 'scheduled_booking'
+        and metadata.get('booking_id') == booking_id
+        and metadata.get('user_id') == user_id
+        and isinstance(amount_total, int)
+        and abs(amount_total - float(owed or 0) * 100) < 1
+    )
+
+
 @router.get("/bookings/payment-success")
 async def booking_payment_success(
     session_id: str, booking_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Handle successful Stripe payment for booking - converts to credits"""
-    from routes.notifications.push import notify_booking
-    
-    if session_id.startswith("cs_test_"):
+    """Confirm a scheduled booking once its checkout is paid.
+
+    Only the booking's creator may confirm it, only with the checkout session recorded for that
+    booking, and only after the payment is verified. Both are checked before any provider call or
+    write. The local checkout emulator stands in for Stripe only where checkout_emulation_allowed()
+    (a process that identifies itself as local or test, never with a live key).
+    """
+    from routes.sessions.payments import checkout_emulation_allowed
+
+    # Row lock: two concurrent confirmations of one session must not both see it unpaid.
+    tx_result = await db.execute(
+        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id).with_for_update()
+    )
+    transaction = tx_result.scalar_one_or_none()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    if transaction.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot confirm another user's payment")
+    try:
+        recorded_booking_id = json.loads(transaction.transaction_metadata or "{}").get("booking_id")
+    except (TypeError, ValueError, AttributeError):
+        recorded_booking_id = None
+    if recorded_booking_id is None or str(recorded_booking_id) != str(booking_id):
+        raise HTTPException(status_code=400, detail="Payment does not match this booking")
+
+    booking_result = await db.execute(
+        select(Booking).where(Booking.id == booking_id)
+        .options(selectinload(Booking.photographer))
+    )
+    booking = booking_result.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.creator_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot confirm another user's booking")
+
+    # Confirmation happens once, from Pending Payment. A replayed or late call writes nothing:
+    # replaying a paid session used to re-confirm a cancelled booking, re-hold its escrow and
+    # re-mark its participant paid, so a second cancellation refunded twice.
+    if transaction.payment_status == 'paid':
+        return {"success": True, "message": "Booking already confirmed", "booking_id": booking.id,
+                "status": booking.status}
+    if booking.status not in ('Pending Payment', 'PendingPayment'):
+        raise HTTPException(status_code=409, detail="This booking is not awaiting payment")
+
+    if session_id.startswith("cs_test_") and checkout_emulation_allowed():
         # Emulate checkout retrieve through mock stripe-mcp server tool path
         payment_status = 'paid'
         try:
@@ -239,27 +295,18 @@ async def booking_payment_success(
         except stripe.error.StripeError as e:
             logger.error(f"Stripe error: {str(e)}")
             raise HTTPException(status_code=500, detail="Payment verification error")
-    
+        if payment_status == 'paid' and not _booking_session_matches(
+            checkout_session, str(booking_id), current_user_id, transaction.amount
+        ):
+            raise HTTPException(status_code=400, detail="Payment does not match this booking")
+
     if payment_status != 'paid':
         raise HTTPException(status_code=400, detail="Payment not completed")
-    
-    booking_result = await db.execute(
-        select(Booking).where(Booking.id == booking_id)
-        .options(selectinload(Booking.photographer))
-    )
-    booking = booking_result.scalar_one_or_none()
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    
+
     user_result = await db.execute(select(Profile).where(Profile.id == booking.creator_id))
     user = user_result.scalar_one_or_none()
-    
-    tx_result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
-    )
-    transaction = tx_result.scalar_one_or_none()
-    
-    if transaction and transaction.payment_status != 'paid':
+
+    if transaction.payment_status != 'paid':
         transaction.payment_status = 'paid'
         transaction.status = 'completed'
         
@@ -315,6 +362,9 @@ async def booking_payment_success(
     db.add(surfer_notification)
     
     try:
+        # Imported here, inside the guard: the helper is missing from this module (LA-PAY-08), and
+        # a failed push must not undo a verified payment.
+        from routes.notifications.push import notify_booking
         await notify_booking(
             user_id=booking.photographer_id, title='New Booking Confirmed!',
             message=f'{user.full_name if user else "A surfer"} booked a session on {session_time_str}', db=db
