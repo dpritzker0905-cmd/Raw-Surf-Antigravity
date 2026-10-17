@@ -253,6 +253,12 @@ async def crew_chat_websocket(
     Clients connect per booking and receive messages in real-time.
     """
     from database import async_session_maker
+    from routes.live.websocket import verify_websocket_auth
+
+    # LA-SEC-02: the URL names the user; only a token for that user may use the name. Without this anyone who
+    # knew a member's id could read the booking's messages and presence, and type as them.
+    if not await verify_websocket_auth(websocket, user_id):
+        return
 
     async with async_session_maker() as db:
         booking, role = await verify_chat_access(booking_id, user_id, db)

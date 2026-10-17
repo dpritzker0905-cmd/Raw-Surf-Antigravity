@@ -73,7 +73,13 @@ export default function useCrewChat({
     if (!user?.id || !bookingId) return;
 
     const connectWs = () => {
-      const ws = new WebSocket(`${WS_URL}/api/ws/crew-chat/${bookingId}/${user.id}`);
+      // The server binds the socket to the token's user (LA-SEC-02), as it does for the other sockets.
+      let token = user.access_token || '';
+      if (!token) {
+        try { token = JSON.parse(localStorage.getItem('raw-surf-user') || '{}')?.access_token || ''; } catch (e) { /* no stored session */ }
+      }
+      const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+      const ws = new WebSocket(`${WS_URL}/api/ws/crew-chat/${bookingId}/${user.id}${tokenQuery}`);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -120,7 +126,8 @@ export default function useCrewChat({
       ws.onerror = () => setIsConnected(false);
       ws.onclose = (event) => {
         setIsConnected(false);
-        if (event.code !== 1000) setTimeout(connectWs, 3000);
+        // 1008/4003 are the server refusing this user: retrying every 3 s cannot change the answer.
+        if (event.code !== 1000 && event.code !== 1008 && event.code !== 4003) setTimeout(connectWs, 3000);
       };
     };
 
