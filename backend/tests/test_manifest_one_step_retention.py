@@ -234,3 +234,13 @@ def test_the_gauge_says_so_when_the_listing_was_capped_and_when_nothing_was_dele
         publish(store)
     line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
     assert "0 deleted" in line and "capped" in line and "100" in line, line
+
+
+def test_the_gauge_says_its_standing_count_is_taken_before_this_delete(chain, store, inline, caplog):
+    """21 standing and 16 deleted reads like a contradiction until you know 21 is the listing BEFORE the delete (5 are left)."""
+    settle_at(chain, 20)
+    seed(chain, range(1, 20), age_seconds=3600)
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
+    assert "standing before this delete" in line, line

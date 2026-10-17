@@ -88,8 +88,22 @@ def _disable_for_process(reason: str, loud: bool = False):
                 sys.stdout.flush()
 
 
-def _one_step_lane_on() -> bool:
-    return os.environ.get("MANIFEST_PUBLISH_ONE_STEP", "0") == "1"
+def one_step_lane_active() -> bool:
+    """Is the one-step lane ACTUALLY the lane in this process? The single predicate: `manifest_publish_step.one_step_active()` is this.
+
+    The flag on is not enough. With MANIFEST_IMMUTABLE_PUBLICATION=1 (that lane owns the commit), MANIFEST_MERGE_ON_UPLOAD=0 (merging
+    off), the pointer lane latched off, or a box that is not the designated writer, every publisher in the process is on TODAY'S
+    path and must see today's behaviour, 404 standard included."""
+    if os.environ.get("MANIFEST_PUBLISH_ONE_STEP", "0") != "1":
+        return False
+    if os.environ.get("MANIFEST_IMMUTABLE_PUBLICATION", "0") == "1":
+        return False
+    if os.environ.get("MANIFEST_MERGE_ON_UPLOAD", "1") == "0":
+        return False
+    if not pointer_enabled():
+        return False
+    from services.weather_pipeline import store
+    return store._l2_pipeline_writes_allowed()
 
 
 def _table_missing(resp) -> bool:
@@ -100,7 +114,7 @@ def _table_missing(resp) -> bool:
     message, status 400 or 404 (the same standard `_definite_miss` applies to objects). Anything else is not evidence: a PostgREST
     schema-cache miss (PGRST205), a proxy's 404 page, an empty 404 all happen to a healthy deployment, and latching on them
     turned one transient read into the lossy old path for the rest of the process. Those are retried like any 5xx."""
-    if not _one_step_lane_on():
+    if not one_step_lane_active():
         return resp.status_code == 404 or (resp.status_code == 400 and "42P01" in resp.text)
     if resp.status_code not in (400, 404):
         return False
@@ -154,9 +168,9 @@ def read_pointer(timeout: float = 8) -> Optional[dict]:
         )
         if _table_missing(resp):
             _disable_for_process(f"pointer table missing (HTTP {resp.status_code}) — migration not applied yet",
-                                 loud=_one_step_lane_on())
+                                 loud=one_step_lane_active())
             return None
-        if resp.status_code == 404 and _one_step_lane_on():
+        if resp.status_code == 404 and one_step_lane_active():
             _note_ambiguous_404("read", resp)
             return None
         if resp.status_code != 200:
@@ -220,9 +234,9 @@ def cas_advance(expected_generation: int, manifest_key: str, run_id: Optional[st
         )
         if _table_missing(resp):
             _disable_for_process(f"pointer table missing (HTTP {resp.status_code}) — migration not applied yet",
-                                 loud=_one_step_lane_on())
+                                 loud=one_step_lane_active())
             return False
-        if resp.status_code == 404 and _one_step_lane_on():
+        if resp.status_code == 404 and one_step_lane_active():
             _note_ambiguous_404("swap", resp)
             return False
         if resp.status_code not in (200, 201):

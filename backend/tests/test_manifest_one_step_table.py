@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 
+import services.weather_pipeline.store as store_mod
 from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
 from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
@@ -54,17 +55,20 @@ def _pointer_env(monkeypatch):
     monkeypatch.setattr(mp, "_disabled_for_process", False)
     monkeypatch.setattr(mp, "_ambiguous_404s", 0)
     monkeypatch.setattr(mp, "_rest_base_and_headers", lambda: ("https://db.invalid", {"apikey": "test-key"}))
-    monkeypatch.delenv("MANIFEST_POINTER", raising=False)
+    monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: True)          # the designated writer: the lane CAN be active
+    for name in ("MANIFEST_IMMUTABLE_PUBLICATION", "MANIFEST_MERGE_ON_UPLOAD", "MANIFEST_POINTER"):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
 def http(monkeypatch):
     """requests.get / requests.patch: each call consumes the next scripted Reply (the last one repeats)."""
     import requests
-    script = SimpleNamespace(get=[], patch=[], gets=0, patches=0)
+    script = SimpleNamespace(get=[], patch=[], gets=0, patches=0, calls=[])
 
     def answer(queue, counter):
         def call(url, **kwargs):
+            script.calls.append((counter, url, kwargs))
             setattr(script, counter, getattr(script, counter) + 1)
             reply = queue[0] if len(queue) == 1 else queue.pop(0)
             if isinstance(reply, Exception):
@@ -209,3 +213,174 @@ def test_a_definite_missing_table_runs_the_old_path_once_and_the_lane_is_inert_a
     assert [u[0] for u in chain.uploads] == ["manifest.json"] and chain.cas_calls == []
     out = capsys.readouterr().out
     assert out.count("::error::") == 2 and "pointer" in out.lower(), "the latch and the old path each say so"
+
+
+# ── the strict standard belongs to the ACTIVE lane only (round-6 finding 1) ────────────────────────────────────────────────
+# `_one_step_lane_on()` read the raw flag, so with the flag on but the lane unavailable (immutable publication, merging switched off,
+# not the designated writer) the legacy and immutable publishers still got the strict 404 standard: on a PGRST205 table they retried
+# for ever instead of latching at the first read, 6 never-retired ~16 MB uploads over 6 manifest.json PUTs (immutable) or 6 bare
+# manifest-g1 overwrites (merge off). One predicate now decides, in one place: manifest_pointer.one_step_lane_active().
+
+LANE_UNAVAILABLE = {
+    "flag-off": lambda monkeypatch: monkeypatch.delenv(FLAG, raising=False),
+    "immutable-publication": lambda monkeypatch: (monkeypatch.setenv(FLAG, "1"), monkeypatch.setenv("MANIFEST_IMMUTABLE_PUBLICATION", "1")),
+    "merge-on-upload-off": lambda monkeypatch: (monkeypatch.setenv(FLAG, "1"), monkeypatch.setenv("MANIFEST_MERGE_ON_UPLOAD", "0")),
+    "not-the-designated-writer": lambda monkeypatch: (monkeypatch.setenv(FLAG, "1"),
+                                                      monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: False)),
+}
+BODIES = {"PGRST205": AMBIGUOUS["PGRST205-schema-cache-miss"], "42P01": DEFINITE["404-42P01"]}
+
+
+@pytest.mark.parametrize("which", ["read", "cas"])
+@pytest.mark.parametrize("body", sorted(BODIES))
+@pytest.mark.parametrize("combination", sorted(LANE_UNAVAILABLE))
+def test_when_the_lane_is_not_active_the_old_standard_applies_byte_for_byte_even_with_the_flag_on(
+        monkeypatch, http, caplog, capsys, combination, body, which):
+    """Any 404 latches at once and quietly, exactly as with the flag off: no annotation, no ERROR."""
+    LANE_UNAVAILABLE[combination](monkeypatch)
+    status, content = BODIES[body]
+    (http.get if which == "read" else http.patch).append(Reply(status, content))
+    with caplog.at_level(logging.WARNING):
+        assert _calls(which)() in (None, False)
+    assert mp.pointer_enabled() is False, "a 404 must latch where the lane is not the lane"
+    assert "::error::" not in capsys.readouterr().out
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+@pytest.mark.parametrize("combination", sorted(LANE_UNAVAILABLE))
+def test_six_manifest_json_puts_on_a_pgrst205_table_make_no_pointer_uploads_unless_the_lane_is_active(
+        monkeypatch, http, combination):
+    """The reviewer's P2: 6 unique never-retired uploads (immutable) / 6 bare manifest-g1 overwrites (merge off); flag off made none."""
+    LANE_UNAVAILABLE[combination](monkeypatch)
+    http.get.append(Reply(*AMBIGUOUS["PGRST205-schema-cache-miss"]))
+    uploads = []
+    for _ in range(6):
+        mp.publish_run_keyed(None, b"{}", lambda key, data, **kw: uploads.append(key) or True, lambda key: None)
+    assert uploads == []
+
+
+def test_the_one_predicate_is_the_one_the_dispatcher_uses(monkeypatch):
+    """One source of truth: submit_manifest_publish and the 404 standard cannot disagree about whether the lane is the lane."""
+    for name, arrange in LANE_UNAVAILABLE.items():
+        arrange(monkeypatch)
+        assert mp.one_step_lane_active() is mps.one_step_active() is False, name
+        monkeypatch.undo()
+        monkeypatch.setattr(store_mod, "_l2_pipeline_writes_allowed", lambda: True)
+    monkeypatch.setenv(FLAG, "1")
+    assert mp.one_step_lane_active() is mps.one_step_active() is True
+
+
+# ── the REAL cas_advance classification, not the harness hand-setting `_cas_answer` (round-6 finding 6) ───────────────────────
+# The publisher's lost-ack rules hang on one bit: did the swap CERTAINLY not apply ("lost") or MAY it have ("unknown")? Every other
+# test fakes that bit in the Chain. These drive the real function over scripted HTTP answers.
+
+def _cas_answers():
+    import requests
+    ok = json.dumps([{"generation": 6}]).encode()
+    return {
+        "200-row": (Reply(200, ok), True, "won"),
+        "201-row": (Reply(201, ok), True, "won"),
+        "200-empty-list": (Reply(200, b"[]"), False, "lost"),
+        "200-empty-object": (Reply(200, b"{}"), False, "lost"),
+        "409-conflict": (Reply(409, b'{"code": "23505"}'), False, "unknown"),
+        "500": (Reply(500, b"boom"), False, "unknown"),
+        "503": (Reply(503, b"unavailable"), False, "unknown"),
+        "429": (Reply(429, b"slow down"), False, "unknown"),
+        "401": (Reply(401, b'{"message": "JWT expired"}'), False, "unknown"),
+        "200-not-json": (Reply(200, b"<html>gateway</html>"), False, "unknown"),
+        "timeout": (requests.Timeout("read timed out"), False, "unknown"),
+        "connection-reset": (requests.ConnectionError("reset by peer"), False, "unknown"),
+        "404-PGRST205": (Reply(404, json.dumps(PGRST205).encode()), False, "unknown"),
+        "404-empty": (Reply(404, b""), False, "unknown"),
+    }
+
+
+@pytest.mark.parametrize("name", sorted(_cas_answers()))
+def test_cas_advance_classifies_every_answer_as_won_lost_or_unknown(monkeypatch, http, name):
+    monkeypatch.setenv(FLAG, "1")
+    reply, returned, answer = _cas_answers()[name]
+    http.patch.append(reply)
+    assert mp.cas_advance(5, "manifests/new.json", None, "designated:test", expected_key="k") is returned
+    assert mp.last_cas_answer() == answer
+
+
+@pytest.mark.parametrize("name", sorted(DEFINITE))
+def test_a_definite_missing_table_on_the_swap_is_unknown_not_lost(monkeypatch, http, name):
+    """The swap did not apply either, but nothing here says 'a precondition missed'; the lane is latched off and never asks again."""
+    monkeypatch.setenv(FLAG, "1")
+    http.patch.append(Reply(*DEFINITE[name]))
+    assert mp.cas_advance(5, "k", None, "x") is False and mp.last_cas_answer() == "unknown"
+
+
+@pytest.mark.parametrize("flag", ["on", "off"])
+@pytest.mark.parametrize("status", [500, 503, 429])
+@pytest.mark.parametrize("which", ["read", "cas"])
+def test_a_server_error_that_quotes_42P01_never_latches_the_lane(monkeypatch, http, which, status, flag):
+    """M04: 'any status carrying 42P01' would turn a 5xx whose body mentions the code into the lossy old path for the process."""
+    if flag == "on":
+        monkeypatch.setenv(FLAG, "1")
+    else:
+        monkeypatch.delenv(FLAG, raising=False)
+    (http.get if which == "read" else http.patch).append(Reply(status, json.dumps(UNDEFINED_TABLE).encode()))
+    assert _calls(which)() in (None, False)
+    assert mp.pointer_enabled() is True
+
+
+def test_every_swap_starts_from_unknown_so_a_stale_won_never_survives_a_call_that_did_not_get_an_answer(monkeypatch, http):
+    monkeypatch.setenv(FLAG, "1")
+    http.patch.append(Reply(200, json.dumps([{"generation": 6}]).encode()))
+    assert mp.cas_advance(5, "k", None, "x") is True and mp.last_cas_answer() == "won"
+    http.patch[:] = [Reply(503, b"unavailable")]
+    assert mp.cas_advance(6, "k2", None, "x") is False and mp.last_cas_answer() == "unknown"
+    mp._cas_answer.value = "won"                                                    # left over from anything earlier on this thread
+    monkeypatch.setattr(mp, "_rest_base_and_headers", lambda: (None, None))         # ... and a call that never reaches the network
+    assert mp.cas_advance(5, "k", None, "x") is False and mp.last_cas_answer() == "unknown"
+
+
+def test_the_answer_belongs_to_the_thread_that_made_the_call(monkeypatch, http):
+    import threading
+    monkeypatch.setenv(FLAG, "1")
+    http.patch.append(Reply(200, json.dumps([{"generation": 6}]).encode()))
+    assert mp.cas_advance(5, "k", None, "x") is True
+    seen = []
+    worker = threading.Thread(target=lambda: seen.append(mp.last_cas_answer()))
+    worker.start()
+    worker.join()
+    assert seen == ["unknown"] and mp.last_cas_answer() == "won"
+
+
+def _gave_up_after(real_pointer, store, parked, http, sleeps, replies):
+    chain = real_pointer
+    http.get[:] = [_row_reply(chain)]
+    http.patch[:] = replies
+    submit(store, BASE + PILOTS_NEW)
+    parked.run()
+    return mps._slot.pending
+
+
+def test_through_the_real_function_a_clean_loss_remembers_nothing_and_an_unknown_answer_remembers_the_swap(
+        real_pointer, store, parked, http, sleeps):
+    pending = _gave_up_after(real_pointer, store, parked, http, sleeps, [Reply(200, b"[]")])
+    assert http.patches == mps.MAX_ATTEMPTS and pending.attempted == {} and pending.unconfirmed is None, "a clean loss is not a lost answer"
+    mps._slot.pending = None
+    pending = _gave_up_after(real_pointer, store, parked, http, sleeps, [Reply(503, b"unavailable")])
+    assert pending is not None and len(pending.attempted) == mps.ATTEMPTED_KEEP, "an unknown answer may have applied: its key is remembered"
+
+
+@pytest.mark.parametrize("name", ["409-conflict", "401", "200-not-json", "timeout"])
+def test_through_the_real_function_every_answer_but_a_clean_loss_counts_as_unknown(real_pointer, store, parked, http, sleeps, name):
+    reply = _cas_answers()[name][0]
+    pending = _gave_up_after(real_pointer, store, parked, http, sleeps, [reply])
+    assert len(pending.attempted) == mps.ATTEMPTED_KEEP
+
+
+def test_the_real_pointer_calls_keep_their_8_second_default_and_honour_an_explicit_timeout(monkeypatch, http):
+    """The exit flush passes what is left of its budget; every other caller must keep today's 8 s."""
+    monkeypatch.setenv(FLAG, "1")
+    http.get.append(Reply(200, b"[]"))
+    http.patch.append(Reply(200, b"[]"))
+    mp.read_pointer()
+    mp.cas_advance(5, "k", None, "x")
+    mp.read_pointer(timeout=3)
+    mp.cas_advance(5, "k", None, "x", timeout=3)
+    assert [(kind, kwargs["timeout"]) for kind, _, kwargs in http.calls] == [("gets", 8), ("patches", 8), ("gets", 3), ("patches", 3)]

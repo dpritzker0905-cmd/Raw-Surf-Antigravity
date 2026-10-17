@@ -4,17 +4,20 @@ A job that fails five times leaves its snapshot pending "for the next job", but 
 process exits with the registration (or the prune) unpublished and nothing says so. An `atexit` hook, which CPython runs AFTER
 the thread-pool executor's own join, publishes whatever is still pending on the main thread with a bounded extra budget, and
 raises a GitHub error annotation if it still cannot."""
+import logging
 import os
 import subprocess
 import sys
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 
 import services.weather_pipeline.store as store_mod
+from services.weather_pipeline import manifest_pointer as mp
 from services.weather_pipeline import manifest_publish_step as mps
 from tests._manifest_chain_harness import _fresh_slot, _no_network, sleeps  # noqa: F401  (autouse fixtures: they apply to this module)
-from tests._manifest_chain_harness import BASE, PILOTS_NEW, _keep_moving, chain, parked, sleeps, store, submit  # noqa: F401,F811
+from tests._manifest_chain_harness import BASE, PILOTS_NEW, _keep_moving, _snapshot, chain, parked, sleeps, store, submit  # noqa: F401,F811
 
 BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -197,3 +200,162 @@ def test_no_call_at_all_is_made_once_the_budget_is_spent(chain, store, parked, s
     monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 0.0)
     mps._flush_at_exit()
     assert chain.timeouts == [] and chain.cas_calls == []
+
+
+# ── round 6, finding 5: the annotation must not claim "head untouched" when a swap may have landed ───────────────────────────
+
+def test_a_swap_that_landed_unheard_followed_by_a_spent_budget_is_annotated_as_unknown_not_as_untouched(
+        chain, store, parked, monkeypatch, capsys):
+    """The reviewer's P8. The swap lands, its answer is lost, and its wait ate the whole budget, so the flush cannot even look at the
+    pointer. The snapshot is (correctly) still pending, but 'never reached the pointer; the head is untouched' would be false."""
+    _pending_after_a_failed_job(chain, store, parked)
+    clock = [1000.0]
+    monkeypatch.setattr(mps, "_monotonic", lambda: clock[0])
+    chain.cas_faults = ["lost_ack"]
+    real_cas = chain.cas_advance
+
+    def cas(*args, **kwargs):
+        outcome = real_cas(*args, **kwargs)
+        clock[0] += 500.0
+        return outcome
+    monkeypatch.setattr(mp, "cas_advance", cas)
+    mps._flush_at_exit()
+    out = capsys.readouterr().out
+    assert chain.generation == 6, "the swap landed"
+    assert mps._slot.pending is not None
+    assert out.startswith("::error::[Manifest Publish]") and "UNKNOWN" in out
+    assert "untouched" not in out and "never reached the pointer" not in out, out
+
+
+def test_when_no_swap_was_ever_sent_the_annotation_still_says_the_head_is_untouched(chain, store, parked, capsys):
+    _pending_after_a_failed_job(chain, store, parked)
+    chain.pointer_faults.extend(["none"] * 100)
+    mps._flush_at_exit()
+    out = capsys.readouterr().out
+    assert "untouched" in out and "UNKNOWN" not in out, out
+
+
+def test_a_job_that_gave_up_after_swaps_it_could_not_confirm_does_not_claim_the_pointer_is_untouched(chain, store, parked, sleeps, caplog):
+    """The same wording problem one level up: `_publish`'s ERROR said 'the pointer ... untouched' after five unconfirmed swaps."""
+    chain.cas_faults = ["error"] * mps.MAX_ATTEMPTS
+    submit(store, BASE + PILOTS_NEW)
+    with caplog.at_level(logging.ERROR):
+        parked.run()
+    gave_up = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR and "NOT published after" in r.getMessage()]
+    assert len(gave_up) == 1 and "UNKNOWN" in gave_up[0] and "untouched" not in gave_up[0], gave_up
+
+
+def test_a_job_that_never_sent_a_swap_still_says_the_pointer_is_untouched(chain, store, parked, sleeps, caplog):
+    chain.pointer_faults.extend(["none"] * mps.MAX_ATTEMPTS)
+    submit(store, BASE + PILOTS_NEW)
+    with caplog.at_level(logging.ERROR):
+        parked.run()
+    gave_up = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR and "NOT published after" in r.getMessage()]
+    assert len(gave_up) == 1 and "untouched" in gave_up[0] and "UNKNOWN" not in gave_up[0], gave_up
+
+
+# ── round 6, finding 6: the budget caps on the calls the flush makes after the swap and in the fallbacks ─────────────────────
+
+def test_the_pointer_read_after_an_unconfirmed_swap_is_capped_by_the_exit_budget_too(chain, store, parked, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 4.0)
+    chain.cas_faults = ["lost_ack"]
+    mps._flush_at_exit()
+    assert [timeout for what, timeout in chain.timeouts if what == "read_pointer"] == [4, 4], \
+        "the attempt's read and the look after the swap are both capped by what is left: %s" % chain.timeouts
+    assert mps._slot.pending is None and chain.generation == 6
+
+
+def test_that_same_read_keeps_its_own_default_when_the_budget_is_ample(chain, store, parked, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    chain.cas_faults = ["lost_ack"]
+    mps._flush_at_exit()
+    assert [timeout for what, timeout in chain.timeouts if what == "read_pointer"] == [8, 8]
+
+
+def test_the_retention_delete_is_capped_by_the_exit_budget_too(chain, store, parked, monkeypatch):
+    from datetime import timedelta
+    _pending_after_a_failed_job(chain, store, parked)
+    old = "manifests/manifest-g000000000001-" + "ab" * 16 + ".json"
+    chain.objects[old] = b"{}"
+    chain.created[old] = chain.now - timedelta(days=1)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 4.0)
+    mps._flush_at_exit()
+    assert chain.deleted == [old]
+    assert dict(chain.timeouts)["list"] == 4 and dict(chain.timeouts)["delete"] == 4, chain.timeouts
+
+
+def _head_gone_legacy_in_place(chain):
+    chain.objects.pop(chain.head_key)                                         # the pointer names an object that does not exist
+    chain.objects["manifest.json"] = store_mod.dump_manifest_for_l2(_snapshot(BASE))
+
+
+def test_the_legacy_manifest_read_is_capped_by_the_exit_budget_too(chain, store, parked, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    _head_gone_legacy_in_place(chain)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    monkeypatch.setattr(mps, "EXIT_BUDGET_SECONDS", 4.0)
+    mps._flush_at_exit()
+    assert chain.wins() and dict(chain.timeouts)["legacy_get"] == 4, chain.timeouts
+
+
+def test_the_legacy_manifest_read_keeps_its_own_default_when_the_budget_is_ample_and_outside_the_flush(chain, store, parked, monkeypatch):
+    _pending_after_a_failed_job(chain, store, parked)
+    _head_gone_legacy_in_place(chain)
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    mps._flush_at_exit()
+    assert dict(chain.timeouts)["legacy_get"] == 15
+    chain.timeouts.clear()
+    assert mps._legacy_products(None) is not None
+    assert dict(chain.timeouts)["legacy_get"] == 15
+
+
+# ── round 6, mutation survivors: the exact contract of the cap, the clock, the real upload's timeout, the message ───────────────
+
+def test_the_cap_gives_a_call_its_default_or_what_is_left_and_refuses_a_call_when_nothing_is_left(monkeypatch):
+    monkeypatch.setattr(mps, "_monotonic", lambda: 1000.0)
+    assert mps._timeout_kw(None, 8) == {}
+    assert mps._timeout_kw(2000.0, 8) == {"timeout": 8}
+    assert mps._timeout_kw(1003.0, 8) == {"timeout": 3.0}
+    for deadline in (1000.0, 999.0):                                   # exactly nothing left is nothing left
+        with pytest.raises(mps._OutOfBudget):
+            mps._timeout_kw(deadline, 8)
+
+
+def test_the_budget_is_measured_on_the_monotonic_clock_not_the_wall_clock():
+    import time
+    assert mps._monotonic is time.monotonic, "a wall-clock step (NTP, a manual change) must not stretch or collapse the exit budget"
+
+
+def test_a_job_that_never_sent_a_swap_says_what_it_left_untouched_in_the_old_words(chain, store, parked, sleeps, caplog):
+    chain.pointer_faults.extend(["none"] * mps.MAX_ATTEMPTS)
+    submit(store, BASE + PILOTS_NEW)
+    with caplog.at_level(logging.ERROR):
+        parked.run()
+    gave_up = next(r.getMessage() for r in caplog.records if "NOT published after" in r.getMessage())
+    assert "the pointer, the unique manifest objects and the legacy manifest.json are untouched" in gave_up, gave_up
+
+
+@pytest.fixture
+def real_upload(monkeypatch):
+    """The REAL ProductStore._upload_to_supabase over a recording requests.post (the harness's Chain replaces this method everywhere else)."""
+    from types import SimpleNamespace
+    import requests
+    calls = []
+    monkeypatch.setattr(store_mod, "_get_supabase_storage", lambda: object())
+    monkeypatch.setenv("SUPABASE_URL", "https://storage.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-key")
+    monkeypatch.setattr(store_mod.ProductStore, "_last_upload_time", None, raising=False)
+    monkeypatch.setattr(requests, "post", lambda url, **kwargs: calls.append((url, kwargs)) or SimpleNamespace(status_code=200, text="{}"))
+    return calls
+
+
+@pytest.mark.parametrize("overwrite", [False, True], ids=["create-only", "overwrite-with-retry"])
+def test_the_real_upload_keeps_its_30_second_default_and_honours_the_exit_flushs_cap(real_upload, overwrite):
+    key = "manifests/manifest-g000000000006-" + "ab" * 16 + ".json"
+    assert store_mod.ProductStore._upload_to_supabase(None, key, b"{}", strict=True, overwrite=overwrite) is True
+    assert store_mod.ProductStore._upload_to_supabase(None, key, b"{}", strict=True, overwrite=overwrite, timeout=7) is True
+    assert [kwargs["timeout"] for _, kwargs in real_upload] == [30, 7]
