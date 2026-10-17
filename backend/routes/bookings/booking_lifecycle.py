@@ -72,7 +72,7 @@ async def create_user_booking(
     db: AsyncSession = Depends(get_db)
 ):
     """User creates a booking with a photographer - supports account credit application"""
-    from routes.notifications.push import notify_booking
+    from routes.notifications.push_payloads import notify_booking
     import os
     import stripe
 

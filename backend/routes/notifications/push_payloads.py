@@ -436,3 +436,69 @@ async def notify_review_received(photographer_id: str, reviewer_name: str, ratin
     finally:
         if close_session:
             await db.close()
+
+
+# ============ BOOKING / DISPATCH PUSH NOTIFICATIONS (LA-PAY-08) ============
+# booking_lifecycle.py and dispatch_matching.py import these; they were lost in the v88 split, so every call
+# raised ImportError before it ran. Same shape as the helpers above: preference-gated, one push per call.
+
+async def notify_booking(user_id: str, title: str, message: str, db: AsyncSession = None):
+    """Push notification for a booking event (new request, confirmation) to one user."""
+    from routes.notifications.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+    try:
+        if not await should_send_notification(user_id, 'bookings', db):
+            logger.info(f"Skipping booking push for {user_id} - disabled in preferences")
+            return {"status": "skipped", "reason": "user_preference"}
+        return await send_push_notification(
+            user_id=user_id, title=title, message=message,
+            data={"type": "booking"}, action_url="/bookings"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_dispatch_alert(photographer_id: str, spot_name: str, surfer_name: str, db: AsyncSession = None):
+    """Push notification to a photographer that a surfer requested a dispatch near them."""
+    from database import AsyncSessionLocal
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+    try:
+        # Time-critical: a dispatch offer is not subject to the bookings quiet preference.
+        return await send_push_notification(
+            user_id=photographer_id, title="New dispatch request!",
+            message=f"{surfer_name} needs a photographer at {spot_name}",
+            data={"type": "dispatch_alert", "spot_name": spot_name, "surfer_name": surfer_name},
+            action_url="/dispatch"
+        )
+    finally:
+        if close_session:
+            await db.close()
+
+
+async def notify_new_message(recipient_id: str, sender_name: str, preview: str, db: AsyncSession = None):
+    """Push notification to the recipient of a direct message (voice or media)."""
+    from routes.notifications.notification_preferences import should_send_notification
+    from database import AsyncSessionLocal
+    close_session = False
+    if db is None:
+        db = AsyncSessionLocal()
+        close_session = True
+    try:
+        if not await should_send_notification(recipient_id, 'messages', db):
+            logger.info(f"Skipping message push for {recipient_id} - disabled in preferences")
+            return {"status": "skipped", "reason": "user_preference"}
+        return await send_push_notification(
+            user_id=recipient_id, title=sender_name, message=preview,
+            data={"type": "message", "sender_name": sender_name}, action_url="/messages"
+        )
+    finally:
+        if close_session:
+            await db.close()

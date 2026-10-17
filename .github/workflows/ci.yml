@@ -1896,7 +1896,11 @@ jobs:
           # tests/test_phase0_containment.py adds 85 executed tests to the hosted 1679 read on dev 5cfec8f55
           # (CI 39036512940: 310 selected, 1679 passed): projected 1764; 1764 - 2 = 1762, margin 2.
           # This PR must read 311 files / 1764.
-          MIN_PASSED = 1762
+          # ⬆ 1762→1779 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (LA-PAY-08, stacked on Phase 0): two new
+          # estate files, tests/test_lazy_import_resolution.py (5) and tests/test_pay08_crew_pay.py (12), add 17
+          # executed tests to the 1764 projected for Phase 0 (hosted read of Phase 0 confirmed: 311 files / 1764, CI 39058995687):
+          # projected 1781; 1781 - 2 = 1779, margin 2. This PR must read 313 files / 1781.
+          MIN_PASSED = 1779
 
           try:
               root = ET.parse('estate.xml').getroot()
