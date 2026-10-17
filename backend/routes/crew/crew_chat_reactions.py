@@ -12,7 +12,7 @@ import json
 import logging
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import Profile, Booking, CrewChatMessage, Notification
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ async def get_reaction_emojis():
 async def get_message_reactions(
     booking_id: str,
     message_id: str,
-    user_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed reactions for a message"""

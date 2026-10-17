@@ -1908,7 +1908,12 @@ jobs:
           # tests/test_sec02_crew_chat_socket.py adds 13 executed tests to the hosted 1834 read of PR 370
           # (CI: 314 files selected, 1834 passed): projected 1847; 1847 - 2 = 1845, margin 2.
           # This PR must read 315 files / 1847.
-          MIN_PASSED = 1845
+          # ⬆ 1845→2186 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (crew HTTP authority, ported from Codex's
+          # unpushed branches): seven new estate files add 341 executed tests (history cursor 68, http authority
+          # 35, info 44, jwt consumer 41, mentions 38, reply scope 46, dm mentions 69) to the hosted 1847 read of
+          # PR 371 (CI: 315 files selected, 1847 passed): projected 2188; 2188 - 2 = 2186, margin 2.
+          # This PR must read 322 files / 2188.
+          MIN_PASSED = 2186
 
           try:
               root = ET.parse('estate.xml').getroot()
