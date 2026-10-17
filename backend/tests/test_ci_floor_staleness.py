@@ -472,7 +472,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Thinned series frames keep their cells' bounds (dark): +20 guards (one new file) on hosted 2674 / 196 files (floor 2688; files 197).
 # Same PR after the independent review: +10 guards (the same file) on hosted 2694 / 197 files (floor 2698).
 # One-off scored-rows gate (read-only, to be removed after use): +44 chain (one new file), floor 2511, chain files 165.
-_FLOOR_SET_FROM = {"guards": 2704, "chain": 2517, "estate": 1674}
+# Surf-zone gate, on top of it: +141 chain (one new file; floor 2652, files 166) and +5 estate (existing file; floor 1677).
+_FLOOR_SET_FROM = {"guards": 2704, "chain": 2658, "estate": 1679}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
