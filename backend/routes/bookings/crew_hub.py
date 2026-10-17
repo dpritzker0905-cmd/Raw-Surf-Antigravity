@@ -268,7 +268,7 @@ async def captain_pay_hold(
             break
     
     # Notify crew members via OneSignal push + in-app notification
-    from routes.notifications.push import notify_crew_payment_request
+    from routes.notifications.push_payloads import notify_crew_payment_request
     
     for p in booking.participants or []:
         if p.participant_id != captain_id:

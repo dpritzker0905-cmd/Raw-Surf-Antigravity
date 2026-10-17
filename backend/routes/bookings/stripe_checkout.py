@@ -58,7 +58,7 @@ async def create_booking_with_stripe(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""
-    from routes.notifications.push import notify_booking
+    from routes.notifications.push_payloads import notify_booking
     
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
@@ -364,7 +364,7 @@ async def booking_payment_success(
     try:
         # Imported here, inside the guard: the helper is missing from this module (LA-PAY-08), and
         # a failed push must not undo a verified payment.
-        from routes.notifications.push import notify_booking
+        from routes.notifications.push_payloads import notify_booking
         await notify_booking(
             user_id=booking.photographer_id, title='New Booking Confirmed!',
             message=f'{user.full_name if user else "A surfer"} booked a session on {session_time_str}', db=db
