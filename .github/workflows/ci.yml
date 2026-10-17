@@ -1436,11 +1436,15 @@ jobs:
           # (13, a new file selector-verified into this lane) plus 16 in test_forecast_skill_retention.py; hosted reading on
           # dev db453937 (CI 38844443190: 163 files, 2444 passed) -> projected 2473/164; 2473 - 6 = 2467.
           # This PR must read 164 files / 2473.
-          # ⬆ 164/2467 → 165/2608 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the surf-zone gate on the nearshore judge's
-          # report): tests/test_nearshore_gate.py (141, a new file selector-verified into this lane); the same dev reading as the
-          # previous entry (2473 passed after the skill-ledger entry) + 141 -> projected 2614/165; 2614 - 6 = 2608. This PR must read
-          # 165 files / 2614. (The one-off scored-rows gate PR adds its own +1 file / +44: whichever merges second re-derives.)
-          MIN_FILES, MIN_PASSED = 165, 2608
+          # ⬆ 164/2467 → 165/2511 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the one-off, read-only scored-rows gate for the
+          # scalar-height flip, commitment 1335): tests/test_scored_rows_gate.py (44, a new file selector-verified into this lane);
+          # the same dev reading (CI 38844443190: 163 files, 2444 passed, then the #342 delta) -> projected 2517/165; 2517 - 6 = 2511.
+          # This PR must read 165 files / 2517. The file leaves with the gate: remove it and move this floor back in that PR.
+          # ⬆ 165/2511 → 166/2652 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the surf-zone gate on the nearshore judge's
+          # report; #357 merged first, so this re-derives on top of it): tests/test_nearshore_gate.py (141, a new file
+          # selector-verified into this lane); 2517 (the dev reading after #357) + 141 -> projected 2658/166; 2658 - 6 = 2652.
+          # This PR must read 166 files / 2658.
+          MIN_FILES, MIN_PASSED = 166, 2652
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

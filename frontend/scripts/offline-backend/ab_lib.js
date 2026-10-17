@@ -36,8 +36,12 @@ const TEX_SPY = () => {
   patch(window.WebGL2RenderingContext && WebGL2RenderingContext.prototype);
 };
 
-async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {} } = {}) {
-  if (!port) throw new Error('launch({ port }) needs the synthetic backend port');
+// `live: true` (env AB_LIVE=1) is the ONE exception to the policy above: `/api/weather/*` GETs are sent to the REAL backend (read-only,
+// public routes, nothing is written) so a built client can be looked at against production data. Everything else stays stubbed and every
+// socket stays closed. It is real load on the 1-CPU box (a map load asks for three 48-frame world pages): one run at a time, /api/health
+// probed before and after, never in a loop. `hooks.afterWeather(url, resp)` sees each weather response (resp.body()) before it is delivered.
+async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {}, live = process.env.AB_LIVE === '1' } = {}) {
+  if (!port && !live) throw new Error('launch({ port }) needs the synthetic backend port');
   const args = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-unsafe-swiftshader'];
   if (gpu) args.push('--use-angle=d3d11');
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args });
@@ -67,7 +71,8 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
         const t = Date.now();
         try {
           if (hooks.beforeWeather) await hooks.beforeWeather(url);   // a scenario may hold a request back (e.g. the exact /grid)
-          const resp = await route.fetch({ url: `http://127.0.0.1:${port}${url.pathname}${url.search}` });
+          const resp = await route.fetch(live ? {} : { url: `http://127.0.0.1:${port}${url.pathname}${url.search}` });
+          if (hooks.afterWeather) { try { await hooks.afterWeather(url, resp); } catch (e) { log.errors.push({ t: Date.now() - log.t0, text: 'afterWeather: ' + String(e).slice(0, 200) }); } }
           const rec = { t: t - log.t0, ms: Date.now() - t, path: url.pathname.replace('/api/weather', ''), q: Object.fromEntries(url.searchParams.entries()), status: resp.status() };
           log.requests.push(rec);
           return route.fulfill({ response: resp, headers: { ...resp.headers(), ...CORS } });
