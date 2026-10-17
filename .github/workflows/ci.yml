@@ -900,7 +900,11 @@ jobs:
           # ⬆ 206/3037 → 206/3104 in the same PR, after review 6 and round 7, on top of #360 (the monitor's consensus check, +43 in this
           # lane): +24 cases in the same nine files (no new file; 339 -> 363); the dev reading after #360 is 2747 -> projected 3110;
           # 3110 - 6 = 3104. This PR must read 206 files / 3110.
-          MIN_FILES, MIN_PASSED = 206, 3104
+          # ⬆ 206/3104 → 207/3125 in the same PR, after review 7 and round 8 (default-off lane): +21 cases and ONE new file,
+          # tests/test_manifest_one_step_head.py (19, claimed by this lane; keeps test_manifest_one_step_recovery.py under 800 lines);
+          # 384 cases in 10 files; the dev reading after #360 is 2747 -> projected 3131/207; 3131 - 6 = 3125. This PR must read
+          # 207 files / 3131.
+          MIN_FILES, MIN_PASSED = 207, 3125
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
