@@ -52,7 +52,7 @@ def test_a_won_swap_lists_once_and_deletes_in_one_batch_with_these_request_shape
     (list_url, list_body, list_timeout), = chain.list_requests
     assert list_url == "https://storage.invalid/storage/v1/object/list/weather-products"
     assert list_body == {"prefix": "manifests", "search": "manifest-g", "limit": 100, "offset": 0,
-                         "sortBy": {"column": "name", "order": "asc"}}
+                         "sortBy": {"column": "name", "order": "desc"}}
     assert list_timeout == 5
     (delete_url, prefixes, delete_timeout), = chain.delete_requests
     assert delete_url == "https://storage.invalid/storage/v1/object/weather-products" and delete_timeout == 5
@@ -134,7 +134,11 @@ def test_copies_left_by_lost_attempts_are_retired_by_the_same_rule(chain, store,
 def test_names_retention_does_not_recognise_are_never_deleted(chain, store, inline):
     settle_at(chain, 20)
     keep = ["manifests/manifest-g000000000001.json",                # the deterministic old-path name
-            "manifests/readme.txt", "manifests/manifest-g000000000002-not-hex.json", "manifests/manifest-g2-" + "ab" * 16 + ".json"]
+            "manifests/readme.txt", "manifests/manifest-g000000000002-not-hex.json", "manifests/manifest-g2-" + "ab" * 16 + ".json",
+            # one character off the unique name is not the unique name: every one of these is old enough and low enough to go if the
+            # pattern were loosened (review of PR 366: match/search instead of fullmatch survived because no test used a suffix)
+            "manifests/manifest-g000000000003-" + "ab" * 16 + ".json.bak", "manifests/manifest-g000000000004-" + "ab" * 16 + ".JSON",
+            "manifests/manifest-g000000000005-" + "ab" * 16 + ".json\n", "manifests/manifest-g000000000006-" + "AB" * 16 + ".json"]
     for key in keep:
         chain.objects[key] = b"x"
         chain.created[key] = chain.now - timedelta(days=9)
@@ -244,3 +248,63 @@ def test_the_gauge_says_its_standing_count_is_taken_before_this_delete(chain, st
         publish(store)
     line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
     assert "standing before this delete" in line, line
+
+
+# ── the production population: first read of the lane in production, 2026-10-17 ──────────────────────────────────────────
+# 2,683 per-generation files from the legacy writers ("manifest-g000000144496.json": no hash) sort BEFORE every unique copy. The
+# oldest-first listing of 100 rows saw only those: 318 gauge lines read '0 standing, 0 deleted' while Storage held 353 unique
+# copies (5.2 GiB) and grew by about 15 MiB a publish. Every test above seeded only unique names, so none could see it.
+
+def legacy_key(generation):
+    return "manifests/manifest-g%012d.json" % generation
+
+
+def seed_legacy(chain, generations, age_seconds=86400 * 30):
+    for generation in generations:
+        key = legacy_key(generation)
+        chain.objects[key] = chain.objects[mps_base_key(chain)]
+        chain.created[key] = chain.now - timedelta(seconds=age_seconds)
+
+
+def test_legacy_per_generation_files_that_sort_first_do_not_hide_the_unique_copies(chain, store, inline):
+    seed_legacy(chain, range(1, 151))                               # more than one listing page of older, differently named files
+    settle_at(chain, 400)
+    seed(chain, range(380, 391), age_seconds=3600)
+    publish(store)                                                  # wins generation 401: every unique copy <= 396 is retired
+    (_, prefixes, _), = chain.delete_requests
+    assert sorted(prefixes) == [copy_key(g) for g in range(380, 391)]
+    assert generations_left(chain) == [400, 401]
+    assert all(legacy_key(g) in chain.objects for g in range(1, 151)), "retention never touches a name it does not own"
+
+
+def test_the_gauge_counts_the_unique_copies_even_when_legacy_files_outnumber_a_listing(chain, store, inline, caplog):
+    import re
+    seed_legacy(chain, range(1, 151))
+    settle_at(chain, 400)
+    seed(chain, range(380, 391), age_seconds=3600)
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
+    match = re.search(r"(\d+) unique manifest cop\w+ standing.* (\d+) deleted", line)
+    assert match and (int(match[1]), int(match[2])) == (13, 11), line
+
+
+def test_a_204_answer_to_the_delete_is_an_acknowledgement_and_the_gauge_counts_it(chain, store, inline, caplog):
+    """Storage answers a batch delete 200 or 204; only the 200 was ever tested (review of PR 366: `== 200` survived)."""
+    import re
+    settle_at(chain, 20)
+    seed(chain, range(1, 20), age_seconds=3600)
+    chain.delete_fault = 204
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
+    match = re.search(r"(\d+) unique manifest cop\w+ standing.* (\d+) deleted", line)
+    assert match and int(match[2]) == 16, line
+
+
+def test_nothing_eligible_sends_no_delete_request(chain, store, inline):
+    """An empty batch must not be sent: every copy here is younger than the grace (review of PR 366: `if True:` survived)."""
+    settle_at(chain, 20)
+    seed(chain, range(1, 20), age_seconds=10)
+    publish(store)
+    assert len(chain.list_requests) == 1 and chain.delete_requests == []
