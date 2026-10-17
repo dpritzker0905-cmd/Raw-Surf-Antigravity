@@ -114,7 +114,7 @@ are left out of THIS head; their writers' next save re-registers them). A better
 copy that parses) but finding it needs a listing, a fetch per candidate and a rule for generations written by the other lanes; that
 is more surface than this fallback, which only ever runs after the pointed head has failed UNUSABLE_HEAD_ATTEMPTS times, deserves.
 It is documented, logged at ERROR with the key and the exception type, and left to the operator (repair the head object).
-(8) THE GAUGE'S `standing` IS THE LISTING BEFORE THIS DELETE (at most RETENTION_SCAN_LIMIT, oldest generation first): what is left
+(8) THE GAUGE'S `standing` IS THE LISTING BEFORE THIS DELETE (at most RETENTION_SCAN_LIMIT, NEWEST generation first: see the listing in `_retire_old_copies`): what is left
 after the delete is standing - deleted.
 (9) "sent a swap whose answer never came back: whether the head moved is UNKNOWN" is OVER-CONSERVATIVE on purpose: any swap whose
 answer is not a clean win or a clean "precondition lost" counts, so it is also said after a 401/404/409 answer (the swap certainly
@@ -169,7 +169,7 @@ EXIT_ROUNDS = 3              # extra rounds of MAX_ATTEMPTS at interpreter exit 
 EXIT_BUDGET_SECONDS = 120.0  # and the wall-clock ceiling on all of them
 RETENTION_KEEP_GENERATIONS = 5   # after a win at generation G, objects of generation <= G-5 may be retired ...
 RETENTION_GRACE_SECONDS = 60     # ... once they are also this old (a reader mid-GET of a recent head is safe)
-RETENTION_SCAN_LIMIT = 100       # rows of ONE listing (oldest generation first)
+RETENTION_SCAN_LIMIT = 100       # rows of ONE listing (newest generation first)
 RETENTION_DELETE_LIMIT = 50      # keys of ONE batch delete
 RETENTION_TIMEOUT_SECONDS = 5
 _COPY_NAME = re.compile(r"manifest-g(\d{12})-[0-9a-f]{32}\.json")
@@ -704,8 +704,15 @@ def _retire_old_copies(generation, head_key, deadline=None):
         listing = requests.post(
             f"{base}/storage/v1/object/list/{WEATHER_BUCKET}", headers=headers,
             timeout=_cap(deadline, RETENTION_TIMEOUT_SECONDS),
+            # NEWEST first (2026-10-17). Oldest first listed only the legacy per-generation files ("manifest-g000000144496.json"; 2,683
+            # of them in production, all with a lower generation than any unique copy), so retention saw 0 of this lane's copies for 318
+            # wins running while Storage grew 5.2 GiB. The newest 100 names hold this lane's recent copies as long as fewer than 100 names
+            # it may not delete (legacy files, stale copies after a pointer reset, hashless names) sort ABOVE them; if that ever happens
+            # the gauge reads '100 standing (capped), 0 deleted': act on it. A unique copy older than the 100th newest name is left.
+            # That Storage honours sortBy order=desc on name together with prefix and search is read from its list API, not measured in
+            # production before this change: the first live win should show ~100 standing (capped) and 50 deleted for ~7 wins, then ~8.
             json={"prefix": "manifests", "search": "manifest-g", "limit": RETENTION_SCAN_LIMIT, "offset": 0,
-                  "sortBy": {"column": "name", "order": "asc"}})
+                  "sortBy": {"column": "name", "order": "desc"}})
         rows = listing.json() if listing.status_code == 200 else None
         if not isinstance(rows, list):
             return
