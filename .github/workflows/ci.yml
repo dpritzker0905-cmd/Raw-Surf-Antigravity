@@ -1436,7 +1436,11 @@ jobs:
           # (13, a new file selector-verified into this lane) plus 16 in test_forecast_skill_retention.py; hosted reading on
           # dev db453937 (CI 38844443190: 163 files, 2444 passed) -> projected 2473/164; 2473 - 6 = 2467.
           # This PR must read 164 files / 2473.
-          MIN_FILES, MIN_PASSED = 164, 2467
+          # ⬆ 164/2467 → 165/2511 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the one-off, read-only scored-rows gate for the
+          # scalar-height flip, commitment 1335): tests/test_scored_rows_gate.py (44, a new file selector-verified into this lane);
+          # the same dev reading (CI 38844443190: 163 files, 2444 passed, then the #342 delta) -> projected 2517/165; 2517 - 6 = 2511.
+          # This PR must read 165 files / 2517. The file leaves with the gate: remove it and move this floor back in that PR.
+          MIN_FILES, MIN_PASSED = 165, 2511
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
