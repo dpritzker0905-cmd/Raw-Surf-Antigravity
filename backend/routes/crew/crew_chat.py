@@ -373,18 +373,19 @@ async def mark_messages_read(
 @router.get("/mentions/search")
 async def search_mentions(
     query: str,
-    user_id: str = Depends(get_current_user_id),
+    user_id: Optional[str] = None,
     context: str = "crew_chat",
     context_id: Optional[str] = None,
     limit: int = 10,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Search for users to @mention.
     
     Args:
         query: Search query (partial username or name)
-        user_id: Verified current user ID
+        user_id: Optional legacy selector, which must match the verified JWT subject
         context: 'crew_chat', 'dm', 'comment', 'post'
         context_id: booking_id, conversation_id, etc.
         limit: Max results
@@ -394,15 +395,17 @@ async def search_mentions(
     2. Users the current user follows
     3. All public profiles matching query
     """
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot search mentions as another user")
     # Booking priority reveals private participation, even when profile names are public.
     if context == "crew_chat" and context_id:
-        booking, _ = await verify_chat_access(context_id, user_id, db)
+        booking, _ = await verify_chat_access(context_id, current_user_id, db)
         if not booking:
             raise HTTPException(status_code=403, detail="You don't have access to this chat")
 
     results = await mentions_service.search_mentionable_users(
         query=query,
-        current_user_id=user_id,
+        current_user_id=current_user_id,
         context=context,
         context_id=context_id,
         db=db,
