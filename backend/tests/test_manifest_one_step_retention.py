@@ -134,7 +134,11 @@ def test_copies_left_by_lost_attempts_are_retired_by_the_same_rule(chain, store,
 def test_names_retention_does_not_recognise_are_never_deleted(chain, store, inline):
     settle_at(chain, 20)
     keep = ["manifests/manifest-g000000000001.json",                # the deterministic old-path name
-            "manifests/readme.txt", "manifests/manifest-g000000000002-not-hex.json", "manifests/manifest-g2-" + "ab" * 16 + ".json"]
+            "manifests/readme.txt", "manifests/manifest-g000000000002-not-hex.json", "manifests/manifest-g2-" + "ab" * 16 + ".json",
+            # one character off the unique name is not the unique name: every one of these is old enough and low enough to go if the
+            # pattern were loosened (review of PR 366: match/search instead of fullmatch survived because no test used a suffix)
+            "manifests/manifest-g000000000003-" + "ab" * 16 + ".json.bak", "manifests/manifest-g000000000004-" + "ab" * 16 + ".JSON",
+            "manifests/manifest-g000000000005-" + "ab" * 16 + ".json\n", "manifests/manifest-g000000000006-" + "AB" * 16 + ".json"]
     for key in keep:
         chain.objects[key] = b"x"
         chain.created[key] = chain.now - timedelta(days=9)
@@ -283,3 +287,24 @@ def test_the_gauge_counts_the_unique_copies_even_when_legacy_files_outnumber_a_l
     line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
     match = re.search(r"(\d+) unique manifest cop\w+ standing.* (\d+) deleted", line)
     assert match and (int(match[1]), int(match[2])) == (13, 11), line
+
+
+def test_a_204_answer_to_the_delete_is_an_acknowledgement_and_the_gauge_counts_it(chain, store, inline, caplog):
+    """Storage answers a batch delete 200 or 204; only the 200 was ever tested (review of PR 366: `== 200` survived)."""
+    import re
+    settle_at(chain, 20)
+    seed(chain, range(1, 20), age_seconds=3600)
+    chain.delete_fault = 204
+    with caplog.at_level(logging.INFO):
+        publish(store)
+    line = next(r.getMessage() for r in caplog.records if r.levelno == logging.INFO and "retention" in r.getMessage())
+    match = re.search(r"(\d+) unique manifest cop\w+ standing.* (\d+) deleted", line)
+    assert match and int(match[2]) == 16, line
+
+
+def test_nothing_eligible_sends_no_delete_request(chain, store, inline):
+    """An empty batch must not be sent: every copy here is younger than the grace (review of PR 366: `if True:` survived)."""
+    settle_at(chain, 20)
+    seed(chain, range(1, 20), age_seconds=10)
+    publish(store)
+    assert len(chain.list_requests) == 1 and chain.delete_requests == []

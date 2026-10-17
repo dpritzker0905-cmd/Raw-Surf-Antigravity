@@ -706,8 +706,11 @@ def _retire_old_copies(generation, head_key, deadline=None):
             timeout=_cap(deadline, RETENTION_TIMEOUT_SECONDS),
             # NEWEST first (2026-10-17). Oldest first listed only the legacy per-generation files ("manifest-g000000144496.json"; 2,683
             # of them in production, all with a lower generation than any unique copy), so retention saw 0 of this lane's copies for 318
-            # wins running while Storage grew 5.2 GiB. The newest 100 names always hold this lane's own copies. A unique copy that falls
-            # out of that window (an orphan older than the 100th newest name) is left; there are few and each is one object.
+            # wins running while Storage grew 5.2 GiB. The newest 100 names hold this lane's recent copies as long as fewer than 100 names
+            # it may not delete (legacy files, stale copies after a pointer reset, hashless names) sort ABOVE them; if that ever happens
+            # the gauge reads '100 standing (capped), 0 deleted': act on it. A unique copy older than the 100th newest name is left.
+            # That Storage honours sortBy order=desc on name together with prefix and search is read from its list API, not measured in
+            # production before this change: the first live win should show ~100 standing (capped) and 50 deleted for ~7 wins, then ~8.
             json={"prefix": "manifests", "search": "manifest-g", "limit": RETENTION_SCAN_LIMIT, "offset": 0,
                   "sortBy": {"column": "name", "order": "desc"}})
         rows = listing.json() if listing.status_code == 200 else None
