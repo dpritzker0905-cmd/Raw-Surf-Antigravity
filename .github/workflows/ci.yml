@@ -1484,7 +1484,10 @@ jobs:
           # ⬆ 166/2652 → 166/2695 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the model-scoped scalar marine height switch,
           # dark): +43 cases in the existing tests/test_sampler_scalar_marine_height.py (12 -> 55, no new file); the dev reading after
           # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
-          MIN_FILES, MIN_PASSED = 166, 2695
+          # ⬆ 166/2695 → 167/2712 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (S8 follow-up: the consensus swell direction and
+          # period, measurement only): tests/test_skill_direction_consensus.py (17, a new file selector-verified into this lane); the dev
+          # reading (166 files / 2701) + 17 -> projected 2718/167; 2718 - 6 = 2712. This PR must read 167 files / 2718.
+          MIN_FILES, MIN_PASSED = 167, 2712
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
