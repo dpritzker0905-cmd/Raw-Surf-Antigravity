@@ -162,6 +162,16 @@ def get_file_extension(content_type: str) -> str:
     return extensions.get(content_type, ".bin")
 
 
+HEIF_TYPES = frozenset({"image/heic", "image/heif"})
+
+
+def require_previewable_image(content_type: str) -> None:
+    """A sold photo needs a watermarked preview, and a preview needs a decoder. Without pillow-heif a
+    HEIC upload used to publish the original as its own preview; refuse it before anything is written."""
+    if content_type in HEIF_TYPES and not HEIF_SUPPORT:
+        raise HTTPException(status_code=415, detail="HEIC photos are not supported yet. Export as JPEG and try again.")
+
+
 class WatermarkError(RuntimeError):
     """The preview could not be watermarked. The caller must refuse the upload: the old fallback
     copied the paid original into the free preview's place (LA-GAL-02)."""
@@ -561,6 +571,7 @@ async def upload_gallery_media(
     # Validate file type - gallery only accepts images
     if file.content_type not in ALLOWED_IMAGE_TYPES:
         raise HTTPException(status_code=400, detail="Gallery only accepts images: JPEG, PNG, WebP, GIF")
+    require_previewable_image(file.content_type)
     
     content = await file.read()
     

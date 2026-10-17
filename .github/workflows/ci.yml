@@ -1885,11 +1885,11 @@ jobs:
           # Saved-board clue contracts add24 executed estate cases: projected1674, margin2.
           # Surf-zone gate workflow pins add 5 executed estate cases to test_nearshore_workflow_eligibility.py (an existing
           # estate file): projected 1679, margin 2.
-          # ⬆ 1677→1724 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (Phase 0 containment): the new estate file
-          # tests/test_phase0_containment.py adds 47 executed tests to the hosted 1679 read on dev 5cfec8f55
-          # (CI 39036512940: 310 selected, 1679 passed): projected 1726; 1726 - 2 = 1724, margin 2.
-          # This PR must read 311 files / 1726.
-          MIN_PASSED = 1724
+          # ⬆ 1677→1762 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (Phase 0 containment): the new estate file
+          # tests/test_phase0_containment.py adds 85 executed tests to the hosted 1679 read on dev 5cfec8f55
+          # (CI 39036512940: 310 selected, 1679 passed): projected 1764; 1764 - 2 = 1762, margin 2.
+          # This PR must read 311 files / 1764.
+          MIN_PASSED = 1762
 
           try:
               root = ET.parse('estate.xml').getroot()

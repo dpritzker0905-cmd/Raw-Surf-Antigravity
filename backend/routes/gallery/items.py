@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
-from typing import Literal, Optional, List
+from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import json
 import uuid
@@ -17,7 +17,8 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_optional_user_id
+from .ownership import AssignAccessType, require_gallery_photographer, verified_viewer
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -128,6 +129,7 @@ async def get_photographer_gallery(
     include_in_folders: bool = False,  # If False, only show items not in any folder
     limit: int = 50,
     offset: int = 0,
+    token_user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get a photographer's gallery. By default excludes items that are in folders.
@@ -166,6 +168,7 @@ async def get_photographer_gallery(
     
     # Check which items the viewer has purchased
     purchased_ids = set()
+    viewer_id = verified_viewer(viewer_id, token_user_id)
     if viewer_id:
         purchase_result = await db.execute(
             select(GalleryPurchase.gallery_item_id)
@@ -208,6 +211,7 @@ async def get_spot_gallery(
     spot_id: str,
     viewer_id: Optional[str] = None,
     limit: int = 50,
+    token_user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -245,6 +249,7 @@ async def get_spot_gallery(
     surfer_public_items = surfer_public_items_result.scalars().all()
     
     purchased_ids = set()
+    viewer_id = verified_viewer(viewer_id, token_user_id)
     if viewer_id:
         purchase_result = await db.execute(
             select(GalleryPurchase.gallery_item_id)
@@ -306,6 +311,7 @@ async def get_spot_gallery(
 async def get_gallery_item(
     item_id: str,
     viewer_id: Optional[str] = None,
+    token_user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get a single gallery item"""
@@ -325,6 +331,7 @@ async def get_gallery_item(
     
     # Check if viewer purchased
     is_purchased = False
+    viewer_id = verified_viewer(viewer_id, token_user_id)
     if viewer_id:
         purchase_result = await db.execute(
             select(GalleryPurchase).where(
@@ -489,18 +496,6 @@ async def move_item_to_gallery(
 
 # ============ MANUAL SURFER ASSIGNMENT (Photographer Fallback) ============
 
-# The only access types an assignment may grant. Anything else is refused by validation (422)
-# instead of being stored as free text.
-AssignAccessType = Literal['pending_selection', 'included', 'gifted']
-
-
-def _require_photographer(caller_id: str, owner_id: str, body_photographer_id: str) -> None:
-    """The acting photographer is the token's subject. The body's photographer_id is kept for
-    client compatibility and must name the same person; it never decides ownership."""
-    if body_photographer_id != caller_id or owner_id != caller_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
-
-
 class AssignSurferRequest(BaseModel):
     photographer_id: str
     surfer_id: str
@@ -527,7 +522,7 @@ async def assign_item_to_surfer(
     item = item_result.scalar_one_or_none()
     if not item:
         raise HTTPException(status_code=404, detail="Gallery item not found")
-    _require_photographer(current_user_id, item.photographer_id, data.photographer_id)
+    require_gallery_photographer(current_user_id, item.photographer_id, data.photographer_id)
 
     # Verify surfer exists
     surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))
@@ -571,7 +566,7 @@ async def bulk_assign_to_surfer(
     gallery = gallery_result.scalar_one_or_none()
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    _require_photographer(current_user_id, gallery.photographer_id, data.photographer_id)
+    require_gallery_photographer(current_user_id, gallery.photographer_id, data.photographer_id)
     
     # Verify surfer exists
     surfer_result = await db.execute(select(Profile).where(Profile.id == data.surfer_id))

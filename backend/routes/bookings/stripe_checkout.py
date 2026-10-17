@@ -235,8 +235,9 @@ async def booking_payment_success(
     """
     from routes.sessions.payments import checkout_emulation_allowed
 
+    # Row lock: two concurrent confirmations of one session must not both see it unpaid.
     tx_result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
+        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id).with_for_update()
     )
     transaction = tx_result.scalar_one_or_none()
     if not transaction:
@@ -259,6 +260,15 @@ async def booking_payment_success(
         raise HTTPException(status_code=404, detail="Booking not found")
     if booking.creator_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot confirm another user's booking")
+
+    # Confirmation happens once, from Pending Payment. A replayed or late call writes nothing:
+    # replaying a paid session used to re-confirm a cancelled booking, re-hold its escrow and
+    # re-mark its participant paid, so a second cancellation refunded twice.
+    if transaction.payment_status == 'paid':
+        return {"success": True, "message": "Booking already confirmed", "booking_id": booking.id,
+                "status": booking.status}
+    if booking.status not in ('Pending Payment', 'PendingPayment'):
+        raise HTTPException(status_code=409, detail="This booking is not awaiting payment")
 
     if session_id.startswith("cs_test_") and checkout_emulation_allowed():
         # Emulate checkout retrieve through mock stripe-mcp server tool path

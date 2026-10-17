@@ -477,7 +477,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Model-scoped scalar height switch, on top of it: +43 chain (existing file; floor 2695, files 166).
 # Manifest publication in one step (dark), on top of the monitor check: +384 guards (ten new files, after the split and rounds 4 to 8) on hosted 2747 / 197 files (floor 3125; files 207).
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
-_FLOOR_SET_FROM = {"guards": 3132, "chain": 2701, "estate": 1726}
+_FLOOR_SET_FROM = {"guards": 3132, "chain": 2701, "estate": 1764}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

@@ -20,6 +20,7 @@ from .core import (
     MAX_FILE_SIZE, MAX_IMAGE_SIZE,
     SUPABASE_STORAGE_AVAILABLE,
     upload_to_supabase_storage, get_file_extension, add_watermark, WatermarkError,
+    require_previewable_image,
     _cached_file_response, _SHORT_CACHE,
 )
 from .storage import unlinked_media_names
@@ -112,6 +113,8 @@ async def upload_photographer_gallery_media(
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
     if not is_video and not is_image:
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM")
+    if is_image:
+        require_previewable_image(file.content_type)
     content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
     if len(content) > max_size:
@@ -262,13 +265,21 @@ async def test_watermark_performance(file: UploadFile = File(...)):
         input_file.write(content)
         input_path = input_file.name
     output_path = input_path.replace(".jpg", "_watermarked.jpg")
-    _, watermark_time_ms = add_watermark(input_path, output_path)
-    total_time_ms = (time.time() - start_time) * 1000
-    with open(output_path, "rb") as f:
-        watermarked_content = f.read()
+    try:
+        _, watermark_time_ms = add_watermark(input_path, output_path)
+        total_time_ms = (time.time() - start_time) * 1000
+        with open(output_path, "rb") as f:
+            watermarked_content = f.read()
+    except WatermarkError:
+        raise HTTPException(status_code=400, detail="Could not watermark this image")
+    finally:
+        # Both temp files go on every path; a failed watermark used to leave the input behind.
+        for leftover in (input_path, output_path):
+            try:
+                os.unlink(leftover)
+            except FileNotFoundError:
+                pass
     output_size_mb = len(watermarked_content) / (1024 * 1024)
-    os.unlink(input_path)
-    os.unlink(output_path)
     return {
         "input_size_mb": round(file_size_mb, 2), "output_size_mb": round(output_size_mb, 2),
         "watermark_time_ms": round(watermark_time_ms, 0), "total_time_ms": round(total_time_ms, 0),
@@ -298,6 +309,8 @@ async def upload_session_photo(
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
     if not is_video and not is_image:
         raise HTTPException(status_code=400, detail="Invalid file type. Supported: images and videos")
+    if is_image:
+        require_previewable_image(file.content_type)
     content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
     if len(content) > max_size:

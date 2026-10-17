@@ -27,11 +27,14 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from core.security import create_access_token
 from database import Base, get_db
 from models import (
-    Booking, BookingParticipant, Gallery, GalleryItem, PaymentTransaction, Profile, RoleEnum,
+    Booking, BookingParticipant, Gallery, GalleryItem, GalleryPurchase, PaymentTransaction, Profile, RoleEnum,
     SurferGalleryItem,
 )
 from routes.auth_pkg import auth as auth_routes
 from routes.bookings import stripe_checkout
+from routes.gallery import collections as gallery_collections
+from routes.gallery import distribution as gallery_distribution
+from routes.gallery import distribution_tagging as gallery_tagging
 from routes.gallery import items as gallery_items
 from routes.sessions import payments as session_payments
 from routes.uploads import core as upload_core
@@ -68,7 +71,8 @@ async def harness(tmp_path, monkeypatch):
     when = datetime.now(timezone.utc) + timedelta(days=3)
     async with maker() as db:
         for pid, role in (('owner', RoleEnum.SURFER), ('other', RoleEnum.PHOTOGRAPHER),
-                          ('pro', RoleEnum.PHOTOGRAPHER), ('surfer', RoleEnum.SURFER)):
+                          ('pro', RoleEnum.PHOTOGRAPHER), ('surfer', RoleEnum.SURFER),
+                          ('buyer', RoleEnum.SURFER)):
             db.add(Profile(id=pid, user_id=pid, email=f'{pid}@example.invalid', username=pid, role=role,
                            full_name=pid.title(), credit_balance=100.0, withdrawable_credits=0.0,
                            gear_only_credits=0.0))
@@ -77,21 +81,25 @@ async def harness(tmp_path, monkeypatch):
         db.add(Profile(id='hashed', user_id='hashed', email='hashed@example.invalid', username='hashed',
                        role=RoleEnum.SURFER, full_name='Hashed',
                        password_hash=auth_routes.hash_password('fixture-correct-pw')))
-        for bid in ('bk', 'bk2'):
-            db.add(Booking(id=bid, photographer_id='pro', creator_id='owner', location='Fixture Beach',
-                           session_date=when, duration=60, total_price=100.0, status='Pending Payment'))
+        for bid, creator, status in (('bk', 'owner', 'Pending Payment'), ('bk2', 'owner', 'Pending Payment'),
+                                     ('bk3', 'other', 'Pending Payment'), ('bkc', 'owner', 'Cancelled')):
+            db.add(Booking(id=bid, photographer_id='pro', creator_id=creator, location='Fixture Beach',
+                           session_date=when, duration=60, total_price=100.0, status=status))
         db.add(BookingParticipant(booking_id='bk', participant_id='owner', paid_amount=0.0,
                                   payment_status='Pending', status='pending'))
         db.add(PaymentTransaction(user_id='owner', session_id='cs_live_bk', amount=100.0, payment_status='Pending',
                                   status='Pending', transaction_metadata=json.dumps({'booking_id': 'bk'})))
         db.add(PaymentTransaction(user_id='owner', session_id='cs_test_bk', amount=100.0, payment_status='Pending',
                                   status='Pending', transaction_metadata=json.dumps({'booking_id': 'bk'})))
-        db.add(PaymentTransaction(user_id='owner', session_id='cs_live_bk2', amount=100.0, payment_status='Pending',
-                                  status='Pending', transaction_metadata=json.dumps({'booking_id': 'bk2'})))
+        for sid, user, bid in (('cs_live_bk2', 'owner', 'bk2'), ('cs_live_bk3', 'owner', 'bk3'),
+                               ('cs_live_foreign', 'other', 'bk'), ('cs_live_bkc', 'owner', 'bkc')):
+            db.add(PaymentTransaction(user_id=user, session_id=sid, amount=100.0, payment_status='Pending',
+                                      status='Pending', transaction_metadata=json.dumps({'booking_id': bid})))
         db.add(Gallery(id='gal', photographer_id='pro', title='Fixture Gallery'))
         db.add(GalleryItem(id='item', gallery_id='gal', photographer_id='pro', media_type='image', price=5.0,
                            original_url='https://cdn.fixture.invalid/o.jpg',
                            preview_url='https://cdn.fixture.invalid/p.jpg'))
+        db.add(GalleryPurchase(gallery_item_id='item', buyer_id='buyer', photographer_id='pro', amount_paid=5.0))
         await db.commit()
 
     monkeypatch.setattr(auth_routes, 'rate_limit_check', lambda *a, **k: None)
@@ -104,7 +112,8 @@ async def harness(tmp_path, monkeypatch):
     monkeypatch.setattr(stripe.checkout.Session, 'retrieve', staticmethod(no_retrieve))
 
     app = FastAPI()
-    for module in (auth_routes, stripe_checkout, gallery_items, upload_core, media_gallery):
+    for module in (auth_routes, stripe_checkout, gallery_items, gallery_collections, gallery_distribution,
+                   gallery_tagging, upload_core, media_gallery):
         app.include_router(module.router, prefix='/api')
 
     async def dependency():
@@ -399,3 +408,161 @@ async def test_session_photo_with_a_failed_preview_is_refused_not_published(harn
     assert await scalar(harness.maker, select(GalleryItem).where(GalleryItem.id != 'item')) is None
     gallery_dir = harness.tmp / 'uploads' / 'gallery' / 'pro'
     assert not [p for p in gallery_dir.glob('*') if p.is_file()]
+
+
+# ---------------------------------------------------------------------------------------- LA-PAY-01, review follow-ups
+
+async def test_each_ownership_check_holds_on_its_own(harness):
+    # The transaction is the caller's, the booking is someone else's.
+    response = await harness.client.get(SUCCESS.format(sid='cs_live_bk3', bid='bk3'), headers=bearer('owner'))
+    assert response.status_code == 403, response.text
+    # The booking is the caller's, the transaction (recorded for that booking) is someone else's.
+    response = await harness.client.get(SUCCESS.format(sid='cs_live_foreign', bid='bk'), headers=bearer('owner'))
+    assert response.status_code == 403, response.text
+    assert await booking_state(harness.maker) == UNCHANGED
+    assert await booking_state(harness.maker, 'bk3') == UNCHANGED
+
+
+async def test_a_booking_not_awaiting_payment_is_not_confirmed(harness):
+    response = await harness.client.get(SUCCESS.format(sid='cs_live_bkc', bid='bkc'), headers=bearer('owner'))
+    assert response.status_code == 409, response.text
+    assert await booking_state(harness.maker, 'bkc') == ('Cancelled', 'none')
+
+
+async def test_replaying_a_confirmed_session_writes_nothing(harness, monkeypatch):
+    stripe_returns(monkeypatch, payment_status='paid', metadata=MATCHING, amount_total=10000)
+    first = await harness.client.get(SUCCESS.format(sid='cs_live_bk', bid='bk'), headers=bearer('owner'))
+    assert first.status_code == 200, first.text
+    async with harness.maker() as db:  # the booking is then cancelled and its escrow refunded
+        booking = (await db.execute(select(Booking).where(Booking.id == 'bk'))).scalar_one()
+        booking.status, booking.escrow_status = 'Cancelled', 'refunded'
+        participant = (await db.execute(
+            select(BookingParticipant).where(BookingParticipant.booking_id == 'bk'))).scalar_one()
+        participant.payment_status, participant.paid_amount = 'Refunded', 0.0
+        await db.commit()
+    replay = await harness.client.get(SUCCESS.format(sid='cs_live_bk', bid='bk'), headers=bearer('owner'))
+    assert replay.status_code == 200, replay.text
+    assert replay.json()['status'] == 'Cancelled'
+    assert await booking_state(harness.maker) == ('Cancelled', 'refunded')
+    participant = await scalar(harness.maker, select(BookingParticipant).where(BookingParticipant.booking_id == 'bk'))
+    assert (participant.payment_status, participant.paid_amount) == ('Refunded', 0.0)
+
+
+async def test_the_local_emulator_confirms_without_stripe_where_it_is_allowed(harness, monkeypatch, tmp_path):
+    import stripe_mcp_server
+    monkeypatch.setattr(session_payments, 'checkout_emulation_allowed', lambda: True)
+    monkeypatch.setattr(stripe_mcp_server, 'DB_PATH', str(tmp_path / 'emulator.sqlite'))
+    response = await harness.client.get(SUCCESS.format(sid='cs_test_bk', bid='bk'), headers=bearer('owner'))
+    assert response.status_code == 200, response.text  # the harness's Stripe stub fails if it is called
+    assert await booking_state(harness.maker) == ('Confirmed', 'held')
+
+
+# ---------------------------------------------------------------------------------------- LA-GAL-01, review follow-ups
+
+@pytest.mark.parametrize('path', [ASSIGN, BULK], ids=['one', 'bulk'])
+async def test_a_photographer_naming_themselves_cannot_assign_someone_elses_photo(harness, path):
+    response = await harness.client.post(path, json=dict(BODY, photographer_id='other'), headers=bearer('other'))
+    assert response.status_code == 403, response.text
+    assert await locker_rows(harness.maker) == []
+
+
+DISTRIBUTION = [
+    ('post', '/api/gallery/gal/distribute?photographer_id=pro', None),
+    ('get', '/api/gallery/gal/session-participants?photographer_id=pro', None),
+    ('post', '/api/gallery/gal/link-session?photographer_id=pro', {'live_session_id': None}),
+    ('post', '/api/gallery/gal/distribute-to-surfer?photographer_id=pro',
+     {'surfer_id': 'surfer', 'access_type': 'gifted'}),
+    ('post', '/api/gallery/gal/tag-item?photographer_id=pro', {'item_id': 'item', 'surfer_id': 'surfer'}),
+    ('get', '/api/gallery/gal/surfer-items/surfer?photographer_id=pro', None),
+    ('post', '/api/gallery/gal/untag-item?photographer_id=pro', {'item_id': 'item', 'surfer_id': 'surfer'}),
+    ('get', '/api/gallery/gal/distribution-status?photographer_id=pro', None),
+    ('post', '/api/gallery/gal/publish?photographer_id=pro', {'is_published': True}),
+]
+DISTRIBUTION_IDS = ['distribute', 'session_participants', 'link_session', 'distribute_to_surfer', 'tag_item',
+                    'surfer_items', 'untag_item', 'distribution_status', 'publish']
+
+
+async def call(client, method, path, body, headers):
+    if method == 'get':
+        return await client.get(path, headers=headers)
+    return await client.post(path, json=body, headers=headers)
+
+
+@pytest.mark.parametrize('method,path,body', DISTRIBUTION, ids=DISTRIBUTION_IDS)
+async def test_distribution_routes_need_a_valid_token(harness, method, path, body):
+    response = await call(harness.client, method, path, body, {})
+    assert response.status_code == 401, response.text
+    assert await locker_rows(harness.maker) == []
+
+
+@pytest.mark.parametrize('method,path,body', DISTRIBUTION, ids=DISTRIBUTION_IDS)
+async def test_distribution_routes_refuse_another_user_naming_the_owner(harness, method, path, body):
+    response = await call(harness.client, method, path, body, bearer('other'))
+    assert response.status_code == 403, response.text
+    assert await locker_rows(harness.maker) == []
+
+
+async def test_distribute_to_surfer_grants_only_the_allowed_access_types(harness):
+    response = await harness.client.post('/api/gallery/gal/distribute-to-surfer?photographer_id=pro',
+                                         json={'surfer_id': 'surfer', 'access_type': 'free_forever'},
+                                         headers=bearer('pro'))
+    assert response.status_code == 422, response.text
+    assert await locker_rows(harness.maker) == []
+
+
+async def test_the_owner_still_tags_and_reads_their_surfers_items(harness):
+    tagged = await harness.client.post('/api/gallery/gal/tag-item?photographer_id=pro',
+                                       json={'item_id': 'item', 'surfer_id': 'surfer'}, headers=bearer('pro'))
+    assert tagged.status_code == 200, tagged.text
+    listed = await harness.client.get('/api/gallery/gal/surfer-items/surfer?photographer_id=pro',
+                                      headers=bearer('pro'))
+    assert listed.status_code == 200, listed.text
+    assert [i['gallery_item_id'] for i in listed.json()['tagged_items']] == ['item']
+
+
+VIEWER_READS = ['/api/gallery/item/item?viewer_id=buyer', '/api/galleries/gal/items?viewer_id=buyer']
+
+
+@pytest.mark.parametrize('path', VIEWER_READS, ids=['item', 'gallery_items'])
+@pytest.mark.parametrize('who', [None, 'invalid', 'other'], ids=['none', 'invalid', 'other_user'])
+async def test_a_viewer_id_claim_alone_does_not_unlock_a_purchased_original(harness, path, who):
+    headers = {} if who is None else ({'Authorization': 'Bearer invalid'} if who == 'invalid' else bearer(who))
+    response = await harness.client.get(path, headers=headers)
+    assert response.status_code == 200, response.text
+    assert 'cdn.fixture.invalid/o.jpg' not in response.text
+
+
+@pytest.mark.parametrize('path', VIEWER_READS, ids=['item', 'gallery_items'])
+async def test_the_buyer_with_their_token_still_gets_their_original(harness, path):
+    response = await harness.client.get(path, headers=bearer('buyer'))
+    assert response.status_code == 200, response.text
+    assert 'cdn.fixture.invalid/o.jpg' in response.text
+
+
+# ---------------------------------------------------------------------------------------- LA-GAL-02, review follow-ups
+
+@pytest.mark.parametrize('path,field', [
+    ('/api/upload/gallery', 'user_id'),
+    ('/api/upload/photographer-gallery', 'user_id'),
+    ('/api/photos/upload', 'photographer_id'),
+], ids=['gallery', 'photographer_gallery', 'session_photo'])
+async def test_heic_without_a_decoder_is_refused_before_anything_is_written(harness, storage, monkeypatch,
+                                                                          path, field):
+    monkeypatch.setattr(upload_core, 'HEIF_SUPPORT', False)
+    response = await harness.client.post(path, data={field: 'pro'},
+                                         files={'file': ('a.heic', b'fixture-heic-bytes', 'image/heic')})
+    assert response.status_code == 415, response.text
+    assert storage == []
+    gallery_dir = harness.tmp / 'uploads' / 'gallery' / 'pro'
+    assert not (gallery_dir.exists() and [p for p in gallery_dir.glob('*') if p.is_file()])
+
+
+async def test_the_watermark_benchmark_cleans_up_after_a_failure(harness, monkeypatch, tmp_path):
+    import tempfile
+    scratch = tmp_path / 'tmpdir'
+    scratch.mkdir()
+    monkeypatch.setattr(tempfile, 'tempdir', str(scratch))
+    response = await harness.client.post('/api/uploads/test-watermark',
+                                         files={'file': ('a.jpg', b'not an image at all', 'image/jpeg')})
+    assert response.status_code == 400, response.text
+    assert list(scratch.iterdir()) == []
