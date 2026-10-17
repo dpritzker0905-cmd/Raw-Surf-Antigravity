@@ -81,7 +81,7 @@ async def create_system_message(booking_id: str, content: str, system_data: dict
 @router.get("/crew-chat/{booking_id}/messages")
 async def get_crew_chat_messages(
     booking_id: str,
-    user_id: str,
+    user_id: Optional[str] = None,
     limit: int = 50,
     before: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -91,8 +91,9 @@ async def get_crew_chat_messages(
     Get chat message history for a booking.
     Supports pagination with 'before' cursor (message ID).
     """
-    if user_id != current_user_id:
+    if user_id is not None and user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot read another user's crew chat")
+    user_id = current_user_id
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:
@@ -192,8 +193,8 @@ async def get_crew_chat_messages(
 @router.post("/crew-chat/{booking_id}/send")
 async def send_crew_chat_message(
     booking_id: str,
-    user_id: str,
     data: SendCrewChatMessageRequest,
+    user_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
@@ -202,8 +203,9 @@ async def send_crew_chat_message(
     Supports @mentions and threaded replies.
     Broadcasts to all connected WebSocket clients.
     """
-    if user_id != current_user_id:
+    if user_id is not None and user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot send a crew-chat message for another user")
+    user_id = current_user_id
     if parse_private_media_ref(data.media_url):
         raise HTTPException(status_code=400, detail="Private media must be sent through the crew-chat upload endpoints")
 
