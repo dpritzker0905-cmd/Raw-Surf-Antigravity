@@ -1,0 +1,12 @@
+{
+  "base_commit": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+  "fixture_sha256": "3aa2f06c0d5a42a5196116a6a7aacfe5703414fb86b599e64e12cee291fa1932",
+  "controls_sha256": "bcefaf323f50d1589fdbe2c51a02417c4250e85143a2257dd26b93c270a9b8eb",
+  "source_sha256_lf": {
+    "backend/routes/health.py": "2e38880383e7c86739e961791c3fee653372fc1c991f9edecfd72e2328199355",
+    "backend/services/weather_pipeline/data_health.py": "b194373a6a9a43ccce66e58f2675541e1830fb09993519ab08a99d157dd50ba7",
+    "backend/services/weather_pipeline/model_cycle_health.py": "b05301574bc695e5d797eef9be6b3ccc3ad292bead95e8fce60227662e5b28b9",
+    "backend/services/weather_pipeline/blend_cycle_health.py": "f7f3c1c17ac0e33765ff5f61507f400ecc40a5c11710560de74afed03a0b2af7",
+    "backend/services/weather_pipeline/schemas.py": "82c5953118657975577a4c6b5c8dcffc07b7e7723e79bf37c0373445333dac50"
+  }
+}
