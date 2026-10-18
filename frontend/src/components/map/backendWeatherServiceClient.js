@@ -16,6 +16,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
 import { arrayMax, arrayMin } from './marineControllerUtils';
 import { blendSubVector } from './marineDirectionBlend';
+import { requireStoredIconEstimate } from './iconEstimateDelivery';
 
 
 export { BoundedPointCache };
@@ -291,14 +292,14 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 /**
  * Fetches marine conformed forecast grid from backend weather service.
  */
-export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
+export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS', options = {}) {
   await fetchProductsManifest().catch(() => null);
 
   // D-001: changing displayed forecasts stays dark until the owner authorizes a flip.
   // When enabled, use the backend's stored estimate and its product/run/served-time identity.
   // Secondary swell retains its separately disclosed legacy estimate (D-003).
   const storedIconTail = process.env.REACT_APP_ICON_STORED_TAIL === 'true';
-  if (model === 'ICON' && hourOffset > 168 && (!storedIconTail || layer === 'swell_2')) {
+  if (model === 'ICON' && hourOffset > 168 && !options.storedIconRecovery && (!storedIconTail || layer === 'swell_2')) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to existing swell_2 blender below
     } else {
@@ -532,6 +533,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       throw new Error(reason);
     }
     const json = await res.json();
+
+    if (options.storedIconRecovery) requireStoredIconEstimate(json, layer, validTimeStr);
 
     if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
       recordTruthStage('backendResponse', {
