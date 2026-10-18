@@ -10,7 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { arrayMax } from './marineControllerUtils';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
-import { iconFarHourRenderEnabled } from './iconEstimateDelivery';
+import { iconFarHourRenderEnabled, hasUsableMarineVectors } from './iconEstimateDelivery';
 
 import { blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
 export { blendDirection, blendPeriod, blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
@@ -381,7 +381,7 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         const e = new Error('ICON extended estimate fetch aborted'); e.name = 'AbortError'; throw e;
       }
 
-      if (!iconVectors.length) {
+      if (!hasUsableMarineVectors(iconVectors)) {
         if (iconFarHourRenderEnabled()) {
           // Recover the already-built ICON-anchored estimate, never relabel a bare GFS target.
           return await fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'ICON',

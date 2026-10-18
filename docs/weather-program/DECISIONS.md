@@ -1196,3 +1196,10 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Evidence:** `log/2026-10-12-wind-light-path.md` (2026-10-12 21:39Z to 22:13Z, the solves; 2026-10-13, the default);
   `windLightPath.test.js` (the as-drawn block; 5 of 5 mutations red); `scripts/wind-color/light-margin-solve.mjs --audit`;
   an independent review of the diff; LESSONS L-V85, L-V86.
+
+### D-032 · ICON far-hour recovery uses an existing anchored estimate, never a bare-GFS substitution
+- **Decided:** owner in the D1 Codex chat, 2026-10-18 UTC: "I dont want GFS as fallback"; "We were supposed to be using scientific estimations to help us have extended horizon data. Look deep at this"; then "whatever the most scientific route may be, lets go". Original authorization: fix both D1 paths, prove held-hour/upload-hash behavior offline, open a draft against dev, do not merge.
+- **Rule:** preserve the existing ICON-anchored extension calculations. When the legacy browser ICON anchor fails, recover the already-built stored ICON estimate only with its native ICON anchor, model/layer/time and estimated/non-authoritative provenance intact. Do not rename or deliver a raw GFS grid as ICON. Missing valid estimation inputs must not manufacture a forecast.
+- **Scope:** client delivery repair D1. This authorizes bounded stored-estimate recovery after anchor failure, not general promotion of D-016's stored-tail flag, a new blend formula, changes to D-003, a served-number flag flip or a merge. D1 remains a blocker for the next production promotion until merged and read back under the owner's release instruction.
+- **Evidence:** `log/2026-10-18-codex-d1-icon-render.md`; real client-builder/gate tests, backend extension tests and offline production-context browser checks. Day-8–14 skill remains unverified; the current skill ledger grades 24/48/72 h.
+- **Rollback:** `window.__RAW_DISABLE_ICON_FAR_HOUR_RENDER__ = true` restores the prior rejected delivery paths; revert the D1 code commit for a source rollback while preserving this record and the action ledger.

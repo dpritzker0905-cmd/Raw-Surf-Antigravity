@@ -117,7 +117,7 @@ test.each(['waves', 'swell_1', 'wind_waves'])('missing native anchor recovers th
   expect(requests.at(-1)).toEqual({model: 'ICON', layer, hour: 179});
 });
 
-test.each(['model', 'layer', 'anchor', 'anchor_time', 'target', 'served_time', 'authoritative', 'estimated', 'vectors'])(
+test.each(['model', 'layer', 'anchor', 'anchor_time', 'target', 'served_time', 'authoritative', 'estimated', 'vectors', 'invalid_vectors'])(
   'stored recovery refuses invalid %s provenance instead of substituting GFS', async defect => {
     const data = frame('ICON', 'waves', 179);
     data.is_forecast_authoritative = false;
@@ -132,7 +132,16 @@ test.each(['model', 'layer', 'anchor', 'anchor_time', 'target', 'served_time', '
     if (defect === 'authoritative') data.is_forecast_authoritative = true;
     if (defect === 'estimated') data.is_estimated = false;
     if (defect === 'vectors') data.grid.vectors = [];
+    if (defect === 'invalid_vectors') data.grid.vectors[0].is_valid = false;
     global.fetch = jest.fn(async () => ({ok: true, status: 200, json: async () => data}));
     await expect(client.fetchBackendMarineGrid(bounds, 179, undefined, bounds, 'waves', 'ICON',
       {storedIconRecovery: true})).rejects.toThrow('refusing model substitution');
   });
+
+test('failed stored recovery is single-shot even with the normal stored-tail flag off', async () => {
+  process.env.REACT_APP_ICON_STORED_TAIL = 'false';
+  mode = 'error503';
+  await expect(client.fetchBackendMarineGrid(bounds, 179, undefined, bounds, 'waves', 'ICON',
+    {storedIconRecovery: true})).rejects.toThrow('stored_product_unavailable');
+  expect(requests).toEqual([{model: 'ICON', layer: 'waves', hour: 179}]);
+});

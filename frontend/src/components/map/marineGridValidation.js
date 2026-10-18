@@ -2,10 +2,10 @@ import { iconFarHourRenderEnabled } from './iconEstimateDelivery';
 
 // Return the reason to retain the previous texture, or null to admit the incoming frame.
 export function marineGridRejection(data, activeModel, activeLayer, defaultModel = activeModel) {
-  const model = data.__sourceModel || defaultModel;
+  const model = data.__sourceModel || data.grid?.__sourceModel || defaultModel;
   const provider = data.grid?.__gridProvider || data.__gridProvider || 'none';
   const layer = data.grid?.__componentLayer || data.__componentLayer || 'none';
-  if (model !== activeModel) return 'model_mismatch';
+  if (model !== activeModel || (data.grid?.__sourceModel && data.grid.__sourceModel !== activeModel)) return 'model_mismatch';
   if (activeModel === 'GFS' || activeModel === 'ICON') {
     const iconEstimate = activeModel === 'ICON' && iconFarHourRenderEnabled()
       && provider === 'gfs_trend';

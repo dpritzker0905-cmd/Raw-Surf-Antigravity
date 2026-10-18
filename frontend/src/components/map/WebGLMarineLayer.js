@@ -142,6 +142,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = grid.grid?.__gridProvider || grid.__gridProvider || 'none';
     const componentLayer = grid.grid?.__componentLayer || grid.__componentLayer || 'none';
+    // Reactivation and viewport re-feeds share this upload boundary with normal commits.
+    // They must honor the same source/layer gate and the ICON delivery kill switch.
+    const rejection = marineGridRejection(grid, activeModelRef.current, activeMarineLayer);
+    if (rejection) { runDiagnosticsUpdate(`render_blocked: ${rejection}`); return; }
     const actualBounds = grid.grid?.bounds || grid.bounds;
     const boundsStr = actualBounds ? `${actualBounds.west.toFixed(2)}:${actualBounds.south.toFixed(2)}:${actualBounds.east.toFixed(2)}:${actualBounds.north.toFixed(2)}` : 'none';
 

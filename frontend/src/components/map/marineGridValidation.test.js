@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { marineGridRejection } from './marineGridValidation';
+import { hasUsableMarineVectors } from './iconEstimateDelivery';
 import { fetchBackendMarineGridIconExtended } from './backendWeatherServiceClientHelpers';
 
 const bounds = {west: -108, south: 14, east: -106, north: 16};
@@ -100,4 +101,52 @@ test.each(['GFS', 'EURO'])('%s cannot admit ICON trend delivery', model => {
   const data = frame(model, 192);
   data.grid.__gridProvider = 'gfs_trend';
   expect(marineGridRejection(data, model, 'waves')).toBe('provider_not_whitelisted');
+});
+
+test('an ICON wrapper cannot hide a GFS grid from the model guard', () => {
+  const data = frame('GFS', 192);
+  data.__sourceModel = 'ICON';
+  expect(marineGridRejection(data, 'ICON', 'waves')).toBe('model_mismatch');
+});
+
+test.each(['invalid', 'nonfinite', 'masked'])('an all-%s ICON anchor recovers the existing stored estimate once', async defect => {
+  const b = {...bounds, west: {invalid: -120, nonfinite: -122, masked: -124}[defect]};
+  const calls = [];
+  const stored = frame('ICON', 192);
+  stored.grid.__gridProvider = 'estimated';
+  const result = await fetchBackendMarineGridIconExtended(b, 192, undefined, b, 'waves',
+    async (_b, hour, _s, _snap, layer, model, options) => {
+      if (options?.storedIconRecovery) { calls.push({model, hour}); return stored; }
+      const value = frame(model, hour, layer);
+      if (model === 'ICON') {
+        if (defect === 'invalid') value.grid.vectors[0].is_valid = false;
+        if (defect === 'nonfinite') value.grid.vectors[0].speed = NaN;
+        if (defect === 'masked') value.grid.vectors[0].isOcean = false;
+      }
+      return value;
+    });
+  expect(result).toBe(stored);
+  expect(calls).toEqual([{model: 'ICON', hour: 192}]);
+});
+
+test('usable support admits calm water, rejects null/negative/nonfinite vectors', () => {
+  const calm = {speed: 0, u: 0, v: 0, is_valid: true};
+  expect(hasUsableMarineVectors([null, calm])).toBe(true);
+  expect(hasUsableMarineVectors([null, {...calm, speed: -1}, {...calm, u: NaN}])).toBe(false);
+});
+
+test.each(['error', 'signal'])('abort by %s propagates without starting stored recovery', async mode => {
+  const b = {...bounds, west: mode === 'error' ? -126 : -128};
+  const controller = new AbortController();
+  const recovery = jest.fn();
+  await expect(fetchBackendMarineGridIconExtended(b, 192, controller.signal, b, 'waves',
+    async (_b, hour, _s, _snap, layer, model, options) => {
+      if (options?.storedIconRecovery) recovery();
+      if (model === 'ICON') {
+        if (mode === 'signal') controller.abort();
+        const error = new Error('cancelled'); error.name = 'AbortError'; throw error;
+      }
+      return frame(model, hour, layer);
+    })).rejects.toMatchObject({name: 'AbortError'});
+  expect(recovery).not.toHaveBeenCalled();
 });
