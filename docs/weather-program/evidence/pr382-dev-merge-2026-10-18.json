@@ -1,0 +1,214 @@
+{
+  "recorded_at": "2026-10-18T20:41:34.439935+00:00",
+  "pr": 382,
+  "base": "dev",
+  "reviewed_head": "98fac44e72aa06f0fbfdc7fcd466c18a0c8e54b6",
+  "prior_dev": "a73358a69ca852b65847da31db2833d3762b426b",
+  "merge_commit": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+  "merged_at": "2026-10-18T20:18:59Z",
+  "merge_tree": "2d15a31bb4052c93ee298731366c22cdddcc915a",
+  "merge_tree_equals_reviewed_tree": true,
+  "changed_files": [
+    "docs/weather-program/ACTIONS.jsonl",
+    "docs/weather-program/STATE.md",
+    "docs/weather-program/evidence/pr381-dev-merge-2026-10-18.json",
+    "docs/weather-program/log/2026-10-18-codex-pr381-merge.md"
+  ],
+  "application_test_workflow_hosting_change": false,
+  "merge_message": {
+    "skip_render": true,
+    "skip_netlify": true
+  },
+  "ci": {
+    "observed_at": "2026-10-18T20:40:32.770837+00:00",
+    "actions_jobs_passed": 14,
+    "runs": [
+      {
+        "name": "CI",
+        "id": 39162746575,
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "conclusion": "success",
+        "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39162746575"
+      },
+      {
+        "name": "Lighthouse CI",
+        "id": 39162746576,
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "conclusion": "success",
+        "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39162746576"
+      },
+      {
+        "name": "Weather Program Ledger",
+        "id": 39162746573,
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "conclusion": "success",
+        "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39162746573"
+      }
+    ],
+    "executed_summaries": {
+      "backend-floor-staleness": {
+        "job_id": 117779289512,
+        "conclusion": "success",
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "summary_lines": []
+      },
+      "verify": {
+        "job_id": 117779287667,
+        "conclusion": "success",
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "summary_lines": [
+          "ledger: 1442 entries, OK",
+          "memory audit: 0 FAIL, 22 WARN, 21 NOTE (docs only)"
+        ]
+      },
+      "lint-and-build (24.21.0)": {
+        "job_id": 117779289367,
+        "conclusion": "success",
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "summary_lines": [
+          "Test Suites: 438 passed, 438 total",
+          "Tests:       5766 passed, 5766 total"
+        ]
+      },
+      "backend-estate-coverage": {
+        "job_id": 117779289554,
+        "conclusion": "success",
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "summary_lines": [
+          "2262 passed, 2866 skipped, 1148 warnings in 293.39s (0:04:53)",
+          "estate: 323 files selected, 321 produced results, 2262 passed, 0 silent."
+        ]
+      },
+      "backend-forecast-chain-guards": {
+        "job_id": 117779289467,
+        "conclusion": "success",
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "summary_lines": [
+          "2733 passed, 7 warnings in 653.25s (0:10:53)",
+          "collected 2733 tests across 166 files -> 2733 passed, 0 skipped, 0 failed, 0 errors"
+        ]
+      },
+      "backend-sim-composition-guards": {
+        "job_id": 117779289173,
+        "conclusion": "success",
+        "head": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+        "summary_lines": [
+          "3218 passed, 66 skipped, 1 xfailed, 12 warnings in 1206.52s (0:20:06)",
+          "collected 3285 tests across 207 files -> 3218 passed, 67 skipped, 0 failed, 0 errors"
+        ]
+      }
+    }
+  },
+  "filtered_workflows": {
+    "E2E Tests": "documentation paths ignored; not run or counted as pass",
+    "LOC Governance Check": "documentation paths ignored; not run or counted as pass"
+  },
+  "workflow_cancellations_performed": false,
+  "initial_readback": {
+    "observed_at": "2026-10-18T20:19:53.549727+00:00",
+    "writes": false,
+    "shared_health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62d94f5f161466e09de83089745e4609b296d2f2",
+      "checks": [
+        {
+          "name": "database",
+          "status": "pass"
+        },
+        {
+          "name": "scheduler",
+          "status": "pass"
+        }
+      ]
+    },
+    "production_frontend": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "dev_frontend": {
+      "http": 200,
+      "build": "62d94f5f"
+    },
+    "isolated_canary": {
+      "http": 200,
+      "base_commit": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+      "adapter_commit": "cd4253652c53047f138b1237ac5f9fa3da1cd18d",
+      "guard": "0",
+      "mode": "fixture-only",
+      "fixture_sha256": "3aa2f06c0d5a42a5196116a6a7aacfe5703414fb86b599e64e12cee291fa1932",
+      "network_attempts": 0,
+      "database_imported": false,
+      "server_imported": false,
+      "fixture_unchanged": true
+    },
+    "completed_at": "2026-10-18T20:20:20.310445+00:00"
+  },
+  "final_readback": {
+    "observed_at": "2026-10-18T20:41:05.273616+00:00",
+    "writes": false,
+    "shared_health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62d94f5f161466e09de83089745e4609b296d2f2",
+      "checks": [
+        {
+          "name": "database",
+          "status": "pass"
+        },
+        {
+          "name": "scheduler",
+          "status": "pass"
+        }
+      ]
+    },
+    "production_frontend": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "dev_frontend": {
+      "http": 200,
+      "build": "62d94f5f"
+    },
+    "isolated_canary": {
+      "http": 200,
+      "base_commit": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+      "adapter_commit": "cd4253652c53047f138b1237ac5f9fa3da1cd18d",
+      "guard": "0",
+      "mode": "fixture-only",
+      "fixture_sha256": "3aa2f06c0d5a42a5196116a6a7aacfe5703414fb86b599e64e12cee291fa1932",
+      "network_attempts": 0,
+      "database_imported": false,
+      "server_imported": false,
+      "fixture_unchanged": true
+    },
+    "completed_at": "2026-10-18T20:41:08.024935+00:00"
+  },
+  "guard": {
+    "name": "ESTIMATE_COHERENT_TRENDS",
+    "source_default": "0",
+    "activated_by_session": false,
+    "isolated_canary_readback": "0",
+    "shared_runtime_override": "not disclosed by public health; no environment write performed"
+  },
+  "holds": {
+    "runtime_configuration_or_data_writes": false,
+    "production_deploy": false,
+    "main_promotion": false,
+    "claude_work_modified": false,
+    "canary_modified": false
+  },
+  "prior_readiness_ledger_preserved": [
+    1443,
+    1444
+  ],
+  "served_forecast_number_changed": false,
+  "receipt_publication": "separate codex/pr382-dev-merge-record branch for next authorized adoption; no new receipt PR or merge required",
+  "qualification": "Exact dev merge-head CI and bounded public identity/health readback. No hosting rollout, full live E2E, ingestion, forecast accuracy or guard-enabled acceptance.",
+  "final_refs": {
+    "observed_by": "2026-10-18T20:41:13Z",
+    "dev": "2466e71e8f064b682a6e961fecc15bb570a911f6",
+    "main": "261db85a9508bf5a03ddd70dd21271493d5858a8",
+    "canary_branch": "cd4253652c53047f138b1237ac5f9fa3da1cd18d"
+  }
+}
