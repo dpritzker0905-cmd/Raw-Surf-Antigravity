@@ -1,0 +1,1159 @@
+{
+  "generatedAtUtc": "2026-10-18T00:57:40.072952+00:00",
+  "codeRevision": "c47575eb38511a8b19f96937e3e722802c04d84a",
+  "baseRevision": "62021d59ff78815536391002a5d510a810cfff9e",
+  "context": {
+    "storedIconTail": false,
+    "marineSeries": false,
+    "browser": "headless Chrome / WebGL",
+    "data": "synthetic hourly field, real local backend routes",
+    "oracle": "resident engine hour and FNV-1a of actual typed texture-upload bytes"
+  },
+  "frontendTests": {
+    "suites": 438,
+    "passed": 5757,
+    "failed": 0
+  },
+  "backendIconExtensionTestsPassed": 5,
+  "floorGuardTestsPassed": 36,
+  "mutationFailures": {
+    "trendAdmission": 6,
+    "bareGfsReturn": 3,
+    "provenanceRemoved": 10
+  },
+  "bundle": {
+    "path": "/static/js/main.4d3aabca.js",
+    "sha256": "50f853c8a5245caf3adaf541065c1d0d604505efd8ffcd2f671691c1b86f6b56"
+  },
+  "sourceSha256": {
+    "frontend/src/components/map/WebGLMarineLayer.js": "1832f72d58f22a34c35b3f5b6e4559ea31b3b847715d8f78e926aab428850bc6",
+    "frontend/src/components/map/marineGridValidation.js": "15724bc109f716ba968288004e30b3756989a378c14cf827d3649cff148b79ba",
+    "frontend/src/components/map/iconEstimateDelivery.js": "ee99f8db68a2c40eed5a27f16149052f396f0b399f2e67720d7c19b54a2c3e8f",
+    "frontend/src/components/map/backendWeatherServiceClient.js": "ddaa83908b47ee596637b86ca918d85f09ef38d00c5aca2b24dfa616f9ad24e6",
+    "frontend/src/components/map/backendWeatherServiceClientHelpers.js": "0567321f071cf02b9562ab465cf548e2192ffa21d573bf84ae44a1af883c7fe9",
+    "frontend/scripts/offline-backend/scn_icon_far.js": "427ba5e7309aaf1f9e2f8f9d48e0ef23964708d871c5660bb0131343bd0d298f",
+    "frontend/scripts/offline-backend/ab_lib.js": "f582ee19911a76d6726ce8d98d81bde3f762f7569aad2620619bb7597c7e1e2f"
+  },
+  "scenarios": {
+    "trend": {
+      "mode": "trend",
+      "steps": 72,
+      "first": 169,
+      "last": 240,
+      "refusedIconAnchors": 0,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 169,
+          "held": 169,
+          "hash": "33fc6d62",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 170,
+          "held": 170,
+          "hash": "d4d18a5c",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 171,
+          "held": 171,
+          "hash": "9dd4c32d",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 172,
+          "held": 172,
+          "hash": "60e9a56c",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 173,
+          "held": 173,
+          "hash": "e0889780",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 174,
+          "held": 174,
+          "hash": "b220aea8",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 175,
+          "held": 175,
+          "hash": "c11fb5d3",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 176,
+          "held": 176,
+          "hash": "642dd023",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 177,
+          "held": 177,
+          "hash": "dfd508ff",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 178,
+          "held": 178,
+          "hash": "9db52e7e",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 179,
+          "held": 179,
+          "hash": "5ff89ae7",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 180,
+          "held": 180,
+          "hash": "4cf25e43",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 181,
+          "held": 181,
+          "hash": "c8ec9e9c",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 182,
+          "held": 182,
+          "hash": "7af5668d",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 183,
+          "held": 183,
+          "hash": "b7095699",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 184,
+          "held": 184,
+          "hash": "2e9fa73b",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 185,
+          "held": 185,
+          "hash": "8a559448",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 186,
+          "held": 186,
+          "hash": "2403e373",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 187,
+          "held": 187,
+          "hash": "6dc566f3",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 188,
+          "held": 188,
+          "hash": "bee72d52",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 189,
+          "held": 189,
+          "hash": "333ecc00",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 190,
+          "held": 190,
+          "hash": "b4481d73",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 191,
+          "held": 191,
+          "hash": "89a2408",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 192,
+          "held": 192,
+          "hash": "ed2d531c",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 193,
+          "held": 193,
+          "hash": "3880dcc2",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 194,
+          "held": 194,
+          "hash": "b6e28efa",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 195,
+          "held": 195,
+          "hash": "97aecdcd",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 196,
+          "held": 196,
+          "hash": "f1986f09",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 197,
+          "held": 197,
+          "hash": "2d6abb7",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 198,
+          "held": 198,
+          "hash": "a5f03181",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 199,
+          "held": 199,
+          "hash": "1f929993",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 200,
+          "held": 200,
+          "hash": "1a80a09",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 201,
+          "held": 201,
+          "hash": "73f6f3f6",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 202,
+          "held": 202,
+          "hash": "3e1cbdd7",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 203,
+          "held": 203,
+          "hash": "30c3d0",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 204,
+          "held": 204,
+          "hash": "bdca6a46",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 205,
+          "held": 205,
+          "hash": "56c3e1d2",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 206,
+          "held": 206,
+          "hash": "a5fbef5c",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 207,
+          "held": 207,
+          "hash": "680f0601",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 208,
+          "held": 208,
+          "hash": "dd815de3",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 209,
+          "held": 209,
+          "hash": "322449b6",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 210,
+          "held": 210,
+          "hash": "ba4eef5b",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 211,
+          "held": 211,
+          "hash": "d2c53ef1",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 212,
+          "held": 212,
+          "hash": "99ea288b",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 213,
+          "held": 213,
+          "hash": "7818cb6f",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 214,
+          "held": 214,
+          "hash": "b5dac380",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 215,
+          "held": 215,
+          "hash": "9b88f68",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 216,
+          "held": 216,
+          "hash": "ddea4fdd",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 217,
+          "held": 217,
+          "hash": "8be43345",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 218,
+          "held": 218,
+          "hash": "e392c219",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 219,
+          "held": 219,
+          "hash": "76122083",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 220,
+          "held": 220,
+          "hash": "9e2f8946",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 221,
+          "held": 221,
+          "hash": "36c614c9",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 222,
+          "held": 222,
+          "hash": "d3e8cf91",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 223,
+          "held": 223,
+          "hash": "582854be",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 224,
+          "held": 224,
+          "hash": "5315e410",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 225,
+          "held": 225,
+          "hash": "232ce6c0",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 226,
+          "held": 226,
+          "hash": "e8c67c64",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 227,
+          "held": 227,
+          "hash": "f2889ed6",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 228,
+          "held": 228,
+          "hash": "1907f23c",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 229,
+          "held": 229,
+          "hash": "aec13375",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 230,
+          "held": 230,
+          "hash": "ea5096f7",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 231,
+          "held": 231,
+          "hash": "b96927a7",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 232,
+          "held": 232,
+          "hash": "6add75a6",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 233,
+          "held": 233,
+          "hash": "9c3f0cf9",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 234,
+          "held": 234,
+          "hash": "8deb5dbe",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 235,
+          "held": 235,
+          "hash": "32792012",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 236,
+          "held": 236,
+          "hash": "545d4909",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 237,
+          "held": 237,
+          "hash": "b31b7dfb",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 238,
+          "held": 238,
+          "hash": "d7970e37",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 239,
+          "held": 239,
+          "hash": "fe101999",
+          "provider": "gfs_trend",
+          "dropReason": null
+        },
+        {
+          "requested": 240,
+          "held": 240,
+          "hash": "f08e332f",
+          "provider": "gfs_trend",
+          "dropReason": null
+        }
+      ]
+    },
+    "recovery": {
+      "mode": "fallback",
+      "steps": 72,
+      "first": 169,
+      "last": 240,
+      "refusedIconAnchors": 72,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 169,
+          "held": 169,
+          "hash": "80820fbb",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 170,
+          "held": 170,
+          "hash": "50fb726b",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 171,
+          "held": 171,
+          "hash": "806c227c",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 172,
+          "held": 172,
+          "hash": "d1612c2b",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 173,
+          "held": 173,
+          "hash": "a9679056",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 174,
+          "held": 174,
+          "hash": "c2b0c227",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 175,
+          "held": 175,
+          "hash": "1204db35",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 176,
+          "held": 176,
+          "hash": "705a7ceb",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 177,
+          "held": 177,
+          "hash": "b063c117",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 178,
+          "held": 178,
+          "hash": "487f60f2",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 179,
+          "held": 179,
+          "hash": "b1bf8590",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 180,
+          "held": 180,
+          "hash": "d1aa9c7b",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 181,
+          "held": 181,
+          "hash": "2ae5ace3",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 182,
+          "held": 182,
+          "hash": "827c5737",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 183,
+          "held": 183,
+          "hash": "df727f54",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 184,
+          "held": 184,
+          "hash": "b6bd16dd",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 185,
+          "held": 185,
+          "hash": "c657607",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 186,
+          "held": 186,
+          "hash": "302d9f8d",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 187,
+          "held": 187,
+          "hash": "e1a6d0de",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 188,
+          "held": 188,
+          "hash": "b75a3c09",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 189,
+          "held": 189,
+          "hash": "2d3f5bf",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 190,
+          "held": 190,
+          "hash": "96cb1d68",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 191,
+          "held": 191,
+          "hash": "5b2f4554",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 192,
+          "held": 192,
+          "hash": "b0618bcf",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 193,
+          "held": 193,
+          "hash": "b42e6b5c",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 194,
+          "held": 194,
+          "hash": "fc576e70",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 195,
+          "held": 195,
+          "hash": "7369f29",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 196,
+          "held": 196,
+          "hash": "c4ce46fe",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 197,
+          "held": 197,
+          "hash": "542fd28e",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 198,
+          "held": 198,
+          "hash": "36cf0fdd",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 199,
+          "held": 199,
+          "hash": "855c04f6",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 200,
+          "held": 200,
+          "hash": "c050994",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 201,
+          "held": 201,
+          "hash": "434f9c25",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 202,
+          "held": 202,
+          "hash": "fd89389e",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 203,
+          "held": 203,
+          "hash": "f74b2850",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 204,
+          "held": 204,
+          "hash": "1e973199",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 205,
+          "held": 205,
+          "hash": "4e5234ae",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 206,
+          "held": 206,
+          "hash": "b195c988",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 207,
+          "held": 207,
+          "hash": "4a42d1e1",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 208,
+          "held": 208,
+          "hash": "926b80b6",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 209,
+          "held": 209,
+          "hash": "222e7e7b",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 210,
+          "held": 210,
+          "hash": "604c5ca8",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 211,
+          "held": 211,
+          "hash": "c7f40a97",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 212,
+          "held": 212,
+          "hash": "1d35f7cb",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 213,
+          "held": 213,
+          "hash": "8fd676d4",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 214,
+          "held": 214,
+          "hash": "cd3dece8",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 215,
+          "held": 215,
+          "hash": "261ee373",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 216,
+          "held": 216,
+          "hash": "3feb6cc9",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 217,
+          "held": 217,
+          "hash": "afe46660",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 218,
+          "held": 218,
+          "hash": "ca718bee",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 219,
+          "held": 219,
+          "hash": "ac0fb936",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 220,
+          "held": 220,
+          "hash": "90d50146",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 221,
+          "held": 221,
+          "hash": "29286c32",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 222,
+          "held": 222,
+          "hash": "a0d5ebe0",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 223,
+          "held": 223,
+          "hash": "8c0e758d",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 224,
+          "held": 224,
+          "hash": "fbb5ec98",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 225,
+          "held": 225,
+          "hash": "7abf69f7",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 226,
+          "held": 226,
+          "hash": "8b89478e",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 227,
+          "held": 227,
+          "hash": "260987e",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 228,
+          "held": 228,
+          "hash": "62b74eee",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 229,
+          "held": 229,
+          "hash": "cc59eb97",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 230,
+          "held": 230,
+          "hash": "26dd033b",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 231,
+          "held": 231,
+          "hash": "509b43eb",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 232,
+          "held": 232,
+          "hash": "41e6e825",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 233,
+          "held": 233,
+          "hash": "67a9b61b",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 234,
+          "held": 234,
+          "hash": "76abfd5a",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 235,
+          "held": 235,
+          "hash": "84462aa7",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 236,
+          "held": 236,
+          "hash": "38a12894",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 237,
+          "held": 237,
+          "hash": "9cdb421f",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 238,
+          "held": 238,
+          "hash": "2136dd0f",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 239,
+          "held": 239,
+          "hash": "d4e105f4",
+          "provider": "estimated",
+          "dropReason": null
+        },
+        {
+          "requested": 240,
+          "held": 240,
+          "hash": "f43a755a",
+          "provider": "estimated",
+          "dropReason": null
+        }
+      ]
+    },
+    "kill-trend": {
+      "mode": "kill",
+      "steps": 1,
+      "first": 192,
+      "last": 192,
+      "refusedIconAnchors": 0,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 192,
+          "held": 0,
+          "hash": "75029110",
+          "provider": "open-meteo",
+          "dropReason": "provider_not_whitelisted"
+        }
+      ]
+    },
+    "kill-recovery": {
+      "mode": "kill",
+      "steps": 1,
+      "first": 192,
+      "last": 192,
+      "refusedIconAnchors": 1,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 192,
+          "held": 0,
+          "hash": "75029110",
+          "provider": "open-meteo",
+          "dropReason": null
+        }
+      ]
+    },
+    "native": {
+      "mode": "trend",
+      "steps": 1,
+      "first": 168,
+      "last": 168,
+      "refusedIconAnchors": 0,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 168,
+          "held": 168,
+          "hash": "402e7ff6",
+          "provider": "estimated",
+          "dropReason": null
+        }
+      ]
+    },
+    "tail241": {
+      "mode": "trend",
+      "steps": 1,
+      "first": 241,
+      "last": 241,
+      "refusedIconAnchors": 0,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 241,
+          "held": 241,
+          "hash": "6c8f3dbb",
+          "provider": "gfs_euro_blend",
+          "dropReason": null
+        }
+      ]
+    },
+    "tail288": {
+      "mode": "trend",
+      "steps": 1,
+      "first": 288,
+      "last": 288,
+      "refusedIconAnchors": 0,
+      "nativeHour": 0,
+      "rows": [
+        {
+          "requested": 288,
+          "held": 288,
+          "hash": "edb696c9",
+          "provider": "gfs_euro_blend",
+          "dropReason": null
+        }
+      ]
+    }
+  },
+  "limits": [
+    "No day-8\u201314 forecast-skill proof",
+    "Series cache deliberately disabled to exercise D1",
+    "No real-device performance certification",
+    "No live map or production mutations",
+    "D3 run-time cache identity remains separate"
+  ]
+}

@@ -32,3 +32,28 @@ The strengthened `scn_icon_far.js` selects the direct-grid path with `window.__M
 The final direct-grid trend run passed every integer hour 169–240 (72 steps), with a new texture upload and changed content hash at every transition, provider `gfs_trend`, and no gate drop. Missing-anchor recovery and kill/native/tail controls follow below when read back. The synthetic field is invented; these browser runs do not measure real forecast accuracy or device performance.
 
 The harness proxies weather GETs to the local synthetic backend and blocks external sockets; RainViewer is now explicitly aborted. No live map, mutation endpoint, production data, flags or settings were exercised.
+
+## Independent challenge and additional upload-path checks
+
+Reflection Beam was consulted at the owner's explicit request. Its first response exhausted its output budget and returned no answer; the second returned a review. Its disposition: stored ICON-anchored recovery is preferable to relabeling bare GFS. This is advisory review, not proof of forecast skill.
+
+- Accepted: a nonempty but entirely invalid anchor must not suppress recovery. A shared usable-support predicate now rejects masked, invalid, negative-height and nonfinite vectors while admitting valid calm water. Three real-helper tests force invalid/nonfinite/masked anchors, and invalid stored vectors are refused.
+- Already covered, now pinned explicitly: both wrapper and nested grid identities must agree; `AbortError`/aborted signals propagate before recovery; `storedIconRecovery` bypasses client recursion and makes a failed stored fetch single-shot. Two cancellation controls and a failed single-shot HTTP control pass.
+- Deferred: cache run-time consistency is the independently identified D3 scope. It is not silently claimed repaired here.
+- Oracle limit retained: upload hashes demonstrate changed encoded content, not correct physical forecasts or calibrated confidence. Recovery identity/provenance is asserted separately.
+
+The browser kill control exposed a reactivation re-feed bypassing the old effect gate. Validation now also runs at the shared upload boundary. A wrapper marked ICON cannot hide a nested GFS grid. The layer's final size is 1,097 lines (net -35 against the base), correcting the earlier intermediate 1,093 count.
+
+Fresh focused suite after these changes: 71 passed. Three mutations on checkpoint `c47575eb3` were killed and source restored byte-for-byte: removal of trend admission caused 6 assertion failures; reinstating bare-GFS fallback caused 3; removing provenance validation caused 10. The whole frontend and final browser matrix are rerun after restoration; final receipts follow below.
+
+## Final local read-back
+
+- Whole frontend: **438 suites / 5,757 passed / 0 failed** after source restoration.
+- Production-context build (`REACT_APP_ICON_STORED_TAIL=false`): success with the existing warning backlog. Frontend lint and LOC ratchets pass; `WebGLMarineLayer.js` is 1,097 lines. Backend fatal lint, file-size and BOLA ratchets pass; CI floor staleness 36 passed; existing backend ICON extension 5 passed.
+- Final browser matrix: normal trend **72/72**, forced missing-ICON-anchor stored recovery **72/72**, kill/provider and kill/recovery **1 each**, +168 boundary **1**, +241 and +288 tail controls **1 each**. Native ICON hour 0 is established before every scenario. Both hourly sweeps had correct held hours, changed resident texture hashes at every transition, and zero gate drops. Recovery retained `icon_persistence_gfs_blend` and the native persistence-anchor ID.
+- The missing-anchor kill control retained the native hour 0 texture with exactly the same content hash after the failed-anchor/GFS requests completed. It did not upload a substitute; upstream model rejection can precede the layer's drop diagnostic, so a missing `__SWELL2_LAST_DROP__` alone is not treated as proof of success or failure.
+- Compact receipt: `evidence/d1-icon-render-2026-10-18.json`, including the main bundle SHA-256, source hashes, per-hour held/upload hashes and test counts. Raw output and intermediate failing probes remain local, outside the public repository.
+
+No scientific skill gain is claimed. The direct-grid scope, invented fields, unverified long-range calibration, separate D3 cache identity, absent local pygrib/uvloop, and lack of real-device acceptance remain explicit limitations. D1's source repair is qualified locally for a draft; merge and production rollout remain held.
+
+An additional direct-grid control with 3,000 ms local weather delay passed hours 169 and 170 with correct held hours and changed texture-byte hashes. This is a delivery-under-delay check, not a production latency benchmark. Local ledger verification passed at seq 1394; memory audit returned 0 FAIL / 21 WARN / 22 NOTE. The existing overdue commitments remain open.
