@@ -915,7 +915,9 @@ jobs:
           # ⬆ 207/3128 → 207/3130 in the same PR, after its independent review: +2 more cases in the same file (25 -> 27: a 204 answer to
           # the delete, and no delete request when nothing is eligible); 3132 + 4 = projected 3136; 3136 - 6 = 3130. This PR must read
           # 207 files / 3136.
-          MIN_FILES, MIN_PASSED = 207, 3130
+          # Marine contributor health: +54 guards from dev3136 ->3190; same207files and margin6.
+          # Final PR378 review: +28 malformed-cycle/identity health controls; 3190 ->3218, margin6 unchanged.
+          MIN_FILES, MIN_PASSED = 207, 3212
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1484,7 +1486,9 @@ jobs:
           # ⬆ 166/2652 → 166/2695 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the model-scoped scalar marine height switch,
           # dark): +43 cases in the existing tests/test_sampler_scalar_marine_height.py (12 -> 55, no new file); the dev reading after
           # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
-          MIN_FILES, MIN_PASSED = 166, 2695
+          # Dark coherent marine trends: +20 chain controls from dev2701 ->2721; same166files and margin6.
+          # Final PR378 review: +12 empty-identity/UTC-overflow refusal controls; 2721 ->2733, margin6 unchanged.
+          MIN_FILES, MIN_PASSED = 166, 2727
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
