@@ -99,11 +99,14 @@ app = FastAPI(title='PR378 isolated real-grid replay', docs_url=None, redoc_url=
 
 
 def integrity():
-    return (network_attempts == 0 and all(os.environ.get(k) == v for k, v in CONTROLS.items())
-            and not any(os.environ.get(k) for k in FORBIDDEN)
-            and 'server' not in sys.modules and 'database' not in sys.modules
-            and store.get_manifest().model_dump_json() == manifest_before
-            and all(hashlib.sha256((directory/name).read_bytes()).hexdigest() == value for name, value in file_hashes.items()))
+    try:
+        return (network_attempts == 0 and all(os.environ.get(k) == v for k, v in CONTROLS.items())
+                and not any(os.environ.get(k) for k in FORBIDDEN)
+                and 'server' not in sys.modules and 'database' not in sys.modules
+                and store.get_manifest().model_dump_json() == manifest_before
+                and all(hashlib.sha256((directory/name).read_bytes()).hexdigest() == value for name, value in file_hashes.items()))
+    except OSError:
+        return False
 
 
 def check():
@@ -188,11 +191,14 @@ def replay_grid(case: str, valid_time: str = Query(...)):
     product = store.load_product(chosen)
     if not product or product.valid_time != requested:
         raise HTTPException(503, 'Loaded grid valid time differs from requested frame')
+    raw = product.model_dump_json().encode()
+    if hashlib.sha256(raw).hexdigest() != file_hashes[chosen]:
+        raise HTTPException(503, 'Loaded grid serialization changed')
     return {'requested_valid_time': requested.isoformat(), 'served_valid_time': product.valid_time.isoformat(),
             'frame_offset_hours': 0, 'frame_substituted': False, 'guard': '0',
             'product_id': chosen, 'sha256': file_hashes[chosen],
             'contributor_sha256': receipt['products'][chosen]['contributor_sha256'],
-            'grid': product.model_dump(mode='json')}
+            'grid': json.loads(raw)}
 
 
 @app.get('/api/health/data')

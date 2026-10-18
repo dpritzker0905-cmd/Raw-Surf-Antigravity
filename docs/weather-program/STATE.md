@@ -2360,7 +2360,7 @@ is a claim, not a measurement.
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
 - **2026-10-18: PR378 separate real-grid replay deployed and restarted, guard0.** Runtime6fbf439ac, adapter6f67cdb64;128real product hashes/144contributor links,16cycle cases and48exact/48held-hour refusal checks passed over HTTPS before/afterrestart.48real-input grids match premerge estimator numerically. Six-point Pacific replay only; global/L2/full-app/scientific acceptance remains open. New Free service only; fixture canary, dev/main, production and Claude untouched. [Receipt](log/2026-10-18-codex-pr378-real-grid.md).
 
-**Ledger head: seq 1458, sha256 ca530c2a124aa736e176a9f5692b4b64a24a074452d07f3fbe1514198daae94a**
+**Ledger head: seq 1459, sha256 7719d8fa673384fef27ef6fd4464bd2052c8d2f986767b272f4f1ecd71179f5c**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, timezone
 import gzip
 import hashlib
 import json
+import re
 from pathlib import Path
 import ssl
 from urllib.error import HTTPError
@@ -74,7 +75,12 @@ def trusted_bundle():
     return pin, payload, receipt, source
 
 
-def verify(origin, counts):
+def check_adapter(actual, expected):
+    require(re.fullmatch(r'[0-9a-f]{40}', expected) is not None, 'Expected adapter must be a full commit SHA')
+    require(actual == expected, 'Runtime adapter differs from the reviewed commit')
+
+
+def verify(origin, counts, expected_adapter):
     pin, payload, expected, source = trusted_bundle()
     tls = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     tls.load_default_certs(ssl.Purpose.SERVER_AUTH)
@@ -108,7 +114,7 @@ def verify(origin, counts):
         for key, value in expected_fields.items():
             require(identity.get(key) == value, "Runtime identity mismatch: " + key)
         instant(identity["served_at"])
-        require(identity.get("adapter_commit"), "Missing deployment adapter commit")
+        check_adapter(identity.get("adapter_commit"), expected_adapter)
         return {key: value for key, value in identity.items() if key != "served_at"}
 
     initial_identity = check_identity(get_json("/identity"))
@@ -245,18 +251,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url")
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--expected-adapter-commit", required=True)
     args = parser.parse_args()
     counts = {name: 0 for name in ("identity", "products", "estimates", "contributor_links", "cases", "frames",
                                   "held_hour_refusals", "health", "negative_routes", "concurrent_reads")}
-    receipt = {"verified_at": datetime.now(timezone.utc).isoformat(), "counts": counts, "failures": [],
+    receipt = {"started_at": datetime.now(timezone.utc).isoformat(), "counts": counts, "failures": [],
                "limits": "Regional sealed replay only; no full-application, L2 persistence, forecast-accuracy or availability acceptance."}
     try:
         origin = validate_url(args.url)
         receipt["origin"] = origin
-        receipt["identity"] = verify(origin, counts)
+        receipt["identity"] = verify(origin, counts, args.expected_adapter_commit)
     except Exception as exc:
         receipt["failures"].append({"type": type(exc).__name__, "message": str(exc)[:400]})
     receipt["status"] = "pass" if not receipt["failures"] else "fail"
+    receipt["finished_at"] = datetime.now(timezone.utc).isoformat()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(receipt))

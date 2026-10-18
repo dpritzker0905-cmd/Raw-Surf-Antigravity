@@ -4,13 +4,7 @@ on:
   push:
     branches: [codex/pr378-real-grid-canary]
     paths:
-      - canary/pr378_real/app.py
-      - canary/pr378_real/bootstrap.py
-      - canary/pr378_real/bundle.json.gz
-      - canary/pr378_real/bundle-pin.json
-      - canary/pr378_real/check_startup.py
-      - canary/pr378_real/verify_http.py
-      - canary/pr378_real/requirements.txt
+      - 'canary/pr378_real/**'
       - .github/workflows/pr378-real-grid-reader.yml
 permissions:
   contents: read
@@ -40,6 +34,7 @@ jobs:
           python-version: '3.12.8'
       - run: pip install -r canary/pr378_real/requirements.txt
       - run: python canary/pr378_real/check_startup.py --output reader-startup.json
+      - run: python canary/pr378_real/check_integrity.py --output reader-integrity.json
       - name: Verify real products through HTTP
         shell: bash
         run: |
@@ -51,13 +46,14 @@ jobs:
             if curl --silent --fail http://127.0.0.1:8738/healthz > /dev/null; then break; fi
             sleep 1
           done
-          python canary/pr378_real/verify_http.py http://127.0.0.1:8738 --output reader-http.json
+          python canary/pr378_real/verify_http.py http://127.0.0.1:8738 --expected-adapter-commit "$GITHUB_SHA" --output reader-http.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: pr378-reader-${{ github.sha }}
           path: |
             reader-startup.json
+            reader-integrity.json
             reader-http.json
             reader-server.log
           retention-days: 3

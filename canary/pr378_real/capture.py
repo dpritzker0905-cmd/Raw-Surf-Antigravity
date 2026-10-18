@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from bootstrap import BASE, HERE, prepare
+from capture_http import bounded_body
 
 OUT = HERE / 'capture-output'
 OUT.mkdir(exist_ok=True)
@@ -60,8 +61,9 @@ def audit_network():
             raise RuntimeError('Unapproved capture host: ' + host)
         if request.method not in ('GET', 'HEAD') or request.headers.get('Authorization'):
             raise RuntimeError('Capture only allows anonymous GET/HEAD')
+        kwargs['stream'] = True
         response = original(session, request, **kwargs)
-        raw = response.content
+        raw = bounded_body(response, 480 * 1024 * 1024 - downloaded)
         downloaded += len(raw)
         if downloaded > 480 * 1024 * 1024:
             raise RuntimeError('Capture exceeded 480MiB HTTP budget')

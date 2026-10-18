@@ -70,7 +70,7 @@ guard-enabled, day14 availability or forecast-accuracy acceptance is implied.
 Run the independent verifier with the local trusted bundle present:
 
 ```sh
-python canary/pr378_real/verify_http.py https://rawsurf-pr378-real-grid-6fbf439ac.onrender.com --output /private/receipt.json
+python canary/pr378_real/verify_http.py https://rawsurf-pr378-real-grid-6fbf439ac.onrender.com --expected-adapter-commit <reviewed-full-adapter-SHA> --output /private/receipt.json
 ```
 
 The verifier hashes every product body itself and cross-checks every estimate's

@@ -6,6 +6,10 @@ on:
     paths:
       - canary/pr378_real/capture.py
       - canary/pr378_real/cmems_capture.py
+      - canary/pr378_real/capture_http.py
+      - canary/pr378_real/bootstrap.py
+      - canary/pr378_real/source.tar.gz
+      - canary/pr378_real/source-pins.json
       - canary/pr378_real/capture-requirements.txt
       - .github/workflows/pr378-real-grid-capture.yml
 permissions:
