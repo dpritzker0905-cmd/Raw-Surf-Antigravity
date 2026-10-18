@@ -66,3 +66,13 @@ published separately on this chat's receipt branch for a later authorized adopti
 additional merge or production action is performed by this closeout.
 
 Publication is pending at this entry; the following closeout records its actual push/readback.
+
+## Publication closeout
+
+Receipt `f88c0b215b76f07056a6748043250e92de3bcffd` was pushed and read back on
+`codex/pr382-dev-merge-record`. Ledger1447 closes publication; closing bookkeeping stays
+on this same documentation lineage. Prior readiness records1443-1444 remain intact.
+PR382 is MERGED, dev remains2466e71e8, main261db85a and canarycd4253652 unchanged.
+No new PR, further merge, deployment/restart, guard activation, environment/data write or
+modification to Claude's work. Published records are available for later authorized adoption;
+their branch does not change the qualified merge source or claim a new runtime acceptance.
