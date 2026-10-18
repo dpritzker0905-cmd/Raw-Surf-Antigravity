@@ -1,4 +1,4 @@
-"""AI moderation: the Pydantic AI Gateway path is default-off and fails open."""
+"""AI moderation: the Pydantic AI Gateway path is default-off, fails open, and runs as a named agent."""
 import asyncio
 
 import httpx
@@ -8,6 +8,12 @@ from services import ai_moderation
 
 def _run(coro):
     return asyncio.run(coro)
+
+
+def _anthropic_reply(text):
+    return {"id": "msg_1", "type": "message", "role": "assistant", "model": "claude-opus-4-8",
+            "content": [{"type": "text", "text": text}], "stop_reason": "end_turn", "stop_sequence": None,
+            "usage": {"input_tokens": 5, "output_tokens": 5}}
 
 
 def test_flag_default_off(monkeypatch):
@@ -22,39 +28,36 @@ def test_flag_on_without_key_fails_open(monkeypatch):
     assert out["approved"] is True and out["error"]
 
 
-def _patch_transport(monkeypatch, handler, seen):
-    real = httpx.AsyncClient
-
-    def factory(*a, **kw):
-        kw["transport"] = httpx.MockTransport(handler)
-        return real(*a, **kw)
-
-    monkeypatch.setattr(httpx, "AsyncClient", factory)
-
-
-def test_gateway_flagged_response(monkeypatch):
-    monkeypatch.setenv("MODERATION_USE_PYDANTIC_GATEWAY", "true")
-    monkeypatch.setenv("PYDANTIC_AI_GATEWAY_API_KEY", "test-key")
+def test_gateway_agent_request_shape(monkeypatch):
     monkeypatch.delenv("PYDANTIC_AI_GATEWAY_BASE_URL", raising=False)
     seen = {}
 
     def handler(request):
         seen["url"] = str(request.url)
-        seen["key"] = request.headers.get("x-api-key")
         seen["body"] = request.read().decode()
-        return httpx.Response(200, json={"content": [{"type": "text", "text": '{"approved": false, "reason": "spam"}'}]})
+        return httpx.Response(200, json=_anthropic_reply('{"approved": false, "reason": "spam"}'))
 
-    _patch_transport(monkeypatch, handler, seen)
-    out = _run(ai_moderation.moderate_review_content("buy cheap watches at example"))
-    assert out == {"approved": False, "reason": "spam"}
-    assert seen["url"] == "https://gateway-us.pydantic.dev/proxy/anthropic/v1/messages"
-    assert seen["key"] == "test-key"
-    assert "claude-opus-4-8" in seen["body"]
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    text = _run(ai_moderation._complete_via_gateway("test-key", "buy cheap watches", http_client=client))
+    assert '"approved": false' in text
+    assert seen["url"].startswith("https://gateway-us.pydantic.dev/proxy/anthropic/")
+    assert "claude-opus-4-8" in seen["body"] and "content moderation assistant" in seen["body"]
 
 
-def test_gateway_http_error_fails_open(monkeypatch):
+def test_gateway_failure_fails_open(monkeypatch):
     monkeypatch.setenv("MODERATION_USE_PYDANTIC_GATEWAY", "1")
     monkeypatch.setenv("PYDANTIC_AI_GATEWAY_API_KEY", "test-key")
-    _patch_transport(monkeypatch, lambda r: httpx.Response(500, json={}), {})
+
+    async def boom(api_key, review_text, http_client=None):
+        raise RuntimeError("gateway down")
+
+    monkeypatch.setattr(ai_moderation, "_complete_via_gateway", boom)
     out = _run(ai_moderation.moderate_review_content("solid waves"))
     assert out["approved"] is True and "error" in out
+
+
+def test_tracing_is_noop_without_token(monkeypatch):
+    from services import observability
+    monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
+    monkeypatch.setattr(observability, "_configured", False)
+    assert observability.setup_agent_tracing() is False

@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 # Default-off: when MODERATION_USE_PYDANTIC_GATEWAY is truthy, moderation goes through the
 # Pydantic AI Gateway (Anthropic route) instead of OpenAI. Read at call time.
-GATEWAY_BASE_URL = "https://gateway-us.pydantic.dev/proxy/anthropic"
+GATEWAY_BASE_URL = "https://gateway-us.pydantic.dev/proxy"
 GATEWAY_MODEL = "claude-opus-4-8"
 
 
@@ -27,25 +27,25 @@ def _user_prompt(review_text: str) -> str:
     return f"Review the following content and determine if it should be approved or flagged:\n\n\"{review_text}\""
 
 
-async def _complete_via_gateway(api_key: str, review_text: str) -> str:
-    """One moderation completion through the Pydantic AI Gateway (Anthropic Messages API)."""
-    import httpx
+async def _complete_via_gateway(api_key: str, review_text: str, http_client=None) -> str:
+    """One moderation completion through the Pydantic AI Gateway, as a traced Pydantic AI agent run."""
+    from pydantic_ai import Agent
+    from pydantic_ai.models.anthropic import AnthropicModel
+    from pydantic_ai.providers.gateway import gateway_provider
+    from services.observability import setup_agent_tracing
 
-    base = os.environ.get("PYDANTIC_AI_GATEWAY_BASE_URL", "").rstrip("/")
-    url = (f"{base}/anthropic" if base else GATEWAY_BASE_URL) + "/v1/messages"
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        resp = await client.post(
-            url,
-            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"},
-            json={
-                "model": GATEWAY_MODEL,
-                "max_tokens": 100,
-                "system": MODERATION_SYSTEM_PROMPT,
-                "messages": [{"role": "user", "content": _user_prompt(review_text)}],
-            },
-        )
-        resp.raise_for_status()
-        return "".join(b.get("text", "") for b in resp.json().get("content", []) if b.get("type") == "text").strip()
+    setup_agent_tracing()
+    base_url = None if os.environ.get("PYDANTIC_AI_GATEWAY_BASE_URL") else GATEWAY_BASE_URL
+    provider = gateway_provider("anthropic", api_key=api_key, base_url=base_url, http_client=http_client)
+    agent = Agent(
+        AnthropicModel(GATEWAY_MODEL, provider=provider),
+        name="review-moderation",
+        instructions=MODERATION_SYSTEM_PROMPT,
+        model_settings={"max_tokens": 100},
+    )
+    result = await agent.run(_user_prompt(review_text))
+    return result.output.strip()
+
 
 # System prompt for content moderation
 MODERATION_SYSTEM_PROMPT = """You are a content moderation assistant for a surf photography marketplace. 
