@@ -1,5 +1,5 @@
 """Stored blend cycles describe actual contributors, never synthetic model authority."""
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -213,3 +213,31 @@ def test_guard_default_off_preserves_legacy_payload_and_unused_icon(monkeypatch,
     result = estimate(products, hour)
     assert (result is None) == (hour == 78)
     if result is not None: assert result.model_dump_json() == before.model_dump_json()
+
+
+@pytest.mark.parametrize('family', ['gfs', 'icon'])
+@pytest.mark.parametrize('field', ['provider', 'source_dataset'])
+@pytest.mark.parametrize('empty_identity', ['', ' '])
+def test_guard_cannot_verify_matching_empty_donor_identity(monkeypatch, family, field, empty_identity):
+    products = donors(icon=family == 'icon')
+    for product in products.values():
+        product.source_dataset = product.model + '_waves'
+    for role in (family + '_anchor', family + '_target'):
+        setattr(products[role], field, empty_identity)
+    monkeypatch.delenv('ESTIMATE_COHERENT_TRENDS', raising=False)
+    legacy = estimate(products)
+    assert legacy is not None
+    monkeypatch.setenv('ESTIMATE_COHERENT_TRENDS', '1')
+    assert estimate(products) is None
+
+
+@pytest.mark.parametrize('family', ['gfs', 'icon'])
+@pytest.mark.parametrize('cycle', ['0001-01-01T00:00:00+01:00', '9999-12-31T23:59:59-01:00'])
+def test_guard_refuses_unrepresentable_utc_cycle(monkeypatch, family, cycle):
+    products = donors(icon=family == 'icon')
+    for product in products.values():
+        product.source_dataset = product.model + '_waves'
+    for role in (family + '_anchor', family + '_target'):
+        products[role].model_run_time = datetime.fromisoformat(cycle)
+    monkeypatch.setenv('ESTIMATE_COHERENT_TRENDS', '1')
+    assert estimate(products) is None

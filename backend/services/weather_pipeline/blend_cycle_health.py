@@ -40,8 +40,10 @@ def verified_blend_cycles(product):
         expected_model = model if role == 'native_anchor' else ('GFS' if role.startswith('gfs_') else 'ICON')
         expected_id = basis.get(native_id if role == 'native_anchor' else role + '_product_id')
         dataset = source.get('source_dataset')
+        provider = source.get('provider')
         if (source.get('model') != expected_model or not isinstance(expected_id, str) or not expected_id or
-                source.get('product_id') != expected_id or not isinstance(dataset, str) or not dataset or
+                source.get('product_id') != expected_id or not isinstance(dataset, str) or not dataset.strip() or
+                not isinstance(provider, str) or not provider.strip() or
                 source.get('model_run_time_status') != 'known' or
                 source.get('reported_model_run_time_status') != 'known'):
             raise ValueError('unverified contributor identity')
@@ -50,7 +52,7 @@ def verified_blend_cycles(product):
             if cycle.tzinfo is None or cycle.utcoffset() is None:
                 raise ValueError('unqualified contributor cycle')
             cycle = cycle.astimezone(timezone.utc)
-        except (KeyError, AttributeError, TypeError) as exc:
+        except (KeyError, AttributeError, TypeError, OverflowError) as exc:
             raise ValueError('invalid contributor cycle') from exc
         if expected_model in dates_by_model and dates_by_model[expected_model] != cycle:
             raise ValueError('conflicting cycles within a contributing model')

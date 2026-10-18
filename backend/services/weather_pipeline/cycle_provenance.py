@@ -44,7 +44,8 @@ def coherent_cycle_pair(anchor, target):
     identity = ('model', 'provider', 'domain', 'layer', 'source_dataset', 'region_id', 'tile_id')
     if (anchor is None or target is None or
             any(getattr(anchor, key, None) != getattr(target, key, None) for key in identity) or
-            not getattr(anchor, 'source_dataset', None) or
+            any(not isinstance(value := getattr(anchor, key, None), str) or not value.strip()
+                for key in ('provider', 'source_dataset')) or
             any(getattr(p, 'is_estimated', False) for p in (anchor, target))):
         return False
     dates = []
@@ -53,5 +54,8 @@ def coherent_cycle_pair(anchor, target):
         if (getattr(product, 'model_run_time_status', 'missing') != 'known' or
                 not isinstance(date, datetime) or date.tzinfo is None or date.utcoffset() is None):
             return False
-        dates.append(date.astimezone(timezone.utc))
+        try:
+            dates.append(date.astimezone(timezone.utc))
+        except OverflowError:
+            return False
     return dates[0] == dates[1]

@@ -158,6 +158,31 @@ def test_contributor_health_is_independent_of_manifest_order():
     assert a['alerts'] == b['alerts']
 
 
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+@pytest.mark.parametrize('cycle', ['0001-01-01T00:00:00+01:00', '9999-12-31T23:59:59-01:00'])
+def test_out_of_range_contributor_utc_cycle_warns_without_crashing(model, cycle):
+    blend = _recorded_blend(model)
+    blend.estimate_basis['cycle_sources'][-1]['model_run_time'] = cycle
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_unverified']
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+@pytest.mark.parametrize('roles', [('native_anchor',), ('gfs_anchor', 'gfs_target')])
+@pytest.mark.parametrize('field,damage', [('provider', 'missing'), ('provider', None), ('provider', ''),
+                                         ('provider', ' '), ('provider', []), ('source_dataset', ' ')])
+def test_incomplete_contributor_identity_cannot_be_verified(model, roles, field, damage):
+    blend = _recorded_blend(model)
+    for source in blend.estimate_basis['cycle_sources']:
+        if source['role'] in roles:
+            if damage == 'missing':
+                source.pop(field)
+            else:
+                source[field] = damage
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_unverified']
+
+
 @pytest.mark.parametrize('age,expected', [(7, 'ok'), (19, 'warn'), (55, 'critical')])
 def test_model_cycle_age_changes_health_independently_of_recent_ingest(age, expected):
     products = _all_healthy()
