@@ -1921,7 +1921,9 @@ jobs:
           # binding file adds 69 executed tests (23 routes x 3) to the hosted 2188 read of PR 372
           # (CI: 322 files selected, 2188 passed): projected 2257; 2257 - 2 = 2255, margin 2.
           # This PR must read 322 files / 2257.
-          MIN_PASSED = 2259
+          # PR381 reconciliation: dev CI39142012113 (62d94f5f) observed2262 passed.
+          # Preserve the estate margin2; paired _FLOOR_SET_FROM moves to2262.
+          MIN_PASSED = 2260
 
           try:
               root = ET.parse('estate.xml').getroot()
