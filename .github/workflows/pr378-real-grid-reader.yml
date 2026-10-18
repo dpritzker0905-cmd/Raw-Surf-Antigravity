@@ -1,0 +1,63 @@
+name: PR378 isolated real-grid reader
+run-name: PR378 sealed reader ${{ github.sha }}
+on:
+  push:
+    branches: [codex/pr378-real-grid-canary]
+    paths:
+      - canary/pr378_real/app.py
+      - canary/pr378_real/bootstrap.py
+      - canary/pr378_real/bundle.json.gz
+      - canary/pr378_real/bundle-pin.json
+      - canary/pr378_real/check_startup.py
+      - canary/pr378_real/verify_http.py
+      - canary/pr378_real/requirements.txt
+      - .github/workflows/pr378-real-grid-reader.yml
+permissions:
+  contents: read
+concurrency:
+  group: pr378-isolated-real-grid-reader
+  cancel-in-progress: false
+jobs:
+  reader:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ESTIMATE_COHERENT_TRENDS: '0'
+      L2_WRITER: '0'
+      L2_WRITER_GATE: '1'
+      DISABLE_FORECAST_SCHEDULER: '1'
+      LOCAL_TEST_FIXTURE: 'false'
+      NODE_ENV: development
+      TESTING: '0'
+      PYTHONDONTWRITEBYTECODE: '1'
+      RENDER_GIT_COMMIT: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.8'
+      - run: pip install -r canary/pr378_real/requirements.txt
+      - run: python canary/pr378_real/check_startup.py --output reader-startup.json
+      - name: Verify real products through HTTP
+        shell: bash
+        run: |
+          export REPLAY_BUNDLE_SHA256=$(python -c "import json; print(json.load(open('canary/pr378_real/bundle-pin.json'))['sha256'])")
+          python -m uvicorn canary.pr378_real.app:app --host 127.0.0.1 --port 8738 > reader-server.log 2>&1 &
+          reader_pid=$!
+          trap 'kill "$reader_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 20); do
+            if curl --silent --fail http://127.0.0.1:8738/healthz > /dev/null; then break; fi
+            sleep 1
+          done
+          python canary/pr378_real/verify_http.py http://127.0.0.1:8738 --output reader-http.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr378-reader-${{ github.sha }}
+          path: |
+            reader-startup.json
+            reader-http.json
+            reader-server.log
+          retention-days: 3

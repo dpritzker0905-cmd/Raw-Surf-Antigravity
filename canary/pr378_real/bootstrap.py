@@ -7,12 +7,14 @@ import tarfile
 
 HERE = Path(__file__).resolve().parent
 BASE = '6fbf439ac2bb2da5337f9a45864ffd3af8be8423'
+SOURCE_SHA256 = '4292087f9952686dac7a458845789864653284058bdb7273b29794c46c6f4df2'
 
 
 def prepare():
     pins = json.loads((HERE / 'source-pins.json').read_text())
     archive = HERE / 'source.tar.gz'
-    if pins['base_commit'] != BASE or hashlib.sha256(archive.read_bytes()).hexdigest() != pins['archive_sha256']:
+    if (pins['base_commit'] != BASE or pins['archive_sha256'] != SOURCE_SHA256 or
+            hashlib.sha256(archive.read_bytes()).hexdigest() != SOURCE_SHA256):
         raise RuntimeError('Pinned source archive identity mismatch')
     root = HERE / '_pinned'
     root.mkdir(exist_ok=True)
