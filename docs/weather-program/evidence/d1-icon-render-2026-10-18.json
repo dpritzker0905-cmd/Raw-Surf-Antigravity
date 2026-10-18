@@ -1,6 +1,6 @@
 {
   "generatedAtUtc": "2026-10-18T00:57:40.072952+00:00",
-  "codeRevision": "c47575eb38511a8b19f96937e3e722802c04d84a",
+  "productCodeRevision": "c47575eb38511a8b19f96937e3e722802c04d84a",
   "baseRevision": "62021d59ff78815536391002a5d510a810cfff9e",
   "context": {
     "storedIconTail": false,
@@ -31,8 +31,8 @@
     "frontend/src/components/map/iconEstimateDelivery.js": "ee99f8db68a2c40eed5a27f16149052f396f0b399f2e67720d7c19b54a2c3e8f",
     "frontend/src/components/map/backendWeatherServiceClient.js": "ddaa83908b47ee596637b86ca918d85f09ef38d00c5aca2b24dfa616f9ad24e6",
     "frontend/src/components/map/backendWeatherServiceClientHelpers.js": "0567321f071cf02b9562ab465cf548e2192ffa21d573bf84ae44a1af883c7fe9",
-    "frontend/scripts/offline-backend/scn_icon_far.js": "427ba5e7309aaf1f9e2f8f9d48e0ef23964708d871c5660bb0131343bd0d298f",
-    "frontend/scripts/offline-backend/ab_lib.js": "f582ee19911a76d6726ce8d98d81bde3f762f7569aad2620619bb7597c7e1e2f"
+    "frontend/scripts/offline-backend/scn_icon_far.js": "8d0d3610b91c2fc74003c5e825a878e550ff0ecb78bdd780358b6ec549fe10bd",
+    "frontend/scripts/offline-backend/ab_lib.js": "4416de6bff839f88ed12d71855c3f8102e9112453375f5db53d9e0a74a59cef7"
   },
   "scenarios": {
     "trend": {
@@ -1149,6 +1149,7 @@
       ]
     }
   },
+  "harnessReverification": {"checkedAtUtc": "2026-10-18T01:04:56.238125+00:00", "textureHashing": "explicit D1 opt-in; default other-scenario cost preserved", "allPositiveHourAndByteHashesMatchPriorMatrix": true},
   "limits": [
     "No day-8\u201314 forecast-skill proof",
     "Series cache deliberately disabled to exercise D1",

@@ -12,7 +12,7 @@ assert(['trend', 'fallback', 'kill'].includes(MODE));
 const timeline = '[role="slider"][aria-label*="Forecast timeline"]';
 
 (async () => {
-  const {browser, page, log} = await L.launch({port: +(process.env.PORT || 4100), live: false, hooks: {
+  const {browser, page, log} = await L.launch({port: +(process.env.PORT || 4100), live: false, hashTextureUploads: true, hooks: {
     beforeWeather: async url => {
       const delay = +(url.pathname.endsWith('/grid_series') ? process.env.LAT_SERIES || 0 : process.env.LAT_GRID || 0);
       if (delay) await sleep(delay);

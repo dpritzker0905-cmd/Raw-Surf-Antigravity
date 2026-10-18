@@ -57,3 +57,11 @@ Fresh focused suite after these changes: 71 passed. Three mutations on checkpoin
 No scientific skill gain is claimed. The direct-grid scope, invented fields, unverified long-range calibration, separate D3 cache identity, absent local pygrib/uvloop, and lack of real-device acceptance remain explicit limitations. D1's source repair is qualified locally for a draft; merge and production rollout remain held.
 
 An additional direct-grid control with 3,000 ms local weather delay passed hours 169 and 170 with correct held hours and changed texture-byte hashes. This is a delivery-under-delay check, not a production latency benchmark. Local ledger verification passed at seq 1394; memory audit returned 0 FAIL / 21 WARN / 22 NOTE. The existing overdue commitments remain open.
+
+## Publication
+
+Published source/receipts as `7f474df0a57de3cb420c7a2fffb692765bf36742` and read the same SHA from the remote branch. Opened and attached draft [PR #376](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/376); GitHub read-back was OPEN / isDraft=true / base=dev / matching head. GitHub creation connector was unavailable, so `gh` created the draft from the prepared body; Code Review's check connector could not connect, so hosted status was read through `gh`. Hosted checks were in progress, not claimed green. Publication receipts are ledger 1395–1396. No merge or production rollout occurred.
+
+Texture-byte hashing is enabled only by D1's explicit `hashTextureUploads: true` harness option; other scenarios retain their previous instrumentation cost. The D1 acceptance matrix is repeated with that opt-in path before the final receipt update.
+
+The opt-in repeat passed all seven scenarios, and every positive requested/held hour, provider and upload-byte hash matched the prior matrix exactly. Receipt harness hashes and explicit re-verification metadata were updated by exact replacement; product code and compiled bundle are unchanged. Ledger 1397 records this read-back. Final publication remains draft-only; hosted checks are a separate result and merge is held.
