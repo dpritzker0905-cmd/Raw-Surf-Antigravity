@@ -1,0 +1,249 @@
+{
+  "observed_at": "2026-10-18T20:01:08.123420+00:00",
+  "pr": {
+    "baseRefName": "dev",
+    "headRefOid": "98fac44e72aa06f0fbfdc7fcd466c18a0c8e54b6",
+    "isDraft": false,
+    "mergeStateStatus": "CLEAN",
+    "mergeable": "MERGEABLE",
+    "mergedAt": null,
+    "state": "OPEN",
+    "statusCheckRollup": [
+      {
+        "__typename": "CheckRun",
+        "name": "openai-budget-postgres",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:46Z",
+        "completedAt": "2026-10-18T18:59:14Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "lighthouse",
+        "workflowName": "Lighthouse CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T19:01:50Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "verify",
+        "workflowName": "Weather Program Ledger",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T18:57:47Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "lint-and-build (24.21.0)",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:50Z",
+        "completedAt": "2026-10-18T19:02:27Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "frontend-lint",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T18:59:08Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "frontend-marine-composition-guards",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:28Z",
+        "completedAt": "2026-10-18T18:58:53Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-lint",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T18:58:33Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-file-size-check",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:49Z",
+        "completedAt": "2026-10-18T18:58:02Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-import-check",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T18:57:44Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-bola-guard",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:28Z",
+        "completedAt": "2026-10-18T18:57:49Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-sim-composition-guards",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:28Z",
+        "completedAt": "2026-10-18T19:12:41Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-forecast-chain-guards",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T19:06:58Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-estate-coverage",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T19:05:51Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "backend-floor-staleness",
+        "workflowName": "CI",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "startedAt": "2026-10-18T18:57:27Z",
+        "completedAt": "2026-10-18T18:57:51Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "Header rules - rawsurf",
+        "workflowName": "",
+        "status": "COMPLETED",
+        "conclusion": "NEUTRAL",
+        "startedAt": "2026-10-18T18:58:55Z",
+        "completedAt": "2026-10-18T18:59:11Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "Pages changed - rawsurf",
+        "workflowName": "",
+        "status": "COMPLETED",
+        "conclusion": "NEUTRAL",
+        "startedAt": "2026-10-18T18:58:55Z",
+        "completedAt": "2026-10-18T18:59:10Z"
+      },
+      {
+        "__typename": "CheckRun",
+        "name": "Redirect rules - rawsurf",
+        "workflowName": "",
+        "status": "COMPLETED",
+        "conclusion": "NEUTRAL",
+        "startedAt": "2026-10-18T18:58:55Z",
+        "completedAt": "2026-10-18T18:59:11Z"
+      },
+      {
+        "__typename": "StatusContext",
+        "context": "netlify/rawsurf/deploy-preview",
+        "state": "SUCCESS",
+        "startedAt": "2026-10-18T18:59:09Z"
+      }
+    ]
+  },
+  "actions_jobs_passed": 14,
+  "runs": [
+    {
+      "databaseId": 39156530208,
+      "headSha": "98fac44e72aa06f0fbfdc7fcd466c18a0c8e54b6",
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39156530208"
+    },
+    {
+      "databaseId": 39156530218,
+      "headSha": "98fac44e72aa06f0fbfdc7fcd466c18a0c8e54b6",
+      "name": "Lighthouse CI",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39156530218"
+    },
+    {
+      "databaseId": 39156530193,
+      "headSha": "98fac44e72aa06f0fbfdc7fcd466c18a0c8e54b6",
+      "name": "Weather Program Ledger",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39156530193"
+    }
+  ],
+  "executed_summaries": {
+    "backend-sim-composition-guards": {
+      "job_id": 117760790098,
+      "lines": [
+        "3218 passed, 66 skipped, 1 xfailed, 12 warnings in 847.75s (0:14:07)",
+        "collected 3285 tests across 207 files -> 3218 passed, 67 skipped, 0 failed, 0 errors"
+      ]
+    },
+    "backend-forecast-chain-guards": {
+      "job_id": 117760790059,
+      "lines": [
+        "2733 passed, 7 warnings in 506.09s (0:08:26)",
+        "collected 2733 tests across 166 files -> 2733 passed, 0 skipped, 0 failed, 0 errors"
+      ]
+    },
+    "backend-estate-coverage": {
+      "job_id": 117760790167,
+      "lines": [
+        "2262 passed, 2866 skipped, 1148 warnings in 428.71s (0:07:08)",
+        "estate: 323 files selected, 321 produced results, 2262 passed, 0 silent."
+      ]
+    },
+    "lint-and-build (24.21.0)": {
+      "job_id": 117760790200,
+      "lines": [
+        "Test Suites: 438 passed, 438 total",
+        "Tests:       5766 passed, 5766 total"
+      ]
+    },
+    "verify": {
+      "job_id": 117760789653,
+      "lines": [
+        "ledger: 1442 entries, OK",
+        "memory audit: 0 FAIL, 22 WARN, 21 NOTE (docs only)"
+      ]
+    }
+  },
+  "commit_statuses": [
+    {
+      "context": "netlify/rawsurf/deploy-preview",
+      "state": "success",
+      "description": "Deploy Preview canceled."
+    }
+  ],
+  "loc_governance": "No run: documentation-only path filter; not reported as an executed pass",
+  "repairs_needed": false,
+  "merge_performed": false,
+  "runtime_env_or_guard_write": false,
+  "production_or_claude_work_modified": false
+}
