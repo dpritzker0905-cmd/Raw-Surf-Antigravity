@@ -2358,7 +2358,9 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-**Ledger head: seq 1452, sha256 2bc3c3a5c7fc33742bf33c008d2b57bc9ea7a42ef053144f13e13595d63d6c18**
+- **2026-10-18: PR378 separate real-grid replay deployed and restarted, guard0.** Runtime6fbf439ac, adapter6f67cdb64;128real product hashes/144contributor links,16cycle cases and48exact/48held-hour refusal checks passed over HTTPS before/afterrestart.48real-input grids match premerge estimator numerically. Six-point Pacific replay only; global/L2/full-app/scientific acceptance remains open. New Free service only; fixture canary, dev/main, production and Claude untouched. [Receipt](log/2026-10-18-codex-pr378-real-grid.md).
+
+**Ledger head: seq 1458, sha256 ca530c2a124aa736e176a9f5692b4b64a24a074452d07f3fbe1514198daae94a**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
