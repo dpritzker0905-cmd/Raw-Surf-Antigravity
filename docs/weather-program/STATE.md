@@ -2360,7 +2360,9 @@ is a claim, not a measurement.
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
 - **2026-10-18: PR378 separate real-grid replay deployed and restarted, guard0.** Runtime6fbf439ac, adapter6f67cdb64;128real product hashes/144contributor links,16cycle cases and48exact/48held-hour refusal checks passed over HTTPS before/afterrestart.48real-input grids match premerge estimator numerically. Six-point Pacific replay only; global/L2/full-app/scientific acceptance remains open. New Free service only; fixture canary, dev/main, production and Claude untouched. [Receipt](log/2026-10-18-codex-pr378-real-grid.md).
 
-**Ledger head: seq 1459, sha256 7719d8fa673384fef27ef6fd4464bd2052c8d2f986767b272f4f1ecd71179f5c**
+- **2026-10-18: Real-grid final review fixes qualified on isolated branch c8e8013c9.** Cached replay hashes, exact adapter verification, source-dependent CI and bounded capture fixed; Reflection and independent follow-up found no remaining blocker. Linux reader39173133571/capture39173133589 passed. Hosted6f67cdb6 still passes full HTTP with guard0; fixes NOT redeployed. No merge, production or Claude changes. [Final review](log/2026-10-18-codex-pr378-real-grid-final-review.md).
+
+**Ledger head: seq 1461, sha256 632aab76e787dbaf4461ca61839b6f7114d56c4190994c9060f1194a154081cb**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

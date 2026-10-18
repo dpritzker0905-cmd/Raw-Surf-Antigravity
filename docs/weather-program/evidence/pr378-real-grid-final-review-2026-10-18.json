@@ -1,0 +1,20 @@
+{
+  "reviewed_adapter": "c8e8013c9145e8ce9490b74883bbed4f7a552d7f",
+  "backend_pin": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+  "deployed_adapter_unchanged": "6f67cdb64842c4985b24072a3d3877638e8ec43a",
+  "deployed_bundle_unchanged": "1d622527a910334880c127a65f6b68a84af800366c744d8ef0d1a8cd5178c64d",
+  "guard": "0",
+  "reflection": "Initial response-budget failure; successful review identified cached serialization hash gap; follow-up challenge found no concrete blocker",
+  "independent_review": "No remaining blocker after fixes; real Requests/urllib3 bounded-stream compatibility checked offline",
+  "fixed": ["Replay hashes actual cached serialization before returning it", "Missing disk bytes refuse503", "Verifier binds full expected adapter SHA", "CI includes source/archive dependencies", "Capture streams within bounded download budget"],
+  "reader_ci": {"run": 39173133571, "conclusion": "success"},
+  "capture_ci": {"run": 39173133589, "conclusion": "success", "products": 128, "cases": 16, "http_bytes": 116680056, "new_artifact_not_deployed": "a4c4d292de45b1dfc3d1a7b2883efe0b8a66b2d46690f21a7860931ceaeb2502"},
+  "reader_http_counts": {"products": 128, "estimates": 48, "contributor_links": 144, "cases": 16, "frames": 48, "held_hour_refusals": 48, "negative_routes": 10, "concurrent_reads": 4},
+  "windows_http": "pass on reviewed adapter; initial sandbox child-startup timeout retained as environment failure",
+  "hosted_http": {"status": "pass", "started_at": "2026-10-18T22:39:21.061471+00:00", "finished_at": "2026-10-18T22:40:37.702221+00:00", "adapter": "6f67cdb64842c4985b24072a3d3877638e8ec43a", "scope": "Current old adapter only; fixes not redeployed"},
+  "fault_controls": ["Shared cached vector mutation refused503", "Missing file refused503", "Restored data succeeds", "Wrong adapter refused", "Oversized stream stops early", "Fitting stream succeeds", "Six startup refusals and real128product positive"],
+  "deployment_performed": false,
+  "merged": false,
+  "production_or_claude_changed": false,
+  "limits": "Six-point Pacific sealed regional replay; no global coverage, continuous ingestion, L2, full application, guard-on, scientific accuracy or ICON availability acceptance"
+}
