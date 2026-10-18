@@ -87,8 +87,10 @@ def audit_grib():
             for message in handle:
                 messages.append({'analysis': stamp(message.analDate.replace(tzinfo=timezone.utc)),
                                  'valid': stamp(message.validDate.replace(tzinfo=timezone.utc)),
-                                 'shortName': message.shortName, 'units': message.units})
-        decoded_evidence.append({'group': group, 'sha256': sha(raw), 'bytes': len(raw), 'messages': messages})
+                                 'shortName': message.shortName, 'units': message.units,
+                                 'name': message.name, 'paramId': message.paramId})
+        decoded_evidence.append({'group': group, 'sha256': sha(raw), 'bytes': len(raw), 'messages': messages,
+                                 'last_provider_url': http_evidence[-1]['url'] if http_evidence else None})
         return original(path, *args, **kwargs)
     pygrib.open = open_grib
 
@@ -147,8 +149,13 @@ def fetch(name, hours, cycle=None):
     for valid in expected_times:
         step_messages = [m for m in messages if datetime.fromisoformat(m['valid']) == valid]
         if name == 'dwd_gwam_fetcher':
-            if {m['shortName'].lower() for m in step_messages} != {v[0].lower() for v in module['VAR_MAP']}:
-                raise RuntimeError('DWD selected step is missing actual decoded wave variables')
+            fields = [d for d in decoded_evidence[before:] if any(datetime.fromisoformat(m['valid']) == valid for m in d['messages'])]
+            requested_vars = {urlsplit(d['last_provider_url']).path.split('/')[-2] for d in fields}
+            if (len(step_messages) != len(module['VAR_MAP']) or
+                    len({m['paramId'] for m in step_messages}) != len(module['VAR_MAP']) or
+                    requested_vars != {v[0] for v in module['VAR_MAP']}):
+                raise RuntimeError('DWD selected field coverage incomplete: ' + repr((requested_vars, step_messages)))
+            print('DWD actual field metadata ' + json.dumps(step_messages), flush=True)
         elif name == 'noaa_gfs_wave_fetcher' and len(step_messages) != 12:
             raise RuntimeError('NOAA selected step does not contain all12 decoded wave messages')
     result = {'points': points, 'times': times, 'run_iso': stamp(actual_cycle), 'group': group}
@@ -313,4 +320,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        (OUT / 'acquisition-audit.json').write_text(json.dumps({'http': http_evidence,
+            'decoded_grib': decoded_evidence, 'downloaded': downloaded}, indent=2) + '\n')
