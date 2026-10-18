@@ -479,7 +479,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3218, "chain": 2733, "estate": 2257}
+_FLOOR_SET_FROM = {"guards": 3218, "chain": 2733, "estate": 2261}
+# Gateway moderation: +4 estate tests (floor 2255->2259).
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
