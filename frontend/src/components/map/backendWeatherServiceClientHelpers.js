@@ -10,6 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { arrayMax } from './marineControllerUtils';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
+import { iconFarHourRenderEnabled, hasUsableMarineVectors } from './iconEstimateDelivery';
 
 import { blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
 export { blendDirection, blendPeriod, blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
@@ -380,8 +381,13 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         const e = new Error('ICON extended estimate fetch aborted'); e.name = 'AbortError'; throw e;
       }
 
-      if (!iconVectors.length) {
-        if (gfsTargetGrid) return gfsTargetGrid;
+      if (!hasUsableMarineVectors(iconVectors)) {
+        if (iconFarHourRenderEnabled()) {
+          // Recover the already-built ICON-anchored estimate, never relabel a bare GFS target.
+          return await fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'ICON',
+            {storedIconRecovery: true});
+        }
+        if (gfsTargetGrid) return gfsTargetGrid; // kill switch: original (rejected) delivery path
         throw new Error('ICON extended estimate anchor and target GFS are both unavailable');
       }
 
@@ -407,6 +413,10 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
 
       const blendedVectors = [];
       let nonzeroCount = 0;
+      let hasTrendInputSupport = false;
+      const activeSource = v => layer === 'waves' ? v?.waves || v : v?.[layer];
+      const supportsHeight = v => v && v.isOcean !== false && v.is_valid !== false
+        && Number.isFinite(v.speed) && v.speed >= 0;
 
       for (let i = 0; i < iconVectors.length; i++) {
         const iv = iconVectors[i];
@@ -425,6 +435,9 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
           continue;
         }
 
+        if (!hasTrendInputSupport) {
+          hasTrendInputSupport = [iv, gfsAv, gfsTv].map(activeSource).every(supportsHeight);
+        }
         const blendedWaves = extrapolateSubVector(iv.waves || iv, gfsAv?.waves || gfsAv, gfsTv?.waves || gfsTv, weightPersist, weightGfs);
         const blendedSwell1 = extrapolateSubVector(iv.swell_1, gfsAv?.swell_1, gfsTv?.swell_1, weightPersist, weightGfs);
         const blendedSwell2 = extrapolateSubVector(iv.swell_2, gfsAv?.swell_2, gfsTv?.swell_2, weightPersist, weightGfs);
@@ -449,6 +462,13 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         });
       }
 
+      // Missing/invalid GFS donors can leave every trend cell unavailable even with
+      // a usable ICON anchor. Recover before that nonempty grid blanks the texture.
+      // Resolved input cells whose bearings cancel remain masked by the science contract.
+      if (iconFarHourRenderEnabled() && !hasTrendInputSupport && !hasUsableMarineVectors(blendedVectors)) {
+        return await fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'ICON',
+          {storedIconRecovery: true});
+      }
       const maxSpeed = arrayMax(blendedVectors.map(v => v.speed));
       const blendedGrid = {
         vectors: blendedVectors,

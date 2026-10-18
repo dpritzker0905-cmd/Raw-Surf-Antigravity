@@ -76,13 +76,15 @@ def provider_fields(model, estimated):
     return {"provider": "open-meteo", "upstream_provider": "noaa", "source_dataset": "ncep_gfswave025"}
 
 
-def estimate_basis(valid_time, region_id):
+def estimate_basis(valid_time, region_id, run_time):
     stamp = valid_time.strftime("%Y%m%dT%H%M%SZ")
     return {
         "type": "icon_persistence_gfs_blend", "target_valid_time": valid_time.isoformat(), "layer": "waves",
         "region_id": region_id, "tile_id": region_id, "native_limit_hours": ICON_NATIVE_HOURS,
         "gfs_anchor_product_id": f"gfs_marine_waves_{region_id}_{stamp}.json", "gfs_target_product_id": f"gfs_marine_waves_{region_id}_{stamp}.json",
         "icon_anchor_product_id": None, "icon_target_product_id": None,
+        "persistence_anchor_product_id": f"icon_marine_waves_{region_id}_{(run_time + timedelta(hours=168)).strftime('%Y%m%dT%H%M%SZ')}.json",
+        "persistence_anchor_valid_time": (run_time + timedelta(hours=168)).isoformat(),
         "weights": {"persistence": 0.6625, "gfs": 0.3375, "icon": 0.0}, "confidence": 0.98,
         "anchor_delta_hours": 0.0, "target_delta_hours": 0.0, "cycle_semantics": "shared_contributor_cycle", "cycle_sources": [],
     }
@@ -110,7 +112,7 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
         "model_run_time": None if estimated else iso(run_time), "model_run_time_status": "conflicting" if estimated else "known",
         "ingested_at": None if estimated else iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
         "is_forecast_authoritative": not estimated, "is_estimated": estimated,
-        "estimate_basis": estimate_basis(valid_time, region_id) if estimated else None,
+        "estimate_basis": estimate_basis(valid_time, region_id, run_time) if estimated else None,
         "coverage": COVERAGE,
         "grid": {"bounds": dict(bounds), "cols": cols, "rows": rows, "vectors": vectors, "diagnostics": {"source": "stored"}},
         "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft",
