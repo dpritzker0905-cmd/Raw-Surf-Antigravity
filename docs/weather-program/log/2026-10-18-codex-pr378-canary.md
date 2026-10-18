@@ -80,3 +80,12 @@ Every response matched its serial response and fixture-case header; identity and
 remained unchanged. This checks the adapter's per-request context while offloading the actual
 health computation. No further runtime/source/configuration change was needed. Saved environment
 readback showed exactly the eight allowlisted names, no secret files and no linked environment groups.
+
+## Publication closeout
+
+Receipt commit `fbcd7d4d2294b3a28dd84ec9040278f8c95135c1` was pushed to this chat's
+documentation branch. GitHub readback confirmed PR381 OPEN/draft, with that exact head;
+its description now includes the canary and labels the earlier shared-backend hold as
+historical. Ledger1433 closes the pending publication readback from1432. No merge,
+promotion, existing service change, or further canary configuration change occurred.
+The closeout bookkeeping extends the same receipt lineage and keeps the draft unmerged.
