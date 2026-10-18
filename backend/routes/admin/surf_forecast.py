@@ -30,6 +30,8 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
+                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
     "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),

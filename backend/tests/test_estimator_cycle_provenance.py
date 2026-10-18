@@ -171,3 +171,45 @@ def test_cycle_metadata_cannot_change_physical_payload(icon, mode):
     elif mode == "invalid":
         products["gfs_target"].model_run_time = products["gfs_target"].model_run_time.replace(tzinfo=None)
     assert estimate(products).grid.model_dump() == before
+
+
+@pytest.mark.parametrize('role', ['gfs_anchor', 'gfs_target', 'icon_anchor', 'icon_target'])
+@pytest.mark.parametrize('damage', ['conflicting', 'missing', 'naive', 'dataset'])
+def test_dark_coherent_trend_guard_refuses_unverifiable_active_pair(monkeypatch, role, damage):
+    monkeypatch.setenv('ESTIMATE_COHERENT_TRENDS', '1')
+    products = donors(icon=role.startswith('icon'))
+    for p in products.values(): p.source_dataset = p.model + '_waves'
+    p = products[role]
+    if damage == 'conflicting': p.model_run_time += timedelta(hours=6)
+    elif damage == 'missing': p.model_run_time = None
+    elif damage == 'naive': p.model_run_time = p.model_run_time.replace(tzinfo=None)
+    else: p.source_dataset = 'wrong_dataset'
+    assert estimate(products) is None
+
+
+@pytest.mark.parametrize('native_model', ['ICON', 'EURO'])
+def test_coherent_trend_guard_allows_independent_native_model_cycle(monkeypatch, native_model):
+    products = donors()
+    products['native_anchor'].model = native_model
+    products['native_anchor'].model_run_time -= timedelta(hours=6)
+    for p in products.values(): p.source_dataset = p.model + '_waves'
+    monkeypatch.delenv('ESTIMATE_COHERENT_TRENDS', raising=False)
+    before = estimate(products).model_dump_json()
+    monkeypatch.setenv('ESTIMATE_COHERENT_TRENDS', '1')
+    result = estimate(products)
+    assert result is not None and result.model_dump_json() == before
+
+
+@pytest.mark.parametrize('hour', [78, 192])
+def test_guard_default_off_preserves_legacy_payload_and_unused_icon(monkeypatch, hour):
+    products = donors(icon=True)
+    for p in products.values(): p.source_dataset = p.model + '_waves'
+    products['icon_target'].model_run_time += timedelta(hours=6)
+    monkeypatch.delenv('ESTIMATE_COHERENT_TRENDS', raising=False)
+    before = estimate(products, hour)
+    monkeypatch.setenv('ESTIMATE_COHERENT_TRENDS', '0')
+    assert estimate(products, hour).model_dump_json() == before.model_dump_json()
+    monkeypatch.setenv('ESTIMATE_COHERENT_TRENDS', '1')
+    result = estimate(products, hour)
+    assert (result is None) == (hour == 78)
+    if result is not None: assert result.model_dump_json() == before.model_dump_json()
