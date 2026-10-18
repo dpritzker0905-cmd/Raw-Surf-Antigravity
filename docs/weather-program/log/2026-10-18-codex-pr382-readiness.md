@@ -29,3 +29,12 @@ promotion, or change to Claude's work. Dev a73358a69, main261db85a and separate 
 cd4253652 read back unchanged. This task does not renew historical runtime/guard-enabled,
 full-server, ingestion, browser or scientific acceptance. No served forecast number changes;
 no scoreboard row. Evidence: `evidence/pr382-review-readiness-2026-10-18.json`.
+
+## Publication closeout
+
+Receipt815d1304ade8978372c176360287f60988366b8e published and read back on
+`codex/pr382-review-readiness-record`. Ledger1443 records qualification/ready transition;
+1444 records publication and closes the readback. Closing bookkeeping stays docs only on
+the same receipt branch. PR382 remains OPEN/ready/MERGEABLE/unmerged at98fac44e7;
+dev a73358a69, main261db85a and canarycd4253652 unchanged. No further PR, merge, runtime,
+guard or data action. Local ledger and history audit pass;22 existing warnings remain open.
