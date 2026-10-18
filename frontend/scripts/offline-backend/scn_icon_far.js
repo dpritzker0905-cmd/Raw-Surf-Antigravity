@@ -5,10 +5,12 @@ const fs = require('fs');
 const L = require('./ab_lib.js');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MODE = process.env.MODE || 'trend';
+const FAIL_GFS = process.env.FAIL_GFS || '';
 const WINDOW_MS = +(process.env.WINDOW_MS || 24000);
 const FIRST = +(process.env.FIRST || 169), LAST = +(process.env.LAST || 240);
 if (process.env.AB_LIVE === '1') throw Error('D1 acceptance must run offline');
 assert(['trend', 'fallback', 'kill'].includes(MODE));
+assert(['', 'anchor', 'target'].includes(FAIL_GFS));
 const timeline = '[role="slider"][aria-label*="Forecast timeline"]';
 
 (async () => {
@@ -30,7 +32,10 @@ const timeline = '[role="slider"][aria-label*="Forecast timeline"]';
       await page.route(/\/api\/weather\/grid\?/, async route => {
         const url = new URL(route.request().url());
         const anchorHour = Math.round((Date.parse(url.searchParams.get('valid_time')) - Math.round(Date.now() / 3600000) * 3600000) / 3600000);
-        if (url.searchParams.get('model') === 'ICON' && anchorHour === 168) {
+        const refuse = FAIL_GFS ? url.searchParams.get('model') === 'GFS'
+          && (FAIL_GFS === 'anchor' ? anchorHour === 168 : anchorHour >= FIRST && anchorHour <= LAST)
+          : url.searchParams.get('model') === 'ICON' && anchorHour === 168;
+        if (refuse) {
           refusedAnchors++;
           return route.fulfill({status: 503, headers: {'access-control-allow-origin': '*'}, body: '{}'});
         }
@@ -65,7 +70,7 @@ const timeline = '[role="slider"][aria-label*="Forecast timeline"]';
         && window.__TEX__?.uploads.has(d.u_waveTexture);
     }, null, {timeout: WINDOW_MS});
     const native = await snap();
-    let previous = null;
+    let previous = native;
     for (let hour = FIRST; hour <= LAST; hour++) {
       await page.evaluate(() => { window.__SWELL2_LAST_DROP__ = null; });
       await seek(hour);
@@ -105,7 +110,10 @@ const timeline = '[role="slider"][aria-label*="Forecast timeline"]';
       console.log(JSON.stringify(rows.at(-1)));
       previous = s;
     }
-    const result = {mode: MODE, first: FIRST, last: LAST, passed: rows.length, native, refusedAnchors, rows, hosts: log.hosts,
+    if (MODE === 'fallback') assert(refusedAnchors > 0, 'source-failure control was not exercised');
+    const failedSource = MODE === 'fallback' || (MODE === 'kill' && process.env.KILL_FALLBACK === '1')
+      ? (FAIL_GFS ? `gfs_${FAIL_GFS}` : 'icon_anchor') : null;
+    const result = {mode: MODE, failedSource, first: FIRST, last: LAST, passed: rows.length, native, refusedAnchors, rows, hosts: log.hosts,
       blockedWs: log.blockedWs.length, errors: log.errors};
     if (process.env.OUTPUT) fs.writeFileSync(process.env.OUTPUT, JSON.stringify(result, null, 2) + '\n');
     console.log('PASS', MODE, rows.length, MODE === 'kill' ? 'expected rejection controls' : 'held-hour / upload-hash steps');

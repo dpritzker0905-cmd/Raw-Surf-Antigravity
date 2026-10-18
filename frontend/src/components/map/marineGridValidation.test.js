@@ -71,6 +71,81 @@ test('no ICON anchor and no stored estimate cannot deliver bare GFS', async () =
     })).rejects.toThrow('ICON unavailable');
 });
 
+test.each(['anchor', 'target', 'both', 'masked_target', 'nonfinite_target'])(
+  'unusable GFS %s recovers stored ICON instead of uploading an unavailable trend', async defect => {
+    const b = {...bounds, west: -140 - ['anchor', 'target', 'both', 'masked_target', 'nonfinite_target'].indexOf(defect)};
+    const stored = frame('ICON', 192);
+    stored.grid.__gridProvider = 'estimated';
+    const recovery = jest.fn(() => stored);
+    const result = await fetchBackendMarineGridIconExtended(b, 192, undefined, b, 'waves',
+      async (_b, hour, _s, _snap, layer, model, options) => {
+        if (options?.storedIconRecovery) return recovery(model, hour);
+        if (model === 'GFS' && (defect === 'both' || (defect === 'anchor' && hour === 168)
+            || (defect === 'target' && hour === 192))) throw new Error('GFS donor unavailable');
+        const data = frame(model, hour, layer);
+        if (model === 'GFS' && hour === 192) {
+          if (defect === 'masked_target') data.grid.vectors[0].waves.isOcean = false;
+          if (defect === 'nonfinite_target') data.grid.vectors[0].waves.speed = NaN;
+        }
+        return data;
+      });
+    expect(result).toBe(stored);
+    expect(recovery).toHaveBeenCalledTimes(1);
+    expect(recovery).toHaveBeenCalledWith('ICON', 192);
+    expect(marineGridRejection(result, 'ICON', 'waves')).toBeNull();
+  });
+
+test('missing GFS donor and stored ICON cannot replace the resident with an unavailable trend', async () => {
+  const b = {...bounds, west: -146};
+  const recovery = jest.fn(() => { throw new Error('stored ICON unavailable'); });
+  await expect(fetchBackendMarineGridIconExtended(b, 192, undefined, b, 'waves',
+    async (_b, hour, _s, _snap, layer, model, options) => {
+      if (options?.storedIconRecovery) return recovery();
+      if (model === 'GFS' && hour === 192) throw new Error('GFS target unavailable');
+      return frame(model, hour, layer);
+    })).rejects.toThrow('stored ICON unavailable');
+  expect(recovery).toHaveBeenCalledTimes(1);
+});
+
+test('disjoint donor masks recover stored ICON when no cell has common input support', async () => {
+  const b = {...bounds, west: -147};
+  const stored = frame('ICON', 192);
+  stored.grid.__gridProvider = 'estimated';
+  const recovery = jest.fn(() => stored);
+  const result = await fetchBackendMarineGridIconExtended(b, 192, undefined, b, 'waves',
+    async (_b, hour, _s, _snap, layer, model, options) => {
+      if (options?.storedIconRecovery) return recovery();
+      const data = frame(model, hour, layer);
+      data.grid.vectors.push({...data.grid.vectors[0], lat: 16, waves: {...data.grid.vectors[0].waves}});
+      if (model === 'GFS') data.grid.vectors[hour === 168 ? 1 : 0].waves.isOcean = false;
+      return data;
+    });
+  expect(result).toBe(stored);
+  expect(recovery).toHaveBeenCalledTimes(1);
+});
+
+test.each(['calm', 'partial'])('%s usable trend support does not trigger stored recovery', async support => {
+  const b = {...bounds, west: support === 'calm' ? -148 : -149};
+  const recovery = jest.fn();
+  const result = await fetchBackendMarineGridIconExtended(b, 192, undefined, b, 'waves',
+    async (_b, hour, _s, _snap, layer, model, options) => {
+      if (options?.storedIconRecovery) return recovery();
+      const data = frame(model, hour, layer);
+      if (support === 'calm') {
+        for (const component of [data.grid.vectors[0], ...layers.map(l => data.grid.vectors[0][l])]) {
+          Object.assign(component, {speed: 0, height: 0, u: 0, v: 0});
+        }
+      } else {
+        data.grid.vectors.push({...data.grid.vectors[0], isOcean: false});
+      }
+      return data;
+    });
+  expect(recovery).not.toHaveBeenCalled();
+  expect(result.grid.__gridProvider).toBe('gfs_trend');
+  expect(hasUsableMarineVectors(result.grid.vectors)).toBe(true);
+  if (support === 'calm') expect(result.grid.vectors[0].speed).toBe(0);
+});
+
 test('kill switch restores both previous rejection paths and preserves native/tail delivery', async () => {
   window.__RAW_DISABLE_ICON_FAR_HOUR_RENDER__ = true;
   const trend = await fetchBackendMarineGridIconExtended(bounds, 192, undefined, bounds, 'waves', fetchFrame);

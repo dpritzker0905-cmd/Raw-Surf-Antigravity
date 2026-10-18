@@ -47,6 +47,8 @@ Build with `REACT_APP_ICON_STORED_TAIL=false`; start `serve_synthetic.py --step 
 ```bash
 MODE=trend OUTPUT=trend.json node frontend/scripts/offline-backend/scn_icon_far.js
 MODE=fallback OUTPUT=recovery.json node frontend/scripts/offline-backend/scn_icon_far.js
+MODE=fallback FAIL_GFS=anchor OUTPUT=gfs-anchor.json node frontend/scripts/offline-backend/scn_icon_far.js
+MODE=fallback FAIL_GFS=target OUTPUT=gfs-target.json node frontend/scripts/offline-backend/scn_icon_far.js
 MODE=kill FIRST=192 LAST=192 node frontend/scripts/offline-backend/scn_icon_far.js
 MODE=kill KILL_FALLBACK=1 FIRST=192 LAST=192 node frontend/scripts/offline-backend/scn_icon_far.js
 # Native and >240 h controls: FIRST=168 LAST=168, FIRST=241 LAST=241, FIRST=288 LAST=288.
