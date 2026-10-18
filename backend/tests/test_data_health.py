@@ -104,7 +104,9 @@ def test_shared_utc_cycle_does_not_hide_stale_faster_cadence_donor(model):
     'missing_dataset', 'reported_unknown', 'same_model_conflict', 'different_dataset', 'invalid_sources',
     'unhashable_role', 'not_a_source', 'top_level_known', 'missing_semantics'])
 def test_bad_contributor_records_cannot_suppress_the_warning(model, damage):
-    blend = _recorded_blend(model)
+    # The missing-semantics control must start KNOWN; otherwise legacy fallback
+    # already warns for conflicting and the test would not detect that bypass.
+    blend = _recorded_blend(model, gfs_age=2 if damage == 'missing_semantics' else 8)
     basis = blend.estimate_basis
     sources = basis['cycle_sources']
     if damage == 'missing_role': sources.pop()

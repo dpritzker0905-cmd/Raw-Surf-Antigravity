@@ -183,5 +183,48 @@
     "backend/services/weather_pipeline/model_cycle_health.py": "b05301574bc695e5d797eef9be6b3ccc3ad292bead95e8fce60227662e5b28b9",
     "backend/services/weather_pipeline/cycle_provenance.py": "3a6e65d175b9d17320104c95ae7374a649bec54b0c564facc0c917765654508b",
     "backend/services/weather_pipeline/estimator.py": "fc332a1f9ea3c401f26a3f2dc3c40ca1617ad115e5c72022673a276d04a0aa27"
+  },
+  "independentWrapperIntegration": {
+    "source_commit": "59711e004222ceab7b2d628989efede0c1ec71b2",
+    "external_network": "blocked; literal loopback only for Windows asyncio self-pipe",
+    "fixture": "test_icon_marine_extended_estimates._scheduler; 1-cell waves/global_coarse",
+    "cases": [
+      {
+        "flag": 0,
+        "saved_target_hours": [
+          171,
+          174
+        ],
+        "saved_models": [
+          "ICON"
+        ],
+        "save_batch_calls": 1,
+        "coherent_cross_model_cycles_verified": true
+      },
+      {
+        "flag": 1,
+        "saved_target_hours": [
+          171
+        ],
+        "saved_models": [
+          "ICON"
+        ],
+        "save_batch_calls": 1,
+        "coherent_cross_model_cycles_verified": true
+      }
+    ],
+    "coherent_payload_identical": true,
+    "tracked_files_changed": false
+  },
+  "semanticsMutationControls": {
+    "ICON": "regression catches removed semantics check",
+    "EURO": "regression catches removed semantics check"
+  },
+  "localMetadataBenchmark": {
+    "baselineIdentity": "698ecf6272344af568d31fbb91eadbf689bfc63e",
+    "iterations": 25,
+    "scope": "both marine cycle summaries, captured metadata only",
+    "baselineMedianMs": 1.413,
+    "candidateMedianMs": 7.813
   }
 }
