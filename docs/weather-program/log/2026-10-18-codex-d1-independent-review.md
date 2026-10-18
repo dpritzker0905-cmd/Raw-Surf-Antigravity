@@ -33,3 +33,7 @@ Final focused run: 123 passed across four suites, including the existing directi
 ## Final local acceptance
 
 Full frontend: 438 suites / 5,766 passed / zero failed. Final build with REACT_APP_ICON_STORED_TAIL=false, lint, LOC ratchet and diff whitespace checks pass. Nine offline Chrome scenarios passed all 153 steps: normal trend and missing-ICON recovery each 72 hours (169-240), failed GFS anchor and target each hours 192/193, both kill controls, and 168/241/288 boundaries. Every positive step, including the first transition from native hour 0, had the requested held hour and new/different resident texture upload bytes. Recovery asserted ICON identity and persistence-anchor provenance. The new receipt records the compiled bundle and eight source hashes plus every hour/hash/provider row. Prior receipts remain historical evidence for their recorded source hashes. Ledger 1398 records this finding and qualification; published-head CI is pending.
+
+## Publication read-back
+
+Published fix/proof commit `babe845f78cb12b14b25038ea44378810a50f08a`; normal pre-commit secret scanning passed. Both `git ls-remote` and GitHub PR read-back matched that head; #376 remains OPEN, draft, base dev. Ledger 1399 records this publication. This receipt-only commit preserves the tested source and compiled bundle. The eventual published-head CI must pass independently; the old 806d7d3ce green run is not used to certify it. No merge, production rollout or live flag change occurred.
