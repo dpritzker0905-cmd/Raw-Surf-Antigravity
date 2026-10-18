@@ -226,5 +226,87 @@
     "scope": "both marine cycle summaries, captured metadata only",
     "baselineMedianMs": 1.413,
     "candidateMedianMs": 7.813
+  },
+  "sourceQualification": {
+    "head": "5e8ff2212ad025e65527a0d79167356bead31b81",
+    "ciRunId": 39133369722,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39133369722",
+    "conclusion": "success",
+    "jobsPassed": 12,
+    "reviewChecks": {
+      "success": 16,
+      "neutral": 3,
+      "failed": 0
+    },
+    "frontend": {
+      "suitesPassed": 438,
+      "testsPassed": 5766
+    },
+    "guards": {
+      "collected": 3257,
+      "files": 207,
+      "passed": 3190,
+      "skipped": 67,
+      "failed": 0,
+      "errors": 0
+    },
+    "chain": {
+      "passed": 2721,
+      "files": 166,
+      "failed": 0,
+      "errors": 0
+    },
+    "estate": {
+      "selectedFiles": 322,
+      "resultFiles": 320,
+      "passed": 2257,
+      "silentFiles": 0
+    },
+    "lighthouseRunId": 39133369767,
+    "lighthouseConclusion": "success",
+    "canceledSupersededCiRunId": 39133022593,
+    "receipt": "Final publication commit changes only documentation; source/tests/workflow equality checked against this qualified head."
+  },
+  "finalPublicReadback": {
+    "observedAtUtc": "2026-10-18T14:03:38.501986+00:00",
+    "dev": {
+      "http": 200,
+      "build": "698ecf62"
+    },
+    "production": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+      "checks": [
+        {
+          "name": "database",
+          "status": "pass"
+        },
+        {
+          "name": "scheduler",
+          "status": "pass"
+        }
+      ],
+      "restoreStatus": "complete",
+      "restoreErrors": 0
+    },
+    "dataHealth": {
+      "http": 200,
+      "status": "warn",
+      "alerts": [
+        "ICON/marine: model cycle unverified: conflicting",
+        "EURO/marine: model cycle unverified: conflicting"
+      ]
+    }
+  },
+  "currentReferenceCoverage": {
+    "counts": {
+      "current_manifest_references_now_coherent": 63
+    },
+    "limitation": "Metadata projection only. IDs can reference overwritten objects; no loaded grid bytes or regeneration were tested. Not live skill/availability acceptance."
   }
 }
