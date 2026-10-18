@@ -1,0 +1,44 @@
+name: PR378 isolated real-grid capture
+run-name: PR378 isolated capture ${{ github.sha }}
+on:
+  push:
+    branches: [codex/pr378-real-grid-canary]
+    paths:
+      - canary/pr378_real/capture.py
+      - canary/pr378_real/cmems_capture.py
+      - canary/pr378_real/capture-requirements.txt
+      - .github/workflows/pr378-real-grid-capture.yml
+permissions:
+  contents: read
+concurrency:
+  group: pr378-isolated-real-grid-capture
+  cancel-in-progress: false
+jobs:
+  capture:
+    if: github.repository == 'dpritzker0905-cmd/Raw-Surf-Antigravity'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ESTIMATE_COHERENT_TRENDS: '0'
+      L2_WRITER: '0'
+      L2_WRITER_GATE: '1'
+      DISABLE_FORECAST_SCHEDULER: '1'
+      LOCAL_TEST_FIXTURE: 'false'
+      NODE_ENV: development
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12.8'
+      - run: pip install -r canary/pr378_real/capture-requirements.txt
+      - run: python canary/pr378_real/capture.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr378-real-grid-${{ github.sha }}
+          path: canary/pr378_real/capture-output/
+          if-no-files-found: error
+          retention-days: 3

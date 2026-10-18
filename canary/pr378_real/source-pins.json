@@ -1,0 +1,596 @@
+{
+  "base_commit": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+  "backend_git_tree": "6899f987ec78b500f0b8b53897944791b012c487",
+  "scope": "All backend/services Python modules plus routes/health.py; no media, credentials or full-server entrypoint",
+  "files": {
+    "backend/routes/health.py": {
+      "sha256": "2e38880383e7c86739e961791c3fee653372fc1c991f9edecfd72e2328199355"
+    },
+    "backend/services/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "backend/services/_fetch_blockmean_vec.py": {
+      "sha256": "7835db7907388400a0927f560792cae903991752520f1ef186e9a0aaaa29aad7"
+    },
+    "backend/services/_fetch_common.py": {
+      "sha256": "32d7f94a5fa70e7cf789c6404b2e61c57773a7ba61d3275f58bd633980de2247"
+    },
+    "backend/services/_fetch_native_cell.py": {
+      "sha256": "2b28bfc97c71b5ba68f7af8875cebbfe15239c98e81dbebe429f857eea886955"
+    },
+    "backend/services/_fetch_wave_cycle.py": {
+      "sha256": "3e479e66fc5d5a2056a35624089a59e7c8725e232c1cf6649a563f686a3ac0c3"
+    },
+    "backend/services/_fetch_window.py": {
+      "sha256": "b541ef53cffbd24ffba9d217d47b1a34c40791098763bfac0b9b1d25bdc60619"
+    },
+    "backend/services/_hrrr_grid.py": {
+      "sha256": "6091a5a11ae2136613203535e1f1a1421e7a6ce78fa1661ff862370e75402160"
+    },
+    "backend/services/admin_notifications.py": {
+      "sha256": "3692552d47e316405e553245ac316020105b0cf9330724edfbae22b1f4863c5f"
+    },
+    "backend/services/ai_gemini_matcher.py": {
+      "sha256": "54a9c9c7aaee563f0c1c14d72ec81d84e02ba5a339c459a75eb2d25561e644dd"
+    },
+    "backend/services/ai_identity_matching.py": {
+      "sha256": "4aca8e2477ee804e64ab694d1618aef5592a23f1798c3d8e35572fadc981455b"
+    },
+    "backend/services/ai_lineup_match.py": {
+      "sha256": "6c3897d18eb3487584e946f8f683ade6972314e2b6d817a1eca747e0b951e128"
+    },
+    "backend/services/ai_moderation.py": {
+      "sha256": "2952f10b0641ba9b2eae15d3a9553e99ae4410d944913624b9d5897416e9ba5a"
+    },
+    "backend/services/cmems_run_identity.py": {
+      "sha256": "ce687a155e6ca436c1e59763d1c7d7ac8c9c17024f0aa4ef3d64b2df37364934"
+    },
+    "backend/services/cmems_spot_series_cache.py": {
+      "sha256": "de89ced19f0b8e1195d487b662049aa5ca58f2671e53b86c2d2c23b78ca6e91c"
+    },
+    "backend/services/conditions_labels.py": {
+      "sha256": "e94b27d68f5395d4feb56ff6d3cdcad831e5d42c369470e703f4ba02a9c096ab"
+    },
+    "backend/services/copernicus_errors.py": {
+      "sha256": "3a41ecfec42ec535a83fa052838531ae5ae511dcf12b766c3f0991fb48e50579"
+    },
+    "backend/services/copernicus_fetcher.py": {
+      "sha256": "ef3439e7c37fd192be3a13c953e1ac05e94934f84364c790c5073b36f34ce0bb"
+    },
+    "backend/services/copernicus_global_fetcher.py": {
+      "sha256": "563bbaa984218a3d41fda2598aa20e896db41401f18537edc0f39a721f5e7749"
+    },
+    "backend/services/copernicus_marine_service.py": {
+      "sha256": "f259c1fe70b1614d91ba2f1e9f99a1b7e61c88ecce890299cfb230e8ae9459db"
+    },
+    "backend/services/copernicus_point_batching.py": {
+      "sha256": "5f80640307a9216096c35e135f41e09d07285708ad48a232fae7341de698242c"
+    },
+    "backend/services/dwd_gwam_fetcher.py": {
+      "sha256": "56f1cd38382c3e4df116e18f2a41e755a18fd027e7907cb6604198587746e6d6"
+    },
+    "backend/services/dwd_icon_pressure_fetcher.py": {
+      "sha256": "178ed1c3f56f350040bc84690d73122a669e46c8d2605915ec7c0d7ae7000019"
+    },
+    "backend/services/dwd_icon_wind_fetcher.py": {
+      "sha256": "f01b58ead6f0eb1ecd84527623aa808f9cb2755aa3ec25cb871059d168aa59c2"
+    },
+    "backend/services/dwd_marine_service.py": {
+      "sha256": "59d0bd5373fd9a04c934a48cd61714e89cfc9ebb9e8112cbf7b16778a843d5d1"
+    },
+    "backend/services/dwd_pressure_service.py": {
+      "sha256": "bf3445b91c86cc34e3f87bfddee536db006c900ec05800fa5d3d5e42b78a81a1"
+    },
+    "backend/services/dwd_wind_service.py": {
+      "sha256": "dde92b161dd3fa4b831d52fd56538d5be60b16f1b6607bbcef5d6eccf5593e26"
+    },
+    "backend/services/ecmwf_opendata_fetcher.py": {
+      "sha256": "2619e130abc7ef8490b0e85457d5bd6d12dd6b72309a54f58a63c18b3a1de20f"
+    },
+    "backend/services/ecmwf_pressure_service.py": {
+      "sha256": "d3b8acb421fa59f06c868bc15181585203cd58c0731935473c394f4519245f49"
+    },
+    "backend/services/ecmwf_wave_service.py": {
+      "sha256": "94079f8caada127ceed993ecad69abc8810ce63d947743a9e91bdb9557f125e3"
+    },
+    "backend/services/ecmwf_wind_service.py": {
+      "sha256": "216e624850fabbe734ecf503e164874be3b86082256141103cd7769727167921"
+    },
+    "backend/services/email_service.py": {
+      "sha256": "f9b46e9b5da655051dd05be395b2ad46994aa855400456a07648cb5a250aa6d8"
+    },
+    "backend/services/forecast_ingester.py": {
+      "sha256": "b2375b2e501c84bc8dcc3e4ace4a3d95b7f50d9c0d5bf41ead6834ca06cb86da"
+    },
+    "backend/services/gallery_distribution.py": {
+      "sha256": "45b19db287147ddfdb90d5ed5b874ea1288aef458325b6a9c12492e1c94b9d9e"
+    },
+    "backend/services/gallery_sync.py": {
+      "sha256": "3a9588a5e0178c041bd001efb3884e45b0d96f95935ed17e61fab18ed58767c4"
+    },
+    "backend/services/grom_media_policy.py": {
+      "sha256": "961a1bcc810e97f720d2ceef3b906f2e2a1b9c15842509ba72cb96e9555f8c80"
+    },
+    "backend/services/heap_trim.py": {
+      "sha256": "d350748d1b834d4cb3af056c0a718068232f93a4aa5cd6156763596c1ba10409"
+    },
+    "backend/services/live_session_escrow.py": {
+      "sha256": "fa2eaae6488c759d5cf0c7bd8092032b9b8c2b350f118553df2cd5b66392b0c3"
+    },
+    "backend/services/media_upload.py": {
+      "sha256": "89a5f3774783e893214b0436cebf1d9457b36ffda99d9eafd58d4ec36b47b4d9"
+    },
+    "backend/services/memory_trace.py": {
+      "sha256": "4081a204e28dced314ebb225cd0696362a3198463a1554ec0b36a01be4d3fb6f"
+    },
+    "backend/services/mentions_service.py": {
+      "sha256": "f43fcd4ae0ba171f7d3320e0159fbf9249488671c72af2a31a9e575820d33bf2"
+    },
+    "backend/services/mux_live.py": {
+      "sha256": "c52eabb65756be9e221d6449ea0cedf99aef31762627e3967b9d0750aee13e1a"
+    },
+    "backend/services/noaa_gfs_pressure_fetcher.py": {
+      "sha256": "34c7ac6e0135748256e9c58c602291caab03d2e781805e793e96b3db9963aeeb"
+    },
+    "backend/services/noaa_gfs_wave_fetcher.py": {
+      "sha256": "79f91bd029fcc21c5fc2599c8e4222dfc00bc37c4a5bcbb3f0e7daaa15a569b1"
+    },
+    "backend/services/noaa_gfs_wind_fetcher.py": {
+      "sha256": "71a40841b44d3d790cefa2f35a0e613b936e2eae82b1ee7898353635c97ce1a9"
+    },
+    "backend/services/noaa_hrrr_wind_fetcher.py": {
+      "sha256": "74132a439de28e91bdbe37c3718b8557846d0a95a25cdc2c0db56af14e211f05"
+    },
+    "backend/services/noaa_marine_service.py": {
+      "sha256": "d59340a5137b39645b3fff5ee4a0c43f272834f404b9fd9b590f90ea82347a57"
+    },
+    "backend/services/noaa_pressure_service.py": {
+      "sha256": "1f067a2e3d0c28931b4561406bf142cac552a866b3e781a572bf1bd5bf86085b"
+    },
+    "backend/services/noaa_wind_service.py": {
+      "sha256": "786ffdcf09d03282b3ce3fe3e9ccb941971831452b65cb0d1d9d91de61179ee5"
+    },
+    "backend/services/onesignal_service.py": {
+      "sha256": "aabde5064ef5f5ffe9e895e18ecfe945ba855777bc8fa1a6de2e47511415e8a4"
+    },
+    "backend/services/openai_budget.py": {
+      "sha256": "b1bd15f402da7be26196ba58938fe151e3d66d1c94b9ef30cfc89715b94e8201"
+    },
+    "backend/services/private_media.py": {
+      "sha256": "7575381c4ffbfe2b9ffb9048b43891e1e62710885dd65704b295bb07aeac26ff"
+    },
+    "backend/services/request_telemetry.py": {
+      "sha256": "e88619f556d7d6e30cb295e2def647c23db97962ea976c23e3fc1206bad63f7a"
+    },
+    "backend/services/spot_duplicates.py": {
+      "sha256": "a2d4f9adb8a00775b7290939b70e7f7bb72eaf68130afb9ab85a8874345d197b"
+    },
+    "backend/services/surf_alert_delivery.py": {
+      "sha256": "48b8387f75dba3e5ee5ddbecb2b3fe99c9a86ef13c1605ff2cbc1fa97ac6b064"
+    },
+    "backend/services/surf_conditions.py": {
+      "sha256": "d3a64d5859a3c7dc0cc61ecda81c8f611938acc146b37d7d5788757c55357bcc"
+    },
+    "backend/services/watermark.py": {
+      "sha256": "14e17e3f2282570ae398859a2a2530cf996256ebea0e2775c953618d21615451"
+    },
+    "backend/services/weather_pipeline/__init__.py": {
+      "sha256": "dbfdf796bc936ee1635333c6d751e0b3c3d511d5cc2ca1b33544e9e1fa7427a7"
+    },
+    "backend/services/weather_pipeline/bathymetry.py": {
+      "sha256": "2bc9e84bca7661089a71c64bc4047f58220d70f39aa4b5a6b5788739abef39e3"
+    },
+    "backend/services/weather_pipeline/blend_cycle_health.py": {
+      "sha256": "f7f3c1c17ac0e33765ff5f61507f400ecc40a5c11710560de74afed03a0b2af7"
+    },
+    "backend/services/weather_pipeline/buoy_calibration.py": {
+      "sha256": "b576d274e92482bd632f34dba38342488d9cf35efe7e3e16ffd2a9c2a8d6fefd"
+    },
+    "backend/services/weather_pipeline/buoy_residual_retention.py": {
+      "sha256": "c3b37ca8ddfa492d549df38cf3ff1aeeb04c0f8e1c7015e41338c75826136c58"
+    },
+    "backend/services/weather_pipeline/capabilities.py": {
+      "sha256": "17c1da37cd024eddaec2d90500f21241c1714ccca2518b9c9c9e5f63170ec590"
+    },
+    "backend/services/weather_pipeline/coarse_gulf_fill.py": {
+      "sha256": "bceabc3a95772610f2d4232e3ed5eaf84c663ef4a3ba5939f8b6dc0e23549bc2"
+    },
+    "backend/services/weather_pipeline/config_env.py": {
+      "sha256": "9733804f0ebd53c875097ed86f09a3a1c728fa74a25304b1d412ddad84d7bb1e"
+    },
+    "backend/services/weather_pipeline/consensus_ingest.py": {
+      "sha256": "f1f9a19033278218b9e8e85aa211513cac18eacfba0fdef669fc7680f594c6ae"
+    },
+    "backend/services/weather_pipeline/consensus_product.py": {
+      "sha256": "bd309dd91c2dee95c54ecdeba477662cfec22b3b9c1e8b34b628ac0ba194c175"
+    },
+    "backend/services/weather_pipeline/consensus_serve.py": {
+      "sha256": "75bfdbabc8c1af49938c1c003e1edb406f7aabe16488cda3cef31daefb7ded40"
+    },
+    "backend/services/weather_pipeline/copernicus_island_ingestion.py": {
+      "sha256": "a864a13244f5dbd8c3f672bc20a53c5974b1e845b4975f6f2f336ade3a955b44"
+    },
+    "backend/services/weather_pipeline/copernicus_island_regions.py": {
+      "sha256": "75ca37cae87f6b1ee9406a27716062a7332eeb5f65fdbaa97141f55ae6bfc1f2"
+    },
+    "backend/services/weather_pipeline/copernicus_validator.py": {
+      "sha256": "1980fe18f4a8d0211b395aa7d55c2fd4c54b6c207cc53feedc40ac7948c0dc7a"
+    },
+    "backend/services/weather_pipeline/cycle_provenance.py": {
+      "sha256": "d97b9028ce7e22fc4c306bb5c28a5ef03afcc8a342de3da0ea39ad0937cfa4d4"
+    },
+    "backend/services/weather_pipeline/data_health.py": {
+      "sha256": "b194373a6a9a43ccce66e58f2675541e1830fb09993519ab08a99d157dd50ba7"
+    },
+    "backend/services/weather_pipeline/dynamic_cycle_policy.py": {
+      "sha256": "1e579525b5406572feec7cbc37342e795c103bb94e3f48f9090b98c9c6f86f17"
+    },
+    "backend/services/weather_pipeline/dynamic_index.py": {
+      "sha256": "eeb721a965ddf904f551f24b8002a4f57a769aecf43bbd7bb912ee9f9d737319"
+    },
+    "backend/services/weather_pipeline/estimator.py": {
+      "sha256": "fc332a1f9ea3c401f26a3f2dc3c40ca1617ad115e5c72022673a276d04a0aa27"
+    },
+    "backend/services/weather_pipeline/euro_marine_coarse_ingestion.py": {
+      "sha256": "e7a527dc6df1f1eaf6412e496eff5206904c77af115d21ed2bd2724501c83150"
+    },
+    "backend/services/weather_pipeline/euro_wind_extension.py": {
+      "sha256": "399eb133495c633ff5257599293a73d7b9e8e9d3dcb2295a3f4c5b1f6112cd3b"
+    },
+    "backend/services/weather_pipeline/far_edge_hold.py": {
+      "sha256": "a4a635cf65fe628f3f5fc9041a3cf5c7b27fb633d3518cbeaa480a23069c37a9"
+    },
+    "backend/services/weather_pipeline/forecast_gate_time.py": {
+      "sha256": "fa53365edfdfbf79cbf5accd2a1982bb97d08f831fd731f8473e700cac563238"
+    },
+    "backend/services/weather_pipeline/forecast_skill.py": {
+      "sha256": "1437d2374d32de786c310c54e9185f2d400e2edff677770927ebc13f49d38b26"
+    },
+    "backend/services/weather_pipeline/forecast_spread.py": {
+      "sha256": "0199b63b292ba49e38339170eeec010a81189e004d6b45b8237327a4e11ed2f7"
+    },
+    "backend/services/weather_pipeline/grid_resolver.py": {
+      "sha256": "400b61b8d94380813e2368c58874eceadb2472cef3ee3c62d0f25a5077ce90c4"
+    },
+    "backend/services/weather_pipeline/grid_resolver_selection.py": {
+      "sha256": "a9a8759ef0e2c7e89694b0ce394ee139ea775f5667e16f0f1ecc59ca1fc1fbea"
+    },
+    "backend/services/weather_pipeline/grid_resolver_surf.py": {
+      "sha256": "7711781d7a8adcca9eef34571e2848cff3a605e658feac4e9e1eab9f21c525a2"
+    },
+    "backend/services/weather_pipeline/grid_response.py": {
+      "sha256": "43e03d38309723c5a4f82eb3f39d1cf5d5e117354d58148e7fae65d6d3af398a"
+    },
+    "backend/services/weather_pipeline/grid_series_helper.py": {
+      "sha256": "daad91a24e87cd90be466e55c7c618c82b5df4324b677c799e96800e5ea0a487"
+    },
+    "backend/services/weather_pipeline/grid_series_viewport.py": {
+      "sha256": "2aced58e57aa63cd8bed624e6c2eea87c012884ea7de1bed7d22d1b0db883531"
+    },
+    "backend/services/weather_pipeline/grid_size_climatology.py": {
+      "sha256": "767be99edad8cf9f526b1da87610844324e002421c5ad77bda5dce528c895f7b"
+    },
+    "backend/services/weather_pipeline/height_quantile_map.py": {
+      "sha256": "e944bee5f78caab7c666f36a55e300a45e9b1732eeea7bb41efb9add3c64139c"
+    },
+    "backend/services/weather_pipeline/icon_marine_extension.py": {
+      "sha256": "46fe4b2800efb13f01742b9dd9df4168704e9851168d3db66d77a14695558e56"
+    },
+    "backend/services/weather_pipeline/ingestion_frame_validity.py": {
+      "sha256": "2a2e28a12584c43026b5bf10fb37ba8d3c69215f42560328db63fc423f16df83"
+    },
+    "backend/services/weather_pipeline/island_gate.py": {
+      "sha256": "563cabea66c69805367fa479ba4bbedebe9b7f746f3607f4b5a1a2adf454d808"
+    },
+    "backend/services/weather_pipeline/l2_retry.py": {
+      "sha256": "6146dee77ca681056cebd6f7fb5575458eecf101e6e37935ba893db3da646632"
+    },
+    "backend/services/weather_pipeline/lattice_fill.py": {
+      "sha256": "b592294078ef54a82fb59063e7bc2a9d6e0cef428678ee062b1ec7e4b1c41c49"
+    },
+    "backend/services/weather_pipeline/local_size_preview.py": {
+      "sha256": "27ff952c372b5ed957af11946a98f46d2d96a8ba871cf5d3644dd98d82195565"
+    },
+    "backend/services/weather_pipeline/manifest_immutable.py": {
+      "sha256": "eb659ca6ec5a1b011a07328ea146cd30fcf77472cd532d9200ad78ef81a25536"
+    },
+    "backend/services/weather_pipeline/manifest_point_selection.py": {
+      "sha256": "f62909259d3f91a3516dd068840f31c99ad30912cccab242057940a80a91c311"
+    },
+    "backend/services/weather_pipeline/manifest_pointer.py": {
+      "sha256": "5f3ab12779258fabde42dd7182f04fdafad5faa0316e1b2a211cff0fc3463f9c"
+    },
+    "backend/services/weather_pipeline/manifest_publish_step.py": {
+      "sha256": "c84891a4714be773f25ae9df74ace14767e5033ffad6cac231618260bad3f4b4"
+    },
+    "backend/services/weather_pipeline/manifest_view.py": {
+      "sha256": "46e0485f77fed02a936f22ee69826977449b13d17a45d3a0454f0daca9bcdcbf"
+    },
+    "backend/services/weather_pipeline/marine_mid_res_ingestion.py": {
+      "sha256": "5397759ff41beeec3c004f0612a57bbcc0ace0a54756bff51bb033e1e0a92173"
+    },
+    "backend/services/weather_pipeline/mid_res_tier.py": {
+      "sha256": "82d5f045c5a87ba52ef77057f5821c2705d76f8acd0439b04b298112e680af4f"
+    },
+    "backend/services/weather_pipeline/model_cycle_health.py": {
+      "sha256": "b05301574bc695e5d797eef9be6b3ccc3ad292bead95e8fce60227662e5b28b9"
+    },
+    "backend/services/weather_pipeline/mop_nearshore.py": {
+      "sha256": "45a9854c6f9377bf793530fb81dd0f89929e7e6774021dbdfb850759ce8a4d5c"
+    },
+    "backend/services/weather_pipeline/mop_serving.py": {
+      "sha256": "19d515f583e054823a756787e2d495921f57d803d92c04cc33b17ffbdb2ff2f2"
+    },
+    "backend/services/weather_pipeline/ndbc_nearshore.py": {
+      "sha256": "32b047b803c15f020ce4646c77f52ab7b5e1b8cfa2fe2e8f449517b77765bac1"
+    },
+    "backend/services/weather_pipeline/nearshore_gate.py": {
+      "sha256": "95d799e427ccc359faa954cf3fc37c905bbeb3e2c6debc9d0a15111342d068c0"
+    },
+    "backend/services/weather_pipeline/nearshore_validation.py": {
+      "sha256": "ae18ca89fb87426c3368349c976e989334a0f824cfa8848fbaf82124d0175e76"
+    },
+    "backend/services/weather_pipeline/normalizer.py": {
+      "sha256": "bb801fa6a7155ddd7ad43039f313379402703b6ccd897c7e186917b733d8eac7"
+    },
+    "backend/services/weather_pipeline/nwps_nearshore.py": {
+      "sha256": "3357f878b5b6fc50db2c4f397774bc53679c3c33985329808693896ca8bc1019"
+    },
+    "backend/services/weather_pipeline/ocean_access.py": {
+      "sha256": "599e8915b6e7007a9e3de7a35c477328ed8a00e65ac890eb77a68985db58fb32"
+    },
+    "backend/services/weather_pipeline/period_bands.py": {
+      "sha256": "a365be9ede35fba8422615de123ccd17f69b12f30242b70372cbb9a0f2b53791"
+    },
+    "backend/services/weather_pipeline/persistence_diagnostics.py": {
+      "sha256": "29c97a747db578fc97a7ba6336310325b9732cc9547755f0e2a1f52ece26d148"
+    },
+    "backend/services/weather_pipeline/pilot_regions.py": {
+      "sha256": "2af599b744051506ad50a41db090903e391e17242112118863058931b3cf36c8"
+    },
+    "backend/services/weather_pipeline/point_direct_fallbacks.py": {
+      "sha256": "67d3a0935587c923f885095c504bdce21911136932220b54310e03cd7480457c"
+    },
+    "backend/services/weather_pipeline/point_estimate_provenance.py": {
+      "sha256": "91386c3ef16794c6ed1642e8c68f1ae026e056a0a63f086a6627ebc2d739fbc0"
+    },
+    "backend/services/weather_pipeline/point_rating.py": {
+      "sha256": "eb334e2b7eea45a4f2829b06b52c290f5adac089c41f11de71c6a20d637c945f"
+    },
+    "backend/services/weather_pipeline/point_resolution.py": {
+      "sha256": "285c645c2c5bf916a1d5c3bdfbbb820447911549c0e0f7b72e171629b1369198"
+    },
+    "backend/services/weather_pipeline/point_surf_augment.py": {
+      "sha256": "01422ebbb5b869d8587ea0e19acd3ff6aa02eeb20fe45e3a5ef8512a20cfbd55"
+    },
+    "backend/services/weather_pipeline/prefetcher.py": {
+      "sha256": "9807c52e3281ed2682d1e771662a8119924f90ad401da19002634a9d918319d5"
+    },
+    "backend/services/weather_pipeline/pressure_ingestion.py": {
+      "sha256": "bccba29fb5bc59776e31feda777275edc9f08d59511eaefa9c5cd53a39a94dda"
+    },
+    "backend/services/weather_pipeline/product_revision_refresh.py": {
+      "sha256": "5f7976f612bf82cf651d4af3d7da699906c7da155b842508dc0fd8d5ea838aa1"
+    },
+    "backend/services/weather_pipeline/product_selection.py": {
+      "sha256": "3cfefde314953cbdf9ff08ddfd47f922c7ec600d4e63feba0cf1e1e0b46cf8c5"
+    },
+    "backend/services/weather_pipeline/product_upload_progress.py": {
+      "sha256": "c561718b8ed86cfea3e7bf704e9e17e95d95187b41aee21aeb32526a1eca3e44"
+    },
+    "backend/services/weather_pipeline/provider_fetches.py": {
+      "sha256": "ac32ec7560d4183394d1fdf1ef10dba3115bdba1caf82ef48a00a250a170ce63"
+    },
+    "backend/services/weather_pipeline/providers/__init__.py": {
+      "sha256": "13c33e9783d4ed07aa1d6b893346cd3c1098c315032a0e710b2fd4fd1e96f727"
+    },
+    "backend/services/weather_pipeline/providers/copernicus_provider.py": {
+      "sha256": "cae3918650bed3b096615dc1a442724be6c140f05dd4228f04c37cb4e68b81fa"
+    },
+    "backend/services/weather_pipeline/providers/open_meteo_provider.py": {
+      "sha256": "1d4fb073842798415e1fe1189c0ef040567b76ba05b76d21b70244c0f7006760"
+    },
+    "backend/services/weather_pipeline/prune_object_protection.py": {
+      "sha256": "a312f564366c53ffb379544294058283463825660e6332942e9765155a3b1a77"
+    },
+    "backend/services/weather_pipeline/prune_verified_cycles.py": {
+      "sha256": "7bdb5823b3b43ba887e8b2f1de3c2afe90450f34a19106d48411ff8b3c04af15"
+    },
+    "backend/services/weather_pipeline/rating_confirmation.py": {
+      "sha256": "a753a18af2f7cb3d5d0552f3491172f9577956ddcd8f0a8d1564616787614f5f"
+    },
+    "backend/services/weather_pipeline/report_calibration.py": {
+      "sha256": "3de7771a3589b985ac9fa61b169a034c969c814c927660fd8338cf9c9e355aaa"
+    },
+    "backend/services/weather_pipeline/resolve_spot_geometry.py": {
+      "sha256": "6fcf6bf435f0e87b480a1f0a63c195450cd63e04d0e7673ac57b04908889ecb8"
+    },
+    "backend/services/weather_pipeline/reval_queue.py": {
+      "sha256": "3df06459c736c170e3e8e6c53fb7bb4e7c60f0eef73c4d0e1cd6716101f6ebf9"
+    },
+    "backend/services/weather_pipeline/route_helpers.py": {
+      "sha256": "9480ff65a6671e91039b0319d36efeb65830affd7903a43ad3fd19b8f686648d"
+    },
+    "backend/services/weather_pipeline/sampler.py": {
+      "sha256": "e1434113c9c5548608d5b2bcf41f3ab1bbd7a64133d71ce1d3e8cdd287bf1652"
+    },
+    "backend/services/weather_pipeline/scheduler.py": {
+      "sha256": "0a3faaa35ebc7101d03472cabab272f8e3bab2ae0deb3815562242abd11207a3"
+    },
+    "backend/services/weather_pipeline/scheduler_helpers.py": {
+      "sha256": "11814529d5de4514f48e17f9edccf19bbc0581ab2819509b8df62408671042d0"
+    },
+    "backend/services/weather_pipeline/schemas.py": {
+      "sha256": "82c5953118657975577a4c6b5c8dcffc07b7e7723e79bf37c0373445333dac50"
+    },
+    "backend/services/weather_pipeline/science_registry.py": {
+      "sha256": "87a2771c01f09561e86a78b3388166cd525d39a61dff2f6b0aece77c6adf4424"
+    },
+    "backend/services/weather_pipeline/scored_rows_analysis.py": {
+      "sha256": "1e7ac0c3b17fffdf44c92ca35ea41f1db01dc5efd0c1f4526107b76ec4226be4"
+    },
+    "backend/services/weather_pipeline/selection_identity.py": {
+      "sha256": "7b84b55d94b3178850fc37457cf9addf4ef581a2f7f3e444b24d4bce08c1451a"
+    },
+    "backend/services/weather_pipeline/series_coordinates.py": {
+      "sha256": "2006b7b4245764cadb30efff02b66bd8f428705d81c3839d28ad0f63d80eb283"
+    },
+    "backend/services/weather_pipeline/series_response.py": {
+      "sha256": "26d386ba427b23a63d804b5d20fc24b50970feaf302c46c050ea9293a0b33530"
+    },
+    "backend/services/weather_pipeline/series_source_policy.py": {
+      "sha256": "48a7aaee4398c797464741985154888b0a4a25e4b1ed28c7b885e040cc40a58e"
+    },
+    "backend/services/weather_pipeline/series_vector_budget.py": {
+      "sha256": "57d6f6fec4e2686b7f922c582df6805e51af2d0c6199749a85d288639a16b8f6"
+    },
+    "backend/services/weather_pipeline/shore_normal_asset.py": {
+      "sha256": "ec7cbcc53bda365e3bd3db67ff3da78a14c8a9717eaef5aa77c975e349a26e79"
+    },
+    "backend/services/weather_pipeline/shore_normal_fit.py": {
+      "sha256": "262653fb8acd12779fcd2cd0dda5bafb05a81fc76434aa863519bc6cb48b9a70"
+    },
+    "backend/services/weather_pipeline/sim_boot.py": {
+      "sha256": "f1410310809dc9c35bbfdac254b526ae0e06ecf1e37dea2b819a4e7c654dba38"
+    },
+    "backend/services/weather_pipeline/sim_briefing.py": {
+      "sha256": "a4040a8c349217bd841723635459ace26640cd5b979a66749c2e6017bfa3db0a"
+    },
+    "backend/services/weather_pipeline/sim_compare.py": {
+      "sha256": "bec3efc09fd6a47cef2d594fbfdbe2b1831ab92aa562e4d4fe7e35ea96ceb36a"
+    },
+    "backend/services/weather_pipeline/sim_daylight.py": {
+      "sha256": "95ccef9a9067861d70c5b2969811e558fb607e8e4a765f7b59dcf33dd8aaa89d"
+    },
+    "backend/services/weather_pipeline/sim_explain.py": {
+      "sha256": "2721420c24480eb6f32e1ad0b09e988999ee9558a3a8e589dd8e71cedbcf36b4"
+    },
+    "backend/services/weather_pipeline/sim_forecast.py": {
+      "sha256": "45c292db7dcf5d51b79bc73e771cc232b720b79c3e12de2f482afd0ce4c124f4"
+    },
+    "backend/services/weather_pipeline/sim_mcp_shim.py": {
+      "sha256": "9cf628663bf54898e3f34e9f08fe145f5db11e2139d1dc508c5e807dc5924aa7"
+    },
+    "backend/services/weather_pipeline/sim_observed.py": {
+      "sha256": "a7148a6a8196d745b3566235781145a8eb0a98775a5b524f8b2e8304d133c7e6"
+    },
+    "backend/services/weather_pipeline/sim_rating.py": {
+      "sha256": "cb64969a148b567467c4992b43718f1895a3a8cc1c46c172633bcbb2c15b0b63"
+    },
+    "backend/services/weather_pipeline/sim_spots.py": {
+      "sha256": "d629deaf71831dce8e5ad4e78deb23c641b91dee559041f78a8091578b2a613c"
+    },
+    "backend/services/weather_pipeline/sim_window.py": {
+      "sha256": "74a54968e06705ca2d6293704fa14071cbcf5f5cb6e194d28d0f7f66d050b02e"
+    },
+    "backend/services/weather_pipeline/skill_attribution.py": {
+      "sha256": "93d405353c9052023b75882c4de030f16f76da32d2bb55f1d44c71e7cfafa877"
+    },
+    "backend/services/weather_pipeline/skill_consensus.py": {
+      "sha256": "4f15392df2975f466a21fe337e79f9546b645eba9256b6cad87e460b5961f298"
+    },
+    "backend/services/weather_pipeline/skill_direction_period.py": {
+      "sha256": "3e0b8b13451d4f2e670dab07204fb39457c853d2d6fda3cfc06a69091251fdc8"
+    },
+    "backend/services/weather_pipeline/skill_mos.py": {
+      "sha256": "068bf781945c1c324b92f78092eb7852d2af6573dfa9d24d21c99d80202da352"
+    },
+    "backend/services/weather_pipeline/skill_scored_archive.py": {
+      "sha256": "d80fb0035ba136149de5fa92ee45d67ff89daa802c549aef4035ee955b0eca8c"
+    },
+    "backend/services/weather_pipeline/spot_conditions.py": {
+      "sha256": "a3edbed3308c4d0bb22bbf6bb975e3588e091042a875bd828a396ab257620650"
+    },
+    "backend/services/weather_pipeline/spot_geometry_db.py": {
+      "sha256": "a91c397e34b7b4824d97d83021445c74343dfe69f4c0b92460fb1d7dcfca15f4"
+    },
+    "backend/services/weather_pipeline/spot_geometry_readiness.py": {
+      "sha256": "e7e698a477031348e776645f4e89917799059be9a517e6b96ca0545a73d9c130"
+    },
+    "backend/services/weather_pipeline/spot_ratings.py": {
+      "sha256": "06bf2d3d9c88b38fe74d1b8e09fc582a55569a06be8fc5021913c73c79a67e2d"
+    },
+    "backend/services/weather_pipeline/spot_ratings_precompute.py": {
+      "sha256": "03efe7ca9538d48cf5051ad2d2a0453edd55f103628c21025925eb55a902beaa"
+    },
+    "backend/services/weather_pipeline/spot_size_climatology.py": {
+      "sha256": "0dae33bee6365c60a86ba5636aef9a1490f35cb7119425024358dfeb837eaa55"
+    },
+    "backend/services/weather_pipeline/store.py": {
+      "sha256": "e4cf0b14a1aa500f476fea010d93bb8abe2fb419471a52aacd83cba81e0bfc9e"
+    },
+    "backend/services/weather_pipeline/store_helpers.py": {
+      "sha256": "11f5a34e830cee4717ce4c2a8c2ac7672c331b7b6aff3b9adcc0239b49791e13"
+    },
+    "backend/services/weather_pipeline/surf_height_convention.py": {
+      "sha256": "5ecbb2c15da2feb3189ca22c28b79cc7eabc3e4f7a6f0b78d708a23defdc51f3"
+    },
+    "backend/services/weather_pipeline/surf_magnets.py": {
+      "sha256": "fbf093658f86a58ca1cb257a18c58c6e6cfc0c253b0d705fca37c59913279d7a"
+    },
+    "backend/services/weather_pipeline/surf_partitions.py": {
+      "sha256": "49d55d9fca59e91c7b3ef73146cb903149a037b048c580ce5f42ab17e597f850"
+    },
+    "backend/services/weather_pipeline/surf_point.py": {
+      "sha256": "5b366efe8cb8aea9494e0013533946396cbb7de724b20f0c21382f88a3d01647"
+    },
+    "backend/services/weather_pipeline/surf_rating.py": {
+      "sha256": "22cf7cd56d2885a56f58434532107f8fd4556c5d75268f11ab3ecfc6a67a1121"
+    },
+    "backend/services/weather_pipeline/surf_transform.py": {
+      "sha256": "b047d2c45e2d57b570ce3b49d699747c925f03ff98a4550579d2c115cc027710"
+    },
+    "backend/services/weather_pipeline/swell_fetch.py": {
+      "sha256": "6f4391ba202da5d10ee88d6f0e7aad052ee1d688bcf1fccfc65e3cafba5dee23"
+    },
+    "backend/services/weather_pipeline/tide.py": {
+      "sha256": "c217bff1ad53ca2e6be27e553e219eefcdc89589b263009b139d758e860b0122"
+    },
+    "backend/services/weather_pipeline/viewport_helper.py": {
+      "sha256": "67ecbae4c7f00507f6f18e6f714a0d6cf0b3fdc26b2441781380d9064fe11308"
+    },
+    "backend/services/weather_pipeline/viewport_service.py": {
+      "sha256": "efd77799461e9585ed172c3cc724520253fa95fb2b8bd503b10864f347021fda"
+    },
+    "backend/services/weather_pipeline/viewport_upstream.py": {
+      "sha256": "eb2d228f72046ac92ff6b567fb0eb5e2c60fd97e9f395cab4d5addf72220d6d4"
+    },
+    "backend/services/weather_pipeline/wave_physics.py": {
+      "sha256": "4d15137e17541fd35c46fd38f123e384e01e32d35134fa2d5aa25485d817ce9b"
+    },
+    "backend/services/weather_pipeline/wave_wrapping.py": {
+      "sha256": "d684f2efd48bc40178b1475fee6d8d3a22e125fa1218efe32b69e46dca9455e6"
+    },
+    "backend/services/weather_pipeline/wind_bg_build.py": {
+      "sha256": "1e8a51c4cd04c5a3a456d509f648861c51cb64add3ea79cc085bc9f192c7f106"
+    },
+    "backend/services/weather_pipeline/wind_gates.py": {
+      "sha256": "ea530792b9564abf1f94d58a53810fa7914ca1b9e09e4544bbeadf682fe33713"
+    },
+    "backend/services/weather_pipeline/wind_ingestion.py": {
+      "sha256": "70799923bf84a191899b420c0f4624abefd91865d7088c58dee3024faae90d3b"
+    },
+    "backend/services/weather_pipeline/wind_lane.py": {
+      "sha256": "fd2ba4df19b67c45dafcb5d1bc4e6a6641d08b557f3018ea602b41925bdb87d5"
+    },
+    "backend/services/weather_pipeline/wind_lane_ingest.py": {
+      "sha256": "18abca7b0d8163ed28237757fb63e6f867a75e9cb355f73ed2cdbe0be8f2a78c"
+    },
+    "backend/services/weather_pipeline/wind_mid_res_ingestion.py": {
+      "sha256": "98dacc66ed21ac98280f842a568775957c0db5a2e458dd5f594860d862ae3549"
+    },
+    "backend/services/weather_pipeline/wind_native_recovery.py": {
+      "sha256": "3b63fef11642db7a71ead27a307695877b471b0a7de8cb18eb31c248ec17f363"
+    },
+    "backend/services/weather_pipeline/wind_pilot_multi.py": {
+      "sha256": "e663c91fb7d6cee128db43dd71fb10a52cd163a2564afbbac687c6832e80ad7b"
+    },
+    "backend/services/weather_worker.py": {
+      "sha256": "94db28d0ba8f5c7533c53b6598a758a4dce1e23d64f6c22493cf99fde28ace7c"
+    },
+    "backend/services/workflow_dispatch.py": {
+      "sha256": "aa5d73ebc1c012eb1fbef5df1883f7ac8a617e4e8ad80a2a2747fbff125b465a"
+    }
+  },
+  "archive_sha256": "4292087f9952686dac7a458845789864653284058bdb7273b29794c46c6f4df2"
+}
