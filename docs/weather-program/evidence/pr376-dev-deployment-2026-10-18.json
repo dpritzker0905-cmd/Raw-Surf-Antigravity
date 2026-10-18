@@ -1,0 +1,184 @@
+{
+  "verifiedAtUtc": "2026-10-18T02:39:18.384646+00:00",
+  "pullRequest": 376,
+  "mergedAtUtc": "2026-10-18T02:06:00Z",
+  "reviewedHead": "d654bad04f823bb6bad19ea9122fead430f98838",
+  "mergeCommit": "e57b54791b2103e8973cfafd7cc745f4a6b444be",
+  "deployedDevCommit": "698ecf6272344af568d31fbb91eadbf689bfc63e",
+  "reviewMergeDeployTreesEqual": true,
+  "deployTrigger": "Empty identical-tree dev commit; removed inherited skip-netlify marker, retained skip-render",
+  "backendTreeEqualsLiveBaseline": true,
+  "dev": {
+    "url": "https://dev--rawsurf.netlify.app",
+    "build": "698ecf62",
+    "assets": {
+      "path": "/static/js/main.4f50533d.js",
+      "sha256": "af675d494179ae93db755b92b8fa170cbfbe0ad28bc017a3db87176b41928e75",
+      "bytes": 1140235,
+      "marine_path": "/static/js/3576.7276cb6f.chunk.js",
+      "marine_sha256": "e7e55676202976b29839e39bfb5abeb4de65ea7f2ef96aaf5c395373052c0114",
+      "d1_kill_present": true,
+      "stored_icon_validation_present": true,
+      "trend_provider_present": true
+    }
+  },
+  "ci": {
+    "runId": 39089369337,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39089369337",
+    "conclusion": "success",
+    "jobsPassed": 12,
+    "frontend": {
+      "suitesPassed": 438,
+      "testsPassed": 5766
+    },
+    "composition": {
+      "collected": 3203,
+      "files": 207,
+      "passed": 3136,
+      "skipped": 67,
+      "failed": 0,
+      "errors": 0
+    },
+    "forecastChain": {
+      "passed": 2701,
+      "files": 166
+    },
+    "estate": {
+      "selectedFiles": 322,
+      "resultFiles": 320,
+      "passed": 2257,
+      "silentFiles": 0
+    }
+  },
+  "lighthouse": {
+    "runId": 39089369195,
+    "conclusion": "success"
+  },
+  "fullE2E": {
+    "runId": 39089497526,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39089497526",
+    "event": "workflow_dispatch",
+    "workflowConclusion": "success",
+    "stats": {
+      "total": 76,
+      "expected": 66,
+      "unexpected": 0,
+      "flaky": 1,
+      "skipped": 9,
+      "ok": false
+    },
+    "globalErrors": 0,
+    "durationMinutes": 17.59,
+    "retries": 1,
+    "cleanPass": false,
+    "qualification": "Desktop Chrome Explore recovery test first timed out before fault injection: no trending card, explicit Could not load Explore screen. Retry passed injected503/manual recovery/real200. Underlying cause unproven; Explore/spec/backend source unchanged by D1.",
+    "readiness": "Manual event skips automatic SHA waits; exact frontend version, equal backend source, health and completed restore independently checked before dispatch.",
+    "suites": [
+      {
+        "file": "booking-flow.spec.js",
+        "stats": {
+          "total": 44,
+          "expected": 43,
+          "unexpected": 0,
+          "flaky": 1,
+          "skipped": 0,
+          "ok": false
+        }
+      },
+      {
+        "file": "marine-render-continuity.spec.js",
+        "stats": {
+          "total": 8,
+          "expected": 4,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 4,
+          "ok": true
+        }
+      },
+      {
+        "file": "weather-simulation.spec.js",
+        "stats": {
+          "total": 24,
+          "expected": 19,
+          "unexpected": 0,
+          "flaky": 0,
+          "skipped": 5,
+          "ok": true
+        }
+      }
+    ]
+  },
+  "boundedDiagnostic": {
+    "runId": 39090797528,
+    "status": "completed",
+    "conclusion": "success",
+    "project": "Desktop Chrome",
+    "title": "a spot opens after one explicit recovery from an unavailable detail response",
+    "stats": {
+      "total": 1,
+      "expected": 1,
+      "unexpected": 0,
+      "flaky": 0,
+      "skipped": 0,
+      "ok": true
+    },
+    "retries": 0,
+    "detailStatuses": [
+      503,
+      200
+    ],
+    "manualRecoveryUsed": true,
+    "durationMs": 8446
+  },
+  "canceledRuns": [
+    {
+      "runId": 39088866679,
+      "reason": "Exact merge SHA superseded by identical-tree deployment trigger"
+    },
+    {
+      "runId": 39090786133,
+      "reason": "Incorrect start-anchored diagnostic filter; canceled before tests"
+    }
+  ],
+  "health": {
+    "observedAtUtc": "2026-10-18T02:37:36.211567+00:00",
+    "http": 200,
+    "status": "healthy",
+    "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+    "checks": [
+      {
+        "name": "database",
+        "status": "pass"
+      },
+      {
+        "name": "scheduler",
+        "status": "pass"
+      }
+    ],
+    "restoreStatus": "complete",
+    "restoreErrorCount": 0
+  },
+  "dataHealth": {
+    "http": 200,
+    "status": "warn",
+    "alerts": [
+      "ICON/marine: model cycle unverified: conflicting",
+      "EURO/marine: model cycle unverified: conflicting"
+    ],
+    "qualification": "Warnings observed before new application deployment; not repaired or suppressed."
+  },
+  "holds": {
+    "main": "261db85a9508bf5a03ddd70dd21271493d5858a8",
+    "productionFrontendBuild": "fc140024",
+    "sharedBackendRedeployed": false,
+    "flagsChanged": false,
+    "productionPromoted": false,
+    "billingChanged": false
+  },
+  "limits": [
+    "Original full E2E remains flaky even if bounded diagnostic passes",
+    "D3 cache identity and series snapping not certified",
+    "No day8-14 forecast skill or numerical accuracy gain claimed"
+  ]
+}
