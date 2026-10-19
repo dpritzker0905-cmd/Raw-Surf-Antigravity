@@ -26,6 +26,7 @@ import {
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { claimEnqueueSlot } from './marineEnqueueSlot';
+import { marineErrorOwnsDisplay } from './marineSeekIdentity';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -655,7 +656,9 @@ export function useMarineDataFetcherCore({
         console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
       }
       const isCurrentHour = timeOffset === timeOffsetRef.current;
-      if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
+      // T-03 (scrub audit 2026-10-18): only the CURRENT request may mark stale or blank the display (marineSeekIdentity.js).
+      if (!isAbort && marineErrorOwnsDisplay({ requestId, currentRequestId: marineRequestIdRef.current, intent: { model: rawModel, layer, hour: timeOffset },
+        current: { model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current }, scrubbing: !!window.isScrubbingTimeline })) {
         setMarineData(prev => {
           const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
           const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;

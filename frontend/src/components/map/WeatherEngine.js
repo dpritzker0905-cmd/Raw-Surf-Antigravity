@@ -7,6 +7,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
 import { startWindSeriesWarm } from './windSeriesWarm';
 import { isTerminalNoCoverage } from './marineControllerCache';
+import { shouldResettleWindAfterDrag } from './windScrubEndSettle';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -735,10 +736,28 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     return () => { try { controller.abort(); } catch (e) { /* ignore */ } };
   }, [activeModel, mapInstance, isWindActive]);
 
+  // T-02 (scrub audit 2026-10-18): the drag path below is cache-only, and the wheel DEDUPS its release commit when the final
+  // hour was already committed mid-drag, so no new timeOffsetHours arrives and the settle path never ran for that hour: the
+  // particles stayed on the pre-drag hour until a pan. Remember an in-drag MISS; at scrub end, re-run this effect once for it.
+  const windDragMissRef = useRef(null);
+  const [windScrubEndTick, setWindScrubEndTick] = useState(0);
+  useEffect(() => {
+    if (!isWindActive) return undefined;
+    const onScrubEnd = () => {
+      if (shouldResettleWindAfterDrag(windDragMissRef.current, timeOffsetRef.current)) setWindScrubEndTick((n) => n + 1);
+      windDragMissRef.current = null;
+    };
+    window.addEventListener('timeline_scrub_end', onScrubEnd);
+    return () => window.removeEventListener('timeline_scrub_end', onScrubEnd);
+  }, [isWindActive]);
+
   // ===== TIMELINE SCRUB (local cache re-index, with FETCH ON CACHE MISS) =====
   const prevOffsetRef = useRef(timeOffsetHours);
+  const prevScrubEndTickRef = useRef(windScrubEndTick);
   useEffect(() => {
-    if (prevOffsetRef.current === timeOffsetHours) return;
+    const scrubEndRedrive = prevScrubEndTickRef.current !== windScrubEndTick;
+    prevScrubEndTickRef.current = windScrubEndTick;
+    if (prevOffsetRef.current === timeOffsetHours && !scrubEndRedrive) return;
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
@@ -775,6 +794,9 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       if (targetData && targetData.vectors?.length > 0) {
         windRevision.current += 1;
         commitWindData(targetData);
+        windDragMissRef.current = null;
+      } else {
+        windDragMissRef.current = timeOffsetHours;   // T-02: settle this hour at scrub end
       }
       return;
     }
@@ -914,7 +936,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       }
     }, 150);
     return () => clearTimeout(t);
-  }, [timeOffsetHours, mapInstance, activeModel, isWindActive, forecastDays]);
+  }, [timeOffsetHours, mapInstance, activeModel, isWindActive, forecastDays, windScrubEndTick]);
 
   // ===== VIEWPORT CHANGE REFETCH =====
   useEffect(() => {
