@@ -24,25 +24,29 @@ function render(results) {
     return `<section><h2>${esc(f.name)}</h2><p class="dim small">pressed after setup: ${esc((f.setupPressed || []).join(', '))}</p>${f.error ? `<p class="bad">Flow failed: ${esc(f.error)}</p>` : ''}
       <div class="scroll"><table><thead><tr><th></th><th>Step</th><th>Marine correct</th><th>Wind correct</th><th>Mismatch frames</th><th>Stale picture</th><th>Console</th><th>Network</th><th>Pacing</th><th>Screen</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
   }).join('');
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Visual lab</title>
+  return `<title>Map Scrub Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
 <style>
-:root{--bg:#f7f8fa;--fg:#1b1f24;--dim:#5c6670;--card:#fff;--line:#dfe3e8;--ok:#1a7f37;--bad:#b42318}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1216;--fg:#e6e9ee;--dim:#9aa4ae;--card:#171b21;--line:#2a3038;--ok:#4ac26b;--bad:#ff7b72}}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;padding:16px}
-h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 8px}.dim{color:var(--dim)}.small{font-size:12px}
-.scroll{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:8px}
-table{border-collapse:collapse;min-width:1100px;width:100%}th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
-th{font-weight:600;font-size:12px;color:var(--dim)}.bad{color:var(--bad);font-weight:600}.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid}
-.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}
-.shots{display:flex;gap:6px}figure{margin:0}img{width:180px;border-radius:4px;border:1px solid var(--line);display:block}figcaption{font-size:11px;color:var(--dim)}
-</style></head><body>
-<h1>Visual lab</h1>
+/* Layout: one summary strip, then one table per flow; the table scrolls inside its card, the page never does. */
+:root{--bg:#f5f7f8;--fg:#14202b;--dim:#56656f;--card:#ffffff;--line:#d9e1e6;--accent:#0b6e8a;--ok:#1a7f37;--bad:#b42318;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,"SFMono-Regular",Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1418;--fg:#e4ebef;--dim:#93a3ad;--card:#151d23;--line:#26323a;--accent:#5cc3df;--ok:#4ac26b;--bad:#ff7b72;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1418;--fg:#e4ebef;--dim:#93a3ad;--card:#151d23;--line:#26323a;--accent:#5cc3df;--ok:#4ac26b;--bad:#ff7b72;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans);padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:20px;margin:0 0 4px;text-wrap:balance}h2{font-size:16px;margin:24px 0 4px;color:var(--accent);font-family:var(--mono)}
+p{max-width:75ch}.dim{color:var(--dim)}.small{font-size:12px}
+.scroll{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:6px}
+table{border-collapse:collapse;min-width:1100px;width:100%;font-variant-numeric:tabular-nums}th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;vertical-align:top}
+th{font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--dim)}.bad{color:var(--bad);font-weight:600}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid}.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.bad{color:var(--bad);border-color:var(--bad)}
+.shots{display:flex;gap:6px;flex-wrap:wrap}figure{margin:0}img{width:180px;max-width:100%;border-radius:4px;border:1px solid var(--line);display:block}figcaption{font-size:11px;color:var(--dim)}
+</style>
+<h1>Map Scrub Lab</h1>
 <p class="dim">${esc(results.env.live ? 'LIVE backend' : 'Offline harness (real backend over synthetic data)')} · ${esc(results.env.VIEW)} · injected latency series ${esc(results.env.LAT_SERIES)} ms / grid ${esc(results.env.LAT_GRID)} ms · ${esc(results.env.startedUtc)}</p>
 <p class="dim small">"Marine/Wind correct" = time from the input to the first frame whose resident grid is the selected hour, layer and model. "Silent" = frames
 where the drawn hour/layer/model differed from the selection with no status line saying so. "STALE" = the picture 150 ms after the input was
 closer to the previous step's settled picture than to this step's (pixel mean difference; "moved" is how far the step changed the picture).</p>
-${flows}</body></html>`;
+${flows}`;
 }
 
 module.exports = { render };
