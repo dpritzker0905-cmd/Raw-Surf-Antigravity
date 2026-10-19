@@ -135,3 +135,31 @@ speed change (one variable, kill switch ready). No SCOREBOARD row (no served num
 - **Open:** the marine readout uses the same fixed 3 h "nearest" limit, so a marine frame 2-3 h off on a 3-hourly lattice is
   also called nearest: same lattice-aware fix owed there. The B2 safe-zero path after a failed /grid needs the console capture
   from a reproduction. Server-side series contention (old model's pages keep building after a switch) stays with W-4.
+
+## Afternoon: combined preview, W-5, review fixes, the nightly's SETTLED_STEP, Codex handoff (15:05Z)
+
+- **Combined local preview** (`claude/scrub-combined-preview`, never pushed): dev + #391 + #393 + #392 + #389 (memo ON on its
+  synthetic backend), regional flagship tiles. Full lab, injected 2.5 s / 0.5 s, dev 2 passes vs combined 3: wave scrub silent
+  wrong frames 498-700 -> 30-40 per pass; wind worst 6.9 s -> 2.0 s (last pass); layer-switch worst 5.4 s -> 2.1 s; model switch
+  ~2 s unchanged; zoom-8 long task 348 -> 313 ms. Every switch still shows the old field ~2 s ("Loading..." labelled): request
+  timing shows the abandoned layer's 48-frame series page still building and starving the new layer's /grid (D2).
+- **W-5 / T-09 -> draft #394**: offset-keyed per-hour marine and wind caches drop when the anchor flips (hh:30); a wind result
+  fetched across the flip is not cached. T-08 needed no change (coarseBaseOutdatedBy already replaces cross-run bases; adding the
+  run to coarseBaseKey broke the 46k-sequence base-hold sweep, reverted). Kill `__RAW_DISABLE_OFFSET_CACHE_ROLL__`.
+- **Two independent reviews of the combined diff** (code-reviewer: no >=80 findings; silent-failure hunter: F1-F9). Fixed in #393:
+  rethrow only our own abort (a foreign abort through the url-level join gets one fresh attempt), WIND_INFLIGHT owner-only delete
+  and re-join, same-target join bounded to 15 s and logged, attemptFetch returns only on its own generation's abort, viewport
+  refetch catch logs, wind readout clears on clear/off, one lattice rule (`latticeNearestMaxHours`) for both lines and the badge.
+  #392 (F8 rollback leak, no device tier) and #389 (F4 short page served to a late joiner, F5-F7, lost 503) findings sent to
+  their sessions.
+- **Marine Nightly SETTLED_STEP is not from the scrub PRs:** 10-16 PASS (0) at db45393; `SERIES_THIN_NODE_BOUNDS` flipped
+  10-16 21:24Z (ledger 1321), which also activates #347's world-mask cover reuse; then 2 (10-17, z 5.6-5.8), 16 (10-18, z
+  10-16, before #387/#388), 23 (10-19, z 12.4-15.7). The metric samples the whole map canvas (basemap included), so basemap tile
+  arrival at z12+ is a live alternative. Needs a frozen-data 2x2 (flag x `__RAW_DISABLE_MASK_COVER_REUSE__`) plus a heatmap-only
+  arm; the flag-off arm changes served geometry and is the owner's call.
+- **Served state 15:4xZ:** backend 0607a725, p95 10 s, p99 93 s, 255/3,520 requests > 5 s; dev frontend = #388 code (served
+  chunks carry its kill switches, none of #393's).
+- **Reflection (Beam-1.0)** consulted per the handoff: agreed with the order; asked for the controlled A/B, cancellation before
+  prefetch, earlier mobile memory checks, capacity isolation.
+- **Report** (private artifact): https://claude.ai/artifact/EmsHPfaUehDkybRQUXdnvM. Also noticed: Codex's unpushed wave-palette
+  commit ee66317 (10-14) is not in dev; Codex is editing euro_marine_coarse_ingestion.py.
