@@ -6,6 +6,7 @@ import {
   getSnapConfig, isViewportInsideCachedBounds
 } from './marineControllerUtils';
 import { getBackendWindFlag, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
+import { rollOffsetCache, anchorMovedSince, readAnchorMs } from './offsetCacheAnchor';
 import { fetchBackendWindGrid } from './backendWindServiceClient';
 import { createFallbackSafeZeroGrid, recordTerminalNoCoverage } from './marineControllerCache';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -159,6 +160,7 @@ export function getModelSafeWind(model, hourOffset, bounds) {
 
   const clampResult = clampViewportBbox(bounds, 'wind', resolvedModel, 'wind');
   const tileId = clampResult.selectedTileId || 'outside';
+  rollOffsetCache('wind', () => WIND_CACHE.clear());   // W-5/T-09 (offsetCacheAnchor.js)
   const cacheKey = `${resolvedModel}_wind_grid_${tileId}_${hourOffset}`;
 
   const cached = WIND_CACHE.get(cacheKey);
@@ -260,6 +262,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
   // Check cache first!
   const clampResult = clampViewportBbox(viewportBounds || snappedBounds, 'wind', resolvedModel, 'wind');
   const tileId = clampResult.selectedTileId || 'outside';
+  rollOffsetCache('wind', () => WIND_CACHE.clear());   // W-5/T-09 (offsetCacheAnchor.js)
   const cacheKey = `${resolvedModel}_wind_grid_${tileId}_${hourOffset}`;
   
   if (!forceFetch) {
@@ -322,6 +325,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
     }
   }
 
+  const anchorAtStart = readAnchorMs();   // W-5: a result that arrives after the anchor flipped is not cached under this offset
   const fetchPromise = (async () => {
     let lastWindRedirectFailureReason = '';
     if (getBackendWindFlag() && (resolvedModel === 'GFS' || resolvedModel === 'ICON' || resolvedModel === 'EURO')) {
@@ -343,7 +347,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
           // below (windHourlyCache / lastKnownGoodWind) and the truth stage are model-stamped GLOBAL
           // state — a sibling-model prewarm MUST NOT clobber them (that's the marine cache-pollution
           // landmine), so they are skipped when isPrewarm.
-          WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
+          if (!anchorMovedSince(anchorAtStart)) WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
           if (!isPrewarm && hourOffset === 0) {
             recordTruthStage('cacheWrite', result, 'windController.js', 'fetchWindData');
           }
