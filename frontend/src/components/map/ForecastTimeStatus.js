@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { evaluateMarineTimelineCoverage, readMarineTimelineRenderEvidence, reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
 import { useMarineDrawnFrame } from './marineDrawnFrame';
-import { describeDrawnFrame } from './drawnFrameReadout';
+import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 
 // What the map DRAWS against what the user SELECTED, in words, in the same frame (W-1, scrub audit 2026-10-18): the
@@ -16,7 +16,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme }) {
   try { instantMs = Date.parse(getSharedValidTime(hour, layer, model, { readOnly: true })); } catch (e) { instantMs = null; }
   // Half the stored marine lattice step (3-hourly; EURO WAM 6-hourly past 144 h): a frame further off is an exact upgrade
   // still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
-  const nearestMaxHours = model === 'EURO' && hour > 144 ? 3 : 1;
+  const nearestMaxHours = latticeNearestMaxHours(model, hour);
   const readout = readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, nearestMaxHours }, drawn);
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs };   // instruments compare by instant
 

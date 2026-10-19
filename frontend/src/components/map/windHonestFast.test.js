@@ -4,7 +4,7 @@
 jest.mock('./backendWindServiceClient', () => ({ fetchBackendWindGrid: jest.fn() }));
 // getBackendWindFlag() defaults true (no REACT_APP_USE_BACKEND_WEATHER, no localStorage override).
 
-import { publishWindDrawn, getWindDrawn, _resetMarineDrawnForTest } from './marineDrawnFrame';
+import { publishWindDrawn, getWindDrawn, clearWindDrawn, _resetMarineDrawnForTest } from './marineDrawnFrame';
 import { windReadout } from './WindTimeStatus';
 import { windGridCovers } from './windCoverage';
 import { reconcileStaleBadge } from './drawnFrameReadout';
@@ -32,6 +32,13 @@ describe('publishWindDrawn', () => {
     publishWindDrawn({ hourOffset: 7, source: 'GFS', valid_time: '2026-10-19T12:00:00Z' });
     expect(getWindDrawn()).toMatchObject({ hour: 7, model: 'GFS', dataMs: null });
   });
+});
+
+test('clearWindDrawn: a cleared wind layer describes nothing', () => {
+  publishWindDrawn({ hourOffset: 6, model: 'GFS' });
+  clearWindDrawn();
+  expect(getWindDrawn()).toBeNull();
+  expect(window.__WIND_DRAWN__).toBeNull();
 });
 
 describe('windReadout', () => {
@@ -98,6 +105,13 @@ describe('abort is a rejection for the shared wind request', () => {
     ctrl.abort(); rejectFirst(abortErr());
     await expect(owner).rejects.toMatchObject({ name: 'AbortError' });
     await expect(joiner).resolves.toBe(good);
+    expect(fetchBackendWindGrid).toHaveBeenCalledTimes(2);
+  });
+
+  test("another caller's abort reaching a live caller (url-level join) gets one fresh attempt, not a rejection or a safe-zero grid", async () => {
+    const good = { renderable: true, vectors: [{ lat: 0, lng: 0, u: 1, v: 1, speed: 1, direction: 0 }], bounds, cols: 1, rows: 1 };
+    fetchBackendWindGrid.mockImplementationOnce(() => Promise.reject(abortErr())).mockImplementationOnce(() => Promise.resolve(good));
+    await expect(fetchWindData(bounds, null, 6, true, 3, 'GFS')).resolves.toBe(good);
     expect(fetchBackendWindGrid).toHaveBeenCalledTimes(2);
   });
 

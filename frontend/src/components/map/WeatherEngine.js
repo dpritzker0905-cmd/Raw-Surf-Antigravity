@@ -303,7 +303,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     // Superseded requests are aborted at the source; the covers-now gate below is the belt.
     let windFetchController = null;
     let windFetchGen = 0; // supersession token — see attemptFetch's mutual-abort livelock note
-    let windInflightKey = null; // model|hour|tile of the fetch in flight: a re-entry for the SAME target joins it (2026-10-19)
+    let windInflightKey = null, windInflightAt = 0; // model|hour|tile of the fetch in flight + its start: a SAME-target re-entry joins it for up to 15 s (2026-10-19)
     // COVERAGE-AWARE COMMIT STATE (2026-07-19). What is on screen — held in a REF (see its
     // declaration) so effect re-runs cannot blind the gates. The stale-commit policy pivots on
     // VIEWPORT COVERAGE, not just freshness: a retained fine box that no longer covers the
@@ -515,11 +515,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       // without reason" storms while the backend was healthy. A superseded attempt must die
       // SILENTLY: no commit, no reschedule — the newer attempt owns the loop now.
       const wantKey = `${activeModel}|${timeOffsetRef.current}|${clampResult.selectedTileId || ''}`; // moveend/drag/zoom kicks re-enter for the same target: join, never abort it (kill __RAW_DISABLE_WIND_SAME_TARGET_JOIN__)
-      if (windFetchController && windInflightKey === wantKey && !windFetchController.signal.aborted && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SAME_TARGET_JOIN__ === true)) return;
+      if (windFetchController && windInflightKey === wantKey && !windFetchController.signal.aborted && Date.now() - windInflightAt < 15000 && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SAME_TARGET_JOIN__ === true)) { console.log(`[FETCH] [WeatherEngine] Joined the in-flight wind fetch for ${wantKey} (no abort)`); return; }
       const myGen = ++windFetchGen;
       try {
         if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
-        windFetchController = new AbortController(); windInflightKey = wantKey;
+        windFetchController = new AbortController(); windInflightKey = wantKey; windInflightAt = Date.now(); var myCtl = windFetchController; // this generation's controller (F1: own abort vs foreign)
         // Snapshot the requested hour at fetch-start so the stale-hour guard below compares against the
         // SAME value the fetch used (timeOffsetRef.current is live and can move during the await).
         const reqHour = timeOffsetRef.current;
@@ -613,7 +613,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         }
       } catch (e) {
         if (myGen === windFetchGen) windInflightKey = null;
-        if (e.name === 'AbortError' || cancelled) return;
+        if (cancelled || (e.name === 'AbortError' && (!myCtl || myCtl.signal.aborted))) return;   // OUR abort; a foreign one retries below (F1)
         if (myGen !== windFetchGen) return; // superseded — no retry from a dead generation
         retryCount++;
         if (retryCount < MAX_RETRIES) {
@@ -1087,7 +1087,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             } else if (data) {
               console.log(`[WeatherEngine] Viewport refetch unrenderable (${data.__failureReason || 'empty'}) — holding last frame.`);
             }
-          } catch (e) { /* ignore */ }
+          } catch (e) { console.warn(`[WeatherEngine] Viewport wind refetch failed (${e && e.message}) — holding last frame.`); }
         }, delay);
       } catch (e) { /* ignore bounds error on init */ }
     };

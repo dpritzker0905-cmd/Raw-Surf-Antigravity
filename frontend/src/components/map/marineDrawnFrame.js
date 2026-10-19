@@ -64,6 +64,12 @@ export function publishWindDrawn(grid, fallback = {}) {
   if (typeof window !== 'undefined') window.__WIND_DRAWN__ = windCurrent;
   windListeners.forEach((fn) => { try { fn(); } catch (e) { /* never break the upload */ } });
 }
+export function clearWindDrawn() {   // wind cleared (outside coverage, unrenderable, layer off): nothing drawn, nothing to describe
+  if (windCurrent === null) return;
+  windCurrent = null;
+  if (typeof window !== 'undefined') window.__WIND_DRAWN__ = null;
+  windListeners.forEach((fn) => { try { fn(); } catch (e) { /* never break the clear */ } });
+}
 export function getWindDrawn() { return windCurrent; }
 export function subscribeWindDrawn(fn) { windListeners.add(fn); return () => windListeners.delete(fn); }
 export function useWindDrawnFrame() { return useSyncExternalStore(subscribeWindDrawn, getWindDrawn, getWindDrawn); }

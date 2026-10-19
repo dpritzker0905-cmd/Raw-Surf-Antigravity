@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWindDrawnFrame } from './marineDrawnFrame';
-import { describeDrawnFrame } from './drawnFrameReadout';
+import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 
 // W-1 for WIND (2026-10-19, visual lab on dev 697ad069: wind off-lattice hours held the nearest frame with no words): what
@@ -14,7 +14,7 @@ export function windReadout({ model, hour }, drawn) {
   const laneModel = drawn.model === 'HRRR' && model === 'GFS' ? 'HRRR' : model;
   // Half the stored wind lattice step: 3-hourly series frames are never more than 1 h from the selection (EURO's 6-hourly
   // tail past 144 h: 3 h). Further away is a fetch still owed, so it reads "Loading", never "nearest" (lab run B2, 2026-10-19).
-  const nearestMaxHours = model === 'EURO' && hour > 144 ? 3 : 1;
+  const nearestMaxHours = latticeNearestMaxHours(model, hour);
   return describeDrawnFrame({ model: laneModel, layer: 'wind', hour, instantMs, nearestMaxHours }, drawn);
 }
 

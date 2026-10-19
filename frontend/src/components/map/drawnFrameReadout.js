@@ -15,6 +15,9 @@ const MODEL_NAMES = { GFS: 'GFS', ICON: 'ICON', EURO: 'EURO' };
 // The widest step any stored marine lattice has (EURO WAM past 144 h is 6-hourly): a drawn frame within half of it is
 // the nearest stored forecast, anything further is still loading.
 const NEAREST_MAX_HOURS = 3;
+/** Half the stored lattice step at this hour: 3-hourly frames are never more than 1 h from a selection; EURO past 144 h is
+ *  6-hourly (3 h). One rule for the marine line, the wind line and the point card's badge (review 2026-10-19). */
+export function latticeNearestMaxHours(model, hour) { return model === 'EURO' && hour > 144 ? 3 : 1; }
 
 const ESTIMATE_WORDS = {
   icon_swell_2_gfs_euro_blend: 'blended from GFS and EURO',
