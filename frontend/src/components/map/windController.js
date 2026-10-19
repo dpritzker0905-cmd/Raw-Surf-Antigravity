@@ -5,8 +5,8 @@ import {
   findClosestHourIndex, HOURLY_CACHE_TTL, hydrateCache,
   getSnapConfig, isViewportInsideCachedBounds
 } from './marineControllerUtils';
-import { getBackendWindFlag, clampViewportBbox, getSharedValidTime, getSeriesAnchorMs } from './backendWeatherServiceClient';
-import { rollOffsetCache, anchorMovedSince } from './offsetCacheAnchor';
+import { getBackendWindFlag, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
+import { rollOffsetCache, anchorMovedSince, readAnchorMs } from './offsetCacheAnchor';
 import { fetchBackendWindGrid } from './backendWindServiceClient';
 import { createFallbackSafeZeroGrid, recordTerminalNoCoverage } from './marineControllerCache';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -325,7 +325,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
     }
   }
 
-  const anchorAtStart = getSeriesAnchorMs();   // W-5: a result that arrives after the anchor flipped is not cached under this offset
+  const anchorAtStart = readAnchorMs();   // W-5: a result that arrives after the anchor flipped is not cached under this offset
   const fetchPromise = (async () => {
     let lastWindRedirectFailureReason = '';
     if (getBackendWindFlag() && (resolvedModel === 'GFS' || resolvedModel === 'ICON' || resolvedModel === 'EURO')) {

@@ -11,9 +11,15 @@ import { getSeriesAnchorMs } from './backendWeatherServiceClient';
  */
 const lastAnchor = new Map();
 
+/** THE anchor, or null where it cannot be read (a partial module mock): no anchor means no roll, never a throw. */
+export function readAnchorMs() {
+  try { return typeof getSeriesAnchorMs === 'function' ? getSeriesAnchorMs() : null; } catch (e) { return null; }
+}
+
 export function rollOffsetCache(name, clear) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_OFFSET_CACHE_ROLL__ === true) return false;
-  const anchor = getSeriesAnchorMs();
+  const anchor = readAnchorMs();
+  if (anchor === null) return false;
   const prev = lastAnchor.get(name);
   lastAnchor.set(name, anchor);
   if (prev === undefined || prev === anchor) return false;
@@ -28,7 +34,8 @@ export function rollOffsetCache(name, clear) {
 /** True when the anchor moved since `anchorMs` was read: a result fetched across the flip must not be cached under its offset. */
 export function anchorMovedSince(anchorMs) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_OFFSET_CACHE_ROLL__ === true) return false;
-  return getSeriesAnchorMs() !== anchorMs;
+  const now = readAnchorMs();
+  return now !== null && anchorMs !== null && now !== anchorMs;
 }
 
 export function _resetOffsetCacheAnchorForTest() { lastAnchor.clear(); }
