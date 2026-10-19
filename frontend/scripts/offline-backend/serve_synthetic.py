@@ -64,11 +64,44 @@ def field(lat, lng, h):
 #                 is_forecast_authoritative False, model_run_time None / status "conflicting", estimate_basis
 #                 {"type": "icon_persistence_gfs_blend", "native_limit_hours": 168, ...}   (hours 171 to 336)
 ICON_NATIVE_HOURS = 168
-SCALE = {"GFS": 1.0, "ICON": 0.92}
-STEMS = {"GFS": "gfs_marine_waves_", "ICON": "icon_marine_waves_"}
+EURO_NATIVE_HOURS = 240
+EURO_WAVES_6H_AFTER = 144        # ECMWF WAM open data is 6-hourly past 144 h: the stored lattice has gaps there
+SCALE = {"GFS": 1.0, "ICON": 0.92, "EURO": 1.06}
+LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
 
 
-def provider_fields(model, estimated):
+def tiers_for(model, layer):
+    """Stored tiers per (model, layer), mirroring the production manifest (read 2026-10-19): GFS has every layer at
+    global_mid + global_coarse; ICON has no swell_2 product (the client blends GFS/EURO); EURO waves (ECMWF WAM) has
+    both tiers while swell_1 / swell_2 / wind_waves are Copernicus CMEMS at global_coarse ONLY."""
+    if model == "ICON" and layer == "swell_2":
+        return ()
+    if model == "EURO" and layer != "waves":
+        return tuple(t for t in TIERS if t[0] == "global_coarse")
+    return TIERS
+
+
+def layer_field(layer, hs, direction, period, lat, lng, h):
+    """Distinct synthetic partitions so a wrong-layer frame is detectable on screen (heights in m)."""
+    if layer == "swell_1":
+        return round(max(0.1, 0.8 * hs), 3), direction, round(period + 2.0, 2)
+    if layer == "swell_2":
+        return round(0.25 + 0.35 * (1.0 + math.sin(math.radians(lat * 3.0 + h * 2.0))), 3), (direction + 70.0) % 360.0, 9.0
+    if layer == "wind_waves":
+        return round(max(0.1, 0.25 * hs + 0.2 * math.cos(math.radians(lng * 4.0))), 3), (direction + 25.0) % 360.0, 4.5
+    return hs, direction, period
+
+
+def provider_fields(model, estimated, layer="waves"):
+    if model == "EURO":
+        if layer != "waves":
+            if estimated:
+                return {"provider": "copernicus", "upstream_provider": "noaa", "source_dataset": "gfs_estimated_fallback"}
+            return {"provider": "copernicus", "upstream_provider": "copernicus",
+                    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"}
+        if estimated:
+            return {"provider": "open-meteo", "upstream_provider": "noaa", "source_dataset": "gfs_estimated_fallback"}
+        return {"provider": "open-meteo", "upstream_provider": "ecmwf", "source_dataset": "ecmwf_wam025"}
     if estimated:
         return {"provider": "estimated", "upstream_provider": None, "source_dataset": "estimated_blend"}
     if model == "ICON":
@@ -90,7 +123,8 @@ def estimate_basis(valid_time, region_id, run_time):
     }
 
 
-def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES, model="GFS", estimated=False):
+def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES, model="GFS", estimated=False,
+                 layer="waves"):
     rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
     cols = int(round((bounds["east"] - bounds["west"]) / res)) + 1
     scale = SCALE[model]
@@ -100,26 +134,28 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
         for c in range(cols):
             lng = round(bounds["west"] + c * res, 4)
             hs, direction, period = field(lat, lng, h)
-            hs = round(max(0.15, hs * scale), 3)
+            hs, direction, period = layer_field(layer, hs, direction, period, lat, lng, h)
+            hs = round(max(0.1, hs * scale), 3)
             rad = math.radians(direction)
             vectors.append({"lat": lat, "lng": lng, "speed": hs, "direction": direction,
                             "u": round(hs * math.sin(rad), 4), "v": round(hs * math.cos(rad), 4),
                             "period": period, "is_valid": True})
     iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
     body = {
-        "model": model, "domain": "marine", "layer": "waves",
+        "model": model, "domain": "marine", "layer": layer,
         "run_time": iso(run_time + timedelta(hours=4)) if estimated else iso(run_time),
         "model_run_time": None if estimated else iso(run_time), "model_run_time_status": "conflicting" if estimated else "known",
         "ingested_at": None if estimated else iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
         "is_forecast_authoritative": not estimated, "is_estimated": estimated,
-        "estimate_basis": estimate_basis(valid_time, region_id, run_time) if estimated else None,
+        "estimate_basis": (estimate_basis(valid_time, region_id, run_time) if model == "ICON" else
+                           {"type": "gfs_estimated_fallback", "layer": layer}) if estimated else None,
         "coverage": COVERAGE,
         "grid": {"bounds": dict(bounds), "cols": cols, "rows": rows, "vectors": vectors, "diagnostics": {"source": "stored"}},
         "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft",
         "product_id": filename, "source_variables": ["wave_height"], "freshness_sec": 1800 if estimated else 3600,
         "region_id": region_id, "coverage_mode": "global_tile", "resolution": None,
     }
-    body.update(provider_fields(model, estimated))
+    body.update(provider_fields(model, estimated, layer))
     return body
 
 
@@ -133,7 +169,7 @@ def manifest_entry(body, filename, res, bounds_unused=None):
     return entry
 
 
-def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON")):
+def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON"), layers=("waves",)):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     now = now or datetime.now(timezone.utc)
@@ -145,18 +181,24 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
     for i in range(n):
         vt = first + timedelta(hours=i * step_hours)
         stamp = vt.strftime("%Y%m%dT%H%M%SZ")
+        lead = vt - run_time
         for model in models:
-            estimated = model == "ICON" and (vt - run_time) > timedelta(hours=ICON_NATIVE_HOURS)
-            for region_id, bounds, res, gfs_stem in TIERS:
-                suffix = "_estimated" if estimated else ""
-                filename = f"{STEMS[model]}{gfs_stem.split('waves_')[1]}{stamp}{suffix}.json"
-                body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated)
-                (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
-                entries.append(manifest_entry(body, filename, res))
+            estimated = ((model == "ICON" and lead > timedelta(hours=ICON_NATIVE_HOURS))
+                         or (model == "EURO" and lead > timedelta(hours=EURO_NATIVE_HOURS)))
+            for layer in layers:
+                if (model == "EURO" and layer == "waves" and not estimated
+                        and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6):
+                    continue      # the 6-hourly WAM band: no stored frame at this 3-h slot (production fills it server-side)
+                for region_id, bounds, res, _stem in tiers_for(model, layer):
+                    suffix = "_estimated" if estimated else ""
+                    filename = f"{model.lower()}_marine_{layer}_{region_id}_{stamp}{suffix}.json"
+                    body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated, layer)
+                    (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+                    entries.append(manifest_entry(body, filename, res))
     (directory / "manifest.json").write_text(
         json.dumps({"last_manifest_update": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": entries}),
         encoding="utf-8")
-    return {"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"), "frames": n, "models": list(models),
+    return {"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"), "frames": n, "models": list(models), "layers": list(layers),
             "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
@@ -168,6 +210,7 @@ def main():
     ap.add_argument("--horizon", type=int, default=336)
     ap.add_argument("--step", type=int, default=3)
     ap.add_argument("--models", default="GFS,ICON")
+    ap.add_argument("--layers", default="waves", help="comma list of waves,swell_1,swell_2,wind_waves")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
 
@@ -192,7 +235,8 @@ def main():
     sys.path.insert(0, str(BACKEND))
     os.chdir(BACKEND)
 
-    meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(','))) if not (Path(args.dir) / "manifest.json").exists() else {"reused": True}
+    meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(',')),
+                       layers=tuple(x.strip() for x in args.layers.split(',') if x.strip())) if not (Path(args.dir) / "manifest.json").exists() else {"reused": True}
     print(json.dumps({"store": meta, "thin_bounds": args.thin_bounds}), flush=True)
     if args.build_only:
         return

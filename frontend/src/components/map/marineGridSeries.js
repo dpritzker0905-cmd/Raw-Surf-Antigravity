@@ -25,6 +25,7 @@ import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
+import { blendIconSwell2, isIconSwell2Blend } from './iconSwell2Blend';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
@@ -495,6 +496,36 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   await p;
 }
 
+// ICON SWELL 2 FROM THE SERIES (2026-10-19). ICON has no swell_2 product: the map shows a GFS/EURO blend
+// (iconSwell2Blend.js, owner decision D-003). Before this, that blend existed ONLY on the per-hour path, so every scrub
+// step on ICON Swell 2 waited for two /grid fetches plus a main-thread blend ("one marine layer scrubbed quickly, after
+// switching to the next it stopped", owner 2026-10-19). Now the series path serves the same blend from the GFS and EURO
+// swell_2 series frames already cached: same function, same weights, no network. A step with either input missing still
+// misses here and takes the per-hour blend, exactly as before. Kill: window.__RAW_DISABLE_ICON_SWELL2_SERIES_BLEND__ = true.
+function iconSwell2SeriesBlendOn(model, layer, hourOffset) {
+  return isIconSwell2Blend(model, layer, hourOffset)
+    && !(typeof window !== 'undefined' && window.__RAW_DISABLE_ICON_SWELL2_SERIES_BLEND__ === true);
+}
+const _iconSwell2BlendMemo = new WeakMap();   // gfs grid -> Map(euro grid -> blended marineData)
+function blendIconSwell2Frames(gfsFrame, euroFrame, bounds) {
+  let inner = _iconSwell2BlendMemo.get(gfsFrame.grid);
+  if (!inner) { inner = new Map(); _iconSwell2BlendMemo.set(gfsFrame.grid, inner); }
+  const hit = inner.get(euroFrame.grid);
+  if (hit) return hit;
+  const md = blendIconSwell2(gfsFrame.grid, euroFrame.grid, gfsFrame.hourOffset, bounds, { quiet: true });
+  if (!md || !md.grid || md.grid.renderable === false) return null;
+  md.__fromSeries = true;
+  md.__sourceModel = 'ICON';
+  md.valid_time = gfsFrame.valid_time || null;
+  md.grid.__fromSeries = true;
+  md.grid.valid_time = gfsFrame.grid.valid_time || gfsFrame.valid_time || null;
+  md.grid.__decimatedStride = Math.max(gfsFrame.grid.__decimatedStride || 0, euroFrame.grid.__decimatedStride || 0);
+  md.product_id = `series_ICON_swell_2_h${gfsFrame.hourOffset}`;
+  if (inner.size > 4) inner.clear();
+  inner.set(euroFrame.grid, md);
+  return md;
+}
+
 /**
  * Background-load the marine time-series PAGE containing `hourOffset` (current hour) first,
  * then prefetch adjacent page(s) during idle. Idempotent + TTL'd + deduped. No-op when the
@@ -502,6 +533,15 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
  */
 export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false, background = false) {
   if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
+  if (iconSwell2SeriesBlendOn(model, layer, hourOffset)) {
+    // The blend's inputs: GFS swell_2 (cheap re-slice, full fan-out) and EURO swell_2 (current page only — EURO
+    // series pages are per-hour Copernicus work on the backend, see prewarmMarineSeries).
+    await Promise.all([
+      ensureMarineSeries('GFS', 'swell_2', bounds, hourOffset, signal, currentPageOnly, force, background),
+      ensureMarineSeries('EURO', 'swell_2', bounds, hourOffset, signal, true, force, background),
+    ]);
+    return;
+  }
   const page = marineSeriesPageForHour(hourOffset, model);
   // HOUR-0-FIRST: when the current page is COLD, race a 1-hour mini load ahead of it
   // (fire-and-forget — it must not delay the page load it exists to beat). Fires on EVERY cold
@@ -541,6 +581,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
  */
 export function prewarmMarineSeries(model, layer, bounds, signal) {
   if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
+  if (iconSwell2SeriesBlendOn(model, layer, 0)) { prewarmMarineSeries('GFS', 'swell_2', bounds, signal); return; }
   // Kill: __RAW_DISABLE_SERIES_PREWARM__=true. ⛔ Measured: OFF is a REGRESSION, not a fix (-5 of
   // 63 reqs, moves work INTO the gesture) — docs/research/FINDING-2026-08-09-the-prewarm-is-not-the-cause.md
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_PREWARM__ === true) return;
@@ -567,6 +608,14 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
  */
 export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   if (!isMarineSeriesEnabled() || !bounds) return null;
+  if (iconSwell2SeriesBlendOn(model, layer, hourOffset)) {
+    const g = getMarineSeriesFrame('GFS', 'swell_2', bounds, hourOffset);
+    const e = g ? getMarineSeriesFrame('EURO', 'swell_2', bounds, hourOffset) : null;
+    // Both inputs at the SAME hour, or no series answer (the per-hour blend then runs, as before).
+    if (!g || !e || g.hourOffset !== e.hourOffset) return null;
+    if (g.valid_time && e.valid_time && Date.parse(g.valid_time) !== Date.parse(e.valid_time)) return null;   // same instant, not just label
+    return blendIconSwell2Frames(g, e, bounds);
+  }
   const page = marineSeriesPageForHour(hourOffset, model);
   const now = Date.now();
   // Width of the requested viewport (deg, antimeridian-safe). A GLOBAL-width cached frame must NEVER be

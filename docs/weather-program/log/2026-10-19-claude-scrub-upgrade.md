@@ -1,0 +1,89 @@
+# Scrub upgrade: every marine layer x model, measured the same way (2026-10-19)
+
+Session opened 2026-10-19T04:13Z (00:13 EDT). The owner, after testing PR387's base in the browser with two pasted consoles:
+"we need to handle the wind fetch pile-up on keys and autoplay (T-04), the badge lag (T-05), and the honest time label (W-1)
+... I am not really seeing much improvement from loading different weather layers, and then switching between them, and
+scrubbing ... It needs to work very precisely and not lag", then "One marine layer did scrub quickly, but after switching
+to the next marine layer, it stopped", then "Duplicate your logic and test every single marine layer and its associated
+logic against this methodology using jacobian lens", and on the pipelines: "we blended a lot of the logic for the pipelines
+to improve the user experience and quality and resolution" / "both EURO and ICON have ways of making them reach the full 14
+days". Branch `claude/scrub-upgrade`, stacked on PR387 (`claude/w2-seek-identity`, head 68576a431). Client and harness only.
+**No served number changes** (no SCOREBOARD row): the ICON swell 2 series path calls the SAME blend function as the
+per-hour path; everything else is a race, a label or animation motion. Everything ships ON with its own kill switch.
+
+## Forensics from the owner's consoles (2026-10-19 ~04:00Z, ICON, light theme)
+
+- ICON Swell 2 scrub "stopped": every step logs `[Backend] ICON swell_2 blend` = two /grid fetches + a main-thread blend per
+  hour; the layer never touches the series cache that makes ICON Waves instant (`Instant re-index`). ICON has no swell_2
+  product (intended blend, D-003), and the blend lived only on the per-hour path.
+- Wind: `Fetching wind (attempt N/5)` retries and per-hour scrub fetches with no cancel; `signal is aborted ... conformed safe
+  zero grid` = an abort handed the shared in-flight request's joined callers a safe-zero (held, not drawn:
+  `isRenderableWindData`). `maxWindSpeed updated: 30.8 -> 62.4 -> 39.6 -> 42.4` on consecutive frames (see the Jacobian
+  finding below).
+- `High-resolution land mask texture created (4096x2048)` about 8 times in a short session (regional viewport bounds).
+- `[FORENSIC-SNAP]` printed 15+ times identical (a 15 s heartbeat); the console is recorded by PostHog rrweb.
+
+## The method, applied to every marine layer x model (`scn_layer_matrix.js`, new)
+
+The harness backend now serves the production tier availability for all four marine layers and three models
+(`serve_synthetic.py --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves`, read from the live manifest
+2026-10-19): GFS every layer at global_mid + global_coarse; ICON no swell_2 (the client blend); EURO waves = ECMWF WAM at both
+tiers with the 6-hourly band past 144 h; EURO swell_1/swell_2/wind_waves = Copernicus at global_coarse only. Each layer gets
+a distinct synthetic partition so a wrong-layer frame is visible. Per model x layer: the switch (time to the new identity on
+screen, silent wrong-layer / wrong-model frames), then 1-h steps, day steps, a burst, Home, each measured as time to the
+correct resident grid (hour + layer + model + a new texture upload) and the time Jacobian dDisplayedHour/dRequestedHour at
+300 ms and at settle (ideal 1), with every mismatched frame counted SILENT or ADMITTED by the on-screen status line.
+
+**Confound found and controlled:** the app's hour 0 is now rounded to the hour, so which targets are on the stored 3-h lattice
+changes every UTC hour; a first before/after an hour apart compared different lattices (GFS p50 "2091 -> 51 ms" was the
+clock, not the code). The A/B below runs both bundles back to back in the same anchor hour and splits steps by lattice
+membership (evidence/scrub-upgrade-layer-matrix-2026-10-19.json; rows carry `lattice`).
+
+## Results (A/B: PR387 head vs this branch; offline, zero latency, desktop headless Chrome D3D11)
+
+| Measure | Before | After |
+|---|---|---|
+| Silent wrong-hour frames, all 12 combinations | 5,683 | 114 (98% fewer; the rest is the ~1-2 frame React render gap) |
+| Silent wrong-layer frames per layer switch | 37-106 | 0-13 |
+| Silent wrong-model frames per model switch | 52-81 | 2-3 |
+| On-lattice step, first correct field (p50 per combination) | 34-65 ms | 35-58 ms (unchanged) |
+| ICON swell 2, on-lattice | 682 ms p50, 0% from series | 567 ms, 50% instant from the series blend |
+| EURO coarse swell layers, off-lattice | nearest frame held SILENTLY (986 frames / 2 steps) | same frame, labelled (3) |
+| Max long task / max frame gap | 85 / 84 ms | 85 / 83 ms |
+
+Off-lattice "exact" frames still take 2.3-3.4 s (no change claimed): all stored marine data is 3-hourly, the exact /grid for
+an off-lattice hour serves the same nearest product relabelled (PR387's F-02 finding), so the honest fix is the label, not a
+faster refetch. ICON swell 2's remaining 50% are hours outside the EURO swell_2 page the series holds (EURO series pages
+are kept to the current page, see `prewarmMarineSeries`); they take the per-hour blend as before.
+
+## What changed
+
+| Id | Fix | Kill switch |
+|---|---|---|
+| Swell 2 stall | `iconSwell2Blend.js`: the blend math moved verbatim (pinned by the three existing suites that cover it) and shared; `getMarineSeriesFrame('ICON','swell_2')` blends the cached GFS + EURO swell_2 series frames at the same hour AND valid time (memoized), `ensureMarineSeries` loads GFS (full) + EURO (current page), else the per-hour blend runs exactly as before | `__RAW_DISABLE_ICON_SWELL2_SERIES_BLEND__` |
+| T-04 | `latestOnlyGate.js`: the wind scrub fetch runs one at a time, newest waiting, intermediates dropped (no abort: the shared in-flight request would hand joined callers a safe-zero) | `__RAW_DISABLE_WIND_SCRUB_GATE__` |
+| W-1 | `marineDrawnFrame.js` (the engine publishes what it drew at each upload) + `drawnFrameReadout.js` (words, compared by INSTANT when known, the #267 rule): the status line under the timeline says "Loading ICON Swell 2… still showing GFS Waves", "Showing Tue 6 AM: the nearest stored forecast", "Estimated forecast: blended from GFS and EURO" the frame it happens, aria-live, three themes | `__RAW_DISABLE_DRAWN_FRAME_READOUT__` |
+| T-05 | the point card's stale-hour badge is decided from the same drawn record (shows when genuinely pending, clears otherwise) instead of a status object published a render later | `__RAW_DISABLE_DRAWN_STALE_BADGE__` |
+| Jacobian (wind) | the advection gamma normalized speed by hypot of the frame's SIGNED u/v maxima (one-direction wind: ~1.5, gamma off; mixed: ~35, on), so a particle's screen speed changed with wind elsewhere and every hour step; now a fixed 50 kn (`windSpeedRef.js`), motion per knot is local-only; the shader still clamps at the reference; colours unaffected (absolute ramp) | `__RAW_DISABLE_WIND_FIXED_SPEED_REF__` |
+| Console | `[FORENSIC-SNAP]` prints on change only (ring still records every 15 s sample) | `__RAW_FORENSIC_SNAP_EVERY__ = true` prints every time |
+
+## Measured and not changed
+
+- Land mask: offline, every layer/model switch REUSED the 4096 x 2048 mask (world frames are covered by the cached mask);
+  zoom and pan uploaded nothing. The owner's ~8 rebuilds come from regional viewport frames, which the world-only synthetic
+  store cannot produce. A regional-bounds mask cache needs regional fixtures first; not changed blind (its history is
+  island halos, bay flicker and close-zoom land, all guarded).
+- Off-lattice exact refetch timing (above); EURO swell series pages beyond the current one (backend cost).
+
+## Independent review (Reflection AI Beam, one consultation, redacted packet)
+
+Accepted: require equal valid_time as well as hour when pairing GFS and EURO series frames (added). Rejected with reasons:
+memo staleness (series frames are immutable cache objects), EURO-missing null (the per-hour blend is the fallback by design),
+gate staleness (the post-fetch hour/model parity check is unchanged; the waiting slot always holds the newest), overspeed above
+50 kn (the shader clamps speedNorm at 1), snapshot dedupe hiding history (the ring keeps every sample). Known limit
+acknowledged: EURO current-page-only.
+
+## Not verified
+
+Physical phones and touch, Safari/Firefox, real regional data, live latency on the 1-CPU box, the owner's eye on the wind
+speed change (one variable, kill switch ready). No SCOREBOARD row (no served number moved).

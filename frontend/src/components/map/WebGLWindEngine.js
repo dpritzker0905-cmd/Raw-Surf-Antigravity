@@ -17,7 +17,7 @@ import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tier
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN, resolveWindSpeedRef
 } from './WebGLWindUtils';
 import {
   initEngine,
@@ -750,7 +750,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_calm_marks'), _calmMarks);
   var _czDensity = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__ === true) ? 0.0 : 1.0;
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_closezoom_density'), _czDensity);
-  const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
+  const _speedMax = resolveWindSpeedRef(this._windData.uMax); // fixed reference: motion per knot is local-only (windSpeedRef.js)
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
   // BASE+OVERLAY (queue #9): advect from the fine field where it exists (unit 2).
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind_fine'), 2);
