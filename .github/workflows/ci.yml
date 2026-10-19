@@ -1927,7 +1927,11 @@ jobs:
           # estate file adds 18 executed tests (tests/test_route_identity_default_deny.py) to the hosted 2262 read
           # of dev CI39142012113: projected 2280; 2280 - 2 = 2278, margin 2. _FLOOR_SET_FROM["estate"] -> 2280.
           # This PR must read 2280 passed; the files-selected count is read from the hosted run, not predicted.
-          MIN_PASSED = 2278
+          # ⬆ 2278→2293 on 2026-10-18, IN THE SAME PR THAT CAUSES IT (admin events socket + internal broadcast
+          # secret), STACKED on the default-deny guard PR: one new estate file adds 15 executed tests
+          # (tests/test_ws_admin_events_internal_token.py) to that PR's projected 2280: 2295; 2295 - 2 = 2293.
+          # _FLOOR_SET_FROM["estate"] -> 2295. Re-read from the hosted run of whichever PR merges second.
+          MIN_PASSED = 2293
 
           try:
               root = ET.parse('estate.xml').getroot()
