@@ -372,6 +372,8 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_HOUR0_FIRST__', '__RAW_DISABLE_WIND_BASE_OVERLAY__', '__RAW_DISABLE_WIND_CLIP_KEEP_FINE__', '__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__', '__RAW_DISABLE_WIND_COMMIT_NOOP__',
       '__RAW_DISABLE_WIND_DELIVERY_QUEUE__', '__RAW_DISABLE_WIND_FINE_CONTAIN_GUARD__', '__RAW_DISABLE_WIND_HRRR_LANE__', '__RAW_DISABLE_WIND_OVERLAY_KEEP__', '__RAW_DISABLE_WIND_SERIES_SUPERSEDE__',
       '__RAW_DISABLE_WIND_TIER_MOSAIC__',
+      // the final hour of a wheel drag is settled at scrub end (scrub audit 2026-10-18, T-02): WHEN a grid is fetched, never how it is drawn
+      '__RAW_DISABLE_WIND_SCRUB_END_SETTLE__',
       // the layer's place in the map's stack, and the lines the map draws over it: the coastline, and the borders' ink (2026-10-12:
       // the border lines sit ABOVE the wind, so their colour is no part of the ground the rules were solved on)
       '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__', '__RAW_DISABLE_WIND_BORDER_INK__',

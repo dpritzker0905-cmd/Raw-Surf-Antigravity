@@ -23,6 +23,7 @@ import {
   getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine,
 } from './marineController';
 import { uploadedGridServesHour } from './marineHourInstant';
+import { parityIdentityMatches } from './marineSeekIdentity';
 
 const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const activeMarineLayer = (activeLayers) => activeLayers?.find(l => MARINE_LAYERS.includes(l)) || 'waves';
@@ -34,8 +35,14 @@ export function publishRenderParity({ requestedHour, active, activeModel, mapIns
 
   const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
   // A frame labelled 15 IS offset 16's 12Z product at 3-hourly range: no "Stale Hour Retained" for it (marineHourInstant.js).
-  const parity = active && renderedDataHour !== null &&
+  // T-06 (scrub audit 2026-10-18): the hour alone is not the identity. Through a model switch the old model's frame is HELD on
+  // the GPU (shouldHoldFrameThroughSwitch) at the same hour, and an hour-only test called that parity: ~4 s of GFS pixels under
+  // the ICON button read "ok", and MapForecastOverlay sampled the old model for a selected point. Kill: __RAW_DISABLE_PARITY_IDENTITY__.
+  const identityOk = renderedDataHour === null
+    || parityIdentityMatches(lastSig, activeModel, activeMarineLayer(activeLayers), requestedHour, getBackendIconMarineFlag());
+  const hourParity = active && renderedDataHour !== null &&
     (requestedHour === renderedDataHour || uploadedGridServesHour(lastSig, requestedHour, activeModel));
+  const parity = hourParity && identityOk;
 
   let reason = 'parity_match';
   if (!active) {
@@ -88,7 +95,7 @@ export function publishRenderParity({ requestedHour, active, activeModel, mapIns
     } else if (isInCooldown('marine')) {
       reason = 'cooldownActive';
     } else {
-      reason = 'retained_previous';
+      reason = identityOk ? 'retained_previous' : 'model_layer_mismatch';
     }
   }
 
@@ -99,7 +106,10 @@ export function publishRenderParity({ requestedHour, active, activeModel, mapIns
     reason
   };
 
-  if (active && !parity && (renderedDataHour !== null || writeStatusWhenNoData)) {
+  // The identity check (T-06) changes the parity RECORD only (the selected-point fallback reads it). The heat-map STATUS keeps
+  // its hour-only rule (hourParity): MapForecastOverlay memoizes the badge from that global before the layer's effects run (T-05),
+  // so a status written at a model switch and cleared when the new model lands stuck on the badge (WebGLMarineLayer.parity.test.js).
+  if (active && !hourParity && (renderedDataHour !== null || writeStatusWhenNoData)) {
     let statusValue = 'retained_previous_hour';
     if (reason === 'cooldownActive') {
       statusValue = 'rate_limited_cached';
@@ -114,7 +124,7 @@ export function publishRenderParity({ requestedHour, active, activeModel, mapIns
       renderedHour: renderedDataHour,
       retainedPrevious: true
     };
-  } else if (active && parity) {
+  } else if (active && hourParity) {
     if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour' ||
         window.__MARINE_HEATMAP_STATUS__?.status === 'no_copernicus_coverage' ||
         window.__MARINE_HEATMAP_STATUS__?.status === 'no_backend_coverage') {
