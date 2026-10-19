@@ -107,3 +107,59 @@ speed change (one variable, kill switch ready). No SCOREBOARD row (no served num
   page builds dominate: W-4 session); WIND +26 h 7.8 s with 7 requests, +82/+115 h never reach the exact frame in 8 s and hold the
   nearest one with NO label (wind has no drawn-time readout); zoom to 8 = 243-350 ms long task with 2 land-mask rebuilds
   (land-mask session). The owner's wind abort churn did not reproduce offline (no contention): it needs one bounded live run.
+
+## Evening: #390 merged, wind honest + fast (branch `claude/wind-honest-fast`, stacked on #391)
+
+- **#390 merged** on the owner's word; the dev site rebuilt from it. #391's ledger line re-chained onto seq 1448 (both branches
+  had appended from the same base).
+- **Wind drawn-time label (W-1 for wind):** `marineDrawnFrame.publishWindDrawn` records what `WebGLWindLayer` hands the engine
+  (series frames now carry `valid_time`); `WindTimeStatus` words it under the timeline in all three layouts (through
+  `TimelineStatus`, `windOn`), comparing by instant (#267). HRRR under a GFS selection is the lane (D-017), not "loading". The
+  "nearest stored forecast" wording is limited to half the wind lattice step (1 h; EURO past 144 h: 3 h): further off is a fetch
+  still owed and reads "Loading". The point card's stale badge stays marine-only. Kill `__RAW_DISABLE_WIND_DRAWN_READOUT__`.
+- **Primary-loop abort churn:** (1) `windController`: an aborted fetch now REJECTS the shared in-flight promise instead of
+  resolving it with a safe-zero grid, so callers that joined it start their own attempt instead of treating the hour as empty
+  and retrying. Kill `__RAW_DISABLE_WIND_ABORT_REJECTS__`. (2) `WeatherEngine.attemptFetch`: a re-entry from moveend / dragstart
+  / zoomstart for the SAME model|hour|tile joins the fetch in flight instead of aborting it. Kill
+  `__RAW_DISABLE_WIND_SAME_TARGET_JOIN__`. `gridCovers` moved to `windCoverage.js` to stay under the file's line baseline.
+- **Tests:** `windHonestFast.test.js` (12): drawn record, readout states incl. HRRR lane and lattice limit, coverage helper, and
+  the abort rule (the joined caller gets a real grid; the kill switch restores safe-zero). Map + tests trees: 328 suites green
+  after classifying the new kill in `windDarkRules.test.js` ORTHOGONAL. ESLint ratchet and LOC ratchet pass.
+- **Visual lab A/B** on one build (`LAB_KILLS` = all three kills for arm A), ICON wind scrub, 2.5 s / 0.5 s injected latency:
+  run 1 A->B: +18 h 1.8->1.0 s, +26 h 1.9->1.0 s, +42 h 7.9->2.8 s (7->5 requests); +82 / +115 h now say "Showing ...: the
+  nearest stored forecast" where they were silent. Run 2 (order reversed) crossed a UTC hour, so lattice membership moved
+  (+26 h became off-lattice) and +42 h was warm in both arms (208 ms); its B arm missed +3 h once (one /grid failed behind
+  16-20 s series pages on the harness server, with a safe-zero log) and two more B runs did not reproduce it. Read the speed-up
+  as a lead (n = 2 paired, clock-confounded), the labels as verified. The live abort churn still needs one bounded live run.
+- **Lab knobs added:** `LAB_KILLS` (A arm on one build), `LAB_CONSOLE=<regex>` (matching console lines per flow to a file).
+- **Open:** the marine readout uses the same fixed 3 h "nearest" limit, so a marine frame 2-3 h off on a 3-hourly lattice is
+  also called nearest: same lattice-aware fix owed there. The B2 safe-zero path after a failed /grid needs the console capture
+  from a reproduction. Server-side series contention (old model's pages keep building after a switch) stays with W-4.
+
+## Afternoon: combined preview, W-5, review fixes, the nightly's SETTLED_STEP, Codex handoff (15:05Z)
+
+- **Combined local preview** (`claude/scrub-combined-preview`, never pushed): dev + #391 + #393 + #392 + #389 (memo ON on its
+  synthetic backend), regional flagship tiles. Full lab, injected 2.5 s / 0.5 s, dev 2 passes vs combined 3: wave scrub silent
+  wrong frames 498-700 -> 30-40 per pass; wind worst 6.9 s -> 2.0 s (last pass); layer-switch worst 5.4 s -> 2.1 s; model switch
+  ~2 s unchanged; zoom-8 long task 348 -> 313 ms. Every switch still shows the old field ~2 s ("Loading..." labelled): request
+  timing shows the abandoned layer's 48-frame series page still building and starving the new layer's /grid (D2).
+- **W-5 / T-09 -> draft #394**: offset-keyed per-hour marine and wind caches drop when the anchor flips (hh:30); a wind result
+  fetched across the flip is not cached. T-08 needed no change (coarseBaseOutdatedBy already replaces cross-run bases; adding the
+  run to coarseBaseKey broke the 46k-sequence base-hold sweep, reverted). Kill `__RAW_DISABLE_OFFSET_CACHE_ROLL__`.
+- **Two independent reviews of the combined diff** (code-reviewer: no >=80 findings; silent-failure hunter: F1-F9). Fixed in #393:
+  rethrow only our own abort (a foreign abort through the url-level join gets one fresh attempt), WIND_INFLIGHT owner-only delete
+  and re-join, same-target join bounded to 15 s and logged, attemptFetch returns only on its own generation's abort, viewport
+  refetch catch logs, wind readout clears on clear/off, one lattice rule (`latticeNearestMaxHours`) for both lines and the badge.
+  #392 (F8 rollback leak, no device tier) and #389 (F4 short page served to a late joiner, F5-F7, lost 503) findings sent to
+  their sessions.
+- **Marine Nightly SETTLED_STEP is not from the scrub PRs:** 10-16 PASS (0) at db45393; `SERIES_THIN_NODE_BOUNDS` flipped
+  10-16 21:24Z (ledger 1321), which also activates #347's world-mask cover reuse; then 2 (10-17, z 5.6-5.8), 16 (10-18, z
+  10-16, before #387/#388), 23 (10-19, z 12.4-15.7). The metric samples the whole map canvas (basemap included), so basemap tile
+  arrival at z12+ is a live alternative. Needs a frozen-data 2x2 (flag x `__RAW_DISABLE_MASK_COVER_REUSE__`) plus a heatmap-only
+  arm; the flag-off arm changes served geometry and is the owner's call.
+- **Served state 15:4xZ:** backend 0607a725, p95 10 s, p99 93 s, 255/3,520 requests > 5 s; dev frontend = #388 code (served
+  chunks carry its kill switches, none of #393's).
+- **Reflection (Beam-1.0)** consulted per the handoff: agreed with the order; asked for the controlled A/B, cancellation before
+  prefetch, earlier mobile memory checks, capacity isolation.
+- **Report** (private artifact): https://claude.ai/artifact/EmsHPfaUehDkybRQUXdnvM. Also noticed: Codex's unpushed wave-palette
+  commit ee66317 (10-14) is not in dev; Codex is editing euro_marine_coarse_ingestion.py.

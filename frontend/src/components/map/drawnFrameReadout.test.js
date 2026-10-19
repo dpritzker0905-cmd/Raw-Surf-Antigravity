@@ -85,6 +85,15 @@ describe('the drawn-frame store feeds the status line in the same frame', () => 
     act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'waves', __sourceModel: 'GFS' }); });
     expect(screen.getByRole('status').getAttribute('data-drawn-state')).toBe('nearest');
   });
+  test('3 h off on the 3-hourly marine lattice is an upgrade still owed (Loading); EURO past 144 h may be 3 h off', () => {
+    const { unmount } = render(<ForecastTimeStatus model="GFS" layer="waves" hour={27} theme="dark" />);
+    act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'waves', __sourceModel: 'GFS' }); });
+    expect(screen.getByRole('status').getAttribute('data-drawn-state')).toBe('pending');
+    unmount();
+    render(<ForecastTimeStatus model="EURO" layer="waves" hour={150} theme="dark" />);
+    act(() => { publishMarineDrawn({ hourOffset: 147, __componentLayer: 'waves', __sourceModel: 'EURO' }); });
+    expect(screen.getByRole('status').getAttribute('data-drawn-state')).toBe('nearest');
+  });
   test('kill switch falls back to the old line', () => {
     window.__RAW_DISABLE_DRAWN_FRAME_READOUT__ = true;
     try {

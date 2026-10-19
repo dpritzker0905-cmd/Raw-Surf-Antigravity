@@ -315,7 +315,11 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
   // Join an in-flight fetch for this exact target rather than starting a duplicate (F3).
   const existingInflight = WIND_INFLIGHT.get(cacheKey);
   if (existingInflight) {
-    try { return await existingInflight; } catch (e) { /* fall through to a fresh attempt */ }
+    try { return await existingInflight; } catch (e) {
+      if (!(e && e.name === 'AbortError')) console.warn(`[Wind] joined in-flight fetch failed (${e && e.message}); starting a fresh attempt`);
+      const again = WIND_INFLIGHT.get(cacheKey);   // a sibling joiner may have started the fresh attempt already: join it once
+      if (again && again !== existingInflight) { try { return await again; } catch (e2) { /* fall through */ } }
+    }
   }
 
   const fetchPromise = (async () => {
@@ -323,7 +327,15 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
     if (getBackendWindFlag() && (resolvedModel === 'GFS' || resolvedModel === 'ICON' || resolvedModel === 'EURO')) {
       try {
         console.log(`[Backend Weather Service] Redirecting ${resolvedModel} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-        const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
+        let result;
+        try {
+          result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
+        } catch (e1) {
+          // A request JOINED by url (backendWindServiceClient) that ANOTHER caller aborted: our own signal is alive, so make one
+          // attempt of our own instead of taking someone else's abort (review 2026-10-19, F1).
+          if (!(e1 && e1.name === 'AbortError') || (signal && signal.aborted)) throw e1;
+          result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
+        }
 
         if (result && result.renderable) {
           // WIND_CACHE is per-model-keyed (model_wind_grid_tile_hour) → ALWAYS safe to write, even
@@ -363,6 +375,13 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
         }
         return result;
       } catch (err) {
+        // ABORT IS A REJECTION (2026-10-19, owner log: 'signal is aborted ... conformed safe zero grid' -> 'No data, retry'):
+        // a superseded fetch must not resolve the SHARED in-flight promise with a safe-zero grid, which every joined caller
+        // then treats as an empty hour and retries. Rejecting lets joiners start their own attempt (WIND_INFLIGHT join
+        // catch) and the superseding caller ignore it (AbortError). Kill: __RAW_DISABLE_WIND_ABORT_REJECTS__.
+        if (signal && signal.aborted) {   // OUR abort only; a foreign one already had its own retry above and falls through as before
+          if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_ABORT_REJECTS__ === true)) throw err;
+        }
         console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}.`);
         lastWindRedirectFailureReason = err.message || '';
         if (typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {
@@ -406,7 +425,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
   try {
     return await fetchPromise;
   } finally {
-    WIND_INFLIGHT.delete(cacheKey);
+    if (WIND_INFLIGHT.get(cacheKey) === fetchPromise) WIND_INFLIGHT.delete(cacheKey);   // only our own entry (F3)
   }
 }
 
