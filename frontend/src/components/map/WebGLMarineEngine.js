@@ -1634,7 +1634,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           frameOff: (waveGrid && waveGrid.frame_substituted) ? (waveGrid.frame_offset_hours || 0) : 0,
         };
         recordMarineEvent('snap', _snap);
-        console.log('[FORENSIC-SNAP]', JSON.stringify(_snap));
+        var _snapStr = JSON.stringify(_snap); // console only on CHANGE: PostHog rrweb serializes every line (owner log 10-19: 15+ identical)
+        if (_snapStr !== this._lastSnapStr || window.__RAW_FORENSIC_SNAP_EVERY__ === true) { this._lastSnapStr = _snapStr; console.log('[FORENSIC-SNAP]', _snapStr); }
       }
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);

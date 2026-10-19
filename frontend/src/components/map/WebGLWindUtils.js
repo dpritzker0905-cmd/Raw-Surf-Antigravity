@@ -670,3 +670,4 @@ export function windBoundsContain(a, b) {
 export function bindWindPointReg(gl, prog, baseGrid, fineGrid, win) {
   return [setGridPointRegUniform(gl, prog, 'u_base_reg', baseGrid, win), setGridPointRegUniform(gl, prog, 'u_fine_reg', fineGrid, win)];
 }
+export { resolveWindSpeedRef } from './windSpeedRef'; // the advection's fixed speed reference (Jacobian lens, 2026-10-19)
