@@ -34,3 +34,41 @@ def test_mid_missing_classes_and_nearest(monkeypatch):
     assert pick_mid_item([], []) is None
     assert pick_mid_item([(far, 10800), (near, 0)], []) is near
     assert pick_mid_item([], [(far, 10800), (near, 0)]) is near
+
+
+@pytest.mark.parametrize("enabled,mid_diff,current_diff,estimated,loads", [
+    ("1", 10800, 0, True, 0),
+    ("1", 1801, 0, True, 0),
+    ("1", 10800, 1800, True, 0),
+    ("1", 1800, 0, True, 1),
+    ("1", 0, 0, True, 1),
+    ("1", 10800, 1801, True, 1),
+    ("1", 10800, 0, False, 1),
+    ("0", 10800, 0, True, 1),
+])
+@pytest.mark.asyncio
+async def test_mid_upgrade_keeps_near_exact_coarse_estimate(
+        monkeypatch, enabled, mid_diff, current_diff, estimated, loads):
+    from datetime import datetime, timedelta, timezone
+    from unittest.mock import Mock
+    from services.weather_pipeline import mid_res_tier as tier
+
+    monkeypatch.setenv("MID_RES_EXACT_TIME_ESTIMATE", enabled)
+    monkeypatch.setattr(tier, "_CLIP_CACHE", {}, raising=False)
+    import asyncio
+    monkeypatch.setattr(tier, "_LOAD_SEM", asyncio.Semaphore(1), raising=False)
+    target = datetime(2026, 10, 29, 3, tzinfo=timezone.utc)
+    bounds = SimpleNamespace(west=-180, east=180, south=-80, north=85)
+    coarse = SimpleNamespace(grid=SimpleNamespace(bounds=bounds),
+                             valid_time=target + timedelta(seconds=current_diff),
+                             is_estimated=estimated)
+    mid = SimpleNamespace(filename="mid-neighbour.json", coverage=bounds,
+                          valid_time_start=target - timedelta(seconds=mid_diff))
+    store = SimpleNamespace(load_product=Mock(return_value=None))
+    result = await tier.try_serve_mid_res_tier(
+        store, model="EURO", domain="marine", layer="waves",
+        bbox="-180,-80,180,85", req_w=-180, req_s=-80, req_e=180, req_n=85,
+        mid_auth=[(mid, mid_diff)], mid_est=[], current_product=coarse,
+        target_dt=target)
+    assert result is None
+    assert store.load_product.call_count == loads

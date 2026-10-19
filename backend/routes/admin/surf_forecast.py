@@ -30,6 +30,7 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),
     "MID_RES_EXACT_TIME_ESTIMATE": ("0", "Prefer near-exact mid estimates over distant native frames using the shared time policy", "Local serving env; hosted lanes require owner approval"),
     "LATTICE_FILL_AFTER_PILOTS": ("0", "Run one lattice pass after all selected core and pilot producers", "Local ingestion env; hosted lanes require owner approval"),
     "LATTICE_REGIONAL_WIND_FILL": ("0", "Fill bounded regional wind gaps from verified native same-cycle brackets", "Local ingestion env; hosted lanes require owner approval"),

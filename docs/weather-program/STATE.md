@@ -2346,7 +2346,22 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1434, sha256 72b529072f477fac7f2fbe05fafc9bbbba9cea4c9da8575a88557fcf4a24baff**
+  **Local EURO tail repair, 2026-10-19 (qualified locally):** Default-off
+  `EURO_MARINE_NATIVE_TAIL_CADENCE` preserves three-hourly NOAA cache entries; hourly input retains
+  stride3. Fresh authenticated free-source cycle521826ab completed23jobs,0failed,1verified no-op
+  with rawFalse retained; lattice once/last.1453backend hashes unchanged through native terminal
+  checks.11376/11376products valid;94/94former gaps and136/136current tail targets present; no
+  coarse/mid/regional gaps. Initial212APIprobes exposed one unique cross-tier timestamp (two failed
+  checks); initial incomplete audit retained. Existing default-off MID_RES_EXACT_TIME_ESTIMATE now
+  prevents distant mid upgrades over near-exact coarse estimates. Separate serving-only backend
+  over unchanged product hashes passed251APIchecks and177related tests (earlier191ingestion tests).
+  Raw-surf independently matched23outcomes, grid/series traces,18finite metric samples and passing
+  final audit. Source difference after ingestion: one serving module and two test/floor files.
+  No remaining local provider/store/API failures; CI/scientific/hosted acceptance unrun. Claude
+  separate handoff updated without audit edits; no hosted flag/shared store change or deployment.
+  Report `docs/runbooks/LOCAL-EURO-TAIL-REPAIR-2026-10-19.md`.
+
+  **Ledger head: seq 1444, sha256 fa4626452e11afeb8618e9643d5e8258e3eaef4ffe95460bbbcbdd54be29e8d8**
 
 - **Local fresh-cycle verification, 2026-10-18:** all 23 conformed jobs returned true;
   11,236 products validated, but coverage acceptance failed on 32 EURO mid-tier

@@ -44,7 +44,7 @@ async def main(port, enable_jobs=False, full_forecast_cycle=False, enable_gatewa
                           NOAA_WAVE_INDEX_RETRY="1", EURO_MARINE_LATTICE_VALIDATION="1",
                           INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS="1",
                           LATTICE_FILL_AFTER_PILOTS="1", LATTICE_REGIONAL_WIND_FILL="1",
-                          MID_RES_EXACT_TIME_ESTIMATE="1")
+                          MID_RES_EXACT_TIME_ESTIMATE="1", EURO_MARINE_NATIVE_TAIL_CADENCE="1")
     if full_forecast_cycle:
         os.environ.update({"MARINE_INGEST_ALL": "1", "INGEST_PILOTS": "include",
                            "ECMWF_OPENDATA_SOURCE": "google"})

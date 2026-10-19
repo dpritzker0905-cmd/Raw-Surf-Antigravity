@@ -478,7 +478,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest publication in one step (dark), on top of the monitor check: +384 guards (ten new files, after the split and rounds 4 to 8) on hosted 2747 / 197 files (floor 3125; files 207).
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # 2026-10-18 local ingestion/auth qualification: 2257 baseline +45 new estate cases; hosted projection pending.
-_FLOOR_SET_FROM = {"guards": 3136, "chain": 2701, "estate": 2302}
+_FLOOR_SET_FROM = {"guards": 3136, "chain": 2701, "estate": 2338}
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

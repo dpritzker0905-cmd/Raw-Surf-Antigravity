@@ -115,8 +115,15 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
         # PREFER the NOAA-direct grid ingest_gfs_marine_global stashed (reliable, HAS the Gulf, coarse_axis-
         # aligned) over a 429-prone open-meteo re-fetch that stranded the fill (run 29922098897). Kill: env.
         gfs_ext_src = None
+        gfs_ext_step = 3  # Open-Meteo fallback is hourly.
         if os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0" and scheduler._gfs_coarse_marine_cache:
             gfs_ext_src = scheduler._gfs_coarse_marine_cache
+            if os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "0") == "1":
+                # The cache can also contain hourly Open-Meteo data after a NOAA failure.
+                cache_times = [_parse_iso(t) for t in gfs_ext_src[0].get("hourly", {}).get("time", [])]
+                if len(cache_times) > 1 and all(t is not None for t in cache_times):
+                    if min((b - a).total_seconds() for a, b in zip(cache_times, cache_times[1:])) >= 10800:
+                        gfs_ext_step = 1  # Preserve every already-three-hourly NOAA entry.
             logger.info(f"[Pipeline Scheduler] EURO coarse reusing cached NOAA GFS coarse grid "
                         f"({len(gfs_ext_src)} pts) for gfs_ext + enclosed-sea/Antarctic GFS-fill (no re-fetch).")
         if not gfs_ext_src:
@@ -203,13 +210,13 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
                 estimate_basis=_basis
             )
             e_cnt = 0
-            if _layer_gfs_ext:  # GFS days 10->14 (open-meteo hourly -> step=3)
+            if _layer_gfs_ext:  # Preserve NOAA cadence; sample hourly Open-Meteo at three hours.
                 e_cnt = await normalize_and_save_loop(
                     scheduler.normalizer, scheduler.store, _layer_gfs_ext,
                     model="EURO", provider=_prov, domain="marine", layer=layer,
                     bbox=global_region, resolution=resolution, run_time=run_time,
                     region_id="global_coarse", coverage_mode="global_tile",
-                    is_test_env=env["is_test_env"], step=3,
+                    is_test_env=env["is_test_env"], step=gfs_ext_step,
                     log_prefix=f"[Pipeline Scheduler] EURO {layer} (GFS 10-14d ext) global_coarse",
                     estimated_after_index=0, estimate_basis=_gfs_ext_basis
                 )

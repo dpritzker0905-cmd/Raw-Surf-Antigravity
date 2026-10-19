@@ -407,6 +407,14 @@ async def try_serve_mid_res_tier(
     mid_item = pick_mid_item(mid_auth, mid_est)
     if mid_item is None:
         return None
+    if (os.environ.get("MID_RES_EXACT_TIME_ESTIMATE", "0") == "1"
+            and current_product is not None and current_product.is_estimated
+            and target_dt is not None
+            and abs((current_product.valid_time - target_dt).total_seconds()) <= 1800
+            and abs((mid_item.valid_time_start - target_dt).total_seconds()) > 1800):
+        # Spatial refinement must not replace the selected near-exact estimate
+        # with a neighbouring mid frame (including the last native mid hour).
+        return None
 
     # LOAD GUARDS (2026-07-05, the 18:56Z Render OOM during a timeline scrub): a grid_series request
     # resolves 17 hours, and EACH hour L1-missed a global_mid → downloaded + parsed the FULL ~15k-vector

@@ -1918,7 +1918,8 @@ jobs:
           # (CI: 322 files selected, 2188 passed): projected 2257; 2257 - 2 = 2255, margin 2.
           # This PR must read 322 files / 2257.
           # Local ingestion/auth regressions: +45 estate cases (2257 -> 2302 projected), same two-test margin.
-          MIN_PASSED = 2300
+          # EURO cadence/no-op qualification adds 28 estate cases: 2302 -> 2330 projected, margin 2. Cross-tier selection adds 8: 2338 projected.
+          MIN_PASSED = 2336
 
           try:
               root = ET.parse('estate.xml').getroot()
