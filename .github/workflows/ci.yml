@@ -917,7 +917,9 @@ jobs:
           # 207 files / 3136.
           # Marine contributor health: +54 guards from dev3136 ->3190; same207files and margin6.
           # Final PR378 review: +28 malformed-cycle/identity health controls; 3190 ->3218, margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 207, 3212
+          # W-4 series page memo (test_series_page_memo.py, new guards file): +37 guards. Hosted run 39259510389 read
+          # 3248 / 208 with the first 30 (= 3218 + 30, the projection); 3218 + 37 = 3255 projected; margin 6.
+          MIN_FILES, MIN_PASSED = 208, 3249
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

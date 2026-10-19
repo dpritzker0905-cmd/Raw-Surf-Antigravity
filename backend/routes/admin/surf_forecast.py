@@ -43,6 +43,8 @@ _RATING_FLAGS = {
     "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
     "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),
+    "GRID_SERIES_PAGE_MEMO": ("0", "Series page memo + shared in-flight builds on the tile-snapped bbox, cleared per manifest "
+                              "write; off-loop direct encode with gzip GRID_SERIES_GZIP_LEVEL (W-4)", "Render env"),
     # WHERE A FIELD IS DRAWN, never which cells or values (tests/test_series_thin_node_bounds.py): a thinned world frame
     # kept the ORIGINAL bounds, so the client drew it up to 4 deg too far north; on, it carries the bounds of the cells it kept.
     "SERIES_THIN_NODE_BOUNDS": ("0", "A thinned series frame carries the bounds of the cells it kept, so the client draws it "

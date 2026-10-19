@@ -94,14 +94,14 @@ async def get_grid_series(
     Returns a TIME-SERIES of viewport grids in ONE response so the client can scrub
     hours instantly (client-side frame selection) instead of one fetch per hour.
 
-    Reuses /grid's per-hour builder and shared upstream cache. If a series fails,
-    the client falls back to per-hour /grid requests. The dark response envelope
-    shares admission across both HTTP routes and owns canceled per-hour work.
+    Reuses /grid's per-hour builder and shared upstream cache; on failure the client falls back to per-hour /grid.
+    The dark response envelope shares admission across both HTTP routes and owns canceled per-hour work.
     """
     from services.weather_pipeline.grid_series_helper import build_grid_series
-    # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
-    # validates/discloses base_time and stops per-hour builds after client disconnect.
-    # Qualified response bounds include queueing, building, encoding and compression.
+    # Same /grid resolver. Dark W-4 page memo (snapped bbox, shared builds, off-loop encode): series_page_memo.py.
+    if os.environ.get("GRID_SERIES_PAGE_MEMO", "0") == "1":
+        from services.weather_pipeline.series_page_memo import serve_memo_series
+        return await serve_memo_series(get_grid, viewport_service, store, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
     if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1" and os.environ.get("GRID_RESPONSE_BOUNDS", "0") != "1":
         from services.weather_pipeline.series_response import serve_series
         return await serve_series(lambda: build_grid_series(
