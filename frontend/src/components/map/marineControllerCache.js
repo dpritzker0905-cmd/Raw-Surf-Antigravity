@@ -18,6 +18,7 @@ import {
 } from './backendWeatherServiceClient';
 import { recordTruthStage } from './weatherTruthTracker';
 import { extractMarineAtOffset } from './marineControllerExtractor';
+import { rollOffsetCache } from './offsetCacheAnchor';
 
 // --- CACHES ---
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
@@ -113,7 +114,9 @@ var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
 // actually returns, so the two can never drift apart silently again.
 export const GLOBAL_LOOKUP_TILE_ID = 'global_coarse';
 
-export function getPerModelHourCache() { return _perModelHourCache; }
+// W-5/T-09: offset keys name an instant only relative to the anchor; drop the cache when the anchor flips (offsetCacheAnchor.js).
+function rollHourCache() { rollOffsetCache('marineHour', () => { _perModelHourCache.clear(); _perModelHourCache._evicted.clear(); }); }
+export function getPerModelHourCache() { rollHourCache(); return _perModelHourCache; }
 
 // ---------------------------------------------------------------------------
 // Structured cache lookup telemetry (Phase 1.3)
@@ -188,6 +191,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
   // Mode-keyed (2026-07-03): surf-banded and plain products must never cross-hit (frame mixing).
   const layerPart = (_isAllVarModel(model) ? 'all' : (layer || 'waves')) + (getSurfModeFlag() ? '~surf' : '');
   const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
+  rollHourCache();
   const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
   
   const g = data.grid || {};
@@ -423,6 +427,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
     const layerPart = (_isAllVarModel(model) ? 'all' : layer) + (getSurfModeFlag() ? '~surf' : '');
     const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
+    rollHourCache();
     const lookupKey = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
     const missDetail = { model: model || 'GFS', layer, hourOffset, tileId, lookupKey };
     const exact = _perModelHourCache.get(lookupKey);
@@ -533,6 +538,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
  * upstream fetch with the same bbox).
  */
 export function getAnyHourCacheEntry(model, layer, bounds) {
+  rollHourCache();
   const wanted = model || 'GFS';
   const layerPart = _isAllVarModel(wanted) ? 'all' : (layer || 'waves');
   const prefix = `${wanted}_${layerPart}_`;
