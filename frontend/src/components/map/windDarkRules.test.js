@@ -355,6 +355,7 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
       '__RAW_DISABLE_WIND_FIXED_SPEED_REF__',                                                                  // the advection gamma's speed reference (windSpeedRef.js, 2026-10-19): MOTION per knot only; no table, ramp, field or ground reads it
+      '__RAW_DISABLE_WIND_ABORT_REJECTS__',                                                                    // a superseded wind fetch rejects instead of resolving a safe-zero grid (windController.js, 2026-10-19): request flow only, no drawing
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
       '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
       '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it

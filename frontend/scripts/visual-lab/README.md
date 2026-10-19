@@ -22,6 +22,7 @@ AB_DIAG=1 PORT=4103 OUT=lab-out node scripts/visual-lab/lab.js        # opens la
 | `VIEW` | `desktop` (1280 x 800) or `phone` (390 x 844 at DPR 3, emulated) |
 | `LAT_SERIES` / `LAT_GRID` | ms injected per `/grid_series` page / `/grid` reply (live-like: 2500 / 500; a freshly restarted box: 8000 / 3000) |
 | `AB_DIAG=1` | the app's diagnostic console on (the console instruments need it; the owner's browser has it) |
+| `LAB_KILLS` | comma list of `window.__RAW_DISABLE_*__` kill switches set before the app boots (the A arm of an A/B on one build) |
 | `LAB_TRACE=1` | a Chrome performance trace of the first flow, `OUT/trace.json` (DevTools > Performance > Load profile) |
 | `AB_LIVE=1` | the REAL backend: real load on the 1-CPU box that serves production; one run, `/api/health` before and after, owner's word only |
 

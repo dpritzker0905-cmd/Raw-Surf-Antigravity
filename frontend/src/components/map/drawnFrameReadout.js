@@ -9,7 +9,8 @@
  *   estimated — the frame is an estimate / blend (ICON swell 2, the extended tails that reach 14 days)
  * Returns null when the drawn frame IS the selection and is not an estimate.
  */
-const LAYER_NAMES = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves' };
+const LAYER_NAMES = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves', wind: 'Wind' };
+const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
 const MODEL_NAMES = { GFS: 'GFS', ICON: 'ICON', EURO: 'EURO' };
 // The widest step any stored marine lattice has (EURO WAM past 144 h is 6-hourly): a drawn frame within half of it is
 // the nearest stored forecast, anything further is still loading.
@@ -57,7 +58,7 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
     : (Number.isFinite(drawn.hour) && Number.isFinite(requested.hour) ? drawn.hour - requested.hour : 0);
   const drawnLabel = byInstant ? formatInstant(drawn.dataMs) : formatForecastHour(drawn.hour, nowMs);
   if (dh !== 0) {
-    if (Math.abs(dh) <= NEAREST_MAX_HOURS) {
+    if (Math.abs(dh) <= (Number.isFinite(requested.nearestMaxHours) ? requested.nearestMaxHours : NEAREST_MAX_HOURS)) {   // caller may pass its lattice's half-step
       return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest stored forecast${est ? ` (${est})` : ''}` };
     }
     return { state: 'pending', text: `Loading ${formatForecastHour(requested.hour, nowMs)}… still showing ${drawnLabel}` };
@@ -74,7 +75,7 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
  */
 export function reconcileStaleBadge(status, requested, drawn) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_STALE_BADGE__ === true) return status;
-  if (!requested || !drawn || !LAYER_NAMES[requested.layer]) return status;
+  if (!requested || !drawn || !MARINE_LAYERS.has(requested.layer)) return status;
   const r = describeDrawnFrame(requested, drawn);
   if (r && r.state === 'pending') return 'retained_stale_warning';
   return status === 'retained_stale_warning' ? null : status;

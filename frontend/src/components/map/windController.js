@@ -363,6 +363,13 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
         }
         return result;
       } catch (err) {
+        // ABORT IS A REJECTION (2026-10-19, owner log: 'signal is aborted ... conformed safe zero grid' -> 'No data, retry'):
+        // a superseded fetch must not resolve the SHARED in-flight promise with a safe-zero grid, which every joined caller
+        // then treats as an empty hour and retries. Rejecting lets joiners start their own attempt (WIND_INFLIGHT join
+        // catch) and the superseding caller ignore it (AbortError). Kill: __RAW_DISABLE_WIND_ABORT_REJECTS__.
+        if ((err && err.name === 'AbortError') || (signal && signal.aborted)) {
+          if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_ABORT_REJECTS__ === true)) throw err;
+        }
         console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}.`);
         lastWindRedirectFailureReason = err.message || '';
         if (typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {

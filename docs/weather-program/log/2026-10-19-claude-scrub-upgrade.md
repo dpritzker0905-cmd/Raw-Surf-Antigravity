@@ -107,3 +107,31 @@ speed change (one variable, kill switch ready). No SCOREBOARD row (no served num
   page builds dominate: W-4 session); WIND +26 h 7.8 s with 7 requests, +82/+115 h never reach the exact frame in 8 s and hold the
   nearest one with NO label (wind has no drawn-time readout); zoom to 8 = 243-350 ms long task with 2 land-mask rebuilds
   (land-mask session). The owner's wind abort churn did not reproduce offline (no contention): it needs one bounded live run.
+
+## Evening: #390 merged, wind honest + fast (branch `claude/wind-honest-fast`, stacked on #391)
+
+- **#390 merged** on the owner's word; the dev site rebuilt from it. #391's ledger line re-chained onto seq 1448 (both branches
+  had appended from the same base).
+- **Wind drawn-time label (W-1 for wind):** `marineDrawnFrame.publishWindDrawn` records what `WebGLWindLayer` hands the engine
+  (series frames now carry `valid_time`); `WindTimeStatus` words it under the timeline in all three layouts (through
+  `TimelineStatus`, `windOn`), comparing by instant (#267). HRRR under a GFS selection is the lane (D-017), not "loading". The
+  "nearest stored forecast" wording is limited to half the wind lattice step (1 h; EURO past 144 h: 3 h): further off is a fetch
+  still owed and reads "Loading". The point card's stale badge stays marine-only. Kill `__RAW_DISABLE_WIND_DRAWN_READOUT__`.
+- **Primary-loop abort churn:** (1) `windController`: an aborted fetch now REJECTS the shared in-flight promise instead of
+  resolving it with a safe-zero grid, so callers that joined it start their own attempt instead of treating the hour as empty
+  and retrying. Kill `__RAW_DISABLE_WIND_ABORT_REJECTS__`. (2) `WeatherEngine.attemptFetch`: a re-entry from moveend / dragstart
+  / zoomstart for the SAME model|hour|tile joins the fetch in flight instead of aborting it. Kill
+  `__RAW_DISABLE_WIND_SAME_TARGET_JOIN__`. `gridCovers` moved to `windCoverage.js` to stay under the file's line baseline.
+- **Tests:** `windHonestFast.test.js` (12): drawn record, readout states incl. HRRR lane and lattice limit, coverage helper, and
+  the abort rule (the joined caller gets a real grid; the kill switch restores safe-zero). Map + tests trees: 328 suites green
+  after classifying the new kill in `windDarkRules.test.js` ORTHOGONAL. ESLint ratchet and LOC ratchet pass.
+- **Visual lab A/B** on one build (`LAB_KILLS` = all three kills for arm A), ICON wind scrub, 2.5 s / 0.5 s injected latency:
+  run 1 A->B: +18 h 1.8->1.0 s, +26 h 1.9->1.0 s, +42 h 7.9->2.8 s (7->5 requests); +82 / +115 h now say "Showing ...: the
+  nearest stored forecast" where they were silent. Run 2 (order reversed) crossed a UTC hour, so lattice membership moved
+  (+26 h became off-lattice) and +42 h was warm in both arms (208 ms); its B arm missed +3 h once (one /grid failed behind
+  16-20 s series pages on the harness server, with a safe-zero log) and two more B runs did not reproduce it. Read the speed-up
+  as a lead (n = 2 paired, clock-confounded), the labels as verified. The live abort churn still needs one bounded live run.
+- **Lab knobs added:** `LAB_KILLS` (A arm on one build), `LAB_CONSOLE=<regex>` (matching console lines per flow to a file).
+- **Open:** the marine readout uses the same fixed 3 h "nearest" limit, so a marine frame 2-3 h off on a 3-hourly lattice is
+  also called nearest: same lattice-aware fix owed there. The B2 safe-zero path after a failed /grid needs the console capture
+  from a reproduction. Server-side series contention (old model's pages keep building after a switch) stays with W-4.

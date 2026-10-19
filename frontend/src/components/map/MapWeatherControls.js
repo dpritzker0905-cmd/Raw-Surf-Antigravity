@@ -584,7 +584,7 @@ export var MapWeatherControls = ({
           </div>
         )}
 
-        <TimelineStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} showTime={!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer)} showWind={!isRadar && activeModel === 'GFS' && (activeLayers || []).includes('wind')} />
+        <TimelineStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} showTime={!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer)} showWind={!isRadar && activeModel === 'GFS' && (activeLayers || []).includes('wind')} windOn={!isRadar && (activeLayers || []).includes('wind')} />
         {/* v3.8: Day tick labels beneath scrubber — classic slider only (the wheel's drum
             carries its own day ticks + labels). */}
         {!useWheel && !isRadar && maxForecastHours > 24 && (

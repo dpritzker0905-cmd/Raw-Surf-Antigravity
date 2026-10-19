@@ -16,6 +16,7 @@ import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTL
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
+import { publishWindDrawn } from './marineDrawnFrame';
 
 var LAYER_ID = 'webgl-wind-particles';
 
@@ -414,6 +415,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         if (q) q.length = 0; // drained (scrub drops intermediates by design)
 
         console.log(`[WebGLWind] setWindData triggered by effect: delivering ${grids.length} grid(s), last ${data.vectors.length} vectors`);
+        publishWindDrawn(data);   // W-1 for wind: what is about to be on screen (marineDrawnFrame.js)
 
         const getLongitudeSpan = (b) => {
           const crosses = b.west > b.east;

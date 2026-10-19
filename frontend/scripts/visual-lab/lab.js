@@ -179,10 +179,13 @@ const FLOWS = {
     const flow = FLOWS[name]; if (!flow) continue;
     const { browser, page, log } = await L.launch({ port: PORT, ...size, hooks: { beforeWeather: async (url) => {
       const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
+    if (process.env.LAB_KILLS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_KILLS.split(','));   // A/B: kill switches set before the app boots
     await page.addInitScript(PROBE, Object.fromEntries(Object.entries(PATTERNS).map(([k, v]) => [k, v.source])));
     // Console patterns counted from Node (page.on('console')): independent of any in-page console override.
     const ccount = Object.fromEntries(Object.keys(PATTERNS).map((k) => [k, 0]));
     page.on('console', (m) => { const t = m.text(); for (const k in PATTERNS) if (PATTERNS[k].test(t)) ccount[k]++; });
+    if (process.env.LAB_CONSOLE) { const cf = path.join(OUT, `console-${name}.txt`); fs.mkdirSync(OUT, { recursive: true }); const re = new RegExp(process.env.LAB_CONSOLE); page.on('console', (m) => { const t = m.text(); if (re.test(t)) fs.appendFileSync(cf, `${Date.now()} ${t.slice(0, 300)}
+`); }); }   // LAB_CONSOLE=<regex>: matching lines to OUT/console-<flow>.txt
     const cdp = process.env.LAB_TRACE === '1' && name === which[0] ? await page.context().newCDPSession(page) : null;
     const traceChunks = [];
     if (cdp) { cdp.on('Tracing.dataCollected', (e) => traceChunks.push(...e.value)); await cdp.send('Tracing.start', { categories: 'devtools.timeline,v8.execute,disabled-by-default-devtools.timeline.frame,toplevel,blink.user_timing' }); }
@@ -234,6 +237,7 @@ const FLOWS = {
           end: { mHour: r.end.mHour, mLayer: r.end.mLayer, mModel: r.end.mModel, wHour: r.end.wHour, status: r.end.status },
           console: Object.fromEntries(Object.keys(ccount).map((k) => [k, ccount[k] - cc0[k]])), requests: { n: reqs.length, series: reqs.filter((q) => q.path === '/grid_series').length, grid: reqs.filter((q) => q.path === '/grid').length,
             wind: reqs.filter((q) => (q.q && q.q.domain === 'wind') || /wind/.test(q.path)).length, dupes, failed: reqs.filter((q) => q.error || (q.status && q.status >= 400)).length },
+          requestList: reqs.slice(0, 20).map((q) => ({ t: q.t, ms: q.ms, path: q.path, model: q.q && q.q.model, domain: q.q && q.q.domain, layer: q.q && q.q.layer, vt: q.q && q.q.valid_time, h0: q.q && q.q.hours ? q.q.hours.split(',')[0] : undefined, nh: q.q && q.q.hours ? q.q.hours.split(',').length : undefined, status: q.status })),
           pacing: { gaps50: r.gaps, maxGap: Math.round(r.maxGap), longtasks: r.ltN, ltMax: r.ltMax },
           shots: { immediate: immediateJpg.toString('base64'), settled: settledJpg.toString('base64') } };
         fr.steps.push(row);

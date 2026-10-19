@@ -222,6 +222,7 @@ function frameToWindData(frame, model) {
     stale: false,
     source: model || 'GFS',
     hourOffset: frame.hour_offset,
+    valid_time: frame.valid_time || null,
     provider: frame.provider || 'backend-weather-service',
     nonzeroCount,
     renderable,

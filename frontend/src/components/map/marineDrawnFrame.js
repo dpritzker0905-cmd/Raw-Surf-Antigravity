@@ -43,4 +43,27 @@ export function useMarineDrawnFrame() {
   return useSyncExternalStore(subscribeMarineDrawn, getMarineDrawn, getMarineDrawn);
 }
 
-export function _resetMarineDrawnForTest() { current = null; listeners.clear(); }
+export function _resetMarineDrawnForTest() { current = null; listeners.clear(); windCurrent = null; windListeners.clear(); }
+
+// ---- WIND: what the wind engine drew, published at the layer's handoff (WebGLWindLayer) ----
+let windCurrent = null;
+const windListeners = new Set();
+export function publishWindDrawn(grid, fallback = {}) {
+  if (!grid) return;
+  windCurrent = {
+    hour: Number.isFinite(grid.hourOffset) ? grid.hourOffset : (Number.isFinite(fallback.hour) ? fallback.hour : null),
+    layer: 'wind',
+    model: grid.model || grid.source || (grid.truthTag && grid.truthTag.model) || fallback.model || null,
+    validTime: grid.served_valid_time || grid.valid_time || null,
+    dataMs: Date.parse(grid.served_valid_time || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
+    estimated: !!(grid.is_estimated || grid.isEstimated),
+    basisType: null,
+    provider: grid.provider || null,
+    ts: Date.now(),
+  };
+  if (typeof window !== 'undefined') window.__WIND_DRAWN__ = windCurrent;
+  windListeners.forEach((fn) => { try { fn(); } catch (e) { /* never break the upload */ } });
+}
+export function getWindDrawn() { return windCurrent; }
+export function subscribeWindDrawn(fn) { windListeners.add(fn); return () => windListeners.delete(fn); }
+export function useWindDrawnFrame() { return useSyncExternalStore(subscribeWindDrawn, getWindDrawn, getWindDrawn); }
