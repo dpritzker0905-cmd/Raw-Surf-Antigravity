@@ -87,3 +87,23 @@ acknowledged: EURO current-page-only.
 
 Physical phones and touch, Safari/Firefox, real regional data, live latency on the 1-CPU box, the owner's eye on the wind
 speed change (one variable, kill switch ready). No SCOREBOARD row (no served number moved).
+
+## Later the same day: merges, a skipped deploy, and the visual lab
+
+- **Merged on the owner's word:** #387 (dev `0607a725`, 12:48Z, 19 checks green, live on dev frontend and backend 12:52Z) and #388
+  (dev `697ad069`, 13:14Z, all checks green). The dev site did NOT rebuild for #388: the squash body quoted two branch commits
+  titled with a static-site skip marker, so Netlify skipped the merge commit. Receipt PR #390 (ledger seq 1447, no skip markers)
+  carries the build when merged. Lesson: never put a build-skip marker on any commit of a PR that must deploy.
+- **The owner's check of #387's build** (console 13:13Z, bundle `0607a725`): the wind PRIMARY loop restarts on top of itself
+  ("Fetching wind (attempt 1/5, offset: 18h)" three times, each aborting the last -> "conformed safe zero grid" -> retry), the
+  backend had just restarted (message-count 15 s timeouts), long jumps waited on the network. #388's fixes were not in that build.
+- **Visual lab** (`frontend/scripts/visual-lab/`, owner: "add a test branch that tests everything visually on the map using
+  special instruments and tools"): replays the owner's flows (ICON waves scrub, ICON wind scrub, layer switches and model switches
+  at a future hour, pan/zoom) on the production bundle over the offline backend, now with synthetic WIND for all three models;
+  per step: on-screen identity by instant, time to the correct marine and wind field, particle-blind stale-picture verdict with a
+  noise floor, console patterns from the owner's logs, requests (duplicates, failures), pacing; a self-contained report.
+- **Findings on dev `697ad069`** (offline; zero latency, then 2.5 s / 0.5 s injected): marine silent mismatches <= 6-10 frames per
+  step (W-1 holds); long jumps and pan/zoom instant; layer switch at a future hour 1.5-4.7 s and model switch 0.4-2.7 s (series
+  page builds dominate: W-4 session); WIND +26 h 7.8 s with 7 requests, +82/+115 h never reach the exact frame in 8 s and hold the
+  nearest one with NO label (wind has no drawn-time readout); zoom to 8 = 243-350 ms long task with 2 land-mask rebuilds
+  (land-mask session). The owner's wind abort churn did not reproduce offline (no contention): it needs one bounded live run.

@@ -27,6 +27,7 @@ export function publishMarineDrawn(grid, fallback = {}) {
     provider: grid.__gridProvider || grid.provider || null,
     ts: Date.now(),
   };
+  if (typeof window !== 'undefined') window.__MARINE_DRAWN__ = current;   // instruments (visual lab, TruthOverlay) read this
   listeners.forEach((fn) => { try { fn(); } catch (e) { /* a broken listener must not break the upload */ } });
 }
 
