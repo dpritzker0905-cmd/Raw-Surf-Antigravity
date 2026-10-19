@@ -16,6 +16,7 @@ from core.security import get_current_user_id
 from database import get_db
 from models import Profile, Review
 from services.ai_moderation import moderate_review_content
+from services.llm_transport import openai_connection
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 logger = logging.getLogger(__name__)
@@ -111,5 +112,5 @@ async def get_moderation_stats(
         "flagged_today": row.flagged_today or 0,
         "total_approved": row.total_approved or 0,
         "total_rejected": row.total_rejected or 0,
-        "ai_moderation_active": bool(os.environ.get('OPENAI_API_KEY')),
+        "ai_moderation_active": bool(openai_connection().api_key),
     }

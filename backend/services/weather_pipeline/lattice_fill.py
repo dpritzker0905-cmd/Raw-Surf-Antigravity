@@ -129,7 +129,8 @@ def interpolate_between(a: NormalizedProduct, b: NormalizedProduct,
 
     grid = NormalizedGrid(
         bounds=a.grid.bounds, cols=a.grid.cols, rows=a.grid.rows, vectors=vectors,
-        diagnostics={"vectorCount": len(vectors), "interpolationWeight": round(w, 4)},
+        diagnostics={"vectorCount": len(vectors), "interpolationWeight": round(w, 4),
+                     "nonzeroCount": sum(v.is_valid and v.speed > 0 for v in vectors)},
     )
     # Grid contract (house rule: assert vec == cols*rows BEFORE anything ships)
     if len(vectors) != grid.cols * grid.rows:
@@ -238,7 +239,14 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
 
     for model in _MODELS:
         for domain, layer in _LANES:
-            for region_id in _REGIONS:
+            regions = list(_REGIONS)
+            if (os.environ.get("LATTICE_REGIONAL_WIND_FILL", "0") == "1"
+                    and (domain, layer) == ("wind", "wind")):
+                regions.extend(sorted({p.region_id for p in manifest.products
+                                       if p.model.upper() == model and p.domain == domain and p.layer == layer
+                                       and p.region_id and p.region_id not in _REGIONS}))
+            for region_id in regions:
+                regional = region_id not in _REGIONS
                 items = _lane_items(manifest.products, model, domain, layer, region_id)
                 if len(items) < 2:
                     continue
@@ -255,11 +263,14 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
                             model, domain, layer, region_id, ta.isoformat(), tb.isoformat(),
                             (tb - ta).total_seconds() / 3600.0,
                         )
-                slots = find_fill_slots(items, max_bracket_h)
+                slots = find_fill_slots(items, min(max_bracket_h, 6.0) if regional else max_bracket_h)
                 for item_a, item_b, slot in slots:
                     prod_a = await asyncio.to_thread(scheduler.store.load_product, item_a.filename)
                     prod_b = await asyncio.to_thread(scheduler.store.load_product, item_b.filename)
                     if not prod_a or not prod_b:
+                        continue
+                    if regional and not _regional_native_brackets(prod_a, prod_b, model, region_id):
+                        logger.warning("[Lattice Fill] Refusing unqualified regional wind brackets: %s/%s", model, region_id)
                         continue
                     est = interpolate_between(prod_a, prod_b, slot)
                     if est is not None:
@@ -276,3 +287,17 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
         f"({len(to_save)} candidates, {wide_gaps} non-fillable wide holes)."
     )
     return saved > 0
+
+
+def _regional_native_brackets(a, b, model, region_id):
+    """Regional opt-in never interpolates fixtures, estimates or mixed model cycles."""
+    for p in (a, b):
+        if (p.model.upper() != model or (p.domain, p.layer, p.region_id) != ("wind", "wind", region_id)
+                or p.coverage_mode != "regional_tile" or p.is_test_fixture or p.provider == "test-fixture"
+                or p.is_estimated or not p.is_forecast_authoritative
+                or p.model_run_time_status != "known" or not isinstance(p.model_run_time, datetime)
+                or p.model_run_time.tzinfo is None):
+            return False
+    return (a.model_run_time == b.model_run_time and _grids_compatible(a, b)
+            and all(abs(va.lat-vb.lat) < 1e-6 and abs(va.lng-vb.lng) < 1e-6
+                    for va, vb in zip(a.grid.vectors, b.grid.vectors)))

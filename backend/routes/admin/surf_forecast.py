@@ -30,6 +30,13 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "MID_RES_EXACT_TIME_ESTIMATE": ("0", "Prefer near-exact mid estimates over distant native frames using the shared time policy", "Local serving env; hosted lanes require owner approval"),
+    "LATTICE_FILL_AFTER_PILOTS": ("0", "Run one lattice pass after all selected core and pilot producers", "Local ingestion env; hosted lanes require owner approval"),
+    "LATTICE_REGIONAL_WIND_FILL": ("0", "Fill bounded regional wind gaps from verified native same-cycle brackets", "Local ingestion env; hosted lanes require owner approval"),
+    "EURO_MARINE_FALLBACK_CACHE_REUSE": ("0", "Reuse same-cycle NOAA cache for estimated EURO components when Copernicus is unavailable", "Local ingestion env; hosted lanes require owner approval"),
+    "MARINE_EMPTY_FRAME_FALLBACK": ("0", "Recover empty regional GFS frames from exact-time coarser stored GFS data with estimated provenance", "Local ingestion env; hosted lanes require owner approval"),
+    "NOAA_WAVE_INDEX_RETRY": ("0", "Bounded retry of transient or incomplete NOAA wave indexes before declaring a failed step", "Local ingestion env; hosted lanes require owner approval"),
+    "EURO_MARINE_LATTICE_VALIDATION": ("0", "Validate bounded EURO interpolation against matching native brackets", "Local ingestion env; hosted lanes require owner approval"),
     "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
     "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),

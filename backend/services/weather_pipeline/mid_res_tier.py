@@ -77,7 +77,12 @@ def _grid_span(product):
 
 def pick_mid_item(mid_auth, mid_est):
     """Authoritative mid first (native hours); else estimated mid (the mirror's blend/tail hours).
-    Within a class, smallest time-diff wins."""
+    Within a class, smallest time-diff wins. The local opt-in uses the shared
+    near-exact estimate policy while retaining native priority at native hours.
+    """
+    if os.environ.get("MID_RES_EXACT_TIME_ESTIMATE", "0") == "1":
+        from services.weather_pipeline.product_selection import select_best_candidate
+        return select_best_candidate(mid_auth, mid_est)
     for cands in (mid_auth, mid_est):
         if cands:
             return min(cands, key=lambda pair: pair[1])[0]

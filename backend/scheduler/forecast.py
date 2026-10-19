@@ -235,6 +235,13 @@ def ingest_marine_forecast_task():
             else:  # 'include' — historical single-cycle behavior (Render box, local dev)
                 jobs = core_jobs + pilot_jobs
 
+            if os.environ.get("LATTICE_FILL_AFTER_PILOTS", "0") == "1":
+                # A cold store has no mid/regional brackets during the core pass.
+                # Run exactly once after every producer selected for this cycle,
+                # including pilots-only runs. Default-off preserves hosted order.
+                jobs = [(name, job) for name, job in jobs if name != "Lattice In-Band Gap Fill"]
+                jobs.append(("Lattice In-Band Gap Fill", weather_scheduler.ingest_lattice_inband_fill))
+
             # Inter-job stagger lets the 1-CPU Render box settle (gc) between heavy jobs. The decoupled
             # GitHub runner (2 CPU, no serving contention) doesn't need it -> CI sets FORECAST_JOB_STAGGER_SEC=0
             # to shave ~4.5 min (9 jobs x 30s). Default 30 keeps Render behaviour unchanged.

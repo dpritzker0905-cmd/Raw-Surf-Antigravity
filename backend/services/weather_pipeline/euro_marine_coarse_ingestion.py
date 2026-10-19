@@ -237,12 +237,20 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
     )
 
     # 2. GFS swell/wind_waves fallback — reuses the GFS-marine-global fetch via cache (see note above)
-    gfs_results = await scheduler._fetch_or_mock(
-        "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
-        env["is_test_env"],
-        lambda: generate_mock_marine_results(scheduler.om_provider, global_region, resolution),
-        "global_coarse"
-    )
+    gfs_results = None
+    gfs_save_step = 3  # Open-Meteo hourly source -> three-hour products.
+    if (os.environ.get("EURO_MARINE_FALLBACK_CACHE_REUSE", "0") == "1"
+            and os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0"):
+        gfs_results = scheduler._gfs_coarse_marine_cache
+        if gfs_results:
+            gfs_save_step = 1  # NOAA cache is already three-hourly.
+    if not gfs_results:
+        gfs_results = await scheduler._fetch_or_mock(
+            "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_marine_results(scheduler.om_provider, global_region, resolution),
+            "global_coarse"
+        )
 
     if not euro_results and not gfs_results:
         logger.error("[Pipeline Scheduler] Both EURO and GFS marine global_coarse fetches failed. Skipping.")
@@ -316,7 +324,8 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
                 is_test_env=env["is_test_env"],
                 log_prefix=f"[Pipeline Scheduler] EURO {layer} (GFS fallback) global_coarse",
                 estimated_after_index=0,
-                estimate_basis=gfs_estimate_basis
+                estimate_basis=gfs_estimate_basis,
+                step=gfs_save_step
             )
             logger.info(f"[Pipeline Scheduler] Ingested {count} EURO {layer} (GFS fallback) global coarse grid files.")
             total_saved += count

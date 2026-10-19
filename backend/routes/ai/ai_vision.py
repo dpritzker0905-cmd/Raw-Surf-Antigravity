@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from .vision_schemas import PhotoAnalysis, BoardAnalysis, BoardCluePhotoAnalysis
 from services.openai_budget import reserve_openai_request
+from services.llm_transport import openai_connection
 
 logger = logging.getLogger(__name__)
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
@@ -79,7 +80,8 @@ def image_reference(image_data: str, is_base64: bool) -> str:
 
 
 async def _infer(image_data: str, is_base64: bool, schema, prompt: str) -> dict:
-    key = os.environ.get("OPENAI_API_KEY", "").strip()
+    connection = openai_connection()
+    key = connection.api_key
     if not key:
         raise HTTPException(503, "Image analysis is unavailable: provider is not configured")
     reference = image_reference(image_data, is_base64)
@@ -92,7 +94,7 @@ async def _infer(image_data: str, is_base64: bool, schema, prompt: str) -> dict:
         model = await reserve_openai_request(model, 2000)
         async with httpx.AsyncClient(timeout=httpx.Timeout(45, connect=10), follow_redirects=False) as client:
             response = await client.post(
-                "https://api.openai.com/v1/chat/completions",
+                connection.base_url + "/chat/completions",
                 headers={"Authorization": "Bearer " + key},
                 json={
                     "model": model,

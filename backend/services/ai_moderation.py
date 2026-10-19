@@ -8,6 +8,7 @@ import json
 import logging
 from dotenv import load_dotenv
 from services.openai_budget import reserve_openai_request, BudgetUnavailable
+from services.llm_transport import openai_connection
 
 load_dotenv()
 
@@ -52,11 +53,12 @@ async def moderate_review_content(review_text: str) -> dict:
         - error: str - error message if moderation failed
     """
 
-    api_key = os.environ.get('OPENAI_API_KEY')
+    connection = openai_connection()
+    api_key = connection.api_key
 
     if not api_key:
         # If no API key, default to approved (fail open)
-        logger.warning("No OPENAI_API_KEY configured — skipping AI moderation")
+        logger.warning("No OpenAI transport credential configured — skipping AI moderation")
         return {"approved": True, "reason": "", "error": "No API key configured"}
 
     # Skip moderation for very short reviews (likely just ratings)
@@ -66,7 +68,7 @@ async def moderate_review_content(review_text: str) -> dict:
     try:
         from openai import AsyncOpenAI
         model = await reserve_openai_request("gpt-4o", 100)
-        client = AsyncOpenAI(api_key=api_key, base_url="https://api.openai.com/v1", max_retries=0)
+        client = AsyncOpenAI(api_key=api_key, base_url=connection.base_url, max_retries=0)
         response = await client.chat.completions.create(
             model=model,
             messages=[

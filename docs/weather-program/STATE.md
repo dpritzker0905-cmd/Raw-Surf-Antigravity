@@ -1,6 +1,6 @@
 # Weather program: state
 
-**Updated 2026-10-18 01:41Z** (logs: `log/2026-10-12-wind-light-path.md` (light's margin: its colour-blind line held as the GPU draws it, ON by default, D-031), `log/2026-10-12-wind-map-through.md` (near-calm air, D-030; #325 merged and live), `log/2026-10-12-wind-trails-linger.md` (why light's and beach's trails linger and dark's come back to the field: the trail composite's two laws, read off the screen; dark's veil under their trails ON by default, D-029, a DRAFT; the bench's truth mode), `log/2026-10-12-wind-map-through.md` (the land a step above the sea under the wind, D-026 amended; seeing the map through the wind in light and beach: the coast in the borders' ink, the coastline through a theme change, D-028; a streak's anatomy by speed), `log/2026-10-12-wind-light-path.md` (the check of light and beach against dark's logic; light's field in dark's hue ORDER on two levels, its legend bar moved with it, ON by default, D-024; the solver that holds the colour-blind floor; dark's law in the instruments found wrong), `log/2026-10-12-wind-land-depth.md` (the land at the sea's depth under the wind, D-026; its stated reason corrected), `log/2026-10-12-wind-canvas-alpha.md` (the page behind the map showed through the wind in light: why light never matched its samples; the wind leaves the canvas opaque, ON by default, D-027; the bench lays each frame over the app's page; the probe's ground reads low in dark), `log/2026-10-12-wind-beach-path.md` (beach's wind field checked against dark's logic: lightness one way through its green band, its pale gale band under a ceiling, the colour-blind floor back above 5; option F, ON by default, D-025; the solver that holds the floor as a constraint), `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border, theme-switch and ground instruments; a theme change now leaves the new theme restyled; each theme's ground measured), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
+**Updated 2026-10-19 05:34Z** (logs: `log/2026-10-12-wind-light-path.md` (light's margin: its colour-blind line held as the GPU draws it, ON by default, D-031), `log/2026-10-12-wind-map-through.md` (near-calm air, D-030; #325 merged and live), `log/2026-10-12-wind-trails-linger.md` (why light's and beach's trails linger and dark's come back to the field: the trail composite's two laws, read off the screen; dark's veil under their trails ON by default, D-029, a DRAFT; the bench's truth mode), `log/2026-10-12-wind-map-through.md` (the land a step above the sea under the wind, D-026 amended; seeing the map through the wind in light and beach: the coast in the borders' ink, the coastline through a theme change, D-028; a streak's anatomy by speed), `log/2026-10-12-wind-light-path.md` (the check of light and beach against dark's logic; light's field in dark's hue ORDER on two levels, its legend bar moved with it, ON by default, D-024; the solver that holds the colour-blind floor; dark's law in the instruments found wrong), `log/2026-10-12-wind-land-depth.md` (the land at the sea's depth under the wind, D-026; its stated reason corrected), `log/2026-10-12-wind-canvas-alpha.md` (the page behind the map showed through the wind in light: why light never matched its samples; the wind leaves the canvas opaque, ON by default, D-027; the bench lays each frame over the app's page; the probe's ground reads low in dark), `log/2026-10-12-wind-beach-path.md` (beach's wind field checked against dark's logic: lightness one way through its green band, its pale gale band under a ceiling, the colour-blind floor back above 5; option F, ON by default, D-025; the solver that holds the floor as a constraint), `log/2026-10-12-wind-border-ink.md` (dark ink for the borders under the wind in light and beach, ON by default, D-023; the border, theme-switch and ground instruments; a theme change now leaves the new theme restyled; each theme's ground measured), `log/2026-10-11-wind-dark-white.md` (why light and beach did not mirror dark: the white by the ground under the mark, ON by default, D-022; the mirror instruments; light's colours read against dark's and parked), `log/2026-10-11-wind-pale-band.md` (the owner's verdict on #312; dark watched in motion; the white streak in light and beach, ON by default, D-021; #313; and a pale-band rule built and left unmerged), `log/2026-10-11-dark-rules-default.md` (dark's rules on light and beach, ON by default, D-020; #312), `log/2026-10-10-light-look-ab.md` (light's look A/B, default off: a deeper field + dark's streak method, or ink; #311), `log/2026-10-10-dark-style-light-beach.md` (dark's wind look for light and beach: the style columns, glow and ink behind default-off levers), `log/2026-10-10-light-fastband-a-default.md` (A, steady descent, is light's default wind field; D-018), `log/2026-10-10-wind-trail-anchor.md` (the wind's trails anchored to the map, #306), `log/2026-10-09-light-fastband-cvd.md` (three light fast-band redesigns that reach the colour-blind floor, default off; the design space and the per-gate report, #304), `log/2026-10-10-wind-bg-build-bounded.md` (the wind server amplifier: a full `gc.collect()` per background hour and the cancel cascade; a dark fix, #303), `log/2026-10-10-wind-eye-zoom-ladder.md` (the eye through a whole zoom: the tier mosaic, client; the storm-tile design for the server), `log/2026-10-10-closed-pr-audit.md` (what the 11 closed, unmerged PRs still owed: one fix ported, dropped records restored, two live map defects recorded), `log/2026-10-10-wind-series-supersede.md` (#300), `log/2026-10-09-wind-mute-app-stack.md` (#299), `log/2026-10-09-hrrr-wind-lane.md` (the HRRR wind lane by place and time, default on, D-017), `log/2026-10-09-hurricane-eye-one-model.md` (the eye's one-stop-zoom change: two models under the GFS label; dark `WIND_GRID_GFS_GLOBAL`), `log/2026-10-03-dev-rollout.md` (PR228 merged/live; hosted, schema and paired read-flow acceptance; broader audit remains open), `log/2026-10-03-oauth-time.md` (Strava authority and dark served-time comparison), `log/2026-10-03-audit-followup.md` (messaging authority, dark strict sim inputs and cache separation), `log/2026-10-03-audit-repairs.md` (local first repair batch, two before/two after;
 partial findings remain open), `log/2026-10-02-cached-product-guard.md` (one guard on the cached-product
 invariant; #223), `log/2026-10-02-consensus-flip-sweep.md` (consensus PR C: the displayed-catalogue
 sweep, built), `log/2026-10-01-far-zoom-max-thinning.md` (max thinning built dark, the drawn-grid
@@ -2346,7 +2346,57 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-  **Ledger head: seq 1399, sha256 4e11cdfaa11599faefa94a5a0c89c8e4646a1ebb6f818fef3171effadfecf1ea**
+  **Ledger head: seq 1433, sha256 7dd44575bceb1ecc78c67747280b5ca296708a21231424ada57c3e7b58f88e05**
+
+- **Local fresh-cycle verification, 2026-10-18:** all 23 conformed jobs returned true;
+  11,236 products validated, but coverage acceptance failed on 32 EURO mid-tier
+  and 112 regional wind slots. Native Copernicus access unavailable; three component
+  lanes populated as labelled GFS fallback. Terminal telemetry verified. Isolated
+  data only, aggregate paused, no deployment or new source repair. See
+  `../runbooks/LOCAL-FORECAST-FRESH-CYCLE-2026-10-18.md`; ledger 1422.
+
+- **Local lattice repair, 2026-10-18:** default-off ordering and regional-wind
+  controls implemented and armed only in the private launcher. Three intended
+  regressions reproduced; 205 tests passed. Read-only replay closed all 144
+  measured gaps with the original manifest unchanged. Fresh full cycle completed:
+  23 true returns, lattice once last, 11,376 usable products, zero coarse/mid/regional
+  cadence gaps, all 144 prior timestamps present. Store and raw-surf telemetry
+  verified. The two mid-tier API substitutions were subsequently fixed locally
+  with default-off MID_RES_EXACT_TIME_ESTIMATE, armed only in the isolated launcher.
+  70 focused tests passed; wind/marine grid and grid_series serve exact 15Z estimates
+  and preserve 12Z native controls. Eight frame checks, four finer-tier probes and
+  twelve core/component samples passed. Fresh whole-store scan still passes all
+  11,376 products with original manifest/content hashes unchanged. Raw-surf passing
+  post-repair audit, both route traces and 18 finite metrics samples read back.
+  Subsequent Marine authentication and targeted recovery now pass:17/17bands,
+  75native frames per component (225total), October18 18Z through October28 00Z.
+  Original dataset/hash preserved; independent copy remains11376usable products,
+  zero gaps;775EUROcontracts,15component API checks (grid/series/tail) and12core
+  samples pass. Raw-surf final audit/native spans and18finite metric samples per
+  worker/backend read back; source hashes stable. Later times remain labelled
+  estimates. Authenticated local backend8766running with entire scheduler paused;
+  superseded765server stopped. Read-only GitHub proof confirms PUBLIC repo,
+  standard scheduled runner and both credential secret names; completed run
+  39165080775reports17bands/75native+12tail percomponent. No GitHub changes or
+  dispatch, paid-service activation, new full multi-model cycle or deployment.
+  See `../runbooks/LOCAL-COPERNICUS-NATIVE-VERIFICATION-2026-10-18.md`; historical
+  lattice/mid-tier receipts preserved; ledger1428.
+
+- **Fresh authenticated full cycle, 2026-10-19: INCOMPLETE COVERAGE.** All23jobs
+  completed; lattice once last;11285present products usable;676EUROcontracts,
+  31coarser GFS recoveries and169existing regional lanes pass.39populated-slot API
+  checks pass, including both grid/series exact-time controls. Marine17/17bands
+  produced222native component frames. But94EURO post-native slots remain absent
+  (waves22; each component24): cached three-hourly NOAA data is thinned with
+  stride3 into nine-hour tails, beyond the lattice six-hour bracket cap. Baseline
+  defect confirmed; no repair or full-health acceptance claimed. Raw-surf terminal
+  audit correctly records incomplete coverage, exact store digests, all23related
+  job outcomes and finite metrics. Isolated8767healthy; scheduler paused after one
+  cycle; superseded8766not listening. Free forecast sources, Gateway off, no shared
+  data/hosted flags/merge/deploy. Publication on the separate codex branch uses
+  Netlify/Render skip markers; reconcile old-base source/ledger before adoption.
+  Separate Claude handoff updated; direct session messaging unavailable. Report
+  `../runbooks/LOCAL-AUTHENTICATED-FULL-CYCLE-2026-10-19.md`.
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
