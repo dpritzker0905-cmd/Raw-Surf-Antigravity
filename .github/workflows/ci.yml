@@ -1931,7 +1931,12 @@ jobs:
           # secret), STACKED on the default-deny guard PR: one new estate file adds 15 executed tests
           # (tests/test_ws_admin_events_internal_token.py) to that PR's projected 2280: 2295; 2295 - 2 = 2293.
           # _FLOOR_SET_FROM["estate"] -> 2295. Re-read from the hosted run of whichever PR merges second.
-          MIN_PASSED = 2293
+          # ⬆ 2293→2363 on 2026-10-18, IN THE SAME PR THAT CAUSES IT (route-identity batch 4, stacked on the
+          # admin events socket PR): the existing binding file adds 41 executed tests (13 named-actor routes x 3,
+          # plus 1 login-only route x 2) and one new estate file adds 29 (tests/test_admin_only_write_routes.py:
+          # 7 admin-only routes x 3, 2 bootstrap routes x 4) to that PR's projected 2295: 2365; 2365 - 2 = 2363.
+          # _FLOOR_SET_FROM["estate"] -> 2365. Re-read from the hosted run of whichever PR merges last.
+          MIN_PASSED = 2363
 
           try:
               root = ET.parse('estate.xml').getroot()
