@@ -479,11 +479,13 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3218, "chain": 2809, "estate": 2300}
+_FLOOR_SET_FROM = {"guards": 3255, "chain": 2809, "estate": 2305}
 # Gateway moderation: +4 estate tests (floor 2255->2259).
 # PR381: actual dev CI39142012113 at62d94f5f read2262; floor2260 keeps margin2.
 # Default-deny route identity guard: +18 estate tests (2262 -> 2280 projected; floor 2260 -> 2278, margin 2).
 # Admin events socket + internal broadcast secret (stacked): +15 estate tests (2280 -> 2295; floor 2293, margin 2).
+# #398 (--same-backend) added estate tests without moving the floor: dev CI 39331532690 @ 88e762fe read 2305; floor 2298 -> 2303, margin 2.
+# W-4 series page memo (#389): +37 guards tests in a new file (hosted 39259510389 read 3218 + 30; 3255 projected; floor 3212 -> 3249, files 207 -> 208, margin 6).
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))
