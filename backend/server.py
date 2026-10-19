@@ -482,6 +482,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from services.logfire_setup import configure_logfire
+configure_logfire(app)
+
 # GZip Compression — compress responses > 500 bytes (60-80% reduction for JSON)
 app.add_middleware(GZipMiddleware, minimum_size=500)
 

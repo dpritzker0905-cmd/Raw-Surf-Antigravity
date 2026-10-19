@@ -13,7 +13,7 @@ on:
   #   skips is reported MISSING, not passing, and blocks the branch permanently. `loc-check.yml`
   #   HAS such a filter and is therefore NOT required — see its header.
   push:
-    branches: [dev, main]
+    branches: [dev, main, codex/reconcile-euro-dev-20261019]
   pull_request:
     branches: [dev, main]
 
@@ -1931,7 +1931,7 @@ jobs:
           # secret), STACKED on the default-deny guard PR: one new estate file adds 15 executed tests
           # (tests/test_ws_admin_events_internal_token.py) to that PR's projected 2280: 2295; 2295 - 2 = 2293.
           # _FLOOR_SET_FROM["estate"] -> 2295. Re-read from the hosted run of whichever PR merges second.
-          MIN_PASSED = 2293
+          MIN_PASSED = 2374
 
           try:
               root = ET.parse('estate.xml').getroot()

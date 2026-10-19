@@ -263,6 +263,14 @@ def _select_ranges(idx_rows):
     return selected
 
 
+def _fetch_selected_index(client, url):
+    try:
+        from _noaa_wave_index import fetch_selected_index
+    except ImportError:
+        from services._noaa_wave_index import fetch_selected_index
+    return fetch_selected_index(client, url, HTTP_TIMEOUT, len(OM_ORDER), _select_ranges, _parse_idx)
+
+
 def _fetch_message_bytes(requests, url, start, end):
     rng = f"bytes={start}-{end}" if end is not None else f"bytes={start}-"
     r = requests.get(url, headers={"Range": rng}, timeout=HTTP_TIMEOUT)
@@ -428,10 +436,7 @@ def fetch_global_coarse(payload):
         url = f"{prefix}f{f:03d}.grib2"
         out = tmp / f"gfswave_{uuid.uuid4().hex}.grib2"
         try:
-            idx_txt = requests.get(url + ".idx", timeout=HTTP_TIMEOUT).text
-            selected = _select_ranges(_parse_idx(idx_txt))
-            if len(selected) != len(OM_ORDER):
-                raise RuntimeError(f"idx missing wave messages (got {len(selected)}/{len(OM_ORDER)})")
+            selected = _fetch_selected_index(requests, url)
             with open(out, "wb") as fh:
                 for _om, (start, end) in selected:
                     fh.write(_fetch_message_bytes(requests, url, start, end))

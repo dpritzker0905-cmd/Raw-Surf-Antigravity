@@ -479,7 +479,7 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3218, "chain": 2733, "estate": 2295}
+_FLOOR_SET_FROM = {"guards": 3218, "chain": 2733, "estate": 2376}
 # Gateway moderation: +4 estate tests (floor 2255->2259).
 # PR381: actual dev CI39142012113 at62d94f5f read2262; floor2260 keeps margin2.
 # Default-deny route identity guard: +18 estate tests (2262 -> 2280 projected; floor 2260 -> 2278, margin 2).
