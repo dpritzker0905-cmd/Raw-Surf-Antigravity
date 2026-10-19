@@ -1,8 +1,8 @@
 /**
  * WebGLMarineParticleShaders.js
- * Ocean GPU v2 — GLSL Shaders for the particle advection and drawing layers.
- * Extracted from WebGLMarineShaders.js for code modularity and LOC compliance.
+ * Ocean GPU v2 — GLSL Shaders for the particle advection and drawing layers (extracted from WebGLMarineShaders.js).
  */
+import { WAVE_SET_GLSL } from './waveSetScreenBound';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -358,7 +358,7 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_motionUnlock;      // §4.2 motion-unlock — see ADVECT_FS; 0 = legacy .r-only land checks
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
-uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
+uniform float u_orbitalPitch; ${WAVE_SET_GLSL}       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
 uniform float u_dirCoherenceMin;    // coherence floor on the BILINEAR |waveVec| (measured before the nearest override; matches ADVECT_FS) — dims divergent-cell seam strips. 0 = off.
 uniform float u_seamFadeFloor;      // alpha FLOOR of the seam fade (2026-07-03): crests in incoherent-direction zones dim to this, never vanish — a dead ocean at divergence hotspots (Baja) reads as a bug; a dimmed one reads as low confidence.
 uniform float u_farzoomSizeFloor;   // U3: crest size scale at far zoom (0.55 default; 0.4 = legacy). smoothstep(2,12,z) ramps from this floor to 1.
@@ -648,7 +648,7 @@ void main() {
   if (u_orbitalPitch > 0.0001) {
     float mp = waveData.a * 20.0;
     float pv = mp > 0.5 ? mp : (6.0 + waveHeight * 2.0);
-    float sf = clamp(800.0 / max(36.0, pv * pv), 3.0, 25.0);
+    float sf = screenBoundedSetFreq(clamp(800.0 / max(36.0, pv * pv), 3.0, 25.0), (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));
     float ts = (u_time * u_motion_scale) / max(2.0, pv);
     float orbPhase = fract(dot(global_pos, dir) * sf - ts) * 6.28318530718;
     pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;
@@ -672,7 +672,7 @@ void main() {
   v_period_norm = periodNorm;
 
   float spatialFreq = 800.0 / max(36.0, periodVal * periodVal);
-  spatialFreq = clamp(spatialFreq, 3.0, 25.0);
+  spatialFreq = screenBoundedSetFreq(clamp(spatialFreq, 3.0, 25.0), (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));   // >= 3 sets in view (waveSetScreenBound.js)
 
   // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
   // All ribbons in the same wave train advance at the same rate.
