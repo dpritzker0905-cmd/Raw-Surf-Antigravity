@@ -72,3 +72,7 @@ The authenticated primary path reuses the three-hourly NOAA cache, then applies 
 ## Publication preparation
 
 After terminal evidence and remote readback, one trailing blank line was removed from the extracted NOAA helper. Its AST is identical; the private whitespace proof preserves both source hashes and the incomplete validation status. All 95 affected regressions passed again in 5.25 seconds. The local interpreter reports two declared packages absent, so local results are not CI or production environment parity. No semantic repair of the 94-slot tail failure was made.
+
+## Source publication
+
+Published source: [f46b103d3c4c17787cca31a59a422821023fe81a](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/commit/f46b103d3c4c17787cca31a59a422821023fe81a) on `codex/logfire-forecast-local-20261018`. Remote SHA matched local HEAD at 2026-10-19T05:38:44.627930+00:00. The commit includes both deployment-skip markers. No PR or merge was created. GitHub returned zero deployment records for this SHA and no commit-status contexts; hosted CI remains unrun. The repository pre-commit secret scanner found no leaks; an in-memory comparison against known local credential values also found no staged matches. Subsequent closeout changes contain documentation/ledger records only. The 94-slot coverage failure remains open.
