@@ -7,3 +7,5 @@ Focused local run:101passed,1failed solely because this older local interpreter 
 Claude separate handoff updated; audit untouched. CI outcome pending.
 
 CI39299303584 floor gate refused missing history on the new branch. Corrected only this integration branch to explicitly compare against dev using the existing --branch option; other branches retain own/base history and refusal behavior. CI rerun required; no merge while pending.
+
+Correction from actual CI39299680910: all tests passed. Estate2300passed; incorrect2374floor was a lane-allocation projection error. Of81newcases,76are chain-owned (chain2809passed/169files),5estate-owned (2300passed). Measured floors: chain2803/margin6/files169; estate2298/margin2. Guards3218passed/207files unchanged. No test skipped or removed to fit floors. All other11jobs passed. New exact-head CI required.
