@@ -15,6 +15,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme }) {
   let instantMs = null;   // what a fetch for the selected hour asks for now: the app's own hour -> instant mapping (read-only)
   try { instantMs = Date.parse(getSharedValidTime(hour, layer, model, { readOnly: true })); } catch (e) { instantMs = null; }
   const readout = readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs }, drawn);
+  if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs };   // instruments compare by instant
 
   const readStatus = useCallback(() => {
     if (typeof window === 'undefined') return 'unknown';

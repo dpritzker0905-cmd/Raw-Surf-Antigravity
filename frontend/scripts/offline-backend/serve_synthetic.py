@@ -81,6 +81,65 @@ def tiers_for(model, layer):
     return TIERS
 
 
+ICON_WIND_NATIVE_HOURS = 180
+
+
+def wind_field(lat, lng, h):
+    """Synthetic 10 m wind (knots, meteorological FROM direction): trades/westerlies by latitude plus a cyclonic vortex
+    on the SAME known track as the wave storm (vortex_center), so the lab has a truth for both field and particle motion."""
+    zonal = -12.0 * math.cos(math.radians(lat * 3.0))            # east wind (negative u) in the trades, west wind in mid-latitudes
+    u_kn, v_kn = zonal, 2.0 * math.sin(math.radians(lng))
+    clat, clng = vortex_center(h)
+    dlat, dlng = lat - clat, ((lng - clng + 180.0) % 360.0 - 180.0) * math.cos(math.radians(lat))
+    r = math.hypot(dlat, dlng)
+    if r > 1e-6:
+        vt = 60.0 * (r / 1.5) * math.exp(1.0 - r / 1.5) if r < 12.0 else 0.0   # Rankine-like profile, 60 kn at 1.5 deg
+        sign = 1.0 if lat >= 0 else -1.0                             # counter-clockwise in the northern hemisphere
+        u_kn += -sign * vt * dlat / r
+        v_kn += sign * vt * dlng / r
+    speed = math.hypot(u_kn, v_kn)
+    direction = (math.degrees(math.atan2(-u_kn, -v_kn)) + 360.0) % 360.0   # FROM, as the normalizer writes it
+    return round(speed, 3), round(direction, 1), round(u_kn, 4), round(v_kn, 4)
+
+
+def wind_provider_fields(model, estimated):
+    """Mirrors the production manifest (read 2026-10-19)."""
+    if model == "ICON":
+        return {"provider": "open-meteo", "upstream_provider": "dwd",
+                "source_dataset": "icon_loop_extrapolation" if estimated else "dwd_icon"}
+    if model == "EURO":
+        if estimated:
+            return {"provider": "estimated", "upstream_provider": None, "source_dataset": "estimated_interpolation"}
+        return {"provider": "open-meteo", "upstream_provider": "ecmwf", "source_dataset": "ecmwf_ifs"}
+    return {"provider": "open-meteo", "upstream_provider": "noaa", "source_dataset": "gfs_seamless"}
+
+
+def wind_product_dict(run_time, valid_time, h, filename, region_id, bounds, res, model, estimated):
+    rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
+    cols = int(round((bounds["east"] - bounds["west"]) / res)) + 1
+    vectors = []
+    for r in range(rows):
+        lat = round(bounds["south"] + r * res, 4)
+        for c in range(cols):
+            lng = round(bounds["west"] + c * res, 4)
+            speed, direction, u, v = wind_field(lat, lng, h)
+            vectors.append({"lat": lat, "lng": lng, "speed": speed, "direction": direction, "u": u, "v": v, "is_valid": True})
+    iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    body = {
+        "model": model, "domain": "wind", "layer": "wind",
+        "run_time": iso(run_time), "model_run_time": iso(run_time), "model_run_time_status": "known",
+        "ingested_at": iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
+        "is_forecast_authoritative": not estimated, "is_estimated": estimated, "estimate_basis": None,
+        "coverage": COVERAGE,
+        "grid": {"bounds": dict(bounds), "cols": cols, "rows": rows, "vectors": vectors, "diagnostics": {"source": "stored"}},
+        "value_kind": "wind_speed", "value_unit": "kn", "display_unit_hint": "kn",
+        "product_id": filename, "source_variables": ["wind_speed_10m", "wind_direction_10m"], "freshness_sec": 3600,
+        "region_id": region_id, "coverage_mode": "global_tile", "resolution": None,
+    }
+    body.update(wind_provider_fields(model, estimated))
+    return body
+
+
 def layer_field(layer, hs, direction, period, lat, lng, h):
     """Distinct synthetic partitions so a wrong-layer frame is detectable on screen (heights in m)."""
     if layer == "swell_1":
@@ -185,7 +244,16 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
         for model in models:
             estimated = ((model == "ICON" and lead > timedelta(hours=ICON_NATIVE_HOURS))
                          or (model == "EURO" and lead > timedelta(hours=EURO_NATIVE_HOURS)))
-            for layer in layers:
+            if "wind" in layers:
+                w_est = ((model == "ICON" and lead > timedelta(hours=ICON_WIND_NATIVE_HOURS))
+                         or (model == "EURO" and lead > timedelta(hours=EURO_NATIVE_HOURS)))
+                for region_id, bounds, res, _stem in TIERS:
+                    suffix = "_estimated" if w_est else ""
+                    filename = f"{model.lower()}_wind_wind_{region_id}_{stamp}{suffix}.json"
+                    body = wind_product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, w_est)
+                    (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+                    entries.append(manifest_entry(body, filename, res))
+            for layer in (x for x in layers if x != "wind"):
                 if (model == "EURO" and layer == "waves" and not estimated
                         and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6):
                     continue      # the 6-hourly WAM band: no stored frame at this 3-h slot (production fills it server-side)
@@ -210,7 +278,7 @@ def main():
     ap.add_argument("--horizon", type=int, default=336)
     ap.add_argument("--step", type=int, default=3)
     ap.add_argument("--models", default="GFS,ICON")
-    ap.add_argument("--layers", default="waves", help="comma list of waves,swell_1,swell_2,wind_waves")
+    ap.add_argument("--layers", default="waves", help="comma list of waves,swell_1,swell_2,wind_waves,wind")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
 
