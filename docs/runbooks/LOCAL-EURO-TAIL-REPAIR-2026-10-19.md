@@ -83,3 +83,7 @@ Private evidence is retained under `.logfire/euro-tail-full-cycle-20261019T14424
 Final audit ID: `35558c2c-839d-497c-9a94-b19b52394bc1`. Native cycle trace: `01a1549de5d6110889dacaf60d177f50`. Serving instance: `local-logfire-37f63299-ac0f-4864-b765-4db67f12efde`.
 
 Serving source snapshot SHA-256: `23d8517649e4f7fe9d373a260c97de0d539df1e24813b1e4142e9cd1eb82958e`. Full product content digest equals the pre-serving-repair digest. All 11 local terminal gates passed; fatal lint, 690-file size governance, unchanged 215-route auth baseline and 702-file test-lane partition passed. Docs audit: 0 failures, 22 existing warnings, 21 notes. The first final audit query preceded indexing; retry matched the same audit ID without another export.
+
+## Publication receipt
+
+Source and qualification commit: `c2a00541f67a44030051a3b2c2e08bc6db37e948`, pushed normally to `codex/logfire-forecast-local-20261018`; exact remote-head readback matched. Both deployment-skip markers are present. GitHub readback at publication: 0 deployment records and no Actions runs for this source SHA; this is not hosted CI qualification or an independent hosting-dashboard audit. Pre-commit secret scan found no leaks; 15 staged paths matched the explicit allowlist, staged Python ASTs matched the qualified serving source, and known-local-credential comparison found no matches. Credentials, products and raw logs remain private/untracked. A documentation-only closeout follows; its final SHA is recorded in the separate Claude handoff and private publication receipt. No merge, PR or deployment.

@@ -2361,7 +2361,7 @@ is a claim, not a measurement.
   separate handoff updated without audit edits; no hosted flag/shared store change or deployment.
   Report `docs/runbooks/LOCAL-EURO-TAIL-REPAIR-2026-10-19.md`.
 
-  **Ledger head: seq 1444, sha256 fa4626452e11afeb8618e9643d5e8258e3eaef4ffe95460bbbcbdd54be29e8d8**
+  **Ledger head: seq 1445, sha256 8ebb6ba7bf61fbf484c9ffe10c55f2d07fd127dd2a182c5ec3cd9570c8483454**
 
 - **Local fresh-cycle verification, 2026-10-18:** all 23 conformed jobs returned true;
   11,236 products validated, but coverage acceptance failed on 32 EURO mid-tier
