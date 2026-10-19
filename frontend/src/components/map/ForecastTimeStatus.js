@@ -14,7 +14,10 @@ export default function ForecastTimeStatus({ model, layer, hour, theme }) {
   const readoutOff = typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_FRAME_READOUT__ === true;
   let instantMs = null;   // what a fetch for the selected hour asks for now: the app's own hour -> instant mapping (read-only)
   try { instantMs = Date.parse(getSharedValidTime(hour, layer, model, { readOnly: true })); } catch (e) { instantMs = null; }
-  const readout = readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs }, drawn);
+  // Half the stored marine lattice step (3-hourly; EURO WAM 6-hourly past 144 h): a frame further off is an exact upgrade
+  // still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
+  const nearestMaxHours = model === 'EURO' && hour > 144 ? 3 : 1;
+  const readout = readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, nearestMaxHours }, drawn);
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs };   // instruments compare by instant
 
   const readStatus = useCallback(() => {
