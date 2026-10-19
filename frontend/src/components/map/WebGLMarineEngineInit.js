@@ -16,6 +16,7 @@ import {
 } from './WebGLMarineTextureEncoder';
 import { recordChurn } from './marineTransitionCoordinator';
 import { createProgramBatch } from './WebGLProgramBatch';
+import { freeMaskStash } from './maskTextureStash';
 
 // --- Particle Texture Init Helper ---
 export function initParticleTexture(gl, resolution) {
@@ -262,6 +263,7 @@ export function disposeEngine(engine, gl) {
   // per dispose cycle in rating mode, and a stale handle survived into the next context.
   safeDeleteTexture(gl, engine._residentScoreTex, null);
   safeDeleteTexture(gl, engine._cachedMaskTex, null);
+  freeMaskStash(gl, engine); // the second mask-cache entry (maskTextureStash.js)
   safeDeleteTexture(gl, engine._overlayMaskTex, null);
 
   engine._residentWaveTex = null;

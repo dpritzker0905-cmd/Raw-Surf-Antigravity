@@ -2,6 +2,7 @@ import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } 
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { applyPatchCarry } from './maskSmoothing';
 import { maskCoversWorldFrame } from './maskCoverReuse';
+import { takeMaskStash, stashResidentMask, installStashedMask, releaseSwappedMask } from './maskTextureStash';
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
 import {
   getEncoderScratchBuffers,
@@ -665,7 +666,10 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
             window.__RAW_MASK_RETAIN_UPGRADE_REBUILD__ = (window.__RAW_MASK_RETAIN_UPGRADE_REBUILD__ || 0) + 1;
           }
         }
-        if (engine && engine._cachedMaskTex) {
+        // MASK STASH (maskTextureStash.js): a rebuild for bounds the one-slot stash holds swaps that texture back in, and the
+        // outgoing resident takes the slot instead of being deleted. Kill: window.__RAW_DISABLE_MASK_STASH__ = true.
+        const _stashed = takeMaskStash(engine, effectiveGeoJSON, bounds);
+        if (engine && engine._cachedMaskTex && !stashResidentMask(gl, engine, landGeoJSON)) {
           gl.deleteTexture(engine._cachedMaskTex);
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {
             window.__RAW_GPU__.textureCount--;
@@ -678,7 +682,8 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           engine._cachedMaskTex = null;
           engine._cachedMaskTexDims = null;
         }
-        try {
+        if (_stashed) maskTex = installStashedMask(engine, _stashed);
+        else try {
           const maskCanvas = renderMaskToCanvas(effectiveGeoJSON, bounds);
           // PATCH CARRY-FORWARD (2026-07-06, "bays flicker on rapid zoom"): a rebuild paints
           // NE-only truth and the basemap-water repatch is async (throttled + tile-gated —
@@ -766,6 +771,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       } catch (e) { /* best-effort cleanup */ }
     }
     if (engine && !standalone) {
+      releaseSwappedMask(gl, engine); // a texture swapped in from the mask stash belongs to no allocation list
       engine._residentWaveTex = null;
       engine._residentChlTex = null;
       engine._residentBathTex = null;
