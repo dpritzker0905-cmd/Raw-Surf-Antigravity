@@ -79,6 +79,8 @@ jobs:
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # --same-backend compares the served commit's backend with HEAD's (needs history)
 
       - name: Wait for the Netlify dev preview to serve THIS commit
         if: github.event_name == 'push'
@@ -157,7 +159,9 @@ jobs:
         if: github.event_name == 'push'
         env:
           API: https://raw-surf-antigravity.onrender.com
-        run: python3 backend/scripts/e2e_backend_ready.py "$(git rev-parse HEAD)" "$API" 60 15
+        # --same-backend: Render's build filter skips frontend-only and docs-only commits, so a box still on an earlier commit
+        # with the SAME backend code (same newest commit outside RENDER_IGNORED_PATHS) is current. A backend change still waits.
+        run: python3 backend/scripts/e2e_backend_ready.py "$(git rev-parse HEAD)" "$API" 60 15 --same-backend
 
       - name: Run E2E tests
         # Stop the test step before the job bound so always() can retain failure traces.
