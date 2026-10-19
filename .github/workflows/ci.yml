@@ -1933,7 +1933,10 @@ jobs:
           # secret), STACKED on the default-deny guard PR: one new estate file adds 15 executed tests
           # (tests/test_ws_admin_events_internal_token.py) to that PR's projected 2280: 2295; 2295 - 2 = 2293.
           # _FLOOR_SET_FROM["estate"] -> 2295. Re-read from the hosted run of whichever PR merges second.
-          MIN_PASSED = 2298
+          # ⬆ 2298→2303 on 2026-10-19, owed by #398 (e2e_backend_ready --same-backend added estate tests and did not move
+          # the floor): hosted dev CI 39331532690 @ 88e762fe observed 2305 passed; 2305 - 2 = 2303, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2305. Carried in #389 because its floor-staleness check caught it.
+          MIN_PASSED = 2303
 
           try:
               root = ET.parse('estate.xml').getroot()
