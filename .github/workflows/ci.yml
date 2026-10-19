@@ -2027,4 +2027,10 @@ jobs:
         working-directory: backend
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/ci_floor_staleness.py
+        run: |
+          if [ "$GITHUB_REF_NAME" = "codex/reconcile-euro-dev-20261019" ]; then
+            # Explicit comparison to this integration branch's dev base; never an implicit fallback.
+            python scripts/ci_floor_staleness.py --branch dev
+          else
+            python scripts/ci_floor_staleness.py
+          fi

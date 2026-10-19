@@ -5,3 +5,5 @@ Base: 9a68b49a4. Source fixes from c2a00541f and prerequisites from f46b103d wer
 Focused local run:101passed,1failed solely because this older local interpreter lacks pydantic_ai; the failing Gateway test and source are unchanged from dev. Environment parity warning:1pin differs,4packages absent. Hosted CI is required and will install declared dependencies. Estate projection2295+81=2376, floor2374; other lanes unchanged. CI push trigger includes only this isolated reconciliation branch, enabling full CI without a PR or deployment. Both deployment skips will be on the commit. No merge/deploy or scientific acceptance. Prior11376product/251API qualification belongs to the older source; it has not been rerun against reconciled source.
 
 Claude separate handoff updated; audit untouched. CI outcome pending.
+
+CI39299303584 floor gate refused missing history on the new branch. Corrected only this integration branch to explicitly compare against dev using the existing --branch option; other branches retain own/base history and refusal behavior. CI rerun required; no merge while pending.
