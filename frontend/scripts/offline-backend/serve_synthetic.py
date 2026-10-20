@@ -34,6 +34,34 @@ COARSE_RES = 10.0
 # product the resolver takes the DYNAMIC-VIEWPORT path, which asks Open-Meteo upstream (and stalls on a dead proxy).
 TIERS = (("global_mid", WORLD, RES, "gfs_marine_waves_global_mid_"),
          ("global_coarse", COARSE, COARSE_RES, "gfs_marine_waves_global_coarse_"))
+# REGIONAL 0.25-deg TILES (2026-10-19). Production also stores per-region regional_tile products (the pilots' boxes in
+# backend/services/weather_pipeline/pilot_regions.py, read from there so the fixture cannot drift from the ingest). Without them
+# every frame here carried world bounds and the client's land mask was always REUSED, which hid the per-switch 4096 x 2048 mask
+# rebuilds the owner's console showed (`--regions florida_east_coast,us_southeast_midatlantic`, or `flagship` / `all`).
+REGIONAL_RES = 0.25
+
+
+def regional_tiers(region_ids):
+    """(region_id, bounds, resolution, stem) for each named pilot region, bounds and resolution taken from pilot_regions."""
+    if not region_ids:
+        return ()
+    sys.path.insert(0, str(BACKEND))
+    from services.weather_pipeline.pilot_regions import REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS
+    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+    if region_ids == ("all",):
+        region_ids = tuple(known)
+    elif region_ids == ("flagship",):
+        region_ids = tuple(REGIONAL_CONFIGS)
+    out = []
+    for rid in region_ids:
+        if rid not in known:
+            raise SystemExit("unknown region %r (pilot_regions has %s)" % (rid, ", ".join(sorted(known))))
+        cfg = known[rid]
+        bounds = {k: float(cfg[k]) for k in ("west", "south", "east", "north")}
+        out.append((rid, bounds, float(cfg.get("resolution", REGIONAL_RES)), "_%s_" % rid))
+    return tuple(out)
+
+
 # The synthetic hurricane: where it truly is at hour h after the first frame (degrees). Tests read this back.
 VORTEX_LAT0, VORTEX_LNG0, VORTEX_DLAT, VORTEX_DLNG = 14.0, -106.0, 0.05, -0.08
 
@@ -70,15 +98,16 @@ SCALE = {"GFS": 1.0, "ICON": 0.92, "EURO": 1.06}
 LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
 
 
-def tiers_for(model, layer):
+def tiers_for(model, layer, regions=()):
     """Stored tiers per (model, layer), mirroring the production manifest (read 2026-10-19): GFS has every layer at
     global_mid + global_coarse; ICON has no swell_2 product (the client blends GFS/EURO); EURO waves (ECMWF WAM) has
-    both tiers while swell_1 / swell_2 / wind_waves are Copernicus CMEMS at global_coarse ONLY."""
+    both tiers while swell_1 / swell_2 / wind_waves are Copernicus CMEMS at global_coarse ONLY. Regional tiles (when asked
+    for) follow the same per-layer availability: every GFS layer, ICON without swell_2, EURO waves only."""
     if model == "ICON" and layer == "swell_2":
         return ()
     if model == "EURO" and layer != "waves":
         return tuple(t for t in TIERS if t[0] == "global_coarse")
-    return TIERS
+    return TIERS + tuple(regions)
 
 
 ICON_WIND_NATIVE_HOURS = 180
@@ -208,11 +237,12 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
         "is_forecast_authoritative": not estimated, "is_estimated": estimated,
         "estimate_basis": (estimate_basis(valid_time, region_id, run_time) if model == "ICON" else
                            {"type": "gfs_estimated_fallback", "layer": layer}) if estimated else None,
-        "coverage": COVERAGE,
+        "coverage": COVERAGE if bounds["east"] - bounds["west"] >= 350.0 else dict(bounds),
         "grid": {"bounds": dict(bounds), "cols": cols, "rows": rows, "vectors": vectors, "diagnostics": {"source": "stored"}},
         "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft",
         "product_id": filename, "source_variables": ["wave_height"], "freshness_sec": 1800 if estimated else 3600,
-        "region_id": region_id, "coverage_mode": "global_tile", "resolution": None,
+        "region_id": region_id, "resolution": None,
+        "coverage_mode": "global_tile" if bounds["east"] - bounds["west"] >= 350.0 else "regional_tile",
     }
     body.update(provider_fields(model, estimated, layer))
     return body
@@ -228,7 +258,54 @@ def manifest_entry(body, filename, res, bounds_unused=None):
     return entry
 
 
-def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON"), layers=("waves",)):
+def synthetic_upstream_points(lats, lons, first, forecast_days, layer_keys=True):
+    """Open-Meteo-shaped raw points (one dict per coordinate, hourly arrays from the store's first frame) for the DYNAMIC
+    viewport lane. Production answers a narrow viewport (< 15 deg) by fetching THAT viewport from Open-Meteo at an adaptive
+    resolution (viewport_service.fetch_viewport_grid_upstream), so every zoom / pan commits a grid with its own bounds. Offline
+    that fetch is blocked and the resolver fell back to a 2-deg clip the client short-circuits, which hid every regional mask
+    rebuild. The same synthetic field() answers it here, so the lane's own normalizer, cache keys and bounds run unchanged."""
+    hours = max(24, int(forecast_days) * 24)
+    times = [(first + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(hours)]
+    units = {k: u for base in ("wave", "swell_wave", "wind_wave", "secondary_swell_wave")
+             for k, u in ((base + "_height", "m"), (base + "_direction", "deg"), (base + "_period", "s"))}
+    out = []
+    for lat, lng in zip(lats, lons):
+        hourly = {"time": times}
+        for key in units:
+            hourly[key] = []
+        for h in range(hours):
+            hs, direction, period = field(lat, lng, h)
+            for prefix, layer in (("wave", "waves"), ("swell_wave", "swell_1"), ("wind_wave", "wind_waves"),
+                                  ("secondary_swell_wave", "swell_2")):
+                lh, ld, lp = layer_field(layer, hs, direction, period, lat, lng, h)
+                hourly[prefix + "_height"].append(lh)
+                hourly[prefix + "_direction"].append(ld)
+                hourly[prefix + "_period"].append(lp)
+        out.append({"latitude": lat, "longitude": lng, "hourly_units": dict(units), "hourly": hourly})
+    return out
+
+
+def install_synthetic_upstream(first):
+    """Route the dynamic lane's marine fetches (Open-Meteo for GFS / ICON, Copernicus for EURO) to synthetic_upstream_points.
+    Wind and anything else keep failing fast on the blocked name lookup, as before."""
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
+    om_fetch = OpenMeteoProvider.fetch_grid
+
+    async def om_fetch_grid(self, model, domain, layer, bbox, resolution=0.25, forecast_days=2, precomputed_coords=None, **kw):
+        if str(domain).lower() != "marine":
+            return await om_fetch(self, model, domain, layer, bbox, resolution, forecast_days, precomputed_coords, **kw)
+        lats, lons = precomputed_coords or OpenMeteoProvider.generate_grid_coords(bbox, resolution)
+        return synthetic_upstream_points(lats, lons, first, min(forecast_days, 7 if str(model).upper() != "GFS" else 16))
+
+    async def cop_fetch_grid(self, layer, bbox, resolution=0.25, forecast_days=3, precomputed_coords=None, valid_time=None):
+        lats, lons = precomputed_coords or OpenMeteoProvider.generate_grid_coords(bbox, resolution)
+        return synthetic_upstream_points(lats, lons, first, forecast_days)
+    OpenMeteoProvider.fetch_grid = om_fetch_grid
+    CopernicusProvider.fetch_grid = cop_fetch_grid
+
+
+def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON"), layers=("waves",), regions=()):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     now = now or datetime.now(timezone.utc)
@@ -257,17 +334,18 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
                 if (model == "EURO" and layer == "waves" and not estimated
                         and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6):
                     continue      # the 6-hourly WAM band: no stored frame at this 3-h slot (production fills it server-side)
-                for region_id, bounds, res, _stem in tiers_for(model, layer):
+                for region_id, bounds, res, _stem in tiers_for(model, layer, regions):
                     suffix = "_estimated" if estimated else ""
                     filename = f"{model.lower()}_marine_{layer}_{region_id}_{stamp}{suffix}.json"
                     body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated, layer)
                     (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
                     entries.append(manifest_entry(body, filename, res))
+    (directory / "store_meta.json").write_text(json.dumps({"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ")}), encoding="utf-8")
     (directory / "manifest.json").write_text(
         json.dumps({"last_manifest_update": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": entries}),
         encoding="utf-8")
     return {"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"), "frames": n, "models": list(models), "layers": list(layers),
-            "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ")}
+            "regions": [r[0] for r in regions], "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ")}
 
 
 def main():
@@ -279,6 +357,9 @@ def main():
     ap.add_argument("--step", type=int, default=3)
     ap.add_argument("--models", default="GFS,ICON")
     ap.add_argument("--layers", default="waves", help="comma list of waves,swell_1,swell_2,wind_waves,wind")
+    ap.add_argument("--regions", default="", help="comma list of pilot_regions ids (0.25-deg regional tiles), or flagship / all")
+    ap.add_argument("--dynamic", choices=["0", "1"], default="0",
+                    help="1 = answer the dynamic viewport lane (narrow zooms) with the synthetic field instead of failing it")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
 
@@ -303,8 +384,11 @@ def main():
     sys.path.insert(0, str(BACKEND))
     os.chdir(BACKEND)
 
-    meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(',')),
-                       layers=tuple(x.strip() for x in args.layers.split(',') if x.strip())) if not (Path(args.dir) / "manifest.json").exists() else {"reused": True}
+    meta = {"reused": True}
+    if not (Path(args.dir) / "manifest.json").exists():
+        meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(',')),
+                           layers=tuple(x.strip() for x in args.layers.split(',') if x.strip()),
+                           regions=regional_tiers(tuple(x.strip() for x in args.regions.split(',') if x.strip())))
     print(json.dumps({"store": meta, "thin_bounds": args.thin_bounds}), flush=True)
     if args.build_only:
         return
@@ -313,6 +397,10 @@ def main():
     from routes import weather                               # noqa: E402
     from services.weather_pipeline.store import ProductStore  # noqa: E402
     weather.store = ProductStore(cache_dir=Path(args.dir))
+    if args.dynamic == "1":
+        first = datetime.strptime(json.loads((Path(args.dir) / "store_meta.json").read_text(encoding="utf-8"))["first_valid"],
+                                  "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+        install_synthetic_upstream(first)
     import uvicorn                                           # noqa: E402
     uvicorn.run(app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
 
