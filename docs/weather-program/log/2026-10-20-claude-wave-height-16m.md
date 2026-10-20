@@ -186,3 +186,14 @@ The owner, in this session at 16:17Z, on the A/B page and #415 at `78bd7a2b1`: "
 `decision` and `push` lines (the push fulfils 1544, the owner-verdict commitment) and a new commitment for the read-back after the
 merge. #415 marked ready for review; NOT merged (merging is the owner's separate word). The float height texture (R16F) follow-up
 is running in its own session (task started by the owner from the proposal card).
+
+## 17:26Z: merged and served
+
+The owner, 16:47Z: "CI on #415 is green: check it once, squash-merge #415 into dev, and record the pr_merge line." Checked once:
+17 hosted checks pass (3 Netlify rule checks skipped), `mergeStateStatus` CLEAN, dev unchanged at `26385e031`. GitHub refused
+auto-merge (not allowed on this repository), so the merge was by hand: squash-merged 16:52:03Z as `9c6d5ebb0`, pinned to the
+tested head `eeb6fd775` (`--match-head-commit`); dev's tree equals that head. Static read of the dev site
+(`dev--rawsurf.netlify.app`, files only, no backend): `service-worker.js` BUILD_VERSION `9c6d5ebb` at 17:02:04Z; at 17:23:59Z,
+104 of 104 JS files read: chunk `3923` carries `__RAW_DISABLE_WAVE_HEIGHT_16M__` and the 16 m colours (72,21,66), (134,59,86),
+(88,0,2), (146,1,115); chunk `5477` the shader's `uniform vec2 u_heightScale; float waveHScale(...)`. That fulfils 1549's check;
+its live read stays owed only if the owner asks for one. Ledger: `pr_merge` #415 on `claude/receipts-415` (first written as 1550; #417 merged first at 18:24:19Z and took 1550-1551, so it is re-appended after them, as agreed with that session).
