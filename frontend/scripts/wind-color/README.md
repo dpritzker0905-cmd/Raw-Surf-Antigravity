@@ -240,6 +240,51 @@ law) keeps a 5.2 floor with 6 kn 6 to 7 L\* lighter and 16 to 21 kn 2 to 5 light
 carry more than C\* 30 under the 0.70 multiply tint, so the 10 kn band stays light in every solve. A bar that chroma have ONE
 crest is stricter than dark itself (dark dips through cyan).
 
+## Wave-height palettes (`wave-check.mjs`, `wave-solve.mjs`, `wave-lib.mjs`; 2026-10-20)
+
+The light and beach wave-height wash (`src/components/map/marineWavePalette.js`; dark keeps the shader's own ramp, surf
+quality its own palette) judged as the engine DRAWS it. Same setup as the wind checker (culori is not needed: `wave-lib.mjs`
+uses `light-path-lib.mjs`'s port of coloraide, and `wave_cvd_check.py` runs coloraide itself as the authority).
+
+```powershell
+node wave-check.mjs                     # every palette in marineWavePalette.js (v1, v2), both themes
+node wave-check.mjs --palette v2 --pairs # one palette, every neighbouring pair by model at world alpha, crest by height
+node wave-check.mjs --table cand.json   # a solver's table ({ heights, cap, over: {light, beach}, light, beach }) instead
+node wave-check.mjs --strict            # exit 1 on any RED line, here or in the coloraide authority
+node wave-solve.mjs --theme light --family A [--hend 315,350] [--seed 1] [--gens 1800]   # search one theme's table
+```
+
+**The model (`wave-lib.mjs`).** HEATMAP_FS lays `W(h) + swell lighting` premultiplied at the wash alpha, blended
+`ONE, ONE_MINUS_SRC_ALPHA` over the style's `water` layer; the land is drawn OVER the marine rasters, so the coast is the land
+colour against the composite. Alpha by view (`heatmapZoomOpacity`): world 0.65, regional 0.70, coastal 0.77. Basemap water and
+land are the measured colours in `windFieldLut.test.js` (unmuted: the wind's basemap mute runs only while the wind is on). The
+shader's depth floor under 0.18 m is reported on its own line; LEGEND STOPS are composited from the table itself. Crests are
+DRAW_FS's colours at their 0.85 core alpha, with the whitecap the shader allows at that height.
+
+| Line | Meaning | Bar |
+|---|---|---|
+| lightness | OKLCH L of the wash and of the composite (every view; swell lighting off, half, full), every 0.02 m | falls at every step (RED) |
+| no grey | CIELAB C* of the wash path and of the composite, the above-cap state included (D-019) | >= 12 / >= 8 (RED) |
+| neighbours | neighbouring legend stops and the above-cap state, as composited, normal + protan/deutan/tritan | target >= 10 (RED) |
+| land vs sea | the composite nearest the land colour | watch below 15 |
+| crests | a crest's core against the wash under it, normal and colour-blind, and APCA | watch below 15 |
+| legend | APCA Lc of each stop and the arrow on its panel (light: white; beach: `bg-black/90`) | watch below 15 |
+| above the cap | the above-cap colour against the cap's, and no lighter | >= 10 (RED) |
+
+**Why the search has smoothness bars.** Free per-anchor chroma let it zig-zag (C* 85 -> 14 -> 70) to buy colour-blind
+distance: a pulsing ramp. `wave-solve.mjs` lays falls of 4-16 L*, chroma steps of at most 12 and hue turns of 8-45 degrees
+by construction, and scores the soft minimum over every pair and view.
+
+**The Jacobian (`wave-jacobian.mjs` + `wave_jacobian.py`; owner 2026-10-20: "use jacobian lens to help us decide").** Every
+input that moves the on-screen colour, at once, in CAM16-UCS (coloraide's extended build, the space colorcet and colorspacious
+judge maps in): the signal (height along the legend axis: perceptual length, how even the legend steps are, the share carried
+by lightness, what each dichromat keeps) against the nuisances that move one and the same height (zoom: wash alpha 0.65 -> 0.77;
+the swell lighting's texture; the basemap water 4% lighter or darker; one 8-bit height step), each in legend steps. Published
+maps (ColorBrewer YlGnBu and BuPu, viridis and magma reversed) are laid through the same wash on the same anchors as yardsticks.
+`node wave-jacobian.mjs [--no-refs] [--json f] [--out f]`. Its first read (2026-10-20): light A beats B on heights told apart,
+even steps and zoom drift; beach B beats A on heights told apart and the checker's lines; for EVERY palette zoom moves a height's
+colour by up to ~2/3 of a legend step (the engine's alpha, not the palette).
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models

@@ -1203,3 +1203,25 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Scope:** client delivery repair D1. This authorizes bounded stored-estimate recovery after anchor failure, not general promotion of D-016's stored-tail flag, a new blend formula, changes to D-003, a served-number flag flip or a merge. D1 remains a blocker for the next production promotion until merged and read back under the owner's release instruction.
 - **Evidence:** `log/2026-10-18-codex-d1-icon-render.md`; real client-builder/gate tests, backend extension tests and offline production-context browser checks. Day-8–14 skill remains unverified; the current skill ledger grades 24/48/72 h.
 - **Rollback:** `window.__RAW_DISABLE_ICON_FAR_HOUR_RENDER__ = true` restores the prior rejected delivery paths; revert the D1 code commit for a source rollback while preserving this record and the action ledger.
+
+### D-033 · Light and beach wave-height palettes: lightness falls with height; light ships candidate A, beach candidate B; ON by default
+- **Decided:** owner, 2026-10-20 12:46Z, on the A/B of PR #411 (side-by-side sheets and clips in the real engine, the checker's
+  numbers and the Jacobian read): "Ship light A and beach B: remove light B and beach A and the B lever, keep the V2 kill, and
+  mark #411 ready." (the reply button the owner chose after asking "What is more state of the art? A or B? Use jacobian lens to
+  help us decide"). The lead session had settled the domain before: cap at the GPU's real 10 m ceiling with an explicit above-cap
+  state and a legend arrow; widening the height encoding to ~16 m is its own PR and A/B.
+- **Rule:** the light and beach wave-height wash is `WAVE_PALETTES.v2` in `marineWavePalette.js`: lightness falls at every step
+  as height grows (on the table and as composited over each theme's water at world, regional and coastal alpha), never through
+  grey, hue as the second cue; anchors on the legend's ticks (0 2 4 8 12 20 33 ft); a cell at or above 10 m draws its own colour
+  (light: a red flag after indigo; beach: a violet flag after brick, darker than the cap as drawn: B's blue drew lighter
+  than its cap over beach's water and was re-solved before merge, 2026-10-20 13:15Z), with an arrow on the legend. The legend gives each anchor an
+  equal share of the bar, so it agrees exactly with the GLSL. Dark, the surf-quality mode, the crest colours and every served
+  number are untouched.
+- **Evidence:** `log/2026-10-20-claude-wave-palette-v2.md`; `evidence/wave-palette-v2-ab-2026-10-20.json` and
+  `evidence/wave-palette-v2-jacobian-2026-10-20.json`; `frontend/scripts/wind-color/wave-check.mjs` (light: weakest neighbours
+  7.2/7.8/8.6 dE00 world/regional/coastal against v1's 4.3, crests 27.8; beach: 6.5/6.9/7.4 against v1's 11.6 bought with a
+  lightness reversal, crests 8.8 against 16.2; land vs sea 7 -> 20 in both). The 10 dE00 neighbour target is not met; the beach
+  crest contrast at 1.5-4 m is the known cost (its own follow-up).
+- **Rollback:** `window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true` before load restores v1 exactly (GLSL, samples and legend hashed
+  in `marineWavePalette.test.js`); `window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true` restores the shader's own ramp.
+- **Reopen if:** the owner says so, or the beach crest follow-up or the 16 m encoding changes what this table is judged against.
