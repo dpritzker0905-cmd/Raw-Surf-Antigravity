@@ -12,7 +12,7 @@ import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import {
 import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
-import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
+import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
 import './haloDebugOverlay'; // installs window.__HALO_DEBUG__ (toggleable coastal land-bleed overlay; Ctrl+Alt+H)
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask/overlay .b (opt-in SDF coast)
@@ -2254,14 +2254,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       unbindTexture(gl, this.particleStateB);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0); this._advAttached = true;
       gl.viewport(0, 0, this.particleRes, this.particleRes);
 
       const readTex = this.particleStateA;
       const writeTex = this.particleStateB;
       console.assert(readTex !== writeTex, "Assertion failed: readTex === writeTex inside WebGL advection loop!");
 
-      const fboStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      const fboStatus = cachedFramebufferStatus(gl, this, this.advFBO, writeTex);   // a GPU sync each frame otherwise (advFboSync.js)
       let fboStatusStr = 'UNKNOWN';
       if (fboStatus === gl.FRAMEBUFFER_COMPLETE) fboStatusStr = 'FRAMEBUFFER_COMPLETE';
       else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) fboStatusStr = 'INCOMPLETE_ATTACHMENT';
@@ -2280,7 +2280,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (fboStatus !== gl.FRAMEBUFFER_COMPLETE) {
         console.warn('[WebGLMarine] Framebuffer incomplete: ' + fboStatusStr + '. Falling back to Heatmap only.');
         this._fboSupported = false;
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       } else {
         bindTexture(gl, this.particleStateA, 0);
@@ -2311,7 +2311,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
         }
 
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
 
         var tmp = this.particleStateA;
         this.particleStateA = this.particleStateB;
@@ -2320,10 +2320,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
   } finally {
     if (gl && !gl.isContextLost() && webglState) {
-      if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
+      if (this.advFBO && advTeardownNeeded(this) && gl.isFramebuffer(this.advFBO)) {   // only when left attached (advFboSync.js)
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
         } catch (e) { /* teardown detach: a lost or already-torn context is the expected failure, nothing to recover */ }
       }
       restoreWebGLState(gl, webglState);
