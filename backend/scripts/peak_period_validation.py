@@ -214,29 +214,55 @@ def om_wind(points, model, forecast_days, batch=100):
     return out
 
 
-def cmems_series(points, start, end, box_deg=0.25):
-    """{(lat, lon): {'time': [...], VAR: [...]}} via copernicusmarine.subset, nearest finite cell to each point."""
-    import numpy as np
-    import netCDF4
+def _subset_many(jobs, start, end, variables):
+    """Download every (filename, lat0, lat1, lon0, lon1) subset in parallel; return {filename: path or None}."""
     import copernicusmarine
     import tempfile
+    from concurrent.futures import ThreadPoolExecutor
     user = os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME")
     pwd = os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
     if not (user and pwd):
         raise RuntimeError("CMEMS credentials absent (COPERNICUSMARINE_SERVICE_USERNAME/PASSWORD)")
-    vars_ = ["VHM0", "VMDR", "VTM10", "VTPK", "VHM0_SW1", "VTM01_SW1", "VHM0_WW", "VTM01_WW"]
     tmp = tempfile.mkdtemp()
-    out = {}
-    for k, (lat, lon) in enumerate(points):
-        fn = f"pp_{k}.nc"
+    done = [0]
+
+    def one(job):
+        fn, la0, la1, lo0, lo1 = job
         try:
             copernicusmarine.subset(
-                dataset_id=CMEMS_DATASET, variables=vars_,
-                minimum_longitude=max(-180, lon - box_deg), maximum_longitude=min(179.92, lon + box_deg),
-                minimum_latitude=lat - box_deg, maximum_latitude=lat + box_deg,
+                dataset_id=CMEMS_DATASET, variables=variables,
+                minimum_longitude=max(-180, lo0), maximum_longitude=min(179.92, lo1),
+                minimum_latitude=la0, maximum_latitude=la1,
                 start_datetime=start.strftime("%Y-%m-%dT%H:%M:%S"), end_datetime=end.strftime("%Y-%m-%dT%H:%M:%S"),
                 output_directory=tmp, output_filename=fn, username=user, password=pwd)
-            nc = netCDF4.Dataset(os.path.join(tmp, fn))
+            path = os.path.join(tmp, fn)
+        except Exception as e:
+            sys.stderr.write(f"[cmems] {fn}: {type(e).__name__}: {e}\n")
+            path = None
+        done[0] += 1
+        if done[0] % 10 == 0:
+            sys.stderr.write(f"[cmems] {done[0]}/{len(jobs)} subsets\n")
+            sys.stderr.flush()
+        return fn, path
+
+    with ThreadPoolExecutor(max_workers=int(os.environ.get("PPV_CMEMS_WORKERS", "8"))) as ex:
+        return dict(ex.map(one, jobs))
+
+
+def cmems_series(points, start, end, box_deg=0.25):
+    """{(lat, lon): {'time': [...], VAR: [...]}} via copernicusmarine.subset, nearest finite cell to each point."""
+    import numpy as np
+    import netCDF4
+    vars_ = ["VHM0", "VMDR", "VTM10", "VTPK", "VHM0_SW1", "VTM01_SW1", "VHM0_WW", "VTM01_WW"]
+    files = _subset_many([(f"pp_{k}.nc", lat - box_deg, lat + box_deg, lon - box_deg, lon + box_deg)
+                          for k, (lat, lon) in enumerate(points)], start, end, vars_)
+    out = {}
+    for k, (lat, lon) in enumerate(points):
+        path = files.get(f"pp_{k}.nc")
+        if not path:
+            continue
+        try:
+            nc = netCDF4.Dataset(path)
             la = np.asarray(nc.variables["latitude"][:], float)
             lo = np.asarray(nc.variables["longitude"][:], float)
             hs = np.ma.filled(np.ma.asarray(nc.variables["VHM0"][:]).astype(float), np.nan)
@@ -492,27 +518,17 @@ def cmems_box_series(boxes, start, end):
     """One CMEMS subset per spot cluster; each spot reads its nearest finite cell (VHM0, VMDR, VTM10, VTPK)."""
     import numpy as np
     import netCDF4
-    import copernicusmarine
-    import tempfile
-    user = os.environ["COPERNICUSMARINE_SERVICE_USERNAME"]
-    pwd = os.environ["COPERNICUSMARINE_SERVICE_PASSWORD"]
-    tmp = tempfile.mkdtemp()
+    boxes = [list(b) for b in boxes if b]
+    jobs = [(f"box_{k}.nc", min(q[0] for q in b) - 0.3, max(q[0] for q in b) + 0.3,
+             min(q[1] for q in b) - 0.3, max(q[1] for q in b) + 0.3) for k, b in enumerate(boxes)]
+    files = _subset_many(jobs, start, end, ["VHM0", "VMDR", "VTM10", "VTPK"])
     out = {}
-    for k, box in enumerate(boxes):
-        mpts = list(box)
-        if not mpts:
+    for k, mpts in enumerate(boxes):
+        path = files.get(f"box_{k}.nc")
+        if not path:
             continue
-        la0, la1 = min(q[0] for q in mpts) - 0.3, max(q[0] for q in mpts) + 0.3
-        lo0, lo1 = min(q[1] for q in mpts) - 0.3, max(q[1] for q in mpts) + 0.3
-        fn = f"box_{k}.nc"
         try:
-            copernicusmarine.subset(
-                dataset_id=CMEMS_DATASET, variables=["VHM0", "VMDR", "VTM10", "VTPK"],
-                minimum_longitude=max(-180, lo0), maximum_longitude=min(179.92, lo1),
-                minimum_latitude=la0, maximum_latitude=la1,
-                start_datetime=start.strftime("%Y-%m-%dT%H:%M:%S"), end_datetime=end.strftime("%Y-%m-%dT%H:%M:%S"),
-                output_directory=tmp, output_filename=fn, username=user, password=pwd)
-            nc = netCDF4.Dataset(os.path.join(tmp, fn))
+            nc = netCDF4.Dataset(path)
             la = np.asarray(nc.variables["latitude"][:], float)
             lo = np.asarray(nc.variables["longitude"][:], float)
             arr = {v: np.ma.filled(np.ma.asarray(nc.variables[v][:]).astype(float), np.nan)
@@ -583,8 +599,10 @@ def main():
     buoys = ndbc_wave_buoys(load_spots(), a.buoy_km)
     res = {"generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
            "instrument": "backend/scripts/peak_period_validation.py",
-           "buoys": buoy_part(buoys, a.days, a.cmems),
-           "spots": spot_part(spots, [int(x) for x in a.hours.split(",")], a.cmems)}
+           "buoys": buoy_part(buoys, a.days, a.cmems), "spots": {}}
+    with open(os.path.join(a.out, "peak_period_validation.partial.json"), "w", encoding="utf-8") as fh:
+        json.dump(res, fh, indent=1)          # the buoy half survives a timeout in the spot half
+    res["spots"] = spot_part(spots, [int(x) for x in a.hours.split(",")], a.cmems)
     with open(os.path.join(a.out, "peak_period_validation.json"), "w", encoding="utf-8") as fh:
         json.dump(res, fh, indent=1)
     md = markdown(res)
