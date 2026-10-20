@@ -179,3 +179,11 @@ ledger lines 1545-1547 never reached dev and are re-recorded on dev's chain belo
 - Draft PR #421 on dev (`8c00a989c`). Owner page v3 (the dev-based stills, clips and numbers):
   https://claude.ai/artifact/F4TCg9jZAGAdjfZW19bNqe. Ledger on dev's chain: the warm-family finding (acted 18:20Z), the pr_open, and
   the commitment for the owner's pick.
+
+## 2026-10-20 ~22:50Z: the owner's pick, #421 marked ready
+
+The owner, in this session: "Ship light crest V2 (#421): umber / cream / gold warm polarity, on by default with the kill switch. Record
+the pick and mark #421 ready once hosted CI is green." Hosted CI on #421's head `1e7d67ed8`: 17 pass, 3 Netlify rule checks skipped,
+mergeStateStatus CLEAN; marked ready there (`gh pr ready 421`), the owner's words quoted in a PR comment. Recorded as DECISIONS D-036
+and ledger (decision, fulfils 1555) in a docs-only commit after it, whose CI runs on the ready PR. Not merged: merging waits for the
+owner's word.
