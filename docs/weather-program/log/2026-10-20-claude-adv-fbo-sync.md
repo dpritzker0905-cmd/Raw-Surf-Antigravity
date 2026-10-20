@@ -175,3 +175,20 @@ They were discarded; the harness now retries the click and waits for the field.
 new PR: #409 against dev from `claude/wind-adv-teardown` (not merged). Ledger: seq 1502 `pr_open` #409; seq 1503
 `pr_merge` #405 (reconstructed receipt; nobody had recorded it). STATE's ledger-head anchor is now 1503. `pr_merge` #404
 is not mine and is still unrecorded.
+
+## 2026-10-20 ~05:50Z: correction - which stall method each lab run used (empty traces)
+
+Prompted by the duplicate wind session's note: `lab.js` waits 20 s for `Tracing.tracingComplete`, and long traces can
+come back empty (`{"traceEvents":[]}`, 18 bytes). Read back here:
+- **Erratic lab (section 3, #405):** off2, on1 and on2 traces are 18 bytes; off1 is 19 MB, with no CPU-profile chunks.
+  `stall_profile.js` therefore used its `profile.json` fallback (the CDP CPU profile lab.js writes; stalls = unbroken
+  non-idle sample stretches) in ALL FOUR runs. The comparison is like for like and the numbers stand, but GC events
+  were not attributed (`gcEventMsInStalls` 0).
+- **Wind lab (added scope):** off1's trace (43 MB) had no CPU-profile chunks, so it took the `profile.json` path.
+  off2, on1 and on2 (128-153 MB) carried the trace's own CPU profile, so stalls were the trace's RunTask events. The
+  mixed method plus off1 being the first run after a rebuild means **off1 is not comparable**. The like-for-like rows
+  are off2 vs on1 / on2: "wind engine" busy 4.55 s -> 0.97 / 0.77 s; total busy 17.2 s -> 11.2 / 9.4 s; native 6.2 s ->
+  5.2 / 4.6 s. The conclusion (the wait leaves the frame, nothing grows elsewhere) is unchanged. The earlier "11.8 / 4.5
+  s" pair mixed the methods.
+- A follow-up for the lab, not done here: make the tracing wait configurable and warn loudly on an empty trace.
+  `stall_profile.js` should also print which method it used.
