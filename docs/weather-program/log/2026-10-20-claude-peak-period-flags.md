@@ -72,3 +72,47 @@ Breaking height median +6.6% to +10.5% in every decile of today's height (p10 -0
 tails p01 -3.8%, p99 +28.7% (max +39.3%). Score median +1.2 to +4.5 points by decile (p01 -1.7, p99 +20.8). Level changes
 1,433 (26.6%), nearly all one level up: good->epic 279, fair_good->good 270, poor_fair->fair 262, fair->fair_good 237,
 poor->poor_fair 205, very_poor->poor 87. p=1: 25.0% level changes, p99 +27.3%; p=4: 27.0%, +30.0%.
+
+## 06:57Z: CI run 39380052117 (Copernicus login; real files) — fetch proof + CMEMS results
+
+**Fetch proof** (`scripts/peak_period_fetch_proof.py`, both PRODUCTION fetchers run by path, same bbox, flag off vs on;
+`evidence/peak-period-fetch-proof-2026-10-20.txt`): RESULT PASS. GWAM 42 points: heights and directions identical,
+flag-on `wave_period_tm10` == flag-off `wave_period`, swell period changed at 33/42 (ppts vs mpts), flag-on total ==
+`derive_total_series` of its partitions; blended Tp / tm10 p10 1.074, p50 1.159, p90 1.275. CMEMS 42 points: heights,
+directions and partition periods identical, `wave_period_tm10` == flag-off `wave_period`; VTPK / VTM10 p10 1.049, p50 1.103,
+p90 1.238.
+
+**CMEMS vs NDBC DPD** (same 128 buoys and 30 days, CMEMS straight from the dataset our fetchers use; n=27,699; MAE (bias) s):
+
+| | all | height-agreeing | DPD < 8 s | DPD 8-12 s | DPD > 12 s | bimodal | 3 h jumps p95 / p99 / > 3 s |
+|---|---|---|---|---|---|---|---|
+| CMEMS VTM10 (served today) | 2.057 (-1.416) | 2.030 (-1.460) | **1.120 (+0.356)** | 1.475 (-1.079) | 3.980 (-3.957) | 2.704 (-1.660) | 0.81 / 1.48 / 0.08% |
+| **CMEMS VTPK (flag)** | **1.540 (+0.277)** | **1.440 (+0.256)** | 1.644 (+1.163) | **1.237 (+0.314)** | **1.855 (-0.804)** | **2.161 (+0.687)** | 2.07 / 5.88 / 3.4% |
+
+By region, VTM10 -> VTPK: US Pacific 2.390 (-1.832) -> 1.637 (+0.431); US Atlantic 1.757 (-0.932) -> 1.537 (+0.148);
+Gulf/Caribbean 1.467 (-0.918) -> 1.193 (+0.169); Hawaii 2.242 (-1.578) -> 1.626 (+0.704); other 2.153 (-1.776) -> 1.396
+(-0.171). Better in every region; the same short-wind-sea weak spot as ICON (DPD < 8 s: 1.120 -> 1.644).
+Side finding: Open-Meteo's `meteofrance_wave` `wave_period` IS VTM10 (stats identical to 3 decimals), so the local run's
+MFWAM row already showed this lane's defect without credentials.
+
+**Served impact, full catalogue** (1,770 spots x hours 0/12/24/36/48/72; production chain, SURF_PARTITIONS off):
+- CMEMS VTPK vs VTM10 (CMEMS Hs/dir, EURO wind; 46,020 spot-hours at CMEMS's 3-hourly steps): height median +5.4% to +9.4%
+  by decile, p01 -4.3%, p99 +26.6%; score p50 +0.4 to +3.8, p99 +18.6; 26.2% of spot-hours move a level, almost all one up
+  (poor_fair->fair 2,490, fair->fair_good 2,262, fair_good->good 2,042, poor->poor_fair 1,984, good->epic 1,657).
+  ⚠️ This applies only where EURO is SERVED from CMEMS: regional/island tiers, the native `/point` and the precompute's
+  batched CMEMS points. The coarse/mid/pilot `waves` tiers serve ECMWF pp1d and do not move. The share of served EURO
+  ratings that come from CMEMS is a live-manifest question this offline run cannot answer.
+- ICON blend p=2 vs tm10 (10,620 spot-hours): 27.4% level changes, p01 -3.3%, p99 +28.7%, score p99 +20.1 (the local
+  899-spot run above agrees: 26.6%).
+
+## Verdict for the owner (dark; nothing flipped)
+
+Both flags make the served period agree with the buoy far better than today on every aggregate, every region and the long-
+period bands, where today's error is 4-4.5 s: CMEMS MAE -25%, ICON -23%, both biases from about -1.4/-1.8 s to within
++/-0.3 s. Costs, measured: (1) short wind seas get worse in both (tm10/VTM10 happen to sit near a single short peak);
+(2) the period jumps more hour to hour (p99 1.3-1.5 s -> 5.3-5.9 s), still less than the GFS period already served (7.6 s)
+and well under the buoy's own 10 s; (3) served heights rise ~6-10% at the median and ~a quarter of spot-hours move up one
+level, because the chain was being fed a period ~15% short. That last effect is the fix working as designed, not a side
+effect, but it is a large served-number move, so it needs the owner's word and, ideally, the per-lead read of the skill
+ledger after a flip-in-shadow. Next science step (not built): SURF_PARTITIONS with the ICON partition peaks, which is the
+route that also fixes the short-wind-sea case.
