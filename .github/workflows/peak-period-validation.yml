@@ -17,6 +17,7 @@ on:
     branches: [claude/peak-period-flags]
     paths:
       - backend/scripts/peak_period_validation.py
+      - backend/scripts/peak_period_fetch_proof.py
       - .github/workflows/peak-period-validation.yml
 
 permissions:
@@ -41,6 +42,13 @@ jobs:
       - name: Install dependencies
         run: pip install -r backend/requirements.txt
 
+      - name: Prove both flags on real upstream files (production fetchers, flag off vs on)
+        working-directory: backend
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python scripts/peak_period_fetch_proof.py --gwam --cmems | tee ../fetch_proof.txt
+
       - name: Run the validation (CMEMS + Open-Meteo + NDBC)
         working-directory: backend
         env:
@@ -53,5 +61,7 @@ jobs:
         if: always()
         with:
           name: peak-period-validation
-          path: ppv/
+          path: |
+            ppv/
+            fetch_proof.txt
           if-no-files-found: warn
