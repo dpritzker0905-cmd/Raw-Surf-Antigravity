@@ -119,3 +119,13 @@ the owner): the eye side by side in each theme, the sheets at world/regional/coa
 - Theme changes happen on the Settings/Theme pages, so the map remounts and re-uploads; a dark upload never meets the light
   table. If an in-map theme switch is ever added, the scale still travels with each upload, so the decode stays right; only
   the next upload restores the theme's own step.
+
+## PR and ledger
+
+- Draft PR #415 (`claude/wave-height-16m`, `d5278278f` on dev `26385e031`). Not merged: the owner's verdict on the A/B decides.
+- Ledger 1543 (`pr_open`), 1544 (`commitment`: the owner's verdict by 2026-10-24, then merge or close; after a merge a static
+  read of the deployed chunk).
+- Re-cuts, per L-P34: the first cut stacked on #411's `639305fb8` was parked as the local branch `claude/wave-height-16m-parked`
+  (never pushed) when #411 took the owner's pick (D-033: v2 = light A + beach B) and a re-solved beach flag; the second, on #411's
+  `c40cbe67f`, moved onto dev when #411 merged (`f550d2502`, the same tree). Carried: the encoding, the tests (baselines re-hashed
+  at `c40cbe67f`), the tools. Re-solved: the 16 m anchors and flags against v2 under #411's darker-as-drawn flag rule.
