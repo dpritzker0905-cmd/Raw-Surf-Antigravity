@@ -163,3 +163,283 @@ speed change (one variable, kill switch ready). No SCOREBOARD row (no served num
   prefetch, earlier mobile memory checks, capacity isolation.
 - **Report** (private artifact): https://claude.ai/artifact/EmsHPfaUehDkybRQUXdnvM. Also noticed: Codex's unpushed wave-palette
   commit ee66317 (10-14) is not in dev; Codex is editing euro_marine_coarse_ingestion.py.
+
+## Merges on the owner's word (16:00-17:25Z): #391, #393, #394
+
+- Owner 11:59 EDT: "Merge. If that's the best path forward toward state of the art. Use Jacobson lens to help decide." Sensitivity
+  reading: these PRs move only client time-identity (labels, cache identity, wind fetch semantics), no served number, and are
+  independent of the nightly SETTLED_STEP (which predates them), so merging does not confound the D1 A/B as long as every arm
+  runs on one fixed build.
+- **#391** squash -> `463a4d91` (17 pass, 3 skipping). **#393** rebased onto dev, retargeted, squash -> `a95633c8` (19 pass, 1
+  skipping). Retargeting after a force-push started only 2 checks; an empty commit triggered the full suite. Floor-staleness
+  REFUSED once because dev's post-#391 run was still in flight; a re-run after it finished passed. **#394** rebased on #393,
+  squash -> `9a68b49a` (19 pass, 1 skipping).
+- **CI caught what my local runs missed:** `src/__tests__/` (a third Jest tree) holds `windControllerTerminalNocov.test.js`,
+  which partially mocks `backendWeatherServiceClient`; `rollOffsetCache` threw there. Fixed in #394 (`readAnchorMs()` returns
+  null: no anchor, no roll). Lesson: run the WHOLE frontend suite (`CI=true npx craco test --watchAll=false`, 447 suites / 5856
+  tests), not only `src/components/map src/tests`.
+- **Served:** dev site carries #393's three kill switches (fingerprint of the served chunks, 17:05Z) and #394's `__RAW_DISABLE_OFFSET_CACHE_ROLL__` (17:29Z). Deployed is not accepted: visual, mobile and live gates are still open.
+- Still owed: the D1 frozen-data 2x2 (owner approves the flag-off arm); one bounded live lab run; owner's eye on dev in three themes.
+
+## SETTLED_STEP A/B (owner-approved 13:34 EDT; 17:38-18:46Z, one fixed build: dev 9a68b49a, backend 9a68b49a)
+
+Instrument: `zoomlab.js staircase_full` exactly as the nightly runs it (dev server, mock auth, live backend), scored by
+`zoomlab-verdict.js`; plus a continuous read of the same trace: |dL| between consecutive same-zoom frames, split at z 12.
+New local knob `ZL_HIDE_BASEMAP=1` (hides non-custom style layers; experiment-only, not committed).
+
+| Arm | Where | Flag | Other | SETTLED_STEP | z>=12 mean / p95 / max | z<12 p95 |
+|---|---|---|---|---|---|---|
+| CI-on | GitHub run 39297393276 | on | — | **33** (354 frames) | — | — |
+| A | local | on | — | 0 | 2.32 / 5.4 / 9.9 | 1.9 |
+| B | local | on | `__RAW_DISABLE_MASK_COVER_REUSE__` | 0 | 2.12 / 5.0 / 9.4 | 1.8 |
+| CI-off | GitHub run 39300643815 | **off** | fresh instance | **7** (426 frames) | — | — |
+| C | local | **off** | — | 0 | 1.93 / **4.3 / 6.4** | 2.0 |
+| A2 | local | on (restored) | drift check | 0 | 2.07 / 5.6 / 9.2 | 1.9 |
+| E | local | on | basemap hidden | 0 | 2.25 / 5.5 / 8.0 | 1.8 |
+
+Reading:
+- **`SERIES_THIN_NODE_BOUNDS` raises the tail of settled high-zoom luminance change** (p95 ~+30%, max ~+45%), reproducibly
+  (A2 returns to A's level after the flag-off arm), and only at z>=12 (z<12 unchanged: the control). n = 1 per arm.
+- **#347 mask-cover reuse is not the cause** (B ~ A). **Basemap is probably not** (E keeps the tail), but weak: mean L moved
+  only 121 -> 126 with the basemap hidden, so the hiding's completeness is unverified.
+- **Why CI fails and local passes:** CI samples ~350 frames per staircase vs ~1,000 locally (~3x longer between frames), so
+  a change spread over time lands as ~3x bigger per-frame steps; local max ~9-10 becomes CI's 16-33. CI's frame count did not
+  change between the passing 10-16 run (350) and the failing runs (~350), so the content changed, not the sampling. The gate is
+  per FRAME, not per second, so a small shift in the tail crosses 16 many times (33 -> 7).
+- **Health:** every live run raised the /api/health probe from ~0.5 s to up to ~8 s during the run (the box is loaded by one
+  zoomlab); it recovered within minutes each time. Flag set 0 at 18:02Z, restored 1 at 18:28Z (ledger 1465, 1466;
+  1466's `corrects` field should have said it CLOSES 1465, not corrects it).
+- **Open (owner):** the flag fixed the thinned-frame position jump (S21), so turning it off trades one visual defect for
+  another. Proposed: keep it on and fix the client's thinned<->exact swap at settled high zoom (hold/crossfade by valid
+  instant), and make the gate time-normalized (dL per 250 ms of frame gap) so the CI box's frame rate stops amplifying it.
+
+## CORRECTION 20:00Z: the thin-bounds flag is NOT the SETTLED_STEP mechanism (supersedes the A/B reading above)
+
+- Per settled zoom, the whole-canvas luminance SWING grows with zoom in every arm, flag off and basemap hidden included:
+  ~10 at z9-10, ~20-30 at z11, ~40-68 at z12-13, **61 (A, on) / 74 (C, off) / 66 (E, no basemap) at z14**. The earlier
+  p95/max difference (n = 1 per arm) is noise-sized against this; CI's 33 vs 7 was largely chance plus that tail.
+- In the biggest 1 s windows NOTHING the trace records changes: resident grid (-83,26,-79,30, 17 cols), mask bounds, overlay
+  mode (midcarve_replace), heatmap opacity (hm 0.8), mult 1. Luminance ramps smoothly (117 -> 147 in ~1.1 s) and the hue moves
+  purple-blue (R138 G86 B196) -> light peach (R190 G158 B174); per-column motion jumps 6.5 -> 169.
+- Ruled out: thinned<->exact swaps (no grid change), #347 mask reuse, basemap (E), crest sprites (screen-space, 36-80 px), the
+  heatmap's only time term (rating shimmer; rating is off), the offline harness (one 17x17 grid throughout, max windowed |dL|
+  6.8 at z14 with the dynamic lane answered synthetically).
+- Leading candidate: the viewport fine-detail overlay (dynamic products at narrow zoom) landing and alternating after the zoom
+  settles; the trace records only its mode, not its product identity, so this needs ONE instrumented live run.
+- The time-windowed gate (#396) stands on its own (machine-independent: CI 8, local 7-8 on the same build).
+
+## The flicker found and fixed (owner-approved live probe 20:2xZ): screen-bounded wave sets, PR #397; gate PR #396
+
+- **Live probe** (`settled_zoom_probe.js`, live mode = the nightly's dev-server + badge stub; health 0.52 s before, 0.50 s
+  after): 19,525 frames z 9 -> 14.5; 61 one-second steps at z 11-14.4; ZERO grid / mask / coarse-base / coastline-overlay
+  changes at settled zoom (the overlay hypothesis falsified too). At z 14.04 luminance is a smooth periodic oscillation,
+  192 -> 120 -> 200 over ~10 s.
+- **Mechanism:** the crest shader's wave-train envelope `fract(dot(global_pos, dir) * spatialFreq - t/T)`, spatialFreq
+  clamp(800/T^2, 3, 25) per Mercator WORLD unit (one set = 14-120 deg). Zoomed in, the view sits inside a fraction of one
+  set, so every crest on screen fades 0.25 <-> 1.0 together with the swell period. Foam roll and orbital pitch share the phase.
+- **Fix (#397):** set frequency >= 3 / viewWorldWidth (viewWorldWidth = CSS width / (512 * 2^zoom)); zoomed out unchanged;
+  temporal period unchanged; no crest removed. Offline same-build swing per settled zoom 1.7-8.2 -> 0.2-0.6; shaders compile
+  and link in WebGL; whole suite 448/5861. Kill `__RAW_DISABLE_SCREEN_BOUNDED_WAVE_SETS__`.
+- **Gate (#396):** SETTLED_STEP over a 1 s window; CI on its branch 8 (586 frames), local same build 7-8. CI frame counts
+  vary 345-586 run to run.
+- Lesson: the zoomlab trace's per-frame engine fields let me rule out swaps without a live run; a 60 fps probe of the signal's
+  SHAPE (smooth periodic vs stepped) identified an animation in one run. Read the shape before testing causes.
+
+## Evening 21:00-22:10Z: what the remaining delay is, the deploy decoupling, and a redundant fix dropped
+
+- **Owner stress test 20:52Z ran on a box restarted at 20:50** by #396's merge (CPU 0.25 -> 0.94; series p95 26 s). Every
+  frontend merge redeployed the one backend: the live build filter ignores only docs/**, audit/**, **/*.md.
+- **#397's Render deploy (461ed695) ended `update_failed`** 1 s after a successful build, reason empty, no server_failed event;
+  the old instance kept serving identical backend code. Its post-merge E2E then failed falsely ("backend serving 1596b694, not
+  461ed695" x60). Cause of the Render failure unknown; one occurrence.
+- **#398 merged (88e762fe): E2E backend gate `--same-backend`** (accepts a served commit with HEAD's newest Render-deployed
+  commit; RENDER_IGNORED_PATHS + skip markers), fetch-depth 0, render.yaml records the intended filter. Real history: dev,
+  1596b694, 461ed695, 9a68b49a all resolve to dad9f46d. OWNER ACTION OPEN: set the live build filter ignoredPaths to
+  ["docs/**","audit/**","**/*.md","frontend/**"].
+- **#398's own deploy was skipped:** its commit message quoted "[skip render]" while describing the rule, and Render honoured it
+  (event commit_ignored 21:58:02). Harmless (CI-only change; the gate excludes marker commits by design). LESSON (second time,
+  after [skip netlify] on #388): never write a deploy-skip marker's text in a commit message, not even quoted.
+- **Live erratic run (owner-approved, 21:29Z, health 0.61 -> 2.64 s):** single requests 2-17 s; client long tasks 116-817 ms per
+  transition; the 40% stale-hour dim showed only 0.17-0.63 s. Most requests over 5 s were for views already left.
+- **Offline A/B, REACT_APP_MARINE_SERIES_WORK_BOUNDS on vs off** (Codex's never-qualified policy; OFF on dev): no measurable
+  difference (stale server time 156-232 s both ways; ttc ~2 s). Not the lever.
+- **Stale work is the SERVER finishing abandoned builds.** An in-page fetch probe shows the client already aborts the previous
+  view's /grid_series 40-70 ms after every model/layer switch. My switch-abort change (claude/series-switch-abort, local only) was
+  therefore redundant and is dropped. The lever is #389's server-side cancellation (rebase requested of its session).
+  Instrument note: the offline harness logs a request on completion and Playwright routes finish the upstream call even when the
+  page aborts, so it cannot show client cancellation; use the in-page fetch probe.
+
+## 20:20 EDT: one-field frame-image proof opened (#399), receipt ledger rebased
+
+- Owner: "Start the one-field proof ... parity vs /grid, measure time-to-correct and server CPU." Opened #399 (dark, serves
+  nothing): the GFS marine waves `global_mid` field nearest now as one 8-bit RGBA PNG (height mm uint16 in R,G; 0 = no
+  data) in a new PUBLIC bucket `weather-frames`, published by `publish_frame_images.py` after ingest only when the repo
+  variable `FRAME_IMAGES_PUBLISH` is `1`; dark browser loader `frameImageProof.js` compares it with `/grid`.
+- Offline (real Chromium, real backend over the synthetic store :4103, N=8): parity 15023/15023, max err 0 m; image path
+  median 14.9 ms with 0.000 s backend CPU vs `/grid` 461 ms and 0.40 s CPU per request. PNG 6.3 KB vs 1.66 MB JSON
+  (synthetic field is smooth; real data compresses less). The browser caught a decode bug (closed ImageBitmap = 0x0).
+- Live numbers are owed after merge: the local `.env` holds no Supabase credentials, so the first real publish is a
+  GitHub Actions run.
+- This branch's ledger lines forked at 1453 from dev's 1454-1461; they were re-appended as 1464-1480 (seq references
+  inside them shifted +10, after #392's 1462 and #402's 1463; the GRID_SERIES_PAGE_MEMO repeat commitment is now 1480; pr_open #399 = 1481), backup `backup/receipt-394-pre-rebase`.
+
+## 20:35 EDT: #392 merged
+
+- #392 (two-entry land-mask cache) squash-merged 00:34:59Z as `aaa1adfb`, pinned to `c25200160`, on the owner's
+  "Merge #392 if its CI is green". Its first `backend-forecast-chain-guards` run was CANCELLED at the job's
+  `timeout-minutes: 20` with 2809/2809 passed: the chain lane now runs at its time limit (follow-up: raise the timeout or
+  split the lane before it starts failing PRs for runner speed). The failed-job rerun passed.
+
+## 20:45 EDT: step 2b learnings (one live /grid, encoder read, Reflection review)
+
+- ONE live world `/grid` (GFS waves, valid 00Z, run 18Z) at 00:36Z, health 0.54 s before / 0.47 s after: 1.95 s,
+  255 KB on the wire, 2.68 MB JSON (261 KB gzip). The same field as the #399 RGBA PNG: **27.4 KB**, self-parity exact.
+  WebP lossless 21.2 KB; height-only 16.8 KB; height+dir+period as PNG pair 34.8 KB vs gzipped raw binary 35.3-39.5 KB.
+- The GPU heatmap texture (`WebGLMarineTextureEncoder.js` ~l.337) stores height as `floor(min(h/10,1)*255)`: 3.9 cm
+  steps, **saturating at 10 m** (2 live nodes > 10 m, max 12.3 m). Not changed; recorded. Frames for rendering must carry
+  period and `dir_confidence` (97% of live nodes < 1; computed at ingest in `normalizer.py`).
+- Reflection (Beam) reviewed the 2b design. Adopted: gzipped raw little-endian binary frames decoded in a worker with
+  `DecompressionStream` (size is a wash, measured; the gain is no alpha trap, any field count, no host-compression
+  dependence), versioned header, run-pinned atomic publish (`runs/<runId>/` then a no-cache `latest.json` LAST), sha256
+  per frame, retention current + 1 run, prefetch window +-3 steps on the active model/layer, `/grid` parity as a publish
+  gate. Supabase Smart CDN invalidation is Pro-only; immutable paths make it irrelevant.
+- Follow-ups recorded, not done: `backend-forecast-chain-guards` runs at its 20-min timeout; the frontend E2E gate's
+  same-commit logic for Netlify skip markers.
+
+## 21:10 EDT: #399 merged; SOTA research round 2 with a measured time-interpolation hold-out
+
+- #399 squash-merged 00:45:36Z as `a4a02033` (owner: "Merge #399. I'll set the FRAME_IMAGES_PUBLISH repository variable
+  to 1 afterwards"). Render served it from 00:48:56Z (health `version` ends a4a02033...; my wait loop grepped the wrong
+  field, the deploy was never stuck). A forecast-ingest run was dispatched at 00:50:53Z (not by me) before the variable
+  existed, so the first live publish is the first run after the owner sets it.
+- HOLD-OUT on live GFS-Wave world fields (run 18Z; blend 21Z+03Z at t=0.5 vs real 00Z; a 6 h gap; n = 1 triple; 2 more
+  live /grid GETs, health 0.59 s before / 0.32 s after): height MAE 3.1 cm, p95 12.5 cm vs holding the previous step
+  10.6 / 39.5 cm (3.4x); peak retention in 35 storm boxes min 0.911 (typhoon), median 0.982, none < 0.90; no ghost
+  maxima (>= 5 m: 22 real / 22 blend); direction must blend on the unit circle (naive degree averaging: 230 nodes > 90 deg
+  off); period must not blend (max error 9.1 s at dominant-system switches).
+- Research (three subagents, sources cited in memory `sota-research-2026-10-20`): nullschool does not interpolate in
+  time; Windy only radar/satellite; no leader labels interpolated frames; R16F is filterable in core WebGL2 (would
+  remove the 3.9 cm / 10 m height cap); WebGL contexts cannot share textures with a worker; Supabase's Content-Encoding
+  handling is undocumented (check magic bytes before DecompressionStream).
+- Reflection round 2 changed the order: PROFILE the 120-820 ms main-thread stalls first (fetch / parse / convert /
+  upload / land mask) - the single measurement that most changes the plan; then binary frames + worker decode + R16F
+  texture-array window as one milestone; interpolation only after a many-triple hold-out run from published frames.
+
+## 21:25 EDT: who owns the main-thread stalls (offline profile, PR #400)
+
+- Owner: "profile the 120-820 ms main-thread stalls offline (fetch / parse / convert / upload / land mask) on an
+  erratic scrub against the mock backend, and report what owns them." Dev `a4a02033` (with #392) built with source maps,
+  synthetic backend :4121, `FLOWS=erratic LAB_TRACE=1` twice, V8 CPU profile with per-step markers, attributed by
+  `stall_profile.js` (PR #400, tooling only). No live traffic.
+- Mean of 2 runs. Zoom/pan: land mask build 46% (renderMaskToCanvas, suppressShelteredWater, applyInlandWaterGuard,
+  overlayBasemapWaterOnMask; #392's cache does not cover a new viewport). Scrubs: native 18%, GPU-sync GL state capture
+  (`captureWebGLState` getParameter reads) 17%, manifest scan `getSharedValidTime` + `formatInstant` Intl construction
+  visible. Switches: native 18%, state capture 17%, grid -> texture 12%. Load: shader compiles 30%.
+- Worst stall per step: zoom 8 695/512 ms, pan 541/247 ms, scrubs <= 423 ms, load 789/1424 ms. Fetch/parse is small
+  (fetch/manifest glue 5-10%); texture upload is not separately visible (native GL time bills to the calling JS line,
+  and the getParameter sync absorbs queued GPU work).
+- Traps hit: Chrome dropped the tracing `disabled-by-default-v8.cpu_profiler` category (use the CDP Profiler domain);
+  one trace came back truncated (stalls are now derived from the CPU profile itself); app source paths in the maps carry
+  no `src/` prefix.
+
+## 21:50 EDT: Jacobian lens on the scrub plan; outside cross-check; Reflection round 3
+
+Outputs (what the user gets), per scene:
+- O1 time-to-correct-field
+- O2 worst main-thread stall
+- O3 wrong-or-stale frame shown (silent mismatch / stale dim)
+- O4 honesty: labels and confidence
+- O5 server CPU on the 1-CPU box
+- O6 bytes per session / CDN storage
+
+Scenes: S1 time scrub, S2 model/layer switch, S3 zoom/pan, S4 page load, each × desktop/phone × fast/slow net × cold/warm backend.
+
+Levers (inputs) with the measured or inferred partial effect. Signs are relative to today; M = measured, I = inferred.
+
+| Lever | O1 ttc | O2 stall | O3 stale | O4 honesty | O5 server CPU | O6 bytes |
+|---|---|---|---|---|---|---|
+| L1 CDN frames (2b) | S1/S2 −−− (15 ms vs 461 ms /grid offline; live /grid 1.0-1.95 s) M | S2 **+** unless L2: conversion moves from waiting to client CPU; grid→texture is already 12% of switch stalls M | −− (fewer waits = fewer held frames) I | 0 | −−− (0.000 s vs 0.40 s/request) M | world frame 27-35 KB vs 261 KB gzip JSON M; +46 MB/run storage I |
+| L2 worker decode + R16F array | 0/− | S1/S2 −− (removes conversion + JSON from main) I | 0 | +(10 m cap removed: 12.3 m storms drawn true) M | 0 | 0 |
+| L3 GL state shadow | 0 | S1/S2 −− (state capture = 17% of scrub/switch stall) M | 0 | 0 | 0 | 0 |
+| L4 viewport land mask | S3 − | S3 −−− (46% of zoom/pan stall; worst 695 ms) M | S3 − I | 0 | 0 | 0 |
+| L5 manifest index + Intl cache | 0 | S1 − (getSharedValidTime 113-307 ms, formatInstant 75-220 ms per run) M | 0 | 0 | 0 | 0 |
+| L6 windowed prefetch ±3 | S1 −−− for nearby steps I | **+** GC/convert bursts unless L2 I | −− I | 0 | 0 with L1 / **+++** without L1 (series pages 5-25 s CPU) M | + I |
+| L7 time interpolation (linear) | perceived continuity + | + small (2 texture fetches) I | blend error MAE 3.1 cm vs hold 10.6 cm (6 h gap) M | **needs label** (no leader does it) | 0 | 0 |
+| L8 page memo (#389, on) | S2 − (ttc 2.6 → 1.8 s) M | 0 | − | 0 | − (abandoned builds cancelled) M | 0 |
+| L9 model-spread confidence | 0 | + small I | 0 | +++ (storms: models differ 29-37%, Solano 47% at the TC) M | 0 (precomputed) | + I |
+
+## What the cross terms say
+1. **L1 without L2 moves the stall, it does not remove it.** CDN frames cut the wait and the server CPU, but the client
+   still converts every frame on the main thread. Ship frames with worker decode as one milestone (Reflection agreed).
+2. **L6 without L1 multiplies server load** (the series pages are the box's heaviest work). Prefetch only from the CDN.
+3. **L3, L4 and L5 are independent of everything else**, with no cross terms. Do them now: the two fix sessions are on
+   exactly these.
+4. **L7 changes O4 by its nature.** It is only honest with a label, and only for height and direction (unit circle),
+   never period.
+5. **Scene dependence:** L4 matters only in S3; L3 matters in S1 and S2 on every frame; L1 matters most on slow networks
+   and a cold backend, where today's world /grid takes 1.0-1.95 s.
+6. **Forecast-quality Jacobian:** sensitivity of the served height to the MODEL is largest exactly where heights are
+   largest (calm swell 3%, storms 29-37%). A single-model map is least trustworthy where users care most → L9.
+
+## Order the matrix implies
+L3 + L4 + L5 (running now) → L1 + L2 together (2b) → L6 (CDN-only) → L7 dark with a label → L9 dark.
+
+Outside cross-check (nausika_marine_forecast = Open-Meteo marine ~0.08 deg; Solano confidence): ours vs outside at 00Z -
+30N 130W 2.15 vs 2.08 m (+3%); 50S 144W 6.50 vs 5.04 (+29%); typhoon 16N 136E 12.29 vs 8.94 (+37%), Solano confidence
+47% there. n=3, mixed model and resolution.
+Reflection round 3: L2's stall effect is inferred (measure next: worker decode + R16F upload on real devices with live
+CDN frames, prefetch on/off); the running fixes' cross terms are unproven (re-profile with #400 after each lands); start
+model-spread data collection now; gate interpolation by confidence. Rejected one point: the hold-out measured period's
+9.1 s max error, so "never blend period" stands.
+Process: the two fix sessions started in the main checkout; both were messaged to cut their own worktrees, with file
+ownership named. FRAME_IMAGES_PUBLISH set by the owner at 01:25:13Z; the 00:50Z ingest predates it.
+
+## 22:15 EDT: literature, MapLibre source, shader compile
+
+- Paper search: Elicit unavailable (no API access on the plan); used the arXiv API. Relevant: ECMWF AIFS now forecasts
+  ocean waves (~1 day more marine skill, 2604.25559); calibrated ensemble spread predicts error spread (2503.21488, the
+  basis for #401's spread layer); DL bias correction of ECMWF Hs cut MAE 13-46% (2311.15001); exceedance probabilities
+  beat point forecasts for extremes (2206.09821).
+- MapLibre 5.24 `draw_custom.ts` re-applies all of its tracked GL state after every custom layer (`setDirty` +
+  `setBaseState`, l.42-43 and 60-61), so our capture/restore of those fields is redundant inside the callbacks; only
+  untracked state needs cleanup. Sent to the scrub-stall session with the caveat to verify no draw runs outside them.
+- Shader compiles (30% of load stall): no `KHR_parallel_shader_compile` anywhere; `createProgram` reads LINK_STATUS at
+  once, forcing a synchronous compile. Candidate load fix: poll COMPLETION_STATUS_KHR before first use.
+- Side sessions: scrub-stall (rs-hotspots, isolated, A/B profiles running); land mask (working); model spread opened
+  draft #401 (MODEL_SPREAD_PUBLISH off; its ledger lines 1463-1464 fork #395's chain: whichever merges second re-chains).
+
+## 22:40 EDT: crest animation physics audit (Jacobian lens) - #397 inverted the period cue from z4
+
+- Wave-train band in DRAW_VS: spatialFreq = clamp(800/max(36,T^2), 3, 25) per world width, then #397's
+  max(f, 3/viewWidth); band speed = 1/(T*f). Deep-water dispersion gives speed ∝ T. JS mirror, speed relative to 10 s
+  for T = 6..20 s (physics 0.60..2.00): z1 0.60..1.60 then 1.48/1.33 past 16 s; z3 0.72 0.96 1.00 0.83 .. 0.50; z4+
+  1.67 1.25 1.00 0.83 0.71 0.63 0.56 0.50 with ALL periods sharing one spacing (speed ∝ 1/T).
+- CORRECTION of my #397 (merged 461ed695): its docstring says "the motion keeps its character"; from z4 the per-period
+  max() inverts the period cue (chop races, groundswell crawls). It fixed the pulse output and flipped the period output.
+- Proposed fix (not built): one zoom factor for every period, f_eff = clamp(f(T)) * max(1, 3/(viewWidth*f(T_max))),
+  which keeps >= 3 sets for the longest period (anti-pulse holds) and speed ∝ T at every zoom. Reflection agreed and
+  added: floor from a minimum on-screen spacing, T_max from the displayed data, drift ∝ orbital velocity (~πH/T) not
+  height alone (drift is min(h, 3 m) today, period-blind); nearshore speed is depth-limited.
+- Other sources this round: the mapbox data-visualization skill (basic time-series patterns, nothing to adopt) and
+  the Three.js MCP (a scene viewer, not a research source).
+
+## 22:50 EDT: merges (#400, #386, #402), shader compile (#403), PERIOD DEFINITION forensics
+
+- Owner: "merge everything needing merging and pushing!" Merged at tested heads: #400 stall profiler (bde69783),
+  #386 audit report (536aad15, subject rewritten without the deploy-skip marker text), #402 main-thread hot spots
+  (b240d727). Left alone: #385/#375 (conflicting, unfinished), Codex's #377/#339/#333/#264. #395 re-chained a third time
+  after #402's ledger line (receipts now 1464-1492); #401 still needs a re-chain before it can merge.
+- #403 (deferred shader status in createProgramBatch, MDN practice): same-bundle A/B, 3 alternating runs per arm,
+  batch-compile main-thread 1285/678/741 -> 472/472/435 ms, worst load stall 442/390/346 -> 310/342/211 ms.
+- PERIOD FORENSICS (3 live world /grid GETs at 00Z, health 1.20 s before / 0.38 s after the last pair): at nodes where
+  heights agree within 15%, EURO/GFS period ratio p50 0.988 but ICON/GFS p50 0.842 (10.94 s vs 8.97 s, n=6433).
+  Code: GFS = PERPW, EURO world = pp1d (peak, deliberately "GFS-Wave PERPW semantics"), ICON = DWD tm10 (energy period
+  Tm-1,0), Copernicus EURO point path = VTM10 (energy period) although VTPK (peak) exists. Open-Meteo at 30N 130W:
+  ECMWF mean 11.0 s vs peak 12.85 s; GFS PERPW 11.65 s; GWAM 10.6 s. surf_transform.py and surf_rating.period_quality
+  are written for PEAK period, so ICON (and the Copernicus EURO point path) feed a ~15% shorter period into the
+  breaking-height and period-quality math, and the consensus mean mixes definitions. DWD open data has ppts/ppww
+  (partition peak periods): Tp ≈ ppts where shts^2 > shww^2, else ppww. Fix must ship DARK (served numbers, D-001),
+  validated against NDBC DPD (a peak period) and cross-model at height-agreeing nodes; not built.
+- Research this round: BigQuery public data (metadata only, no queries: ICOADS ends 2017; IBTrACS current, with
+  34/50/64-kt wind radii), AIFS Waves (Hs, mean period, sin/cos direction, six >10 s period bands like our
+  ECMWF_PERIOD_BANDS, ~10% lower Hs RMSE), and the four-parameter cross-assignment of wave systems (2412.09542).
