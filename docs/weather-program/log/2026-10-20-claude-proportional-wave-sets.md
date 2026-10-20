@@ -90,3 +90,8 @@ line, removed). `npx craco build` exit 0 and the bundle carries `u_proportionalS
   A/B. Nearshore both are depth-limited.
 - **T_MAX from the displayed data**, if the owner finds 6 s bands too tight on a phone.
 - The live nightly's SETTLED_STEP read after merge (it measured #397's pulse live; offline cannot reproduce its 120 <-> 200).
+
+## 5. Opened
+
+PR #404 (draft for the owner's A/B, not merged), ledger seq 1498 (`pr_open`). Open PRs #401, #377, #375, #339, #333 and #264
+also append to `ACTIONS.jsonl`: whichever merges second re-chains its lines onto dev's head (LESSONS, ledger forks).
