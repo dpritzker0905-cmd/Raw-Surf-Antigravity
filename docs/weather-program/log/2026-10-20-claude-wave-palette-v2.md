@@ -87,3 +87,10 @@ and its composites to 2.5 (beach).
   `wind-color/check.mjs --strict` exit 0, build compiled. Hosted CI is the authority.
 - Follow-ups proposed, not built: widen the height encoding to ~16 m (per-upload scale uniform; dark and the rating texture
   byte-identical; its own A/B), and the beach crest colours at 1.5-4 m (their own A/B).
+
+## 2026-10-20T06:40Z: the lead's answer on the domain
+
+The lead session answered after the PR opened: keep the ramp capped at the true 10 m ceiling with the explicit above-cap
+state and the 33+ ft / 10+ m arrow (option a, as built). Widening the encoding to 16 m changes what the crests read, so it is
+its own PR and A/B after the owner picks A or B here; #411 stays a draft until that pick. (The lead's words, relayed by
+session message; not the owner's.)
