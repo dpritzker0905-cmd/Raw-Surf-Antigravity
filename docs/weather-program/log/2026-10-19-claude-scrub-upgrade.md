@@ -564,3 +564,29 @@ only on the ledger.
   frames need CDN frames first, or they triple the box's load.
 
 Morning report (private): https://claude.ai/artifact/B2SKgyzwwBvuZosdAqyYdQ
+
+## 09:50 EDT (13:50Z): #406 and #411 merged; morning research for the follow-up sessions; Leonardo MCP fixed upstream
+
+- #406 (overnight receipts) merged 08:42:38Z as 0fc67408a. #411 (wave palettes, light A + beach B, D-033) merged
+  13:39:31Z as f550d2502 by the palette session on the owner's word (13:35Z, relayed: "Merge #411 into dev once every
+  hosted check is green, then read back the deployed build"). Dev serves BUILD_VERSION f550d250 with
+  __RAW_DISABLE_WAVE_PALETTE_V2__, light calm 228,230,144, beach calm 195,254,255 and the violet flag 120,26,174
+  (palette session's read-back).
+- Research sent to the three follow-up sessions (16 m encoding, beach crest colours, async land mask):
+  - R16F is filterable in core WebGL2 (MDN raw source; a WebFetch summary had swapped the columns), with steps
+    <= 1.6 cm at 16 m. An 8-bit sqrt encoding biases bilinear midpoints up to -50 cm.
+  - Beach crest inks: a polarity switch at wash APCA-Y > 0.352 keeps min |Lc| 53 over both ramps. White-only reaches 0
+    and navy-only 16-20. Leonardo-tuned tints reach 42-49.
+  - Async land mask: OffscreenCanvas in Chrome 69, Firefox 105, Safari 16.4; scheduler.yield not in Safari. The LoAF
+    baseline on dev 60fc1954c pan/zoom: 8 frames > 50 ms, worst 126 ms, React scheduler 430 ms, series JSON parse 62 ms.
+  - Literature (Consensus):
+    - Lindsey & Teller 1990: direction-of-motion is lost at isoluminance, so crests need luminance contrast;
+    - Dasgupta 2020, Schloss 2019: monotonic lightness and the dark-is-more / opaque-is-more agreement on bright basemaps;
+    - Birkeland 2014: perceived particle speed follows a power law;
+    - Ware 2016: crest-like orthogonal animated segments are worst for path tracing.
+- Tools:
+  - The Chrome DevTools MCP browser crashes on our WebGL map, so ab_lib stays the harness.
+  - Mobbin needs a paid plan.
+  - Leonardo generate-theme was broken by an MCP structuredContent bug: patched locally (npx cache) and fixed upstream
+    with the owner's go-ahead in adobe/leonardo#297 (issue) and #298 (PR; fix + end-to-end test + changeset, 9/9 tests).
+    #298 waits on the owner's Adobe CLA.
