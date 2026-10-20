@@ -12,7 +12,7 @@ export const SOURCE = [
 ];
 
 export function goldenBuffer(validIso) {
-  const bytes = Uint8Array.from(Buffer.from(GOLDEN_B64, 'base64'));
+  const bytes = Uint8Array.from(atob(GOLDEN_B64), (ch) => ch.charCodeAt(0));
   if (validIso) new DataView(bytes.buffer).setFloat64(56, Date.parse(validIso) / 1000, true);
   return bytes.buffer;
 }
