@@ -12,6 +12,7 @@ import {
   FloatArrayConstructor,
 } from './WebGLMarineFieldMath';
 import { getMarineGeoData } from './WebGLMarineGeoData';
+import { marineWaveHeightScale } from './marineWavePalette'; // the height byte's metres per upload (marineHeightEncoding.js)
 import {
   createShader,
   createProgram,
@@ -309,6 +310,8 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     ? window.__RAW_CONF_FADE_STRENGTH__ : 0.75;
   let confScaledCells = 0;
   let confMin = 1.0;
+  // THE HEIGHT BYTE: 16 m for the light/beach V2 wash, else 10; rating grids stay 10 (byte-identical surf path). Kill and contract: marineHeightEncoding.js.
+  const hScale = waveGrid.ratingMode ? 10 : marineWaveHeightScale(typeof window !== 'undefined' ? window.__WEBGL_MARINE_THEME__ : undefined);
 
   for (let i = 0; i < N; i++) {
     const u = uArr[i];
@@ -335,7 +338,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       nu = 0.5;
       nv = 0.5;
     }
-    const hEnc = Math.max(0.0, Math.min(1.0, height / 10.0));
+    const hEnc = Math.max(0.0, Math.min(1.0, height / hScale));
     const periodEnc = periodVal > 0 ? Math.max(0.0, Math.min(1.0, periodVal / 20.0)) : 0.0;
 
     dataWave[i * 4 + 0] = Math.floor(nu * 255);
@@ -789,6 +792,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     // §0e: present ONLY on rating grids (anim-phys on) — the heatmap binds this for band
     // colors while u_waveTexture stays honest for draw/advect.
     u_waveScoreTexture: scoreTex,
+    u_heightScale: hScale,   // the metres u_waveTexture's 255 means (the score texture is always /10)
     bounds
   };
 }

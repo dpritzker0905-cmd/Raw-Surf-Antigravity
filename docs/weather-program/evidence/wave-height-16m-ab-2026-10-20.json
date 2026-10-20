@@ -1,0 +1,1081 @@
+{
+ "what": "16 m wave-height encoding for the light and beach wash (marineHeightEncoding.js): offline A/B, one production build, kill window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = v2@10 (dev today, #411)",
+ "at": "2026-10-20",
+ "store": "serve_synthetic.py --dynamic 1 --vortex-peak 14 (eye peaks at 14.945 m; GFS 2-deg global_mid 181x83)",
+ "instruments": [
+  "frontend/scripts/offline-backend/scn_wave_palette_ab.js",
+  "frontend/scripts/offline-backend/wave_crest_stats.py",
+  "frontend/scripts/wind-color/wave-check.mjs"
+ ],
+ "owner_page": "https://claude.ai/artifact/YQMsfBLgjnm9h9kZ4UtHeU (private to the owner)",
+ "uploads": {
+  "full_run": [
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 6,
+    "rows": 5,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 6,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "8d2d4859"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "7dbdf8fd"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "a2834731"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "7dbdf8fd"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "a2834731"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   }
+  ],
+  "dark_two_runs_per_setting": [
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   }
+  ]
+ },
+ "wash_pixels_full_run": {
+  "light": {
+   "wash_v2@10_vs_v2": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 829367,
+     "differ_gt_tol": 582093,
+     "max": 246
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 509009,
+     "differ_gt_tol": 60628,
+     "max": 157
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 482238,
+     "differ_gt_tol": 22533,
+     "max": 165
+    }
+   },
+   "wash_v2@10_vs_v2@10b": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 810375,
+     "differ_gt_tol": 626766,
+     "max": 246
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 99843,
+     "differ_gt_tol": 1540,
+     "max": 41
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 118047,
+     "differ_gt_tol": 2603,
+     "max": 44
+    }
+   }
+  },
+  "beach": {
+   "wash_v2@10_vs_v2": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 366400,
+     "differ_gt_tol": 78375,
+     "max": 154
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 583578,
+     "differ_gt_tol": 52240,
+     "max": 145
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 536564,
+     "differ_gt_tol": 15734,
+     "max": 146
+    }
+   },
+   "wash_v2@10_vs_v2@10b": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 42844,
+     "differ_gt_tol": 52,
+     "max": 13
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 119908,
+     "differ_gt_tol": 378,
+     "max": 48
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 10087,
+     "differ_gt_tol": 0,
+     "max": 4
+    }
+   }
+  },
+  "dark": {
+   "wash_v2@10_vs_v2": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 5116,
+     "differ_gt_tol": 1019,
+     "max": 48
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 88352,
+     "differ_gt_tol": 1996,
+     "max": 104
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 14764,
+     "differ_gt_tol": 5174,
+     "max": 117
+    }
+   },
+   "wash_v2@10_vs_v2@10b": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 1108,
+     "differ_gt_tol": 260,
+     "max": 51
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 86562,
+     "differ_gt_tol": 392,
+     "max": 48
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 2486,
+     "differ_gt_tol": 204,
+     "max": 21
+    }
+   }
+  }
+ },
+ "dark_pairwise_regional_and_world": {
+  "world": [
+   {
+    "a": "v2@10",
+    "b": "v2@10b",
+    "same_setting": true,
+    "px_gt4": 458,
+    "max": 61
+   },
+   {
+    "a": "v2@10",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 52,
+    "max": 7
+   },
+   {
+    "a": "v2@10",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 276,
+    "max": 17
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 510,
+    "max": 61
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 674,
+    "max": 61
+   },
+   {
+    "a": "v2",
+    "b": "v2b",
+    "same_setting": true,
+    "px_gt4": 580,
+    "max": 24
+   }
+  ],
+  "regional": [
+   {
+    "a": "v2@10",
+    "b": "v2@10b",
+    "same_setting": true,
+    "px_gt4": 458,
+    "max": 61
+   },
+   {
+    "a": "v2@10",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 0,
+    "max": 2
+   },
+   {
+    "a": "v2@10",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 32,
+    "max": 5
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 458,
+    "max": 61
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 510,
+    "max": 61
+   },
+   {
+    "a": "v2",
+    "b": "v2b",
+    "same_setting": true,
+    "px_gt4": 32,
+    "max": 5
+   }
+  ]
+ },
+ "crests_90_frames_per_run": {
+  "light": {
+   "wash_v2@10_vs_v2": {},
+   "wash_v2@10_vs_v2@10b": {},
+   "below10_mask_px": 961539,
+   "eye_mask_px": 60365,
+   "noisy_px": 2096,
+   "crests/v2@10": {
+    "below10": {
+     "coverage_mean": 0.07204869831939562,
+     "coverage_sd": 0.005071598178703105,
+     "colour_mean": [
+      126.8,
+      154.1,
+      177.2
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.19106491068223863,
+     "coverage_sd": 0.015528396027063952,
+     "colour_mean": [
+      147.0,
+      103.2,
+      131.6
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "crests/v2@10b": {
+    "below10": {
+     "coverage_mean": 0.07139920712755511,
+     "coverage_sd": 0.005676936706901994,
+     "colour_mean": [
+      126.5,
+      153.7,
+      176.7
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.18367689150261834,
+     "coverage_sd": 0.01101374161353155,
+     "colour_mean": [
+      147.0,
+      102.8,
+      130.7
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "crests/v2": {
+    "below10": {
+     "coverage_mean": 0.0714545813187678,
+     "coverage_sd": 0.007303165360214498,
+     "colour_mean": [
+      126.5,
+      153.8,
+      176.8
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.19865981943178995,
+     "coverage_sd": 0.0067655043392957845,
+     "colour_mean": [
+      141.5,
+      101.5,
+      135.4
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "crests/v2b": {
+    "below10": {
+     "coverage_mean": 0.07111465173135058,
+     "coverage_sd": 0.0055922339895566435,
+     "colour_mean": [
+      126.4,
+      153.3,
+      176.6
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.20602887986968166,
+     "coverage_sd": 0.006435886751022506,
+     "colour_mean": [
+      142.2,
+      100.5,
+      135.0
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "coverage_between_encodings": 0.00043933619841618476,
+   "coverage_within_lever": 0.0006494911918405039
+  },
+  "beach": {
+   "wash_v2@10_vs_v2": {},
+   "wash_v2@10_vs_v2@10b": {},
+   "below10_mask_px": 971958,
+   "eye_mask_px": 51990,
+   "noisy_px": 52,
+   "crests/v2@10": {
+    "below10": {
+     "coverage_mean": 0.039478797780699716,
+     "coverage_sd": 0.001049143450535453,
+     "colour_mean": [
+      135.1,
+      163.0,
+      222.2
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.15209249642025174,
+     "coverage_sd": 0.013039520366706128,
+     "colour_mean": [
+      173.2,
+      118.0,
+      207.2
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "crests/v2@10b": {
+    "below10": {
+     "coverage_mean": 0.03969535949312854,
+     "coverage_sd": 0.0014287570992738026,
+     "colour_mean": [
+      135.0,
+      163.0,
+      222.1
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.1577549101322904,
+     "coverage_sd": 0.011575112957447993,
+     "colour_mean": [
+      173.5,
+      117.8,
+      207.0
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "crests/v2": {
+    "below10": {
+     "coverage_mean": 0.039353803810909985,
+     "coverage_sd": 0.0012567498481758372,
+     "colour_mean": [
+      135.6,
+      162.5,
+      221.9
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.1648932487016734,
+     "coverage_sd": 0.006800469587510568,
+     "colour_mean": [
+      175.6,
+      120.6,
+      192.7
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "crests/v2b": {
+    "below10": {
+     "coverage_mean": 0.03949005798375833,
+     "coverage_sd": 0.0012728722765066873,
+     "colour_mean": [
+      134.2,
+      163.2,
+      222.0
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.16301810177170825,
+     "coverage_sd": 0.0058114424854272,
+     "colour_mean": [
+      175.8,
+      119.8,
+      192.0
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "coverage_between_encodings": 0.0001651477395799711,
+   "coverage_within_lever": 0.00021656171242882133
+  }
+ },
+ "palette_check": {
+  "light_v2@16": {
+   "step_10_16_dE00": 8.3,
+   "flag_off_16_dE00": 12.2,
+   "flag_darker_as_drawn_L": -0.035,
+   "weakest_all_models": 7.2,
+   "weakest_normal": "9.3 (10-16 m)"
+  },
+  "beach_v2@16": {
+   "step_10_16_dE00": 7.9,
+   "flag_off_16_dE00": 10.8,
+   "flag_darker_as_drawn_L": -0.046,
+   "flag_off_water_vs_cap_dE00": 4.6,
+   "weakest_all_models": 6.5,
+   "weakest_normal": "7.2 (0-0.61 m)",
+   "legend_arrow_apca": -14.8
+  }
+ }
+}
