@@ -179,3 +179,10 @@ it fails with the floored seam put back (checked). The lead's other checks, reco
 decode per shader), no shader treats byte 0 or 255 as a sentinel, `ratingScore` runs only with the /10 score texture bound, and
 the GFS single-slice trace stats are unitless and only compared with each other. The red `verify` check the review named was
 the "~15:40Z" header, already corrected (ledger 1545); `verify` passes on `f91a8fdd4`.
+
+## 16:21Z: the owner's verdict: ship it
+
+The owner, in this session at 16:17Z, on the A/B page and #415 at `78bd7a2b1`: "Owner verdict on #415: ship the 16 m encoding on by default. Record it in the log and ledger and mark the PR ready." Recorded as DECISIONS D-034; ledger
+`decision` and `push` lines (the push fulfils 1544, the owner-verdict commitment) and a new commitment for the read-back after the
+merge. #415 marked ready for review; NOT merged (merging is the owner's separate word). The float height texture (R16F) follow-up
+is running in its own session (task started by the owner from the proposal card).
