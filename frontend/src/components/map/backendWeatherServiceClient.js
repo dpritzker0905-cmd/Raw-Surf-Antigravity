@@ -11,6 +11,7 @@ import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { readMarineSurfMode } from './marineSurfMode';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
+import { getManifestTimeIndex, manifestGroupKey, manifestTimeIndexEnabled, nearestValidTime } from './manifestTimeIndex';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
 import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
@@ -231,14 +232,27 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   const hasEmptyProducts = manifest && Array.isArray(manifest.products) && manifest.products.length === 0;
 
   if (manifest && Array.isArray(manifest.products) && !hasEmptyProducts) {
-    const matchingProducts = manifest.products.filter(p => 
-      p.model.toUpperCase() === filterModel &&
-      p.domain.toLowerCase() === filterDomain &&
-      p.layer.toLowerCase() === filterLayer
-    );
-
-    if (matchingProducts.length > 0) {
-      let minDiffMs = Infinity;
+    // The nearest product's time, from the per-manifest index (manifestTimeIndex.js: built once, binary-searched, the same
+    // answer as the scan below, ties included) or, with its kill switch or a malformed manifest, from the original scan.
+    let matchCount = 0;
+    let minDiffMs = Infinity;
+    let bestMs = null;
+    const timeIndex = manifestTimeIndexEnabled() ? getManifestTimeIndex(manifest.products) : null;
+    if (timeIndex) {
+      const group = timeIndex.get(manifestGroupKey(filterModel, filterDomain, filterLayer));
+      if (group) {
+        matchCount = group.count;
+        const near = nearestValidTime(group, targetDt.getTime());
+        minDiffMs = near.diffMs;
+        bestMs = near.ms;
+      }
+    } else {
+      const matchingProducts = manifest.products.filter(p => 
+        p.model.toUpperCase() === filterModel &&
+        p.domain.toLowerCase() === filterDomain &&
+        p.layer.toLowerCase() === filterLayer
+      );
+      matchCount = matchingProducts.length;
       let bestProduct = null;
 
       for (const p of matchingProducts) {
@@ -249,10 +263,13 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
           bestProduct = p;
         }
       }
+      if (bestProduct) bestMs = new Date(bestProduct.valid_time_start).getTime();
+    }
 
+    if (matchCount > 0) {
       // Snapped to products within a max 3h delta window
-      if (minDiffMs <= 3 * 3600000 && bestProduct) {
-        selectedManifestValidTime = new Date(bestProduct.valid_time_start).toISOString();
+      if (minDiffMs <= 3 * 3600000 && bestMs !== null) {
+        selectedManifestValidTime = new Date(bestMs).toISOString();
         manifestDeltaHours = minDiffMs / 3600000;
       } else {
         fallbackReason = `No ${filterModel} ${filterLayer} product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;

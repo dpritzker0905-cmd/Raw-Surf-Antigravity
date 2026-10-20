@@ -418,7 +418,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // TRAILS ANCHORED TO THE MAP: this frame's trail-buffer camera (windTrailAnchor.js). With its kill switch on, the buffer
   // is the screen again and a genuine zoom jump clears it, as before.
   const _trail = windTrailFrame(this, gl, this._trailMatrix || matrix, screenWidth, screenHeight, typeof zoom === 'number' ? zoom : 6);
-  const webglState = captureWebGLState(gl);
+  const webglState = captureWebGLState(gl, this._mapGLContext);   // MapLibre's GL state shadow, set per frame by WebGLWindLayer
   try {
     gl.disable(gl.DEPTH_TEST);
     gl.depthMask(false);

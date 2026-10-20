@@ -172,6 +172,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         }
 
         engine._trailMatrix = _matrix64 || _matrix;
+        engine._mapGLContext = (map.painter && map.painter.context) || null;   // the GL state shadow the capture reads
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets, viewportBounds);
       } catch (e) {
         errorCount++;
