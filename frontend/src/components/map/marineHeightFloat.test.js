@@ -180,6 +180,9 @@ describe('lifecycle', () => {
       const b = encodeHeightFloat(gl, engine, false, grid(false), h, 10, false);
       expect(b).toBe(a);
       expect(calls.map((c) => c[0])).toEqual(['texImage2D', 'texSubImage2D']);
+      const buf = engine._heightFloatScratch;   // one pack buffer for every commit (no 4 MB per scrub step on a world grid)
+      encodeHeightFloat(gl, engine, false, grid(false), h, 10, false);
+      expect(engine._heightFloatScratch).toBe(buf);
       const c = encodeHeightFloat(gl, engine, false, grid(false, { cols: 10, rows: 10 }), h, 10, false);
       expect(c).not.toBe(a);
       expect(deleted).toEqual([a]);

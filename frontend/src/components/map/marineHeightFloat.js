@@ -33,9 +33,9 @@ export const HEIGHT_FLOAT_UNIT = 6;
 /** WebGL2 (R16F and RED exist only there): the float path's one capability test. */
 export const supportsHeightFloat = (gl) => !!gl && typeof gl.R16F === 'number' && typeof gl.RED === 'number';
 
-/** The float twin of the height byte: metres clamped to [0, scale] (NaN -> 0, as the byte), the global seam averaged as the byte is. */
-export function packHeightFloat(h, cols, rows, scale, isGlobal) {
-  const out = new Float32Array(cols * rows);
+/** The float twin of the height byte: metres clamped to [0, scale] (NaN -> 0, as the byte), the global seam averaged as the byte is.
+ *  `out` (optional, length cols * rows): where to write, so a scrub's commits reuse one buffer (WebGL copies on upload). */
+export function packHeightFloat(h, cols, rows, scale, isGlobal, out = new Float32Array(cols * rows)) {
   for (let i = 0; i < out.length; i++) { const v = h[i]; out[i] = v > 0 ? (v < scale ? v : scale) : 0; }
   if (isGlobal) for (let r = 0; r < rows; r++) { const a = r * cols, b = a + cols - 1; out[a] = out[b] = (out[a] + out[b]) * 0.5; }
   return out;
@@ -65,6 +65,15 @@ export function releaseResidentHeightFloat(gl, engine) {
   safeDeleteTexture(gl, engine._residentHeightTex, null);
   engine._residentHeightTex = null;
   engine._residentHeightDims = null;
+  engine._heightFloatScratch = null;
+}
+
+// The pack buffer, held on the engine like the encoder's own scratch arrays (getEncoderScratchBuffers): a 1440 x 721 world grid
+// would otherwise allocate 4 MB per commit while scrubbing. Grows, never shrinks; dropped with the resident texture.
+function scratchFor(engine, n) {
+  if (!engine) return new Float32Array(n);
+  if (!engine._heightFloatScratch || engine._heightFloatScratch.length < n) engine._heightFloatScratch = new Float32Array(n);
+  return engine._heightFloatScratch.subarray(0, n);
 }
 
 /** Called once per encode, after the byte textures are in: the float height texture for this set, or null (the byte decodes). */
@@ -75,7 +84,7 @@ export function encodeHeightFloat(gl, engine, standalone, waveGrid, h, scale, is
   const { cols, rows } = waveGrid, dims = `${cols}x${rows}`;
   let fresh = null;
   try {
-    const data = packHeightFloat(h, cols, rows, scale, isGlobal);
+    const data = packHeightFloat(h, cols, rows, scale, isGlobal, scratchFor(engine, cols * rows));
     if (resident && engine._residentHeightTex && engine._residentHeightDims === dims) {
       upload(gl, engine._residentHeightTex, data, cols, rows, false);
       return engine._residentHeightTex;
