@@ -34,7 +34,7 @@ import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CA
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
 import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
-import { setGridPointRegUniform } from './gridPointRegistration';
+import { setGridPointRegUniform } from './gridPointRegistration'; import { setWaveHeightScale } from './marineHeightEncoding'; // per-upload height byte
 import { populateCrestDiagnostics, marineForensicFrameEvidence } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
@@ -1853,7 +1853,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // identical rating-on/off. Whenever the encoder packed a score texture the heatmap MUST
     // use it (the main texture is honest heights then). The feature kill switch lives at the
     // ENCODER (__RAW_DISABLE_ANIM_PHYS__ → no score texture, score back in the shared channel).
-    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0);
+    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, this._waveData.u_waveScoreTexture ? null : this._waveData);
     bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
@@ -2053,7 +2053,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // CREST RING-FILL (2026-07-16): coarse-base fallback pair on units 5/6 (fallback-bound below
       // so the samplers are always complete; resolveCrestRingFill forces enabled=false when no
       // complete base is held, so the fallback binds are never read).
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseWaveTexture'), 5);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseWaveTexture'), 5); setWaveHeightScale(gl, this.drawProgram, this._waveData, _rfBase || this._waveData);
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseMaskTexture'), 6);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
@@ -2211,7 +2211,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
       // CREST RING-FILL — must match the DRAW pass exactly (same _ringFill decision, same base
       // set; advect units 4/5 since this pass only uses 0-3). Fallback-bound below.
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseWaveTexture'), 4);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseWaveTexture'), 4); setWaveHeightScale(gl, this.advectProgram, this._waveData, _rfBase || this._waveData);
       gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseMaskTexture'), 5);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
@@ -3119,7 +3119,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlaySDFEnabled'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), baseOpacity);
 
-  bindTexture(gl, base.u_waveTexture, 0);
+  bindTexture(gl, base.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, base);
   bindTexture(gl, base.u_chlorophyllTexture, 1);
   bindTexture(gl, base.u_bathymetryTexture, 2);
   bindTexture(gl, base.u_oceanMaskTexture, 3);
