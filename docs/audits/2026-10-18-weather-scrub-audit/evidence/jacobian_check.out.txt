@@ -1,0 +1,31 @@
+PASS  shader contains: vec2 windMerc = vec2(wind.x, -wind.y);
+PASS  shader contains: float merc_scale = max(0.1, cos(lat_rad));
+PASS  shader contains: vec2 offset = (windMerc / merc_scale) * u_speed_scale;
+PASS  shader contains: offset *= pow(speedNorm, gammaEff - 1.0);
+PASS  shader contains: float speedNorm = clamp(speed / max(u_speed_max, 1.0), 0.02, 1.0);
+PASS  GLSL latToMercatorY == exact Mercator y (double)  max |dy| = 2.78e-15
+PASS  GLSL mercatorYToLat(latToMercatorY(lat)) round trip  max |dlat| = 1.42e-13 deg
+INFO  float32 mercatorYToLat max error over +-80 deg = 1.16e-5 deg (~1.3 m)
+PASS  screen motion is isotropic sec(lat)-scaled (conformal Jacobian), all lats/directions  max rel spread = 7.03e-10
+PASS  screen direction == projected geographic direction  max angle err = 2.70e-8 deg
+INFO  10 m/s-units east at lat 0: shader dx = 1.0000e-3 (x sec(lat) = 1.0000)
+INFO  10 m/s-units east at lat 45: shader dx = 1.4142e-3 (x sec(lat) = 1.4142)
+INFO  10 m/s-units east at lat 60: shader dx = 2.0000e-3 (x sec(lat) = 2.0000)
+INFO  merc_scale clamp engages at |lat| > 84.26 deg (map limit 85.05): at 85 deg motion under-reads by 12.8%
+PASS  engine formula text present
+INFO  speedFactor = 0.55 (WebGLWindEngine.js)
+INFO  z0: 4.224 px/s per kn @equator | z2: 4.224 px/s per kn @equator | z4: 4.224 px/s per kn @equator | z5: 4.224 px/s per kn @equator | z5.5: 4.224 px/s per kn @equator | z5.8: 4.279 px/s per kn @equator | z6: 4.915 px/s per kn @equator | z6.01: 4.224 px/s per kn @equator | z7: 4.224 px/s per kn @equator | z10: 4.224 px/s per kn @equator
+INFO  speed step across z=6 boundary: x1.164 (floor 2.5e-6 binds for z > 5.78)
+INFO  frameTimeScale over t=0,16.667,25,33.333,5033.333,5050 ms -> 1.000, 1.000, 0.500, 0.500, 3.000, 1.000
+PASS  120 Hz frame -> 0.5 step (per-second invariance)
+PASS  5 s hidden-tab gap clamps to 3 frames
+PASS  ptReg n=181: uv 0/0.5/1 -> texel 0/(n-1)/2/(n-1)  0.000000, 90.000000, 180.000000
+PASS  ptReg n=9: uv 0/0.5/1 -> texel 0/(n-1)/2/(n-1)  0.000000, 4.000000, 8.000000
+PASS  ptReg n=2: uv 0/0.5/1 -> texel 0/(n-1)/2/(n-1)  0.000000, 0.500000, 1.000000
+PASS  encodeWindTexture floors (not rounds)
+INFO  range [-20,25] kn: LSB 0.176 kn, mean bias -0.086 kn, worst -0.176 kn, calm (0,0) decodes to |w| = 0.083 kn
+INFO  range [-45,55] kn: LSB 0.392 kn, mean bias -0.201 kn, worst -0.392 kn, calm (0,0) decodes to |w| = 0.416 kn
+INFO  range [-90,80] kn: LSB 0.667 kn, mean bias -0.342 kn, worst -0.667 kn, calm (0,0) decodes to |w| = 0.000 kn
+INFO  speedGamma 1.15: 10 kn moves at x0.901 when the grid max goes 30 -> 60 kn; 40 kn vs 10 kn screen-speed ratio = 4.925 (linear = 4)
+
+ALL CHECKS PASSED
