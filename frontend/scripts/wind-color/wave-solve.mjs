@@ -10,7 +10,7 @@
 // and ends magenta to crimson.
 //
 // Usage: node wave-solve.mjs --theme light|beach --family A|B|V [--heights 0,0.61,1.22,2.44,3.66,6.1,10] [--cap 10]
-//                            [--gens 1500] [--np 80] [--seed 1] [--crest-weight 0.7] [--legend-lc 15] [--hend 315,350] [--pin-h i:lo:hi,...] [--comp-c 14] [--out table.json]   (out: merged into that table's file)
+//                            [--gens 1500] [--np 80] [--seed 1] [--crest-weight 0.7] [--legend-lc 15] [--hend 315,350] [--pin-h i:lo:hi,...] [--turn lo,hi] [--comp-c 14] [--out table.json]   (out: merged into that table's file)
 import fs from 'fs';
 import { BASEMAP, ALPHAS, washAt, composite, crestOver, oklab, apcaLc, dE, allDE, chromaStar } from './wave-lib.mjs';
 import { rgbOfLch, lchOf } from './light-path-lib.mjs';
@@ -35,8 +35,10 @@ const PIN_H = (arg('--pin-h', '') || '').split(',').filter(Boolean).map((t) => t
 // Bounds of one candidate: [L0, fall x (n-1), C0, chroma step x (n-1), h0, turn x (n-1), overFall, overC, overH].
 // SMOOTH BY CONSTRUCTION (2026-10-20): a free chroma per anchor let the search zig-zag (C* 85 -> 14 -> 70 between neighbours) to
 // buy colour-blind distance, a pulsing ramp. Falls of 4-16 L*, chroma steps of at most 12, hue turns of 8-45 degrees.
-const TURN = FAM.turn || [8, 45];
-const lo = [theme === 'light' ? 80 : 82, ...Array(n - 1).fill(4), 12, ...Array(n - 1).fill(-12), FAM.h0[0], ...Array(n - 1).fill(TURN[0]), 2, 10, 0];
+// --turn lo,hi: the per-step hue turn window (CIELAB degrees; V's default -45,-8). Wider turns buy hue distance between neighbours.
+const TURN = arg('--turn', null) ? arg('--turn').split(',').map(Number) : (FAM.turn || [8, 45]);
+const L0 = arg('--l0', null) ? Number(arg('--l0')) : (theme === 'light' ? 80 : 82);   // --l0: the calm's lowest L* (a lighter calm widens the range)
+const lo = [L0, ...Array(n - 1).fill(4), 12, ...Array(n - 1).fill(-12), FAM.h0[0], ...Array(n - 1).fill(TURN[0]), 2, 10, 0];
 const hi = [97, ...Array(n - 1).fill(16), 60, ...Array(n - 1).fill(12), FAM.h0[1], ...Array(n - 1).fill(TURN[1]), 18, 80, 360];
 const W = BASEMAP[theme], land = W.land.map((v) => v / 255), panel = W.panel.map((v) => v / 255);
 
