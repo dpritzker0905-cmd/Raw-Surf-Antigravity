@@ -2,7 +2,7 @@
 
 Session opened 2026-10-20T03:42Z, started by the weather-simulation session `local_d6b521eb` after #403. Branch
 `claude/upbeat-dirac-45811f` (worktree `.claude/worktrees/upbeat-dirac-45811f`), cut from dev `6021c2cc1`, rebased onto
-`998e9e919` (#409). PR #410, ledger seq 1504. Client only. **No served number changes** (no SCOREBOARD row). Ships ON,
+`998e9e919` (#409). PR #410, ledger seq 1507 (re-chained from 1504 by the lead session after #407 and #408 merged). Client only. **No served number changes** (no SCOREBOARD row). Ships ON,
 with the kill switch `window.__RAW_DISABLE_ASYNC_SHADER_COMPILE__` (restores #403 exactly). Evidence:
 `evidence/async-shader-compile-2026-10-20.json`.
 
