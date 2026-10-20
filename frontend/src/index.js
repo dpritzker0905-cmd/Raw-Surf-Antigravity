@@ -348,3 +348,13 @@ if ('serviceWorker' in navigator) {
 // --- Core Web Vitals Monitoring ---
 // Reports LCP, FID, CLS, TTFB, INP metrics. Logs in dev, ready for analytics.
 reportWebVitals(logWebVitals);
+
+// One-field proof (2026-10-19, dark): only with window.__RAW_FRAME_PROOF__ or localStorage '__RAW_FRAME_PROOF__'='true'.
+// Fetches the CDN frame image, compares it with /grid, and draws nothing. See components/map/frameImageProof.js.
+try {
+  if (window.__RAW_FRAME_PROOF__ || localStorage.getItem('__RAW_FRAME_PROOF__') === 'true') {
+    Promise.all([import('./components/map/frameImageProof'), import('./components/map/backendWeatherServiceClient')])
+      .then(([proof, client]) => proof.installFrameProof({ gridUrl: client.GRID_URL }))
+      .catch(() => {});
+  }
+} catch (e) { /* storage blocked: proof stays off */ }

@@ -114,3 +114,17 @@ jobs:
           WAVES_ANIM_DOMINANT_SWELL: ${{ vars.WAVES_ANIM_DOMINANT_SWELL || '0' }}
           WAVES_ANIM_SWELL_MIN_FRAC: ${{ vars.WAVES_ANIM_SWELL_MIN_FRAC || '0.35' }}
         run: python scripts/ingest_forecast_ci.py
+
+      # ONE-FIELD PROOF (2026-10-19, dark): publish the world-view GFS wave field nearest now as one static PNG to the
+      # PUBLIC bucket `weather-frames` (immutable path + a no-cache manifest.json). Serves nothing: no client draws it;
+      # only the dark frameImageProof.js loader reads it to compare against /grid. Reads weather-products, writes only
+      # weather-frames. Seconds of runner time, and it can never fail the ingest cycle (continue-on-error).
+      # ON: repository variable FRAME_IMAGES_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
+      - name: Publish one-field frame image (dark proof)
+        if: ${{ success() && vars.FRAME_IMAGES_PUBLISH == '1' }}
+        continue-on-error: true
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/publish_frame_images.py
