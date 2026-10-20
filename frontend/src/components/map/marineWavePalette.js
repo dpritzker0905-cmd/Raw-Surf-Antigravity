@@ -2,6 +2,8 @@
 // Kills, set before page load, then reload so the GLSL and the legend switch together:
 //   window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true -> the shader's own ramp (before 2026-10-14)
 //   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly
+// Beach owner A/B (2026-10-20, until a pick): v2's beach is BEACH_WASHES.mid by default; window.__RAW_BEACH_WASH__ = 'B' draws
+// D-033's beach B. Light is the same in both.
 // Checker: frontend/scripts/wind-color/wave-check.mjs (composited over each basemap, colour-blind via coloraide).
 import { M_TO_FT } from './heightUnits';
 
@@ -10,6 +12,18 @@ export const MARINE_WAVE_PALETTE_ENABLED = WIN.__RAW_DISABLE_MARINE_WAVE_PALETTE
 
 // The wave texture stores height as floor(min(1, h / 10) * 255) (WebGLMarineTextureEncoder.js): the GPU never reads more than 10 m.
 const ENCODED_MAX = 10;
+// Beach candidates for v2 (owner 2026-10-20: the old beach sea's colours, "in a steadily darkening order"). B: D-033's beach
+// (aqua -> cerulean -> orchid -> rose -> brick; a violet flag). mid: v1's hue path (aqua -> spring green -> golden sand -> apricot
+// -> coral -> crimson; a deep violet flag) with v2's law, lightness falling at every step. Solved by wave-solve.mjs --family V
+// --pin-h 2:62:85,3:48:68,4:35:55 (the sand pinned near sand), flag re-solved darker than the cap as drawn; judged by wave-check.mjs.
+export const BEACH_WASHES = {
+  B: { beach: [[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]], over: [120, 26, 174] },
+  mid: { beach: [[30, 253, 224], [137, 220, 111], [217, 179, 6], [246, 141, 70], [220, 85, 67], [169, 55, 62], [173, 3, 62]], over: [120, 0, 140] },
+};
+export function resolveBeachWash(win = WIN) {
+  return win.__RAW_BEACH_WASH__ === 'B' ? 'B' : 'mid';
+}
+export const BEACH_WASH_ID = resolveBeachWash();
 export const WAVE_PALETTES = {
   // v1 (2026-10-14/15): anchors to 10 m, clamped there; lightness not monotonic (audit 2026-10-20: light's calm 0 m and 10 m
   // storm 12.6 dE00 apart, beach's 0.6 m and 2.4 m the same grey). Value-linear legend on each scale's own axis.
@@ -22,13 +36,13 @@ export const WAVE_PALETTES = {
   // table and as composited over each theme's water at world/regional/coastal alpha; never through grey; hue is the second cue.
   // Anchors on the legend's ticks (0 2 4 8 12 20 33 ft); the cap is the encoder's 10 m ceiling, and a cell at or above it draws
   // the above-cap colour. Light: candidate A of the A/B (cream -> turquoise -> blue -> indigo; a red flag above the cap). Beach:
-  // candidate B (aqua -> cerulean -> orchid -> rose -> brick; a violet flag above the cap). Solved by wave-solve.mjs, finished by
-  // wave-polish.mjs, judged by wave-check.mjs and wave-jacobian.mjs (frontend/scripts/wind-color/).
+  // BEACH_WASHES[BEACH_WASH_ID] (above). Solved by wave-solve.mjs, finished by wave-polish.mjs, judged by wave-check.mjs and
+  // wave-jacobian.mjs (frontend/scripts/wind-color/).
   v2: {
     heights: [0, 0.61, 1.22, 2.44, 3.66, 6.1, 10], cap: 10,
     light: [[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]],
-    beach: [[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]],
-    over: { light: [105, 9, 0], beach: [120, 26, 174] },   // beach: violet, re-solved 2026-10-20 so it is darker than the cap AS DRAWN (D-033 note)
+    beach: BEACH_WASHES[BEACH_WASH_ID].beach,
+    over: { light: [105, 9, 0], beach: BEACH_WASHES[BEACH_WASH_ID].over },
   },
 };
 

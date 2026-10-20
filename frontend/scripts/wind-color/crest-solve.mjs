@@ -14,7 +14,7 @@
 // Both keep the crest's own path colourful (C* floor: v1's orchid -> turquoise mix went through a grey cyan) and the top stops
 // apart (--stop-de: without it the search lays active = storm, a crest that stops telling 3 m from 6 m).
 //
-// Usage: node crest-solve.mjs [--palettes v2] [--floor 18] [--path-c 30] [--stop-de 20] [--seed 1] [--gens 700] [--np 60] [--out f]
+// Usage: node crest-solve.mjs [--palettes v2] [--table cand.json --palettes table] [--floor 18] [--path-c 30] [--stop-de 20] [--seed 1] [--gens 700] [--np 60] [--out f]
 //   smooth:   [--keep-calm] [--calm-h lo,hi] [--active-h lo,hi] [--storm-h lo,hi] [--calm-l lo,hi] ...   (CIELAB windows; lo > hi wraps)
 //   polarity: --polarity [--lc 40] [--lc-w 0.5] [--switch 1.6,2.8] [--dark-l 15,50] [--light-l 72,99] [--dark-h lo,hi] [--light-h lo,hi]
 import fs from 'fs';
@@ -29,6 +29,8 @@ let seed = Number(arg('--seed', 1));
 const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
 const win = (k, d) => arg(k, d).split(',').map(Number);
 const { WAVE_PALETTES } = loadPalettes();
+// --table cand.json: a wave-solve.mjs candidate table to solve against instead (named 'table'; pass --palettes table).
+if (arg('--table', null)) WAVE_PALETTES.table = JSON.parse(fs.readFileSync(arg('--table'), 'utf8'));
 const FOAM = CRESTS.v1[3];
 
 // Every under-colour the crest can sit on: each palette, the world and coastal alpha (the regional one lies between), the swell

@@ -1,6 +1,6 @@
 """Compose the wave palette A/B (scn_wave_palette_ab.js output) into side-by-side sheets and a side-by-side moving clip.
 
-Usage:  python compose_wave_ab.py <scn output dir> [--variants c1,v2,cw] [--tag crest] [--clip-view coastal] [--title text]
+Usage:  python compose_wave_ab.py <scn output dir> [--variants v1,v2,B] [--tag crest] [--clip-view coastal] [--title text]
         (needs Pillow; the backend venv has it)
 Writes, into the same dir:
   sheet-<theme>[-tag].jpg    rows = world / regional / coastal, columns = the variants (default v1 | v2), each with its legend crop
@@ -14,9 +14,9 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B", "c1": "v2 wash, today's beach crests",
-         "cw": "v2 wash, warm beach crests"}
-CREST_NAMES = {"c1": "TODAY's crests", "v2": "V2 polarity (default)", "cw": "V2 warm (lever)"}
+NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B", "c1": "v2 wash, today's beach crests"}
+CREST_NAMES = {"v1": "OLD sea + today's crests", "v2": "MIDDLE GROUND + warm polarity", "B": "THIS MORNING's sea + today's crests",
+               "c1": "middle ground + today's crests"}
 
 
 def opt(name, default=None):

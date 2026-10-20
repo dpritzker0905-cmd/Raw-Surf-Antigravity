@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { getThemedWaveColorJS, applyThemeWaveScale, BASE_CUSTOM_COLOR_SCALES } from './colorScales';
-import { hasMarineWavePalette, marineWaveLegendGradientCSS, marineWaveLegend, WAVE_PALETTES, MARINE_WAVE_PALETTE_ID, MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, marineWavePaletteGlsl, sampleMarineWavePalette, ARROW_PCT } from './marineWavePalette';
+import { hasMarineWavePalette, marineWaveLegendGradientCSS, marineWaveLegend, WAVE_PALETTES, MARINE_WAVE_PALETTE_ID, MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, marineWavePaletteGlsl, sampleMarineWavePalette, ARROW_PCT, BEACH_WASHES, BEACH_WASH_ID } from './marineWavePalette';
 
 const hash = values => createHash('sha256').update(typeof values === 'string' ? values : JSON.stringify(values)).digest('hex');
 const heights = [0, .15, .3, .6, .9, 1.2, 1.8, 2.4, 3, 3.6, 4.2, 5, 6.1, 8, 10];
@@ -121,23 +121,36 @@ describe('the V2 kill (window.__RAW_DISABLE_WAVE_PALETTE_V2__) restores v1 exact
   });
 });
 
-// v2 = the owner's pick of the A/B (DECISIONS D-033, 2026-10-20: "Ship light A and beach B"). Kept in a describe.each so a
-// future candidate can be pinned the same way.
-describe.each(['v2'])('palette %s', id => {
-  const P = WAVE_PALETTES[id];
-  const load = fn => withWindow({}, fn);
-
-  it('ships by default, with only v1 behind the kill and no candidate lever left', () => {
-    expect(MARINE_WAVE_PALETTE_ID).toBe('v2');
-    expect(Object.keys(WAVE_PALETTES).sort()).toEqual(['v1', 'v2']);
-    withWindow({ __RAW_WAVE_PALETTE_V2__: 'B' }, palette => expect(palette.MARINE_WAVE_PALETTE_ID).toBe('v2'));   // the A/B lever is gone
+// v2 = the owner's pick of the A/B (DECISIONS D-033, 2026-10-20: "Ship light A and beach B"). Its beach is an owner A/B again
+// (2026-10-20 afternoon): 'mid', the old beach colours in a darkening order (default here), and 'B', D-033's (lever).
+it('ships v2, with only v1 behind the kill; beach draws mid by default and B on its lever', () => {
+  expect(MARINE_WAVE_PALETTE_ID).toBe('v2');
+  expect(Object.keys(WAVE_PALETTES).sort()).toEqual(['v1', 'v2']);
+  withWindow({ __RAW_WAVE_PALETTE_V2__: 'B' }, palette => expect(palette.MARINE_WAVE_PALETTE_ID).toBe('v2'));   // D-033's A/B lever stays gone
+  expect(BEACH_WASH_ID).toBe('mid');
+  withWindow({ __RAW_BEACH_WASH__: 'B' }, palette => {
+    expect(palette.BEACH_WASH_ID).toBe('B');
+    expect(palette.WAVE_PALETTES.v2.light).toEqual(WAVE_PALETTES.v2.light);   // light is the same in both
   });
+});
 
-  it('is light candidate A and beach candidate B of the owner A/B, colour for colour', () => {
-    expect(P.light).toEqual([[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]]);
-    expect(P.beach).toEqual([[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]]);
-    // Beach's flag: B's blue (46, 72, 223) drew LIGHTER than the brick cap over beach's water; re-solved darker as drawn (D-033 note).
-    expect(P.over).toEqual({ light: [105, 9, 0], beach: [120, 26, 174] });
+it('the beach candidates, colour for colour; light is candidate A of D-033', () => {
+  expect(WAVE_PALETTES.v2.light).toEqual([[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]]);
+  expect(WAVE_PALETTES.v2.over.light).toEqual([105, 9, 0]);
+  // B: D-033's beach. Its flag: B's blue (46, 72, 223) drew LIGHTER than the brick cap over beach's water; re-solved darker as drawn.
+  expect(BEACH_WASHES.B).toEqual({ beach: [[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]], over: [120, 26, 174] });
+  // mid: aqua -> spring green -> golden sand -> apricot -> coral -> brick-rose -> crimson; a deep violet flag.
+  expect(BEACH_WASHES.mid).toEqual({ beach: [[30, 253, 224], [137, 220, 111], [217, 179, 6], [246, 141, 70], [220, 85, 67], [169, 55, 62], [173, 3, 62]], over: [120, 0, 140] });
+  expect(WAVE_PALETTES.v2.beach).toBe(BEACH_WASHES.mid.beach);
+});
+
+describe.each([['mid', {}], ['B', { __RAW_BEACH_WASH__: 'B' }]])('palette v2, beach %s', (beachId, levers) => {
+  let P; withWindow(levers, palette => { P = palette.WAVE_PALETTES.v2; });
+  const load = fn => withWindow(levers, fn);
+
+  it('carries the chosen beach table', () => {
+    expect(P.beach).toEqual(BEACH_WASHES[beachId].beach);
+    expect(P.over.beach).toEqual(BEACH_WASHES[beachId].over);
   });
 
   it.each(['light', 'beach'])('%s: lightness falls at every 0.01 m from 0 m to the cap, then the above-cap state is no lighter', theme => {
@@ -196,7 +209,7 @@ describe.each(['v2'])('palette %s', id => {
 
   it('generates the GLSL it ships from the same table', () => {
     load(palette => expect(palette.MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P)));
-    expect(MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P));
+    if (beachId === BEACH_WASH_ID) expect(MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P));
   });
 });
 

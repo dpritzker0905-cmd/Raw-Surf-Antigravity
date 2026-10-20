@@ -40,7 +40,7 @@ export const DEPTH_FLOOR = { light: [0.12, 0.35, 0.68], beach: [0.015, 0.24, 0.2
 /** The beach crest tables the app ships (marineCrestPalette.js, export keywords and its one import stripped). */
 export function loadCrests(file = CREST_SRC) {
   const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
-  return new Function('MARINE_WAVE_PALETTE_ENABLED', 'MARINE_WAVE_PALETTE_ID', `${src}; return { BEACH_CRESTS, resolveBeachCrest, beachCrestGlsl };`)(true, 'v2');
+  return new Function('MARINE_WAVE_PALETTE_ENABLED', 'MARINE_WAVE_PALETTE_ID', 'BEACH_WASH_ID', `${src}; return { BEACH_CRESTS, resolveBeachCrest, beachCrestGlsl };`)(true, 'v2', 'mid');
 }
 const BEACH_FOAM = [0.95, 0.95, 1.00];
 /** One crest table [calm, active, storm, foam, polarity] (DRAW_FS order) from a BEACH_CRESTS entry ({ calm: { rgb, above }, ... }).
@@ -48,8 +48,8 @@ const BEACH_FOAM = [0.95, 0.95, 1.00];
  *  `mix(below, above, step(h, v_wave_height))`); below h it takes calm.rgb and active.rgb. */
 export const beachCrest = (t) => [t.calm.rgb, t.active.rgb, t.storm.rgb, BEACH_FOAM,
   t.switchHeight ? { h: t.switchHeight, calm: t.calm.above, active: t.active.above } : undefined];
-/** Which beach crests the app draws over a wash palette: v1 over the v1 wash (V2 stands down there), V2 over v2. */
-export const crestFor = (paletteId) => (paletteId === 'v1' ? 'v1' : 'v2');
+/** Which beach crests the app draws over a wash palette: V2 over v2 (its default beach wash), v1 over anything else. */
+export const crestFor = (paletteId) => (paletteId === 'v2' ? 'v2' : 'v1');
 export const CRESTS = Object.fromEntries(Object.entries(loadCrests().BEACH_CRESTS).map(([id, t]) => [id, beachCrest(t)]));
 const CREST = {   // calm, active, storm, foam (DRAW_FS); beach's default is V2, what the app draws over the V2 wash
   light: [[0.05, 0.15, 0.45], [0.85, 0.50, 0.00], [0.75, 0.10, 0.05], [1, 1, 1]],
@@ -64,7 +64,10 @@ const clamp01 = (c) => c.map((v) => Math.min(1, Math.max(0, v)));
  *  M_TO_FT, handed in). Evaluated with no window, so it resolves the default palette. */
 export function loadPalettes(file = PALETTE_SRC) {
   const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
-  return new Function('M_TO_FT', `${src}; return { WAVE_PALETTES, resolveWavePalette, sampleMarineWavePalette, marineWavePaletteGlsl, MARINE_WAVE_PALETTE_GLSL, marineWaveLegend };`)(3.28084);
+  const mod = new Function('M_TO_FT', `${src}; return { WAVE_PALETTES, resolveWavePalette, sampleMarineWavePalette, marineWavePaletteGlsl, MARINE_WAVE_PALETTE_GLSL, marineWaveLegend, BEACH_WASHES: typeof BEACH_WASHES === 'undefined' ? null : BEACH_WASHES };`)(3.28084);
+  // Beach A/B candidates (2026-10-20): v2 is drawn with the module's default beach wash; v2<id> with each other one (v2B = D-033's).
+  for (const [id, t] of Object.entries(mod.BEACH_WASHES || {})) if (mod.WAVE_PALETTES.v2.beach !== t.beach) mod.WAVE_PALETTES[`v2${id}`] = { ...mod.WAVE_PALETTES.v2, beach: t.beach, over: { ...mod.WAVE_PALETTES.v2.over, beach: t.over } };
+  return mod;
 }
 
 /** The wash table's colour at height h (0-1, unrounded): the same law as the GLSL table (linear in encoded sRGB per segment). */

@@ -9,8 +9,8 @@
 // Families (the two candidates the owner A/Bs): A starts pale yellow-green to aqua and ends blue to indigo; B starts pale sky
 // and ends magenta to crimson.
 //
-// Usage: node wave-solve.mjs --theme light|beach --family A|B [--heights 0,0.61,1.22,2.44,3.66,6.1,10] [--cap 10]
-//                            [--gens 1500] [--np 80] [--seed 1] [--crest-weight 0.7] [--legend-lc 15] [--hend 315,350] [--comp-c 14] [--out table.json]   (out: merged into that table's file)
+// Usage: node wave-solve.mjs --theme light|beach --family A|B|V [--heights 0,0.61,1.22,2.44,3.66,6.1,10] [--cap 10]
+//                            [--gens 1500] [--np 80] [--seed 1] [--crest-weight 0.7] [--legend-lc 15] [--hend 315,350] [--pin-h i:lo:hi,...] [--comp-c 14] [--out table.json]   (out: merged into that table's file)
 import fs from 'fs';
 import { BASEMAP, ALPHAS, washAt, composite, crestOver, oklab, apcaLc, dE, allDE, chromaStar } from './wave-lib.mjs';
 import { rgbOfLch, lchOf } from './light-path-lib.mjs';
@@ -23,15 +23,21 @@ let seed = Number(arg('--seed', 1));
 const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
 const n = H.length;
 // Beach's A starts at aqua, not yellow-green: a yellow or olive sea sits beside its sand land (the solver found that first).
-const FAM = { A: { h0: theme === 'beach' ? [170, 215] : [95, 200], hEnd: [265, 310] }, B: { h0: [200, 255], hEnd: [335, 400] } }[family];
+// V (2026-10-20, owner: "the old beach colours in a steadily darkening order"): v1's hue path, aqua -> sand -> orange -> maroon,
+// turning the OTHER way round the circle (negative turns), with v2's lightness law.
+const FAM = { A: { h0: theme === 'beach' ? [170, 215] : [95, 200], hEnd: [265, 310] }, B: { h0: [200, 255], hEnd: [335, 400] },
+  V: { h0: [180, 215], hEnd: [10, 45], turn: [-45, -8] } }[family];
 // --hend 315,350: where the hue may end. Light's B ended in red at first, and a red wash with 35% of light's cyan water showing
 // through it is its complement: the composite went a muddy grey-mauve (2026-10-20 swatch read).
 if (arg('--hend', null)) FAM.hEnd = arg('--hend').split(',').map(Number);
+// --pin-h 2:65:85,3:50:70: an anchor's hue window (CIELAB, along the path's unwrapped hue), e.g. a sand that stays sand.
+const PIN_H = (arg('--pin-h', '') || '').split(',').filter(Boolean).map((t) => t.split(':').map(Number));
 // Bounds of one candidate: [L0, fall x (n-1), C0, chroma step x (n-1), h0, turn x (n-1), overFall, overC, overH].
 // SMOOTH BY CONSTRUCTION (2026-10-20): a free chroma per anchor let the search zig-zag (C* 85 -> 14 -> 70 between neighbours) to
 // buy colour-blind distance, a pulsing ramp. Falls of 4-16 L*, chroma steps of at most 12, hue turns of 8-45 degrees.
-const lo = [theme === 'light' ? 80 : 82, ...Array(n - 1).fill(4), 12, ...Array(n - 1).fill(-12), FAM.h0[0], ...Array(n - 1).fill(8), 2, 10, 0];
-const hi = [97, ...Array(n - 1).fill(16), 60, ...Array(n - 1).fill(12), FAM.h0[1], ...Array(n - 1).fill(45), 18, 80, 360];
+const TURN = FAM.turn || [8, 45];
+const lo = [theme === 'light' ? 80 : 82, ...Array(n - 1).fill(4), 12, ...Array(n - 1).fill(-12), FAM.h0[0], ...Array(n - 1).fill(TURN[0]), 2, 10, 0];
+const hi = [97, ...Array(n - 1).fill(16), 60, ...Array(n - 1).fill(12), FAM.h0[1], ...Array(n - 1).fill(TURN[1]), 18, 80, 360];
 const W = BASEMAP[theme], land = W.land.map((v) => v / 255), panel = W.panel.map((v) => v / 255);
 
 function decode(x) {
@@ -51,6 +57,7 @@ function score(x, report = false) {
   const { P, hs, excess } = decode(x);
   const r = {}; let pen = excess * 200;
   if (!(hs[n - 1] >= FAM.hEnd[0] && hs[n - 1] <= FAM.hEnd[1])) pen += 2 * Math.min(Math.abs(hs[n - 1] - FAM.hEnd[0]), Math.abs(hs[n - 1] - FAM.hEnd[1]));
+  for (const [i, lo2, hi2] of PIN_H) { const h = hs[i]; if (h < lo2) pen += 2 * (lo2 - h); else if (h > hi2) pen += 2 * (h - hi2); }   // --pin-h
   // Neighbouring stops, and the above-cap state, as composited (the weakest of normal + three dichromats, every view).
   let adj = Infinity, over = Infinity; const all = [];
   for (const a of Object.values(ALPHAS)) {

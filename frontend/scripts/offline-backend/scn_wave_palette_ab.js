@@ -10,9 +10,10 @@
 //      CLIP_VIEWS=regional,coastal (default regional; a non-regional clip's frames are named clip-<theme>-<variant>@<view>-NNN)
 //      PAIRED=1: each clip frame is followed by the same view with the crest pass off (the engine's own heatmap-only fallback,
 //      _fboSupported = false, restored after), saved as clipw-...: the exact wash under that frame, for crest_contrast.py
-// Beach crest V2 (2026-10-20): c1 is the v2 wash under TODAY's beach crests (window.__RAW_DISABLE_BEACH_CREST_V2__), v2 draws the V2
-// polarity crest (the default) and cw the warm candidate (window.__RAW_BEACH_CREST_V2__ = 'warm'). Each shot reads back which beach
-// crest colours the GPU compiled (the DRAW program's own GLSL).
+// Beach A/B (2026-10-20): v2 draws the mid beach wash with the warm-polarity crest (the defaults), B D-033's beach wash with today's
+// crests (window.__RAW_BEACH_WASH__ = 'B'), v1 the old sea (the V2 kill), c1 the mid wash under TODAY's crests
+// (window.__RAW_DISABLE_BEACH_CREST_V2__, the crest-only control). Each shot reads back which beach crest colours the GPU compiled
+// (the DRAW program's own GLSL) and which beach wash the page resolved.
 // Per shot it records what the engine held (grid shape, bounds, valid time, the drawn grid's height range) so the panes can be
 // shown to be the same data; and, before Waves is switched on, the bare water's colour (the checker's basemap model).
 const fs = require('fs');
@@ -23,7 +24,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
-const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, c1: { __RAW_DISABLE_BEACH_CREST_V2__: true }, cw: { __RAW_BEACH_CREST_V2__: 'warm' } };
+const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, c1: { __RAW_DISABLE_BEACH_CREST_V2__: true }, B: { __RAW_BEACH_WASH__: 'B' } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
@@ -39,7 +40,7 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
   const beachCrest = (/if \(u_theme > 1\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);/.exec(glsl) || []).slice(1);
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
-    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', beachCrest };
+    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', beachWash: window.__RAW_BEACH_WASH__ || 'mid', beachCrest };
 };
 
 async function legendBox(page) {

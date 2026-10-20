@@ -285,33 +285,40 @@ maps (ColorBrewer YlGnBu and BuPu, viridis and magma reversed) are laid through 
 even steps and zoom drift; beach B beats A on heights told apart and the checker's lines; for EVERY palette zoom moves a height's
 colour by up to ~2/3 of a legend step (the engine's alpha, not the palette).
 
-**Beach crests (`crest-solve.mjs`; the table is `src/components/map/marineCrestPalette.js`; 2026-10-20).** The checker's crest
-line reads beach's crest colours from that module (v1 over the v1 wash, V2 over v2, as the app draws them); `--crest
-v1|v2|warm|cand.json` swaps them. It samples every 0.1 m and the above-cap state, every zoom and swell lighting, whitecap off and
-on, and reports APCA |Lc| for the crest body and a whitecap's front apart. `crest-solve.mjs` searches the colours (CIELAB LCh, the
-shader's two decimals) for the largest colour-blind soft minimum of crest core vs wash, with a normal-vision floor (`--floor 18`),
-a crest path that never greys (`--path-c`) and the top stops apart (`--stop-de 20`: without it the search lays active = storm and
-the crest stops telling 3 m from 6 m). `--polarity` adds a switch height: below it calm and active take a DARK pair, at and
-above it a LIGHT pair (DRAW_FS `mix(below, above, step(h, v_wave_height))`, still one line each), and the objective adds the
-APCA |Lc| soft minimum with a floor (`--lc`).
+**Beach crests and the beach wash A/B (`crest-solve.mjs`, `wave-solve.mjs --family V`; the tables are
+`src/components/map/marineCrestPalette.js` and `marineWavePalette.js` `BEACH_WASHES`; 2026-10-20).** The checker's crest line reads
+beach's crest colours from the crest module (V2 over v2 with its default beach wash, v1 over anything else, as the app draws them);
+`--crest v1|v2|cand.json` swaps them. It samples every 0.1 m and the above-cap state, every zoom and swell lighting, whitecap off
+and on, and reports APCA |Lc| for the crest body and a whitecap's front apart. `wave-lib.mjs` adds one palette per other beach
+wash candidate (`v2B` = D-033's beach), so `--palette v2` is the default (mid) and `--palette v2B` the morning's.
+`crest-solve.mjs` searches crest colours (CIELAB LCh, the shader's two decimals) for the largest colour-blind soft minimum of
+crest core vs wash, with a normal-vision floor (`--floor 18`), a crest path that never greys (`--path-c`) and the top stops apart
+(`--stop-de 20`: without it the search lays active = storm). `--polarity` adds a switch height: below it calm and active take a
+DARK pair, at and above it a LIGHT pair (DRAW_FS `mix(below, above, step(h, v_wave_height))`, one line each), and the objective
+adds the APCA |Lc| soft minimum with a floor (`--lc`). `--table cand.json --palettes table` solves against a candidate wash.
 
 ```powershell
-node crest-solve.mjs --polarity --lc 35 --dark-h 280,340 --dark-l 15,40 --light-h 50,110 --storm-h 60,100 --path-c 40 --out p.json
-node crest-solve.mjs --calm-h 330,20 --calm-l 60,80 --active-h 30,90 --stop-de 30 --out w.json   # the smooth (warm) family
-node wave-check.mjs --palette v2 --theme beach --crest v1   # today's crests over v2 (the "before")
-node wave-check.mjs --palette v2 --theme beach              # what ships (V2 polarity)
+node wave-solve.mjs --theme beach --family V --gens 600 --np 60 --crest-weight 0.3 --pin-h 2:62:85,3:48:68,4:35:55 --out mid.json
+node wave-polish.mjs mid.json mid-polished.json --over-hue 280,330     # then the flag hand-checked darker than the cap as drawn
+node crest-solve.mjs --table mid.json --palettes table --polarity --lc 33 --dark-h 345,45 --dark-l 15,35 --light-h 55,105 --storm-h 80,110 --path-c 45
+node wave-check.mjs --palette v2 --theme beach              # what ships: the mid wash with the warm-polarity crest
+node wave-check.mjs --palette v2B --theme beach             # D-033's beach (its crests are today's)
+node wave-check.mjs --palette v1 --theme beach              # the old sea with today's crests
 .venv/Scripts/python cvd_lut.py lut.json                    # coloraide's dichromats on a 33^3 linear lattice, for ../offline-backend/crest_contrast.py
 ```
 
-What the search taught (over v2):
-- A smooth ramp holds colour-blind ~24 only by running WARM against the wash's cool middle and LIGHTER as the wash darkens, and so
-  it crosses the wash's luminance near 2 m, the commonest sea: APCA |Lc| 0 there (v1 does too). Direction of motion is lost at
-  isoluminance (Lindsey & Teller 1990), and a crest is a moving mark. Kept as the `warm` candidate (40.3 / 23.1 / |Lc| 0).
-- The polarity crest switches where the wash's APCA luminance passes 0.352 (1.8-2.4 m by zoom and lighting; the lead session's
-  2026-10-20 research, ledger 1541): |Lc| >= 36 on the crest body, 30 on a whitecap's front, colour-blind 22.8, normal 27.1. At
-  |Lc| 40 and above the dark ink is forced to near-black; L* 15 plum keeps 36 with colour.
-- Keeping v1's orchid calm caps colour-blind at 15.4; an always-darker crest manages ~7; a gold storm costs |Lc| (30-35) and the
-  3 m / 6 m cue, a foam-white one keeps both.
+What the searches taught:
+- A smooth crest ramp that holds colour contrast must cross its wash's brightness somewhere (darker at calm, lighter at storms),
+  and on D-033's beach it crosses near 2 m, the commonest sea: APCA |Lc| 0. Direction of motion is lost at isoluminance (Lindsey
+  & Teller 1990), and a crest is a moving mark. The polarity crest switches where the wash's APCA luminance passes 0.352 (the
+  lead session's research, ledger 1541), so it never crosses. It needs a wash whose lightness falls with height: on the old v1
+  beach sea, whose brightness goes up and down, crests match it over ~63% of heights and a polarity crest would flip three times.
+- The owner liked the old sea's colours, so the `V` family lays v1's hue path (aqua -> sand -> orange -> maroon, turning the other
+  way round the circle from A and B) under v2's law. Unpinned, the search buys colour-blind separation with olive and mustard;
+  `--pin-h` keeps the sand golden (peach sand and apricot alone collapse to 4.4 dE00 for deuteranopes). The mid wash: neighbours
+  8.9 dE00 (B 6.5), land 19.3.
+- Warm inks on a warm wash share hues, so brightness carries the crest: |Lc| 34 on the body, colour-blind ~15 (on B's cool wash a
+  plum polarity crest reached 22.8). At |Lc| 40 and above the dark ink is forced to near-black.
 
 ## Why coloraide and not culori for colour blindness
 
