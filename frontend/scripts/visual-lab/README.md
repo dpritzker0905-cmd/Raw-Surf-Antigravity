@@ -35,6 +35,12 @@ the leaf-most frame that maps to an original source file, bucketed by stage (sha
 mask, grid -> texture, fetch/manifest, marine draw, wind, React, MapLibre), per step (`stageByStep`), with the hottest
 original functions (`hotLines`). Native WebGL calls bill their time to the JS function that calls them, and a synchronous
 read such as `getParameter` also absorbs queued GPU work (uploads, compiles), so read the GPU-sync bucket that way.
+`FOCUS=<regex>` adds `focus`: every busy sample whose stack holds a matching `<original source>:<function>` frame, stall or
+not (`FOCUS=WebGLProgramBatch` = the engines' shader batch, which the stage table folds in with MapLibre's program compile).
+
+**Load probe:** each flow's `lab.json` entry carries `load`: the marine layer's first `render()` call and first real heatmap
+draw (page rAF frame, ms since navigation, layer calls so far), and each engine's shader-batch telemetry when it settled
+(`mode` async / deferred / serial, `polls`, `ms`; `window.__RAW_GPU__.shaderBatch`).
 | `AB_LIVE=1` | the REAL backend: real load on the 1-CPU box that serves production; one run, `/api/health` before and after, owner's word only |
 
 ## What each column means

@@ -7,6 +7,7 @@ import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
 import { createStaleHourTracker } from './marineStaleHour';
 import { staleWorldDimMult } from './marineStaleHourLayer';
 import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
+import { BATCH } from './WebGLProgramBatch';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -81,6 +82,14 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
   let lastErrorTime = 0;
   // WRONG-HOUR WORLD FRAME (2026-10-01, audit F-21; marineStaleHour.js): how long the selected hour has held still.
   const _staleHour = createStaleHourTracker();
+  // The hard-error fallback for a failed init: from onAdd, or from render when the async shader batch fails to link later.
+  const initFailed = (e) => {
+    console.error('[WebGLMarine] Init failed:', e.message);
+    // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
+    // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
+    recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
+    if (onErrorRef.current) onErrorRef.current();
+  };
   const layer = {
     id: LAYER_ID,
     type: 'custom',
@@ -112,11 +121,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           }
         }
       } catch (e) {
-        console.error('[WebGLMarine] Init failed:', e.message);
-        // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
-        // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
-        recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
-        if (onErrorRef.current) onErrorRef.current();
+        initFailed(e);
       }
     },
 
@@ -196,6 +201,15 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       if (engine) engine.__coarseBridgeGrace = null;
       const map = mapRef.current;
       if (!map) { stampSkip(_stamp, SKIP.NO_MAP); return; }
+      // ASYNC SHADER COMPILE (WebGLProgramBatch.js): poll the engine's shader batch once per frame; draw nothing until it
+      // is ready, but ask for the next frame so the poll advances on an idle map. A link failure found now is a failed
+      // init: the engine is already released and the same fallback fires (once: the engine holds no batch after).
+      const _programs = engine && engine.pollPrograms ? engine.pollPrograms(_gl) : BATCH.READY;
+      if (_programs === BATCH.FAILED) {
+        initFailed(new Error('WebGL Marine initialization failed (shader batch link)'));
+        stampSkip(_stamp, SKIP.PROGRAMS_FAILED); return;
+      }
+      if (_programs === BATCH.PENDING) { stampSkip(_stamp, SKIP.PROGRAMS_PENDING); map.triggerRepaint(); return; }
 
       let viewportBounds = null;
       let opacityMultiplier = 1.0;
