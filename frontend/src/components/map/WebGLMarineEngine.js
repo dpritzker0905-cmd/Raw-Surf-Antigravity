@@ -2261,7 +2261,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       const writeTex = this.particleStateB;
       console.assert(readTex !== writeTex, "Assertion failed: readTex === writeTex inside WebGL advection loop!");
 
-      const fboStatus = cachedFramebufferStatus(gl, this, this.advFBO, writeTex);   // a GPU sync each frame otherwise (advFboSync.js)
+      const fboStatus = cachedFramebufferStatus(gl, this, this.advFBO, writeTex, this.particleRes, this.particleRes);   // a GPU sync each frame otherwise (advFboSync.js)
       let fboStatusStr = 'UNKNOWN';
       if (fboStatus === gl.FRAMEBUFFER_COMPLETE) fboStatusStr = 'FRAMEBUFFER_COMPLETE';
       else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) fboStatusStr = 'INCOMPLETE_ATTACHMENT';
