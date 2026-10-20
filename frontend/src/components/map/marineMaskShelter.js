@@ -19,13 +19,26 @@ import { stampVerdict } from './maskFastPaths';
 // reach the border through a channel of half-width > nPx. Erode water by nPx (Chebyshev distance
 // to land), flood-fill the eroded core from the border, then re-dilate the flooded core by nPx —
 // water not covered is enclosed. Two-pass chamfer transforms + one BFS: O(w·h).
+// Run a step generator to completion in this call (the synchronous form of every *Steps function here).
+export function runMaskSteps(steps) {
+  let r = steps.next();
+  while (!r.done) r = steps.next();
+  return r.value;
+}
+
 export function classifySheltered(water, w, h, nPx) {
+  return runMaskSteps(classifyShelteredSteps(water, w, h, nPx));
+}
+
+// The classifier as resumable steps (2026-10-20, sliced land-mask prototype): it yields a pass name after each pass and
+// does nothing else differently, so classifySheltered (above) returns exactly what it returned before.
+export function* classifyShelteredSteps(water, w, h, nPx) {
   const INF = 0x3fffffff;
   const size = w * h;
   // distance-to-LAND (Chebyshev, 8-neighbour chamfer)
   const dist = new Int32Array(size);
   for (let i = 0; i < size; i++) dist[i] = water[i] ? INF : 0;
-  const chamfer = (d) => {
+  const chamfer = function* (d) {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
@@ -41,6 +54,7 @@ export function classifySheltered(water, w, h, nPx) {
         d[i] = m;
       }
     }
+    yield 'shelter:chamfer';
     for (let y = h - 1; y >= 0; y--) {
       for (let x = w - 1; x >= 0; x--) {
         const i = y * w + x;
@@ -56,8 +70,9 @@ export function classifySheltered(water, w, h, nPx) {
         d[i] = m;
       }
     }
+    yield 'shelter:chamfer';
   };
-  chamfer(dist);
+  yield* chamfer(dist);
   // BFS the ERODED core (dist > nPx) from every border core pixel.
   const flooded = new Uint8Array(size);
   const queue = new Int32Array(size);
@@ -73,10 +88,11 @@ export function classifySheltered(water, w, h, nPx) {
     if (y > 0) push(i - w);
     if (y < h - 1) push(i + w);
   }
+  yield 'shelter:flood';
   // distance-to-FLOODED-core; open water = within nPx of the core. Water beyond it is enclosed.
   const dist2 = new Int32Array(size);
   for (let i = 0; i < size; i++) dist2[i] = flooded[i] ? 0 : INF;
-  chamfer(dist2);
+  yield* chamfer(dist2);
   const sheltered = new Uint8Array(size);
   let count = 0;
   for (let i = 0; i < size; i++) {
@@ -315,6 +331,10 @@ export function _resetShelterCache() { _shelterCache.clear(); _lastShelterWorkAt
 // opts.gapM overrides the channel gap (the NARROW-WATER pass reuses this whole pipeline at
 // canal scale); opts.stash=false keeps a non-basin verdict out of the basin cache.
 export function suppressShelteredWater(canvas, bounds, opts) {
+  return runMaskSteps(suppressShelteredWaterSteps(canvas, bounds, opts));
+}
+
+export function* suppressShelteredWaterSteps(canvas, bounds, opts) {
   // ⭐ CALL COUNTER (instrument-first, 2026-08-12 — NO behaviour change). Per-call cost is MEASURED
   // at 46.7 ms (GATE6_mask_percall_bench_RUN.txt), but the CPU profile attributes 1394-1486 ms to
   // this function, which is ~30 calls, not the 2 that a neighbouring counter implied. That counter
@@ -371,6 +391,7 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   const size = dsW * dsH;
   const water = new Uint8Array(size);
   for (let i = 0; i < size; i++) water[i] = px[i * 4] >= 128 ? 1 : 0;
+  yield 'shelter:downsample';
   // ⭐ INPUT-REDUNDANCY INSTRUMENT (2026-08-12) — OFF unless `__RAW_MASK_INPUT_HASH__ === true`.
   // Frequency is measured at ~1.1 calls/s sustained on a STATIC viewport, which suggests the
   // classifier is re-deciding unchanged input. Before writing a cache, measure how much of the work
@@ -421,9 +442,10 @@ export function suppressShelteredWater(canvas, bounds, opts) {
     count = _hit.count;
     _shelterCacheStat('hit');
   } else {
-    const _r = classifySheltered(water, dsW, dsH, nPx);
+    const _r = yield* classifyShelteredSteps(water, dsW, dsH, nPx);
     sheltered = _r.sheltered;
     count = _r.count;
+    yield 'shelter:components';
     if (count) _closeShelteredMask(sheltered, dsW, dsH);
     if (_key !== null) _shelterCacheSet(_key, sheltered, count);
     _shelterCacheStat('miss');

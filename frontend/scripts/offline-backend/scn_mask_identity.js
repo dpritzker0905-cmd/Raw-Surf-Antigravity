@@ -23,7 +23,8 @@ const VIEWS = [['FL z6', -80, 26, 6], ['FL z8', -80, 26, 8], ['FL pan z8', -77, 
   // regional masks fall back to the 50 m polygons.
   if (process.env.NO10M === '1') await page.route(/ne_10m_land\.json/, (r) => r.abort());
   if (process.env.LAB_KILLS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_KILLS.split(','));
-  const paints = () => page.evaluate(() => { const b = ((window.__RAW_GPU__ || {}).cpuPhaseTiming || {}).buckets; return b ? b.maskWaterPaint.calls + b.maskUpload.calls : 0; });
+  // Sliced paints (__RAW_SLICED_LAND_MASK__) count when scheduled, and a job still in flight is not settled.
+  const paints = () => page.evaluate(() => { const g = window.__RAW_GPU__ || {}; const b = (g.cpuPhaseTiming || {}).buckets; return (b ? b.maskWaterPaint.calls + b.maskUpload.calls : 0) + ((g.maskSlicing || {}).scheduled || 0); });
   const read = () => page.evaluate(() => {
     const e = window.__MARINE_ENGINE__; const m = window.__MAP_INSTANCE__ || window.map;
     const gl = m && m.painter && m.painter.context && m.painter.context.gl;
@@ -56,7 +57,7 @@ const VIEWS = [['FL z6', -80, 26, 6], ['FL z8', -80, 26, 8], ['FL pan z8', -77, 
       const t0 = Date.now(); let last = await paints(), stableSince = Date.now();
       while (Date.now() - t0 < 25000) {
         await sleep(250);
-        const n = await paints(); const idle = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; return !!(m && m.loaded() && m.areTilesLoaded()); });
+        const n = await paints(); const idle = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const e = window.__MARINE_ENGINE__; return !!(m && m.loaded() && m.areTilesLoaded() && !(e && e._maskJob)); });
         if (n !== last || !idle) { last = n; stableSince = Date.now(); }
         if (Date.now() - stableSince >= SETTLE_MS) break;
       }

@@ -1,0 +1,1605 @@
+{
+ "what": "Sliced map-event land-mask paints (window.__RAW_SLICED_LAND_MASK__), offline A/B on one bundle, 2026-10-20. Log: docs/weather-program/log/2026-10-20-claude-landmask-sliced.md",
+ "setup": {
+  "backend": "serve_synthetic.py :4195 --thin-bounds 1 --dynamic 1 --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind --regions flagship",
+  "spa": "build on :3195, ne_10m_land.json served locally",
+  "bundles": {
+   "callsAB_and_lab": "02447074c",
+   "identity_v1": "02447074c",
+   "identity_v2": "9a9dead63"
+  }
+ },
+ "scnMaskCalls_4runsPerArm_medians": {
+  "off": {
+   "zoom 6": {
+    "runs": 4,
+    "longtaskTotal": 341,
+    "longtaskMax": 130.5,
+    "longtasks": 3,
+    "maskMsInEventTasks": 110,
+    "eventPaints": 1,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      406,
+      318,
+      325,
+      357
+     ],
+     "longtaskMax": [
+      172,
+      112,
+      113,
+      148
+     ],
+     "maskMsInEventTasks": [
+      144,
+      88,
+      92,
+      128
+     ]
+    }
+   },
+   "zoom 8": {
+    "runs": 4,
+    "longtaskTotal": 910,
+    "longtaskMax": 600.5,
+    "longtasks": 3,
+    "maskMsInEventTasks": 159,
+    "eventPaints": 1,
+    "commitPaints": 2,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      884,
+      791,
+      1618,
+      936
+     ],
+     "longtaskMax": [
+      626,
+      515,
+      1061,
+      575
+     ],
+     "maskMsInEventTasks": [
+      139,
+      146,
+      272,
+      172
+     ]
+    }
+   },
+   "pan east": {
+    "runs": 4,
+    "longtaskTotal": 745.5,
+    "longtaskMax": 340,
+    "longtasks": 3,
+    "maskMsInEventTasks": 401,
+    "eventPaints": 3,
+    "commitPaints": 2,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      974,
+      713,
+      778,
+      347
+     ],
+     "longtaskMax": [
+      426,
+      332,
+      348,
+      251
+     ],
+     "maskMsInEventTasks": [
+      464,
+      362,
+      440,
+      329
+     ]
+    }
+   },
+   "zoom out 4": {
+    "runs": 4,
+    "longtaskTotal": 280.5,
+    "longtaskMax": 280.5,
+    "longtasks": 1,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      336,
+      253,
+      283,
+      278
+     ],
+     "longtaskMax": [
+      336,
+      253,
+      283,
+      278
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1,
+      1,
+      1
+     ]
+    }
+   },
+   "zoom 8 (b)": {
+    "runs": 4,
+    "longtaskTotal": 599.5,
+    "longtaskMax": 435,
+    "longtasks": 2.5,
+    "maskMsInEventTasks": 141.5,
+    "eventPaints": 1,
+    "commitPaints": 1,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      858,
+      341,
+      1023,
+      216
+     ],
+     "longtaskMax": [
+      639,
+      231,
+      761,
+      216
+     ],
+     "maskMsInEventTasks": [
+      114,
+      198,
+      144,
+      139
+     ]
+    }
+   },
+   "pan (b)": {
+    "runs": 4,
+    "longtaskTotal": 433.5,
+    "longtaskMax": 238.5,
+    "longtasks": 3,
+    "maskMsInEventTasks": 218,
+    "eventPaints": 2,
+    "commitPaints": 1,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      171,
+      759,
+      291,
+      576
+     ],
+     "longtaskMax": [
+      171,
+      485,
+      161,
+      306
+     ],
+     "maskMsInEventTasks": [
+      190,
+      248,
+      177,
+      246
+     ]
+    }
+   },
+   "zoom out 3": {
+    "runs": 4,
+    "longtaskTotal": 0,
+    "longtaskMax": 0,
+    "longtasks": 0,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "longtaskMax": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1,
+      1,
+      1
+     ]
+    }
+   }
+  },
+  "on": {
+   "zoom 6": {
+    "runs": 4,
+    "longtaskTotal": 261,
+    "longtaskMax": 128,
+    "longtasks": 2.5,
+    "maskMsInEventTasks": 23,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 1,
+    "slicedMs": 101.5,
+    "sliceMax": 20.1,
+    "slicesOver16": 1.5,
+    "latencyMedian": 209.5,
+    "latencyMax": 234,
+    "latencyN": 4,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      304,
+      218,
+      197,
+      312
+     ],
+     "longtaskMax": [
+      156,
+      114,
+      126,
+      130
+     ],
+     "maskMsInEventTasks": [
+      21,
+      23,
+      23,
+      30
+     ]
+    }
+   },
+   "zoom 8": {
+    "runs": 4,
+    "longtaskTotal": 793.5,
+    "longtaskMax": 575,
+    "longtasks": 3,
+    "maskMsInEventTasks": 36,
+    "eventPaints": 0,
+    "commitPaints": 2,
+    "jobs": 2,
+    "slicedMs": 527.5,
+    "sliceMax": 39.95,
+    "slicesOver16": 6.5,
+    "latencyMedian": 641.5,
+    "latencyMax": 917,
+    "latencyN": 4,
+    "stale": 4,
+    "coalesced": 1,
+    "perRun": {
+     "longtaskTotal": [
+      786,
+      895,
+      557,
+      801
+     ],
+     "longtaskMax": [
+      577,
+      603,
+      344,
+      573
+     ],
+     "maskMsInEventTasks": [
+      40,
+      36,
+      36,
+      35
+     ]
+    }
+   },
+   "pan east": {
+    "runs": 4,
+    "longtaskTotal": 31,
+    "longtaskMax": 31,
+    "longtasks": 0.5,
+    "maskMsInEventTasks": 12,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 2,
+    "slicedMs": 281.5,
+    "sliceMax": 45.4,
+    "slicesOver16": 3.5,
+    "latencyMedian": 281.5,
+    "latencyMax": 384,
+    "latencyN": 4,
+    "stale": 4,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      0,
+      0,
+      303,
+      62
+     ],
+     "longtaskMax": [
+      0,
+      0,
+      303,
+      62
+     ],
+     "maskMsInEventTasks": [
+      13,
+      11,
+      8,
+      13
+     ]
+    }
+   },
+   "zoom out 4": {
+    "runs": 4,
+    "longtaskTotal": 333.5,
+    "longtaskMax": 333.5,
+    "longtasks": 1,
+    "maskMsInEventTasks": 0.5,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      304,
+      363,
+      191,
+      365
+     ],
+     "longtaskMax": [
+      304,
+      363,
+      191,
+      365
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1,
+      0,
+      0
+     ]
+    }
+   },
+   "zoom 8 (b)": {
+    "runs": 4,
+    "longtaskTotal": 35.5,
+    "longtaskMax": 35.5,
+    "longtasks": 0.5,
+    "maskMsInEventTasks": 13.5,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 1,
+    "slicedMs": 145,
+    "sliceMax": 25.6,
+    "slicesOver16": 2,
+    "latencyMedian": 360.5,
+    "latencyMax": 396,
+    "latencyN": 4,
+    "stale": 0,
+    "coalesced": 2,
+    "perRun": {
+     "longtaskTotal": [
+      0,
+      71,
+      73,
+      0
+     ],
+     "longtaskMax": [
+      0,
+      71,
+      73,
+      0
+     ],
+     "maskMsInEventTasks": [
+      14,
+      19,
+      11,
+      13
+     ]
+    }
+   },
+   "pan (b)": {
+    "runs": 4,
+    "longtaskTotal": 239.5,
+    "longtaskMax": 239.5,
+    "longtasks": 1,
+    "maskMsInEventTasks": 11,
+    "eventPaints": 0,
+    "commitPaints": 2,
+    "jobs": 2,
+    "slicedMs": 213.5,
+    "sliceMax": 28.299999999999997,
+    "slicesOver16": 3,
+    "latencyMedian": 185.5,
+    "latencyMax": 260,
+    "latencyN": 8,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      251,
+      221,
+      321,
+      228
+     ],
+     "longtaskMax": [
+      251,
+      221,
+      321,
+      228
+     ],
+     "maskMsInEventTasks": [
+      12,
+      11,
+      10,
+      11
+     ]
+    }
+   },
+   "zoom out 3": {
+    "runs": 4,
+    "longtaskTotal": 0,
+    "longtaskMax": 0,
+    "longtasks": 0,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "longtaskMax": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1,
+      0,
+      1
+     ]
+    }
+   }
+  }
+ },
+ "labPanZoomAndErratic_stallProfile_medians": {
+  "erratic": {
+   "off": {
+    "n": 3,
+    "stallMs": 6869,
+    "stalls": 51,
+    "stallMax": 673,
+    "maskStallMs": 916,
+    "zoomPanStallMs": 1864,
+    "zoomPanStalls": 10,
+    "zoomPanMax": 673,
+    "splitMaskMs": 1066,
+    "splitStages": {
+     "rasterize": 482,
+     "shelter": 214,
+     "overlay": 136,
+     "inland": 110,
+     "featureQuery": 55,
+     "glue": 68,
+     "stash": 1
+    },
+    "perStep": {
+     "before first step (load + setup)": 3146,
+     "0__5h": 504,
+     "1__45h": 352,
+     "2__131h": 217,
+     "3_EURO": 160,
+     "4_Wind_Waves": 210,
+     "6_ICON": 159,
+     "7_Swell_2": 198,
+     "8__165h": 668,
+     "9_zoom_8": 907,
+     "10_pan": 949,
+     "11_zoom_out_3": 367,
+     "13_GFS": 132,
+     "14__12h": 421,
+     "15_Swell": 181,
+     "16_Waves_again": 82,
+     "12_Waves": 182,
+     "5__153h": 0
+    },
+    "perRun": [
+     {
+      "run": "1",
+      "stallMs": 6869,
+      "maskStallMs": 799,
+      "zoomPanStallMs": 1516
+     },
+     {
+      "run": "2",
+      "stallMs": 6727,
+      "maskStallMs": 916,
+      "zoomPanStallMs": 1864
+     },
+     {
+      "run": "3",
+      "stallMs": 16626,
+      "maskStallMs": 1368,
+      "zoomPanStallMs": 2827
+     }
+    ]
+   },
+   "on": {
+    "n": 3,
+    "stallMs": 8813,
+    "stalls": 73,
+    "stallMax": 647,
+    "maskStallMs": 539,
+    "zoomPanStallMs": 1628,
+    "zoomPanStalls": 11,
+    "zoomPanMax": 335,
+    "splitMaskMs": 636,
+    "splitStages": {
+     "shelter": 197,
+     "rasterize": 174,
+     "overlay": 95,
+     "inland": 71,
+     "featureQuery": 53,
+     "glue": 36,
+     "slice": 22,
+     "stash": 1,
+     "carry": 0
+    },
+    "perStep": {
+     "before first step (load + setup)": 3075,
+     "0__5h": 635,
+     "1__45h": 532,
+     "2__131h": 554,
+     "3_EURO": 270,
+     "4_Wind_Waves": 337,
+     "5__153h": 161,
+     "6_ICON": 181,
+     "7_Swell_2": 247,
+     "8__165h": 672,
+     "9_zoom_8": 859,
+     "10_pan": 688,
+     "11_zoom_out_3": 144,
+     "12_Waves": 181,
+     "13_GFS": 186,
+     "14__12h": 595,
+     "15_Swell": 240,
+     "16_Waves_again": 166
+    },
+    "perRun": [
+     {
+      "run": "1",
+      "stallMs": 8515,
+      "maskStallMs": 539,
+      "zoomPanStallMs": 1628
+     },
+     {
+      "run": "2",
+      "stallMs": 8813,
+      "maskStallMs": 536,
+      "zoomPanStallMs": 1516
+     },
+     {
+      "run": "3",
+      "stallMs": 15885,
+      "maskStallMs": 2024,
+      "zoomPanStallMs": 4045
+     }
+    ]
+   }
+  },
+  "pan_zoom_future": {
+   "off": {
+    "n": 6,
+    "stallMs": 4254.5,
+    "stalls": 27,
+    "stallMax": 480,
+    "maskStallMs": 1502,
+    "zoomPanStallMs": 2768.5,
+    "zoomPanStalls": 14,
+    "zoomPanMax": 479.5,
+    "splitMaskMs": 1957,
+    "splitStages": {
+     "rasterize": 622.5,
+     "shelter": 420.5,
+     "overlay": 448,
+     "inland": 261.5,
+     "featureQuery": 99.5,
+     "glue": 93,
+     "stash": 1,
+     "carry": 0,
+     "sdf": 0
+    },
+    "perStep": {
+     "before first step (load + setup)": 1464,
+     "0_zoom_6": 430.5,
+     "1_zoom_8": 750.5,
+     "2_pan_east": 491.5,
+     "3_zoom_out_4": 323,
+     "4__3h_after_zoom": 225.5
+    },
+    "perRun": [
+     {
+      "run": "1",
+      "stallMs": 4332,
+      "maskStallMs": 1516,
+      "zoomPanStallMs": 2840
+     },
+     {
+      "run": "2",
+      "stallMs": 6970,
+      "maskStallMs": 1644,
+      "zoomPanStallMs": 4074
+     },
+     {
+      "run": "3",
+      "stallMs": 321,
+      "maskStallMs": 0,
+      "zoomPanStallMs": 0
+     },
+     {
+      "run": "4",
+      "stallMs": 4177,
+      "maskStallMs": 1517,
+      "zoomPanStallMs": 2774
+     },
+     {
+      "run": "5",
+      "stallMs": 4556,
+      "maskStallMs": 1488,
+      "zoomPanStallMs": 2763
+     },
+     {
+      "run": "6",
+      "stallMs": 3260,
+      "maskStallMs": 911,
+      "zoomPanStallMs": 1823
+     }
+    ]
+   },
+   "on": {
+    "n": 6,
+    "stallMs": 2444.5,
+    "stalls": 20.5,
+    "stallMax": 331,
+    "maskStallMs": 423,
+    "zoomPanStallMs": 1014.5,
+    "zoomPanStalls": 9,
+    "zoomPanMax": 272.5,
+    "splitMaskMs": 1162.5,
+    "splitStages": {
+     "rasterize": 495.5,
+     "shelter": 217,
+     "overlay": 164,
+     "inland": 107.5,
+     "featureQuery": 55,
+     "slice": 75,
+     "glue": 46,
+     "stash": 1,
+     "sdf": 0,
+     "carry": 0
+    },
+    "perStep": {
+     "before first step (load + setup)": 1447,
+     "0_zoom_6": 288,
+     "1_zoom_8": 165,
+     "2_pan_east": 38,
+     "3_zoom_out_4": 253,
+     "4__3h_after_zoom": 277.5
+    },
+    "perRun": [
+     {
+      "run": "1",
+      "stallMs": 2390,
+      "maskStallMs": 388,
+      "zoomPanStallMs": 937
+     },
+     {
+      "run": "2",
+      "stallMs": 7220,
+      "maskStallMs": 1418,
+      "zoomPanStallMs": 3991
+     },
+     {
+      "run": "3",
+      "stallMs": 4118,
+      "maskStallMs": 1002,
+      "zoomPanStallMs": 2307
+     },
+     {
+      "run": "4",
+      "stallMs": 2427,
+      "maskStallMs": 399,
+      "zoomPanStallMs": 985
+     },
+     {
+      "run": "5",
+      "stallMs": 2462,
+      "maskStallMs": 447,
+      "zoomPanStallMs": 1044
+     },
+     {
+      "run": "6",
+      "stallMs": 1300,
+      "maskStallMs": 0,
+      "zoomPanStallMs": 0
+     }
+    ]
+   }
+  }
+ },
+ "replaySliced_vs_originDev": {
+  "reps": 2,
+  "captures": {
+   "cap-dark.json": {
+    "paints": 21,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "receiptsSameEveryRep": true,
+    "longestPieceByPass_ms": {
+     "baseCanvas": {
+      "median": 11.2,
+      "max": 43.9,
+      "over16": 13,
+      "n": 42
+     },
+     "neSnapshot": {
+      "median": 3.3,
+      "max": 9.3,
+      "over16": 0,
+      "n": 42
+     },
+     "neFull": {
+      "median": 0.9,
+      "max": 3.3,
+      "over16": 0,
+      "n": 42
+     },
+     "draws": {
+      "median": 2.4,
+      "max": 42.7,
+      "over16": 4,
+      "n": 42
+     },
+     "inland:downsample": {
+      "median": 5.7,
+      "max": 13.8,
+      "over16": 0,
+      "n": 42
+     },
+     "inland:chamfer": {
+      "median": 1.4,
+      "max": 12.1,
+      "over16": 0,
+      "n": 42
+     },
+     "inlandGuard": {
+      "median": 0.8,
+      "max": 13.1,
+      "over16": 0,
+      "n": 42
+     },
+     "islandReassert": {
+      "median": 0.5,
+      "max": 2.8,
+      "over16": 0,
+      "n": 42
+     },
+     "wetland": {
+      "median": 0.1,
+      "max": 1.2,
+      "over16": 0,
+      "n": 42
+     },
+     "shelter": {
+      "median": 2.8,
+      "max": 18.8,
+      "over16": 1,
+      "n": 42
+     },
+     "shelter:downsample": {
+      "median": 4.8,
+      "max": 15.3,
+      "over16": 0,
+      "n": 40
+     },
+     "shelter:chamfer": {
+      "median": 11,
+      "max": 71.9,
+      "over16": 11,
+      "n": 34
+     },
+     "shelter:flood": {
+      "median": 6.3,
+      "max": 15.4,
+      "over16": 0,
+      "n": 34
+     },
+     "shelter:components": {
+      "median": 2.3,
+      "max": 8.5,
+      "over16": 0,
+      "n": 34
+     }
+    }
+   },
+   "cap-light.json": {
+    "paints": 17,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "receiptsSameEveryRep": true,
+    "longestPieceByPass_ms": {
+     "baseCanvas": {
+      "median": 21.5,
+      "max": 51.3,
+      "over16": 19,
+      "n": 34
+     },
+     "neSnapshot": {
+      "median": 4.8,
+      "max": 12.9,
+      "over16": 0,
+      "n": 34
+     },
+     "neFull": {
+      "median": 1.2,
+      "max": 2.7,
+      "over16": 0,
+      "n": 34
+     },
+     "draws": {
+      "median": 3.9,
+      "max": 39.7,
+      "over16": 3,
+      "n": 34
+     },
+     "inland:downsample": {
+      "median": 7,
+      "max": 11.3,
+      "over16": 0,
+      "n": 34
+     },
+     "inland:chamfer": {
+      "median": 1.6,
+      "max": 4.2,
+      "over16": 0,
+      "n": 34
+     },
+     "inlandGuard": {
+      "median": 1.1,
+      "max": 4.4,
+      "over16": 0,
+      "n": 34
+     },
+     "islandReassert": {
+      "median": 0.8,
+      "max": 2.9,
+      "over16": 0,
+      "n": 34
+     },
+     "wetland": {
+      "median": 0.1,
+      "max": 0.9,
+      "over16": 0,
+      "n": 34
+     },
+     "shelter": {
+      "median": 3.2,
+      "max": 13.4,
+      "over16": 0,
+      "n": 34
+     },
+     "shelter:downsample": {
+      "median": 5,
+      "max": 20.2,
+      "over16": 1,
+      "n": 32
+     },
+     "shelter:chamfer": {
+      "median": 5.2,
+      "max": 114.7,
+      "over16": 12,
+      "n": 28
+     },
+     "shelter:flood": {
+      "median": 6.7,
+      "max": 11,
+      "over16": 0,
+      "n": 28
+     },
+     "shelter:components": {
+      "median": 2.6,
+      "max": 4.1,
+      "over16": 0,
+      "n": 28
+     }
+    }
+   },
+   "cap-beach.json": {
+    "paints": 18,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "receiptsSameEveryRep": true,
+    "longestPieceByPass_ms": {
+     "baseCanvas": {
+      "median": 15.1,
+      "max": 59.6,
+      "over16": 17,
+      "n": 36
+     },
+     "neSnapshot": {
+      "median": 4.3,
+      "max": 14.3,
+      "over16": 0,
+      "n": 36
+     },
+     "neFull": {
+      "median": 1,
+      "max": 2.8,
+      "over16": 0,
+      "n": 36
+     },
+     "draws": {
+      "median": 3.8,
+      "max": 62.9,
+      "over16": 4,
+      "n": 36
+     },
+     "inland:downsample": {
+      "median": 6,
+      "max": 18.5,
+      "over16": 3,
+      "n": 36
+     },
+     "inland:chamfer": {
+      "median": 1.8,
+      "max": 5.7,
+      "over16": 0,
+      "n": 36
+     },
+     "inlandGuard": {
+      "median": 1.1,
+      "max": 4.5,
+      "over16": 0,
+      "n": 36
+     },
+     "islandReassert": {
+      "median": 0.7,
+      "max": 2.8,
+      "over16": 0,
+      "n": 36
+     },
+     "wetland": {
+      "median": 0.1,
+      "max": 1,
+      "over16": 0,
+      "n": 36
+     },
+     "shelter": {
+      "median": 2.7,
+      "max": 5.2,
+      "over16": 0,
+      "n": 36
+     },
+     "shelter:downsample": {
+      "median": 4.5,
+      "max": 6.4,
+      "over16": 0,
+      "n": 34
+     },
+     "shelter:chamfer": {
+      "median": 5,
+      "max": 67.2,
+      "over16": 10,
+      "n": 30
+     },
+     "shelter:flood": {
+      "median": 5.5,
+      "max": 10.2,
+      "over16": 0,
+      "n": 30
+     },
+     "shelter:components": {
+      "median": 2.5,
+      "max": 3,
+      "over16": 0,
+      "n": 30
+     }
+    }
+   }
+  }
+ },
+ "gpuReadbackIdentity": {
+  "v1_02447074c": {
+   "runs": [
+    "beach/off/1:7v",
+    "beach/off/2:7v",
+    "beach/on/1:7v",
+    "beach/on/2:7v",
+    "dark/off/1:7v",
+    "dark/off/2:7v",
+    "dark/on/1:7v",
+    "dark/on/2:7v",
+    "light/off/1:7v",
+    "light/off/2:7v",
+    "light/on/1:7v",
+    "light/on/2:7v"
+   ],
+   "groupsBothArms": 41,
+   "same": 37,
+   "groupsWithOnOnlyHash": 3,
+   "groupsWithOffOnlyHash": 4,
+   "groupsOneArmOnly": 9,
+   "groupsWhereOffAloneVaried": 1
+  },
+  "v1_differ": [
+   "DIFFER   beach | SoCal z10 | overlay | 2048x1024 | -118.94158,33.29296,-117.45842,34.20644  off={\"c56c54c0\":[\"1\",\"2\"]} on={\"a7a4b2ba\":[\"1\"],\"685c3109\":[\"2\"]}",
+   "DIFFER   dark | FL z8 | overlay | 2048x1024 | -82.96631,24.02104,-77.03369,27.97067  off={\"812d1cc6\":[\"1\"],\"9e21392f\":[\"2\"]} on={\"9e21392f\":[\"1\",\"2\"]}",
+   "DIFFER   dark | SoCal z10 | overlay | 2048x1024 | -118.94158,33.29296,-117.45842,34.20644  off={\"81d4ab49\":[\"1\",\"2\"]} on={\"a7ac5bd3\":[\"1\",\"2\"]}",
+   "DIFFER   light | SoCal z10 | overlay | 2048x1024 | -118.94158,33.29296,-117.45842,34.20644  off={\"81d4ab49\":[\"1\",\"2\"]} on={\"a7ac5bd3\":[\"1\",\"2\"]}"
+  ],
+  "v2_9a9dead63": {
+   "runs": [
+    "beach/off/1:7v",
+    "beach/off/2:7v",
+    "beach/on/1:7v",
+    "beach/on/2:7v",
+    "dark/off/1:7v",
+    "dark/off/2:7v",
+    "dark/on/1:7v",
+    "dark/on/2:7v",
+    "light/off/1:7v",
+    "light/off/2:7v",
+    "light/on/1:7v",
+    "light/on/2:7v"
+   ],
+   "groupsBothArms": 43,
+   "same": 42,
+   "groupsWithOnOnlyHash": 0,
+   "groupsWithOffOnlyHash": 1,
+   "groupsOneArmOnly": 3,
+   "groupsWhereOffAloneVaried": 1
+  },
+  "v2_differ": [
+   "DIFFER   dark | FL z8 | overlay | 2048x1024 | -82.96631,24.02104,-77.03369,27.97067  off={\"812d1cc6\":[\"1\"],\"9e21392f\":[\"2\"]} on={\"9e21392f\":[\"1\",\"2\"]}"
+  ]
+ },
+ "scnMaskCalls_finalBundle_9a9dead63_2runsPerArm_medians": {
+  "off": {
+   "zoom 6": {
+    "runs": 2,
+    "longtaskTotal": 414.5,
+    "longtaskMax": 139,
+    "longtasks": 3.5,
+    "maskMsInEventTasks": 104.5,
+    "eventPaints": 1,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      485,
+      344
+     ],
+     "longtaskMax": [
+      152,
+      126
+     ],
+     "maskMsInEventTasks": [
+      118,
+      91
+     ]
+    }
+   },
+   "zoom 8": {
+    "runs": 2,
+    "longtaskTotal": 1022,
+    "longtaskMax": 725,
+    "longtasks": 3,
+    "maskMsInEventTasks": 163,
+    "eventPaints": 1,
+    "commitPaints": 2,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      1055,
+      989
+     ],
+     "longtaskMax": [
+      755,
+      695
+     ],
+     "maskMsInEventTasks": [
+      164,
+      162
+     ]
+    }
+   },
+   "pan east": {
+    "runs": 2,
+    "longtaskTotal": 627.5,
+    "longtaskMax": 357.5,
+    "longtasks": 2.5,
+    "maskMsInEventTasks": 443,
+    "eventPaints": 3,
+    "commitPaints": 1,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      490,
+      765
+     ],
+     "longtaskMax": [
+      382,
+      333
+     ],
+     "maskMsInEventTasks": [
+      464,
+      422
+     ]
+    }
+   },
+   "zoom out 4": {
+    "runs": 2,
+    "longtaskTotal": 327.5,
+    "longtaskMax": 294.5,
+    "longtasks": 1.5,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      267,
+      388
+     ],
+     "longtaskMax": [
+      267,
+      322
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1
+     ]
+    }
+   },
+   "zoom 8 (b)": {
+    "runs": 2,
+    "longtaskTotal": 228,
+    "longtaskMax": 192,
+    "longtasks": 1.5,
+    "maskMsInEventTasks": 162.5,
+    "eventPaints": 1,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      209,
+      247
+     ],
+     "longtaskMax": [
+      209,
+      175
+     ],
+     "maskMsInEventTasks": [
+      176,
+      149
+     ]
+    }
+   },
+   "pan (b)": {
+    "runs": 2,
+    "longtaskTotal": 521,
+    "longtaskMax": 314,
+    "longtasks": 3,
+    "maskMsInEventTasks": 191.5,
+    "eventPaints": 2,
+    "commitPaints": 2,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      551,
+      491
+     ],
+     "longtaskMax": [
+      321,
+      307
+     ],
+     "maskMsInEventTasks": [
+      217,
+      166
+     ]
+    }
+   },
+   "zoom out 3": {
+    "runs": 2,
+    "longtaskTotal": 0,
+    "longtaskMax": 0,
+    "longtasks": 0,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      0,
+      0
+     ],
+     "longtaskMax": [
+      0,
+      0
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1
+     ]
+    }
+   }
+  },
+  "on": {
+   "zoom 6": {
+    "runs": 2,
+    "longtaskTotal": 282.5,
+    "longtaskMax": 130.5,
+    "longtasks": 3,
+    "maskMsInEventTasks": 20,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 1,
+    "slicedMs": 94.5,
+    "sliceMax": 20.85,
+    "slicesOver16": 1,
+    "latencyMedian": 197.5,
+    "latencyMax": 228,
+    "latencyN": 2,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      398,
+      167
+     ],
+     "longtaskMax": [
+      166,
+      95
+     ],
+     "maskMsInEventTasks": [
+      27,
+      13
+     ]
+    }
+   },
+   "zoom 8": {
+    "runs": 2,
+    "longtaskTotal": 774.5,
+    "longtaskMax": 541,
+    "longtasks": 3.5,
+    "maskMsInEventTasks": 29,
+    "eventPaints": 0,
+    "commitPaints": 2,
+    "jobs": 1.5,
+    "slicedMs": 339.5,
+    "sliceMax": 32.15,
+    "slicesOver16": 4.5,
+    "latencyMedian": 506.5,
+    "latencyMax": 641,
+    "latencyN": 2,
+    "stale": 1,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      829,
+      720
+     ],
+     "longtaskMax": [
+      603,
+      479
+     ],
+     "maskMsInEventTasks": [
+      42,
+      16
+     ]
+    }
+   },
+   "pan east": {
+    "runs": 2,
+    "longtaskTotal": 207,
+    "longtaskMax": 207,
+    "longtasks": 0.5,
+    "maskMsInEventTasks": 15.5,
+    "eventPaints": 0,
+    "commitPaints": 1,
+    "jobs": 3,
+    "slicedMs": 285.5,
+    "sliceMax": 28.85,
+    "slicesOver16": 3,
+    "latencyMedian": 303,
+    "latencyMax": 428,
+    "latencyN": 4,
+    "stale": 2,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      414,
+      0
+     ],
+     "longtaskMax": [
+      414,
+      0
+     ],
+     "maskMsInEventTasks": [
+      19,
+      12
+     ]
+    }
+   },
+   "zoom out 4": {
+    "runs": 2,
+    "longtaskTotal": 246.5,
+    "longtaskMax": 246.5,
+    "longtasks": 1,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      297,
+      196
+     ],
+     "longtaskMax": [
+      297,
+      196
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1
+     ]
+    }
+   },
+   "zoom 8 (b)": {
+    "runs": 2,
+    "longtaskTotal": 59.5,
+    "longtaskMax": 59.5,
+    "longtasks": 0.5,
+    "maskMsInEventTasks": 13.5,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 1,
+    "slicedMs": 165.5,
+    "sliceMax": 34.2,
+    "slicesOver16": 4.5,
+    "latencyMedian": 374,
+    "latencyMax": 487,
+    "latencyN": 2,
+    "stale": 0,
+    "coalesced": 1,
+    "perRun": {
+     "longtaskTotal": [
+      119,
+      0
+     ],
+     "longtaskMax": [
+      119,
+      0
+     ],
+     "maskMsInEventTasks": [
+      14,
+      13
+     ]
+    }
+   },
+   "pan (b)": {
+    "runs": 2,
+    "longtaskTotal": 390.5,
+    "longtaskMax": 332.5,
+    "longtasks": 2,
+    "maskMsInEventTasks": 11,
+    "eventPaints": 0,
+    "commitPaints": 2,
+    "jobs": 2,
+    "slicedMs": 272.5,
+    "sliceMax": 48,
+    "slicesOver16": 4,
+    "latencyMedian": 251.5,
+    "latencyMax": 297,
+    "latencyN": 4,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      584,
+      197
+     ],
+     "longtaskMax": [
+      468,
+      197
+     ],
+     "maskMsInEventTasks": [
+      11,
+      11
+     ]
+    }
+   },
+   "zoom out 3": {
+    "runs": 2,
+    "longtaskTotal": 0,
+    "longtaskMax": 0,
+    "longtasks": 0,
+    "maskMsInEventTasks": 1,
+    "eventPaints": 0,
+    "commitPaints": 0,
+    "jobs": 0,
+    "slicedMs": 0,
+    "sliceMax": 0,
+    "slicesOver16": 0,
+    "latencyMedian": null,
+    "latencyMax": null,
+    "latencyN": 0,
+    "stale": 0,
+    "coalesced": 0,
+    "perRun": {
+     "longtaskTotal": [
+      0,
+      0
+     ],
+     "longtaskMax": [
+      0,
+      0
+     ],
+     "maskMsInEventTasks": [
+      1,
+      1
+     ]
+    }
+   }
+  }
+ }
+}
