@@ -104,3 +104,22 @@ pass off, the engine's own heatmap-only fallback) measures against the exact was
   over its 5 s limit on this Windows box, identical on dev), `check_eslint.js` clean (debt down), `loc_ratchet.py` clean (the
   shader at 978), `craco build` compiled. Hosted CI is the authority.
 - Evidence: `docs/weather-program/evidence/beach-crest-v2-2026-10-20.json`.
+
+## 2026-10-20 15:44Z: the lead's crest research arrived by message (after the PR), and what it changes
+
+Five delayed messages from the lead and the palette session arrived at once: the D-033 pick, the violet flag, the rebase onto
+dev, and the lead's crest research (navy / white polarity switch at wash APCA Y 0.352: min |Lc| 53.2-53.4 on A and B; tinted
+inks cost 4-11 Lc; Lindsey & Teller 1990, Gegenfurtner 1995, Derrington 1993: judge crest vs wash by luminance, and about 53 Lc
+is enough; Burr 1982: if thin crests read weak, widen the stroke rather than saturate). #416 already did all of it: it was
+built from the same finding read in the lead's log. Measured #416's tinted inks against navy / white on both footings:
+
+| footing | navy / white | #416 (plum; cream, lemon, foam) |
+|---|---|---|
+| the lead's: ink at full opacity on the v2 table wash, switch on the wash's own Y | 53.3 | 50.5 |
+| the checker's: crest core at 0.85 over the composited wash, every zoom and lighting, switch at 2.0 m | 41.3 (colour-blind 23.0, normal 23.7) | 36.4 (colour-blind 23.8, normal 30.6) |
+
+Both minima sit at the switch (2.0 m, world zoom, full swell lighting, light side). The tints cost about 3 Lc on the lead's
+footing (inside the ~4 it quotes for its gentlest tint, #123858 / #FAFDFF) and buy colour (normal 30.6 vs 23.7). Kept as built;
+a whiter cream would recover about 2 Lc. Not built here, a separate variable: a slightly wider stroke in the switch band
+(Burr 1982), and switching on the wash's own luminance instead of a height (the same thing for a lightness-ordered ramp, but
+it would need the ramp's GLSL in DRAW_FS, which is at its LOC baseline).
