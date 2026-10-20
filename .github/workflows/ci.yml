@@ -1490,7 +1490,10 @@ jobs:
           # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
           # Dark coherent marine trends: +20 chain controls from dev2701 ->2721; same166files and margin6.
           # Final PR378 review: +12 empty-identity/UTC-overflow refusal controls; 2721 ->2733, margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 169, 2803
+          # ⬆ 169/2803 → 170/2817 on 2026-10-19, IN THE SAME COMMIT THAT CAUSES IT (the GFS/EURO/ICON model-spread data
+          # collector, dark): tests/test_model_spread.py (14, a new file selector-verified into this lane: --lane chain 169 -> 170);
+          # the floor-staleness projection 2809 + 14 -> projected 2823/170; 2823 - 6 = 2817. This PR must read 170 files / 2823.
+          MIN_FILES, MIN_PASSED = 170, 2817
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

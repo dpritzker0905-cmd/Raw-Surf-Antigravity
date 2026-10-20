@@ -128,3 +128,21 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/publish_frame_images.py
+
+      # MODEL SPREAD DATA (2026-10-19, dark, data only): per-node GFS/EURO/ICON mean/min/max/spread/cv of the world
+      # (global_mid) wave field at GFS leads 0, 24, 48 ... h, for each frame whose three member runs are new, written to
+      # the PRIVATE weather-products bucket under model_spread/global_mid/ (gzip JSON + index.json; never the manifest).
+      # Serves nothing: no route or client reads it. It collects the distribution a confidence layer's thresholds will
+      # be set from. Products the ingest step just wrote are read from this runner's disk cache, the rest from L2; the
+      # decile report lands in this run's step summary. Can never fail the ingest cycle (continue-on-error).
+      # ON: repository variable MODEL_SPREAD_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
+      # Knobs (code defaults): MODEL_SPREAD_LEAD_STEP_H 24, MODEL_SPREAD_MAX_FRAMES 8, MODEL_SPREAD_RETAIN_DAYS 21.
+      - name: Collect GFS/EURO/ICON wave-height spread (dark data)
+        if: ${{ success() && vars.MODEL_SPREAD_PUBLISH == '1' }}
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/publish_model_spread.py
