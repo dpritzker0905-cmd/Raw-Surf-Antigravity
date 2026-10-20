@@ -110,3 +110,11 @@ backend. Owner page: https://claude.ai/artifact/424rWB7zJkgtpBesPPu1Pr (private 
 - Draft PR #420 (`claude/wave-height-float` on dev `da40c3c5b`). Not merged: the owner's verdict decides.
 - Ledger 1552 (`pr_open`), 1553 (`commitment`: the owner's verdict by 2026-10-27, then merge or close; after a merge a static read of
   the deployed chunk). Appended after dev's head 1551; #418 also claims 1552, so whichever merges second re-chains (LESSONS).
+
+## 2026-10-20 21:04Z: ledger re-chained after #418 (the lines above are renumbered, not rewritten)
+
+#418 merged at 20:49:47Z (`f6b80f724`) with its own seq 1552 (`pr_merge #415`). As agreed with the lead session, #420 merges
+second and re-chains: dev's `ACTIONS.jsonl` taken byte for byte, this branch's two lines re-appended field for field through
+`action_ledger.py append` with `--acted-at` their original times: **`pr_open` #420 is now seq 1553, the owner-verdict
+commitment seq 1554** (the "1552 / 1553" above). STATE's ledger head moved to 1554; `action_ledger.py verify` OK. The app's
+`sync_with_base_branch` failed again with "Committer identity unknown", so the merge of `origin/dev` was done in the checkout.
