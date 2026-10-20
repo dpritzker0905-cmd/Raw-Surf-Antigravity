@@ -1,0 +1,4005 @@
+{
+ "generated": "2026-10-20",
+ "what": "Land-mask fast paths (maskFastPaths.js): byte-identical mask, measured offline (synthetic backend :4140, never the live box).",
+ "builds": {
+  "base": "origin/dev a4a020334 (build_base, source maps)",
+  "new": "claude/viewport-land-mask working tree on a4a020334 (build_new, source maps)"
+ },
+ "baselineMaskStagesInStalls_msSum_8runs": {
+  "rasterize": 3750,
+  "overlay": 2986,
+  "shelter": 2117,
+  "inland": 1395,
+  "featureQuery": 555,
+  "glue": 596,
+  "stash": 12,
+  "carry": 2,
+  "sdf": 2
+ },
+ "replayBench": {
+  "ref": "origin/dev",
+  "reps": 5,
+  "captures": {
+   "cap-dark.json": {
+    "reps": 5,
+    "paints": 21,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "firstDiffs": [],
+    "oldMsMedian": 1686,
+    "newMsMedian": 1424,
+    "oldRasterMsMedian": 253,
+    "newRasterMsMedian": 279,
+    "perRep": [
+     [
+      1786,
+      1496
+     ],
+     [
+      1501,
+      1424
+     ],
+     [
+      1686,
+      1400
+     ],
+     [
+      2056,
+      1816
+     ],
+     [
+      1652,
+      1369
+     ]
+    ],
+    "cut": 0.155
+   },
+   "cap-light.json": {
+    "reps": 5,
+    "paints": 17,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "firstDiffs": [],
+    "oldMsMedian": 1376,
+    "newMsMedian": 1038,
+    "oldRasterMsMedian": 218,
+    "newRasterMsMedian": 207,
+    "perRep": [
+     [
+      1287,
+      1036
+     ],
+     [
+      1376,
+      1111
+     ],
+     [
+      1380,
+      1038
+     ],
+     [
+      1725,
+      1692
+     ],
+     [
+      1287,
+      904
+     ]
+    ],
+    "cut": 0.246
+   },
+   "cap-beach.json": {
+    "reps": 5,
+    "paints": 18,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "firstDiffs": [],
+    "oldMsMedian": 1633,
+    "newMsMedian": 1380,
+    "oldRasterMsMedian": 265,
+    "newRasterMsMedian": 243,
+    "perRep": [
+     [
+      1617,
+      1385
+     ],
+     [
+      1842,
+      1380
+     ],
+     [
+      1589,
+      1260
+     ],
+     [
+      1845,
+      1592
+     ],
+     [
+      1633,
+      1250
+     ]
+    ],
+    "cut": 0.155
+   }
+  }
+ },
+ "inAppPerPaint_scn_mask_calls": {
+  "base-1": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 48,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 97
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 487,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 519
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 331,
+    "byTrigger": {
+     "sourcedata": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 227
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 216
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 1,
+    "paintMs": 93,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 196
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 532,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 653
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 54
+   }
+  ],
+  "base-2": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 36,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 106
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 451,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 507
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 328,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 216
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 204
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 3,
+    "paintMs": 355,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 397
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 201,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 206
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 0
+   }
+  ],
+  "base-3": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 63,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 115
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 646,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 683
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 423,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 313
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 284
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 1,
+    "paintMs": 106,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 180
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 284,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 357
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 0
+   }
+  ],
+  "base-4": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 112,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 308
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 1068,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 1153
+   },
+   {
+    "step": "pan east",
+    "paints": 3,
+    "paintMs": 419,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2
+    },
+    "longtaskMax": 404
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 372
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 1,
+    "paintMs": 93,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 203
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 489,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 498
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 69
+   }
+  ],
+  "final-4": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 74,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 223
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 617,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 661
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 698,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 477
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 498
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 3,
+    "paintMs": 873,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 1068
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 262,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 418
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 59
+   }
+  ],
+  "new-1": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 53,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 102
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 351,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 366
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 316,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 230
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 222
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 3,
+    "paintMs": 306,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 347
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 104,
+    "byTrigger": {
+     "moveend": 1,
+     "sourcedata": 1,
+     "commit": 2
+    },
+    "longtaskMax": 169
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 0
+   }
+  ],
+  "new-2": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 37,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 83
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 390,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 426
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 406,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 287
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 189
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 3,
+    "paintMs": 390,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 390
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 108,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 174
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 0
+   }
+  ],
+  "new-3": [
+   {
+    "step": "zoom 6",
+    "paints": 1,
+    "paintMs": 50,
+    "byTrigger": {
+     "zoomend": 1
+    },
+    "longtaskMax": 123
+   },
+   {
+    "step": "zoom 8",
+    "paints": 3,
+    "paintMs": 324,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 374
+   },
+   {
+    "step": "pan east",
+    "paints": 5,
+    "paintMs": 271,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 2,
+     "commit": 2
+    },
+    "longtaskMax": 192
+   },
+   {
+    "step": "zoom out 4",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 221
+   },
+   {
+    "step": "zoom 8 (b)",
+    "paints": 3,
+    "paintMs": 383,
+    "byTrigger": {
+     "zoomend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 464
+   },
+   {
+    "step": "pan (b)",
+    "paints": 4,
+    "paintMs": 104,
+    "byTrigger": {
+     "idle": 1,
+     "moveend": 1,
+     "commit": 2
+    },
+    "longtaskMax": 181
+   },
+   {
+    "step": "zoom out 3",
+    "paints": 0,
+    "paintMs": 0,
+    "byTrigger": {},
+    "longtaskMax": 0
+   }
+  ]
+ },
+ "inAppStallProfile_byStep": {
+  "erratic 9_zoom_8": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     17,
+     552,
+     894,
+     233
+    ],
+    "maskSplit": [
+     0,
+     756,
+     1243,
+     326
+    ],
+    "stall": [
+     2519,
+     1798,
+     2162,
+     1226
+    ],
+    "maxStall": [
+     935,
+     694,
+     676,
+     331
+    ],
+    "medLandMask": 392.5,
+    "medStall": 1980
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     1063,
+     147
+    ],
+    "maskSplit": [
+     1408,
+     193
+    ],
+    "stall": [
+     3101,
+     1141
+    ],
+    "maxStall": [
+     801,
+     378
+    ],
+    "medLandMask": 605,
+    "medStall": 2121
+   }
+  },
+  "erratic 10_pan": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     455,
+     371,
+     142,
+     101
+    ],
+    "maskSplit": [
+     550,
+     520,
+     188,
+     121
+    ],
+    "stall": [
+     1619,
+     824,
+     430,
+     392
+    ],
+    "maxStall": [
+     403,
+     364,
+     208,
+     259
+    ],
+    "medLandMask": 256.5,
+    "medStall": 627
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     330,
+     113
+    ],
+    "maskSplit": [
+     501,
+     156
+    ],
+    "stall": [
+     1199,
+     605
+    ],
+    "maxStall": [
+     374,
+     174
+    ],
+    "medLandMask": 221.5,
+    "medStall": 902
+   }
+  },
+  "erratic 11_zoom_out_3": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     1,
+     259,
+     176,
+     4
+    ],
+    "maskSplit": [
+     0,
+     266,
+     182,
+     1
+    ],
+    "stall": [
+     94,
+     734,
+     556,
+     580
+    ],
+    "maxStall": [
+     94,
+     293,
+     272,
+     144
+    ],
+    "medLandMask": 90,
+    "medStall": 568
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     279,
+     0
+    ],
+    "maskSplit": [
+     283,
+     1
+    ],
+    "stall": [
+     1092,
+     131
+    ],
+    "maxStall": [
+     414,
+     72
+    ],
+    "medLandMask": 139.5,
+    "medStall": 611.5
+   }
+  },
+  "pan_zoom_future 0_zoom_6": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     55,
+     73,
+     57,
+     252
+    ],
+    "maskSplit": [
+     92,
+     115,
+     95,
+     572
+    ],
+    "stall": [
+     302,
+     436,
+     321,
+     907
+    ],
+    "maxStall": [
+     128,
+     224,
+     141,
+     348
+    ],
+    "medLandMask": 65,
+    "medStall": 378.5
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     61,
+     200
+    ],
+    "maskSplit": [
+     98,
+     292
+    ],
+    "stall": [
+     452,
+     769
+    ],
+    "maxStall": [
+     218,
+     326
+    ],
+    "medLandMask": 130.5,
+    "medStall": 610.5
+   }
+  },
+  "pan_zoom_future 1_zoom_8": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     393,
+     735,
+     111,
+     581
+    ],
+    "maskSplit": [
+     526,
+     949,
+     150,
+     561
+    ],
+    "stall": [
+     632,
+     1115,
+     190,
+     921
+    ],
+    "maxStall": [
+     409,
+     433,
+     190,
+     558
+    ],
+    "medLandMask": 487,
+    "medStall": 776.5
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     116,
+     556
+    ],
+    "maskSplit": [
+     355,
+     742
+    ],
+    "stall": [
+     275,
+     882
+    ],
+    "maxStall": [
+     200,
+     562
+    ],
+    "medLandMask": 336,
+    "medStall": 578.5
+   }
+  },
+  "pan_zoom_future 2_pan_east": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     126,
+     349,
+     389,
+     516
+    ],
+    "maskSplit": [
+     153,
+     469,
+     493,
+     970
+    ],
+    "stall": [
+     201,
+     604,
+     586,
+     897
+    ],
+    "maxStall": [
+     131,
+     285,
+     251,
+     345
+    ],
+    "medLandMask": 369,
+    "medStall": 595
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     252,
+     481
+    ],
+    "maskSplit": [
+     336,
+     1059
+    ],
+    "stall": [
+     387,
+     836
+    ],
+    "maxStall": [
+     217,
+     353
+    ],
+    "medLandMask": 366.5,
+    "medStall": 611.5
+   }
+  },
+  "pan_zoom_future 3_zoom_out_4": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     128,
+     163,
+     137,
+     253
+    ],
+    "maskSplit": [
+     133,
+     173,
+     145,
+     1
+    ],
+    "stall": [
+     212,
+     241,
+     231,
+     397
+    ],
+    "maxStall": [
+     212,
+     241,
+     231,
+     397
+    ],
+    "medLandMask": 150,
+    "medStall": 236
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     0,
+     363
+    ],
+    "maskSplit": [
+     2,
+     1
+    ],
+    "stall": [
+     0,
+     575
+    ],
+    "maxStall": [
+     0,
+     511
+    ],
+    "medLandMask": 181.5,
+    "medStall": 287.5
+   }
+  },
+  "pan_zoom_future 4__3h_after_zoom": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     45,
+     99,
+     45,
+     63
+    ],
+    "maskSplit": [
+     49,
+     110,
+     47,
+     65
+    ],
+    "stall": [
+     248,
+     310,
+     171,
+     248
+    ],
+    "maxStall": [
+     152,
+     158,
+     107,
+     132
+    ],
+    "medLandMask": 54,
+    "medStall": 248
+   },
+   "new": {
+    "runs": [
+     1,
+     2
+    ],
+    "landMask": [
+     51,
+     72
+    ],
+    "maskSplit": [
+     56,
+     77
+    ],
+    "stall": [
+     246,
+     252
+    ],
+    "maxStall": [
+     130,
+     156
+    ],
+    "medLandMask": 61.5,
+    "medStall": 249
+   }
+  }
+ },
+ "identityReadback_scn_mask_identity": {
+  "base-beach-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "efb862a8",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "e917950",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "base-beach-2": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "efb862a8",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "bef4825e",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "e917950",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "base-beach-3": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "efb862a8",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "e917950",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "base-beach-no10m": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "bfa708a5",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "b705279a",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "5f5d8933",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "29365ffa",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "1f31a499",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "197da5c8",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "5f5d8933",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a2ff9aab",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "2bfbf0a",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "464898e5",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e5da2346",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a486176b",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   }
+  ],
+  "base-dark-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "48743f8d",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "base-dark-2": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "4c02fc4e",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "ca3a6813",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "base-light-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "4c02fc4e",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "ca3a6813",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "base-light-2": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "4c02fc4e",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "ca3a6813",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "baseL-beach-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "bef4825e",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "baseL-dark-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "269b2fc0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "88361f80",
+     "bounds": "-83,24,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "20a0071f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "e9b07646",
+     "bounds": "-83,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "48743f8d",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "cb55e9cc",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "cb55e9cc",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "eff65e2f",
+     "bounds": "-120,32,-117,35",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a7ac5bd3",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "baseL-light-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "4c02fc4e",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "ca3a6813",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "final-beach-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "bef4825e",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "final-dark-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "f681cec4",
+     "bounds": "-92,16,-68,36",
+     "dims": "2048x1024"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "8b25bc62",
+     "bounds": "-82,24,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "ca3a6813",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "final-light-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "269b2fc0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "beabc3ab",
+     "bounds": "-83,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "6b86aaa0",
+     "bounds": "-82,22,-72,30",
+     "dims": "2048x1024"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "76224479",
+     "bounds": "-80,24,-74,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "5ce1dbf4",
+     "bounds": "-83,26,-79,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "new-beach-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "bef4825e",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "new-beach-2": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "bfa708a5",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "b705279a",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "80aa2b83",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "29365ffa",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "5f5d8933",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "197da5c8",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "28052d0d",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a2ff9aab",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "2bfbf0a",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "464898e5",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e5da2346",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a486176b",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "new-beach-3": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "efb862a8",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "e917950",
+     "bounds": "-83,26,-78,30",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "new-beach-4": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "a1908e21",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": "other:1420"
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "130438dc",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "1b28c4ad",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "57c5059a",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "bef4825e",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c008ab4d",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "fe833ecb",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "52acc1e4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "e94fec81",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e08db6fd",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "c56c54c0",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": "10m"
+   }
+  ],
+  "new-dark-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "4c02fc4e",
+     "bounds": "-79,24,-75,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "48743f8d",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "new-dark-2": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "48743f8d",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "new-light-1": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "48743f8d",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ],
+  "new-light-2": [
+   {
+    "view": "FL z6",
+    "base": {
+     "hash": "5db88167",
+     "bounds": "-180,-80,180,84",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "12a998a0",
+     "bounds": "-91.86523,18.03893,-68.13477,33.82851",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8",
+    "base": {
+     "hash": "a02350da",
+     "bounds": "-82,24,-78,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "9e21392f",
+     "bounds": "-82.96631,24.02104,-77.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL pan z8",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "d7a06ce4",
+     "bounds": "-79.96631,24.02104,-74.03369,27.97067",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z9.5",
+    "base": {
+     "hash": "48743f8d",
+     "bounds": "-82,25,-79,28",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "5d12f791",
+     "bounds": "-81.14875,25.90485,-79.05125,27.29409",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "FL z8 north",
+    "base": {
+     "hash": "117263b1",
+     "bounds": "-96,12,-64,40",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "66a01963",
+     "bounds": "-83.46631,26.05563,-77.53369,29.93564",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z8",
+    "base": {
+     "hash": "a6b82bb4",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "6ac74f72",
+     "bounds": "-121.26631,31.86716,-115.33369,35.52312",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   },
+   {
+    "view": "SoCal z10",
+    "base": {
+     "hash": "e549d51c",
+     "bounds": "-121,31,-115,36",
+     "dims": "4096x2048"
+    },
+    "overlay": {
+     "hash": "81d4ab49",
+     "bounds": "-118.94158,33.29296,-117.45842,34.20644",
+     "dims": "2048x1024"
+    },
+    "geo": null
+   }
+  ]
+ },
+ "inAppStallProfile_byStep_localLand": {
+  "erratic 9_zoom_8": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     100,
+     131,
+     1087,
+     1131
+    ],
+    "maskSplit": [
+     137,
+     176,
+     1449,
+     1422
+    ],
+    "stall": [
+     551,
+     1027,
+     3297,
+     4511
+    ],
+    "maxStall": [
+     232,
+     574,
+     925,
+     1038
+    ],
+    "medLandMask": 609,
+    "medStall": 2162
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     792,
+     116,
+     20,
+     630
+    ],
+    "maskSplit": [
+     1066,
+     161,
+     0,
+     855
+    ],
+    "stall": [
+     2273,
+     1191,
+     1793,
+     1988
+    ],
+    "maxStall": [
+     673,
+     483,
+     569,
+     603
+    ],
+    "medLandMask": 373,
+    "medStall": 1890.5
+   }
+  },
+  "erratic 10_pan": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     108,
+     650,
+     483,
+     694
+    ],
+    "maskSplit": [
+     155,
+     768,
+     610,
+     859
+    ],
+    "stall": [
+     232,
+     1795,
+     2681,
+     3303
+    ],
+    "maxStall": [
+     133,
+     540,
+     577,
+     543
+    ],
+    "medLandMask": 566.5,
+    "medStall": 2238
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     458,
+     442,
+     317,
+     215
+    ],
+    "maskSplit": [
+     666,
+     587,
+     370,
+     308
+    ],
+    "stall": [
+     1424,
+     1227,
+     2534,
+     1282
+    ],
+    "maxStall": [
+     432,
+     538,
+     786,
+     249
+    ],
+    "medLandMask": 379.5,
+    "medStall": 1353
+   }
+  },
+  "erratic 11_zoom_out_3": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     0,
+     62,
+     300,
+     76
+    ],
+    "maskSplit": [
+     1,
+     64,
+     304,
+     74
+    ],
+    "stall": [
+     64,
+     375,
+     1296,
+     2749
+    ],
+    "maxStall": [
+     64,
+     229,
+     359,
+     316
+    ],
+    "medLandMask": 69,
+    "medStall": 835.5
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     271,
+     238,
+     14,
+     150
+    ],
+    "maskSplit": [
+     286,
+     250,
+     0,
+     157
+    ],
+    "stall": [
+     526,
+     539,
+     2171,
+     301
+    ],
+    "maxStall": [
+     340,
+     284,
+     485,
+     239
+    ],
+    "medLandMask": 194,
+    "medStall": 532.5
+   }
+  },
+  "pan_zoom_future 0_zoom_6": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     60,
+     407,
+     66,
+     265
+    ],
+    "maskSplit": [
+     100,
+     508,
+     111,
+     316
+    ],
+    "stall": [
+     286,
+     2592,
+     391,
+     3313
+    ],
+    "maxStall": [
+     154,
+     562,
+     150,
+     1381
+    ],
+    "medLandMask": 165.5,
+    "medStall": 1491.5
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     79,
+     66,
+     54,
+     19
+    ],
+    "maskSplit": [
+     132,
+     106,
+     83,
+     0
+    ],
+    "stall": [
+     554,
+     338,
+     393,
+     2401
+    ],
+    "maxStall": [
+     186,
+     139,
+     201,
+     621
+    ],
+    "medLandMask": 60,
+    "medStall": 473.5
+   }
+  },
+  "pan_zoom_future 1_zoom_8": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     147,
+     510,
+     1084,
+     422
+    ],
+    "maskSplit": [
+     196,
+     695,
+     1385,
+     452
+    ],
+    "stall": [
+     245,
+     2231,
+     1729,
+     3281
+    ],
+    "maxStall": [
+     245,
+     640,
+     1268,
+     766
+    ],
+    "medLandMask": 466,
+    "medStall": 1980
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     135,
+     568,
+     373,
+     750
+    ],
+    "maskSplit": [
+     195,
+     769,
+     481,
+     976
+    ],
+    "stall": [
+     243,
+     923,
+     572,
+     3345
+    ],
+    "maxStall": [
+     243,
+     568,
+     333,
+     513
+    ],
+    "medLandMask": 470.5,
+    "medStall": 747.5
+   }
+  },
+  "pan_zoom_future 2_pan_east": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     272,
+     361,
+     264,
+     873
+    ],
+    "maskSplit": [
+     345,
+     451,
+     378,
+     1018
+    ],
+    "stall": [
+     426,
+     23288,
+     411,
+     3556
+    ],
+    "maxStall": [
+     236,
+     20576,
+     278,
+     733
+    ],
+    "medLandMask": 316.5,
+    "medStall": 1991
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     378,
+     237,
+     281,
+     240
+    ],
+    "maskSplit": [
+     497,
+     334,
+     369,
+     270
+    ],
+    "stall": [
+     679,
+     430,
+     440,
+     2933
+    ],
+    "maxStall": [
+     188,
+     244,
+     162,
+     467
+    ],
+    "medLandMask": 260.5,
+    "medStall": 559.5
+   }
+  },
+  "pan_zoom_future 3_zoom_out_4": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     135,
+     213,
+     135,
+     15
+    ],
+    "maskSplit": [
+     145,
+     208,
+     144,
+     1
+    ],
+    "stall": [
+     219,
+     1999,
+     304,
+     1805
+    ],
+    "maxStall": [
+     219,
+     386,
+     210,
+     297
+    ],
+    "medLandMask": 135,
+    "medStall": 1054.5
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     239,
+     184,
+     172,
+     237
+    ],
+    "maskSplit": [
+     272,
+     194,
+     187,
+     234
+    ],
+    "stall": [
+     458,
+     314,
+     262,
+     2981
+    ],
+    "maxStall": [
+     317,
+     253,
+     262,
+     483
+    ],
+    "medLandMask": 210.5,
+    "medStall": 386
+   }
+  },
+  "pan_zoom_future 4__3h_after_zoom": {
+   "base": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     59,
+     99,
+     119,
+     263
+    ],
+    "maskSplit": [
+     60,
+     68,
+     125,
+     213
+    ],
+    "stall": [
+     209,
+     4278,
+     423,
+     6536
+    ],
+    "maxStall": [
+     152,
+     341,
+     183,
+     644
+    ],
+    "medLandMask": 109,
+    "medStall": 2350.5
+   },
+   "new": {
+    "runs": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "landMask": [
+     59,
+     119,
+     132,
+     115
+    ],
+    "maskSplit": [
+     60,
+     123,
+     137,
+     88
+    ],
+    "stall": [
+     244,
+     377,
+     414,
+     4642
+    ],
+    "maxStall": [
+     135,
+     157,
+     187,
+     344
+    ],
+    "medLandMask": 117,
+    "medStall": 395.5
+   }
+  }
+ },
+ "replayBench_finalCode": {
+  "ref": "origin/dev",
+  "reps": 3,
+  "captures": {
+   "cap-dark.json": {
+    "reps": 3,
+    "paints": 21,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "receiptsSameEveryRep": true,
+    "firstDiffs": [],
+    "oldMsMedian": 1898,
+    "newMsMedian": 1681,
+    "oldRasterMsMedian": 279,
+    "newRasterMsMedian": 326,
+    "perRep": [
+     [
+      2032,
+      1681
+     ],
+     [
+      1885,
+      1684
+     ],
+     [
+      1898,
+      1506
+     ]
+    ],
+    "cut": 0.114
+   },
+   "cap-light.json": {
+    "reps": 3,
+    "paints": 17,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "receiptsSameEveryRep": true,
+    "firstDiffs": [],
+    "oldMsMedian": 1689,
+    "newMsMedian": 1505,
+    "oldRasterMsMedian": 316,
+    "newRasterMsMedian": 304,
+    "perRep": [
+     [
+      1763,
+      1507
+     ],
+     [
+      1619,
+      1451
+     ],
+     [
+      1689,
+      1505
+     ]
+    ],
+    "cut": 0.109
+   },
+   "cap-beach.json": {
+    "reps": 3,
+    "paints": 18,
+    "identicalEveryRep": true,
+    "verdictsSameEveryRep": true,
+    "receiptsSameEveryRep": true,
+    "firstDiffs": [],
+    "oldMsMedian": 1967,
+    "newMsMedian": 1651,
+    "oldRasterMsMedian": 296,
+    "newRasterMsMedian": 320,
+    "perRep": [
+     [
+      1967,
+      1651
+     ],
+     [
+      1880,
+      1615
+     ],
+     [
+      2098,
+      1717
+     ]
+    ],
+    "cut": 0.161
+   }
+  }
+ },
+ "identityRunKey": {
+  "base-*": "dev bundle, 10 m land from CDN",
+  "new-*": "branch bundle before the world-cull commit, CDN land",
+  "baseL-*": "dev bundle, 10 m land served locally",
+  "final-*": "final branch bundle (708acac5b), land served locally",
+  "base-beach-no10m": "dev bundle with the 10 m land blocked (NO10M=1): the control that reproduces new-beach-2"
+ },
+ "inAppPerPaintRunKey": {
+  "base-1..3 / new-1..3": "interleaved, CDN land, branch before the world-cull commit",
+  "base-4 / final-4": "paired pair on the final bundle, heavy background CPU (both slow)"
+ }
+}
