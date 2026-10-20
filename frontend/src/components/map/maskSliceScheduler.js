@@ -50,10 +50,22 @@ export function maskJobInFlight(engine) {
 }
 
 // job = { kind, steps (iterator; sets holder.canvas before its first yield; yields 1 after a draw, a pass name after a pass), holder, isStale(), commit(result), onEnd(outcome, pending) }
+// A job requested while another runs (the regional paint's nested overlay, requested in the same event as the default path
+// does) waits in a FIFO queue with its inputs already read; it starts when the running job ends.
 export function startMaskJob(engine, job) {
   const s = stats();
   s.scheduled++;
   const j = { ...job, pending: false, t0: now(), draws: 0 };
+  if (engine._maskJob || (engine._maskJobQueue && engine._maskJobQueue.length)) {
+    (engine._maskJobQueue || (engine._maskJobQueue = [])).push(j);
+    s.queued = (s.queued || 0) + 1;
+    return true;
+  }
+  runMaskJob(engine, j, s);
+  return true;
+}
+
+function runMaskJob(engine, j, s) {
   engine._maskJob = j;
   const budget = num(typeof window !== 'undefined' && window.__RAW_LAND_MASK_SLICE_MS__, 8);
   const flushEvery = num(typeof window !== 'undefined' && window.__RAW_LAND_MASK_FLUSH_EVERY__, 24);
@@ -66,7 +78,12 @@ export function startMaskJob(engine, job) {
       if (s.latencyMs.length > 200) s.latencyMs.shift();
     } else if (outcome === 'stale') s.stale++;
     else s.failed++;
-    try { if (j.onEnd) j.onEnd(outcome, j.pending); } catch (e) { /* re-drive is best effort */ }
+    const q = engine._maskJobQueue;
+    const next = !engine._maskJob && q && q.length ? q.shift() : null;
+    let pending = j.pending;
+    if (next) { next.pending = next.pending || pending; pending = false; }   // the re-drive waits for the queue to drain
+    try { if (j.onEnd) j.onEnd(outcome, pending); } catch (e) { /* re-drive is best effort */ }
+    if (next) runMaskJob(engine, next, s);
   };
   const timed = (fn) => {
     const t = now();

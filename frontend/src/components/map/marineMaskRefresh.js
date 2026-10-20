@@ -188,7 +188,7 @@ export function refreshRegionalMask(engine, gl, mapInstance, opts) {
       try {
         let _z2; try { _z2 = mapInstance.getZoom(); } catch (e2) { _z2 = 0; }
         const _mzOverlayZ2 = (typeof window !== 'undefined' && window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true) ? 12 : MIDZOOM_OVERLAY_CARVE_MIN_Z;
-        if (_z2 >= _mzOverlayZ2) engine.refreshViewportOverlayMask(gl, mapInstance, undefined, opts);
+        if (!sliced && _z2 >= _mzOverlayZ2) engine.refreshViewportOverlayMask(gl, mapInstance, undefined, opts);
       } catch (e2) { /* overlay is an enhancement */ }
       engine._lastMaskRepatchReason = 'applied';
       return true;
@@ -197,7 +197,16 @@ export function refreshRegionalMask(engine, gl, mapInstance, opts) {
       engine._lastMaskRepatchReason = 'sliced';
       const isStale = () => engine._cachedMaskGeoJSON !== geo || engine._cachedMaskTex !== tex || !engine._waveData
         || engine._waveData.u_oceanMaskTexture !== tex || boundsKey(engine._cachedMaskBounds) !== gridKey;
-      return sliceMaskPaint(engine, mapInstance, opts, water, 'regional', () => renderMaskToCanvas(geo, bounds), bounds, isStale, commit);
+      const started = sliceMaskPaint(engine, mapInstance, opts, water, 'regional', () => renderMaskToCanvas(geo, bounds), bounds, isStale, commit);
+      // The default path runs the z >= 8 overlay right after this paint, IN THIS CALL, so it reads the map now. Request it
+      // now too (queued behind this job), not from the commit later: a read at commit time saw a different tile set and
+      // settled a different overlay (SoCal z10, 4/4 runs, 2026-10-20).
+      try {
+        const _zq = mapInstance.getZoom();
+        const _mzq = (typeof window !== 'undefined' && window.__RAW_DISABLE_MIDZOOM_OVERLAY_CARVE__ === true) ? 12 : MIDZOOM_OVERLAY_CARVE_MIN_Z;
+        if (started && _zq >= _mzq) engine.refreshViewportOverlayMask(gl, mapInstance, undefined, { ...opts, queued: true });
+      } catch (e2) { /* overlay is an enhancement */ }
+      return started;
     }
     const canvas = measureMarineCpuPhase('maskBaseCanvas', () => renderMaskToCanvas(geo, bounds));
     const applied = measureMarineCpuPhase('maskWaterPaint', () => measureMarineMaskPaint(water, () => overlayBasemapWaterOnMask(canvas, bounds, mapInstance, water)));
@@ -293,7 +302,7 @@ export function refreshOverlayMask(engine, gl, mapInstance, basinScale, opts) {
   // TILE-READINESS GATE (the "rectangle holes" root): never paint truth from a mid-load source —
   // skip and let the `idle`-driven refresh land the paint when every covering tile is queryable.
   if (!isBasemapWaterSourceReady(mapInstance)) return false;
-  if (sliced && maskJobInFlight(engine)) return false;
+  if (sliced && !opts.queued && maskJobInFlight(engine)) return false;
   try {
     const water = measureMarineCpuPhase('maskFeatureQuery', () => prepareBasemapWaterOverlay(mapInstance));
     if (!water) return false;

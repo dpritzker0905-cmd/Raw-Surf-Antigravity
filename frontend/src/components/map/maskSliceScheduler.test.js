@@ -95,6 +95,22 @@ describe('maskSliceScheduler', () => {
     expect(engine._maskJob).toBeNull();
   });
 
+  test('a job requested while another runs is queued with its inputs, runs next, and the re-drive waits for the queue', () => {
+    const engine = {}; const order = []; const onEnd1 = jest.fn(); const onEnd2 = jest.fn();
+    const job = (name, onEnd) => { const h = {}; return { kind: name, holder: h, isStale: () => false, onEnd,
+      steps: (function* () { h.canvas = fakeCanvas(); order.push(`${name}:start`); yield 'p'; order.push(`${name}:end`); return name; })(),
+      commit: (r) => { order.push(`${r}:commit`); return true; } }; };
+    startMaskJob(engine, job('regional', onEnd1));
+    expect(maskJobInFlight(engine)).toBe(true);   // a map event during the regional job: pending
+    startMaskJob(engine, job('overlay', onEnd2));  // the nested overlay, requested in the same event
+    expect(engine._maskJobQueue).toHaveLength(1);
+    jest.runAllTimers();
+    expect(order).toEqual(['regional:start', 'regional:end', 'regional:commit', 'overlay:start', 'overlay:end', 'overlay:commit']);
+    expect(onEnd1).toHaveBeenCalledWith('committed', false);   // pending moved to the queued job
+    expect(onEnd2).toHaveBeenCalledWith('committed', true);
+    expect(engine._maskJob).toBeNull();
+  });
+
   test('a throwing step ends the job as failed and frees the slot', () => {
     const engine = {}; const onEnd = jest.fn();
     const bad = (function* () { yield 'x'; throw new Error('boom'); })();

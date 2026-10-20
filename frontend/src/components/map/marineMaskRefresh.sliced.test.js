@@ -109,6 +109,19 @@ describe('sliced map-event mask refresh (prototype, __RAW_SLICED_LAND_MASK__)', 
     expect(reruns).toBe(1);
   });
 
+  test('z >= 8: the nested overlay is requested in the same event (queued), not from the regional commit', () => {
+    window.__RAW_SLICED_LAND_MASK__ = true;
+    const { engine, gl, map } = fixture(10);
+    expect(engine.refreshMaskWithBasemapWater(gl, map, { sliced: true })).toBe(true);
+    expect(calls.snapshot).toBe(2);                 // regional AND overlay inputs read inside the event
+    expect(engine._maskJobQueue).toHaveLength(1);
+    jest.runAllTimers();
+    expect(gl.uploads).toBe(2);                     // base, then overlay
+    expect(calls.snapshot).toBe(2);                 // nothing read the map again at commit time
+    expect(engine._overlayMaskBounds).toBeTruthy();
+    expect(window.__RAW_GPU__.maskSlicing).toMatchObject({ scheduled: 2, committed: 2, queued: 1 });
+  });
+
   test('wide grid: the delegated overlay is sliced the same way', () => {
     window.__RAW_SLICED_LAND_MASK__ = true;
     const { engine, gl, map } = fixture(6);
