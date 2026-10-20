@@ -1,0 +1,958 @@
+{
+ "at": "2026-10-20T06:08:33.864Z",
+ "base": "6021c2cc1489264ddae80a9c88d156e17afe3cc7",
+ "head": "the commit that adds this file",
+ "branch": "claude/determined-shtern-c26caa",
+ "scope": "Light + beach wave-height wash: two monotonic-lightness candidates (A default, B by lever) and the v1 kill; owner A/B pending; draft PR, not merged; no served number changes",
+ "levers": {
+  "kill_v2": "window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true (v1 exactly; hash-pinned in marineWavePalette.test.js)",
+  "pick_b": "window.__RAW_WAVE_PALETTE_V2__ = 'B'",
+  "kill_all": "window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true (the shader ramp, unchanged)"
+ },
+ "domain": "cap 10 m = the wave texture encoder ceiling (WebGLMarineTextureEncoder.js: floor(min(1, h/10)*255)); cells >= 10 m draw the above-cap colour; widening to 16 m is a follow-up (it changes what the crests read)",
+ "palettes": {
+  "v1": {
+   "heights": [
+    0,
+    0.6,
+    1.2,
+    2.4,
+    5,
+    10
+   ],
+   "cap": 10,
+   "over": null,
+   "beach": [
+    [
+     5,
+     97,
+     89
+    ],
+    [
+     13,
+     166,
+     148
+    ],
+    [
+     250,
+     187,
+     110
+    ],
+    [
+     230,
+     95,
+     49
+    ],
+    [
+     107,
+     25,
+     34
+    ],
+    [
+     255,
+     242,
+     230
+    ]
+   ],
+   "light": [
+    [
+     199,
+     222,
+     240
+    ],
+    [
+     26,
+     166,
+     138
+    ],
+    [
+     31,
+     125,
+     224
+    ],
+    [
+     87,
+     31,
+     138
+    ],
+    [
+     242,
+     84,
+     144
+    ],
+    [
+     255,
+     255,
+     255
+    ]
+   ]
+  },
+  "A": {
+   "heights": [
+    0,
+    0.61,
+    1.22,
+    2.44,
+    3.66,
+    6.1,
+    10
+   ],
+   "cap": 10,
+   "light": [
+    [
+     228,
+     230,
+     144
+    ],
+    [
+     165,
+     227,
+     185
+    ],
+    [
+     29,
+     222,
+     224
+    ],
+    [
+     78,
+     166,
+     206
+    ],
+    [
+     82,
+     113,
+     187
+    ],
+    [
+     74,
+     68,
+     158
+    ],
+    [
+     66,
+     25,
+     132
+    ]
+   ],
+   "beach": [
+    [
+     196,
+     255,
+     234
+    ],
+    [
+     121,
+     241,
+     247
+    ],
+    [
+     9,
+     209,
+     234
+    ],
+    [
+     66,
+     162,
+     226
+    ],
+    [
+     147,
+     132,
+     181
+    ],
+    [
+     131,
+     98,
+     160
+    ],
+    [
+     121,
+     62,
+     139
+    ]
+   ],
+   "over": {
+    "light": [
+     105,
+     9,
+     0
+    ],
+    "beach": [
+     166,
+     11,
+     1
+    ]
+   }
+  },
+  "B": {
+   "heights": [
+    0,
+    0.61,
+    1.22,
+    2.44,
+    3.66,
+    6.1,
+    10
+   ],
+   "cap": 10,
+   "light": [
+    [
+     141,
+     241,
+     243
+    ],
+    [
+     3,
+     209,
+     246
+    ],
+    [
+     69,
+     153,
+     234
+    ],
+    [
+     123,
+     106,
+     165
+    ],
+    [
+     106,
+     67,
+     142
+    ],
+    [
+     98,
+     27,
+     120
+    ],
+    [
+     107,
+     0,
+     66
+    ]
+   ],
+   "beach": [
+    [
+     195,
+     254,
+     255
+    ],
+    [
+     119,
+     221,
+     244
+    ],
+    [
+     1,
+     188,
+     243
+    ],
+    [
+     78,
+     134,
+     230
+    ],
+    [
+     156,
+     98,
+     164
+    ],
+    [
+     164,
+     85,
+     110
+    ],
+    [
+     160,
+     60,
+     58
+    ]
+   ],
+   "over": {
+    "light": [
+     4,
+     20,
+     162
+    ],
+    "beach": [
+     46,
+     72,
+     223
+    ]
+   }
+  }
+ },
+ "checker": {
+  "command": "node frontend/scripts/wind-color/wave-check.mjs",
+  "lines": [
+   "=== LIGHT  palette v1  (anchors 0 0.6 1.2 2.4 5 10 m; clamped at 10 m; over the light water 144,223,254)",
+   "[RED ] lightness: wash OKLCH L by anchor 0.89 0.65 0.59 0.39 0.67 1.00; CLIMBS BACK 0.6149 L on the wash (2.40-10.00 m) and 0.4822 L composited (2.40-10.00 m, coastal, lighting 0) (target: falls at every step)",
+   "[RED ] no grey: the wash's weakest colour C* 0.0 at 10.00 m; the composite's C* 7.1 at 9.78 m (bars 12 / 8)",
+   "[RED ] neighbours as composited (world/regional/coastal): weakest 0.6-1.2 m at 4.3 dE00 (tritan, world); normal vision 20.7 (0-0.6 m, world) (target >= 10)",
+   "         by view: world 4.3 (0.6-1.2 m, tritan); regional 4.8 (0.6-1.2 m, tritan); coastal 5.4 (0.6-1.2 m, tritan)",
+   "[warn] land vs sea: the composite closest to the light land is 9.70 m (coastal) at 7.3 dE00 (watch below 15)",
+   "[ ok ] crests: a crest core vs its wash is weakest at 5.7 m (coastal, whitecap) 15.7 dE00; colour-blind 0.8 (tritan at 5.1 m); APCA |Lc| 0.0 at 2.2 m (watch below 15 dE00)",
+   "[warn] legend on its panel (255,255,255): APCA Lc 19 57 68 94 59 0; weakest the 10 m stop at 0.0; neighbours' weakest |Lc| 9.0 (watch below 15)",
+   "[warn] above 10 m: no state of its own (the ramp clamps: a 12 m storm draws as 10 m)",
+   "[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour 31,89,173 (composite L 0.61) and reaches the table's calm (L 0.83) at 0.18 m: darker than calm (the shader's, not this palette's)",
+   "=== BEACH  palette v1  (anchors 0 0.6 1.2 2.4 5 10 m; clamped at 10 m; over the beach water 117,207,240)",
+   "[RED ] lightness: wash OKLCH L by anchor 0.44 0.65 0.83 0.65 0.35 0.97; CLIMBS BACK 1.0046 L on the wash (0.00-10.00 m) and 0.7333 L composited (0.18-10.00 m, coastal, lighting 1) (target: falls at every step)",
+   "[RED ] no grey: the wash's weakest colour C* 7.7 at 10.00 m; the composite's C* 2.5 at 9.10 m (bars 12 / 8)",
+   "[ ok ] neighbours as composited (world/regional/coastal): weakest 1.2-2.4 m at 11.6 dE00 (deutan, world); normal vision 14.5 (0-0.6 m, world) (target >= 10)",
+   "         by view: world 11.6 (1.2-2.4 m, deutan); regional 12.3 (1.2-2.4 m, deutan); coastal 13.1 (1.2-2.4 m, deutan)",
+   "[warn] land vs sea: the composite closest to the beach land is 9.55 m (coastal) at 7.0 dE00 (watch below 15)",
+   "[ ok ] crests: a crest core vs its wash is weakest at 8.9 m (world, whitecap) 16.2 dE00; colour-blind 1.0 (deutan at 0.8 m); APCA |Lc| 0.0 at 0.3 m (watch below 15 dE00)",
+   "[warn] legend on its panel (13,13,13): APCA Lc -17 -45 -72 -40 0 -100; weakest the 5 m stop at 0.0; neighbours' weakest |Lc| 26.9 (watch below 15)",
+   "[warn] above 10 m: no state of its own (the ramp clamps: a 12 m storm draws as 10 m)",
+   "[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour 4,61,56 (composite L 0.51) and reaches the table's calm (L 0.61) at 0.18 m: darker than calm (the shader's, not this palette's)",
+   "=== LIGHT  palette A  (anchors 0 0.61 1.22 2.44 3.66 6.1 10 m; above 10 m: its own colour; over the light water 144,223,254)",
+   "[ ok ] lightness: wash OKLCH L by anchor 0.90 0.86 0.82 0.69 0.56 0.44 0.35; falls at every 0.02 m step, wash and composite (the composite's smallest fall 0.28e-3 L at 1.20 m, coastal, lighting 1) (target: falls at every step)",
+   "[ ok ] no grey: the wash's weakest colour C* 31.5 at 0.60 m; the composite's C* 14.9 at above the cap (bars 12 / 8)",
+   "[RED ] neighbours as composited (world/regional/coastal): weakest 1.22-2.44 m at 7.2 dE00 (deutan, world); normal vision 10.2 (3.66-6.1 m, world) (target >= 10)",
+   "         by view: world 7.2 (1.22-2.44 m, deutan); regional 7.8 (1.22-2.44 m, tritan); coastal 8.6 (1.22-2.44 m, tritan)",
+   "[ ok ] land vs sea: the composite closest to the light land is 0.00 m (world) at 20.0 dE00 (watch below 15)",
+   "[ ok ] crests: a crest core vs its wash is weakest at 1.8 m (coastal, whitecap) 27.8 dE00; colour-blind 25.1 (deutan at 1.7 m); APCA |Lc| 0.0 at 8.2 m (watch below 15 dE00)",
+   "[ ok ] legend on its panel (255,255,255): APCA Lc 15 22 29 53 73 88 97 97; weakest the 0 m stop at 15.3; neighbours' weakest |Lc| 0.0 (watch below 15)",
+   "[ ok ] above 10 m: its own colour 105,9,0, 22.6 dE00 off the cap's (protan, world); no lighter than the cap (bar >= 10)",
+   "[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour 31,89,173 (composite L 0.61) and reaches the table's calm (L 0.88) at 0.18 m: darker than calm (the shader's, not this palette's)",
+   "=== BEACH  palette A  (anchors 0 0.61 1.22 2.44 3.66 6.1 10 m; above 10 m: its own colour; over the beach water 117,207,240)",
+   "[ ok ] lightness: wash OKLCH L by anchor 0.95 0.89 0.79 0.68 0.64 0.55 0.47; falls at every 0.02 m step, wash and composite (the composite's smallest fall 0.26e-3 L at 3.64 m, coastal, lighting 0) (target: falls at every step)",
+   "[ ok ] no grey: the wash's weakest colour C* 23.0 at 0.00 m; the composite's C* 25.7 at 0.18 m (bars 12 / 8)",
+   "[RED ] neighbours as composited (world/regional/coastal): weakest 2.44-3.66 m at 5.3 dE00 (deutan, world); normal vision 6.6 (0.61-1.22 m, world) (target >= 10)",
+   "         by view: world 5.3 (2.44-3.66 m, deutan); regional 5.7 (2.44-3.66 m, deutan); coastal 6.2 (2.44-3.66 m, deutan)",
+   "[ ok ] land vs sea: the composite closest to the beach land is 0.00 m (coastal) at 20.7 dE00 (watch below 15)",
+   "[warn] crests: a crest core vs its wash is weakest at 4.1 m (world) 6.8 dE00; colour-blind 1.7 (tritan at 2.3 m); APCA |Lc| 0.0 at 1.8 m (watch below 15 dE00)",
+   "[ ok ] legend on its panel (13,13,13): APCA Lc -99 -87 -68 -48 -40 -27 -17 -17; weakest the above-cap arrow at -16.7; neighbours' weakest |Lc| 0.0 (watch below 15)",
+   "[ ok ] above 10 m: its own colour 166,11,1, 24.7 dE00 off the cap's (tritan, coastal); no lighter than the cap (bar >= 10)",
+   "[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour 4,61,56 (composite L 0.51) and reaches the table's calm (L 0.89) at 0.18 m: darker than calm (the shader's, not this palette's)",
+   "=== LIGHT  palette B  (anchors 0 0.61 1.22 2.44 3.66 6.1 10 m; above 10 m: its own colour; over the light water 144,223,254)",
+   "[ ok ] lightness: wash OKLCH L by anchor 0.90 0.79 0.67 0.56 0.46 0.38 0.35; falls at every 0.02 m step, wash and composite (the composite's smallest fall 0.21e-3 L at 9.98 m, coastal, lighting 0) (target: falls at every step)",
+   "[ ok ] no grey: the wash's weakest colour C* 30.5 at 0.00 m; the composite's C* 29.2 at 2.44 m (bars 12 / 8)",
+   "[RED ] neighbours as composited (world/regional/coastal): weakest 2.44-3.66 m at 7.2 dE00 (deutan, world); normal vision 8.2 (2.44-3.66 m, world) (target >= 10)",
+   "         by view: world 7.2 (2.44-3.66 m, deutan); regional 7.6 (0-0.61 m, tritan); coastal 8.1 (0-0.61 m, tritan)",
+   "[ ok ] land vs sea: the composite closest to the light land is 0.00 m (world) at 21.8 dE00 (watch below 15)",
+   "[ ok ] crests: a crest core vs its wash is weakest at 1.8 m (coastal, whitecap) 24.0 dE00; colour-blind 15.8 (tritan at 10.0 m); APCA |Lc| 0.0 at 2.7 m (watch below 15 dE00)",
+   "[ ok ] legend on its panel (255,255,255): APCA Lc 15 34 56 73 86 94 96 97; weakest the 0 m stop at 15.3; neighbours' weakest |Lc| 0.0 (watch below 15)",
+   "[ ok ] above 10 m: its own colour 4,20,162, 10.8 dE00 off the cap's (protan, world); no lighter than the cap (bar >= 10)",
+   "[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour 31,89,173 (composite L 0.61) and reaches the table's calm (L 0.86) at 0.18 m: darker than calm (the shader's, not this palette's)",
+   "=== BEACH  palette B  (anchors 0 0.61 1.22 2.44 3.66 6.1 10 m; above 10 m: its own colour; over the beach water 117,207,240)",
+   "[ ok ] lightness: wash OKLCH L by anchor 0.96 0.84 0.74 0.63 0.58 0.55 0.50; falls at every 0.02 m step, wash and composite (the composite's smallest fall 0.21e-3 L at 6.08 m, world, lighting 0) (target: falls at every step)",
+   "[ ok ] no grey: the wash's weakest colour C* 19.3 at 0.00 m; the composite's C* 14.8 at 9.76 m (bars 12 / 8)",
+   "[RED ] neighbours as composited (world/regional/coastal): weakest 0-0.61 m at 6.5 dE00 (tritan, world); normal vision 7.2 (0-0.61 m, world) (target >= 10)",
+   "         by view: world 6.5 (0-0.61 m, tritan); regional 6.9 (0.61-1.22 m, tritan); coastal 7.4 (0.61-1.22 m, tritan)",
+   "[ ok ] land vs sea: the composite closest to the beach land is 0.00 m (coastal) at 20.1 dE00 (watch below 15)",
+   "[warn] crests: a crest core vs its wash is weakest at 1.9 m (world) 8.8 dE00; colour-blind 3.4 (tritan at 4.8 m); APCA |Lc| 0.0 at 1.5 m (watch below 15 dE00)",
+   "[ ok ] legend on its panel (13,13,13): APCA Lc -100 -77 -59 -38 -31 -26 -20 -19; weakest the above-cap arrow at -19.3; neighbours' weakest |Lc| 0.0 (watch below 15)",
+   "[ ok ] above 10 m: its own colour 46,72,223, 23.1 dE00 off the cap's (protan, world); no lighter than the cap (bar >= 10)",
+   "[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour 4,61,56 (composite L 0.51) and reaches the table's calm (L 0.88) at 0.18 m: darker than calm (the shader's, not this palette's)",
+   "=== COLOUR-BLIND, the authority (coloraide: Vienot protan/deutan, Brettel tritan), neighbouring stops as composited",
+   "[RED ] v1 light: neighbouring stops, weakest 0.6-1.2 m (tritan, world) at 4.3 dE00 (target 10)",
+   "[ ok ] v1 beach: neighbouring stops, weakest 1.2-2.4 m (deutan, world) at 11.6 dE00 (target 10)",
+   "[RED ] A light: neighbouring stops, weakest 1.22-2.44 m (deutan, world) at 7.2 dE00 (target 10)",
+   "[ ok ] A light: above-cap vs cap (protan, world) at 22.6 dE00 (bar 10)",
+   "[RED ] A beach: neighbouring stops, weakest 2.44-3.66 m (deutan, world) at 5.3 dE00 (target 10)",
+   "[ ok ] A beach: above-cap vs cap (tritan, coastal) at 24.7 dE00 (bar 10)",
+   "[RED ] B light: neighbouring stops, weakest 2.44-3.66 m (deutan, world) at 7.2 dE00 (target 10)",
+   "[ ok ] B light: above-cap vs cap (protan, world) at 10.8 dE00 (bar 10)",
+   "[RED ] B beach: neighbouring stops, weakest 0-0.61 m (tritan, world) at 6.5 dE00 (target 10)",
+   "[ ok ] B beach: above-cap vs cap (protan, world) at 23.1 dE00 (bar 10)"
+  ]
+ },
+ "harness": {
+  "command": "serve_synthetic.py --dynamic 1 --vortex-peak 11 ; scn_wave_palette_ab.js CLIP=1",
+  "views": {
+   "world": [
+    -118,
+    10,
+    2.2
+   ],
+   "regional": [
+    -106.5,
+    15.5,
+    4.6
+   ],
+   "coastal": [
+    -105.2,
+    18.4,
+    7.4
+   ]
+  },
+  "water_read": {
+   "light/v1": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/A": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/B": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "beach/v1": [
+    [
+     117,
+     207,
+     240
+    ],
+    [
+     117,
+     207,
+     240
+    ],
+    [
+     117,
+     207,
+     240
+    ]
+   ],
+   "beach/A": [
+    [
+     117,
+     207,
+     240
+    ],
+    [
+     117,
+     207,
+     240
+    ],
+    [
+     117,
+     207,
+     240
+    ]
+   ],
+   "beach/B": [
+    [
+     117,
+     207,
+     240
+    ],
+    [
+     117,
+     207,
+     240
+    ],
+    [
+     117,
+     207,
+     240
+    ]
+   ]
+  },
+  "shots": [
+   {
+    "theme": "light",
+    "variant": "v1",
+    "view": "world",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "v1"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "v1",
+    "view": "regional",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "v1"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "v1",
+    "view": "coastal",
+    "engine": {
+     "bounds": {
+      "west": -108,
+      "south": 16,
+      "east": -102,
+      "north": 21
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "v1"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "A",
+    "view": "world",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "A"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "A",
+    "view": "regional",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "A"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "A",
+    "view": "coastal",
+    "engine": {
+     "bounds": {
+      "west": -108,
+      "south": 16,
+      "east": -102,
+      "north": 21
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "A"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "B",
+    "view": "world",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "B"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "B",
+    "view": "regional",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "B"
+    }
+   },
+   {
+    "theme": "light",
+    "variant": "B",
+    "view": "coastal",
+    "engine": {
+     "bounds": {
+      "west": -108,
+      "south": 16,
+      "east": -102,
+      "north": 21
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "B"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "v1",
+    "view": "world",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "v1"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "v1",
+    "view": "regional",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "v1"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "v1",
+    "view": "coastal",
+    "engine": {
+     "bounds": {
+      "west": -108,
+      "south": 16,
+      "east": -102,
+      "north": 21
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "v1"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "A",
+    "view": "world",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "A"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "A",
+    "view": "regional",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "A"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "A",
+    "view": "coastal",
+    "engine": {
+     "bounds": {
+      "west": -108,
+      "south": 16,
+      "east": -102,
+      "north": 21
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "A"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "B",
+    "view": "world",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "B"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "B",
+    "view": "regional",
+    "engine": {
+     "bounds": {
+      "west": -180,
+      "south": -80,
+      "east": 180,
+      "north": 84
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "B"
+    }
+   },
+   {
+    "theme": "beach",
+    "variant": "B",
+    "view": "coastal",
+    "engine": {
+     "bounds": {
+      "west": -108,
+      "south": 16,
+      "east": -102,
+      "north": 21
+     },
+     "valid": "2026-10-20T06:00:00Z",
+     "hMin": null,
+     "hMax": null,
+     "cellsAt10m": 0,
+     "palette": "B"
+    }
+   }
+  ],
+  "logs": {
+   "log/light/v1": {
+    "errors": [],
+    "blockedWs": 17,
+    "weatherRequests": 11,
+    "hosts": [
+     "127.0.0.1",
+     "fonts.googleapis.com",
+     "unpkg.com",
+     "fonts.gstatic.com",
+     "us-assets.i.posthog.com",
+     "raw-surf-antigravity.onrender.com",
+     "api.rainviewer.com",
+     "api.mapbox.com",
+     "cdn.jsdelivr.net",
+     "a.tiles.mapbox.com",
+     "b.tiles.mapbox.com"
+    ]
+   },
+   "log/light/A": {
+    "errors": [],
+    "blockedWs": 18,
+    "weatherRequests": 11,
+    "hosts": [
+     "127.0.0.1",
+     "fonts.googleapis.com",
+     "unpkg.com",
+     "fonts.gstatic.com",
+     "us-assets.i.posthog.com",
+     "raw-surf-antigravity.onrender.com",
+     "api.rainviewer.com",
+     "api.mapbox.com",
+     "cdn.jsdelivr.net",
+     "a.tiles.mapbox.com",
+     "b.tiles.mapbox.com"
+    ]
+   },
+   "log/light/B": {
+    "errors": [],
+    "blockedWs": 18,
+    "weatherRequests": 10,
+    "hosts": [
+     "127.0.0.1",
+     "fonts.googleapis.com",
+     "unpkg.com",
+     "fonts.gstatic.com",
+     "us-assets.i.posthog.com",
+     "raw-surf-antigravity.onrender.com",
+     "api.rainviewer.com",
+     "api.mapbox.com",
+     "a.tiles.mapbox.com",
+     "b.tiles.mapbox.com"
+    ]
+   },
+   "log/beach/v1": {
+    "errors": [],
+    "blockedWs": 17,
+    "weatherRequests": 11,
+    "hosts": [
+     "127.0.0.1",
+     "fonts.googleapis.com",
+     "unpkg.com",
+     "fonts.gstatic.com",
+     "us-assets.i.posthog.com",
+     "raw-surf-antigravity.onrender.com",
+     "api.rainviewer.com",
+     "api.mapbox.com",
+     "a.tiles.mapbox.com",
+     "b.tiles.mapbox.com"
+    ]
+   },
+   "log/beach/A": {
+    "errors": [],
+    "blockedWs": 18,
+    "weatherRequests": 13,
+    "hosts": [
+     "127.0.0.1",
+     "fonts.googleapis.com",
+     "unpkg.com",
+     "us-assets.i.posthog.com",
+     "fonts.gstatic.com",
+     "raw-surf-antigravity.onrender.com",
+     "api.rainviewer.com",
+     "api.mapbox.com",
+     "a.tiles.mapbox.com",
+     "b.tiles.mapbox.com"
+    ]
+   },
+   "log/beach/B": {
+    "errors": [],
+    "blockedWs": 18,
+    "weatherRequests": 13,
+    "hosts": [
+     "127.0.0.1",
+     "fonts.googleapis.com",
+     "unpkg.com",
+     "fonts.gstatic.com",
+     "us-assets.i.posthog.com",
+     "raw-surf-antigravity.onrender.com",
+     "api.rainviewer.com",
+     "api.mapbox.com",
+     "cdn.jsdelivr.net",
+     "a.tiles.mapbox.com",
+     "b.tiles.mapbox.com"
+    ]
+   }
+  }
+ },
+ "sources": [
+  {
+   "file": "frontend/src/components/map/marineWavePalette.js",
+   "sha256": "76b28f60538fe4b18bb0398a18d8336d817be3a7e56f253fd589ad9f915b8a32"
+  },
+  {
+   "file": "frontend/src/components/map/MapWeatherControls.js",
+   "sha256": "c18d881608d3f068b45b1dbf014a3bb6bc572924612f1d9f4358890fb2630e84"
+  },
+  {
+   "file": "frontend/scripts/wind-color/wave-lib.mjs",
+   "sha256": "72afa1a2ad1829f8ee7ff3d31237f2f37a6b38939ac49c1b6b4048dfaa33e58c"
+  },
+  {
+   "file": "frontend/scripts/wind-color/wave-check.mjs",
+   "sha256": "84ed8ca045bc63db52325e3b06ad2bb05a6e7bfe1e60b741740e57e52cf94c15"
+  },
+  {
+   "file": "frontend/scripts/wind-color/wave_cvd_check.py",
+   "sha256": "e79fb1962f2e8b86c935bcdbfd2a9c77288384c21e34326759baf1486af33d84"
+  },
+  {
+   "file": "frontend/scripts/wind-color/wave-solve.mjs",
+   "sha256": "e0128e2811dad46feb0f338d2e7ef0e9670a1f0ffa71956e593e75aa854f1ec9"
+  },
+  {
+   "file": "frontend/scripts/wind-color/wave-polish.mjs",
+   "sha256": "96d74e384201173841daa7212ca81502371e491d2384209a14f0f2ca0440980d"
+  },
+  {
+   "file": "frontend/scripts/offline-backend/scn_wave_palette_ab.js",
+   "sha256": "1936a3c4237386c7a798342913d3754f669afe0c7747b3340d493070581bae3c"
+  },
+  {
+   "file": "frontend/scripts/offline-backend/compose_wave_ab.py",
+   "sha256": "45d61f0f329f6cd87e107f79f4edaefc610855bb4b4122a13d247f64499c1789"
+  }
+ ]
+}

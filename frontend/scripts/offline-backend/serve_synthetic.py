@@ -64,6 +64,8 @@ def regional_tiers(region_ids):
 
 # The synthetic hurricane: where it truly is at hour h after the first frame (degrees). Tests read this back.
 VORTEX_LAT0, VORTEX_LNG0, VORTEX_DLAT, VORTEX_DLNG = 14.0, -106.0, 0.05, -0.08
+# The vortex's added height at its eye (m). --vortex-peak raises it (the wave palette A/B uses 11, so the eye crosses 10 m).
+VORTEX_PEAK = 6.5
 
 
 def vortex_center(hours_since_start):
@@ -77,7 +79,7 @@ def field(lat, lng, h):
     clat, clng = vortex_center(h)
     dlat, dlng = lat - clat, (lng - clng + 180.0) % 360.0 - 180.0
     r2 = dlat * dlat + (dlng * math.cos(math.radians(lat))) ** 2
-    vort = 6.5 * math.exp(-r2 / (2.0 * 3.2 ** 2))
+    vort = VORTEX_PEAK * math.exp(-r2 / (2.0 * 3.2 ** 2))
     hs = max(0.15, swell + vort)
     direction = (math.degrees(math.atan2(dlng, dlat)) + 90.0) % 360.0 if vort > 1.0 else (250.0 + 30.0 * math.sin(math.radians(lat))) % 360.0
     return round(hs, 3), round(direction, 1), round(6.5 + 1.1 * hs, 2)
@@ -360,8 +362,11 @@ def main():
     ap.add_argument("--regions", default="", help="comma list of pilot_regions ids (0.25-deg regional tiles), or flagship / all")
     ap.add_argument("--dynamic", choices=["0", "1"], default="0",
                     help="1 = answer the dynamic viewport lane (narrow zooms) with the synthetic field instead of failing it")
+    ap.add_argument("--vortex-peak", type=float, default=6.5, help="the vortex's added height at its eye, m (6.5: an ~8 m storm)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
+    global VORTEX_PEAK
+    VORTEX_PEAK = args.vortex_peak
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL
