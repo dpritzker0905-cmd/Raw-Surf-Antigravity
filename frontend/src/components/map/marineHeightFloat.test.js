@@ -6,14 +6,11 @@ import fs from 'fs';
 import path from 'path';
 
 const sha = (s) => createHash('sha256').update(s).digest('hex');
+// Only HEATMAP_FS is pinned by hash: it is the one string the float lever rewrites. The other five are proved identical with the
+// lever on and off (below), so a crest PR that changes them (#416, #419 were open) does not trip this file.
 const AT_DEV = {
   glsl: {
-    HEATMAP_VS: 'dc56341973da27cd818befb2f8069c806e83cec99223f8399991bfc538e40019',
     HEATMAP_FS: 'c8deb3bd58c1beea2aeb29d625b5af9313b6349a2bb0e3c4a12cf0a7271442a8',
-    ADVECT_VS: '7d7bfc3037c8394ead29c26358e1563582104feb8be5cc66e90f13480e9c2172',
-    ADVECT_FS: '632832e258d1cdbf5f0241ef35d75c6572c9e9ee29c878c36db804e54e725289',
-    DRAW_VS: 'a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44',
-    DRAW_FS: 'a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad',
   },
   HEATMAP_FS_K16: 'c2f972d2b6c62a2bf937783c465a94f745c75a29d4b97511bf22a32dd61eb4bc',   // under the 16 m kill
   // The fixture grid below: the wave texture per theme (dark and beach /10 floor, light /16 round) and the rating score texture.
@@ -22,7 +19,7 @@ const AT_DEV = {
   score: 'd74ab586063e47c0ba9511d389ddf88bc51da771338aa6d59c36141fb4c350d9',
 };
 const KILL = { __RAW_DISABLE_WAVE_HEIGHT_FLOAT__: true };
-const NAMES = Object.keys(AT_DEV.glsl);
+const NAMES = ['HEATMAP_VS', 'HEATMAP_FS', 'ADVECT_VS', 'ADVECT_FS', 'DRAW_VS', 'DRAW_FS'];
 
 function withWindow(levers, fn) {
   let out;
@@ -93,7 +90,10 @@ const fp16 = (x) => require('./WebGLMarineFieldMath').FloatArrayConstructor.from
 
 describe('the kill (window.__RAW_DISABLE_WAVE_HEIGHT_FLOAT__) is dev exactly', () => {
   it('every shader string hashes to dev\'s, and with the 16 m kill too', () => {
-    withWindow(KILL, () => { const s = shaders(); NAMES.forEach((k) => expect([k, sha(s[k])]).toEqual([k, AT_DEV.glsl[k]])); });
+    const killed = withWindow(KILL, () => shaders()), on = withWindow({}, () => shaders());
+    expect(sha(killed.HEATMAP_FS)).toBe(AT_DEV.glsl.HEATMAP_FS);
+    NAMES.filter((k) => k !== 'HEATMAP_FS').forEach((k) => expect([k, killed[k] === on[k]]).toEqual([k, true]));   // never touched
+    expect(killed.HEATMAP_FS).not.toBe(on.HEATMAP_FS);
     withWindow({ ...KILL, __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, () => expect(sha(shaders().HEATMAP_FS)).toBe(AT_DEV.HEATMAP_FS_K16));
   });
   it.each(['dark', 'light', 'beach'])('%s on a WebGL2 context: dev\'s wave and score bytes, and no float texture is made', (theme) => {
@@ -228,12 +228,13 @@ describe('lifecycle', () => {
 describe('the heatmap GLSL', () => {
   const NL = String.fromCharCode(10);
   it('differs from dev ONLY by the declaration, the five fetches through waveTapF and the decode\'s float branch', () => {
+    const killed = withWindow(KILL, () => shaders());   // outside: isolateModules does not nest
     withWindow({}, () => {
       const s = shaders(), { HEIGHT_FLOAT_DECL } = require('./marineHeightFloat');
       const undo = (x) => x.split(HEIGHT_FLOAT_DECL).join('').split('waveTapF(').join('texture2D(u_waveTexture, ')
         .split('float waveHeight = u_heightFloat > 0.5 ? waveData.b : waveData.b * ').join('float waveHeight = waveData.b * ');
       expect(sha(undo(s.HEATMAP_FS))).toBe(AT_DEV.glsl.HEATMAP_FS);
-      NAMES.filter((k) => k !== 'HEATMAP_FS').forEach((k) => expect([k, sha(s[k])]).toEqual([k, AT_DEV.glsl[k]]));   // crests: the byte
+      NAMES.filter((k) => k !== 'HEATMAP_FS').forEach((k) => expect([k, s[k] === killed[k]]).toEqual([k, true]));   // crests: the byte
       const fs16 = s.HEATMAP_FS;
       expect(fs16.split('uniform mediump sampler2D u_waveHeightTexture;').length - 1).toBe(1);   // mediump: lowp would undo it
       expect(fs16.split('texture2D(u_waveTexture, ').length - 1).toBe(1);                        // only inside waveTapF
