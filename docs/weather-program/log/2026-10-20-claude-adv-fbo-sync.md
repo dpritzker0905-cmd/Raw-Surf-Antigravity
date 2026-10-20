@@ -116,3 +116,79 @@ systematic change. The worst stalls are shader compiles and the land mask, not t
 
 PR #405 against dev (not merged), ledger seq 1501 (`pr_open`; re-chained from 1500 by the lead session after #404 merged). STATE's ledger-head anchor moved from 1463 (stale: dev's
 ledger was already at 1499) to 1501.
+
+## 2026-10-20 ~05:10Z: added scope from the audit lead (via the session that started this one)
+
+The lead asked for four things: (1) the status cached per (FBO, texture, size), and the wind engine and windTrailAnchor
+checked for per-frame calls too; (2) a debug path that still checks every frame under `?diag=1`; (3) the A/B and the
+traced stage shift; (4) a list of the synchronous calls that remain. Build `269f477a3` on dev `11d19ef0b`. Other
+sessions held the CPU at 74-81% during these runs, so arms were interleaved and the harness now counts renders that had
+a resident field. Two batches (ab3, ab4) lost their layer click under load and timed early returns of about 0.01 ms.
+They were discarded; the harness now retries the click and waits for the field.
+
+- **Size key.** The cache is now `WeakMap(texture -> 'w x h')`, and the engine passes `particleRes` twice. A texture
+  verified at one size re-asks the driver at another.
+- **`?diag=1`** (only the URL flag): the status is asked and the teardown run on every frame. Read live on 127.0.0.1:
+  without the flag, 2 checks and 591 teardowns skipped by 15 s; with it, 538 checks and 538 teardowns. The HUD's own
+  `isDiagHudEnabled` is deliberately NOT reused, because it is ON for localhost / 127.0.0.1. Every offline measurement
+  and every local dev session would otherwise take the slow path.
+- **Wind engine.** No per-frame `checkFramebufferStatus`: `WebGLWindUtils.logStepDetails` is never called, and
+  `windTrailAnchor` / `windInk` clear their screen FBOs only on events. But its render's `finally` had the same per-frame
+  `isFramebuffer(advFBO)` + re-bind + `getParameter(FRAMEBUFFER_BINDING)` + detach, behind a pass that had already
+  detached. GLTIME per call: **`isFramebuffer` 2.99 ms per wind render**, over 1 ms on 609 of 642. Same rule, same kill
+  switch (`__RAW_DISABLE_ADV_TEARDOWN_SKIP__`), telemetry `__RAW_GPU__.windAdvTeardown`. Four lines edited in place;
+  `WebGLWindEngine.js` stays at 1074 lines (its `windCanvasAlpha` pin is <= 1075).
+- **Controlled A/B, same build** (loaded machine):
+
+  | arm | marine render mean / p95 | map frame (waves) | fps | wind render mean / p95 | map frame (wind) | fps |
+  |---|---|---|---|---|---|---|
+  | kills | 4.54 / 6.3 ms | 6.27 ms | 59.0 | 5.08 / 7.6 ms | 6.64 ms | 58.8 |
+  | on | **0.83 / 1.2 ms** | 2.78 ms | 58.8 | **0.72 / 1.1 ms** | 1.96 ms | 58.9 |
+  | kills | 7.96 / 12.7 ms | 10.66 ms | **55.9** | 4.97 / 7.0 ms | 6.71 ms | 59.6 |
+  | on | **0.90 / 1.5 ms** | 3.08 ms | 59.0 | **0.73 / 1.0 ms** | 1.93 ms | 59.7 |
+
+  Under this load one legacy waves arm dropped frames (55.9 fps); no arm with the change did.
+- **Real GPU, wind** (`CHECK=1 THROW_ONCE=1 GLENGINE=wind`): 337 renders, 0 left attached, 0 GL errors; the injected
+  throw ran the teardown (`ran` 1, `skipped` 709).
+- **Traced stage shift, wind** (`FLOWS=icon_wind_scrub LAB_TRACE=1`, off1 on1 off2 on2, stall_profile at 1 / 50).
+  "wind engine" busy time is 11.8 / 4.5 s with the kills and **0.97 / 0.77 s** with the change. Native time does not
+  rise (8.8 / 6.2 -> 5.2 / 4.6 s); total busy is 29.0 / 17.2 -> 11.2 / 9.4 s; wind time in 50 ms stalls is 485 / 28 ->
+  21 / 20 ms. off1 was the first run after a rebuild, so part of its excess may be warm-up. The erratic flow (section
+  3) never turns wind on, so it is not repeated here; its marine path is the same code apart from the size key.
+- **Synchronous calls that remain** (GLTIME per enum, both engines, both changes on): `getParameter(VIEWPORT)` 1 per
+  render (0.017 ms mean), `getParameter(CURRENT_PROGRAM)` 1, `getParameter(TEXTURE_BINDING_2D)` 7,
+  `getParameter(ACTIVE_TEXTURE / ARRAY_BUFFER_BINDING / ELEMENT_ARRAY_BUFFER_BINDING / VERTEX_ARRAY_BINDING /
+  FRAMEBUFFER_BINDING)` 1 each, `isEnabled(BLEND / CULL_FACE / DEPTH_TEST / STENCIL_TEST / SCISSOR_TEST)` 1 each,
+  `isContextLost` 3. All are answered from Chrome's client-side state cache: mean at most 0.02 ms, none ever over 1 ms.
+  Like `getUniformLocation` (126 per marine render, 140 per wind render, 0.001 ms mean), they are not GPU syncs. No
+  `readPixels` (marine's sits behind `_screenProbeRequest`), `getError`, `finish` or `checkFramebufferStatus` runs on a
+  steady frame. `MAX_VERTEX_TEXTURE_IMAGE_UNITS` does not appear per frame (it is cached after first use). On this
+  machine nothing left in either render absorbs the GPU queue; another driver may answer some of these differently.
+- Tests: `advFboSync.test.js` now has 14 (size key; `?diag=1` on, off, and not triggered by localhost or
+  localStorage; wind source pins). New mutants, each red: size ignored, diag ignored by the cache, diag always on, a
+  wind detach not recorded. `src/components/map` + `src/tests`: 337 suites / 4,969 tests pass; `check_eslint.js` and
+  `loc_ratchet.py` pass.
+
+## PR (added scope)
+
+#405 was merged by the owner at 05:11:46Z (as edced5395) while the added scope was in progress, so the scope went to a
+new PR: #409 against dev from `claude/wind-adv-teardown` (not merged). Ledger: seq 1502 `pr_open` #409; seq 1503
+`pr_merge` #405 (reconstructed receipt; nobody had recorded it). STATE's ledger-head anchor is now 1503. `pr_merge` #404
+is not mine and is still unrecorded.
+
+## 2026-10-20 ~05:50Z: correction - which stall method each lab run used (empty traces)
+
+Prompted by the duplicate wind session's note: `lab.js` waits 20 s for `Tracing.tracingComplete`, and long traces can
+come back empty (`{"traceEvents":[]}`, 18 bytes). Read back here:
+- **Erratic lab (section 3, #405):** off2, on1 and on2 traces are 18 bytes; off1 is 19 MB, with no CPU-profile chunks.
+  `stall_profile.js` therefore used its `profile.json` fallback (the CDP CPU profile lab.js writes; stalls = unbroken
+  non-idle sample stretches) in ALL FOUR runs. The comparison is like for like and the numbers stand, but GC events
+  were not attributed (`gcEventMsInStalls` 0).
+- **Wind lab (added scope):** off1's trace (43 MB) had no CPU-profile chunks, so it took the `profile.json` path.
+  off2, on1 and on2 (128-153 MB) carried the trace's own CPU profile, so stalls were the trace's RunTask events. The
+  mixed method plus off1 being the first run after a rebuild means **off1 is not comparable**. The like-for-like rows
+  are off2 vs on1 / on2: "wind engine" busy 4.55 s -> 0.97 / 0.77 s; total busy 17.2 s -> 11.2 / 9.4 s; native 6.2 s ->
+  5.2 / 4.6 s. The conclusion (the wait leaves the frame, nothing grows elsewhere) is unchanged. The earlier "11.8 / 4.5
+  s" pair mixed the methods.
+- A follow-up for the lab, not done here: make the tracing wait configurable and warn loudly on an empty trace.
+  `stall_profile.js` should also print which method it used.

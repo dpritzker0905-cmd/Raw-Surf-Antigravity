@@ -1293,5 +1293,1009 @@
     1
    ]
   }
+ },
+ "added_scope_2026_10_20": {
+  "what": "Lead's added scope: cache key includes the attach size; ?diag=1 (URL only) asks the driver and tears down every frame; the WIND engine's render finally had the same per-frame isFramebuffer + getParameter(FRAMEBUFFER_BINDING) + detach and now uses the same rule (shared kill __RAW_DISABLE_ADV_TEARDOWN_SKIP__, telemetry __RAW_GPU__.windAdvTeardown); the wind engine has no per-frame checkFramebufferStatus (logStepDetails is never called) and windTrailAnchor/windInk only clear their FBOs on events.",
+  "build": "claude/fbo-status-cache 269f477a3 (on dev 11d19ef0b), same command, served on :3153; same backend :4150",
+  "machine_load": "other sessions held the CPU at 74-81% during these runs; interleaved arms, a validity count (renders with a resident field) added after two arms lost their layer click under load",
+  "gl_call_timing_wind": [
+   {
+    "arm": "off",
+    "kills": [
+     "__RAW_DISABLE_FBO_STATUS_CACHE__",
+     "__RAW_DISABLE_ADV_TEARDOWN_SKIP__"
+    ],
+    "layer": "wind",
+    "seconds": 10.9,
+    "fps": 59,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 642,
+     "mean": 4,
+     "p50": 3.9,
+     "p95": 6,
+     "sum": 2567
+    },
+    "mapFrame": {
+     "n": 642,
+     "mean": 5.14,
+     "p50": 5,
+     "p95": 7.2,
+     "sum": 3303
+    },
+    "gl_top": [
+     {
+      "name": "isFramebuffer",
+      "n": 642,
+      "sum": 1918.3,
+      "mean": 2.988,
+      "max": 22.5,
+      "over1": 609,
+      "over4": 81
+     },
+     {
+      "name": "getUniformLocation",
+      "n": 91744,
+      "sum": 115.2,
+      "mean": 0.001,
+      "max": 0.5,
+      "over1": 0,
+      "over4": 0
+     },
+     {
+      "name": "uniform1f",
+      "n": 58246,
+      "sum": 25.1,
+      "mean": 0,
+      "max": 0.6,
+      "over1": 0,
+      "over4": 0
+     },
+     {
+      "name": "bindTexture",
+      "n": 11978,
+      "sum": 16,
+      "mean": 0.001,
+      "max": 0.3,
+      "over1": 0,
+      "over4": 0
+     },
+     {
+      "name": "bindFramebuffer",
+      "n": 4494,
+      "sum": 14,
+      "mean": 0.003,
+      "max": 0.3,
+      "over1": 0,
+      "over4": 0
+     },
+     {
+      "name": "getParameter(VIEWPORT)",
+      "n": 642,
+      "sum": 10.8,
+      "mean": 0.017,
+      "max": 0.9,
+      "over1": 0,
+      "over4": 0
+     }
+    ]
+   },
+   {
+    "arm": "on",
+    "kills": [],
+    "layer": "wind",
+    "seconds": 10.8,
+    "fps": 59.2,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 637,
+     "mean": 0.97,
+     "p50": 0.9,
+     "p95": 1.4,
+     "sum": 621
+    },
+    "mapFrame": {
+     "n": 637,
+     "mean": 2.15,
+     "p50": 2,
+     "p95": 3,
+     "sum": 1368
+    },
+    "gl_top": [
+     {
+      "name": "getUniformLocation",
+      "n": 89164,
+      "sum": 121.8,
+      "mean": 0.001,
+      "max": 0.4,
+      "over1": 0,
+      "over4": 0
+     },
+     {
+      "name": "uniform1f",
+      "n": 57326,
+      "sum": 33.2,
+      "mean": 0.001,
+      "max": 7.8,
+      "over1": 2,
+      "over4": 1
+     },
+     {
+      "name": "uniform2f",
+      "n": 15659,
+      "sum": 17.6,
+      "mean": 0.001,
+      "max": 7.8,
+      "over1": 1,
+      "over4": 1
+     },
+     {
+      "name": "drawArrays",
+      "n": 4459,
+      "sum": 12.1,
+      "mean": 0.003,
+      "max": 7.9,
+      "over1": 1,
+      "over4": 1
+     },
+     {
+      "name": "getParameter(VIEWPORT)",
+      "n": 637,
+      "sum": 11.3,
+      "mean": 0.018,
+      "max": 0.2,
+      "over1": 0,
+      "over4": 0
+     },
+     {
+      "name": "bindTexture",
+      "n": 11609,
+      "sum": 10.9,
+      "mean": 0.001,
+      "max": 0.2,
+      "over1": 0,
+      "over4": 0
+     }
+    ]
+   }
+  ],
+  "remaining_query_calls_per_render": {
+   "note": "GLTIME per-enum, steady scrub, both changes on: every remaining query is client-side cached in Chrome (mean <= 0.02 ms, none over 1 ms); no readPixels, getError, finish or checkFramebufferStatus on a steady frame",
+   "marine": [
+    {
+     "call": "getUniformLocation",
+     "perRender": 126.0,
+     "meanMs": 0.001,
+     "maxMs": 0.7,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(VIEWPORT)",
+     "perRender": 1.0,
+     "meanMs": 0.017,
+     "maxMs": 0.2,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(CURRENT_PROGRAM)",
+     "perRender": 1.0,
+     "meanMs": 0.006,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isContextLost",
+     "perRender": 3.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(TEXTURE_BINDING_2D)",
+     "perRender": 7.0,
+     "meanMs": 0,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ACTIVE_TEXTURE)",
+     "perRender": 1.0,
+     "meanMs": 0.002,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(BLEND)",
+     "perRender": 1.0,
+     "meanMs": 0.002,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ARRAY_BUFFER_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.002,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ELEMENT_ARRAY_BUFFER_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(FRAMEBUFFER_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(CULL_FACE)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(VERTEX_ARRAY_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(STENCIL_TEST)",
+     "perRender": 1.0,
+     "meanMs": 0,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(DEPTH_TEST)",
+     "perRender": 1.0,
+     "meanMs": 0,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(SCISSOR_TEST)",
+     "perRender": 1.0,
+     "meanMs": 0,
+     "maxMs": 0.1,
+     "over1ms": 0
+    }
+   ],
+   "wind": [
+    {
+     "call": "getUniformLocation",
+     "perRender": 139.97,
+     "meanMs": 0.001,
+     "maxMs": 0.4,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(VIEWPORT)",
+     "perRender": 1.0,
+     "meanMs": 0.018,
+     "maxMs": 0.2,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(CURRENT_PROGRAM)",
+     "perRender": 1.0,
+     "meanMs": 0.006,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(BLEND)",
+     "perRender": 1.0,
+     "meanMs": 0.004,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ACTIVE_TEXTURE)",
+     "perRender": 1.0,
+     "meanMs": 0.003,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(TEXTURE_BINDING_2D)",
+     "perRender": 7.01,
+     "meanMs": 0,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isContextLost",
+     "perRender": 3.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ARRAY_BUFFER_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ELEMENT_ARRAY_BUFFER_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(VERTEX_ARRAY_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    }
+   ],
+   "wind_kills_set": [
+    {
+     "call": "isFramebuffer",
+     "perRender": 1.0,
+     "meanMs": 2.988,
+     "maxMs": 22.5,
+     "over1ms": 609
+    },
+    {
+     "call": "getUniformLocation",
+     "perRender": 142.9,
+     "meanMs": 0.001,
+     "maxMs": 0.5,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(VIEWPORT)",
+     "perRender": 1.0,
+     "meanMs": 0.017,
+     "maxMs": 0.9,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(CURRENT_PROGRAM)",
+     "perRender": 1.0,
+     "meanMs": 0.006,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(FRAMEBUFFER_BINDING)",
+     "perRender": 2.0,
+     "meanMs": 0.003,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(TEXTURE_BINDING_2D)",
+     "perRender": 7.01,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isContextLost",
+     "perRender": 3.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(BLEND)",
+     "perRender": 1.0,
+     "meanMs": 0.002,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ACTIVE_TEXTURE)",
+     "perRender": 1.0,
+     "meanMs": 0.002,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "getParameter(ARRAY_BUFFER_BINDING)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    },
+    {
+     "call": "isEnabled(SCISSOR_TEST)",
+     "perRender": 1.0,
+     "meanMs": 0.001,
+     "maxMs": 0.1,
+     "over1ms": 0
+    }
+   ]
+  },
+  "real_gpu_check_wind": [
+   {
+    "arm": "on",
+    "kills": [],
+    "layer": "wind",
+    "seconds": 5.8,
+    "fps": 58.2,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 337,
+     "mean": 1.25,
+     "p50": 1.1,
+     "p95": 2.3,
+     "sum": 421
+    },
+    "mapFrame": {
+     "n": 337,
+     "mean": 10.14,
+     "p50": 9.5,
+     "p95": 15.1,
+     "sum": 3417
+    },
+    "windTeardown": {
+     "on": true,
+     "diag": false,
+     "ran": 1,
+     "skipped": 709
+    },
+    "check": {
+     "renders": 337,
+     "attachedAfter": 0,
+     "glErrors": 0,
+     "errorCodes": {},
+     "thrown": 1,
+     "throwRenders": [
+      0
+     ]
+    }
+   },
+   {
+    "arm": "off",
+    "kills": [
+     "__RAW_DISABLE_FBO_STATUS_CACHE__",
+     "__RAW_DISABLE_ADV_TEARDOWN_SKIP__"
+    ],
+    "layer": "wind",
+    "seconds": 5.7,
+    "fps": 59.3,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 341,
+     "mean": 4.37,
+     "p50": 4.2,
+     "p95": 7,
+     "sum": 1492
+    },
+    "mapFrame": {
+     "n": 341,
+     "mean": 9.81,
+     "p50": 9,
+     "p95": 15.1,
+     "sum": 3345
+    },
+    "windTeardown": {
+     "on": false,
+     "diag": false,
+     "ran": 367,
+     "skipped": 0
+    },
+    "check": {
+     "renders": 341,
+     "attachedAfter": 0,
+     "glErrors": 0,
+     "errorCodes": {},
+     "thrown": 1,
+     "throwRenders": [
+      0
+     ]
+    }
+   }
+  ],
+  "diag_path_live": {
+   "how": "fresh page at /map and /map?diag=1 on 127.0.0.1 (where the HUD default is on), waves on, read at 12 s and 15 s",
+   "no_param": {
+    "fboStatusCache": {
+     "on": true,
+     "diag": false,
+     "hits": 589,
+     "checks": 2
+    },
+    "advTeardown": {
+     "on": true,
+     "diag": false,
+     "ran": 0,
+     "skipped": 591
+    }
+   },
+   "diag_1": {
+    "fboStatusCache": {
+     "on": false,
+     "diag": true,
+     "hits": 0,
+     "checks": 538
+    },
+    "advTeardown": {
+     "on": false,
+     "diag": true,
+     "ran": 538,
+     "skipped": 0
+    }
+   }
+  },
+  "controlled_ab_same_build": {
+   "waves": [
+    {
+     "arm": "off",
+     "kills": [
+      "__RAW_DISABLE_FBO_STATUS_CACHE__",
+      "__RAW_DISABLE_ADV_TEARDOWN_SKIP__"
+     ],
+     "layer": "waves",
+     "valid": true,
+     "drew": {
+      "marine": 647,
+      "wind": 0
+     },
+     "seconds": 11,
+     "fps": 59,
+     "marine": {
+      "n": 647,
+      "mean": 4.54,
+      "p50": 4.4,
+      "p95": 6.3,
+      "sum": 2940
+     },
+     "wind": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "mapFrame": {
+      "n": 647,
+      "mean": 6.27,
+      "p50": 6.1,
+      "p95": 8.3,
+      "sum": 4054
+     },
+     "advFboStatus": "FRAMEBUFFER_COMPLETE",
+     "fboCache": {
+      "on": false,
+      "diag": false,
+      "hits": 0,
+      "checks": 1244
+     },
+     "teardown": {
+      "on": false,
+      "diag": false,
+      "ran": 1244,
+      "skipped": 0
+     }
+    },
+    {
+     "arm": "on",
+     "kills": [],
+     "layer": "waves",
+     "valid": true,
+     "drew": {
+      "marine": 646,
+      "wind": 0
+     },
+     "seconds": 11,
+     "fps": 58.8,
+     "marine": {
+      "n": 646,
+      "mean": 0.83,
+      "p50": 0.8,
+      "p95": 1.2,
+      "sum": 539
+     },
+     "wind": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "mapFrame": {
+      "n": 646,
+      "mean": 2.78,
+      "p50": 2.6,
+      "p95": 4.1,
+      "sum": 1795
+     },
+     "advFboStatus": "FRAMEBUFFER_COMPLETE",
+     "fboCache": {
+      "on": true,
+      "diag": false,
+      "hits": 1242,
+      "checks": 2
+     },
+     "teardown": {
+      "on": true,
+      "diag": false,
+      "ran": 0,
+      "skipped": 1244
+     }
+    },
+    {
+     "arm": "off",
+     "kills": [
+      "__RAW_DISABLE_FBO_STATUS_CACHE__",
+      "__RAW_DISABLE_ADV_TEARDOWN_SKIP__"
+     ],
+     "layer": "waves",
+     "valid": true,
+     "drew": {
+      "marine": 668,
+      "wind": 0
+     },
+     "seconds": 11.9,
+     "fps": 55.9,
+     "marine": {
+      "n": 668,
+      "mean": 7.96,
+      "p50": 7.9,
+      "p95": 12.7,
+      "sum": 5318
+     },
+     "wind": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "mapFrame": {
+      "n": 668,
+      "mean": 10.66,
+      "p50": 10.6,
+      "p95": 15.9,
+      "sum": 7122
+     },
+     "advFboStatus": "FRAMEBUFFER_COMPLETE",
+     "fboCache": {
+      "on": false,
+      "diag": false,
+      "hits": 0,
+      "checks": 1256
+     },
+     "teardown": {
+      "on": false,
+      "diag": false,
+      "ran": 1256,
+      "skipped": 0
+     }
+    },
+    {
+     "arm": "on",
+     "kills": [],
+     "layer": "waves",
+     "valid": true,
+     "drew": {
+      "marine": 656,
+      "wind": 0
+     },
+     "seconds": 11.1,
+     "fps": 59,
+     "marine": {
+      "n": 656,
+      "mean": 0.9,
+      "p50": 0.8,
+      "p95": 1.5,
+      "sum": 588
+     },
+     "wind": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "mapFrame": {
+      "n": 656,
+      "mean": 3.08,
+      "p50": 2.7,
+      "p95": 5,
+      "sum": 2023
+     },
+     "advFboStatus": "FRAMEBUFFER_COMPLETE",
+     "fboCache": {
+      "on": true,
+      "diag": false,
+      "hits": 1249,
+      "checks": 2
+     },
+     "teardown": {
+      "on": true,
+      "diag": false,
+      "ran": 0,
+      "skipped": 1251
+     }
+    }
+   ],
+   "wind": [
+    {
+     "arm": "off",
+     "kills": [
+      "__RAW_DISABLE_FBO_STATUS_CACHE__",
+      "__RAW_DISABLE_ADV_TEARDOWN_SKIP__"
+     ],
+     "layer": "wind",
+     "valid": true,
+     "drew": {
+      "marine": 0,
+      "wind": 674
+     },
+     "seconds": 11.5,
+     "fps": 58.8,
+     "marine": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "wind": {
+      "n": 674,
+      "mean": 5.08,
+      "p50": 4.9,
+      "p95": 7.6,
+      "sum": 3421
+     },
+     "mapFrame": {
+      "n": 674,
+      "mean": 6.64,
+      "p50": 6.5,
+      "p95": 9.4,
+      "sum": 4473
+     },
+     "windTeardown": {
+      "on": false,
+      "diag": false,
+      "ran": 1276,
+      "skipped": 0
+     }
+    },
+    {
+     "arm": "on",
+     "kills": [],
+     "layer": "wind",
+     "valid": true,
+     "drew": {
+      "marine": 0,
+      "wind": 656
+     },
+     "seconds": 11.1,
+     "fps": 58.9,
+     "marine": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "wind": {
+      "n": 656,
+      "mean": 0.72,
+      "p50": 0.7,
+      "p95": 1.1,
+      "sum": 471
+     },
+     "mapFrame": {
+      "n": 656,
+      "mean": 1.96,
+      "p50": 1.8,
+      "p95": 3.1,
+      "sum": 1285
+     },
+     "windTeardown": {
+      "on": true,
+      "diag": false,
+      "ran": 0,
+      "skipped": 1259
+     }
+    },
+    {
+     "arm": "off",
+     "kills": [
+      "__RAW_DISABLE_FBO_STATUS_CACHE__",
+      "__RAW_DISABLE_ADV_TEARDOWN_SKIP__"
+     ],
+     "layer": "wind",
+     "valid": true,
+     "drew": {
+      "marine": 0,
+      "wind": 678
+     },
+     "seconds": 11.4,
+     "fps": 59.6,
+     "marine": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "wind": {
+      "n": 678,
+      "mean": 4.97,
+      "p50": 4.8,
+      "p95": 7,
+      "sum": 3371
+     },
+     "mapFrame": {
+      "n": 678,
+      "mean": 6.71,
+      "p50": 6.5,
+      "p95": 8.7,
+      "sum": 4550
+     },
+     "windTeardown": {
+      "on": false,
+      "diag": false,
+      "ran": 1324,
+      "skipped": 0
+     }
+    },
+    {
+     "arm": "on",
+     "kills": [],
+     "layer": "wind",
+     "valid": true,
+     "drew": {
+      "marine": 0,
+      "wind": 672
+     },
+     "seconds": 11.3,
+     "fps": 59.7,
+     "marine": {
+      "n": 0,
+      "mean": null,
+      "p50": null,
+      "p95": null,
+      "sum": 0
+     },
+     "wind": {
+      "n": 672,
+      "mean": 0.73,
+      "p50": 0.7,
+      "p95": 1,
+      "sum": 491
+     },
+     "mapFrame": {
+      "n": 672,
+      "mean": 1.93,
+      "p50": 1.8,
+      "p95": 2.8,
+      "sum": 1300
+     },
+     "windTeardown": {
+      "on": true,
+      "diag": false,
+      "ran": 0,
+      "skipped": 1273
+     }
+    }
+   ],
+   "discarded_runs": "ab3/ab4 (same build): several arms drew no field (the layer click was lost under load, render returned early at ~0.01 ms); kept out, the harness now retries the click and waits for a resident field"
+  },
+  "lab_icon_wind_scrub": {
+   "off1": {
+    "arm": "kills set (legacy)",
+    "stall50": {
+     "totalMs": 3873,
+     "stalls": 35,
+     "maxMs": 1140,
+     "wind": 485,
+     "maplibre": 284,
+     "native": 848,
+     "other": 313
+    },
+    "busy1": {
+     "totalMs": 28976,
+     "wind": 11803,
+     "maplibre": 3232,
+     "native": 8810,
+     "other": 1035,
+     "glCapture": 237
+    }
+   },
+   "on1": {
+    "arm": "on (no kills)",
+    "stall50": {
+     "totalMs": 1659,
+     "stalls": 9,
+     "maxMs": 1061,
+     "wind": 21,
+     "maplibre": 85,
+     "native": 138,
+     "other": 124
+    },
+    "busy1": {
+     "totalMs": 11203,
+     "wind": 971,
+     "maplibre": 2034,
+     "native": 5233,
+     "other": 688,
+     "glCapture": 117
+    }
+   },
+   "off2": {
+    "arm": "kills set (legacy)",
+    "stall50": {
+     "totalMs": 1189,
+     "stalls": 9,
+     "maxMs": 441,
+     "wind": 28,
+     "maplibre": 63,
+     "native": 198,
+     "other": 121
+    },
+    "busy1": {
+     "totalMs": 17236,
+     "wind": 4549,
+     "maplibre": 2647,
+     "native": 6177,
+     "other": 1069,
+     "glCapture": 199
+    }
+   },
+   "on2": {
+    "arm": "on (no kills)",
+    "stall50": {
+     "totalMs": 1155,
+     "stalls": 9,
+     "maxMs": 436,
+     "wind": 20,
+     "maplibre": 64,
+     "native": 120,
+     "other": 123
+    },
+    "busy1": {
+     "totalMs": 9368,
+     "wind": 774,
+     "maplibre": 1645,
+     "native": 4567,
+     "other": 653,
+     "glCapture": 96
+    }
+   }
+  }
  }
 }

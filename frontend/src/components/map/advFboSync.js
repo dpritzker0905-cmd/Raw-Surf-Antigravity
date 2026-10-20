@@ -14,39 +14,59 @@
 // two particle-state textures (they ping-pong). Framebuffer completeness depends only on the
 // attachments' formats and sizes. These textures are RGBA8 at particleRes and are never re-specified
 // in place: a reseed is texSubImage2D (same format, same size), and a resize or reinit creates NEW
-// texture objects (reinitParticles / initEngine), and so new keys. So "this FBO with this texture
-// object was COMPLETE once" stays true for the texture's lifetime. Only COMPLETE is cached: any
-// other status re-asks the driver every time (and the engine turns particles off anyway).
-// A new FBO object or a new GL context drops the cache.
+// texture objects (reinitParticles / initEngine), and so new keys. The size the caller attaches at
+// is part of the key as well (belt and braces: a size the texture was not verified at re-asks).
+// Only COMPLETE is cached: any other status re-asks the driver every time (and the engine turns
+// particles off anyway). A new FBO object or a new GL context drops the cache.
 //
 // Kill switch: window.__RAW_DISABLE_FBO_STATUS_CACHE__ = true asks the driver every frame (legacy).
-// Telemetry: window.__RAW_GPU__.fboStatusCache = { on, hits, checks } (the existing advFboStatus
-// string is unchanged).
+// Debug: ?diag=1 in the page URL also asks every frame (fboSyncDiag below), so the HUD's
+// advFboStatus is a live driver answer there. Only the URL flag: the HUD's localhost default and
+// localStorage do not, or every local dev session and offline measurement would take this path.
+// Telemetry: window.__RAW_GPU__.fboStatusCache = { on, diag, hits, checks } (the existing
+// advFboStatus string is unchanged).
+
+let _diagSearch = null;
+let _diagOn = false;
+export function fboSyncDiag(win) {
+  if (!win || !win.location) return false;
+  const q = win.location.search || '';
+  if (q !== _diagSearch) {
+    _diagSearch = q;
+    try { _diagOn = new URLSearchParams(q).get('diag') === '1'; } catch (e) { _diagOn = false; }
+  }
+  return _diagOn;
+}
 
 export function fboStatusCacheDisabled(win) {
   return !!(win && win.__RAW_DISABLE_FBO_STATUS_CACHE__ === true);
 }
 
-// Status of the FBO currently bound to gl.FRAMEBUFFER, which the caller has just attached `tex` to
-// as COLOR_ATTACHMENT0. `holder` keeps the cache (the engine); `fbo` is the bound framebuffer.
-export function cachedFramebufferStatus(gl, holder, fbo, tex, win) {
-  const w = win !== undefined ? win : (typeof window !== 'undefined' ? window : null);
-  const off = fboStatusCacheDisabled(w);
+const winOf = (win) => (win !== undefined ? win : (typeof window !== 'undefined' ? window : null));
+
+// Status of the FBO currently bound to gl.FRAMEBUFFER, which the caller has just attached `tex`
+// (width x height) to as COLOR_ATTACHMENT0. `holder` keeps the cache (the engine); `fbo` is the
+// bound framebuffer.
+export function cachedFramebufferStatus(gl, holder, fbo, tex, width, height, win) {
+  const w = winOf(win);
+  const diag = fboSyncDiag(w);
+  const off = fboStatusCacheDisabled(w) || diag;
   let c = holder._fboStatusCache;
   if (!c || c.gl !== gl || c.fbo !== fbo) {
-    c = holder._fboStatusCache = { gl, fbo, complete: new WeakSet(), hits: 0, checks: 0 };
+    c = holder._fboStatusCache = { gl, fbo, complete: new WeakMap(), hits: 0, checks: 0 };
   }
+  const size = width + 'x' + height;
   let status;
-  if (!off && tex && c.complete.has(tex)) {
+  if (!off && tex && c.complete.get(tex) === size) {
     c.hits++;
     status = gl.FRAMEBUFFER_COMPLETE;
   } else {
     c.checks++;
     status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-    if (status === gl.FRAMEBUFFER_COMPLETE && tex) c.complete.add(tex);
+    if (status === gl.FRAMEBUFFER_COMPLETE && tex) c.complete.set(tex, size);
     else if (tex) c.complete.delete(tex);
   }
-  if (w && w.__RAW_GPU__) w.__RAW_GPU__.fboStatusCache = { on: !off, hits: c.hits, checks: c.checks };
+  if (w && w.__RAW_GPU__) w.__RAW_GPU__.fboStatusCache = { on: !off, diag, hits: c.hits, checks: c.checks };
   return status;
 }
 
@@ -57,15 +77,19 @@ export function cachedFramebufferStatus(gl, holder, fbo, tex, win) {
 // with framebufferTexture2D(..., null)), so that teardown was a no-op. The engine now records the
 // attachment in JS (`_advAttached`: set on the attach line, cleared on each detach) and the
 // teardown runs, still behind isFramebuffer, only when a texture was left attached, i.e. when an
-// exception escaped between attach and detach.
-// Kill switch: window.__RAW_DISABLE_ADV_TEARDOWN_SKIP__ = true runs it every frame (legacy).
-// Telemetry: window.__RAW_GPU__.advTeardown = { on, ran, skipped }.
-export function advTeardownNeeded(holder, win) {
-  const w = win !== undefined ? win : (typeof window !== 'undefined' ? window : null);
-  const off = !!(w && w.__RAW_DISABLE_ADV_TEARDOWN_SKIP__ === true);
+// exception escaped between attach and detach. The WIND engine's render has the same `finally`
+// (isFramebuffer + getParameter(FRAMEBUFFER_BINDING) + detach every frame) and uses the same rule,
+// with its own telemetry key.
+// Kill switch (both engines): window.__RAW_DISABLE_ADV_TEARDOWN_SKIP__ = true runs it every frame
+// (legacy); ?diag=1 does too. Telemetry: window.__RAW_GPU__[key] = { on, diag, ran, skipped }, key
+// 'advTeardown' (marine) or 'windAdvTeardown' (wind).
+export function advTeardownNeeded(holder, win, key = 'advTeardown') {
+  const w = winOf(win);
+  const diag = fboSyncDiag(w);
+  const off = !!(w && w.__RAW_DISABLE_ADV_TEARDOWN_SKIP__ === true) || diag;
   const need = off || holder._advAttached === true;
   const t = holder._advTeardownStats || (holder._advTeardownStats = { ran: 0, skipped: 0 });
   if (need) t.ran++; else t.skipped++;
-  if (w && w.__RAW_GPU__) w.__RAW_GPU__.advTeardown = { on: !off, ran: t.ran, skipped: t.skipped };
+  if (w && w.__RAW_GPU__) w.__RAW_GPU__[key] = { on: !off, diag, ran: t.ran, skipped: t.skipped };
   return need;
 }
