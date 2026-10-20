@@ -296,6 +296,11 @@ traps on the way: unbounded, light's anchor dived to L* 9 and left its flag 3.1 
 saturated red 16 m stop left the violet flag only 7-9 dE00 once it had to be darker as drawn, which only the joint search saw.
 `wave-check.mjs` checks the extended table as `v2@16` and the 16 m kill's table as `v2`.
 
+**What the height byte's step costs (`wave-quant.mjs`, 2026-10-20).** One texel decodes to a quantized height; the script prices
+it as the wash draws it (the depth-floor blend under 0.18 m, the table, half swell lighting, world alpha) every 1 mm from 0 to
+10 m, for the u8 /10 floor (dev), u8 /16 floor and round, and R16F. The calm end dominates (the blend is steep): floored, the /16
+byte's worst texel was 23.5 dE00 in light against dev's 15.3, so the 16 m path rounds (11.6, mean 0.17 against 0.22).
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models

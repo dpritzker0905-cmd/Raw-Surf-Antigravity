@@ -310,7 +310,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     ? window.__RAW_CONF_FADE_STRENGTH__ : 0.75;
   let confScaledCells = 0;
   let confMin = 1.0;
-  // THE HEIGHT BYTE: 16 m for the light/beach V2 wash, else 10; rating grids stay 10 (byte-identical surf path). Kill and contract: marineHeightEncoding.js.
+  // THE HEIGHT BYTE: 16 m for the light/beach V2 wash (ROUNDED: worst and mean colour error under dev's /10 floor, wave-quant.mjs), else 10 and floored as ever; rating grids stay 10. marineHeightEncoding.js.
   const hScale = waveGrid.ratingMode ? 10 : marineWaveHeightScale(typeof window !== 'undefined' ? window.__WEBGL_MARINE_THEME__ : undefined);
 
   for (let i = 0; i < N; i++) {
@@ -343,7 +343,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
     dataWave[i * 4 + 0] = Math.floor(nu * 255);
     dataWave[i * 4 + 1] = Math.floor(nv * 255);
-    dataWave[i * 4 + 2] = Math.floor(hEnc * 255);
+    dataWave[i * 4 + 2] = hScale > 10 ? Math.round(hEnc * 255) : Math.floor(hEnc * 255);
     dataWave[i * 4 + 3] = Math.floor(periodEnc * 255);
   }
 

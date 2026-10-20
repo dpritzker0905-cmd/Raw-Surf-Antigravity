@@ -112,7 +112,7 @@ describe('16 m on (the default)', () => {
       expect(r.out.u_heightScale).toBe(10);
     });
   });
-  it.each(['light', 'beach'])('%s: only the B byte changes, packed /16, and it decodes back within one 16/255 m step up to 16 m', (theme) => {
+  it.each(['light', 'beach'])('%s: only the B byte changes, packed /16 ROUNDED, and it decodes back within half a 16/255 m step up to 16 m', (theme) => {
     withWindow({}, () => {
       const { FloatArrayConstructor } = require('./WebGLMarineFieldMath');
       const dark = encode('dark', false).wave, r = encode(theme, false), w = r.wave;
@@ -122,8 +122,8 @@ describe('16 m on (the default)', () => {
         [0, 1, 3].forEach((c) => expect(w[i * 4 + c]).toBe(dark[i * 4 + c]));
         if (i % 11 === 7) continue;   // land: extrapolated by the encoder, not a height of the fixture
         const h = new FloatArrayConstructor([H(i)])[0];   // the encoder's scratch arrays (Float16Array where the runtime has one)
-        expect(w[i * 4 + 2]).toBe(Math.floor(Math.min(1, h / 16) * 255));
-        expect(Math.abs((w[i * 4 + 2] / 255) * 16 - Math.min(16, h))).toBeLessThan(16 / 255);
+        expect(w[i * 4 + 2]).toBe(Math.round(Math.min(1, h / 16) * 255));
+        expect(Math.abs((w[i * 4 + 2] / 255) * 16 - Math.min(16, h))).toBeLessThanOrEqual(16 / 510 + 1e-9);   // dev's /10 floor: up to 10/255
         if (w[i * 4 + 2] !== dark[i * 4 + 2]) moved++;
       }
       expect(moved).toBeGreaterThan(30);

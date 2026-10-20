@@ -7,6 +7,12 @@
 // rating grids keep 10 (the encoder forces it: the surf-quality path stays byte-identical), and the separate score texture is
 // always /10 (its b is score / 100, decoded ratingScore = waveHeight * 10.0).
 //
+// The 16 m path ROUNDS (Math.round, not floor): at 16/255 m a floored byte reads up to 6.3 cm low, and at the calm end the
+// shader's depth-floor blend (smoothstep(0, 0.18, h)) is steep, so one texel could land 23.5 dE00 off (light; dev's /10 floor:
+// 15.3). Rounded, the worst texel is 11.6 and the mean 0.17 against dev's 0.22 (beach 9.7 / 0.16 against 12.1 / 0.20): both under
+// today's (wave-quant.mjs, 2026-10-20). The /10 path keeps floor, byte-identical. A float texture (R16F)
+// would be exact (0.01 dE00); it is a follow-up, since in dark too it would change what is drawn.
+//
 // The contract, every decoder at once:
 //  - the encoder stamps the scale on what it returns (`u_heightScale`), next to the texture it describes, so the resident set and
 //    the held coarse base (encoded at different times, possibly under different themes) each carry their own;

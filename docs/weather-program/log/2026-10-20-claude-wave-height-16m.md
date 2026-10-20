@@ -129,3 +129,27 @@ the owner): the eye side by side in each theme, the sheets at world/regional/coa
   (never pushed) when #411 took the owner's pick (D-033: v2 = light A + beach B) and a re-solved beach flag; the second, on #411's
   `c40cbe67f`, moved onto dev when #411 merged (`f550d2502`, the same tree). Carried: the encoding, the tests (baselines re-hashed
   at `c40cbe67f`), the tools. Re-solved: the 16 m anchors and flags against v2 under #411's darker-as-drawn flag rule.
+
+## 2026-10-20 ~15:40Z: the /16 byte is ROUNDED (a regression at calm water, found after #415 opened)
+
+The lead's research note (relayed by session message: R16F as the clean answer; avoid non-linear 8-bit and RG8 packing with
+hardware filtering) asked about precision. Priced as the wash draws it (`frontend/scripts/wind-color/wave-quant.mjs`, new: one
+texel's quantized height against the exact one, every 1 mm from 0 to 10 m, world alpha), the FLOORED /16 byte as first pushed
+was worse than dev at calm water, where the shader's depth-floor blend `smoothstep(0, 0.18, h)` is steep:
+
+| per-texel colour error, light (beach) | worst texel dE00 | mean dE00 |
+|---|---|---|
+| u8 /10 floor (dev; dark and rating keep it) | 15.32 (12.07) | 0.216 (0.198) |
+| u8 /16 floor (#415 as first pushed) | **23.51 (17.38)** | 0.347 (0.318) |
+| u8 /16 ROUND (#415 now) | 11.63 (9.69) | 0.172 (0.157) |
+| R16F | 0.01 (0.02) | 0.004 (0.004) |
+
+The offline A/B could not see it: the synthetic store's calmest cell is 0.5 m (the error lives under ~0.2 m). The 16 m path now
+rounds (`hScale > 10 ? Math.round : Math.floor`), so its worst texel and its mean are both under dev's; the /10 path keeps floor,
+byte-identical. Rounding moves the above-cap edge half a texel early (texel 255 from 15.97 m: the GLSL threshold already sits
+there). The non-linear and RG8 encodings the lead warned against were not used.
+
+Not taken here: a float height texture (R16F; filterable in core WebGL2, uploaded from FLOAT) would make the error ~0. It means a
+second texture and sampler in both heatmap passes (and the land-aware 4-tap fetch), a WebGL1 path, and LOC room the engine does
+not have; and dev's own /10 floor is 15 dE00 at calm water in EVERY theme, dark included, so the precise texture is a change to
+dark too: its own A/B. Proposed as a follow-up.
