@@ -15,6 +15,9 @@
 //   upload         texImage2D / texSubImage2D leaf under a mask method of WebGLMarineEngine.js or the mask block of
 //                  WebGLMarineTextureEncoder.js (native GL bills its time to its JS caller; see stall_profile.js)
 //   glue           any other time inside those engine/encoder mask methods
+// 2026-10-20 (sliced prototype): basemapWaterOverlay.js holds the painter now (prepareBasemapWaterOverlay /
+// snapshotOverlayInputs = featureQuery, the rest = overlay), marineMaskRefresh.js the two refresh methods (glue / upload),
+// and maskSliceScheduler.js is the slice driver (`slice`: its own glue, incl. the 1 px raster flushes it forces).
 //
 // marineMaskProjection.js is transparent (its time goes to the stage that called it). The enclosing top-level function of
 // a frame is found from the ORIGINAL source text (sourcesContent), not from minified names.
@@ -33,7 +36,7 @@ const ENGINE_MASK_FNS = /^(refreshMaskWithBasemapWater|refreshViewportOverlayMas
 function declarationsOf(text) {
   const out = [];
   text.split('\n').forEach((ln, i) => {
-    const m = ln.match(/^(?:export\s+)?(?:async\s+)?function\s+(\w+)/) || ln.match(/^(?:export\s+)?(?:const|let)\s+(\w+)\s*=/)
+    const m = ln.match(/^(?:export\s+)?(?:async\s+)?function\*?\s+(\w+)/) || ln.match(/^(?:export\s+)?(?:const|let)\s+(\w+)\s*=/)
       || ln.match(/^\w+\.prototype\.(\w+)\s*=\s*function/);
     if (m) out.push({ line: i + 1, name: m[1] });
   });
@@ -53,6 +56,10 @@ function stageOf(file, fn, leafName) {
       if (fn === 'prepareBasemapWaterOverlay') return 'featureQuery';
       if (fn === 'overlayBasemapWaterOnMask' || fn === 'reassertNeLand') return 'overlay';
       return 'overlay';
+    case 'basemapWaterOverlay.js':
+      return (fn === 'prepareBasemapWaterOverlay' || fn === 'snapshotOverlayInputs') ? 'featureQuery' : 'overlay';
+    case 'marineMaskRefresh.js': return UPLOAD.test(leafName) ? 'upload' : 'glue';
+    case 'maskSliceScheduler.js': return 'slice';
     case 'WebGLMarineEngine.js':
       if (ENGINE_MASK_FNS.test(fn || '')) return UPLOAD.test(leafName) ? 'upload' : 'glue';
       return null;
