@@ -160,3 +160,10 @@ target, and each polygon's latitude range is cached on its coordinate array (as 
   with the same inputs because the combine-mode flag differs). A memo needs a content hash of the features; not built.
 - Live read-back after a merge: in the owner's browser, `window.__RAW_GPU__.cpuPhaseTiming.buckets.maskWaterPaint`
   (calls, totalDurationMs) on a zoom/pan session, with and without `window.__RAW_DISABLE_FAST_LAND_MASK__ = true`.
+
+## 10. PR and ledger
+
+Draft PR https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/408 against `dev` (branch merged with `dev`
+b689984c3 first: #400's stall profiler landed meanwhile; no conflict in any mask file). Ledger seq **1501** (`pr_open`),
+**1502** (`commitment`: the live per-paint read-back in the owner's browser, due 2026-10-27). STATE.md not edited (its
+ledger anchor is the lead's; other branches leave it). Not merged.
