@@ -11,6 +11,9 @@
 //   node scripts/visual-lab/mask_replay.js <ref> <reps> <capture.json>... [--land10m <ne_10m_land.json>]
 //   e.g. node scripts/visual-lab/mask_replay.js origin/dev 5 cap-dark.json cap-light.json cap-beach.json
 //
+// SLICED=1: the working tree's paint runs as the sliced scheduler runs it (maskSliceScheduler.js: the same
+// overlayBasemapWaterSteps, a 1 px flush every 24 draws and after every pass), so the byte compare proves a sliced paint
+// equal to the reference's one-call paint; `passes` then gives, per named pass, the longest piece any paint ran in one go.
 // The 10 m land file is the one the app fetches (mapUtils.js NE_10M_LAND_URL); pass a local copy with --land10m (the
 // script never downloads anything). The 50 m file is frontend/public/ne_50m_land.json.
 const fs = require('fs');
@@ -26,7 +29,8 @@ if (!ref || !caps.length || !land10m) { console.error('usage: mask_replay.js <re
 const REPS = +repsArg || 5;
 const FRONT = path.resolve(__dirname, '..', '..');
 const MAP = path.join(FRONT, 'src', 'components', 'map');
-const MODULES = ['WebGLMarineMaskRenderer.js', 'marineMaskShelter.js', 'inlandWaterGuard.js', 'marineMaskProjection.js', 'maskFastPaths.js'];
+const MODULES = ['WebGLMarineMaskRenderer.js', 'basemapWaterOverlay.js', 'marineMaskShelter.js', 'inlandWaterGuard.js', 'marineMaskProjection.js', 'maskFastPaths.js'];
+const SLICED = process.env.SLICED === '1';
 const posix = (p) => p.split(path.sep).join('/');
 
 function bundle(work) {
@@ -39,7 +43,8 @@ function bundle(work) {
   fs.writeFileSync(path.join(work, 'entry.js'), [
     `import * as NR from '${posix(path.join(MAP, 'WebGLMarineMaskRenderer'))}';`,
     "import * as OR from './old/WebGLMarineMaskRenderer';",
-    'window.MASK = { NEW: NR, OLD: OR };', ''].join('\n'));
+    SLICED ? `import * as NS from '${posix(path.join(MAP, 'basemapWaterOverlay'))}';` : 'const NS = null;',
+    'window.MASK = { NEW: NR, OLD: OR, STEPS: NS };', ''].join('\n'));
   const webpack = require(require.resolve('webpack', { paths: [FRONT] }));
   return new Promise((resolve, reject) => webpack({
     mode: 'production', devtool: false, entry: path.join(work, 'entry.js'), output: { path: path.join(work, 'dist'), filename: 'bench.js' },
@@ -71,7 +76,7 @@ const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length %
     for (const cf of caps) {
       capFile = path.resolve(cf);
       await page.evaluate(async () => { window.CAP = await (await fetch('/cap.json?' + Math.random())).json(); });
-      const r = await page.evaluate((rp) => {
+      const r = await page.evaluate(([rp, sliced]) => {
         const mkMap = (pt) => { const rq = pt.rendered.slice(), sq = pt.source.slice();
           return { getStyle: () => ({ layers: pt.style }), getZoom: () => pt.zoom, queryRenderedFeatures: () => (rq.shift() || { feats: [] }).feats,
             querySourceFeatures: (src, o) => { const i = sq.findIndex((s) => s.sourceLayer === (o && o.sourceLayer)); return i >= 0 ? sq.splice(i, 1)[0].feats : []; },
@@ -79,15 +84,27 @@ const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length %
         const run = (impl, pt) => { const M = window.MASK[impl]; const mock = mkMap(pt);
           const t0 = performance.now(); const water = M.prepareBasemapWaterOverlay(mock);
           const canvas = M.renderMaskToCanvas(pt.geo === '10m' ? window.G10 : window.G50, pt.bounds, pt.kind === 'overlay' ? { maxWidth: 2048 } : undefined);
-          const t1 = performance.now(); const applied = M.overlayBasemapWaterOnMask(canvas, pt.bounds, mock, water);
+          const t1 = performance.now(); let applied; let seg = null;
+          if (impl === 'NEW' && sliced) {
+            seg = {}; const NS = window.MASK.STEPS; const inputs = NS.snapshotOverlayInputs(mock, water); applied = false;
+            if (inputs) {
+              const it = NS.overlayBasemapWaterSteps(canvas, pt.bounds, inputs); let draws = 0;
+              for (;;) {
+                const ts = performance.now(); const st = it.next(); if (st.done) { applied = st.value; break; }
+                if (st.value === 1) draws++;
+                if (draws && (draws >= 24 || st.value !== 1)) { canvas.getContext('2d').getImageData(0, 0, 1, 1); draws = 0; }
+                const lab = st.value === 1 ? 'draws' : st.value; const d = performance.now() - ts; if (!(seg[lab] >= d)) seg[lab] = d;
+              }
+            }
+          } else applied = M.overlayBasemapWaterOnMask(canvas, pt.bounds, mock, water);
           canvas.getContext('2d').getImageData(0, 0, 1, 1);
           const w = performance.now() - t1;
           const g = window.__RAW_GPU__ || {};   // the painter's own receipts: they must match too, not just the pixels
           const receipts = JSON.stringify([g.openWaterVerdict || null, g.inlandWaterGuard || null, g.islandReassert || null]);
           window.__RAW_GPU__ = {};
-          return { canvas, applied, r: t1 - t0, w, receipts }; };
+          return { canvas, applied, r: t1 - t0, w, receipts, seg }; };
         window.__RAW_GPU__ = {};
-        const o = { n: 0, identical: 0, verdicts: 0, receipts: 0, old: 0, neu: 0, oldR: 0, newR: 0, diffs: [] };
+        const o = { n: 0, identical: 0, verdicts: 0, receipts: 0, old: 0, neu: 0, oldR: 0, newR: 0, diffs: [], segs: [] };
         window.CAP.paints.filter((pt) => pt.bounds && pt.mapBounds).forEach((pt, k) => {
           const newFirst = (k + rp) % 2 === 1;
           const a0 = newFirst ? null : run('OLD', pt); const b = run('NEW', pt); const a = a0 || run('OLD', pt);
@@ -98,9 +115,10 @@ const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length %
           if (!!a.applied === !!b.applied && !!(a.applied && a.applied.degraded) === !!(b.applied && b.applied.degraded)) o.verdicts++;
           if (a.receipts === b.receipts) o.receipts++; else if (o.diffs.length < 5) o.diffs.push({ paint: k, kind: pt.kind, receipts: [a.receipts, b.receipts] });
           o.old += a.r + a.w; o.neu += b.r + b.w; o.oldR += a.r; o.newR += b.r;
+          if (b.seg) o.segs.push({ kind: pt.kind, baseCanvas: b.r, ...b.seg });
         });
         return o;
-      }, rep);
+      }, [rep, SLICED]);
       (per[path.basename(cf)] ||= []).push(r);
     }
     await page.close();
@@ -114,6 +132,11 @@ const med = (xs) => { const s = [...xs].sort((a, b) => a - b); return s.length %
       oldMsMedian: Math.round(med(rs.map((x) => x.old))), newMsMedian: Math.round(med(rs.map((x) => x.neu))),
       oldRasterMsMedian: Math.round(med(rs.map((x) => x.oldR))), newRasterMsMedian: Math.round(med(rs.map((x) => x.newR))),
       perRep: rs.map((x) => [Math.round(x.old), Math.round(x.neu)]) };
+    if (SLICED) {   // per pass: median and max (over paints x reps) of the longest piece it ran in one go, ms
+      const all = rs.flatMap((x) => x.segs); const labs = [...new Set(all.flatMap((g) => Object.keys(g)))].filter((k) => k !== 'kind');
+      out[name].passes = Object.fromEntries(labs.map((k) => { const v = all.map((g) => g[k]).filter((x) => typeof x === 'number');
+        return [k, { median: +med(v).toFixed(1), max: +Math.max(...v).toFixed(1), over16: v.filter((x) => x > 16).length, n: v.length }]; }));
+    }
     out[name].cut = +(1 - out[name].newMsMedian / out[name].oldMsMedian).toFixed(3);
   }
   console.log(JSON.stringify({ ref, reps: REPS, captures: out }, null, 1));

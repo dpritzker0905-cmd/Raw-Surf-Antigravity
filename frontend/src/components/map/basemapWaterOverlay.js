@@ -1,9 +1,9 @@
 // BASEMAP-WATER TRUTH OVERLAY, moved out of WebGLMarineMaskRenderer.js (2026-10-20) byte for byte, so the painter
 // could become a resumable step generator without pushing the renderer over the 800-line cap. The renderer
 // re-exports every name below, so no importer changed.
-import { applyInlandWaterGuard, snapshotNeTruth } from './inlandWaterGuard';
+import { applyInlandWaterGuardSteps, snapshotNeTruth } from './inlandWaterGuard';
 import { makeMaskProjector, maskRingUnwrapEnabled, unwrapRingLngs, ringCopyOffsets } from './marineMaskProjection';
-import { suppressShelteredWater, applyCachedShelteredVerdict } from './marineMaskShelter';
+import { suppressShelteredWaterSteps, applyCachedShelteredVerdict } from './marineMaskShelter';
 import { fastLandMaskOn, sampleOpenWaterDamage, rectRowReader, captureNeRows, ringCopiesTouchRect, latRangeOf } from './maskFastPaths';
 
 // ── BASEMAP-WATER TRUTH OVERLAY (2026-07-04, "Gull Park / Pier 15-16 under water") ──────────────
@@ -165,11 +165,14 @@ export function prepareBasemapWaterOverlay(mapInstance) {
   return { waterSource, feats, usedSourceFallback };
 }
 
-export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedWater) {
-  if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
+// SLICED PAINT (2026-10-20, owner-gated prototype): the painter is a step GENERATOR over inputs read from the map ONCE
+// (snapshotOverlayInputs: water features, strict viewport, wetland features). overlayBasemapWaterOnMask runs it to
+// completion inside one call, so the default path makes the same canvas calls in the same order as before (a yield
+// adds none). maskSliceScheduler.js runs the SAME steps across tasks; a yield of 1 follows a recorded draw, a string names the pass just finished.
+export function snapshotOverlayInputs(mapInstance, preparedWater) {
+  if (!mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return null;
   const water = preparedWater || prepareBasemapWaterOverlay(mapInstance);
-  if (!water) return false;
-  const { waterSource, feats, usedSourceFallback } = water;
+  if (!water) return null;
 
   // STRICT viewport in geographic coords — the truth patch region. NO pad (was 40%): both tile
   // queries above can only see tiles covering the CURRENT viewport, so a padded rect black-fills
@@ -183,9 +186,41 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
     const b = mapInstance.getBounds();
     vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
   } catch (e) {
-    return false;
+    return null;
   }
+  // Step 4's wetland query, taken here with the others: same map state (one synchronous call), and a query has no side effect.
+  const wetland = ['landuse_overlay', 'landcover'].map((sl) => {
+    try { return mapInstance.querySourceFeatures(water.waterSource, { sourceLayer: sl }) || []; } catch (e) { return []; }
+  });
+  return { water, vb, wetland };
+}
 
+export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedWater) {
+  if (!canvas) return false;
+  const inputs = snapshotOverlayInputs(mapInstance, preparedWater);
+  if (!inputs) return false;
+  const steps = overlayBasemapWaterSteps(canvas, bounds, inputs);
+  let r = steps.next();
+  while (!r.done) r = steps.next();
+  return r.value;
+}
+
+// Ocean/sea-class water polygons in feature order (the old forEachPoly callback, as an iterator a generator can yield in).
+function* waterPolys(feats) {
+  for (const f of feats) {
+    const cls = f.properties && f.properties.class;
+    if (cls !== undefined && cls !== 'ocean' && cls !== 'sea') continue;
+    const geom = f.geometry;
+    if (!geom) continue;
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
+    if (!polys) continue;
+    for (const poly of polys) yield poly;
+  }
+}
+
+export function* overlayBasemapWaterSteps(canvas, bounds, inputs) {
+  const { feats, usedSourceFallback } = inputs.water;
+  const vb = inputs.vb;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const project = makeMaskProjector(bounds, canvas.width, canvas.height);
 
@@ -194,6 +229,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   // Mapbox Streets v8 water is class-less, so the ocean/sea class filter is a no-op on this
   // basemap and inland seas (Salton, Laguna Salada) would otherwise whiten as "ocean".
   const neSnapshot = snapshotNeTruth(canvas);
+  yield 'neSnapshot';
 
   // FULL-RES NE capture for the island re-assert (step 3c): copy the pristine NE canvas BEFORE step
   // 1 destroys it, at full mask resolution. Gated by RESOLUTION, not zoom — re-assert only where the
@@ -223,6 +259,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
       neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
     }
   } catch (e) { neFull = null; islandOn = false; }
+  yield 'neFull';
 
   // 1. Land-black the viewport patch (clipped to the canvas).
   const [px0, py0] = project(vb.west, vb.north);
@@ -243,18 +280,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   ctx.fillRect(rx, ry, rw, rh);
 
   // 2. Paint ocean/sea-class water white inside the patch. Features without a class are treated
-  //    as ocean (some styles omit class on the open-ocean polygon).
-  const forEachPoly = (fn) => {
-    for (const f of feats) {
-      const cls = f.properties && f.properties.class;
-      if (cls !== undefined && cls !== 'ocean' && cls !== 'sea') continue;
-      const geom = f.geometry;
-      if (!geom) continue;
-      const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
-      if (!polys) continue;
-      for (const poly of polys) fn(poly);
-    }
-  };
+  //    as ocean (some styles omit class on the open-ocean polygon). Polygon order: waterPolys above.
   // ANTIMERIDIAN-SAFE ring tracing (see unwrapRingLngs): identical tear risk to the NE tracer — a
   // water polygon straddling the projector's anti-center meridian would sweep the canvas white.
   const unwrapEnabled = maskRingUnwrapEnabled();
@@ -311,7 +337,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
 
   ctx.fillStyle = '#ffffff';
   let painted = 0;
-  forEachPoly((poly) => { traceRings(poly, 'evenodd', fillCloses); painted++; });
+  for (const poly of waterPolys(feats)) { traceRings(poly, 'evenodd', fillCloses); painted++; yield 1; }
 
   // 3. RE-ASSERT LAND HOLES (the Venice regression, 2026-07-04): querySourceFeatures returns water
   //    polygons from EVERY loaded tile level — an overzoomed PARENT tile's simplified polygon has
@@ -319,24 +345,26 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   //    tile's correct hole. Second pass: every hole ring (land island) paints BLACK after all the
   //    whites, so the finest-detail land always wins regardless of tile paint order.
   ctx.fillStyle = '#000000';
-  forEachPoly((poly) => {
+  for (const poly of waterPolys(feats)) {
     for (let h = 1; h < poly.length; h++) {
       const ring = poly[h];
       if (!ring || !ring.length) continue;
       traceRings([ring], undefined, fillCloses);   // antimeridian-safe (same unwrap as the white pass)
     }
-  });
+    if (poly.length > 1) yield 1;
+  }
 
   // 3b. INLAND-WATER GUARD (2026-07-06, the Salton Sea / Laguna Salada leak): re-black painted
   //     water farther than ~10 km from NE water — the basemap refines the coastline, it cannot
   //     invent new seas. Runs BEFORE the wetland + sheltered passes so they classify the
   //     corrected water field. Kill: __RAW_DISABLE_INLAND_WATER_GUARD__; tune: __RAW_INLAND_WATER_KM__.
   {
-    const gStats = applyInlandWaterGuard(canvas, neSnapshot, bounds);
+    const gStats = yield* applyInlandWaterGuardSteps(canvas, neSnapshot, bounds);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.inlandWaterGuard = gStats;
     }
   }
+  yield 'inlandGuard';
 
   // 3c. ISLAND RE-ASSERT: the independent 400 px/degree gate decides whether to multiply NE
   //     land back. The damage detector also owns a snapshot, without overriding this gate.
@@ -354,6 +382,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
       window.__RAW_GPU__.islandReassert = { applied: false, reason: off ? 'disabled' : 'fine_basemap', densityPxDeg: _dens };
     }
   } catch (e) { /* enhancement only — basemap patch stands */ }
+  yield 'islandReassert';
 
   // 4. WETLAND/TIDAL-FLAT BLACK-OUT (2026-07-04, Venice lagoon marshes): OSM puts sea-connected
   //    lagoons on the WATER side of the coastline, so the whole lagoon arrives as ocean-class water
@@ -403,9 +432,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
       ctx.lineWidth = _wetDilPx * 2;   // stroke expands the filled region ~lineWidth/2 outward
     }
     let _wetPainted = 0;
-    for (const sl of ['landuse_overlay', 'landcover']) {
-      let fs = [];
-      try { fs = mapInstance.querySourceFeatures(waterSource, { sourceLayer: sl }) || []; } catch (e) { fs = []; }
+    for (const fs of inputs.wetland) {
       for (const f of fs) {
         const cls = f.properties && f.properties.class;
         const sub = f.properties && f.properties.subclass;
@@ -414,7 +441,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
         if (!geom) continue;
         const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
         if (!polys) continue;
-        for (const poly of polys) { traceRings(poly, 'evenodd', true, _wetDilate ? _wetDilPx + 2 : 0); if (_wetDilate && !curPathCulled) ctx.stroke(); _wetPainted++; }
+        for (const poly of polys) { traceRings(poly, 'evenodd', true, _wetDilate ? _wetDilPx + 2 : 0); if (_wetDilate && !curPathCulled) ctx.stroke(); _wetPainted++; yield 1; }
       }
     }
     if (_win.__RAW_GPU__) {
@@ -427,6 +454,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   } catch (e) { /* wetland truth unavailable — water-only patch stands */ }
 
   ctx.restore();
+  yield 'wetland';
 
   // 5. SHELTERED-WATER SUPPRESSION (2026-07-04, "waves shouldn't run up the intracoastal
   //    waterway"): sea-connected lagoons / enclosed harbor basins are OCEAN-class in the tiles
@@ -445,7 +473,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
     const _spanForSheltered = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
     if (typeof window === 'undefined' || window.__RAW_DISABLE_SHELTERED_WATER__ !== true) {
       if (_spanForSheltered >= 0.5) {
-        const stats = suppressShelteredWater(canvas, bounds);
+        const stats = yield* suppressShelteredWaterSteps(canvas, bounds);
         if (typeof window !== 'undefined' && window.__RAW_GPU__) {
           window.__RAW_GPU__.shelteredWater = stats || { applied: false };
         }
@@ -467,7 +495,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
         let narrow = null;
         if (typeof window === 'undefined' || window.__RAW_DISABLE_NARROW_WATER__ !== true) {
           const narrowM = (typeof window !== 'undefined' && Number(window.__RAW_NARROW_WATER_M__)) || 120;
-          narrow = suppressShelteredWater(canvas, bounds, { gapM: narrowM, stash: false });
+          narrow = yield* suppressShelteredWaterSteps(canvas, bounds, { gapM: narrowM, stash: false });
         }
         if (typeof window !== 'undefined' && window.__RAW_GPU__) {
           window.__RAW_GPU__.shelteredWater = { basin: stats || { applied: false, fromCache: true }, narrow };
@@ -475,6 +503,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
       }
     }
   } catch (e) { /* classifier unavailable — open-water mask stands */ }
+  yield 'shelter';
 
   // 6. OPEN-WATER PLAUSIBILITY VERDICT (2026-07-16, user live at z3.85: grey heatmap-hole STRIPS
   //    south of Louisiana + through the Yucatán/DR; GPU probe: overlay_min effective=0 over open

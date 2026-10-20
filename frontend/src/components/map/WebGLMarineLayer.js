@@ -19,6 +19,7 @@ import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
+import { landMaskSliceOpts } from './maskSliceScheduler';   // owner-gated sliced paints (__RAW_SLICED_LAND_MASK__)
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
@@ -634,14 +635,14 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       const _rms = _rmb ? ((_rmb.east < _rmb.west ? _rmb.east + 360 : _rmb.east) - _rmb.west) : 0;
       if (z < (_rms >= 30 ? 4.4 : 6)) return;
       const now = Date.now();
-      if (now - basemapMaskThrottleRef.current < 700) return;
+      if (now - basemapMaskThrottleRef.current < 700 && !(event && event.type === 'maskJobRerun')) return;
       if (engine && gl && engine.refreshMaskWithBasemapWater) {
         // Consume the throttle ONLY when a paint actually happened (2026-07-04, "rectangle
         // holes"): a moveend attempt that the tile-readiness gate (or hysteresis) skipped used to
         // eat the window and starve the `idle` refresh that would have painted real truth —
         // missing-tile rectangles then persisted until the next gesture. Readiness, hysteresis
         // and empty-feature exits precede canvas allocation; later paint/upload failures may cost work.
-        if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) {
+        if (engine.refreshMaskWithBasemapWater(gl, mapInstance, landMaskSliceOpts(() => refresh({ type: 'maskJobRerun' })))) {
           basemapMaskThrottleRef.current = now;
           mapInstance.triggerRepaint();
         }

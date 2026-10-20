@@ -21,10 +21,18 @@
 // Telemetry: window.__RAW_GPU__.inlandWaterGuard.
 import { stampVerdict } from './maskFastPaths';
 
+// Run a step generator to completion (same helper as marineMaskShelter.js; kept local so this module imports nothing new).
+const runSteps = (steps) => { let r = steps.next(); while (!r.done) r = steps.next(); return r.value; };
+
 // Pure grid core (exported for tests): pixels that are painted water (water=1) but NOT Natural-
 // Earth water (neWater=0) and farther than maxDistPx (Chebyshev) from ANY neWater pixel.
 // Two-pass 8-neighbour chamfer — same O(w·h) idiom as classifySheltered.
 export function classifyInlandWater(water, neWater, w, h, maxDistPx) {
+  return runSteps(classifyInlandWaterSteps(water, neWater, w, h, maxDistPx));
+}
+
+// Resumable form (2026-10-20, sliced land-mask prototype): yields a pass name after each chamfer pass, nothing else differs.
+export function* classifyInlandWaterSteps(water, neWater, w, h, maxDistPx) {
   const INF = 0x3fffffff;
   const size = w * h;
   const dist = new Int32Array(size);
@@ -45,6 +53,7 @@ export function classifyInlandWater(water, neWater, w, h, maxDistPx) {
       dist[i] = m;
     }
   }
+  yield 'inland:chamfer';
   // backward pass
   for (let y = h - 1; y >= 0; y--) {
     for (let x = w - 1; x >= 0; x--) {
@@ -61,6 +70,7 @@ export function classifyInlandWater(water, neWater, w, h, maxDistPx) {
       dist[i] = m;
     }
   }
+  yield 'inland:chamfer';
   const reblack = new Uint8Array(size);
   let count = 0;
   for (let i = 0; i < size; i++) {
@@ -88,6 +98,10 @@ export function shouldRunInlandGuard(canvasWidthKm, hasNeWater, maxKm) {
  * NE water. Never throws; returns stats ({ applied, reblackedFrac, ... }) or { applied: false }.
  */
 export function applyInlandWaterGuard(canvas, neSnapshot, bounds, opts) {
+  return runSteps(applyInlandWaterGuardSteps(canvas, neSnapshot, bounds, opts));
+}
+
+export function* applyInlandWaterGuardSteps(canvas, neSnapshot, bounds, opts) {
   try {
     if (typeof window !== 'undefined' && window.__RAW_DISABLE_INLAND_WATER_GUARD__ === true) {
       return { applied: false, reason: 'disabled' };
@@ -130,8 +144,9 @@ export function applyInlandWaterGuard(canvas, neSnapshot, bounds, opts) {
     const px = img.data;
     const water = new Uint8Array(size);
     for (let i = 0; i < size; i++) water[i] = px[i * 4] >= 128 ? 1 : 0;
+    yield 'inland:downsample';
 
-    const { reblack, count } = classifyInlandWater(water, neWater, dsW, dsH, maxDistPx);
+    const { reblack, count } = yield* classifyInlandWaterSteps(water, neWater, dsW, dsH, maxDistPx);
     if (!count) return { applied: true, reblackedFrac: 0, maxDistPx, mPerPx: Math.round(mPerPx) };
 
     // Stamp: opaque black where re-blacked, transparent elsewhere; hard-edged upscale. Blocky at
