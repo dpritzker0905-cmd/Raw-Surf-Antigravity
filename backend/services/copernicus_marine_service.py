@@ -511,15 +511,14 @@ def _fetch_sync(
             ("VMDR_WW",  "wind_wave_direction",             "°"),
             ("VTM01_WW", "wind_wave_period",                "s"),
         ]
+        # COPERNICUS_PEAK_PERIOD (dark): VTPK as the total period, VTM10 kept as wave_period_tm10
+        # (services/cmems_period_map.py). Flag off -> the map above, unchanged, and the same selection.
+        from services.cmems_period_map import requested_vars, with_peak_period
+        _base_map = VARIABLE_MAP
+        VARIABLE_MAP = with_peak_period(_base_map)
         COPERNICUS_VARS = [v[0] for v in VARIABLE_MAP]
-        
-        OM_TO_COPERNICUS = {v[1]: v[0] for v in VARIABLE_MAP}
         if variables and len(variables) > 0:
-            requested_cop_vars = []
-            for om_var in variables:
-                if om_var in OM_TO_COPERNICUS:
-                    requested_cop_vars.append(OM_TO_COPERNICUS[om_var])
-            fetch_vars = requested_cop_vars if requested_cop_vars else COPERNICUS_VARS
+            fetch_vars = requested_vars(_base_map, variables) or COPERNICUS_VARS
         else:
             fetch_vars = COPERNICUS_VARS
 

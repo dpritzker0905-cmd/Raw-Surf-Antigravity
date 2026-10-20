@@ -1,0 +1,1743 @@
+{
+ "generated_at": "2026-10-20T06:30:31Z",
+ "instrument": "backend/scripts/peak_period_validation.py",
+ "buoys": {
+  "buoys_used": 128,
+  "buoys_listed": 153,
+  "days": 30,
+  "window_utc": [
+   "2026-09-20T06:00:00+00:00",
+   "2026-10-20T06:00:00+00:00"
+  ],
+  "cmems": true,
+  "dpd_error": {
+   "all": {
+    "CMEMS VTM10 (served)": {
+     "n": 27699,
+     "mae_s": 2.057,
+     "bias_s": -1.416,
+     "ratio_p50": 0.879,
+     "abs_err_p90_s": 4.54,
+     "within_2s": 0.621
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 27699,
+     "mae_s": 1.54,
+     "bias_s": 0.277,
+     "ratio_p50": 1.004,
+     "abs_err_p90_s": 4.01,
+     "within_2s": 0.797
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 27458,
+     "mae_s": 1.442,
+     "bias_s": -0.451,
+     "ratio_p50": 0.968,
+     "abs_err_p90_s": 3.5,
+     "within_2s": 0.797
+    },
+    "GFS PERPW (served)": {
+     "n": 24800,
+     "mae_s": 1.634,
+     "bias_s": 0.261,
+     "ratio_p50": 0.981,
+     "abs_err_p90_s": 4.5,
+     "within_2s": 0.773
+    },
+    "ICON argmax (hard switch)": {
+     "n": 27699,
+     "mae_s": 1.834,
+     "bias_s": 0.145,
+     "ratio_p50": 0.975,
+     "abs_err_p90_s": 5.05,
+     "within_2s": 0.734
+    },
+    "ICON blend p=1": {
+     "n": 27699,
+     "mae_s": 1.825,
+     "bias_s": -0.036,
+     "ratio_p50": 0.962,
+     "abs_err_p90_s": 4.524,
+     "within_2s": 0.712
+    },
+    "ICON blend p=2": {
+     "n": 27699,
+     "mae_s": 1.816,
+     "bias_s": 0.094,
+     "ratio_p50": 0.969,
+     "abs_err_p90_s": 4.658,
+     "within_2s": 0.726
+    },
+    "ICON blend p=4": {
+     "n": 27699,
+     "mae_s": 1.819,
+     "bias_s": 0.131,
+     "ratio_p50": 0.975,
+     "abs_err_p90_s": 4.8,
+     "within_2s": 0.73
+    },
+    "ICON swell peak only": {
+     "n": 27699,
+     "mae_s": 1.93,
+     "bias_s": 0.53,
+     "ratio_p50": 1.014,
+     "abs_err_p90_s": 5.25,
+     "within_2s": 0.711
+    },
+    "ICON tm10 (served)": {
+     "n": 27699,
+     "mae_s": 2.363,
+     "bias_s": -1.77,
+     "ratio_p50": 0.838,
+     "abs_err_p90_s": 5.1,
+     "within_2s": 0.554
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 27430,
+     "mae_s": 2.072,
+     "bias_s": -1.413,
+     "ratio_p50": 0.879,
+     "abs_err_p90_s": 4.6,
+     "within_2s": 0.623
+    }
+   },
+   "region:us_atlantic": {
+    "CMEMS VTM10 (served)": {
+     "n": 9513,
+     "mae_s": 1.757,
+     "bias_s": -0.932,
+     "ratio_p50": 0.897,
+     "abs_err_p90_s": 3.62,
+     "within_2s": 0.701
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 9513,
+     "mae_s": 1.537,
+     "bias_s": 0.148,
+     "ratio_p50": 0.985,
+     "abs_err_p90_s": 3.988,
+     "within_2s": 0.804
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 9272,
+     "mae_s": 1.4,
+     "bias_s": -0.388,
+     "ratio_p50": 0.963,
+     "abs_err_p90_s": 3.15,
+     "within_2s": 0.817
+    },
+    "GFS PERPW (served)": {
+     "n": 8364,
+     "mae_s": 1.44,
+     "bias_s": 0.019,
+     "ratio_p50": 0.972,
+     "abs_err_p90_s": 4.0,
+     "within_2s": 0.797
+    },
+    "ICON argmax (hard switch)": {
+     "n": 9513,
+     "mae_s": 1.816,
+     "bias_s": 0.111,
+     "ratio_p50": 0.958,
+     "abs_err_p90_s": 4.7,
+     "within_2s": 0.745
+    },
+    "ICON blend p=1": {
+     "n": 9513,
+     "mae_s": 1.795,
+     "bias_s": -0.086,
+     "ratio_p50": 0.956,
+     "abs_err_p90_s": 4.18,
+     "within_2s": 0.714
+    },
+    "ICON blend p=2": {
+     "n": 9513,
+     "mae_s": 1.788,
+     "bias_s": 0.041,
+     "ratio_p50": 0.959,
+     "abs_err_p90_s": 4.398,
+     "within_2s": 0.73
+    },
+    "ICON blend p=4": {
+     "n": 9513,
+     "mae_s": 1.793,
+     "bias_s": 0.086,
+     "ratio_p50": 0.959,
+     "abs_err_p90_s": 4.6,
+     "within_2s": 0.74
+    },
+    "ICON swell peak only": {
+     "n": 9513,
+     "mae_s": 1.976,
+     "bias_s": 0.79,
+     "ratio_p50": 1.05,
+     "abs_err_p90_s": 5.15,
+     "within_2s": 0.702
+    },
+    "ICON tm10 (served)": {
+     "n": 9513,
+     "mae_s": 2.021,
+     "bias_s": -1.303,
+     "ratio_p50": 0.856,
+     "abs_err_p90_s": 4.3,
+     "within_2s": 0.646
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 9485,
+     "mae_s": 1.758,
+     "bias_s": -0.896,
+     "ratio_p50": 0.9,
+     "abs_err_p90_s": 3.6,
+     "within_2s": 0.704
+    }
+   },
+   "dpd<8s": {
+    "CMEMS VTM10 (served)": {
+     "n": 8946,
+     "mae_s": 1.12,
+     "bias_s": 0.356,
+     "ratio_p50": 1.024,
+     "abs_err_p90_s": 2.33,
+     "within_2s": 0.855
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 8946,
+     "mae_s": 1.644,
+     "bias_s": 1.163,
+     "ratio_p50": 1.043,
+     "abs_err_p90_s": 5.09,
+     "within_2s": 0.772
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 8810,
+     "mae_s": 1.167,
+     "bias_s": 0.611,
+     "ratio_p50": 1.021,
+     "abs_err_p90_s": 3.15,
+     "within_2s": 0.85
+    },
+    "GFS PERPW (served)": {
+     "n": 7652,
+     "mae_s": 1.642,
+     "bias_s": 1.063,
+     "ratio_p50": 1.021,
+     "abs_err_p90_s": 4.9,
+     "within_2s": 0.763
+    },
+    "ICON argmax (hard switch)": {
+     "n": 8946,
+     "mae_s": 2.038,
+     "bias_s": 1.391,
+     "ratio_p50": 1.065,
+     "abs_err_p90_s": 6.15,
+     "within_2s": 0.708
+    },
+    "ICON blend p=1": {
+     "n": 8946,
+     "mae_s": 1.897,
+     "bias_s": 1.229,
+     "ratio_p50": 1.068,
+     "abs_err_p90_s": 5.151,
+     "within_2s": 0.706
+    },
+    "ICON blend p=2": {
+     "n": 8946,
+     "mae_s": 1.969,
+     "bias_s": 1.339,
+     "ratio_p50": 1.079,
+     "abs_err_p90_s": 5.4,
+     "within_2s": 0.706
+    },
+    "ICON blend p=4": {
+     "n": 8946,
+     "mae_s": 2.002,
+     "bias_s": 1.375,
+     "ratio_p50": 1.075,
+     "abs_err_p90_s": 5.853,
+     "within_2s": 0.707
+    },
+    "ICON swell peak only": {
+     "n": 8946,
+     "mae_s": 2.398,
+     "bias_s": 2.057,
+     "ratio_p50": 1.188,
+     "abs_err_p90_s": 6.3,
+     "within_2s": 0.627
+    },
+    "ICON tm10 (served)": {
+     "n": 8946,
+     "mae_s": 1.233,
+     "bias_s": 0.185,
+     "ratio_p50": 0.98,
+     "abs_err_p90_s": 2.55,
+     "within_2s": 0.835
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 8840,
+     "mae_s": 1.134,
+     "bias_s": 0.395,
+     "ratio_p50": 1.03,
+     "abs_err_p90_s": 2.4,
+     "within_2s": 0.854
+    }
+   },
+   "height-agreeing (|dHs|<=25%)": {
+    "CMEMS VTM10 (served)": {
+     "n": 22645,
+     "mae_s": 2.03,
+     "bias_s": -1.46,
+     "ratio_p50": 0.877,
+     "abs_err_p90_s": 4.52,
+     "within_2s": 0.626
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 22645,
+     "mae_s": 1.44,
+     "bias_s": 0.256,
+     "ratio_p50": 1.003,
+     "abs_err_p90_s": 3.59,
+     "within_2s": 0.817
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 21346,
+     "mae_s": 1.327,
+     "bias_s": -0.442,
+     "ratio_p50": 0.967,
+     "abs_err_p90_s": 3.15,
+     "within_2s": 0.817
+    },
+    "GFS PERPW (served)": {
+     "n": 19532,
+     "mae_s": 1.543,
+     "bias_s": 0.319,
+     "ratio_p50": 0.982,
+     "abs_err_p90_s": 4.295,
+     "within_2s": 0.791
+    },
+    "ICON argmax (hard switch)": {
+     "n": 16987,
+     "mae_s": 1.618,
+     "bias_s": 0.17,
+     "ratio_p50": 0.99,
+     "abs_err_p90_s": 4.3,
+     "within_2s": 0.773
+    },
+    "ICON blend p=1": {
+     "n": 16987,
+     "mae_s": 1.606,
+     "bias_s": -0.031,
+     "ratio_p50": 0.963,
+     "abs_err_p90_s": 3.849,
+     "within_2s": 0.748
+    },
+    "ICON blend p=2": {
+     "n": 16987,
+     "mae_s": 1.595,
+     "bias_s": 0.113,
+     "ratio_p50": 0.98,
+     "abs_err_p90_s": 4.028,
+     "within_2s": 0.764
+    },
+    "ICON blend p=4": {
+     "n": 16987,
+     "mae_s": 1.599,
+     "bias_s": 0.155,
+     "ratio_p50": 0.989,
+     "abs_err_p90_s": 4.15,
+     "within_2s": 0.768
+    },
+    "ICON swell peak only": {
+     "n": 16987,
+     "mae_s": 1.711,
+     "bias_s": 0.645,
+     "ratio_p50": 1.025,
+     "abs_err_p90_s": 4.65,
+     "within_2s": 0.752
+    },
+    "ICON tm10 (served)": {
+     "n": 16987,
+     "mae_s": 2.093,
+     "bias_s": -1.637,
+     "ratio_p50": 0.85,
+     "abs_err_p90_s": 4.7,
+     "within_2s": 0.619
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 22022,
+     "mae_s": 2.039,
+     "bias_s": -1.457,
+     "ratio_p50": 0.877,
+     "abs_err_p90_s": 4.55,
+     "within_2s": 0.627
+    }
+   },
+   "dpd 8-12s": {
+    "CMEMS VTM10 (served)": {
+     "n": 11053,
+     "mae_s": 1.475,
+     "bias_s": -1.079,
+     "ratio_p50": 0.895,
+     "abs_err_p90_s": 3.04,
+     "within_2s": 0.728
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 11053,
+     "mae_s": 1.237,
+     "bias_s": 0.314,
+     "ratio_p50": 1.003,
+     "abs_err_p90_s": 2.77,
+     "within_2s": 0.851
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 10967,
+     "mae_s": 1.057,
+     "bias_s": -0.223,
+     "ratio_p50": 0.978,
+     "abs_err_p90_s": 2.3,
+     "within_2s": 0.871
+    },
+    "GFS PERPW (served)": {
+     "n": 10333,
+     "mae_s": 1.619,
+     "bias_s": 0.485,
+     "ratio_p50": 0.982,
+     "abs_err_p90_s": 4.2,
+     "within_2s": 0.777
+    },
+    "ICON argmax (hard switch)": {
+     "n": 11053,
+     "mae_s": 1.616,
+     "bias_s": 0.232,
+     "ratio_p50": 1.014,
+     "abs_err_p90_s": 4.3,
+     "within_2s": 0.758
+    },
+    "ICON blend p=1": {
+     "n": 11053,
+     "mae_s": 1.605,
+     "bias_s": 0.05,
+     "ratio_p50": 0.971,
+     "abs_err_p90_s": 3.846,
+     "within_2s": 0.75
+    },
+    "ICON blend p=2": {
+     "n": 11053,
+     "mae_s": 1.593,
+     "bias_s": 0.189,
+     "ratio_p50": 1.005,
+     "abs_err_p90_s": 4.06,
+     "within_2s": 0.759
+    },
+    "ICON blend p=4": {
+     "n": 11053,
+     "mae_s": 1.597,
+     "bias_s": 0.224,
+     "ratio_p50": 1.014,
+     "abs_err_p90_s": 4.293,
+     "within_2s": 0.76
+    },
+    "ICON swell peak only": {
+     "n": 11053,
+     "mae_s": 1.635,
+     "bias_s": 0.582,
+     "ratio_p50": 1.015,
+     "abs_err_p90_s": 4.35,
+     "within_2s": 0.756
+    },
+    "ICON tm10 (served)": {
+     "n": 11053,
+     "mae_s": 1.795,
+     "bias_s": -1.455,
+     "ratio_p50": 0.863,
+     "abs_err_p90_s": 3.6,
+     "within_2s": 0.649
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 10940,
+     "mae_s": 1.484,
+     "bias_s": -1.083,
+     "ratio_p50": 0.894,
+     "abs_err_p90_s": 3.05,
+     "within_2s": 0.732
+    }
+   },
+   "bimodal (ICON partitions)": {
+    "CMEMS VTM10 (served)": {
+     "n": 2673,
+     "mae_s": 2.704,
+     "bias_s": -1.66,
+     "ratio_p50": 0.831,
+     "abs_err_p90_s": 5.276,
+     "within_2s": 0.453
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 2673,
+     "mae_s": 2.161,
+     "bias_s": 0.687,
+     "ratio_p50": 1.014,
+     "abs_err_p90_s": 6.3,
+     "within_2s": 0.704
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 2655,
+     "mae_s": 2.015,
+     "bias_s": -0.383,
+     "ratio_p50": 0.969,
+     "abs_err_p90_s": 5.23,
+     "within_2s": 0.696
+    },
+    "GFS PERPW (served)": {
+     "n": 2456,
+     "mae_s": 2.289,
+     "bias_s": 0.968,
+     "ratio_p50": 1.0,
+     "abs_err_p90_s": 6.3,
+     "within_2s": 0.678
+    },
+    "ICON argmax (hard switch)": {
+     "n": 2673,
+     "mae_s": 3.041,
+     "bias_s": 1.773,
+     "ratio_p50": 1.05,
+     "abs_err_p90_s": 7.35,
+     "within_2s": 0.557
+    },
+    "ICON blend p=1": {
+     "n": 2673,
+     "mae_s": 2.87,
+     "bias_s": 0.495,
+     "ratio_p50": 0.958,
+     "abs_err_p90_s": 5.725,
+     "within_2s": 0.41
+    },
+    "ICON blend p=2": {
+     "n": 2673,
+     "mae_s": 2.879,
+     "bias_s": 1.207,
+     "ratio_p50": 1.029,
+     "abs_err_p90_s": 6.549,
+     "within_2s": 0.483
+    },
+    "ICON blend p=4": {
+     "n": 2673,
+     "mae_s": 2.939,
+     "bias_s": 1.588,
+     "ratio_p50": 1.061,
+     "abs_err_p90_s": 7.137,
+     "within_2s": 0.52
+    },
+    "ICON swell peak only": {
+     "n": 2673,
+     "mae_s": 3.126,
+     "bias_s": 2.229,
+     "ratio_p50": 1.093,
+     "abs_err_p90_s": 7.5,
+     "within_2s": 0.54
+    },
+    "ICON tm10 (served)": {
+     "n": 2673,
+     "mae_s": 3.103,
+     "bias_s": -2.109,
+     "ratio_p50": 0.763,
+     "abs_err_p90_s": 5.8,
+     "within_2s": 0.379
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 2665,
+     "mae_s": 2.707,
+     "bias_s": -1.609,
+     "ratio_p50": 0.835,
+     "abs_err_p90_s": 5.25,
+     "within_2s": 0.455
+    }
+   },
+   "dpd>12s": {
+    "CMEMS VTM10 (served)": {
+     "n": 7700,
+     "mae_s": 3.98,
+     "bias_s": -3.957,
+     "ratio_p50": 0.755,
+     "abs_err_p90_s": 6.95,
+     "within_2s": 0.196
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 7700,
+     "mae_s": 1.855,
+     "bias_s": -0.804,
+     "ratio_p50": 0.979,
+     "abs_err_p90_s": 4.39,
+     "within_2s": 0.751
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 7681,
+     "mae_s": 2.306,
+     "bias_s": -1.996,
+     "ratio_p50": 0.912,
+     "abs_err_p90_s": 5.5,
+     "within_2s": 0.63
+    },
+    "GFS PERPW (served)": {
+     "n": 6815,
+     "mae_s": 1.647,
+     "bias_s": -0.978,
+     "ratio_p50": 0.964,
+     "abs_err_p90_s": 4.45,
+     "within_2s": 0.778
+    },
+    "ICON argmax (hard switch)": {
+     "n": 7700,
+     "mae_s": 1.911,
+     "bias_s": -1.427,
+     "ratio_p50": 0.946,
+     "abs_err_p90_s": 4.6,
+     "within_2s": 0.728
+    },
+    "ICON blend p=1": {
+     "n": 7700,
+     "mae_s": 2.056,
+     "bias_s": -1.628,
+     "ratio_p50": 0.92,
+     "abs_err_p90_s": 4.492,
+     "within_2s": 0.666
+    },
+    "ICON blend p=2": {
+     "n": 7700,
+     "mae_s": 1.956,
+     "bias_s": -1.489,
+     "ratio_p50": 0.945,
+     "abs_err_p90_s": 4.35,
+     "within_2s": 0.7
+    },
+    "ICON blend p=4": {
+     "n": 7700,
+     "mae_s": 1.926,
+     "bias_s": -1.448,
+     "ratio_p50": 0.946,
+     "abs_err_p90_s": 4.402,
+     "within_2s": 0.714
+    },
+    "ICON swell peak only": {
+     "n": 7700,
+     "mae_s": 1.809,
+     "bias_s": -1.32,
+     "ratio_p50": 0.946,
+     "abs_err_p90_s": 3.85,
+     "within_2s": 0.746
+    },
+    "ICON tm10 (served)": {
+     "n": 7700,
+     "mae_s": 4.493,
+     "bias_s": -4.492,
+     "ratio_p50": 0.718,
+     "abs_err_p90_s": 7.15,
+     "within_2s": 0.09
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 7650,
+     "mae_s": 3.996,
+     "bias_s": -3.975,
+     "ratio_p50": 0.754,
+     "abs_err_p90_s": 7.0,
+     "within_2s": 0.198
+    }
+   },
+   "region:other": {
+    "CMEMS VTM10 (served)": {
+     "n": 1948,
+     "mae_s": 2.153,
+     "bias_s": -1.776,
+     "ratio_p50": 0.854,
+     "abs_err_p90_s": 5.24,
+     "within_2s": 0.602
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 1948,
+     "mae_s": 1.396,
+     "bias_s": -0.171,
+     "ratio_p50": 0.997,
+     "abs_err_p90_s": 3.682,
+     "within_2s": 0.808
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 1948,
+     "mae_s": 1.319,
+     "bias_s": -0.15,
+     "ratio_p50": 0.994,
+     "abs_err_p90_s": 3.5,
+     "within_2s": 0.81
+    },
+    "GFS PERPW (served)": {
+     "n": 1948,
+     "mae_s": 1.832,
+     "bias_s": -0.609,
+     "ratio_p50": 0.95,
+     "abs_err_p90_s": 5.4,
+     "within_2s": 0.727
+    },
+    "ICON argmax (hard switch)": {
+     "n": 1948,
+     "mae_s": 1.922,
+     "bias_s": 0.225,
+     "ratio_p50": 1.025,
+     "abs_err_p90_s": 5.215,
+     "within_2s": 0.697
+    },
+    "ICON blend p=1": {
+     "n": 1948,
+     "mae_s": 1.873,
+     "bias_s": 0.004,
+     "ratio_p50": 1.001,
+     "abs_err_p90_s": 5.002,
+     "within_2s": 0.699
+    },
+    "ICON blend p=2": {
+     "n": 1948,
+     "mae_s": 1.889,
+     "bias_s": 0.178,
+     "ratio_p50": 1.015,
+     "abs_err_p90_s": 5.141,
+     "within_2s": 0.701
+    },
+    "ICON blend p=4": {
+     "n": 1948,
+     "mae_s": 1.905,
+     "bias_s": 0.216,
+     "ratio_p50": 1.021,
+     "abs_err_p90_s": 5.15,
+     "within_2s": 0.699
+    },
+    "ICON swell peak only": {
+     "n": 1948,
+     "mae_s": 1.918,
+     "bias_s": 0.308,
+     "ratio_p50": 1.028,
+     "abs_err_p90_s": 5.215,
+     "within_2s": 0.699
+    },
+    "ICON tm10 (served)": {
+     "n": 1948,
+     "mae_s": 2.162,
+     "bias_s": -1.523,
+     "ratio_p50": 0.879,
+     "abs_err_p90_s": 5.25,
+     "within_2s": 0.623
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 1707,
+     "mae_s": 2.289,
+     "bias_s": -1.994,
+     "ratio_p50": 0.828,
+     "abs_err_p90_s": 5.37,
+     "within_2s": 0.574
+    }
+   },
+   "region:gulf_caribbean": {
+    "CMEMS VTM10 (served)": {
+     "n": 2787,
+     "mae_s": 1.467,
+     "bias_s": -0.918,
+     "ratio_p50": 0.864,
+     "abs_err_p90_s": 3.26,
+     "within_2s": 0.767
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 2787,
+     "mae_s": 1.193,
+     "bias_s": 0.169,
+     "ratio_p50": 0.979,
+     "abs_err_p90_s": 2.89,
+     "within_2s": 0.84
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 2787,
+     "mae_s": 0.998,
+     "bias_s": -0.495,
+     "ratio_p50": 0.936,
+     "abs_err_p90_s": 2.25,
+     "within_2s": 0.883
+    },
+    "GFS PERPW (served)": {
+     "n": 2787,
+     "mae_s": 1.117,
+     "bias_s": -0.324,
+     "ratio_p50": 0.921,
+     "abs_err_p90_s": 2.57,
+     "within_2s": 0.863
+    },
+    "ICON argmax (hard switch)": {
+     "n": 2787,
+     "mae_s": 1.246,
+     "bias_s": -0.325,
+     "ratio_p50": 0.933,
+     "abs_err_p90_s": 2.7,
+     "within_2s": 0.846
+    },
+    "ICON blend p=1": {
+     "n": 2787,
+     "mae_s": 1.271,
+     "bias_s": -0.466,
+     "ratio_p50": 0.908,
+     "abs_err_p90_s": 2.701,
+     "within_2s": 0.825
+    },
+    "ICON blend p=2": {
+     "n": 2787,
+     "mae_s": 1.239,
+     "bias_s": -0.367,
+     "ratio_p50": 0.925,
+     "abs_err_p90_s": 2.65,
+     "within_2s": 0.842
+    },
+    "ICON blend p=4": {
+     "n": 2787,
+     "mae_s": 1.237,
+     "bias_s": -0.333,
+     "ratio_p50": 0.928,
+     "abs_err_p90_s": 2.654,
+     "within_2s": 0.848
+    },
+    "ICON swell peak only": {
+     "n": 2787,
+     "mae_s": 1.246,
+     "bias_s": 0.141,
+     "ratio_p50": 0.988,
+     "abs_err_p90_s": 2.75,
+     "within_2s": 0.84
+    },
+    "ICON tm10 (served)": {
+     "n": 2787,
+     "mae_s": 1.689,
+     "bias_s": -1.355,
+     "ratio_p50": 0.8,
+     "abs_err_p90_s": 3.7,
+     "within_2s": 0.732
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 2787,
+     "mae_s": 1.459,
+     "bias_s": -0.893,
+     "ratio_p50": 0.871,
+     "abs_err_p90_s": 3.25,
+     "within_2s": 0.778
+    }
+   },
+   "region:us_pacific": {
+    "CMEMS VTM10 (served)": {
+     "n": 12246,
+     "mae_s": 2.39,
+     "bias_s": -1.832,
+     "ratio_p50": 0.875,
+     "abs_err_p90_s": 5.32,
+     "within_2s": 0.54
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 12246,
+     "mae_s": 1.637,
+     "bias_s": 0.431,
+     "ratio_p50": 1.016,
+     "abs_err_p90_s": 4.435,
+     "within_2s": 0.786
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 12246,
+     "mae_s": 1.575,
+     "bias_s": -0.559,
+     "ratio_p50": 0.973,
+     "abs_err_p90_s": 3.9,
+     "within_2s": 0.765
+    },
+    "GFS PERPW (served)": {
+     "n": 10978,
+     "mae_s": 1.836,
+     "bias_s": 0.754,
+     "ratio_p50": 1.004,
+     "abs_err_p90_s": 5.1,
+     "within_2s": 0.748
+    },
+    "ICON argmax (hard switch)": {
+     "n": 12246,
+     "mae_s": 1.922,
+     "bias_s": 0.251,
+     "ratio_p50": 0.99,
+     "abs_err_p90_s": 5.35,
+     "within_2s": 0.716
+    },
+    "ICON blend p=1": {
+     "n": 12246,
+     "mae_s": 1.921,
+     "bias_s": 0.079,
+     "ratio_p50": 0.975,
+     "abs_err_p90_s": 5.095,
+     "within_2s": 0.697
+    },
+    "ICON blend p=2": {
+     "n": 12246,
+     "mae_s": 1.91,
+     "bias_s": 0.211,
+     "ratio_p50": 0.99,
+     "abs_err_p90_s": 5.248,
+     "within_2s": 0.71
+    },
+    "ICON blend p=4": {
+     "n": 12246,
+     "mae_s": 1.912,
+     "bias_s": 0.243,
+     "ratio_p50": 0.99,
+     "abs_err_p90_s": 5.35,
+     "within_2s": 0.712
+    },
+    "ICON swell peak only": {
+     "n": 12246,
+     "mae_s": 2.016,
+     "bias_s": 0.459,
+     "ratio_p50": 0.993,
+     "abs_err_p90_s": 5.5,
+     "within_2s": 0.701
+    },
+    "ICON tm10 (served)": {
+     "n": 12246,
+     "mae_s": 2.797,
+     "bias_s": -2.271,
+     "ratio_p50": 0.829,
+     "abs_err_p90_s": 5.9,
+     "within_2s": 0.44
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 12246,
+     "mae_s": 2.413,
+     "bias_s": -1.849,
+     "ratio_p50": 0.873,
+     "abs_err_p90_s": 5.35,
+     "within_2s": 0.54
+    }
+   },
+   "region:hawaii": {
+    "CMEMS VTM10 (served)": {
+     "n": 1205,
+     "mae_s": 2.242,
+     "bias_s": -1.578,
+     "ratio_p50": 0.861,
+     "abs_err_p90_s": 4.462,
+     "within_2s": 0.518
+    },
+    "CMEMS VTPK (flag)": {
+     "n": 1205,
+     "mae_s": 1.626,
+     "bias_s": 0.704,
+     "ratio_p50": 1.031,
+     "abs_err_p90_s": 3.996,
+     "within_2s": 0.754
+    },
+    "EURO pp1d (served, ECMWF stream)": {
+     "n": 1205,
+     "mae_s": 1.629,
+     "bias_s": -0.229,
+     "ratio_p50": 0.981,
+     "abs_err_p90_s": 4.3,
+     "within_2s": 0.742
+    },
+    "GFS PERPW (served)": {
+     "n": 723,
+     "mae_s": 2.255,
+     "bias_s": 0.187,
+     "ratio_p50": 0.973,
+     "abs_err_p90_s": 6.45,
+     "within_2s": 0.658
+    },
+    "ICON argmax (hard switch)": {
+     "n": 1205,
+     "mae_s": 2.308,
+     "bias_s": 0.293,
+     "ratio_p50": 1.006,
+     "abs_err_p90_s": 6.16,
+     "within_2s": 0.626
+    },
+    "ICON blend p=1": {
+     "n": 1205,
+     "mae_s": 2.289,
+     "bias_s": 0.124,
+     "ratio_p50": 0.989,
+     "abs_err_p90_s": 5.944,
+     "within_2s": 0.621
+    },
+    "ICON blend p=2": {
+     "n": 1205,
+     "mae_s": 2.288,
+     "bias_s": 0.252,
+     "ratio_p50": 0.996,
+     "abs_err_p90_s": 5.978,
+     "within_2s": 0.623
+    },
+    "ICON blend p=4": {
+     "n": 1205,
+     "mae_s": 2.298,
+     "bias_s": 0.28,
+     "ratio_p50": 1.005,
+     "abs_err_p90_s": 6.163,
+     "within_2s": 0.624
+    },
+    "ICON swell peak only": {
+     "n": 1205,
+     "mae_s": 2.292,
+     "bias_s": 0.45,
+     "ratio_p50": 1.014,
+     "abs_err_p90_s": 6.16,
+     "within_2s": 0.618
+    },
+    "ICON tm10 (served)": {
+     "n": 1205,
+     "mae_s": 2.544,
+     "bias_s": -1.708,
+     "ratio_p50": 0.85,
+     "abs_err_p90_s": 5.23,
+     "within_2s": 0.459
+    },
+    "MFWAM via Open-Meteo wave_period": {
+     "n": 1205,
+     "mae_s": 2.186,
+     "bias_s": -1.431,
+     "ratio_p50": 0.871,
+     "abs_err_p90_s": 4.35,
+     "within_2s": 0.532
+    }
+   }
+  },
+  "continuity_3h": {
+   "CMEMS VTM10 (served)": {
+    "n": 30720,
+    "p50": 0.19,
+    "p95": 0.81,
+    "p99": 1.48,
+    "max": 6.33,
+    "share_gt_3s": 0.0008
+   },
+   "CMEMS VTPK (flag)": {
+    "n": 30720,
+    "p50": 0.25,
+    "p95": 2.07,
+    "p99": 5.88,
+    "max": 14.76,
+    "share_gt_3s": 0.0339
+   },
+   "EURO pp1d (served, ECMWF stream)": {
+    "n": 31369,
+    "p50": 0.2,
+    "p95": 1.35,
+    "p99": 3.35,
+    "max": 15.45,
+    "share_gt_3s": 0.012
+   },
+   "GFS PERPW (served)": {
+    "n": 27664,
+    "p50": 0.15,
+    "p95": 2.85,
+    "p99": 7.6,
+    "max": 15.15,
+    "share_gt_3s": 0.0478
+   },
+   "ICON argmax (hard switch)": {
+    "n": 31616,
+    "p50": 0.0,
+    "p95": 2.55,
+    "p99": 6.2,
+    "max": 20.75,
+    "share_gt_3s": 0.0428
+   },
+   "ICON blend p=1": {
+    "n": 31616,
+    "p50": 0.131,
+    "p95": 1.895,
+    "p99": 5.085,
+    "max": 20.65,
+    "share_gt_3s": 0.0291
+   },
+   "ICON blend p=2": {
+    "n": 31616,
+    "p50": 0.044,
+    "p95": 2.029,
+    "p99": 5.34,
+    "max": 20.74,
+    "share_gt_3s": 0.0322
+   },
+   "ICON blend p=4": {
+    "n": 31616,
+    "p50": 0.002,
+    "p95": 2.2,
+    "p99": 5.475,
+    "max": 20.75,
+    "share_gt_3s": 0.0353
+   },
+   "ICON swell peak only": {
+    "n": 31616,
+    "p50": 0.0,
+    "p95": 2.15,
+    "p99": 5.75,
+    "max": 20.75,
+    "share_gt_3s": 0.0361
+   },
+   "ICON tm10 (served)": {
+    "n": 31616,
+    "p50": 0.15,
+    "p95": 0.65,
+    "p99": 1.3,
+    "max": 5.1,
+    "share_gt_3s": 0.0006
+   },
+   "MFWAM via Open-Meteo wave_period": {
+    "n": 31122,
+    "p50": 0.2,
+    "p95": 0.8,
+    "p99": 1.5,
+    "max": 5.5,
+    "share_gt_3s": 0.0009
+   },
+   "NDBC buoy DPD (truth)": {
+    "n": 27101,
+    "p50": 1.0,
+    "p95": 5.0,
+    "p99": 10.0,
+    "max": 23.0,
+    "share_gt_3s": 0.0918
+   }
+  }
+ },
+ "spots": {
+  "spots": 1770,
+  "hours": [
+   0,
+   12,
+   24,
+   36,
+   48,
+   72
+  ],
+  "icon": {
+   "p=1": {
+    "n": 10620,
+    "deciles": [
+     {
+      "decile": 1,
+      "h_old_range_m": [
+       0.07,
+       0.82
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.093,
+      "dh_rel_p10": 0.0122,
+      "dh_rel_p90": 0.2143,
+      "dscore_p50": 1.1
+     },
+     {
+      "decile": 2,
+      "h_old_range_m": [
+       0.82,
+       1.26
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0967,
+      "dh_rel_p10": 0.0228,
+      "dh_rel_p90": 0.2032,
+      "dscore_p50": 3.2
+     },
+     {
+      "decile": 3,
+      "h_old_range_m": [
+       1.26,
+       1.54
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0918,
+      "dh_rel_p10": 0.0033,
+      "dh_rel_p90": 0.1865,
+      "dscore_p50": 1.2
+     },
+     {
+      "decile": 4,
+      "h_old_range_m": [
+       1.54,
+       1.82
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0722,
+      "dh_rel_p10": 0.0075,
+      "dh_rel_p90": 0.1505,
+      "dscore_p50": 1.5
+     },
+     {
+      "decile": 5,
+      "h_old_range_m": [
+       1.82,
+       2.07
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0693,
+      "dh_rel_p10": -0.0004,
+      "dh_rel_p90": 0.1486,
+      "dscore_p50": 1.95
+     },
+     {
+      "decile": 6,
+      "h_old_range_m": [
+       2.07,
+       2.34
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0791,
+      "dh_rel_p10": 0.0218,
+      "dh_rel_p90": 0.1411,
+      "dscore_p50": 3.4
+     },
+     {
+      "decile": 7,
+      "h_old_range_m": [
+       2.34,
+       2.58
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0731,
+      "dh_rel_p10": 0.0151,
+      "dh_rel_p90": 0.1235,
+      "dscore_p50": 3.6
+     },
+     {
+      "decile": 8,
+      "h_old_range_m": [
+       2.58,
+       2.87
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0769,
+      "dh_rel_p10": 0.0295,
+      "dh_rel_p90": 0.1316,
+      "dscore_p50": 4.5
+     },
+     {
+      "decile": 9,
+      "h_old_range_m": [
+       2.87,
+       3.25
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0736,
+      "dh_rel_p10": 0.0204,
+      "dh_rel_p90": 0.1238,
+      "dscore_p50": 4.1
+     },
+     {
+      "decile": 10,
+      "h_old_range_m": [
+       3.25,
+       10.97
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0654,
+      "dh_rel_p10": 0.0203,
+      "dh_rel_p90": 0.116,
+      "dscore_p50": 3.5
+     }
+    ],
+    "tails": {
+     "dh_rel_p01": -0.0353,
+     "dh_rel_p99": 0.2734,
+     "dh_rel_min": -0.4887,
+     "dh_rel_max": 0.3425,
+     "dscore_p01": -1.4,
+     "dscore_p99": 19.28
+    },
+    "level_changes": 2735,
+    "level_change_share": 0.2575,
+    "transitions": {
+     "good -> epic": 553,
+     "fair_good -> good": 545,
+     "poor_fair -> fair": 519,
+     "fair -> fair_good": 492,
+     "poor -> poor_fair": 350,
+     "very_poor -> poor": 136,
+     "fair -> good": 30,
+     "poor_fair -> fair_good": 27,
+     "poor -> fair": 26,
+     "poor_fair -> poor": 16,
+     "poor -> very_poor": 11,
+     "fair_good -> epic": 8,
+     "fair_good -> fair": 5,
+     "poor_fair -> good": 4,
+     "fair -> poor_fair": 4,
+     "good -> fair_good": 3,
+     "very_poor -> poor_fair": 2,
+     "fair -> poor": 2,
+     "fair -> epic": 2
+    }
+   },
+   "p=2": {
+    "n": 10620,
+    "deciles": [
+     {
+      "decile": 1,
+      "h_old_range_m": [
+       0.07,
+       0.82
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0931,
+      "dh_rel_p10": 0.0099,
+      "dh_rel_p90": 0.2323,
+      "dscore_p50": 1.1
+     },
+     {
+      "decile": 2,
+      "h_old_range_m": [
+       0.82,
+       1.26
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.1025,
+      "dh_rel_p10": 0.0292,
+      "dh_rel_p90": 0.2155,
+      "dscore_p50": 3.45
+     },
+     {
+      "decile": 3,
+      "h_old_range_m": [
+       1.26,
+       1.54
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0951,
+      "dh_rel_p10": 0.011,
+      "dh_rel_p90": 0.2055,
+      "dscore_p50": 1.2
+     },
+     {
+      "decile": 4,
+      "h_old_range_m": [
+       1.54,
+       1.82
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0737,
+      "dh_rel_p10": 0.0131,
+      "dh_rel_p90": 0.1626,
+      "dscore_p50": 1.6
+     },
+     {
+      "decile": 5,
+      "h_old_range_m": [
+       1.82,
+       2.07
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0694,
+      "dh_rel_p10": 0.0067,
+      "dh_rel_p90": 0.1607,
+      "dscore_p50": 2.0
+     },
+     {
+      "decile": 6,
+      "h_old_range_m": [
+       2.07,
+       2.34
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0832,
+      "dh_rel_p10": 0.0224,
+      "dh_rel_p90": 0.1469,
+      "dscore_p50": 3.6
+     },
+     {
+      "decile": 7,
+      "h_old_range_m": [
+       2.34,
+       2.58
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0746,
+      "dh_rel_p10": 0.0138,
+      "dh_rel_p90": 0.1428,
+      "dscore_p50": 3.8
+     },
+     {
+      "decile": 8,
+      "h_old_range_m": [
+       2.58,
+       2.87
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0794,
+      "dh_rel_p10": 0.0296,
+      "dh_rel_p90": 0.1425,
+      "dscore_p50": 4.7
+     },
+     {
+      "decile": 9,
+      "h_old_range_m": [
+       2.87,
+       3.25
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0778,
+      "dh_rel_p10": 0.0202,
+      "dh_rel_p90": 0.1338,
+      "dscore_p50": 4.5
+     },
+     {
+      "decile": 10,
+      "h_old_range_m": [
+       3.25,
+       10.97
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.07,
+      "dh_rel_p10": 0.0225,
+      "dh_rel_p90": 0.1254,
+      "dscore_p50": 3.85
+     }
+    ],
+    "tails": {
+     "dh_rel_p01": -0.0333,
+     "dh_rel_p99": 0.2872,
+     "dh_rel_min": -0.4887,
+     "dh_rel_max": 0.3929,
+     "dscore_p01": -1.3,
+     "dscore_p99": 20.1
+    },
+    "level_changes": 2911,
+    "level_change_share": 0.2741,
+    "transitions": {
+     "poor_fair -> fair": 574,
+     "good -> epic": 566,
+     "fair_good -> good": 561,
+     "fair -> fair_good": 516,
+     "poor -> poor_fair": 393,
+     "very_poor -> poor": 150,
+     "fair -> good": 34,
+     "poor -> fair": 32,
+     "poor_fair -> fair_good": 27,
+     "poor_fair -> poor": 13,
+     "poor -> very_poor": 10,
+     "fair_good -> epic": 10,
+     "poor_fair -> good": 5,
+     "fair -> poor_fair": 5,
+     "fair_good -> fair": 5,
+     "fair -> epic": 3,
+     "good -> fair_good": 3,
+     "very_poor -> poor_fair": 2,
+     "fair -> poor": 2
+    }
+   },
+   "p=4": {
+    "n": 10620,
+    "deciles": [
+     {
+      "decile": 1,
+      "h_old_range_m": [
+       0.07,
+       0.82
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0918,
+      "dh_rel_p10": 0.0043,
+      "dh_rel_p90": 0.2653,
+      "dscore_p50": 1.1
+     },
+     {
+      "decile": 2,
+      "h_old_range_m": [
+       0.82,
+       1.26
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.1037,
+      "dh_rel_p10": 0.0278,
+      "dh_rel_p90": 0.226,
+      "dscore_p50": 3.6
+     },
+     {
+      "decile": 3,
+      "h_old_range_m": [
+       1.26,
+       1.54
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.096,
+      "dh_rel_p10": 0.011,
+      "dh_rel_p90": 0.2061,
+      "dscore_p50": 1.2
+     },
+     {
+      "decile": 4,
+      "h_old_range_m": [
+       1.54,
+       1.82
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0749,
+      "dh_rel_p10": 0.0134,
+      "dh_rel_p90": 0.1632,
+      "dscore_p50": 1.6
+     },
+     {
+      "decile": 5,
+      "h_old_range_m": [
+       1.82,
+       2.07
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0713,
+      "dh_rel_p10": 0.0099,
+      "dh_rel_p90": 0.162,
+      "dscore_p50": 2.0
+     },
+     {
+      "decile": 6,
+      "h_old_range_m": [
+       2.07,
+       2.34
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0834,
+      "dh_rel_p10": 0.0224,
+      "dh_rel_p90": 0.1518,
+      "dscore_p50": 3.7
+     },
+     {
+      "decile": 7,
+      "h_old_range_m": [
+       2.34,
+       2.58
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0753,
+      "dh_rel_p10": 0.0139,
+      "dh_rel_p90": 0.1459,
+      "dscore_p50": 3.8
+     },
+     {
+      "decile": 8,
+      "h_old_range_m": [
+       2.58,
+       2.87
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.08,
+      "dh_rel_p10": 0.029,
+      "dh_rel_p90": 0.1459,
+      "dscore_p50": 4.7
+     },
+     {
+      "decile": 9,
+      "h_old_range_m": [
+       2.87,
+       3.25
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0799,
+      "dh_rel_p10": 0.0202,
+      "dh_rel_p90": 0.1367,
+      "dscore_p50": 4.5
+     },
+     {
+      "decile": 10,
+      "h_old_range_m": [
+       3.25,
+       10.97
+      ],
+      "n": 1062,
+      "dh_rel_p50": 0.0704,
+      "dh_rel_p10": 0.0225,
+      "dh_rel_p90": 0.131,
+      "dscore_p50": 4.05
+     }
+    ],
+    "tails": {
+     "dh_rel_p01": -0.0387,
+     "dh_rel_p99": 0.2995,
+     "dh_rel_min": -0.4887,
+     "dh_rel_max": 0.4125,
+     "dscore_p01": -1.5,
+     "dscore_p99": 20.5
+    },
+    "level_changes": 2955,
+    "level_change_share": 0.2782,
+    "transitions": {
+     "poor_fair -> fair": 580,
+     "good -> epic": 566,
+     "fair_good -> good": 563,
+     "fair -> fair_good": 521,
+     "poor -> poor_fair": 412,
+     "very_poor -> poor": 153,
+     "fair -> good": 36,
+     "poor -> fair": 32,
+     "poor_fair -> fair_good": 27,
+     "poor -> very_poor": 17,
+     "poor_fair -> poor": 12,
+     "fair_good -> epic": 10,
+     "poor_fair -> good": 5,
+     "fair -> poor_fair": 5,
+     "fair_good -> fair": 5,
+     "very_poor -> poor_fair": 3,
+     "fair -> epic": 3,
+     "good -> fair_good": 3,
+     "fair -> poor": 2
+    }
+   }
+  },
+  "cmems": {
+   "n": 46020,
+   "deciles": [
+    {
+     "decile": 1,
+     "h_old_range_m": [
+      0.03,
+      0.6
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0537,
+     "dh_rel_p10": -0.0203,
+     "dh_rel_p90": 0.2069,
+     "dscore_p50": 0.4
+    },
+    {
+     "decile": 2,
+     "h_old_range_m": [
+      0.6,
+      0.95
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0944,
+     "dh_rel_p10": 0.0184,
+     "dh_rel_p90": 0.2122,
+     "dscore_p50": 2.7
+    },
+    {
+     "decile": 3,
+     "h_old_range_m": [
+      0.95,
+      1.2
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0921,
+     "dh_rel_p10": 0.0301,
+     "dh_rel_p90": 0.2154,
+     "dscore_p50": 3.8
+    },
+    {
+     "decile": 4,
+     "h_old_range_m": [
+      1.2,
+      1.44
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0765,
+     "dh_rel_p10": 0.021,
+     "dh_rel_p90": 0.1726,
+     "dscore_p50": 2.1
+    },
+    {
+     "decile": 5,
+     "h_old_range_m": [
+      1.44,
+      1.69
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0719,
+     "dh_rel_p10": 0.0274,
+     "dh_rel_p90": 0.1619,
+     "dscore_p50": 2.4
+    },
+    {
+     "decile": 6,
+     "h_old_range_m": [
+      1.69,
+      1.94
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0677,
+     "dh_rel_p10": 0.0254,
+     "dh_rel_p90": 0.159,
+     "dscore_p50": 3.5
+    },
+    {
+     "decile": 7,
+     "h_old_range_m": [
+      1.94,
+      2.21
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0653,
+     "dh_rel_p10": 0.0202,
+     "dh_rel_p90": 0.1434,
+     "dscore_p50": 3.3
+    },
+    {
+     "decile": 8,
+     "h_old_range_m": [
+      2.21,
+      2.48
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0653,
+     "dh_rel_p10": 0.0218,
+     "dh_rel_p90": 0.1312,
+     "dscore_p50": 3.7
+    },
+    {
+     "decile": 9,
+     "h_old_range_m": [
+      2.48,
+      2.91
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0683,
+     "dh_rel_p10": 0.0264,
+     "dh_rel_p90": 0.1333,
+     "dscore_p50": 3.8
+    },
+    {
+     "decile": 10,
+     "h_old_range_m": [
+      2.91,
+      11.72
+     ],
+     "n": 4602,
+     "dh_rel_p50": 0.0611,
+     "dh_rel_p10": 0.0315,
+     "dh_rel_p90": 0.1179,
+     "dscore_p50": 3.8
+    }
+   ],
+   "tails": {
+    "dh_rel_p01": -0.043,
+    "dh_rel_p99": 0.2658,
+    "dh_rel_min": -0.1981,
+    "dh_rel_max": 0.4794,
+    "dscore_p01": -1.5,
+    "dscore_p99": 18.6
+   },
+   "level_changes": 12065,
+   "level_change_share": 0.2622,
+   "transitions": {
+    "poor_fair -> fair": 2490,
+    "fair -> fair_good": 2262,
+    "fair_good -> good": 2042,
+    "poor -> poor_fair": 1984,
+    "good -> epic": 1657,
+    "very_poor -> poor": 1063,
+    "poor_fair -> fair_good": 139,
+    "poor -> fair": 128,
+    "fair -> good": 82,
+    "fair_good -> epic": 50,
+    "fair -> poor_fair": 35,
+    "poor -> very_poor": 32,
+    "poor_fair -> poor": 30,
+    "very_poor -> poor_fair": 23,
+    "fair_good -> fair": 14,
+    "good -> fair_good": 14,
+    "epic -> good": 11,
+    "good -> fair": 5,
+    "fair -> epic": 2,
+    "poor_fair -> good": 1,
+    "poor -> fair_good": 1
+   }
+  }
+ }
+}
