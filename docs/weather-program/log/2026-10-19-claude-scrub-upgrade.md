@@ -443,3 +443,124 @@ ownership named. FRAME_IMAGES_PUBLISH set by the owner at 01:25:13Z; the 00:50Z 
 - Research this round: BigQuery public data (metadata only, no queries: ICOADS ends 2017; IBTrACS current, with
   34/50/64-kt wind radii), AIFS Waves (Hs, mean period, sin/cos direction, six >10 s period bands like our
   ECMWF_PERIOD_BANDS, ~10% lower Hs RMSE), and the four-parameter cross-assignment of wave systems (2412.09542).
+
+## 23:35 EDT: merges (#403, #395, #401), wave palette audit, PERIOD RATIO science + surf-chain Jacobian, async compile
+
+- Merged at tested heads: #403 deferred shader status (ea4b8cac, 03:06:28Z), #395 receipts (6021c2cc, 03:06:32Z),
+  #401 model spread, dark (11d19ef0, 03:31:20Z; its ledger lines re-chained 1463/1464 -> 1498/1499 and force-pushed with
+  lease at 8ccca6cac before merge; 18 pass, 1 skipping). E2E Tests on push: success for b240d727 (#402) and ea4b8cac
+  (#403), in progress for 11d19ef0.
+- WAVE PALETTE AUDIT (coloraide OKLCH / dE2000 + Leonardo APCA, marineWavePalette.js stops 0/0.6/1.2/2.4/5/10 m):
+  light ramp L 0.89/0.65/0.59/0.39/0.67/1.00, so calm 0 m (#C7DEF0) and a 10 m storm (#FFFFFF) differ by APCA Lc 18.8
+  (dE2000 12.6); beach ramp L 0.44/0.65/0.83/0.65/0.35/0.97, so 0.6 m (#0DA694) and 2.4 m (#E65F31) are the SAME grey
+  (Lc 0). Neither is monotonic in lightness, so size reads from hue alone (fails colour-blind and outdoor use; the
+  mapbox-cartography skill: outdoor/bright needs higher contrast). Reflection: monotonic L, light->dark on both
+  basemaps, hue secondary, colour-blind check on composited renders. Owner started the redesign session (owner A/B).
+- WeatherLayers GL (read for technique, not adopted): time blend = image + image2 + imageWeight mixed AFTER spatial
+  interpolation, in value space; manual bilinear plus an optional cubic B-spline (16 fetches); alpha 0 unless every tap
+  has data (no smearing into land/missing); Contour and HighLow layers. Our heatmap: hardware bilinear on an 8-bit
+  height texture (3.9 cm steps, capped 10 m).
+- PERIOD RATIO SCIENCE (numerical JONSWAP moments, backend/.venv numpy, 0.01-2 Hz, 400k points):
+  Te/Tp (Te = Tm-1,0) = 0.857 / 0.884 / 0.903 / 0.919 / 0.931 at gamma 1 / 2 / 3.3 / 5 / 7 (Tm01/Tp 0.772-0.878,
+  Tm02/Tp 0.711-0.829). Bimodal 14 s swell (gamma 3.3) + 6 s wind sea: Te/Tp 0.850 / 0.743 / 0.635 / 0.528 at swell
+  energy share 0.9 / 0.7 / 0.5 / 0.3 (Te 7.4 s for a 14 s swell at 0.3). So no constant converts ICON tm10 or
+  Copernicus VTM10 to peak: our world median 0.842 is an average over mixed seas, and the error is largest under local
+  chop, exactly where a groundswell matters. Sent to the peak-period session with Reflection's advice: feed swell and
+  wind-sea partitions separately through estimate_surf_partitioned (not a dominant-by-energy peak), swell-partition
+  peak for a scalar fallback, validate against buoy Tp before any consensus change.
+- SURF-CHAIN JACOBIAN w.r.t. period (dev 11d19ef0, surf_point.estimate_surf_at + compute_surf_rating offline;
+  Trestles / JBay / Pipeline): below the depth cap the v3 path follows Hb ∝ T^0.4 * H0^0.8 (H0 0.8 -> 1.5 m: x1.6535 vs
+  1.875^0.8 = 1.654); dlnHb/dlnT = 0.38-0.40 across incidence 0/30/60 deg and Hs 0.5-3 m, 0.20-0.24 where the depth cap
+  binds (JBay Hs 3 m, 0.81 * 5 m). Rating +2.7 points/s for 6-15 s (period_quality linear). Mixed-sea impact on the
+  ICON member: (7.4/14)^0.4 = -22% height, ~-18 rating points; consensus ~-7% / ~-6 points. Reflection: the exponent
+  is model-defined, not an observation; validate against observations. Recorded, not acted on.
+- Science gap noted (not for now): the obliquity factor is period-independent (x0.946 at 30 deg, x0.797 at 60 deg for
+  every T), whereas real refraction turns long-period swell toward the shore more; spot geometry (shelf width, depth)
+  did not change the shoaling result below the cap at these spots.
+- ASYNC SHADER COMPILE lever: KHR_parallel_shader_compile (MDN browser-compat-data: Chrome 76, Edge, Safari 14.1, iOS
+  Safari; not Firefox) lets the layer poll COMPLETION_STATUS_KHR per frame instead of blocking on the slowest program
+  (#403 still waits ~435-472 ms). Reflection: gate drawing only, not all init; timeout to the blocking path; reset on
+  context loss; stop polling once done. Proposed as its own session (card), kill switch
+  __RAW_DISABLE_ASYNC_SHADER_COMPILE__.
+- Tools tried this round: Context7 (MapLibre custom-layer docs: nothing new on state reset), MCP registry (marine:
+  solanometeo + Nausika already connected; Xweather tropical tools not connected), claude.ai skill search (none for
+  animation/flow), Readwise library and the mem0 store (nothing on waves), HF paper search (no forecast-field temporal
+  interpolation work; GLONET and AIFS ocean are the current data-driven ocean systems).
+
+## 04:20 EDT (08:20Z): overnight merge queue, integration test, buoy science
+
+Owner 00:02 EDT: "Make sure to merge everything, test everything. Especially at the end of all the subagents work. Then
+push a final product." Then at 00:08 EDT the owner went to bed with "Keep going. Dig deeper and learn more knowledge."
+
+**Merged at tested heads (all green):**
+- #404 crest period cue (b689984c3; merged by its own session);
+- #405 marine FBO-status cache + teardown skip (edced5395);
+- #409 the same for wind (998e9e919);
+- #407 CMEMS = Meteo-France MFWAM labels (fc4579a60);
+- #408 land-mask fast paths, byte-identical (2f8cf224e);
+- #410 KHR_parallel_shader_compile (60fc1954c);
+- #412 COPERNICUS_PEAK_PERIOD + ICON_PEAK_PERIOD, DARK with both flags '0' (5cc77db14).
+
+**Ledger forks:** every PR opened at seq 1500/1505. The lead re-chained #405, #407, #408, #410 and #412 in turn, using
+scratchpad rechain.sh:
+- rebase onto dev, keep dev's ACTIONS.jsonl, re-append each line with acted_at;
+- an anchor-only STATE conflict resolves to dev, then the anchor is rewritten;
+- remap the PR's own log seq refs;
+- push with --force-with-lease pinned to the old head.
+
+#412 had already merged dev once, so a rebase replayed a pre-#407 ci.yml commit; merging origin/dev into it conflicted
+only on the ledger.
+
+**Not merged, owner decisions:**
+- #411 wave palettes, a draft waiting for the owner's A or B pick (10 m cap kept; widening to 16 m is its own later A/B);
+- promoting dev to main (BRAIN_RULES §22 handshake).
+
+**CI catches:**
+- #410 failed the LOC ratchet (WebGLMarineEngine.js +10); its session moved the lines out.
+- #412 failed 2 chain-lane guards (test_cmems_period_window: wave_period_tm10 had no windowed-height pairing). Its
+  session fixed it without weakening the guard, adding a flag-on window test with a mutation check. The chain lane then
+  read 2843 tests across 172 files.
+
+**Integration test of the final frontend (dev 60fc1954c; #412 changes no frontend file):**
+- Jest src/components/map + src/tests: 340/340 suites, 5,052 tests. ESLint ratchet passes. craco build compiles.
+- Offline lab (6 owner flows, synthetic backend :4190, SPA :3190): 0 flow failures, 0 failed requests, marine
+  never-correct 0, wind never 3 (3-hourly synthetic ICON wind snaps to the nearest frame, as before).
+- Theme x device smoke (dark / light / beach x 1280 px / 390 px DPR 3): 6/6 load the wave field with 0 page errors. The
+  4 console errors are offline artefacts (RainViewer aborted, surf spots stubbed).
+- WebGL context loss/restore, waves + wind, with and without #402/#405/#409's caches and with #410 on: recovers with
+  gl.getError 0 and 0 page errors. Against a no-loss control, the heatmap is back within about 10 s.
+- Lab noise: a paired same-hour run of b689984c3 vs 2f8cf224e read 3 vs 2 wind-never and 19 vs 16 silent frames, while
+  an unpaired baseline read 8. Compare builds only with interleaved runs, >= 3 per arm.
+- Served: dev Netlify served BUILD_VERSION 998e9e91 with the #402-#405-#409 kill switches in chunk 1451 (all 104 chunks
+  downloaded and grepped). E2E Tests on push passed for b689984c3 and edced5395.
+
+**Science (external data only; the live box was never touched):**
+- PERIOD, 9 NDBC buoys, about 6,250 h (NDBC realtime2 DPD/APD; Open-Meteo marine past_days=30), model/buoy DPD:
+  - ECMWF peak 0.979, GFS PERPW 0.975;
+  - DWD GWAM mean (= ICON tm10) 0.873 overall, 0.736 when buoy DPD/APD >= 1.6;
+  - Meteo-France mean 0.900 / 0.772;
+  - flat across leads 1/3/5 d, so the ICON period bias is definitional. #412's own 128-buoy check agrees (blend
+    1.816 s vs tm10 2.363 s MAE).
+- CONSENSUS by lead (Open-Meteo previous_day1/3/5, same buoys, Hs MAE m):
+  - equal mean 0.167 / 0.209 / 0.296 beats the best member, ECMWF (0.172 / 0.223 / 0.321);
+  - leave-one-buoy-out skill weights gain only 3.6 / 2.4 / 1.0 % and converge to equal;
+  - global per-model bias correction gains -2 to +1 %;
+  - spread-error Spearman is 0.09 at day 1 and 0.26 at day 5.
+  - The owner's equal-mean decision is supported.
+- INTERPOLATION hold-out on real hourly GFS-Wave (Open-Meteo, 3 regions x 72 h, 2 deg):
+  - temporal Catmull-Rom beats linear by 15-30 % (MAE and storm core), with peak retention median 0.996-0.999 at 3 h;
+  - optical-flow and group-speed advection lose to linear, although a translating-storm positive control shows the
+    code works;
+  - at 6 h gaps typhoon peaks drop to 0.75-0.78 under any method, so cadence is the storm lever.
+- CORRECTION of the 23:35 section's "science gap": on straight parallel contours, Snell refraction is nearly
+  period-independent (Kr 0.946 -> 0.934 at 30 deg, 0.745 -> 0.714 at 60 deg over 6-18 s). The real period effect is
+  headland/bay focusing.
+- LICENCE: CMEMS requires the credit "Generated using E.U. Copernicus Marine Service Information" plus the product DOI
+  (10.48670/moi-00017 per the Earth Engine citation; confirm). The app credits nothing. Card task_b201a22c proposed.
+- Literature: 2609.30688 (univariate DL Hs forecasting at buoys has hit diminishing returns; covariates are needed).
+  Bias correction must therefore be conditional on model fields + wind.
+- Reflection (Beam) reviewed the period/Jacobian/async-compile design, the interpolation result and the ranked
+  roadmap. Its correction: hourly frames are a bigger storm lever than CDN speed. The lead's coupling note: hourly
+  frames need CDN frames first, or they triple the box's load.
+
+Morning report (private): https://claude.ai/artifact/B2SKgyzwwBvuZosdAqyYdQ

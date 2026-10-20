@@ -115,6 +115,28 @@ const PROBE = (patterns) => {
     return { ...S, counts, ltN: lt.length, ltMax: Math.round(lt.reduce((a, x) => Math.max(a, x[1]), 0)), end: W.snap() }; };
 };
 
+// ---- load probe (2026-10-20, async shader compile): from page start, per animation frame, until the first heatmap draw ----
+// firstLayerCall / firstDraw: the marine custom layer's first render() call and its first real heatmap draw (`__RAW_GPU__.layer.n`
+// counts layer calls, `__RAW_GPU__.opacity.n` heatmap draws), each with the page's rAF frame index and ms since navigation.
+// shaderBatch: the engines' batch telemetry (WebGLProgramBatch.publishBatch: mode async|deferred|serial, polls, ms) when it settled.
+const LOAD_PROBE = () => {
+  const L = (window.__LAB_LOAD__ = { frames: 0, firstLayerCall: null, firstDraw: null, marineBatch: null, windBatch: null });
+  const at = (g) => ({ t: Math.round(performance.now()), frame: L.frames, layerCalls: (g.layer && g.layer.n) || 0 });
+  const tick = () => {
+    L.frames++;
+    const g = window.__RAW_GPU__;
+    if (g) {
+      if (!L.firstLayerCall && g.layer && g.layer.n >= 1) L.firstLayerCall = at(g);
+      const b = g.shaderBatch || {};
+      if (!L.marineBatch && b.marine) L.marineBatch = { ...at(g), ...b.marine };
+      if (!L.windBatch && b.wind) L.windBatch = { ...at(g), ...b.wind };
+      if (!L.firstDraw && g.opacity && g.opacity.n >= 1) L.firstDraw = at(g);
+    }
+    if (!L.firstDraw && performance.now() < 60000) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+};
+
 // ---- helpers ----
 // LIVE mode: real backend through the dev server (mock auth), with zoomlab's badge stub so the refused mock token never redirects
 // to sign-in. Requests are logged from the page (path, query, status, duration). One bounded run, /api/health probed by the caller.
@@ -211,6 +233,7 @@ const FLOWS = {
       const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
     if (process.env.LAB_KILLS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_KILLS.split(','));   // A/B: kill switches set before the app boots
     await page.addInitScript(PROBE, Object.fromEntries(Object.entries(PATTERNS).map(([k, v]) => [k, v.source])));
+    await page.addInitScript(LOAD_PROBE);
     // Console patterns counted from Node (page.on('console')): independent of any in-page console override.
     const ccount = Object.fromEntries(Object.keys(PATTERNS).map((k) => [k, 0]));
     page.on('console', (m) => { const t = m.text(); for (const k in PATTERNS) if (PATTERNS[k].test(t)) ccount[k]++; });
@@ -229,6 +252,8 @@ const FLOWS = {
       if (flow.setup.model && !(await pressed(page, flow.setup.model))) await clickExact(page, flow.setup.model);
       await sleep(9000);
       fr.setupPressed = await page.evaluate(() => [...document.querySelectorAll('button[aria-pressed="true"]')].map((b) => (b.textContent || '').trim()).filter(Boolean));
+      fr.load = await page.evaluate(() => ({ ...window.__LAB_LOAD__, windBatchNow: (window.__RAW_GPU__ && window.__RAW_GPU__.shaderBatch && window.__RAW_GPU__.shaderBatch.wind) || null }));
+      console.log(name, 'load', JSON.stringify(fr.load));
       if (flow.setup.hour) { await seek(page, flow.setup.hour); await sleep(6000); }
       const clip = { x: Math.round(size.width * 0.15), y: Math.round(size.height * 0.2), width: Math.round(size.width * 0.7), height: Math.round(size.height * 0.45) };
       let state = { model: flow.setup.model, layer: flow.setup.layers.find((l) => l !== 'wind') || null, hour: flow.setup.hour || 0, wind: flow.setup.layers.includes('wind') };

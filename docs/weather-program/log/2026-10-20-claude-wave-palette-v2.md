@@ -116,3 +116,12 @@ wash their weakest colour-blind neighbours fall to 3.4-5.6, their pale or black 
 magma ends in grey-black (checker run on each). **The largest lever is the engine's, not the palette's:** for every palette the
 wash alpha rising 0.65 -> 0.77 with zoom moves one height's colour by up to ~2/3 of a legend step; the swell lighting ~1/3.
 The recommendation is mine from these numbers; the pick is the owner's.
+
+## 2026-10-20 12:28Z: ledger re-chained (correction to "Ledger 1504 (`pr_open`), 1505 (`commitment` ...)" above)
+
+Dev's #406 appended ledger lines 1504-1531 in parallel; my two lines were re-appended after them unchanged except for `seq`,
+`prev` and `at` (their true times kept in `acted_at`): **1532 (`pr_open`), 1533 (`commitment`)**, and the Jacobian's
+`finding` is **1534**. The numbers 1504/1505 above are superseded.
+
+Correction (2026-10-20 12:29Z): the Jacobian section's header above says "~12:30Z"; it was written at 12:23Z (an estimate
+that ran ahead of the clock, LESSONS L-P10). Ledger `correction` line names it.

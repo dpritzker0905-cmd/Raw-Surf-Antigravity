@@ -30,6 +30,12 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "COPERNICUS_PEAK_PERIOD": ("0", "CMEMS (MFWAM) total wave_period from VTPK, the spectral PEAK period the surf chain is written for, instead of VTM10 (energy period Tm-1,0, kept as wave_period_tm10); CMEMS partitions keep VTM01 (no partition peak exists). services/cmems_period_map.py",
+                               "forecast-ingest, forecast-ingest-pilots and precompute workflow env AND Render env together (Render serves the native CMEMS /point)"),
+    "ICON_PEAK_PERIOD": ("0", "DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py",
+                         "forecast-ingest, forecast-ingest-pilots and precompute workflow env together; NOT Render (no GWAM fetch on the box)"),
+    "ICON_PEAK_PERIOD_SHARPNESS": ("2", "Exponent p of the ICON_PEAK_PERIOD blend w_i ~ (H_i^2 Tp_i)^p (1 = energy-weighted, larger -> toward the dominant peak; never a hard switch). Inert while ICON_PEAK_PERIOD is 0",
+                                   "same lanes as ICON_PEAK_PERIOD, same value"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),

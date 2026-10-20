@@ -1,0 +1,67 @@
+name: Peak-period validation (offline evidence, serves nothing)
+
+# WHY: COPERNICUS_PEAK_PERIOD and ICON_PEAK_PERIOD are dark flags (served periods). Their evidence needs CMEMS VTPK/VTM10,
+# which only the Copernicus credentials in this repo's Actions secrets can read. This job runs
+# backend/scripts/peak_period_validation.py with --cmems: NDBC buoy DPD vs every period definition, 3-hour continuity, and
+# the production surf chain re-run at the tracked spot catalogue with old vs new periods. It reads NDBC, Open-Meteo and
+# CMEMS only; it never calls the Raw Surf backend and writes no Storage, manifest or product. Output: the step summary
+# plus a JSON/markdown artifact. Manual (workflow_dispatch) on dev; also runs on pushes to the PR branch that build it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: 'Buoy window in days (<= 45, NDBC realtime2)'
+        default: '30'
+  push:
+    branches: [claude/peak-period-flags]
+    paths:
+      - backend/scripts/peak_period_validation.py
+      - backend/scripts/peak_period_fetch_proof.py
+      - .github/workflows/peak-period-validation.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: peak-period-validation
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Prove both flags on real upstream files (production fetchers, flag off vs on)
+        working-directory: backend
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python scripts/peak_period_fetch_proof.py --gwam --cmems | tee ../fetch_proof.txt
+
+      - name: Run the validation (CMEMS + Open-Meteo + NDBC)
+        working-directory: backend
+        env:
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          DAYS: ${{ github.event.inputs.days || '30' }}   # via env, never interpolated into the shell line
+        run: python scripts/peak_period_validation.py --out ../ppv --days "$DAYS" --cmems
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: peak-period-validation
+          path: |
+            ppv/
+            fetch_proof.txt
+          if-no-files-found: warn

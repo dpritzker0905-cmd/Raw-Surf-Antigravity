@@ -91,6 +91,13 @@ except ImportError:
                                         energy_mean_height_block, energy_mean_scalar_block)  # package context
     from services._fetch_blockmean_vec import (direction_block_batch, height_block_batch,
                                                multi_dir_conf_batch, scalar_block_batch)
+# ICON_PEAK_PERIOD (dark, default off): partition PEAK periods + a smooth blended total (gwam_peak_period.py).
+try:
+    from gwam_peak_period import (derive_total_series, peak_period_enabled,  # script-by-path
+                                  with_peak_period as _gwam_peak_map)
+except ImportError:
+    from services.gwam_peak_period import (derive_total_series, peak_period_enabled,  # package context
+                                           with_peak_period as _gwam_peak_map)
 # Module top, in the script/package idiom: production spawns this file by path (hotfix 2026-09-29; see the GFS
 # fetcher's note and tests/test_fetcher_script_imports.py).
 try:
@@ -236,8 +243,17 @@ def fetch_global_coarse(payload):
     # reads its EXACT cell through the SAME reductions (doubled views for the batch forms, 1x1 slices for the scalar
     # ones), so the direction confidence keeps its meaning. The GFS lane has the same switch.
     nat = _native_enabled() and is_native(resolution)
+    # ICON_PEAK_PERIOD (dark): the fetched map, its order and units are decided HERE, at call time. Flag off ->
+    # VAR_MAP / OM_ORDER / OM_UNITS exactly. Flag on -> ppts/ppww partitions, tm10 as wave_period_tm10, and
+    # wave_period derived after the loop from the two partition peaks (derive_total_series).
+    peak = peak_period_enabled()
+    var_map = _gwam_peak_map(VAR_MAP)
+    # PERIOD_TO_HEIGHT pairs the default map's periods; the flag's tm10 diagnostic is a TOTAL-sea period -> total height.
+    period_to_height = {**PERIOD_TO_HEIGHT, **{om: "wave_height" for _, om, _ in var_map if om == "wave_period_tm10"}}
+    om_order = [om for _, om, _ in var_map] + (["wave_period"] if peak else [])
+    om_units = {**{om: u for _, om, u in var_map}, **({"wave_period": "s"} if peak else {})}
     # The confidence series is initialized WITH the variables so failed steps keep it time-aligned.
-    series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
+    series_keys = om_order + ([DIR_CONFIDENCE_OM] if export_confidence else [])
     series_by = {rid: [{om: [] for om in series_keys} for _ in range(len(la) * len(lo))]
                  for rid, (la, lo) in axes.items()}
     idx_by = None    # rid -> [(r, c), ...] built together on the first decoded message
@@ -252,7 +268,7 @@ def fetch_global_coarse(payload):
         height_arrs = {}
         try:
             # Decode each variable's single-message file for this forecast hour ONCE; sample all regions.
-            for var, om, _u in VAR_MAP:
+            for var, om, _u in var_map:
                 url = f"{BASE}/{run}/{var}/GWAM_{var.upper()}_{date}{run}_{f:03d}.grib2.bz2"
                 out = None
                 try:
@@ -280,7 +296,7 @@ def fetch_global_coarse(payload):
                         height_arrs[om] = arr
                     h_arr = height_arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                     is_height = scalar_blockmean and om in HEIGHT_VARS
-                    p_h_arr = height_arrs.get(PERIOD_TO_HEIGHT[om]) if (scalar_blockmean and om in PERIOD_TO_HEIGHT) else None
+                    p_h_arr = height_arrs.get(period_to_height[om]) if (scalar_blockmean and om in period_to_height) else None
                     _conf_here = export_confidence and om == "wave_direction"
                     for rid, im in idx_by.items():
                         series = series_by[rid]
@@ -416,6 +432,15 @@ def fetch_global_coarse(payload):
     if idx_by is None:
         return ({} if multi else []), 0, steps_failed, None
 
+    if peak:   # the blended total peak period, per point, from the partition peaks just fetched
+        fell_back = 0
+        for series in series_by.values():
+            for pt in series:
+                pt["wave_period"], _fb = derive_total_series(pt)
+                fell_back += _fb
+        sys.stderr.write(f"[dwd_gwam_fetcher] ICON_PEAK_PERIOD on: total period blended from ppts/ppww; "
+                         f"{fell_back} values fell back to tm10\n")
+
     def _assemble(rid):
         lats, lons = axes[rid]
         series = series_by[rid]
@@ -431,7 +456,7 @@ def fetch_global_coarse(payload):
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
                     "__provider": "dwd", "__model_run_time": cycle_dt.isoformat(),
-                    "hourly_units": {"time": "iso8601", **OM_UNITS,
+                    "hourly_units": {"time": "iso8601", **om_units,
                                      **({DIR_CONFIDENCE_OM: "fraction"} if export_confidence else {})},
                     "hourly": hourly,
                 })

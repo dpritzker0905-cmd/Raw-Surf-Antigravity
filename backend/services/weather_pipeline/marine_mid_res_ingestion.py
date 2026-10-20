@@ -238,8 +238,9 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
     total_saved = 0
     resolution = float(os.environ.get("EURO_MID_RES", "2.0"))
     cop_days = int(os.environ.get("EURO_MID_RES_DAYS", "2" if env["is_test_env"] else "10"))
+    # CMEMS = Météo-France MFWAM (ECMWF-wind-driven), not ECMWF's own wave model: renamed 2026-10-20.
     _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset",
-                  "source_model": "ecmwf_wam_cmems_glo_0083"}
+                  "source_model": "mfwam_cmems_glo_0083"}
 
     ecmwf_direct = os.environ.get("EURO_MARINE_MID_ECMWF", "1") != "0"
     if ecmwf_direct:

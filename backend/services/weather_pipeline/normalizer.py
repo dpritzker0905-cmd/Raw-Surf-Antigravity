@@ -580,11 +580,13 @@ class WeatherNormalizer:
             source_dataset = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
             up_provider = "copernicus"
             up_model = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
-            # Map standard variables to CMEMS variable names
+            # Map standard variables to CMEMS variable names (the total period's variable follows
+            # COPERNICUS_PEAK_PERIOD, so the product's provenance names what was actually fetched).
+            from services.cmems_period_map import peak_period_enabled as _cmems_peak
             om_to_cop_map = {
                 "wave_height": "VHM0",
                 "wave_direction": "VMDR",
-                "wave_period": "VTM10",
+                "wave_period": "VTPK" if _cmems_peak() else "VTM10",
                 "swell_wave_height": "VHM0_SW1",
                 "swell_wave_direction": "VMDR_SW1",
                 "swell_wave_period": "VTM01_SW1",
