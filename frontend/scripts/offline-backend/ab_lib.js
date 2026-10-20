@@ -60,12 +60,14 @@ const TEX_SPY = (hashUploads = false) => {
 // public routes, nothing is written) so a built client can be looked at against production data. Everything else stays stubbed and every
 // socket stays closed. It is real load on the 1-CPU box (a map load asks for three 48-frame world pages): one run at a time, /api/health
 // probed before and after, never in a loop. `hooks.afterWeather(url, resp)` sees each weather response (resp.body()) before it is delivered.
-async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {}, hashTextureUploads = false, live = process.env.AB_LIVE === '1' } = {}) {
+// `video: <dir>` records the page as a .webm there (Playwright recordVideo; the file is written when the context closes).
+async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {}, hashTextureUploads = false, live = process.env.AB_LIVE === '1', video = null } = {}) {
   if (!port && !live) throw new Error('launch({ port }) needs the synthetic backend port');
   const args = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-unsafe-swiftshader'];
   if (gpu) args.push('--use-angle=d3d11');
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args });
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, serviceWorkers: 'block',
+    ...(video ? { recordVideo: { dir: video, size: { width, height } } } : {}) });
   const page = await ctx.newPage();
   const log = { requests: [], console: [], errors: [], t0: Date.now(), stubbed: 0, aborted: 0, blockedWs: [], hosts: {} };
   // page.route does NOT see WebSockets: the app opens wss://<api host>/api/ws/... (calls, realtime) and an unrouted socket

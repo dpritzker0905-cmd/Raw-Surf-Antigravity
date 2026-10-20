@@ -25,7 +25,7 @@ import {
   reinitParticles
 } from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker';
-import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
+import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
 
 function latToMercatorY(lat) {
   var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -772,7 +772,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0); this._advAttached = true;
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
@@ -794,7 +794,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
     if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
   }
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
   // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
@@ -997,11 +997,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   } finally {
     if (gl && !gl.isContextLost() && webglState) {
-      if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
+      if (this.advFBO && advTeardownNeeded(this, undefined, 'windAdvTeardown') && gl.isFramebuffer(this.advFBO)) {   // only when left attached (advFboSync.js)
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
           if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === this.advFBO) {
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
           }
         } catch (e) {}
       }
