@@ -94,3 +94,25 @@ The lead session answered after the PR opened: keep the ramp capped at the true 
 state and the 33+ ft / 10+ m arrow (option a, as built). Widening the encoding to 16 m changes what the crests read, so it is
 its own PR and A/B after the owner picks A or B here; #411 stays a draft until that pick. (The lead's words, relayed by
 session message; not the owner's.)
+
+## 2026-10-20 ~12:30Z: the Jacobian (owner: "What is more state of the art? A or B? Use jacobian lens to help us decide")
+
+`frontend/scripts/wind-color/wave-jacobian.mjs` + `wave_jacobian.py` (evidence `wave-palette-v2-jacobian-2026-10-20.json`): every
+lever that moves the on-screen colour, in CAM16-UCS, as composited at world alpha; nuisances in legend steps.
+
+| | heights told apart | even steps | lightness share | colour-blind kept | zoom drift mean/max | swell max |
+|---|---|---|---|---|---|---|
+| light A | 29.4 | 0.75 | 63% | 78% | 0.31 / 0.66 | 0.29 |
+| light B | 27.3 | 0.61 | 72% | 75% | 0.42 / 0.81 | 0.33 |
+| beach A | 23.0 | 0.64 | 73% | 76% | 0.30 / 0.67 | 0.36 |
+| beach B | 26.4 | 0.58 | 62% | 79% | 0.31 / 0.64 | 0.33 |
+| viridis (reversed), either theme | 33 | 0.84 | 60% | 76-77% | 0.32-0.35 / 0.62-0.66 | 0.26 |
+
+Read: **light A** (more heights told apart, the most even steps of the six after viridis, less zoom drift, clearer crests and
+above-cap); **beach B, narrowly** (more heights, wider weakest neighbours 6.5 vs 5.3, clearer crests 8.8 vs 6.8, more visible
+legend end; A is a little more even). By perceptual uniformity, the literature's first test, A light is closest to viridis and
+its family (YlGnBu) beats B's (BuPu: even 0.60 vs 0.37) in this wash. The published maps themselves do not transfer: through the
+wash their weakest colour-blind neighbours fall to 3.4-5.6, their pale or black ends vanish on the legend panels (APCA 0), and
+magma ends in grey-black (checker run on each). **The largest lever is the engine's, not the palette's:** for every palette the
+wash alpha rising 0.65 -> 0.77 with zoom moves one height's colour by up to ~2/3 of a legend step; the swell lighting ~1/3.
+The recommendation is mine from these numbers; the pick is the owner's.

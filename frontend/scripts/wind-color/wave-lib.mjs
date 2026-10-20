@@ -62,10 +62,10 @@ export function washAt(P, theme, h) {
 /** What one wash pixel looks like on screen over the water: alpha a, swell lighting `dir` (0..1). Under 0.18 m the shader blends from
  *  its depth floor; `floor: false` reads the table's own colour there instead (a LEGEND STOP as composited: the 0 m stop is the
  *  table's calm, not the flat-water floor, which is the shader's and is reported on its own line). */
-export function composite(P, theme, h, a, dir = 0.5, floor = true) {
+export function composite(P, theme, h, a, dir = 0.5, floor = true, waterRGB = null) {   // waterRGB (0-255): another ground (wave-jacobian.mjs)
   const W = floor ? mix(DEPTH_FLOOR[theme], washAt(P, theme, h), ss(0, 0.18, h)) : washAt(P, theme, h);
   const lit = W.map((v, i) => v + LIGHTING[i] * dir * ss(0.1, 3.0, h));
-  const water = BASEMAP[theme].water.map((v) => v / 255);
+  const water = (waterRGB || BASEMAP[theme].water).map((v) => v / 255);
   return clamp01(clamp01(lit).map((v, i) => v * a + water[i] * (1 - a)));
 }
 

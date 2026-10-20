@@ -275,6 +275,16 @@ DRAW_FS's colours at their 0.85 core alpha, with the whitecap the shader allows 
 distance: a pulsing ramp. `wave-solve.mjs` lays falls of 4-16 L*, chroma steps of at most 12 and hue turns of 8-45 degrees
 by construction, and scores the soft minimum over every pair and view.
 
+**The Jacobian (`wave-jacobian.mjs` + `wave_jacobian.py`; owner 2026-10-20: "use jacobian lens to help us decide").** Every
+input that moves the on-screen colour, at once, in CAM16-UCS (coloraide's extended build, the space colorcet and colorspacious
+judge maps in): the signal (height along the legend axis: perceptual length, how even the legend steps are, the share carried
+by lightness, what each dichromat keeps) against the nuisances that move one and the same height (zoom: wash alpha 0.65 -> 0.77;
+the swell lighting's texture; the basemap water 4% lighter or darker; one 8-bit height step), each in legend steps. Published
+maps (ColorBrewer YlGnBu and BuPu, viridis and magma reversed) are laid through the same wash on the same anchors as yardsticks.
+`node wave-jacobian.mjs [--no-refs] [--json f] [--out f]`. Its first read (2026-10-20): light A beats B on heights told apart,
+even steps and zoom drift; beach B beats A on heights told apart and the checker's lines; for EVERY palette zoom moves a height's
+colour by up to ~2/3 of a legend step (the engine's alpha, not the palette).
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models
