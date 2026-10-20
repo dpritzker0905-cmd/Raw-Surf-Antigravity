@@ -20,7 +20,8 @@
 //     --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind
 //   node frontend/scripts/offline-backend/serve_spa.js frontend/build 3100
 //   PORT=4103 OUT=lab-out node frontend/scripts/visual-lab/lab.js
-// Env: FLOWS (comma list, default all), VIEW (desktop|phone), LAT_SERIES / LAT_GRID (ms injected per request), LAB_TRACE=1.
+// Env: FLOWS (comma list, default all), VIEW (desktop|phone), LAT_SERIES / LAT_GRID (ms injected per request), LAB_TRACE=1
+// (also writes profile.json, a V8 CPU profile on the same clock: attribute main-thread stalls with stall_profile.js).
 // LIVE: AB_LIVE=1 replays against the REAL backend — real load on the 1-CPU box that serves production: one run at a time,
 // /api/health probed before and after, never in a loop, only on the owner's word (CLAUDE.md).
 const fs = require('fs');
@@ -69,7 +70,7 @@ const PROBE = (patterns) => {
     const w = wheel();
     return { wheel: w ? Number(w.getAttribute('aria-valuenow')) : null,
       mHour: mg ? mg.hourOffset : null, mLayer: mg ? mg.__componentLayer : null, mModel: mg ? mg.__sourceModel : null,
-      mSeries: !!(mg && mg.__fromSeries), drawn: window.__MARINE_DRAWN__ || null,
+      mSeries: !!(mg && mg.__fromSeries), drawn: window.__MARINE_DRAWN__ || null, switchAborts: window.__SERIES_SWITCH_ABORTS__ || 0,
       wHour: wg ? (wg.hourOffset || 0) : null, wModel: wg ? (wg.__sourceModel || wg.model || null) : null,
       status };
   };
@@ -78,7 +79,11 @@ const PROBE = (patterns) => {
     const S = W.step;
     if (S && !S.done) {
       const s = W.snap();
-      if (prev != null) { const dt = t - prev; S.frames++; if (dt > 50) S.gaps++; if (dt > S.maxGap) S.maxGap = dt; }
+      if (prev != null) { const dt = t - prev; S.frames++; if (dt > 50) S.gaps++; if (dt > S.maxGap) S.maxGap = dt;
+        // HEATMAP DIM (2026-10-19, owner: "heatmap dimming"): the custom layer's opacity multiplier; 0.4 = the stale-world-hour dim
+        // (marineStaleHour.STALE_WORLD_DIM), 0.45-0.95 = a provisional/transition fade.
+        const op = window.__RAW_GPU__ && window.__RAW_GPU__.opacity; const mu = op && Number.isFinite(op.mult) ? op.mult : null;
+        if (mu != null && S.expect.marine) { if (mu <= 0.45) S.dimStale += dt; else if (mu < 0.95) S.dimSoft += dt; if (mu < S.minMult) S.minMult = mu; } }
       if (S.tIn != null && t >= S.tIn) {
         const rel = t - S.tIn;
         const admitted = /Loading|nearest|Estimated|Verifying|does not match/i.test(s.status);
@@ -104,13 +109,32 @@ const PROBE = (patterns) => {
   };
   requestAnimationFrame(loop);
   W.arm = (expect) => { W.step = { expect, tIn: null, mOk: null, wOk: null, mSilent: 0, mAdm: 0, wOff: 0, frames: 0, gaps: 0, maxGap: 0,
-    lt0: W.lt.length, c0: { ...W.counts }, mSameInstant: 0 }; };
+    lt0: W.lt.length, c0: { ...W.counts }, mSameInstant: 0, dimStale: 0, dimSoft: 0, minMult: 1 }; };
   W.read = () => { const S = W.step; const lt = W.lt.slice(S.lt0);
     const counts = Object.fromEntries(Object.keys(W.counts).map((k) => [k, W.counts[k] - (S.c0[k] || 0)]));
     return { ...S, counts, ltN: lt.length, ltMax: Math.round(lt.reduce((a, x) => Math.max(a, x[1]), 0)), end: W.snap() }; };
 };
 
 // ---- helpers ----
+// LIVE mode: real backend through the dev server (mock auth), with zoomlab's badge stub so the refused mock token never redirects
+// to sign-in. Requests are logged from the page (path, query, status, duration). One bounded run, /api/health probed by the caller.
+async function liveLaunch(base, size) {
+  const { chromium } = require('playwright');
+  const browser = await chromium.launch({ headless: true, args: ['--use-gl=angle', '--enable-webgl', '--ignore-gpu-blocklist'] });
+  const page = await (await browser.newContext({ viewport: { width: size.width, height: size.height }, deviceScaleFactor: size.dpr || 1 })).newPage();
+  await page.addInitScript(() => { const m = { register: () => new Promise(() => {}), ready: new Promise(() => {}), addEventListener() {}, removeEventListener() {},
+    getRegistration: () => Promise.resolve(null), getRegistrations: () => Promise.resolve([]) }; Object.defineProperty(navigator, 'serviceWorker', { get() { return m; }, configurable: true }); });
+  if (process.env.AB_DIAG) await page.addInitScript(() => { window.__AB_DIAG__ = true; });
+  await require('../zoomlab-harness.cjs').stubZoomlabMessageBadge(page);
+  const log = { requests: [], errors: [], blockedWs: [] }; const t0 = Date.now(); const starts = new Map();
+  page.on('request', (r) => { if (/\/api\/weather\//.test(r.url())) starts.set(r, Date.now()); });
+  const done = (r, status, error) => { if (!starts.has(r)) return; const u = new URL(r.url()); const st = starts.get(r); starts.delete(r);
+    log.requests.push({ t: st - t0, ms: Date.now() - st, path: u.pathname.replace(/^\/api\/weather/, ''), q: Object.fromEntries(u.searchParams), status, error }); };
+  page.on('requestfinished', async (r) => { let s = null; try { s = (await r.response()).status(); } catch (e) { /* gone */ } done(r, s, null); });
+  page.on('requestfailed', (r) => done(r, null, (r.failure() || {}).errorText || 'failed'));
+  page.on('pageerror', (e) => log.errors.push(String(e && e.message).slice(0, 200)));
+  return { browser, page, log };
+}
 async function clickExact(page, text) {
   const loc = page.locator('button').filter({ hasText: new RegExp(`^\\s*${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`) }).filter({ visible: true }).first();
   await loc.waitFor({ state: 'visible', timeout: 15000 }); await loc.evaluate((el) => el.click());
@@ -166,6 +190,11 @@ const FLOWS = {
   model_switch_future: { setup: { model: 'GFS', layers: ['waves'], hour: 48 }, view: [-80, 25, 3.5],
     steps: [['ICON', { model: 'ICON' }], ['EURO', { model: 'EURO' }], ['GFS', { model: 'GFS' }]] },
   // pan and zoom while a future hour is selected.
+  // the owner's erratic session (2026-10-19 21:20Z console): long scrubs, model and layer switches, wind, pan/zoom, fast toggles.
+  erratic: { setup: { model: 'GFS', layers: ['waves'] }, view: [-75, 30, 3],
+    steps: [['+5h', 5], ['+45h', 45], ['+131h', 131], ['EURO', { model: 'EURO' }], ['Wind Waves', { layer: 'wind_waves' }], ['+153h', 153],
+      ['ICON', { model: 'ICON' }], ['Swell 2', { layer: 'swell_2' }], ['+165h', 165], ['zoom 8', { view: [-80, 27, 8] }], ['pan', { view: [-76, 28, 8] }],
+      ['zoom out 3', { view: [-75, 30, 3] }], ['Waves', { layer: 'waves' }], ['GFS', { model: 'GFS' }], ['+12h', 12], ['Swell', { layer: 'swell_1' }], ['Waves again', { layer: 'waves' }]] },
   pan_zoom_future: { setup: { model: 'ICON', layers: ['waves'], hour: 24 }, view: [-80, 25, 3.5],
     steps: [['zoom 6', { view: [-80, 26, 6] }], ['zoom 8', { view: [-80, 26, 8] }], ['pan east', { view: [-77, 26, 8] }], ['zoom out 4', { view: [-80, 25, 4] }], ['+3h after zoom', 27]] },
 };
@@ -177,7 +206,8 @@ const FLOWS = {
   const results = { env: { PORT, VIEW, LAT_SERIES, LAT_GRID, live: process.env.AB_LIVE === '1', startedUtc: new Date().toISOString() }, flows: [] };
   for (const name of which) {
     const flow = FLOWS[name]; if (!flow) continue;
-    const { browser, page, log } = await L.launch({ port: PORT, ...size, hooks: { beforeWeather: async (url) => {
+    const LIVE = process.env.LAB_LIVE_BASE;   // e.g. http://localhost:3009: dev server on the LIVE backend, set up as the nightly does
+    const { browser, page, log } = LIVE ? await liveLaunch(LIVE, size) : await L.launch({ port: PORT, ...size, hooks: { beforeWeather: async (url) => {
       const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
     if (process.env.LAB_KILLS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_KILLS.split(','));   // A/B: kill switches set before the app boots
     await page.addInitScript(PROBE, Object.fromEntries(Object.entries(PATTERNS).map(([k, v]) => [k, v.source])));
@@ -188,10 +218,12 @@ const FLOWS = {
 `); }); }   // LAB_CONSOLE=<regex>: matching lines to OUT/console-<flow>.txt
     const cdp = process.env.LAB_TRACE === '1' && name === which[0] ? await page.context().newCDPSession(page) : null;
     const traceChunks = [];
-    if (cdp) { cdp.on('Tracing.dataCollected', (e) => traceChunks.push(...e.value)); await cdp.send('Tracing.start', { categories: 'devtools.timeline,v8.execute,disabled-by-default-devtools.timeline.frame,toplevel,blink.user_timing' }); }
+    if (cdp) { cdp.on('Tracing.dataCollected', (e) => traceChunks.push(...e.value)); await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: +(process.env.LAB_SAMPLE_US || 250) }); await cdp.send('Profiler.start'); await cdp.send('Tracing.start', { categories: 'devtools.timeline,v8.execute,disabled-by-default-devtools.timeline.frame,toplevel,blink.user_timing,v8,disabled-by-default-v8.cpu_profiler,disabled-by-default-v8.gc' }); }
     const fr = { name, steps: [] };
     try {
-      await L.openMap(page); await L.jump(page, ...flow.view);
+      if (LIVE) { await page.goto(LIVE + '/map', { waitUntil: 'domcontentloaded', timeout: 60000 }); await require('../zoomlab-harness.cjs').waitForMarineReady(page); await page.evaluate(() => { const d = [...document.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === 'Decline'); if (d) d.click(); }); }
+      else await L.openMap(page);
+      await L.jump(page, ...flow.view);
       if (VIEW === 'phone') { const exp = page.locator('button[aria-label="Weather layers"], button[aria-label="Expand weather controls"]').filter({ visible: true }).first(); if (await exp.count()) await exp.evaluate((el) => el.click()); await sleep(800); }
       for (const l of flow.setup.layers) await ensureLayer(page, l, true);
       if (flow.setup.model && !(await pressed(page, flow.setup.model))) await clickExact(page, flow.setup.model);
@@ -204,6 +236,8 @@ const FLOWS = {
       for (const [label, act] of flow.steps) {
         const next = { ...state };
         if (typeof act === 'number') next.hour = act; else Object.assign(next, act.layer ? { layer: act.layer } : {}, act.model ? { model: act.model } : {});
+        // Step marker for CPU profiles: a uniquely NAMED function that runs ~4 ms, so stall_profile.js can pin each stall to a step.
+        if (cdp) await page.evaluate((nm) => { const f = new Function(`return function ${nm}(){const t=performance.now();while(performance.now()-t<4){}}`)(); f(); }, `LABSTEP_${fr.steps.length}_${label.replace(/[^A-Za-z0-9]/g, '_')}`);
         await page.evaluate((e) => window.__LAB__.arm(e), { marine: !!next.layer, wind: next.wind, hour: next.hour, layer: next.layer, model: next.model });
         const r0 = log.requests.length; const cc0 = { ...ccount };
         if (typeof act === 'number') await seek(page, act);
@@ -233,6 +267,7 @@ const FLOWS = {
         const row = { label, expect: { hour: next.hour, layer: next.layer, model: next.model, wind: next.wind },
           marineMs: !next.layer ? 'n/a' : (r.mOk == null ? null : Math.round(r.mOk)), windMs: !next.wind ? 'n/a' : (r.wOk == null ? null : Math.round(r.wOk)),
           marineSilent: r.mSilent, marineAdmitted: r.mAdm, marineSameInstant: r.mSameInstant, windOffFrames: r.wOff,
+          dim: { staleMs: Math.round(r.dimStale), softMs: Math.round(r.dimSoft), minMult: +(+r.minMult).toFixed(2) },
           stale: staleVerdict, pixels: { toPrev, toNow, moved, noise },
           end: { mHour: r.end.mHour, mLayer: r.end.mLayer, mModel: r.end.mModel, wHour: r.end.wHour, status: r.end.status },
           console: Object.fromEntries(Object.keys(ccount).map((k) => [k, ccount[k] - cc0[k]])), requests: { n: reqs.length, series: reqs.filter((q) => q.path === '/grid_series').length, grid: reqs.filter((q) => q.path === '/grid').length,
@@ -246,7 +281,7 @@ const FLOWS = {
       }
     } catch (e) { fr.error = String(e && e.message || e).slice(0, 300); console.error('flow failed', name, fr.error); }
     finally {
-      if (cdp) { const done = new Promise((res) => cdp.once('Tracing.tracingComplete', res)); await cdp.send('Tracing.end'); await Promise.race([done, sleep(20000)]); fs.writeFileSync(path.join(OUT, 'trace.json'), JSON.stringify({ traceEvents: traceChunks })); }
+      if (cdp) { const prof = await cdp.send('Profiler.stop').catch(() => null); if (prof) fs.writeFileSync(path.join(OUT, 'profile.json'), JSON.stringify(prof.profile)); const done = new Promise((res) => cdp.once('Tracing.tracingComplete', res)); await cdp.send('Tracing.end'); await Promise.race([done, sleep(20000)]); fs.writeFileSync(path.join(OUT, 'trace.json'), JSON.stringify({ traceEvents: traceChunks })); }
       fr.errors = log.errors.slice(0, 10); fr.blockedWs = log.blockedWs.length;
       results.flows.push(fr); await browser.close();
     }
