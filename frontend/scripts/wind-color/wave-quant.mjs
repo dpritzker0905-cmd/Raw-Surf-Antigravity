@@ -3,7 +3,8 @@
 // One texel decodes to a quantized height; this prices it as the wash DRAWS it (the depth-floor blend under 0.18 m, the ramp, the
 // swell lighting at half, world alpha, composited over the theme's water), every 1 mm from 0 to 10 m, against the exact height.
 // The calm end dominates: smoothstep(0, 0.18, h) is steep, so a few centimetres there move the colour by many dE00.
-//  - light, beach: wave-lib.mjs composite over the table (marineWavePalette.js; --palette, default v2@16 = what #415 draws);
+//  - light, beach: wave-lib.mjs composite over each theme's own table (marineWavePalette.js): light v2 at 16 m (D-033, D-034;
+//    --palette overrides it), beach v1 at 10 m (D-035: the owner locked beach to v1), plus beach v2@16 as D-035's kill draws it;
 //  - dark: the shader's OWN ramp (HEATMAP_FS getThemedWaveColor, non-surf: getNonlinearT and the lifted calm c0, mirrored below:
 //    keep in sync), its deep-ocean floor, over two grounds: the dark style's sea as read (93, 117, 126; mirror-model.mjs) and the
 //    fallback basemap's (11, 29, 46; windDarkRules.js BASE, what the offline harness draws when the dark style is unavailable).
@@ -36,12 +37,16 @@ function darkComposite(h, alpha, dir, water) {
   return clamp01(clamp01(lit).map((v, i) => v * alpha + (water[i] / 255) * (1 - alpha)));
 }
 
-const LB = { 'u8 /10 floor (the 16 m kill)': u8(10, false), 'u8 /16 floor (#415 first push)': u8(16, false), 'u8 /16 round (#415)': u8(16, true),
+const LB = { 'u8 /10 floor (the 16 m kill)': u8(10, false), 'u8 /16 floor (#415 first push)': u8(16, false), 'u8 /16 round (dev, #415)': u8(16, true),
   'R16F at /16 (this PR)': r16f(16), 'R16F at /10 (this PR, 16 m kill)': r16f(10) };
+const AT10 = { 'u8 /10 floor (dev)': u8(10, false), 'R16F at /10 (this PR)': r16f(10) };
+const AT16 = { 'u8 /16 round': u8(16, true), 'R16F at /16 (this PR)': r16f(16) };
 const DK = { 'u8 /10 floor (dev, #415)': u8(10, false), 'R16F at /10 (this PR)': r16f(10) };
+const V1 = mod.WAVE_PALETTES.v1, V2_16 = mod.widenWavePalette(mod.WAVE_PALETTES.v2);
 const THEMES = [
   ['light', LB, (h) => composite(P, 'light', h, a, 0.5), `${id}`],
-  ['beach', LB, (h) => composite(P, 'beach', h, a, 0.5), `${id}`],
+  ['beach', AT10, (h) => composite(V1, 'beach', h, a, 0.5), 'v1, D-035: what beach draws'],
+  ['beach', AT16, (h) => composite(V2_16, 'beach', h, a, 0.5), 'v2@16, under D-035\'s kill __RAW_DISABLE_WAVE_BEACH_V1__'],
   ['dark', DK, (h) => darkComposite(h, a, 0.5, [93, 117, 126]), 'shader ramp, style sea 93/117/126'],
   ['dark', DK, (h) => darkComposite(h, a, 0.5, [11, 29, 46]), 'shader ramp, fallback sea 11/29/46'],
 ];

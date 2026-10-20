@@ -301,6 +301,12 @@ it as the wash draws it (the depth-floor blend under 0.18 m, the table, half swe
 10 m, for the u8 /10 floor (dev), u8 /16 floor and round, and R16F. The calm end dominates (the blend is steep): floored, the /16
 byte's worst texel was 23.5 dE00 in light against dev's 15.3, so the 16 m path rounds (11.6, mean 0.17 against 0.22).
 
+**The float height (`wave-quant.mjs`, 2026-10-20, marineHeightFloat.js).** The same price for every theme as drawn today: light
+v2 at 16 m, beach v1 at 10 m (D-035; beach v2@16 as its kill draws it), and dark on the shader's own ramp (mirrored in the script)
+over the style's sea and the fallback basemap's, against R16F (the encoder's fp16 heights, clamped to the byte's own scale).
+Worst texel, u8 against R16F: light 11.6 -> 0.01 dE00, beach (v1, /10 floor) 4.2 -> 0.05, dark 6.9-7.0 -> 0.10 (deep-ocean floor; near a shelf the floor is
+brighter, so the drawn step can be larger: the offline A/B read 12.5 at one dark regional pixel).
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models
