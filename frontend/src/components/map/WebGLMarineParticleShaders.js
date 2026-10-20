@@ -648,7 +648,7 @@ void main() {
   if (u_orbitalPitch > 0.0001) {
     float mp = waveData.a * 20.0;
     float pv = mp > 0.5 ? mp : (6.0 + waveHeight * 2.0);
-    float sf = screenBoundedSetFreq(clamp(800.0 / max(36.0, pv * pv), 3.0, 25.0), (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));
+    float sf = waveSetFreq(pv, (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));   // same sets as the envelope (waveSetScreenBound.js)
     float ts = (u_time * u_motion_scale) / max(2.0, pv);
     float orbPhase = fract(dot(global_pos, dir) * sf - ts) * 6.28318530718;
     pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;
@@ -671,8 +671,8 @@ void main() {
   float periodNorm = smoothstep(4.0, 18.0, periodVal);
   v_period_norm = periodNorm;
 
-  float spatialFreq = 800.0 / max(36.0, periodVal * periodVal);
-  spatialFreq = screenBoundedSetFreq(clamp(spatialFreq, 3.0, 25.0), (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));   // >= 3 sets in view (waveSetScreenBound.js)
+  // 800 / T^2 per world unit times ONE zoom factor for every period: >= 3 sets of the longest period in view (waveSetScreenBound.js)
+  float spatialFreq = waveSetFreq(periodVal, (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));
 
   // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
   // All ribbons in the same wave train advance at the same rate.
