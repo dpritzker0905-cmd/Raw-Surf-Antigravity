@@ -22,7 +22,7 @@ import {
 import {
   initEngine,
   disposeEngine,
-  reinitParticles
+  reinitParticles, pollPrograms
 } from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
@@ -193,7 +193,7 @@ WebGLWindEngine.prototype.init = function(gl) {
   initEngine(this, gl);
   if (!this._initialized) throw new Error('WebGL Wind initialization failed');
 };
-
+WebGLWindEngine.prototype.pollPrograms = function(gl) { return pollPrograms(this, gl); };   // async shader batch: WebGLWindEngineInit.js
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (!windGrid?.vectors?.length) return 'skipped';
 
@@ -345,7 +345,7 @@ WebGLWindEngine.prototype.clearWindData = function(gl) {
 };
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets, viewportBounds) {
-  if (!this._initialized || !this._windData) return;
+  if (!this._initialized || this._programBatch || !this._windData) return;   // _programBatch: shaders still compiling
 
   const windGrid = this._windData?.windGrid;
   if (windGrid) {

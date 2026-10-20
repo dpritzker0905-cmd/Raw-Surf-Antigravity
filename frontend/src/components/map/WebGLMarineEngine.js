@@ -42,8 +42,10 @@ import {
   reseedParticleStateInPlace,
   shouldCarryParticlesOnGridSwap,
   initEngine,
-  disposeEngine
+  disposeEngine,
+  pollPrograms
 } from './WebGLMarineEngineInit';
+import { BATCH } from './WebGLProgramBatch';
 
 
 // ── THE PURE DECISION LAYER MOVED OUT (2026-07-29) ───────────────────────────────────────────────
@@ -125,6 +127,15 @@ function WebGLMarineEngine() {
 WebGLMarineEngine.prototype.init = function(gl) {
   initEngine(this, gl);
   if (!this._initialized) throw new Error('WebGL Marine initialization failed');
+};
+
+// ASYNC SHADER COMPILE (WebGLProgramBatch.js): 'pending' | 'ready' | 'failed' (once). The custom layer polls before every
+// draw and routes 'failed' to the same fallback as a failed init. pollPrograms already released the engine as a failed
+// init leaves it; the coarse-base LRU is the one allocation disposeEngine leaves to dispose().
+WebGLMarineEngine.prototype.pollPrograms = function(gl) {
+  const state = pollPrograms(this, gl);
+  if (state === BATCH.FAILED) this._freeCoarseBase(gl);
+  return state;
 };
 
 WebGLMarineEngine.prototype.reinitParticles = function(gl) {
@@ -483,13 +494,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     window.__RAW_GPU__.drawCallsPerFrame = 0;
     window.__RAW_GPU__.particlePassExecuted = false;
   }
-  if (!this._initialized || !this._waveData || !matrix || !matrix.length) {
+  // `_programBatch` is set only while the shader batch is still compiling (async path): no draw, no GL call, until ready.
+  if (!this._initialized || this._programBatch || !this._waveData || !matrix || !matrix.length) {
     if (this._renderLogged === undefined) {
       this._renderLogged = 0;
     }
     this._renderLogged++;
     if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
-      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "matrix:", !!matrix);
+      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "programsPending:", !!this._programBatch, "_waveData:", !!this._waveData, "matrix:", !!matrix);
     }
     return;
   }
