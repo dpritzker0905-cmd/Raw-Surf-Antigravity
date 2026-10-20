@@ -86,6 +86,10 @@ marine engine.render 4.12 / 4.39 ms (shadow off) -> 3.09 / 3.32 ms (on), p95 6.4
 wind 4.74 / 4.07 -> 2.73 / 2.80 ms, p95 6.4 / 5.6 -> 3.9 / 4.1. That is about 1.0-1.6 ms of main thread per engine per
 frame, outside the tracer.
 
+## PR
+
+PR #402 against dev (not merged), ledger seq 1463 (`pr_open`).
+
 ## Not done / follow-ups
 
 - The next GPU sync point (`checkFramebufferStatus` every frame on an FBO whose attachment is fixed) is where the wait now
