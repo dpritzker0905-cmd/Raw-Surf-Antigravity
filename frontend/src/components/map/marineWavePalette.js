@@ -2,7 +2,6 @@
 // Kills, set before page load, then reload so the GLSL and the legend switch together:
 //   window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true -> the shader's own ramp (before 2026-10-14)
 //   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly
-// Owner A/B (2026-10-20, until a pick): window.__RAW_WAVE_PALETTE_V2__ = 'B' draws candidate B; A is the default.
 // Checker: frontend/scripts/wind-color/wave-check.mjs (composited over each basemap, colour-blind via coloraide).
 import { M_TO_FT } from './heightUnits';
 
@@ -19,29 +18,22 @@ export const WAVE_PALETTES = {
     beach: [[5, 97, 89], [13, 166, 148], [250, 187, 110], [230, 95, 49], [107, 25, 34], [255, 242, 230]],
     light: [[199, 222, 240], [26, 166, 138], [31, 125, 224], [87, 31, 138], [242, 84, 144], [255, 255, 255]],
   },
-  // V2 candidates (2026-10-20, owner A/B pending): lightness falls at every step as height grows, on the table and as composited
-  // over each theme's water at world/regional/coastal alpha; never through grey; hue is the second cue. Anchors on the legend's
-  // ticks (0 2 4 8 12 20 33 ft); the cap is the encoder's 10 m ceiling, and a cell at or above it draws the above-cap colour.
-  // Solved by wave-solve.mjs, finished by wave-polish.mjs, judged by wave-check.mjs (frontend/scripts/wind-color/).
-  // A: calm cream (light) / mint (beach) -> turquoise -> blue -> indigo (light) / purple (beach); a red flag above the cap.
-  A: {
+  // v2 (owner 2026-10-20, DECISIONS D-033: "Ship light A and beach B"): lightness falls at every step as height grows, on the
+  // table and as composited over each theme's water at world/regional/coastal alpha; never through grey; hue is the second cue.
+  // Anchors on the legend's ticks (0 2 4 8 12 20 33 ft); the cap is the encoder's 10 m ceiling, and a cell at or above it draws
+  // the above-cap colour. Light: candidate A of the A/B (cream -> turquoise -> blue -> indigo; a red flag above the cap). Beach:
+  // candidate B (aqua -> cerulean -> orchid -> rose -> brick; a blue flag above the cap). Solved by wave-solve.mjs, finished by
+  // wave-polish.mjs, judged by wave-check.mjs and wave-jacobian.mjs (frontend/scripts/wind-color/).
+  v2: {
     heights: [0, 0.61, 1.22, 2.44, 3.66, 6.1, 10], cap: 10,
     light: [[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]],
-    beach: [[196, 255, 234], [121, 241, 247], [9, 209, 234], [66, 162, 226], [147, 132, 181], [131, 98, 160], [121, 62, 139]],
-    over: { light: [105, 9, 0], beach: [166, 11, 1] },
-  },
-  // B: calm aqua -> azure -> violet -> plum (light) / orchid -> rose -> brick (beach); a blue flag above the cap.
-  B: {
-    heights: [0, 0.61, 1.22, 2.44, 3.66, 6.1, 10], cap: 10,
-    light: [[141, 241, 243], [3, 209, 246], [69, 153, 234], [123, 106, 165], [106, 67, 142], [98, 27, 120], [107, 0, 66]],
     beach: [[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]],
-    over: { light: [4, 20, 162], beach: [46, 72, 223] },
+    over: { light: [105, 9, 0], beach: [46, 72, 223] },
   },
 };
 
 export function resolveWavePalette(win = WIN) {
-  if (win.__RAW_DISABLE_WAVE_PALETTE_V2__ === true || !WAVE_PALETTES.A) return 'v1';
-  return win.__RAW_WAVE_PALETTE_V2__ === 'B' && WAVE_PALETTES.B ? 'B' : 'A';
+  return win.__RAW_DISABLE_WAVE_PALETTE_V2__ === true ? 'v1' : 'v2';
 }
 export const MARINE_WAVE_PALETTE_ID = resolveWavePalette();
 const P = WAVE_PALETTES[MARINE_WAVE_PALETTE_ID];

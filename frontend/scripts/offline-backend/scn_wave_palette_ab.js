@@ -1,11 +1,12 @@
-// WAVE PALETTE A/B (2026-10-20): the light and beach wave-height wash as the REAL engine draws it, offline, for v1 (today's table,
-// what window.__RAW_DISABLE_WAVE_PALETTE_V2__ restores), candidate A (the default) and candidate B (window.__RAW_WAVE_PALETTE_V2__ = 'B'),
-// at world, regional and coastal zoom, plus frames for a moving clip. One build serves all three: the levers are set before load.
+// WAVE PALETTE A/B (2026-10-20): the light and beach wave-height wash as the REAL engine draws it, offline, for v1 (the 2026-10-14
+// table, what window.__RAW_DISABLE_WAVE_PALETTE_V2__ restores) and v2 (the default; DECISIONS D-033 picked light A + beach B from
+// the first run's candidates A/B), at world, regional and coastal zoom, plus frames for a moving clip. One build serves both: the
+// kill is set before load. A future candidate is one more entry in LEVERS (and a lever in marineWavePalette.js).
 //
 //   python serve_synthetic.py --dir <fresh dir> --port 4120 --dynamic 1 --vortex-peak 11   (the eye crosses 10 m: the above-cap state)
 //   node serve_spa.js <build dir> 3100
 //   PORT=4120 OUT=<dir> node scn_wave_palette_ab.js        then: python compose_wave_ab.py <dir>
-// Env: VARIANTS=v1,A,B  THEMES=light,beach  VIEWS=world,regional,coastal  CLIP=1 (frames for the clip)  CLIP_FRAMES=40
+// Env: VARIANTS=v1,v2  THEMES=light,beach  VIEWS=world,regional,coastal  CLIP=1 (frames for the clip)  CLIP_FRAMES=40
 // Per shot it records what the engine held (grid shape, bounds, valid time, the drawn grid's height range) so the panes can be
 // shown to be the same data; and, before Waves is switched on, the bare water's colour (the checker's basemap model).
 const fs = require('fs');
@@ -16,7 +17,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
-const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, A: {}, B: { __RAW_WAVE_PALETTE_V2__: 'B' } };
+const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {} };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
@@ -28,7 +29,7 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   let lo = Infinity, hi = -Infinity, over10 = 0;
   for (const v of (g && g.vectors) || []) { const s = v.speed; if (typeof s === 'number' && v.is_valid !== false) { if (s < lo) lo = s; if (s > hi) hi = s; if (s >= 10) over10++; } }
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
-    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_WAVE_PALETTE_V2__ || (window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'A') };
+    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2' };
 };
 
 async function legendBox(page) {

@@ -121,13 +121,22 @@ describe('the V2 kill (window.__RAW_DISABLE_WAVE_PALETTE_V2__) restores v1 exact
   });
 });
 
-describe.each(['A', 'B'])('candidate %s', id => {
+// v2 = the owner's pick of the A/B (DECISIONS D-033, 2026-10-20: "Ship light A and beach B"). Kept in a describe.each so a
+// future candidate can be pinned the same way.
+describe.each(['v2'])('palette %s', id => {
   const P = WAVE_PALETTES[id];
-  const load = fn => withWindow(id === 'B' ? { __RAW_WAVE_PALETTE_V2__: 'B' } : {}, fn);
+  const load = fn => withWindow({}, fn);
 
-  it('is the palette its lever selects', () => {
-    load(palette => expect(palette.MARINE_WAVE_PALETTE_ID).toBe(id));
-    if (id === 'A') expect(MARINE_WAVE_PALETTE_ID).toBe('A');   // A is the default while the owner A/Bs
+  it('ships by default, with only v1 behind the kill and no candidate lever left', () => {
+    expect(MARINE_WAVE_PALETTE_ID).toBe('v2');
+    expect(Object.keys(WAVE_PALETTES).sort()).toEqual(['v1', 'v2']);
+    withWindow({ __RAW_WAVE_PALETTE_V2__: 'B' }, palette => expect(palette.MARINE_WAVE_PALETTE_ID).toBe('v2'));   // the A/B lever is gone
+  });
+
+  it('is light candidate A and beach candidate B of the owner A/B, colour for colour', () => {
+    expect(P.light).toEqual([[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]]);
+    expect(P.beach).toEqual([[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]]);
+    expect(P.over).toEqual({ light: [105, 9, 0], beach: [46, 72, 223] });
   });
 
   it.each(['light', 'beach'])('%s: lightness falls at every 0.01 m from 0 m to the cap, then the above-cap state is no lighter', theme => {
@@ -186,7 +195,7 @@ describe.each(['A', 'B'])('candidate %s', id => {
 
   it('generates the GLSL it ships from the same table', () => {
     load(palette => expect(palette.MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P)));
-    if (id === 'A') expect(MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P));
+    expect(MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P));
   });
 });
 

@@ -2,8 +2,8 @@
 
 Usage:  python compose_wave_ab.py <scn output dir>      (needs Pillow; the backend venv has it)
 Writes, into the same dir:
-  sheet-<theme>.jpg    rows = world / regional / coastal, columns = v1 (today) | A | B, each with its legend crop beneath
-  clip-<theme>.webp    the moving clip, v1 | A | B side by side, frame for frame (the same forecast hours in each pane)
+  sheet-<theme>.jpg    rows = world / regional / coastal, columns = each variant run (v1 | v2), each with its legend crop beneath
+  clip-<theme>.webp    the moving clip, the variants side by side, frame for frame (the same forecast hours in each pane)
 """
 import glob
 import json
@@ -12,7 +12,7 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-NAMES = {"v1": "v1: today (the V2 kill)", "A": "A (default)", "B": "B"}
+NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B"}
 
 
 def font(size):
@@ -33,7 +33,7 @@ def label(img, text, size=22):
 
 def main(out):
     rec = json.load(open(os.path.join(out, "record.json"), encoding="utf-8"))
-    variants = [v for v in ("v1", "A", "B") if any(s["variant"] == v for s in rec["shots"])]
+    variants = [v for v in ("v1", "v2", "A", "B") if any(s["variant"] == v for s in rec["shots"])]
     for theme in ("light", "beach"):
         shots = [s for s in rec["shots"] if s["theme"] == theme]
         if not shots:

@@ -10,7 +10,7 @@
 // Usage: node wave-jacobian.mjs [--json out.json] [--no-refs]      (then it runs wave_jacobian.py on that file when ./.venv exists)
 // REFERENCES (--no-refs leaves them out): published sequential maps laid on the SAME anchors, through the SAME wash, as yardsticks
 // for "state of the art": ColorBrewer YlGnBu and BuPu (7-class; the cartographic standard, and the families A and B belong to),
-// and viridis and magma reversed (matplotlib's perceptually uniform maps, 7 samples). They were not designed for a wash at 65%
+// and viridis and magma reversed (matplotlib's perceptually uniform maps, 7 samples), on v2's anchors. They were not designed for a wash at 65%
 // over a cyan sea; that is the point of laying them through it.
 import fs from 'fs';
 import os from 'os';
@@ -32,7 +32,7 @@ const mod = loadPalettes();
 const palettes = { ...mod.WAVE_PALETTES };
 if (!args.includes('--no-refs')) for (const [name, cols] of Object.entries(REFS)) {
   const c = cols.map(hex);
-  palettes[name] = { heights: mod.WAVE_PALETTES.A.heights, cap: mod.WAVE_PALETTES.A.cap, over: null, light: c, beach: c, ref: true };
+  palettes[name] = { heights: mod.WAVE_PALETTES.v2.heights, cap: mod.WAVE_PALETTES.v2.cap, over: null, light: c, beach: c, ref: true };
 }
 const N = 20;   // samples per anchor segment along the legend axis
 const out = { alphas: ALPHAS, texelM: 10 / 255, palettes: {} };

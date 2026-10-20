@@ -125,3 +125,13 @@ Dev's #406 appended ledger lines 1504-1531 in parallel; my two lines were re-app
 
 Correction (2026-10-20 12:29Z): the Jacobian section's header above says "~12:30Z"; it was written at 12:23Z (an estimate
 that ran ahead of the clock, LESSONS L-P10). Ledger `correction` line names it.
+
+## 2026-10-20 12:55Z: the owner's pick (DECISIONS D-033)
+
+Owner, 12:46Z: "Ship light A and beach B: remove light B and beach A and the B lever, keep the V2 kill, and mark #411 ready."
+Built: `WAVE_PALETTES` is now { v1, v2 }, v2 = light's A table and beach's B table with their own above-cap colours (each theme's
+tables were solved and polished on their own, so the checker's numbers carry over unchanged: light 7.2/7.8/8.6, beach
+6.5/6.9/7.4 weakest neighbours world/regional/coastal). `window.__RAW_WAVE_PALETTE_V2__` is gone (a test pins that it no longer
+selects anything); the V2 kill still restores v1 exactly. The A/B harness and the Jacobian now read v1/v2. Re-run on the change:
+`marineWavePalette.test.js` 20/20; full frontend Jest 457/458 suites (the one failure is still `netlifyIconStoredTailScope.test.js`,
+a Git Bash spawn over 5 s on this machine, identical to dev); ESLint and LOC ratchets clean; wind check `--strict` 0; build compiled.
