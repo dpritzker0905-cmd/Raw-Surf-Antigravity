@@ -26,7 +26,7 @@ const NATIVE = [
 ];
 const STAGES = [
   // Tested against "<original source>:<function name>"; first match wins, from the leaf-most mapped frame upward.
-  ['shader compile (createProgram / MapLibre program)', /createProgram|compileShader|linkProgram|webgl\/program\.ts/],
+  ['shader compile (createProgram / MapLibre program)', /createProgram|createShader|compileShader|linkProgram|WebGLProgramBatch|webgl\/program\.ts:constructor/],
   ['GPU sync: GL state capture (getParameter)', /WebGLStateIsolation/],
   ['land mask build', /Mask|mask|inlandWater|[Ss]helter|coastBuffer/],
   ['convert grid -> texture', /WebGLMarineTextureEncoder|TextureEncoder|marineGridSeries|GridSeries|gridDecode|normalizeGrid|marineGridShape|vectorBudget|SimulationFieldBuilder/],
@@ -160,6 +160,15 @@ function classify(stack, srcOf) {
     perStall.push({ atS: +((task.ts - t0) / 1e6).toFixed(2), step, ms: Math.round(task.dur / 1000), samples: j - si, gcMs: +gcMs.toFixed(1),
       top: [...local.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, n]) => `${k} ${Math.round(n / 1000)}ms`) });
   }
+  // Whole-profile view: every busy (non-idle) sample by stage, and the time inside named functions, stall or not.
+  const allBusy = new Map(); const fnAll = new Map();
+  for (let j = 0; j < main.samples.length; j++) {
+    const stack = stackOf(main.samples[j]);
+    if (stack[0] && stack[0].callFrame.functionName === '(idle)') continue;
+    const { stage: st, where } = classify(stack, srcOf);
+    allBusy.set(st, (allBusy.get(st) || 0) + w[j]);
+    const k = `${st} | ${where}`; fnAll.set(k, (fnAll.get(k) || 0) + w[j]);
+  }
   const totalStallMs = tasks.reduce((a, t) => a + t.dur, 0) / 1000;
   const totalSamples = [...stage.values()].reduce((a, b) => a + b, 0);
   const ms = (n) => Math.round(n / 1000);
@@ -174,6 +183,8 @@ function classify(stack, srcOf) {
     byStage: [...stage.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => ({ stage: k, ms: ms(n), share: +(n / totalSamples * 100).toFixed(1) })),
     byStep: [...byStep.entries()].map(([k, v]) => ({ step: k, stalls: v.stalls, ms: Math.round(v.ms), maxMs: Math.round(v.maxMs) })),
     stageByStep: Object.fromEntries([...stageByStep.entries()].map(([k, m]) => [k, Object.fromEntries([...m.entries()].sort((a, b) => b[1] - a[1]).map(([st, us]) => [st, ms(us)]))])),
+    allBusyByStage: [...allBusy.entries()].sort((a, b) => b[1] - a[1]).map(([k, us]) => ({ stage: k, ms: Math.round(us / 1000) })),
+    topFunctionsAll: [...fnAll.entries()].sort((a, b) => b[1] - a[1]).slice(0, 30).map(([k, us]) => ({ fn: k, ms: Math.round(us / 1000) })),
     hotLines: [...lines.values()].sort((a, b) => b.us - a.us).slice(0, 30).map((e) => ({ at: e.key, ms: ms(e.us), code: textOf(e.source, e.line) })),
     topFunctions: [...fn.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, n]) => ({ fn: k, ms: ms(n) })),
     worstStalls: [...perStall].sort((a, b) => b.ms - a.ms).slice(0, 12),
