@@ -1949,7 +1949,11 @@ jobs:
           # ⬆ 2303→2310 on 2026-10-19, IN THE SAME PR THAT CAUSES IT (one-field frame-image proof): one new estate file
           # adds 7 executed tests (tests/test_frame_image.py) to the 2305 read of dev CI 39331532690: projected 2312;
           # 2312 - 2 = 2310, margin 2. _FLOOR_SET_FROM["estate"] -> 2312. This PR must read 2312 passed.
-          MIN_PASSED = 2310
+          # ⬆ 2310→2330 on 2026-10-20, IN THE SAME PR THAT CAUSES IT (static forecast frames, step 2b, dark): two new estate
+          # files add 20 executed tests (tests/test_frame_binary.py 10, tests/test_publish_frame_sets.py 10) to the 2312 read
+          # of dev CI 39474436878 @ da40c3c5 (327 files): projected 2332 / 329 files; 2332 - 2 = 2330, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2332. This PR must read 2332 passed.
+          MIN_PASSED = 2330
 
           try:
               root = ET.parse('estate.xml').getroot()
