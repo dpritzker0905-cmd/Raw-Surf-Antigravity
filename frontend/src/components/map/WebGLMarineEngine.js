@@ -8,7 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
-import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { minSetsInView } from './waveSetScreenBound';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
 import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
@@ -2121,7 +2121,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_farzoomSizeFloor'), _fzFloor);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_minSetsInView'), minSetsInView());
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth); applyWaveSetUniforms(gl, this.drawProgram);
 
       // v5.3: viewport and DPR uniforms for pixel-space quad expansion
       var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
