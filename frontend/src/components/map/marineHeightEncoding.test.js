@@ -18,7 +18,10 @@ const BEFORE = {
   wave: 'a5299dc7eb487086973077d3fc83c8040f1a6e673e3431969a6e5803457aad5d',
   score: 'd74ab586063e47c0ba9511d389ddf88bc51da771338aa6d59c36141fb4c350d9',
 };
-const KILL = { __RAW_DISABLE_WAVE_HEIGHT_16M__: true };
+// With the float height's kill too: its GLSL rewrite is a lever of its own (marineHeightFloat.js), pinned in marineHeightFloat.test.js
+// for 16 m off with float on; here the shader strings must be #411's exactly. The texture bytes do not depend on it.
+const NO_FLOAT = { __RAW_DISABLE_WAVE_HEIGHT_FLOAT__: true };
+const KILL = { __RAW_DISABLE_WAVE_HEIGHT_16M__: true, ...NO_FLOAT };
 
 function withWindow(levers, fn) {
   let out;
@@ -168,7 +171,7 @@ describe('16 m on (the default)', () => {
     withWindow({ __RAW_DISABLE_MARINE_WAVE_PALETTE__: true }, () => expect(require('./marineWavePalette').marineWaveHeightScale('light')).toBe(10));   // the shader's own ramp
   });
   it('every shader differs from #411 head ONLY by the joined declaration and the decode factor', () => {
-    withWindow({}, () => {
+    withWindow(NO_FLOAT, () => {   // the float height's rewrite on top: marineHeightFloat.test.js
       const s = shaders(), { HEIGHT_SCALE_DECL, withHeightScale } = require('./marineHeightEncoding');
       // The heatmap also embeds the palette's GLSL, which the 16 m table changes on purpose (marineWavePalette.test.js pins it).
       const pal = require('./marineWavePalette'), at10 = pal.marineWavePaletteGlsl(pal.WAVE_PALETTES[pal.MARINE_WAVE_PALETTE_ID]);

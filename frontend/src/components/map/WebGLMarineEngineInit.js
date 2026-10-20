@@ -17,6 +17,7 @@ import {
 import { recordChurn } from './marineTransitionCoordinator';
 import { startProgramBatch, pollEngineBatch, publishBatch, BATCH } from './WebGLProgramBatch';
 import { freeMaskStash } from './maskTextureStash';
+import { releaseResidentHeightFloat } from './marineHeightFloat';
 
 // --- Particle Texture Init Helper ---
 export function initParticleTexture(gl, resolution) {
@@ -286,6 +287,7 @@ export function disposeEngine(engine, gl) {
   // R11-10b: _residentScoreTex was absent from this inventory — one grid-sized texture leaked
   // per dispose cycle in rating mode, and a stale handle survived into the next context.
   safeDeleteTexture(gl, engine._residentScoreTex, null);
+  releaseResidentHeightFloat(gl, engine);   // the wash's R16F height (marineHeightFloat.js): freed and nulled with the byte textures
   safeDeleteTexture(gl, engine._cachedMaskTex, null);
   freeMaskStash(gl, engine); // the second mask-cache entry (maskTextureStash.js)
   safeDeleteTexture(gl, engine._overlayMaskTex, null);

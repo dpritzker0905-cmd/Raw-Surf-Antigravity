@@ -132,8 +132,10 @@ describe('the weighting math, on the measured Madeira numbers', () => {
 describe('HEATMAP_FS wiring', () => {
   it('routes the wave read through the land-aware fetch, and only there', () => {
     expect(HEATMAP_FS).toContain('vec4 waveData = sampleWaveLandAware(data_uv);');   // data_uv = point-registered grid_uv
-    // the only remaining direct reads are the four footprint fetches inside the helper itself
-    expect((HEATMAP_FS.match(/texture2D\(u_waveTexture/g) || []).length).toBe(5);
+    // the only remaining direct reads are the plain fetch and the four footprint fetches inside the helper itself; THE FLOAT
+    // HEIGHT (marineHeightFloat.js) routes those five through waveTapF, which holds the one direct read (declaration + 5 taps)
+    const direct = (HEATMAP_FS.match(/texture2D\(u_waveTexture/g) || []).length, taps = (HEATMAP_FS.match(/waveTapF\(/g) || []).length;
+    expect(taps ? [direct, taps] : [direct]).toEqual(taps ? [1, 6] : [5]);
   });
 
   it('reads the ocean flag from chlorophyll ALPHA at texel centres, not the interpolated fetch', () => {

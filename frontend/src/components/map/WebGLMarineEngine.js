@@ -34,7 +34,7 @@ import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CA
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
 import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
-import { setGridPointRegUniform } from './gridPointRegistration'; import { setWaveHeightScale } from './marineHeightEncoding'; // per-upload height byte
+import { setGridPointRegUniform } from './gridPointRegistration'; import { setWaveHeightScale } from './marineHeightEncoding'; import { bindHeightFloat, freeHeightFloat } from './marineHeightFloat'; // per-upload height byte; its R16F twin (the wash)
 import { populateCrestDiagnostics, marineForensicFrameEvidence } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
@@ -1853,7 +1853,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // identical rating-on/off. Whenever the encoder packed a score texture the heatmap MUST
     // use it (the main texture is honest heights then). The feature kill switch lives at the
     // ENCODER (__RAW_DISABLE_ANIM_PHYS__ → no score texture, score back in the shared channel).
-    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, this._waveData.u_waveScoreTexture ? null : this._waveData);
+    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, this._waveData.u_waveScoreTexture ? null : this._waveData); bindHeightFloat(gl, this.heatmapProgram, this._waveData.u_waveScoreTexture ? null : this._waveData);
     bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
@@ -2982,7 +2982,7 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl, obj) {
   const freeOne = (b) => {
     if (!b || !gl) return;
     try {
-      if (b.u_waveTexture) safeDeleteTexture(gl, b.u_waveTexture, this);
+      if (b.u_waveTexture) safeDeleteTexture(gl, b.u_waveTexture, this); freeHeightFloat(gl, b, this);   // the base's own R16F height
       if (b.u_chlorophyllTexture) safeDeleteTexture(gl, b.u_chlorophyllTexture, this);
       if (b.u_bathymetryTexture) safeDeleteTexture(gl, b.u_bathymetryTexture, this);
       if (b.u_oceanMaskTexture) {
@@ -3119,7 +3119,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlaySDFEnabled'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), baseOpacity);
 
-  bindTexture(gl, base.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, base);
+  bindTexture(gl, base.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, base); bindHeightFloat(gl, this.heatmapProgram, base);
   bindTexture(gl, base.u_chlorophyllTexture, 1);
   bindTexture(gl, base.u_bathymetryTexture, 2);
   bindTexture(gl, base.u_oceanMaskTexture, 3);
