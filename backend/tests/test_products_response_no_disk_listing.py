@@ -19,9 +19,15 @@ def test_products_response_is_the_manifest_and_nothing_about_the_disk(monkeypatc
             return manifest
 
     monkeypatch.setattr(W, "store", Store())
-    body = asyncio.run(W.get_products())
-    assert body == {"last_manifest_update": "2026-09-25T18:23:27Z", "products": [{"product_id": "p.json"}]}
-    assert "cache_dir" not in body and "files_on_disk" not in body
+    import json
+    from services.weather_pipeline import products_response as P
+    monkeypatch.setattr(P, "CACHE", P.ProductsCache())
+    # 2026-10-20: the route answers with the body encoded once per manifest version (products_response.py); its
+    # bytes are what FastAPI would have encoded from the dict, so decode them. The kill switch returns the dict.
+    resp = asyncio.run(W.get_products())
+    for body in (json.loads(resp.body), (monkeypatch.setenv(P.FLAG, "0"), asyncio.run(W.get_products()))[1]):
+        assert body == {"last_manifest_update": "2026-09-25T18:23:27Z", "products": [{"product_id": "p.json"}]}
+        assert "cache_dir" not in body and "files_on_disk" not in body
 
 
 def test_products_route_no_longer_lists_the_cache_directory(monkeypatch, tmp_path):
@@ -37,5 +43,7 @@ def test_products_route_no_longer_lists_the_cache_directory(monkeypatch, tmp_pat
             return S(last_manifest_update=None, products=[])
 
     monkeypatch.setattr(W, "store", Store())
+    from services.weather_pipeline import products_response as P
+    monkeypatch.setattr(P, "CACHE", P.ProductsCache())
     asyncio.run(W.get_products())
     assert calls == [], "no directory listing on the request path"
