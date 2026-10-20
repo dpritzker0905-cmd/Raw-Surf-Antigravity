@@ -114,5 +114,5 @@ systematic change. The worst stalls are shader compiles and the land mask, not t
 
 ## PR
 
-PR #405 against dev (not merged), ledger seq 1500 (`pr_open`). STATE's ledger-head anchor moved from 1463 (stale: dev's
-ledger was already at 1499) to 1500.
+PR #405 against dev (not merged), ledger seq 1501 (`pr_open`; re-chained from 1500 by the lead session after #404 merged). STATE's ledger-head anchor moved from 1463 (stale: dev's
+ledger was already at 1499) to 1501.
