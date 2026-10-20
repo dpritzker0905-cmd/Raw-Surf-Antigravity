@@ -248,4 +248,7 @@ def test_only_short_lived_samplers_memoize():
     hits = sorted(str(f.relative_to(backend)).replace("\\", "/") for f in backend.rglob("*.py")
                   if "tests" not in f.parts and ".venv" not in f.parts and "PointSampler(memoize=True" in f.read_text("utf-8", "ignore"))
     # consensus_ingest.build_hour: one sampler per forecast hour, dropped with it (2026-09-29, D-009).
-    assert hits == ["services/weather_pipeline/consensus_ingest.py", "services/weather_pipeline/consensus_product.py"]
+    # model_spread.build_spread and scripts/publish_model_spread.collect: one sampler per spread frame (three
+    # products), dropped with the frame, in a one-shot CI script (2026-10-19, dark data collector).
+    assert hits == ["scripts/publish_model_spread.py", "services/weather_pipeline/consensus_ingest.py",
+                    "services/weather_pipeline/consensus_product.py", "services/weather_pipeline/model_spread.py"]

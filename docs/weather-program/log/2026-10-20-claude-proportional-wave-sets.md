@@ -93,5 +93,5 @@ line, removed). `npx craco build` exit 0 and the bundle carries `u_proportionalS
 
 ## 5. Opened
 
-PR #404 (open for the owner's A/B, not merged), ledger seq 1498 (`pr_open`). Open PRs #401, #377, #375, #339, #333 and #264
+PR #404 (open for the owner's A/B, not merged), ledger seq 1500 (`pr_open`; first appended as 1498, re-chained after #401 merged onto the same head). Open PRs #401, #377, #375, #339, #333 and #264
 also append to `ACTIONS.jsonl`: whichever merges second re-chains its lines onto dev's head (LESSONS, ledger forks).
