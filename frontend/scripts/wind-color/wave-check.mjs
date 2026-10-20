@@ -9,6 +9,8 @@
 //   node wave-check.mjs --table cand.json        # a solver's candidate ({ heights, cap, over, light, beach }) instead
 //   node wave-check.mjs --strict                 # exit 1 on any RED line (here or in the colour-blind authority)
 //   node wave-check.mjs --json out.json
+//   node wave-check.mjs --crest v1               # beach crests: v1 / v2 / warm / a crest-solve.mjs JSON ({ calm, active, storm } 0-1),
+//                                                 # instead of what the app draws (v1 over the v1 wash, V2 over v2)
 //
 // Bars (2026-10-20 brief + D-019): lightness falls at every step as height grows (OKLCH L, on the wash AND the composite, with
 // the swell lighting off, half and full); no grey (a ramp never runs through grey: wash C* >= 12 and composite C* >= 8 along
@@ -20,7 +22,7 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { BASEMAP, ALPHAS, DEPTH_FLOOR, loadPalettes, washAt, composite, crestOver, oklab, apcaLc, dE, allDE, chromaStar } from './wave-lib.mjs';
+import { BASEMAP, ALPHAS, DEPTH_FLOOR, loadPalettes, washAt, composite, crestOver, oklab, apcaLc, dE, allDE, chromaStar, CRESTS, crestFor } from './wave-lib.mjs';
 import { de2000, simLab } from './light-path-lib.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +33,12 @@ const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JS
 const ids = arg('--palette') ? [arg('--palette')] : Object.keys(palettes);
 const themes = arg('--theme') ? [arg('--theme')] : ['light', 'beach'];
 const DIRS = [0, 0.5, 1];
+const crestArg = arg('--crest'), crestFile = crestArg && !CRESTS[crestArg] ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;
+/** The beach crest [calm, active, storm, foam] drawn over palette `id` (light: the shader's own, undefined here). */
+const crestOf = (id, theme) => (theme !== 'beach' ? undefined
+  : crestFile ? [crestFile.calm, crestFile.active, crestFile.storm, CRESTS.v1[3],
+    crestFile.switchHeight ? { h: crestFile.switchHeight, calm: crestFile.calmUp, active: crestFile.activeUp } : undefined]
+    : CRESTS[crestArg || crestFor(id)]);
 const fmt = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : String(x));
 const rgb255 = (c) => c.map((v) => Math.round(v * 255));
 let red = 0;
@@ -85,14 +93,19 @@ for (const id of ids) {
     let ls = { de: Infinity };
     for (const [view, a] of Object.entries(ALPHAS)) for (let h = 0; h <= cap + (P.over ? 1 : 0) + 1e-9; h += 0.05) { const d = dE(composite(P, theme, h, a, 0.5, false), land); if (d < ls.de) ls = { de: d, h, view }; }
     console.log(`[${flag(false, ls.de < BAR.land)}] land vs sea: the composite closest to the ${theme} land is ${fmt(ls.h, 2)} m (${ls.view}) at ${fmt(ls.de)} dE00 (watch below ${BAR.land})`);
-    // 5. Crests: a crest's core (no whitecap, and a full whitecap) against the wash under it, at every 0.1 m.
-    let cr = { de: Infinity }, crC = { de: Infinity }, crLc = { lc: Infinity };
-    for (const [view, a] of Object.entries(ALPHAS)) for (const wc of [0, 1]) for (let h = 0.2; h <= Math.min(cap, 16) + 1e-9; h += 0.1) {
-      const under = composite(P, theme, h, a), over = crestOver(theme, h, under, wc), n = dE(over, under), w = allDE(over, under), lc = Math.abs(apcaLc(over, under));
-      if (n < cr.de) cr = { de: n, h, view, wc }; if (w.de < crC.de) crC = { ...w, h, view, wc }; if (lc < crLc.lc) crLc = { lc, h, view, wc };
+    // 5. Crests: a crest's core (no whitecap, and a full whitecap) against the wash under it, at every 0.1 m and swell lighting.
+    const crest = crestOf(id, theme);
+    let cr = { de: Infinity }, crC = { de: Infinity }; const crLc = [{ lc: Infinity }, { lc: Infinity }];   // APCA: whitecap off / on
+    // Heights every 0.1 m, then the above-cap state (2026-10-20: a crest there reads the cap's height over the above-cap colour).
+    const crestHs = []; for (let h = 0.2; h <= Math.min(cap, 16) + 1e-9; h += 0.1) crestHs.push(h);
+    if (P.over) crestHs.push(`${cap}+`);
+    for (const [view, a] of Object.entries(ALPHAS)) for (const dir of DIRS) for (const wc of [0, 1]) for (const h of crestHs) {   // every swell lighting
+      const above = typeof h === 'string', under = composite(P, theme, above ? cap + 1 : h, a, dir), over = crestOver(theme, above ? cap : h, under, wc, crest);
+      const n = dE(over, under), w = allDE(over, under), lc = Math.abs(apcaLc(over, under));
+      if (n < cr.de) cr = { de: n, h, view, wc }; if (w.de < crC.de) crC = { ...w, h, view, wc }; if (lc < crLc[wc].lc) crLc[wc] = { lc, h, view };
     }
-    if (args.includes('--pairs')) for (let h = 0.3; h <= cap; h += h < 2 ? 0.3 : 1) { const u = composite(P, theme, h, ALPHAS.world), o = crestOver(theme, h, u, 0); console.log(`         crest at ${fmt(h)} m: ${fmt(dE(o, u))} dE00 normal, ${fmt(allDE(o, u).de)} weakest (${allDE(o, u).kind}); crest L ${fmt(oklab(o).L, 2)} wash L ${fmt(oklab(u).L, 2)}`); }
-    console.log(`[${flag(false, cr.de < BAR.crest)}] crests: a crest core vs its wash is weakest at ${fmt(cr.h)} m (${cr.view}${cr.wc ? ', whitecap' : ''}) ${fmt(cr.de)} dE00; colour-blind ${fmt(crC.de)} (${crC.kind} at ${fmt(crC.h)} m); APCA |Lc| ${fmt(crLc.lc)} at ${fmt(crLc.h)} m (watch below ${BAR.crest} dE00)`);
+    if (args.includes('--pairs')) for (let h = 0.3; h <= cap; h += h < 2 ? 0.3 : 1) { const u = composite(P, theme, h, ALPHAS.world), o = crestOver(theme, h, u, 0, crest); console.log(`         crest at ${fmt(h)} m: ${fmt(dE(o, u))} dE00 normal, ${fmt(allDE(o, u).de)} weakest (${allDE(o, u).kind}); crest L ${fmt(oklab(o).L, 2)} wash L ${fmt(oklab(u).L, 2)}`); }
+    console.log(`[${flag(false, cr.de < BAR.crest)}] crests (${theme === 'beach' ? `beach ${crestArg ? path.basename(crestArg) : crestFor(id)}` : 'light'}): a crest core vs its wash is weakest at ${fmt(cr.h)} m (${cr.view}${cr.wc ? ', whitecap' : ''}) ${fmt(cr.de)} dE00; colour-blind ${fmt(crC.de)} (${crC.kind} at ${fmt(crC.h)} m); APCA |Lc| ${fmt(crLc[0].lc)} at ${fmt(crLc[0].h)} m, ${fmt(crLc[1].lc)} on a whitecap's front at ${fmt(crLc[1].h)} m (watch below ${BAR.crest} dE00)`);
     // 6. The legend bar on its panel (the bar draws the table opaque; APCA Lc of each stop as if it were text on the panel).
     const legendStops = stopH.map((h) => washAt(P, theme, h)), lcs = legendStops.map((c) => apcaLc(c, panel));
     const weakLc = lcs.reduce((w, lc, i) => (Math.abs(lc) < Math.abs(w.lc) ? { lc, i } : w), { lc: Infinity, i: -1 });
@@ -122,7 +135,14 @@ for (const id of ids) {
     const floorL = oklab(composite(P, theme, 0, ALPHAS.world)).L, calmL = oklab(composite(P, theme, 0.18, ALPHAS.world)).L;
     console.log(`[watch] depth floor: flat water (0-0.18 m) draws the shader's deep-ocean colour ${rgb255(DEPTH_FLOOR[theme]).join(',')} (composite L ${fmt(floorL, 2)}) and reaches the table's calm (L ${fmt(calmL, 2)}) at 0.18 m: ${floorL < calmL ? 'darker than calm' : 'no darker than calm'} (the shader's, not this palette's)`);
     out[id][theme] = { pairs: pairs.map((p) => ({ label: p.label, view: p.view, a: p.a, b: p.b })),
-      over: P.over ? Object.entries(ALPHAS).map(([view, a]) => ({ label: 'cap-over', view, a: composite(P, theme, cap, a), b: composite(P, theme, cap + 1, a) })) : [] };
+      over: P.over ? Object.entries(ALPHAS).map(([view, a]) => ({ label: 'cap-over', view, a: composite(P, theme, cap, a), b: composite(P, theme, cap + 1, a) })) : [],
+      // A crest's core against its wash for the authority (wave_cvd_check.py): every 0.2 m, every view, whitecap off and on, above the cap.
+      crests: Object.entries(ALPHAS).flatMap(([view, a]) => [0, 1].flatMap((wc) => {
+        const hs = []; for (let h = 0.2; h <= cap + 1e-9; h += 0.2) hs.push(h);
+        const rows = hs.map((h) => { const u = composite(P, theme, h, a); return { label: `${fmt(h)} m${wc ? ' whitecap' : ''}`, view, a: crestOver(theme, h, u, wc, crest), b: u }; });
+        if (P.over) { const u = composite(P, theme, cap + 1, a); rows.push({ label: `above ${cap} m${wc ? ' whitecap' : ''}`, view, a: crestOver(theme, cap, u, wc, crest), b: u }); }
+        return rows;
+      })) };
   }
 }
 const jsonPath = arg('--json') || path.join(os.tmpdir(), 'wave-color-check.json');

@@ -7,6 +7,12 @@
 //   node serve_spa.js <build dir> 3100
 //   PORT=4120 OUT=<dir> node scn_wave_palette_ab.js        then: python compose_wave_ab.py <dir>
 // Env: VARIANTS=v1,v2  THEMES=light,beach  VIEWS=world,regional,coastal  CLIP=1 (frames for the clip)  CLIP_FRAMES=40
+//      CLIP_VIEWS=regional,coastal (default regional; a non-regional clip's frames are named clip-<theme>-<variant>@<view>-NNN)
+//      PAIRED=1: each clip frame is followed by the same view with the crest pass off (the engine's own heatmap-only fallback,
+//      _fboSupported = false, restored after), saved as clipw-...: the exact wash under that frame, for crest_contrast.py
+// Beach crest V2 (2026-10-20): c1 is the v2 wash under TODAY's beach crests (window.__RAW_DISABLE_BEACH_CREST_V2__), v2 draws the V2
+// polarity crest (the default) and cw the warm candidate (window.__RAW_BEACH_CREST_V2__ = 'warm'). Each shot reads back which beach
+// crest colours the GPU compiled (the DRAW program's own GLSL).
 // Per shot it records what the engine held (grid shape, bounds, valid time, the drawn grid's height range) so the panes can be
 // shown to be the same data; and, before Waves is switched on, the bare water's colour (the checker's basemap model).
 const fs = require('fs');
@@ -17,19 +23,23 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
-const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {} };
+const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, c1: { __RAW_DISABLE_BEACH_CREST_V2__: true }, cw: { __RAW_BEACH_CREST_V2__: 'warm' } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
 const variants = pick('VARIANTS', LEVERS), themes = process.env.THEMES ? process.env.THEMES.split(',') : ['light', 'beach'], views = pick('VIEWS', VIEWS);
-const CLIP_FRAMES = +(process.env.CLIP_FRAMES || 40);
+const CLIP_FRAMES = +(process.env.CLIP_FRAMES || 40), CLIP_VIEWS = (process.env.CLIP_VIEWS || 'regional').split(',');
 
 const drawn = () => {   // what the engine holds (not the layer's parity record: see the harness README)
   const e = window.__MARINE_ENGINE__, d = e && e._waveData, g = d && (d.grid || d);
   let lo = Infinity, hi = -Infinity, over10 = 0;
   for (const v of (g && g.vectors) || []) { const s = v.speed; if (typeof s === 'number' && v.is_valid !== false) { if (s < lo) lo = s; if (s > hi) hi = s; if (s >= 10) over10++; } }
+  // The crest colours the GPU compiled: the DRAW program's attached fragment shader, read back (shaders stay attached until dispose).
+  const canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
+  const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
+  const beachCrest = (/if \(u_theme > 1\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);/.exec(glsl) || []).slice(1);
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
-    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2' };
+    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', beachCrest };
 };
 
 async function legendBox(page) {
@@ -66,13 +76,22 @@ async function legendBox(page) {
           record.shots.push({ theme, variant: v, view, file, legend: lb ? `${theme}-${view}-${v}-legend.png` : null, engine: await page.evaluate(drawn) });
           console.log(theme, v, view, JSON.stringify(record.shots[record.shots.length - 1].engine));
         }
-        if (process.env.CLIP === '1') {   // the moving clip: regional view, the forecast stepped +1 h every 5 frames while the crests run
-          await L.jump(page, ...VIEWS.regional); await sleep(9000);
+        if (process.env.CLIP === '1') for (const cv of CLIP_VIEWS) {   // the moving clip: the forecast stepped +1 h every 5 frames while the crests run
+          await L.jump(page, ...VIEWS[cv]); await sleep(cv === 'regional' ? 9000 : 11000);
           await page.evaluate(() => document.querySelector('[role="slider"][aria-label*="Forecast timeline"]').focus());
           const clip = { x: Math.round(box.x + box.w * 0.2), y: Math.round(box.y + box.h * 0.15), width: Math.round(box.w * 0.6), height: Math.round(box.h * 0.7) };
+          const tag = cv === 'regional' ? v : `${v}@${cv}`;
           for (let k = 0; k < CLIP_FRAMES; k++) {
             if (k && k % 5 === 0) await page.keyboard.press('ArrowRight');
-            await page.screenshot({ path: path.join(OUT, `clip-${theme}-${v}-${String(k).padStart(3, '0')}.png`), clip });
+            await page.screenshot({ path: path.join(OUT, `clip-${theme}-${tag}-${String(k).padStart(3, '0')}.png`), clip });
+            if (process.env.PAIRED === '1') {   // the same instant without crests: three frames drawn with the crest pass off
+              await page.evaluate(() => new Promise((r) => {
+                window.__MARINE_ENGINE__._fboSupported = false; (window.__MAP_INSTANCE__ || window.map).triggerRepaint();
+                requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r)));
+              }));
+              await page.screenshot({ path: path.join(OUT, `clipw-${theme}-${tag}-${String(k).padStart(3, '0')}.png`), clip });
+              await page.evaluate(() => { window.__MARINE_ENGINE__._fboSupported = true; (window.__MAP_INSTANCE__ || window.map).triggerRepaint(); });
+            }
             await sleep(120);
           }
         }

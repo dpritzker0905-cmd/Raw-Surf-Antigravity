@@ -11,6 +11,8 @@
 //    wash only ever composites over the water colour; the land is drawn over it, so land vs sea = land colour vs the composite.
 //  - Crests (WebGLMarineParticleShaders.js DRAW_FS): base = mix(calm, active, 2e) / mix(active, storm, 2e - 1) with
 //    e = smoothstep(0, 6, h), white mixed in by whitecapRoll * 0.45, laid premultiplied at min(alpha * mix(1.2, 1.8, e), 0.85).
+//    Beach's three colours are READ from marineCrestPalette.js (BEACH_CRESTS v1 / v2, the table the shader is built from);
+//    light's are the shader's literals, copied below.
 //
 // Basemap colours: READ from the real Mapbox styles as the app draws them (navigation-day for light, outdoors for beach), by the
 // offline A/B harness (scn_wave_palette_ab.js) with Waves still off, at regional zoom (4.6), 2026-10-20. Unmuted: the wind's
@@ -24,6 +26,7 @@ import { dec, enc, labOf, lchOf, de2000, simLab, KINDS } from './light-path-lib.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const PALETTE_SRC = path.join(HERE, '..', '..', 'src', 'components', 'map', 'marineWavePalette.js');
+export const CREST_SRC = path.join(HERE, '..', '..', 'src', 'components', 'map', 'marineCrestPalette.js');
 
 export const BASEMAP = {
   light: { water: [144, 223, 254], land: [255, 255, 255], panel: [255, 255, 255] },   // panel: MapWeatherControls bgClass bg-white/95
@@ -34,9 +37,23 @@ export const ALPHAS = { world: 0.65, regional: 0.70, coastal: 0.77 };
 const LIGHTING = [0.03, 0.05, 0.08];
 /** The shader's depth floor under the first 0.18 m (deep ocean, no chlorophyll): what flat water shows instead of the table. */
 export const DEPTH_FLOOR = { light: [0.12, 0.35, 0.68], beach: [0.015, 0.24, 0.22] };
-const CREST = {   // calm, active, storm, foam (DRAW_FS)
+/** The beach crest tables the app ships (marineCrestPalette.js, export keywords and its one import stripped). */
+export function loadCrests(file = CREST_SRC) {
+  const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
+  return new Function('MARINE_WAVE_PALETTE_ENABLED', 'MARINE_WAVE_PALETTE_ID', `${src}; return { BEACH_CRESTS, resolveBeachCrest, beachCrestGlsl };`)(true, 'v2');
+}
+const BEACH_FOAM = [0.95, 0.95, 1.00];
+/** One crest table [calm, active, storm, foam, polarity] (DRAW_FS order) from a BEACH_CRESTS entry ({ calm: { rgb, above }, ... }).
+ *  polarity (optional): { h, calm, active }, the calm and active colours a crest takes at and above h metres (DRAW_FS
+ *  `mix(below, above, step(h, v_wave_height))`); below h it takes calm.rgb and active.rgb. */
+export const beachCrest = (t) => [t.calm.rgb, t.active.rgb, t.storm.rgb, BEACH_FOAM,
+  t.switchHeight ? { h: t.switchHeight, calm: t.calm.above, active: t.active.above } : undefined];
+/** Which beach crests the app draws over a wash palette: v1 over the v1 wash (V2 stands down there), V2 over v2. */
+export const crestFor = (paletteId) => (paletteId === 'v1' ? 'v1' : 'v2');
+export const CRESTS = Object.fromEntries(Object.entries(loadCrests().BEACH_CRESTS).map(([id, t]) => [id, beachCrest(t)]));
+const CREST = {   // calm, active, storm, foam (DRAW_FS); beach's default is V2, what the app draws over the V2 wash
   light: [[0.05, 0.15, 0.45], [0.85, 0.50, 0.00], [0.75, 0.10, 0.05], [1, 1, 1]],
-  beach: [[1.00, 0.45, 0.65], [0.00, 0.92, 0.85], [0.80, 0.20, 0.90], [0.95, 0.95, 1.00]],
+  beach: CRESTS.v2,
 };
 
 export const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
@@ -71,8 +88,9 @@ export function composite(P, theme, h, a, dir = 0.5, floor = true, waterRGB = nu
 
 /** A crest's core over the wash composite (DRAW_FS colours; laid at 0.85, the alpha cap a crest's core reaches). `whitecap` 0..1 is
  *  the share of the whitecap the shader ALLOWS at this height (DRAW_VS v_whitecap = smoothstep(0.5, 3.0, h), its roll mixed in at 0.45). */
-export function crestOver(theme, h, under, whitecap = 0) {
-  const [calm, active, storm, foam] = CREST[theme], e = ss(0, 6, h);
+export function crestOver(theme, h, under, whitecap = 0, crest = CREST[theme]) {   // crest: another [calm, active, storm, foam, polarity?]
+  const [c0, a0, storm, foam, pol] = crest, e = ss(0, 6, h), up = pol && h >= pol.h;
+  const calm = up ? pol.calm : c0, active = up ? pol.active : a0;
   const base = e < 0.5 ? mix(calm, active, e * 2) : mix(active, storm, (e - 0.5) * 2);
   const c = mix(base, foam, whitecap * ss(0.5, 3.0, h) * 0.45), a = 0.85;
   return clamp01(c.map((v, i) => v * a + under[i] * (1 - a)));
