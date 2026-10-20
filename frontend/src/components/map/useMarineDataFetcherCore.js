@@ -26,7 +26,7 @@ import {
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { claimEnqueueSlot } from './marineEnqueueSlot';
-import { marineErrorOwnsDisplay } from './marineSeekIdentity';
+import { marineErrorOwnsDisplay } from './marineSeekIdentity'; import { keepSwrRetryCount } from './marineRequestDiet';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -259,7 +259,7 @@ export function useMarineDataFetcherCore({
         }
         return;
       }
-      resetRetryCounts();
+      if (!keepSwrRetryCount(source)) resetRetryCounts();   // SWR_RETRY_CAP: its own re-drive keeps the count, so the cap of 3 holds (marineRequestDiet.js)
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation' || source === 'clamp_resharpen';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;

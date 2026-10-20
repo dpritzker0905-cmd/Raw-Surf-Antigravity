@@ -4,13 +4,35 @@ import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFl
 import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
-import { getMarineSeriesFrame } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { publishMarineTimelineRequest, publishMarineTimelineFrame } from './marineTimelineCoverage';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 let _lastMarineScrubLogTime = 0;
+
+/**
+ * STEP_PAGE (request diet 2026-10-20, marineRequestDiet.js). An hour step that misses every cache (no exact grid, no series frame)
+ * fetched ONE exact /grid for that hour and never asked for the 48-frame page holding it: the scrub prewarm runs only when a DRAG
+ * starts (timeline_scrub_start), so button and keyboard steps past the first page paid a /grid per hour, every hour, and EURO (never
+ * prewarmed: its pages are per-hour Copernicus work) did so on every page. Ask for the page as well: ensureMarineSeries races the
+ * step's own hour as a one-frame "mini" ahead of the page while the page is cold (the nearest frame first), loads the CURRENT page
+ * only (no neighbour fan-out), is TTL'd and deduped, and promotes a page the background prewarm still has queued. The /grid still
+ * goes out (at world zoom the series frame is the thinned placeholder the exact frame replaces). Not while dragging: the drag's own
+ * prewarm owns that, and a mini per dragged hour would be a storm. Kill: window.__RAW_DISABLE_STEP_PAGE__ = true.
+ */
+export function requestStepPage(model, layer, bounds, hourOffset) {
+  try {
+    if (!requestDietOn('STEP_PAGE') || !bounds || (typeof window !== 'undefined' && window.isScrubbingTimeline)) return false;
+    ensureMarineSeries(model, layer, bounds, hourOffset, undefined, true /* currentPageOnly */);
+    noteRequestDiet('step_page_requested', { model, layer, hour: hourOffset });
+    return true;
+  } catch (e) {
+    return false;                      // best effort: the /grid for the step is already on its way
+  }
+}
 
 export function useMarineOrchestratorScrubCache({
   timeOffsetHours,
@@ -225,6 +247,7 @@ export function useMarineOrchestratorScrubCache({
         marineFetchLocksRef.current.lastHash = null;
         if (!window.isScrubbingTimeline) {
           enqueueMarineUpdate('timeline_scrub_deferred');
+          requestStepPage(curModel, curLayer, vpBounds, timeOffsetHours);
         }
         return;
       }
