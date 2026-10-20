@@ -78,3 +78,9 @@ other sessions' harnesses (simple greps took over 2 minutes at times), so the ar
   exact-correct flag on vs off, Render CPU and /api/health before/after, then a SCOREBOARD row. Ledger commitment.
 - Follow-ups, not this PR: MRT-style packing of several hours per file; slice 2 (all world fields and models, wind); regional
   whole frames (needs the resolver's selection rule published in the index); hourly cadence days 1-5.
+
+## Ledger
+
+- seq 1553 `pr_open` draft #422; seq 1554 `commitment` (due 2026-10-27T18:00Z): the live read after the merge and the
+  correctly named repo variable. STATE's Ledger head moved to 1554. Any receipt PR merged before #422 re-forks these lines
+  (re-append them on top, LESSONS).
