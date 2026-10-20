@@ -1,7 +1,11 @@
 // Marine HEIGHT wash only (light + beach). Dark, surf quality, crest colours, motion and wind keep their own paths.
 // Kills, set before page load, then reload so the GLSL and the legend switch together:
 //   window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true -> the shader's own ramp (before 2026-10-14)
-//   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly
+//   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly, in both themes
+//   window.__RAW_DISABLE_WAVE_BEACH_V1__ = true       -> beach draws v2 as #411 merged it (D-035's kill)
+// BEACH DRAWS v1 (owner 2026-10-20, DECISIONS D-035: "I really like v1 color scheme heatmap for Beach mode. How do we stick with
+// that?"); light draws v2 (D-033). Beach's colours are pinned byte for byte in marineWavePalette.test.js: changing them needs a
+// new owner decision, whatever another session's palette work proposes.
 // Checker: frontend/scripts/wind-color/wave-check.mjs (composited over each basemap, colour-blind via coloraide).
 import { M_TO_FT } from './heightUnits';
 
@@ -22,7 +26,8 @@ export const WAVE_PALETTES = {
   // table and as composited over each theme's water at world/regional/coastal alpha; never through grey; hue is the second cue.
   // Anchors on the legend's ticks (0 2 4 8 12 20 33 ft); the cap is the encoder's 10 m ceiling, and a cell at or above it draws
   // the above-cap colour. Light: candidate A of the A/B (cream -> turquoise -> blue -> indigo; a red flag above the cap). Beach:
-  // candidate B (aqua -> cerulean -> orchid -> rose -> brick; a violet flag above the cap). Solved by wave-solve.mjs, finished by
+  // candidate B (aqua -> cerulean -> orchid -> rose -> brick; a violet flag above the cap): what beach draws only under D-035's kill
+  // (beach draws v1, owner 2026-10-20). Solved by wave-solve.mjs, finished by
   // wave-polish.mjs, judged by wave-check.mjs and wave-jacobian.mjs (frontend/scripts/wind-color/).
   v2: {
     heights: [0, 0.61, 1.22, 2.44, 3.66, 6.1, 10], cap: 10,
@@ -32,18 +37,22 @@ export const WAVE_PALETTES = {
   },
 };
 
-export function resolveWavePalette(win = WIN) {
-  return win.__RAW_DISABLE_WAVE_PALETTE_V2__ === true ? 'v1' : 'v2';
+/** The table a theme draws: v2 in light (D-033), v1 in beach (D-035), v1 in both under the V2 kill. */
+export function resolveWavePalette(win = WIN, theme = 'light') {
+  if (win.__RAW_DISABLE_WAVE_PALETTE_V2__ === true) return 'v1';
+  return theme === 'beach' && win.__RAW_DISABLE_WAVE_BEACH_V1__ !== true ? 'v1' : 'v2';
 }
-export const MARINE_WAVE_PALETTE_ID = resolveWavePalette();
-const P = WAVE_PALETTES[MARINE_WAVE_PALETTE_ID];
+export const MARINE_WAVE_PALETTE_IDS = { light: resolveWavePalette(WIN, 'light'), beach: resolveWavePalette(WIN, 'beach') };
+export const MARINE_WAVE_PALETTE_ID = MARINE_WAVE_PALETTE_IDS.light;
+const PAL = { light: WAVE_PALETTES[MARINE_WAVE_PALETTE_IDS.light], beach: WAVE_PALETTES[MARINE_WAVE_PALETTE_IDS.beach] };
+export const paletteFor = theme => PAL[theme] || PAL.light;
 
 export function hasMarineWavePalette(theme) {
   return MARINE_WAVE_PALETTE_ENABLED && (theme === 'light' || theme === 'beach');
 }
 
 /** The table's colour at `height` metres (rounded RGB). Above the cap, the palette's own above-cap colour when it has one. */
-export function sampleMarineWavePalette(height, theme, p = P) {
+export function sampleMarineWavePalette(height, theme, p = paletteFor(theme)) {
   if (p.over && height >= p.cap) return p.over[theme].slice();
   const colors = p[theme], H = p.heights;
   const h = Math.max(0, Math.min(p.cap, height));
@@ -65,15 +74,18 @@ const glslRamp = (H, colors) => H.slice(0, -1).map((h, i) =>
 // Above the cap: a cap at the encoded maximum is only ever read as exactly that maximum (texel 255), so the state starts half a
 // texel below it; LINEAR filtering then draws its edge midway between a 254 texel and a 255 one.
 const overGlsl = (p, theme) => (p.over ? `if (height > ${num(p.cap >= ENCODED_MAX ? p.cap - ENCODED_MAX / 510 : p.cap)}) return ${vec(p.over[theme])}; ` : '');
-export const marineWavePaletteGlsl = p => `
+// Each theme's branch draws its own table (pb: beach, pl: light). With one table, or two with the same cap, the text is exactly the
+// one-table text; a branch whose cap is lower than the other's clamps again at its own cap.
+const capGlsl = (p, top) => (p.cap < top ? `h = min(h, ${num(p.cap)}); ` : '');
+export const marineWavePaletteGlsl = (pl, pb = pl) => `
 vec3 marineWaveHeightColor(float height, float theme) {
-  float h = clamp(height, 0.0, ${num(p.cap)});
-  if (theme > 1.5) { ${overGlsl(p, 'beach')}${glslRamp(p.heights, p.beach)} }
-  else { ${overGlsl(p, 'light')}${glslRamp(p.heights, p.light)} }
+  float h = clamp(height, 0.0, ${num(Math.max(pl.cap, pb.cap))});
+  if (theme > 1.5) { ${capGlsl(pb, Math.max(pl.cap, pb.cap))}${overGlsl(pb, 'beach')}${glslRamp(pb.heights, pb.beach)} }
+  else { ${capGlsl(pl, Math.max(pl.cap, pb.cap))}${overGlsl(pl, 'light')}${glslRamp(pl.heights, pl.light)} }
   return vec3(1.0);
 }
 `;
-export const MARINE_WAVE_PALETTE_GLSL = MARINE_WAVE_PALETTE_ENABLED ? marineWavePaletteGlsl(P) : '';
+export const MARINE_WAVE_PALETTE_GLSL = MARINE_WAVE_PALETTE_ENABLED ? marineWavePaletteGlsl(PAL.light, PAL.beach) : '';
 export const MARINE_WAVE_PALETTE_CALL_GLSL = MARINE_WAVE_PALETTE_ENABLED
   ? 'if (surfMode < 0.5 && theme > 0.5) return marineWaveHeightColor(h, theme);' : '';
 
@@ -83,7 +95,7 @@ export function marineWaveLegendGradientCSS(scale, theme) {
   if (!hasMarineWavePalette(theme) || scale?.unit !== 'm') return null;
   const lo = scale.breakpoints[0], hi = scale.breakpoints[scale.breakpoints.length - 1];
   const heights = Array.from({ length: 81 }, (_, i) => lo + (hi - lo) * i / 80)
-    .concat(P.heights.filter(h => h > lo && h < hi)).sort((a, b) => a - b);
+    .concat(paletteFor(theme).heights.filter(h => h > lo && h < hi)).sort((a, b) => a - b);
   return `linear-gradient(to right, ${heights.map(h =>
     `rgb(${sampleMarineWavePalette(h, theme).join(',')}) ${((h - lo) / (hi - lo) * 100).toFixed(3)}%`
   ).join(', ')})`;
@@ -95,7 +107,8 @@ export function marineWaveLegendGradientCSS(scale, theme) {
 export const ARROW_PCT = 6;
 export function marineWaveLegend(scale, theme, heightUnit) {
   if (!hasMarineWavePalette(theme) || scale?.unit !== 'm') return null;
-  if (!P.over) return { gradientCSS: marineWaveLegendGradientCSS(scale, theme) };
+  const P = paletteFor(theme);
+  if (!P.over) return { gradientCSS: marineWaveLegendGradientCSS(scale, theme) };   // v1 (beach): its scale's own axis and ticks
   const H = P.heights, end = 100 - ARROW_PCT, at = i => (i / (H.length - 1)) * end;
   const stops = H.map((h, i) => `rgb(${P[theme][i].join(',')}) ${at(i).toFixed(3)}%`);
   const over = `rgb(${P.over[theme].join(',')})`;

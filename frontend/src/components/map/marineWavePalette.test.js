@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { getThemedWaveColorJS, applyThemeWaveScale, BASE_CUSTOM_COLOR_SCALES } from './colorScales';
-import { hasMarineWavePalette, marineWaveLegendGradientCSS, marineWaveLegend, WAVE_PALETTES, MARINE_WAVE_PALETTE_ID, MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, marineWavePaletteGlsl, sampleMarineWavePalette, ARROW_PCT } from './marineWavePalette';
+import { hasMarineWavePalette, marineWaveLegendGradientCSS, marineWaveLegend, WAVE_PALETTES, MARINE_WAVE_PALETTE_ID, MARINE_WAVE_PALETTE_IDS, MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, marineWavePaletteGlsl, sampleMarineWavePalette, ARROW_PCT } from './marineWavePalette';
 
 const hash = values => createHash('sha256').update(typeof values === 'string' ? values : JSON.stringify(values)).digest('hex');
 const heights = [0, .15, .3, .6, .9, 1.2, 1.8, 2.4, 3, 3.6, 4.2, 5, 6.1, 8, 10];
@@ -17,6 +17,13 @@ const V1 = {
   samples: 'feb34e389c79a6aa10e781edbb36c1842280b96dc84c20008cf63cb041d05eca',   // light then beach, 0 to 11 m every 0.01 m
   css: '7fda44fbf352fdafdb9c4473bda35880d7fdb2fcba6ba9f0a217efa0ae758dfd',      // both themes x the 6.1 m and 3.05 m axes
 };
+// Beach as it drew before #411 (dev 6021c2cc1), hashed from that module: D-035 keeps beach on it, byte for byte.
+const BEACH_V1 = {
+  samples: 'b89f9ce3c19330e1515f55e2422d4012bf3c23727afc262f14019f6dda60d53b',   // beach, 0 to 11 m every 0.01 m
+  css: '76ac878990685de49ccd7320262658db633fd400ff3ccbb2f7a57c32f6a4e167',       // beach legend on the 6.1 m and 3.05 m axes
+  glsl: 'cd6e171d71887c61f84055f1cc40305416c6b5d82136cf2883d428981f1a9990',      // the shader's beach branch
+};
+const GLSL_411 = '64648a9a1e98c227a003877e8eee7c417e22b437bb30c216cc73d8fd27ca6c5c';   // #411's shader (beach v2): D-035's kill restores it
 const lightness = rgb => {
   const linear = rgb.map(v => { const c = v / 255; return c <= .04045 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4; });
   const y = .2126 * linear[0] + .7152 * linear[1] + .0722 * linear[2];
@@ -125,7 +132,8 @@ describe('the V2 kill (window.__RAW_DISABLE_WAVE_PALETTE_V2__) restores v1 exact
 // future candidate can be pinned the same way.
 describe.each(['v2'])('palette %s', id => {
   const P = WAVE_PALETTES[id];
-  const load = fn => withWindow({}, fn);
+  // Beach draws v1 by default (D-035): v2's beach table is read under that decision's kill, light's by default.
+  const load = (fn, theme = 'light') => withWindow(theme === 'beach' ? { __RAW_DISABLE_WAVE_BEACH_V1__: true } : {}, fn);
 
   it('ships by default, with only v1 behind the kill and no candidate lever left', () => {
     expect(MARINE_WAVE_PALETTE_ID).toBe('v2');
@@ -179,7 +187,7 @@ describe.each(['v2'])('palette %s', id => {
       });
       expect(legend.gradientCSS).toContain(`rgb(${P.over[theme].join(',')}) ${end}%, rgb(${P.over[theme].join(',')}) 100%)`);
       expect(legend.clipPath).toBe(`polygon(0 0, ${end}% 0, 100% 50%, ${end}% 100%, 0 100%)`);
-    });
+    }, theme);
   });
 
   it('labels the ticks in the user\'s unit, the last one open-ended, none dropped for crowding', () => {
@@ -194,9 +202,12 @@ describe.each(['v2'])('palette %s', id => {
     });
   });
 
-  it('generates the GLSL it ships from the same table', () => {
-    load(palette => expect(palette.MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P)));
-    expect(MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P));
+  it('generates the GLSL it ships from the same tables (light v2, beach v1), and #411 exactly under the beach kill', () => {
+    expect(MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P, WAVE_PALETTES.v1));
+    load(palette => {
+      expect(palette.MARINE_WAVE_PALETTE_GLSL).toBe(marineWavePaletteGlsl(P));
+      expect(hash(palette.MARINE_WAVE_PALETTE_GLSL)).toBe(GLSL_411);   // the shader #411 merged (f550d250)
+    }, 'beach');
   });
 });
 
@@ -204,4 +215,39 @@ it('the legend falls back to the scale for non-height bars and dark', () => {
   expect(marineWaveLegendGradientCSS({ unit: 'kn', breakpoints: [0, 1] }, 'light')).toBeNull();
   expect(marineWaveLegend({ unit: 'kn', breakpoints: [0, 1] }, 'light', 'ft')).toBeNull();
   expect(marineWaveLegend({ unit: 'm', breakpoints: [0, 6.1] }, 'dark', 'ft')).toBeNull();
+});
+
+// D-035 (owner 2026-10-20: "I really like v1 color scheme heatmap for Beach mode. How do we stick with that?"): beach draws v1,
+// exactly as before #411, while light draws v2. This block is the lock: a change to beach's wave colours fails here and needs a new
+// owner decision, whatever another session's palette work proposes.
+describe('D-035: beach draws v1 exactly; light draws v2', () => {
+  const branch = (glsl, theme) => glsl.slice(glsl.indexOf(theme === 'beach' ? 'if (theme > 1.5) {' : 'else {'), glsl.indexOf(theme === 'beach' ? 'else {' : 'return vec3(1.0);'));
+  it('picks v1 for beach and v2 for light by default', () => {
+    expect(MARINE_WAVE_PALETTE_IDS).toEqual({ light: 'v2', beach: 'v1' });
+  });
+  it('beach samples, legend and shader branch hash to beach before #411', () => {
+    const samples = []; for (let i = 0; i <= 1100; i++) samples.push(sampleMarineWavePalette(i / 100, 'beach'));
+    expect(hash(samples)).toBe(BEACH_V1.samples);
+    expect(hash([[0, .61, 1.22, 2.44, 3.66, 6.1], [0, .3, .61, 1.22, 1.83, 3.05]].map(bp => marineWaveLegendGradientCSS({ unit: 'm', breakpoints: bp }, 'beach')))).toBe(BEACH_V1.css);
+    expect(hash(branch(MARINE_WAVE_PALETTE_GLSL, 'beach'))).toBe(BEACH_V1.glsl);
+    const legend = marineWaveLegend({ unit: 'm', breakpoints: [0, .61, 1.22, 2.44, 3.66, 6.1] }, 'beach', 'ft');
+    expect(legend.stops).toBeUndefined();     // v1's own value axis and ticks (buildStops), no arrow
+    expect(legend.clipPath).toBeUndefined();
+    expect(getThemedWaveColorJS(3, 'beach')).toEqual(sampleMarineWavePalette(3, 'beach', WAVE_PALETTES.v1));   // the JS mirror follows
+  });
+  it('light keeps v2: its shader branch, samples and arrowed legend', () => {
+    expect(branch(MARINE_WAVE_PALETTE_GLSL, 'light')).toBe(branch(marineWavePaletteGlsl(WAVE_PALETTES.v2), 'light'));
+    expect(sampleMarineWavePalette(3, 'light')).toEqual(sampleMarineWavePalette(3, 'light', WAVE_PALETTES.v2));
+    expect(marineWaveLegend({ unit: 'm', breakpoints: [0, 6.1] }, 'light', 'ft').clipPath).toBeDefined();
+  });
+  it('the kills: the beach kill draws #411 exactly; the V2 kill draws v1 in both themes', () => {
+    withWindow({ __RAW_DISABLE_WAVE_BEACH_V1__: true }, palette => {
+      expect(palette.MARINE_WAVE_PALETTE_IDS).toEqual({ light: 'v2', beach: 'v2' });
+      expect(hash(palette.MARINE_WAVE_PALETTE_GLSL)).toBe(GLSL_411);
+    });
+    withWindow({ __RAW_DISABLE_WAVE_PALETTE_V2__: true }, palette => {
+      expect(palette.MARINE_WAVE_PALETTE_IDS).toEqual({ light: 'v1', beach: 'v1' });
+      expect(hash(palette.MARINE_WAVE_PALETTE_GLSL)).toBe(V1.glsl);
+    });
+  });
 });

@@ -152,3 +152,16 @@ blue (73, 52, 201) is darker by only 0.010. Light's red flag passes (darker by 0
 description of the beach flag was corrected in place before merge (the owner's quoted words are unchanged). The earlier claim in
 this log and the PR, beach B's above-cap "23.1 dE00 off the cap", was right as a distance; "no lighter than the cap" held for
 the table only.
+
+## 2026-10-20 16:42Z: beach goes back to v1 and is locked (DECISIONS D-035)
+
+Owner, 16:20Z: "I really like v1 color scheme heatmap for Beach mode. How do we stick with that? We have many chats working on
+this". Built on branch `claude/beach-wave-v1` from dev `26385e031`: the palette is chosen per theme (`paletteFor(theme)`,
+`MARINE_WAVE_PALETTE_IDS`): light v2, beach v1. The shader's beach branch is the v1 text byte for byte; a branch whose cap is
+lower than the other's clamps again at its own cap (with both at 10 m the text is the one-table text, so the V2 kill still hashes
+to v1 and the new beach kill `__RAW_DISABLE_WAVE_BEACH_V1__` hashes to #411's shader). The lock: a "D-035" block in
+`marineWavePalette.test.js` pins beach's samples (0-11 m), legend CSS (both axes) and shader branch to the pre-#411 module by
+sha256. **D-034 was already taken by #415's draft** (the 16 m encoding), so this is D-035. #415 (16 m) and #416 (beach crests vs
+v2) were solved against beach v2: told to make their beach parts follow D-035 (light only, or the owner's word). Checks:
+`marineWavePalette.test.js` 24/24; full frontend Jest 457/458 (the one failure is still the environmental
+`netlifyIconStoredTailScope.test.js` spawn timeout); ESLint and LOC ratchets clean; wind check `--strict` 0; build compiled.
