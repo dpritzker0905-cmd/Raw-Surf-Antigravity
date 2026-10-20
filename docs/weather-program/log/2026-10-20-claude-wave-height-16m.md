@@ -153,3 +153,18 @@ Not taken here: a float height texture (R16F; filterable in core WebGL2, uploade
 second texture and sampler in both heatmap passes (and the land-aware 4-tap fetch), a WebGL1 path, and LOC room the engine does
 not have; and dev's own /10 floor is 15 dE00 at calm water in EVERY theme, dark included, so the precise texture is a change to
 dark too: its own A/B. Proposed as a follow-up.
+
+## Correction (15:29Z): the section above is headed "~15:40Z"; it was written and committed at 15:27:53Z (ea296d7a6). An estimate, not a clock reading (L-P10); ledger correction line below.
+
+## The A/B again, on the rounded byte (15:45Z; `evidence/...json` `rounded_byte_rerun`)
+
+The same harness on a rebuild of `ea296d7a6`: light and beach, four runs each (`v2@10`, `v2`, `v2@10b`, `v2b`), 90-frame crest
+bursts, world/regional/coastal shots, clips. The numbers in "The A/B" above were taken on the floored byte (`d5278278f`); dark's
+were not affected (its /10 path is untouched) and stand.
+
+- Uploads: the 10 m path's bytes as before (`7fbac580`, `60428f4b`, `20a946df`); the rounded 16 m bytes `ab9df202` (world and
+  regional), `fafafff6` (coastal 13x11), `6700b93d` (crest view), the same in both 16 m runs, scale 16/16. No page errors.
+- Crests below 10 m: light 6.81/6.83% (10 m) against 6.77/6.78% (16 m): 0.05 points apart (0.7% relative) against 0.03 between
+  two runs of one setting here (0.065 in the first experiment): at the instrument's noise floor. Beach 4.61/4.61% against
+  4.66/4.55%: 0.002 apart against 0.11. Crest colour below 10 m within 1.4 of 255 (light) and within run-to-run noise (beach).
+- Owner page republished (version 2) with these images and numbers and a precision table.

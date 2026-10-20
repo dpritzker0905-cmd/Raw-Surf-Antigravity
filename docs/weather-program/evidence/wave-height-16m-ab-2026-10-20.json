@@ -1077,5 +1077,721 @@
    "weakest_normal": "7.2 (0-0.61 m)",
    "legend_arrow_apca": -14.8
   }
+ },
+ "superseded_note": "full_run, wash_pixels_full_run and crests_90_frames_per_run were taken on the FLOORED /16 byte (d5278278f); rounded_byte_rerun is the code as shipped (ea296d7a6). Dark is unaffected by the change (the /10 path is untouched).",
+ "rounded_byte_rerun": {
+  "uploads": [
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   }
+  ],
+  "stats": {
+   "light": {
+    "wash_v2@10_vs_v2": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 444175,
+      "differ_gt_tol": 87623,
+      "max": 158
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 527422,
+      "differ_gt_tol": 44012,
+      "max": 157
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 541428,
+      "differ_gt_tol": 32815,
+      "max": 165
+     }
+    },
+    "wash_v2@10_vs_v2@10b": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 90082,
+      "differ_gt_tol": 68,
+      "max": 42
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 69433,
+      "differ_gt_tol": 524,
+      "max": 16
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 62623,
+      "differ_gt_tol": 0,
+      "max": 2
+     }
+    },
+    "below10_mask_px": 973052,
+    "eye_mask_px": 50592,
+    "noisy_px": 356,
+    "crests/v2@10": {
+     "below10": {
+      "coverage_mean": 0.06806354302407955,
+      "coverage_sd": 0.002194640159880376,
+      "colour_mean": [
+       115.2,
+       146.2,
+       171.1
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.22108545927331502,
+      "coverage_sd": 0.013299368817429432,
+      "colour_mean": [
+       147.5,
+       81.5,
+       114.5
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "crests/v2@10b": {
+     "below10": {
+      "coverage_mean": 0.06832519399442852,
+      "coverage_sd": 0.002923157952609353,
+      "colour_mean": [
+       116.0,
+       145.6,
+       170.5
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.23176347599971894,
+      "coverage_sd": 0.016362581328410144,
+      "colour_mean": [
+       148.1,
+       81.7,
+       114.6
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "crests/v2": {
+     "below10": {
+      "coverage_mean": 0.06764956491990606,
+      "coverage_sd": 0.0021686423504095192,
+      "colour_mean": [
+       116.0,
+       145.8,
+       170.5
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.24019717654086722,
+      "coverage_sd": 0.018115468268416375,
+      "colour_mean": [
+       140.7,
+       79.3,
+       120.0
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "crests/v2b": {
+     "below10": {
+      "coverage_mean": 0.06780009929810764,
+      "coverage_sd": 0.0018463125089416372,
+      "colour_mean": [
+       116.6,
+       145.3,
+       170.3
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.25547758978143226,
+      "coverage_sd": 0.012733700066051472,
+      "colour_mean": [
+       141.2,
+       78.7,
+       119.2
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "coverage_between_encodings": 0.0004695364002471891,
+    "coverage_within_lever": 0.00026165097034897
+   },
+   "beach": {
+    "wash_v2@10_vs_v2": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 412893,
+      "differ_gt_tol": 78540,
+      "max": 154
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 604221,
+      "differ_gt_tol": 39244,
+      "max": 145
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 585305,
+      "differ_gt_tol": 23661,
+      "max": 146
+     }
+    },
+    "wash_v2@10_vs_v2@10b": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 129901,
+      "differ_gt_tol": 1032,
+      "max": 81
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 149044,
+      "differ_gt_tol": 33331,
+      "max": 58
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 149944,
+      "differ_gt_tol": 4575,
+      "max": 77
+     }
+    },
+    "below10_mask_px": 975286,
+    "eye_mask_px": 46266,
+    "noisy_px": 2448,
+    "crests/v2@10": {
+     "below10": {
+      "coverage_mean": 0.046056826179990046,
+      "coverage_sd": 0.002861022113405795,
+      "colour_mean": [
+       124.9,
+       156.8,
+       214.3
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.21564743968452954,
+      "coverage_sd": 0.019912839911712082,
+      "colour_mean": [
+       183.6,
+       99.3,
+       185.2
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "crests/v2@10b": {
+     "below10": {
+      "coverage_mean": 0.046123792291583074,
+      "coverage_sd": 0.001953234030309132,
+      "colour_mean": [
+       127.8,
+       157.8,
+       218.2
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.21401677257597368,
+      "coverage_sd": 0.008012673862726844,
+      "colour_mean": [
+       183.5,
+       99.3,
+       183.9
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "crests/v2": {
+     "below10": {
+      "coverage_mean": 0.04660848202475991,
+      "coverage_sd": 0.0020544667023465694,
+      "colour_mean": [
+       126.9,
+       156.7,
+       215.4
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.23763406773392506,
+      "coverage_sd": 0.012443049505287811,
+      "colour_mean": [
+       182.0,
+       100.0,
+       167.5
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "crests/v2b": {
+     "below10": {
+      "coverage_mean": 0.04553451785197139,
+      "coverage_sd": 0.002487232513017806,
+      "colour_mean": [
+       127.2,
+       157.0,
+       216.5
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.25262948073219116,
+      "coverage_sd": 0.012170455700468359,
+      "colour_mean": [
+       182.4,
+       100.7,
+       169.4
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "coverage_between_encodings": 1.880929742090892e-05,
+    "coverage_within_lever": 0.0010739641727885163
+   }
+  }
+ },
+ "quantization_wave_quant_mjs": {
+  "light": {
+   "u8_10_floor": [
+    15.32,
+    0.216
+   ],
+   "u8_16_floor": [
+    23.51,
+    0.347
+   ],
+   "u8_16_round": [
+    11.63,
+    0.172
+   ],
+   "R16F": [
+    0.01,
+    0.004
+   ]
+  },
+  "beach": {
+   "u8_10_floor": [
+    12.07,
+    0.198
+   ],
+   "u8_16_floor": [
+    17.38,
+    0.318
+   ],
+   "u8_16_round": [
+    9.69,
+    0.157
+   ],
+   "R16F": [
+    0.02,
+    0.004
+   ]
+  },
+  "units": "[worst texel dE00, mean dE00], 0-10 m every 1 mm, world alpha"
  }
 }
