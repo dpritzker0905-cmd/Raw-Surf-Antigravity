@@ -42,11 +42,8 @@ import {
   reseedParticleStateInPlace,
   shouldCarryParticlesOnGridSwap,
   initEngine,
-  disposeEngine,
-  pollPrograms
+  disposeEngine, pollPrograms
 } from './WebGLMarineEngineInit';
-import { BATCH } from './WebGLProgramBatch';
-
 
 // ── THE PURE DECISION LAYER MOVED OUT (2026-07-29) ───────────────────────────────────────────────
 // This file was 3,845 lines against the repo's 800-line limit. Its first 663 lines were pure,
@@ -128,15 +125,7 @@ WebGLMarineEngine.prototype.init = function(gl) {
   initEngine(this, gl);
   if (!this._initialized) throw new Error('WebGL Marine initialization failed');
 };
-
-// ASYNC SHADER COMPILE (WebGLProgramBatch.js): 'pending' | 'ready' | 'failed' (once). The custom layer polls before every
-// draw and routes 'failed' to the same fallback as a failed init. pollPrograms already released the engine as a failed
-// init leaves it; the coarse-base LRU is the one allocation disposeEngine leaves to dispose().
-WebGLMarineEngine.prototype.pollPrograms = function(gl) {
-  const state = pollPrograms(this, gl);
-  if (state === BATCH.FAILED) this._freeCoarseBase(gl);
-  return state;
-};
+WebGLMarineEngine.prototype.pollPrograms = function(gl) { return pollPrograms(this, gl); };   // async shader batch: WebGLMarineEngineInit.js
 
 WebGLMarineEngine.prototype.reinitParticles = function(gl) {
   reinitParticles(this, gl);
@@ -494,8 +483,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     window.__RAW_GPU__.drawCallsPerFrame = 0;
     window.__RAW_GPU__.particlePassExecuted = false;
   }
-  // `_programBatch` is set only while the shader batch is still compiling (async path): no draw, no GL call, until ready.
-  if (!this._initialized || this._programBatch || !this._waveData || !matrix || !matrix.length) {
+  if (!this._initialized || this._programBatch || !this._waveData || !matrix || !matrix.length) {   // _programBatch: shaders still compiling
     if (this._renderLogged === undefined) {
       this._renderLogged = 0;
     }

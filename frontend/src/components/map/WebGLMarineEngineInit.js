@@ -222,13 +222,15 @@ function initVertexArrays(engine, gl) {
   }
 }
 
-// Advance a pending shader batch one frame (the custom layer calls this before every draw). 'pending' while compiling;
-// 'failed' once, after the batch released its programs and shaders, with everything else the init allocated released
-// here too, so the engine is left exactly as a failed init leaves it; 'ready' otherwise.
+// Advance a pending shader batch one frame (the custom layer calls this before every draw; WebGLMarineEngine.pollPrograms).
+// 'pending' while compiling; 'failed' once, after the batch released its programs and shaders, with everything else the
+// init allocated released here too (disposeEngine, plus the coarse-base LRU that only dispose() frees), so the engine is
+// left exactly as a failed init leaves it; 'ready' otherwise.
 export function pollPrograms(engine, gl) {
   return pollEngineBatch(engine, () => initVertexArrays(engine, gl), () => {
     engine.advectProgram = engine.drawProgram = engine.heatmapProgram = null;   // released by the batch
     console.error('[WebGLMarine] Failed to compile or link shaders');
+    if (typeof engine._freeCoarseBase === 'function') engine._freeCoarseBase(gl);   // dispose()'s order: LRU first
     disposeEngine(engine, gl);
   });
 }
