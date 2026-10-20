@@ -168,3 +168,10 @@ They were discarded; the harness now retries the click and waits for the field.
   localStorage; wind source pins). New mutants, each red: size ignored, diag ignored by the cache, diag always on, a
   wind detach not recorded. `src/components/map` + `src/tests`: 337 suites / 4,969 tests pass; `check_eslint.js` and
   `loc_ratchet.py` pass.
+
+## PR (added scope)
+
+#405 was merged by the owner at 05:11:46Z (as edced5395) while the added scope was in progress, so the scope went to a
+new PR: #409 against dev from `claude/wind-adv-teardown` (not merged). Ledger: seq 1502 `pr_open` #409; seq 1503
+`pr_merge` #405 (reconstructed receipt; nobody had recorded it). STATE's ledger-head anchor is now 1503. `pr_merge` #404
+is not mine and is still unrecorded.
