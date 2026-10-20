@@ -123,3 +123,43 @@ footing (inside the ~4 it quotes for its gentlest tint, #123858 / #FAFDFF) and b
 a whiter cream would recover about 2 Lc. Not built here, a separate variable: a slightly wider stroke in the switch band
 (Burr 1982), and switching on the wash's own luminance instead of a height (the same thing for a lightness-ordered ramp, but
 it would need the ramp's GLSL in DRAW_FS, which is at its LOC baseline).
+
+## 2026-10-20 15:47Z-18:40Z: the owner's direction, and the beach A/B becomes sea + crests
+
+The owner's words, in order (this session, relayed nowhere else):
+- 15:47Z, after seeing the polarity / warm A/B: "Owner pick on #416: ship the V2 polarity beach crest; drop the warm candidate and
+  its lever, keep the kill switch." Then: "Is polarity the most state of the art version?" (answered: of what was built, yes; a
+  cased crest could rank above it, untested). Then "Finish shipping polarity on #416 now ... Propose the cased crest as a follow-up A/B."
+- 15:56Z: "I kind of like warm, but I also like polarity.... is there a better blend". Answered: polarity's rule in warm colours.
+- 15:57Z: "perfect, lets go with this logic for all theme modes. I think other subs are working on this, so update them on this
+  ideology"; 16:02Z: "if they have specific logic in place that is better than what we're doing for beach mode theme, then we should
+  go with that. But if not, lets use this logic. Whatever is state of the art"; 16:14Z: "Leave dark alone if dark is okay. I liked
+  dark"; 16:24Z: "We can fix that one weak point only on the extreme 8m" (dark's storm crest; session dark-storm-crests started,
+  measure first). The light-crest session and the lead were briefed (warm polarity; keep a theme's own logic where it measures better).
+- 16:25Z-16:50Z: "Beach mode, I like V1 better by the way" (the wash, confirmed by question). Shown, on one picture, that the old
+  sea's brightness goes up and down with height, so crests match it over ~63% of heights and polarity would flip three times;
+  "No I like the old beach sea"; "Is this okay for state of the art?" (answered: no, and why); then chose "Build the middle ground
+  (Recommended)" (about 16:52Z): the old sea's colours in a darkening order, with warm-polarity crests, as an A/B against the old sea.
+
+What was built (this PR, a second visual variable by the owner's direction):
+- `marineWavePalette.js` `BEACH_WASHES` { B (D-033's), mid }: v2's beach is `mid` by default on this branch, `B` on
+  `window.__RAW_BEACH_WASH__ = 'B'`. Light is untouched. mid: aqua -> spring green -> golden sand -> apricot -> coral -> brick-rose
+  -> crimson, deep violet flag (`wave-solve.mjs --family V --pin-h`). Checker: lightness falls at every step, neighbours 8.9 dE00
+  (B 6.5), land 19.3, no grey; flag darker than the cap as drawn (11.3 dE00 off it; its legend arrow |Lc| 11.8, a watch).
+- The crest V2 is warm polarity, solved against mid (`crest-solve.mjs --table`): oxblood below 2.5 m, pale lemon / lemon from
+  2.5 m, peach storm. Over mid: 23.5 dE00, colour-blind 14.7 (tritan, at the switch), APCA |Lc| 34.0 (whitecap front 22.8). It
+  stands down over B or v1.
+- Why the sand is golden, not peach: over beach's cyan basemap, a peach or orange sea laid at 65% mixes toward grey (the old sea's
+  1-2 m beige is exactly that mix: the audit's "0.6 m and 2.4 m the same grey"), D-019 bars grey, and the solver pays any pin
+  penalty rather than lay it (pinned 58-76, it stays at ~92). In the engine the common 1-1.7 m sea therefore reads olive-gold.
+
+Engine (offline, paired exact wash, p99; ab5 smooth clips for the page, ab6 paired for the numbers):
+
+| view | old sea: dE00 / tritan / \|Lc\| | middle ground | this morning's (B) |
+|---|---|---|---|
+| world | 17.3 / 14.4 / 0.0 | 22.3 / 18.9 / 24.6 | 7.7 / 6.0 / 0.0 |
+| regional | 34.5 / 33.6 / 20.2 | 28.6 / 18.8 / 31.8 | 17.9 / 13.6 / 18.4 |
+| coastal | 35.4 / 32.2 / 33.1 | 50.4 / 38.8 / 61.6 | 23.7 / 15.6 / 20.2 |
+
+Null control <= 0.9 at world and coastal, <= 5.3 at regional. Owner page (same link, version 2):
+https://claude.ai/artifact/1CEnLsyDUXbmqADniMxDyi. Commitment 1544 (the owner's pick) stays open for this A/B.
