@@ -2,7 +2,7 @@
 coarse_gulf_fill.py — SERVE-TIME enclosed-sea fill for the 10° global_coarse marine tier.
 
 THE ROOT FIX (2026-07-23) for the persistent USER report "EURO marine shows WRONG COLORS zooming
-out". The 10° `global_coarse` `waves` product for EURO (ECMWF-WAM / CMEMS) STRUCTURALLY MASKS the
+out". The 10° `global_coarse` `waves` product for EURO (ECMWF-WAM or CMEMS MFWAM) STRUCTURALLY MASKS the
 Gulf of Mexico + other enclosed seas (Med, Black Sea, Sea of Japan, Gulf of California): those cells
 serve `is_valid=False` and the frontend inflates the holes from distant open-ocean cells = the wrong
 colors. GFS's coarse `waves` carries a VALID Gulf (its land-sea mask includes it, and the normalizer

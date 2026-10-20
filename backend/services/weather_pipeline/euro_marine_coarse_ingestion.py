@@ -61,7 +61,10 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
     # memory-safe but ~60 slow tile downloads, deferred.)
     gfs_forecast_days = int(os.environ.get("GFS_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
 
-    # ══ PRIMARY: native EURO from Copernicus (REAL ECMWF-WAM swells), 0-10d + cached-GFS 10->14d ══
+    # ══ PRIMARY: native EURO from Copernicus (real MFWAM swells), 0-10d + cached-GFS 10->14d ══
+    # ⚠️ CMEMS global waves is Météo-France's MFWAM (driven by ECMWF IFS winds), NOT ECMWF's own wave
+    # model. This comment and `source_model` below called it "ECMWF-WAM" until 2026-10-20. ECMWF's own
+    # wave model (ECWAM) is the `waves` hybrid further down (ecmwf_wave_service, ECMWF Open Data).
     # Moves EURO marine OFF open-meteo (frees ~1,200 calls/cycle for ICON) and upgrades swell_1/swell_2/
     # wind_waves from GFS-fallback to REAL CMEMS partitions. The Copernicus fetch is slow (~15-30 min)
     # but LOW-STRAIN (background thin-latitude-band subsets, ~0.3 GB, ~36 MB peak — see
@@ -69,7 +72,7 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
     # by the cached GFS all_marine (estimated). Copernicus unavailable/failed -> falls through to the
     # existing open-meteo path below (zero regression).
     cop_days = int(os.environ.get("EURO_COPERNICUS_DAYS", "2" if env["is_test_env"] else "10"))
-    _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset", "source_model": "ecmwf_wam_cmems_glo_0083"}
+    _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset", "source_model": "mfwam_cmems_glo_0083"}
     _gfs_ext_basis = {"type": "gfs_estimated_fallback", "method": "gfs_wave_fallback", "source_model": "ncep_gfswave025"}
 
     def _parse_iso(s):
