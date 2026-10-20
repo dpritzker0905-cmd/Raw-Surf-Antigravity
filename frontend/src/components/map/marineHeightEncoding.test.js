@@ -129,6 +129,30 @@ describe('16 m on (the default)', () => {
       expect(moved).toBeGreaterThan(30);
     });
   });
+  it.each([['light', 16, Math.round], ['beach', 16, Math.round], ['dark', 10, Math.floor]])('%s: the antimeridian seam column of a global grid averages its two edge bytes the same way the cells were packed', (theme, scale, how) => {
+    withWindow({}, () => {
+      const { FloatArrayConstructor } = require('./WebGLMarineFieldMath');
+      const cols = 8, rows = 3, hs = (r, c) => 0.6 + r * 2.1 + c * 0.77;   // all ocean; two rows give odd edge-byte sums at /16 and at /10
+      const vectors = [];
+      for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) vectors.push({ direction: 200, speed: hs(r, c), height: hs(r, c), period: 9, is_valid: true });
+      window.__WEBGL_MARINE_THEME__ = theme;
+      try {
+        const { encodeMarineTexture } = require('./WebGLMarineTextureEncoder');
+        const { gl, uploads } = makeRecordingGL();
+        const out = encodeMarineTexture(gl, { cols, rows, vectors, __componentLayer: 'waves', __sourceModel: 'GFS', hourOffset: 0,
+          coverage_scope: 'global', productId: `seam-${theme}`, bounds: { west: -180, east: 180, south: -60, north: 60 } }, null, {}, undefined);
+        const w = uploads.get(out.u_waveTexture), byte = (h) => how(Math.min(1, new FloatArrayConstructor([h])[0] / scale) * 255);
+        let odd = 0;
+        for (let r = 0; r < rows; r++) {
+          const sum = byte(hs(r, 0)) + byte(hs(r, cols - 1)); if (sum % 2) odd++;
+          expect(w[(r * cols) * 4 + 2]).toBe(how(sum * 0.5));
+          expect(w[(r * cols + cols - 1) * 4 + 2]).toBe(how(sum * 0.5));
+          expect(w[(r * cols + 3) * 4 + 2]).toBe(byte(hs(r, 3)));   // an interior cell, untouched by the seam
+        }
+        expect(odd).toBeGreaterThan(0);   // the test reaches the case where round and floor differ
+      } finally { delete window.__WEBGL_MARINE_THEME__; }
+    });
+  });
   it('picks the scale by theme and by palette: 16 only where the V2 table draws the wash', () => {
     withWindow({}, () => {
       const { marineWaveHeightScale } = require('./marineWavePalette');

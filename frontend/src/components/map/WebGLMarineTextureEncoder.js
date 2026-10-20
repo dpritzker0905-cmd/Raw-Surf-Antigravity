@@ -427,7 +427,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         nv = Math.max(0.0, Math.min(1.0, sv * 0.5 + 0.5));
       }
 
-      const avgH = Math.floor((dataWave[idx0 + 2] + dataWave[idxN + 2]) * 0.5);
+      const avgH = (hScale > 10 ? Math.round : Math.floor)((dataWave[idx0 + 2] + dataWave[idxN + 2]) * 0.5);   // 16 m rounds here too (/10 floors, unchanged)
       const avgP = Math.floor((dataWave[idx0 + 3] + dataWave[idxN + 3]) * 0.5);
 
       dataWave[idx0 + 0] = dataWave[idxN + 0] = Math.floor(nu * 255);

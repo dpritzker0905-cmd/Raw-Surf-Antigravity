@@ -168,3 +168,14 @@ were not affected (its /10 path is untouched) and stand.
   two runs of one setting here (0.065 in the first experiment): at the instrument's noise floor. Beach 4.61/4.61% against
   4.66/4.55%: 0.002 apart against 0.11. Crest colour below 10 m within 1.4 of 255 (light) and within run-to-run noise (beach).
 - Owner page republished (version 2) with these images and numbers and a precision table.
+
+## 16:08Z: the antimeridian seam column rounds too (the lead's review of ea296d7a6)
+
+The lead's review found one column the rounding missed: on a global grid the encoder averages the two edge columns' height bytes
+(`avgH`, the antimeridian seam), and that average still floored, a half-byte low bias (up to 3.1 cm at /16) on one column. It
+now rounds on the 16 m path and floors on the /10 path (byte-identical). Test: `marineHeightEncoding.test.js` checks the seam
+column of an all-ocean global grid in light, beach (round) and dark (floor), with heights chosen so two rows have odd edge sums;
+it fails with the floored seam put back (checked). The lead's other checks, recorded: every decoder is linear (`b * scale`, one
+decode per shader), no shader treats byte 0 or 255 as a sentinel, `ratingScore` runs only with the /10 score texture bound, and
+the GFS single-slice trace stats are unitless and only compared with each other. The red `verify` check the review named was
+the "~15:40Z" header, already corrected (ledger 1545); `verify` passes on `f91a8fdd4`.
