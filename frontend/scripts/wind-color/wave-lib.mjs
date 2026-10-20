@@ -47,7 +47,7 @@ const clamp01 = (c) => c.map((v) => Math.min(1, Math.max(0, v)));
  *  M_TO_FT, handed in). Evaluated with no window, so it resolves the default palette. */
 export function loadPalettes(file = PALETTE_SRC) {
   const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
-  return new Function('M_TO_FT', `${src}; return { WAVE_PALETTES, resolveWavePalette, sampleMarineWavePalette, marineWavePaletteGlsl, MARINE_WAVE_PALETTE_GLSL, marineWaveLegend };`)(3.28084);
+  return new Function('M_TO_FT', `${src}; return { WAVE_PALETTES, widenWavePalette, resolveWavePalette, sampleMarineWavePalette, marineWavePaletteGlsl, MARINE_WAVE_PALETTE_GLSL, marineWaveLegend };`)(3.28084);
 }
 
 /** The wash table's colour at height h (0-1, unrounded): the same law as the GLSL table (linear in encoded sRGB per segment). */

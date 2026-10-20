@@ -1227,11 +1227,31 @@ Superseded for beach by D-035 (2026-10-20); light stands.
   in `marineWavePalette.test.js`); `window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true` restores the shader's own ramp.
 - **Reopen if:** the owner says so, or the beach crest follow-up or the 16 m encoding changes what this table is judged against.
 
+### D-034 · The GPU reads wave heights to 16 m for the light and beach wash; v2 gains a 16 m stop; ON by default
+Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands.
+- **Decided:** owner, 2026-10-20 16:17Z, on the A/B of PR #415 (the storm's eye side by side at 10 m and 16 m in each theme,
+  sheets and moving clips from the real engine offline, the texture-byte, crest and precision measurements): "Owner verdict on #415: ship the 16 m encoding on by default. Record it in the log and ledger and mark the PR ready."
+- **Rule:** the main wave texture's height byte carries its scale per upload (`marineHeightEncoding.js`): 16 m where v2 draws the
+  light/beach wash, packed ROUNDED; 10 m (floored, as before) for dark, rating grids and the score texture. Every program that
+  decodes a wave texture reads `u_heightScale` (10.0 when unset). D-033's v2 table gains one stop at 16 m (light deep violet,
+  beach rose-plum) and its above-cap flag moves to 16 m; every stop under 10 m is D-033's. Dark, the surf-quality band and every
+  served number are untouched.
+- **Evidence:** `log/2026-10-20-claude-wave-height-16m.md`; `evidence/wave-height-16m-ab-2026-10-20.json`; owner page
+  https://claude.ai/artifact/YQMsfBLgjnm9h9kZ4UtHeU. Dark's texture bytes identical in every browser run; crests below 10 m within
+  run-to-run noise; per-texel colour error at calm water under dev's (`wave-quant.mjs`: light worst 11.6 / mean 0.17 dE00 against
+  15.3 / 0.22); `wave-check.mjs` no new RED. Known costs: the eye is a gentle deepening instead of a loud block; light's weakest
+  normal-vision pair is the new 10-16 m step (9.3 dE00); beach's 16 m stop turns its hue back toward 6.1 m's rose.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = true` before load restores the 10 m encoding and D-033's table exactly
+  (shader strings, texture bytes, GLSL, samples and legend hashed in `marineHeightEncoding.test.js` and `marineWavePalette.test.js`).
+- **Reopen if:** the owner says so; the float height texture follow-up (R16F, its own A/B, it changes dark too) lands; or a real
+  storm above 16 m makes the flag the common case.
+
 ### D-035 · Beach keeps the v1 wave-height palette; light keeps v2; beach's colours are locked
-- **Decided:** owner, 2026-10-20 16:20Z, after #411 (D-033) put beach on candidate B: "I really like v1 color scheme heatmap for
+- **Decided:** owner, 2026-10-20 16:20Z, after #411 (D-033) put beach on candidate B and #415 (D-034) took it to 16 m: "I really like v1 color scheme heatmap for
   Beach mode. How do we stick with that? We have many chats working on this".
 - **Rule:** beach draws `WAVE_PALETTES.v1` exactly as before #411 (dev `6021c2cc1`): its table, its value-linear legend on each
-  scale's axis, its clamp at 10 m, no above-cap state. Light draws v2 (D-033). `marineWavePalette.test.js` pins beach's samples,
+  scale's axis, its clamp at 10 m, no above-cap state, and the 10 m height byte (v1 has no 16 m row, so `marineWaveHeightScale`
+  keeps beach's uploads at 10). Light draws v2 at 16 m (D-033, D-034). `marineWavePalette.test.js` pins beach's samples,
   legend CSS and shader branch to that module by sha256 ("D-035" block): any change to beach's wave colours fails CI and needs a
   new owner decision, whatever another session's palette work (the 16 m encoding, crest colours, checkers) proposes. Work on the
   wave palette applies to light only unless the owner says otherwise.

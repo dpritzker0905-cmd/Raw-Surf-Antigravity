@@ -165,3 +165,15 @@ sha256. **D-034 was already taken by #415's draft** (the 16 m encoding), so this
 v2) were solved against beach v2: told to make their beach parts follow D-035 (light only, or the owner's word). Checks:
 `marineWavePalette.test.js` 24/24; full frontend Jest 457/458 (the one failure is still the environmental
 `netlifyIconStoredTailScope.test.js` spawn timeout); ESLint and LOC ratchets clean; wind check `--strict` 0; build compiled.
+
+## 2026-10-20 17:28Z: #417 merged with dev after #415 (D-034, 16 m) landed
+
+Conflicts in `marineWavePalette.js`, its test, `wind-color/README.md`, the ledger, STATE and DECISIONS. Resolved so both
+decisions hold: tables per theme are built with #415's `widenWavePalette` (v1 has no 16 m row, so it is unchanged), light draws
+v2 at 16 m, beach draws v1 at 10 m, and `marineWaveHeightScale(theme)` reads the theme's own table: beach's uploads keep the 10 m
+byte (#411's bytes exactly; `marineHeightEncoding.test.js` now pins that, and reads beach's /16 packing under D-035's kill). With
+light's cap at 16 m the shader's beach branch gains its own `h = min(h, 10.0);` in front of v1's text (a frame packed for light
+and drawn in beach reads beach's 10 m colour, never the fall-through white); the lock pins v1's text behind that clamp, and the
+whole branch under the 16 m kill. Kills: beach kill = beach on v2 at 16 m (what #415 merged); beach kill + 16 m kill = #411's
+shader (hash). DECISIONS: D-034 and D-033 each got a one-line "Superseded for beach by D-035"; D-035 re-appended after D-034.
+Ledger: my 1543/1544 re-appended after #415's 1549 as **1550 (decision), 1551 (pr_open)** (true times in `acted_at`).

@@ -12,7 +12,9 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B"}
+NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B",
+         "v2@10": "v2 at 10 m (the 16 m kill = #411)", "v2@10b": "v2 at 10 m again (null control)", "v2b": "v2 at 16 m again (null control)"}
+ORDER = ("v1", "v2@10", "v2", "v2@10b", "v2b", "A", "B")
 
 
 def font(size):
@@ -33,16 +35,16 @@ def label(img, text, size=22):
 
 def main(out):
     rec = json.load(open(os.path.join(out, "record.json"), encoding="utf-8"))
-    variants = [v for v in ("v1", "v2", "A", "B") if any(s["variant"] == v for s in rec["shots"])]
-    for theme in ("light", "beach"):
-        shots = [s for s in rec["shots"] if s["theme"] == theme]
+    variants = [v for v in ORDER if any(s["variant"] == v for s in rec["shots"])]
+    for theme in ("light", "beach", "dark"):
+        shots = [s for s in rec["shots"] if s["theme"] == theme and s.get("file")]
         if not shots:
             continue
         views = [v for v in ("world", "regional", "coastal") if any(s["view"] == v for s in shots)]
         scale = 0.5
         cell_w, cell_h, leg_h = int(1280 * scale), int(800 * scale), 70
         sheet = Image.new("RGB", (cell_w * len(variants), (cell_h + leg_h) * len(views) + 40), (30, 30, 30))
-        ImageDraw.Draw(sheet).text((10, 8), f"{theme.upper()}  wave-height wash, offline synthetic store (storm eye > 10 m)  columns: " + "  |  ".join(NAMES[v] for v in variants), fill=(255, 255, 255), font=font(20))
+        ImageDraw.Draw(sheet).text((10, 8), f"{theme.upper()}  wave-height wash, offline synthetic store (storm eye > 10 m)  columns: " + "  |  ".join(NAMES[v] for v in variants if any(s["variant"] == v for s in shots)), fill=(255, 255, 255), font=font(20))
         for r, view in enumerate(views):
             for c, v in enumerate(variants):
                 s = next((x for x in shots if x["view"] == view and x["variant"] == v), None)

@@ -247,11 +247,13 @@ quality its own palette) judged as the engine DRAWS it. Same setup as the wind c
 uses `light-path-lib.mjs`'s port of coloraide, and `wave_cvd_check.py` runs coloraide itself as the authority).
 
 ```powershell
-node wave-check.mjs                     # every palette in marineWavePalette.js (v1, v2), both themes (light ships v2; beach ships v1, D-035)
+node wave-check.mjs                     # every palette in marineWavePalette.js (v1, v2, v2@16 = v2 on the 16 m encoding), both themes (light ships v2@16; beach ships v1, D-035)
 node wave-check.mjs --palette v2 --pairs # one palette, every neighbouring pair by model at world alpha, crest by height
 node wave-check.mjs --table cand.json   # a solver's table ({ heights, cap, over: {light, beach}, light, beach }) instead
 node wave-check.mjs --strict            # exit 1 on any RED line, here or in the coloraide authority
 node wave-solve.mjs --theme light --family A [--hend 315,350] [--seed 1] [--gens 1800]   # search one theme's table
+node wave-polish.mjs in.json out.json --extend 16 [--ext-lmin light=16] [--ext-turn 5,22] [--over-hue 20,60] [--ext-joint 40]
+                                        # one more anchor against the FIXED ramp (the 16 m encoding), then the flag moved up to it
 ```
 
 **The model (`wave-lib.mjs`).** HEATMAP_FS lays `W(h) + swell lighting` premultiplied at the wash alpha, blended
@@ -284,6 +286,20 @@ maps (ColorBrewer YlGnBu and BuPu, viridis and magma reversed) are laid through 
 `node wave-jacobian.mjs [--no-refs] [--json f] [--out f]`. Its first read (2026-10-20): light A beats B on heights told apart,
 even steps and zoom drift; beach B beats A on heights told apart and the checker's lines; for EVERY palette zoom moves a height's
 colour by up to ~2/3 of a legend step (the engine's alpha, not the palette).
+
+**The 16 m encoding (2026-10-20, `wave-polish.mjs --extend 16`).** The GPU's height ceiling moved from 10 m to 16 m for the light
+and beach wash (`marineHeightEncoding.js`), so `v2` gained a `h16` extension: one anchor at 16 m and the above-cap flag moved up
+to it, every anchor under 10 m byte-identical. The extension is searched against the fixed ramp: lightness falls along 10-16 m on
+the wash and as composited (every view and lighting), its hue turns on (`--ext-turn`), and it is scored on the old cap's distance,
+the solver's watch lines and (`--ext-joint`) the room it leaves step 2's flag, which must be darker than the new cap as drawn. Two
+traps on the way: unbounded, light's anchor dived to L* 9 and left its flag 3.1 dE00 (`--ext-lmin`); and under beach's brick a
+saturated red 16 m stop left the violet flag only 7-9 dE00 once it had to be darker as drawn, which only the joint search saw.
+`wave-check.mjs` checks the extended table as `v2@16` and the 16 m kill's table as `v2`.
+
+**What the height byte's step costs (`wave-quant.mjs`, 2026-10-20).** One texel decodes to a quantized height; the script prices
+it as the wash draws it (the depth-floor blend under 0.18 m, the table, half swell lighting, world alpha) every 1 mm from 0 to
+10 m, for the u8 /10 floor (dev), u8 /16 floor and round, and R16F. The calm end dominates (the blend is steep): floored, the /16
+byte's worst texel was 23.5 dE00 in light against dev's 15.3, so the 16 m path rounds (11.6, mean 0.17 against 0.22).
 
 ## Why coloraide and not culori for colour blindness
 

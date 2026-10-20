@@ -27,7 +27,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const BAR = { adj: 10, washC: 12, compC: 8, land: 15, crest: 15, lc: 15, over: 10 };
 const mod = loadPalettes();
-const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JSON.parse(fs.readFileSync(arg('--table'), 'utf8')) } : mod.WAVE_PALETTES;
+// A table with a 16 m extension is checked twice: `v2@16` as the default build draws it (the 16 m encoding), `v2` as its kill does (10 m).
+const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JSON.parse(fs.readFileSync(arg('--table'), 'utf8')) }
+  : Object.fromEntries(Object.entries(mod.WAVE_PALETTES).flatMap(([id, p]) => (p.h16 ? [[id, p], [`${id}@16`, mod.widenWavePalette(p)]] : [[id, p]])));
 const ids = arg('--palette') ? [arg('--palette')] : Object.keys(palettes);
 const themes = arg('--theme') ? [arg('--theme')] : ['light', 'beach'];
 const DIRS = [0, 0.5, 1];

@@ -2,18 +2,22 @@
 // Kills, set before page load, then reload so the GLSL and the legend switch together:
 //   window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true -> the shader's own ramp (before 2026-10-14)
 //   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly, in both themes
-//   window.__RAW_DISABLE_WAVE_BEACH_V1__ = true       -> beach draws v2 as #411 merged it (D-035's kill)
+//   window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = true     -> the 10 m encoding and v2 capped there, exactly (#411)
+//   window.__RAW_DISABLE_WAVE_BEACH_V1__ = true       -> beach draws v2 (and its 16 m row when that is on) (D-035's kill)
 // BEACH DRAWS v1 (owner 2026-10-20, DECISIONS D-035: "I really like v1 color scheme heatmap for Beach mode. How do we stick with
-// that?"); light draws v2 (D-033). Beach's colours are pinned byte for byte in marineWavePalette.test.js: changing them needs a
-// new owner decision, whatever another session's palette work proposes.
+// that?"); light draws v2 (D-033, at 16 m by D-034). Beach's colours are pinned byte for byte in marineWavePalette.test.js: changing
+// them needs a new owner decision, whatever another session's palette work proposes. v1 has no 16 m row, so beach keeps the 10 m
+// encoding (marineWaveHeightScale reads the theme's own table).
 // Checker: frontend/scripts/wind-color/wave-check.mjs (composited over each basemap, colour-blind via coloraide).
 import { M_TO_FT } from './heightUnits';
 
 const WIN = typeof window === 'undefined' ? {} : window;
 export const MARINE_WAVE_PALETTE_ENABLED = WIN.__RAW_DISABLE_MARINE_WAVE_PALETTE__ !== true;
 
-// The wave texture stores height as floor(min(1, h / 10) * 255) (WebGLMarineTextureEncoder.js): the GPU never reads more than 10 m.
+// The wave texture stores height as floor(min(1, h / scale) * 255) (WebGLMarineTextureEncoder.js), scale per upload: 10 m (the
+// legacy ceiling, everywhere but the v2 wash) or v2's cap (marineWaveHeightScale below; marineHeightEncoding.js decodes).
 const ENCODED_MAX = 10;
+export const WAVE_HEIGHT_16M = WIN.__RAW_DISABLE_WAVE_HEIGHT_16M__ !== true;
 export const WAVE_PALETTES = {
   // v1 (2026-10-14/15): anchors to 10 m, clamped there; lightness not monotonic (audit 2026-10-20: light's calm 0 m and 10 m
   // storm 12.6 dE00 apart, beach's 0.6 m and 2.4 m the same grey). Value-linear legend on each scale's own axis.
@@ -34,8 +38,19 @@ export const WAVE_PALETTES = {
     light: [[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]],
     beach: [[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]],
     over: { light: [105, 9, 0], beach: [120, 26, 174] },   // beach: violet, re-solved 2026-10-20 so it is darker than the cap AS DRAWN (D-033 note)
+    // 16 m (the wider encoding, wave-polish.mjs --extend 16): light a deep violet (8.3 dE00 off indigo) under its red flag (12.2);
+    // beach a rose-plum (7.9 off brick; its hue turns back toward 6.1 m's rose, darker by 0.09 OKLCH L) under a magenta-violet flag
+    // (10.8, darker as drawn): every forward hue (red, orange, maroon) left the flag 7-9 dE00 or less (joint search, 2026-10-20).
+    h16: { cap: 16, light: [72, 21, 66], beach: [134, 59, 86], over: { light: [88, 0, 2], beach: [146, 1, 115] } },
   },
 };
+// The 16 m encoding (2026-10-20): one more anchor at the new ceiling and the above-cap state moved up to it. Every anchor under
+// 10 m is the table above, unchanged; only the encoder's 8-bit step widens (10/255 -> 16/255 m). Solved against the fixed ramp by
+// wave-polish.mjs --extend 16, judged by wave-check.mjs (v2@16). The kill (window.__RAW_DISABLE_WAVE_HEIGHT_16M__) draws v2 above.
+export function widenWavePalette(p) {
+  if (!p.h16) return p;
+  return { heights: [...p.heights, p.h16.cap], cap: p.h16.cap, light: [...p.light, p.h16.light], beach: [...p.beach, p.h16.beach], over: p.h16.over };
+}
 
 /** The table a theme draws: v2 in light (D-033), v1 in beach (D-035), v1 in both under the V2 kill. */
 export function resolveWavePalette(win = WIN, theme = 'light') {
@@ -44,11 +59,19 @@ export function resolveWavePalette(win = WIN, theme = 'light') {
 }
 export const MARINE_WAVE_PALETTE_IDS = { light: resolveWavePalette(WIN, 'light'), beach: resolveWavePalette(WIN, 'beach') };
 export const MARINE_WAVE_PALETTE_ID = MARINE_WAVE_PALETTE_IDS.light;
-const PAL = { light: WAVE_PALETTES[MARINE_WAVE_PALETTE_IDS.light], beach: WAVE_PALETTES[MARINE_WAVE_PALETTE_IDS.beach] };
+const tableOf = id => (WAVE_HEIGHT_16M ? widenWavePalette(WAVE_PALETTES[id]) : WAVE_PALETTES[id]);   // v1 has no 16 m row: unchanged
+const PAL = { light: tableOf(MARINE_WAVE_PALETTE_IDS.light), beach: tableOf(MARINE_WAVE_PALETTE_IDS.beach) };
 export const paletteFor = theme => PAL[theme] || PAL.light;
 
 export function hasMarineWavePalette(theme) {
   return MARINE_WAVE_PALETTE_ENABLED && (theme === 'light' || theme === 'beach');
+}
+
+/** The metres the encoder's 255 means for an upload drawn in `theme`: the table's cap where this table draws the wash and reaches
+ *  past the legacy ceiling (light/beach, v2, 16 m on), else 10. Dark keeps 10 on purpose: a /16 step moves its calm water ~4.7 dE00. */
+export function marineWaveHeightScale(theme) {
+  const p = paletteFor(theme);   // per theme (D-035): beach's v1 stays at 10 m while light's v2 reads to 16 m
+  return hasMarineWavePalette(theme) && p.cap > ENCODED_MAX ? p.cap : ENCODED_MAX;
 }
 
 /** The table's colour at `height` metres (rounded RGB). Above the cap, the palette's own above-cap colour when it has one. */
@@ -73,9 +96,11 @@ const glslRamp = (H, colors) => H.slice(0, -1).map((h, i) =>
 ).join('\n');
 // Above the cap: a cap at the encoded maximum is only ever read as exactly that maximum (texel 255), so the state starts half a
 // texel below it; LINEAR filtering then draws its edge midway between a 254 texel and a 255 one.
-const overGlsl = (p, theme) => (p.over ? `if (height > ${num(p.cap >= ENCODED_MAX ? p.cap - ENCODED_MAX / 510 : p.cap)}) return ${vec(p.over[theme])}; ` : '');
+// A cap above the legacy 10 m is the encoder's own ceiling for that table (marineWaveHeightScale), so its half texel is cap / 510.
+const overGlsl = (p, theme) => (p.over ? `if (height > ${num(p.cap >= ENCODED_MAX ? p.cap - p.cap / 510 : p.cap)}) return ${vec(p.over[theme])}; ` : '');
 // Each theme's branch draws its own table (pb: beach, pl: light). With one table, or two with the same cap, the text is exactly the
-// one-table text; a branch whose cap is lower than the other's clamps again at its own cap.
+// one-table text; a branch whose cap is lower than the other's clamps again at its own cap (beach v1 at 10 m beside light at 16 m:
+// a frame encoded for light and drawn in beach then reads beach's 10 m colour, never the fall-through white).
 const capGlsl = (p, top) => (p.cap < top ? `h = min(h, ${num(p.cap)}); ` : '');
 export const marineWavePaletteGlsl = (pl, pb = pl) => `
 vec3 marineWaveHeightColor(float height, float theme) {
