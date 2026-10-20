@@ -111,3 +111,8 @@ systematic change. The worst stalls are shader compiles and the land mask, not t
   next candidate, with the same A/B.
 - No real-device or owner-console reading. The ~4 ms per frame is this PC (AMD 890M, ANGLE D3D11) in headless Chrome.
   On a GPU-bound phone the GPU still does the same work; what this removes is the main thread waiting for it.
+
+## PR
+
+PR #405 against dev (not merged), ledger seq 1500 (`pr_open`). STATE's ledger-head anchor moved from 1463 (stale: dev's
+ledger was already at 1499) to 1500.
