@@ -1,8 +1,8 @@
 /**
- * WebGLMarineParticleShaders.js
- * Ocean GPU v2 — GLSL Shaders for the particle advection and drawing layers (extracted from WebGLMarineShaders.js).
+ * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding';
+import { LIGHT_CREST_GLSL } from './marineCrestPalette';   // light crest colours, V2 + its kill (__RAW_DISABLE_LIGHT_CREST_V2__)
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -932,10 +932,10 @@ void main() {
     foamHighlight = vec3(0.95, 0.95, 1.00);
   } else if (u_theme > 0.5) {
     // Light Mode
-    calmColor = vec3(0.05, 0.15, 0.45);    // deep navy
-    activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold
-    stormColor = vec3(0.75, 0.10, 0.05);   // crimson red
-    foamHighlight = vec3(1.00, 1.00, 1.00);
+    calmColor = ${LIGHT_CREST_GLSL.calm}
+    activeColor = ${LIGHT_CREST_GLSL.active}
+    stormColor = ${LIGHT_CREST_GLSL.storm}
+    foamHighlight = ${LIGHT_CREST_GLSL.foam}
   } else {
     // Dark Mode
     calmColor = vec3(0.10, 0.95, 0.60);    // mint-green

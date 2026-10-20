@@ -11,6 +11,9 @@
 //    wash only ever composites over the water colour; the land is drawn over it, so land vs sea = land colour vs the composite.
 //  - Crests (WebGLMarineParticleShaders.js DRAW_FS): base = mix(calm, active, 2e) / mix(active, storm, 2e - 1) with
 //    e = smoothstep(0, 6, h), white mixed in by whitecapRoll * 0.45, laid premultiplied at min(alpha * mix(1.2, 1.8, e), 0.85).
+//    Light's colours (and its foam) are READ from marineCrestPalette.js (LIGHT_CRESTS, the table the shader is built from); beach's
+//    are the shader's literals, copied below (BEACH_V1). Below 1.05 m (any zoom) and in the z 3-4.9 band the engine adds SELF-CONTRAST (u_lowHCrestContrast, u_crestContrast):
+//    the colour x mix(0.55, 1.30, core) plus the foam x core x 0.18 (`sc` in crestOver).
 //
 // Basemap colours: READ from the real Mapbox styles as the app draws them (navigation-day for light, outdoors for beach), by the
 // offline A/B harness (scn_wave_palette_ab.js) with Waves still off, at regional zoom (4.6), 2026-10-20. Unmuted: the wind's
@@ -24,6 +27,7 @@ import { dec, enc, labOf, lchOf, de2000, simLab, KINDS } from './light-path-lib.
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const PALETTE_SRC = path.join(HERE, '..', '..', 'src', 'components', 'map', 'marineWavePalette.js');
+export const CREST_SRC = path.join(HERE, '..', '..', 'src', 'components', 'map', 'marineCrestPalette.js');
 
 export const BASEMAP = {
   light: { water: [144, 223, 254], land: [255, 255, 255], panel: [255, 255, 255] },   // panel: MapWeatherControls bgClass bg-white/95
@@ -34,10 +38,31 @@ export const ALPHAS = { world: 0.65, regional: 0.70, coastal: 0.77 };
 const LIGHTING = [0.03, 0.05, 0.08];
 /** The shader's depth floor under the first 0.18 m (deep ocean, no chlorophyll): what flat water shows instead of the table. */
 export const DEPTH_FLOOR = { light: [0.12, 0.35, 0.68], beach: [0.015, 0.24, 0.22] };
-const CREST = {   // calm, active, storm, foam (DRAW_FS)
-  light: [[0.05, 0.15, 0.45], [0.85, 0.50, 0.00], [0.75, 0.10, 0.05], [1, 1, 1]],
-  beach: [[1.00, 0.45, 0.65], [0.00, 0.92, 0.85], [0.80, 0.20, 0.90], [0.95, 0.95, 1.00]],
-};
+/** The beach crest tables the app ships (marineCrestPalette.js, export keywords and its one import stripped). */
+export function loadCrests(file = CREST_SRC) {
+  const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
+  return new Function('MARINE_WAVE_PALETTE_ENABLED', 'MARINE_WAVE_PALETTE_IDS',
+    `${src}; return { LIGHT_CRESTS, resolveLightCrest, lightCrestGlsl };`)(true, { light: 'v2', beach: 'v1' });
+}
+const BEACH_FOAM = [0.95, 0.95, 1.00], LIGHT_FOAM = [1.00, 1.00, 1.00];   // DRAW_FS foamHighlight per theme
+/** One crest table [calm, active, storm, foam, polarity] (DRAW_FS order) from a BEACH_CRESTS / LIGHT_CRESTS entry ({ calm: { rgb,
+ *  above }, ... }). polarity (optional): { h, calm, active, foam? }, the colours a crest takes at and above h metres (DRAW_FS
+ *  `mix(below, above, step(h, v_wave_height))`); below h it takes calm.rgb, active.rgb and the foam. */
+// A table's own `foam` ({ rgb, above? }) replaces the theme's foamHighlight; with `above`, the foam switches with the crest.
+const crestTable = (t, foam) => [t.calm.rgb, t.active.rgb, t.storm.rgb, t.foam ? t.foam.rgb : foam,
+  t.switchHeight ? { h: t.switchHeight, calm: t.calm.above, active: t.active.above, foam: t.foam && t.foam.above } : undefined];
+export const beachCrest = (t) => crestTable(t, BEACH_FOAM);
+export const lightCrest = (t) => crestTable(t, LIGHT_FOAM);
+const TABLES = loadCrests();
+// Beach's crest is DRAW_FS's literals (beach's colours are the owner's to change, D-035): orchid-pink, electric turquoise, sunset magenta.
+const BEACH_V1 = { calm: { rgb: [1.00, 0.45, 0.65] }, active: { rgb: [0.00, 0.92, 0.85] }, storm: { rgb: [0.80, 0.20, 0.90] } };
+export const CRESTS = { v1: beachCrest(BEACH_V1) };
+export const LIGHT_CRESTS = Object.fromEntries(Object.entries(TABLES.LIGHT_CRESTS).map(([id, t]) => [id, lightCrest(t)]));
+/** Each theme's crest tables by id ({ beach: CRESTS, light: LIGHT_CRESTS }). */
+export const CRESTS_BY_THEME = { beach: CRESTS, light: LIGHT_CRESTS };
+/** Which crests the app draws over a wash palette: v1 over the v1 wash (V2 stands down there), V2 over v2 (when the theme has one). */
+export const crestFor = (paletteId, theme = 'beach') => (paletteId === 'v1' || !CRESTS_BY_THEME[theme].v2 ? 'v1' : 'v2');
+const CREST = { light: LIGHT_CRESTS[crestFor('v2', 'light')], beach: CRESTS.v1 };   // what each theme draws over its wash
 
 export const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
@@ -70,13 +95,21 @@ export function composite(P, theme, h, a, dir = 0.5, floor = true, waterRGB = nu
 }
 
 /** A crest's core over the wash composite (DRAW_FS colours; laid at 0.85, the alpha cap a crest's core reaches). `whitecap` 0..1 is
- *  the share of the whitecap the shader ALLOWS at this height (DRAW_VS v_whitecap = smoothstep(0.5, 3.0, h), its roll mixed in at 0.45). */
-export function crestOver(theme, h, under, whitecap = 0) {
-  const [calm, active, storm, foam] = CREST[theme], e = ss(0, 6, h);
+ *  the share of the whitecap the shader ALLOWS at this height (DRAW_VS v_whitecap = smoothstep(0.5, 3.0, h), its roll mixed in at 0.45).
+ *  `sc` (optional): the engine's self-contrast { eff 0..1, core 0..1 }: core 1 is the ribbon's centre (colour x 1.30 + foam x 0.18),
+ *  core 0 its skirt (colour x 0.55); `selfContrast(h, zoomBand)` gives the eff the engine uses. Without it: none (eff 0). */
+export function crestOver(theme, h, under, whitecap = 0, crest = CREST[theme], sc = null) {   // crest: another [calm, active, storm, foam, polarity?]
+  const [c0, a0, storm, f0, pol] = crest, e = ss(0, 6, h), up = pol && h >= pol.h;
+  const calm = up ? pol.calm : c0, active = up ? pol.active : a0, foam = up && pol.foam ? pol.foam : f0;
   const base = e < 0.5 ? mix(calm, active, e * 2) : mix(active, storm, (e - 0.5) * 2);
-  const c = mix(base, foam, whitecap * ss(0.5, 3.0, h) * 0.45), a = 0.85;
-  return clamp01(c.map((v, i) => v * a + under[i] * (1 - a)));
+  let c = mix(base, foam, whitecap * ss(0.5, 3.0, h) * 0.45);
+  if (sc && sc.eff > 0.001) { const lum = 0.55 + (1.30 - 0.55) * sc.core; c = mix(c, c.map((v, i) => v * lum + foam[i] * sc.core * 0.18), Math.min(1, sc.eff)); }
+  const a = 0.85;   // premultiplied: the fragment (colour x alpha) is clamped to [0, 1] before the ONE, ONE_MINUS_SRC_ALPHA blend
+  return clamp01(clamp01(c.map((v) => v * a)).map((v, i) => v + under[i] * (1 - a)));
 }
+/** The self-contrast strength DRAW_FS applies at height h: max(u_crestContrast, u_lowHCrestContrast x (1 - smoothstep(0.75, 1.05, h)))
+ *  with the low-height term at its default 1 and the zoom band (WebGLMarineEngine.js, z 3.0-4.9, full at z 3.5-4.4) as `zoomBand`. */
+export const selfContrast = (h, zoomBand = 0) => Math.max(zoomBand, 1 - ss(0.75, 1.05, h));
 
 // OKLab (Ottosson 2020) lightness and chroma of an encoded sRGB colour.
 export function oklab(rgb) {

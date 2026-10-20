@@ -75,7 +75,8 @@ const NAMES = Object.keys(BEFORE.glsl);
 
 describe('the kill (window.__RAW_DISABLE_WAVE_HEIGHT_16M__) restores /10 exactly', () => {
   it('every shader string hashes to #411 head (with the D-035 beach kill: #411 drew beach on v2)', () => {
-    withWindow({ ...KILL, __RAW_DISABLE_WAVE_BEACH_V1__: true }, () => { const s = shaders(); NAMES.forEach((k) => expect([k, sha(s[k])]).toEqual([k, BEFORE.glsl[k]])); });
+    // ...and light crest V2's kill: its four DRAW_FS lines are marineCrestPaletteLight.test.js's to pin.
+    withWindow({ ...KILL, __RAW_DISABLE_WAVE_BEACH_V1__: true, __RAW_DISABLE_LIGHT_CREST_V2__: true }, () => { const s = shaders(); NAMES.forEach((k) => expect([k, sha(s[k])]).toEqual([k, BEFORE.glsl[k]])); });
   });
   it.each(['dark', 'light', 'beach'])('%s: the wave and score texture bytes hash to #411 head, and the upload says 10', (theme) => {
     withWindow(KILL, () => {
@@ -168,7 +169,7 @@ describe('16 m on (the default)', () => {
     withWindow({ __RAW_DISABLE_MARINE_WAVE_PALETTE__: true }, () => expect(require('./marineWavePalette').marineWaveHeightScale('light')).toBe(10));   // the shader's own ramp
   });
   it('every shader differs from #411 head ONLY by the joined declaration and the decode factor', () => {
-    withWindow({}, () => {
+    withWindow({ __RAW_DISABLE_LIGHT_CREST_V2__: true }, () => {   // light crest V2's lines: marineCrestPaletteLight.test.js
       const s = shaders(), { HEIGHT_SCALE_DECL, withHeightScale } = require('./marineHeightEncoding');
       // The heatmap also embeds the palette's GLSL, which the 16 m table changes on purpose (marineWavePalette.test.js pins it).
       const pal = require('./marineWavePalette'), at10 = pal.marineWavePaletteGlsl(pal.WAVE_PALETTES[pal.MARINE_WAVE_PALETTE_ID]);

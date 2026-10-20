@@ -2,7 +2,8 @@
 
 The same models as cvd_check.py (coloraide 8.13: Vienot 1999 protan/deutan, Brettel 1997 tritan; CIEDE2000). Reads the JSON
 that `node wave-check.mjs --json <file>` writes: per palette and theme, the neighbouring legend stops AS COMPOSITED over the
-water at world, regional and coastal alpha, and the above-cap state against the cap.
+water at world, regional and coastal alpha, the above-cap state against the cap, and (a watch line) each crest's core against
+the wash under it, every 0.2 m, whitecap off and on.
 
 Usage:  .venv/Scripts/python wave_cvd_check.py <wave-check.json> [--strict]
 """
@@ -13,6 +14,7 @@ from coloraide import Color
 
 FLOOR = 10.0
 OVER_FLOOR = 10.0
+CREST_WATCH = 15.0
 MODELS = (("normal", None), ("protan", "vienot"), ("deutan", "vienot"), ("tritan", "brettel"))
 
 
@@ -46,6 +48,9 @@ def main():
                 bad = d < OVER_FLOOR
                 red += bad
                 print(f"[{'RED ' if bad else ' ok '}] {pid} {theme}: above-cap vs cap ({kind}, {view}) at {d:.1f} dE00 (bar {OVER_FLOOR:g})")
+            if t.get("crests"):   # a watch line, as in wave-check.mjs: the crest core against the wash under it
+                d, label, view, kind = worst(t["crests"])
+                print(f"[{'warn' if d < CREST_WATCH else ' ok '}] {pid} {theme}: crest core vs its wash, weakest {label} ({kind}, {view}) at {d:.1f} dE00 (watch below {CREST_WATCH:g})")
     print(f"{red} red colour-blind line(s).")
     return 1 if ("--strict" in sys.argv and red) else 0
 
