@@ -1493,7 +1493,10 @@ jobs:
           # ⬆ 169/2803 → 170/2817 on 2026-10-19, IN THE SAME COMMIT THAT CAUSES IT (the GFS/EURO/ICON model-spread data
           # collector, dark): tests/test_model_spread.py (14, a new file selector-verified into this lane: --lane chain 169 -> 170);
           # the floor-staleness projection 2809 + 14 -> projected 2823/170; 2823 - 6 = 2817. This PR must read 170 files / 2823.
-          MIN_FILES, MIN_PASSED = 170, 2817
+          # ⬆ 170/2817 → 171/2820 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (CMEMS source labels: MFWAM, not ECMWF):
+          # tests/test_cmems_source_labels.py (3, a new file selector-verified into this lane: --lane chain 170 -> 171);
+          # dev 11d19ef0 hosted read 2823/170 (CI 39364732468) + 3 -> projected 2826/171; 2826 - 6 = 2820. This PR must read 171 files / 2826.
+          MIN_FILES, MIN_PASSED = 171, 2820
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

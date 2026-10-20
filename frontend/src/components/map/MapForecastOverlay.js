@@ -20,6 +20,7 @@ import {
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { getSurfModeFlag, getSharedValidTime } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
+import { modelDisplayName } from './modelDisplayName';
 import { sampleDecodedOmValue } from './decodedOmSampler';
 import { usePointRating } from './usePointRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
@@ -604,7 +605,8 @@ export const MapForecastOverlay = ({
     cards.push({ icon: MapPin, label: 'Data', value: 'No data', color: 'text-gray-400' });
   }
 
-  const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
+  // The picker's word ('EURO'), not 'ECMWF': EURO's swells are Copernicus MFWAM (modelDisplayName.js).
+  const modelLabel = modelDisplayName(activeModel);
 
   // v163: Context-aware label — shows spot name, long-press coords, or time
   const forecastTimeLabel = (() => {
