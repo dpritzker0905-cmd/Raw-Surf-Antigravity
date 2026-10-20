@@ -75,3 +75,15 @@ and its composites to 2.5 (beach).
   apart; stops are now composited from the table itself (they were 3 apart).
 - `frontend/scripts/offline-backend/scn_wave_palette_ab.js` + `compose_wave_ab.py`: the A/B, one build, offline only
   (synthetic store, `--vortex-peak 11` so the eye crosses 10 m, `--dynamic 1`); no request reached the live box.
+
+## PR, page and ledger
+
+- Draft PR #411 (`claude/wave-palette-v2`), merged with dev `998e9e919` before opening; not merged, owner pick pending.
+- The owner's A/B page (private to the owner): https://claude.ai/artifact/UTLpviFjCezB6sHGgmed13 (the side-by-side sheets,
+  the two moving clips, the legends on their real panels, the numbers).
+- Ledger 1504 (`pr_open`), 1505 (`commitment`: the owner's pick by 2026-10-24, then the loser and the B lever go, the kill stays).
+- Local checks on the merged tree: Jest 454/455 suites (the one failure, `netlifyIconStoredTailScope.test.js`, is a Git Bash
+  spawn over its 5 s limit on this Windows box; it and `netlify.toml` are identical to dev), ESLint and LOC ratchets clean,
+  `wind-color/check.mjs --strict` exit 0, build compiled. Hosted CI is the authority.
+- Follow-ups proposed, not built: widen the height encoding to ~16 m (per-upload scale uniform; dark and the rating texture
+  byte-identical; its own A/B), and the beach crest colours at 1.5-4 m (their own A/B).
