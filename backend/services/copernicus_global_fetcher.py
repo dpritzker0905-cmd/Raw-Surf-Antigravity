@@ -81,7 +81,6 @@ PERIOD_TO_HEIGHT = {
     "swell_wave_period": "swell_wave_height",
     "secondary_swell_wave_period": "secondary_swell_wave_height",
     "wind_wave_period": "wind_wave_height",
-    "wave_period_tm10": "wave_height",   # the VTM10 diagnostic under COPERNICUS_PEAK_PERIOD (cmems_period_map)
 }
 
 
@@ -168,6 +167,9 @@ def fetch_global_coarse(payload):
     tmp = Path(tempfile.gettempdir())
     # COPERNICUS_PEAK_PERIOD (dark): VTPK as the total period, VTM10 kept as wave_period_tm10. Off -> VARIABLE_MAP.
     var_map = with_peak_period(VARIABLE_MAP)
+    # Every period the map emits is paired with its windowed height (test_cmems_period_window): PERIOD_TO_HEIGHT covers
+    # the default map; the flag's VTM10 diagnostic is a TOTAL-sea period, so it takes the total height's window too.
+    period_to_height = {**PERIOD_TO_HEIGHT, **{om: "wave_height" for _, om, _ in var_map if om == "wave_period_tm10"}}
     cop_vars = [v[0] for v in var_map]
     # accumulator: lat -> {lon -> {om_var -> [values]}}, plus shared time axis
     points = []
@@ -231,9 +233,9 @@ def fetch_global_coarse(payload):
                         else:
                             vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
-                    elif scalar_blockmean and om in PERIOD_TO_HEIGHT and arrs.get(PERIOD_TO_HEIGHT[om]) is not None:
+                    elif scalar_blockmean and om in period_to_height and arrs.get(period_to_height[om]) is not None:
                         # the period of the SAME sea the windowed height describes (see PERIOD_TO_HEIGHT)
-                        vals = energy_mean_period_lonspan(a, arrs[PERIOD_TO_HEIGHT[om]], col, half_cols)
+                        vals = energy_mean_period_lonspan(a, arrs[period_to_height[om]], col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
                     elif scalar_blockmean and om in HEIGHT_VARS:
                         # longitudinal RMS so an enclosed-sea cell whose exact column is masked land

@@ -188,3 +188,27 @@ def test_registry_defaults_match_the_code_defaults():
     assert {k: REGISTRY[k][0] for k in FLAGS} == FLAGS
     assert cpm.peak_period_enabled() is False and gpp.peak_period_enabled() is False
     assert gpp.DEFAULT_SHARPNESS == float(FLAGS["ICON_PEAK_PERIOD_SHARPNESS"])
+
+
+def test_flag_on_cmems_periods_keep_the_land_aware_window(monkeypatch):
+    """test_cmems_period_window's guard with the flag ON: the VTPK total and the VTM10 diagnostic are TOTAL-sea periods,
+    so both take the total height's window; a land-centred node reads its ocean columns, never None/0 from the land cell."""
+    import sys
+    from tests.test_cmems_period_window import PAYLOAD, _fake_modules, _node
+    from services import copernicus_global_fetcher as CGF
+    monkeypatch.setenv("COPERNICUS_PEAK_PERIOD", "1")
+    monkeypatch.delenv("COPERNICUS_SCALAR_BLOCKMEAN", raising=False)
+    _fake_modules(monkeypatch)
+    base = sys.modules["netCDF4"].Dataset
+
+    def with_vtpk(path, mode="r"):
+        ds = base(path, mode)
+        ds.variables.setdefault("VTPK", ds.variables["VTM10"])   # the fake file carries VTPK like the real one
+        return ds
+    monkeypatch.setattr(sys.modules["netCDF4"], "Dataset", with_vtpk)
+    points, ok, failed, _ = CGF.fetch_global_coarse(PAYLOAD)
+    assert (ok, failed) == (1, 0)
+    inland = _node(points, -120.0)
+    for per in ("wave_period", "wave_period_tm10", *CGF.PERIOD_TO_HEIGHT):
+        assert inland[per] == [pytest.approx(12.0)] * 2, f"{per} must come from its height's window under the flag"
+    assert set(CGF.PERIOD_TO_HEIGHT) == {om for _, om, _ in CGF.VARIABLE_MAP if "period" in om}   # default map untouched

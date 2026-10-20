@@ -1499,7 +1499,8 @@ jobs:
           # ⬆ 171/2820 → 172/2836 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (COPERNICUS_PEAK_PERIOD + ICON_PEAK_PERIOD, dark):
           # tests/test_peak_period_flags.py (16, a new file selector-verified into this lane: --lane chain 171 -> 172), re-derived after
           # #407: its hosted read 2826/171 (CI 39379941948) + 16 -> projected 2842/172; 2842 - 6 = 2836. This PR must read 172 files / 2842.
-          MIN_FILES, MIN_PASSED = 172, 2836
+          # +1 (2026-10-20, review fix in #412: the flag-on CMEMS window guard in test_peak_period_flags.py) -> 2843/172; 2843 - 6 = 2837.
+          MIN_FILES, MIN_PASSED = 172, 2837
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -479,9 +479,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3255, "chain": 2842, "estate": 2312}
+_FLOOR_SET_FROM = {"guards": 3255, "chain": 2843, "estate": 2312}
 # CMEMS source labels: +3 chain tests in a new file (tests/test_cmems_source_labels.py): dev 11d19ef0 read 2823 + 3 = 2826 projected; floor 2817 -> 2820, files 170 -> 171, margin 6.
 # Peak-period flags (dark): +16 chain tests in a new file (tests/test_peak_period_flags.py), after #407: hosted 2826 + 16 = 2842 projected; floor 2820 -> 2836, files 171 -> 172, margin 6.
+# #412 review fix: +1 chain test (flag-on CMEMS window guard): 2842 -> 2843 projected; floor 2836 -> 2837, margin 6.
 # Gateway moderation: +4 estate tests (floor 2255->2259).
 # PR381: actual dev CI39142012113 at62d94f5f read2262; floor2260 keeps margin2.
 # Default-deny route identity guard: +18 estate tests (2262 -> 2280 projected; floor 2260 -> 2278, margin 2).

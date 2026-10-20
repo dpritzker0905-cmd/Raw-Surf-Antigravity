@@ -79,7 +79,6 @@ PERIOD_TO_HEIGHT = {
     "wave_period": "wave_height",
     "swell_wave_period": "swell_wave_height",
     "wind_wave_period": "wind_wave_height",
-    "wave_period_tm10": "wave_height",   # the tm10 diagnostic under ICON_PEAK_PERIOD (gwam_peak_period.py)
 }
 
 try:
@@ -249,6 +248,8 @@ def fetch_global_coarse(payload):
     # wave_period derived after the loop from the two partition peaks (derive_total_series).
     peak = peak_period_enabled()
     var_map = _gwam_peak_map(VAR_MAP)
+    # PERIOD_TO_HEIGHT pairs the default map's periods; the flag's tm10 diagnostic is a TOTAL-sea period -> total height.
+    period_to_height = {**PERIOD_TO_HEIGHT, **{om: "wave_height" for _, om, _ in var_map if om == "wave_period_tm10"}}
     om_order = [om for _, om, _ in var_map] + (["wave_period"] if peak else [])
     om_units = {**{om: u for _, om, u in var_map}, **({"wave_period": "s"} if peak else {})}
     # The confidence series is initialized WITH the variables so failed steps keep it time-aligned.
@@ -295,7 +296,7 @@ def fetch_global_coarse(payload):
                         height_arrs[om] = arr
                     h_arr = height_arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                     is_height = scalar_blockmean and om in HEIGHT_VARS
-                    p_h_arr = height_arrs.get(PERIOD_TO_HEIGHT[om]) if (scalar_blockmean and om in PERIOD_TO_HEIGHT) else None
+                    p_h_arr = height_arrs.get(period_to_height[om]) if (scalar_blockmean and om in period_to_height) else None
                     _conf_here = export_confidence and om == "wave_direction"
                     for rid, im in idx_by.items():
                         series = series_by[rid]
