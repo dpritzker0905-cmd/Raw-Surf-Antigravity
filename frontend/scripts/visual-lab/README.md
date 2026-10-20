@@ -24,6 +24,17 @@ AB_DIAG=1 PORT=4103 OUT=lab-out node scripts/visual-lab/lab.js        # opens la
 | `AB_DIAG=1` | the app's diagnostic console on (the console instruments need it; the owner's browser has it) |
 | `LAB_KILLS` | comma list of `window.__RAW_DISABLE_*__` kill switches set before the app boots (the A arm of an A/B on one build) |
 | `LAB_TRACE=1` | a Chrome performance trace of the first flow, `OUT/trace.json` (DevTools > Performance > Load profile) |
+| `LAB_TRACE=1` (also) | `OUT/profile.json`, a V8 CPU profile of the same flow on the trace clock, with a named `LABSTEP_<n>_<label>` marker per step; `LAB_SAMPLE_US` sets the sampling interval (default 250) |
+| `FLOWS=erratic` | the owner's erratic session (2026-10-19): long scrubs, model and layer switches, zoom 8, pan, fast toggles |
+| `LAB_LIVE_BASE`, `LAB_KILLS`, `LAB_CONSOLE` | a dev server on the live backend (owner's word only); kill switches set before boot; matching console lines to `OUT/console-<flow>.txt` |
+
+**Who owns the main-thread stalls:** build with source maps (`GENERATE_SOURCEMAP=true`, the CRA default), run with
+`LAB_TRACE=1`, then `node frontend/scripts/visual-lab/stall_profile.js OUT/trace.json frontend/build [50]`. Stalls are
+unbroken stretches of non-idle main-thread samples of at least 50 ms; each sample is attributed to its leaf native or to
+the leaf-most frame that maps to an original source file, bucketed by stage (shader compile, GPU-sync state capture, land
+mask, grid -> texture, fetch/manifest, marine draw, wind, React, MapLibre), per step (`stageByStep`), with the hottest
+original functions (`hotLines`). Native WebGL calls bill their time to the JS function that calls them, and a synchronous
+read such as `getParameter` also absorbs queued GPU work (uploads, compiles), so read the GPU-sync bucket that way.
 | `AB_LIVE=1` | the REAL backend: real load on the 1-CPU box that serves production; one run, `/api/health` before and after, owner's word only |
 
 ## What each column means
