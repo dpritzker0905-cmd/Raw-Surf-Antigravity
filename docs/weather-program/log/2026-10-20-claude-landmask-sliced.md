@@ -194,4 +194,6 @@ queue fix; the 5 mask/engine suites (79 tests) after it. ESLint ratchet and LOC 
 
 ## 8. PR and ledger
 
-Draft PR against `dev` (below). Nothing merged, nothing flipped; STATE.md not edited (its ledger anchor is the lead's).
+Draft PR https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/414 against `dev` (branch merged with `dev`
+26385e031 first; no mask file in that merge). Ledger seq **1543** (`pr_open`). Nothing merged, nothing flipped; STATE.md not
+edited (its ledger anchor is the lead's).
