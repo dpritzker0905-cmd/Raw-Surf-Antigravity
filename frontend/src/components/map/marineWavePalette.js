@@ -22,13 +22,13 @@ export const WAVE_PALETTES = {
   // table and as composited over each theme's water at world/regional/coastal alpha; never through grey; hue is the second cue.
   // Anchors on the legend's ticks (0 2 4 8 12 20 33 ft); the cap is the encoder's 10 m ceiling, and a cell at or above it draws
   // the above-cap colour. Light: candidate A of the A/B (cream -> turquoise -> blue -> indigo; a red flag above the cap). Beach:
-  // candidate B (aqua -> cerulean -> orchid -> rose -> brick; a blue flag above the cap). Solved by wave-solve.mjs, finished by
+  // candidate B (aqua -> cerulean -> orchid -> rose -> brick; a violet flag above the cap). Solved by wave-solve.mjs, finished by
   // wave-polish.mjs, judged by wave-check.mjs and wave-jacobian.mjs (frontend/scripts/wind-color/).
   v2: {
     heights: [0, 0.61, 1.22, 2.44, 3.66, 6.1, 10], cap: 10,
     light: [[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]],
     beach: [[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]],
-    over: { light: [105, 9, 0], beach: [46, 72, 223] },
+    over: { light: [105, 9, 0], beach: [120, 26, 174] },   // beach: violet, re-solved 2026-10-20 so it is darker than the cap AS DRAWN (D-033 note)
   },
 };
 

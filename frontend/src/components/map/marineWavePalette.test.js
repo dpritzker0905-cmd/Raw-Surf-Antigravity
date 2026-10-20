@@ -136,7 +136,8 @@ describe.each(['v2'])('palette %s', id => {
   it('is light candidate A and beach candidate B of the owner A/B, colour for colour', () => {
     expect(P.light).toEqual([[228, 230, 144], [165, 227, 185], [29, 222, 224], [78, 166, 206], [82, 113, 187], [74, 68, 158], [66, 25, 132]]);
     expect(P.beach).toEqual([[195, 254, 255], [119, 221, 244], [1, 188, 243], [78, 134, 230], [156, 98, 164], [164, 85, 110], [160, 60, 58]]);
-    expect(P.over).toEqual({ light: [105, 9, 0], beach: [46, 72, 223] });
+    // Beach's flag: B's blue (46, 72, 223) drew LIGHTER than the brick cap over beach's water; re-solved darker as drawn (D-033 note).
+    expect(P.over).toEqual({ light: [105, 9, 0], beach: [120, 26, 174] });
   });
 
   it.each(['light', 'beach'])('%s: lightness falls at every 0.01 m from 0 m to the cap, then the above-cap state is no lighter', theme => {

@@ -1213,7 +1213,8 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Rule:** the light and beach wave-height wash is `WAVE_PALETTES.v2` in `marineWavePalette.js`: lightness falls at every step
   as height grows (on the table and as composited over each theme's water at world, regional and coastal alpha), never through
   grey, hue as the second cue; anchors on the legend's ticks (0 2 4 8 12 20 33 ft); a cell at or above 10 m draws its own colour
-  (light: a red flag after indigo; beach: a blue flag after brick), with an arrow on the legend. The legend gives each anchor an
+  (light: a red flag after indigo; beach: a violet flag after brick, darker than the cap as drawn: B's blue drew lighter
+  than its cap over beach's water and was re-solved before merge, 2026-10-20 13:15Z), with an arrow on the legend. The legend gives each anchor an
   equal share of the bar, so it agrees exactly with the GLSL. Dark, the surf-quality mode, the crest colours and every served
   number are untouched.
 - **Evidence:** `log/2026-10-20-claude-wave-palette-v2.md`; `evidence/wave-palette-v2-ab-2026-10-20.json` and

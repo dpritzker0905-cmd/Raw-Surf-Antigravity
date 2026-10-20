@@ -135,3 +135,20 @@ tables were solved and polished on their own, so the checker's numbers carry ove
 selects anything); the V2 kill still restores v1 exactly. The A/B harness and the Jacobian now read v1/v2. Re-run on the change:
 `marineWavePalette.test.js` 20/20; full frontend Jest 457/458 suites (the one failure is still `netlifyIconStoredTailScope.test.js`,
 a Git Bash spawn over 5 s on this machine, identical to dev); ESLint and LOC ratchets clean; wind check `--strict` 0; build compiled.
+
+## 2026-10-20 13:15Z: beach's flag above 10 m drew lighter than its cap; re-solved violet (correction)
+
+The lead relayed peer-reviewed support for the direction (Dasgupta et al. 2020; Schloss et al. 2019; Gołębiowska et al. 2020;
+Reda et al. 2020, from a Consensus search) and a guard from Schloss et al.: on a light ground darker-is-more and opaque-is-more
+agree, so keep the calm end the most see-through and the storm end darker. Measured, as drawn at world zoom: the ramp holds it
+(beach's 0.6 m sits 3.3 dE00 off the bare water, its 10 m 47.0 and L 0.59; light's 0.6 m 17.4, 10 m 38.4 and L 0.54). **The
+above-cap flag did not, on beach:** B's blue (46, 72, 223) laid over beach's sky-blue water composited to OKLCH L 0.608 against
+the brick cap's 0.592 (lighter by 0.016) and 21.8 dE00 nearer the water. The checker's above-cap line compared the TABLE's
+lightness, where the blue was darker; it now compares the composite at every view and lighting (darker is the gate; nearer the
+water is a watch). `wave-polish.mjs` carries the same condition. Re-solved (`--over-hue 230,320`): violet (120, 26, 174),
+darker by 0.030 as drawn, 21.5 dE00 off the cap, 36.7 off the water (watch: nearer than the cap's 47.0), legend arrow APCA 14.9
+on the black panel (watch). Alternatives measured: a red (175, 10, 2) passes every line but sits 11.7 dE00 off the brick cap; a
+blue (73, 52, 201) is darker by only 0.010. Light's red flag passes (darker by 0.037, further off the water by 16.5). D-033's
+description of the beach flag was corrected in place before merge (the owner's quoted words are unchanged). The earlier claim in
+this log and the PR, beach B's above-cap "23.1 dE00 off the cap", was right as a distance; "no lighter than the cap" held for
+the table only.

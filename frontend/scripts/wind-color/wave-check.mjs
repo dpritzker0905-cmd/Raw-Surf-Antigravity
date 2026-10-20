@@ -101,8 +101,22 @@ for (const id of ids) {
     // 7. Above the cap.
     if (P.over) {
       let ov = { de: Infinity }; for (const [view, a] of Object.entries(ALPHAS)) { const w = allDE(composite(P, theme, cap + 1, a), composite(P, theme, cap, a)); if (w.de < ov.de) ov = { ...w, view }; }
-      const darker = oklab(washAt(P, theme, cap + 1)).L <= oklab(washAt(P, theme, cap)).L;
-      console.log(`[${flag(ov.de < BAR.over || !darker)}] above ${cap} m: its own colour ${rgb255(washAt(P, theme, cap + 1)).join(',')}, ${fmt(ov.de)} dE00 off the cap's (${ov.kind}, ${ov.view}); ${darker ? 'no lighter than the cap' : 'LIGHTER than the cap'} (bar >= ${BAR.over})`);
+      // As DRAWN, not on the table (2026-10-20: beach's first blue flag was darker than its cap on the table and LIGHTER once laid over
+      // beach's sky-blue water, and nearer the water's colour). Schloss et al. 2019: on a light ground "darker is more" and "more opaque
+      // is more" agree, so the state above the cap must be darker AND further off the bare water than the cap, at every view and lighting.
+      const waterC = BASEMAP[theme].water.map((v) => v / 255);
+      let worst = { dL: -Infinity, dOff: Infinity };
+      for (const [view, a] of Object.entries(ALPHAS)) for (const dir of DIRS) {
+        const o = composite(P, theme, cap + 1, a, dir), c = composite(P, theme, cap, a, dir);
+        const dL = oklab(o).L - oklab(c).L, dOff = dE(o, waterC) - dE(c, waterC);
+        if (dL > worst.dL) worst = { ...worst, dL, view, dir };
+        if (dOff < worst.dOff) worst = { ...worst, dOff };
+      }
+      const darker = worst.dL < 0 && oklab(washAt(P, theme, cap + 1)).L <= oklab(washAt(P, theme, cap)).L, plainer = worst.dOff > 0;
+      // Darker is the gate (both biases agree on it on a light ground); the distance off the bare water is this file's proxy for
+      // apparent opacity, a watch: a flag nearer the water than the cap may read as more see-through (Schloss et al. 2019).
+      console.log(`[${flag(ov.de < BAR.over || !darker, !plainer)}] above ${cap} m: its own colour ${rgb255(washAt(P, theme, cap + 1)).join(',')}, ${fmt(ov.de)} dE00 off the cap's (${ov.kind}, ${ov.view}); ` +
+        `as drawn ${darker ? 'darker than the cap' : 'NOT darker than the cap'} (OKLCH L ${worst.dL >= 0 ? '+' : ''}${fmt(worst.dL, 3)} at its closest, ${worst.view}, lighting ${worst.dir}) and ${plainer ? 'further off the bare water' : 'NEARER the bare water'} (${worst.dOff >= 0 ? '+' : ''}${fmt(worst.dOff)} dE00) (bar >= ${BAR.over} and darker; watch if nearer the water)`);
     } else console.log(`[warn] above ${cap} m: no state of its own (the ramp clamps: a ${cap + 2} m storm draws as ${cap} m)`);
     // 8. The depth floor: flat water (< 0.18 m) shows the shader's depth colour, not the table (watch: not the palette's).
     const floorL = oklab(composite(P, theme, 0, ALPHAS.world)).L, calmL = oklab(composite(P, theme, 0.18, ALPHAS.world)).L;
