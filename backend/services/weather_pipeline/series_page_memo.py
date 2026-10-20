@@ -227,8 +227,8 @@ NO_TOKEN = ("manifest-unavailable",)
 _token_warned_at = [0.0]
 
 
-def _manifest_token(store):
-    m = store.get_manifest()
+def _manifest_token(store, m=None):
+    m = store.get_manifest() if m is None else m
     stamp = getattr(m, "last_manifest_update", None)
     return (id(m), stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp), len(getattr(m, "products", ()) or ()))
 
@@ -236,8 +236,9 @@ def _manifest_token(store):
 def _run_state(store, token_now, snapshot_now, path):
     """Run keys (worker thread): the manifest token, its snapshot (re-taken only for a new manifest) and the
     dynamic-viewport index (stat, parsed entries; parsed once per file version)."""
-    token = _manifest_token(store)
-    snapshot = snapshot_now if token == token_now and snapshot_now is not None else run_keys.manifest_snapshot(store.get_manifest())
+    m = store.get_manifest()            # ONE read: the token and the snapshot must describe the same manifest
+    token = _manifest_token(store, m)
+    snapshot = snapshot_now if token == token_now and snapshot_now is not None else run_keys.manifest_snapshot(m)
     stat = run_keys.index_stat(path)
     return token, snapshot, stat, run_keys.index_by_key(path, stat)
 

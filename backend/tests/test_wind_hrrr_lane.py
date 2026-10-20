@@ -297,8 +297,13 @@ def test_only_the_grid_route_calls_the_lane():
             continue
         if imports_the_lane(ast.parse(path.read_text(encoding="utf-8-sig", errors="ignore"))):
             callers.append(path.relative_to(BACKEND).as_posix())
-    # the route (apply), server.py (the kill-switch middleware + warm-up) and the ingest (publishes the lane)
-    assert sorted(callers) == ["routes/weather.py", "server.py", "services/weather_pipeline/wind_lane_ingest.py"], callers
+    # the route (apply), server.py (the kill-switch middleware + warm-up), the ingest (publishes the lane) and the
+    # series page memo, which only READS the lane's identity (current_lane().key, request_mode) to key and re-check a
+    # kept GFS wind page (2026-10-20, GRID_SERIES_MEMO_RUN_KEYS); it must never apply the lane itself (asserted below).
+    assert sorted(callers) == ["routes/weather.py", "server.py", "services/weather_pipeline/series_memo_keys.py",
+                               "services/weather_pipeline/wind_lane_ingest.py"], callers
+    memo = ast.parse((BACKEND / "services/weather_pipeline/series_memo_keys.py").read_text(encoding="utf-8"))
+    assert not [n for n in ast.walk(memo) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "apply_wind_lane"]
     tree = ast.parse((BACKEND / "routes/weather.py").read_text(encoding="utf-8"))
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "apply_wind_lane"]
     assert len(calls) == 1, "the lane runs exactly once per /grid (grid_series calls this route per frame)"
