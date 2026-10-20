@@ -737,9 +737,9 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
         });
         if (!rings.length) return;
         const offsets = ringCopyOffsets(rMin, rMax, wrappedWest, wrappedEast);
-        if (canvasCull && offsets.length) {
-          const [latMin, latMax] = latRangeOf(coords.filter((r) => r && r.length));
-          if (!ringCopiesTouchRect(projectRaw, rMin, rMax, latMin, latMax, offsets, canvasCull, 8)) return;
+        if (canvasCull && !isGlobalTarget && offsets.length) {   // a world canvas culls nothing: skip the check
+          const lr = coords.__latRange || (coords.__latRange = latRangeOf(coords.filter((r) => r && r.length)));   // cached like __bbox
+          if (!ringCopiesTouchRect(projectRaw, rMin, rMax, lr[0], lr[1], offsets, canvasCull, 8)) return;
         }
         for (const off of offsets) {
           ctx.beginPath();
