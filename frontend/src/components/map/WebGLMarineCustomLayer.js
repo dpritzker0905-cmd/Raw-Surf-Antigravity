@@ -366,6 +366,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
+        engine._mapGLContext = (map.painter && map.painter.context) || null;   // the GL state shadow the capture reads
         // The engine also exits before any GL work without a projection. Preserve repaint,
         // but do not let these callbacks count as slow GPU drawing in the fallback guard.
         if (!_matrix || !_matrix.length) stampSkip(_stamp, SKIP.ENGINE_NO_MATRIX);

@@ -604,7 +604,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     themeVal = 2.0;
   }
 
-  const webglState = captureWebGLState(gl);
+  // MapLibre's state shadow (WebGLStateIsolation.readShadowedState), set per frame by WebGLMarineCustomLayer.
+  const webglState = captureWebGLState(gl, this._mapGLContext);
   try {
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.DEPTH_TEST);
