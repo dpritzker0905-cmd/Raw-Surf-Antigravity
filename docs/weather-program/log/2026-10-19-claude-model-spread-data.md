@@ -73,3 +73,10 @@ every day (-51, 40 -> 48 -> 56 E, members 11.03 / 13.55 / 9.94 m). A second run:
 - Cost when armed: per new GFS run up to 8 frames x 3 products; the ingest step's own files are disk-cache hits, the
   rest are ~1.7 MB L2 reads each. Storage at the defaults is bounded by retention (21 days x <= 32 frames/day).
 - No UI and no serving: a confidence layer, and its thresholds, come after real distributions are read.
+
+## Ledger
+
+seq 1498 pr_open (#401), seq 1499 commitment (first real decile report, due 2026-10-27).
+
+
+Re-chained 2026-10-20 by the lead session after #395 merged: ledger lines 1463/1464 became 1498/1499 (same content).
