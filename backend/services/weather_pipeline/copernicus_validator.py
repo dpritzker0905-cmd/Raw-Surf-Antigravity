@@ -217,6 +217,10 @@ def validate_copernicus_product_helper(
         fallback_vars = {"swell_wave_height", "swell_wave_direction", "swell_wave_period"}
     
     actual_vars = set(product.source_variables or [])
+    # COPERNICUS_PEAK_PERIOD stores the total period from VTPK (cmems_period_map); either period variable is a valid
+    # waves product, so products written before and after a flip both validate.
+    if layer == "waves" and "VTPK" in actual_vars:
+        expected_vars = (expected_vars - {"VTM10"}) | {"VTPK"}
     if not expected_vars.issubset(actual_vars) and not fallback_vars.issubset(actual_vars):
         return False, f"Missing required CMEMS variables. Expected subset {expected_vars} or {fallback_vars}, got {actual_vars}"
 
