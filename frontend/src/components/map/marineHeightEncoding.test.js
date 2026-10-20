@@ -74,8 +74,8 @@ const shaders = () => ({ ...require('./WebGLMarineShaders'), ...require('./WebGL
 const NAMES = Object.keys(BEFORE.glsl);
 
 describe('the kill (window.__RAW_DISABLE_WAVE_HEIGHT_16M__) restores /10 exactly', () => {
-  it('every shader string hashes to #411 head', () => {
-    withWindow(KILL, () => { const s = shaders(); NAMES.forEach((k) => expect([k, sha(s[k])]).toEqual([k, BEFORE.glsl[k]])); });
+  it('every shader string hashes to #411 head (with the D-035 beach kill: #411 drew beach on v2)', () => {
+    withWindow({ ...KILL, __RAW_DISABLE_WAVE_BEACH_V1__: true }, () => { const s = shaders(); NAMES.forEach((k) => expect([k, sha(s[k])]).toEqual([k, BEFORE.glsl[k]])); });
   });
   it.each(['dark', 'light', 'beach'])('%s: the wave and score texture bytes hash to #411 head, and the upload says 10', (theme) => {
     withWindow(KILL, () => {
@@ -112,8 +112,12 @@ describe('16 m on (the default)', () => {
       expect(r.out.u_heightScale).toBe(10);
     });
   });
+  it('beach (D-035, beach draws v1): the wave texture bytes equal #411 head bytes, and the upload says 10', () => {
+    withWindow({}, () => { const r = encode('beach', false); expect(sha(Buffer.from(r.wave))).toBe(BEFORE.wave); expect(r.out.u_heightScale).toBe(10); });
+  });
+  // Beach packs /16 only under D-035's kill (beach on v2); light by default.
   it.each(['light', 'beach'])('%s: only the B byte changes, packed /16 ROUNDED, and it decodes back within half a 16/255 m step up to 16 m', (theme) => {
-    withWindow({}, () => {
+    withWindow(theme === 'beach' ? { __RAW_DISABLE_WAVE_BEACH_V1__: true } : {}, () => {
       const { FloatArrayConstructor } = require('./WebGLMarineFieldMath');
       const dark = encode('dark', false).wave, r = encode(theme, false), w = r.wave;
       expect(r.out.u_heightScale).toBe(16);
@@ -129,7 +133,7 @@ describe('16 m on (the default)', () => {
       expect(moved).toBeGreaterThan(30);
     });
   });
-  it.each([['light', 16, Math.round], ['beach', 16, Math.round], ['dark', 10, Math.floor]])('%s: the antimeridian seam column of a global grid averages its two edge bytes the same way the cells were packed', (theme, scale, how) => {
+  it.each([['light', 16, Math.round], ['beach', 10, Math.floor], ['dark', 10, Math.floor]])('%s: the antimeridian seam column of a global grid averages its two edge bytes the same way the cells were packed', (theme, scale, how) => {
     withWindow({}, () => {
       const { FloatArrayConstructor } = require('./WebGLMarineFieldMath');
       const cols = 8, rows = 3, hs = (r, c) => 0.6 + r * 2.1 + c * 0.77;   // all ocean; two rows give odd edge-byte sums at /16 and at /10
@@ -156,8 +160,10 @@ describe('16 m on (the default)', () => {
   it('picks the scale by theme and by palette: 16 only where the V2 table draws the wash', () => {
     withWindow({}, () => {
       const { marineWaveHeightScale } = require('./marineWavePalette');
-      expect([marineWaveHeightScale('light'), marineWaveHeightScale('beach'), marineWaveHeightScale('dark'), marineWaveHeightScale(undefined), marineWaveHeightScale('default')]).toEqual([16, 16, 10, 10, 10]);
+      // Beach draws v1 (D-035), which has no 16 m row: its uploads keep the 10 m byte.
+      expect([marineWaveHeightScale('light'), marineWaveHeightScale('beach'), marineWaveHeightScale('dark'), marineWaveHeightScale(undefined), marineWaveHeightScale('default')]).toEqual([16, 10, 10, 10, 10]);
     });
+    withWindow({ __RAW_DISABLE_WAVE_BEACH_V1__: true }, () => expect(require('./marineWavePalette').marineWaveHeightScale('beach')).toBe(16));   // D-035's kill: beach on v2 at 16 m
     withWindow({ __RAW_DISABLE_WAVE_PALETTE_V2__: true }, () => expect(require('./marineWavePalette').marineWaveHeightScale('light')).toBe(10));   // v1 caps at 10
     withWindow({ __RAW_DISABLE_MARINE_WAVE_PALETTE__: true }, () => expect(require('./marineWavePalette').marineWaveHeightScale('light')).toBe(10));   // the shader's own ramp
   });

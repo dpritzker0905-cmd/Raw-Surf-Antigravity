@@ -14,6 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-20 16:20Z: beach keeps the v1 wave palette, locked (owner, DECISIONS D-035; PR #417).** Light stays on v2 at 16 m (D-033, D-034); beach draws v1 exactly as before #411 and keeps the 10 m height byte (per-theme `paletteFor`), pinned by sha256 in `marineWavePalette.test.js`; changing beach's wave colours needs the owner's word. Kill `__RAW_DISABLE_WAVE_BEACH_V1__` restores beach on v2.
 - **2026-10-20 15:15Z: the GPU sees wave heights to 16 m for the light and beach wash (PR #415; client only, no served number moves).** The wave texture's height byte carries its scale per upload (`marineHeightEncoding.js`): 16 m where v2 draws the wash, 10 m for dark, rating grids and the score texture; every decoder reads `u_heightScale` (10.0 when unset). v2 gains a 16 m anchor and its flag moves up to 16 m. Kill `window.__RAW_DISABLE_WAVE_HEIGHT_16M__` = #411 exactly (shader strings and texture bytes sha256-pinned). The 16 m byte is ROUNDED (a floored first cut was worse than dev at calm water). **Owner 16:17Z: ship it, ON by default (D-034); #415 marked ready, not merged.** Log `log/2026-10-20-claude-wave-height-16m.md`.
 - **2026-10-20 12:46Z: wave-height palettes, owner pick D-033 (PR #411, client only, no served number moves).** Light ships candidate A, beach candidate B: lightness falls with height, never through grey, cap at the GPU's real 10 m ceiling with an above-cap colour and legend arrow; ON with kill `__RAW_DISABLE_WAVE_PALETTE_V2__` (v1 exactly). Checker `frontend/scripts/wind-color/wave-check.mjs`, Jacobian `wave-jacobian.mjs`. Open follow-ups (own sessions): the height encoding to ~16 m; beach crest contrast at 1.5-4 m.
 - **2026-10-20 08:20Z: overnight merge queue closed (lead session).** Merged at tested heads: #404 crest period cue, #405/#409 marine+wind FBO teardown sync (render 4.1->0.45 / 5.0->0.7 ms), #407 CMEMS=MFWAM labels, #408 land-mask fast paths (byte-identical), #410 async shader compile, #412 peak period for ICON/CMEMS (DARK: COPERNICUS_PEAK_PERIOD and ICON_PEAK_PERIOD stay '0' until the owner flips). Final frontend integration (dev 60fc1954c): Jest 340/340, lab 0 failures, theme x device 6/6, WebGL context loss recovers. Owner decisions open: #411 palette A/B pick; dev -> main (§22). Buoy evidence: ICON tm10 reads 13% (26% mixed seas) short of peak; the equal-mean consensus beats every member at days 1-5. Receipts ledger 1510-1531; log 2026-10-19-claude-scrub-upgrade.md 04:20 EDT.
@@ -2361,7 +2362,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-**Ledger head: seq 1549, sha256 fc5e80bc5147b2f9cb474beb181974b26a790aa6825b11cb589d84769db28bc1**
+**Ledger head: seq 1551, sha256 f71dff25d92d05da92ade89740102d1af72edffd02d710918e6fe1c9b2996f6f**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

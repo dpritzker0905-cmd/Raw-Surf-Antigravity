@@ -247,7 +247,7 @@ quality its own palette) judged as the engine DRAWS it. Same setup as the wind c
 uses `light-path-lib.mjs`'s port of coloraide, and `wave_cvd_check.py` runs coloraide itself as the authority).
 
 ```powershell
-node wave-check.mjs                     # every palette in marineWavePalette.js (v1, v2, v2@16 = v2 on the 16 m encoding), both themes
+node wave-check.mjs                     # every palette in marineWavePalette.js (v1, v2, v2@16 = v2 on the 16 m encoding), both themes (light ships v2@16; beach ships v1, D-035)
 node wave-check.mjs --palette v2 --pairs # one palette, every neighbouring pair by model at world alpha, crest by height
 node wave-check.mjs --table cand.json   # a solver's table ({ heights, cap, over: {light, beach}, light, beach }) instead
 node wave-check.mjs --strict            # exit 1 on any RED line, here or in the coloraide authority

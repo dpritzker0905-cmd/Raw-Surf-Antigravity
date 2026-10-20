@@ -1205,6 +1205,7 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Rollback:** `window.__RAW_DISABLE_ICON_FAR_HOUR_RENDER__ = true` restores the prior rejected delivery paths; revert the D1 code commit for a source rollback while preserving this record and the action ledger.
 
 ### D-033 · Light and beach wave-height palettes: lightness falls with height; light ships candidate A, beach candidate B; ON by default
+Superseded for beach by D-035 (2026-10-20); light stands.
 - **Decided:** owner, 2026-10-20 12:46Z, on the A/B of PR #411 (side-by-side sheets and clips in the real engine, the checker's
   numbers and the Jacobian read): "Ship light A and beach B: remove light B and beach A and the B lever, keep the V2 kill, and
   mark #411 ready." (the reply button the owner chose after asking "What is more state of the art? A or B? Use jacobian lens to
@@ -1227,6 +1228,7 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Reopen if:** the owner says so, or the beach crest follow-up or the 16 m encoding changes what this table is judged against.
 
 ### D-034 · The GPU reads wave heights to 16 m for the light and beach wash; v2 gains a 16 m stop; ON by default
+Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands.
 - **Decided:** owner, 2026-10-20 16:17Z, on the A/B of PR #415 (the storm's eye side by side at 10 m and 16 m in each theme,
   sheets and moving clips from the real engine offline, the texture-byte, crest and precision measurements): "Owner verdict on #415: ship the 16 m encoding on by default. Record it in the log and ledger and mark the PR ready."
 - **Rule:** the main wave texture's height byte carries its scale per upload (`marineHeightEncoding.js`): 16 m where v2 draws the
@@ -1243,3 +1245,18 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
   (shader strings, texture bytes, GLSL, samples and legend hashed in `marineHeightEncoding.test.js` and `marineWavePalette.test.js`).
 - **Reopen if:** the owner says so; the float height texture follow-up (R16F, its own A/B, it changes dark too) lands; or a real
   storm above 16 m makes the flag the common case.
+
+### D-035 · Beach keeps the v1 wave-height palette; light keeps v2; beach's colours are locked
+- **Decided:** owner, 2026-10-20 16:20Z, after #411 (D-033) put beach on candidate B and #415 (D-034) took it to 16 m: "I really like v1 color scheme heatmap for
+  Beach mode. How do we stick with that? We have many chats working on this".
+- **Rule:** beach draws `WAVE_PALETTES.v1` exactly as before #411 (dev `6021c2cc1`): its table, its value-linear legend on each
+  scale's axis, its clamp at 10 m, no above-cap state, and the 10 m height byte (v1 has no 16 m row, so `marineWaveHeightScale`
+  keeps beach's uploads at 10). Light draws v2 at 16 m (D-033, D-034). `marineWavePalette.test.js` pins beach's samples,
+  legend CSS and shader branch to that module by sha256 ("D-035" block): any change to beach's wave colours fails CI and needs a
+  new owner decision, whatever another session's palette work (the 16 m encoding, crest colours, checkers) proposes. Work on the
+  wave palette applies to light only unless the owner says otherwise.
+- **Known (from the checker, for the record, not a reason to reopen):** beach v1's lightness turns back twice (its 5 m maroon is
+  darker than its 10 m cream), its 1-2 m coral sits 7 dE00 from the sand land, and a storm above 10 m draws as 10 m.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_BEACH_V1__ = true` draws beach on v2 exactly as #411 merged it (shader hash pinned);
+  `window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true` draws v1 in both themes.
+- **Reopen if:** the owner says so.
