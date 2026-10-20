@@ -9,12 +9,16 @@
 // Output: per-stage ms and share of stall time, top original functions, the worst stalls with their top stages, GC events.
 //
 //   node frontend/scripts/visual-lab/stall_profile.js <trace.json> <build dir> [STALL_MS=50]
+// FOCUS=<regex> (optional): also total every busy sample whose stack holds a frame whose "<original source>:<function>" matches,
+//   wherever it was billed (stall or not), as `focus` {ms, msInStalls, byStep, byFunction}. E.g. FOCUS=WebGLProgramBatch for the
+//   engines' shader batch, which the stage table folds in with MapLibre's own program compile.
 const fs = require('fs');
 const path = require('path');
 const { SourceMapConsumer } = require('source-map');
 
 const [tracePath, buildDir, stallArg] = process.argv.slice(2);
 const STALL_US = (+(stallArg || 50)) * 1000;
+const FOCUS = process.env.FOCUS ? new RegExp(process.env.FOCUS) : null;
 
 // First match wins. Leaf natives first, then original source paths (webpack:// paths from the source maps).
 const NATIVE = [
@@ -141,12 +145,14 @@ function classify(stack, srcOf) {
   const lineOf = (stack) => { for (const node of stack) { const s = srcOf(node.callFrame); if (s && !/node_modules|webpack\/(bootstrap|runtime)/.test(s.source)) { return { key: `${s.source.replace(/^webpack:\/\/[^/]*\//, '')}:${s.line}`, source: s.source, line: s.line }; } } return null; };
   const lines = new Map(); const byStep = new Map(); const stageByStep = new Map();
   const stage = new Map(); const fn = new Map(); const perStall = [];
+  const stallOf = new Array(main.samples.length).fill(null);   // the step of the stall each sample fell in (FOCUS)
   let si = 0;
   for (const task of tasks) {
     const local = new Map();
     while (si < main.times.length && main.times[si] < task.ts) si++;
     let j = si;
     for (; j < main.times.length && main.times[j] <= task.ts + task.dur; j++) {
+      stallOf[j] = stepAt(task.ts);
       const stack = stackOf(main.samples[j]); const wt = w[j];
       const { stage: st, where } = classify(stack, srcOf);
       stage.set(st, (stage.get(st) || 0) + wt); local.set(st, (local.get(st) || 0) + wt);
@@ -162,12 +168,20 @@ function classify(stack, srcOf) {
   }
   // Whole-profile view: every busy (non-idle) sample by stage, and the time inside named functions, stall or not.
   const allBusy = new Map(); const fnAll = new Map();
+  const focus = { all: 0, inStalls: 0, byStep: new Map(), byFn: new Map() };
+  const focusOf = (stack) => { for (const node of stack) { const s = srcOf(node.callFrame); if (!s) continue;
+    const tag = `${s.source.replace(/^webpack:\/\/[^/]*\//, '')}:${s.name || node.callFrame.functionName || '?'}`; if (FOCUS.test(tag)) return tag; } return null; };
   for (let j = 0; j < main.samples.length; j++) {
     const stack = stackOf(main.samples[j]);
     if (stack[0] && stack[0].callFrame.functionName === '(idle)') continue;
     const { stage: st, where } = classify(stack, srcOf);
     allBusy.set(st, (allBusy.get(st) || 0) + w[j]);
     const k = `${st} | ${where}`; fnAll.set(k, (fnAll.get(k) || 0) + w[j]);
+    const hit = FOCUS && focusOf(stack);
+    if (hit) {
+      focus.all += w[j]; focus.byFn.set(hit, (focus.byFn.get(hit) || 0) + w[j]);
+      if (stallOf[j] != null) { focus.inStalls += w[j]; focus.byStep.set(stallOf[j], (focus.byStep.get(stallOf[j]) || 0) + w[j]); }
+    }
   }
   const totalStallMs = tasks.reduce((a, t) => a + t.dur, 0) / 1000;
   const totalSamples = [...stage.values()].reduce((a, b) => a + b, 0);
@@ -188,6 +202,9 @@ function classify(stack, srcOf) {
     hotLines: [...lines.values()].sort((a, b) => b.us - a.us).slice(0, 30).map((e) => ({ at: e.key, ms: ms(e.us), code: textOf(e.source, e.line) })),
     topFunctions: [...fn.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25).map(([k, n]) => ({ fn: k, ms: ms(n) })),
     worstStalls: [...perStall].sort((a, b) => b.ms - a.ms).slice(0, 12),
+    focus: FOCUS ? { pattern: FOCUS.source, ms: ms(focus.all), msInStalls: ms(focus.inStalls),
+      byStep: Object.fromEntries([...focus.byStep.entries()].map(([k, us]) => [k, ms(us)])),
+      byFunction: [...focus.byFn.entries()].sort((a, b) => b[1] - a[1]).map(([k, us]) => ({ fn: k, ms: +(us / 1000).toFixed(1) })) } : undefined,
   };
   console.log(JSON.stringify(report, null, 1));
   for (const c of consumers.values()) c.destroy && c.destroy();
