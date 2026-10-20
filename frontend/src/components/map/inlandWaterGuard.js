@@ -19,6 +19,7 @@
 // Kill switch: window.__RAW_DISABLE_INLAND_WATER_GUARD__ = true.
 // Tune: window.__RAW_INLAND_WATER_KM__ (default 10).
 // Telemetry: window.__RAW_GPU__.inlandWaterGuard.
+import { stampVerdict } from './maskFastPaths';
 
 // Pure grid core (exported for tests): pixels that are painted water (water=1) but NOT Natural-
 // Earth water (neWater=0) and farther than maxDistPx (Chebyshev) from ANY neWater pixel.
@@ -143,7 +144,7 @@ export function applyInlandWaterGuard(canvas, neSnapshot, bounds, opts) {
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const prevSmooth = ctx.imageSmoothingEnabled;
     ctx.imageSmoothingEnabled = false;
-    ctx.drawImage(ds, 0, 0, canvas.width, canvas.height);
+    stampVerdict(ctx, ds, reblack, dsW, dsH, canvas.width, canvas.height);   // = drawImage(ds, 0, 0, W, H): maskFastPaths.js
     ctx.imageSmoothingEnabled = prevSmooth;
     return {
       applied: true,

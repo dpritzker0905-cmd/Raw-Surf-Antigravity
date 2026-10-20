@@ -8,6 +8,7 @@ import {
   polygonOverlapsTarget, getPolygonBbox,
 } from './marineMaskProjection';
 import { suppressShelteredWater, applyCachedShelteredVerdict } from './marineMaskShelter';
+import { fastLandMaskOn, sampleOpenWaterDamage, rectRowReader, captureNeRows, ringCopiesTouchRect, latRangeOf } from './maskFastPaths';
 
 // ── THE PUBLIC SURFACE IS UNCHANGED ──────────────────────────────────────────────────────────────
 // This file was 1098 lines against the repo's 800-line governance limit. Two self-contained seams
@@ -224,6 +225,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   let neFull = null;
   let checkOpenWaterDamage = false;
   let islandOn = false;
+  const fastOn = fastLandMaskOn();   // maskFastPaths.js: same bytes, less main thread
   try {
     const _raOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
     const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
@@ -237,7 +239,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
     checkOpenWaterDamage = _densityPxDeg > 0 && _densityPxDeg < 1200 &&
       !(typeof window !== 'undefined' && window.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ === true);
     islandOn = islandReassertEnabled({ densityPxPerDeg: _densityPxDeg, maxDensity: _maxDensity, killed: _raOff });
-    if (checkOpenWaterDamage || islandOn) {
+    if (islandOn || (checkOpenWaterDamage && !fastOn)) {
       neFull = document.createElement('canvas');
       neFull.width = canvas.width; neFull.height = canvas.height;
       neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
@@ -251,6 +253,10 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   const rw = Math.min(canvas.width, Math.max(px0, px1)) - rx;
   const rh = Math.min(canvas.height, Math.max(py0, py1)) - ry;
   if (rw <= 1 || rh <= 1) return false;
+  let neRows = null;   // fast path: the Natural-Earth rows step 6 samples, read before the paint (= the neFull copy's rows)
+  if (fastOn && checkOpenWaterDamage && rw > 8 && rh > 8) {
+    try { neRows = captureNeRows(ctx, Math.round(rx), Math.round(ry), Math.floor(rw), Math.floor(rh)); } catch (e) { neRows = null; }
+  }
   ctx.save();
   ctx.beginPath();
   ctx.rect(rx, ry, rw, rh);
@@ -274,8 +280,13 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   // ANTIMERIDIAN-SAFE ring tracing (see unwrapRingLngs): identical tear risk to the NE tracer — a
   // water polygon straddling the projector's anti-center meridian would sweep the canvas white.
   const unwrapEnabled = maskRingUnwrapEnabled();
-  const traceRings = (rings, fillRule) => {
+  // Fast path: shapes that cannot reach the viewport clip are skipped (maskFastPaths.js). `curPathCulled` says whether the
+  // path the ORIGINAL code would hold now is a skipped one, so a following stroke() of "the current path" stays exact.
+  const clipRect = fastOn ? { x0: rx, y0: ry, x1: rx + rw, y1: ry + rh } : null;
+  let curPathCulled = false;
+  const traceRings = (rings, fillRule, close = true, margin = 0) => {
     if (!unwrapEnabled) {
+      curPathCulled = false;
       ctx.beginPath();
       for (const ring of rings) {
         if (!ring || !ring.length) continue;
@@ -283,7 +294,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
           const [x, y] = project(pt[0], pt[1]);
           if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         });
-        ctx.closePath();
+        if (close) ctx.closePath();
       }
       ctx.fill(fillRule || 'nonzero');
       return;
@@ -298,23 +309,31 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
       if (u.max > rMax) rMax = u.max;
     }
     if (!prepared.length) return;
-    for (const off of ringCopyOffsets(rMin, rMax, project.wrappedWest, project.wrappedEast)) {
+    const offsets = ringCopyOffsets(rMin, rMax, project.wrappedWest, project.wrappedEast);
+    if (!offsets.length) return;
+    if (clipRect) {
+      const [latMin, latMax] = latRangeOf(rings.filter((r) => r && r.length));
+      curPathCulled = !ringCopiesTouchRect(project.raw, rMin, rMax, latMin, latMax, offsets, clipRect, 2 + margin);
+      if (curPathCulled) return;
+    }
+    for (const off of offsets) {
       ctx.beginPath();
       for (const r of prepared) {
         for (let i = 0; i < r.ring.length; i++) {
           const [x, y] = project.raw(r.lngs[i] + off, r.ring[i][1]);
           if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
         }
-        ctx.closePath();
+        if (close) ctx.closePath();
       }
       ctx.fill(fillRule || 'nonzero');
     }
   };
-  const tracePoly = (rings) => traceRings(rings, 'evenodd');
+  // Fill-only passes skip closePath on the fast path (maskFastPaths.js: O(n^2) in Chrome; fill() closes subpaths itself).
+  const fillCloses = !fastOn;
 
   ctx.fillStyle = '#ffffff';
   let painted = 0;
-  forEachPoly((poly) => { tracePoly(poly); painted++; });
+  forEachPoly((poly) => { traceRings(poly, 'evenodd', fillCloses); painted++; });
 
   // 3. RE-ASSERT LAND HOLES (the Venice regression, 2026-07-04): querySourceFeatures returns water
   //    polygons from EVERY loaded tile level — an overzoomed PARENT tile's simplified polygon has
@@ -326,7 +345,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
     for (let h = 1; h < poly.length; h++) {
       const ring = poly[h];
       if (!ring || !ring.length) continue;
-      traceRings([ring], undefined);   // antimeridian-safe (same unwrap as the white pass)
+      traceRings([ring], undefined, fillCloses);   // antimeridian-safe (same unwrap as the white pass)
     }
   });
 
@@ -378,7 +397,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
     // island reads half-flooded. Dilate each wetland polygon by a small FIXED-PIXEL stroke to close
     // them. Fixed px self-scales in the right direction: ~300 m at z10 (where the leak lives) but
     // ~15 m at z14 (creeks already resolve → negligible over-cover of open coast). Strokes the same
-    // path tracePoly just filled; the ctx.restore() below reverts the stroke state (no leak into the
+    // path traceRings just filled; the ctx.restore() below reverts the stroke state (no leak into the
     // sheltered pass). Only ever ADDS black over already-wetland-classified marsh → cannot flood.
     // Sized in METERS (clamped in px), not fixed px: the resident mask resolution swings ~200-800
     // m/px with the resident grid, so a fixed-px dilation over-covers on coarse builds and under-
@@ -417,7 +436,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
         if (!geom) continue;
         const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
         if (!polys) continue;
-        for (const poly of polys) { tracePoly(poly); if (_wetDilate) ctx.stroke(); _wetPainted++; }
+        for (const poly of polys) { traceRings(poly, 'evenodd', true, _wetDilate ? _wetDilPx + 2 : 0); if (_wetDilate && !curPathCulled) ctx.stroke(); _wetPainted++; }
       }
     }
     if (_win.__RAW_GPU__) {
@@ -499,24 +518,10 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance, preparedW
   let openWaterDegraded = false;
   try {
     const _w2 = typeof window !== 'undefined' ? window : {};
-    if (painted > 0 && neFull && checkOpenWaterDamage && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
+    if (painted > 0 && (fastOn ? neRows : neFull) && checkOpenWaterDamage && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
       const sx = Math.round(rx), sy = Math.round(ry), sw = Math.floor(rw), sh = Math.floor(rh);
-      const cur = ctx.getImageData(sx, sy, sw, sh).data;
-      const ne = neFull.getContext('2d', { willReadFrequently: true }).getImageData(sx, sy, sw, sh).data;
-      const step = Math.max(4, Math.floor(Math.min(sw, sh) / 64));
-      const ring = Math.max(4, step);                    // "open" = NE water with clear NE water around it
-      let neOpen = 0, falseLand = 0;
-      for (let y = ring; y < sh - ring; y += step) {
-        for (let x = ring; x < sw - ring; x += step) {
-          const i = (y * sw + x) * 4;
-          if (ne[i] < 200) continue;                     // NE land/coast at the sample
-          const iN = ((y - ring) * sw + x) * 4, iS = ((y + ring) * sw + x) * 4;
-          const iW = (y * sw + (x - ring)) * 4, iE = (y * sw + (x + ring)) * 4;
-          if (ne[iN] < 200 || ne[iS] < 200 || ne[iW] < 200 || ne[iE] < 200) continue; // near an NE coastline
-          neOpen++;
-          if (cur[i] < 30) falseLand++;                  // hard black over NE open water
-        }
-      }
+      const readNe = fastOn ? neRows : rectRowReader(neFull.getContext('2d', { willReadFrequently: true }), sx, sy, sw, sh, true);
+      const { neOpen, falseLand } = sampleOpenWaterDamage(sw, sh, rectRowReader(ctx, sx, sy, sw, sh, !fastOn), readNe);
       const frac = neOpen > 50 ? falseLand / neOpen : 0;
       const maxFrac = Number(_w2.__RAW_OPENWATER_FALSELAND_FRAC__) || 0.02;
       openWaterDegraded = frac > maxFrac;
@@ -663,6 +668,8 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   }
   
   const isGlobalTarget = (east - west) >= 359.0;
+  // Fast path: polygons whose pixel box (+ AA, the 1 px stroke's miter reach) misses the canvas paint nothing.
+  const canvasCull = fastLandMaskOn() ? { x0: 0, y0: 0, x1: width, y1: height } : null;
   
   geojson.features.forEach(feature => {
     const geom = feature.geometry;
@@ -730,6 +737,10 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
         });
         if (!rings.length) return;
         const offsets = ringCopyOffsets(rMin, rMax, wrappedWest, wrappedEast);
+        if (canvasCull && offsets.length) {
+          const [latMin, latMax] = latRangeOf(coords.filter((r) => r && r.length));
+          if (!ringCopiesTouchRect(projectRaw, rMin, rMax, latMin, latMax, offsets, canvasCull, 8)) return;
+        }
         for (const off of offsets) {
           ctx.beginPath();
           for (const r of rings) {
