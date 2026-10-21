@@ -82,7 +82,8 @@ Spec: `docs/architecture/gpu-resident-forecast-frames.md`, on #427.
 
 ## Ledger
 
-- **1586** `pr_open`: #437 (draft), opened from dev `5be9e9dd0` at `0c37d4937`; re-chained after dev moved twice (1570-1583, then #422's merge up to 1585).
+- **1598** `pr_open`: #437 (draft), opened from dev `5be9e9dd0` at `0c37d4937`; re-chained after dev moved (1570-1583, #422's merge up to 1585, then up to 1597).
+- **1599** `finding`: the phase-2 wired A/B (this log's last section).
 - The phase-2 commitment written on #427's branch (its line 1559 there; that branch's ledger forks from dev's at 1557) stays
   open: it is for the wired build after #422.
 

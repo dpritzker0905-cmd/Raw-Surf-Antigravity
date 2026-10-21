@@ -10,6 +10,7 @@ const fs = require('fs');
 const { runWithNetworkEvidence } = require('./zoomlab-network-evidence');
 const { stubZoomlabMessageBadge, waitForMarineReady, requireMarinePage, findWavesControl,
   waitForWavesControl, marinePageState, ZoomlabInstrumentError, instrumentFailureReport } = require('./zoomlab-harness.cjs');
+const { weatherRouteConfig, routeWeatherToLocal, watchLiveWeatherLeaks, stubOtherLiveBackend } = require('./offline-backend/weather_route');
 // Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
 // NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
 let chromium;
@@ -48,6 +49,23 @@ async function main() {
   page.on('pageerror', (error) => consoleErrors.push(`Uncaught ${error.message}`.slice(0, 400)));
   // The dev user's badge is incidental UI, not authenticated production data under test.
   const messageBadgeFixtureCount = await stubZoomlabMessageBadge(page);
+  // IN-RUNNER WEATHER (2026-10-21, owner: "move the CI load off the live server"). With ZL_WEATHER_BACKEND set
+  // (marine-nightly.yml starts offline-backend/serve_synthetic.py there), every /api/weather/* request is answered by
+  // that local backend, fail-closed, and never reaches the live box; the app's other calls are untouched. The receipt
+  // (weather_routing_<scenario>.json, written with the network evidence) counts both; the workflow fails on a leak.
+  const weatherCfg = weatherRouteConfig(process.env, 'ZL_WEATHER_BACKEND');
+  const weatherStats = weatherCfg.local ? await routeWeatherToLocal(context, weatherCfg) : null;
+  const weatherLeaks = weatherCfg.local ? watchLiveWeatherLeaks(context, weatherCfg.liveOrigin) : null;
+  // Local runs only (CI never sets it): every other backend call answered empty here too, zero live traffic.
+  if (weatherCfg.local && process.env.ZL_STUB_OTHER_BACKEND === '1') await stubOtherLiveBackend(context, weatherCfg.liveOrigin);
+  const saveWeatherReceipt = () => {
+    if (!weatherStats) return;
+    const receipt = { scenario, localBackend: weatherCfg.local, routedToLocal: weatherStats.local,
+      answeredHere: weatherStats.answered, localFailures: weatherStats.failed, cancelledByPage: weatherStats.cancelled,
+      sentToLive: weatherLeaks().leaked, byEndpoint: weatherStats.byEndpoint, failedExamples: weatherStats.failedExamples };
+    fs.writeFileSync(path.join(outdir, `weather_routing_${scenario}.json`), JSON.stringify(receipt));
+    log('weather routing: ' + JSON.stringify(receipt));
+  };
 
   await runWithNetworkEvidence(page, {
     run: async networkEvidence => {
@@ -65,7 +83,10 @@ async function main() {
     close: async () => {
       try { await context.close(); } finally { await browser.close(); }
     },
-    save: evidence => fs.writeFileSync(path.join(outdir, `network_${scenario}.json`), JSON.stringify(evidence)),
+    save: evidence => {
+      saveWeatherReceipt();   // first: save runs on every path (runWithNetworkEvidence), after the context closed
+      fs.writeFileSync(path.join(outdir, `network_${scenario}.json`), JSON.stringify(evidence));
+    },
   });
   const vids = fs.readdirSync(outdir).filter((f) => f.endsWith('.webm'));
   log('videos: ' + vids.join(', '));

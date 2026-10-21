@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding';
-import { LIGHT_CREST_GLSL } from './marineCrestPalette';   // light crest colours, V2 + its kill (__RAW_DISABLE_LIGHT_CREST_V2__)
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL } from './marineCrestPalette';   // light crests (the original; V2 on request), dark's 8 m+ storm ink (+ kills)
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -940,7 +940,7 @@ void main() {
     // Dark Mode
     calmColor = vec3(0.10, 0.95, 0.60);    // mint-green
     activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold
-    stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange
+    stormColor = ${DARK_STORM_CREST_GLSL.storm}
     foamHighlight = vec3(1.00, 1.00, 1.00);
   }
 
@@ -962,7 +962,7 @@ void main() {
   // boosted + slightly whitened core — so it reads on any background color without changing any
   // theme palette. Gated: both terms 0 → byte-identical legacy output.
   float crestContrastEff = max(u_crestContrast,
-    u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));
+    ${DARK_STORM_CREST_GLSL.casing}
   if (crestContrastEff > 0.001) {
     float core = 1.0 - smoothstep(0.15, 0.85, ellipseDist);
     float lum = mix(0.55, 1.30, core);

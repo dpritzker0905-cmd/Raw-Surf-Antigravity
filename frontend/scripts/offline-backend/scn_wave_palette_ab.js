@@ -14,6 +14,8 @@
 // crest V2 (the default); lk is V2 with the engine's crest self-contrast on at every zoom and height (window.__RAW_CREST_CONTRAST__ = 1:
 // a dark skirt round a lighter centre, the cased-crest probe) and l1k today's crests the same way. Each shot reads back light's four
 // crest lines from the DRAW program's own compiled GLSL.
+// Light crest restore (2026-10-21, D-041): the original light crest is the default again, so v2 and l1 now draw the same light crests;
+// lv2 asks for light crest V2 (window.__RAW_LIGHT_CREST_V2__) for an A/B against it.
 // Per shot it records what the engine held (grid shape, bounds, valid time, the drawn grid's height range) so the panes can be
 // shown to be the same data; and, before Waves is switched on, the bare water's colour (the checker's basemap model).
 // THE 16 m ENCODING (2026-10-20): VARIANTS=v2@10,v2,v2@10b  THEMES=light,beach,dark  --vortex-peak 14 (the eye passes 10 m, under 16).
@@ -31,7 +33,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
-  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 } };
+  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lv2: { __RAW_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
@@ -52,6 +54,20 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
     waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null };
 };
 const particles = (page, on) => page.evaluate((on) => { window.__MARINE_ENGINE__._fboSupported = on; }, on);   // instrument only
+// Dark storm crest (2026-10-20): THEMES=dark VARIANTS=d1,v2 VIEWS=world,regional,eye,coastal CLIP=1 PAIRED=1
+// CLIP_VIEWS=regional,eye,coastal over serve_synthetic.py --dynamic 1 --vortex-peak 11. d1 is today's dark crest
+// (window.__RAW_DISABLE_DARK_STORM_CREST__), v2 the shipped 8 m+ cased orange (D-039; earlier runs: electric blue, then dc = cased). `eye` is a z 6 view on the storm's eye
+// (>= 8 m out to ~3 deg); d1 and eye run only when named. Views shot after a zoom-in keep its regional tile (BLEND BOTH). Each shot's engine
+// record carries darkStorm, dark's stormColor line read back from the DRAW program's compiled GLSL. crest_by_height.py reads the clips.
+Object.assign(LEVERS, { d1: { __RAW_DISABLE_DARK_STORM_CREST__: true } });
+VIEWS.eye = [-108, 15, 6.0];
+const darkStorm = () => {
+  const e = window.__MARINE_ENGINE__, canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
+  const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
+  const storm = (/\/\/ Dark Mode[^}]*?stormColor = ([^;]*);/.exec(glsl) || [])[1] || null;
+  const casing = (/crestContrastEff = max\(u_crestContrast,\s*([^;]*);/.exec(glsl) || [])[1] || null;   // the cased alternative's term
+  return casing && casing.includes('u_theme') ? `${storm} | cased: ${casing}` : storm;
+};
 
 async function legendBox(page) {
   return page.evaluate(() => {
@@ -84,7 +100,7 @@ async function legendBox(page) {
           await page.screenshot({ path: path.join(OUT, file) });
           const lb = await legendBox(page);
           if (lb) await page.screenshot({ path: path.join(OUT, `${theme}-${view}-${v}-legend.png`), clip: lb });
-          record.shots.push({ theme, variant: v, view, file, legend: lb ? `${theme}-${view}-${v}-legend.png` : null, engine: await page.evaluate(drawn) });
+          record.shots.push({ theme, variant: v, view, file, legend: lb ? `${theme}-${view}-${v}-legend.png` : null, engine: { ...await page.evaluate(drawn), darkStorm: await page.evaluate(darkStorm) } });
           console.log(theme, v, view, JSON.stringify(record.shots[record.shots.length - 1].engine));
           if (process.env.WASH === '1') {   // the same camera and hour, crests off: the wash alone, for a pixel-for-pixel comparison
             await particles(page, false); await sleep(1500);
