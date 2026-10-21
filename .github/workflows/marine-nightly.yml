@@ -51,7 +51,8 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install backend dependencies (the in-runner weather backend)
         working-directory: backend
-        run: pip install -q -r requirements.txt
+        # + aiosqlite at its requirements-dev.txt pin: with no DATABASE_URL, database.py falls back to sqlite+aiosqlite.
+        run: pip install -q -r requirements.txt "$(grep -E '^aiosqlite==' requirements-dev.txt)"
       - name: Start the in-runner synthetic weather backend
         run: bash frontend/scripts/offline-backend/ci_weather_backend.sh start
       - uses: actions/setup-node@v5
