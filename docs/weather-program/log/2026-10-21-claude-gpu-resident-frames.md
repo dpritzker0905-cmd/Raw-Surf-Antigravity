@@ -122,3 +122,21 @@ The header above, "Update 2026-10-21 ~06:00Z: live CDN latency, harness caveat, 
 later than its own commit (`0ae4841d2`, 2026-10-21T05:38:53Z). It was not a clock reading (LESSONS L-P10), and hosted `verify`
 failed on it. The update was written at about 05:38Z. The header stays as written (append-only); the ledger carries the
 `correction` line.
+
+## Update (2026-10-21 14:47Z): #422's review fixes change two contracts
+
+The static-frames session (#422, head 75d5318ea) reported two contract changes; the spec now follows them:
+
+- **Index frames can have `path: null`**, with an `unbuilt` reason (`not_local`, `stale_local`, `refused`). The index lists
+  every manifest entry, so `pickIndexFrame` can return an unbuilt entry when it is the nearest. That is a MISS that `/grid` serves;
+  the store never substitutes the next-nearest frame, and prefetch skips null paths. See spec sections 3.2 (preconditions), 3.3
+  (a new `unbuilt` frame state) and 4.1 rule 2(e).
+- **`loadFrameVectors` shares one fetch per path** across callers, on its own AbortController that aborts only when every waiter
+  has aborted. The store routes its fetches through it, so a press and a prefetch never fetch twice. An abort only detaches a
+  caller: the bytes still cross the wire if another caller waits. See section 4.1 rule 4.
+- **Publisher cadence:** `forecast-ingest-pilots.yml` runs 3x/day at :45 past 03/11/19 UTC, so `latest.json` moves on that
+  cadence. The uncached-egress upper bound is restated on 3 publishes a day: about 17 GB/month for slice 1 at 30 CDN locations,
+  and about 260 GB for 15 sets (section 9).
+
+Unchanged: WORKER_SRC's message shape, parseFrame/buildVectors, the 30 s idle re-pin, and the latest.json / index fields (plus
+`coverage` and `entries`). Docs only, inside draft #427; no new ledger line.

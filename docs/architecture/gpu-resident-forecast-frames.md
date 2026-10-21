@@ -219,6 +219,7 @@ RGBA8. Heatmap, base wash, advect, draw and the coarse ring keep sampling exactl
 **Preconditions:** the fast path runs only when ALL of these hold; otherwise the commit is the normal one.
 
 - The static-frames flag is on, and the frame set is pinned (same run index).
+- The hour's index entry is built (`path` not null). An unbuilt entry is a miss, not a reason to show a neighbour.
 - The stored frame's dims and bounds equal the resident texture's.
 - Its height scale equals the theme's: 16 m rounded for light (v2), 10 m floored for beach (D-035) and dark. This is part of
   the store key, so a theme change re-packs in the worker.
@@ -265,7 +266,8 @@ kill switch restores 90 ms.
 | Frame state | Bytes held | Notes |
 |---|---|---|
 | absent | none | |
-| in-flight | none | `AbortController`; at most 6 frame requests in flight per page (3 on slow links) |
+| unbuilt | none | the index lists the hour with `path: null` and an `unbuilt` reason (`not_local`, `stale_local`, `refused`; #422 at head 75d5318ea). This is a MISS: today's path (`/grid`) serves that hour. Never substitute the next-nearest built frame, and never prefetch it |
+| in-flight | none | at most 6 frame requests in flight per page (3 on slow links). Fetches go through #422's `loadFrameVectors` / `fetchFrameBytes`, which share ONE fetch per path across callers on its own `AbortController`, so a press and a prefetch of the same frame never fetch twice. A caller that aborts gets null at once, while the shared fetch continues for the others and lands in the LRU |
 | packed | RGBA8 bytes (60 KB) + raw RSWF (105 KB) | CPU. The raw bytes are kept only inside the +-8 window, to materialise vectors; elsewhere the HTTP cache re-serves them |
 | resident | one texture layer (60 KB GPU) | packed bytes are dropped on the handheld tier once resident; desktop keeps them for WebGL context-loss recovery |
 
@@ -309,7 +311,8 @@ and the pin. It is read by the lab and by the `TruthOverlay` HUD (`?diag=1`), th
      These are refreshed only after the hour has rested 1 s;
    - **(c)** the rest of the active series, nearest-first, only once the wheel has moved >= 4 frames from where this set started.
      Dwell alone never expands, so a glance stays a window;
-   - **(d)** nothing else. There is no whole-set prefetch of other models or layers.
+   - **(d)** nothing else. There is no whole-set prefetch of other models or layers;
+   - **(e)** in every tier, index entries with `path: null` are skipped: they are misses that `/grid` serves (section 3.3).
 3. **In flight:**
    - 6 frame requests per page (HTTP/2 to one CDN origin; the bench used 6 without a long task);
    - 3, with (a) shrunk to +-4, when `navigator.connection.saveData` is set or `effectiveType` is `2g`/`3g`;
@@ -317,10 +320,12 @@ and the pin. It is read by the lab and by the `TruthOverlay` HUD (`?diag=1`), th
    - but `v1/latest.json` and the pinned run index are fetched at map open. They are tiny, and `latest.json` is `no-cache`, so
      revalidate it rather than refetch. Live, the cold CDN path was 1.32 s, of which 859 ms was this manifest step (section 4.4).
 4. **Abort.** In-flight requests of a set that stopped being active or warm are aborted when they drop out of the top 2 x cap of
-   the want list. The active series is never aborted, because it is fetched anyway.
+   the want list. The active series is never aborted, because it is fetched anyway. With #422's shared fetch an abort only
+   detaches this caller; the bytes still cross the wire (and count as egress) if another caller waits on the same path.
 5. **LRU by set, then by frame,** inside the tier's GPU budget (section 5). The 9 frames nearest the cursor are never evicted.
 6. **Retention.** A 404/400 on a frame marks the pin stale and re-pins, as #422 does: retention keeps the current and
-   previous run only.
+   previous run only. The publisher runs in `forecast-ingest-pilots.yml` three times a day (:45 past 03, 11 and 19 UTC), so
+   `latest.json` moves on that cadence and a new run reaches a scrubbing user only through the 30 s idle re-pin.
 
 ### 4.2 Simulated results
 
@@ -503,10 +508,10 @@ CDN cache hit is cached egress (Supabase docs, "Manage Egress usage").
 **Uncached egress** (origin fetches on CDN misses):
 - Each model run publishes new paths (`<run>/<valid>-<sha12>.bin`; an unchanged frame keeps its path), so the first request for
   each frame at each CDN location is a miss.
-- Upper bound: every frame of every published set fetched at every location for every model run, that is 6.4 MB per set x the
-  model's runs a day (GFS 4) x 30 days x the number of locations. For slice 1 (GFS waves only) and 30 locations that is about
-  23 GB/month.
-- At 15 sets it would be about 350 GB, above the 250 GB quota. The real figure is far lower, because only viewed frames are
+- Upper bound: every frame of every published set fetched at every location for every publish, that is 6.4 MB per set x 3
+  publishes a day (`forecast-ingest-pilots.yml`, :45 past 03/11/19 UTC) x 30 days x the number of locations. For slice 1 (GFS
+  waves only) and 30 locations that is about 17 GB/month.
+- At 15 sets it would be about 260 GB, just above the 250 GB quota. The real figure is far lower, because only viewed frames are
   fetched. Read the Supabase usage page after the flip.
 
 The publisher uploads from the runner's disk (ingress, free) and never re-downloads (#422's egress rule).
