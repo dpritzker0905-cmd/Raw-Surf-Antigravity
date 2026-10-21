@@ -14,8 +14,9 @@ WHAT, with the flag on:
      the new anchor (pinned in tests/test_series_memo_run_keys.py). A body whose labels are not exactly where expected
      is refused and rebuilt.
   2. DURABLE PAGES. A page whose every frame is a STORED manifest product or a FRESH dynamic-viewport index hit under
-     the page's own cache key (no upstream fetch, no preview, no partial regional frame, no live Open-Meteo attempt)
-     lives GRID_SERIES_PAGE_MEMO_RUN_TTL_S (3600 s), not 180 s. A manifest
+     the page's own cache key (no upstream fetch, no preview, no partial regional frame, no live Open-Meteo attempt, no
+     failed file read, no warm sharpen refused for a full queue, and not a surf page: the surf chain reads rating and
+     tide inputs outside the manifest) lives GRID_SERIES_PAGE_MEMO_RUN_TTL_S (3600 s), not 180 s. A manifest
      change drops it only when the change touched a model the page read: its own model, the model of every file its
      build loaded, and GFS for an EURO/ICON marine page (the gulf fill's donor). A change to any model outside
      GFS/ICON/EURO drops every page. Regional pages built from the 2-deg mid grid are now kept: what made them unsafe
@@ -53,7 +54,7 @@ DYNAMIC_STALE_S = 1800.0
 # What a build reports back. series_page_memo._lead sets each BEFORE the build task exists (the task copies the
 # context; asyncio.to_thread copies it again into the store's worker threads). Unset => nothing is recorded.
 SERIES_FRAME_FACTS = contextvars.ContextVar("series_frame_facts", default=None)    # [(pid, dynamic, scope, cache_hit)]
-SERIES_BUILD_NOTES = contextvars.ContextVar("series_build_notes", default=None)    # {"live_attempted": True}
+SERIES_BUILD_NOTES = contextvars.ContextVar("series_build_notes", default=None)    # {name: True}: ANY note = not durable
 SERIES_LOADS = contextvars.ContextVar("series_loads", default=None)                # {filename, ...} the store read
 
 
@@ -178,7 +179,10 @@ def page_models(model, domain, layer, files, snapshot):
 def is_durable(facts, notes, n_frames, snapshot, dynamic_ids=frozenset()) -> bool:
     """Every frame reproducible from tracked inputs: a manifest file, or a fresh index hit on an entry the page's
     dependency rows already held when the build started (`dynamic_ids`)."""
-    if len(facts) != n_frames or (notes or {}).get("live_attempted") or snapshot is None:
+    # Any note refuses: live_attempted (the live Open-Meteo lane ran), load_failed (a file the build asked for was not
+    # read, so a tier answered in its place: a rebuild seconds later may read it), warm_sharpen_refused (the queue was
+    # full: a rebuild may start the sharpen this page would otherwise suppress).
+    if len(facts) != n_frames or notes or snapshot is None:
         return False
     for pid, dynamic, scope, cache_hit in facts:
         if not pid or scope == "regional_partial":
@@ -213,14 +217,15 @@ def index_stat(path):
         return None
 
 
-_INDEX = {"key": None, "by_key": {}}
+_INDEX = {"v": (None, {})}      # ONE tuple ((path, stat), by_key), swapped whole: worker threads read it in one load
 
 
 def index_by_key(path, stat):
     """{cache_key: ((product_id, created_at, expires_at), ...)} of the dynamic-viewport index, parsed once per file
     version (worker thread). A missing or unreadable index is empty, as DynamicProductIndex._load_index reads it."""
-    if stat is not None and _INDEX["key"] == (path, stat):
-        return _INDEX["by_key"]
+    held_key, held = _INDEX["v"]
+    if stat is not None and held_key == (path, stat):
+        return held
     by_key = {}
     if stat is not None:
         try:
@@ -233,7 +238,7 @@ def index_by_key(path, stat):
                 by_key.setdefault(it.get("cache_key"), []).append(
                     (str(it.get("product_id")), str(it.get("created_at")), str(it.get("expires_at"))))
     by_key = {k: tuple(sorted(v)) for k, v in by_key.items()}
-    _INDEX["key"], _INDEX["by_key"] = (path, stat), by_key
+    _INDEX["v"] = ((path, stat), by_key)
     return by_key
 
 

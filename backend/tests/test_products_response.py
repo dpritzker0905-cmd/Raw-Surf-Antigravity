@@ -175,9 +175,26 @@ def test_the_compact_variant_carries_only_the_client_fields_with_the_full_values
     assert bad.status_code == 422
 
 
-def test_the_stored_gzip_decodes_to_the_identity_bytes(store):
+def test_the_stored_gzip_decodes_to_the_fastapi_bytes(store):
+    from fastapi.encoders import jsonable_encoder
     body = P.encode_body(store.manifest, False, 9)
-    assert gzip.decompress(body.gz) == body.raw
+    want = json.dumps(jsonable_encoder(P.envelope(store.manifest, False)), ensure_ascii=False, allow_nan=False,
+                      indent=None, separators=(",", ":")).encode("utf-8")
+    assert gzip.decompress(body.gz) == want and body.raw_len == len(want)
+
+
+def test_the_cache_never_keeps_an_old_manifest_alive(store):
+    import gc
+    old = store.manifest
+    first, = asyncio.run(_calls(({}, {})))
+    body = P.CACHE.bodies[False]
+    assert body.manifest() is old
+    store.manifest = PipelineManifest(last_manifest_update=T0 + timedelta(hours=3), products=old.products[:4])
+    del old
+    gc.collect()
+    assert body.manifest() is None, "a superseded manifest is freed even before the next /products call"
+    second, = asyncio.run(_calls(({}, {})))
+    assert len(json.loads(second.content)["products"]) == 4 and second.headers["etag"] != first.headers["etag"]
 
 
 def test_etag_comparison_is_weak():

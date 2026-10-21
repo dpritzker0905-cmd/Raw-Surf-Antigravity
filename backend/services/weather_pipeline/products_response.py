@@ -6,11 +6,11 @@ gzip level 9, both ON THE EVENT LOOP, and nothing cached it. A client opens the 
 (lagdeep A_server_telemetry 2c), and each one stalled every other route on the one 1-CPU box (C_server_cost 3, 5).
 
 WHAT (on by default, no served value moves; kill: PRODUCTS_RESPONSE_CACHE=0 restores the per-call FastAPI path):
-  1. ONCE PER MANIFEST VERSION. The body is encoded with the SAME two calls FastAPI makes for this route
-     (`jsonable_encoder`, then `JSONResponse.render`'s `json.dumps` arguments), so the bytes are identical to the
-     flag-off response (pinned in tests/test_products_response.py). The version is the manifest object itself plus
-     its stamp and length: `ProductStore.get_manifest` hands out ONE object per manifest file, and every writer that
-     changes it in place also moves `last_manifest_update`.
+  1. ONCE PER MANIFEST VERSION. The body is the bytes FastAPI renders for this route (see `_products_json`), pinned
+     identical to the flag-off response in tests/test_products_response.py. The version is the manifest object (held
+     WEAKLY, so an old manifest is never kept alive by this cache), its products list, its stamp and its length:
+     `ProductStore.get_manifest` hands out ONE object per manifest file, and an in-place writer moves the stamp and
+     rebinds the list. Only the gzip body is kept; an identity client gets it decompressed.
   2. OFF THE LOOP. Encode, gzip (level PRODUCTS_GZIP_LEVEL, default 9 = the middleware's) and the ETag hash run in a
      worker thread, once; concurrent requests during that encode share one task.
   3. CONDITIONAL GET. A weak ETag over the identity bytes; `If-None-Match` answers 304 with no body.
@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import time
+import weakref
 
 from starlette.responses import Response
 
@@ -57,12 +58,21 @@ def envelope(manifest, compact: bool) -> dict:
     return {"last_manifest_update": manifest.last_manifest_update, "products": products}
 
 
+def _weak(obj):
+    """A weak reference to the manifest (PipelineManifest supports one), or a strong one for an object that cannot be
+    weakly referenced (test doubles such as SimpleNamespace)."""
+    try:
+        return weakref.ref(obj)
+    except TypeError:
+        return lambda: obj
+
+
 class _Body:
-    __slots__ = ("manifest", "stamp", "count", "raw", "gz", "etag", "encode_ms", "gzip_ms")
+    __slots__ = ("manifest", "products_id", "stamp", "count", "gz", "raw_len", "etag", "encode_ms", "gzip_ms")
 
     def matches(self, manifest) -> bool:
-        return (self.manifest is manifest and self.stamp == manifest.last_manifest_update
-                and self.count == len(manifest.products))
+        return (self.manifest() is manifest and self.products_id == id(manifest.products)
+                and self.stamp == manifest.last_manifest_update and self.count == len(manifest.products))
 
 
 _DUMPS = dict(ensure_ascii=False, allow_nan=False, indent=None, separators=(",", ":"))   # JSONResponse.render's
@@ -97,14 +107,15 @@ def encode_body(manifest, compact: bool, level: int) -> _Body:
     this module existed."""
     from fastapi.encoders import jsonable_encoder
     body = _Body()
-    body.manifest, body.stamp, body.count = manifest, manifest.last_manifest_update, len(manifest.products)
+    body.manifest, body.products_id = _weak(manifest), id(manifest.products)
+    body.stamp, body.count = manifest.last_manifest_update, len(manifest.products)
     t0 = time.perf_counter()
     stamp = json.dumps(jsonable_encoder(manifest.last_manifest_update), **_DUMPS)
-    body.raw = ('{"last_manifest_update":' + stamp + ',"products":' + _products_json(manifest.products, compact)
-                + "}").encode("utf-8")
+    raw = ('{"last_manifest_update":' + stamp + ',"products":' + _products_json(manifest.products, compact)
+           + "}").encode("utf-8")
     t1 = time.perf_counter()
-    body.gz = gzip.compress(body.raw, compresslevel=level, mtime=0)
-    body.etag = 'W/"' + hashlib.blake2b(body.raw, digest_size=12).hexdigest() + '"'
+    body.gz, body.raw_len = gzip.compress(raw, compresslevel=level, mtime=0), len(raw)
+    body.etag = 'W/"' + hashlib.blake2b(raw, digest_size=12).hexdigest() + '"'
     body.encode_ms, body.gzip_ms = (t1 - t0) * 1000.0, (time.perf_counter() - t1) * 1000.0
     return body
 
@@ -180,7 +191,7 @@ async def serve_products(store, request=None, compact: bool = False):
         # Content-Encoding is always explicit, so the outer GZipMiddleware never compresses this body again
         # (it checks only for the substring 'gzip', even in 'gzip;q=0').
         headers["Content-Encoding"] = "gzip" if gz else "identity"
-        resp = Response(body.gz if gz else body.raw, media_type="application/json", headers=headers)
+        resp = Response(body.gz if gz else gzip.decompress(body.gz), media_type="application/json", headers=headers)
     total = (time.perf_counter() - t_start) * 1000.0
     timing = [f"memo;desc={outcome};dur={total:.1f}"]
     if outcome == "miss":

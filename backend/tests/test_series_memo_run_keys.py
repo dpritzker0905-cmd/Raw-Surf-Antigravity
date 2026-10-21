@@ -63,7 +63,7 @@ def fresh(monkeypatch, tmp_path):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("GRID_SERIES_PAGE_MEMO", "1")
     monkeypatch.setenv(K.FLAG, "1")
-    K._INDEX.update(key=None, by_key={})
+    K._INDEX["v"] = (None, {})
     return tmp_path
 
 
@@ -320,7 +320,8 @@ def test_live_lane_attempts_partial_frames_fetches_and_previews_are_never_durabl
     snap = {"a.json": ("GFS", 1)}
     facts = [("a.json", False, "global", "")]
     assert K.is_durable(facts, {}, 1, snap)
-    assert not K.is_durable(facts, {"live_attempted": True}, 1, snap)
+    for note in ("live_attempted", "load_failed", "warm_sharpen_refused"):
+        assert not K.is_durable(facts, {note: True}, 1, snap), note
     assert not K.is_durable([("a.json", False, "regional_partial", "")], {}, 1, snap)
     assert not K.is_durable([("b.json", False, "global", "")], {}, 1, snap), "not a manifest file"
     assert not K.is_durable(facts, {}, 2, snap) and not K.is_durable(facts, {}, 1, None)
@@ -337,12 +338,13 @@ def test_the_stale_age_is_the_lookups_own():
     assert f"age_sec > {int(K.DYNAMIC_STALE_S)}" in inspect.getsource(viewport_helper.get_cached_dynamic_product_helper)
 
 
-def test_a_regional_page_whose_hour_0_is_a_fresh_index_hit_is_kept_until_that_entry_turns_stale(fresh):
+def test_a_regional_page_whose_hour_0_is_a_fresh_index_hit_is_kept_until_that_entry_turns_stale(fresh, monkeypatch):
     calls, store, vs = [], _Store(), _vs(fresh)
+    monkeypatch.setattr(K, "DYNAMIC_STALE_S", 4.0)       # the entry turns stale 4 s after it was made
     keys = K.dynamic_keys("ICON", "marine", "waves", REGIONAL, K.valid_times(A, (0, 3, 6)))
     now = datetime.now(timezone.utc)
     _index(vs.dynamic_index.index_path, [{"cache_key": keys[0], "product_id": "viewport_fine.json",
-                                          "created_at": (now - timedelta(seconds=K.DYNAMIC_STALE_S - 1.5)).isoformat(),
+                                          "created_at": now.isoformat(),
                                           "expires_at": (now + timedelta(hours=3)).isoformat()}])
 
     async def run():
@@ -353,7 +355,7 @@ def test_a_regional_page_whose_hour_0_is_a_fresh_index_hit_is_kept_until_that_en
             (_, page), = _kept("ICON")
             assert page.deps.durable
             out.append(_outcome(await _call(store, vs, model="ICON", bbox=REGIONAL)))
-            await asyncio.sleep(1.8)          # the entry is now past the lookup's stale age: a rebuild would refresh it
+            await asyncio.sleep(4.3)          # the entry is now past the lookup's stale age: a rebuild would refresh it
             out.append(_outcome(await _call(store, vs, model="ICON", bbox=REGIONAL)))
         return out
     assert asyncio.run(run()) == ["miss", "hit", "miss"]
@@ -442,15 +444,41 @@ def test_a_new_hrrr_cycle_drops_a_gfs_wind_page(fresh, monkeypatch):
 
 
 # ── 5. what the build reports ─────────────────────────────────────────────────────────────────────────────────
-def test_the_store_reports_every_file_a_build_reads(tmp_path):
+def test_the_store_reports_every_file_a_build_reads_and_every_file_it_failed_to_read(tmp_path):
     from services.weather_pipeline.store import ProductStore
-    loads = set()
-    tok = K.SERIES_LOADS.set(loads)
+    loads, notes = set(), {}
+    toks = [(K.SERIES_LOADS, K.SERIES_LOADS.set(loads)), (K.SERIES_BUILD_NOTES, K.SERIES_BUILD_NOTES.set(notes))]
     try:
         ProductStore(cache_dir=tmp_path).load_product("gfs_marine_waves_absent.json")
     finally:
-        K.SERIES_LOADS.reset(tok)
+        for var, tok in reversed(toks):
+            var.reset(tok)
     assert loads == {"gfs_marine_waves_absent.json"}
+    assert notes == {"load_failed": True}, "a tier answered in a lost file's place: never durable (review 2026-10-21)"
+
+
+def test_a_warm_sharpen_refused_for_a_full_queue_is_reported():
+    from services.weather_pipeline import reval_queue
+    vs = SimpleNamespace(ACTIVE_REVALIDATIONS={"a", "b", "c"})
+    notes = {}
+    tok = K.SERIES_BUILD_NOTES.set(notes)
+    try:
+        ok = reval_queue.schedule_revalidation(vs, reval_queue.SeriesFrame(warm=True), "ICON", "marine", "waves",
+                                               "t", A, REGIONAL, "key-x", queue_max=2)
+    finally:
+        K.SERIES_BUILD_NOTES.reset(tok)
+    assert ok is False and notes == {"warm_sharpen_refused": True}
+
+
+def test_a_surf_page_is_never_durable(fresh):
+    async def run():
+        with patch.object(gsh, "build_grid_series", _fake_build([])):
+            return await M.serve_memo_series(None, _vs(fresh), _Store(), "GFS", "marine", "waves", WORLD, HOURS_A,
+                                             surf=True, base_time=A.strftime(ISO))
+    asyncio.run(run())
+    (key, page), = _kept()
+    assert page.deps is not None and not page.deps.durable, "the surf chain reads rating and tide inputs outside the manifest"
+    assert M.MEMO.entries[key][0] - __import__("time").monotonic() <= 181.0
 
 
 def test_the_live_lane_attempt_is_reported(monkeypatch):

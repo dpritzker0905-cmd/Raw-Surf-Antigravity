@@ -230,7 +230,8 @@ _token_warned_at = [0.0]
 def _manifest_token(store, m=None):
     m = store.get_manifest() if m is None else m
     stamp = getattr(m, "last_manifest_update", None)
-    return (id(m), stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp), len(getattr(m, "products", ()) or ()))
+    products = getattr(m, "products", ()) or ()
+    return (id(m), id(products), stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp), len(products))
 
 
 def _run_state(store, token_now, snapshot_now, path):
@@ -350,7 +351,7 @@ async def _lead(builder, n_hours, domain, snapped, waiters, lane, deadline, run=
     timing = {"build": build_ms, "encode": enc_ms, "gzip": gz_ms}
     if not run:
         return _Page(body, gz, raw_len, timing, _cacheable(payload, sink, n_hours, domain, snapped))
-    durable = (_cacheable(payload, sink, n_hours, domain, snapped, allow_mid=True)
+    durable = (not run["surf"] and _cacheable(payload, sink, n_hours, domain, snapped, allow_mid=True)
                and run_keys.is_durable(facts, notes, n_hours, run["snapshot"], run_keys.dynamic_ids(run["start"]["dyn_rows"])))
     files = frozenset({f[0] for f in facts if f[0]} | loads)
     deps = run_keys.PageDeps(anchor=run["anchor"], source=run["source"], frames=n_hours, durable=durable, files=files,
@@ -467,7 +468,7 @@ async def serve_memo_series(resolve_grid, viewport_service, store, model, domain
         deadline = _deadline_for(lane)
         run_ctx = None
         if run:
-            run_ctx = dict(model=model, layer=layer, anchor=anchor, source=anchor_source,
+            run_ctx = dict(model=model, layer=layer, anchor=anchor, source=anchor_source, surf=bool(surf),
                            snapshot=MEMO.snapshot if token != NO_TOKEN else None,
                            start=run_keys.build_start_state(model, domain, layer, snapped, vts, viewport_service,
                                                             by_key, stat, path, now))

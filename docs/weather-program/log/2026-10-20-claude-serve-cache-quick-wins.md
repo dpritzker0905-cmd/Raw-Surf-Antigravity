@@ -151,3 +151,29 @@ Evidence: `evidence/serve-cache-quick-wins-2026-10-20.json`.
   - What this means for the ETag: the app's own `Cache-Control: no-cache` + weak ETag pass through, so a browser can
     revalidate and get the 304. The ETag is weak on purpose: Cloudflare keeps weak validators when it re-encodes a body.
   - The once-per-version encode is the win either way; the 304 only saves transfer.
+
+## 2026-10-21 02:20Z-02:45Z: independent review fixed, rebased on dev 448deb35c
+
+- **Rebase.** #421 and #424 moved the ledger and STATE. I rebased on dev 448deb35c, dropped this branch's unmerged ledger
+  lines 1553-1554, and re-appended one `pr_open` line after dev's head (see the ledger). dev changed nothing under
+  `backend/` or the floors.
+- **Independent review** (a code-review agent over the whole diff).
+  - **Confirmed:** the /products byte identity and the relabel correctness.
+  - **The real hole (fixed):** a series build whose product load failed answered that hour from another stored tier.
+    Examples: the 2-deg mid instead of a regional tile, or an EURO/ICON world frame unfilled because the GFS donor load
+    failed. Such a page would have been DURABLE and kept for 1 h, while a rebuild seconds later reads the file.
+    - Now `ProductStore.load_product` notes `load_failed` whenever it returns None.
+    - `reval_queue` notes `warm_sharpen_refused` when a full queue refuses the page's warm sharpen. A rebuild could
+      start it, so a kept page must not suppress it.
+    - ANY build note makes a page non-durable (W-4 rules: 180 s).
+  - **Fixed:**
+    - Surf pages are never durable: the surf chain reads the ratings and climatology blobs and tide, all outside the
+      manifest.
+    - The dynamic-index cache is one atomically swapped tuple; two separate stores could tear across worker threads.
+    - `/products` holds the manifest WEAKLY, plus the products-list identity, so a superseded manifest (~55 MB parsed)
+      is freed at once. It also keeps only the gzip body (identity clients get it decompressed), and the W-4 token
+      carries `id(manifest.products)`, because an in-place writer moves the stamp before rebinding the list.
+  - **Tests:** +2 guards and +1 chain test; every new guard was proved red by mutation. The stale-age test now uses a
+    4 s window, not 1.5 s, against runner load. Floors: guards 3281 (projected 3287), chain 2849 (projected 2855).
+  - **Accepted, not changed:** a partial page shared in flight across two anchors fails relabel and makes the joiner
+    run its own build (CPU, never a value), and non-durable pages relabel across anchors within W-4's 180 s.
