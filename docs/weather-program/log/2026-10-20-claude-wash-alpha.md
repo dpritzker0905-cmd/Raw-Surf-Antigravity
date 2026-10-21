@@ -233,3 +233,9 @@ opacities; the last column is the largest |fitted - law| over the runs.
 - **All 7 runs** (D-G plus #419-build A-C; evidence `spread.by_view`) agree within 0.02 per state. The #419 runs did not record
   the GPU.
 - Evidence: `docs/weather-program/evidence/wash-alpha-2026-10-20.json` `spread` (every run's row, its state and GPU).
+
+## 9. 2026-10-21T11:54Z: ledger re-chained against dev 744775c86
+
+Dev took seq 1558 (#423's pr_open) before #425 merged, so this branch's four lines were re-appended after it, `--acted-at` the
+original times, content unchanged: finding **1559** (was 1558), pr_open **1560** (was 1559), dev replication **1561** (was 1560),
+spread **1562** (was 1561). This supersedes the seq numbers in sections 7 and 8.

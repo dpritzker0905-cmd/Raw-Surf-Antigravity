@@ -21,6 +21,7 @@ from services.weather_pipeline.reval_queue import SeriesFrame, series_frame_scop
 from services.weather_pipeline.series_source_policy import (
     has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
+from services.weather_pipeline import series_memo_keys as _memo_keys   # what a memoised build reports (dark)
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
     node_extent_bounds,
@@ -391,6 +392,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
         live_series = False
     prefer_stored = live_series and await has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hour_list, base)
     if live_series and not prefer_stored:
+        _memo_keys.note_build("live_attempted")    # the page then depends on upstream state: never a durable memo page
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
@@ -536,6 +538,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
         _sink = SERIES_FRAME_SINK.get()
         if _sink is not None:
             _sink.append((bool(getattr(product, "stale", False)), str(getattr(product, "cache_hit", None) or "")))
+        _memo_keys.note_frame(product)
         g = product.grid
         b = {"west": g.bounds.west, "south": g.bounds.south, "east": g.bounds.east, "north": g.bounds.north} if g.bounds else None
         if shared_bounds is None and b:

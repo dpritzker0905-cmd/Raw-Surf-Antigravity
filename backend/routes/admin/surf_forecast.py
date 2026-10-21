@@ -51,6 +51,16 @@ _RATING_FLAGS = {
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),
     "GRID_SERIES_PAGE_MEMO": ("0", "Series page memo + shared in-flight builds on the tile-snapped bbox, cleared per manifest "
                               "write; off-loop direct encode with gzip GRID_SERIES_GZIP_LEVEL (W-4)", "Render env"),
+    # SERVE-BOX COST, not physics (2026-10-20): which kept page answers, never what a page holds. A kept page is served
+    # only while every input its build read is unchanged; relabelled bytes equal a fresh encode (tests/test_series_memo_run_keys.py).
+    "GRID_SERIES_MEMO_RUN_KEYS": ("0", "With GRID_SERIES_PAGE_MEMO: pages keyed on valid times (relabelled across anchor hours), "
+                                       "stored-only pages kept 1 h and through manifest writes to models they did not read, "
+                                       "regional 2-deg pages kept; dynamic index, HRRR cycle and clock re-checked per hit",
+                                  "Render env"),
+    # SAME BYTES (tests/test_products_response.py): /products encoded once per manifest version off the event loop, with an ETag.
+    "PRODUCTS_RESPONSE_CACHE": ("1", "/api/weather/products body encoded once per manifest version in a worker thread, "
+                                     "ETag + If-None-Match 304, ?fields=compact; 0 = FastAPI encodes the manifest per call on the loop",
+                                "Render env"),
     # WHERE A FIELD IS DRAWN, never which cells or values (tests/test_series_thin_node_bounds.py): a thinned world frame
     # kept the ORIGINAL bounds, so the client drew it up to 4 deg too far north; on, it carries the bounds of the cells it kept.
     "SERIES_THIN_NODE_BOUNDS": ("0", "A thinned series frame carries the bounds of the cells it kept, so the client draws it "
