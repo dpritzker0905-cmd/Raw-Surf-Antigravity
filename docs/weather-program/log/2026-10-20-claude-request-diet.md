@@ -156,3 +156,11 @@ ONCE, against `dev`'s head after #425 merges (the lead's call).
 - **Ratchet**: the fetcher core's new import is on its own line (966 of its 966; it had been folded onto an existing line).
 - **PRODUCTS_COMPACT** (new part, ON, kill `__RAW_DISABLE_PRODUCTS_COMPACT__`): `/products?fields=compact` (#423), the seven fields
   the client reads; a backend without #423 ignores the parameter.
+
+**Mutation check** (`C:/Users/David/rsx/upbeat/mutate.py`, in the dot-free mirror only; each site deleted or neutered, its test run,
+the file restored; verdict from Jest's own "Tests:" line): **12 of 12 killed** - the SWR call site, both controller alias calls,
+the settle paint call, the predicate's alias call, the step-page call, the compact URL, the exact-skip call, the regional
+world-frame rule, the listener's drawn-engine rule, the newest-run rule and the series-on-engine rule each turn their suite red.
+**Checks after the fixes** (branch merged with `dev` 744775c86): Jest `src/components/map src/tests src/__tests__` **424 of 424 suites,
+5,729 tests** (mirror, with the repo-root files the three readers need beside it); `check_eslint.js` exit 0; `craco build` compiled
+with warnings, as `dev`; `loc_ratchet.py` clean (fetcher core 966/966 with its import on its own line, settle hook 800/800).
