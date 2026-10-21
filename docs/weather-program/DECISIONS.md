@@ -1286,3 +1286,25 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Next, not decided:** the cased crest (dark edge round a light core; model |Lc| 42.9, colour-blind 36.4) needs new DRAW_FS
   geometry and its own A/B. After #420 (float wash) lands, re-run the paired engine read for light.
 - **Reopen if:** the owner says so, or #420's float wash moves light's crossing out of 2.6-3.3 m.
+
+### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
+- **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm
+  coast at z 10 and z 7.4, calm and moderate open sea, and the storm; with each frame's fitted alpha and the legend's calm end):
+  "Hold: ship the calm wash hold on #430 (calm-water fade for dark only). Record the pick and mark #430 ready once hosted CI is green."
+- **Rule:** with a regional tile resident over a retained coarse base (BLEND BOTH), the regional pass's height fade
+  (`u_heightAlphaEnabled`, smoothstep 0.05-1.4 m) runs only in dark. Light and beach draw calm regional cells at the zoom opacity over
+  the same coarse base, so every height composes to 1 - (1 - a_zoom)(1 - washEff): 0.877 at z 7.4, 0.815 at z 10. Rating-band frames
+  keep the fade in every theme. One owner: `marineCalmWashHold.js` `blendHeightAlpha`.
+- **Evidence:** `log/2026-10-21-claude-calm-wash-hold.md`; `evidence/calm-wash-hold-2026-10-21.json`; owner page
+  https://claude.ai/artifact/82nAECDYzRBGAMgRcRgjrm; the finding in PR #425. Offline, real engine: a 0.5 m sea at z 10 drawn at alpha
+  0.31-0.40 today, 0.79-0.83 held (per-pixel vs blend-off 0.335 -> 0.816 beach); dark pixel-identical at four views; storms unchanged.
+  Legend 0 vs 0.6 m at z 10 (wave-lib composite): light colour-blind 0.7 -> 10.5 dE00, beach 1.3 -> 18.8 (APCA 0 -> 23.6).
+- **Known costs:** calm water in a blended view is a little stronger (0.82-0.88) than at regional zoom without a regional tile (0.70),
+  the step storms already take; nearshore cells near 0 m draw the palette's 0 m colour at the zoom opacity instead of fading.
+- **Rollback:** `window.__RAW_DISABLE_CALM_WASH_HOLD__ = true` restores today's uniform in every theme (pinned in
+  `marineCalmWashHold.test.js`).
+- **Next, not decided:** the colour checker (`wave-lib.mjs` ALPHAS) models the held state: blend states as constants
+  1 - (1 - main)(1 - base) for light and beach (0.851 z 5.5 zoomed out, 0.877 z 7.4, 0.815 z 10), world 0.65 and regional 0.70 kept
+  (ledger commitment 1561, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
+  (D-037 on its branch) does not reopen this.
+- **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.

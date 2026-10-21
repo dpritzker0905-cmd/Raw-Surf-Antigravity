@@ -132,3 +132,12 @@ and #430 both hold seqs **1558-1561** after dev's 1557. The rule is unchanged: w
 
 Section 7's header reads 07:33Z, an estimate written before the commit; it was committed at 07:30:18Z (`a888d30f3`). Its content
 stands. Ledger correction line 1562.
+
+## 9. 2026-10-21T11:56Z: the owner picked HOLD (D-038)
+
+Owner, ~11:40Z, in this session: "Hold: ship the calm wash hold on #430 (calm-water fade for dark only). Record the pick and mark
+#430 ready once hosted CI is green." Recorded as **D-038** (D-037 is claimed by open #431, light's seven-band wash), ledger
+**1563** (decision, fulfils 1560), STATE "Now" line and head 1563. Hosted CI on #430's head `1c672931c` read 17 passing, 0 failing,
+3 skipped at 11:43Z, before this record; its push re-runs CI, and #430 is marked ready on a green head. Commitment 1561 now has one
+law to model: light/beach blend states as constants 1 - (1 - main)(1 - base) (0.851 / 0.877 / 0.815), still after #416 settles.
+#431 changes light's palette, not the compositing law (#425: v1 = v2), so the hold stands on it.
