@@ -115,3 +115,10 @@ Three corrections arrived from the lead session and from the client request-trim
   - `useMarineOrchestratorScrubCache.js` is also in #426 (disjoint hunks), so expect a small rebase.
 
 No new ledger line: this is a docs-only correction inside the open draft PR #427 (pr_open 1560).
+
+## Correction (2026-10-21 05:53Z): the previous header's time
+
+The header above, "Update 2026-10-21 ~06:00Z: live CDN latency, harness caveat, the #426 contract", carries an estimated time
+later than its own commit (`0ae4841d2`, 2026-10-21T05:38:53Z). It was not a clock reading (LESSONS L-P10), and hosted `verify`
+failed on it. The update was written at about 05:38Z. The header stays as written (append-only); the ledger carries the
+`correction` line.
