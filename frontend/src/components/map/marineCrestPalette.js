@@ -1,11 +1,11 @@
 // BEACH crest colours: the colours DRAW_FS (WebGLMarineParticleShaders.js) mixes by energy = smoothstep(0, 6, h),
 // calm -> active (3 m) -> storm (6 m and up). Dark's and light's crests keep their literals in the shader, untouched.
-// v1 (orchid-pink, electric turquoise, sunset magenta) was laid over the v1 beach wash; on D-033's beach B it greys to a cyan at
-// the wash's own brightness (core vs wash 8.6 dE00, colour-blind 1.6, APCA |Lc| 0). V2 is solved for the beach wash it ships
-// with (marineWavePalette.js BEACH_WASHES.mid) by frontend/scripts/wind-color/crest-solve.mjs and judged by wave-check.mjs.
+// v1 (orchid-pink, electric turquoise, sunset magenta) is what beach draws over its v1 sea (D-035), and stays the default.
+// V2 is the warm-polarity crest solved for the sunset candidate sea (marineWavePalette.js WAVE_PALETTES.sunset) by
+// frontend/scripts/wind-color/crest-solve.mjs and judged by wave-check.mjs; it draws only where beach draws that sea, which only
+// its A/B lever selects (window.__RAW_BEACH_WASH__ = 'sunset', owner A/B of PR #416).
 // Kill, set before page load: window.__RAW_DISABLE_BEACH_CREST_V2__ = true draws v1 exactly (DRAW_FS hash-pinned in the test).
-// V2 also stands down wherever the beach wash is not the one it was solved for (either wash kill, or the B lever of the A/B).
-import { MARINE_WAVE_PALETTE_ENABLED, MARINE_WAVE_PALETTE_ID, BEACH_WASH_ID } from './marineWavePalette';
+import { MARINE_WAVE_PALETTE_ENABLED, MARINE_WAVE_PALETTE_IDS } from './marineWavePalette';
 
 const WIN = typeof window === 'undefined' ? {} : window;
 // Encoded sRGB 0-1, two decimals as the shader writes them; `name` is the shader line's comment. With `switchHeight`, calm and
@@ -16,21 +16,22 @@ export const BEACH_CRESTS = {
     active: { rgb: [0.00, 0.92, 0.85], name: 'electric turquoise' },
     storm: { rgb: [0.80, 0.20, 0.90], name: 'sunset magenta' },
   },
-  // V2, warm polarity (owner 2026-10-20: polarity's rule in warm colours): a dark warm ink where the wash is light, a light warm
-  // ink where it is dark, switched at 2.5 m, past where the mid wash's APCA luminance falls through 0.352. A crest never matches
-  // its wash's brightness: direction of motion is lost at isoluminance (Lindsey & Teller 1990), and a crest is a moving mark.
-  // Over the mid wash, every 0.1 m 0.2-10 m and above the cap, all zooms and swell lightings, whitecap off and on: see
+  // V2, warm polarity (owner 2026-10-20: polarity's rule in warm colours): a dark warm ink where the sea is light, a light warm
+  // ink where it is dark, switched at 2.1 m, past where the sunset sea's APCA luminance falls through 0.352 (1.5-1.7 m by zoom).
+  // A crest never matches its sea's brightness: direction of motion is lost at isoluminance (Lindsey & Teller 1990), and a crest
+  // is a moving mark. Over the sunset sea, every 0.1 m 0.2-10 m, all zooms and swell lightings, whitecap off and on: see
   // marineCrestPalette.test.js and the log for the numbers.
   v2: {
-    switchHeight: 2.5,
-    calm: { rgb: [0.40, 0.02, 0.01], above: [0.98, 1.00, 0.30], name: 'oxblood, pale lemon from 2.5 m' },
-    active: { rgb: [0.35, 0.01, 0.01], above: [0.97, 1.00, 0.09], name: 'oxblood, lemon from 2.5 m' },
+    switchHeight: 2.1,
+    calm: { rgb: [0.39, 0.02, 0.02], above: [1.00, 1.00, 0.48], name: 'oxblood, pale lemon from 2.1 m' },
+    active: { rgb: [0.33, 0.00, 0.00], above: [0.97, 1.00, 0.09], name: 'oxblood, lemon from 2.1 m' },
     storm: { rgb: [1.00, 0.83, 0.52], name: 'peach' },
   },
 };
 
-export function resolveBeachCrest(win = WIN, washOn = MARINE_WAVE_PALETTE_ENABLED, washId = MARINE_WAVE_PALETTE_ID, beachWash = BEACH_WASH_ID) {
-  return win.__RAW_DISABLE_BEACH_CREST_V2__ === true || !washOn || washId === 'v1' || beachWash !== 'mid' ? 'v1' : 'v2';
+/** V2 only where beach draws the sea it was solved for (the sunset candidate), the wash is on and its kill is not set. */
+export function resolveBeachCrest(win = WIN, washOn = MARINE_WAVE_PALETTE_ENABLED, beachSea = MARINE_WAVE_PALETTE_IDS.beach) {
+  return win.__RAW_DISABLE_BEACH_CREST_V2__ !== true && washOn && beachSea === 'sunset' ? 'v2' : 'v1';
 }
 export const BEACH_CREST_ID = resolveBeachCrest();
 

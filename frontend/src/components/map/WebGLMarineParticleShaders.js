@@ -1,7 +1,7 @@
 /**
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
-import { WAVE_SET_GLSL } from './waveSetScreenBound';
+import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding';
 import { BEACH_CREST_GLSL } from './marineCrestPalette';   // beach crest colours, V2 + its kill (__RAW_DISABLE_BEACH_CREST_V2__)
 
 export const ADVECT_VS = `
@@ -13,7 +13,7 @@ void main() {
 }
 `;
 
-export const ADVECT_FS = `
+export const ADVECT_FS = withHeightScale(`
 precision highp float;
 uniform sampler2D u_particles;
 uniform sampler2D u_waveTexture;
@@ -328,9 +328,9 @@ void main() {
 
   gl_FragColor = encodePos(pos);
 }
-`;
+`, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: the resident or ring-fill scale (marineHeightEncoding.js)
 
-export const DRAW_VS = `
+export const DRAW_VS = withHeightScale(`
 attribute highp float a_vertex_id;       // 0 to (numParticles*6 - 1), six vertices per particle
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
 uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height, A=period)
@@ -797,7 +797,7 @@ void main() {
     v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;
   }
 }
-`;
+`, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: as ADVECT_FS
 
 export const DRAW_FS = `
 precision mediump float;

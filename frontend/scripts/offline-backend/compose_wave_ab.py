@@ -1,9 +1,9 @@
 """Compose the wave palette A/B (scn_wave_palette_ab.js output) into side-by-side sheets and a side-by-side moving clip.
 
-Usage:  python compose_wave_ab.py <scn output dir> [--variants v1,v2,B] [--tag crest] [--clip-view coastal] [--title text]
+Usage:  python compose_wave_ab.py <scn output dir> [--variants v1,sunset] [--tag crest] [--clip-view coastal] [--title text]
         (needs Pillow; the backend venv has it)
 Writes, into the same dir:
-  sheet-<theme>[-tag].jpg    rows = world / regional / coastal, columns = the variants (default v1 | v2), each with its legend crop
+  sheet-<theme>[-tag].jpg    rows = world / regional / coastal, columns = the variants (default: ORDER), each with its legend crop
   clip-<theme>[-tag].webp    the moving clip, the variants side by side, frame for frame (the same forecast hours in each pane);
                              --clip-view picks a non-regional clip (frames clip-<theme>-<variant>@<view>-NNN)
 """
@@ -14,9 +14,13 @@ import sys
 
 from PIL import Image, ImageDraw, ImageFont
 
-NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B", "c1": "v2 wash, today's beach crests"}
-CREST_NAMES = {"v1": "OLD sea + today's crests", "v2": "MIDDLE GROUND + warm polarity", "B": "THIS MORNING's sea + today's crests",
-               "c1": "middle ground + today's crests"}
+NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B",
+         "v2@10": "v2 at 10 m (the 16 m kill = #411)", "v2@10b": "v2 at 10 m again (null control)", "v2b": "v2 at 16 m again (null control)"}
+ORDER = ("v1", "v2@10", "v2", "v2@10b", "v2b", "A", "B", "sunset", "c1")
+NAMES.update({"sunset": "sunset sea (lever)", "c1": "sunset sea, today's crests"})
+# --tag crest*: the beach A/B's own column names (#416).
+CREST_NAMES = {"v1": "OLD sea + today's crests (default)", "sunset": "SUNSET MIDDLE GROUND + warm polarity",
+               "c1": "sunset sea + today's crests"}
 
 
 def opt(name, default=None):
@@ -41,21 +45,21 @@ def label(img, text, size=22):
 
 def main(out):
     rec = json.load(open(os.path.join(out, "record.json"), encoding="utf-8"))
-    order = opt("--variants", "v1,v2,A,B").split(",")
+    order = opt("--variants").split(",") if opt("--variants") else ORDER
     variants = [v for v in order if any(s["variant"] == v for s in rec["shots"])]
     tag = ("-" + opt("--tag")) if opt("--tag") else ""
     names = CREST_NAMES if opt("--tag", "").startswith("crest") else NAMES
     clip_view = opt("--clip-view", "regional")
     title = opt("--title", "wave-height wash, offline synthetic store (storm eye > 10 m)")
-    for theme in ("light", "beach"):
-        shots = [s for s in rec["shots"] if s["theme"] == theme]
+    for theme in ("light", "beach", "dark"):
+        shots = [s for s in rec["shots"] if s["theme"] == theme and s.get("file")]
         if not shots:
             continue
         views = [v for v in ("world", "regional", "coastal") if any(s["view"] == v for s in shots)]
         scale = 0.5
         cell_w, cell_h, leg_h = int(1280 * scale), int(800 * scale), 70
         sheet = Image.new("RGB", (cell_w * len(variants), (cell_h + leg_h) * len(views) + 40), (30, 30, 30))
-        ImageDraw.Draw(sheet).text((10, 8), f"{theme.upper()}  {title}  columns: " + "  |  ".join(names[v] for v in variants), fill=(255, 255, 255), font=font(20))
+        ImageDraw.Draw(sheet).text((10, 8), f"{theme.upper()}  {title}  columns: " + "  |  ".join(names[v] for v in variants if any(s["variant"] == v for s in shots)), fill=(255, 255, 255), font=font(20))
         for r, view in enumerate(views):
             for c, v in enumerate(variants):
                 s = next((x for x in shots if x["view"] == view and x["variant"] == v), None)

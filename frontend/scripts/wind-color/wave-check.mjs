@@ -9,8 +9,9 @@
 //   node wave-check.mjs --table cand.json        # a solver's candidate ({ heights, cap, over, light, beach }) instead
 //   node wave-check.mjs --strict                 # exit 1 on any RED line (here or in the colour-blind authority)
 //   node wave-check.mjs --json out.json
-//   node wave-check.mjs --crest v1               # beach crests: v1 / v2 / warm / a crest-solve.mjs JSON ({ calm, active, storm } 0-1),
-//                                                 # instead of what the app draws (v1 over the v1 wash, V2 over v2)
+//   node wave-check.mjs --palette sunset --theme beach   # PR #416's beach candidate (its lever), with the V2 crest it brings
+//   node wave-check.mjs --crest v1               # beach crests: v1 / v2 / a crest-solve.mjs JSON ({ calm, active, storm } 0-1),
+//                                                 # instead of what the app draws (V2 over the sunset sea, v1 over every other)
 //
 // Bars (2026-10-20 brief + D-019): lightness falls at every step as height grows (OKLCH L, on the wash AND the composite, with
 // the swell lighting off, half and full); no grey (a ramp never runs through grey: wash C* >= 12 and composite C* >= 8 along
@@ -29,7 +30,9 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2), arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
 const BAR = { adj: 10, washC: 12, compC: 8, land: 15, crest: 15, lc: 15, over: 10 };
 const mod = loadPalettes();
-const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JSON.parse(fs.readFileSync(arg('--table'), 'utf8')) } : mod.WAVE_PALETTES;
+// A table with a 16 m extension is checked twice: `v2@16` as the default build draws it (the 16 m encoding), `v2` as its kill does (10 m).
+const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JSON.parse(fs.readFileSync(arg('--table'), 'utf8')) }
+  : Object.fromEntries(Object.entries(mod.WAVE_PALETTES).flatMap(([id, p]) => (p.h16 ? [[id, p], [`${id}@16`, mod.widenWavePalette(p)]] : [[id, p]])));
 const ids = arg('--palette') ? [arg('--palette')] : Object.keys(palettes);
 const themes = arg('--theme') ? [arg('--theme')] : ['light', 'beach'];
 const DIRS = [0, 0.5, 1];
@@ -49,6 +52,7 @@ for (const id of ids) {
   const P = palettes[id];
   out[id] = {};
   for (const theme of themes) {
+    if (!P[theme]) continue;   // a one-theme candidate (sunset: beach only)
     const H = P.heights, cap = P.cap, water = BASEMAP[theme].water.map((v) => v / 255), land = BASEMAP[theme].land.map((v) => v / 255), panel = BASEMAP[theme].panel.map((v) => v / 255);
     console.log(`\n=== ${theme.toUpperCase()}  palette ${id}  (anchors ${H.join(' ')} m; ${P.over ? `above ${cap} m: its own colour` : `clamped at ${cap} m`}; over the ${theme} water ${BASEMAP[theme].water.join(',')})`);
     // 1. Lightness: the wash, then the composite at each view and lighting. Sampled every 0.02 m from 0.18 m (the depth floor below).
