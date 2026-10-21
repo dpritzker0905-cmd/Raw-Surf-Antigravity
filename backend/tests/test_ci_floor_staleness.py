@@ -479,7 +479,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3287, "chain": 2855, "estate": 2312}
+_FLOOR_SET_FROM = {"guards": 3287, "chain": 2855, "estate": 2317}
+# Logfire setup never stops boot: +5 estate tests (tests/test_logfire_setup.py, one new file) on hosted 2312 (dev CI 39594047204); floor 2315.
 # Series memo run keys (dark) + /products encoded once: +32 guards tests (tests/test_series_memo_run_keys.py) and +12 chain tests
 # (tests/test_products_response.py), both new files: guards 3255 + 32 = 3287 (first hosted run read 3285 with 30), floor
 # 3249 -> 3281, files 208 -> 209; chain 2843 + 12 = 2855, floor 2837 -> 2849, files 172 -> 173; margins 6. The estate file
