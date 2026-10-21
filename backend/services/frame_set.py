@@ -231,6 +231,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         return None, stats
     if stats["coverage"] < floor:
         stats["coverage_refused"] = True   # e.g. a lane whose disk holds only part of the set: keep the published index
+        stats["bytes_uploaded"] = 0
         log(f"[frames] {set_key(target)}: only {len(built)}/{len(entries)} entries have a frame "
             f"(coverage {stats['coverage']} < {floor}); nothing uploaded, the published index stays")
         return None, stats
