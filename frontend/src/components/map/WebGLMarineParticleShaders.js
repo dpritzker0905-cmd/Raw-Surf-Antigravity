@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding';
-import { LIGHT_CREST_GLSL } from './marineCrestPalette';   // light crest colours, V2 + its kill (__RAW_DISABLE_LIGHT_CREST_V2__)
+import { LIGHT_CREST_GLSL } from './marineCrestPalette'; import { BEACH_CREST_STYLE_GLSL } from './marineBeachCrestStyle';   // light crest colours (V2 + kill); beach crest style (A/B levers + kill)
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -859,7 +859,7 @@ void main() {
     acWarp = mix(acrossCrest, warped, clamp(u_trochoidal, 0.0, 1.0));
   }
   float ellipseDist = length(vec2(alongCrest, acWarp));
-  float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);
+  float shape = 1.0 - smoothstep(${BEACH_CREST_STYLE_GLSL.shapeEdge}, 1.0, ellipseDist);
 
   // Soften ribbon tips along crest axis
   float tipFade = 1.0 - smoothstep(0.6, 0.95, abs(alongCrest));
@@ -951,7 +951,7 @@ void main() {
   // === WHITECAP HIGHLIGHT (separate from base ripple) ===
   // Bright white/cyan at the breaking front, proportional to v_whitecap
   float whiteBlend = whitecapRoll * 0.45;
-  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);
+  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);${BEACH_CREST_STYLE_GLSL.tone}
 
   // === SELF-CONTRAST: zoom band (2026-07-03) + low-height band (2026-07-05) ===
   // In the coarse band the crest palette can land on a same-hue heatmap (mint on teal, navy on
@@ -961,7 +961,7 @@ void main() {
   // don't cover the heatmap". Give each crest an INTERNAL luminance gradient — darkened skirt,
   // boosted + slightly whitened core — so it reads on any background color without changing any
   // theme palette. Gated: both terms 0 → byte-identical legacy output.
-  float crestContrastEff = max(u_crestContrast,
+  float crestContrastEff = ${BEACH_CREST_STYLE_GLSL.contrastHead}max(u_crestContrast,
     u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));
   if (crestContrastEff > 0.001) {
     float core = 1.0 - smoothstep(0.15, 0.85, ellipseDist);

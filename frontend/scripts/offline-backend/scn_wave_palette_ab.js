@@ -31,7 +31,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
-  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 } };
+  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
+  // Beach crest style A/B (2026-10-21, marineBeachCrestStyle.js): today's crest, two-tone, two-tone soft, cased (THEMES=beach).
+  today: {}, tt: { __RAW_BEACH_CREST_STYLE__: 'twotone' }, ts: { __RAW_BEACH_CREST_STYLE__: 'soft' }, tc: { __RAW_BEACH_CREST_STYLE__: 'cased' } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
@@ -45,9 +47,13 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   // The crest colours the GPU compiled: the DRAW program's attached fragment shader, read back (shaders stay attached until dispose).
   const canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
   const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
+  const beachStyle = { shapeEdge: (/float shape = 1\.0 - smoothstep\(([^,]*?(?:\?[^,]*?)?), 1\.0, ellipseDist\)/.exec(glsl) || [])[1] || null,
+    twoTone: (/if \(u_theme > 1\.5\) finalColor = mix\(mix\(finalColor, finalColor \* ([\d.]+)[^;]*vec3\(1\.0\), ([\d.]+) \*/.exec(glsl) || []).slice(1),
+    contrastHead: (/float crestContrastEff = ([^\n]*?)max\(u_crestContrast/.exec(glsl) || [])[1] || '',
+    linked: gl && e && e.drawProgram ? gl.getProgramParameter(e.drawProgram, gl.LINK_STATUS) : null };
   const lightCrest = (/else if \(u_theme > 0\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);[^}]*?foamHighlight = ([^;]*);/.exec(glsl) || []).slice(1);
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
-    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__,
+    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__, beachStyle,
     heightScale: d && d.u_heightScale, baseScale: e && e._coarseBaseData ? e._coarseBaseData.u_heightScale : null,
     waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null };
 };
@@ -67,7 +73,9 @@ async function legendBox(page) {
   const record = { at: new Date().toISOString(), port: PORT, views: VIEWS, shots: [], water: {} };
   for (const theme of themes) {
     for (const v of variants) {
-      const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true });
+      const t0 = Date.now(), videoDir = process.env.VIDEO === '1' ? path.join(OUT, `video-${theme}-${v}`) : null;
+      const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true, video: videoDir });
+      const marks = [], mark = (what) => marks.push({ what, t: (Date.now() - t0) / 1000 });
       try {
         await page.addInitScript(({ theme, levers }) => { localStorage.setItem('raw-surf-theme', theme); Object.assign(window, levers); }, { theme, levers: LEVERS[v] });
         await L.openMap(page);
@@ -118,6 +126,16 @@ async function legendBox(page) {
             }
             await sleep(120);
           }
+        }
+        if (videoDir) {   // the owner's flow, in real time: world, regional, coastal, then the forecast stepped at the coast
+          for (const [view, hold] of [['world', 7000], ['regional', 9000], ['coastal', 9000]]) {
+            await L.jump(page, ...VIEWS[view]); await sleep(2500); mark(`${view} start`); await sleep(hold); mark(`${view} end`);
+          }
+          await page.evaluate(() => document.querySelector('[role="slider"][aria-label*="Forecast timeline"]').focus());
+          mark('steps start');
+          for (let k = 0; k < 4; k++) { await page.keyboard.press('ArrowRight'); await sleep(2500); }
+          mark('steps end');
+          record[`video/${theme}/${v}`] = { marks, file: path.relative(OUT, (await page.video().path())) };
         }
         record[`log/${theme}/${v}`] = { errors: log.errors.slice(0, 5), blockedWs: log.blockedWs.length, hosts: log.hosts, weatherRequests: log.requests.length };
       } finally { await browser.close(); }
