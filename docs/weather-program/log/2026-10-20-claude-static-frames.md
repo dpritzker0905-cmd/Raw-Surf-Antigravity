@@ -109,3 +109,14 @@ other sessions' harnesses (simple greps took over 2 minutes at times), so the ar
 the chain. Merged dev into the branch, took dev's ledger and STATE, and re-appended the two lines as **seq 1557 (pr_open) and 1558
 (commitment, due 2026-10-27T18:00Z)**; each says it was re-forked. The 1553/1554 above in this log name the superseded branch-only
 lines. STATE's Ledger head moved to 1558.
+
+## 2026-10-21 01:25Z: run identity settled with the server cache (#423)
+
+The server-cache session (local_04e7d951, PR #423) answered the lead's point 3. Its series memo has no page-level run key: it
+validates per FILE (a hash of each manifest file's full registration) and drops a page when any of its files is added, removed or
+re-registered. So the frame-for-frame agreement test between the static path and /grid_series is each frame's `source`
+{filename, run_time, model_run_time, ingested_at} equal to the manifest entry the box serves for that filename. The index's
+`run_time` / `run` stay as labels and staleness probes, and no change is needed. **Caveat for the flip evidence:** the box re-reads
+the L2 manifest only every 30 min, so `latest.json` can name a run the box does not have yet. A static miss then falls back to
+/grid or /grid_series serving the OLDER run, and the frame's own model_run_time discloses it. Floors: #423 moves guards and chain,
+#422 moves estate only, so there is no overlap. Either way, the second to merge recomputes from hosted CI.
