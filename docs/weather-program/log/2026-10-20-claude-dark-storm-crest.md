@@ -228,3 +228,12 @@ only, shown moving beside today's, with APCA per band via Leonardo and a colour-
   after my fetch: another session's fetch moved the shared `origin/dev` ref), not `dbb9713fd` as its message says. #429 adds no
   ledger line (dev's head stays 1583) and touches none of this branch's files; `action_ledger.py verify` passes with
   `7ac4bff4e`'s ledger as the base. Lesson (again): name dev by an explicit SHA when merging, never by `origin/dev`.
+
+## 2026-10-21T19:05Z: re-chained once more, on dev 2a47fd5d8 (#422, ledger head 1585)
+
+- #422 (static frames 2b) merged minutes after the merge above and added ledger 1584-1585, so #419 conflicted again. Merged dev
+  `2a47fd5d8` in (named by SHA this time); the offline-backend README auto-merged, only ACTIONS.jsonl and STATE's anchor conflicted.
+- Ledger: 1584-1592 are now 1586-1594 (1586 pr_open, 1587 the owner-pick commitment, 1588 finding, 1589 its correction, 1590
+  decision (electric blue), 1591 push, 1592 push, 1593 D-039's decision, 1594 the push that fulfils 1587). In-text references
+  remapped (1589 names finding 1588; 1594 names commitment 1587 and dev 7ac4bff4e then 2a47fd5d8). `action_ledger.py verify`:
+  1594 entries, OK, with dev's ledger as the base. Scratchpad recipe: `rechain_again.py <tip> <dev sha> <first> <last>`.
