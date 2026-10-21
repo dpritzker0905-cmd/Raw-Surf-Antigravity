@@ -341,6 +341,37 @@ culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart un
 give about 6, the expected near-collapse. The DaltonLens review rates Viénot (protan/deutan) and Brettel (tritan) best
 for dichromacy.
 
+## Dark's storm crest (`dark-storm-crest.mjs`; the table is `marineCrestPalette.js` `DARK_STORM_CRESTS`; 2026-10-20)
+
+Dark keeps its own palettes; this checks the one place the owner flagged, storms of 8 m and up, where dark's wash runs neon magenta
+(5 m) to white (10 m+) past the fiery-orange storm crest. It reads dark's ramp and its non-surf lifts from `WebGLMarineShaders.js`, the
+dark crest literals from `WebGLMarineParticleShaders.js` and the storm line from the crest module, and throws if any of them moves. Per
+height (0.1 m, and above the cap), worst over zoom alpha (world, the z 3.5-4.4 core lift, regional, coastal, close, and 0.90, above the
+BLEND BOTH composite's 0.885 at z 8) and swell lighting: the crest body's APCA |Lc|, a whitecap front's (and at close zoom),
+colour-blind and normal CIEDE2000; it also proves every candidate draws today's crest below the switch. `--lut` writes the wash ramp per
+harness view for `../offline-backend/crest_by_height.py`; `cvd_lut.py` (coloraide's dichromats on a 33^3 lattice, from this folder's
+`.venv`) feeds its colour-blind column.
+
+```bash
+node dark-storm-crest.mjs --json check.json --lut lut.json   # today (v1) | electric blue from 8 m (v2, default) | cased orange
+node dark-storm-crest.mjs --from 5 --strict                  # exit 1 if a new ink is under |Lc| 30 or colour-blind 20 at 8 m+
+.venv/Scripts/python cvd_lut.py cvd_lut.json                 # the dichromat lattice crest_by_height.py reads
+```
+
+- Over dark's measured water (93, 117, 126) today's orange core is |Lc| 0 at EVERY height from 5.5 m up in the weakest view (its
+  whitecap front from 7.5 m): orange is a mid-luminance colour, and the wash's luminance passes it on the way to white.
+- No light ink can work there (the wash ends white), and a dark warm ink (ember-black |Lc| 37-58, ember red 31-53) reads as soot on
+  the eye: the owner turned both down (2026-10-21, "I dont like the darker middle crests in the storm animations"). Blue is the one
+  hue that is fully saturated at low luminance (pure blue's APCA Y 0.072; saturated colours look brighter than their luminance,
+  Helmholtz-Kohlrausch), so electric blue (0, 0, 1) reads as neon light and still holds the body at |Lc| 30-52 from 8 m, colour-blind
+  31.9, OKLab chroma 0.31 (ember-black 0.08). Violet-leaning blues ((0.15-0.40, 0, 1)) fall under |Lc| 30 at 8 m.
+- The cased alternative (`cased`, lever `__RAW_DARK_STORM_CREST__ = 'cased'`) keeps today's orange and turns on the crest self-contrast
+  from 8 m (rim 0.55-0.64 x the colour, core 1.30 x plus white): no colour switch, the owner's light-mode objection to mixed crest
+  colours. The checker judges a crest by its stronger part (core or rim, the rim at ellipse distance 0.7, alpha 0.70): cased |Lc|
+  20.4-38.0 from 8 m (rim; core 0), colour-blind 19.7, against blue's 35.1-56.7 / 38.2.
+- A whitecap front (the ink mixed 45% toward white) still meets the wash's luminance at 8-8.5 m (|Lc| 12 for blue), and at close
+  zoom (67% white) from 8 to 9.6 m: the foam rule is shared by every height, outside a one-line change.
+
 ## Keep in sync
 
 The `MODEL` block in `check.mjs` must match `HEATMAP_FS` / `DRAW_FS` and the `TINT` / `SURFACES` / `BASEMAP` constants

@@ -32,6 +32,10 @@ def font(size):
     return ImageFont.load_default()
 
 
+# The dark storm crest A/B (--tag dark-<view>, --variants d1,v2, --clip-view regional|eye|coastal).
+DARK_NAMES = {"d1": "TODAY (fiery orange)", "v2": "electric blue from 8 m (default)", "dc": "orange, cased from 8 m"}
+
+
 def label(img, text, size=22):
     d = ImageDraw.Draw(img)
     f = font(size)
@@ -53,7 +57,8 @@ def main(out):
         shots = [s for s in rec["shots"] if s["theme"] == theme and s.get("file")]
         if not shots:
             continue
-        views = [v for v in ("world", "regional", "coastal") if any(s["view"] == v for s in shots)]
+        views = [v for v in ("world", "regional", "eye", "coastal") if any(s["view"] == v for s in shots)]
+        names = DARK_NAMES if theme == "dark" and opt("--tag", "").startswith("dark") else names
         scale = 0.5
         cell_w, cell_h, leg_h = int(1280 * scale), int(800 * scale), 70
         sheet = Image.new("RGB", (cell_w * len(variants), (cell_h + leg_h) * len(views) + 40), (30, 30, 30))

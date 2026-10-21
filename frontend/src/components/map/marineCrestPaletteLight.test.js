@@ -20,7 +20,7 @@ const branch = (lines, i) => {   // which DRAW_FS theme branch line i sits in
 
 describe('the kill (window.__RAW_DISABLE_LIGHT_CREST_V2__) draws the crests from before light V2 exactly', () => {
   it('DRAW_FS hashes to the shader before light V2', () => {
-    withWindow(KILL, (shaders, crest) => {
+    withWindow({ ...KILL, __RAW_DISABLE_DARK_STORM_CREST__: true }, (shaders, crest) => {   // + dark's 8 m+ storm ink kill (#419)
       expect(crest.LIGHT_CREST_ID).toBe('v1');
       expect(shaders.DRAW_FS.length).toBe(DRAW_FS_BEFORE.length);
       expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
@@ -29,7 +29,7 @@ describe('the kill (window.__RAW_DISABLE_LIGHT_CREST_V2__) draws the crests from
 
   it('either wave-palette kill stands light V2 down too: it was solved for the V2 wash', () => {
     for (const lever of ['__RAW_DISABLE_WAVE_PALETTE_V2__', '__RAW_DISABLE_MARINE_WAVE_PALETTE__']) {
-      withWindow({ [lever]: true }, (shaders, crest) => {
+      withWindow({ [lever]: true, __RAW_DISABLE_DARK_STORM_CREST__: true }, (shaders, crest) => {
         expect(crest.LIGHT_CREST_ID).toBe('v1');
         expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
       });
@@ -63,9 +63,9 @@ describe('V2 is the default over the v2 wash and changes light\'s four colour li
     for (const i of changed) expect(branch(after, i)).toBe('light');
   });
 
-  it('dark and beach keep their literals', () => {
+  it('dark and beach keep their literals (the dark storm line from 8 m: marineDarkStormCrest.test.js)', () => {
     for (const lit of ['calmColor = vec3(0.10, 0.95, 0.60);    // mint-green', 'activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold',
-      'stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange', 'calmColor = vec3(1.00, 0.45, 0.65);    // orchid-pink',
+      'calmColor = vec3(1.00, 0.45, 0.65);    // orchid-pink',
       'activeColor = vec3(0.00, 0.92, 0.85);  // electric turquoise', 'stormColor = vec3(0.80, 0.20, 0.90);   // sunset magenta',
       'foamHighlight = vec3(0.95, 0.95, 1.00);']) expect(DRAW_FS).toContain(lit);
   });
