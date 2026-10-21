@@ -187,3 +187,16 @@ the pick and mark #421 ready once hosted CI is green." Hosted CI on #421's head 
 mergeStateStatus CLEAN; marked ready there (`gh pr ready 421`), the owner's words quoted in a PR comment. Recorded as DECISIONS D-036
 and ledger (decision, fulfils 1555) in a docs-only commit after it, whose CI runs on the ready PR. Not merged: merging waits for the
 owner's word.
+
+## 2026-10-21 00:14Z: MERGED #421 into dev, and the deployed build read back
+
+The owner, in this session: "Merge #421 into dev once every hosted check on its head is green, then record the pr_merge ledger line and
+read back the deployed build." Every hosted check on head `bee1e33a0` passed (19 pass, Netlify "Pages changed" skipped; mergeStateStatus
+CLEAN; dev unchanged at `f6b80f724`). Squash-merged with `--match-head-commit` at 2026-10-21T00:14:11Z as `5fe62b5f2`; `git diff
+bee1e33a0 origin/dev` empty. Ships ON with the kill `window.__RAW_DISABLE_LIGHT_CREST_V2__`.
+
+Read-back of the deployed dev build (`dev--rawsurf.netlify.app`, static files only, no backend): `service-worker.js` BUILD_VERSION
+`5fe62b5f` at 00:19:28Z; at 00:49:08Z, 103/103 JS files of its `asset-manifest.json`: chunk `6362.56b06a95` holds light's V2 table (the
+names "deep umber, cream from 3.05 m" and "umber-black foam, white from 3.05 m"), the kill name and v1's "deep navy", and dark's
+("mint-green") and beach's ("orchid-pink") crest literals; no other file carries them. (The GLSL `step(3.05, ...)` text is built at
+runtime from the table, so it is not a literal in the bundle.) Not yet seen on a screen by the owner: the dev site is gated.
