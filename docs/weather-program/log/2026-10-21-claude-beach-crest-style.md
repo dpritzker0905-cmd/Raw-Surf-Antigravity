@@ -62,3 +62,8 @@ the cartographic one above); Leonardo APCA used; Elicit refused (plan without AP
 not consulted (its server is for the user's own requests).
 
 Evidence: `docs/weather-program/evidence/beach-crest-style-2026-10-21.json`.
+
+Draft PR #433; owner page https://claude.ai/artifact/LebieAg312hzjyruotS9KN (private to the owner). Ledger 1563 (`pr_open`),
+1564 (`commitment`: the owner's pick by 2026-10-24). Local checks at `cf90d4474`: Jest 460/461 suites (the known
+`netlifyIconStoredTailScope` spawn timeout, same on dev), `check_eslint.js` debt down, `loc_ratchet.py` 0 new / 0 regressed,
+`craco build` compiled, flake8 clean.
