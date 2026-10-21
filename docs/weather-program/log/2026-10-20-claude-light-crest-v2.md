@@ -222,3 +222,27 @@ DRAW_FS with light's lines as before V2 (sha256 e2438586..., 8872), and with #41
 up (APCA |Lc| 0, the lead's research) and over #431's spectrum from 1.7 to 14 m, crimson on crimson from 6 m (#431's session); at
 isoluminance motion direction weakens. Next, on the lead's brief: one moving A/B, the original vs the original plus a luminance-only
 two-tone (beach #433's idea), no hue change.
+
+## 2026-10-21 22:45Z: light crest two-tone, one A/B for the owner (lever off until he picks)
+
+The owner after the restore: "It still needs to adjust for areas in the colour for heatmaps that blend too much with the animation
+colors", and "yes or adjust the animation colors, whatever is better". The lead's brief: the #433 method (beach's two-tone) on the
+ORIGINAL light colours, luminance only, one moving A/B, no other candidates.
+
+**Built** (`claude/light-crest-twotone`, stacked on #438): `marineLightCrestStyle.js`, lever `window.__RAW_LIGHT_CREST_STYLE__ =
+'twotone'` (off by default), kill `window.__RAW_DISABLE_LIGHT_CREST_STYLE__`. Each crest keeps its own colour and gains a dark rim
+(the colour x 0.15) and a light centre line (85% toward white); the ribbon is opaque to 0.80 of its radius so the rim is crisp; crest
+alpha x 3 far out, tapering to x 1 by z 9 (DRAW_FS reads DRAW_VS's own `u_zoom`, declared highp in both). Every DRAW_FS piece is gated
+on the light theme and is a prefix or suffix on a line #433 also extends; DRAW_FS is unchanged with the lever off (Jest pin).
+
+**Checker** (`light-crest-style.mjs`, new; worst APCA |Lc| of the crest's best part vs the wash, every 0.1 m to 14 m, every zoom state,
+lighting and whitecap): the original reads 0 on v2 (from 2.2 m) and on #431's spectrum (from 1.7 m); the two-tone >= 40.2 on v2 and
+>= 41.1 on the spectrum, colour-blind >= 33.9 / 29.0 dE00, centre vs rim >= 62. Values chosen from a sweep (rim / centre / alpha):
+#433's 0.30 / 0.75 / x3 gives 33.9; 0.10 / 0.90 / x3 reaches 43 but draws near-black outlines round white cores, so not offered.
+
+**Engine, offline** (paired frames, 24 a view; p99 |Lc| off the wash, original -> two-tone): world 20.9 -> 64.4,
+regional 18.2 -> 52.3, coastal 20.3 -> 50.0; crest pixels at |Lc| >= 15:
+3.71% -> 33.12% / 1.62% -> 18.34% /
+5.76% -> 30.46%. A first run with a flat x 3 made close-zoom crests solid blobs over the wash
+(coastal stills), hence the taper. Cost: crests read bolder; sea untouched by crests 57% -> 47% (world),
+59% -> 52% (regional), 18% -> 14% (coastal).

@@ -35,7 +35,7 @@ def font(size):
 # The dark storm crest A/B (--tag dark-<view>, --variants d1,v2, --clip-view regional|eye|coastal).
 DARK_NAMES = {"d1": "TODAY (fiery orange)", "v2": "cased orange from 8 m (D-039)"}
 # The light crest style A/B (--tag lightstyle-<view>, --variants v2,lt): the restored original (D-041) against it with the two-tone.
-LIGHT_STYLE_NAMES = {"v2": "ORIGINAL light crests (restored)", "lt": "original + two-tone (rim x0.15, centre 85% white, alpha x3)"}
+LIGHT_STYLE_NAMES = {"v2": "ORIGINAL light crests (restored)", "lt": "original + two-tone (rim x0.15, centre 85% white, alpha x3 far out)"}
 
 
 def label(img, text, size=22):
