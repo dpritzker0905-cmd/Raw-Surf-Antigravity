@@ -121,3 +121,8 @@ Three themes x desktop / mobile, ARIA: no UI, CSS, theme or layout code changed 
   ~25 s and then spreading out (ledger commitment below).
 - Zoom 6 re-ask ends early in every arm (section 6): proposed as its own session.
 - Ledger: lines 1595 (`pr_open`) and 1596 (commitment) follow `dev`'s 1594; if `dev` appends first, whoever merges second re-chains.
+
+## 9. 2026-10-21 ~22:00Z: PR and ledger
+
+Draft PR #441 (`claude/swr-backoff-ladder` -> `dev`); ledger seq 1595 (`pr_open`) and 1596 (the live read-back commitment, due
+2026-10-28), after `dev`'s 1594. Not merged; the lead merges.
