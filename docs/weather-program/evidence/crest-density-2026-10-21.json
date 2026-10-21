@@ -1,0 +1,4124 @@
+{
+ "at": "2026-10-21",
+ "branch": "claude/crest-density-zoom",
+ "base": "dev 448deb35c",
+ "owner_words": [
+  "For light mode: Can we reduce the wave animation density at midclose to closer up zooms starting where when you can see the entire state name labels appear on the map and inward? Maybe 15-20% less dense? For beach mode from zoom where you can see city names on the label and closer, reduce the wave animation density 10-15%? And dark mode as well. But starting from two zooms closer in than beach mode. And only at areas where there are bigger surf does this affect, because bigger animations take over the screen. You might need to test the zoom levels for this as well using special tools and art.",
+  "Give it all one more pass with special art skills to make sure we're making the crests as pleasing as possible to the eye with the themes color scheme in place"
+ ],
+ "scope": "crest seed density only (DRAW_VS threshold; engine uniform); no colour, no served number (no SCOREBOARD row)",
+ "labels": {
+  "tool": "frontend/scripts/offline-backend/scn_label_zoom.js over central California (-120.5, 36.3), z2.5-11 every 0.5",
+  "styles": {
+   "light": "Mapbox Navigation Day",
+   "beach": "Mapbox Outdoors",
+   "dark": "Mapbox Navigation Night"
+  },
+  "state_label_text_field": [
+   "step",
+   [
+    "zoom"
+   ],
+   [
+    "step",
+    [
+     "get",
+     "symbolrank"
+    ],
+    [
+     "coalesce",
+     [
+      "get",
+      "name_en"
+     ],
+     [
+      "get",
+      "name"
+     ]
+    ],
+    5,
+    [
+     "coalesce",
+     [
+      "get",
+      "abbr"
+     ],
+     [
+      "get",
+      "name_en"
+     ],
+     [
+      "get",
+      "name"
+     ]
+    ]
+   ],
+   5,
+   [
+    "coalesce",
+    [
+     "get",
+     "name_en"
+    ],
+    [
+     "get",
+     "name"
+    ]
+   ]
+  ],
+  "finding": "all three styles spell every state out from z5 (state-label steps on zoom 5); city names exist from z2.5 (big ones); beach's local coastal towns fill in at z6",
+  "placed": {
+   "light": [
+    {
+     "zoom": 2.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 9,
+       "names": [
+        "Houston",
+        "Vancouver",
+        "Los Angeles",
+        "Calgary",
+        "Mexico City",
+        "Boston",
+        "Caracas",
+        "New York"
+       ],
+       "abbr": []
+      },
+      "country-label": {
+       "n": 11,
+       "names": [
+        "Canada",
+        "Guatemala",
+        "United States",
+        "Mexico",
+        "Cuba",
+        "Costa Rica",
+        "Guyana",
+        "Colombia"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 3,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 17,
+       "names": [
+        "Kodiak",
+        "Sitka",
+        "Cheyenne",
+        "Calgary",
+        "Regina",
+        "Portland",
+        "Winnipeg",
+        "Juneau"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 54,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Nebraska",
+        "Alberta",
+        "Montana",
+        "South Dakota",
+        "Washington",
+        "British Columbia"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Nebr.",
+        "Alta.",
+        "Mont.",
+        "S.D.",
+        "Wash.",
+        "B.C."
+       ]
+      },
+      "country-label": {
+       "n": 11,
+       "names": [
+        "Canada",
+        "United States",
+        "Guatemala",
+        "Mexico",
+        "Panama",
+        "Cuba",
+        "Dominican Republic",
+        "Nicaragua"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 3.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 16,
+       "names": [
+        "Cheyenne",
+        "Calgary",
+        "Regina",
+        "Portland",
+        "Winnipeg",
+        "Edmonton",
+        "Minneapolis",
+        "Chicago"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 46,
+       "names": [
+        "Manitoba",
+        "Idaho",
+        "Oregon",
+        "Nebraska",
+        "Montana",
+        "South Dakota",
+        "Washington",
+        "North Dakota"
+       ],
+       "abbr": [
+        "Man.",
+        "Idaho",
+        "Ore.",
+        "Nebr.",
+        "Mont.",
+        "S.D.",
+        "Wash.",
+        "N.D."
+       ]
+      },
+      "country-label": {
+       "n": 4,
+       "names": [
+        "United States",
+        "Guatemala",
+        "Mexico",
+        "Belize"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 4,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 22,
+       "names": [
+        "Spokane",
+        "Portland",
+        "Nanaimo",
+        "Sioux Falls",
+        "Ogden",
+        "Omaha",
+        "Billings",
+        "Helena"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 29,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Washington",
+        "Nebraska",
+        "Montana",
+        "North Dakota",
+        "South Dakota",
+        "Wyoming"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Wash.",
+        "Nebr.",
+        "Mont.",
+        "N.D.",
+        "S.D.",
+        "Wyo."
+       ]
+      },
+      "country-label": {
+       "n": 2,
+       "names": [
+        "United States",
+        "Mexico"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 4.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 17,
+       "names": [
+        "Boise",
+        "Portland",
+        "Ogden",
+        "Billings",
+        "Cheyenne",
+        "San Diego",
+        "Sacramento",
+        "Mexicali"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 13,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Wyoming",
+        "Baja California",
+        "California",
+        "Nevada",
+        "Baja California Sur",
+        "Chihuahua"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Wyo.",
+        "B.C.",
+        "Calif.",
+        "Nev.",
+        "B.C.S.",
+        "Chih."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 31,
+       "names": [
+        "Crescent City",
+        "Medford",
+        "Twin Falls",
+        "Logan",
+        "Pocatello",
+        "Ogden",
+        "Eureka",
+        "Stockton"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 6,
+       "names": [
+        "Nevada",
+        "California",
+        "Arizona",
+        "Utah",
+        "Baja California",
+        "Sonora"
+       ],
+       "abbr": [
+        "Nev.",
+        "Calif.",
+        "Ariz.",
+        "Utah",
+        "B.C.",
+        "Son."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 5.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 24,
+       "names": [
+        "Eureka",
+        "San Luis Obispo",
+        "Reno",
+        "Stockton",
+        "Santa Barbara",
+        "Carson City",
+        "Visalia",
+        "Elko"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 3,
+       "names": [
+        "Nevada",
+        "California",
+        "Arizona"
+       ],
+       "abbr": [
+        "Nev.",
+        "Calif.",
+        "Ariz."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 6,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 30,
+       "names": [
+        "Salinas",
+        "Santa Rosa",
+        "Modesto",
+        "Stockton",
+        "San Jose",
+        "Fallon",
+        "Ukiah",
+        "Sacramento"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 6.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 24,
+       "names": [
+        "Salinas",
+        "Santa Rosa",
+        "Modesto",
+        "Stockton",
+        "San Jose",
+        "Sacramento",
+        "Merced",
+        "San Francisco"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 7,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 26,
+       "names": [
+        "Redwood City",
+        "Salinas",
+        "Stockton",
+        "San Rafael",
+        "Modesto",
+        "San Jose",
+        "San Francisco",
+        "Merced"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 7.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 16,
+       "names": [
+        "Redwood City",
+        "Salinas",
+        "San Jose",
+        "Merced",
+        "Fresno",
+        "Parlier",
+        "Greenfield",
+        "Soledad"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 8,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 22,
+       "names": [
+        "Watsonville",
+        "Monterey",
+        "Gilroy",
+        "Chowchilla",
+        "Los Banos",
+        "Orange Cove",
+        "Parlier",
+        "San Simeon"
+       ],
+       "abbr": []
+      },
+      "settlement-major-label": {
+       "n": 7,
+       "names": [
+        "Santa Cruz",
+        "Salinas",
+        "Hollister",
+        "Madera",
+        "Fresno",
+        "Hanford",
+        "Visalia"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 8.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 6,
+       "names": [
+        "Parlier",
+        "Greenfield",
+        "Soledad",
+        "Corcoran",
+        "Avenal",
+        "Coalinga"
+       ],
+       "abbr": []
+      },
+      "settlement-major-label": {
+       "n": 3,
+       "names": [
+        "Hollister",
+        "Fresno",
+        "Hanford"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 9,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 9,
+       "names": [
+        "San Joaquin",
+        "Kerman",
+        "King City",
+        "Greenfield",
+        "Coalinga",
+        "Lemoore",
+        "Huron",
+        "Westside"
+       ],
+       "abbr": []
+      },
+      "settlement-major-label": {
+       "n": 1,
+       "names": [
+        "Fresno"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 9.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 5,
+       "names": [
+        "San Joaquin",
+        "Coalinga",
+        "Huron",
+        "Westside",
+        "Avenal"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 10,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 5,
+       "names": [
+        "Giffen Cantua Ranch",
+        "Westside",
+        "Parkfield Junction",
+        "Coalinga",
+        "Turk"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 10.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 1,
+       "names": [
+        "Coalinga"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 11,
+     "layers": {}
+    }
+   ],
+   "beach": [
+    {
+     "zoom": 2.5,
+     "layers": {
+      "settlement-label": {
+       "n": 14,
+       "names": [
+        "San Francisco",
+        "Houston",
+        "Vancouver",
+        "Los Angeles",
+        "Calgary",
+        "Mexico City",
+        "Edmonton",
+        "Quebec"
+       ],
+       "abbr": []
+      },
+      "country-label": {
+       "n": 12,
+       "names": [
+        "Canada",
+        "Guatemala",
+        "United States",
+        "Mexico",
+        "Cuba",
+        "Venezuela",
+        "Costa Rica",
+        "Guyana"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 3,
+     "layers": {
+      "settlement-label": {
+       "n": 26,
+       "names": [
+        "Kodiak",
+        "Sitka",
+        "Cheyenne",
+        "Vancouver",
+        "Calgary",
+        "Regina",
+        "Portland",
+        "Winnipeg"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 62,
+       "names": [
+        "Manitoba",
+        "Idaho",
+        "Oregon",
+        "Nebraska",
+        "Alberta",
+        "Montana",
+        "South Dakota",
+        "Washington"
+       ],
+       "abbr": [
+        "Man.",
+        "Idaho",
+        "Ore.",
+        "Nebr.",
+        "Alta.",
+        "Mont.",
+        "S.D.",
+        "Wash."
+       ]
+      },
+      "country-label": {
+       "n": 10,
+       "names": [
+        "Canada",
+        "United States",
+        "Guatemala",
+        "Mexico",
+        "Cuba",
+        "Costa Rica",
+        "Nicaragua",
+        "Bahamas"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 3.5,
+     "layers": {
+      "settlement-label": {
+       "n": 21,
+       "names": [
+        "Billings",
+        "Sioux Falls",
+        "Omaha",
+        "Cheyenne",
+        "Vancouver",
+        "Calgary",
+        "Regina",
+        "Portland"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 54,
+       "names": [
+        "Manitoba",
+        "Idaho",
+        "Oregon",
+        "Nebraska",
+        "Montana",
+        "South Dakota",
+        "Washington",
+        "North Dakota"
+       ],
+       "abbr": [
+        "Man.",
+        "Idaho",
+        "Ore.",
+        "Nebr.",
+        "Mont.",
+        "S.D.",
+        "Wash.",
+        "N.D."
+       ]
+      },
+      "country-label": {
+       "n": 5,
+       "names": [
+        "United States",
+        "Guatemala",
+        "Mexico",
+        "Belize",
+        "El Salvador"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 4,
+     "layers": {
+      "settlement-label": {
+       "n": 36,
+       "names": [
+        "Yakima",
+        "Eugene",
+        "Spokane",
+        "Portland",
+        "Nanaimo",
+        "Seattle",
+        "Sioux City",
+        "Fargo"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 30,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Washington",
+        "Nebraska",
+        "Montana",
+        "North Dakota",
+        "South Dakota",
+        "Wyoming"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Wash.",
+        "Nebr.",
+        "Mont.",
+        "N.D.",
+        "S.D.",
+        "Wyo."
+       ]
+      },
+      "country-label": {
+       "n": 2,
+       "names": [
+        "United States",
+        "Mexico"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 4.5,
+     "layers": {
+      "settlement-label": {
+       "n": 28,
+       "names": [
+        "Bend",
+        "Eugene",
+        "Salem",
+        "Boise",
+        "Portland",
+        "Casper",
+        "Idaho Falls",
+        "Rapid City"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 13,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Wyoming",
+        "Baja California",
+        "California",
+        "Nevada",
+        "Baja California Sur",
+        "Chihuahua"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Wyo.",
+        "B.C.",
+        "Calif.",
+        "Nev.",
+        "B.C.S.",
+        "Chih."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 5,
+     "layers": {
+      "settlement-label": {
+       "n": 43,
+       "names": [
+        "Crescent City",
+        "Mountain Home",
+        "Medford",
+        "Twin Falls",
+        "Logan",
+        "Pocatello",
+        "Ogden",
+        "Eureka"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 6,
+       "names": [
+        "Nevada",
+        "California",
+        "Arizona",
+        "Utah",
+        "Baja California",
+        "Sonora"
+       ],
+       "abbr": [
+        "Nev.",
+        "Calif.",
+        "Ariz.",
+        "Utah",
+        "B.C.",
+        "Son."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 5.5,
+     "layers": {
+      "settlement-label": {
+       "n": 33,
+       "names": [
+        "Eureka",
+        "Irvine",
+        "Redding",
+        "Kingman",
+        "Salinas",
+        "Yuma",
+        "Santa Rosa",
+        "San Luis Obispo"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 2,
+       "names": [
+        "Nevada",
+        "California"
+       ],
+       "abbr": [
+        "Nev.",
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 6,
+     "layers": {
+      "settlement-label": {
+       "n": 47,
+       "names": [
+        "Fort Bragg",
+        "Santa Cruz",
+        "Fairfield",
+        "Salinas",
+        "Jackson",
+        "Santa Rosa",
+        "Sonora",
+        "Auburn"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 6.5,
+     "layers": {
+      "settlement-label": {
+       "n": 35,
+       "names": [
+        "Hollister",
+        "Santa Cruz",
+        "Redwood City",
+        "Fairfield",
+        "Salinas",
+        "Jackson",
+        "Santa Rosa",
+        "Sonora"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 7,
+     "layers": {
+      "settlement-label": {
+       "n": 41,
+       "names": [
+        "Hayward",
+        "Martinez",
+        "Hollister",
+        "Santa Cruz",
+        "Redwood City",
+        "Salinas",
+        "Stockton",
+        "San Rafael"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 7.5,
+     "layers": {
+      "settlement-label": {
+       "n": 26,
+       "names": [
+        "Hollister",
+        "Santa Cruz",
+        "Redwood City",
+        "Salinas",
+        "San Jose",
+        "Los Banos",
+        "Turlock",
+        "Merced"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 8,
+     "layers": {
+      "settlement-label": {
+       "n": 42,
+       "names": [
+        "Scotts Valley",
+        "Prunedale",
+        "Morgan Hill",
+        "Watsonville",
+        "Monterey",
+        "San Martin",
+        "Santa Cruz",
+        "Gilroy"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 8.5,
+     "layers": {
+      "settlement-label": {
+       "n": 14,
+       "names": [
+        "Hollister",
+        "Mendota",
+        "Clovis",
+        "Fresno",
+        "Parlier",
+        "King City",
+        "Greenfield",
+        "Soledad"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 9,
+     "layers": {
+      "settlement-label": {
+       "n": 11,
+       "names": [
+        "Tranquility",
+        "San Joaquin",
+        "Kerman",
+        "Fresno",
+        "King City",
+        "Greenfield",
+        "Coalinga",
+        "Lemoore"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 9.5,
+     "layers": {
+      "settlement-label": {
+       "n": 5,
+       "names": [
+        "San Joaquin",
+        "Coalinga",
+        "Huron",
+        "Westside",
+        "Avenal"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 10,
+     "layers": {
+      "settlement-label": {
+       "n": 5,
+       "names": [
+        "Giffen Cantua Ranch",
+        "Westside",
+        "Parkfield Junction",
+        "Coalinga",
+        "Turk"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 10.5,
+     "layers": {
+      "settlement-label": {
+       "n": 1,
+       "names": [
+        "Coalinga"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 11,
+     "layers": {}
+    }
+   ],
+   "dark": [
+    {
+     "zoom": 2.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 9,
+       "names": [
+        "Houston",
+        "Vancouver",
+        "Los Angeles",
+        "Calgary",
+        "Mexico City",
+        "Boston",
+        "Caracas",
+        "New York"
+       ],
+       "abbr": []
+      },
+      "country-label": {
+       "n": 11,
+       "names": [
+        "Canada",
+        "Guatemala",
+        "United States",
+        "Mexico",
+        "Cuba",
+        "Costa Rica",
+        "Guyana",
+        "Colombia"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 3,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 17,
+       "names": [
+        "Kodiak",
+        "Sitka",
+        "Cheyenne",
+        "Calgary",
+        "Regina",
+        "Portland",
+        "Winnipeg",
+        "Juneau"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 54,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Nebraska",
+        "Alberta",
+        "Montana",
+        "South Dakota",
+        "Washington",
+        "British Columbia"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Nebr.",
+        "Alta.",
+        "Mont.",
+        "S.D.",
+        "Wash.",
+        "B.C."
+       ]
+      },
+      "country-label": {
+       "n": 11,
+       "names": [
+        "Canada",
+        "United States",
+        "Guatemala",
+        "Mexico",
+        "Panama",
+        "Cuba",
+        "Dominican Republic",
+        "Nicaragua"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 3.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 16,
+       "names": [
+        "Cheyenne",
+        "Calgary",
+        "Regina",
+        "Portland",
+        "Winnipeg",
+        "Edmonton",
+        "Minneapolis",
+        "Chicago"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 46,
+       "names": [
+        "Manitoba",
+        "Idaho",
+        "Oregon",
+        "Nebraska",
+        "Montana",
+        "South Dakota",
+        "Washington",
+        "North Dakota"
+       ],
+       "abbr": [
+        "Man.",
+        "Idaho",
+        "Ore.",
+        "Nebr.",
+        "Mont.",
+        "S.D.",
+        "Wash.",
+        "N.D."
+       ]
+      },
+      "country-label": {
+       "n": 4,
+       "names": [
+        "United States",
+        "Guatemala",
+        "Mexico",
+        "Belize"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 4,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 22,
+       "names": [
+        "Spokane",
+        "Portland",
+        "Nanaimo",
+        "Sioux Falls",
+        "Ogden",
+        "Omaha",
+        "Billings",
+        "Helena"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 29,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Washington",
+        "Nebraska",
+        "Montana",
+        "North Dakota",
+        "South Dakota",
+        "Wyoming"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Wash.",
+        "Nebr.",
+        "Mont.",
+        "N.D.",
+        "S.D.",
+        "Wyo."
+       ]
+      },
+      "country-label": {
+       "n": 2,
+       "names": [
+        "United States",
+        "Mexico"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 4.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 17,
+       "names": [
+        "Boise",
+        "Portland",
+        "Ogden",
+        "Billings",
+        "Cheyenne",
+        "San Diego",
+        "Sacramento",
+        "Mexicali"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 13,
+       "names": [
+        "Idaho",
+        "Oregon",
+        "Wyoming",
+        "Baja California",
+        "California",
+        "Nevada",
+        "Baja California Sur",
+        "Chihuahua"
+       ],
+       "abbr": [
+        "Idaho",
+        "Ore.",
+        "Wyo.",
+        "B.C.",
+        "Calif.",
+        "Nev.",
+        "B.C.S.",
+        "Chih."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 31,
+       "names": [
+        "Crescent City",
+        "Medford",
+        "Twin Falls",
+        "Logan",
+        "Pocatello",
+        "Ogden",
+        "Eureka",
+        "Stockton"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 6,
+       "names": [
+        "Nevada",
+        "California",
+        "Arizona",
+        "Utah",
+        "Baja California",
+        "Sonora"
+       ],
+       "abbr": [
+        "Nev.",
+        "Calif.",
+        "Ariz.",
+        "Utah",
+        "B.C.",
+        "Son."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 5.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 24,
+       "names": [
+        "Eureka",
+        "San Luis Obispo",
+        "Reno",
+        "Stockton",
+        "Santa Barbara",
+        "Carson City",
+        "Visalia",
+        "Elko"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 3,
+       "names": [
+        "Nevada",
+        "California",
+        "Arizona"
+       ],
+       "abbr": [
+        "Nev.",
+        "Calif.",
+        "Ariz."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 6,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 30,
+       "names": [
+        "Salinas",
+        "Santa Rosa",
+        "Modesto",
+        "Stockton",
+        "San Jose",
+        "Fallon",
+        "Ukiah",
+        "Sacramento"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 6.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 24,
+       "names": [
+        "Salinas",
+        "Santa Rosa",
+        "Modesto",
+        "Stockton",
+        "San Jose",
+        "Sacramento",
+        "Merced",
+        "San Francisco"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 7,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 26,
+       "names": [
+        "Redwood City",
+        "Salinas",
+        "Stockton",
+        "San Rafael",
+        "Modesto",
+        "San Jose",
+        "San Francisco",
+        "Merced"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 7.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 16,
+       "names": [
+        "Redwood City",
+        "Salinas",
+        "San Jose",
+        "Merced",
+        "Fresno",
+        "Parlier",
+        "Greenfield",
+        "Soledad"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 8,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 22,
+       "names": [
+        "Watsonville",
+        "Monterey",
+        "Gilroy",
+        "Chowchilla",
+        "Los Banos",
+        "Orange Cove",
+        "Parlier",
+        "San Simeon"
+       ],
+       "abbr": []
+      },
+      "settlement-major-label": {
+       "n": 7,
+       "names": [
+        "Santa Cruz",
+        "Salinas",
+        "Hollister",
+        "Madera",
+        "Fresno",
+        "Hanford",
+        "Visalia"
+       ],
+       "abbr": []
+      },
+      "state-label": {
+       "n": 1,
+       "names": [
+        "California"
+       ],
+       "abbr": [
+        "Calif."
+       ]
+      }
+     }
+    },
+    {
+     "zoom": 8.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 6,
+       "names": [
+        "Parlier",
+        "Greenfield",
+        "Soledad",
+        "Corcoran",
+        "Avenal",
+        "Coalinga"
+       ],
+       "abbr": []
+      },
+      "settlement-major-label": {
+       "n": 3,
+       "names": [
+        "Hollister",
+        "Fresno",
+        "Hanford"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 9,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 9,
+       "names": [
+        "San Joaquin",
+        "Kerman",
+        "King City",
+        "Greenfield",
+        "Coalinga",
+        "Lemoore",
+        "Huron",
+        "Westside"
+       ],
+       "abbr": []
+      },
+      "settlement-major-label": {
+       "n": 1,
+       "names": [
+        "Fresno"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 9.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 5,
+       "names": [
+        "San Joaquin",
+        "Coalinga",
+        "Huron",
+        "Westside",
+        "Avenal"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 10,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 5,
+       "names": [
+        "Giffen Cantua Ranch",
+        "Westside",
+        "Parkfield Junction",
+        "Coalinga",
+        "Turk"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 10.5,
+     "layers": {
+      "settlement-minor-label": {
+       "n": 1,
+       "names": [
+        "Coalinga"
+       ],
+       "abbr": []
+      }
+     }
+    },
+    {
+     "zoom": 11,
+     "layers": {}
+    }
+   ]
+  }
+ },
+ "rule": {
+  "light": {
+   "from": 5,
+   "cut": 0.175
+  },
+  "beach": {
+   "from": 6,
+   "cut": 0.125
+  },
+  "dark": {
+   "from": 8,
+   "cut": 0.125
+  },
+  "meaning": "cut = how much LESS of the screen big-surf crests cover (as the eye sees it, owner pick 2026-10-21, D-042)",
+  "zoom_ramp": "smoothstep(from - 0.5, from, z)",
+  "height_gate": "smoothstep(2.0, 4.0, h) m",
+  "mechanism": "a crest goes when crestCutHash(vec2(col,row)) < share x height gate x zoom ramp; its density threshold then goes to -2 (2026-10-21 15Z; before: the threshold was scaled, see as_seen_fit.hash_finding)",
+  "share_removed_rows": {
+   "light": [
+    [
+     5,
+     0.28
+    ],
+    [
+     7.4,
+     0.29
+    ],
+    [
+     9,
+     0.45
+    ],
+    [
+     10.5,
+     0.37
+    ]
+   ],
+   "beach": [
+    [
+     6,
+     0.22
+    ],
+    [
+     7.4,
+     0.23
+    ],
+    [
+     9,
+     0.32
+    ],
+    [
+     10.5,
+     0.26
+    ]
+   ],
+   "dark": [
+    [
+     8,
+     0.26
+    ],
+    [
+     8.25,
+     0.27
+    ],
+    [
+     9,
+     0.33
+    ],
+    [
+     10.5,
+     0.28
+    ]
+   ]
+  },
+  "kill": "window.__RAW_DISABLE_CREST_DENSITY_ZOOM__ = true: dev DRAW_VS byte for byte (sha256 a1683763...)",
+  "measurement_knob": "window.__RAW_CREST_DENSITY_SEED_CUT__ (live, clamped 0-0.9, inside the ramp); the VISIBLE A/B lever is gone"
+ },
+ "crest_area_by_height": "DRAW_VS halfLength 18->40 px, halfThickness 3->8 px by smoothstep(0.1, 4.0, h): area x~4 from 1 m to 4 m",
+ "coverage_run1": {
+  "light/mid/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.4433024989122826,
+    "null": 0.09284712895177677
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.3958990430189567,
+    "null": 0.08694087652149063
+   },
+   "change": -0.10693252578011249
+  },
+  "light/coastal/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7482569198788481,
+    "null": 0.0032757631361569617
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.671664701418972,
+    "null": 0.006910105156515578
+   },
+   "change": -0.10236085550973224
+  },
+  "light/close/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.9206539125244079,
+    "null": 0.003491835289122447
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.8785883636317777,
+    "null": 0.0008775303877742724
+   },
+   "change": -0.04569094675032397
+  },
+  "beach/mid/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.39290619147607964,
+    "null": 0.13458268438122012
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.4069912373073375,
+    "null": 0.10133783974088156
+   },
+   "change": 0.03584836822841303
+  },
+  "beach/coastal/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7277145115150903,
+    "null": 0.005223775503555461
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.6868316844169521,
+    "null": 0.004220763525002669
+   },
+   "change": -0.056179760677055574
+  },
+  "beach/close/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.9050799025573444,
+    "null": 0.0072390476851064145
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.8768205865476169,
+    "null": 0.006016810749799761
+   },
+   "change": -0.03122300686368082
+  },
+  "dark/mid/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.4313576813860566,
+    "null": 0.11014404109574649
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.4228750627933421,
+    "null": 0.10814285143778363
+   },
+   "change": -0.019664929961274447
+  },
+  "dark/coastal/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7531522783211112,
+    "null": 0.0033768630443049563
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.7542010059545954,
+    "null": 0.001318082170474244
+   },
+   "change": 0.0013924509872318934
+  },
+  "dark/close/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.9322889145316932,
+    "null": 0.0019841645175052713
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.8925578066574605,
+    "null": 0.007424012174026218
+   },
+   "change": -0.042616733133837945
+  }
+ },
+ "coverage_run2_light": {
+  "light/mid/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.41693780779246986,
+    "null": 0.057590585307513875
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.3487748204478243,
+    "null": 0.05225604129752598
+   },
+   "change": -0.16348478375118614
+  },
+  "light/mid/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.41693780779246986,
+    "null": 0.057590585307513875
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.3798218455672629,
+    "null": 0.091009674903892
+   },
+   "change": -0.08902038033375323
+  },
+  "light/mid/dk:wg": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.41693780779246986,
+    "null": 0.057590585307513875
+   },
+   "wg": {
+    "frames": 30,
+    "mean": 0.3463443240073397,
+    "null": 0.04874234656880366
+   },
+   "change": -0.16931418179343413
+  },
+  "light/mid/v2:wg": {
+   "v2": {
+    "frames": 30,
+    "mean": 0.3487748204478243,
+    "null": 0.05225604129752598
+   },
+   "wg": {
+    "frames": 30,
+    "mean": 0.3463443240073397,
+    "null": 0.04874234656880366
+   },
+   "change": -0.006968669462330618
+  },
+  "light/coastal/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7477810566937177,
+    "null": 0.003144606498559077
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.6652048166434409,
+    "null": 0.0003228471079331774
+   },
+   "change": -0.1104283657777909
+  },
+  "light/coastal/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7477810566937177,
+    "null": 0.003144606498559077
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.5877474688240252,
+    "null": 0.008550614061084483
+   },
+   "change": -0.2140112890493299
+  },
+  "light/coastal/dk:wg": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7477810566937177,
+    "null": 0.003144606498559077
+   },
+   "wg": {
+    "frames": 30,
+    "mean": 0.6478325524889285,
+    "null": 0.006081758507840873
+   },
+   "change": -0.13366011790497523
+  },
+  "light/coastal/v2:wg": {
+   "v2": {
+    "frames": 30,
+    "mean": 0.6652048166434409,
+    "null": 0.0003228471079331774
+   },
+   "wg": {
+    "frames": 30,
+    "mean": 0.6478325524889285,
+    "null": 0.006081758507840873
+   },
+   "change": -0.026115662003428044
+  },
+  "light/close/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.919043670536208,
+    "null": 0.009484264356292016
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.8738370883226454,
+    "null": 0.008679668829490006
+   },
+   "change": -0.04918872047417199
+  },
+  "light/close/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.919043670536208,
+    "null": 0.009484264356292016
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.758653605651506,
+    "null": 0.00702591814900988
+   },
+   "change": -0.17451843696515945
+  },
+  "light/close/dk:wg": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.919043670536208,
+    "null": 0.009484264356292016
+   },
+   "wg": {
+    "frames": 30,
+    "mean": 0.8681824296346742,
+    "null": 0.003933227819500007
+   },
+   "change": -0.05534148434084663
+  },
+  "light/close/v2:wg": {
+   "v2": {
+    "frames": 30,
+    "mean": 0.8738370883226454,
+    "null": 0.008679668829490006
+   },
+   "wg": {
+    "frames": 30,
+    "mean": 0.8681824296346742,
+    "null": 0.003933227819500007
+   },
+   "change": -0.006471067391778357
+  }
+ },
+ "coverage_run2_beach_dark": {
+  "beach/mid/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.3462073872294632,
+    "null": 0.08105711409156169
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.4245591854836506,
+    "null": 0.10401120716653323
+   },
+   "change": 0.22631463436179233
+  },
+  "beach/mid/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.3462073872294632,
+    "null": 0.08105711409156169
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.45580389140062255,
+    "null": 0.15519256274605014
+   },
+   "change": 0.31656315900191856
+  },
+  "beach/coastal/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7278972690413584,
+    "null": 6.93616833449262e-05
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.6927655764271166,
+    "null": 0.005718765698335404
+   },
+   "change": -0.04826463033789143
+  },
+  "beach/coastal/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7278972690413584,
+    "null": 6.93616833449262e-05
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.6353220168696022,
+    "null": 0.0030710410768296503
+   },
+   "change": -0.12718175504859078
+  },
+  "beach/close/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.9173987477063353,
+    "null": 0.005217890269817005
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.8692592172218755,
+    "null": 0.0051064912026264064
+   },
+   "change": -0.05247394396909466
+  },
+  "beach/close/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.9173987477063353,
+    "null": 0.005217890269817005
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.7356884777632747,
+    "null": 0.0049074441901183485
+   },
+   "change": -0.19807119902590833
+  },
+  "dark/mid/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.39140114804095283,
+    "null": 0.0629310145512405
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.46166285177408267,
+    "null": 0.08014742510514594
+   },
+   "change": 0.17951327962323266
+  },
+  "dark/mid/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.39140114804095283,
+    "null": 0.0629310145512405
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.4864648031494408,
+    "null": 0.028649317838353616
+   },
+   "change": 0.2428803686046964
+  },
+  "dark/coastal/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7555493550414383,
+    "null": 0.0029091971490246005
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.7454600676381505,
+    "null": 0.0046102398863308025
+   },
+   "change": -0.013353578208976685
+  },
+  "dark/coastal/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.7555493550414383,
+    "null": 0.0029091971490246005
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.7424536590389834,
+    "null": 0.008337484524988281
+   },
+   "change": -0.01733268106851421
+  },
+  "dark/close/dk:v2": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.918770532634672,
+    "null": 0.003166255751239744
+   },
+   "v2": {
+    "frames": 30,
+    "mean": 0.8781675694194848,
+    "null": 0.00320808294816588
+   },
+   "change": -0.0441927138202331
+  },
+  "dark/close/dk:vis": {
+   "dk": {
+    "frames": 30,
+    "mean": 0.918770532634672,
+    "null": 0.003166255751239744
+   },
+   "vis": {
+    "frames": 30,
+    "mean": 0.7519754417603577,
+    "null": 0.00774370647817102
+   },
+   "change": -0.1815416199690381
+  }
+ },
+ "coverage_note": "mid view (z5.5) nulls run 3-15 pts (the storm moves between captures): not read. Coastal and close nulls <= 0.9 pts.",
+ "art_pass": {
+  "method": "design critique (design:design-critique) of the engine stills in all three themes, plus the checker on candidates",
+  "findings": [
+   "close-zoom big surf: crests cover ~90% of the frame in every theme and hide the wash (the height)",
+   "light's lemon storm (1.00, 0.96, 0.00), C* 94, is loud over large areas",
+   "beach's v1 magenta crests on its v1 sea and dark's orange crests on its hot-pink storm wash read hue-only in places (owned by #416 / #419)"
+  ],
+  "warm_gold_candidate": {
+   "rgb": [
+    1.0,
+    0.9,
+    0.3
+   ],
+   "lch": "L*91 C*74 h96",
+   "checker": "|Lc| 39.8 / front 40.8, colour-blind 24.2, dE00 31.8",
+   "vs_3m_cream": "17.7 dE00, colour-blind 13.3 (lemon 20.1 / 10.2)",
+   "vs_ui_yellow_400": 7.3,
+   "other_candidates": {
+    "(1,0.95,0.25)": "L*94 C*82: 40.0 / 24.2",
+    "(1,0.95,0.40)": "L*94 C*68: 40.1 / 24.1",
+    "(1,0.93,0.50)": "L*93 C*55: 40.0 / 24.1; vs cream 12.9",
+    "(0.98,0.92,0.55)": "L*92 C*48: 40.0 / 24.1"
+   },
+   "engine": "local uncommitted variant wg (window.__RAW_LIGHT_STORM_WARM__ in a scratch build only); coverage within 0.6-2.6 pts of v2"
+  }
+ },
+ "as_seen_fit": {
+  "owner_words": "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch light's storm to the warm gold in its own PR.",
+  "instrument": "scn_density_sweep.js (one browser session per theme; the live knob or the shipped rows; paired crest-free frames) + crest_coverage.py (share of the clip differing > 10/255 from its crest-free frame); synthetic storm, centre (-105.2, 18.4)",
+  "run1_threshold_sweep_one_pass": {
+   "note": "cuts 0/15/30/45/60% in one pass, 11 s settle: drift after each zoom jump folded into the cuts (superseded)",
+   "light_beach": {
+    "light/z74/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7524714040696392,
+      "null": 0.0012682153238874339
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.6639591964133704,
+      "null": 0.0019232103109294574
+     },
+     "change": -0.11762866625570426
+    },
+    "light/z74/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7524714040696392,
+      "null": 0.0012682153238874339
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.5689774353832864,
+      "null": 0.0009324417204218394
+     },
+     "change": -0.24385507235750176
+    },
+    "light/z74/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7524714040696392,
+      "null": 0.0012682153238874339
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.4604622640914565,
+      "null": 0.003170144209245329
+     },
+     "change": -0.3880667602767241
+    },
+    "light/z74/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7524714040696392,
+      "null": 0.0012682153238874339
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.40996814091771816,
+      "null": 0.006815573589593282
+     },
+     "change": -0.4551711351415333
+    },
+    "light/z90/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129629104162332,
+      "null": 0.0023125815787981008
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.8495340156000731,
+      "null": 0.0052226194754995126
+     },
+     "change": -0.06947587256008235
+    },
+    "light/z90/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129629104162332,
+      "null": 0.0023125815787981008
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.796309958446046,
+      "null": 0.00255850027429394
+     },
+     "change": -0.12777403182458247
+    },
+    "light/z90/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129629104162332,
+      "null": 0.0023125815787981008
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.7229304207731937,
+      "null": 0.00031922138357654006
+     },
+     "change": -0.20814918927692355
+    },
+    "light/z90/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129629104162332,
+      "null": 0.0023125815787981008
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.6255832687008557,
+      "null": 0.0013336360024969185
+     },
+     "change": -0.31477690762306754
+    },
+    "light/z105/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.862752933683925,
+      "null": 7.566729092178814e-05
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.8561214050154802,
+      "null": 0.009943154947694932
+     },
+     "change": -0.0076864747826802
+    },
+    "light/z105/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.862752933683925,
+      "null": 7.566729092178814e-05
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.8612939737308388,
+      "null": 0.0005012958023570269
+     },
+     "change": -0.0016910518598372013
+    },
+    "light/z105/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.862752933683925,
+      "null": 7.566729092178814e-05
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.6659186639678667,
+      "null": 0.002544312657246084
+     },
+     "change": -0.22814674054550338
+    },
+    "light/z105/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.862752933683925,
+      "null": 7.566729092178814e-05
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.5356605754497474,
+      "null": 0.008410104105581073
+     },
+     "change": -0.3791263355518301
+    },
+    "beach/z74/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7331092478040722,
+      "null": 0.003894500879632279
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.657103424575475,
+      "null": 0.00043193411901210066
+     },
+     "change": -0.10367598479525685
+    },
+    "beach/z74/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7331092478040722,
+      "null": 0.003894500879632279
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.5603300827926275,
+      "null": 0.0005304592373998052
+     },
+     "change": -0.23567996929377286
+    },
+    "beach/z74/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7331092478040722,
+      "null": 0.003894500879632279
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.4458281312070825,
+      "null": 0.0008567744295001622
+     },
+     "change": -0.3918667203523905
+    },
+    "beach/z74/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7331092478040722,
+      "null": 0.003894500879632279
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.39011730006494777,
+      "null": 0.0013517646242803827
+     },
+     "change": -0.467859256674922
+    },
+    "beach/z90/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.904131512904426,
+      "null": 0.0007543083063769052
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.832236945815914,
+      "null": 0.006018702432072809
+     },
+     "change": -0.07951782020909583
+    },
+    "beach/z90/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.904131512904426,
+      "null": 0.0007543083063769052
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.7706524412159734,
+      "null": 0.0036604051983427643
+     },
+     "change": -0.14763236297302065
+    },
+    "beach/z90/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.904131512904426,
+      "null": 0.0007543083063769052
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.7091845903562037,
+      "null": 0.002435540926546076
+     },
+     "change": -0.21561788275908672
+    },
+    "beach/z90/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.904131512904426,
+      "null": 0.0007543083063769052
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.5992995258183103,
+      "null": 0.004110467939138163
+     },
+     "change": -0.33715447668323767
+    },
+    "beach/z105/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8652073914332016,
+      "null": 0.007051245672776707
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.833145741507923,
+      "null": 0.0006163731406338968
+     },
+     "change": -0.03705660659251768
+    },
+    "beach/z105/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8652073914332016,
+      "null": 0.007051245672776707
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.853228707539615,
+      "null": 0.0036485821841363286
+     },
+     "change": -0.013844870041787432
+    },
+    "beach/z105/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8652073914332016,
+      "null": 0.007051245672776707
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.6487086903883624,
+      "null": 0.006345805825120232
+     },
+     "change": -0.2502275213879214
+    },
+    "beach/z105/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8652073914332016,
+      "null": 0.007051245672776707
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.505946582045413,
+      "null": 0.000325526991153291
+     },
+     "change": -0.4152308601902708
+    }
+   },
+   "dark": {
+    "dark/z83/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8004622010353808,
+      "null": 0.012626979172578046
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.7077930215840947,
+      "null": 0.007539142059033055
+     },
+     "change": -0.1157695882846441
+    },
+    "dark/z83/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8004622010353808,
+      "null": 0.012626979172578046
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.6380057097276608,
+      "null": 0.0036407001746653345
+     },
+     "change": -0.2029533575696466
+    },
+    "dark/z83/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8004622010353808,
+      "null": 0.012626979172578046
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.517188298053459,
+      "null": 0.0054732673766780815
+     },
+     "change": -0.3538879195238864
+    },
+    "dark/z83/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8004622010353808,
+      "null": 0.012626979172578046
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.454916482227645,
+      "null": 0.003860608238906882
+     },
+     "change": -0.43168274324606426
+    },
+    "dark/z90/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129459640958704,
+      "null": 0.0005005076014099608
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.8497886045059871,
+      "null": 0.0002979399580047559
+     },
+     "change": -0.06917973469813263
+    },
+    "dark/z90/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129459640958704,
+      "null": 0.0005005076014099608
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.7992464010744755,
+      "null": 0.006282749749352057
+     },
+     "change": -0.12454139400681441
+    },
+    "dark/z90/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129459640958704,
+      "null": 0.0005005076014099608
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.7241407033274692,
+      "null": 0.0012248642717970215
+     },
+     "change": -0.2068088016089574
+    },
+    "dark/z90/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9129459640958704,
+      "null": 0.0005005076014099608
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.6118602961113319,
+      "null": 0.003286009748469265
+     },
+     "change": -0.3297957160944532
+    },
+    "dark/z105/s0:s15": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8583764479251399,
+      "null": 0.00027192932675013104
+     },
+     "s15": {
+      "frames": 8,
+      "mean": 0.8449541739969355,
+      "null": 0.0007511555025884187
+     },
+     "change": -0.01563681524656063
+    },
+    "dark/z105/s0:s30": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8583764479251399,
+      "null": 0.00027192932675013104
+     },
+     "s30": {
+      "frames": 8,
+      "mean": 0.8476470625327104,
+      "null": 0.0009947095952430596
+     },
+     "change": -0.012499626962464419
+    },
+    "dark/z105/s0:s45": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8583764479251399,
+      "null": 0.00027192932675013104
+     },
+     "s45": {
+      "frames": 8,
+      "mean": 0.6632620326756584,
+      "null": 0.0017395594902547273
+     },
+     "change": -0.22730634760670607
+    },
+    "dark/z105/s0:s60": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8583764479251399,
+      "null": 0.00027192932675013104
+     },
+     "s60": {
+      "frames": 8,
+      "mean": 0.5348471520723379,
+      "null": 0.0030424556558146243
+     },
+     "change": -0.37690840264179454
+    }
+   }
+  },
+  "run2_check_one_pass": {
+   "light_beach": {
+    "light/z74/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7554106054013834,
+      "null": 0.002007547812269417
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.6536771150584215,
+      "null": 0.0018964114787280995
+     },
+     "change": -0.13467310309855435
+    },
+    "light/z90/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9212843419152652,
+      "null": 0.002266077722918869
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.7322938539242949,
+      "null": 0.0022621367181834273
+     },
+     "change": -0.20513806584194896
+    },
+    "light/z105/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8876636305166183,
+      "null": 0.006055747876586581
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.7229867771409114,
+      "null": 0.0002585299106494521
+     },
+     "change": -0.1855171798351875
+    },
+    "beach/z74/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.7309807111464226,
+      "null": 0.0008717502474951955
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.625381095157924,
+      "null": 0.002686977028671489
+     },
+     "change": -0.14446293093409138
+    },
+    "beach/z90/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9104698308205488,
+      "null": 0.004973547976215187
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.8420110316604557,
+      "null": 0.0009450529355756743
+     },
+     "change": -0.07519062888486436
+    },
+    "beach/z105/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8616076777077855,
+      "null": 0.0018743418522092492
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.7432797987250062,
+      "null": 0.0018081329726525874
+     },
+     "change": -0.13733382610700254
+    }
+   },
+   "dark": {
+    "dark/z83/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8422675910687375,
+      "null": 0.0036493703850833947
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.7509962859971373,
+      "null": 0.0031937902376584226
+     },
+     "change": -0.10836378609295384
+    },
+    "dark/z90/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.9190056529771926,
+      "null": 0.0005809040980143676
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.7969551009212492,
+      "null": 0.0012161940613787392
+     },
+     "change": -0.13280718313380427
+    },
+    "dark/z105/s0:stable": {
+     "s0": {
+      "frames": 8,
+      "mean": 0.8455067028608543,
+      "null": 0.0005619872752838928
+     },
+     "stable": {
+      "frames": 8,
+      "mean": 0.7400871907887685,
+      "null": 0.0066878850361626885
+     },
+     "change": -0.12468205363173182
+    }
+   }
+  },
+  "run3_bracketed_threshold_rows": {
+   "light/z74": {
+    "steps": {
+     "s0": [
+      1.2,
+      76.13764983700004
+     ],
+     "tbl": [
+      7.1,
+      64.61462491093329
+     ],
+     "s0r1": [
+      12.2,
+      76.04255339273216
+     ],
+     "tblr1": [
+      17.2,
+      65.20687910258593
+     ],
+     "s0r2": [
+      22.3,
+      75.38925303772646
+     ]
+    },
+    "change_pct": [
+     -15.081431697931647,
+     -13.879546655833352
+    ],
+    "mean_change_pct": -14.4804891768825,
+    "drift_pts": -0.7483967992735785
+   },
+   "light/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      92.13663148137638
+     ],
+     "tbl": [
+      5.6,
+      73.21653771699172
+     ],
+     "s0r1": [
+      9.8,
+      92.7190725712376
+     ],
+     "tblr1": [
+      14.1,
+      73.72977476369735
+     ],
+     "s0r2": [
+      18.4,
+      92.34767228496302
+     ]
+    },
+    "change_pct": [
+     -20.785200443527895,
+     -20.32088226224934
+    ],
+    "mean_change_pct": -20.55304135288862,
+    "drift_pts": 0.21104080358664135
+   },
+   "light/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      88.95888113299158
+     ],
+     "tbl": [
+      5.4,
+      72.38805970149254
+     ],
+     "s0r1": [
+      9.6,
+      90.34020329278827
+     ],
+     "tblr1": [
+      14.1,
+      73.18500967910762
+     ],
+     "s0r2": [
+      18.5,
+      89.99024207227487
+     ]
+    },
+    "change_pct": [
+     -19.254401177427894,
+     -18.832330801434004
+    ],
+    "mean_change_pct": -19.04336598943095,
+    "drift_pts": 1.0313609392832888
+   },
+   "beach/z74": {
+    "steps": {
+     "s0": [
+      1.2,
+      74.00501453442546
+     ],
+     "tbl": [
+      6.3,
+      62.63911746716355
+     ],
+     "s0r1": [
+      11.4,
+      73.13960930455454
+     ],
+     "tblr1": [
+      16.5,
+      61.665216376924
+     ],
+     "s0r2": [
+      21.5,
+      73.03529090920556
+     ]
+    },
+    "change_pct": [
+     -14.860474228797681,
+     -15.628173801730194
+    ],
+    "mean_change_pct": -15.244324015263938,
+    "drift_pts": -0.9697236252198991
+   },
+   "beach/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      90.84693768168032
+     ],
+     "tbl": [
+      6.4,
+      83.82993934005512
+     ],
+     "s0r1": [
+      11.2,
+      90.43297454426221
+     ],
+     "tblr1": [
+      16.1,
+      84.2880811405583
+     ],
+     "s0r2": [
+      20.9,
+      90.84193260566622
+     ]
+    },
+    "change_pct": [
+     -7.513261330828891,
+     -7.005241413975161
+    ],
+    "mean_change_pct": -7.2592513724020264,
+    "drift_pts": -0.005005076014100496
+   },
+   "beach/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      86.4069229265586
+     ],
+     "tbl": [
+      5.7,
+      73.35545813391849
+     ],
+     "s0r1": [
+      10.1,
+      85.8801288235628
+     ],
+     "tblr1": [
+      14.5,
+      74.99755657706399
+     ],
+     "s0r2": [
+      18.8,
+      87.70225236302645
+     ]
+    },
+    "change_pct": [
+     -14.845071189319025,
+     -13.58851507348927
+    ],
+    "mean_change_pct": -14.216793131404149,
+    "drift_pts": 1.2953294364678527
+   },
+   "dark/z83": {
+    "steps": {
+     "s0": [
+      1.2,
+      85.2006601971133
+     ],
+     "tbl": [
+      5.7,
+      75.41104679391383
+     ],
+     "s0r1": [
+      10.1,
+      87.55052368070926
+     ],
+     "tblr1": [
+      14.6,
+      77.18741526839818
+     ],
+     "s0r2": [
+      19.1,
+      88.51630630119365
+     ]
+    },
+    "change_pct": [
+     -12.69403184264377,
+     -12.320321463921491
+    ],
+    "mean_change_pct": -12.507176653282631,
+    "drift_pts": 3.3156461040803578
+   },
+   "dark/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      91.61649767638362
+     ],
+     "tbl": [
+      5.6,
+      78.61985225961448
+     ],
+     "s0r1": [
+      10,
+      92.09225576805453
+     ],
+     "tblr1": [
+      14.4,
+      78.67463222543807
+     ],
+     "s0r2": [
+      18.8,
+      92.32126755323509
+     ]
+    },
+    "change_pct": [
+     -14.40815879969195,
+     -14.675853691739016
+    ],
+    "mean_change_pct": -14.542006245715484,
+    "drift_pts": 0.7047698768514721
+   },
+   "dark/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      86.88634615263354
+     ],
+     "tbl": [
+      5.4,
+      74.85489220563848
+     ],
+     "s0r1": [
+      9.8,
+      87.8718337967955
+     ],
+     "tblr1": [
+      14.2,
+      75.6871141756364
+     ],
+     "s0r2": [
+      18.7,
+      88.35846906153643
+     ]
+    },
+    "change_pct": [
+     -14.333174873645692,
+     -14.104313562373239
+    ],
+    "mean_change_pct": -14.218744218009466,
+    "drift_pts": 1.4721229089028895
+   }
+  },
+  "run4_bracketed_threshold_refit": {
+   "light/z74": {
+    "steps": {
+     "s0": [
+      1.2,
+      75.40505646671585
+     ],
+     "tbl": [
+      5.9,
+      60.33284149594235
+     ],
+     "s0r1": [
+      10.6,
+      75.79017144947001
+     ],
+     "tblr1": [
+      15.5,
+      60.11033236857537
+     ],
+     "s0r2": [
+      20.6,
+      76.60978220431429
+     ]
+    },
+    "change_pct": [
+     -20.19213525788328,
+     -21.115025395438813
+    ],
+    "mean_change_pct": -20.653580326661046,
+    "drift_pts": 1.2047257375984373
+   },
+   "light/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      93.44744906645481
+     ],
+     "tbl": [
+      6.3,
+      73.89900150704021
+     ],
+     "s0r1": [
+      11.4,
+      93.0543732541349
+     ],
+     "tblr1": [
+      16.3,
+      74.04872027694228
+     ],
+     "s0r2": [
+      21.4,
+      93.3025777323774
+     ]
+    },
+    "change_pct": [
+     -20.752515350750233,
+     -20.53022987878611
+    ],
+    "mean_change_pct": -20.641372614768173,
+    "drift_pts": -0.1448713340774077
+   },
+   "light/z105": {
+    "steps": {
+     "s0": [
+      1.3,
+      87.57034693452887
+     ],
+     "tbl": [
+      6,
+      76.81073403577801
+     ],
+     "s0r1": [
+      10.7,
+      89.19853363095801
+     ],
+     "tblr1": [
+      16.5,
+      77.18122789096343
+     ],
+     "s0r2": [
+      22.2,
+      89.53907585015354
+     ]
+    },
+    "change_pct": [
+     -13.094732749272309,
+     -13.637394933247437
+    ],
+    "mean_change_pct": -13.366063841259873,
+    "drift_pts": 1.9687289156246663
+   },
+   "beach/z74": {
+    "steps": {
+     "s0": [
+      1.2,
+      73.17779764044164
+     ],
+     "tbl": [
+      6.8,
+      63.687345906714846
+     ],
+     "s0r1": [
+      12.4,
+      73.67838406194629
+     ],
+     "tblr1": [
+      18,
+      64.15896594341348
+     ],
+     "s0r2": [
+      23.7,
+      73.63538770028187
+     ]
+    },
+    "change_pct": [
+     -13.265692777195126,
+     -12.894816043445989
+    ],
+    "mean_change_pct": -13.080254410320556,
+    "drift_pts": 0.4575900598402285
+   },
+   "beach/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      90.68283424449362
+     ],
+     "tbl": [
+      6.1,
+      71.22897079873131
+     ],
+     "s0r1": [
+      10.9,
+      91.14322241769605
+     ],
+     "tblr1": [
+      15.7,
+      70.53618157627578
+     ],
+     "s0r2": [
+      20.5,
+      91.5602201287605
+     ]
+    },
+    "change_pct": [
+     -21.651525522476756,
+     -22.78614940893593
+    ],
+    "mean_change_pct": -22.218837465706343,
+    "drift_pts": 0.8773858842668858
+   },
+   "beach/z105": {
+    "steps": {
+     "s0": [
+      1.3,
+      86.14007749591713
+     ],
+     "tbl": [
+      5.9,
+      75.29265901165907
+     ],
+     "s0r1": [
+      10.6,
+      86.7512485103002
+     ],
+     "tblr1": [
+      15.4,
+      76.2609638751742
+     ],
+     "s0r2": [
+      19.9,
+      88.27377686977029
+     ]
+    },
+    "change_pct": [
+     -12.90175076920692,
+     -12.857074341715503
+    ],
+    "mean_change_pct": -12.879412555461212,
+    "drift_pts": 2.1336993738531618
+   },
+   "dark/z83": {
+    "steps": {
+     "s0": [
+      1.2,
+      84.88869026225022
+     ],
+     "tbl": [
+      6.3,
+      73.76823896991594
+     ],
+     "s0r1": [
+      11.1,
+      85.8350831394359
+     ],
+     "tblr1": [
+      16,
+      74.96366393633859
+     ],
+     "s0r2": [
+      20.8,
+      86.83263025808851
+     ]
+    },
+    "change_pct": [
+     -13.581761344565757,
+     -13.1700276081685
+    ],
+    "mean_change_pct": -13.37589447636713,
+    "drift_pts": 1.9439399958382921
+   },
+   "dark/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      93.06659036881499
+     ],
+     "tbl": [
+      6,
+      86.89659276494586
+     ],
+     "s0r1": [
+      10.7,
+      93.21981663293167
+     ],
+     "tblr1": [
+      15.5,
+      87.01127600274926
+     ],
+     "s0r2": [
+      20.2,
+      92.82508559862286
+     ]
+    },
+    "change_pct": [
+     -6.706458980519059,
+     -6.4620691466691245
+    ],
+    "mean_change_pct": -6.584264063594092,
+    "drift_pts": -0.24150477019212246
+   },
+   "dark/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      87.99967999041549
+     ],
+     "tbl": [
+      5.9,
+      78.01396219157697
+     ],
+     "s0r1": [
+      10.5,
+      88.91450541966971
+     ],
+     "tblr1": [
+      15,
+      79.57097434248277
+     ],
+     "s0r2": [
+      19.6,
+      89.29229013361582
+     ]
+    },
+    "change_pct": [
+     -11.805871292071423,
+     -10.698159298094456
+    ],
+    "mean_change_pct": -11.25201529508294,
+    "drift_pts": 1.292610143200335
+   }
+  },
+  "run5_fine_z9_threshold": {
+   "beach": {
+    "no_cut": [
+     92.07,
+     92.24
+    ],
+    "densityBase": 0.091,
+    "threshold_cut_to_change_pct": {
+     "0.22": -7.3,
+     "0.25": -6.5,
+     "0.28": -8.7,
+     "0.31": -18.7,
+     "0.34": -22.7,
+     "0.37": -22.9,
+     "0.40": -23.1,
+     "0.45": -22.8
+    }
+   },
+   "dark": {
+    "no_cut": [
+     92.91,
+     92.9
+    ],
+    "densityBase": 0.091,
+    "threshold_cut_to_change_pct": {
+     "0.22": -6.3,
+     "0.25": -6.1,
+     "0.28": -7.9,
+     "0.31": -17.6,
+     "0.34": -21.7,
+     "0.37": -21.6,
+     "0.40": -22.7,
+     "0.45": -21.6
+    }
+   }
+  },
+  "hash_finding": {
+   "method": "numpy float32: index x 12.9898, phase = fract(x / 2pi) in float32 (GPU-style range reduction), sin, x 43758.5453, fract",
+   "particles": 87616,
+   "distinct_particleHash": 881,
+   "z9_threshold": 0.1827,
+   "kept_share": 0.2131,
+   "largest_levels_share_of_kept": [
+    [
+     0.1641,
+     0.113
+    ],
+    [
+     0.0508,
+     0.077
+    ],
+    [
+     0.0742,
+     0.057
+    ],
+    [
+     0.1055,
+     0.05
+    ],
+    [
+     0.0,
+     0.048
+    ]
+   ],
+   "exactly_zero_share_of_kept": 0.0479,
+   "threshold_cut_removes": {
+    "0.22": 0.162,
+    "0.25": 0.163,
+    "0.28": 0.206,
+    "0.31": 0.3,
+    "0.34": 0.363,
+    "0.37": 0.37,
+    "0.40": 0.373,
+    "0.45": 0.442
+   },
+   "cut_hash": "crestCutHash(vec2(col,row)): Dave Hoskins hash12 (hash without sine), float32",
+   "cut_hash_distinct": 13798,
+   "cut_hash_removes_on_random_screens_mean_sd": {
+    "0.125": [
+     0.1251,
+     0.0048
+    ],
+    "0.175": [
+     0.1796,
+     0.0059
+    ],
+    "0.3": [
+     0.3073,
+     0.0067
+    ]
+   }
+  },
+  "run6_cut_hash_sweep": {
+   "light/z74": {
+    "no_cut": [
+     74.81831968169293,
+     75.72597248232853
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -4.43449506874265
+     ],
+     [
+      0.20000000298023224,
+      -11.396945474220999
+     ],
+     [
+      0.30000001192092896,
+      -17.947377377670758
+     ],
+     [
+      0.4000000059604645,
+      -25.111978549051408
+     ]
+    ],
+    "fit": 0.293170272687493,
+    "model_fit": 0.30562644929050653
+   },
+   "light/z90": {
+    "no_cut": [
+     92.91454640611896,
+     93.61111899312058
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -2.1368885585100528
+     ],
+     [
+      0.20000000298023224,
+      -5.9014806092888445
+     ],
+     [
+      0.30000001192092896,
+      -9.496894385686938
+     ],
+     [
+      0.4000000059604645,
+      -14.983304940485597
+     ]
+    ],
+    "fit": null,
+    "model_fit": 0.45611355879092197
+   },
+   "light/z105": {
+    "no_cut": [
+     88.12835379502992,
+     89.2646636904199
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -2.5004570733639264
+     ],
+     [
+      0.20000000298023224,
+      -7.892175255265976
+     ],
+     [
+      0.30000001192092896,
+      -12.737565744535074
+     ],
+     [
+      0.4000000059604645,
+      -19.424366117326365
+     ]
+    ],
+    "fit": 0.37122142883327097,
+    "model_fit": 0.39642826442298873
+   },
+   "beach/z74": {
+    "no_cut": [
+     74.5779578028741,
+     74.15678262679
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -4.45532018117566
+     ],
+     [
+      0.20000000298023224,
+      -10.192019468181657
+     ],
+     [
+      0.30000001192092896,
+      -18.1249221905043
+     ],
+     [
+      0.4000000059604645,
+      -26.23048588746896
+     ]
+    ],
+    "fit": 0.22909377633098044,
+    "model_fit": 0.22731030368991956
+   },
+   "beach/z90": {
+    "no_cut": [
+     90.85659314328231,
+     91.63237992546772
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -2.891318292936429
+     ],
+     [
+      0.20000000298023224,
+      -6.857241622932076
+     ],
+     [
+      0.30000001192092896,
+      -11.552982481169483
+     ],
+     [
+      0.4000000059604645,
+      -17.779443270604045
+     ]
+    ],
+    "fit": 0.3152095746951912,
+    "model_fit": 0.34246549593791376
+   },
+   "beach/z105": {
+    "no_cut": [
+     86.65607324593762,
+     87.77721027309586
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -3.227802349498432
+     ],
+     [
+      0.20000000298023224,
+      -9.163268359452292
+     ],
+     [
+      0.30000001192092896,
+      -14.52100226049785
+     ],
+     [
+      0.4000000059604645,
+      -21.218341642047466
+     ]
+    ],
+    "fit": 0.2622787947325364,
+    "model_fit": 0.2998096578643368
+   },
+   "dark/z83": {
+    "no_cut": [
+     85.77352464546722,
+     89.51641507292435
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -2.8856341268563623
+     ],
+     [
+      0.20000000298023224,
+      -8.317367993878355
+     ],
+     [
+      0.30000001192092896,
+      -14.132819416034915
+     ],
+     [
+      0.4000000059604645,
+      -20.36082802262438
+     ]
+    ],
+    "fit": 0.2719227494095547,
+    "model_fit": 0.3035938121927084
+   },
+   "dark/z90": {
+    "no_cut": [
+     91.84235665777575,
+     92.77866056283854
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -2.197027071396629
+     ],
+     [
+      0.20000000298023224,
+      -6.5758726266101135
+     ],
+     [
+      0.30000001192092896,
+      -10.843950042526185
+     ],
+     [
+      0.4000000059604645,
+      -15.913973671078551
+     ]
+    ],
+    "fit": 0.33266356499471206,
+    "model_fit": 0.3572772053220904
+   },
+   "dark/z105": {
+    "no_cut": [
+     87.53077924698435,
+     89.67240004035588
+    ],
+    "points": [
+     [
+      0.10000000149011612,
+      -3.455511400758293
+     ],
+     [
+      0.20000000298023224,
+      -7.177608270652502
+     ],
+     [
+      0.30000001192092896,
+      -13.762148055925005
+     ],
+     [
+      0.4000000059604645,
+      -20.09085681615298
+     ]
+    ],
+    "fit": 0.2808316537678982,
+    "model_fit": 0.3125979412257702
+   }
+  },
+  "run7_cut_hash_verification_shipped_rows": {
+   "light/z74": {
+    "steps": {
+     "s0": [
+      1.2,
+      75.60849113116295
+     ],
+     "tbl": [
+      5.5,
+      64.4139095397537
+     ],
+     "s0r1": [
+      9.9,
+      76.13902918865747
+     ],
+     "tblr1": [
+      14.1,
+      63.83209901065017
+     ],
+     "s0r2": [
+      18.3,
+      76.08574680463336
+     ]
+    },
+    "change_pct": [
+     -15.103839055826306,
+     -16.134415578363537
+    ],
+    "mean_change_pct": -15.619127317094922,
+    "drift_pts": 0.47725567347040965
+   },
+   "light/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      92.39275737913727
+     ],
+     "tbl": [
+      5.7,
+      74.29329903082812
+     ],
+     "s0r1": [
+      10.2,
+      92.44536979235635
+     ],
+     "tblr1": [
+      14.7,
+      75.00295575355163
+     ],
+     "s0r2": [
+      19,
+      93.0091699298186
+     ]
+    },
+    "change_pct": [
+     -19.612581919423498,
+     -19.114456981304663
+    ],
+    "mean_change_pct": -19.36351945036408,
+    "drift_pts": 0.616412550681332
+   },
+   "light/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      88.43039239795951
+     ],
+     "tbl": [
+      5.6,
+      72.7819631248069
+     ],
+     "s0r1": [
+      10,
+      89.27388564150098
+     ],
+     "tblr1": [
+      14.8,
+      74.33219674756761
+     ],
+     "s0r2": [
+      19,
+      90.41027435698567
+     ]
+    },
+    "change_pct": [
+     -18.086425461693,
+     -17.2634952928587
+    ],
+    "mean_change_pct": -17.674960377275852,
+    "drift_pts": 1.9798819590261587
+   },
+   "beach/z74": {
+    "steps": {
+     "s0": [
+      1.2,
+      72.84442804986475
+     ],
+     "tbl": [
+      6.2,
+      63.0988750796083
+     ],
+     "s0r1": [
+      11.1,
+      74.37783358240483
+     ],
+     "tblr1": [
+      15.9,
+      63.618890654459015
+     ],
+     "s0r2": [
+      20.5,
+      73.99882715699071
+     ]
+    },
+    "change_pct": [
+     -14.280796423008235,
+     -14.246768545091626
+    ],
+    "mean_change_pct": -14.26378248404993,
+    "drift_pts": 1.1543991071259683
+   },
+   "beach/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      91.2214907717433
+     ],
+     "tbl": [
+      5.6,
+      80.6515584309126
+     ],
+     "s0r1": [
+      10,
+      91.21762858710251
+     ],
+     "tblr1": [
+      14.5,
+      80.86587026842972
+     ],
+     "s0r2": [
+      18.9,
+      91.99688345345515
+     ]
+    },
+    "change_pct": [
+     -11.585235979706454,
+     -11.725474835171712
+    ],
+    "mean_change_pct": -11.655355407439082,
+    "drift_pts": 0.7753926817118497
+   },
+   "beach/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      87.11752549041863
+     ],
+     "tbl": [
+      5.5,
+      76.25079608295657
+     ],
+     "s0r1": [
+      9.6,
+      87.95565896751981
+     ],
+     "tblr1": [
+      13.7,
+      76.76714652340326
+     ],
+     "s0r2": [
+      17.9,
+      88.58590444482279
+     ]
+    },
+    "change_pct": [
+     -12.892661067376753,
+     -13.032211747099321
+    ],
+    "mean_change_pct": -12.962436407238037,
+    "drift_pts": 1.4683789544041588
+   },
+   "dark/z83": {
+    "steps": {
+     "s0": [
+      1.2,
+      86.4459782834875
+     ],
+     "tbl": [
+      5.7,
+      76.04546973623644
+     ],
+     "s0r1": [
+      10.2,
+      88.02592708195398
+     ],
+     "tblr1": [
+      14.5,
+      77.81565083328604
+     ],
+     "s0r2": [
+      18.9,
+      88.96546261089988
+     ]
+    },
+    "change_pct": [
+     -12.827833711158476,
+     -12.068433421167835
+    ],
+    "mean_change_pct": -12.448133566163156,
+    "drift_pts": 2.5194843274123713
+   },
+   "dark/z90": {
+    "steps": {
+     "s0": [
+      1.2,
+      93.04680652504273
+     ],
+     "tbl": [
+      5.7,
+      82.65398293702589
+     ],
+     "s0r1": [
+      11.2,
+      93.41942852278531
+     ],
+     "tblr1": [
+      15.7,
+      81.47018393457301
+     ],
+     "s0r2": [
+      20.2,
+      93.62254790685355
+     ]
+    },
+    "change_pct": [
+     -11.34697076301735,
+     -12.885668244400383
+    ],
+    "mean_change_pct": -12.116319503708866,
+    "drift_pts": 0.575741381810829
+   },
+   "dark/z105": {
+    "steps": {
+     "s0": [
+      1.2,
+      88.61376734830284
+     ],
+     "tbl": [
+      5.4,
+      78.53575121855867
+     ],
+     "s0r1": [
+      9.6,
+      89.2821223413982
+     ],
+     "tblr1": [
+      14,
+      78.21361349147797
+     ],
+     "s0r2": [
+      18.3,
+      89.58837781939478
+     ]
+    },
+    "change_pct": [
+     -11.70594064253374,
+     -12.547218886100264
+    ],
+    "mean_change_pct": -12.126579764317002,
+    "drift_pts": 0.9746104710919354
+   }
+  },
+  "verification_summary_pct": {
+   "light (15-20)": {
+    "z7.4": -15.6,
+    "z9": -19.4,
+    "z10.5": -17.7
+   },
+   "beach (10-15)": {
+    "z7.4": -14.3,
+    "z9": -11.7,
+    "z10.5": -13.0
+   },
+   "dark (10-15)": {
+    "z8.25": -12.4,
+    "z9": -12.1,
+    "z10.5": -12.1
+   }
+  },
+  "run8_light_original_crests": {
+   "flags": {
+    "__RAW_DISABLE_LIGHT_CREST_V2__": true
+   },
+   "why": "the owner rejected light V2's height colour flips at 12:02Z ('The original was better'); a restore of the pre-#421 crests is in progress elsewhere",
+   "bracket": {
+    "light/z74": {
+     "steps": {
+      "s0": [
+       1.2,
+       74.94726935663886
+      ],
+      "tbl": [
+       6.1,
+       62.28947152702899
+      ],
+      "s0r1": [
+       10.9,
+       75.38858306692141
+      ],
+      "tblr1": [
+       15.7,
+       62.099554508824696
+      ],
+      "s0r2": [
+       20.6,
+       75.76459432873655
+      ]
+     },
+     "change_pct": [
+      -17.132912046112647,
+      -17.832286983589974
+     ],
+     "mean_change_pct": -17.48259951485131,
+     "drift_pts": 0.8173249720976941
+    },
+    "light/z90": {
+     "steps": {
+      "s0": [
+       1.2,
+       92.9969528151385
+      ],
+      "tbl": [
+       6.1,
+       76.59066833134706
+      ],
+      "s0r1": [
+       11.1,
+       93.6779190233875
+      ],
+      "tblr1": [
+       16.1,
+       75.73547030374111
+      ],
+      "s0r2": [
+       21.1,
+       93.84533290455201
+      ]
+     },
+     "change_pct": [
+      -17.94217660146773,
+      -19.225515209341225
+     ],
+     "mean_change_pct": -18.583845905404477,
+     "drift_pts": 0.8483800894135101
+    },
+    "light/z105": {
+     "steps": {
+      "s0": [
+       1.2,
+       88.1837643216112
+      ],
+      "tbl": [
+       5.6,
+       74.37412903795345
+      ],
+      "s0r1": [
+       10,
+       89.09831388053395
+      ],
+      "tblr1": [
+       14.5,
+       74.79502834370606
+      ],
+      "s0r2": [
+       19.2,
+       89.66254752851711
+      ]
+     },
+     "change_pct": [
+      -16.095152096368526,
+      -16.318339759444655
+     ],
+     "mean_change_pct": -16.20674592790659,
+     "drift_pts": 1.4787832069059021
+    }
+   },
+   "summary_pct": {
+    "z7.4": -17.5,
+    "z9": -18.6,
+    "z10.5": -16.2
+   }
+  }
+ }
+}
