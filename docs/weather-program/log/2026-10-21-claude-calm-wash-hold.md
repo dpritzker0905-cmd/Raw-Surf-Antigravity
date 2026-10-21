@@ -122,3 +122,8 @@ pick, due 2026-10-24), **1561** commitment (wave-lib ALPHAS per height for the p
 - Windows traps: `npm run build` fails under cmd (`NODE_OPTIONS=... craco build` is POSIX syntax): run
   `NODE_OPTIONS=--openssl-legacy-provider npx craco build` from Git Bash. `serve_synthetic.py` needs the backend venv
   (`backend/.venv/Scripts/python.exe` in the main checkout); neither system Python has `dotenv`.
+
+## 7. 2026-10-21T07:33Z: correction to 5a
+
+5a says #425's branch appended seqs 1558-1560. Its hand-over now records a fourth line there (1561, the spread runs), so #425
+and #430 both hold seqs **1558-1561** after dev's 1557. The rule is unchanged: whichever merges second re-chains all four.
