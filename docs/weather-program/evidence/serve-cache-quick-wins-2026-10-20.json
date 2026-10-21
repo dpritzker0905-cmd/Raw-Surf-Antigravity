@@ -1,0 +1,489 @@
+{
+ "what": "Offline A/B of the serve-path quick wins (branch claude/gallant-jennings-2ceed0): the real FastAPI app over one synthetic store, 127.0.0.1 only, never the live backend.",
+ "instruments": {
+  "store": "frontend/scripts/offline-backend/serve_synthetic.py --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind --regions flagship (4,651 products, 2.2 GB)",
+  "arms": {
+   "baseline (4197)": "GRID_SERIES_PAGE_MEMO=1, PRODUCTS_RESPONSE_CACHE=0 (the per-call FastAPI path), GRID_SERIES_MEMO_RUN_KEYS=0 (W-4)",
+   "branch (4198)": "GRID_SERIES_PAGE_MEMO=1, PRODUCTS_RESPONSE_CACHE=1, GRID_SERIES_MEMO_RUN_KEYS=1"
+  },
+  "both": "SERIES_THIN_NODE_BOUNDS=1, GFS_ICON_SERIES_FASTPATH=1 (production-like); requests by curl; server CPU and RSS by psutil on the listening process tree; /api/health probed every ~50 ms during each load",
+  "flow and lab runs": "flow = scratchpad bench.py (15 client-shaped /grid_series pages per visit, no dynamic upstream); lab = frontend/scripts/visual-lab/lab.js FLOWS=model_switch_future,layer_switch_future,pan_zoom_future on a production client build (60fc1954c), per-arm dynamic index and the synthetic dynamic upstream on (scratchpad arm.py); memo outcomes from each server /api/health request_telemetry.stages",
+  "machine": "owner desktop (24 cores, other sessions loading it); absolute ms vary run to run, ratios hold"
+ },
+ "products": {
+  "baseline": {
+   "calls": 12,
+   "server_cpu_s": 4.25,
+   "request_ms": {
+    "n": 12,
+    "p50": 374.8,
+    "p95": 486.3,
+    "max": 486.3
+   },
+   "first_ms": 333.9,
+   "rest_ms": {
+    "n": 11,
+    "p50": 374.8,
+    "p95": 486.3,
+    "max": 486.3
+   },
+   "decoded_bytes": 85475,
+   "health_ms_idle": {
+    "n": 20,
+    "p50": 25.1,
+    "p95": 48.3,
+    "max": 48.3
+   },
+   "health_ms_during": {
+    "n": 12,
+    "p50": 333.2,
+    "p95": 452.8,
+    "max": 452.8
+   },
+   "server_timing_first": null,
+   "server_timing_last": null
+  },
+  "branch": {
+   "calls": 12,
+   "server_cpu_s": 0.328,
+   "request_ms": {
+    "n": 12,
+    "p50": 31.5,
+    "p95": 217.8,
+    "max": 217.8
+   },
+   "first_ms": 217.8,
+   "rest_ms": {
+    "n": 11,
+    "p50": 30.3,
+    "p95": 60.7,
+    "max": 60.7
+   },
+   "decoded_bytes": 85475,
+   "health_ms_idle": {
+    "n": 20,
+    "p50": 24.5,
+    "p95": 43.4,
+    "max": 43.4
+   },
+   "health_ms_during": {
+    "n": 8,
+    "p50": 27.0,
+    "p95": 167.1,
+    "max": 167.1
+   },
+   "server_timing_first": "encode;dur=63.7, gzip;dur=32.7, memo;desc=miss;dur=176.7",
+   "server_timing_last": "memo;desc=hit;dur=0.9",
+   "conditional": {
+    "status": 304,
+    "ms": 18.0,
+    "bytes": 0
+   }
+  }
+ },
+ "products_encode_in_process": {
+  "4651 products": {
+   "identical_bytes": true,
+   "legacy_jsonable_encoder_ms": 171,
+   "new_encode_ms": 44,
+   "gzip9_ms": 25,
+   "wire_gzip_bytes": 84523,
+   "decoded_bytes": 4268314
+  },
+  "11354 products (manifest replicated to the live count)": {
+   "identical_bytes": true,
+   "legacy_jsonable_encoder_ms": 403,
+   "new_encode_ms": 102,
+   "gzip9_ms": 58,
+   "wire_gzip_bytes": 199272,
+   "decoded_bytes": 10187667
+  }
+ },
+ "flow": {
+  "baseline": [
+   {
+    "label": "1 cold visit, anchor a0",
+    "requests": 15,
+    "outcomes": {
+     "miss": 15
+    },
+    "hit_rate": 0.0,
+    "wall_s": 67.6,
+    "server_cpu_s": 62.66,
+    "request_ms": {
+     "n": 15,
+     "p50": 3974.4,
+     "p95": 10278.0,
+     "max": 10278.0
+    },
+    "health_ms_during": {
+     "n": 81,
+     "p50": 530.0,
+     "p95": 1624.8,
+     "max": 1985.4
+    },
+    "rss_mb_after": 508.1
+   },
+   {
+    "label": "2 immediate repeat, anchor a0",
+    "requests": 15,
+    "outcomes": {
+     "hit": 13,
+     "miss": 2
+    },
+    "hit_rate": 0.867,
+    "wall_s": 18.08,
+    "server_cpu_s": 15.5,
+    "request_ms": {
+     "n": 15,
+     "p50": 43.2,
+     "p95": 8165.0,
+     "max": 8165.0
+    },
+    "health_ms_during": {
+     "n": 21,
+     "p50": 533.0,
+     "p95": 1780.1,
+     "max": 1817.6
+    },
+    "rss_mb_after": 511.1
+   },
+   {
+    "label": "3 repeat after 200 s, anchor a0",
+    "requests": 15,
+    "outcomes": {
+     "miss": 15
+    },
+    "hit_rate": 0.0,
+    "wall_s": 84.67,
+    "server_cpu_s": 75.81,
+    "request_ms": {
+     "n": 15,
+     "p50": 4786.6,
+     "p95": 12366.8,
+     "max": 12366.8
+    },
+    "health_ms_during": {
+     "n": 82,
+     "p50": 603.8,
+     "p95": 2004.9,
+     "max": 2530.1
+    },
+    "rss_mb_after": 520.1
+   },
+   {
+    "label": "4 the next anchor hour a1 (same valid times)",
+    "requests": 15,
+    "outcomes": {
+     "miss": 15
+    },
+    "hit_rate": 0.0,
+    "wall_s": 81.46,
+    "server_cpu_s": 74.5,
+    "request_ms": {
+     "n": 15,
+     "p50": 4879.1,
+     "p95": 11399.2,
+     "max": 11399.2
+    },
+    "health_ms_during": {
+     "n": 81,
+     "p50": 613.6,
+     "p95": 1988.6,
+     "max": 2490.9
+    },
+    "rss_mb_after": 526.4
+   },
+   {
+    "label": "5 after a manifest write to ONE ICON slice",
+    "requests": 15,
+    "outcomes": {
+     "miss": 15
+    },
+    "hit_rate": 0.0,
+    "wall_s": 78.64,
+    "server_cpu_s": 64.08,
+    "request_ms": {
+     "n": 15,
+     "p50": 3859.3,
+     "p95": 14258.0,
+     "max": 14258.0
+    },
+    "health_ms_during": {
+     "n": 73,
+     "p50": 503.3,
+     "p95": 2003.3,
+     "max": 2681.4
+    },
+    "rss_mb_after": 516.9
+   }
+  ],
+  "branch": [
+   {
+    "label": "1 cold visit, anchor a0",
+    "requests": 15,
+    "outcomes": {
+     "miss": 15
+    },
+    "hit_rate": 0.0,
+    "wall_s": 67.66,
+    "server_cpu_s": 64.28,
+    "request_ms": {
+     "n": 15,
+     "p50": 3805.7,
+     "p95": 10702.0,
+     "max": 10702.0
+    },
+    "health_ms_during": {
+     "n": 84,
+     "p50": 491.9,
+     "p95": 1775.9,
+     "max": 2368.5
+    },
+    "rss_mb_after": 514.9
+   },
+   {
+    "label": "2 immediate repeat, anchor a0",
+    "requests": 15,
+    "outcomes": {
+     "hit": 13,
+     "miss": 2
+    },
+    "hit_rate": 0.867,
+    "wall_s": 26.01,
+    "server_cpu_s": 21.36,
+    "request_ms": {
+     "n": 15,
+     "p50": 61.2,
+     "p95": 12432.7,
+     "max": 12432.7
+    },
+    "health_ms_during": {
+     "n": 23,
+     "p50": 100.8,
+     "p95": 2234.1,
+     "max": 2621.5
+    },
+    "rss_mb_after": 515.9
+   },
+   {
+    "label": "3 repeat after 200 s, anchor a0",
+    "requests": 15,
+    "outcomes": {
+     "hit": 11,
+     "miss": 4
+    },
+    "hit_rate": 0.733,
+    "wall_s": 36.95,
+    "server_cpu_s": 25.84,
+    "request_ms": {
+     "n": 15,
+     "p50": 55.0,
+     "p95": 13954.5,
+     "max": 13954.5
+    },
+    "health_ms_during": {
+     "n": 28,
+     "p50": 320.0,
+     "p95": 2324.4,
+     "max": 2537.6
+    },
+    "rss_mb_after": 523.3
+   },
+   {
+    "label": "4 the next anchor hour a1 (same valid times)",
+    "requests": 15,
+    "outcomes": {
+     "relabel": 13,
+     "miss": 2
+    },
+    "hit_rate": 0.867,
+    "wall_s": 30.21,
+    "server_cpu_s": 17.23,
+    "request_ms": {
+     "n": 15,
+     "p50": 220.1,
+     "p95": 11295.7,
+     "max": 11295.7
+    },
+    "health_ms_during": {
+     "n": 32,
+     "p50": 43.5,
+     "p95": 1811.4,
+     "max": 1931.6
+    },
+    "rss_mb_after": 523.0
+   },
+   {
+    "label": "5 after a manifest write to ONE ICON slice",
+    "requests": 15,
+    "outcomes": {
+     "hit": 9,
+     "miss": 6
+    },
+    "hit_rate": 0.6,
+    "wall_s": 30.89,
+    "server_cpu_s": 25.8,
+    "request_ms": {
+     "n": 15,
+     "p50": 50.4,
+     "p95": 8616.3,
+     "max": 8616.3
+    },
+    "health_ms_during": {
+     "n": 33,
+     "p50": 306.9,
+     "p95": 1606.5,
+     "max": 1916.7
+    },
+    "rss_mb_after": 547.3
+   }
+  ]
+ },
+ "flow_anchors": [
+  "2026-10-20T18:00:00+00:00",
+  "2026-10-20T19:00:00+00:00"
+ ],
+ "euro_regional_repeat": {
+  "request": "EURO waves page 0, bbox -10,36,-6,42 (2-deg mid tier), 4 identical requests per arm, dynamic upstream answering",
+  "baseline_ms": [
+   14676,
+   13174,
+   6252,
+   5483
+  ],
+  "baseline_outcomes": [
+   "miss",
+   "miss",
+   "miss",
+   "miss"
+  ],
+  "branch_ms": [
+   15660,
+   11503,
+   5623,
+   1.6
+  ],
+  "branch_outcomes": [
+   "miss",
+   "miss",
+   "miss",
+   "hit"
+  ],
+  "why_three_misses": "1: the warm hour schedules its sharpen (stale frame, never kept); 2: the sharpened entry appeared during the build (not in its start rows); 3: kept as durable; 4: hit"
+ },
+ "visual_lab": {
+  "baseline": [
+   {
+    "run": 1,
+    "flows": "model_switch_future,layer_switch_future,pan_zoom_future",
+    "memo": {
+     "hit": 8,
+     "relabel": 0,
+     "miss": 26,
+     "shared": 0,
+     "abandoned": 5
+    },
+    "pages": 34,
+    "hit_rate": 0.235,
+    "products_calls": 3,
+    "server_cpu_s": 81.3,
+    "wall_s": 134.9,
+    "rss_mb": 512.1,
+    "lab_rc": 0
+   },
+   {
+    "run": 2,
+    "flows": "model_switch_future,layer_switch_future,pan_zoom_future",
+    "memo": {
+     "hit": 17,
+     "relabel": 0,
+     "miss": 14,
+     "shared": 0,
+     "abandoned": 4
+    },
+    "pages": 31,
+    "hit_rate": 0.548,
+    "products_calls": 3,
+    "server_cpu_s": 103.6,
+    "wall_s": 134.7,
+    "rss_mb": 528.9,
+    "lab_rc": 0
+   },
+   {
+    "run": 3,
+    "flows": "model_switch_future,layer_switch_future,pan_zoom_future",
+    "memo": {
+     "hit": 8,
+     "relabel": 0,
+     "miss": 27,
+     "shared": 0,
+     "abandoned": 5
+    },
+    "pages": 35,
+    "hit_rate": 0.229,
+    "products_calls": 3,
+    "server_cpu_s": 68.8,
+    "wall_s": 106.0,
+    "rss_mb": 513.9,
+    "lab_rc": 0
+   }
+  ],
+  "branch": [
+   {
+    "run": 1,
+    "flows": "model_switch_future,layer_switch_future,pan_zoom_future",
+    "memo": {
+     "hit": 9,
+     "relabel": 0,
+     "miss": 19,
+     "shared": 0,
+     "abandoned": 7
+    },
+    "pages": 28,
+    "hit_rate": 0.321,
+    "products_calls": 3,
+    "server_cpu_s": 107.5,
+    "wall_s": 200.8,
+    "rss_mb": 527.4,
+    "lab_rc": 0
+   },
+   {
+    "run": 2,
+    "flows": "model_switch_future,layer_switch_future,pan_zoom_future",
+    "memo": {
+     "hit": 17,
+     "relabel": 0,
+     "miss": 11,
+     "shared": 0,
+     "abandoned": 4
+    },
+    "pages": 28,
+    "hit_rate": 0.607,
+    "products_calls": 3,
+    "server_cpu_s": 48.9,
+    "wall_s": 126.4,
+    "rss_mb": 528.1,
+    "lab_rc": 0
+   },
+   {
+    "run": 3,
+    "flows": "model_switch_future,layer_switch_future,pan_zoom_future",
+    "memo": {
+     "hit": 20,
+     "relabel": 0,
+     "miss": 20,
+     "shared": 0,
+     "abandoned": 2
+    },
+    "pages": 40,
+    "hit_rate": 0.5,
+    "products_calls": 3,
+    "server_cpu_s": 48.7,
+    "wall_s": 108.0,
+    "rss_mb": 524.4,
+    "lab_rc": 0
+   }
+  ]
+ }
+}
