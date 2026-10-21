@@ -1322,3 +1322,8 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   1.5-9 m: #416 is the drafted answer; dark 6 m up: #419 covers 8 m up, 6-8 m stays open). #420 (float wash, light) merges after or before this: whichever lands second
   re-pins the other's kill hashes.
 - **Reopen if:** the owner says so.
+- **Update 2026-10-21 (owner: "Make sure the crest zooms are still visible, ship and test"):** light's crests over the spectrum get a
+  far-zoom opacity lift (DRAW_VS's zoom factor x mix(0.80 / 0.45, 1, smoothstep(3, 9, zoom)), light over the spectrum only; kill
+  `__RAW_DISABLE_SPECTRUM_CREST_LIFT__`, DRAW_VS = dev). Engine zoom ladder, p99 |Lc| today -> shipped: z 2.2 37.1 -> 41.4, z 3.8
+  26.0 -> 49.1, z 4.6 27.5 -> 40.9, z 6 36.5 -> 31.9, z 9 52.9 -> 38.0 (`evidence/wave-light-spectrum-crest-lift-2026-10-21.json`).
+  Close-in the gap is the wash's (a mid-lightness blue), not the crest's opacity; the cased crest stays the next step.

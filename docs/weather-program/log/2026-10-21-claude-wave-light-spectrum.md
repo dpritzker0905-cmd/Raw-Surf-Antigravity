@@ -154,3 +154,40 @@ On `claude/wave-light-spectrum`, after dev's head 1557 (`448deb35c`): 1558 decis
 - Light's world-zoom crest lever (cased crest or far-zoom opacity): waits on the owner's pick.
 - The harness's spectrum levers (`sp@v2`, `sp@v2b`) were added to a local copy of #420's `scn_wave_palette_ab.js`, not committed;
   #420 carries that file. Add them there (or on dev once #420 lands) for the next spectrum A/B.
+
+## Crest zooms: the far-zoom lift (owner, ~11:40Z: "Make sure the crest zooms are still visible, ship and test")
+
+The world-zoom finding above had a mechanism: `DRAW_VS` multiplies every crest's alpha by `mix(0.45, 1.0, smoothstep(3, 9, zoom))`,
+so at z <= 3 a crest draws at 45% of its close-zoom opacity. Over v2's pale cyan that was enough; over the spectrum's mid-lightness
+1.5-3 m blue it is not, in either polarity.
+
+**The lift (`marineCrestPalette.js`, `withSpectrumCrestLift` on `DRAW_VS`):** where light draws V2's crests over the spectrum (`v2s`)
+the factor becomes `x mix(far / 0.45, 1, smoothstep(3, end, zoom))`, shipped at far 0.80, end 9. One GLSL line under
+`if (u_theme > 0.5 && u_theme < 1.5)` plus `uniform mediump float u_theme;` (DRAW_FS's own uniform, mediump there; a shared
+uniform keeps one precision). Dark and beach keep today's factor. Kill `window.__RAW_DISABLE_SPECTRUM_CREST_LIFT__ = true`: DRAW_VS
+is dev's exactly (sha256 `a1683763...`, hashed from dev's own files, the same method reproducing the existing DRAW_FS pin); the
+spectrum kill and the crest kill also leave it dev's. A/B levers `__RAW_SPECTRUM_CREST_FAR__` / `__RAW_SPECTRUM_CREST_END__`.
+`WebGLMarineParticleShaders.js` stays at 978 lines (its LOC baseline): the wrap and the import ride existing lines.
+
+**Engine zoom ladder** (open sea at 12N 125W, about 2 m; production build with the levers; 12 paired frames per zoom; p99 APCA
+|Lc| of crest pixels against the exact wash; null half vs half <= 3.3 except today's storm view):
+
+| zoom | today (v2) | spectrum, no lift | far 0.70 end 5 | far 0.70 end 7 | far 0.70 end 9 | **far 0.80 end 9 (shipped)** |
+|---|---|---|---|---|---|---|
+| 1.6 | 37.7 | 27.3 | 40.7 | 41.1 | 40.0 | **45.2** |
+| 2.2 | 37.1 | 24.8 | 37.5 | 37.1 | 37.1 | **41.4** |
+| 3.0 | 32.2 | 19.5 | 31.2 | 30.6 | 31.2 | **37.2** |
+| 3.8 | 26.0 | 27.0 | 37.9 | 41.4 | 42.7 | **49.1** |
+| 4.6 | 27.5 | 23.4 | 24.6 | 33.3 | 34.9 | **40.9** |
+| 6.0 | 36.5 | 22.3 | 22.0 | 24.3 | 29.1 | **31.9** |
+| 7.4 | 46.6 | 31.4 | 31.0 | 31.3 | 35.2 | **36.5** |
+| 9.0 | 52.9 | 37.9 | 38.0 | 37.4 | 37.8 | **38.0** |
+
+(far 0.60 end 5 and far 0.80 end 5 also ran; both lower in the mid zooms.) Storm at regional zoom: today 23.0, spectrum alone 60.5,
+far 0.80 end 5 66.9.
+
+**Read:** from world to regional zoom (1.6-4.6) light's crests now read at least as well as today, most by a wide margin. From z 6
+in, they read below today (31.9-38.0 against 36.5-52.9). There the crest is already near its 0.85 opacity cap and the limit is the
+wash: a crest has less room on a mid-lightness blue than on v2's pale cyan. Even so, no zoom falls below today's own weakest zoom
+(26.0 at z 3.8). Closing the close-zoom gap needs a crest whose contrast doesn't depend on the wash: the cased crest (a dark rim round
+a light core), D-036's open next step.

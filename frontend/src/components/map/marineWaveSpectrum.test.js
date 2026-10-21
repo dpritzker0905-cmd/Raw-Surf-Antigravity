@@ -7,6 +7,7 @@ const sha = (s) => createHash('sha256').update(typeof s === 'string' ? s : JSON.
 const DEV = {
   HEATMAP_FS: 'c8deb3bd58c1beea2aeb29d625b5af9313b6349a2bb0e3c4a12cf0a7271442a8',
   DRAW_FS: 'f425bf535ef4ae2a42560ef18ca70e1c085e6a74d24f5736c358e4d9e682f7ce',
+  DRAW_VS: 'a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44',
   GLSL: '05a4cc2f957c5ed7ada5b6f6980218d452cc649ea52422bbb64eb5f7efa57ba7',
   legendLightFt: '33b9f9c134057a1bfd48e44f8db78e68624b3d61dd55d1c1fc384deb77ea872d',
   legendLightM: '10a7f2adc07fd129f1bda3a6bfe7dd32ee9d8966b3ef5742562df059b5d74fc8',
@@ -43,7 +44,7 @@ const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e
 describe('the kill (window.__RAW_DISABLE_WAVE_SPECTRUM__) is dev exactly', () => {
   it('palette GLSL, heatmap shader, crest shader, legends, samples and encoder scales hash to dev 448deb35c', () => {
     withWindow(KILL, ({ p, s }) => {
-      expect([sha(p.MARINE_WAVE_PALETTE_GLSL), sha(s.HEATMAP_FS), sha(s.DRAW_FS)]).toEqual([DEV.GLSL, DEV.HEATMAP_FS, DEV.DRAW_FS]);
+      expect([sha(p.MARINE_WAVE_PALETTE_GLSL), sha(s.HEATMAP_FS), sha(s.DRAW_FS), sha(s.DRAW_VS)]).toEqual([DEV.GLSL, DEV.HEATMAP_FS, DEV.DRAW_FS, DEV.DRAW_VS]);
       expect([sha(p.marineWaveLegend(SCALE, 'light', 'ft')), sha(p.marineWaveLegend(SCALE, 'light', 'm')), sha(p.marineWaveLegend(SCALE, 'beach', 'ft'))])
         .toEqual([DEV.legendLightFt, DEV.legendLightM, DEV.legendBeach]);
       expect([sha(samples(p, 'light')), sha(samples(p, 'beach'))]).toEqual([DEV.samplesLight, DEV.samplesBeach]);
@@ -141,5 +142,38 @@ describe('light\'s crests over the spectrum', () => {
       expect([c.resolveLightCrest({}, true, 'spectrum'), c.resolveLightCrest({}, true, 'v2'), c.resolveLightCrest({ __RAW_DISABLE_LIGHT_CREST_V2__: true }, true, 'spectrum')]).toEqual(['v2s', 'v2', 'v1']);
     });
     withWindow(KILL, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v2'));
+  });
+});
+
+describe('light\'s far-zoom crest lift over the spectrum (owner: "Make sure the crest zooms are still visible")', () => {
+  const LIFT = '  if (u_theme > 0.5 && u_theme < 1.5) zoomAlphaScale *= mix(';
+  it('DRAW_VS differs from dev only by the light-only lift line and the shared u_theme declaration', () => {
+    withWindow({}, ({ s, c }) => {
+      const NL = String.fromCharCode(10), lines = s.DRAW_VS.split(NL);
+      const lift = lines.filter((l) => l.startsWith(LIFT)), theme = lines.filter((l) => l.startsWith('uniform mediump float u_theme;'));
+      expect([lift.length, theme.length]).toEqual([1, 1]);
+      expect(lift[0]).toContain(`mix(${(c.SPECTRUM_CREST_LIFT.far / 0.45).toFixed(4)}, 1.0, smoothstep(3.0, ${c.SPECTRUM_CREST_LIFT.end.toFixed(2)}, u_zoom));`);
+      expect(sha(lines.filter((l) => l !== lift[0] && l !== theme[0]).join(NL))).toBe(DEV.DRAW_VS);
+      expect(s.DRAW_FS).toContain('uniform float u_theme;');   // the fragment shader's default float is mediump: the two declarations match
+    });
+  });
+  it('its kill, the spectrum kill and the crest kill each leave DRAW_VS exactly as dev', () => {
+    for (const k of [{ __RAW_DISABLE_SPECTRUM_CREST_LIFT__: true }, KILL, { __RAW_DISABLE_LIGHT_CREST_V2__: true }]) {
+      withWindow(k, ({ s }) => expect(sha(s.DRAW_VS)).toBe(DEV.DRAW_VS));
+    }
+  });
+  it('the factor starts at `far` at world zoom and meets today\'s curve by `end`; levers are bounded; only v2s lifts', () => {
+    withWindow({}, ({ c }) => {
+      const today = (z) => 0.45 + 0.55 * ss(3, 9, z), L = c.SPECTRUM_CREST_LIFT;
+      const lifted = (z) => today(z) * ((L.far / 0.45) + (1 - L.far / 0.45) * ss(3, L.end, z));
+      expect(+lifted(2.2).toFixed(4)).toBe(L.far);
+      expect(lifted(L.end)).toBeCloseTo(today(L.end), 10);
+      for (let z = 1; z <= 12; z += 0.25) expect(lifted(z)).toBeGreaterThanOrEqual(today(z) - 1e-12);   // never fainter than today
+      expect(c.resolveSpectrumCrestLift({}, 'v2')).toBeNull();
+      expect(c.resolveSpectrumCrestLift({}, 'v1')).toBeNull();
+      expect(c.resolveSpectrumCrestLift({ __RAW_SPECTRUM_CREST_FAR__: 0.8, __RAW_SPECTRUM_CREST_END__: 7 }, 'v2s')).toEqual({ far: 0.8, end: 7 });
+      expect(c.resolveSpectrumCrestLift({ __RAW_SPECTRUM_CREST_FAR__: 3, __RAW_SPECTRUM_CREST_END__: '7' }, 'v2s')).toEqual(L);
+      expect(() => c.withSpectrumCrestLift('void main() {}', L)).toThrow(/one far-zoom alpha line/);
+    });
   });
 });
