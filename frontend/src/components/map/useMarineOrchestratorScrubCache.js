@@ -21,7 +21,9 @@ let _lastMarineScrubLogTime = 0;
  * step's own hour as a one-frame "mini" ahead of the page while the page is cold (the nearest frame first), loads the CURRENT page
  * only (no neighbour fan-out), is TTL'd and deduped, and promotes a page the background prewarm still has queued. The /grid still
  * goes out (at world zoom the series frame is the thinned placeholder the exact frame replaces). Not while dragging: the drag's own
- * prewarm owns that, and a mini per dragged hour would be a storm. Kill: window.__RAW_DISABLE_STEP_PAGE__ = true.
+ * prewarm owns that, and a mini per dragged hour would be a storm.
+ * SHIPS OFF: the offline A/B measured no gain (the activation/moveend warm already queues these pages) and up to 2.3 extra series
+ * requests per erratic session (marineRequestDiet.REQUEST_DIET_OPT_IN). Opt in: window.__RAW_STEP_PAGE__ = true.
  */
 export function requestStepPage(model, layer, bounds, hourOffset) {
   try {

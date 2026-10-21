@@ -1,6 +1,7 @@
 /**
  * STEP_PAGE (request diet 2026-10-20): an hour step that misses every cache also asks for the 48-frame page holding that hour
- * (current page only), besides the one exact /grid it always sent. Not while dragging. The kill switch is the control arm.
+ * (current page only), besides the one exact /grid it always sent. Not while dragging. It SHIPS OFF (the offline A/B measured no
+ * gain, marineRequestDiet.REQUEST_DIET_OPT_IN), so the default is the control arm and window.__RAW_STEP_PAGE__ = true the fix.
  */
 import { renderHook } from '@testing-library/react';
 import { requestStepPage, useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
@@ -35,12 +36,21 @@ beforeEach(() => {
   getModelSafeMarine.mockReturnValue(null);
   getMarineSeriesFrame.mockReturnValue(null);
   window.isScrubbingTimeline = false;
+  window.__RAW_STEP_PAGE__ = true;          // opted in for the tests of the behaviour; the default is pinned below
   delete window.__RAW_DISABLE_STEP_PAGE__;
   delete window.__RAW_DISABLE_REQUEST_DIET__;
   delete window.__MARINE_REQUEST_DIET__;
 });
+afterAll(() => { delete window.__RAW_STEP_PAGE__; });
 
-test('a step past the loaded pages asks for its page (current page only) as well as its exact grid', () => {
+test('by default (not opted in) a step keeps the old behaviour: one exact grid, no page', () => {
+  delete window.__RAW_STEP_PAGE__;
+  const p = step(60);
+  expect(p.enqueueMarineUpdate).toHaveBeenCalledWith('timeline_scrub_deferred');
+  expect(ensureMarineSeries).not.toHaveBeenCalled();
+});
+
+test('opted in: a step past the loaded pages asks for its page (current page only) as well as its exact grid', () => {
   const p = step(60);
   expect(p.enqueueMarineUpdate).toHaveBeenCalledWith('timeline_scrub_deferred');
   expect(ensureMarineSeries).toHaveBeenCalledTimes(1);

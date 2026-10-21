@@ -4,14 +4,14 @@
  */
 import { renderHook } from '@testing-library/react';
 import {
-  MANIFEST_BACKGROUND_REFRESH_MIN_MS, REQUEST_DIET_PARTS, keepSwrRetryCount, planManifestFetch, requestDietOn,
+  MANIFEST_BACKGROUND_REFRESH_MIN_MS, REQUEST_DIET_OPT_IN, REQUEST_DIET_PARTS, keepSwrRetryCount, planManifestFetch, requestDietOn,
 } from './marineRequestDiet';
 import { _resetProductsManifestFetchForTest, fetchProductsManifest, getSharedValidTime, setCachedManifest } from './backendWeatherServiceClient';
 import { _cacheMarineResult, aliasMarineHourByInstant, getPerModelHourCache, isContainedInMarineCache } from './marineControllerCache';
 import { engineHoldsExactOf, planExactUpgrade } from './marineExactUpgrade';
 import { useMarineRevalidation } from '../../hooks/useMarineRevalidation';
 
-const KILLS = ['__RAW_DISABLE_REQUEST_DIET__', ...REQUEST_DIET_PARTS.map((p) => `__RAW_DISABLE_${p}__`)];
+const KILLS = ['__RAW_DISABLE_REQUEST_DIET__', '__RAW_STEP_PAGE__', ...REQUEST_DIET_PARTS.map((p) => `__RAW_DISABLE_${p}__`)];
 const clearKills = () => KILLS.forEach((k) => { delete window[k]; });
 const WORLD = { west: -180, south: -80, east: 180, north: 85 };
 const T0 = Date.parse('2026-10-20T12:00:00Z');
@@ -29,13 +29,24 @@ afterEach(() => {
 });
 
 describe('kill switches', () => {
-  test('every part is on by default and goes off with its own switch or the umbrella', () => {
-    for (const p of REQUEST_DIET_PARTS) expect(requestDietOn(p)).toBe(true);
-    window.__RAW_DISABLE_STEP_PAGE__ = true;
-    expect(requestDietOn('STEP_PAGE')).toBe(false);
-    expect(requestDietOn('PRODUCTS_SHARE')).toBe(true);
+  test('every part but the opt-in ones is on by default and goes off with its own switch or the umbrella', () => {
+    for (const p of REQUEST_DIET_PARTS) expect(requestDietOn(p)).toBe(!REQUEST_DIET_OPT_IN.includes(p));
+    expect(REQUEST_DIET_OPT_IN).toEqual(['STEP_PAGE']);          // measured no gain offline: ships off (marineRequestDiet.js)
+    window.__RAW_DISABLE_PRODUCTS_SHARE__ = true;
+    expect(requestDietOn('PRODUCTS_SHARE')).toBe(false);
+    expect(requestDietOn('GRID_INSTANT_KEY')).toBe(true);
     window.__RAW_DISABLE_REQUEST_DIET__ = true;
     for (const p of REQUEST_DIET_PARTS) expect(requestDietOn(p)).toBe(false);
+  });
+
+  test('an opt-in part turns on with window.__RAW_<NAME>__, and its kill and the umbrella still win', () => {
+    window.__RAW_STEP_PAGE__ = true;
+    expect(requestDietOn('STEP_PAGE')).toBe(true);
+    window.__RAW_DISABLE_STEP_PAGE__ = true;
+    expect(requestDietOn('STEP_PAGE')).toBe(false);
+    delete window.__RAW_DISABLE_STEP_PAGE__;
+    window.__RAW_DISABLE_REQUEST_DIET__ = true;
+    expect(requestDietOn('STEP_PAGE')).toBe(false);
   });
 });
 

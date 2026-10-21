@@ -38,7 +38,7 @@ set in both arms, e.g. `__SURF_MODE__`); flows `open_waves`, `open_wind`, `hour_
 | `GRID_INSTANT_KEY` | `marineControllerCache.aliasMarineHourByInstant`, called before the three hour-keyed lookups | a cached exact `/grid` whose REQUEST valid time equals the snapped valid time of another offset is stored again under that offset, relabelled as the mapper labels a fresh reply (`hourOffset` on data and grid only); direct `/grid` replies only (no series frames, no ICON swell_2 blend or the client-built ICON >168 h path); valid time resolved read-only and only once a candidate exists |
 | `EXACT_UPGRADE_SKIP` | `marineExactUpgrade.planExactUpgrade` | no world `/grid` when the ENGINE already holds a strictly finer world grid of the same served instant, run and flavor |
 | `SERIES_PAINT_WHILE_PENDING` | `marineSeriesWhilePending.js`, `useMarineScrubSettle.js` | the settle check's pending branch draws the landed series frame (same lookup, same thin-over-exact refusal, same stamped commit) and keeps the fetch; a `marine_series_revalidated` listener re-runs the check while a fetch is pending; the null `mapInstance` of the settle closure before the first commit falls back to the app's published map |
-| `STEP_PAGE` | `useMarineOrchestratorScrubCache.requestStepPage` | a step that misses every cache also asks for the page holding the hour (current page only, mini first; not while dragging) |
+| `STEP_PAGE` (**ships OFF**, opt-in `window.__RAW_STEP_PAGE__ = true`) | `useMarineOrchestratorScrubCache.requestStepPage` | a step that misses every cache also asks for the page holding the hour (current page only, mini first; not while dragging). Off because it measured no gain (section 4) |
 | `SWR_RETRY_CAP` | `useMarineDataFetcherCore.js` (one line) | the stale-grid revalidation keeps its count across its own re-drive: `resetRetryCounts()` at the top of every run had kept it at 0, so a backend that kept answering stale was re-polled every 1.5 s for as long as the view stayed |
 
 Not changed, on purpose:
@@ -80,12 +80,33 @@ box, so the gains are not a load artefact.
 +-2 of A (B: series +0.3 to +2.3 in scrub/erratic from step pages, `/grid` equal), step times within the machine noise (B's median
 `/grid` 0.1-1.5 s slower than A's in every flow). These flows jump several hours per step, so they rarely ask for the same instant twice.
 
-**STEP_PAGE alone** (C = every part but STEP_PAGE, B = all on): STEPPAGE_RESULT
+**STEP_PAGE alone** (C = every part but STEP_PAGE, B = all on; `regional_page_steps` + `euro_steps`, C1 B1 C2 B2 C3 B3): no gain.
+Requests per flow C -> B: regional 14.3 -> 14.3 (series 7 -> 7, `/grid` 5.3 -> 5.3), EURO 12 -> 12.3 (series 4 -> 4.3, `/grid` 6 -> 6);
+the steps that fetch reach the exact frame in 2.2-4.6 s in both arms, the others in 23-66 ms in both. The activation and moveend
+warm (`useMarineSeriesWarm`: the current page plus an idle neighbour, and every page in the background for GFS/ICON) already queues
+those pages. In the broad flows it added series requests (`erratic` 30.7 -> 33 per session, `icon_waves_scrub` 5 -> 5.3) for no
+measured step-time change. **So STEP_PAGE ships OFF** (`REQUEST_DIET_OPT_IN`), contrary to the brief's "request the page as well":
+code, tests and flows stay, for the case it targets (regional steps two or more EURO pages from where the layer was activated),
+which none of these flows reach. C (what ships) equals B on both flows within noise, so the A -> B gains on `euro_steps` and
+`regional_page_steps` hold for what ships (C was interleaved with B, not with A).
+
+**Final bundle** (after merging `dev` 5fe62b5f2, STEP_PAGE off; one run per arm, a consistency check, not a fourth sample): world
+`/grid` per flow A -> B `hour_steps` 8 -> 4, `euro_steps` 13 -> 9, `regional_page_steps` 15 -> 6, `erratic` 18 -> 18; series 4 -> 3,
+4 -> 4, 10 -> 6, 32 -> 33; `/products` per map open with the rating overlay on 3 -> 1.
 
 ## 5. Checks
 
-JEST_RESULT. `node scripts/check_eslint.js`: ESLINT_RESULT. `craco build`: compiled with the same warnings as `dev`.
-`python scripts/loc_ratchet.py`: no new violations (`useMarineDataFetcherCore.js` 965 of its 966; `useMarineScrubSettle.js` 800).
+On the branch after merging `dev` 5fe62b5f2 (#421), in a dot-free mirror of `frontend/` (CRA's Jest finds no tests under
+`.claude/worktrees/`): `CI=true npx react-scripts test --watchAll=false src/components/map src/tests src/__tests__` **421 of 421
+suites** (418 in the first pass; the other 3 read repo-root files the mirror lacked, ENOENT, and pass once those files are beside
+it). New suites: `marineRequestDiet.test.js`, `marineSeriesWhilePending.test.js`, `useMarineOrchestratorScrubCache.stepPage.test.js`
+(each with its kill switch, or for STEP_PAGE its default, as the control arm). `node scripts/check_eslint.js`: exit 0, no rule over
+its baseline. `craco build`: compiled with warnings, as `dev`. `python scripts/loc_ratchet.py`: no new violations
+(`useMarineDataFetcherCore.js` 965 of its 966; `useMarineScrubSettle.js` 800).
+
+One test changed shape on the way: `marineGlobalPrewarm.seriesReuse.test.js` pins the number of valid-time lookups (every extra must
+be read-only). The first alias resolved one even with an empty cache; it now resolves only once a candidate entry exists, and that
+test passes unchanged.
 
 ## 6. Limits and follow-ups
 

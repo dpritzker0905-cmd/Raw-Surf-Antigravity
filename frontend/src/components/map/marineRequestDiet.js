@@ -15,12 +15,13 @@
  *   SERIES_PAINT_WHILE_PENDING  a landed series frame for the selected hour is drawn while the /grid for that hour is still in
  *                               flight (marineSeriesWhilePending.js), instead of being held until the /grid lands
  *   STEP_PAGE                   an hour step that misses every cache also asks for the 48-frame page holding that hour, the hour's
- *                               own frame first (useMarineOrchestratorScrubCache.js), not only one exact /grid per step
+ *                               own frame first (useMarineOrchestratorScrubCache.js), not only one exact /grid per step.
+ *                               OFF by default (measured no gain, see REQUEST_DIET_OPT_IN): window.__RAW_STEP_PAGE__ = true
  *   SWR_RETRY_CAP               the stale-grid revalidation keeps its retry count across its own re-drive, so its cap of 3 applies
  *                               (useMarineDataFetcherCore.js resets it on every run otherwise: a stale backend was re-polled forever)
  *
  * None of these changes a served number: the same products are requested and drawn, fewer times or sooner.
- * Kill one:   window.__RAW_DISABLE_<NAME>__ = true      (e.g. window.__RAW_DISABLE_PRODUCTS_SHARE__)
+ * Kill one:   window.__RAW_DISABLE_<NAME>__ = true      (e.g. window.__RAW_DISABLE_PRODUCTS_SHARE__); opt-in parts: window.__RAW_<NAME>__
  * Kill all:   window.__RAW_DISABLE_REQUEST_DIET__ = true (the visual lab's A arm: LAB_KILLS=__RAW_DISABLE_REQUEST_DIET__)
  * Telemetry:  window.__MARINE_REQUEST_DIET__ = { counts: { <event>: n }, last: { <event>: detail } }
  * Pure (no imports), so every module on the request path can read it without an import cycle.
@@ -30,14 +31,25 @@ export const REQUEST_DIET_PARTS = Object.freeze([
   'PRODUCTS_SHARE', 'GRID_INSTANT_KEY', 'EXACT_UPGRADE_SKIP', 'SERIES_PAINT_WHILE_PENDING', 'STEP_PAGE', 'SWR_RETRY_CAP',
 ]);
 
-/** True unless the umbrella switch or this part's own switch is set. Never throws. */
+/**
+ * Parts that ship OFF: turn one on with window.__RAW_<NAME>__ = true (its kill switch and the umbrella still win).
+ * STEP_PAGE measured no gain in the offline A/B (2026-10-20, log/2026-10-20-claude-request-diet.md section 4: regional and EURO
+ * one-hour steps across a page boundary, every other part on, 3 interleaved runs per arm: equal request counts and step times
+ * within noise), because the activation and moveend warm (useMarineSeriesWarm) already queue those pages, and it added up to 2.3
+ * series requests per erratic session on the 1-CPU box. Kept, tested and opt-in for the case it targets: steps two or more EURO
+ * pages from where the layer was activated, at a regional zoom.
+ */
+export const REQUEST_DIET_OPT_IN = Object.freeze(['STEP_PAGE']);
+
+/** True unless the umbrella switch or this part's own switch is set (an opt-in part: only when asked for). Never throws. */
 export function requestDietOn(name) {
   try {
-    if (typeof window === 'undefined') return true;
-    if (window.__RAW_DISABLE_REQUEST_DIET__ === true) return false;
-    return window[`__RAW_DISABLE_${name}__`] !== true;
+    const optIn = REQUEST_DIET_OPT_IN.includes(name);
+    if (typeof window === 'undefined') return !optIn;
+    if (window.__RAW_DISABLE_REQUEST_DIET__ === true || window[`__RAW_DISABLE_${name}__`] === true) return false;
+    return optIn ? window[`__RAW_${name}__`] === true : true;
   } catch (e) {
-    return true;
+    return false;
   }
 }
 
