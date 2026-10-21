@@ -82,6 +82,6 @@ Spec: `docs/architecture/gpu-resident-forecast-frames.md`, on #427.
 
 ## Ledger
 
-- `pr_open` for this PR, appended after it opens.
+- **1570** `pr_open`: #437 (draft), opened from dev `5be9e9dd0` at `0c37d4937`.
 - The phase-2 commitment written on #427's branch (its line 1559 there; that branch's ledger forks from dev's at 1557) stays
   open: it is for the wired build after #422.
