@@ -1308,3 +1308,18 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
   (D-037 on its branch) does not reopen this.
 - **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.
+
+### D-040 · Light's storm crests are a warm gold, not lemon; ON by default
+- **Decided:** owner, 2026-10-21, after the crest art pass (#428's owner page): "Also switch light's storm to the warm gold in its
+  own PR." (D-039, #428's density cut, was picked in the same words.)
+- **Rule:** light crest V2's storm colour (`LIGHT_CRESTS.v2.storm`, D-036) is (1.00, 0.90, 0.30), L* 91 C* 74, in place of
+  (1.00, 0.96, 0.00). One owner: `marineCrestPalette.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 17:15Z); `evidence/light-storm-warm-gold-2026-10-21.json`.
+  Offline real engine, p99 off the paired wash, lemon -> warm gold: coastal |Lc| 78.7 -> 74.5, normal dE00 82.8 -> 75.8, tritan
+  55.6 -> 55.3; world |Lc| 34.8 -> 34.8. Checker: V2's weakest point (the 3.05 m switch) unchanged at |Lc| 39.8, colour-blind 24.2;
+  3 m to storm 17.7 dE00, colour-blind 13.3 (lemon 20.1 / 10.2); 7.3 dE00 from the app's yellow-400.
+- **Known costs:** storm crests lose a little brightness contrast (coastal |Lc| -4.2, still about twice the floor) and some chroma
+  against the wash (normal dE00 -7); a lighter, greener lemon is gone from light's storms.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_STORM_WARM__ = true` before load draws D-036's DRAW_FS byte for byte (sha256 pinned in
+  `marineCrestPaletteLight.test.js`).
+- **Reopen if:** the owner says so, or #420's float wash or #431's light spectrum moves the wash under light's storms.
