@@ -9,7 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
-import { readMarineSurfMode } from './marineSurfMode'; import { blendHeightAlpha } from './marineCalmWashHold'; // dark-only calm fade
+import { readMarineSurfMode } from './marineSurfMode';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
@@ -29,7 +29,7 @@ import {
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, prepareBasemapWaterOverlay, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
-import { measureMarineMaskPaint } from './marineMaskRefreshAttribution';
+import { measureMarineMaskPaint } from './marineMaskRefreshAttribution'; import { blendHeightAlpha } from './marineCalmWashHold'; // dark-only calm fade
 import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
