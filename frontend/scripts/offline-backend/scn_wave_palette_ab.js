@@ -14,6 +14,8 @@
 // crest V2 (the default); lk is V2 with the engine's crest self-contrast on at every zoom and height (window.__RAW_CREST_CONTRAST__ = 1:
 // a dark skirt round a lighter centre, the cased-crest probe) and l1k today's crests the same way. Each shot reads back light's four
 // crest lines from the DRAW program's own compiled GLSL.
+// Light crest restore (2026-10-21, D-041): the original light crest is the default again, so v2 and l1 now draw the same light crests;
+// lv2 asks for light crest V2 (window.__RAW_LIGHT_CREST_V2__) for an A/B against it.
 // Per shot it records what the engine held (grid shape, bounds, valid time, the drawn grid's height range) so the panes can be
 // shown to be the same data; and, before Waves is switched on, the bare water's colour (the checker's basemap model).
 // THE 16 m ENCODING (2026-10-20): VARIANTS=v2@10,v2,v2@10b  THEMES=light,beach,dark  --vortex-peak 14 (the eye passes 10 m, under 16).
@@ -31,7 +33,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
-  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
+  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lv2: { __RAW_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
   dk: { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true } };   // dk: the crest-density kill (marineCrestDensity.js), against v2 (on)
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4],

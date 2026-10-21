@@ -272,7 +272,7 @@ a few hundred values. A float32 emulation: 881 distinct values over 87,616 crest
 the kept crests and 4.8% are exactly 0; lowering the threshold removes 16% of kept crests for any cut from 0.22 to 0.25, then 30% at
 0.31, then ~37% from 0.34 to 0.40 (the engine's staircase, offset). Where the steps fall moves with the threshold, i.e. with zoom and
 screen size, so no fitted row would hold on another screen. The same quantisation sits under the constant-screen-density cull
-(`u_densityBase`), which #428 does not touch: a follow-up, not this change (ledger finding 1598).
+(`u_densityBase`), which #428 does not touch: a follow-up, not this change (ledger finding 1601).
 
 **The fix.** The cut picks its crests with a hash of its own: `crestCutHash(vec2(col, row))`, Dave Hoskins' hash without sine over the
 particle's texel (13,798 distinct values; removes 12.51% +- 0.48 of the kept crests at a 12.5% cut over random on-screen subsets,
@@ -298,9 +298,9 @@ step): light -15.6 / -19.4 / -17.7% (z7.4 / z9 / z10.5; asked 15-20), beach -14.
 -12.1 / -12.1% (z8.25 / z9 / z10.5; asked 10-15). Repeat steps within a session agree to 1.5 pts; sessions differ by ~2 pts (light
 z7.4 read -17.9% at 0.3 in the fit session and -15.6% at 0.29 here), so the rows are not chased further.
 
-**Branch rebuilt on dev `f17508ba0`** (#423, #425, #430, #434, #426, #432, #429, #422 and #419 had landed): one code commit, one docs commit; ledger lines 1558-1560 of the
-first push re-chained after dev's head 1594 as 1595 (`pr_merge #424`), 1596 (`pr_open #428`), 1597 (the pick commitment), then 1598
-(finding: the hash staircase) and 1599 (decision D-042, fulfils 1597). Hosted CI's encoding-debris guard read the hash's plus-equals as
+**Branch rebuilt on dev `f17508ba0`** (#423, #425, #430, #434, #426, #432, #429, #422 and #419 had landed), then dev `83c1c4c0c` merged in (#438, #439); ledger lines 1558-1560 of
+the first push re-chained after dev's head 1597 as 1598 (`pr_merge #424`), 1599 (`pr_open #428`), 1600 (the pick commitment), then 1601
+(finding: the hash staircase) and 1602 (decision D-042, fulfils 1600). Hosted CI's encoding-debris guard read the hash's plus-equals as
 mojibake (a token made only of box-drawing decay characters), so the GLSL says `p3 = p3 + dot(...)`, the same arithmetic. Decision numbers: D-037 is #431's (light spectrum, open), D-038
 is #430's (merged), D-039 is #419's (merged), so density is D-042, the warm gold D-040 and the light restore (#438) D-041.
 
@@ -308,3 +308,25 @@ is #430's (merged), D-039 is #419's (merged), so density is D-042, the warm gold
 was better") and the restore of the pre-#421 crests is #438 (D-041), so light's rows were re-read with
 `__RAW_DISABLE_LIGHT_CREST_V2__` (`scn_density_sweep.js` FLAGS, bracketed, shipped rows): -17.5 / -18.6 / -16.2% at z7.4 / z9 / z10.5,
 inside 15-20%. The fit holds whichever light crest colours ship (coverage counts crest pixels, not their colour).
+
+## 2026-10-21 20:00Z: light's crests restored to the original (D-041)
+
+The owner, 08:02 EDT on the live dev site (relayed by the lead, who asked this session for the restore): "visually, in the live dev
+server we're on now, I do not like the animation colors of light mode, with dark animations mixed with yellow ones, its not pleasing
+to the eye as a good representation of waves moving. The original was better."
+
+**Change** (`claude/light-crest-restore`, rebased on dev `f17508ba0` after #419 landed): `resolveLightCrest` draws V2 only when asked for
+(`window.__RAW_LIGHT_CREST_V2__`), or under the restore's kill (`window.__RAW_DISABLE_LIGHT_CREST_RESTORE__`, today's V2 default);
+the V2 kill still forces the original. Harness lever `lv2` asks for V2.
+
+**Identity.** Since f6b80f724 the DRAW_FS changes are light's four lines (#421, now from the table, whose v1 entries render the old
+literals character for character) and dark's storm line and casing term (#419, its own table and kill). Jest pins: default = dev's
+DRAW_FS with light's lines as before V2 (sha256 e2438586..., 8872), and with #419's kill as well f6b80f724's exactly (a9e8e102...,
+8811); V2 on request and the restore's kill = dev's DRAW_FS (5057bc10..., 9110; f425bf53... with #419's kill). Engine, offline
+(production bundle of the rebased branch): the DRAW program the GPU compiled hashes to exactly those in light, beach and dark
+(12 loads); DRAW_VS a1683763... in all. Beach and dark draw from the same program; their lines are dev's.
+
+**Known costs (for the owner, before he names it).** Over light's current wash the original crests share its luminance from 2.3 m
+up (APCA |Lc| 0, the lead's research) and over #431's spectrum from 1.7 to 14 m, crimson on crimson from 6 m (#431's session); at
+isoluminance motion direction weakens. Next, on the lead's brief: one moving A/B, the original vs the original plus a luminance-only
+two-tone (beach #433's idea), no hue change.
