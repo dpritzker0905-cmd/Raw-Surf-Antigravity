@@ -119,3 +119,12 @@ test passes unchanged.
   until the first commit; this PR works around it in one branch only.
 - Live read-back owed after merge and deploy (one owner map load, never a scripted replay): `window.__MARINE_REQUEST_DIET__.counts` and
   the Render access log's `/products` per map open.
+
+## 7. 2026-10-21 ~03:20Z: lead rulings (after the PR opened)
+
+- STEP_PAGE: the lead session agreed it ships OFF and **stays off pending the static-frame path (#422) and GPU-resident frames**,
+  which make per-step page requests moot; noted beside `REQUEST_DIET_OPT_IN` so nobody turns it on to "finish" #426.
+- `?fields=compact` on `/products` (#423): left to whichever of #423 / #426 merges second (one line in `fetchProductsManifest`); the
+  client reads exactly the 7 compact fields (`valid_time_end` is live in `getAvailableTilesFromManifest`).
+- Ownership with #422: #426 owns the `/products` block and the cache / exact-upgrade / settle / scrub-cache modules; #422 owns the
+  source switch inside `fetchBackendMarineGrid` and `marineGridSeries.js`. A test merge conflicts on two adjacent import lines only.

@@ -38,6 +38,8 @@ export const REQUEST_DIET_PARTS = Object.freeze([
  * within noise), because the activation and moveend warm (useMarineSeriesWarm) already queue those pages, and it added up to 2.3
  * series requests per erratic session on the 1-CPU box. Kept, tested and opt-in for the case it targets: steps two or more EURO
  * pages from where the layer was activated, at a regional zoom.
+ * Lead ruling 2026-10-21: it STAYS OFF pending the static-frame path (#422) and GPU-resident frames, which make per-step page
+ * requests moot. Do not turn it on to "finish" #426: that adds server load the A/B found no return for.
  */
 export const REQUEST_DIET_OPT_IN = Object.freeze(['STEP_PAGE']);
 
