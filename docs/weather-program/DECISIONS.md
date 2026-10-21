@@ -1308,3 +1308,25 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
   (D-037 on its branch) does not reopen this.
 - **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.
+
+### D-039 · Dark's 8 m+ storm crests are cased: today's orange with the crest self-contrast, no colour switch; ON by default
+- **Decided:** owner, 2026-10-21 ~15:30Z, on the A/B of PR #419 (owner page https://claude.ai/artifact/A5aYRLqNXoKAboPmsUWtJg v3:
+  keep dark as it is | electric blue from 8 m | cased orange from 8 m, moving at the storm eye, regional and coastal views): "Ship the
+  cased orange from 8 m for dark's storm crests instead of electric blue." Earlier the same day he scoped the fix ("We can fix that
+  one weak point only on the extreme 8m"), turned down the dark inks ("I dont like the darker middle crests in the storm animations,
+  improve those") and, asked directly, kept the A/B to 8 m+ ("Keep 8 m+ only") over whole-field casing options.
+- **Rule:** dark's storm crest keeps its fiery orange at every height. From 8 m (the crest's own `v_wave_height`), dark only
+  (`u_theme < 0.5`), DRAW_FS turns on the engine's crest self-contrast (`crestContrastEff`): a rim at 0.55-0.64 x the colour round a
+  core at 1.30 x plus a little white, the treatment every crest already gets at z 3.5-4.4. One generated line from
+  `marineCrestPalette.js` `DARK_STORM_CRESTS.v2`; no added shader lines. Below 8 m, light and beach: byte-identical.
+- **Evidence:** `log/2026-10-20-claude-dark-storm-crest.md`; `evidence/dark-storm-crest-2026-10-20.json` (`cased`). Model
+  (`dark-storm-crest.mjs`): today's orange core |Lc| 0 at 8-10 m+; cased |Lc| 20.4-38.0 from 8 m (the rim), colour-blind 19.7 (today
+  15.5). Offline real engine, p90 |Lc| 8-10 m today -> cased: eye 11-27 -> 20-35, coastal 11-13 -> 26-37, regional 11-23 -> 14-28;
+  Leonardo (wcag3) per band at the eye 8 / 18 / 21 / 29 -> 20 / 22 / 30 / 43.
+- **Known costs:** about half of electric blue's contrast (eye 40-59) and no colour-blind gain at the eye (p90 14-26, as today); the
+  5.5-8 m band, where the orange also sits at the wash's brightness, is out of scope and unchanged.
+- **Rollback:** `window.__RAW_DISABLE_DARK_STORM_CREST__ = true` draws today's lines exactly (DRAW_FS hash-pinned in
+  `marineDarkStormCrest.test.js`).
+- **Turned down:** ember-black / ember red from 8 m (read as soot on the white eye); electric blue from 8 m (a colour switch mid-field,
+  the kind the owner rejected in light); whole-field amber or warm-white cores with a black casing (out of his 8 m+ scope).
+- **Reopen if:** the owner says so, or the dark wash's 8-10 m colours change.

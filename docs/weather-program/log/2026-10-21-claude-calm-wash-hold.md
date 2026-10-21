@@ -154,3 +154,29 @@ them through this mapping. STATE and D-038 now cite 1566; STATE head 1568. `acti
 With #425 on dev, item 5.3 is done here: `scn_wash_alpha.js` gains the `today` variant (`__RAW_DISABLE_CALM_WASH_HOLD__`), the
 `hold` read-back on every frame and the `calmCoast` / `calmCoastC` views; `wash_alpha.py` maps both to the coastal model; the
 offline README says so. This A/B now reproduces from the tree. Commitment 1566 stays open for the wave-lib ALPHAS (after #416).
+
+## 11. 2026-10-21T14:47Z: merged and read back on the deployed build
+
+Owner, ~14:20Z: "Merge #430 into dev at its tested head once every hosted check is green, then record the pr_merge ledger line and
+read back the deployed build." #430 was marked ready at 13:46Z on head `bb9f6f992` (19 success, 1 neutral, CLEAN). Dev had not
+moved since that head merged it (`a25aaa8ae`). **Squash-merged 14:24:27Z as `73e25a908`** with `--match-head-commit bb9f6f992`.
+
+**Read-back (static files, no map load, nothing sent to the backend):** dev--rawsurf `service-worker.js` BUILD_VERSION
+`'73e25a90'` at 14:26:32Z. Of the 104 JS files in `asset-manifest.json`, `/static/js/976.33cdcda9.chunk.js` carries
+`__RAW_DISABLE_CALM_WASH_HOLD__` and `calmWashHold`, with the helper inlined on the regional pass's `u_heightAlphaEnabled`
+uniform and called with the frame's (blendEngaged, themeVal, surfModeVal). Not read: the look in the app
+(`window.__RAW_GPU__.calmWashHold` reading `{ on: true, held: true }` in light at z 10 with a regional tile); that is the owner's eye.
+
+Ledger **1569** (pr_merge #430) on receipt branch `claude/receipt-430`; STATE head 1569 and its "Now" line marks #430 merged.
+`#423` and `#425` merged into dev today without `pr_merge` lines on dev (the audit counts only merge commits, so it does not flag
+squash merges); left for their sessions or the lead to record. Commitment 1566 (wave-lib ALPHAS, after #416) stays open.
+
+## 12. 2026-10-21T15:23Z: receipt #434 merged; the owner's look
+
+Owner, ~15:06Z: "Merge receipt PR #434 into dev at its tested head once every hosted check is green." Head `b7a187c87` read 17
+success + 1 neutral, CLEAN, dev unchanged (`73e25a908`): **squash-merged 15:14:13Z as `5be9e9dd0`** (`--match-head-commit`).
+
+Owner, ~15:11Z, on the hold as served on the dev site: **"hold looks good on this"**. That closes the look half of section 11's
+read-back (the in-app look section 11 left to the owner's eye). Ledger **1570** (owner_action, the verdict) and **1571**
+(pr_merge #434) on branch `claude/receipt-434`; STATE head 1571, and its "Now" line quotes the verdict. Still open: commitment
+1566 (wave-lib ALPHAS for the held state, after #416).
