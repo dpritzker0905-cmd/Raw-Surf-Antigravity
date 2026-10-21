@@ -39,21 +39,35 @@ export const LIGHT_CRESTS = {
 // BEACH. v1 (orchid-pink, electric turquoise, sunset magenta) is what beach draws over its v1 sea (D-035), and stays the default.
 // V2 is the warm-polarity crest solved for the sunset candidate sea (marineWavePalette.js WAVE_PALETTES.sunset) by crest-solve.mjs
 // and judged by wave-check.mjs; it draws only where beach draws that sea, which only its A/B lever selects
-// (window.__RAW_BEACH_WASH__ = 'sunset', owner A/B of PR #416).
+// (window.__RAW_BEACH_WASH__ = 'sunset', owner A/B of PR #416). v2a is the first sunset crest, kept for that A/B only
+// (window.__RAW_BEACH_CREST_V2__ = 'first'); it and its lever go once the owner picks.
 export const BEACH_CRESTS = {
   v1: {
     calm: { rgb: [1.00, 0.45, 0.65], name: 'orchid-pink' },
     active: { rgb: [0.00, 0.92, 0.85], name: 'electric turquoise' },
     storm: { rgb: [0.80, 0.20, 0.90], name: 'sunset magenta' },
+    foam: { rgb: [0.95, 0.95, 1.00] },
   },
-  // V2, warm polarity: a dark warm ink where the sea is light, a light warm ink where it is dark, switched at 2.1 m, past where the
-  // sunset sea's APCA luminance falls through 0.352 (1.5-1.7 m by zoom). Over the sunset sea, every 0.1 m 0.2-10 m, all zooms and
-  // swell lightings, whitecap off and on: see marineCrestPalette.test.js and the log for the numbers.
+  // V2, warm polarity, as the design critique left it (2026-10-21, #416 log): a dark warm ink where the sea is light, a light warm
+  // ink where it is dark, so a crest never meets its sea's luminance (the sunset sea passes APCA Y 0.352 at 1.5-1.7 m by zoom).
+  // The switch sits ON the sea's 2.4 m anchor (coral; the legend's 8 ft tick): the best worst-case body |Lc| of a 1.9-2.8 m scan,
+  // and the flip of the crests rhymes with a step of the sea instead of falling between two. The storm is a pale tint of the storm
+  // sea's own rose (blush), the painter's highlight: crests cover ~78% of coastal sea pixels, and peach repainted that view toward
+  // orange (hue 48-59 degrees) and bleached it; blush keeps its hue (1-13) and the lemon -> blush turn marks a building storm. The
+  // foam switches with the ink, as light's does (D-036): white whitecaps on the oxblood ink met the sea's luminance near the switch.
   v2: {
+    switchHeight: 2.4,
+    calm: { rgb: [0.39, 0.02, 0.02], above: [1.00, 1.00, 0.48], name: 'oxblood, pale lemon from 2.4 m' },
+    active: { rgb: [0.33, 0.00, 0.00], above: [0.97, 1.00, 0.09], name: 'oxblood, lemon from 2.4 m' },
+    storm: { rgb: [1.00, 0.84, 0.88], name: 'blush' },
+    foam: { rgb: [0.08, 0.00, 0.00], above: [0.95, 0.95, 1.00], name: 'oxblood-black foam, white from 2.4 m' },
+  },
+  v2a: {   // the first sunset crest (solved 2026-10-20), for the A/B only
     switchHeight: 2.1,
     calm: { rgb: [0.39, 0.02, 0.02], above: [1.00, 1.00, 0.48], name: 'oxblood, pale lemon from 2.1 m' },
     active: { rgb: [0.33, 0.00, 0.00], above: [0.97, 1.00, 0.09], name: 'oxblood, lemon from 2.1 m' },
     storm: { rgb: [1.00, 0.83, 0.52], name: 'peach' },
+    foam: { rgb: [0.95, 0.95, 1.00] },
   },
 };
 
@@ -61,9 +75,11 @@ export function resolveLightCrest(win = WIN, washOn = MARINE_WAVE_PALETTE_ENABLE
   return win.__RAW_DISABLE_LIGHT_CREST_V2__ === true || !washOn || washId !== 'v2' ? 'v1' : 'v2';
 }
 export const LIGHT_CREST_ID = resolveLightCrest();
-/** Beach's V2 only where beach draws the sea it was solved for (the sunset candidate), the wash is on and its kill is not set. */
+/** Beach's V2 only where beach draws the sea it was solved for (the sunset candidate), the wash is on and its kill is not set;
+ *  the A/B's lever window.__RAW_BEACH_CREST_V2__ = 'first' draws the first sunset crest (v2a) there instead. */
 export function resolveBeachCrest(win = WIN, washOn = MARINE_WAVE_PALETTE_ENABLED, beachSea = MARINE_WAVE_PALETTE_IDS.beach) {
-  return win.__RAW_DISABLE_BEACH_CREST_V2__ !== true && washOn && beachSea === 'sunset' ? 'v2' : 'v1';
+  if (win.__RAW_DISABLE_BEACH_CREST_V2__ === true || !washOn || beachSea !== 'sunset') return 'v1';
+  return win.__RAW_BEACH_CREST_V2__ === 'first' ? 'v2a' : 'v2';
 }
 export const BEACH_CREST_ID = resolveBeachCrest();
 

@@ -929,7 +929,7 @@ void main() {
     calmColor = ${BEACH_CREST_GLSL.calm}
     activeColor = ${BEACH_CREST_GLSL.active}
     stormColor = ${BEACH_CREST_GLSL.storm}
-    foamHighlight = vec3(0.95, 0.95, 1.00);
+    foamHighlight = ${BEACH_CREST_GLSL.foam}
   } else if (u_theme > 0.5) {
     // Light Mode
     calmColor = ${LIGHT_CREST_GLSL.calm}

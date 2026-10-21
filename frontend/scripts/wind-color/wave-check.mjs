@@ -37,7 +37,7 @@ const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JS
 const ids = arg('--palette') ? [arg('--palette')] : Object.keys(palettes);
 const themes = arg('--theme') ? [arg('--theme')] : ['light', 'beach'];
 const DIRS = [0, 0.5, 1];
-const crestArg = arg('--crest'), crestFile = crestArg && !/^v\d$/.test(crestArg) ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;
+const crestArg = arg('--crest'), crestFile = crestArg && !/^v\d[a-z]?$/.test(crestArg) ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;   // a table id (v1, v2, v2a) or a file
 /** The crest [calm, active, storm, foam, polarity?] drawn over palette `id` in `theme`, and its name. */
 const crestOf = (id, theme) => {
   const tables = CRESTS_BY_THEME[theme];

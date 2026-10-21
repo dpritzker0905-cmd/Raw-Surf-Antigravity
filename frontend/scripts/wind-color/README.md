@@ -344,8 +344,9 @@ widens the per-anchor hue turn and `--l0` the calm's lightness floor.
 ```powershell
 # the sunset sea: v1's six anchors, hue turning -10 to -70 degrees a step; seed 2 kept, its flag then dropped (clamped at 10 m like v1)
 node wave-solve.mjs --theme beach --family V --heights 0,0.6,1.2,2.4,5,10 --cap 10 --gens 700 --np 60 --seed 2 --crest-weight 0.3 --turn -70,-10 --hend -40,15 --pin-h 2:62:95 --out sunset.json
-node crest-solve.mjs --table sunset.json --palettes table --polarity --lc 33 --dark-h 345,45 --dark-l 15,35 --light-h 55,105 --storm-h 75,110 --path-c 45 --seed 1
-node wave-check.mjs --palette sunset --theme beach          # the candidate with its V2 crest (rounded to a 2.1 m switch)
+node crest-solve.mjs --palettes sunset --polarity --seed 1 --lc 33 --dark-h 345,45 --dark-l 15,35 --light-h 55,105 --storm-h 75,110 --path-c 45
+node wave-check.mjs --palette sunset --theme beach          # the candidate with its V2 crest (V2.1, after the design critique)
+node wave-check.mjs --palette sunset --theme beach --crest v2a  # the first sunset crest (the solve above, switch rounded to 2.1 m)
 node wave-check.mjs --palette sunset --theme beach --crest v1   # the crest-only control: the same sea under today's crests
 node wave-check.mjs --palette v1 --theme beach              # beach as it draws (D-035): the old sea with today's crests
 ```
@@ -358,8 +359,16 @@ What the beach searches taught:
   lime -> gold -> coral -> rose -> purple, the sunset path of CARTOColors' ramps), give a weakest step of 16.1 dE00 (v1: 14.5) and a
   colour-blind weakest of 11.6 (v1: 11.6), with lightness falling the whole way; the old sea's AVERAGE step stays larger (28.0 vs
   22.5; colour-blind 21.8 vs 12.7), bought by brightness jumping up and down.
-- Warm inks on a warm sea share hues, so brightness carries the crest: on the sunset sea the warm-polarity crest holds 25.9 dE00
-  (v1's crests on v1's sea: 15.4), colour-blind 17.1 (v1: 0.8) and |Lc| 39.3 on the body (v1: 0).
+- Warm inks on a warm sea share hues, so brightness carries the crest: on the sunset sea the first warm-polarity crest held 25.9
+  dE00 (v1's crests on v1's sea: 15.4), colour-blind 17.1 (v1: 0.8) and |Lc| 39.3 on the body (v1: 0). (The solve above was run
+  on #416's earlier copy of this solver with `--table`; dev's copy lands within 0.03 of it, switch 2.14 m.)
+- The design critique (2026-10-21, #416 log; instrument in the log) changed three things the contrast search does not see: the
+  switch moved onto the sea's 2.4 m anchor (the best worst-case body |Lc| of a 1.9-2.8 m scan, and the crest flip then rhymes with
+  a step of the sea); the storm became a pale tint of the storm sea's own rose (blush) because crests cover ~78% of coastal sea
+  pixels and a peach storm turned that view orange (hue 48-59 degrees) and bleached it, while cream bleached it more; and the foam
+  switches with the ink as light's does (whitecap fronts |Lc| 24.9 -> 38.5). Light's own family (umber, cream, gold) would repaint
+  the purple storm sea yellow (99-133 degrees): each theme keeps the shared rule, dark ink low, light ink high, foam following the
+  ink, in its own sea's colours.
 
 ## Why coloraide and not culori for colour blindness
 
