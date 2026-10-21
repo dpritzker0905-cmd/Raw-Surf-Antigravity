@@ -69,3 +69,52 @@ export async function loadWorldPageFromStatic({ model, layer, reqBox, surf, hour
   });
   return missing !== null;                // null: no pinned index -> /grid_series, exactly as before
 }
+
+/**
+ * Run the windowed fill of one world page as that page's flight (marineGridSeries keeps the flight in its in-flight map).
+ * Frames are committed to the page's series entry as they land; `marine_series_revalidated` fires once at the first frame
+ * and once at the end (not per frame: the scrub settle and #426's listener re-run on every event).
+ * deps: { seriesCache, frameToMarineData, finish(flight) }.
+ */
+export function runStaticPageFlight(key, ctx, { seriesCache, frameToMarineData, finish }) {
+  let committed = 0;
+  const revalidated = () => {
+    if (typeof window !== 'undefined') { try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ } }
+  };
+  const staticEntry = () => { const e = seriesCache.get(key); return e && e.staticFrames ? e : null; };
+  const commit = (h, f) => {
+    let entry = staticEntry();
+    const fresh = !entry;
+    if (fresh) {
+      entry = { ts: Date.now(), frames: new Map(), hours: [], bounds: f.bounds, model: ctx.model, layer: ctx.layer,
+        page: ctx.page, surf: ctx.surf, coarsePreview: false, revalCount: 0, staticFrames: true };
+    }
+    entry.frames.set(h, frameToMarineData(f, ctx.model, ctx.layer));
+    entry.hours = Array.from(entry.frames.keys()).sort((a, b) => a - b);
+    if (fresh) seriesCache.set(key, entry);
+    committed += 1;
+    if (committed === 1) revalidated();
+  };
+  const flight = (async () => {
+    try {
+      return await loadWorldPageFromStatic({
+        ...ctx,
+        present: () => new Set(staticEntry() ? staticEntry().frames.keys() : []),
+        keepOnly: (keep) => {
+          const e = staticEntry();
+          if (!e) return;
+          for (const h of Array.from(e.frames.keys())) if (!keep.has(h)) e.frames.delete(h);
+          e.hours = Array.from(e.frames.keys()).sort((a, b) => a - b);
+        },
+        commit,
+      });
+    } catch (e) {
+      return false;
+    } finally {
+      finish(flight);
+      if (committed > 1) revalidated();
+    }
+  })();
+  flight.seriesSignal = ctx.signal;
+  return flight;
+}

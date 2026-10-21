@@ -38,7 +38,7 @@ import {
   acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
-import { loadWorldPageFromStatic, noteStaticFocus, staticOwnsWorldPage } from './marineSeriesStatic';
+import { noteStaticFocus, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
 import { staticEligible } from './staticFrames';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
@@ -423,47 +423,9 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   await p;
 }
 
-// Seam B of the static frames (dark): run the windowed fill as this page's flight, committing frames as they land.
-async function loadSeriesPageStatic(key, ctx) {
-  const commit = (h, f) => {
-    let entry = _seriesCache.get(key);
-    const fresh = !entry || !entry.staticFrames;
-    if (fresh) {
-      entry = { ts: Date.now(), frames: new Map(), hours: [], bounds: f.bounds, model: ctx.model, layer: ctx.layer,
-        page: ctx.page, surf: ctx.surf, coarsePreview: false, revalCount: 0, staticFrames: true };
-    }
-    entry.frames.set(h, frameToMarineData(f, ctx.model, ctx.layer));
-    entry.hours = Array.from(entry.frames.keys()).sort((a, b) => a - b);
-    if (fresh) _seriesCache.set(key, entry);
-    committed += 1;
-    if (committed === 1) revalidated();   // first frame of the fill: re-drive the scrub settle once; once more at the end
-  };
-  let committed = 0;
-  const revalidated = () => {
-    if (typeof window !== 'undefined') { try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ } }
-  };
-  const staticEntry = () => { const e = _seriesCache.get(key); return e && e.staticFrames ? e : null; };
-  const flight = (async () => {
-    try {
-      return await loadWorldPageFromStatic({
-        ...ctx,
-        present: () => new Set(staticEntry() ? staticEntry().frames.keys() : []),
-        keepOnly: (keep) => {
-          const e = staticEntry();
-          if (!e) return;
-          for (const h of Array.from(e.frames.keys())) if (!keep.has(h)) e.frames.delete(h);
-          e.hours = Array.from(e.frames.keys()).sort((a, b) => a - b);
-        },
-        commit,
-      });
-    } catch (e) {
-      return false;
-    } finally {
-      finishFlight(key, flight);
-      if (committed > 1) revalidated();
-    }
-  })();
-  flight.seriesSignal = ctx.signal;
+// Seam B of the static frames (dark; marineSeriesStatic.runStaticPageFlight): the windowed fill runs as this page's flight.
+function loadSeriesPageStatic(key, ctx) {
+  const flight = runStaticPageFlight(key, ctx, { seriesCache: _seriesCache, frameToMarineData, finish: (f) => finishFlight(key, f) });
   _inFlight.set(key, flight);
   return flight;
 }
