@@ -13,6 +13,7 @@
 // = the main pass's u_opacity) and what it held (grid bounds/shape, valid time, the coarse base).
 // Variants: v2 = the defaults; v1 = window.__RAW_DISABLE_WAVE_PALETTE_V2__ (the 2026-10-14 tables: palette independence);
 // nb = window.__RAW_DISABLE_BLEND_BOTH__ (the causal control: no coarse base under the regional, no height alpha on it).
+// today = window.__RAW_DISABLE_CALM_WASH_HOLD__ (D-038: light/beach calm cells fade by height again, as before #430; v2 is the hold).
 const fs = require('fs');
 const path = require('path');
 const L = require('./ab_lib.js');
@@ -20,7 +21,8 @@ const L = require('./ab_lib.js');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4141);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wash-alpha');
-const LEVERS = { v2: {}, v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, nb: { __RAW_DISABLE_BLEND_BOTH__: true }, bw0: { __RAW_BLEND_BASE_WASH__: 0 } };
+const LEVERS = { v2: {}, v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, nb: { __RAW_DISABLE_BLEND_BOTH__: true }, bw0: { __RAW_BLEND_BASE_WASH__: 0 },
+  today: { __RAW_DISABLE_CALM_WASH_HOLD__: true } };   // calm wash hold (D-038, 2026-10-21): today = its kill; v2 = the hold
 // The harness's views (scn_wave_palette_ab.js) plus the zooms wave-lib's ALPHAS name: regional z 5.5 (r55) and coastal z 10 (close).
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], r55: [-106.5, 15.5, 5.5], coastal: [-105.2, 18.4, 7.4], close: [-105.2, 18.4, 10] };
 // The same cameras reached by ZOOMING OUT from a close view (VIEWS=close,coastal,r55Out,regionalOut,worldOut): the regional tile
@@ -31,6 +33,8 @@ Object.assign(VIEWS, { r55Out: VIEWS.r55, regionalOut: VIEWS.regional, worldOut:
 // carries calm water. At z 7.4 and z 10 (the base is damped to 35% above z 9.5).
 Object.assign(VIEWS, { calm05: [-40, 2, 7.4], calm08: [-15, 2, 7.4], calm10: [-5, 0, 7.4], calm12: [-175, 0, 7.4], calm14: [-165, 0, 7.4],
   calm05c: [-40, 2, 10], calm10c: [-5, 0, 10], calm14c: [-165, 0, 10] });
+// Calm water AT A COAST (D-038's A/B): Ilhabela / Sao Sebastiao, Brazil, where the synthetic swell is 1.1 - 0.6 cos(lat) = 0.55 m.
+Object.assign(VIEWS, { calmCoast: [-45.3, -23.85, 7.4], calmCoastC: [-45.3, -23.85, 10] });
 const list = (env, dflt) => (process.env[env] || dflt).split(',');
 const themes = list('THEMES', 'light,beach'), variants = list('VARIANTS', 'v2,v1,nb'), views = list('VIEWS', 'world,regional,r55,coastal,close');
 const FRAMES = +(process.env.FRAMES || 4);
@@ -45,6 +49,7 @@ const telemetry = () => {
     mult: g.opacity ? g.opacity.mult : null, coarseFade: g.coarseFade, haloDamp: g.haloDamp, noTruthDamp: g.washNoTruthDamp,
     tiny: g.tinyTileFade || null, soften: g.clampSoften || null, ease: g.opacityEase || null, veil: g.coldVeil || null,
     palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', blendKilled: window.__RAW_DISABLE_BLEND_BOTH__ === true,
+    hold: g.calmWashHold || null,   // the calm wash hold's own read-back (marineCalmWashHold.js): { on, held }
   };
 };
 
