@@ -7,9 +7,9 @@
 // --theme light and judged by wave-check.mjs (both read this table).
 // Kill, set before page load: window.__RAW_DISABLE_LIGHT_CREST_V2__ = true draws v1 exactly (DRAW_FS hash-pinned in the test).
 // V2 also stands down wherever light's wash is neither V2 nor the spectrum (either wash kill): it was solved for those washes.
-// Over the spectrum (D-037) the same colours switch at 1.55 m (`v2s`): the spectrum darkens faster than v2, so it crosses mid-lightness
-// lower; at 3.05 m the weakest crest-vs-wash APCA |Lc| fell to 28.8, at 1.55 m it is 42.4 (over v2 at 3.05 m: 40.0). Scanned every
-// 0.05 m by frontend/scripts/wind-color/crest-switch.mjs (every view, lighting and whitecap).
+// Over the spectrum (D-037) the same colours switch at 2.35 m (`v2s`), where the spectrum (re-solved apart from dark, 2026-10-21)
+// crosses mid-lightness: the weakest crest-vs-wash APCA |Lc| is 41.7 there (33.0 at v2's 3.05 m; over v2 at 3.05 m: 40.0). Scanned
+// every 0.05 m by frontend/scripts/wind-color/crest-switch.mjs (every view, lighting and whitecap). (The first spectrum crossed at 1.55.)
 import { MARINE_WAVE_PALETTE_ENABLED, MARINE_WAVE_PALETTE_IDS } from './marineWavePalette';
 
 const WIN = typeof window === 'undefined' ? {} : window;
@@ -39,11 +39,11 @@ export const LIGHT_CRESTS = {
   },
   // V2's colours over the spectrum (D-037): only the switch moves, to where the spectrum crosses mid-lightness.
   v2s: {
-    switchHeight: 1.55,
-    calm: { rgb: [0.27, 0.10, 0.00], above: [1.00, 1.00, 0.82], name: 'deep umber, cream from 1.55 m' },
-    active: { rgb: [0.27, 0.10, 0.00], above: [1.00, 1.00, 0.82], name: 'deep umber, cream from 1.55 m' },
+    switchHeight: 2.35,
+    calm: { rgb: [0.27, 0.10, 0.00], above: [1.00, 1.00, 0.82], name: 'deep umber, cream from 2.35 m' },
+    active: { rgb: [0.27, 0.10, 0.00], above: [1.00, 1.00, 0.82], name: 'deep umber, cream from 2.35 m' },
     storm: { rgb: [1.00, 0.96, 0.00], name: 'gold' },
-    foam: { rgb: [0.05, 0.02, 0.00], above: [1.00, 1.00, 1.00], name: 'umber-black foam, white from 1.55 m' },
+    foam: { rgb: [0.05, 0.02, 0.00], above: [1.00, 1.00, 1.00], name: 'umber-black foam, white from 2.35 m' },
   },
 };
 

@@ -346,8 +346,24 @@ node crest-switch.mjs --palette spectrum --from 1.3 --to 3.2   # V2's crest colo
 node crest-critique.mjs [--json out.json]   # crests vs the wash under them in all three themes, by height: |Lc|, colour-blind dE00, hue relation
 ```
 
-Over the spectrum the crest switch moves to 1.55 m (`LIGHT_CRESTS.v2s`): at 3.05 m the spectrum would leave |Lc| 28.8, at 1.55 m
-42.4. The model's numbers are full-opacity crest cores; at world zoom the engine draws crests at partial opacity, where a
+**Re-solved apart from dark (same day; owner: "too close to the same color as dark modes water").** `theme-distance.mjs` measures, per
+height, light's composite against dark's (the shader ramp over the dark style's sea) and beach's (v1): the first spectrum sat at 0.8-3 m
+mean 15.0 dE00 from dark (v2 24.0), and its 4-6 m violet/magenta was dark's own (13.7 / 11.3). `spectrum-apart.mjs` is the solver with a
+hard floor: from 1.2 to 6 m light stays at least as far from dark (and beach) as v2 is, at every 0.1 m.
+
+```powershell
+node theme-distance.mjs                        # v2@16 and the spectrum against dark and beach, by height
+node spectrum-apart.mjs --water-cvd 4 --cmin-common 32 --low 8   # the shipped table: soft green -> aqua -> teal -> steel blue -> indigo -> maroon -> dark red
+```
+
+Below 1.2 m the floor is 10 (not v2's): a colour as far from dark's 0.5 m green as v2's is would be lighter than light's own water, and
+the spectrum's calm fade (water to 0.5 m) would then climb in lightness. `--water-cvd` keeps that fade's own step visible to every
+colour vision. Scores (1 = every neighbour step meets normal 10 / colour-blind 6.5 / lightness 5): a lime start 1.01 but a dusty sage
+1.25 m band (the solver kept 1-2 m far from dark's bright cyan by greying it); mint starts 0.22-0.50; shipped: `--cmin-common 32`
+(no grey in the common sea) with the calm floor at 8, 1.10.
+
+Over the re-solved spectrum the crest switch sits at 2.35 m (`LIGHT_CRESTS.v2s`, |Lc| 41.7; 33.0 at v2's 3.05 m). The first spectrum
+crossed at 1.55 m (42.4). The model's numbers are full-opacity crest cores; at world zoom the engine draws crests at partial opacity, where a
 mid-lightness wash (the spectrum's 1.5-3 m blue) leaves little room in either polarity: read the engine
 (`../offline-backend/crest_contrast.py`, paired frames) before trusting a switch height.
 

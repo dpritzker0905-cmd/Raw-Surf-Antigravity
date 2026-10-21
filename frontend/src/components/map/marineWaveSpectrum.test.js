@@ -131,10 +131,10 @@ describe('the spectrum on (the default)', () => {
 });
 
 describe('light\'s crests over the spectrum', () => {
-  it('keep V2\'s colours with the switch moved to 1.55 m; v2 at 3.05 m under the spectrum kill; v1 under the crest kill', () => {
+  it('keep V2\'s colours with the switch moved to 2.35 m; v2 at 3.05 m under the spectrum kill; v1 under the crest kill', () => {
     withWindow({}, ({ s, c }) => {
       expect(c.LIGHT_CREST_ID).toBe('v2s');
-      expect(s.DRAW_FS).toContain('step(1.55, v_wave_height)');
+      expect(s.DRAW_FS).toContain('step(2.35, v_wave_height)');
       ['calm', 'active', 'storm', 'foam'].forEach((k) => {
         expect(c.LIGHT_CRESTS.v2s[k].rgb).toEqual(c.LIGHT_CRESTS.v2[k].rgb);
         expect(c.LIGHT_CRESTS.v2s[k].above).toEqual(c.LIGHT_CRESTS.v2[k].above);

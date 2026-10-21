@@ -191,3 +191,38 @@ in, they read below today (31.9-38.0 against 36.5-52.9). There the crest is alre
 wash: a crest has less room on a mid-lightness blue than on v2's pale cyan. Even so, no zoom falls below today's own weakest zoom
 (26.0 at z 3.8). Closing the close-zoom gap needs a crest whose contrast doesn't depend on the wash: the cased crest (a dark rim round
 a light core), D-036's open next step.
+
+## Re-solved apart from dark (owner 18:11Z; re-solve to 22:15Z)
+
+The owner, after the "Merge #431" button: "I'm not sold on light modes blue water, it seems too close to the same color as dark modes
+water in my opinion"; "Neither the crests are issues in the light wave spectrum artifact, im talking about the heatmap colors.. maybe
+im wrong"; "Im very confused as to what we're shipping and what we're not." #431 was put on hold (the lead was told). Shown the engine
+stills (light today | spectrum | dark), he chose: "Resolve it so light improves but isnt too much like dark".
+
+**He was right, and it measures** (`theme-distance.mjs`: light's composite against dark's shader ramp over the dark style's sea, world
+opacity, lighting 0.5, CIEDE2000 per height): the first spectrum sat 0.8-3 m mean 15.0 from dark (min 5.6 at 1.5 m) against live
+light's 24.0, and its 4 / 6 m violet and magenta were dark's own (13.7 / 11.3 against live light's 32.0 / 26.8). The spectrum had
+followed dark's hue path: cyan -> blue -> violet -> magenta.
+
+**The re-solve (`spectrum-apart.mjs`):** spectrum-solve.mjs plus a hard floor at every 0.1 m from 1.2 to 6 m: light at least as far
+from dark (and from beach's v1) as live light is (capped at 24 / 20). Below 1.2 m the floor is 8: as far from dark's 0.5 m green as
+live light is, a colour would be lighter than light's own water and the calm fade would climb. A colourfulness floor (C* 32) on the
+common sea, and the calm fade's own step kept visible to every colour vision (`--water-cvd 4`). Rejected on the way: a lime start
+(score 1.01; its 1.25 m band a dusty sage the engine showed as a grey-teal ocean) and mint starts (0.22-0.50).
+
+**Shipped table:** soft green (140,219,128) to 0.5 m, aqua (0,200,173) at 1.25, teal (0,144,174) at 2.5, steel blue (64,104,181) at 4,
+indigo (68,67,200) at 6, maroon (115,40,56) at 9, dark red-brown (95,17,0) at 14; OKLab blend anchors at 6.75 / 7.5 / 8.25 m.
+
+| | live light (v2) | first spectrum | re-solved |
+|---|---|---|---|
+| from dark, 0.8-3 m mean / min | 24.0 / 8.6 | 15.0 / 5.6 | 23.9 / 9.6 |
+| from dark at 4 / 6 m | 32.0 / 26.8 | 13.7 / 11.3 | 29.9 / 24.3 |
+| neighbour steps, normal-vision weakest | 9.3 | 15.3 | 12.0 |
+| neighbour steps, colour-blind weakest | 7.2 | 5.3 | 4.2 (calm fade only, tritan); >= 6.5 everywhere else |
+| solver score (1 = normal 10 / colour-blind 6.5 / lightness 5 on every step from 0.5 m) | - | 0.82 | 1.10 |
+
+Lightness falls at every 0.02 m on the table; the composite's one wiggle is < 1e-5 OKLCH L at 0.48-0.50 m (coastal, full lighting).
+Crest switch over the new wash: 2.35 m (`v2s`, |Lc| 41.7; 33.0 at 3.05 m). Engine (production build, offline): light today | re-solved
+| dark at world, regional and calm views plus a crest burst, 18 shots, GL errors 0; the open-sea umber crests on the teal read like
+today's on cyan. The one shared hue left is the indigo ring at 4-6 m, near dark's blue-violet at 2.5-4 m (a different height, so the
+per-height measure passes it). Evidence: `evidence/wave-light-spectrum-apart-from-dark-2026-10-21.json`.

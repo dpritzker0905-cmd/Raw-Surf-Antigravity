@@ -8,7 +8,10 @@
 // LIGHT DRAWS THE SPECTRUM (owner 2026-10-21, DECISIONS D-037: "I like the proposed light mode", then "make sure we have the best
 // and widest spectrum of color on this scheme"): seven colour steps on the WMO/Douglas sea-state breaks (0.5 1.25 2.5 4 6 9 14 m,
 // 1.6 4 8 13 20 30 46 ft), lightness falling at every step AS DRAWN, the widest hue sweep and chroma the map can show (solved over
-// light water at world opacity; research report "Wave height heatmap colour spectrum", 2026-10-20). Two shader terms come with it,
+// light water at world opacity; research report "Wave height heatmap colour spectrum", 2026-10-20). RE-SOLVED the same day (owner: "I'm
+// not sold on light modes blue water, it seems too close to the same color as dark modes water"; "Resolve it so light improves but isnt
+// too much like dark"): light's common sea stays green -> aqua -> teal and big seas go steel blue -> indigo -> maroon, at least as far
+// from dark's wash as light's v2 is at every height from 1.2 to 6 m (spectrum-apart.mjs, theme-distance.mjs). Two shader terms come with it,
 // light only (withWaveSpectrum): the wash grows denser with height (opacity 0.65 -> 0.80 at world zoom) and fades into the water
 // below 0.5 m instead of blending from the sea floor colour. Dark and beach draw exactly what they drew.
 // BEACH DRAWS v1 (owner 2026-10-20, DECISIONS D-035: "I really like v1 color scheme heatmap for Beach mode. How do we stick with
@@ -50,18 +53,21 @@ export const WAVE_PALETTES = {
     // (10.8, darker as drawn): every forward hue (red, orange, maroon) left the flag 7-9 dE00 or less (joint search, 2026-10-20).
     h16: { cap: 16, light: [72, 21, 66], beach: [134, 59, 86], over: { light: [88, 0, 2], beach: [146, 1, 115] } },
   },
-  // The spectrum (D-037), light only: source colours at the sea-state breaks, solved (2026-10-21) so that lightness falls at every step
-  // on the table itself AND as drawn over light water (144,223,254) at world, regional and coastal opacity (each rising with log height)
-  // under every swell lighting, with the widest hue sweep and chroma the map can show: teal -> azure -> blue -> violet -> magenta ->
-  // crimson -> dark brown as drawn. Under 0.5 m the colour holds and the wash fades out; 14 m and above hold the top colour, so 14 m is
-  // also the encoder's ceiling for light (finer steps than 16). Linear in encoded sRGB per band, like every table.
+  // The spectrum (D-037), light only: source colours at the sea-state breaks, solved (2026-10-21, re-solved apart from dark the same day)
+  // so that lightness falls at every step on the table itself AND as drawn over light water (144,223,254) at world, regional and coastal
+  // opacity (each rising with log height) under every swell lighting: soft green -> aqua -> teal (the common 1-3 m sea) -> steel blue ->
+  // indigo -> maroon -> dark red as drawn. From 1.2 to 6 m light's composite is at least as far (CIEDE2000) from dark's wash at the same
+  // height as light's v2 is (capped at 24; beach's v1 the same way, capped at 20); 0.8-3 m mean 23.9 from dark (v2 24.0; the first,
+  // rejected spectrum 15.0), 4 / 6 m 29.9 / 24.3 (rejected: 13.7 / 11.3). Every step between neighbouring breaks from 0.5 m clears
+  // normal 10 / colour-blind 6.5 / lightness 5 dE in every view (score 1.10; spectrum-apart.mjs --water-cvd 4 --cmin-common 32
+  // --low 8, frontend/scripts/wind-color/). Under 0.5 m the colour holds and the wash fades out; 14 m and above hold the top colour, so
+  // 14 m is also the encoder's ceiling for light. Linear in encoded sRGB per band.
   spectrum: {
-    // `ticks` are the seven breaks (the legend's, and the checker's neighbours). 4.5, 5 and 5.5 m are blend-only anchors on the OKLab line
-    // from violet to magenta: that band turns far in hue for little lightness, and a plain sRGB blend dipped and climbed back (0.013
-    // OKLCH L); violet's blue is trimmed so full swell lighting cannot clip it (spectrum-tune.mjs, frontend/scripts/wind-color/).
-    heights: [0, 0.5, 1.25, 2.5, 4, 4.5, 5, 5.5, 6, 9, 14], ticks: [0, 0.5, 1.25, 2.5, 4, 6, 9, 14], cap: 14, over: null, spectrum: true,
-    light: [[0, 202, 144], [0, 202, 144], [0, 156, 222], [80, 109, 246], [128, 60, 235], [142, 58, 206], [156, 52, 176], [169, 38, 147],
-      [181, 0, 118], [164, 0, 26], [90, 20, 0]],
+    // `ticks` are the seven breaks (the legend's, and the checker's neighbours). 6.75, 7.5 and 8.25 m are blend-only anchors on the OKLab
+    // line from indigo to maroon (a plain sRGB blend there climbed back by a rounding step at 8.94-9 m).
+    heights: [0, 0.5, 1.25, 2.5, 4, 6, 6.75, 7.5, 8.25, 9, 14], ticks: [0, 0.5, 1.25, 2.5, 4, 6, 9, 14], cap: 14, over: null, spectrum: true,
+    light: [[140, 219, 128], [140, 219, 128], [0, 200, 173], [0, 144, 174], [64, 104, 181], [68, 67, 200], [82, 67, 164], [94, 62, 128],
+      [105, 54, 93], [115, 40, 56], [95, 17, 0]],
   },
 };
 // The spectrum's opacity law (the GLSL below mirrors it): from `alpha` (the pass's zoom opacity) toward 1 by SPECTRUM_LIFT of the gap,

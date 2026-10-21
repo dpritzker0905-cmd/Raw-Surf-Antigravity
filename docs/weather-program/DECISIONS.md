@@ -1327,6 +1327,12 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `__RAW_DISABLE_SPECTRUM_CREST_LIFT__`, DRAW_VS = dev). Engine zoom ladder, p99 |Lc| today -> shipped: z 2.2 37.1 -> 41.4, z 3.8
   26.0 -> 49.1, z 4.6 27.5 -> 40.9, z 6 36.5 -> 31.9, z 9 52.9 -> 38.0 (`evidence/wave-light-spectrum-crest-lift-2026-10-21.json`).
   Close-in the gap is the wash's (a mid-lightness blue), not the crest's opacity; the cased crest stays the next step.
+- **Update 2026-10-21 (owner: "I'm not sold on light modes blue water, it seems too close to the same color as dark modes water";
+  then "Resolve it so light improves but isnt too much like dark"):** the spectrum is re-solved apart from dark. Light's composite stays
+  at least as far from dark's (CIEDE2000, per height) as live light is from 1.2 to 6 m: soft green -> aqua -> teal -> steel blue ->
+  indigo -> maroon -> dark red (0.8-3 m mean 23.9 from dark, live light 24.0, the first spectrum 15.0; 4 / 6 m 29.9 / 24.3, first 13.7 /
+  11.3). Neighbour steps: normal-vision weakest 12.0 (live 9.3). Crest switch moves to 2.35 m. Shown to the owner before shipping;
+  `evidence/wave-light-spectrum-apart-from-dark-2026-10-21.json`.
 
 ### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
 - **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm

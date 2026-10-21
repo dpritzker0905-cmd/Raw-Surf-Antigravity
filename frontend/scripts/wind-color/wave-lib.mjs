@@ -62,7 +62,7 @@ export const LIGHT_CRESTS = Object.fromEntries(Object.entries(TABLES.LIGHT_CREST
 export const CRESTS_BY_THEME = { beach: CRESTS, light: LIGHT_CRESTS };
 /** Which crests the app draws over a wash palette: v1 over the v1 wash (V2 stands down there), V2 over v2 (when the theme has one). */
 export const crestFor = (paletteId, theme = 'beach') => (paletteId === 'v1' || !CRESTS_BY_THEME[theme].v2 ? 'v1'
-  : paletteId === 'spectrum' && CRESTS_BY_THEME[theme].v2s ? 'v2s' : 'v2');   // light's spectrum draws V2's colours switching at 1.55 m (D-037)
+  : paletteId === 'spectrum' && CRESTS_BY_THEME[theme].v2s ? 'v2s' : 'v2');   // light's spectrum draws V2's colours switching at 2.35 m (D-037)
 const CREST = { light: LIGHT_CRESTS[crestFor('v2', 'light')], beach: CRESTS.v1 };   // what each theme draws over its wash
 
 export const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
