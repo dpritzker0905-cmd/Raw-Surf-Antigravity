@@ -7,8 +7,8 @@ not merged. Branch `claude/upbeat-matsumoto-52b4be` from `dev` da40c3c5b. **No s
 products are requested and drawn, fewer times or sooner. Offline throughout: the real backend over synthetic data on :4195
 (`serve_synthetic.py --thin-bounds 1 --dynamic 1 --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind --regions
 flagship`), the bundle on :3196 (`REACT_APP_ICON_STORED_TAIL=true`, as the dev deploy builds it); never the live box. Evidence:
-`docs/weather-program/evidence/request-diet-2026-10-20.json`. Draft PR #426; ledger seq 1557 (`pr_open`) and 1558 (the live
-read-back commitment, due 2026-10-27). STATE.md is left to the next merge's receipts (a draft changes no served state).
+`docs/weather-program/evidence/request-diet-2026-10-20.json`. Draft PR #426; ledger seq 1558 (`pr_open`) and 1559 (the live
+read-back commitment, due 2026-10-27); first written as 1557-1558, re-appended after `dev`'s 1557 (#424) with `--acted-at`. STATE.md is left to the next merge's receipts (a draft changes no served state).
 
 ## 1. Instruments added to the visual lab
 
