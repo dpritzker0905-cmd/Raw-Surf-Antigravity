@@ -67,3 +67,32 @@ Draft PR #433; owner page https://claude.ai/artifact/LebieAg312hzjyruotS9KN (pri
 1564 (`commitment`: the owner's pick by 2026-10-24). Local checks at `cf90d4474`: Jest 460/461 suites (the known
 `netlifyIconStoredTailScope` spawn timeout, same on dev), `check_eslint.js` debt down, `loc_ratchet.py` 0 new / 0 regressed,
 `craco build` compiled, flake8 clean.
+
+## 2026-10-21 afternoon: two-tone bold, re-measured on dev 73e25a908 (#430)
+
+Corrections and direction, in order:
+- The lead relayed the owner's direction: keep today's beach crest colours ("I do like the blueish color wave animations on the
+  big waves on beach mode that is live on dev now ... Only some of the areas blend"); either a heatmap or a crest fix is fine. The
+  lead's seafoam research candidate (one near-white core + ink casing) was built (seafoam / seabold levers) and then dropped.
+- My first model put every crest at its 0.85 alpha cap. Far out the engine draws crests at ~0.3-0.6 (DRAW_VS zoomAlphaScale 0.45
+  below z3), so plain two-tone still blended: under |Lc| 30 at 40 of 100 heights at world zoom (engine p99 18.0). The model now
+  uses the engine's real per-zoom crest alpha, every 0.1 m, and #430's calm-hold wash law. The lead was told.
+- The owner asked for the best option; I recommended two-tone with beach crest alpha x3 before the cap, and he said: "Yes: build
+  two-tone bold (two-tone with beach crest opacity x3 before the cap), re-measure on dev 73e25a908, record the moving A/B against
+  today, put it first on the page as the recommendation, and send me and the lead the link."
+
+Built (`8cd43c9bf`, after merging dev `5be9e9dd0`): `window.__RAW_BEACH_CREST_STYLE__ = 'twotonebold'`, listed first; one more
+wired line (`boostedAlpha = alpha * (u_theme > 1.5 ? 3.00 : 1.0) * mix(...)`, the 0.85 cap kept); seafoam/seabold removed.
+
+Model on dev 73e25a908 (heights under |Lc| 30 of 100: world / storm fresh / storm zoomed out / coast / close; worst; colour-blind):
+- today: 100 / 80 / 76 / 98 / 99; 0; 1.5.
+- twotonebold: 0 / 0 / 0 / 0 / 0; 35.2; 23.3 (inner edge 66.9).
+- twotone: 40 / 28 / 27 / 6 / 3; 10.8; 9.1. soft and cased: worse (evidence).
+Engine (paired exact wash, p99, today -> twotonebold): world |Lc| 0.0 -> 44.0, colour-blind 10.3 -> 37.7, crest pixels at |Lc| 15+
+0.1% -> 16.2%; storm 26.5 -> 45.4 (colour-blind 26.4 -> 40.9); coast 34.2 -> 53.3 (34.8 -> 47.7). Plain twotone: 18.0 / 22.5 /
+47.7. Null (half vs half) <= 9.8. Every pane's compiled style read back; every DRAW program linked.
+Colour-blind 30 (the lead's ask) is not reachable without a heavier rim, which changes the look; left at 23.3 (model).
+Harness fix: VIDEO=1 marks are now timed from page creation (the recording's start); they were late by the browser launch time,
+so the first trims caught the storm where the world view was meant.
+
+Ledger lines 1563-1564 were re-chained after dev's head as 1573 (`pr_open`) and 1574 (`commitment`).

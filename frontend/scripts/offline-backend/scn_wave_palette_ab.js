@@ -73,9 +73,10 @@ async function legendBox(page) {
   const record = { at: new Date().toISOString(), port: PORT, views: VIEWS, shots: [], water: {} };
   for (const theme of themes) {
     for (const v of variants) {
-      const t0 = Date.now(), videoDir = process.env.VIDEO === '1' ? path.join(OUT, `video-${theme}-${v}`) : null;
+      const videoDir = process.env.VIDEO === '1' ? path.join(OUT, `video-${theme}-${v}`) : null;
       const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true, video: videoDir });
-      const marks = [], mark = (what) => marks.push({ what, t: (Date.now() - t0) / 1000 });
+      // The recording starts with the page (inside launch), not with the browser launch: time the flow from here.
+      const t0 = Date.now(), marks = [], mark = (what) => marks.push({ what, t: (Date.now() - t0) / 1000 });
       try {
         await page.addInitScript(({ theme, levers }) => { localStorage.setItem('raw-surf-theme', theme); Object.assign(window, levers); }, { theme, levers: LEVERS[v] });
         await L.openMap(page);
