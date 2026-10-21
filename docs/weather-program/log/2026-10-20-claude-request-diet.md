@@ -128,3 +128,31 @@ test passes unchanged.
   client reads exactly the 7 compact fields (`valid_time_end` is live in `getAvailableTilesFromManifest`).
 - Ownership with #422: #426 owns the `/products` block and the cache / exact-upgrade / settle / scrub-cache modules; #422 owns the
   source switch inside `fetchBackendMarineGrid` and `marineGridSeries.js`. A test merge conflicts on two adjacent import lines only.
+
+## 8. 2026-10-21 ~12:30Z: independent review fixes (before the lead's merge)
+
+The lead relayed a `pr-review-toolkit:code-reviewer` pass on #426 and the owner's merge set (#425 -> #426 -> #422; #423 merged first
+at 744775c86, so #426 adds the compact list). Merged `dev` 744775c86; my ledger lines 1558-1559 were set aside and are re-appended
+ONCE, against `dev`'s head after #425 merges (the lead's call).
+- **[85] SWR_RETRY_CAP would change the steady-state frame**: the cap never applied since June, so the live client re-asks a stale or
+  empty grid every 1.5 s / 2.5 s until fresh, and that is what pulls the revalidated grid; capped at 3 it stops after ~4.5 s /
+  7.5 s with nothing else re-driving an idle map (a z5-7 mid-tier preview could stay coarse; ICON just after a run could stay
+  blank). Now OPT-IN (`REQUEST_DIET_OPT_IN`, `window.__RAW_SWR_RETRY_CAP__`): zero behaviour change by default. Follow-up: a
+  never-stopping backoff (1.5, 3, 6, 12, 24, 48 s, then hold) measured against a synthetic backend that answers stale. My section 4
+  numbers are unaffected: the synthetic backend never answers stale, so the cap never fired in either arm.
+- **[80] tests that stayed green with a fix site deleted**: new `useMarineDataFetcherCore.swrCap.test.js` (the real updateMarineGrid,
+  counting resetRetryCounts), `marineController.instantAlias.test.js` (fetchMarineData and getModelSafeMarine over a mocked fetch,
+  counting /grid requests), `useMarineScrubSettle.paintWhilePending.test.js` (runScrubSettleCheck with a pending stamp); the
+  engine fixture now has the conformed shape (no `served_valid_time`; useMarineWindData does not carry it, the check reads
+  `valid_time`, the snapped ask). Mutation check below.
+- **[75] no world frame at a regional view**: `paintSeriesWhilePending` refuses a world-width frame when zoom > 7 and the view is
+  under 15 deg, unless nothing is drawn (the clamp branch's own `fw < 340` rule).
+- **[60] newest run only**: the instant alias skips an entry whose `run_time` is older than the newest run cached for that model and
+  layer.
+- **[50] exact-skip**: a series frame on the engine (`__fromSeries`, even a finer stride-2 one) never counts as exact, and the model
+  and layer must match.
+- **[45] one settle re-run per landing**: the new landing listener now acts only while the engine has drawn nothing (the first-load
+  case); after that the settle hook's own listener owns each landing.
+- **Ratchet**: the fetcher core's new import is on its own line (966 of its 966; it had been folded onto an existing line).
+- **PRODUCTS_COMPACT** (new part, ON, kill `__RAW_DISABLE_PRODUCTS_COMPACT__`): `/products?fields=compact` (#423), the seven fields
+  the client reads; a backend without #423 ignores the parameter.

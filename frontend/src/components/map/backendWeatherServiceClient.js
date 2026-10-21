@@ -55,7 +55,8 @@ export async function fetchProductsManifest(forceRefresh = false, { background =
 
   const p = (async () => {
     try {
-      const res = await fetch(STATUS_URL.replace('/status', '/products'));
+      // PRODUCTS_COMPACT (#423): only the seven fields the client reads; an older backend ignores the parameter (full list).
+      const res = await fetch(STATUS_URL.replace('/status', '/products') + (requestDietOn('PRODUCTS_COMPACT') ? '?fields=compact' : ''));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setCachedManifest(data);

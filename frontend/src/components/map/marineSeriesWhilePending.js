@@ -18,6 +18,7 @@ import { useEffect } from 'react';
 import { getMarineSeriesFrame } from './marineGridSeries';
 import { keepExactResident } from './marineExactUpgrade';
 import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 // The frame last painted here, so the two listeners that can re-run the settle check for one landing (this module's and the settle
 // effect's own) commit it once: a second call still holds the pre-commit marineData in its closure.
@@ -45,6 +46,17 @@ export function paintSeriesWhilePending(ctx) {
     const miss = (reason) => { noteRequestDiet('series_paint_miss', { reason, hour: currentHour, model: activeModelRef.current, layer }); return false; };
     if (!sf || !sf.grid || !sf.grid.vectors || !sf.grid.vectors.length) return miss('no_series_frame');
     if (marineData && marineData.grid === sf.grid) return miss('already_shown');                 // already showing this very frame
+    // NO WORLD FRAME AT A REGIONAL VIEW (#426 review): getMarineSeriesFrame falls back to a world-width frame when no regional page
+    // covers the hour (z8 swell crossing a page boundary), and committing it would replace the fine resident with a blocky world
+    // grid, then the clamp branch would force a series re-fetch and a clamp_resharpen while the /grid is still in flight. Same rule
+    // as the clamp branch's sharpen (fw < 340), except over an EMPTY display, where a coarse frame beats none.
+    const fb = sf.grid.bounds;
+    const fw = fb ? (fb.east < fb.west ? fb.east + 360 - fb.west : fb.east - fb.west) : 0;
+    const vw = vp.east < vp.west ? vp.east + 360 - vp.west : vp.east - vp.west;
+    let regionalView = false;
+    try { regionalView = mapInstance.getZoom() > MARINE_ZOOMED_OUT_MAX_ZOOM && vw < 15 && Math.abs(vp.north - vp.south) < 15; } catch (e) { /* keep false */ }
+    const noData = !(marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length);
+    if (regionalView && fw >= 340 && !noData) return miss('world_frame_at_regional_view');
     if (_lastPainted.grid === sf.grid && Date.now() - _lastPainted.at < 2000) return true;   // just committed it: nothing more to do
     if (keepExactResident(marineData, sf)) return miss('exact_resident');                   // never a thin frame over an exact one of the same data
     _lastPainted = { grid: sf.grid, at: Date.now() };
@@ -64,6 +76,8 @@ export function paintSeriesWhilePending(ctx) {
  * line at all between the mini landing and the /grid landing. So listen here, and while a marine fetch is pending re-run the settle
  * check (`checkRef.current`, useMarineScrubSettle's live checkScrubSettle), whose pending branch then calls paintSeriesWhilePending.
  * With nothing pending this does nothing: the existing listeners own every other state. Same kill switch.
+ * Only while the ENGINE has drawn nothing (#426 review): once a frame is drawn the settle hook's own listener (60 ms) re-runs the
+ * check for every landing, and a second run from here spent the clamp_resharpen budget (2 per view) twice per landing.
  */
 export function useSeriesPaintWhilePending(checkRef, activeMarineLayerRef) {
   useEffect(() => {
@@ -72,6 +86,8 @@ export function useSeriesPaintWhilePending(checkRef, activeMarineLayerRef) {
     const onLanded = () => {
       if (!requestDietOn('SERIES_PAINT_WHILE_PENDING') || window.isScrubbingTimeline) return;
       if (!(activeMarineLayerRef && activeMarineLayerRef.current) || !window.__MARINE_FETCH_PENDING__) return;
+      const eng = window.__MARINE_ENGINE__;
+      if (eng && eng._waveData) return;              // something is drawn: the settle hook's listener owns this landing
       clearTimeout(timer);
       timer = setTimeout(() => { if (checkRef && checkRef.current) checkRef.current(); }, 0);
     };

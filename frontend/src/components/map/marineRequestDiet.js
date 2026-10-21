@@ -18,7 +18,11 @@
  *                               own frame first (useMarineOrchestratorScrubCache.js), not only one exact /grid per step.
  *                               OFF by default (measured no gain, see REQUEST_DIET_OPT_IN): window.__RAW_STEP_PAGE__ = true
  *   SWR_RETRY_CAP               the stale-grid revalidation keeps its retry count across its own re-drive, so its cap of 3 applies
- *                               (useMarineDataFetcherCore.js resets it on every run otherwise: a stale backend was re-polled forever)
+ *                               (useMarineDataFetcherCore.js resets it on every run otherwise: a stale backend was re-polled forever).
+ *                               OFF by default (it would change the steady-state frame, see REQUEST_DIET_OPT_IN): __RAW_SWR_RETRY_CAP__
+ *   PRODUCTS_COMPACT            /products is asked for with ?fields=compact (#423): the seven fields the client reads (model, domain,
+ *                               layer, valid_time_start, valid_time_end, coverage, region_id), byte-identical values; a backend
+ *                               without #423 ignores the parameter and returns the full list (backendWeatherServiceClient)
  *
  * None of these changes a served number: the same products are requested and drawn, fewer times or sooner.
  * Kill one:   window.__RAW_DISABLE_<NAME>__ = true      (e.g. window.__RAW_DISABLE_PRODUCTS_SHARE__); opt-in parts: window.__RAW_<NAME>__
@@ -29,6 +33,7 @@
 
 export const REQUEST_DIET_PARTS = Object.freeze([
   'PRODUCTS_SHARE', 'GRID_INSTANT_KEY', 'EXACT_UPGRADE_SKIP', 'SERIES_PAINT_WHILE_PENDING', 'STEP_PAGE', 'SWR_RETRY_CAP',
+  'PRODUCTS_COMPACT',
 ]);
 
 /**
@@ -40,8 +45,14 @@ export const REQUEST_DIET_PARTS = Object.freeze([
  * pages from where the layer was activated, at a regional zoom.
  * Lead ruling 2026-10-21: it STAYS OFF pending the static-frame path (#422) and GPU-resident frames, which make per-step page
  * requests moot. Do not turn it on to "finish" #426: that adds server load the A/B found no return for.
+ * SWR_RETRY_CAP (lead ruling 2026-10-21, from #426's independent review): the cap never applied since June, so the live client
+ * re-asks a stale or empty grid every 1.5 s / 2.5 s until it is fresh, and that endless re-ask is what eventually pulls the
+ * revalidated grid. Capped at 3, polling stops after ~4.5 s / 7.5 s and nothing else re-drives an idle map (detectClamp does not
+ * fire for a mid-tier preview at z5-7): a zoom-6 stale preview could stay coarse, and ICON just after a run lands could stay blank.
+ * That changes the steady-state frame, so it ships OFF until a never-stopping backoff (1.5, 3, 6, 12, 24, 48 s, then hold) is
+ * built and measured against a synthetic backend that answers stale.
  */
-export const REQUEST_DIET_OPT_IN = Object.freeze(['STEP_PAGE']);
+export const REQUEST_DIET_OPT_IN = Object.freeze(['STEP_PAGE', 'SWR_RETRY_CAP']);
 
 /** True unless the umbrella switch or this part's own switch is set (an opt-in part: only when asked for). Never throws. */
 export function requestDietOn(name) {

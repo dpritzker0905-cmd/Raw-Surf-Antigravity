@@ -113,6 +113,11 @@ export function engineHoldsExactOf(engineGrid, thinGrid) {
     const eg = engineGrid, tg = thinGrid;
     if (!eg || !tg || !eg.bounds || !tg.bounds || !(eg.cols > 1) || !(tg.cols > 1) || !(eg.vectors && eg.vectors.length)) return false;
     if (lngSpan(eg.bounds) < WORLD_MIN_SPAN_DEG || !!eg.ratingMode !== !!tg.ratingMode || eg.__renderable === false) return false;
+    // A series frame is never the exact one, however fine (a stride-2 page frame is finer than a stride-4 placeholder but is still
+    // a thinned view); and the engine must hold the same model and layer (useMarineWindData's conform carries both by name).
+    if (eg.__fromSeries) return false;
+    if (eg.__sourceModel && tg.__sourceModel && eg.__sourceModel !== tg.__sourceModel) return false;
+    if (eg.__componentLayer && tg.__componentLayer && eg.__componentLayer !== tg.__componentLayer) return false;
     if (!(lngSpan(eg.bounds) / eg.cols < (lngSpan(tg.bounds) / tg.cols) * (2 / 3))) return false;
     const a = gridServedMs(eg), b = gridServedMs(tg);
     if (a === null || b === null || a !== b) return false;

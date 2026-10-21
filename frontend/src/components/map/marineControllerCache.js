@@ -139,10 +139,16 @@ export function aliasMarineHourByInstant(model, layer, tileId, hourOffset) {
     if (!requestDietOn('GRID_INSTANT_KEY') || !tileId || !Number.isFinite(hourOffset) || !instantAliasEligible(m, l, hourOffset)) return false;
     if (!(m === 'GFS' ? getBackendWeatherFlag() : m === 'ICON' ? getBackendIconMarineFlag() : getBackendCopernicusFlag())) return false;
     rollHourCache();
-    const prefix = `${m}_${(_isAllVarModel(m) ? 'all' : l) + (getSurfModeFlag() ? '~surf' : '')}_${tileId}_`;
+    const modelLayer = `${m}_${(_isAllVarModel(m) ? 'all' : l) + (getSurfModeFlag() ? '~surf' : '')}_`;
+    const prefix = `${modelLayer}${tileId}_`;
     if (_perModelHourCache.has(prefix + hourOffset)) return false;
     const now = Date.now();
     let wantMs;                          // resolved (read-only) only once a candidate exists: an empty cache costs no lookup
+    // NEWEST RUN ONLY (#426 review): inside the TTL after a new model run lands, an offset not yet fetched must not take the PREVIOUS
+    // run's grid for its instant. The newest run_time cached for this model and layer (any tile) is the bar; an entry naming no run
+    // is judged by the instant alone, as before.
+    const runMs = (d) => { const t = Date.parse((d && (d.run_time || (d.grid && d.grid.run_time))) || ''); return Number.isFinite(t) ? t : null; };
+    let newestRun;                       // lazily, with wantMs
     for (const [key, entry] of _perModelHourCache.entries()) {
       if (!key.startsWith(prefix)) continue;
       const rest = key.slice(prefix.length), h = Number(rest);
@@ -153,6 +159,15 @@ export function aliasMarineHourByInstant(model, layer, tileId, hourOffset) {
       if (wantMs === undefined) wantMs = Date.parse(getSharedValidTime(hourOffset, l, m, { readOnly: true }));
       if (!Number.isFinite(wantMs)) return false;
       if (Date.parse(d.valid_time || g.valid_time || '') !== wantMs) continue;
+      if (newestRun === undefined) {
+        newestRun = null;
+        for (const [k2, e2] of _perModelHourCache.entries()) {
+          const r = k2.startsWith(modelLayer) ? runMs(e2 && e2.data) : null;
+          if (r !== null && (newestRun === null || r > newestRun)) newestRun = r;
+        }
+      }
+      const cr = runMs(d);
+      if (cr !== null && newestRun !== null && cr < newestRun) continue;
       const data = { ...d, hourOffset, grid: { ...g, hourOffset } };
       delete data.__commitRevision; delete data.__commitLane; delete data.__committedSig; delete data.grid.__commitLane;
       _perModelHourCache.set(prefix + hourOffset, { data, timestamp: entry.timestamp, model: m, signature: entry.signature ? { ...entry.signature, hourOffset } : undefined });

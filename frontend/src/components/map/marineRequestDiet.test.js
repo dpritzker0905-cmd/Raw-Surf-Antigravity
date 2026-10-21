@@ -11,7 +11,7 @@ import { _cacheMarineResult, aliasMarineHourByInstant, getPerModelHourCache, isC
 import { engineHoldsExactOf, planExactUpgrade } from './marineExactUpgrade';
 import { useMarineRevalidation } from '../../hooks/useMarineRevalidation';
 
-const KILLS = ['__RAW_DISABLE_REQUEST_DIET__', '__RAW_STEP_PAGE__', ...REQUEST_DIET_PARTS.map((p) => `__RAW_DISABLE_${p}__`)];
+const KILLS = ['__RAW_DISABLE_REQUEST_DIET__', '__RAW_STEP_PAGE__', '__RAW_SWR_RETRY_CAP__', ...REQUEST_DIET_PARTS.map((p) => `__RAW_DISABLE_${p}__`)];
 const clearKills = () => KILLS.forEach((k) => { delete window[k]; });
 const WORLD = { west: -180, south: -80, east: 180, north: 85 };
 const T0 = Date.parse('2026-10-20T12:00:00Z');
@@ -31,7 +31,8 @@ afterEach(() => {
 describe('kill switches', () => {
   test('every part but the opt-in ones is on by default and goes off with its own switch or the umbrella', () => {
     for (const p of REQUEST_DIET_PARTS) expect(requestDietOn(p)).toBe(!REQUEST_DIET_OPT_IN.includes(p));
-    expect(REQUEST_DIET_OPT_IN).toEqual(['STEP_PAGE']);          // measured no gain offline: ships off (marineRequestDiet.js)
+    // STEP_PAGE measured no gain; SWR_RETRY_CAP would change the steady-state frame (lead ruling 2026-10-21): both ship off
+    expect(REQUEST_DIET_OPT_IN).toEqual(['STEP_PAGE', 'SWR_RETRY_CAP']);
     window.__RAW_DISABLE_PRODUCTS_SHARE__ = true;
     expect(requestDietOn('PRODUCTS_SHARE')).toBe(false);
     expect(requestDietOn('GRID_INSTANT_KEY')).toBe(true);
@@ -63,7 +64,7 @@ describe('PRODUCTS_SHARE: one /products download at a time', () => {
     expect(planManifestFetch({ inFlight: true, force: false, background: false, lastBackgroundStartMs: null, nowMs: now })).toBe('share');
   });
 
-  const productsCalls = () => global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/products')).length;
+  const productsCalls = () => global.fetch.mock.calls.filter(([u]) => String(u).includes('/products')).length;
   const pendingFetch = () => {
     const resolvers = [];
     global.fetch = jest.fn(() => new Promise((res) => resolvers.push(res)));
@@ -81,6 +82,16 @@ describe('PRODUCTS_SHARE: one /products download at a time', () => {
     pendingFetch();
     for (let h = 0; h < 5; h++) getSharedValidTime(h, 'waves', 'GFS');
     expect(productsCalls()).toBe(5);
+  });
+
+  test('PRODUCTS_COMPACT: the download asks for the seven-field list; the kill asks for the full one', async () => {
+    global.fetch = jest.fn(async () => ({ ok: true, json: async () => ({ products: [{ model: 'GFS', domain: 'marine', layer: 'waves', valid_time_start: iso(0) }] }) }));
+    await fetchProductsManifest(true);
+    expect(String(global.fetch.mock.calls[0][0])).toMatch(/\/api\/weather\/products\?fields=compact$/);
+    setCachedManifest(null); _resetProductsManifestFetchForTest();
+    window.__RAW_DISABLE_PRODUCTS_COMPACT__ = true;
+    await fetchProductsManifest(true);
+    expect(String(global.fetch.mock.calls[1][0])).toMatch(/\/api\/weather\/products$/);
   });
 
   test('an EMPTY manifest is re-asked for in the background at most once per spacing window; an awaited caller still retries', async () => {
@@ -156,6 +167,17 @@ describe('GRID_INSTANT_KEY: one exact /grid per requested instant', () => {
     expect(aliasMarineHourByInstant('ICON', 'swell_2', 'global_coarse', 2)).toBe(false);
   });
 
+  test('a grid of an OLDER model run never aliases once a newer run is cached for that model and layer (any tile)', () => {
+    _cacheMarineResult('GFS', 3, exactGrid(3, { run_time: iso(-12) }), 'waves', false, 'global_coarse');
+    const newer = exactGrid(6, { run_time: iso(-6), valid_time: iso(6), tile_id: 'viewport_x', region_id: 'viewport_x' });
+    _cacheMarineResult('GFS', 6, newer, 'waves', false, 'viewport_x');
+    expect(aliasMarineHourByInstant('GFS', 'waves', 'global_coarse', 2)).toBe(false);
+    getPerModelHourCache().clear();
+    _cacheMarineResult('GFS', 3, exactGrid(3, { run_time: iso(-6) }), 'waves', false, 'global_coarse');
+    _cacheMarineResult('GFS', 6, newer, 'waves', false, 'viewport_x');
+    expect(aliasMarineHourByInstant('GFS', 'waves', 'global_coarse', 2)).toBe(true);    // the newest run itself still aliases
+  });
+
   test('an empty cache resolves no valid time at all', () => {
     const spy = jest.spyOn(require('./backendWeatherServiceClient'), 'getSharedValidTime');
     expect(aliasMarineHourByInstant('GFS', 'waves', 'global_coarse', 2)).toBe(false);
@@ -164,8 +186,12 @@ describe('GRID_INSTANT_KEY: one exact /grid per requested instant', () => {
 });
 
 describe('EXACT_UPGRADE_SKIP: no world /grid for what the engine already draws', () => {
-  const thin = { bounds: WORLD, cols: 46, rows: 21, vectors: [1], __decimatedStride: 4, hourOffset: 3, valid_time: iso(3), run_time: iso(-6) };
-  const exact = { bounds: WORLD, cols: 181, rows: 83, vectors: [1], valid_time: iso(2), served_valid_time: iso(3), run_time: iso(-6) };
+  const thin = { bounds: WORLD, cols: 46, rows: 21, vectors: [1], __decimatedStride: 4, hourOffset: 3, valid_time: iso(3), run_time: iso(-6),
+    __sourceModel: 'GFS', __componentLayer: 'waves', __fromSeries: true };
+  // The ENGINE's grid as useMarineWindData conforms it: valid_time (the /grid echo of the snapped ask), run_time, __fromSeries,
+  // model and layer by name, and NO served_valid_time (the conform does not carry it).
+  const exact = { bounds: WORLD, cols: 181, rows: 83, vectors: [1], valid_time: iso(3), run_time: iso(-6),
+    __sourceModel: 'GFS', __componentLayer: 'waves', __fromSeries: false };
   const ctx = (engineGrid) => ({ marineData: { grid: thin, hourOffset: 3 }, currentHour: 3, scrubbing: false, wideView: true,
     fetchPendingForHour: false, attempts: null, nowMs: Date.now(), disabled: false, engineGrid });
 
@@ -174,8 +200,19 @@ describe('EXACT_UPGRADE_SKIP: no world /grid for what the engine already draws',
     expect(planExactUpgrade(ctx(exact))).toEqual({ upgrade: false, reason: 'engine_has_exact' });
   });
 
+  test('the conformed engine grid has no served_valid_time: the decision reads its valid_time', () => {
+    expect(exact.served_valid_time).toBeUndefined();
+    expect(engineHoldsExactOf({ ...exact, valid_time: iso(6) }, thin)).toBe(false);
+  });
+
+  test('a series frame on the engine (even a finer stride-2 one), another model or another layer keeps the upgrade', () => {
+    expect(engineHoldsExactOf({ ...exact, cols: 91, __fromSeries: true }, thin)).toBe(false);
+    expect(engineHoldsExactOf({ ...exact, __sourceModel: 'ICON' }, thin)).toBe(false);
+    expect(engineHoldsExactOf({ ...exact, __componentLayer: 'swell_1' }, thin)).toBe(false);
+  });
+
   test('anything else keeps the upgrade: another instant, another run, a thin or coarse engine grid, no engine grid, the kill', () => {
-    expect(engineHoldsExactOf({ ...exact, served_valid_time: iso(6) }, thin)).toBe(false);
+    expect(engineHoldsExactOf({ ...exact, valid_time: iso(6) }, thin)).toBe(false);
     expect(engineHoldsExactOf({ ...exact, run_time: iso(0) }, thin)).toBe(false);
     expect(engineHoldsExactOf({ ...thin, __decimatedStride: undefined }, thin)).toBe(false);   // the engine's own thin copy
     expect(engineHoldsExactOf({ ...exact, cols: 37 }, thin)).toBe(false);                     // the 10-degree coarse tier
@@ -185,7 +222,7 @@ describe('EXACT_UPGRADE_SKIP: no world /grid for what the engine already draws',
   });
 });
 
-describe('SWR_RETRY_CAP: a stale backend is re-asked 3 times, not forever', () => {
+describe('SWR_RETRY_CAP (opt-in): with it, a stale backend is re-asked 3 times; by default, as before, until fresh', () => {
   const STALE = { stale: true, grid: { stale: true, cols: 5, rows: 5 } };
   beforeEach(() => { jest.useFakeTimers(); });
   afterEach(() => { jest.clearAllTimers(); jest.useRealTimers(); });
@@ -204,13 +241,17 @@ describe('SWR_RETRY_CAP: a stale backend is re-asked 3 times, not forever', () =
     return redrives;
   }
 
-  test('only its own re-drive keeps the count', () => {
+  test('only its own re-drive keeps the count, and only when opted in', () => {
+    expect(keepSwrRetryCount('swr_revalidation')).toBe(false);    // the default: the old reset on every run
+    window.__RAW_SWR_RETRY_CAP__ = true;
     expect(keepSwrRetryCount('swr_revalidation')).toBe(true);
     expect(keepSwrRetryCount('moveend')).toBe(false);
     expect(keepSwrRetryCount('timeline_scrub')).toBe(false);
   });
 
-  test('the cap of 3 applies with the fix; under the kill the 1.5 s re-poll never stops', () => {
+  test('by default the 1.5 s re-poll goes on (the shipped behaviour); opted in, the cap of 3 applies; its kill wins over the opt-in', () => {
+    expect(redrivesOver(60000)).toBe(40);
+    window.__RAW_SWR_RETRY_CAP__ = true;
     expect(redrivesOver(60000)).toBe(3);
     window.__RAW_DISABLE_SWR_RETRY_CAP__ = true;
     expect(redrivesOver(60000)).toBe(40);

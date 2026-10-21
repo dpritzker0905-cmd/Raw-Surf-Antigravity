@@ -99,5 +99,14 @@ describe('the landing re-runs the settle check only while a fetch is pending', (
     layer.current = null; land(); layer.current = 'waves';
     window.__RAW_DISABLE_SERIES_PAINT_WHILE_PENDING__ = true; land();
     expect(check).toHaveBeenCalledTimes(1);
+    delete window.__RAW_DISABLE_SERIES_PAINT_WHILE_PENDING__;
+    // Once the engine draws something the settle hook's own listener owns the landing: a second run here spent the
+    // clamp_resharpen budget twice per landing (#426 review).
+    window.__MARINE_ENGINE__ = { _waveData: { waveGrid: {} } };
+    land();
+    expect(check).toHaveBeenCalledTimes(1);
+    delete window.__MARINE_ENGINE__;
+    land();
+    expect(check).toHaveBeenCalledTimes(2);
   });
 });
