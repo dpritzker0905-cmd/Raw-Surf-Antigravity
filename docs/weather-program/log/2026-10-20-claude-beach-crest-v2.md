@@ -163,3 +163,68 @@ Engine (offline, paired exact wash, p99; ab5 smooth clips for the page, ab6 pair
 
 Null control <= 0.9 at world and coastal, <= 5.3 at regional. Owner page (same link, version 2):
 https://claude.ai/artifact/1CEnLsyDUXbmqADniMxDyi. Commitment 1544 (the owner's pick) stays open for this A/B.
+
+## 2026-10-20 evening: the sunset middle ground replaces the first one; #416 rebuilt on dev (D-035)
+
+The owner (this session): "I like the middle ground, but with that said, the old sea is easier to see between wave height sizes,
+as in the steps between the colors are more clear", then "Yes: replace the first middle ground with the sunset middle ground in
+#416, run the engine A/B (old sea vs sunset middle ground), and update the page."
+
+- Dev had locked beach to v1 (D-035, #417) while #416 was open, so #416 no longer changes beach by default. The first middle ground
+  (`BEACH_WASHES` mid/B) is gone; the sunset sea is `WAVE_PALETTES.sunset`, beach only, drawn ONLY under
+  `window.__RAW_BEACH_WASH__ = 'sunset'`. D-035's pins pass unchanged (beach samples, legend and shader branch).
+- Sunset sea: v1's six anchors and five steps, aqua -> lime -> gold -> coral -> rose -> purple, lightness falling at every 0.02 m;
+  clamped at 10 m like v1. Steps between sizes (world composite): weakest 16.1 dE00 (v1 14.5), colour-blind weakest 11.6 (v1 11.6);
+  AVERAGE step old 28.0 / sunset 22.5, colour-blind 21.8 / 12.7 (the old sea's big steps come from brightness jumping up and down).
+- Engine (offline, paired exact wash, p99; v1 -> sunset with the first crest): world dE00 17.1 -> 24.3, colour-blind 10.5 -> 17.9,
+  |Lc| 0.4 -> 23.3; regional 35.1 -> 37.5 / 25.2 -> 27.2 / 24.1 -> 44.0; coastal 37.4 -> 56.4 / 33.4 -> 35.3 / 34.5 -> 57.7.
+  Evidence: `evidence/beach-sunset-ab-2026-10-20.json`.
+- Two merges of dev (#415/#417/#418, then #421 light crest V2 + #424). The shared crest tools landed with #421 first; #416 takes
+  those copies and adds beach's tables (`BEACH_CRESTS` beside `LIGHT_CRESTS`, one import line in the shader, still 978 lines).
+  This log's ledger lines 1543-1546 were re-chained after dev's head twice: they are now **1558-1561** (1543 -> 1558 pr_open,
+  1544 -> 1559 commitment, 1545 -> 1560 decision, 1546 -> 1561 correction); `restack.py`, true times kept in `acted_at`.
+
+## 2026-10-21: a structured design critique of the three crest colours, and crest V2.1
+
+The owner: "I want you to use art skills, run a structured design critique with colour-harmony checks across all three crests, to
+make sure we're making this fit our middle ground best as possible." Read as beach's three crest colours (calm, active, storm, and
+the whitecap they carry) over the sunset sea, with light's crests (D-036) as the family check.
+
+Instrument (`crit.mjs` on the wave-lib model; numbers in `evidence/beach-crest-critique-2026-10-21.json`): worst case over every
+zoom, swell lighting and 0.05 m, whitecap off and on, of APCA |Lc| (body and whitecap front), CIEDE2000, coloraide dichromats and the
+engine's self-contrast; plus the harmony terms the contrast search does not see: hue relation of ink to local sea (OKLCH),
+blue-yellow separation (what dichromats keep), the seam at the switch, the 3 m vs 6 m energy cue, coastal repaint at the crest
+cover the engine measured (~78% of coastal sea pixels), and role-by-role distance to light V2. Twelve candidates.
+
+Findings:
+1. The whitecap was the weak point: white foam mixed into the oxblood ink near the switch lands on the sea's luminance (front |Lc|
+   24.9). Foam that follows the ink (oxblood-black below, white above, as light's does) lifts it to 38.1-38.5 and the z 3-4.9
+   self-contrast centre from 25.7 to 35.6, at no cost elsewhere.
+2. The switch belongs on the sea's 2.4 m anchor: a 1.9-2.8 m scan puts the best worst-case body |Lc| at 2.40 (39.9), dE00 rises
+   25.9 -> 35.1 there, colour-blind keeps rising slowly; the crest flip then coincides with the sea turning coral (and the
+   legend's 8 ft tick) instead of falling between two steps. The solver with dark foam picks 2.64 (its objective weights the
+   colour-blind margin); 2.40 is the body-|Lc| optimum and the structural one.
+3. Extension (Itten): near the coast crests are most of the picture, and a peach storm repainted the rose-purple storm sea toward
+   orange (model 48-59 degrees of hue; engine frames 19) and bleached it; cream bleached it more. A pale tint of the storm sea's
+   own rose (blush [1.00, 0.84, 0.88]), the painter's highlight, keeps the hue (model 1-13 degrees; engine 2) and doubles the
+   lemon -> storm energy cue (dE00 23.3 -> 49.0). Lilac does as well but is cooler.
+4. Family: every theme keeps one rule (dark ink where the sea is light, light ink where it is dark, the foam follows the ink), each
+   in its own sea's colours. Light's own inks on this sea would repaint the purple storm yellow (gold, 99-133 degrees).
+5. Kept: the warm inks (oxblood, lemon), the owner's direction. Set aside: aubergine dark ink (blue-yellow separation 0.005 -> 0.044
+   for dichromats on small seas, best self-contrast, but cool); wine (no gain).
+
+Built (`9765cc30d`): `BEACH_CRESTS.v2` = V2.1 (switch 2.4 m, oxblood / pale lemon + lemon, blush storm, foam switching); the first
+sunset crest stays as `v2a` behind `window.__RAW_BEACH_CREST_V2__ = 'first'` for the A/B only (to go with the owner's pick, as
+commitment 1559 already says); beach's foam line now comes from the table (v1's is the old literal byte for byte). Checker on the
+sunset sea, first -> V2.1: dE00 25.9 -> 27.0, colour-blind 17.1 -> 18.1 (coloraide 18.4 -> 19.1), |Lc| body 39.3 -> 39.9,
+whitecap front 24.9 -> 38.5, 0 red lines. Engine, paired p99 (first -> V2.1): world 24.2 -> 26.0 / 17.7 -> 20.3 / |Lc| 23.3 -> 27.1;
+regional 35.7 -> 31.4 / 22.6 -> 21.1 / 38.1 -> 33.4 (that view's run-to-run null is 4.4-4.8: the storm moves through it);
+coastal 56.3 -> 41.1 / 35.3 -> 36.4 / 57.7 -> 61.3 (blush separates by brightness, not hue: the colour difference falls by
+design and stays far above the 15 watch line). GPU read-back confirmed each pane's compiled crest lines.
+
+Also fixed on the way: dev's `crest-solve.mjs` has no `--table` (`--palettes sunset` replaces it, README updated); dev's
+`crest_contrast.py` defaults to `--theme light` (pass `--theme beach`); the checker now takes table ids like `v2a`.
+
+Owner page (same link, version 5, with the critique board "Quiet Counterpoint"): https://claude.ai/artifact/1CEnLsyDUXbmqADniMxDyi.
+Local checks: crest + light-crest + palette + encoding Jest suites 79/79 then 60/60 on V2.1, wave-check 0 red lines on sunset,
+`craco build` compiled. Commitment 1559 (the owner's pick) stays open; nothing merges without it.

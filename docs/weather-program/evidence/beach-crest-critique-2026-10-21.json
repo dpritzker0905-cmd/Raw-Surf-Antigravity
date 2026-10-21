@@ -1,0 +1,1873 @@
+{
+ "what": "PR #416: structured design critique of beach crest V2 over the sunset middle-ground sea (window.__RAW_BEACH_WASH__='sunset'), and the refinement it produced (V2.1). Variants in the engine: v1 = beach as it draws (D-035), sf = sunset sea + first sunset crest (window.__RAW_BEACH_CREST_V2__='first'), sunset = sunset sea + V2.1.",
+ "owner_request": "2026-10-21 ~02:00 EDT: 'I want you to use art skills, run a structured design critique with colour-harmony checks across all three crests, to make sure we're making this fit our middle ground best as possible'",
+ "method": "crit.mjs (scratchpad; wave-lib model): worst case over world/regional/coastal alpha x swell lighting 0/0.5/1 x every 0.05 m, whitecap off/on: APCA |Lc| body and whitecap front, CIEDE2000, coloraide-port dichromats, self-contrast (z 3-4.9 band centre; below 1.05 m); hue relation ink vs local sea (OKLCH), blue-yellow separation, seam at the switch, energy cue 3 m vs 6 m, coastal repaint at the engine-measured crest cover, family distance to light V2 (D-036). Switch scan 1.9-2.8 m every 0.05. Engine: offline harness, paired exact wash (PAIRED=1), crest_contrast.py --theme beach, repaint_frames.py (mean OKLab of sea pixels with vs without crests).",
+ "decision_inside_the_candidate": {
+  "kept": "warm inks oxblood / pale lemon + lemon (owner direction)",
+  "changed": [
+   "switch 2.1 -> 2.4 m (on the sea anchor; best worst-case body |Lc| of the scan)",
+   "storm peach -> blush [1.00,0.84,0.88] (repaint 48-59 -> 1-13 deg model; 19 -> 2 deg engine)",
+   "foam follows the ink: oxblood-black [0.08,0,0] below the switch, white above (whitecap front |Lc| 24.9 -> 38.5)"
+  ],
+  "rejected": [
+   "light family umber/cream/gold (gold storm repaints the purple sea 99-133 deg)",
+   "aubergine dark ink (blue-yellow separation 0.005 -> 0.044 for dichromats on small seas, best self-contrast, but cool, not the warm direction)",
+   "wine dark ink (no measurable gain)",
+   "lilac storm (as good as blush, cooler)"
+  ]
+ },
+ "checker_wave_check_sunset_beach": {
+  "first_v2a": {
+   "dE00": 25.9,
+   "cvd_js": 17.1,
+   "cvd_coloraide": 18.4,
+   "lc_body": 39.3,
+   "lc_whitecap_front": 24.9,
+   "self_contrast_band_centre": 25.7,
+   "below_1_05m_centre": 43.3
+  },
+  "v2_1": {
+   "dE00": 27.0,
+   "cvd_js": 18.1,
+   "cvd_coloraide": 19.1,
+   "lc_body": 39.9,
+   "lc_whitecap_front": 38.5,
+   "self_contrast_band_centre": 35.6,
+   "below_1_05m_centre": 52.7,
+   "red_lines": 0
+  }
+ },
+ "model_candidates": {
+  "S0_current": {
+   "switch": 2.1,
+   "body": {
+    "lc": 39.3,
+    "h": 2.1,
+    "view": "world"
+   },
+   "front": {
+    "lc": 23.8,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "dEmin": {
+    "de": 25.9,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.1,
+    "kind": "tritan",
+    "h": 2.1,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 25.5,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 43.2,
+    "h": 0.75,
+    "view": "world"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0,
+     "neighbour": 0.16,
+     "contrast": 0.83,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.005,
+     "h": 2
+    },
+    "inkToSeaChroma": {
+     "min": 0.62,
+     "max": 3.55
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.89,
+      "C": 0.109,
+      "h": 82,
+      "toSeaPath": 2
+     }
+    }
+   },
+   "seam": 76.7,
+   "energy": {
+    "3m_vs_6m_dE00": 23.3,
+    "activeUp_vs_storm_dE00": 20
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 17.4,
+    "foamSwitches": false
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 48,
+     "chromaKept": 0.45,
+     "dE00": 32
+    },
+    {
+     "h": 8,
+     "hueShift": 56,
+     "chromaKept": 0.38,
+     "dE00": 34.5
+    },
+    {
+     "h": 10,
+     "hueShift": 59,
+     "chromaKept": 0.31,
+     "dE00": 36.2
+    }
+   ]
+  },
+  "S1_foam": {
+   "switch": 2.1,
+   "body": {
+    "lc": 39.3,
+    "h": 2.1,
+    "view": "world"
+   },
+   "front": {
+    "lc": 38.1,
+    "h": 2.1,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 25.9,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.1,
+    "kind": "tritan",
+    "h": 2.1,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 36.6,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0,
+     "neighbour": 0.16,
+     "contrast": 0.83,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.005,
+     "h": 2
+    },
+    "inkToSeaChroma": {
+     "min": 0.62,
+     "max": 3.55
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.89,
+      "C": 0.109,
+      "h": 82,
+      "toSeaPath": 2
+     }
+    }
+   },
+   "seam": 76.7,
+   "energy": {
+    "3m_vs_6m_dE00": 23.3,
+    "activeUp_vs_storm_dE00": 20
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 17.4,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 48,
+     "chromaKept": 0.45,
+     "dE00": 32
+    },
+    {
+     "h": 8,
+     "hueShift": 56,
+     "chromaKept": 0.38,
+     "dE00": 34.5
+    },
+    {
+     "h": 10,
+     "hueShift": 59,
+     "chromaKept": 0.31,
+     "dE00": 36.2
+    }
+   ]
+  },
+  "S2_light_family": {
+   "switch": 2.1,
+   "body": {
+    "lc": 42.2,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "front": {
+    "lc": 40.8,
+    "h": 2.1,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 21.1,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.2,
+    "kind": "deutan",
+    "h": 2.4,
+    "view": "world",
+    "wc": 1
+   },
+   "bandCentre": {
+    "lc": 38,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 53.6,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0.02,
+     "neighbour": 0.19,
+     "contrast": 0.63,
+     "complement": 0.16
+    },
+    "blueYellowMin": {
+     "dB": 0.003,
+     "h": 2
+    },
+    "inkToSeaChroma": {
+     "min": 0.63,
+     "max": 1.66
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.28,
+      "C": 0.076,
+      "h": 48,
+      "toSeaPath": 1
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.076,
+      "h": 48,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.99,
+      "C": 0.059,
+      "h": 107,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.99,
+      "C": 0.059,
+      "h": 107,
+      "toSeaPath": 1
+     },
+     "storm": {
+      "L": 0.95,
+      "C": 0.203,
+      "h": 107,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 66,
+   "energy": {
+    "3m_vs_6m_dE00": 19.8,
+    "activeUp_vs_storm_dE00": 20.1
+   },
+   "family": {
+    "dark": 0,
+    "light": 0,
+    "storm": 0,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 99,
+     "chromaKept": 0.76,
+     "dE00": 57.9
+    },
+    {
+     "h": 8,
+     "hueShift": 117,
+     "chromaKept": 0.66,
+     "dE00": 62.3
+    },
+    {
+     "h": 10,
+     "hueShift": 133,
+     "chromaKept": 0.54,
+     "dE00": 64.7
+    }
+   ]
+  },
+  "S3_aubergine": {
+   "switch": 2.1,
+   "body": {
+    "lc": 39.3,
+    "h": 2.1,
+    "view": "world"
+   },
+   "front": {
+    "lc": 38.1,
+    "h": 2.1,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 25.9,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.1,
+    "kind": "tritan",
+    "h": 2.1,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 40.6,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 55.1,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0,
+     "neighbour": 0.07,
+     "contrast": 0.85,
+     "complement": 0.08
+    },
+    "blueYellowMin": {
+     "dB": 0.044,
+     "h": 0.2
+    },
+    "inkToSeaChroma": {
+     "min": 0.62,
+     "max": 3.55
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.28,
+      "C": 0.106,
+      "h": 332,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.25,
+      "C": 0.102,
+      "h": 328,
+      "toSeaPath": 0
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.89,
+      "C": 0.109,
+      "h": 82,
+      "toSeaPath": 2
+     }
+    }
+   },
+   "seam": 88.1,
+   "energy": {
+    "3m_vs_6m_dE00": 23.3,
+    "activeUp_vs_storm_dE00": 20
+   },
+   "family": {
+    "dark": 27.3,
+    "light": 14,
+    "storm": 17.4,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 48,
+     "chromaKept": 0.45,
+     "dE00": 32
+    },
+    {
+     "h": 8,
+     "hueShift": 56,
+     "chromaKept": 0.38,
+     "dE00": 34.5
+    },
+    {
+     "h": 10,
+     "hueShift": 59,
+     "chromaKept": 0.31,
+     "dE00": 36.2
+    }
+   ]
+  },
+  "S4_tempered_storm": {
+   "switch": 2.1,
+   "body": {
+    "lc": 39.3,
+    "h": 2.1,
+    "view": "world"
+   },
+   "front": {
+    "lc": 38.1,
+    "h": 2.1,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 25.9,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.1,
+    "kind": "tritan",
+    "h": 2.1,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 36.6,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0,
+     "neighbour": 0.16,
+     "contrast": 0.83,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.005,
+     "h": 2
+    },
+    "inkToSeaChroma": {
+     "min": 0.29,
+     "max": 3.55
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.96,
+      "C": 0.051,
+      "h": 92,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 76.7,
+   "energy": {
+    "3m_vs_6m_dE00": 25.4,
+    "activeUp_vs_storm_dE00": 21.4
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 20.9,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 23,
+     "chromaKept": 0.32,
+     "dE00": 30.1
+    },
+    {
+     "h": 8,
+     "hueShift": 24,
+     "chromaKept": 0.29,
+     "dE00": 32.8
+    },
+    {
+     "h": 10,
+     "hueShift": 24,
+     "chromaKept": 0.27,
+     "dE00": 35
+    }
+   ]
+  },
+  "S6_aubergine_cream": {
+   "switch": 2.1,
+   "body": {
+    "lc": 39.3,
+    "h": 2.1,
+    "view": "world"
+   },
+   "front": {
+    "lc": 38.1,
+    "h": 2.1,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 25.9,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.1,
+    "kind": "tritan",
+    "h": 2.1,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 40.6,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 55.1,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0,
+     "neighbour": 0.07,
+     "contrast": 0.85,
+     "complement": 0.08
+    },
+    "blueYellowMin": {
+     "dB": 0.044,
+     "h": 0.2
+    },
+    "inkToSeaChroma": {
+     "min": 0.29,
+     "max": 3.55
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.28,
+      "C": 0.106,
+      "h": 332,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.25,
+      "C": 0.102,
+      "h": 328,
+      "toSeaPath": 0
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.96,
+      "C": 0.051,
+      "h": 92,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 88.1,
+   "energy": {
+    "3m_vs_6m_dE00": 25.4,
+    "activeUp_vs_storm_dE00": 21.4
+   },
+   "family": {
+    "dark": 27.3,
+    "light": 14,
+    "storm": 20.9,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 23,
+     "chromaKept": 0.32,
+     "dE00": 30.1
+    },
+    {
+     "h": 8,
+     "hueShift": 24,
+     "chromaKept": 0.29,
+     "dE00": 32.8
+    },
+    {
+     "h": 10,
+     "hueShift": 24,
+     "chromaKept": 0.27,
+     "dE00": 35
+    }
+   ]
+  },
+  "S7_switch_on_anchor": {
+   "switch": 2.4,
+   "body": {
+    "lc": 40.1,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "front": {
+    "lc": 38.7,
+    "h": 2.45,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 35.3,
+    "h": 5.95,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 18.2,
+    "kind": "tritan",
+    "h": 2.45,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 35.2,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0.03,
+     "neighbour": 0.13,
+     "contrast": 0.83,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.001,
+     "h": 2.1
+    },
+    "inkToSeaChroma": {
+     "min": 0.29,
+     "max": 3.43
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.96,
+      "C": 0.051,
+      "h": 92,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 77.6,
+   "energy": {
+    "3m_vs_6m_dE00": 25.4,
+    "activeUp_vs_storm_dE00": 21.4
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 20.9,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 23,
+     "chromaKept": 0.32,
+     "dE00": 30.1
+    },
+    {
+     "h": 8,
+     "hueShift": 24,
+     "chromaKept": 0.29,
+     "dE00": 32.8
+    },
+    {
+     "h": 10,
+     "hueShift": 24,
+     "chromaKept": 0.27,
+     "dE00": 35
+    }
+   ]
+  },
+  "S8_wine_cream": {
+   "switch": 2.1,
+   "body": {
+    "lc": 39.3,
+    "h": 2.1,
+    "view": "world"
+   },
+   "front": {
+    "lc": 38.1,
+    "h": 2.1,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 25.9,
+    "h": 2.1,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 17.1,
+    "kind": "tritan",
+    "h": 2.1,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 37.9,
+    "h": 2.05,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 53.6,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0,
+     "neighbour": 0.11,
+     "contrast": 0.86,
+     "complement": 0.03
+    },
+    "blueYellowMin": {
+     "dB": 0.003,
+     "h": 0.3
+    },
+    "inkToSeaChroma": {
+     "min": 0.29,
+     "max": 3.55
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.31,
+      "C": 0.117,
+      "h": 13,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.27,
+      "C": 0.107,
+      "h": 10,
+      "toSeaPath": 0
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.96,
+      "C": 0.051,
+      "h": 92,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 81.5,
+   "energy": {
+    "3m_vs_6m_dE00": 25.4,
+    "activeUp_vs_storm_dE00": 21.4
+   },
+   "family": {
+    "dark": 15.2,
+    "light": 14,
+    "storm": 20.9,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 23,
+     "chromaKept": 0.32,
+     "dE00": 30.1
+    },
+    {
+     "h": 8,
+     "hueShift": 24,
+     "chromaKept": 0.29,
+     "dE00": 32.8
+    },
+    {
+     "h": 10,
+     "hueShift": 24,
+     "chromaKept": 0.27,
+     "dE00": 35
+    }
+   ]
+  },
+  "S9_blush_storm": {
+   "switch": 2.4,
+   "body": {
+    "lc": 40.1,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "front": {
+    "lc": 38.7,
+    "h": 2.45,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 27,
+    "h": 5.8,
+    "view": "world",
+    "wc": 0
+   },
+   "cvdMin": {
+    "de": 18.2,
+    "kind": "tritan",
+    "h": 2.45,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 35.2,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0.27,
+     "neighbour": 0.42,
+     "contrast": 0.29,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.001,
+     "h": 2.1
+    },
+    "inkToSeaChroma": {
+     "min": 0.27,
+     "max": 3.43
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.91,
+      "C": 0.047,
+      "h": 1,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 77.6,
+   "energy": {
+    "3m_vs_6m_dE00": 49,
+    "activeUp_vs_storm_dE00": 46.1
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 44.5,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 1,
+     "chromaKept": 0.48,
+     "dE00": 25.1
+    },
+    {
+     "h": 8,
+     "hueShift": 8,
+     "chromaKept": 0.47,
+     "dE00": 27.7
+    },
+    {
+     "h": 10,
+     "hueShift": 13,
+     "chromaKept": 0.45,
+     "dE00": 30.1
+    }
+   ]
+  },
+  "S10_lilac_storm": {
+   "switch": 2.4,
+   "body": {
+    "lc": 40.1,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "front": {
+    "lc": 38.7,
+    "h": 2.45,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 26.6,
+    "h": 5.8,
+    "view": "world",
+    "wc": 0
+   },
+   "cvdMin": {
+    "de": 18.2,
+    "kind": "tritan",
+    "h": 2.45,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 35.2,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0.54,
+     "neighbour": 0.16,
+     "contrast": 0.29,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.001,
+     "h": 2.1
+    },
+    "inkToSeaChroma": {
+     "min": 0.18,
+     "max": 3.43
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.92,
+      "C": 0.055,
+      "h": 316,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 77.6,
+   "energy": {
+    "3m_vs_6m_dE00": 55.6,
+    "activeUp_vs_storm_dE00": 54.5
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 53.1,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 14,
+     "chromaKept": 0.5,
+     "dE00": 25.6
+    },
+    {
+     "h": 8,
+     "hueShift": 6,
+     "chromaKept": 0.5,
+     "dE00": 27.5
+    },
+    {
+     "h": 10,
+     "hueShift": 1,
+     "chromaKept": 0.5,
+     "dE00": 29.6
+    }
+   ]
+  },
+  "S11_cream_at_anchor": {
+   "switch": 2.4,
+   "body": {
+    "lc": 40.1,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "front": {
+    "lc": 38.7,
+    "h": 2.45,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 35.3,
+    "h": 5.95,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 18.2,
+    "kind": "tritan",
+    "h": 2.45,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 35.2,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0.03,
+     "neighbour": 0.13,
+     "contrast": 0.83,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.001,
+     "h": 2.1
+    },
+    "inkToSeaChroma": {
+     "min": 0.29,
+     "max": 3.43
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.96,
+      "C": 0.051,
+      "h": 92,
+      "toSeaPath": 0
+     }
+    }
+   },
+   "seam": 77.6,
+   "energy": {
+    "3m_vs_6m_dE00": 25.4,
+    "activeUp_vs_storm_dE00": 21.4
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 20.9,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 23,
+     "chromaKept": 0.32,
+     "dE00": 30.1
+    },
+    {
+     "h": 8,
+     "hueShift": 24,
+     "chromaKept": 0.29,
+     "dE00": 32.8
+    },
+    {
+     "h": 10,
+     "hueShift": 24,
+     "chromaKept": 0.27,
+     "dE00": 35
+    }
+   ]
+  },
+  "S12_peach_at_anchor": {
+   "switch": 2.4,
+   "body": {
+    "lc": 39.7,
+    "h": 5.6,
+    "view": "world"
+   },
+   "front": {
+    "lc": 38.7,
+    "h": 2.45,
+    "view": "world"
+   },
+   "dEmin": {
+    "de": 35.7,
+    "h": 2.45,
+    "view": "world",
+    "wc": 1
+   },
+   "cvdMin": {
+    "de": 18.2,
+    "kind": "tritan",
+    "h": 2.45,
+    "view": "world",
+    "wc": 0
+   },
+   "bandCentre": {
+    "lc": 35.2,
+    "h": 2.4,
+    "view": "coastal"
+   },
+   "lowCentre": {
+    "lc": 52.7,
+    "h": 1,
+    "view": "coastal"
+   },
+   "harmony": {
+    "relation": {
+     "analogous": 0.03,
+     "neighbour": 0.13,
+     "contrast": 0.83,
+     "complement": 0.01
+    },
+    "blueYellowMin": {
+     "dB": 0.001,
+     "h": 2.1
+    },
+    "inkToSeaChroma": {
+     "min": 0.62,
+     "max": 3.43
+    },
+    "closure": {
+     "darkCalm": {
+      "L": 0.32,
+      "C": 0.125,
+      "h": 28,
+      "toSeaPath": 0
+     },
+     "darkActive": {
+      "L": 0.28,
+      "C": 0.115,
+      "h": 29,
+      "toSeaPath": 1
+     },
+     "lightCalm": {
+      "L": 0.97,
+      "C": 0.154,
+      "h": 109,
+      "toSeaPath": 1
+     },
+     "lightActive": {
+      "L": 0.96,
+      "C": 0.21,
+      "h": 112,
+      "toSeaPath": 0
+     },
+     "storm": {
+      "L": 0.89,
+      "C": 0.109,
+      "h": 82,
+      "toSeaPath": 2
+     }
+    }
+   },
+   "seam": 77.6,
+   "energy": {
+    "3m_vs_6m_dE00": 23.3,
+    "activeUp_vs_storm_dE00": 20
+   },
+   "family": {
+    "dark": 9.9,
+    "light": 14,
+    "storm": 17.4,
+    "foamSwitches": true
+   },
+   "repaint": [
+    {
+     "h": 6,
+     "hueShift": 48,
+     "chromaKept": 0.45,
+     "dE00": 32
+    },
+    {
+     "h": 8,
+     "hueShift": 56,
+     "chromaKept": 0.38,
+     "dE00": 34.5
+    },
+    {
+     "h": 10,
+     "hueShift": 59,
+     "chromaKept": 0.31,
+     "dE00": 36.2
+    }
+   ]
+  }
+ },
+ "switch_scan_inks_v2_1": [
+  {
+   "switch": 1.9,
+   "body_lc": 38.8,
+   "front_lc": 37.7,
+   "dE00": 21.6,
+   "cvd": 16.5,
+   "band_centre_lc": 37.5
+  },
+  {
+   "switch": 1.95,
+   "body_lc": 39.0,
+   "front_lc": 37.8,
+   "dE00": 22.7,
+   "cvd": 16.7,
+   "band_centre_lc": 37.1
+  },
+  {
+   "switch": 2.0,
+   "body_lc": 39.1,
+   "front_lc": 37.9,
+   "dE00": 23.5,
+   "cvd": 16.8,
+   "band_centre_lc": 36.9
+  },
+  {
+   "switch": 2.05,
+   "body_lc": 39.2,
+   "front_lc": 38.0,
+   "dE00": 24.9,
+   "cvd": 17.0,
+   "band_centre_lc": 36.6
+  },
+  {
+   "switch": 2.1,
+   "body_lc": 39.3,
+   "front_lc": 38.1,
+   "dE00": 25.9,
+   "cvd": 17.1,
+   "band_centre_lc": 36.5
+  },
+  {
+   "switch": 2.15,
+   "body_lc": 39.4,
+   "front_lc": 38.2,
+   "dE00": 27.6,
+   "cvd": 17.3,
+   "band_centre_lc": 36.2
+  },
+  {
+   "switch": 2.2,
+   "body_lc": 39.5,
+   "front_lc": 38.2,
+   "dE00": 28.8,
+   "cvd": 17.5,
+   "band_centre_lc": 36.0
+  },
+  {
+   "switch": 2.25,
+   "body_lc": 39.6,
+   "front_lc": 38.3,
+   "dE00": 30.6,
+   "cvd": 17.6,
+   "band_centre_lc": 35.8
+  },
+  {
+   "switch": 2.3,
+   "body_lc": 39.7,
+   "front_lc": 38.4,
+   "dE00": 31.9,
+   "cvd": 17.8,
+   "band_centre_lc": 35.6
+  },
+  {
+   "switch": 2.35,
+   "body_lc": 39.8,
+   "front_lc": 38.4,
+   "dE00": 33.9,
+   "cvd": 18.0,
+   "band_centre_lc": 35.4
+  },
+  {
+   "switch": 2.4,
+   "body_lc": 39.9,
+   "front_lc": 38.5,
+   "dE00": 35.1,
+   "cvd": 18.1,
+   "band_centre_lc": 35.3
+  },
+  {
+   "switch": 2.45,
+   "body_lc": 39.8,
+   "front_lc": 38.7,
+   "dE00": 35.3,
+   "cvd": 18.3,
+   "band_centre_lc": 35.0
+  },
+  {
+   "switch": 2.5,
+   "body_lc": 39.5,
+   "front_lc": 38.9,
+   "dE00": 35.3,
+   "cvd": 18.4,
+   "band_centre_lc": 34.7
+  },
+  {
+   "switch": 2.55,
+   "body_lc": 39.2,
+   "front_lc": 39.2,
+   "dE00": 35.3,
+   "cvd": 18.6,
+   "band_centre_lc": 34.4
+  },
+  {
+   "switch": 2.6,
+   "body_lc": 38.9,
+   "front_lc": 39.3,
+   "dE00": 35.3,
+   "cvd": 18.8,
+   "band_centre_lc": 34.2
+  },
+  {
+   "switch": 2.65,
+   "body_lc": 38.5,
+   "front_lc": 39.6,
+   "dE00": 35.3,
+   "cvd": 19.0,
+   "band_centre_lc": 33.8
+  },
+  {
+   "switch": 2.7,
+   "body_lc": 38.3,
+   "front_lc": 39.8,
+   "dE00": 35.3,
+   "cvd": 19.1,
+   "band_centre_lc": 33.6
+  },
+  {
+   "switch": 2.75,
+   "body_lc": 37.9,
+   "front_lc": 40.0,
+   "dE00": 35.3,
+   "cvd": 19.3,
+   "band_centre_lc": 33.2
+  },
+  {
+   "switch": 2.8,
+   "body_lc": 37.7,
+   "front_lc": 40.2,
+   "dE00": 35.3,
+   "cvd": 19.5,
+   "band_centre_lc": 33.0
+  }
+ ],
+ "repaint_engine_frames": {
+  "v1/world": {
+   "frames": 10,
+   "crest_cover": 0.306,
+   "hue_with": 83,
+   "hue_without": 84,
+   "hue_shift": 1,
+   "dL": -0.001,
+   "chroma_with": 0.032,
+   "chroma_without": 0.036
+  },
+  "v1/regional": {
+   "frames": 10,
+   "crest_cover": 0.302,
+   "hue_with": 26,
+   "hue_without": 32,
+   "hue_shift": 7,
+   "dL": 0.003,
+   "chroma_with": 0.031,
+   "chroma_without": 0.036
+  },
+  "v1/coastal": {
+   "frames": 10,
+   "crest_cover": 0.786,
+   "hue_with": 330,
+   "hue_without": 1,
+   "hue_shift": 31,
+   "dL": 0.037,
+   "chroma_with": 0.109,
+   "chroma_without": 0.052
+  },
+  "sf/world": {
+   "frames": 10,
+   "crest_cover": 0.439,
+   "hue_with": 102,
+   "hue_without": 105,
+   "hue_shift": 3,
+   "dL": -0.017,
+   "chroma_with": 0.072,
+   "chroma_without": 0.074
+  },
+  "sf/regional": {
+   "frames": 10,
+   "crest_cover": 0.39,
+   "hue_with": 18,
+   "hue_without": 10,
+   "hue_shift": 8,
+   "dL": 0.014,
+   "chroma_with": 0.065,
+   "chroma_without": 0.073
+  },
+  "sf/coastal": {
+   "frames": 10,
+   "crest_cover": 0.791,
+   "hue_with": 8,
+   "hue_without": 349,
+   "hue_shift": 19,
+   "dL": 0.117,
+   "chroma_with": 0.106,
+   "chroma_without": 0.175
+  },
+  "sunset/world": {
+   "frames": 10,
+   "crest_cover": 0.427,
+   "hue_with": 102,
+   "hue_without": 105,
+   "hue_shift": 4,
+   "dL": -0.02,
+   "chroma_with": 0.072,
+   "chroma_without": 0.074
+  },
+  "sunset/regional": {
+   "frames": 10,
+   "crest_cover": 0.322,
+   "hue_with": 15,
+   "hue_without": 10,
+   "hue_shift": 5,
+   "dL": 0.006,
+   "chroma_with": 0.059,
+   "chroma_without": 0.062
+  },
+  "sunset/coastal": {
+   "frames": 10,
+   "crest_cover": 0.805,
+   "hue_with": 351,
+   "hue_without": 349,
+   "hue_shift": 2,
+   "dL": 0.131,
+   "chroma_with": 0.113,
+   "chroma_without": 0.176
+  }
+ },
+ "engine_paired_p99": {
+  "world": {
+   "v1": {
+    "normal": 17.3,
+    "protan": 10.4,
+    "deutan": 11.0,
+    "tritan": 14.6,
+    "lc": 0.0,
+    "null_half_vs_half_max": 1.0,
+    "frames": 40
+   },
+   "sunset": {
+    "normal": 26.0,
+    "protan": 23.7,
+    "deutan": 20.3,
+    "tritan": 22.3,
+    "lc": 27.1,
+    "null_half_vs_half_max": 1.1,
+    "frames": 40
+   },
+   "sf": {
+    "normal": 24.2,
+    "protan": 20.9,
+    "deutan": 17.7,
+    "tritan": 19.1,
+    "lc": 23.3,
+    "null_half_vs_half_max": 0.4,
+    "frames": 40
+   }
+  },
+  "regional": {
+   "v1": {
+    "normal": 34.3,
+    "protan": 19.8,
+    "deutan": 21.3,
+    "tritan": 33.2,
+    "lc": 20.1,
+    "null_half_vs_half_max": 2.2,
+    "frames": 40
+   },
+   "sunset": {
+    "normal": 31.4,
+    "protan": 28.9,
+    "deutan": 22.8,
+    "tritan": 21.1,
+    "lc": 33.4,
+    "null_half_vs_half_max": 4.4,
+    "frames": 40
+   },
+   "sf": {
+    "normal": 35.7,
+    "protan": 36.0,
+    "deutan": 29.4,
+    "tritan": 22.6,
+    "lc": 38.1,
+    "null_half_vs_half_max": 4.8,
+    "frames": 40
+   }
+  },
+  "coastal": {
+   "v1": {
+    "normal": 35.9,
+    "protan": 36.5,
+    "deutan": 41.5,
+    "tritan": 33.0,
+    "lc": 33.7,
+    "null_half_vs_half_max": 1.4,
+    "frames": 40
+   },
+   "sunset": {
+    "normal": 41.1,
+    "protan": 45.9,
+    "deutan": 36.4,
+    "tritan": 37.9,
+    "lc": 61.3,
+    "null_half_vs_half_max": 1.2,
+    "frames": 40
+   },
+   "sf": {
+    "normal": 56.3,
+    "protan": 62.8,
+    "deutan": 53.1,
+    "tritan": 35.3,
+    "lc": 57.7,
+    "null_half_vs_half_max": 0.7,
+    "frames": 40
+   }
+  }
+ },
+ "gpu_readback_smooth_run": [
+  {
+   "variant": "v1",
+   "view": "world",
+   "beachWash": "v1",
+   "beachCrest": [
+    "vec3(1.00, 0.45, 0.65)",
+    "vec3(0.00, 0.92, 0.85)",
+    "vec3(0.80, 0.20, 0.90)",
+    "vec3(0.95, 0.95, 1.00)"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "v1",
+   "view": "regional",
+   "beachWash": "v1",
+   "beachCrest": [
+    "vec3(1.00, 0.45, 0.65)",
+    "vec3(0.00, 0.92, 0.85)",
+    "vec3(0.80, 0.20, 0.90)",
+    "vec3(0.95, 0.95, 1.00)"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "v1",
+   "view": "coastal",
+   "beachWash": "v1",
+   "beachCrest": [
+    "vec3(1.00, 0.45, 0.65)",
+    "vec3(0.00, 0.92, 0.85)",
+    "vec3(0.80, 0.20, 0.90)",
+    "vec3(0.95, 0.95, 1.00)"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "sf",
+   "view": "world",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.10, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.10, v_wave_height))",
+    "vec3(1.00, 0.83, 0.52)",
+    "vec3(0.95, 0.95, 1.00)"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "sf",
+   "view": "regional",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.10, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.10, v_wave_height))",
+    "vec3(1.00, 0.83, 0.52)",
+    "vec3(0.95, 0.95, 1.00)"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "sf",
+   "view": "coastal",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.10, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.10, v_wave_height))",
+    "vec3(1.00, 0.83, 0.52)",
+    "vec3(0.95, 0.95, 1.00)"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "sunset",
+   "view": "world",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.40, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.40, v_wave_height))",
+    "vec3(1.00, 0.84, 0.88)",
+    "mix(vec3(0.08, 0.00, 0.00), vec3(0.95, 0.95, 1.00), step(2.40, v_wave_height))"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "sunset",
+   "view": "regional",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.40, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.40, v_wave_height))",
+    "vec3(1.00, 0.84, 0.88)",
+    "mix(vec3(0.08, 0.00, 0.00), vec3(0.95, 0.95, 1.00), step(2.40, v_wave_height))"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  },
+  {
+   "variant": "sunset",
+   "view": "coastal",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.40, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.40, v_wave_height))",
+    "vec3(1.00, 0.84, 0.88)",
+    "mix(vec3(0.08, 0.00, 0.00), vec3(0.95, 0.95, 1.00), step(2.40, v_wave_height))"
+   ],
+   "valid": "2026-10-21T06:00:00Z"
+  }
+ ],
+ "solver_cross_check": {
+  "documented_command_on_dev_solver": "crest-solve.mjs --palettes sunset ... --seed 1 -> calm [0.38,0,0.02] active [0.36,0,0.03] calmUp [1,1,0.48] activeUp [0.97,1,0.23] storm [1,0.82,0.51] switch 2.14 (first crest: switch 2.07 on #416s earlier solver copy)",
+  "with_dark_foam_switch_2.0_2.8": "calm [0.36,0,0.01] active [0.35,0,0] calmUp [1,1,0.45] activeUp [0.97,1,0.24] storm [1,0.82,0.51] switch 2.64 (its objective weights colour-blind margin, which rises with the switch; body |Lc| peaks at 2.40)"
+ },
+ "board": "Quiet Counterpoint critique board (canvas-design skill), on the owner page https://claude.ai/artifact/1CEnLsyDUXbmqADniMxDyi version 5; exact model sRGB, coastal cover solved to 0.781 of the tile",
+ "build": "9765cc30d (#416 after the second dev merge, fd80fed81), craco build, offline SPA 3131 + serve_synthetic.py --dynamic 1 --vortex-peak 11 on 4131; no live backend"
+}

@@ -1,0 +1,407 @@
+{
+ "what": "PR #416 owner A/B, beach only: the old sea (v1, D-035 default, today's crests) vs the sunset middle ground (WAVE_PALETTES.sunset behind window.__RAW_BEACH_WASH__='sunset', crest V2 warm polarity switch 2.1 m). c1 = the sunset sea under today's crests (crest-only control).",
+ "build": "fe2665e58 (merge of dev f6b80f724 into #416), craco build, served offline (serve_spa.js 3131) over serve_synthetic.py --dynamic 1 --vortex-peak 11 on 4131; no live backend (ab_lib routes the API host to 127.0.0.1)",
+ "checker_wave_check": {
+  "sunset": {
+   "lightness": "falls at every 0.02 m, wash and composite",
+   "steps_weakest_normal": 16.1,
+   "steps_weakest_cvd": 11.6,
+   "land_vs_sea": 21.4,
+   "crest_core_vs_wash_dE00": 25.9,
+   "crest_cvd_js": 17.1,
+   "crest_cvd_coloraide": 18.4,
+   "crest_lc_body": 39.3,
+   "crest_lc_whitecap_front": 24.9,
+   "red_lines": 0
+  },
+  "v1": {
+   "lightness": "climbs back 1.0046 L on the wash (RED)",
+   "steps_weakest_normal": 14.5,
+   "steps_weakest_cvd": 11.6,
+   "land_vs_sea": 7.0,
+   "crest_core_vs_wash_dE00": 15.4,
+   "crest_cvd_js": 0.8,
+   "crest_cvd_coloraide": 1.0,
+   "crest_lc_body": 0.0
+  },
+  "sunset_with_todays_crests": {
+   "crest_core_vs_wash_dE00": 7.0,
+   "crest_cvd_js": 0.2,
+   "crest_cvd_coloraide": 0.7,
+   "crest_lc_body": 0.0
+  }
+ },
+ "model_world_zoom": {
+  "old": {
+   "anchors_m": [
+    0,
+    0.6,
+    1.2,
+    2.4,
+    5,
+    10
+   ],
+   "legend_rgb": [
+    [
+     5,
+     97,
+     89
+    ],
+    [
+     13,
+     166,
+     148
+    ],
+    [
+     250,
+     187,
+     110
+    ],
+    [
+     230,
+     95,
+     49
+    ],
+    [
+     107,
+     25,
+     34
+    ],
+    [
+     255,
+     242,
+     230
+    ]
+   ],
+   "stops_as_composited_world": [
+    [
+     44,
+     136,
+     142
+    ],
+    [
+     50,
+     181,
+     181
+    ],
+    [
+     204,
+     195,
+     158
+    ],
+    [
+     193,
+     138,
+     122
+    ],
+    [
+     113,
+     93,
+     113
+    ],
+    [
+     207,
+     234,
+     240
+    ]
+   ],
+   "steps_dE00": [
+    14.5,
+    28.3,
+    24.5,
+    26.6,
+    46.1
+   ],
+   "steps_cvd_weakest_dE00": [
+    13.6,
+    21.4,
+    11.6,
+    23.7,
+    38.7
+   ],
+   "crest_lc_min": 0,
+   "crest_lc_share_below_15": 0.62,
+   "crest_cvd_min": 1.3
+  },
+  "sunset": {
+   "anchors_m": [
+    0,
+    0.6,
+    1.2,
+    2.4,
+    5,
+    10
+   ],
+   "legend_rgb": [
+    [
+     48,
+     254,
+     250
+    ],
+    [
+     176,
+     225,
+     114
+    ],
+    [
+     195,
+     164,
+     0
+    ],
+    [
+     236,
+     113,
+     77
+    ],
+    [
+     220,
+     30,
+     89
+    ],
+    [
+     158,
+     14,
+     168
+    ]
+   ],
+   "stops_as_composited_world": [
+    [
+     72,
+     238,
+     246
+    ],
+    [
+     156,
+     219,
+     159
+    ],
+    [
+     169,
+     180,
+     86
+    ],
+    [
+     197,
+     150,
+     140
+    ],
+    [
+     186,
+     96,
+     148
+    ],
+    [
+     146,
+     86,
+     200
+    ]
+   ],
+   "steps_dE00": [
+    24.7,
+    16.1,
+    32.3,
+    22.8,
+    16.8
+   ],
+   "steps_cvd_weakest_dE00": [
+    11.6,
+    11.8,
+    14,
+    13,
+    13
+   ],
+   "crest_lc_min": 40.6,
+   "crest_lc_share_below_15": 0.0,
+   "crest_cvd_min": 18
+  }
+ },
+ "engine_paired_p99": {
+  "world": {
+   "v1": {
+    "normal": 17.1,
+    "protan": 10.5,
+    "deutan": 10.8,
+    "tritan": 14.1,
+    "lc": 0.4,
+    "cvd_weakest": 10.5,
+    "null_half_vs_half_max": 0.8,
+    "sea_untouched_share": 0.601,
+    "frames": 40
+   },
+   "sunset": {
+    "normal": 24.3,
+    "protan": 21.1,
+    "deutan": 17.9,
+    "tritan": 19.0,
+    "lc": 23.3,
+    "cvd_weakest": 17.9,
+    "null_half_vs_half_max": 1.4,
+    "sea_untouched_share": 0.532,
+    "frames": 40
+   },
+   "c1": {
+    "normal": 14.8,
+    "protan": 9.6,
+    "deutan": 10.6,
+    "tritan": 13.9,
+    "lc": 0.0,
+    "cvd_weakest": 9.6,
+    "null_half_vs_half_max": 0.5,
+    "sea_untouched_share": 0.64,
+    "frames": 40
+   }
+  },
+  "regional": {
+   "v1": {
+    "normal": 35.1,
+    "protan": 25.2,
+    "deutan": 27.4,
+    "tritan": 33.5,
+    "lc": 24.1,
+    "cvd_weakest": 25.2,
+    "null_half_vs_half_max": 6.9,
+    "sea_untouched_share": 0.612,
+    "frames": 40
+   },
+   "sunset": {
+    "normal": 37.5,
+    "protan": 41.0,
+    "deutan": 34.5,
+    "tritan": 27.2,
+    "lc": 44.0,
+    "cvd_weakest": 27.2,
+    "null_half_vs_half_max": 0.4,
+    "sea_untouched_share": 0.603,
+    "frames": 40
+   },
+   "c1": {
+    "normal": 30.1,
+    "protan": 19.8,
+    "deutan": 23.5,
+    "tritan": 29.1,
+    "lc": 21.4,
+    "cvd_weakest": 19.8,
+    "null_half_vs_half_max": 0.9,
+    "sea_untouched_share": 0.642,
+    "frames": 40
+   }
+  },
+  "coastal": {
+   "v1": {
+    "normal": 37.4,
+    "protan": 38.0,
+    "deutan": 44.0,
+    "tritan": 33.4,
+    "lc": 34.5,
+    "cvd_weakest": 33.4,
+    "null_half_vs_half_max": 1.7,
+    "sea_untouched_share": 0.173,
+    "frames": 40
+   },
+   "sunset": {
+    "normal": 56.4,
+    "protan": 63.0,
+    "deutan": 53.4,
+    "tritan": 35.3,
+    "lc": 57.7,
+    "cvd_weakest": 35.3,
+    "null_half_vs_half_max": 0.5,
+    "sea_untouched_share": 0.186,
+    "frames": 40
+   },
+   "c1": {
+    "normal": 23.3,
+    "protan": 24.2,
+    "deutan": 33.9,
+    "tritan": 22.0,
+    "lc": 23.0,
+    "cvd_weakest": 22.0,
+    "null_half_vs_half_max": 0.6,
+    "sea_untouched_share": 0.201,
+    "frames": 40
+   }
+  }
+ },
+ "gpu_readback_smooth_run": [
+  {
+   "variant": "v1",
+   "view": "world",
+   "beachWash": "v1",
+   "beachCrest": [
+    "vec3(1.00, 0.45, 0.65)",
+    "vec3(0.00, 0.92, 0.85)",
+    "vec3(0.80, 0.20, 0.90)"
+   ],
+   "heightScale": 10,
+   "hMax": 12.044,
+   "valid": "2026-10-21T03:00:00Z"
+  },
+  {
+   "variant": "v1",
+   "view": "regional",
+   "beachWash": "v1",
+   "beachCrest": [
+    "vec3(1.00, 0.45, 0.65)",
+    "vec3(0.00, 0.92, 0.85)",
+    "vec3(0.80, 0.20, 0.90)"
+   ],
+   "heightScale": 10,
+   "hMax": 12.044,
+   "valid": "2026-10-21T03:00:00Z"
+  },
+  {
+   "variant": "v1",
+   "view": "coastal",
+   "beachWash": "v1",
+   "beachCrest": [
+    "vec3(1.00, 0.45, 0.65)",
+    "vec3(0.00, 0.92, 0.85)",
+    "vec3(0.80, 0.20, 0.90)"
+   ],
+   "heightScale": 10,
+   "hMax": 12.044,
+   "valid": "2026-10-21T03:00:00Z"
+  },
+  {
+   "variant": "sunset",
+   "view": "world",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.10, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.10, v_wave_height))",
+    "vec3(1.00, 0.83, 0.52)"
+   ],
+   "heightScale": 10,
+   "hMax": 12.044,
+   "valid": "2026-10-21T03:00:00Z"
+  },
+  {
+   "variant": "sunset",
+   "view": "regional",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.10, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.10, v_wave_height))",
+    "vec3(1.00, 0.83, 0.52)"
+   ],
+   "heightScale": 10,
+   "hMax": 12.044,
+   "valid": "2026-10-21T03:00:00Z"
+  },
+  {
+   "variant": "sunset",
+   "view": "coastal",
+   "beachWash": "sunset",
+   "beachCrest": [
+    "mix(vec3(0.39, 0.02, 0.02), vec3(1.00, 1.00, 0.48), step(2.10, v_wave_height))",
+    "mix(vec3(0.33, 0.00, 0.00), vec3(0.97, 1.00, 0.09), step(2.10, v_wave_height))",
+    "vec3(1.00, 0.83, 0.52)"
+   ],
+   "heightScale": 10,
+   "hMax": 11.176,
+   "valid": "2026-10-21T03:00:00Z"
+  }
+ ],
+ "crest_solve_reproduced": "node crest-solve.mjs --table sunset.json --palettes table --polarity --seed 1 --lc 33 --dark-h 345,45 --dark-l 15,35 --light-h 55,105 --storm-h 75,110 --path-c 45: log identical on re-run (switch 2.07 m, shipped rounded to 2.1)",
+ "page": "https://claude.ai/artifact/1CEnLsyDUXbmqADniMxDyi (version 4, private to the owner)"
+}
