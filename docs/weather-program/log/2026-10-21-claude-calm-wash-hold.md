@@ -99,6 +99,14 @@ with each frame's fitted alpha, the tables above and what stays the same. The ow
 3. When #425 merges: fold the `today` lever, the `hold` telemetry field and the `calmCoast` / `calmCoastC` views into
    `scn_wash_alpha.js` (and the two MODEL_VIEW keys into `wash_alpha.py`), so this A/B reproduces from the tree.
 
+## 5a. Ledger (2026-10-21T07:25Z)
+
+Draft PR #430 opened at `161d62097`. Ledger: **1558** finding (the A/B), **1559** pr_open #430, **1560** commitment (the owner's
+pick, due 2026-10-24), **1561** commitment (wave-lib ALPHAS per height for the picked state + the instrument fold, due
+2026-10-28). STATE head moved to 1561. PR #425's branch also appended seqs 1558-1560 after dev's 1557, so whichever of #425 and
+#430 merges second re-chains its lines after the other's (LESSONS ledger re-forks). Local gates at `dae233ce8`:
+`src/components/map` + `src/tests` 343 suites / 5118 tests pass; `check_eslint.js` green.
+
 ## 6. Instruments and reproduction
 
 - PR #425's `scn_wash_alpha.js`, `wash_alpha.py`, `wash-lut.mjs` (from `origin/claude/agitated-euler-a13131`), run from the
