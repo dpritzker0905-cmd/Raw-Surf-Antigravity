@@ -42,12 +42,13 @@ describe('the default (D-035: beach draws the v1 sea) and the kill (window.__RAW
   });
 
   it('V2 stands down wherever beach does not draw the sunset sea, the lever set or not', () => {
+    const v1Beach = beachBranch(drawFsUnder(KILLS));
     for (const lever of [{}, { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, { __RAW_DISABLE_MARINE_WAVE_PALETTE__: true }, { __RAW_DISABLE_WAVE_BEACH_V1__: true }]) {
       for (const levers of [lever, { ...lever, ...SUNSET }]) {
         if (!Object.keys(lever).length && levers.__RAW_BEACH_WASH__) continue;   // the lever alone draws V2 (below)
         withWindow(levers, (shaders, crest) => {
           expect(crest.BEACH_CREST_ID).toBe('v1');
-          expect(beachBranch(shaders.DRAW_FS)).toBe(beachBranch(drawFsUnder(KILLS)));
+          expect(beachBranch(shaders.DRAW_FS)).toBe(v1Beach);
         });
       }
     }
