@@ -10,6 +10,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
 import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
 import { frameServesSelectedHour } from './marineHourInstant';
+import { paintSeriesWhilePending, useSeriesPaintWhilePending } from './marineSeriesWhilePending';   // SERIES_PAINT_WHILE_PENDING (request diet)
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -362,6 +363,7 @@ export function runScrubSettleCheck(ctx) {
       pending.layer === (activeMarineLayerRef.current || 'waves');
 
     if (isAlreadyFetchingCurrentHour) {
+      if (paintSeriesWhilePending({ ...ctx, currentHour, commit: (sf, l) => { setMarineData(stampSeriesCommit(sf, marineRevision, 'series_pending')); recordSettleCommitSig(lastCommittedSigRef, sf, l); } })) return;
       console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
       return;
     }
@@ -440,6 +442,7 @@ export function useMarineScrubSettle({
   const checkScrubSettleRef = useRef(checkScrubSettle);
   checkScrubSettleRef.current = checkScrubSettle;
   useMarineExactUpgrade(marineData, checkScrubSettleRef, timeOffsetRef);   // re-drives the check shortly after a thinned world frame lands
+  useSeriesPaintWhilePending(checkScrubSettleRef, activeMarineLayerRef);   // a series landing while a /grid is pending re-runs the check
   useMarineWorldWarmOnSettle({ marineData, mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef });   // F-21: the base follows the selected hour
 
   // Drive checkScrubSettle when scrubbing ends.

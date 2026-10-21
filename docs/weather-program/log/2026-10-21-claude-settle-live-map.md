@@ -172,3 +172,19 @@ servers, interleaved A1 B1 ...:
   fallback and that listener are redundant (harmless: #426's `_lastPainted` guard commits once when two listeners fire for one
   landing); removing them is a cleanup for whichever PR merges second. A combined build (`dev` + #426 + this) was not replayed.
 - Live read-back owed after merge and deploy (one owner map load, never a scripted replay): ledger commitment below.
+
+## 9. 2026-10-21 ~17:00Z: `dev` 8392f25b8 (#426 merged) merged into this branch, on the lead session's word
+
+- `useMarineScrubSettle.js` merged without a textual conflict and keeps both sets of behaviour: #426's `paintSeriesWhilePending` in the
+  pending branch and `useSeriesPaintWhilePending` after `useMarineExactUpgrade(...)`, plus this PR's live-map ref, `runSettleCheckLive`
+  wrapper and activation key. 725 lines (cap 800). Read for how they compose at a layer's first load: #426's listener (0 ms, only while
+  the engine has drawn nothing) runs the check, which now carries the live map, and its pending branch paints the landed frame (trace
+  lane `commit:series_pending`); this PR's armed listener (60 ms) then finds the new commit, or #426's `_lastPainted` guard if React has
+  not re-rendered yet, so one commit per landing. #426's `window.map` fallback and its comments describing the null map are now
+  redundant but harmless; left untouched (no new scope).
+- **Ledger:** `ACTIONS.jsonl` conflicted (dev's 1558-1559 are #426's, as section 0 foresaw). Resolved to `dev`'s file byte for byte;
+  this PR's two lines (`pr_open`, commitment, first written as 1558-1559 above) are held aside, unchanged, until the lead names the
+  predecessor head for the re-chain. So "ledger seq 1558 / 1559" in the header of this log now names #426's lines on `dev`, not this PR's.
+- Checks on the merged tree (dot-free mirror): Jest `src/components/map`, `src/tests`, `src/__tests__` **426 of 426 suites, 5,750
+  tests**; `check_eslint.js` exit 0, no rule over baseline; `loc_ratchet.py` no new violations. The offline A/B above was measured on
+  this PR alone (on `dev` 448deb35c); the merged build was not replayed.
