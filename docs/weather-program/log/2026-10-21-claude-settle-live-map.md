@@ -8,7 +8,9 @@ backend), ship ON with a kill switch if client-only, one draft PR against `dev`.
 they now run with a map. Offline throughout: the real backend over synthetic data on :4197 (`serve_synthetic.py --thin-bounds 1
 --dynamic 1 --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind --regions flagship`), the bundle on :3197
 (`REACT_APP_ICON_STORED_TAIL=true`, as the dev deploy builds it, and as #426's lab ran). Evidence:
-`docs/weather-program/evidence/settle-live-map-2026-10-21.json`.
+`docs/weather-program/evidence/settle-live-map-2026-10-21.json`. Draft PR #429 (code commit `ed3b7881e`); ledger seq 1558
+(`pr_open`) and 1559 (the live read-back commitment, due 2026-10-28). Both follow `dev`'s 1557, as #426's 1558-1559 do on its branch:
+whichever of the two merges second re-chains its lines. STATE.md is left to the merge receipts (a draft changes no served state).
 
 ## 1. The two defects (read in code, then traced)
 
