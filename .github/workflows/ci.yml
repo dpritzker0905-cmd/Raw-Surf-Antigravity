@@ -919,7 +919,10 @@ jobs:
           # Final PR378 review: +28 malformed-cycle/identity health controls; 3190 ->3218, margin6 unchanged.
           # W-4 series page memo (test_series_page_memo.py, new guards file): +37 guards. Hosted run 39259510389 read
           # 3248 / 208 with the first 30 (= 3218 + 30, the projection); 3218 + 37 = 3255 projected; margin 6.
-          MIN_FILES, MIN_PASSED = 208, 3249
+          # ⬆ 208/3249 → 209/3281 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (GRID_SERIES_MEMO_RUN_KEYS, dark):
+          # tests/test_series_memo_run_keys.py (32, a new file selector-verified into this lane: --lane guards 208 -> 209);
+          # the first hosted run read 3285 with 30 of them (= 3255 + 30); +2 after review -> 3287 projected; 3287 - 6 = 3281.
+          MIN_FILES, MIN_PASSED = 209, 3281
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1500,7 +1503,10 @@ jobs:
           # tests/test_peak_period_flags.py (16, a new file selector-verified into this lane: --lane chain 171 -> 172), re-derived after
           # #407: its hosted read 2826/171 (CI 39379941948) + 16 -> projected 2842/172; 2842 - 6 = 2836. This PR must read 172 files / 2842.
           # +1 (2026-10-20, review fix in #412: the flag-on CMEMS window guard in test_peak_period_flags.py) -> 2843/172; 2843 - 6 = 2837.
-          MIN_FILES, MIN_PASSED = 172, 2837
+          # ⬆ 172/2837 → 173/2849 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (/products encoded once per manifest version):
+          # tests/test_products_response.py (12, a new file selector-verified into this lane: --lane chain 172 -> 173);
+          # 2843 + 12 = 2855 projected; 2855 - 6 = 2849. This PR must read 173 files / 2855.
+          MIN_FILES, MIN_PASSED = 173, 2849
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

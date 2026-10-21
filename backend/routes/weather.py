@@ -60,21 +60,17 @@ point_resolution_service = PointResolutionService(
 
 
 @router.get("/products")
-async def get_products():
+async def get_products(request: Request = None, fields: Optional[str] = Query(None, pattern="^compact$")):
     """
     GET /api/weather/products
     Returns the current manifest registry listing available prepared weather products.
 
-    A15-16 (audit 15.0): this public, unauthenticated response also carried the server's absolute
-    cache path and a listing of every file in it (2,717 names, measured 2026-09-25), re-read from
-    disk on each call. Nothing read either field over HTTP; the diagnostics scripts use the store
-    directly. Both are gone.
+    Encoded once per manifest version, off the event loop, with an ETag (`?fields=compact`: only the fields the
+    client reads). Kill: PRODUCTS_RESPONSE_CACHE=0. A15-16 (no cache path or file listing) and the rest:
+    services/weather_pipeline/products_response.py.
     """
-    manifest = await asyncio.to_thread(store.get_manifest)
-    return {
-        "last_manifest_update": manifest.last_manifest_update,
-        "products": manifest.products,
-    }
+    from services.weather_pipeline.products_response import serve_products
+    return await serve_products(store, request, compact=fields == "compact")   # called directly, `fields` is the Query
 
 
 @router.get("/grid_series")
