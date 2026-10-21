@@ -227,3 +227,6 @@ p99 of each pixel off its paired crest-free wash, lemon -> warm gold:
 
 The storm crest is a little quieter where storms are, by design (C* 94 -> 74), and keeps about twice the |Lc| floor. Against V1
 (`l1`) the whole V2 set still reads as before (coastal |Lc| 23.4 -> 74.5).
+
+Ledger: 1584 (`pr_open #436`), 1585 (decision D-040), after dev's head 1583 (dev `dbb9713fd`). #428 appends its own lines, so whichever
+of the two merges second re-chains.
