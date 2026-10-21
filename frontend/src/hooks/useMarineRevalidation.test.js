@@ -1,5 +1,9 @@
 import { renderHook } from '@testing-library/react';
 import { useMarineRevalidation } from './useMarineRevalidation';
+import { SWR_BACKOFF_FAST_ASKS } from '../components/map/marineRequestDiet';
+
+const FAST = Array(SWR_BACKOFF_FAST_ASKS).fill(1500);          // the first asks keep the old cadence
+const FAST_EMPTY = Array(SWR_BACKOFF_FAST_ASKS).fill(2500);
 
 // The stale grid the zoom-out mid-res preview commits (data.stale=true) → schedules a re-drive.
 const STALE = { stale: true, grid: { stale: true, cols: 5, rows: 5 } };
@@ -35,10 +39,11 @@ describe('useMarineRevalidation.scheduleSWRRevalidation — SWR_BACKOFF ladder (
     expectNextRedriveAfter(result, jest.fn(), 1500);
   });
 
-  test('the ladder: 1.5, 3, 6, 12, 24, 48 s, then 48 s held', () => {
+  test('the ladder: 10 asks at 1.5 s, then 3, 6, 12, 24, 48 s, then 48 s held', () => {
+    expect(SWR_BACKOFF_FAST_ASKS).toBe(10);
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();
-    for (const ms of [1500, 3000, 6000, 12000, 24000, 48000, 48000, 48000]) expectNextRedriveAfter(result, updateFn, ms);
+    for (const ms of [...FAST, 3000, 6000, 12000, 24000, 48000, 48000, 48000]) expectNextRedriveAfter(result, updateFn, ms);
   });
 
   test('it never stops: 25 stale commits in a row each schedule a re-drive (the old cap of 3 is gone)', () => {
@@ -55,11 +60,12 @@ describe('useMarineRevalidation.scheduleSWRRevalidation — SWR_BACKOFF ladder (
   test('a good commit clears the pending timer and restarts the ladder at 1.5 s', () => {
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();
-    for (const ms of [1500, 3000, 6000]) expectNextRedriveAfter(result, updateFn, ms);
+    const climbed = [...FAST, 3000, 6000];
+    for (const ms of climbed) expectNextRedriveAfter(result, updateFn, ms);
     result.current.scheduleSWRRevalidation(STALE, updateFn);   // arm the 12 s rung
     result.current.scheduleSWRRevalidation(GOOD, updateFn);    // cancels it
     jest.advanceTimersByTime(60000);
-    expect(updateFn).toHaveBeenCalledTimes(3);
+    expect(updateFn).toHaveBeenCalledTimes(climbed.length);
     expectNextRedriveAfter(result, updateFn, 1500);
   });
 
@@ -67,7 +73,7 @@ describe('useMarineRevalidation.scheduleSWRRevalidation — SWR_BACKOFF ladder (
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();
     const EMPTY = { grid: { renderable: false, vectors: [], cols: 2, rows: 2 } };
-    for (const ms of [2500, 5000, 10000, 20000, 40000, 48000]) expectNextRedriveAfter(result, updateFn, ms, EMPTY);
+    for (const ms of [...FAST_EMPTY, 5000, 10000, 20000, 40000, 48000]) expectNextRedriveAfter(result, updateFn, ms, EMPTY);
   });
 
   test('OVERRIDE rungs: __RAW_MARINE_SWR_STALE_DELAYS__ replaces the stale ladder and its last entry is held, never stopping', () => {
@@ -81,7 +87,7 @@ describe('useMarineRevalidation.scheduleSWRRevalidation — SWR_BACKOFF ladder (
     window.__RAW_MARINE_SWR_MAX_RETRIES__ = 3;
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();
-    for (const ms of [1500, 3000, 6000]) expectNextRedriveAfter(result, updateFn, ms);
+    for (const ms of [1500, 1500, 1500]) expectNextRedriveAfter(result, updateFn, ms);
     result.current.scheduleSWRRevalidation(STALE, updateFn);
     jest.advanceTimersByTime(600000);
     expect(updateFn).toHaveBeenCalledTimes(3);

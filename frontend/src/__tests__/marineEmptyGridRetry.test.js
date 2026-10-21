@@ -127,12 +127,12 @@ describe('scheduleSWRRevalidation — retries a transient empty grid', () => {
     expect(updateFn).toHaveBeenCalledWith('swr_revalidation');
   });
 
-  it('backs off instead of re-asking every 2.5 s: 2.5, 5, 10, 20, 40, 48 s (SWR_BACKOFF), and never stops', () => {
+  it('backs off instead of re-asking every 2.5 s for ever: 10 asks at 2.5 s, then 5, 10, 20, 40, 48 s (SWR_BACKOFF), never stopping', () => {
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();
     const empty = makeGrid({ vectors: [], renderable: false });
 
-    for (const rung of [2500, 5000, 10000, 20000, 40000, 48000, 48000]) {
+    for (const rung of [...Array(10).fill(2500), 5000, 10000, 20000, 40000, 48000, 48000]) {
       result.current.scheduleSWRRevalidation(empty, updateFn);
       const before = updateFn.mock.calls.length;
       jest.advanceTimersByTime(rung - 1);

@@ -53,8 +53,9 @@ export function useMarineRevalidation() {
       // what actually pulls the sharpened fine grid once the backend's background _revalidate_fetch
       // (serialized, MARINE_REVAL_CONCURRENCY=1) has warmed the dynamic cache. Nothing else re-drives an
       // idle map, so it must never stop. SWR_BACKOFF (2026-10-21, marineRequestDiet.planSwrRevalidation):
-      // 1.5, 3, 6, 12, 24, 48 s, then every 48 s (empty grids from 2.5 s), restarted by a fresh commit
-      // or any other ask; kill window.__RAW_DISABLE_SWR_BACKOFF__ = the old fixed 1.5 s / 2.5 s. Still
+      // 10 asks at the old 1.5 s (a typical sharpen), then 3, 6, 12, 24, 48 s, then every 48 s (empty
+      // grids from 2.5 s), restarted by a fresh commit or any other ask; kill
+      // window.__RAW_DISABLE_SWR_BACKOFF__ = the old fixed 1.5 s / 2.5 s. Still
       // LIVE-TUNABLE for A/B against __SHARPEN_TRACE__:
       //   window.__RAW_MARINE_SWR_STALE_DELAYS__ = [700, 1200, 1800, 2500]   (stale rungs; the last is held)
       //   window.__RAW_MARINE_SWR_MAX_RETRIES__  = 4                         (a hard stop; unset = never stop)

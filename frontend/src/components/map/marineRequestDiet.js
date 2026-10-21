@@ -17,10 +17,11 @@
  *   STEP_PAGE                   an hour step that misses every cache also asks for the 48-frame page holding that hour, the hour's
  *                               own frame first (useMarineOrchestratorScrubCache.js), not only one exact /grid per step.
  *                               OFF by default (measured no gain, see REQUEST_DIET_OPT_IN): window.__RAW_STEP_PAGE__ = true
- *   SWR_BACKOFF                 a stale or empty grid is re-asked on a never-stopping ladder (1.5, 3, 6, 12, 24, 48 s, then every
- *                               48 s; empty grids 2.5, 5, 10, 20, 40, 48 s) instead of every 1.5 s / 2.5 s for as long as it stays
- *                               stale. Its re-drive keeps the attempt count (useMarineDataFetcherCore.js reset it on every run);
- *                               a fresh commit or any other ask starts the ladder again (planSwrRevalidation, useMarineRevalidation).
+ *   SWR_BACKOFF                 a stale or empty grid is re-asked at the old cadence for its first 10 asks (1.5 s, ~25 s: a typical
+ *                               sharpen), then on a never-stopping ladder (3, 6, 12, 24, 48 s, then every 48 s; empty grids from
+ *                               2.5 s: 5, 10, 20, 40, 48 s) instead of every 1.5 s / 2.5 s for as long as it stays stale. Its re-drive
+ *                               keeps the attempt count (useMarineDataFetcherCore.js reset it on every run); a fresh commit or any
+ *                               other ask starts it again (planSwrRevalidation, useMarineRevalidation).
  *                               Supersedes #426's opt-in SWR_RETRY_CAP (a hard stop at 3): see the note above planSwrRevalidation
  *   PRODUCTS_COMPACT            /products is asked for with ?fields=compact (#423): the seven fields the client reads (model, domain,
  *                               layer, valid_time_start, valid_time_end, coverage, region_id), byte-identical values; a backend
@@ -87,6 +88,13 @@ export function keepSwrRetryCount(source) {
 export const SWR_BACKOFF_STALE_FIRST_MS = 1500;
 export const SWR_BACKOFF_EMPTY_FIRST_MS = 2500;
 export const SWR_BACKOFF_HOLD_MS = 48000;
+/**
+ * How many re-asks stay on the first rung (the old cadence) before the doubling starts. 10 = ~25 s at the live box's round trip,
+ * which covers the one live sharpen on record (mid preview -> fine viewport in 25 s, HANDOFF-2026-07-20). 1 = the ladder exactly as
+ * first specified (1.5, 3, 6, ...): offline it cost +30 s to the fresh frame in a 120 s stall and, computed, up to +24 s on a 25 s
+ * sharpen (log/2026-10-21-claude-swr-backoff.md). Live trial of another shape: window.__RAW_MARINE_SWR_STALE_DELAYS__.
+ */
+export const SWR_BACKOFF_FAST_ASKS = 10;
 /** The old default cap. It never applied (the reset above), so under the kill switch the re-ask still never stops, as before. */
 export const SWR_LEGACY_MAX_RETRIES = 3;
 
@@ -102,8 +110,11 @@ export const SWR_LEGACY_MAX_RETRIES = 3;
  * #426's SWR_RETRY_CAP made the cap real but stopped after ~4.5 s, leaving a zoom-6 preview coarse or ICON blank just after a run.
  * The ladder keeps asking (the frame still reaches fresh) at a cost that falls to one ask per 48 s. A fresh commit or any user
  * action asks at once and restarts it. SWR_RETRY_CAP is SUPERSEDED: its hard stop is window.__RAW_MARINE_SWR_MAX_RETRIES__ = 3.
- *   on (default):  1.5, 3, 6, 12, 24, 48, 48, ... s (stale; staleDelays, when set, replaces these rungs and its last entry is
- *                  held); 2.5, 5, 10, 20, 40, 48, ... s (empty); stops only when maxRetries is set and reached.
+ * WHY the first SWR_BACKOFF_FAST_ASKS stay fast (offline A/B, 2026-10-21): each stale world /grid costs the box ~0.3-0.5 s, so a
+ * stall left at the old cadence is ~25 asks a minute per idle view; but a ladder from the first ask makes the common ~25 s sharpen
+ * wait for the next rung. Fast first, then the ladder: equal to today through 25 s, 7 asks a minute (vs 24.5) over a 120 s stall.
+ *   on (default):  1.5 s x 10, then 3, 6, 12, 24, 48, 48, ... s (stale; staleDelays, when set, replaces these rungs and its last
+ *                  entry is held); 2.5 s x 10, then 5, 10, 20, 40, 48, ... s (empty); stops only when maxRetries is set and reached.
  *   off (kill __RAW_DISABLE_SWR_BACKOFF__ or the umbrella): the old rule, byte-identical: 1.5 s (or staleDelays) / 2.5 s, stop at
  *                  maxRetries or 3, which the reset at the top of every run kept from ever being reached.
  * Returns { delayMs, stop }.
@@ -116,7 +127,7 @@ export function planSwrRevalidation({ attempt, empty, staleDelays, maxRetries })
     return { delayMs: empty ? SWR_BACKOFF_EMPTY_FIRST_MS : listed(SWR_BACKOFF_STALE_FIRST_MS), stop: n >= (maxRetries || SWR_LEGACY_MAX_RETRIES) };
   }
   const first = empty ? SWR_BACKOFF_EMPTY_FIRST_MS : SWR_BACKOFF_STALE_FIRST_MS;
-  const rung = Math.min(SWR_BACKOFF_HOLD_MS, first * 2 ** Math.min(n, 16));
+  const rung = Math.min(SWR_BACKOFF_HOLD_MS, first * 2 ** Math.min(Math.max(0, n - (SWR_BACKOFF_FAST_ASKS - 1)), 16));
   return { delayMs: empty ? rung : listed(rung), stop: !!maxRetries && n >= maxRetries };
 }
 

@@ -254,11 +254,12 @@ describe('SWR_BACKOFF: a stale backend is re-asked on a never-stopping ladder; u
     expect(keepSwrRetryCount('swr_revalidation')).toBe(false);
   });
 
-  test('a stale backend: 5 asks in the first minute (1.5, 4.5, 10.5, 22.5, 46.5 s), then one every 48 s, never stopping', () => {
-    expect(redrivesOver(60000)).toEqual([1500, 4500, 10500, 22500, 46500]);
+  test('a stale backend: 10 asks 1.5 s apart, then 18, 24, 36, 60 s; then one every 48 s, never stopping', () => {
+    const fast = Array.from({ length: 10 }, (_, i) => 1500 * (i + 1));
+    expect(redrivesOver(60000)).toEqual([...fast, 18000, 24000, 36000, 60000]);          // 14 in the first minute vs 40
     const tenMin = redrivesOver(600000);
-    expect(tenMin.length).toBe(16);                                                     // vs 400 under the kill
-    expect(tenMin.slice(5)).toEqual(Array.from({ length: 11 }, (_, i) => 94500 + 48000 * i));
+    expect(tenMin.length).toBe(25);                                                     // vs 400 under the kill
+    expect(tenMin.slice(14)).toEqual(Array.from({ length: 11 }, (_, i) => 108000 + 48000 * i));
   });
 
   test('under the kill (and the umbrella) the shipped 1.5 s re-poll goes on: 40 a minute', () => {
@@ -271,16 +272,21 @@ describe('SWR_BACKOFF: a stale backend is re-asked on a never-stopping ladder; u
 
   test("#426's hard stop (SWR_RETRY_CAP, superseded) is __RAW_MARINE_SWR_MAX_RETRIES__ = 3 on the ladder", () => {
     window.__RAW_MARINE_SWR_MAX_RETRIES__ = 3;
-    expect(redrivesOver(600000)).toEqual([1500, 4500, 10500]);
+    expect(redrivesOver(600000)).toEqual([1500, 3000, 4500]);
+  });
+
+  test('the ladder as first specified (no fast asks) is one live tunable away', () => {
+    window.__RAW_MARINE_SWR_STALE_DELAYS__ = [1500, 3000, 6000, 12000, 24000, 48000];
+    expect(redrivesOver(120000)).toEqual([1500, 4500, 10500, 22500, 46500, 94500]);
   });
 });
 
 describe('planSwrRevalidation (pure)', () => {
-  test('on: stale 1.5 s doubling to a 48 s hold, empty from 2.5 s, no stop unless a cap is given', () => {
-    const stale = [0, 1, 2, 3, 4, 5, 6, 40, 1e9].map((attempt) => planSwrRevalidation({ attempt }).delayMs);
-    expect(stale).toEqual([1500, 3000, 6000, 12000, 24000, 48000, 48000, 48000, 48000]);
-    const empty = [0, 1, 2, 3, 4, 5].map((attempt) => planSwrRevalidation({ attempt, empty: true }).delayMs);
-    expect(empty).toEqual([2500, 5000, 10000, 20000, 40000, 48000]);
+  test('on: 10 asks on the first rung, then doubling to a 48 s hold; empty from 2.5 s; no stop unless a cap is given', () => {
+    const stale = [0, 5, 9, 10, 11, 12, 13, 14, 15, 40, 1e9].map((attempt) => planSwrRevalidation({ attempt }).delayMs);
+    expect(stale).toEqual([1500, 1500, 1500, 3000, 6000, 12000, 24000, 48000, 48000, 48000, 48000]);
+    const empty = [0, 9, 10, 11, 12, 13, 14].map((attempt) => planSwrRevalidation({ attempt, empty: true }).delayMs);
+    expect(empty).toEqual([2500, 2500, 5000, 10000, 20000, 40000, 48000]);
     expect(planSwrRevalidation({ attempt: 1e6 }).stop).toBe(false);
     expect(planSwrRevalidation({ attempt: 2, maxRetries: 3 }).stop).toBe(false);
     expect(planSwrRevalidation({ attempt: 3, maxRetries: 3 }).stop).toBe(true);
@@ -288,7 +294,7 @@ describe('planSwrRevalidation (pure)', () => {
 
   test('on: stale override rungs replace the ladder (last held; a bad entry falls back to the ladder\'s rung); empty ignores them', () => {
     const d = [5000, 'x'];
-    expect([0, 1, 2].map((attempt) => planSwrRevalidation({ attempt, staleDelays: d }).delayMs)).toEqual([5000, 3000, 6000]);
+    expect([0, 1, 11].map((attempt) => planSwrRevalidation({ attempt, staleDelays: d }).delayMs)).toEqual([5000, 1500, 6000]);
     expect(planSwrRevalidation({ attempt: 0, empty: true, staleDelays: d }).delayMs).toBe(2500);
     expect(planSwrRevalidation({ attempt: 0, staleDelays: [] }).delayMs).toBe(1500);
   });
