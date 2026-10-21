@@ -89,3 +89,29 @@ All numbers are from this session's runs. The evidence JSON holds the raw rows.
 - **1558** `finding`: this phase-1 result.
 - **1559** `commitment`, due 2026-10-28T18:00Z: phase 2's draft PR after #422 merges.
 - **1560** `pr_open`: #427 (draft), opened 2026-10-21 from dev `448deb35c` at `dcb027289`.
+
+## Update 2026-10-21 ~06:00Z: live CDN latency, harness caveat, the #426 contract
+
+Three corrections arrived from the lead session and from the client request-trim session (#426):
+
+- **Live CDN latency** (lead, `curl -D` from the owner's PC, first live frame at 00:40Z):
+  - Cloudflare HIT 0.34 s, cold MISS 0.71 s;
+  - a real browser's cold CDN path took 1.32 s (manifest 859 ms + image 453 ms + decode 2.8 ms), against 3.0 s for `/grid`.
+  The simulator's generic `desktop` TTFB (50 ms) was optimistic. Re-run with `cdn_hit` / `cdn_cold`:
+  - #422 alone: **53.3% instant presses, toggles p50 377 ms** (hit); 49.0% and 749 ms (cold);
+  - recommended policy: **100% presses and toggles within one frame** (hit); 90.9% presses and toggles p95 1.05 s (cold, the
+    first viewers of a new run).
+  The spec gains section 4.4 and a rule to fetch `latest.json` and the run index at map open; the evidence JSON gains the
+  `cdn_measured_*` rows.
+- **The offline harness hides HTTP caching:** `ab_lib.js:14` merges `cache-control: no-store` into every fulfilled response.
+  This bench used its own immutable-header server, so it is unaffected. Phase 2's egress and repeat-view reads must exempt the
+  frame host or use `curl -D`. The spec says so in sections 4.4 and 10.
+- **Run identity is `model_run_time`** (the cycle), not `run_time` (ingest registration).
+- **The #426 contract:**
+  - store commits set `served_valid_time`, `run_time` and `model_run_time` on the engine's waveGrid, so `EXACT_UPGRADE_SKIP`
+    suppresses the thin-frame upgrade;
+  - the settle commit enters `_cacheMarineResult` with `valid_time` = the snapped ask (the alias matches `valid_time`, not
+    `served_valid_time`; my message to #426 said otherwise and is corrected here);
+  - `useMarineOrchestratorScrubCache.js` is also in #426 (disjoint hunks), so expect a small rebase.
+
+No new ledger line: this is a docs-only correction inside the open draft PR #427 (pr_open 1560).

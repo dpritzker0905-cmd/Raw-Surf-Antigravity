@@ -5150,6 +5150,959 @@
      "requestsPerFlow": 198
     }
    ]
+  },
+  "cdn_measured_lab4": {
+   "flows": [
+    "erratic",
+    "icon_waves_scrub",
+    "model_switch_future",
+    "layer_switch_future"
+   ],
+   "pressMs": 40,
+   "seeds": 10,
+   "rows": [
+    {
+     "net": "cdn_hit",
+     "policy": "static_422",
+     "pressInstantPct": 53.3,
+     "pressSkippedPct": 41,
+     "settle": {
+      "p50": 17,
+      "p95": 455,
+      "max": 646
+     },
+     "toggle": {
+      "p50": 377,
+      "p95": 533,
+      "max": 646
+     },
+     "view": {
+      "p50": 17,
+      "p95": 468
+     },
+     "mbPerFlow": 3.69,
+     "peakGpuMB": 0.7,
+     "requestsPerFlow": 77
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_v0",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "view": {
+      "p50": 17,
+      "p95": 551
+     },
+     "mbPerFlow": 17.1,
+     "peakGpuMB": 33.9,
+     "requestsPerFlow": 325
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_gated",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "view": {
+      "p50": 17,
+      "p95": 491
+     },
+     "mbPerFlow": 12.21,
+     "peakGpuMB": 20.9,
+     "requestsPerFlow": 226
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "view": {
+      "p50": 17,
+      "p95": 580
+     },
+     "mbPerFlow": 11.62,
+     "peakGpuMB": 20.2,
+     "requestsPerFlow": 216
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent_mobile",
+     "pressInstantPct": 94,
+     "pressSkippedPct": 5.4,
+     "settle": {
+      "p50": 17,
+      "p95": 126,
+      "max": 599
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "view": {
+      "p50": 17,
+      "p95": 580
+     },
+     "mbPerFlow": 12,
+     "peakGpuMB": 15.5,
+     "requestsPerFlow": 223
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent_slow",
+     "pressInstantPct": 78.3,
+     "pressSkippedPct": 18.8,
+     "settle": {
+      "p50": 17,
+      "p95": 557,
+      "max": 901
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 58,
+      "max": 151
+     },
+     "view": {
+      "p50": 17,
+      "p95": 672
+     },
+     "mbPerFlow": 7.56,
+     "peakGpuMB": 12.3,
+     "requestsPerFlow": 141
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_gated_mobile",
+     "pressInstantPct": 94,
+     "pressSkippedPct": 5.4,
+     "settle": {
+      "p50": 17,
+      "p95": 117,
+      "max": 412
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "view": {
+      "p50": 17,
+      "p95": 491
+     },
+     "mbPerFlow": 13.06,
+     "peakGpuMB": 15.5,
+     "requestsPerFlow": 243
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_mobile",
+     "pressInstantPct": 91.7,
+     "pressSkippedPct": 7.7,
+     "settle": {
+      "p50": 17,
+      "p95": 175,
+      "max": 350
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "view": {
+      "p50": 17,
+      "p95": 551
+     },
+     "mbPerFlow": 18.61,
+     "peakGpuMB": 15.5,
+     "requestsPerFlow": 354
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "active_only",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 375,
+      "p95": 543,
+      "max": 648
+     },
+     "view": {
+      "p50": 17,
+      "p95": 487
+     },
+     "mbPerFlow": 13.87,
+     "peakGpuMB": 29.9,
+     "requestsPerFlow": 266
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "everything",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 374,
+      "p95": 593,
+      "max": 688
+     },
+     "view": {
+      "p50": 17,
+      "p95": 553
+     },
+     "mbPerFlow": 27.53,
+     "peakGpuMB": 46.2,
+     "requestsPerFlow": 522
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "static_422",
+     "pressInstantPct": 49,
+     "pressSkippedPct": 45.1,
+     "settle": {
+      "p50": 320,
+      "p95": 1045,
+      "max": 1338
+     },
+     "toggle": {
+      "p50": 749,
+      "p95": 1061,
+      "max": 1312
+     },
+     "view": {
+      "p50": 17,
+      "p95": 949
+     },
+     "mbPerFlow": 3.54,
+     "peakGpuMB": 0.7,
+     "requestsPerFlow": 77
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_v0",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 788,
+      "max": 1149
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1062
+     },
+     "mbPerFlow": 12.98,
+     "peakGpuMB": 21.1,
+     "requestsPerFlow": 243
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_gated",
+     "pressInstantPct": 99.9,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 845,
+      "max": 1405
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1194
+     },
+     "mbPerFlow": 10.95,
+     "peakGpuMB": 17.5,
+     "requestsPerFlow": 204
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_intent",
+     "pressInstantPct": 90.9,
+     "pressSkippedPct": 8.5,
+     "settle": {
+      "p50": 17,
+      "p95": 409,
+      "max": 783
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 1052,
+      "max": 1281
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1294
+     },
+     "mbPerFlow": 8.98,
+     "peakGpuMB": 15.8,
+     "requestsPerFlow": 168
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_intent_mobile",
+     "pressInstantPct": 90.9,
+     "pressSkippedPct": 8.5,
+     "settle": {
+      "p50": 17,
+      "p95": 409,
+      "max": 783
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 1052,
+      "max": 1281
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1294
+     },
+     "mbPerFlow": 9,
+     "peakGpuMB": 15.5,
+     "requestsPerFlow": 169
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_intent_slow",
+     "pressInstantPct": 54.5,
+     "pressSkippedPct": 40.3,
+     "settle": {
+      "p50": 17,
+      "p95": 1230,
+      "max": 1878
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 1117,
+      "max": 1421
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1414
+     },
+     "mbPerFlow": 4.89,
+     "peakGpuMB": 8.5,
+     "requestsPerFlow": 92
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_gated_mobile",
+     "pressInstantPct": 94.1,
+     "pressSkippedPct": 5.2,
+     "settle": {
+      "p50": 17,
+      "p95": 627,
+      "max": 1118
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 845,
+      "max": 1405
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1194
+     },
+     "mbPerFlow": 11.18,
+     "peakGpuMB": 15.5,
+     "requestsPerFlow": 210
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "spec_mobile",
+     "pressInstantPct": 93.9,
+     "pressSkippedPct": 5.4,
+     "settle": {
+      "p50": 17,
+      "p95": 561,
+      "max": 1089
+     },
+     "toggle": {
+      "p50": 17,
+      "p95": 788,
+      "max": 1149
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1062
+     },
+     "mbPerFlow": 13.24,
+     "peakGpuMB": 15.5,
+     "requestsPerFlow": 249
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "active_only",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 707,
+      "p95": 1096,
+      "max": 1355
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1279
+     },
+     "mbPerFlow": 10.02,
+     "peakGpuMB": 18.2,
+     "requestsPerFlow": 190
+    },
+    {
+     "net": "cdn_cold",
+     "policy": "everything",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": 713,
+      "p95": 1248,
+      "max": 1443
+     },
+     "view": {
+      "p50": 17,
+      "p95": 1062
+     },
+     "mbPerFlow": 13.39,
+     "peakGpuMB": 22.4,
+     "requestsPerFlow": 257
+    }
+   ],
+   "note": "nets cdn_hit (TTFB median 340 ms) and cdn_cold (710 ms): the lead session curl -D reads of the live weather-frames bucket from the owner PC, 2026-10-21"
+  },
+  "cdn_measured_glance": {
+   "flows": [
+    "glance"
+   ],
+   "pressMs": 40,
+   "seeds": 6,
+   "rows": [
+    {
+     "net": "cdn_hit",
+     "policy": "static_422",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 0.49,
+     "peakGpuMB": 0.5,
+     "requestsPerFlow": 9
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_v0",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 8.48,
+     "peakGpuMB": 8.9,
+     "requestsPerFlow": 155
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_gated",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 7.16,
+     "peakGpuMB": 7.5,
+     "requestsPerFlow": 131
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 1.91,
+     "peakGpuMB": 2,
+     "requestsPerFlow": 35
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent_mobile",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 1.91,
+     "peakGpuMB": 2,
+     "requestsPerFlow": 35
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent_slow",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 1.48,
+     "peakGpuMB": 1.5,
+     "requestsPerFlow": 27
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_gated_mobile",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 7.16,
+     "peakGpuMB": 7.5,
+     "requestsPerFlow": 131
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_mobile",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 8.48,
+     "peakGpuMB": 8.9,
+     "requestsPerFlow": 155
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "active_only",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 6.18,
+     "peakGpuMB": 6.5,
+     "requestsPerFlow": 113
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "everything",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 12.75,
+     "peakGpuMB": 13.5,
+     "requestsPerFlow": 239
+    }
+   ],
+   "note": "nets cdn_hit (TTFB median 340 ms) and cdn_cold (710 ms): the lead session curl -D reads of the live weather-frames bucket from the owner PC, 2026-10-21"
+  },
+  "cdn_measured_scrub_week": {
+   "flows": [
+    "scrub_week"
+   ],
+   "pressMs": 40,
+   "seeds": 6,
+   "rows": [
+    {
+     "net": "cdn_hit",
+     "policy": "static_422",
+     "pressInstantPct": 12.5,
+     "pressSkippedPct": 50,
+     "settle": {
+      "p50": 401,
+      "p95": 601,
+      "max": 675
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 2.19,
+     "peakGpuMB": 0.7,
+     "requestsPerFlow": 56
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_v0",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 9.24,
+     "peakGpuMB": 9.7,
+     "requestsPerFlow": 169
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_gated",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 7.49,
+     "peakGpuMB": 7.9,
+     "requestsPerFlow": 137
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 7.49,
+     "peakGpuMB": 7.9,
+     "requestsPerFlow": 137
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent_mobile",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 7.49,
+     "peakGpuMB": 7.9,
+     "requestsPerFlow": 137
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_intent_slow",
+     "pressInstantPct": 37.5,
+     "pressSkippedPct": 37.5,
+     "settle": {
+      "p50": 283,
+      "p95": 598,
+      "max": 657
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 4.96,
+     "peakGpuMB": 5.3,
+     "requestsPerFlow": 94
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_gated_mobile",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 7.49,
+     "peakGpuMB": 7.9,
+     "requestsPerFlow": 137
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "spec_mobile",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 9.24,
+     "peakGpuMB": 9.7,
+     "requestsPerFlow": 169
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "active_only",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 6.18,
+     "peakGpuMB": 6.5,
+     "requestsPerFlow": 113
+    },
+    {
+     "net": "cdn_hit",
+     "policy": "everything",
+     "pressInstantPct": 100,
+     "pressSkippedPct": 0,
+     "settle": {
+      "p50": 17,
+      "p95": 17,
+      "max": 17
+     },
+     "toggle": {
+      "p50": null,
+      "p95": null,
+      "max": null
+     },
+     "view": {
+      "p50": null,
+      "p95": null
+     },
+     "mbPerFlow": 16.45,
+     "peakGpuMB": 17.5,
+     "requestsPerFlow": 307
+    }
+   ],
+   "note": "nets cdn_hit (TTFB median 340 ms) and cdn_cold (710 ms): the lead session curl -D reads of the live weather-frames bucket from the owner PC, 2026-10-21"
   }
  },
  "cited": {
