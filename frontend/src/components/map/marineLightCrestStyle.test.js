@@ -20,7 +20,7 @@ const NL = String.fromCharCode(10);
 describe('off by default: the restored original crest, byte for byte', () => {
   it('no style, every DRAW_FS piece empty, DRAW_FS hashes to the restored default', () => {
     expect(LIGHT_CREST_STYLE).toBe('today');
-    expect(lightCrestStyleGlsl('today')).toEqual({ shapeHead: '', tone: '', contrastHead: '', alphaHead: '' });
+    expect(lightCrestStyleGlsl('today')).toEqual({ decl: '', shapeHead: '', tone: '', contrastHead: '', alphaHead: '' });
     expect(DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
     expect(sha(DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
   });
@@ -37,21 +37,23 @@ describe('off by default: the restored original crest, byte for byte', () => {
 });
 
 describe('the two-tone (window.__RAW_LIGHT_CREST_STYLE__ = "twotone")', () => {
-  it('changes only the ribbon edge, tone, self-contrast and alpha lines, each gated on the light theme', () => {
+  it('changes only the zoom uniform, ribbon edge, tone, self-contrast and alpha lines; the four drawing lines gated on the light theme', () => {
     const before = DRAW_FS.split(NL);
     let after; withWindow(ON, (s) => { after = s.DRAW_FS.split(NL); });
     expect(after.length).toBe(before.length);
     const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);
-    expect(changed.map((i) => after[i].trim().split(' ').slice(0, 2).join(' '))).toEqual(['float shape', 'vec3 finalColor', 'float crestContrastEff', 'float boostedAlpha']);
-    for (const i of changed) expect(after[i]).toContain(LIGHT);
-    expect(after[changed[0]]).toBe(`  float shape = 1.0 - smoothstep(${LIGHT} ? 0.80 : 0.55, 1.0, ellipseDist);`);
-    expect(after[changed[1]]).toBe(`  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend); if (${LIGHT}) finalColor = mix(mix(finalColor, finalColor * 0.15, `
+    expect(changed.map((i) => after[i].trim().split(' ').slice(0, 2).join(' '))).toEqual(['uniform float', 'float shape', 'vec3 finalColor', 'float crestContrastEff', 'float boostedAlpha']);
+    // DRAW_VS's own u_zoom (highp there), now read in DRAW_FS too: same name and precision, so the program links one uniform.
+    expect(after[changed[0]]).toBe('uniform float u_theme; uniform highp float u_zoom;');
+    for (const i of changed.slice(1)) expect(after[i]).toContain(LIGHT);
+    expect(after[changed[1]]).toBe(`  float shape = 1.0 - smoothstep(${LIGHT} ? 0.80 : 0.55, 1.0, ellipseDist);`);
+    expect(after[changed[2]]).toBe(`  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend); if (${LIGHT}) finalColor = mix(mix(finalColor, finalColor * 0.15, `
       + 'smoothstep(0.55, 0.72, ellipseDist)), vec3(1.0), 0.85 * (1.0 - smoothstep(0.12, 0.32, ellipseDist)));');
-    expect(after[changed[2]]).toBe(`  float crestContrastEff = ${LIGHT} ? 0.0 : max(u_crestContrast,`);
-    expect(after[changed[3]]).toBe(`  float boostedAlpha = alpha * (${LIGHT} ? 3.00 : 1.0) * mix(1.2, 1.8, energy);`);
+    expect(after[changed[3]]).toBe(`  float crestContrastEff = ${LIGHT} ? 0.0 : max(u_crestContrast,`);
+    expect(after[changed[4]]).toBe(`  float boostedAlpha = alpha * (${LIGHT} ? mix(3.00, 1.0, smoothstep(3.0, 9.0, u_zoom)) : 1.0) * mix(1.2, 1.8, energy);`);
   });
 
-  it('is the measured candidate: rim x 0.15, centre 85% toward white, crest alpha x 3 before the 0.85 cap', () => {
+  it('is the measured candidate: rim x 0.15, centre 85% toward white, crest alpha x 3 far out (x 1 by z 9) before the 0.85 cap', () => {
     expect(LIGHT_CREST_STYLES).toEqual({ twotone: { rim: 0.15, centre: 0.85, alpha: 3.0 } });
   });
 

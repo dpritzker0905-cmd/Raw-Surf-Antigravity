@@ -808,7 +808,7 @@ varying highp float v_phase;       // wave-train phase for rolling whitewater
 varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
 varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
-uniform float u_theme;
+uniform float u_theme;${LIGHT_CREST_STYLE_GLSL.decl}
 uniform float u_trochoidal;   // [0..1] warp the symmetric ribbon into an asymmetric TROCHOIDAL crest (sharp leading face, broad trailing back). 0 = legacy symmetric ellipse.
 uniform float u_crestContrast; // [0..1] zoom-band SELF-CONTRAST (2026-07-03): dark skirt + brighter core + slight white lift so crests read on any heatmap hue. Engine ramps it in around z3.65-4.25 where the crest and heatmap palettes collide (dark: mint on teal/cyan; light: navy on azure). 0 = legacy (byte-identical).
 uniform float u_lowHCrestContrast; // [0..1] LOW-HEIGHT self-contrast (2026-07-05): the same palette collision happens at ANY zoom wherever crest height <~0.75 m (island swell shadows: pale dash on pale wash = "animations don't cover the heatmap"). Ramped out by 1.05 m in main(). 0 = legacy.

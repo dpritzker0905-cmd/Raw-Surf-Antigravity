@@ -15,7 +15,8 @@ const WIN = typeof window === 'undefined' ? {} : window;
 // Chosen by light-crest-style.mjs (worst APCA |Lc| of the crest's best part vs the wash, every 0.1 m to 14 m, every zoom state and
 // lighting, whitecap off and on): the original 0 on v2 and on #431's spectrum; this two-tone >= 40.2 on v2 and >= 41.1 on the spectrum,
 // colour-blind >= 33.9 / 29.0 dE00, centre vs rim >= 72 (targets: 45 / floor 30 at the edge, 60 inside). Alpha x 3 before DRAW_FS's
-// 0.85 cap is what lifts far zoom (DRAW_VS draws crests at 45% there): without it the world view stays at 21. #433's beach values
+// 0.85 cap, tapering to x 1 by z 9, is what lifts far zoom (DRAW_VS draws crests at 45% there): without it the world view stays at
+// 21; a flat x 3 also turned close-zoom crests into solid blobs that hid the wash (engine stills, 2026-10-21). #433's beach values
 // (rim 0.30, centre 0.75) give >= 33.9; rim 0.10 / centre 0.90 reaches 43 but turns crests into near-black outlines round white cores.
 export const LIGHT_CREST_STYLES = {
   twotone: { rim: 0.15, centre: 0.85, alpha: 3.0 },
@@ -32,12 +33,15 @@ const LIGHT = 'abs(u_theme - 1.0) < 0.5';
 /** The DRAW_FS text pieces a style sets; for 'today' each is empty, so DRAW_FS is byte for byte the shader without this module. */
 export function lightCrestStyleGlsl(style = LIGHT_CREST_STYLE) {
   const t = LIGHT_CREST_STYLES[style];
-  if (!t) return { shapeHead: '', tone: '', contrastHead: '', alphaHead: '' };
+  if (!t) return { decl: '', shapeHead: '', tone: '', contrastHead: '', alphaHead: '' };
   return {
+    decl: t.alpha !== 1 ? ' uniform highp float u_zoom;' : '',   // the map zoom DRAW_VS already gets (same name, same precision)
     shapeHead: `${LIGHT} ? 0.80 : `,   // the ribbon opaque to 0.80 of its radius, so the rim is crisp
     tone: ` if (${LIGHT}) finalColor = mix(mix(finalColor, finalColor * ${t.rim.toFixed(2)}, smoothstep(0.55, 0.72, ellipseDist)), vec3(1.0), ${t.centre.toFixed(2)} * (1.0 - smoothstep(0.12, 0.32, ellipseDist)));`,
     contrastHead: `${LIGHT} ? 0.0 : `,   // the engine's own self-contrast stands down where the two-tone draws
-    alphaHead: t.alpha !== 1 ? `(${LIGHT} ? ${t.alpha.toFixed(2)} : 1.0) * ` : '',
+    // x alpha far out, tapering to x 1 by z 9: DRAW_VS draws crests at 45% of their alpha below z 3 (zoomAlphaScale), so the boost
+    // restores far-zoom crests and leaves close zoom, where the crests already cover most of a big-surf view, as it was.
+    alphaHead: t.alpha !== 1 ? `(${LIGHT} ? mix(${t.alpha.toFixed(2)}, 1.0, smoothstep(3.0, 9.0, u_zoom)) : 1.0) * ` : '',
   };
 }
 export const LIGHT_CREST_STYLE_GLSL = lightCrestStyleGlsl();

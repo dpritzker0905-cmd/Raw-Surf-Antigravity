@@ -60,7 +60,8 @@ function parts(style, h, wc, band, z) {
   const c = base(h, wc), t = STYLES[style];
   if (t) {
     const col = (ed) => mix(mix(c, c.map((v) => v * t.rim), ss(0.55, 0.72, ed)), [1, 1, 1], t.centre * (1 - ss(0.12, 0.32, ed)));
-    return ED.map((ed) => [col(ed), crestAlpha(h, z, shapeAt(ed, 0.80) * (t.alpha || 1))]);
+    const boost = 1 + ((t.alpha || 1) - 1) * (1 - ss(3, 9, z));   // DRAW_FS: mix(alpha, 1, smoothstep(3, 9, u_zoom))
+    return ED.map((ed) => [col(ed), crestAlpha(h, z, shapeAt(ed, 0.80) * boost)]);
   }
   const eff = selfContrast(h, band), core = (ed) => 1 - ss(0.15, 0.85, ed);
   const sc = (k) => mix(c, c.map((v, i) => v * (0.55 + 0.75 * k) + FOAM[i] * k * 0.18), eff);
