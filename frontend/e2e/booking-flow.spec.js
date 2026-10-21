@@ -24,7 +24,8 @@
  * loading rather than "you are anonymous, on a different page, using a selector that does not
  * exist". ⇒ A SETUP ASSERTION MUST PIN WHERE IT LANDED, not merely that something rendered.
  */
-const { test, expect } = require('@playwright/test');
+// test/expect carry the in-runner weather backend route (offlineWeather.js): no weather request reaches the live box.
+const { test, expect } = require('./offlineWeather');
 const { stubSeededUiBadges } = require('./seededUiBadges');
 
 // The same stub the weather spec uses. Measured sufficient to pass the route guard.
