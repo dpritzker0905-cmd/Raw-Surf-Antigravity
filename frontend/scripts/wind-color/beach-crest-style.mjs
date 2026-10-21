@@ -1,13 +1,14 @@
 // BEACH CREST STYLE CHECK (2026-10-21): how visible beach's crests are on the v1 sea (D-035) as the engine draws it, today and under
 // each luminance-only style in src/components/map/marineBeachCrestStyle.js (read from that module). Wash alpha per zoom state is
-// PR #425's measured law: no regional tile: world 0.65, z4.6 0.68; with one (BLEND BOTH): a(h) = 1 - (1 - a_z ss(0.05,1.4,h))
-// (1 - washEff), washEff = a_z 0.72 (1 - 0.65 ss(8,9.5,z)), a_z fitted to the measured rows (z4.6 0.68, z7.4 0.75, z10 0.78).
+// PR #425's measured law as dev draws it since #430 (D-038, the calm wash hold): no regional tile: world 0.65, z4.6 0.68; with one
+// (BLEND BOTH) beach draws every height at a = 1 - (1 - a_z)(1 - washEff), washEff = a_z 0.72 (1 - 0.65 ss(8,9.5,z)), a_z fitted
+// to #425's rows (z4.6 0.68, z7.4 0.75, z10 0.78). --no-calm-hold: the law before #430 (a_z x ss(0.05,1.4,h) in the first term).
 // A crest is sampled at its centre (ellipseDist 0.05), body (0.42) and edge (0.78) as DRAW_FS shades them, laid at the alpha the
 // engine really gives it at that zoom: DRAW_VS v_alpha = mix(0.50, 0.85, ss(0,4,h)) x zoomAlphaScale (mix(0.45, 1, ss(3,9,z))),
 // times DRAW_FS's shape and energy boost mix(1.2, 1.8, e), capped at 0.85 (premultiplied). Outer edge = the best of the three parts
 // vs the wash, APCA |Lc|, worst over swell lighting 0/0.5/1 and whitecap off/full, every 0.1 m from 0.1 to 10 m; inner edge = core
 // vs casing where a style has one. Colour-blind: coloraide's dichromats (light-path-lib port), best part.
-// Usage: node beach-crest-style.mjs [--json out.json]
+// Usage: node beach-crest-style.mjs [--json out.json] [--no-calm-hold]
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -21,7 +22,8 @@ const CALM = [1.0, 0.45, 0.65], ACTIVE = [0.0, 0.92, 0.85], STORM = [0.8, 0.2, 0
 const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 const base = (h, wc) => { const e = ss(0, 6, h); const c = e < 0.5 ? mix(CALM, ACTIVE, e * 2) : mix(ACTIVE, STORM, (e - 0.5) * 2); return mix(c, FOAM, wc * ss(0.5, 3.0, h) * 0.45); };
 const over = (c, a, u) => c.map((v, i) => Math.min(1, Math.max(0, v)) * a + u[i] * (1 - a));
-const blend = (az, z) => { const we = az * 0.72 * (1 - 0.65 * ss(8, 9.5, z)); return (h) => 1 - (1 - az * ss(0.05, 1.4, h)) * (1 - we); };
+const CALM_HOLD = !process.argv.includes('--no-calm-hold');
+const blend = (az, z) => { const we = az * 0.72 * (1 - 0.65 * ss(8, 9.5, z)); return (h) => 1 - (1 - az * (CALM_HOLD ? 1 : ss(0.05, 1.4, h))) * (1 - we); };
 const STATES = [['world z2.2', () => 0.65, 0, 2.2], ['regional z4.6', () => 0.68, 1, 4.6], ['z4.6 tile', blend(0.68, 4.6), 1, 4.6], ['coastal z7.4 tile', blend(0.75, 7.4), 0, 7.4], ['close z10 tile', blend(0.78, 10), 0, 10]];
 const crestAlpha = (h, z, shape) => Math.min(0.85, (0.50 + 0.35 * ss(0, 4, h)) * (0.45 + 0.55 * ss(3, 9, z)) * shape * (1.2 + 0.6 * ss(0, 6, h)));
 const shapeAt = (ed, edge) => 1 - ss(edge, 1.0, ed);
@@ -31,13 +33,9 @@ const ED = [0.05, 0.42, 0.78];
 /** The crest's centre, body and edge [colour, alpha] under a style ('today' = DRAW_FS as it ships), at zoom z. */
 function parts(style, h, wc, band, z) {
   const c = base(h, wc), t = BEACH_CREST_STYLES[style];
-  if (t && t.casing) {   // seafoam: one constant core colour (whitecap foam mixed in), ink casing on the outer band, opaque to 0.80
-    const core = mix(t.core, FOAM, wc * ss(0.5, 3.0, h) * 0.45), col = (ed) => mix(core, t.casing, ss(0.58, 0.70, ed));
-    return ED.map((ed) => [col(ed), crestAlpha(h, z, shapeAt(ed, 0.80) * (t.alpha || 1))]);
-  }
-  if (t && t.rim !== undefined) {   // two-tone: dark rim on the outer band, light centre line, ribbon opaque to 0.80
+  if (t && t.rim !== undefined) {   // two-tone: dark rim on the outer band, light centre line, ribbon opaque to 0.80; alpha x t.alpha
     const col = (ed) => mix(mix(c, c.map((v) => v * t.rim), ss(0.55, 0.72, ed)), [1, 1, 1], t.centre * (1 - ss(0.12, 0.32, ed)));
-    return ED.map((ed) => [col(ed), crestAlpha(h, z, shapeAt(ed, 0.80))]);
+    return ED.map((ed) => [col(ed), crestAlpha(h, z, shapeAt(ed, 0.80) * (t.alpha || 1))]);
   }
   const eff = style === 'cased' ? 1 : selfContrast(h, band);
   const core = (ed) => 1 - ss(0.15, 0.85, ed), sc = (k) => mix(c, c.map((v, i) => v * (0.55 + 0.75 * k) + FOAM[i] * k * 0.18), eff);
