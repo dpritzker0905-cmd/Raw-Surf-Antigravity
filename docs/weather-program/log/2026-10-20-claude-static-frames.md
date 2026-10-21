@@ -84,3 +84,21 @@ other sessions' harnesses (simple greps took over 2 minutes at times), so the ar
 - seq 1553 `pr_open` draft #422; seq 1554 `commitment` (due 2026-10-27T18:00Z): the live read after the merge and the
   correctly named repo variable. STATE's Ledger head moved to 1554. Any receipt PR merged before #422 re-forks these lines
   (re-append them on top, LESSONS).
+
+## 2026-10-21 00:15Z: the variable is fixed; first live bucket read; run identity
+
+- The lead session created `FRAME_IMAGES_PUBLISH` = `1` at 2026-10-20T18:33Z and deleted the doubled name (owner-approved; the lead
+  owes that ledger line). `gh variable list` confirms. dev's #399 publisher then ran in forecast-ingest 39488231426 (20:00Z
+  schedule): `gfs/waves/global_mid/20261020T120000Z/20261020T210000Z.png`, 27,196 B, self-parity 15,023 nodes 0 bad, and
+  `manifest.json` written 21:28:42Z, so the public bucket `weather-frames` now exists.
+- **The next run's publisher FAILED:** 39502044990 (21:38Z dispatch): `RuntimeError: read weather-products/manifest.json: HTTP 429`.
+  That is #399's download of the 13 MB pipeline manifest from storage, right after the ingest's own uploads (continue-on-error kept
+  the cycle green and the step reports success). #422 reads the runner's local manifest and product files and never downloads,
+  which removes this failure class.
+- **Live CDN headers** (3 GETs from this PC, Supabase only): `manifest.json` 200, `Cache-Control: no-cache`, CF MISS, and
+  `Content-Encoding: br` (the CDN brotli-compresses JSON, so the run index is small on the wire). The PNG: `image/png`,
+  `Cache-Control: public, max-age=31536000, immutable`, **no Content-Encoding**, CF MISS then HIT, TTFB 0.83 s then 0.49 s. This
+  settles the design: frames are stored gzipped and served as is, and the worker inflates them after checking for 1f 8b.
+- **Run identity (lead cross-check, point 3):** the index and `latest.json` now carry `run_time`, the newest manifest run_time
+  among the set's frames (the identity the server cache's series memo is re-keyed to), beside `run` (the verified model cycle).
+  The client's pin telemetry shows both. One assertion was added to an existing test (still 20 backend tests; floors unchanged).

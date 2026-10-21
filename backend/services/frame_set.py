@@ -212,13 +212,17 @@ def publish_set(source, sink, target, previous_index, uploader, log=print):
             [(f["path"], f.get("source")) for f in previous_index.get("frames", [])]:
         return None, stats                 # the published index already names exactly these frames
     runs = sorted({f["meta"].get("model_run_time") or f["meta"].get("run_time") or "" for f in frames})
+    # RUN IDENTITY shared with the server's series memo (re-keyed to the model run): the newest manifest run_time among
+    # this set's frames. `run` stays the verified model cycle (model_run_time) for display.
+    run_times = sorted(f["source"]["run_time"] for f in frames if f["source"].get("run_time"))
     for f in frames:                       # a frame keeps its own grid only where it differs from the set's
         if f.get("grid") == grid:
             f.pop("grid", None)
     common = factor_common(frames)
     index = {
         "version": INDEX_VERSION, "encoding_version": fb.ENCODING_VERSION, "transform_version": fb.TRANSFORM_VERSION,
-        "set": set_key(target), **target, "run": runs[-1] or None, "runs": runs, "grid": grid,
+        "set": set_key(target), **target, "run": runs[-1] or None, "runs": runs,
+        "run_time": run_times[-1] if run_times else None, "grid": grid,
         "selection": "nearest valid_time within 3 h; authoritative before estimated; earlier on a tie "
                      "(grid_resolver -> mid_res_tier.pick_mid_item)",
         "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fb.DEFAULT_FIELDS},
@@ -252,5 +256,5 @@ def retention_deletes(existing_paths, target, keep):
 
 
 def latest_record(index, previous_entry, written_at, writer):
-    return {"index": index["path"], "run": index["run"], "frames": len(index["frames"]),
+    return {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "frames": len(index["frames"]),
             "previous_index": (previous_entry or {}).get("index"), "written_at": written_at, "writer": writer}

@@ -240,7 +240,7 @@ export async function getPinnedIndex(key) {
     const index = await loadIndex(entry.index);
     _state.pins.set(key, { index, pinnedAt: now, stale: false });
     const t = telemetry();
-    t.pin = { key, index: index.path, run: index.run, frames: index.frames.length, at: now };
+    t.pin = { key, index: index.path, run: index.run, runTime: index.run_time || null, frames: index.frames.length, at: now };
     t.newRunWaiting = null;
     return index;
   } catch (e) {

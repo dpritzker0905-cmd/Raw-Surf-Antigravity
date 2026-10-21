@@ -86,6 +86,7 @@ def test_first_publish_writes_checked_immutable_frames_then_the_pointer_last(tmp
         body = (tmp_path / "out" / f["path"]).read_bytes()
         assert body[:2] == b"\x1f\x8b" and fb.sha256_hex(gzip.decompress(body)) == f["sha256"]
     assert index["run"] == "2026-10-20T06:00:00Z" and index["common_meta"]["provider"] == "open-meteo"
+    assert index["run_time"] == latest["run_time"] == "2026-10-20T06:00:00Z"   # the manifest run_time the series memo keys on
     assert index["frames"][0]["meta"]["product_id"].startswith("gfs_marine_waves_global_mid_")
     assert index["common_meta"]["diagnostics"] == {"gridMode": "rectangular"}   # only the keys a client reads
 
