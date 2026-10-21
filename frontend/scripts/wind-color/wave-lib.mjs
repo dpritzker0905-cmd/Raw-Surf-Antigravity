@@ -61,7 +61,8 @@ export const LIGHT_CRESTS = Object.fromEntries(Object.entries(TABLES.LIGHT_CREST
 /** Each theme's crest tables by id ({ beach: CRESTS, light: LIGHT_CRESTS }). */
 export const CRESTS_BY_THEME = { beach: CRESTS, light: LIGHT_CRESTS };
 /** Which crests the app draws over a wash palette: v1 over the v1 wash (V2 stands down there), V2 over v2 (when the theme has one). */
-export const crestFor = (paletteId, theme = 'beach') => (paletteId === 'v1' || !CRESTS_BY_THEME[theme].v2 ? 'v1' : 'v2');
+export const crestFor = (paletteId, theme = 'beach') => (paletteId === 'v1' || !CRESTS_BY_THEME[theme].v2 ? 'v1'
+  : paletteId === 'spectrum' && CRESTS_BY_THEME[theme].v2s ? 'v2s' : 'v2');   // light's spectrum draws V2's colours switching at 1.55 m (D-037)
 const CREST = { light: LIGHT_CRESTS[crestFor('v2', 'light')], beach: CRESTS.v1 };   // what each theme draws over its wash
 
 export const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
@@ -72,8 +73,10 @@ const clamp01 = (c) => c.map((v) => Math.min(1, Math.max(0, v)));
  *  M_TO_FT, handed in). Evaluated with no window, so it resolves the default palette. */
 export function loadPalettes(file = PALETTE_SRC) {
   const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
-  return new Function('M_TO_FT', `${src}; return { WAVE_PALETTES, widenWavePalette, resolveWavePalette, sampleMarineWavePalette, marineWavePaletteGlsl, MARINE_WAVE_PALETTE_GLSL, marineWaveLegend };`)(3.28084);
+  return new Function('M_TO_FT', `${src}; return { WAVE_PALETTES, widenWavePalette, resolveWavePalette, sampleMarineWavePalette, marineWavePaletteGlsl, MARINE_WAVE_PALETTE_GLSL, marineWaveLegend, spectrumAlpha };`)(3.28084);
 }
+
+const SPECTRUM_ALPHA = loadPalettes().spectrumAlpha;   // the spectrum's opacity law, read from the module the shader is built from
 
 /** The wash table's colour at height h (0-1, unrounded): the same law as the GLSL table (linear in encoded sRGB per segment). */
 export function washAt(P, theme, h) {
@@ -88,6 +91,10 @@ export function washAt(P, theme, h) {
  *  its depth floor; `floor: false` reads the table's own colour there instead (a LEGEND STOP as composited: the 0 m stop is the
  *  table's calm, not the flat-water floor, which is the shader's and is reported on its own line). */
 export function composite(P, theme, h, a, dir = 0.5, floor = true, waterRGB = null) {   // waterRGB (0-255): another ground (wave-jacobian.mjs)
+  if (P.spectrum) {   // the light spectrum (D-037): no sea-floor blend; opacity rises with height and fades out under 0.5 m (marineWavePalette.js)
+    const As = SPECTRUM_ALPHA(a, h), Ws = washAt(P, theme, h), wat = (waterRGB || BASEMAP[theme].water).map((v) => v / 255);
+    return clamp01(clamp01(Ws.map((v, i) => v + LIGHTING[i] * dir * ss(0.1, 3.0, h))).map((v, i) => v * As + wat[i] * (1 - As)));
+  }
   const W = floor ? mix(DEPTH_FLOOR[theme], washAt(P, theme, h), ss(0, 0.18, h)) : washAt(P, theme, h);
   const lit = W.map((v, i) => v + LIGHTING[i] * dir * ss(0.1, 3.0, h));
   const water = (waterRGB || BASEMAP[theme].water).map((v) => v / 255);

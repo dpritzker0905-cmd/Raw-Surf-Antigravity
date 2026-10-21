@@ -4,6 +4,13 @@
 //   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly, in both themes
 //   window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = true     -> the 10 m encoding and v2 capped there, exactly (#411)
 //   window.__RAW_DISABLE_WAVE_BEACH_V1__ = true       -> beach draws v2 (and its 16 m row when that is on) (D-035's kill)
+//   window.__RAW_DISABLE_WAVE_SPECTRUM__ = true       -> light draws v2 at 16 m exactly (D-037's kill: table, shader, legend)
+// LIGHT DRAWS THE SPECTRUM (owner 2026-10-21, DECISIONS D-037: "I like the proposed light mode", then "make sure we have the best
+// and widest spectrum of color on this scheme"): seven colour steps on the WMO/Douglas sea-state breaks (0.5 1.25 2.5 4 6 9 14 m,
+// 1.6 4 8 13 20 30 46 ft), lightness falling at every step AS DRAWN, the widest hue sweep and chroma the map can show (solved over
+// light water at world opacity; research report "Wave height heatmap colour spectrum", 2026-10-20). Two shader terms come with it,
+// light only (withWaveSpectrum): the wash grows denser with height (opacity 0.65 -> 0.80 at world zoom) and fades into the water
+// below 0.5 m instead of blending from the sea floor colour. Dark and beach draw exactly what they drew.
 // BEACH DRAWS v1 (owner 2026-10-20, DECISIONS D-035: "I really like v1 color scheme heatmap for Beach mode. How do we stick with
 // that?"); light draws v2 (D-033, at 16 m by D-034). Beach's colours are pinned byte for byte in marineWavePalette.test.js: changing
 // them needs a new owner decision, whatever another session's palette work proposes. v1 has no 16 m row, so beach keeps the 10 m
@@ -43,7 +50,27 @@ export const WAVE_PALETTES = {
     // (10.8, darker as drawn): every forward hue (red, orange, maroon) left the flag 7-9 dE00 or less (joint search, 2026-10-20).
     h16: { cap: 16, light: [72, 21, 66], beach: [134, 59, 86], over: { light: [88, 0, 2], beach: [146, 1, 115] } },
   },
+  // The spectrum (D-037), light only: source colours at the sea-state breaks, solved (2026-10-21) so that lightness falls at every step
+  // on the table itself AND as drawn over light water (144,223,254) at world, regional and coastal opacity (each rising with log height)
+  // under every swell lighting, with the widest hue sweep and chroma the map can show: teal -> azure -> blue -> violet -> magenta ->
+  // crimson -> dark brown as drawn. Under 0.5 m the colour holds and the wash fades out; 14 m and above hold the top colour, so 14 m is
+  // also the encoder's ceiling for light (finer steps than 16). Linear in encoded sRGB per band, like every table.
+  spectrum: {
+    // `ticks` are the seven breaks (the legend's, and the checker's neighbours). 4.5, 5 and 5.5 m are blend-only anchors on the OKLab line
+    // from violet to magenta: that band turns far in hue for little lightness, and a plain sRGB blend dipped and climbed back (0.013
+    // OKLCH L); violet's blue is trimmed so full swell lighting cannot clip it (spectrum-tune.mjs, frontend/scripts/wind-color/).
+    heights: [0, 0.5, 1.25, 2.5, 4, 4.5, 5, 5.5, 6, 9, 14], ticks: [0, 0.5, 1.25, 2.5, 4, 6, 9, 14], cap: 14, over: null, spectrum: true,
+    light: [[0, 202, 144], [0, 202, 144], [0, 156, 222], [80, 109, 246], [128, 60, 235], [142, 58, 206], [156, 52, 176], [169, 38, 147],
+      [181, 0, 118], [164, 0, 26], [90, 20, 0]],
+  },
 };
+// The spectrum's opacity law (the GLSL below mirrors it): from `alpha` (the pass's zoom opacity) toward 1 by SPECTRUM_LIFT of the gap,
+// linear in log height from 0.5 to 6 m (0.65 -> 0.80 at world zoom), times a fade to 0 under 0.5 m.
+export const SPECTRUM_LIFT = 0.15 / 0.35;
+export function spectrumAlpha(alpha, h) {
+  const t = Math.min(1, Math.max(0, Math.log(Math.max(h, 0.5) / 0.5) / Math.log(12))), u = Math.min(1, Math.max(0, h / 0.5));
+  return (alpha + (1 - alpha) * SPECTRUM_LIFT * t) * u * u * (3 - 2 * u);
+}
 // The 16 m encoding (2026-10-20): one more anchor at the new ceiling and the above-cap state moved up to it. Every anchor under
 // 10 m is the table above, unchanged; only the encoder's 8-bit step widens (10/255 -> 16/255 m). Solved against the fixed ramp by
 // wave-polish.mjs --extend 16, judged by wave-check.mjs (v2@16). The kill (window.__RAW_DISABLE_WAVE_HEIGHT_16M__) draws v2 above.
@@ -52,10 +79,12 @@ export function widenWavePalette(p) {
   return { heights: [...p.heights, p.h16.cap], cap: p.h16.cap, light: [...p.light, p.h16.light], beach: [...p.beach, p.h16.beach], over: p.h16.over };
 }
 
-/** The table a theme draws: v2 in light (D-033), v1 in beach (D-035), v1 in both under the V2 kill. */
+/** The table a theme draws: the spectrum in light (D-037; v2 under its kill or the 16 m kill, which is #411 exactly), v1 in beach
+ *  (D-035), v1 in both under the V2 kill. */
 export function resolveWavePalette(win = WIN, theme = 'light') {
   if (win.__RAW_DISABLE_WAVE_PALETTE_V2__ === true) return 'v1';
-  return theme === 'beach' && win.__RAW_DISABLE_WAVE_BEACH_V1__ !== true ? 'v1' : 'v2';
+  if (theme === 'beach') return win.__RAW_DISABLE_WAVE_BEACH_V1__ !== true ? 'v1' : 'v2';
+  return win.__RAW_DISABLE_WAVE_SPECTRUM__ !== true && win.__RAW_DISABLE_WAVE_HEIGHT_16M__ !== true ? 'spectrum' : 'v2';
 }
 export const MARINE_WAVE_PALETTE_IDS = { light: resolveWavePalette(WIN, 'light'), beach: resolveWavePalette(WIN, 'beach') };
 export const MARINE_WAVE_PALETTE_ID = MARINE_WAVE_PALETTE_IDS.light;
@@ -110,7 +139,25 @@ vec3 marineWaveHeightColor(float height, float theme) {
   return vec3(1.0);
 }
 `;
-export const MARINE_WAVE_PALETTE_GLSL = MARINE_WAVE_PALETTE_ENABLED ? marineWavePaletteGlsl(PAL.light, PAL.beach) : '';
+export const MARINE_WAVE_SPECTRUM = MARINE_WAVE_PALETTE_ENABLED && !!PAL.light.spectrum;
+const SPECTRUM_ALPHA_GLSL = `float marineWaveSpectrumAlpha(float alpha, float h, float theme) {
+  if (theme < 0.5 || theme > 1.5) return alpha;
+  float t = clamp(log(max(h, 0.5) / 0.5) / log(12.0), 0.0, 1.0);
+  return (alpha + (1.0 - alpha) * ${num(SPECTRUM_LIFT)} * t) * smoothstep(0.0, 0.5, h);
+}
+`;
+export const MARINE_WAVE_PALETTE_GLSL = MARINE_WAVE_PALETTE_ENABLED
+  ? marineWavePaletteGlsl(PAL.light, PAL.beach) + (MARINE_WAVE_SPECTRUM ? SPECTRUM_ALPHA_GLSL : '') : '';
+// HEATMAP_FS = withHeightScale(withWaveSpectrum(<template>), ...): with the spectrum on, light's wash skips the sea-floor blend and takes
+// the spectrum's opacity; dark and beach evaluate exactly what they did. Under its kill the string comes back as it went in. Throws at
+// load if the shader moved (each anchor exactly once), so the rewrite can never half-apply.
+const SPECTRUM_FLOOR = '  float waveBlend = smoothstep(0.0, 0.18, displayHeight);\n', SPECTRUM_OPACITY = '  float alpha = u_opacity;\n';
+export function withWaveSpectrum(src) {
+  if (!MARINE_WAVE_SPECTRUM) return src;
+  if (src.split(SPECTRUM_FLOOR).length !== 2 || src.split(SPECTRUM_OPACITY).length !== 2) throw new Error('withWaveSpectrum: expected one floor blend and one opacity line');
+  return src.replace(SPECTRUM_FLOOR, '  float waveBlend = (u_theme > 0.5 && u_theme < 1.5) ? 1.0 : smoothstep(0.0, 0.18, displayHeight);   // light spectrum: no sea-floor blend (D-037)\n')
+    .replace(SPECTRUM_OPACITY, '  float alpha = marineWaveSpectrumAlpha(u_opacity, displayHeight, u_theme);   // light spectrum: denser with height, faded under 0.5 m\n');
+}
 export const MARINE_WAVE_PALETTE_CALL_GLSL = MARINE_WAVE_PALETTE_ENABLED
   ? 'if (surfMode < 0.5 && theme > 0.5) return marineWaveHeightColor(h, theme);' : '';
 
@@ -133,6 +180,7 @@ export const ARROW_PCT = 6;
 export function marineWaveLegend(scale, theme, heightUnit) {
   if (!hasMarineWavePalette(theme) || scale?.unit !== 'm') return null;
   const P = paletteFor(theme);
+  if (P.spectrum) return spectrumLegend(P, theme, heightUnit);
   if (!P.over) return { gradientCSS: marineWaveLegendGradientCSS(scale, theme) };   // v1 (beach): its scale's own axis and ticks
   const H = P.heights, end = 100 - ARROW_PCT, at = i => (i / (H.length - 1)) * end;
   const stops = H.map((h, i) => `rgb(${P[theme][i].join(',')}) ${at(i).toFixed(3)}%`);
@@ -141,4 +189,18 @@ export function marineWaveLegend(scale, theme, heightUnit) {
   const label = h => { const v = heightUnit === 'm' ? h : h * M_TO_FT; return v < 1 ? v.toFixed(1) : `${Math.round(v)}`; };
   const ticks = H.map((h, i) => ({ label: i === H.length - 1 ? `${label(h)}+` : label(h), pct: at(i) }));
   return { gradientCSS, stops: ticks, clipPath: `polygon(0 0, ${end}% 0, 100% 50%, ${end}% 100%, 0 100%)` };
+}
+
+// The spectrum's legend (D-037): a ruler, one equal share per sea-state band with the band's own gradient inside (linear in height, as
+// the GLSL mix() is), coloured AS DRAWN: composited over light water at world opacity with the spectrum's opacity law, so the bar shows
+// the map's colours rather than opaque swatches (which overstate the separation ~1.15-1.5x). 0 is the faded calm: the water itself.
+const SPECTRUM_WATER = [144, 223, 254];
+function spectrumLegend(P, theme, heightUnit) {
+  const H = P.ticks || P.heights, n = H.length - 1, at = (i) => (i / n) * 100;
+  const drawn = (h) => { const c = sampleMarineWavePalette(h, theme, P), a = spectrumAlpha(0.65, h); return c.map((v, k) => Math.round(a * v + (1 - a) * SPECTRUM_WATER[k])); };
+  const stops = [];
+  for (let i = 0; i < n; i++) for (let k = 0; k < 8; k++) { const u = k / 8, h = H[i] + u * (H[i + 1] - H[i]); stops.push(`rgb(${drawn(h).join(',')}) ${((i + u) / n * 100).toFixed(3)}%`); }
+  stops.push(`rgb(${drawn(H[n]).join(',')}) 100%`);
+  const label = (h) => { const v = heightUnit === 'm' ? h : h * M_TO_FT; return heightUnit === 'm' ? `${h}` : v < 3 ? `${+v.toFixed(1)}` : `${Math.round(v)}`; };
+  return { gradientCSS: `linear-gradient(to right, ${stops.join(', ')})`, stops: H.map((h, i) => ({ label: i === n ? `${label(h)}+` : label(h), pct: at(i) })) };
 }
