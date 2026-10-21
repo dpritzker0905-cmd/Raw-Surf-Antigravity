@@ -36,6 +36,10 @@ const NETS = {
   desktop: { bwBpms: 6250, ttfbMed: 50, ttfbSig: 0.5, decodeMs: 6 },   // 50 Mbit/s, CDN edge hit
   '4g': { bwBpms: 1000, ttfbMed: 120, ttfbSig: 0.6, decodeMs: 25 },    // 8 Mbit/s, phone CPU ~4x slower (bench cpu4 run)
   slow: { bwBpms: 200, ttfbMed: 300, ttfbSig: 0.5, decodeMs: 25 },     // 1.6 Mbit/s
+  // MEASURED live 2026-10-21 (lead session, curl -D from the owner's PC to the weather-frames bucket): Cloudflare HIT 0.34 s,
+  // cold MISS 0.71 s per frame request. The 50 ms desktop TTFB above is a generic edge figure; these are this owner's.
+  cdn_hit: { bwBpms: 6250, ttfbMed: 340, ttfbSig: 0.25, decodeMs: 6 },
+  cdn_cold: { bwBpms: 6250, ttfbMed: 710, ttfbSig: 0.25, decodeMs: 6 },
 };
 const FRAME_MS = 16.7;
 

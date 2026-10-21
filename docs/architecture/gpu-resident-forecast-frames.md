@@ -3,7 +3,8 @@
 **Goal (owner, via the lead scrub session):** forecast scrubbing and layer/model toggles on the weather map feel INSTANT:
 a scrub step shows the exact frame within one display frame, and a toggle within ~150 ms.
 
-**Status:** phase 1 = research + standalone bench + this spec. No app file was changed. Phase 2 builds on the static-frames
+**Status:** phase 1 = research + standalone bench + this spec. Updated 2026-10-21 with the live CDN latency (section 4.4), the
+run identity and the #426 cache contract. No app file was changed. Phase 2 builds on the static-frames
 codec and loader (draft PR #422) only after #422 merges into `dev`.
 
 **Evidence:** `docs/weather-program/evidence/gpu-frames-bench-2026-10-20.json`. Instruments: `frontend/scripts/gpu-frames-bench/`
@@ -26,8 +27,9 @@ codec and loader (draft PR #422) only after #422 merges into `dev`.
    thread **0.01 ms per frame**, with no long tasks.
 4. **Prefetch decides "instant".** In a replay of the visual lab's four owner flows, the recommended policy (section 4) put
    **100% of presses and 100% of toggles within one frame** on desktop and 4G profiles, against 60-87% of presses and 92-308 ms
-   toggles (p50) for #422 as it stands. A glance session costs **1.9 MB**, a week-long scrub of one model **7.5 MB**.
-   Preloading everything costs **61-86 MB per session** and is rejected.
+   toggles (p50) for #422 as it stands. At the **live Cloudflare latency measured on 2026-10-21 (0.34 s per hit)** #422 alone
+   falls to **53% instant presses and 377 ms toggles**, while the recommended policy stays at 100%. A glance session costs
+   **1.9 MB**, a week-long scrub of one model **7.5 MB**. Preloading everything costs **61-86 MB per session** and is rejected.
 5. **Integration needs no shader change.** Keep resident frames in a WebGL2 texture array and copy the wanted layer into the
    engine's existing 2D wave texture with `copyTexSubImage2D` (sub-ms, byte-exact). The engine's GLSL ES 1.00 programs and their
    sha256-pinned string rewriters stay untouched, and particles keep reading the texture they read today.
@@ -202,8 +204,10 @@ RGBA8. Heatmap, base wash, advect, draw and the coarse ring keep sampling exactl
 
 **`showStoredFrame` must also do the cheap parts of a commit, without the expensive ones:**
 - **Keep:**
-  - set `_waveData.waveGrid` metadata (`hourOffset`, `valid_time`, `served_valid_time`, product id, `is_estimated`, model,
-    layer);
+  - set `_waveData.waveGrid` metadata (`hourOffset`, `valid_time`, `served_valid_time`, `run_time`, `model_run_time`, product
+    id, `is_estimated`, model, layer). `EXACT_UPGRADE_SKIP` (#426) reads the engine's `served_valid_time` (else `valid_time`),
+    `run_time`, `ratingMode` and cols over span, so a store-committed full-resolution world frame that carries them correctly
+    suppresses the thin-frame upgrade;
   - publish `__MARINE_DRAWN__`;
   - bump the forensic ring with a `store_commit` event.
 - **Skip:** the two vector rebuilds (`useMarineWindData.js:80-123` and the mapper), `computeVectorDiffAndLog`'s content hash,
@@ -233,7 +237,13 @@ RGBA8. Heatmap, base wash, advect, draw and the coarse ring keep sampling exactl
 
 During a moving scrub the GPU frame swaps alone. When the wheel has been at rest for one frame (rAF idle), the store builds
 vectors from the kept raw bytes (`buildVectors` is 2-4 ms on desktop) and runs the normal commit with `skipUpload` (the bytes are
-already on the GPU). The infobox and glyphs therefore update at settle, not per press, which is the Zgraggen-style progressive
+already on the GPU).
+
+**The valid-time exact cache (#426) is populated, not duplicated.** The settle commit goes through `_cacheMarineResult` like any
+grid, with `valid_time` set to the snapped ask as #422's static grids do, so `marineControllerCache.aliasMarineHourByInstant`
+finds it: it matches `valid_time` against `getSharedValidTime(hour, layer, model, {readOnly:true})` for the same model, layer +
+surf flavour and request tile id, and skips `__fromSeries`, stale or empty entries. Per-press store commits go straight to the
+engine and never enter that cache, so they need nothing from it. The infobox and glyphs therefore update at settle, not per press, which is the Zgraggen-style progressive
 refinement the lead's research cites. The arbiter's honesty fields come from metadata, so they are right on every frame.
 
 **Wheel throttle.** `ForecastWheel` commits at most every `WHEEL_DRAG_COMMIT_MS = 90` ms (11 Hz) because each commit was
@@ -279,6 +289,8 @@ and the pin. It is read by the lab and by the `TruthOverlay` HUD (`?diag=1`), th
 
 - One run per scrub session: #422's pin. A newer run announces itself (`raw_static_frames_new_run`) and replaces the store's
   sets only after 30 s idle.
+- **Run identity is `model_run_time`** (the cycle, e.g. 18Z, which names the frame paths), never `run_time` (the INGEST
+  registration time). The store key and the pin use `model_run_time` (lead, 2026-10-21).
 - The 14-day horizon and the ICON/EURO extension blends are LOCKED. The store holds whatever the index lists, estimated frames
   included, and never trims to a model's native horizon. Labels come from frame metadata, as today.
 
@@ -301,7 +313,9 @@ and the pin. It is read by the lab and by the `TruthOverlay` HUD (`?diag=1`), th
 3. **In flight:**
    - 6 frame requests per page (HTTP/2 to one CDN origin; the bench used 6 without a long task);
    - 3, with (a) shrunk to +-4, when `navigator.connection.saveData` is set or `effectiveType` is `2g`/`3g`;
-   - no prefetch until the map's first marine draw, so frames do not compete with the basemap and first paint.
+   - no frame prefetch until the map's first marine draw, so frames do not compete with the basemap and first paint;
+   - but `v1/latest.json` and the pinned run index are fetched at map open. They are tiny, and `latest.json` is `no-cache`, so
+     revalidate it rather than refetch. Live, the cold CDN path was 1.32 s, of which 859 ms was this manifest step (section 4.4).
 4. **Abort.** In-flight requests of a set that stopped being active or warm are aborted when they drop out of the top 2 x cap of
    the want list. The active series is never aborted, because it is fetched anyway.
 5. **LRU by set, then by frame,** inside the tier's GPU budget (section 5). The 9 frames nearest the cursor are never evicted.
@@ -349,6 +363,43 @@ Desktop, 6 seeds:
 | glance (open, +3 h, +6 h) | 0.49 MB | **1.91 MB** | 8.48 MB | 60.8 MB |
 | one model scrubbed a week ahead and back | 2.31 MB | **7.49 MB** | 9.24 MB | 78.5 MB |
 | the owner's erratic flow (7 sets) | 7.29 MB | **23.2 MB** | 44.5 MB | 85.6 MB |
+
+### 4.4 Live CDN facts and the measured-latency re-run (2026-10-21)
+
+The first static frame went live at 00:40Z. The lead session measured it from the owner's PC:
+
+| Read | Result |
+|---|---|
+| `curl -D`, frame | `Cache-Control: public, max-age=31536000, immutable`; cold 0.71 s (Cloudflare MISS), repeat 0.34 s (HIT); `manifest.json` is `no-cache` |
+| Real browser, cold CDN path | 1.32 s: manifest 859 ms + image 453 ms + decode 2.8 ms, against 3.0 s for `/grid` |
+
+- That frame was the #399 PNG proof (27,264 B; height in mm in RG, direction in B), not the RSWF `.bin` that #422 publishes.
+  The round-trip times carry over; the byte size does not.
+- So one CDN round trip from the owner's location is 0.34-0.71 s, not the 50 ms the simulator's generic `desktop` profile assumed.
+
+Re-run with these latencies (`cdn_hit`: TTFB median 340 ms; `cdn_cold`: 710 ms, every request a Cloudflare miss, as for the first
+users after a new run). Same four lab flows, 40 ms presses, 10 seeds:
+
+| Profile | Policy | Instant presses | Settle p50 / p95 | Toggle p50 / p95 / max | MB per flow |
+|---|---|---|---|---|---|
+| cdn_hit | #422 as it is | 53.3% | 17 / 455 ms | 377 / 533 / 646 ms | 3.7 |
+| cdn_hit | **recommended** | **100%** | **17 / 17** | **17 / 17 / 17** | 11.6 |
+| cdn_hit | recommended, phone budget | 94.0% | 17 / 126 | 17 / 17 / 17 | 12.0 |
+| cdn_hit | active series only | 100% | 17 / 17 | 375 / 543 / 648 | 13.9 |
+| cdn_cold | #422 as it is | 49.0% | 320 / 1045 | 749 / 1061 / 1312 | 3.5 |
+| cdn_cold | **recommended** | 90.9% | 17 / 409 | 17 / 1052 / 1281 | 9.0 |
+| cdn_cold | first brief (all 14 others' hour at once) | 100% | 17 / 17 | 17 / 788 / 1149 | 13.0 |
+
+- **At the real latency, residency + prefetch is the difference between 53% and 100%.** Without them, every step that misses
+  waits a full 0.34-0.71 s round trip.
+- On a fully cold CDN the recommended policy's warm frames arrive later than the first brief's, so cold toggles reach p95 1.05 s.
+  This happens only for the first viewers of each new run at a CDN location. Phase 2 may start the 6 warm frames right after the
+  +-8 window on the first map open of a run, then fall back to the gated order.
+- **The offline harness hides HTTP caching.** `frontend/scripts/offline-backend/ab_lib.js:14` merges `cache-control: no-store`
+  into every response it fulfils, so 304s and browser-cache hits never appear through it. This bench used its own server
+  (`serve.js`, immutable headers), and its later decode passes were served from the browser cache. Phase 2's egress and
+  repeat-view measurements must exempt the frame host from that header merge, or read the CDN with `curl -D`. The in-memory
+  residency itself does not depend on HTTP caching.
 
 ---
 
@@ -464,7 +515,9 @@ The publisher uploads from the runner's disk (ingress, free) and never re-downlo
 
 ## 10. Acceptance numbers for phase 2
 
-All measured offline (synthetic backend + local CDN on `frontend/scripts/offline-backend`, lab replay) unless marked live.
+All measured offline (synthetic backend + local CDN on `frontend/scripts/offline-backend`, lab replay) unless marked live. Inject
+the measured CDN latency (0.34 s hit, 0.71 s miss), and exempt the frame host from the harness's `no-store` merge for any
+HTTP-cache or egress read (section 4.4).
 
 | What | Target | Instrument |
 |---|---|---|
@@ -512,7 +565,9 @@ Phase 2 starts only after #422 merges into `dev`. Built on its codec (`staticFra
     inlined into the Blob worker source, so Jest needs no worker loader), with a golden parity test.
 - **Seams in existing files** (small, gated):
   - `staticFrames.js`: the worker returns packed bytes + raw bytes;
-  - `useMarineOrchestratorScrubCache.js`: the store is checked before the series cache;
+  - `useMarineOrchestratorScrubCache.js`: the store is checked before the series cache, at the `getModelSafeMarine` /
+    `getMarineSeriesFrame` lookup. #426 also edits this file (two import lines, an exported `requestStepPage()`, and one call in
+    the backend MISS branch). Its hunks are disjoint from this seam, so expect a small rebase;
   - `WebGLMarineEngine.js`: a thin `showStoredFrame` hook delegating to `marineFrameStoreGpu.js`, and no `_regionalPatchState`
     reset on store commits;
   - `WebGLMarineLayer.js`: skip `computeVectorDiffAndLog` for store commits;
