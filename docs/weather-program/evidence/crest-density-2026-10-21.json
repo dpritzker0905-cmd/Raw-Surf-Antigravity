@@ -1729,7 +1729,7 @@
    "from": 8,
    "cut": 0.125
   },
-  "meaning": "cut = how much LESS of the screen big-surf crests cover (as the eye sees it, owner pick 2026-10-21, D-039)",
+  "meaning": "cut = how much LESS of the screen big-surf crests cover (as the eye sees it, owner pick 2026-10-21, D-042)",
   "zoom_ramp": "smoothstep(from - 0.5, from, z)",
   "height_gate": "smoothstep(2.0, 4.0, h) m",
   "mechanism": "a crest goes when crestCutHash(vec2(col,row)) < share x height gate x zoom ramp; its density threshold then goes to -2 (2026-10-21 15Z; before: the threshold was scaled, see as_seen_fit.hash_finding)",

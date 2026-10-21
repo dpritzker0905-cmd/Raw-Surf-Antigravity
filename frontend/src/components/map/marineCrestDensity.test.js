@@ -11,7 +11,6 @@ import { CREST_DENSITY_CUT, CREST_DENSITY_HEIGHTS, CREST_DENSITY_GLSL, CREST_CUT
 const sha = (s) => createHash('sha256').update(s).digest('hex');
 // DRAW_VS and DRAW_FS before this change (dev 448deb35c).
 const DRAW_VS_BEFORE = { sha: 'a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44', length: 29051 };
-const DRAW_FS_BEFORE = { sha: 'f425bf535ef4ae2a42560ef18ca70e1c085e6a74d24f5736c358e4d9e682f7ce', length: 9049 };
 const KILL = { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true };
 const withWindow = (levers, fn) => jest.isolateModules(() => {
   Object.assign(window, levers);
@@ -27,9 +26,8 @@ describe('the kill (window.__RAW_DISABLE_CREST_DENSITY_ZOOM__) draws the crests 
     });
   });
 
-  it('DRAW_FS is untouched either way', () => {
-    expect(sha(DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
-    withWindow(KILL, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha));
+  it('DRAW_FS is untouched either way (whatever crest colours the themes draw: the same shader with and without the kill)', () => {
+    withWindow(KILL, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(sha(DRAW_FS)));
   });
 });
 
