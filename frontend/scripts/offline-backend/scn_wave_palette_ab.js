@@ -54,10 +54,10 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
 const particles = (page, on) => page.evaluate((on) => { window.__MARINE_ENGINE__._fboSupported = on; }, on);   // instrument only
 // Dark storm crest (2026-10-20): THEMES=dark VARIANTS=d1,v2 VIEWS=world,regional,eye,coastal CLIP=1 PAIRED=1
 // CLIP_VIEWS=regional,eye,coastal over serve_synthetic.py --dynamic 1 --vortex-peak 11. d1 is today's dark crest
-// (window.__RAW_DISABLE_DARK_STORM_CREST__), v2 the 8 m+ electric-blue crest (the default). `eye` is a z 6 view on the storm's eye
+// (window.__RAW_DISABLE_DARK_STORM_CREST__), v2 the shipped 8 m+ cased orange (D-039; earlier runs: electric blue, then dc = cased). `eye` is a z 6 view on the storm's eye
 // (>= 8 m out to ~3 deg); d1 and eye run only when named. Views shot after a zoom-in keep its regional tile (BLEND BOTH). Each shot's engine
 // record carries darkStorm, dark's stormColor line read back from the DRAW program's compiled GLSL. crest_by_height.py reads the clips.
-Object.assign(LEVERS, { d1: { __RAW_DISABLE_DARK_STORM_CREST__: true }, dc: { __RAW_DARK_STORM_CREST__: 'cased' } });   // dc: orange, cased from 8 m
+Object.assign(LEVERS, { d1: { __RAW_DISABLE_DARK_STORM_CREST__: true } });
 VIEWS.eye = [-108, 15, 6.0];
 const darkStorm = () => {
   const e = window.__MARINE_ENGINE__, canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));

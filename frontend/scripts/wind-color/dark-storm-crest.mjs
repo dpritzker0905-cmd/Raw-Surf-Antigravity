@@ -15,7 +15,7 @@
 //  - crest (DRAW_FS): e = smoothstep(0, 6, h), base = mix(calm, active, 2e) | mix(active, storm, 2e - 1), white mixed in by the
 //    whitecap roll * 0.45 (v_whitecap = smoothstep(0.5, 3, h) * (1 + closeup * 0.5): 1, and 1.5 at close zoom), laid at 0.85 (a
 //    core's alpha cap). In z 3.5-4.4 u_crestContrast lifts the core: c * 1.30 + 0.18 (the "band" view). calm/active/foam are the
-//    shader's dark literals; storm is marineCrestPalette.js DARK_STORM_CRESTS (v1 = today, v2 = electric blue from 8 m).
+//    shader's dark literals; storm is marineCrestPalette.js DARK_STORM_CRESTS (v1 = today, v2 = cased orange from 8 m, D-039).
 //  - the wave texture stores h / 10 in a byte (dark stays /10 with #415's 16 m encoding): nothing above 10 m reaches the GPU.
 //
 // Usage (from this folder): node dark-storm-crest.mjs [--from 5] [--strict] [--json out.json] [--lut lut.json]
@@ -132,10 +132,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   let same = true; for (let h = 0; h < 8; h += 0.01) for (const id of ids) { const u = washOver(h, 0.7, 0.5); if (crestOver(h, u, DARK_STORM_CRESTS[id]).some((v, i) => v !== crestOver(h, u, DARK_STORM_CRESTS.v1)[i])) same = false; }
   console.log(`\n[${same ? 'ok' : 'RED'}] below 8 m every candidate draws today's crest (0-8 m every 0.01 m)`);
   let red = !same;
+  // The bar D-039 accepted (the owner picked the cased orange on its measured numbers): from 8 m a crest stands off the wash at
+  // |Lc| >= 20 everywhere, never below today's at any height, and loses no colour-blind contrast against today.
+  const at = (id, H) => out.rows.find((r) => r.id === id && r.h === H);
   for (const id of ids) {
-    const w = worst[id], ok = w.body >= 30 && w.cvd >= 20;
+    const w = worst[id], notWorse = heights.every((H) => (H === '10+' || H >= 8 ? at(id, H).body >= at('v1', H).body - 1e-9 : true));
+    const ok = w.body >= 20 && notWorse && w.cvd >= worst.v1.cvd;
     if (id !== 'v1' && !ok) red = true;
-    console.log(`[${id === 'v1' ? 'today' : ok ? 'ok' : 'RED'}] ${id}: 8 m and up, worst body |Lc| ${f(w.body)}, whitecap front ${f(w.front)}, colour-blind ${f(w.cvd)} dE00 (bar for a new ink: |Lc| >= 30, colour-blind >= 20)`);
+    console.log(`[${id === 'v1' ? 'today' : ok ? 'ok' : 'RED'}] ${id}: 8 m and up, worst body |Lc| ${f(w.body)}, whitecap front ${f(w.front)}, colour-blind ${f(w.cvd)} dE00 (bar: |Lc| >= 20, never below today's, colour-blind >= today's)`);
   }
   out.worst8 = worst;
   if (arg('--json')) fs.writeFileSync(arg('--json'), JSON.stringify(out, null, 1));

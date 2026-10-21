@@ -60,32 +60,24 @@ export const LIGHT_CREST_GLSL = lightCrestGlsl();
 // (WebGLMarineParticleShaders.js) mixes a crest's colour by energy = smoothstep(0, 6, h), calm -> active (3 m) -> storm (6 m and up).
 // Dark's wash runs neon magenta (5 m) to white (10 m+) while its storm crest stays fiery orange, a mid-luminance colour the wash passes
 // on the way up: over dark's basemap water (93, 117, 126, measured) the orange core's APCA |Lc| is 0 at every height 8-10 m in the
-// weakest view, its whitecap front too, colour-blind 11.2 dE00 (frontend/scripts/wind-color/dark-storm-crest.mjs). Motion needs
-// luminance contrast (Lindsey & Teller 1990), so from 8 m the storm crest must sit well below the wash's luminance (DRAW_FS:
-// mix(orange, ink, step(8.00, v_wave_height))). The ink is ELECTRIC BLUE, not a dark warm ink: warm hues at that luminance read as
-// soot or bruise on the white-pink eye (the owner, 2026-10-21, of ember-black and ember red: "I dont like the darker middle crests in
-// the storm animations, improve those"). Blue is the one hue that is fully saturated at low luminance (pure blue's Y is 0.07, and
-// saturated colours look brighter than their luminance, Helmholtz-Kohlrausch), so it reads as neon light, in dark's own family (the
-// wash's 3 m anchor is electric blue-violet). Body |Lc| 30 (8 m, the z 3.5-4.4 core lift) to 52, colour-blind 31.9 (violet-leaning
-// blues fall under |Lc| 30). Below 8 m every dark crest is today's, byte for byte, and so are dark's calm, active and foam lines.
-// Read in the real engine by offline-backend/crest_by_height.py.
+// weakest view, colour-blind 15.5 dE00 (frontend/scripts/wind-color/dark-storm-crest.mjs). Motion needs luminance contrast (Lindsey &
+// Teller 1990). SHIPPED, the owner's pick (DECISIONS D-039, 2026-10-21: "Ship the cased orange from 8 m for dark's storm crests instead
+// of electric blue"): CASED ORANGE. The storm crest keeps today's orange (no colour switch, one crest family: the owner had turned down
+// light's dark crests mixed among yellow ones, "not pleasing to the eye as a good representation of waves moving"), and for dark from
+// 8 m it takes the engine's own crest self-contrast, the z 3.5-4.4 treatment: a rim at 0.55-0.64 x the colour round a core at 1.30 x
+// plus a little white. The rim carries the luminance step on the white eye (model |Lc| 20-38 from 8 m; real engine at the eye, p90
+// 20-35 against today's 11-27). Turned down on the way: ember-black / ember red (soot on the eye) and electric blue (a colour switch).
+// Below 8 m every dark crest is today's, byte for byte; light and beach never take the term (u_theme >= 0.5).
 // Kill, set before page load: window.__RAW_DISABLE_DARK_STORM_CREST__ = true draws today's lines exactly (DRAW_FS hash-pinned in
 // marineDarkStormCrest.test.js).
-// Owner A/B alternative, window.__RAW_DARK_STORM_CREST__ = 'cased' (2026-10-21, after the owner turned down light's dark crests mixed
-// among yellow ones: "not pleasing to the eye as a good representation of waves moving"): no colour switch at all. The storm crest stays
-// today's orange and, for dark from 8 m, takes the engine's own crest self-contrast (the z 3.5-4.4 treatment: a rim at 0.55 x the
-// colour round a core at 1.30 x plus a little white). The rim gives the luminance step on the white eye; the brighter core does it on
-// the darker pink at 8-9 m. One crest family, one look; the switch is in brightness only.
 const PLAIN_CASING = 'u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));';
 export const DARK_STORM_CRESTS = {
   v1: { storm: { rgb: [1.00, 0.40, 0.10], name: 'fiery orange' } },
-  v2: { switchHeight: 8.0, storm: { rgb: [1.00, 0.40, 0.10], above: [0.00, 0.00, 1.00], name: 'fiery orange, electric blue from 8 m' } },
-  cased: { switchHeight: 8.0, casing: true, storm: { rgb: [1.00, 0.40, 0.10], name: 'fiery orange' } },
+  v2: { switchHeight: 8.0, casing: true, storm: { rgb: [1.00, 0.40, 0.10], name: 'fiery orange' } },
 };
 
 export function resolveDarkStormCrest(win = WIN) {
-  if (win.__RAW_DISABLE_DARK_STORM_CREST__ === true) return 'v1';
-  return win.__RAW_DARK_STORM_CREST__ === 'cased' ? 'cased' : 'v2';
+  return win.__RAW_DISABLE_DARK_STORM_CREST__ === true ? 'v1' : 'v2';
 }
 export const DARK_STORM_CREST_ID = resolveDarkStormCrest();
 

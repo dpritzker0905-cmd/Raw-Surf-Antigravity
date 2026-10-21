@@ -353,24 +353,22 @@ harness view for `../offline-backend/crest_by_height.py`; `cvd_lut.py` (coloraid
 `.venv`) feeds its colour-blind column.
 
 ```bash
-node dark-storm-crest.mjs --json check.json --lut lut.json   # today (v1) | electric blue from 8 m (v2, default) | cased orange
-node dark-storm-crest.mjs --from 5 --strict                  # exit 1 if a new ink is under |Lc| 30 or colour-blind 20 at 8 m+
+node dark-storm-crest.mjs --json check.json --lut lut.json   # today (v1) | cased orange from 8 m (v2, shipped, D-039)
+node dark-storm-crest.mjs --from 5 --strict                  # exit 1 if the shipped crest falls under its bar at 8 m+
 .venv/Scripts/python cvd_lut.py cvd_lut.json                 # the dichromat lattice crest_by_height.py reads
 ```
 
 - Over dark's measured water (93, 117, 126) today's orange core is |Lc| 0 at EVERY height from 5.5 m up in the weakest view (its
   whitecap front from 7.5 m): orange is a mid-luminance colour, and the wash's luminance passes it on the way to white.
-- No light ink can work there (the wash ends white), and a dark warm ink (ember-black |Lc| 37-58, ember red 31-53) reads as soot on
-  the eye: the owner turned both down (2026-10-21, "I dont like the darker middle crests in the storm animations"). Blue is the one
-  hue that is fully saturated at low luminance (pure blue's APCA Y 0.072; saturated colours look brighter than their luminance,
-  Helmholtz-Kohlrausch), so electric blue (0, 0, 1) reads as neon light and still holds the body at |Lc| 30-52 from 8 m, colour-blind
-  31.9, OKLab chroma 0.31 (ember-black 0.08). Violet-leaning blues ((0.15-0.40, 0, 1)) fall under |Lc| 30 at 8 m.
-- The cased alternative (`cased`, lever `__RAW_DARK_STORM_CREST__ = 'cased'`) keeps today's orange and turns on the crest self-contrast
-  from 8 m (rim 0.55-0.64 x the colour, core 1.30 x plus white): no colour switch, the owner's light-mode objection to mixed crest
-  colours. The checker judges a crest by its stronger part (core or rim, the rim at ellipse distance 0.7, alpha 0.70): cased |Lc|
-  20.4-38.0 from 8 m (rim; core 0), colour-blind 19.7, against blue's 35.1-56.7 / 38.2.
-- A whitecap front (the ink mixed 45% toward white) still meets the wash's luminance at 8-8.5 m (|Lc| 12 for blue), and at close
-  zoom (67% white) from 8 to 9.6 m: the foam rule is shared by every height, outside a one-line change.
+- Shipped (D-039, the owner's pick): the cased orange. Today's orange stays (no colour switch), and from 8 m dark's crests take the
+  engine's own crest self-contrast: a rim at 0.55-0.64 x the colour round a core at 1.30 x plus a little white. The checker judges a
+  crest by its stronger part (core, or the rim at ellipse distance 0.7, alpha 0.70): |Lc| 20.4-38.0 from 8 m (the rim; the lifted core
+  sits at the wash's brightness), colour-blind 19.7 (today 15.5). Its bar: |Lc| >= 20, never below today's at any height, colour-blind
+  not below today's.
+- Turned down on the way, kept here as the record: ember-black / ember red (|Lc| 37-58 / 31-53, but soot on the white eye: "I dont
+  like the darker middle crests"); electric blue (0, 0, 1) (|Lc| 35-57, colour-blind 38, but a colour switch mid-field, the kind the
+  owner rejected in light). No light ink works at 8 m+ (the wash ends white).
+- A whitecap front (the colour mixed 45% toward white, 67% at close zoom) is shared by every height and left as it is.
 
 ## Keep in sync
 

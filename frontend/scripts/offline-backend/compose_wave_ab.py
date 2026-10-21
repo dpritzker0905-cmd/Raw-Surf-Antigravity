@@ -33,7 +33,7 @@ def font(size):
 
 
 # The dark storm crest A/B (--tag dark-<view>, --variants d1,v2, --clip-view regional|eye|coastal).
-DARK_NAMES = {"d1": "TODAY (fiery orange)", "v2": "electric blue from 8 m (default)", "dc": "orange, cased from 8 m"}
+DARK_NAMES = {"d1": "TODAY (fiery orange)", "v2": "cased orange from 8 m (D-039)"}
 
 
 def label(img, text, size=22):
