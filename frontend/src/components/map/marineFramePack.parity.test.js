@@ -4,9 +4,9 @@
  *   lane A (seam A, the /grid JSON): buildVectors -> mapNormalizedGridToWebGL -> the useMarineWindData conform -> trimDeadEdges
  *     -> encodeMarineTexture;
  *   lane B (seam B, series frames): buildVectors -> the conform -> trimDeadEdges -> encodeMarineTexture.
- * Reference copies (pinned here, update them if their sources change):
- *   - buildVectors / the RSWF reader: staticFrameCodec.js, PR #422 head 75d5318ea (not on dev yet);
- *   - conform(): the vector rebuild in useMarineWindData.js (the `vectors.map` at the top of the conformed grid, dev 5be9e9dd0).
+ * The frames go through #422's own staticFrameCodec (parseFrame, buildVectors). One reference copy is pinned here (update it if
+ * its source changes): conform(), the vector rebuild in useMarineWindData.js (the `vectors.map` at the top of the conformed grid,
+ * dev 5be9e9dd0); it lives inside a hook and is not exported.
  * Frames: one REAL GFS world frame (marineFramePack.realFrame.fixture.js) and synthetic frames built to hit every branch (land,
  * all-invalid polar rows that trimDeadEdges cuts, calm cells, null period, null and low confidence, the other uv convention, a
  * regional frame). Settings: the three themes (height scale 16 m rounded vs 10 m floored), every kill switch the encoder reads,
@@ -14,6 +14,7 @@
  */
 import zlib from 'zlib';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
+import { buildVectors, parseFrame } from './staticFrameCodec'; // #422's own codec (on dev since 2a47fd5d8)
 
 const KEYS = ['__WEBGL_MARINE_THEME__', '__RAW_DISABLE_DIR_DILATION__', '__RAW_DISABLE_DIR_CONFIDENCE__', '__RAW_CONF_FADE_STRENGTH__',
   '__RAW_DISABLE_DEAD_EDGE_TRIM__', '__RAW_DISABLE_WRAP_MIRROR__', 'Float16Array'];
@@ -21,47 +22,6 @@ let saved;
 beforeEach(() => { saved = KEYS.map((k) => [k, window[k]]); jest.spyOn(console, 'log').mockImplementation(() => {}); });
 afterEach(() => { saved.forEach(([k, v]) => { if (v === undefined) delete window[k]; else window[k] = v; }); jest.restoreAllMocks(); });
 
-// ── reference: the RSWF v1 reader and buildVectors of staticFrameCodec.js (#422) ─────────────────────────────────────────────
-function parseFrame(buf) {
-  const bytes = new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
-  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  const cols = dv.getUint16(8, true); const rows = dv.getUint16(10, true); const fieldCount = dv.getUint8(18);
-  const uvConvention = dv.getUint8(19); let pos = dv.getUint32(20, true);
-  const bounds = { west: dv.getFloat64(24, true), south: dv.getFloat64(32, true), east: dv.getFloat64(40, true), north: dv.getFloat64(48, true) };
-  const n = cols * rows; const fields = {};
-  for (let f = 0; f < fieldCount; f++) {
-    const d = 72 + f * 24; const id = dv.getUint8(d); const dtype = dv.getUint8(d + 1); const layout = dv.getUint8(d + 2);
-    const missing = dv.getUint32(d + 4, true); const scale = dv.getFloat64(d + 8, true); const offset = dv.getFloat64(d + 16, true);
-    const out = new Float64Array(n);
-    for (let k = 0; k < n; k++) {
-      let code;
-      if (dtype === 1) code = bytes[pos + k]; else if (layout === 1) code = bytes[pos + k] | (bytes[pos + n + k] << 8); else code = bytes[pos + 2 * k] | (bytes[pos + 2 * k + 1] << 8);
-      out[k] = (missing !== 0xFFFFFFFF && code === missing) ? NaN : code * scale + offset;
-    }
-    fields[id] = out; pos += n * dtype;
-  }
-  return { cols, rows, bounds, uvConvention, fields };
-}
-const r2 = (x) => Math.round(x * 100) / 100; const r4 = (x) => Math.round(x * 1e4) / 1e4; const r6 = (x) => Math.round(x * 1e6) / 1e6;
-function buildVectors(parsed) {
-  const { cols, rows, bounds, fields } = parsed; const H = fields[0]; const D = fields[1]; const P = fields[2]; const C = fields[3];
-  const sign = parsed.uvConvention === 1 ? 1 : -1;
-  const dLat = rows > 1 ? (bounds.north - bounds.south) / (rows - 1) : 0; const dLng = cols > 1 ? (bounds.east - bounds.west) / (cols - 1) : 0;
-  const out = new Array(cols * rows);
-  for (let r = 0; r < rows; r++) {
-    const lat = r6(bounds.south + r * dLat);
-    for (let c = 0; c < cols; c++) {
-      const i = r * cols + c; const lng = r6(bounds.west + c * dLng); const h = H[i]; const valid = !Number.isNaN(h);
-      const dir = D ? (Number.isNaN(D[i]) ? 0 : r2(D[i])) : 0; const per = P ? (Number.isNaN(P[i]) ? null : r2(P[i])) : null;
-      const conf = C ? (Number.isNaN(C[i]) ? null : r4(C[i])) : null;
-      if (!valid) { out[i] = { lat, lng, speed: 0, direction: dir, u: 0, v: 0, period: per, gust: null, value: null, is_valid: false, dir_confidence: conf }; continue; }
-      const speed = r4(h); const rad = dir * (Math.PI / 180);
-      out[i] = { lat, lng, speed, direction: dir, u: r4(sign * speed * Math.sin(rad)) + 0, v: r4(sign * speed * Math.cos(rad)) + 0,
-        period: per, gust: null, value: null, is_valid: true, dir_confidence: conf };
-    }
-  }
-  return out;
-}
 // ── reference: the useMarineWindData conform, waves layer with flat vectors (the only branch static frames reach) ──────────────
 function conform(vectors, layer = 'waves') {
   return vectors.map((v) => {

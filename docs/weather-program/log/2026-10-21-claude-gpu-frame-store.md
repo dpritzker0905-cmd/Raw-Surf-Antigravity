@@ -82,6 +82,18 @@ Spec: `docs/architecture/gpu-resident-forecast-frames.md`, on #427.
 
 ## Ledger
 
-- **1584** `pr_open`: #437 (draft), opened from dev `5be9e9dd0` at `0c37d4937`; re-chained after dev's 1570-1583.
+- **1586** `pr_open`: #437 (draft), opened from dev `5be9e9dd0` at `0c37d4937`; re-chained after dev moved twice (1570-1583, then #422's merge up to 1585).
 - The phase-2 commitment written on #427's branch (its line 1559 there; that branch's ledger forks from dev's at 1557) stays
   open: it is for the wired build after #422.
+
+## Update (2026-10-21 19:08Z): #422 merged; the parity test now uses its real codec
+
+#422 (static frames) merged into dev as `2a47fd5d8` while #437 was open. #437 merged dev twice: its `pr_open` line was
+re-chained on top of dev's ledger each time, and STATE's anchor moved with it.
+
+The parity test now imports `parseFrame` / `buildVectors` from #422's own `staticFrameCodec.js` instead of the pinned copies, so
+the reference can no longer drift from the codec. It still passes 34/34, as do the store, prefetch and GPU suites; #422's
+static-frame suites pass alongside them (83 tests).
+
+Phase 2's wiring is unblocked: the store check in the scrub path, the engine's copy hook, #422's worker feeding the packer, and
+the prefetch loop.
