@@ -14,7 +14,8 @@
  *      (d) nothing else; (e) never an unbuilt index entry (`path: null`), which /grid serves.
  *   3. At most 6 frame requests in flight (3 on slow links), none before the map's first marine draw (`open()`).
  *   4. An in-flight request is aborted when it drops out of the top 2 x cap of the plan AND is not in the active set (the active
- *      series is fetched anyway). With #422's shared per-path fetch, an abort only detaches this caller.
+ *      series is fetched anyway). With #422's shared per-path fetch, an abort only detaches this caller. When the plan's first
+ *      two frames need fetching and every slot is busy, the lowest-priority in-flight request is preempted (a big jump).
  * Packing (marineFramePack) runs on the main thread in idle slices: it calls the encoder's own functions, so its bytes are the
  * encoder's (a worker would need the bundle). ~2.2 ms per world frame measured, never on the press path.
  */
@@ -101,7 +102,7 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
   cap = CAP } = {}) {
   let plan = []; let activeKey = null; let opened = false; let capNow = cap;
   const inflight = new Map(); // id -> { key, validTime, ctrl }
-  const t = { requests: 0, landed: 0, aborted: 0, errors: 0, bytes: 0, packFail: 0, stale: 0 };
+  const t = { requests: 0, landed: 0, aborted: 0, preempted: 0, errors: 0, bytes: 0, packFail: 0, stale: 0 };
   const idOf = (key, validTime) => `${key}@${validTime}`;
 
   function abortStale() {
@@ -109,6 +110,25 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     for (const [id, f] of [...inflight]) {
       if (f.key === activeKey || top.has(id)) continue;
       f.ctrl.abort(); inflight.delete(id); store.markAbsent(f.key, f.validTime); t.aborted += 1;
+    }
+  }
+
+  // PREEMPT (measured 2026-10-21: after a big jump all slots held frames near the OLD cursor, active-set requests are never
+  // aborted, so the frame now on screen waited for a free slot: 874-886 ms vs 570-645 ms without the store). When one of the
+  // plan's first two frames needs fetching and every slot is busy, abort the lowest-priority in-flight request (the latest in
+  // the plan, or one no longer in it) to make room. It goes back to absent and is fetched again in its turn.
+  function preemptForHead() {
+    const rank = new Map(plan.map((p, i) => [idOf(p.key, p.validTime), i]));
+    const need = plan.slice(0, 2).filter((p) => { const e = store.entry(p.key, p.validTime); return e && e.state === 'absent'; }).length;
+    while (need > 0 && inflight.size > capNow - need) {
+      let worst = null;
+      for (const [id, f] of inflight) {
+        const r = rank.has(id) ? rank.get(id) : Infinity;
+        if (r <= 1) continue;
+        if (!worst || r > worst.r) worst = { id, f, r };
+      }
+      if (!worst) return;
+      worst.f.ctrl.abort(); inflight.delete(worst.id); store.markAbsent(worst.f.key, worst.f.validTime); t.preempted += 1;
     }
   }
 
@@ -133,7 +153,8 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
       schedule(() => {
         let pack = null;
         try { pack = decodeAndPack(got.buffer, p.key, p.validTime); } catch (err) { pack = null; }
-        if (pack && store.putPacked(p.key, p.validTime, pack, got.buffer || null)) { t.landed += 1; onPacked(p.key, p.validTime); } else {
+        const raw = got.raw !== undefined ? got.raw : (got.buffer instanceof ArrayBuffer ? got.buffer : null);
+        if (pack && store.putPacked(p.key, p.validTime, pack, raw)) { t.landed += 1; onPacked(p.key, p.validTime); } else {
           // Out of the packer's scope (the wrap-mirror case, another layer) or a stale signature: a terminal miss, so the normal
           // path serves the hour and the loop never re-fetches it.
           store.markUnpackable(p.key, p.validTime, pack ? 'signature' : 'unpackable');
@@ -158,7 +179,7 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     /** A new plan (planWant's output) and the active set's key; slow = the slow-link cap. */
     replan(nextPlan, nextActiveKey, { slow = false } = {}) {
       plan = Array.isArray(nextPlan) ? nextPlan : []; activeKey = nextActiveKey || null; capNow = slow ? Math.min(cap, CAP_SLOW) : cap;
-      abortStale(); pump();
+      abortStale(); if (opened) preemptForHead(); pump();
     },
     /** The map drew its first marine frame: frame requests may start. */
     open() { if (!opened) { opened = true; pump(); } },

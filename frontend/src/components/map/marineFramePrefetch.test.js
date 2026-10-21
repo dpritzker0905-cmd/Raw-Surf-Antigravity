@@ -125,11 +125,29 @@ describe('createPrefetcher', () => {
     expect(firstSix.filter((c) => c.signal && c.signal.aborted)).toHaveLength(CAP);
     expect(store.entry(A, vt(5)).state).toBe('absent');
     expect(pf.telemetry().aborted).toBe(CAP);
-    // Re-planning the SAME active set never aborts its own requests, whatever the cursor does.
+    // Re-planning the SAME active set never ABORTS its requests as stale (the series is fetched anyway); a big jump only
+    // PREEMPTS the lowest-priority ones so the new cursor's first two frames start at once.
     const inB = calls.slice(CAP).filter((c) => c.path.startsWith('ICON/'));
     pf.replan(planWant({ active: { key: B, validTimes: series(30) }, cursor: 25 }), B);
-    expect(inB.some((c) => c.signal.aborted)).toBe(false);
-    expect(pf.telemetry().aborted).toBe(CAP);
+    expect(pf.telemetry()).toMatchObject({ aborted: CAP, preempted: 2 });
+    expect(inB.filter((c) => c.signal.aborted)).toHaveLength(2);
+    expect(calls.slice(-2).map((c) => c.path)).toEqual([`ICON/${vt(25)}.bin`, `ICON/${vt(26)}.bin`]);
+  });
+
+  it('a big jump preempts the farthest in-flight frames so the frame now on screen starts at once', () => {
+    const { store, mkSet, pf, calls } = rig({ n: 60 });
+    const A = mkSet('GFS');
+    pf.open();
+    pf.replan(planWant({ active: { key: A, validTimes: series(60) }, cursor: 5 }), A);
+    expect(calls).toHaveLength(CAP);
+    pf.replan(planWant({ active: { key: A, validTimes: series(60) }, cursor: 40 }), A);
+    expect(store.entry(A, vt(40)).state).toBe('inflight');
+    expect(store.entry(A, vt(41)).state).toBe('inflight');
+    expect(pf.inflightCount()).toBe(CAP);
+    expect(pf.telemetry().preempted).toBe(2);
+    // No preemption when the head is already covered.
+    pf.replan(planWant({ active: { key: A, validTimes: series(60) }, cursor: 40 }), A);
+    expect(pf.telemetry().preempted).toBe(2);
   });
 
   it('a warm frame inside the new top 2 x CAP keeps its request', () => {

@@ -97,3 +97,73 @@ static-frame suites pass alongside them (83 tests).
 
 Phase 2's wiring is unblocked: the store check in the scrub path, the engine's copy hook, #422's worker feeding the packer, and
 the prefetch loop.
+
+## Update (2026-10-21 23:36Z): phase 2 WIRED. Stored frames go on screen at once, measured offline
+
+#422 merged, so the wiring followed on the same branch (#437), on the owner's "Can we move forward on part 2?" and the lead's go
+(build it from dev with #422, the copy into the 2D wave texture, intent-gated prefetch, the shared loader, null paths served by
+/grid). **No served number changes** (no SCOREBOARD row): the stored bytes equal the encoder's (34-case parity, 5 mutants), and
+the store runs only while static frames are on (DARK, D-001).
+
+**What changed**
+- `staticFrames.js`:
+  - #422's one shared fetch per path is now two layers: a shared PARSED frame (fetch + inflate + parse), and the vectors built on
+    top, still once per path;
+  - `loadFrameParsed` (no vectors), `onStaticFrameParsed` (a hook) and `getPinnedIndexSync` are new;
+  - its 26 suites (295 tests) pass unchanged.
+- `marineFrameStoreRuntime.js` (new) joins loader -> packer -> store -> GPU pool -> engine:
+  - every parsed static frame is packed and kept in a texture-array layer;
+  - `tryShowStoredFrame`: a scrub step copies the stored layer into the engine's resident wave texture, updates the frame
+    identity and `__MARINE_DRAWN__`, and repaints;
+  - `noteCommitted`: the resident becomes "known" after a normal commit;
+  - the intent-gated prefetch;
+  - kills `__RAW_DISABLE_FRAME_STORE__`, `__RAW_DISABLE_FRAME_PREFETCH__`, `__RAW_DISABLE_FRAME_STORE_GPU__`; lever
+    `__RAW_FRAME_PREFETCH_EAGER__` (off);
+  - live telemetry getter `__RAW_FRAME_STORE__`.
+- Seams:
+  - `WebGLMarineLayer.js` (+4 lines: register engine/gl/map refs; note each commit);
+  - `useMarineOrchestratorScrubCache.js` (+7: show the stored frame before the normal commit, then keep the prefetch on the
+    cursor).
+- The engine file is untouched (LOC ratchet).
+
+**Found and fixed while measuring**, each found by an instrument, not assumed:
+1. The resident was never recognised: `commits.no_served_time` 11/11. The useMarineWindData conform (the last rebuild before
+   the engine) DROPS `served_valid_time` (it keeps `productId`), so the committed frame is now resolved by product id through the
+   run index.
+   - This is a pre-existing gap and is NOT changed here: `marineFrameInstant` and `publishMarineDrawn` read
+     `served_valid_time` on the engine grid, which the conform strips on the /grid lane. A follow-up should settle it.
+2. A frame committed before its pack landed left no resident. It is now promoted when the pack lands (`resident_late`).
+3. At load the prefetch started only on the first press. It is now planned from every resolvable commit.
+4. After a big jump, every slot held frames near the OLD cursor; active-set requests are never aborted, so the needed frame
+   waited for a slot. This made the store SLOWER than the kill on +45 h (874-886 vs 570-645 ms).
+   - Fix: preempt the lowest-priority in-flight request when the plan's first two frames need a slot.
+5. A frame that was not ready at the press waited for the slower normal commit. It is now shown the moment its pack lands
+   (deferred show), unless a newer step, a normal commit or a set change superseded it.
+6. Telemetry was a snapshot taken at each step; it is now a live getter.
+
+**Measured** (offline; evidence `docs/weather-program/evidence/gpu-frame-store-ab-2026-10-21.json`; a local CDN adds 340 ms per
+object, the live Cloudflare hit):
+
+- `scn_static_frames.js`, ms from key press to the EXACT-CORRECT frame on the GPU, 2 rounds interleaved:
+
+  | Arm | p50 | p95 | max |
+  |---|---|---|---|
+  | static (#422, store killed) | 41 | 603 | 638 |
+  | **store** (default) | **3** | **424** | **430** |
+  | eager (lever on) | **1** | **12** | **16**: every step within one frame |
+
+  - 0 /grid and 0 /grid_series requests in every arm.
+  - Earlier rounds, before fixes 4-5: store p50 7-8 ms, p95 801-819 ms.
+- `lab.js FLOWS=erratic` (the owner's flow), marineMs on the GFS-waves scrub steps (+5h, +45h, +131h, +12h), runs
+  kill/store/store/kill:
+  - kill: 586, 602, 555, 506, 599, 588, 597, 586 ms;
+  - **store: 15, 158, 67, 2, 1, 224, 54, 3 ms**;
+  - the model/layer/zoom steps (no static frames for them yet) are unchanged within noise.
+- Jest: 174 frame tests.
+- Real-GPU check: OK.
+
+**Open (owner's call): eager vs intent on desktop.** Eager makes every step instant here, including 5-day jumps. Its cost is the
+active model-layer's whole series on every map open while static frames are on: about 6.4 MB with real frames, against 1.9 MB
+for an intent-gated glance. At 5.7-8.5 MB per session that is still about 30-40k sessions a month inside Supabase Pro's 250 GB
+cached egress. The default stays intent-gated, as the lead's brief asked; `__RAW_FRAME_PREFETCH_EAGER__` is the lever, measured
+above.

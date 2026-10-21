@@ -17,7 +17,12 @@
 //   node frontend/scripts/offline-backend/serve_spa.js frontend/build 3100
 //   CDN_DIR=<cdn> PORT=4100 OUT=static.json node frontend/scripts/offline-backend/scn_static_frames.js
 // Env: ROUNDS (3), WIN (ms per step, 8000), LAT_SERIES / LAT_GRID (ms added per backend response), CDN_LAT (ms added per
-// static object), CDN_PORT (4190).
+// static object), CDN_PORT (4190), ARMS (default grid,static). The GPU-resident frames arms (2026-10-21):
+//   static  static frames on, the frame store KILLED (window.__RAW_DISABLE_FRAME_STORE__ = true): #422 as merged
+//   store   static frames on and the frame store on (the default once static frames are on): prefetch + the layer copy
+//   eager   as store, plus window.__RAW_FRAME_PREFETCH_EAGER__ = true (the whole series from the first draw; an egress lever)
+// The probe names the resident product from the engine grid itself when the frame store put it there (__fromFrameStore),
+// because a store show writes no texture upload record (it is a GPU-side layer copy).
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -84,7 +89,7 @@ const PROBE = () => {
       cols: g ? g.cols : null, stride: g ? (g.__decimatedStride || 0) : null, series: !!(g && g.__fromSeries),
       // The stored product of the LAST wave upload (WebGLMarineLayer's own record): series-committed grids reach the
       // engine without __servedProductId, so the engine grid alone cannot name its product.
-      pid: (window.__WEBGL_MARINE_UPLOAD_DIAG__ && window.__WEBGL_MARINE_UPLOAD_DIAG__.servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null),
+      pid: (g && g.__fromFrameStore && g.__servedProductId) || (window.__WEBGL_MARINE_UPLOAD_DIAG__ && window.__WEBGL_MARINE_UPLOAD_DIAG__.servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null),
       seq: up ? up.seq : -1 };
   };
   // The resident product's valid time: from its stored product id when the grid names one (the per-hour path), else,
@@ -122,9 +127,11 @@ async function clickExact(page, text) {
 async function session(arm) {
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true, hooks: { beforeWeather: async (url) => {
     const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
-  await page.addInitScript(({ on, base }) => {
+  await page.addInitScript(({ on, base, killStore, eager }) => {
     if (on) { localStorage.setItem('__RAW_STATIC_FRAMES__', 'true'); window.__RAW_STATIC_FRAMES_BASE__ = base; } else localStorage.removeItem('__RAW_STATIC_FRAMES__');
-  }, { on: arm === 'static', base: `http://127.0.0.1:${CDN_PORT}/` });
+    if (killStore) window.__RAW_DISABLE_FRAME_STORE__ = true;
+    if (eager) window.__RAW_FRAME_PREFETCH_EAGER__ = true;
+  }, { on: ['static', 'store', 'eager'].includes(arm), base: `http://127.0.0.1:${CDN_PORT}/`, killStore: arm === 'static', eager: arm === 'eager' });
   await page.addInitScript(PROBE);
   const steps = [];
   try {
@@ -160,7 +167,8 @@ async function session(arm) {
     const byPath = {}; for (const q of req) byPath[q.path] = (byPath[q.path] || 0) + 1;
     return { arm, steps, backendCpuS: +(cpu1 - cpu0).toFixed(3), backendRequests: byPath,
       cdn: { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes },
-      errors: log.errors.slice(0, 5), hosts: log.hosts };
+      errors: log.errors.slice(0, 5), hosts: log.hosts,
+      frameStore: await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; return t ? { shows: t.shows, commits: t.commits, prefetch: t.prefetch, gpu: t.gpu, cpuMB: t.cpuMB, gpuMB: t.gpuMB, tier: t.tier } : null; }) };
   } finally { await browser.close(); }
 }
 
@@ -172,8 +180,9 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
   const sessions = [];
   const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, LAT_SERIES, LAT_GRID, CDN_LAT, startedUtc: new Date().toISOString() }, sessions };
   try {
+    const ARMS = (process.env.ARMS || 'grid,static').split(',');
     for (let i = 0; i < ROUNDS; i++) {
-      for (const arm of (i % 2 === 0 ? ['grid', 'static'] : ['static', 'grid'])) {   // A B, B A, A B ... (interleaved)
+      for (const arm of (i % 2 === 0 ? ARMS : [...ARMS].reverse())) {   // A B, B A, A B ... (interleaved)
         const s = await session(arm);
         sessions.push(s);
         console.log(arm, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.labelMs])), 'cpu', s.backendCpuS, JSON.stringify(s.backendRequests), 'cdn', JSON.stringify(s.cdn));
@@ -181,7 +190,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
       }
     }
     const summary = {};
-    for (const arm of ['grid', 'static']) {
+    for (const arm of ARMS) {
       const ss = sessions.filter((s) => s.arm === arm);
       const ex = ss.flatMap((s) => s.steps.map((x) => x.exactMs));
       const any = ss.flatMap((s) => s.steps.map((x) => x.labelMs));

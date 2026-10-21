@@ -30,6 +30,25 @@ const L = require('../offline-backend/ab_lib.js');
 const P = require('../../e2e/pngPixels.js');
 
 const PORT = +(process.env.PORT || 4103);
+// LAB_STATIC=<publisher --out-dir>: static forecast frames ON (localStorage __RAW_STATIC_FRAMES__) with a local stand-in for the
+// weather-frames CDN serving those bytes as the bucket does (immutable, no Content-Encoding); LAB_CDN_LAT ms per object (the live
+// Cloudflare hit is ~340 ms), LAB_CDN_PORT (4299). The GPU-resident frame store rides on static frames; kill it with LAB_KILLS.
+const STATIC_DIR = process.env.LAB_STATIC || null;
+const CDN_PORT = +(process.env.LAB_CDN_PORT || 4299); const CDN_LAT = +(process.env.LAB_CDN_LAT || 0);
+function startCdn() {
+  const http = require('http');
+  const srv = http.createServer((req, res) => {
+    const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, ''); const file = path.join(STATIC_DIR, rel);
+    const send = () => {
+      if (!file.startsWith(path.resolve(STATIC_DIR)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(400, { 'access-control-allow-origin': '*' }); return res.end('{}'); }
+      res.writeHead(200, { 'access-control-allow-origin': '*', 'content-type': rel.endsWith('.bin') ? 'application/octet-stream' : 'application/json',
+        'cache-control': rel.endsWith('latest.json') ? 'no-cache' : 'public, max-age=31536000, immutable' });
+      res.end(fs.readFileSync(file));
+    };
+    CDN_LAT ? setTimeout(send, CDN_LAT) : send();
+  });
+  return new Promise((r) => srv.listen(CDN_PORT, '127.0.0.1', () => r(srv)));
+}
 const OUT = path.resolve(process.env.OUT || 'visual-lab-out');
 const VIEW = process.env.VIEW || 'desktop';
 const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0);
@@ -264,7 +283,8 @@ const FLOWS = {
   fs.mkdirSync(OUT, { recursive: true });
   const which = (process.env.FLOWS || Object.keys(FLOWS).join(',')).split(',');
   const size = VIEW === 'phone' ? { width: 390, height: 844, dpr: 3 } : { width: 1280, height: 800, dpr: 1 };
-  const results = { env: { PORT, VIEW, LAT_SERIES, LAT_GRID, LAT_PRODUCTS, kills: process.env.LAB_KILLS || '', flags: process.env.LAB_FLAGS || '', live: process.env.AB_LIVE === '1', startedUtc: new Date().toISOString() }, flows: [] };
+  const cdnServer = STATIC_DIR ? await startCdn() : null;
+  const results = { env: { PORT, VIEW, LAT_SERIES, LAT_GRID, LAT_PRODUCTS, staticFrames: !!STATIC_DIR, cdnLat: CDN_LAT, kills: process.env.LAB_KILLS || '', flags: process.env.LAB_FLAGS || '', live: process.env.AB_LIVE === '1', startedUtc: new Date().toISOString() }, flows: [] };
   for (const name of which) {
     const flow = FLOWS[name]; if (!flow) continue;
     const LIVE = process.env.LAB_LIVE_BASE;   // e.g. http://localhost:3009: dev server on the LIVE backend, set up as the nightly does
@@ -272,6 +292,7 @@ const FLOWS = {
       const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID
         : url.pathname.endsWith('/products') ? LAT_PRODUCTS : 0; if (d) await sleep(d); } } });
     if (process.env.LAB_KILLS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_KILLS.split(','));   // A/B: kill switches set before the app boots
+    if (STATIC_DIR) await page.addInitScript((base) => { localStorage.setItem('__RAW_STATIC_FRAMES__', 'true'); window.__RAW_STATIC_FRAMES_BASE__ = base; }, `http://127.0.0.1:${CDN_PORT}/`);
     // LAB_FLAGS: other window flags set true before boot, the same in both arms (e.g. __SURF_MODE__: the rating overlay on, whose spot
     // lookups resolve valid times before the manifest lands, as the live app's spot hubs and glyphs do).
     if (process.env.LAB_FLAGS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_FLAGS.split(','));
@@ -372,4 +393,5 @@ const FLOWS = {
   fs.writeFileSync(path.join(OUT, 'lab.json'), JSON.stringify(lean, null, 1));
   fs.writeFileSync(path.join(OUT, 'report.html'), require('./report.js').render(results));
   console.log('report:', path.join(OUT, 'report.html'));
+  if (cdnServer) cdnServer.close();
 })().catch((e) => { console.error('FAIL', e.stack); process.exitCode = 1; });

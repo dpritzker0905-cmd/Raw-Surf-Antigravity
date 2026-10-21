@@ -1,0 +1,316 @@
+/**
+ * marineFrameStoreRuntime.js — the GPU-resident forecast frames, wired (phase 2; spec docs/architecture/gpu-resident-forecast-frames.md).
+ *
+ * WHAT IT DOES, only while static frames are on (staticFrames.js, DARK) and the store is not killed:
+ *   1. every static frame #422's loader parses (seam A's exact /grid, seam B's window, or this module's prefetch) is packed to
+ *      the wave texture's bytes (marineFramePack: identical to encodeMarineTexture by construction and by test) and kept in a
+ *      store (marineFrameStore) and, on WebGL2, in a texture-array layer (marineFrameStoreGpu);
+ *   2. on a scrub step, tryShowStoredFrame() puts the stored frame on screen AT ONCE: it copies the layer into the engine's
+ *      resident wave texture (or writes the CPU bytes on WebGL1), updates the engine's frame identity and the drawn-frame record,
+ *      and asks for a repaint. The normal commit (vectors for the infobox, glyphs, arbiter, truth tags) still follows and writes
+ *      the same bytes, so the picture never changes when it lands;
+ *   3. noteStep() keeps the intent-gated prefetch running (marineFramePrefetch): the +-8 window, then the whole series once the
+ *      wheel has moved 4 frames. CDN only, through #422's shared loader.
+ * The fast path refuses (and the normal path runs as before) unless the engine's resident texture holds a frame of the SAME set
+ * (model, layer, pinned run, pack signature) with the SAME size and validity, recorded by noteCommitted() after a normal commit.
+ *
+ * SHIPS ON behind static frames. Kills (read per call):
+ *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
+ *   window.__RAW_DISABLE_FRAME_PREFETCH__ = true         no prefetch: the store fills only from #422's own loads
+ *   window.__RAW_DISABLE_FRAME_STORE_GPU__ = true        no texture arrays: CPU bytes + texSubImage2D per step
+ * Lever (OFF by default, egress): window.__RAW_FRAME_PREFETCH_EAGER__ = true streams the whole series from the first draw.
+ * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
+ */
+import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, loadFrameParsed, setKeyFor } from './staticFrames';
+import { pickIndexFrame, frameMeta } from './staticFrameCodec';
+import { packStaticFrame, packSignature } from './marineFramePack';
+import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
+import { createIntent, createPrefetcher, planWant } from './marineFramePrefetch';
+import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
+import { publishMarineDrawn } from './marineDrawnFrame';
+import { isHandheldDevice, isWeakDevice } from './deviceTier';
+
+const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
+const W = () => (typeof window !== 'undefined' ? window : {});
+export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
+
+const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
+  resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {} };
+
+function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
+
+function tier() {
+  const w = W(); const nav = typeof navigator !== 'undefined' ? navigator : {};
+  const conn = nav.connection || {};
+  const gl = rt.target && rt.target.getGl ? rt.target.getGl() : null;
+  let handheld = false; let weak = false;
+  try { handheld = isHandheldDevice(); weak = isWeakDevice(); } catch (e) { /* defaults */ }
+  return resolveTier({ webgl2: gl ? isWebGL2(gl) : true, maxArrayLayers: gl && isWebGL2(gl) ? gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS) : 2048,
+    frames: DEPTH, handheld, weak, deviceMemoryGB: typeof nav.deviceMemory === 'number' ? nav.deviceMemory : null,
+    saveData: !!conn.saveData, effectiveType: conn.effectiveType || null }, w);
+}
+
+function store() {
+  if (!rt.store) rt.store = createFrameStore({ tier: tier() });
+  return rt.store;
+}
+
+// The store set for a #422 set key and its pinned index (model, layer from the key; run identity = the cycle, never ingest time).
+function setFor(key, index) {
+  const [model, , layer] = key.split('/');
+  const runId = (index && (index.model_run_time || index.run || index.path)) || 'unknown';
+  const signature = packSignature();
+  const desc = { model, layer, domain: 'world', modelRunTime: runId, signature };
+  const sk = setKeyOf(desc);
+  let info = rt.sets.get(sk);
+  if (!info) {
+    const s = store().ensureSet(desc);
+    store().noteIndex(s.key, index.frames || []);
+    const validTimes = (index.frames || []).map((f) => f.valid_time).filter(Boolean).sort();
+    const byVt = new Map((index.frames || []).map((f) => [f.valid_time, f]));
+    const byPid = new Map((index.frames || []).filter((f) => f.meta && f.meta.product_id).map((f) => [f.meta.product_id, f.valid_time]));
+    info = { key: s.key, staticKey: key, index, validTimes, byVt, byPid, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
+    rt.sets.set(sk, info);
+    // A new run or signature retires the old sets of the same model x layer (theme change, kill switch, re-pin).
+    const keep = new Set([...rt.sets.values()].filter((x) => x.staticKey !== key || x.key === s.key).map((x) => x.key));
+    for (const [k, x] of [...rt.sets]) if (!keep.has(x.key)) { rt.sets.delete(k); if (rt.pool) rt.pool.release(x.key); }
+    store().retainOnly((st) => keep.has(st.key));
+  }
+  return info;
+}
+
+function gpuPool(cols, rows) {
+  const w = W();
+  if (w.__RAW_DISABLE_FRAME_STORE_GPU__ === true || !rt.target) return null;
+  const gl = rt.target.getGl && rt.target.getGl();
+  if (!gl || !isWebGL2(gl)) return null;
+  if (rt.pool && (rt.poolDims.cols !== cols || rt.poolDims.rows !== rows)) return null;  // one size per pool: others stay CPU
+  if (!rt.pool) {
+    const layerBytes = cols * rows * 4;
+    const maxArrays = Math.max(1, Math.floor(store().budget.gpuBytes / (DEPTH * layerBytes)));
+    rt.pool = createFrameArrays(gl, { cols, rows, depth: DEPTH, maxArrays });
+    rt.poolDims = { cols, rows };
+    if (rt.pool) rt.pool.ensureSpare();
+  }
+  return rt.pool;
+}
+
+// A frame just packed: if it is the one the last normal commit put on the engine, that commit's resident is now known.
+function resolvePending(info, validTime) {
+  const p = rt.pendingResident;
+  const e = store().entry(info.key, validTime);
+  if (!p || p.setKey !== info.key || p.validTime !== validTime || !e || !e.pack) return;
+  const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
+  rt.pendingResident = null;
+  if (!engine || engine._texWidth !== p.cols || engine._texHeight !== p.rows || p.cols !== e.pack.cols || p.rows !== e.pack.rows) return;
+  rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
+  rt.commits.resident_late = (rt.commits.resident_late || 0) + 1;
+}
+
+// DEFERRED SHOW (measured 2026-10-21: a big jump past the prefetched window missed at the press and waited for the normal
+// commit, ~800 ms at 340 ms CDN latency): the step that missed with `not_ready` is remembered, and the moment its frame lands
+// packed it is shown, if nothing has superseded that step since (another step, a normal commit, a set change, 3 s).
+const WANT_TTL_MS = 3000;
+function deferredShow(info, validTime) {
+  const w = rt.want;
+  if (!w || w.setKey !== info.key || w.validTime !== validTime) return;
+  rt.want = null;
+  if (Date.now() - w.at > WANT_TTL_MS) return;
+  if (tryShowStoredFrame(w.args)) rt.shows.deferred = (rt.shows.deferred || 0) + 1;
+}
+
+function upload(info, validTime) {
+  resolvePending(info, validTime);
+  uploadGpu(info, validTime);
+  deferredShow(info, validTime);
+}
+
+function uploadGpu(info, validTime) {
+  const e = store().entry(info.key, validTime);
+  if (!e || !e.packed || !e.pack) return;
+  const pool = gpuPool(e.pack.cols, e.pack.rows);
+  if (!pool) return;
+  const { evicted } = pool.acquire(info.key);
+  if (evicted) store().dropResidency(evicted);
+  const layer = info.layerOf.get(validTime);
+  if (layer === undefined) return;
+  if (pool.uploadMany(info.key, [{ layer, bytes: e.packed }]) === 1) store().markResident(info.key, validTime, layer, pool.bytesPerLayer);
+}
+
+function packInto(info, validTime, parsed, buffer) {
+  const s = store();
+  const pack = packStaticFrame(parsed);
+  if (!pack) { if (s.markInflight(info.key, validTime)) s.markUnpackable(info.key, validTime, 'unpackable'); return null; }
+  if (!s.putPacked(info.key, validTime, pack, buffer || null)) return null;
+  upload(info, validTime);
+  return pack;
+}
+
+// Frames #422's own loads parsed (seam A / seam B): pack them, unless the prefetcher owns the request (it packs its own).
+function onParsed({ key, frame, parsed, buffer }) {
+  if (!frameStoreOn() || !frame || !frame.valid_time) return;
+  const index = getPinnedIndexSync(key);
+  if (!index) return;
+  const info = setFor(key, index);
+  const e = store().entry(info.key, frame.valid_time);
+  if (!e || e.state !== 'absent') return;
+  const run = () => { const now = store().entry(info.key, frame.valid_time); if (now && now.state === 'absent') packInto(info, frame.valid_time, parsed, buffer); };
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 200 }); else setTimeout(run, 0);
+}
+
+function ensureInit() {
+  if (!rt.unhook) rt.unhook = onStaticFrameParsed(onParsed);
+  if (!rt.prefetcher) {
+    rt.prefetcher = createPrefetcher({
+      store: store(),
+      fetchFrame: async (path, signal) => {
+        const info = [...rt.sets.values()].find((x) => x.key === rt.activeKey) || [...rt.sets.values()][0];
+        const frame = info && [...info.byVt.values()].find((f) => f.path === path);
+        if (!info || !frame) return { error: 'unknown_frame' };
+        const got = await loadFrameParsed(info.staticKey, frame, signal);
+        return got ? { buffer: { parsed: got.parsed }, raw: got.buffer || null, wire: got.wire } : { error: signal && signal.aborted ? 'aborted' : 'load_failed' };
+      },
+      decodeAndPack: ({ parsed }) => packStaticFrame(parsed),
+      onPacked: (key, validTime) => { const info = [...rt.sets.values()].find((x) => x.key === key); if (info) upload(info, validTime); },
+    });
+  }
+}
+
+/** WebGLMarineLayer registers how to reach its engine, GL context and map (refs, read at call time). */
+export function registerFrameStoreTarget(target) {
+  rt.target = target || null;
+  if (target) ensureInit();
+}
+
+/** After a NORMAL commit: remember which stored frame the engine's resident texture now holds (or that it holds none). */
+export function noteCommitted(grid, { hour, model, layer } = {}) {
+  rt.resident = null; rt.pendingResident = null; rt.want = null;   // a normal commit supersedes a deferred show
+  const why = (r) => { rt.commits[r] = (rt.commits[r] || 0) + 1; };
+  if (!frameStoreOn() || !grid) return;
+  const key = setKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
+  const index = getPinnedIndexSync(key);
+  if (!index) return why('no_index');
+  if (grid.ratingMode) return why('rating');
+  const info = setFor(key, index);
+  // Which stored frame is it? Its served time when it carries one; else its product id through the run index (the
+  // useMarineWindData conform drops served_valid_time but keeps productId; a /grid valid_time only echoes the ask); else a
+  // series frame's own valid time.
+  const pidVt = grid.productId ? info.byPid.get(grid.productId) : null;
+  const served = grid.served_valid_time || pidVt || (grid.__fromSeries ? grid.valid_time : null);
+  if (!served) return why('no_served_time');
+  const vt = new Date(Date.parse(served)).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  // Plan the prefetch around what is on screen FIRST, packed or not (at load the first frame's pack is often still out).
+  noteStep({ model: model || grid.__sourceModel, layer: layer || grid.__componentLayer, hourOffset: hour, requestedValidTime: vt, commit: true });
+  const e = store().entry(info.key, vt);
+  // Compare with what the engine HOLDS: setWaveData trims dead edge rows (trimDeadEdges), so a world frame's texture is
+  // 181 x 81 while the committed grid says 181 x 83; the pack is trimmed the same way.
+  const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
+  if (!e) return why('not_indexed');
+  if (!e.pack) {
+    // Committed before its own pack landed (the prefetch or the idle pack is still out): resolve when it lands.
+    if (engine) rt.pendingResident = { setKey: info.key, validTime: vt, cols: engine._texWidth, rows: engine._texHeight };
+    return why(`not_packed_${e.state}`);
+  }
+  if (!engine || engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows) return why('dims_differ');
+  why('resident');
+  rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
+}
+
+/** Every scrub step (and every normal commit): keep the prefetch plan on the cursor. */
+export function noteStep({ model, layer, requestedValidTime, commit = false } = {}) {
+  if (!frameStoreOn() || W().__RAW_DISABLE_FRAME_PREFETCH__ === true || !rt.target) return;
+  ensureInit();
+  const key = setKeyFor(model, layer);
+  const index = getPinnedIndexSync(key);
+  if (!index) return;
+  const info = setFor(key, index);
+  const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
+  const cursor = frame ? info.layerOf.get(frame.valid_time) : undefined;
+  if (cursor === undefined) return;
+  if (rt.activeKey !== info.key) { rt.intent.switchTo(info.key, cursor); rt.activeKey = info.key; rt.want = null; } else if (!commit) rt.intent.press(cursor);
+  const st = rt.intent.state(); const t = store().tier;
+  const slow = t === 'constrained';
+  // EAGER (a lever, OFF by default: egress): the whole series from the first draw, not only after the wheel moved 4 frames.
+  const eager = W().__RAW_FRAME_PREFETCH_EAGER__ === true && !slow;
+  const plan = planWant({ active: { key: info.key, validTimes: info.validTimes, built: (v) => !!(info.byVt.get(v) || {}).path },
+    cursor, dir: st.dir, expanded: st.expanded || eager, warm: [], slow, full: store().budget.full });
+  rt.prefetcher.replan(plan, info.key, { slow });
+  const eng = rt.target.getEngine && rt.target.getEngine();
+  if (eng && eng._waveData) rt.prefetcher.open();               // never before the first marine draw
+  publishTelemetry();
+}
+
+/**
+ * The fast path: put the stored frame for (model, layer, requested valid time) on screen now. Returns true when it did; false
+ * (with the reason counted) when the normal path must do it. Never throws.
+ */
+export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTime }) {
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  rt.want = null;                                   // a new step supersedes any deferred show
+  try {
+    if (!frameStoreOn()) return false;
+    if (!rt.target) return miss('no_target');
+    const key = setKeyFor(model, layer);
+    const index = getPinnedIndexSync(key);
+    if (!index) return miss('no_index');
+    const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
+    if (!frame) return miss('no_frame_in_window');
+    if (!frame.path) return miss('unbuilt_frame');
+    const info = setFor(key, index);
+    const e = store().lookup(info.key, frame.valid_time);
+    if (!e || !e.pack) {
+      rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
+      return miss('not_ready');
+    }
+    const engine = rt.target.getEngine && rt.target.getEngine();
+    const gl = rt.target.getGl && rt.target.getGl();
+    const tex = engine && engine._residentWaveTex;
+    const wg = engine && engine._waveData && engine._waveData.waveGrid;
+    if (!engine || !gl || !tex || !wg) return miss('no_engine');
+    const r = rt.resident;
+    if (!r || r.setKey !== info.key || r.signature !== packSignature()) return miss('resident_not_this_set');
+    if (r.validityHash !== e.pack.validityHash) return miss('validity_differs');
+    if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return miss('dims_differ');
+    let ok = false;
+    if (e.layer !== null && rt.pool && rt.pool.has(info.key)) ok = rt.pool.copyToTexture(info.key, e.layer, tex);
+    if (!ok && e.packed) ok = uploadBytesTo2D(gl, tex, e.packed, e.pack.cols, e.pack.rows);
+    if (!ok) return miss('copy_failed');
+    const meta = frameMeta(index, frame);
+    const ask = requestedValidTime;
+    engine._waveData.waveGrid = { ...wg, hourOffset, valid_time: ask, served_valid_time: frame.valid_time, run_time: meta.run_time ?? wg.run_time,
+      model_run_time: meta.model_run_time ?? wg.model_run_time, productId: meta.product_id || wg.productId, __servedProductId: meta.product_id || null,
+      is_estimated: !!meta.is_estimated, __fromFrameStore: true };
+    publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
+    const map = rt.target.getMap && rt.target.getMap();
+    if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
+    rt.shows.n += 1;
+    rt.shows.lastMs = +(((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)).toFixed(3);
+    return true;
+  } catch (err) {
+    return miss('error');
+  } finally {
+    publishTelemetry();
+  }
+}
+
+function snapshot() {
+  return {
+    on: frameStoreOn(), ...(rt.store ? rt.store.telemetry() : {}),
+    prefetch: rt.prefetcher ? rt.prefetcher.telemetry() : null, gpu: rt.pool ? rt.pool.telemetry() : null,
+    shows: { ...rt.shows, misses: { ...rt.shows.misses } }, resident: rt.resident, commits: { ...rt.commits },
+  };
+}
+// A live getter: every read is current (a prefetch lands between scrub steps, so a snapshot taken at a step would lag).
+function publishTelemetry() {
+  if (typeof window === 'undefined') return;
+  const d = Object.getOwnPropertyDescriptor(window, '__RAW_FRAME_STORE__');
+  if (!d || d.get !== snapshot) Object.defineProperty(window, '__RAW_FRAME_STORE__', { configurable: true, enumerable: false, get: snapshot });
+}
+
+/** Test hook. */
+export function _resetFrameStoreRuntimeForTest() {
+  if (rt.unhook) rt.unhook();
+  if (rt.pool) rt.pool.dispose();
+  Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
+    resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {} });
+}

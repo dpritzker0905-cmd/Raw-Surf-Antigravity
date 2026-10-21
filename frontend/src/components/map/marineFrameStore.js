@@ -136,6 +136,18 @@ export function createFrameStore({ tier = 'desktop', now = () => Date.now() } = 
     return true;
   }
 
+  /** The GPU module gave this set's array to another set: its frames are no longer resident (CPU bytes, if kept, stay). */
+  function dropResidency(key) {
+    const s = sets.get(key); if (!s) return 0;
+    let n = 0;
+    for (const e of s.frames.values()) {
+      if (e.layer === null) continue;
+      gpuBytes -= e.gpuBytes || 0; e.layer = null; e.gpuBytes = 0; n += 1;
+      e.state = e.packed ? 'packed' : (e.path ? 'absent' : 'unbuilt');
+    }
+    return n;
+  }
+
   /** Drop raw RSWF bytes outside the cursor window (vectors are built only for the settled hour). */
   function trimRaw(key, keepValidTimes) {
     const s = sets.get(key); if (!s) return;
@@ -195,6 +207,6 @@ export function createFrameStore({ tier = 'desktop', now = () => Date.now() } = 
       gpuMB: +(gpuBytes / 1048576).toFixed(2), cpuMB: +(cpuBytes / 1048576).toFixed(2), sets: list, ...stats };
   }
 
-  return { tier, budget, sets, ensureSet, noteIndex, entry, lookup, markInflight, markAbsent, markUnpackable, putPacked, markResident, trimRaw,
+  return { tier, budget, sets, ensureSet, noteIndex, entry, lookup, markInflight, markAbsent, markUnpackable, putPacked, markResident, dropResidency, trimRaw,
     enforceBudget, retainOnly, telemetry, bytes: () => ({ cpu: cpuBytes, gpu: gpuBytes }) };
 }
