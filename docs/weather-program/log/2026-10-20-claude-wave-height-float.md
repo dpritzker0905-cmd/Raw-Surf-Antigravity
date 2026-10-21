@@ -118,3 +118,18 @@ second and re-chains: dev's `ACTIONS.jsonl` taken byte for byte, this branch's t
 `action_ledger.py append` with `--acted-at` their original times: **`pr_open` #420 is now seq 1553, the owner-verdict
 commitment seq 1554** (the "1552 / 1553" above). STATE's ledger head moved to 1554; `action_ledger.py verify` OK. The app's
 `sync_with_base_branch` failed again with "Committer identity unknown", so the merge of `origin/dev` was done in the checkout.
+
+## 2026-10-21 ~02:45Z: the float is LIGHT ONLY by default; #421 and #424 merged in; ledger 1558-1559
+
+- **Owner, 2026-10-21 ~01:30Z**, picking from the colour research page (https://claude.ai/artifact/KSm5QY1qj2yjhtb5b6ozjR): "I like
+  the proposed light mode", and on the follow-up question: dark "Today's dark (left)", beach "Today's beach v1 (left)". The lead
+  session relayed the owner's earlier "Leave dark alone if dark is okay. I liked dark." and asked that dark not change as a side
+  effect of #420.
+- So `encodeHeightFloat` builds the float for the LIGHT wash only. Beach and dark (and an unset theme, `'default'`, which draws
+  dark) get no float texture unless `window.__RAW_WAVE_HEIGHT_FLOAT_BEACH__` / `__RAW_WAVE_HEIGHT_FLOAT_DARK__` is set before load;
+  with no texture bound, `u_heightFloat` is 0 and every fetch and the decode take the byte's own path. The A/B's beach and dark
+  rows above describe what those opt-ins draw. Tests: `heightFloatTheme`, and beach/dark/`'default'`/unset make no R16F upload.
+- Merged dev twice (#421 light crest V2 at `5fe62b5f2`, then #424 at `448deb35c`, which landed mid-merge: another session's fetch
+  moved the shared `origin/dev`). Conflicts kept both sides (harness levers, wind-color README paragraphs; #415's test now sets both
+  the float and light-crest kills). HEATMAP_FS is unchanged by #421 (the hash pin passes). Ledger re-chained again: `pr_open` #420
+  is **1558**, the owner-verdict commitment **1559** (the 1553/1554 above).
