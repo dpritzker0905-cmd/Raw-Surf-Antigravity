@@ -4,7 +4,8 @@
 // + (0.03, 0.05, 0.08) * dir * smoothstep(0.1, 3.0, h)), i.e. wave-lib composite()'s lit colour; composite(P, theme, h, a, dir) is
 // exactly lit * a + water * (1 - a). Above a palette's cap (P.over) one more row per lighting at h = cap + 1.
 // Also written: wave-lib's BASEMAP water and ALPHAS, so the fitter reports the model the checkers run.
-// Usage (from this folder): node wash-lut.mjs <out.json> [--themes light,beach] [--palettes v2,v1] [--step 0.025]
+// Usage (from this folder): node wash-lut.mjs <out.json> [--themes light,beach] [--palettes v2,v1,v2@16] [--step 0.025]
+//   (`v2@16` = v2 widened to the 16 m encoding, what light draws on dev since #415; beach draws v1 there, D-035)
 import fs from 'fs';
 import { ALPHAS, BASEMAP, loadPalettes, composite } from './wave-lib.mjs';
 
@@ -12,11 +13,18 @@ const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k);
 const out = args[0];
 if (!out || out.startsWith('--')) throw new Error('usage: node wash-lut.mjs <out.json> [--themes light,beach] [--palettes v2,v1] [--step 0.025]');
 const themes = arg('--themes', 'light,beach').split(','), ids = arg('--palettes', 'v2,v1').split(','), step = Number(arg('--step', 0.025));
-const P = loadPalettes().WAVE_PALETTES, DIRS = [0, 0.25, 0.5, 0.75, 1];
+const mod = loadPalettes(), P = mod.WAVE_PALETTES, DIRS = [0, 0.25, 0.5, 0.75, 1];
+/** A palette id, or `<id>@16`: the table as the 16 m encoding draws it (marineWavePalette.js widenWavePalette; light v2 on dev). */
+const pick = (id) => {
+  const [base, at] = id.split('@');
+  if (!P[base]) throw new Error(`wash-lut.mjs: no palette ${base} in marineWavePalette.js (${Object.keys(P).join(', ')})`);
+  if (!at) return P[base];
+  if (at !== '16' || typeof mod.widenWavePalette !== 'function') throw new Error(`wash-lut.mjs: ${id}: this tree has no 16 m widenWavePalette`);
+  return mod.widenWavePalette(P[base]);
+};
 const lut = { alphas: ALPHAS, basemap: BASEMAP, palettes: {} };
 for (const id of ids) {
-  if (!P[id]) throw new Error(`wash-lut.mjs: no palette ${id} in marineWavePalette.js (${Object.keys(P).join(', ')})`);
-  const pal = P[id], cap = pal.cap, hs = [];
+  const pal = pick(id), cap = pal.cap, hs = [];
   for (let k = 0; k * step <= cap + 1e-9; k++) hs.push(+(k * step).toFixed(4));
   if (pal.over) hs.push(cap + 1);
   lut.palettes[id] = { cap, over: !!pal.over };

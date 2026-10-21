@@ -137,6 +137,13 @@ def main(ab, lut_path):
     crop = [float(x) for x in opt('--crop', '0,0.06,0.93,1').split(',')]
     sea_max, signal = float(opt('--sea', '4')), float(opt('--signal', '0.08'))
     alphas = np.round(np.arange(0.15, 1.0001, 0.01), 2)   # calm water at z 10 under BLEND BOTH is drawn near 0.3
+    # Which LUT palette each theme/variant drew: default v1 for the `v1` variant, else v2. --palette-map overrides per theme/variant,
+    # e.g. on dev 5fe62b5f2 (light v2 at 16 m, beach locked on v1 by D-035): light/v2=v2@16,light/nb=v2@16,beach/v2=v1,beach/nb=v1
+    pmap = dict(kv.split('=') for kv in opt('--palette-map', '').split(',') if kv)
+
+    def pal_for(theme, v):
+        return pmap.get(f'{theme}/{v}', 'v1' if v == 'v1' else 'v2')
+
     rng = np.random.default_rng(1)
     out = {'alphas_model': lut['alphas'], 'water': {}, 'fit': {}, 'pixel': {}}
     shots = {}
@@ -154,8 +161,7 @@ def main(ab, lut_path):
                 out['water'][f'{theme}/{view}'] = {'rgb': w.tolist(), 'share': share}
                 print(f'  bare water {view:8s} {tuple(int(x) for x in w)}  ({100 * share:.0f}% of the frame)')
         for v in variants:
-            pal = 'v1' if v == 'v1' else 'v2'
-            rows = np.array(lut['palettes'][pal][theme], dtype=np.float64)
+            rows = np.array(lut['palettes'][pal_for(theme, v)][theme], dtype=np.float64)
             for view in views:
                 sh = shots.get((theme, v, view))
                 if not sh:
@@ -204,7 +210,7 @@ def main(ab, lut_path):
 
         # 3. per-pixel effective alpha: v2 against the blend-off control at the same hour and camera
         if 'nb' in variants:
-            rows = np.array(lut['palettes']['v2'][theme], dtype=np.float64)
+            rows = np.array(lut['palettes'][pal_for(theme, 'nb')][theme], dtype=np.float64)   # the control's own table
             for v in [x for x in variants if x != 'nb']:
                 for view in views:
                     a_sh, b_sh = shots.get((theme, v, view)), shots.get((theme, 'nb', view))
@@ -213,8 +219,8 @@ def main(ab, lut_path):
                     if a_sh[0]['engine'].get('valid') != b_sh[0]['engine'].get('valid'):
                         print(f'  [skip] {v} vs nb {view}: valid times differ ({a_sh[0]["engine"].get("valid")} vs {b_sh[0]["engine"].get("valid")})')
                         continue
-                    if v == 'v1':
-                        continue   # the nb control draws the v2 table: pair only v2 with it
+                    if pal_for(theme, v) != pal_for(theme, 'nb'):
+                        continue   # pair only a variant that draws the control's table
                     ea, eb = a_sh[0]['engine'], b_sh[0]['engine']
                     if ea.get('cols') != eb.get('cols') or ea.get('bounds') != eb.get('bounds'):
                         print(f'  [skip] {v} vs nb {view}: different resident grids ({ea.get("cols")} vs {eb.get("cols")} cols), not the same field')
