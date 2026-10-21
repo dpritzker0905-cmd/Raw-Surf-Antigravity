@@ -102,3 +102,10 @@ other sessions' harnesses (simple greps took over 2 minutes at times), so the ar
 - **Run identity (lead cross-check, point 3):** the index and `latest.json` now carry `run_time`, the newest manifest run_time
   among the set's frames (the identity the server cache's series memo is re-keyed to), beside `run` (the verified model cycle).
   The client's pin telemetry shows both. One assertion was added to an existing test (still 20 backend tests; floors unchanged).
+
+## 2026-10-21 00:50Z: ledger re-fork after #421
+
+#421 (light crest V2) merged its own ledger lines 1553-1556 first, so #422's branch lines 1553 (pr_open) and 1554 (commitment) forked
+the chain. Merged dev into the branch, took dev's ledger and STATE, and re-appended the two lines as **seq 1557 (pr_open) and 1558
+(commitment, due 2026-10-27T18:00Z)**; each says it was re-forked. The 1553/1554 above in this log name the superseded branch-only
+lines. STATE's Ledger head moved to 1558.

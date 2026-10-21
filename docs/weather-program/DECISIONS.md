@@ -1260,3 +1260,29 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Rollback:** `window.__RAW_DISABLE_WAVE_BEACH_V1__ = true` draws beach on v2 exactly as #411 merged it (shader hash pinned);
   `window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true` draws v1 in both themes.
 - **Reopen if:** the owner says so.
+
+### D-036 · Light's wave crests are warm polarity: deep umber below 3.05 m, cream above, gold storms; ON by default
+- **Decided:** owner, 2026-10-20 ~22:50Z, on the A/B of PR #421 (today | V2 | V2 with self-contrast everywhere: model strips,
+  contrast by height, engine stills and moving clips at world, regional and coastal zoom, the paired engine numbers, the warm-family
+  and cased-crest comparisons): "Ship light crest V2 (#421): umber / cream / gold warm polarity, on by default with the kill switch.
+  Record the pick and mark #421 ready once hosted CI is green." Before it, the owner's rule for every theme (relayed by the beach crest
+  session, 15:57Z / 16:02Z): warm polarity, "if they have specific logic in place that is better ... go with that ... Whatever is state
+  of the art", judged by APCA |Lc| first and colour-blind dE00 second.
+- **Rule:** light's crests (DRAW_FS's light branch: calm, active, storm and `foamHighlight`) come from `LIGHT_CRESTS.v2` in
+  `marineCrestPalette.js`: a deep umber (0.27, 0.10, 0.00) below 3.05 m, cream (1.00, 1.00, 0.82) from 3.05 m, a gold storm
+  (1.00, 0.96, 0.00), and the foam umber-black (0.05, 0.02, 0.00) below the switch and white above. The switch sits where light's v2
+  wash passes APCA Y 0.352 (2.6-3.3 m by zoom and swell lighting), so a crest never meets its wash's luminance (direction of motion
+  is lost at isoluminance, Lindsey & Teller 1990). V2 stands down wherever light's wash is not v2. Dark's and beach's crests are
+  untouched (beach: D-035).
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md`; `evidence/light-crest-v2-2026-10-20.json`; owner page
+  https://claude.ai/artifact/F4TCg9jZAGAdjfZW19bNqe. Checker over v2 and v2@16: today 16.8 dE00 / colour-blind 13.4 / |Lc| 0, V2
+  32.7 / 24.3 / 40.0 (40.9 on a whitecap's front); coloraide 14.0 -> 25.6. Engine, offline, paired exact wash, p99 |Lc|: world
+  22.3 -> 34.3, regional 17.6 -> 40.1, coastal 24.2 -> 76.1. Light's navy kept below the switch (37.2), beach #416's warm inks on
+  light (35.0, their oxblood 1.5 dE00 from light's red flag) and warm-window solves (36.8-38.7) all measured lower on |Lc|.
+- **Known costs:** the calm crests turn from navy to deep umber; a visible contour where the sea crosses 3.05 m; whitecaps below the
+  switch deepen the crest instead of whitening it; the storm gold is loud (a warmer gold costs |Lc| on the 3-6 m path).
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_V2__ = true` before load draws dev's DRAW_FS byte for byte (sha256 pinned in
+  `marineCrestPaletteLight.test.js`); either wave-palette kill also stands V2 down.
+- **Next, not decided:** the cased crest (dark edge round a light core; model |Lc| 42.9, colour-blind 36.4) needs new DRAW_FS
+  geometry and its own A/B. After #420 (float wash) lands, re-run the paired engine read for light.
+- **Reopen if:** the owner says so, or #420's float wash moves light's crossing out of 2.6-3.3 m.
