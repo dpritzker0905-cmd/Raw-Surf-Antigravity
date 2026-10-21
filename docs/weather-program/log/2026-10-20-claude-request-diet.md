@@ -164,3 +164,6 @@ world-frame rule, the listener's drawn-engine rule, the newest-run rule and the 
 **Checks after the fixes** (branch merged with `dev` 744775c86): Jest `src/components/map src/tests src/__tests__` **424 of 424 suites,
 5,729 tests** (mirror, with the repo-root files the three readers need beside it); `check_eslint.js` exit 0; `craco build` compiled
 with warnings, as `dev`; `loc_ratchet.py` clean (fetcher core 966/966 with its import on its own line, settle hook 800/800).
+**Ledger, final re-chain** (once, against `dev` a25aaa8ae after #425, as the lead asked): this PR's lines are **1563** (`pr_open`),
+**1564** (the live read-back commitment, due 2026-10-27) and **1565** (`push`: the review fixes; it supersedes 1563's "SWR_RETRY_CAP ON").
+They were first written as 1557-1558 and then 1558-1559; each earlier copy was dropped with `dev`'s ledger taken byte-for-byte.
