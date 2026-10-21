@@ -13,6 +13,7 @@
 //      after each cut measure the drift (crests still filling in after the jump, the storm moving) that a one-pass sweep folds into
 //      the cut. SETTLE (ms after each zoom jump, default 20000); each step records its seconds since the jump.
 //      ZOOMS_light / ZOOMS_beach / ZOOMS_dark (defaults below: zooms where each theme's ramp is full and the view is big surf)
+//      FLAGS='{"__RAW_DISABLE_LIGHT_CREST_V2__":true}': window levers set before the app loads (e.g. another crest style)
 const fs = require('fs');
 const path = require('path');
 const L = require('./ab_lib.js');
@@ -24,6 +25,7 @@ const themes = (process.env.THEMES || 'light,beach,dark').split(',');
 const CUTS = (process.env.CUTS || '0,0.15,0.3,0.45,0.6').split(',').map((c) => (c === 'table' ? c : Number(c)));
 const FRAMES = +(process.env.FRAMES || 8);
 const SETTLE = +(process.env.SETTLE || 20000);
+const FLAGS = JSON.parse(process.env.FLAGS || '{}');
 const [LNG, LAT] = (process.env.CENTER || '-105.2,18.4').split(',').map(Number);
 const ZOOMS = { light: '7.4,9,10.5', beach: '7.4,9,10.5', dark: '8.25,9,10.5' };
 const zoomsFor = (t) => (process.env[`ZOOMS_${t}`] || ZOOMS[t]).split(',').map(Number);
@@ -38,11 +40,12 @@ const readCut = () => {   // the u_densityCut the DRAW program holds right now
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const record = { at: new Date().toISOString(), center: [LNG, LAT], cuts: CUTS, frames: FRAMES, steps: [] };
+  const record = { at: new Date().toISOString(), center: [LNG, LAT], cuts: CUTS, frames: FRAMES, flags: FLAGS, steps: [] };
   for (const theme of themes) {
     const { browser, page } = await L.launch({ port: PORT });
     try {
       await page.addInitScript((t) => localStorage.setItem('raw-surf-theme', t), theme);
+      await page.addInitScript((f) => Object.assign(window, f), FLAGS);
       await L.openMap(page);
       await L.clickText(page, 'Waves'); await sleep(9000);
       const box = await page.evaluate(() => { const r = (window.__MAP_INSTANCE__ || window.map).getContainer().getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; });

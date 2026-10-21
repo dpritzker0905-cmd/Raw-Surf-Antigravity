@@ -303,3 +303,8 @@ first push re-chained after dev's head 1594 as 1595 (`pr_merge #424`), 1596 (`pr
 (finding: the hash staircase) and 1599 (decision D-042, fulfils 1597). Hosted CI's encoding-debris guard read the hash's plus-equals as
 mojibake (a token made only of box-drawing decay characters), so the GLSL says `p3 = p3 + dot(...)`, the same arithmetic. Decision numbers: D-037 is #431's (light spectrum, open), D-038
 is #430's (merged), D-039 is #419's (merged), so density is D-042, the warm gold D-040 and the light restore (#438) D-041.
+
+**Light's rows under the original crests** (18:15Z). The owner turned down light V2's height colour flips at 12:02Z ("The original
+was better") and the restore of the pre-#421 crests is #438 (D-041), so light's rows were re-read with
+`__RAW_DISABLE_LIGHT_CREST_V2__` (`scn_density_sweep.js` FLAGS, bracketed, shipped rows): -17.5 / -18.6 / -16.2% at z7.4 / z9 / z10.5,
+inside 15-20%. The fit holds whichever light crest colours ship (coverage counts crest pixels, not their colour).
