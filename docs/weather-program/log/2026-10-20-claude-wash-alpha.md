@@ -156,3 +156,42 @@ coastal (z 10: 0.77 / 0.194). B used a two-edit scratch patch to wave-lib.mjs, N
   VIEWS=close,coastal,r55Out,regionalOut,worldOut` for the zoomed-out state, `VIEWS=calm05,calm08,calm10,calm12,calm14,calm05c,
   calm10c,calm14c` for calm seas), `node wash-lut.mjs <lut.json>`, `python wash_alpha.py <dir> <lut.json> [--variants ...
   --views ...] --json out.json`. Node scripts from a checkout path without a dot directory (CRA/playwright resolution).
+
+## 7. 2026-10-21T03:46Z: replicated on a dev build, as served (the lead's request: measure on dev, label each number)
+
+The lead asked for dev's build (f6b80f724: beach on v1, sha-locked by D-035; light on v2 at 16 m since #415). Built dev
+**448deb35c** (= 5fe62b5f2 + #424's receipt; contains f6b80f724 and #421), fresh store, valid 2026-10-21T03:00Z, variants `v2`
+(the defaults: light v2@16, beach v1) and `nb`; fitted against dev's own tables (`wash-lut.mjs --palettes v2,v1,v2@16`,
+`wash_alpha.py --palette-map light/v2=v2@16,light/nb=v2@16,beach/v2=v1,beach/nb=v1`). Same result as §2 within 0.01-0.03:
+
+| build | theme (table) | view (z) | blend | u_opacity / base | sea h p50 | model | **fitted** | resid fitted / model | law | per-pixel |
+|---|---|---|---|---|---|---|---|---|---|---|
+| dev 448deb35c | light (v2@16) | world (2.2) | off | 0.65 | 1.6 m | 0.65 | **0.64** | 0.12 / 0.13 | 0.650 | 0.650 |
+| dev 448deb35c | light (v2@16) | regional (4.6) | off | 0.682 | 3.4 m | 0.70 | **0.68** | 0.15 / 0.21 | 0.682 | 0.682 |
+| dev 448deb35c | light (v2@16) | coastal (7.4) | on | 0.738 / 0.531 | 6.2 m | 0.77 | **0.87** | 0.27 / 0.93 | 0.877 | (grids differ) |
+| dev 448deb35c | light (v2@16) | close (10) | on | 0.539 / 0.194 * | 6.0 m | 0.77 | **0.62** | 0.23 / 1.41 | 0.628 | (grids differ) |
+| dev 448deb35c | light (v2@16) | regional zoomed out (4.6) | on | 0.682 / 0.491 | 3.5 m | 0.70 | **0.84** | 0.18 / 1.11 | 0.838 | 0.838 |
+| dev 448deb35c | light (v2@16) | calm 0.5 m (7.4) | on | 0.738 / 0.531 | 0.5 m | 0.77 | **0.62** | 0.04 / 1.83 | 0.621 | (grids differ) |
+| dev 448deb35c | light (v2@16) | calm 0.5 m (10) | on | 0.77 / 0.194 | 0.5 m | 0.77 | **0.37** | 0.06 / 7.62 | 0.370 | (grids differ) |
+| dev 448deb35c | light (v2@16) | calm 1.4 m (10) | on | 0.77 / 0.194 | 1.4 m | 0.77 | **0.81** | 0.12 / 0.13 | 0.814 | 0.807 |
+| dev 448deb35c | beach (v1) | world (2.2) | off | 0.65 | 1.6 m | 0.65 | **0.65** | 0.21 / 0.21 | 0.650 | 0.650 |
+| dev 448deb35c | beach (v1) | regional (4.6) | off | 0.682 | 3.9 m | 0.70 | **0.68** | 0.27 / 0.86 | 0.682 | 0.682 |
+| dev 448deb35c | beach (v1) | coastal (7.4) | on | 0.738 / 0.531 | 6.2 m | 0.77 | **0.88** | 0.27 / 3.88 | 0.877 | 0.891 |
+| dev 448deb35c | beach (v1) | close (10) | on | 0.77 / 0.194 | 6.0 m | 0.77 | **0.81** | 0.31 / 1.61 | 0.815 | 0.820 |
+| dev 448deb35c | beach (v1) | regional zoomed out (4.6) | on | 0.682 / 0.491 | 3.9 m | 0.70 | **0.84** | 0.28 / 6.02 | 0.838 | 0.838 |
+| dev 448deb35c | beach (v1) | calm 0.5 m (7.4) | on | 0.738 / 0.531 | 0.5 m | 0.77 | **0.60** | 0.19 / 4.10 | 0.604 | 0.606 |
+| dev 448deb35c | beach (v1) | calm 0.5 m (10) | on | 0.77 / 0.194 | 0.5 m | 0.77 | **0.33** | 0.04 / 10.42 | 0.325 | 0.335 |
+| dev 448deb35c | beach (v1) | calm 1.4 m (10) | on | 0.77 / 0.194 | 1.4 m | 0.77 | **0.81** | 0.26 / 1.66 | 0.814 | 0.815 |
+
+\* The same transient as §2: a 4-column tile held at z 10 with coarseFade 0.7.
+
+- **Control:** `nb` fits heatmapZoomOpacity in all 16 views: 0.64-0.65 / 0.68 / 0.74 / 0.76-0.77 / 0.68 / 0.74 / 0.77 / 0.77.
+- **Labels for §2-§5:** §2's table and §4's checker deltas are labelled "PR #419 build 669b5d699 (src 08ff79ec9)". Its engine,
+  shader and opacity files are byte-identical to dev, and this replication on dev 448deb35c agrees.
+- **Ledger re-chain:** dev took seq 1557 (#421's receipt) while #425 was open, so this branch's finding and pr_open were
+  re-appended after it as **1558** and **1559** (`--acted-at` the original times, LESSONS ledger re-forks). The commit message
+  of 926181a4b still says "ledger 1557"; the finding is 1558.
+- **Dark (the session that started this one) asked why a second dark run fitted 0.71 at the eye:** the same condition. Run 1's
+  clips were shot after a coastal view had committed a regional tile (its record: bounds -108..-102, 16..21), so they were
+  zoomed out with the tile resident: the law gives 0.838 / 0.858 / 0.877, against 0.84 / 0.86 / 0.87 fitted. Run 2 visited
+  only the eye, with the 181 x 83 global grid resident: no blend, 0.71 = heatmapZoomOpacity(6). Answered by message.
