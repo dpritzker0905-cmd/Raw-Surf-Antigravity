@@ -435,6 +435,11 @@ async function loadSeriesPageStatic(key, ctx) {
     entry.frames.set(h, frameToMarineData(f, ctx.model, ctx.layer));
     entry.hours = Array.from(entry.frames.keys()).sort((a, b) => a - b);
     if (fresh) _seriesCache.set(key, entry);
+    committed += 1;
+    if (committed === 1) revalidated();   // first frame of the fill: re-drive the scrub settle once; once more at the end
+  };
+  let committed = 0;
+  const revalidated = () => {
     if (typeof window !== 'undefined') { try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ } }
   };
   const staticEntry = () => { const e = _seriesCache.get(key); return e && e.staticFrames ? e : null; };
@@ -455,6 +460,7 @@ async function loadSeriesPageStatic(key, ctx) {
       return false;
     } finally {
       finishFlight(key, flight);
+      if (committed > 1) revalidated();
     }
   })();
   flight.seriesSignal = ctx.signal;

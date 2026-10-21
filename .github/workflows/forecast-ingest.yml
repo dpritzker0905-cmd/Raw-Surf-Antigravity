@@ -118,25 +118,6 @@ jobs:
           WAVES_ANIM_SWELL_MIN_FRAC: ${{ vars.WAVES_ANIM_SWELL_MIN_FRAC || '0.35' }}
         run: python scripts/ingest_forecast_ci.py
 
-      # STATIC FORECAST FRAMES (step 2b, 2026-10-20, dark; supersedes the 2026-10-19 one-field proof's download path):
-      # every stored GFS waves global_mid product as one gzipped binary frame (~55 KB) in the PUBLIC bucket
-      # `weather-frames`, each decoded and checked node by node against its source before upload, plus an immutable run
-      # index and a no-cache v1/latest.json pointer written LAST; only changed frames are uploaded; the current and
-      # previous index are kept and older objects deleted. Also still writes the proof's one PNG + manifest.json.
-      # Built ONLY from this runner's own product files (backend/uploads/weather_products, written by the ingest step
-      # above): nothing is downloaded from weather-products. Writes only weather-frames. Serves nothing until a client
-      # is built with REACT_APP_STATIC_FRAMES=true. Can never fail the ingest cycle (continue-on-error).
-      # ON: repository variable FRAME_IMAGES_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
-      - name: Publish static forecast frames (dark)
-        if: ${{ success() && vars.FRAME_IMAGES_PUBLISH == '1' }}
-        continue-on-error: true
-        timeout-minutes: 15
-        working-directory: backend
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: python scripts/publish_frame_images.py
-
       # MODEL SPREAD DATA (2026-10-19, dark, data only): per-node GFS/EURO/ICON mean/min/max/spread/cv of the world
       # (global_mid) wave field at GFS leads 0, 24, 48 ... h, for each frame whose three member runs are new, written to
       # the PRIVATE weather-products bucket under model_spread/global_mid/ (gzip JSON + index.json; never the manifest).

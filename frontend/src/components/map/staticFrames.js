@@ -260,18 +260,14 @@ function markPinStale(key) {
 }
 
 /** Decoded vectors for one frame record (LRU + in-flight de-dup). Null on any failure (reason recorded). */
-export async function loadFrameVectors(key, frame, signal) {
-  const hit = _lru.get(frame.path);
-  if (hit) {
-    _lru.delete(frame.path);
-    _lru.set(frame.path, hit);
-    telemetry().lruHits += 1;
-    return hit;
-  }
-  if (_inflight.has(frame.path)) return _inflight.get(frame.path);
-  const p = (async () => {
+// A frame fetch is SHARED by every caller that wants the same immutable path (seam A's exact /grid and seam B's window
+// often ask for the same frame at once). It runs on its OWN AbortController, aborted only when EVERY waiter has
+// aborted: one caller's supersede must not leave another caller (or the LRU) without the frame.
+function sharedFrameLoad(key, frame) {
+  const controller = new AbortController();
+  const promise = (async () => {
     const t = telemetry();
-    const got = await fetchFrameBytes(staticFramesBase() + frame.path, signal);
+    const got = await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal);
     if (got.error) {
       if (got.status === 404 || got.status === 400) markPinStale(key); // retention removed it: re-pin next time
       noteMiss(got.error === 'aborted' ? 'aborted' : (got.status ? `http_${got.status}` : 'fetch_error'));
@@ -297,9 +293,48 @@ export async function loadFrameVectors(key, frame, signal) {
       return null;
     }
   })();
-  _inflight.set(frame.path, p);
-  p.finally(() => _inflight.delete(frame.path));
-  return p;
+  return { promise, controller, waiters: 0 };
+}
+
+/** Decoded vectors for one frame record (LRU + shared in-flight load). Null on any failure (reason recorded) or when
+ *  THIS caller's signal aborts (the shared load keeps going for the other waiters). */
+export async function loadFrameVectors(key, frame, signal) {
+  if (!frame || !frame.path) return null;
+  const hit = _lru.get(frame.path);
+  if (hit) {
+    _lru.delete(frame.path);
+    _lru.set(frame.path, hit);
+    telemetry().lruHits += 1;
+    return hit;
+  }
+  if (signal && signal.aborted) return null;
+  let entry = _inflight.get(frame.path);
+  if (!entry || entry.controller.signal.aborted) {        // none yet, or every earlier waiter gave up on it
+    entry = sharedFrameLoad(key, frame);
+    _inflight.set(frame.path, entry);
+    const mine = entry;
+    entry.promise.finally(() => { if (_inflight.get(frame.path) === mine) _inflight.delete(frame.path); });
+  }
+  const shared = entry;
+  shared.waiters += 1;
+  let left = false;
+  const leave = () => {
+    if (left) return;
+    left = true;
+    shared.waiters -= 1;
+    if (shared.waiters <= 0) shared.controller.abort();   // nobody wants it any more
+  };
+  if (!signal) {
+    try { return await shared.promise; } finally { left = true; shared.waiters -= 1; }
+  }
+  let onAbort;
+  const aborted = new Promise((resolve) => { onAbort = () => { leave(); resolve(null); }; signal.addEventListener('abort', onAbort, { once: true }); });
+  try {
+    return await Promise.race([shared.promise, aborted]);
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+    if (!left) { left = true; shared.waiters -= 1; }
+  }
 }
 
 const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west) : 0);
@@ -325,6 +360,9 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
     const askMs = Date.parse(validTimeStr);
     const frame = pickIndexFrame(index, askMs);
     if (!frame) { noteMiss('no_frame_in_window'); return null; }
+    // The pick landed on an entry the publisher could not build (not on its disk, refused by parity): /grid serves this
+    // hour. Never substitute a neighbouring frame, which could be up to 3 h away.
+    if (!frame.path) { noteMiss('unbuilt_frame'); return null; }
     const vectors = await loadFrameVectors(key, frame, signal);
     if (!vectors) return null;
     telemetry().hits += 1;
@@ -359,7 +397,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
       const h = order[next++];
       const askMs = anchorMs + h * 3600000;
       const frame = pickIndexFrame(index, askMs);
-      if (!frame) { missing.push(h); continue; }
+      if (!frame || !frame.path) { missing.push(h); continue; }   // unbuilt: the per-hour path asks /grid
       const vectors = await loadFrameVectors(key, frame, signal);
       if (!vectors) { missing.push(h); continue; }
       telemetry().seriesFrames += 1;

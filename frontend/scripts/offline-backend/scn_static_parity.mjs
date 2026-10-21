@@ -4,7 +4,9 @@
 // decode it with the APP'S OWN codec (src/components/map/staticFrameCodec.js, loaded as-is) into the /grid response it
 // stands in for, and compare it with what the REAL backend (serve_synthetic.py over the same store) serves for the same
 // world request and valid time: on the hour of the frame and at +1 h and +2 h (nearest-frame substitution, the honesty
-// fields). Tolerances are the frame's stated quantisation (backend/services/frame_binary.py TOLERANCE).
+// fields). Tolerances are the frame's stated quantisation (backend/services/frame_binary.py TOLERANCE). An entry the
+// publisher could not build (path null) is checked the other way: every ask that picks it falls back, and /grid serves
+// the product it names (a gap must never be filled with a neighbouring frame).
 //
 //   node frontend/scripts/offline-backend/scn_static_parity.mjs <cdn dir> <backend port> [out.json]
 import fs from 'fs';
@@ -65,7 +67,25 @@ const rows = [];
 let worst = { bad: 0, meta: 0 };
 const maxErr = { speed: 0, direction: 0, period: 0, dir_confidence: 0, uv: 0 };
 const t0 = Date.now();
+let gapAsks = 0;
+const gapRows = [];
 for (const frame of index.frames) {
+  if (!frame.path) {
+    // An entry the publisher could not build. Every ask that picks it must FALL BACK (the client returns null and asks
+    // /grid), and /grid must serve exactly the product this entry names. The pick must never substitute a neighbour.
+    for (const offH of [0, 1, 2]) {
+      const askMs = Date.parse(frame.valid_time) + offH * 3600000;
+      const pick = C.pickIndexFrame(index, askMs);
+      if (pick !== frame) continue;
+      gapAsks++;
+      const res = await fetch(`http://127.0.0.1:${port}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(new Date(askMs).toISOString())}&bbox=${WORLD}`);
+      const grid = await res.json();
+      const ok = grid.product_id === (frame.source || {}).filename;
+      if (!ok) worst.meta += 1;
+      gapRows.push({ valid: frame.valid_time, ask: C.apiIso(askMs), unbuilt: frame.unbuilt, falls_back: true, grid_product: grid.product_id, ok });
+    }
+    continue;
+  }
   const gz = fs.readFileSync(path.join(cdnDir, frame.path));
   const raw = gz[0] === 0x1f && gz[1] === 0x8b ? zlib.gunzipSync(gz) : gz;
   const vectors = C.buildVectors(C.parseFrame(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)));
@@ -84,7 +104,9 @@ for (const frame of index.frames) {
   }
 }
 const report = {
-  index: index.path, frames: index.frames.length, comparisons: rows.length, nodes: rows.reduce((a, r) => a + r.nodes, 0),
+  index: index.path, frames: index.frames.length, built: index.frames.filter((f) => f.path).length,
+  unbuilt: index.frames.filter((f) => !f.path).length, gap_asks_falling_back: gapAsks, gap_rows: gapRows.slice(0, 6),
+  comparisons: rows.length, nodes: rows.reduce((a, r) => a + r.nodes, 0),
   bad_nodes: worst.bad, meta_mismatches: worst.meta, max_abs_err: Object.fromEntries(Object.entries(maxErr).map(([k, v]) => [k, +v.toFixed(6)])),
   tolerance: TOL, seconds: (Date.now() - t0) / 1000, mismatched_rows: rows.filter((r) => r.bad || r.meta.length).slice(0, 10),
 };

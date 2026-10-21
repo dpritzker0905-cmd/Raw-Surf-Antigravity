@@ -46,6 +46,7 @@ def _product(valid, run="2026-10-20T06:00:00Z", bump=0.0, cols=6, rows=4):
 
 
 VALIDS = ["2026-10-20T06:00:00Z", "2026-10-20T09:00:00Z", "2026-10-20T12:00:00Z"]
+TEN = [f"2026-10-{20 + (6 + 3 * i) // 24}T{(6 + 3 * i) % 24:02d}:00:00Z" for i in range(10)]   # 06Z, 09Z ... 09Z next day
 
 
 def _write_store(store, run="2026-10-20T06:00:00Z", bump=0.0, valids=VALIDS, skip_files=(), extra=()):
@@ -87,6 +88,7 @@ def test_first_publish_writes_checked_immutable_frames_then_the_pointer_last(tmp
         assert body[:2] == b"\x1f\x8b" and fb.sha256_hex(gzip.decompress(body)) == f["sha256"]
     assert index["run"] == "2026-10-20T06:00:00Z" and index["common_meta"]["provider"] == "open-meteo"
     assert index["run_time"] == latest["run_time"] == "2026-10-20T06:00:00Z"   # the manifest run_time the series memo keys on
+    assert index["coverage"] == latest["coverage"] == 1.0 and latest["frames"] == latest["entries"] == 3
     assert index["frames"][0]["meta"]["product_id"].startswith("gfs_marine_waves_global_mid_")
     assert index["common_meta"]["diagnostics"] == {"gridMode": "rectangular"}   # only the keys a client reads
 
@@ -123,20 +125,24 @@ def test_a_new_run_moves_the_pointer_and_retention_keeps_one_previous_index(tmp_
 
 def test_frames_come_only_from_the_runners_disk(tmp_path):
     store, out = tmp_path / "store", tmp_path / "out"
-    _write_store(store)
+    _write_store(store, valids=TEN)
     _publish(store, out)
     missing = "gfs_marine_waves_global_mid_20261020T090000Z.json"
     # Same identity, file gone from disk: carried over from the previous index without reading anything.
     (store / missing).unlink()
     stats = _publish(store, out)[0][fs.set_key(TARGET)]
-    assert (stats["carried"], stats["not_local"]) == (3, 0)
-    # A NEW run whose file is not on disk: left out (the client falls back to /grid), never downloaded.
-    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2, skip_files=(missing,))
+    assert (stats["carried"], stats["not_local"]) == (10, 0)
+    # A NEW run whose file is not on disk: never downloaded, and LISTED with path null so the client's pick lands on it
+    # and falls back to /grid (review finding 2: dropping it let the pick substitute the frame 3 h away).
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2, valids=TEN, skip_files=(missing,))
     report, _sink = _publish(store, out)
     stats = report[fs.set_key(TARGET)]
-    assert (stats["built"], stats["not_local"]) == (2, 1)
+    assert (stats["built"], stats["not_local"], stats["coverage"]) == (9, 1, 0.9)
     index = json.loads((out / _latest(out)["sets"][fs.set_key(TARGET)]["index"]).read_text())
-    assert [f["valid_time"] for f in index["frames"]] == [VALIDS[0], VALIDS[2]]
+    assert [f["valid_time"] for f in index["frames"]] == TEN
+    gap = index["frames"][1]
+    assert gap["valid_time"] == "2026-10-20T09:00:00Z" and gap["path"] is None and gap["unbuilt"] == "not_local"
+    assert gap["source"]["filename"] == missing and "meta" not in gap
 
 
 def test_a_stale_disk_copy_is_never_mixed_into_a_newer_run(tmp_path):
@@ -153,16 +159,60 @@ def test_a_stale_disk_copy_is_never_mixed_into_a_newer_run(tmp_path):
 
 def test_a_frame_failing_parity_is_refused_and_the_step_reports_it(tmp_path, monkeypatch):
     store, out = tmp_path / "store", tmp_path / "out"
-    _write_store(store)
+    _write_store(store, valids=TEN)
     real = fb.parity
 
     def one_bad(product, decoded):
         r = real(product, decoded)
-        return dict(r, bad=1) if product["valid_time"] == VALIDS[1] else r
+        return dict(r, bad=1) if product["valid_time"] == TEN[1] else r
     monkeypatch.setattr(fb, "parity", one_bad)
     assert pub.main(["--store-dir", str(store), "--out-dir", str(out), "--only", "frames"]) == 1
     index = json.loads((out / _latest(out)["sets"][fs.set_key(TARGET)]["index"]).read_text())
-    assert [f["valid_time"] for f in index["frames"]] == [VALIDS[0], VALIDS[2]]
+    refused = [f for f in index["frames"] if f["path"] is None]
+    assert [(f["valid_time"], f["unbuilt"]) for f in refused] == [(TEN[1], "refused")]
+    assert not any(TEN[1].replace("-", "").replace(":", "") in p for p in pub.LocalSink(out).list(PREFIX))
+
+
+def test_a_lane_holding_most_of_the_set_off_disk_publishes_nothing(tmp_path):
+    """Review finding 1: the CORE lane's disk held only 60 of 115 GFS world products (5 within 0-165 h). A set below
+    FRAME_MIN_COVERAGE must not publish a hole-ridden index or upload its frames; the published index stays."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store, valids=TEN)
+    _publish(store, out)
+    before = (out / fs.LATEST).read_bytes()
+    on_disk = set(TEN[:3])
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2, valids=TEN,
+                 skip_files=tuple(f"gfs_marine_waves_global_mid_{v.replace('-', '').replace(':', '')}.json"
+                                  for v in TEN if v not in on_disk))
+    report, sink = _publish(store, out)
+    stats = report[fs.set_key(TARGET)]
+    assert stats["coverage_refused"] is True and stats["coverage"] == 0.3 and stats["uploaded"] == 0
+    assert sink.order == [] and (out / fs.LATEST).read_bytes() == before
+    assert pub.main(["--store-dir", str(store), "--out-dir", str(out), "--only", "frames"]) == 1
+
+
+def test_the_publisher_runs_only_in_the_pilots_lane_after_its_ingest():
+    """The GFS world products are pilot jobs; the step must run in forecast-ingest-pilots.yml after the ingest step, and
+    nowhere else (two publishers' retention could delete each other's frames)."""
+    wf = Path(__file__).resolve().parents[2] / ".github" / "workflows"
+    pilots = (wf / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    assert pilots.index("scripts/ingest_forecast_ci.py") < pilots.index("scripts/publish_frame_images.py")
+    assert "vars.FRAME_IMAGES_PUBLISH == '1'" in pilots
+    others = [f.name for f in wf.glob("*.yml") if f.name != "forecast-ingest-pilots.yml"
+              and "publish_frame_images.py" in f.read_text(encoding="utf-8")]
+    assert others == []
+
+
+def test_retention_deletes_nothing_when_the_previous_index_cannot_be_read(tmp_path):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    _publish(store, out)
+    old = pub.LocalSink(out).list(PREFIX)
+    (out / fs.LATEST).unlink()                   # an unreadable pointer reads as "no previous"
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)
+    report, sink = _publish(store, out)
+    assert report[fs.set_key(TARGET)]["deleted"] == 0 and sink.deleted == []
+    assert all((out / p).exists() for p in old)
 
 
 def test_selection_keeps_estimated_beside_authoritative_and_first_of_duplicates():

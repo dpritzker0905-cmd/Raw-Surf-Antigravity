@@ -137,7 +137,9 @@ const bboxString = (b) => (b ? `${(+b.west).toFixed(4)},${(+b.south).toFixed(4)}
 
 /**
  * The frame /grid would serve for a requested valid time: the nearest within 3 h, authoritative before estimated,
- * the earlier on a tie (index frames are sorted by valid time). Null when no frame is within the window.
+ * the earlier on a tie (index frames are sorted by valid time). Null when no entry is within the window. The index
+ * lists EVERY stored product, so the result can be an entry the publisher could not build (`path: null`): the caller
+ * must then fall back to /grid, never take the next-nearest frame.
  */
 export function pickIndexFrame(index, validMs) {
   if (!index || !Array.isArray(index.frames) || !Number.isFinite(validMs)) return null;

@@ -15,7 +15,9 @@ the frames they name; everything else under the set's prefix is deleted.
 SOURCE RULE (egress): frames are built only from product files already on the ingest runner's disk (the products
 the ingest step just wrote). Nothing here downloads a product. A frame whose source identity (filename, model run,
 run time, ingested_at) matches the previous index is carried over without reading anything; a changed product that
-is not on disk is left out, and the client falls back to /grid for that hour.
+is not on disk is listed with `path: null`, and the client falls back to /grid for that hour. The GFS world products
+are written by the PILOTS lane (scheduler/forecast.py pilot_jobs), so the step runs in forecast-ingest-pilots.yml; a
+lane whose disk holds less than FRAME_MIN_COVERAGE of a set publishes nothing for it.
 
 SELECTION RULE (parity with /grid): the index lists every stored product of the set, flagged authoritative or
 estimated. The client picks the frame /grid would serve (grid_resolver -> mid_res_tier.pick_mid_item): the nearest
@@ -24,6 +26,7 @@ valid time within 3 h, authoritative before estimated, the earlier one on a tie.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime, timezone
 
 from services import frame_binary as fb
@@ -35,6 +38,7 @@ FRAME_TYPE = "application/octet-stream"
 JSON_TYPE = "application/json"
 INDEX_VERSION = 1
 WINDOW_S = 3 * 3600
+MIN_COVERAGE_DEFAULT = 0.9   # a set publishes a new index only when this share of its entries has a frame
 
 SETS = (
     {"model": "GFS", "domain": "marine", "layer": "waves", "region_id": "global_mid"},
@@ -136,51 +140,70 @@ def _grid_record(product):
     return {"cols": g["cols"], "rows": g["rows"], "bounds": g["bounds"], "row0": "south", "col0": "west"}
 
 
-def publish_set(source, sink, target, previous_index, uploader, log=print):
+def min_coverage():
+    """The share of a set's entries that must have a frame before a new index is published (FRAME_MIN_COVERAGE)."""
+    try:
+        return max(0.0, min(1.0, float(os.environ.get("FRAME_MIN_COVERAGE", str(MIN_COVERAGE_DEFAULT)))))
+    except ValueError:
+        return MIN_COVERAGE_DEFAULT
+
+
+def publish_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None):
     """Build, check and upload one set's frames; return (index or None, stats).
 
     `source.product_bytes(filename)` returns local bytes or None and never downloads. `uploader(jobs)` uploads
     [(path, bytes, content_type, cache_control)]. `previous_index` is the index latest.json pointed to, or None.
-    Returns index None when nothing changed (no new index to publish) or nothing could be built.
+    EVERY selected manifest entry is listed in the index; an entry with no frame (not on this runner's disk, a stale
+    disk copy, or refused by the parity gate) is listed with `path: null` and an `unbuilt` reason, so the client's pick
+    lands on it and falls back to /grid instead of substituting a neighbouring frame up to 3 h away.
+    Returns index None when nothing changed, nothing could be built, or fewer than `coverage_floor` (default
+    FRAME_MIN_COVERAGE) of the entries have a frame: then NOTHING is uploaded and the published index stays.
     """
     prefix = set_prefix(target)
+    floor = min_coverage() if coverage_floor is None else coverage_floor
     prev_common = (previous_index or {}).get("common_meta") or {}
     prev_grid = (previous_index or {}).get("grid")
     prev_frames = {}
     for f in (previous_index or {}).get("frames", []):
-        f = dict(f, meta={**prev_common, **(f.get("meta") or {})}, grid=f.get("grid") or prev_grid)
+        if f.get("path"):
+            f = dict(f, meta={**prev_common, **(f.get("meta") or {})}, grid=f.get("grid") or prev_grid)
         prev_frames[(f["valid_time"], bool(f.get("is_estimated")))] = f
     stats = {"entries": 0, "built": 0, "carried": 0, "unchanged": 0, "uploaded": 0, "not_local": 0, "stale_local": 0,
-             "refused": 0, "bytes_uploaded": 0, "parity_bad": 0}
+             "refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0, "coverage_refused": False}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
     entries = select_entries(source.manifest().get("products"), target)
     stats["entries"] = len(entries)
+
+    def unbuilt(vt, est, ident, reason):
+        stats[reason] += 1
+        frames.append({"valid_time": vt, "is_estimated": est, "path": None, "unbuilt": reason, "source": ident})
+
     for entry in entries:
         vt, est = iso(entry.get("valid_time_start") or entry.get("valid_time")), bool(entry.get("is_estimated"))
         ident = source_identity(entry)
         prev = prev_frames.get((vt, est))
-        if prev and prev.get("source") == ident:
+        if prev and prev.get("path") and prev.get("source") == ident:
             frames.append(prev)
             stats["carried"] += 1
             continue
         raw_json = source.product_bytes(entry["filename"])
         if raw_json is None:
-            stats["not_local"] += 1
+            unbuilt(vt, est, ident, "not_local")
             continue
         product = json.loads(raw_json)
         if iso(product.get("model_run_time")) != ident["model_run_time"] or iso(product.get("run_time")) != ident["run_time"]:
-            stats["stale_local"] += 1      # the disk copy is not the run the manifest names: never mix runs
+            unbuilt(vt, est, ident, "stale_local")   # the disk copy is not the run the manifest names: never mix runs
             continue
         try:
             raw, check = build_frame(product, entry)
         except ValueError as e:
-            stats["refused"] += 1
             log(f"[frames] {entry['filename']}: refused ({e})")
+            unbuilt(vt, est, ident, "refused")
             continue
         if check["bad"]:
-            stats["refused"] += 1
             stats["parity_bad"] += check["bad"]
             log(f"[frames] {entry['filename']}: parity refused, nothing uploaded: {check}")
+            unbuilt(vt, est, ident, "refused")
             continue
         for k, v in check["max_abs_err"].items():
             max_err[k] = max(max_err.get(k, 0.0), v)
@@ -192,7 +215,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print):
         sha = fb.sha256_hex(raw)
         meta = product_meta(product, entry["filename"])
         run_stamp = stamp(meta["model_run_time"] or meta["run_time"])
-        if prev and prev.get("sha256") == sha:
+        if prev and prev.get("path") and prev.get("sha256") == sha:
             path, nbytes = prev["path"], prev["bytes"]
             stats["unchanged"] += 1
         else:
@@ -202,29 +225,35 @@ def publish_set(source, sink, target, previous_index, uploader, log=print):
             stats["bytes_uploaded"] += nbytes
         frames.append({"valid_time": vt, "is_estimated": est, "path": path, "sha256": sha, "bytes": nbytes,
                        "raw_bytes": len(raw), "grid": g, "source": ident, "meta": meta})
-    if not frames:
+    built = [f for f in frames if f.get("path")]
+    stats["coverage"] = round(len(built) / len(entries), 4) if entries else 0.0
+    if not built:
+        return None, stats
+    if stats["coverage"] < floor:
+        stats["coverage_refused"] = True   # e.g. a lane whose disk holds only part of the set: keep the published index
+        log(f"[frames] {set_key(target)}: only {len(built)}/{len(entries)} entries have a frame "
+            f"(coverage {stats['coverage']} < {floor}); nothing uploaded, the published index stays")
         return None, stats
     if uploads:
         uploader(uploads)
         stats["uploaded"] = len(uploads)
     frames.sort(key=lambda f: (f["valid_time"], f["is_estimated"]))
     if previous_index and [(f["path"], f["source"]) for f in frames] == \
-            [(f["path"], f.get("source")) for f in previous_index.get("frames", [])]:
+            [(f.get("path"), f.get("source")) for f in previous_index.get("frames", [])]:
         return None, stats                 # the published index already names exactly these frames
-    runs = sorted({f["meta"].get("model_run_time") or f["meta"].get("run_time") or "" for f in frames})
-    # RUN IDENTITY shared with the server's series memo (re-keyed to the model run): the newest manifest run_time among
-    # this set's frames. `run` stays the verified model cycle (model_run_time) for display.
-    run_times = sorted(f["source"]["run_time"] for f in frames if f["source"].get("run_time"))
-    for f in frames:                       # a frame keeps its own grid only where it differs from the set's
+    # `run` is the verified MODEL CYCLE (model_run_time) only; `run_time` (the manifest registration time) is a label.
+    runs = sorted({f["meta"]["model_run_time"] for f in built if f["meta"].get("model_run_time")})
+    run_times = sorted(f["source"]["run_time"] for f in built if f["source"].get("run_time"))
+    for f in built:                        # a frame keeps its own grid only where it differs from the set's
         if f.get("grid") == grid:
             f.pop("grid", None)
-    common = factor_common(frames)
+    common = factor_common(built)
     index = {
         "version": INDEX_VERSION, "encoding_version": fb.ENCODING_VERSION, "transform_version": fb.TRANSFORM_VERSION,
-        "set": set_key(target), **target, "run": runs[-1] or None, "runs": runs,
-        "run_time": run_times[-1] if run_times else None, "grid": grid,
-        "selection": "nearest valid_time within 3 h; authoritative before estimated; earlier on a tie "
-                     "(grid_resolver -> mid_res_tier.pick_mid_item)",
+        "set": set_key(target), **target, "run": runs[-1] if runs else None, "runs": runs,
+        "run_time": run_times[-1] if run_times else None, "grid": grid, "coverage": stats["coverage"],
+        "selection": "nearest valid_time within 3 h over EVERY entry; authoritative before estimated; earlier on a tie "
+                     "(grid_resolver -> mid_res_tier.pick_mid_item); an entry with path null -> /grid",
         "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fb.DEFAULT_FIELDS},
         "parity_max_abs_err": {k: round(v, 6) for k, v in max_err.items()},
         "common_meta": common,
@@ -242,7 +271,7 @@ def index_bytes(index):
 def referenced_paths(index):
     if not index:
         return set()
-    return {index["path"], *(f["path"] for f in index.get("frames", []))}
+    return {index["path"], *(f["path"] for f in index.get("frames", []) if f.get("path"))}
 
 
 def retention_deletes(existing_paths, target, keep):
@@ -256,5 +285,6 @@ def retention_deletes(existing_paths, target, keep):
 
 
 def latest_record(index, previous_entry, written_at, writer):
-    return {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "frames": len(index["frames"]),
+    return {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "coverage": index.get("coverage"),
+            "frames": sum(1 for f in index["frames"] if f.get("path")), "entries": len(index["frames"]),
             "previous_index": (previous_entry or {}).get("index"), "written_at": written_at, "writer": writer}

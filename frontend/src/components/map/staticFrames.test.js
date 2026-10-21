@@ -1,5 +1,5 @@
 import {
-  _resetStaticFramesForTest, getPinnedIndex, setKeyFor, staticEligible, staticFramesEnabled, tryStaticWorldGrid,
+  _resetStaticFramesForTest, getPinnedIndex, loadFrameVectors, setKeyFor, staticEligible, staticFramesEnabled, tryStaticWorldGrid,
 } from './staticFrames';
 import { fetchBackendMarineGrid, setCachedManifest } from './backendWeatherServiceClient';
 import { loadWorldPageFromStatic, nearestFirst } from './marineSeriesStatic';
@@ -160,5 +160,66 @@ describe('static frames loader', () => {
     expect(await loadWorldPageFromStatic({ ...base, background: false })).toBe(true);
     expect(committed.sort((x, y) => x - y)).toEqual([9, 12, 15, 18, 21, 24, 27, 30, 33]);
     expect(calls.filter((u) => u.endsWith('.bin'))).toHaveLength(9);
+  });
+
+  test('an unbuilt entry falls back to /grid instead of substituting the frame 3 h away (review finding 2)', async () => {
+    const idx = indexFor('g', ['2026-10-20T00:00:00Z', '2026-10-20T03:00:00Z']);
+    idx.frames[1] = { valid_time: '2026-10-20T03:00:00Z', is_estimated: false, path: null, unbuilt: 'not_local', source: {} };
+    const calls = cdn({ latestIndex: () => idx.path, indexes: [idx] });
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T02:00:00Z', clampedBbox: WORLD })).toBeNull();
+    expect(window.__RAW_STATIC_FRAMES__.misses.unbuilt_frame).toBe(1);
+    expect(calls.filter((u) => u.endsWith('.bin'))).toHaveLength(0);          // the 00Z frame was NOT served for 02Z
+    const ok = await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T01:00:00Z', clampedBbox: WORLD });
+    expect(ok.served_valid_time).toBe('2026-10-20T00:00:00Z');                 // 00Z is the nearest for 01Z: served
+  });
+
+  test('seam B leaves an unbuilt hour to the per-hour path', async () => {
+    const hours = [0, 3, 6];
+    const valids = hours.map((h) => new Date(now + h * 3600000).toISOString().replace('.000Z', 'Z'));
+    const idx = indexFor('s', valids);
+    idx.frames[1] = { valid_time: valids[1], is_estimated: false, path: null, unbuilt: 'refused', source: {} };
+    cdn({ latestIndex: () => idx.path, indexes: [idx] });
+    const { staticSeriesFrames } = require('./staticFrames');
+    const committed = [];
+    const missing = await staticSeriesFrames({ model: 'GFS', layer: 'waves', bbox: WORLD, hours, anchorMs: now, focusHour: 0,
+      onFrames: (fr) => fr.forEach((f) => committed.push(f.hour_offset)) });
+    expect(missing).toEqual([3]);
+    expect(committed.sort((a, b) => a - b)).toEqual([0, 6]);
+  });
+
+  test('a shared frame fetch survives one caller aborting, and stops only when every caller has (review finding 3)', async () => {
+    const frame = { valid_time: '2026-10-20T00:00:00Z', path: 'v1/f/x/2026-10-20T00:00:00Z.bin' };
+    const pending = [];
+    global.fetch = jest.fn((url, opts) => new Promise((resolve, reject) => {
+      const job = { url, signal: opts && opts.signal, resolve, reject };
+      if (job.signal) job.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+      pending.push(job);
+    }));
+    const a = new AbortController();
+    const b = new AbortController();
+    const pa = loadFrameVectors(KEY, frame, a.signal);
+    const pb = loadFrameVectors(KEY, frame, b.signal);
+    await Promise.resolve();
+    expect(global.fetch).toHaveBeenCalledTimes(1);                              // one shared fetch
+    a.abort();                                                                  // seam A superseded
+    expect(await pa).toBeNull();
+    expect(pending[0].signal.aborted).toBe(false);                              // B still wants it
+    const buf = goldenBuffer('2026-10-20T00:00:00Z');
+    pending[0].resolve({ ok: true, status: 200, arrayBuffer: async () => buf });
+    const vectors = await pb;
+    expect(vectors).toHaveLength(12);
+    expect(await loadFrameVectors(KEY, frame)).toBe(vectors);                   // it reached the LRU
+    const frame2 = { valid_time: '2026-10-20T00:00:00Z', path: 'v1/f/x/other.bin' };
+    const c = new AbortController();
+    const d = new AbortController();
+    const pc = loadFrameVectors(KEY, frame2, c.signal);
+    const pd = loadFrameVectors(KEY, frame2, d.signal);
+    await Promise.resolve();
+    c.abort();
+    expect(pending[1].signal.aborted).toBe(false);
+    d.abort();
+    expect(pending[1].signal.aborted).toBe(true);                               // nobody left: the fetch stops
+    expect(await pc).toBeNull();
+    expect(await pd).toBeNull();
   });
 });

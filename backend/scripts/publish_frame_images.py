@@ -3,8 +3,8 @@
 
 Leading forecast maps serve a FINITE set of precomputed bytes per model x run x layer x valid time from a CDN and let
 the browser decode them, so a scrub costs the server nothing. Raw Surf's 1-CPU Render box instead builds every world
-`/grid` (2.3 MB of JSON) and 48-frame `/grid_series` page on demand. This script, run by forecast-ingest.yml after the
-ingest step, writes two things:
+`/grid` (2.3 MB of JSON) and 48-frame `/grid_series` page on demand. This script, run by forecast-ingest-pilots.yml after
+its ingest step, writes two things:
 
   1. The step 2b frame sets (services/frame_set.py, codec services/frame_binary.py): every stored GFS waves global_mid
      product as one gzipped little-endian binary frame (~55 KB), a run index, and a no-cache `v1/latest.json` pointer
@@ -23,7 +23,10 @@ the proof only with its own opt-in. Writes go ONLY to `weather-frames`; the pipe
 written (the designated-writer gate is not involved).
 
 Credentials by NAME only: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (GitHub Actions secrets in forecast-ingest.yml).
-Dark: forecast-ingest.yml runs it only when the repository variable FRAME_IMAGES_PUBLISH is '1'.
+Dark: forecast-ingest-pilots.yml runs it, after its ingest step, only when the repository variable FRAME_IMAGES_PUBLISH
+is '1'. The PILOTS lane is the one that writes the GFS world products (scheduler/forecast.py pilot_jobs: the 2-degree
+global_mid rides the GFS Marine Pilot pass); the core lane's disk held only 60 of 115 (5 within 0-165 h; runs
+39546548998 vs 39543806662, 2026-10-21), and a set below FRAME_MIN_COVERAGE (0.9) publishes nothing.
 
 Offline:  python scripts/publish_frame_images.py --store-dir <ProductStore dir> --out-dir <dir> [--only frames|png]
 """
@@ -266,12 +269,16 @@ def publish_frame_sets(source, sink, sets=fs.SETS, log=print):
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
             latest.setdefault("sets", {})[key] = fs.latest_record(index, entry, now, _writer())
             changed = True
-            older = None
-            if entry and entry.get("index") and entry["index"] != index["path"]:
-                older = prev_index
-            keep_by_set[key] = (target, fs.referenced_paths(index) | fs.referenced_paths(older))
+            # RETENTION only when the previous index was actually READ: a missing or unreadable latest.json (Supabase
+            # answers some failures with 400, which reads as "not found") must never delete the run clients are
+            # pinned to. The first publish has nothing to delete anyway.
+            if entry and entry.get("index") and prev_index is not None:
+                keep_by_set[key] = (target, fs.referenced_paths(index) | fs.referenced_paths(prev_index))
+            elif entry and entry.get("index"):
+                log(f"[frames] {key}: previous index {entry['index']} unreadable; retention skipped this run")
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
+        stats["deleted"] = 0
         report[key] = stats
     if changed:
         latest.update(version=1, written_at=now, writer=_writer())
@@ -306,7 +313,7 @@ def main(argv=None):
         if summary:
             with open(summary, "a", encoding="utf-8") as fh:
                 fh.write("### Static frames\n```\n" + json.dumps(report, indent=1) + "\n```\n")
-        if any(s.get("refused") for s in report.values()):
+        if any(s.get("refused") or s.get("coverage_refused") for s in report.values()):
             status = 1                     # visible in the step (continue-on-error keeps the cycle green)
     if args.only in (None, "png"):
         try:
