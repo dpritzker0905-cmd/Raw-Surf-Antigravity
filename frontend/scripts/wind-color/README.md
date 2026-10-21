@@ -261,7 +261,7 @@ node wave-polish.mjs in.json out.json --extend 16 [--ext-lmin light=16] [--ext-t
 colour against the composite. Alpha by view (`heatmapZoomOpacity`): world 0.65, regional 0.70, coastal 0.77. Basemap water and
 land are the measured colours in `windFieldLut.test.js` (unmuted: the wind's basemap mute runs only while the wind is on). The
 shader's depth floor under 0.18 m is reported on its own line; LEGEND STOPS are composited from the table itself. Crests are
-DRAW_FS's colours at their 0.85 core alpha, with the whitecap the shader allows at that height.
+DRAW_FS's colours (light's read from `marineCrestPalette.js`) at their 0.85 core alpha, with the whitecap the shader allows.
 
 | Line | Meaning | Bar |
 |---|---|---|
@@ -269,7 +269,7 @@ DRAW_FS's colours at their 0.85 core alpha, with the whitecap the shader allows 
 | no grey | CIELAB C* of the wash path and of the composite, the above-cap state included (D-019) | >= 12 / >= 8 (RED) |
 | neighbours | neighbouring legend stops and the above-cap state, as composited, normal + protan/deutan/tritan | target >= 10 (RED) |
 | land vs sea | the composite nearest the land colour | watch below 15 |
-| crests | a crest's core against the wash under it, normal and colour-blind, and APCA | watch below 15 |
+| crests | a crest's core against the wash under it, normal and colour-blind, and APCA, every 0.1 m and the above-cap state | watch below 15 |
 | legend | APCA Lc of each stop and the arrow on its panel (light: white; beach: `bg-black/90`) | watch below 15 |
 | above the cap | the above-cap colour against the cap's, and no lighter | >= 10 (RED) |
 
@@ -306,6 +306,40 @@ v2 at 16 m, beach v1 at 10 m (D-035; beach v2@16 as its kill draws it), and dark
 over the style's sea and the fallback basemap's, against R16F (the encoder's fp16 heights, clamped to the byte's own scale).
 Worst texel, u8 against R16F: light 11.6 -> 0.01 dE00, beach (v1, /10 floor) 4.2 -> 0.05, dark 6.9-7.0 -> 0.10 (deep-ocean floor; near a shelf the floor is
 brighter, so the drawn step can be larger: the offline A/B read 12.5 at one dark regional pixel).
+
+**Crests (`crest-solve.mjs`; light's table is `src/components/map/marineCrestPalette.js`; 2026-10-20).** The checker's crest line
+reads light's crest colours from that module (v1 over the v1 wash, V2 over v2, as the app draws them) and beach's from the shader's
+literals (D-035: beach's colours are the owner's); `--crest v1|v2|cand.json` swaps light's (a candidate file: pass `--theme light`).
+It samples every 0.1 m and the above-cap state, every zoom and swell lighting, whitecap off and on, and reports APCA |Lc| for the
+crest body and a whitecap's front apart; a watch line adds the engine's crest self-contrast (below 1.05 m at every zoom, and every
+height in the z 3-4.9 band). `crest-solve.mjs` searches the colours (CIELAB LCh, the shader's two decimals) for the largest
+colour-blind soft minimum of crest core vs wash, with a normal-vision floor (`--floor 18`), a crest path that never greys
+(`--path-c`) and the top stops apart (`--stop-de 20`: without it the search lays active = storm and the crest stops telling 3 m
+from 6 m). `--polarity` adds a switch height: below it calm and active take a DARK pair, at and above it a LIGHT pair (DRAW_FS
+`mix(below, above, step(h, v_wave_height))`, still one line each), and the objective adds the APCA |Lc| soft minimum with a floor
+(`--lc`). `--foam r,g,b` sets the foam below the switch (the theme's foam at and above it) and makes the APCA terms score whitecap
+fronts too: light's switch sits near 3 m, where DRAW_VS's whitecap (`smoothstep(0.5, 3.0, h)`) is at full strength, and white foam
+mixed into a dark ink there lands on the wash's own luminance (|Lc| 0 on its front). The table's `foam: { rgb, above }` switches
+DRAW_FS's `foamHighlight` the same way.
+
+```powershell
+node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 50,80 --storm-h 60,100 --foam 0.05,0.02,0 --out l.json
+node wave-check.mjs --palette v2 --theme light --crest v1   # today's light crests over v2 (the "before")
+node wave-check.mjs --theme light                           # what ships (light V2), over v2 and v2@16
+.venv/Scripts/python cvd_lut.py lut.json                    # coloraide's dichromats on a 33^3 linear lattice, for ../offline-backend/crest_contrast.py
+```
+
+What the light search taught (over v2 and v2@16; light's wash passes APCA Y 0.352 at 2.6-3.3 m):
+- A smooth ramp that keeps colour contrast crosses the wash's luminance somewhere (crest lighter at storms, darker at calm); today's
+  navy -> amber -> crimson does near 3 m and, in the worst zoom and lighting, stays at |Lc| 0 up to 16 m. Direction of motion is
+  lost at isoluminance (Lindsey & Teller 1990), and a crest is a moving mark. Only a switch avoids it.
+- Free hues pick a dark RED ink below the switch: the hue of light's red above-cap flag (an oxblood ink sits 1.5 dE00 from it). Navy
+  or plum lose colour-blind contrast (10-15) once a whitecap lightens them on the blue wash; umber (hue 50) keeps the blue-yellow
+  difference dichromats keep. Light's navy kept below the switch: |Lc| 37.2 against umber's 40.0.
+- The light ink at the switch must be near-white (cream, L* 99) and the storm stays as light (lemon-gold): an amber-gold storm drops
+  |Lc| to 32 at 5.3 m on the cream-to-storm path, an orange one to 25. A lemon above the switch (beach #416's ink) buys colour-blind
+  24 -> 32 for about 4 |Lc|.
+- Switch 3.05 m is the best worst case (|Lc| 39.8 at 0.01 m sampling; 3.10 -> 38.2, 3.20 -> 33.9).
 
 ## Why coloraide and not culori for colour blindness
 
