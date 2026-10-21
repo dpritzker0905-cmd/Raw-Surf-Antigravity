@@ -18,6 +18,7 @@ import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './
 import { arrayMax, arrayMin } from './marineControllerUtils';
 import { blendIconSwell2 } from './iconSwell2Blend';
 import { requireStoredIconEstimate } from './iconEstimateDelivery';
+import { noteRequestDiet, planManifestFetch, requestDietOn } from './marineRequestDiet';
 
 
 export { BoundedPointCache };
@@ -36,16 +37,26 @@ import './backendWeatherServiceClientTrace';
  * Forces refetch if cachedManifest is empty to support dynamic ingestion updates.
  */
 let manifestFetchPromise = null;
+let lastBackgroundManifestStartMs = null;
 
-export async function fetchProductsManifest(forceRefresh = false) {
+// PRODUCTS_SHARE (request diet 2026-10-20, marineRequestDiet.js): `background` marks the fire-and-forget refresh getSharedValidTime
+// starts while the manifest is not loaded (or empty). Before, every such call skipped the in-flight promise and started its own
+// 10.75 MB download (9-13 per map open in the live access logs, ~1.8 s of server event loop each); now a forced call shares the
+// running download and background refreshes are spaced MANIFEST_BACKGROUND_REFRESH_MIN_MS apart. Kill: __RAW_DISABLE_PRODUCTS_SHARE__.
+export async function fetchProductsManifest(forceRefresh = false, { background = false } = {}) {
   const cached = getCachedManifest();
   const isEmpty = cached && Array.isArray(cached.products) && cached.products.length === 0;
   if (cached && !forceRefresh && !isEmpty) return cached;
-  if (manifestFetchPromise && !forceRefresh) return manifestFetchPromise;
+  const plan = planManifestFetch({ inFlight: !!manifestFetchPromise, force: forceRefresh, background,
+    lastBackgroundStartMs: lastBackgroundManifestStartMs, nowMs: Date.now() });
+  if (plan === 'share') { if (forceRefresh) noteRequestDiet('products_shared'); return manifestFetchPromise; }
+  if (plan === 'skip') { noteRequestDiet('products_refresh_spaced'); return cached || null; }
+  if (background) lastBackgroundManifestStartMs = Date.now();
 
-  manifestFetchPromise = (async () => {
+  const p = (async () => {
     try {
-      const res = await fetch(STATUS_URL.replace('/status', '/products'));
+      // PRODUCTS_COMPACT (#423): only the seven fields the client reads; an older backend ignores the parameter (full list).
+      const res = await fetch(STATUS_URL.replace('/status', '/products') + (requestDietOn('PRODUCTS_COMPACT') ? '?fields=compact' : ''));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setCachedManifest(data);
@@ -54,11 +65,19 @@ export async function fetchProductsManifest(forceRefresh = false) {
       console.warn("[Backend Weather Service] Failed to fetch products manifest:", err.message);
       return null;
     } finally {
-      manifestFetchPromise = null;
+      // Identity-safe: a download superseded under the kill switch must not clear the newer one's slot.
+      if (manifestFetchPromise === p || !requestDietOn('PRODUCTS_SHARE')) manifestFetchPromise = null;
     }
   })();
+  manifestFetchPromise = p;
 
   return manifestFetchPromise;
+}
+
+/** Test seam: forget the in-flight download and the background spacing clock. */
+export function _resetProductsManifestFetchForTest() {
+  manifestFetchPromise = null;
+  lastBackgroundManifestStartMs = null;
 }
 
 /**
@@ -280,7 +299,7 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   } else {
     fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
     // Prefetch or refresh manifest in background
-    if (!readOnly) fetchProductsManifest(true).catch(() => {});
+    if (!readOnly) fetchProductsManifest(true, { background: true }).catch(() => {});
   }
 
   const cacheDiagKey = `${filterModel}_${filterLayer}`;

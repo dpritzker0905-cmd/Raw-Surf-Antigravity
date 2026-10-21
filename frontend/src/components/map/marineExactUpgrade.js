@@ -39,6 +39,7 @@
  */
 import { useEffect } from 'react';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
 
 /** A grid at least this many degrees wide is a WORLD frame (matches every other `>= 340` test in the marine client). */
 export const WORLD_MIN_SPAN_DEG = 340;
@@ -81,7 +82,7 @@ export function exactUpgradeKey(model, layer, hour) {
  * ctx: { marineData, currentHour, scrubbing, wideView, fetchPendingForHour, attempts: {count,lastAt}|null, nowMs, disabled }
  */
 export function planExactUpgrade(ctx) {
-  const { marineData, currentHour, scrubbing, wideView, fetchPendingForHour, attempts, nowMs, disabled } = ctx;
+  const { marineData, currentHour, scrubbing, wideView, fetchPendingForHour, attempts, nowMs, disabled, engineGrid } = ctx;
   if (disabled) return { upgrade: false, reason: 'disabled' };
   const grid = marineData && marineData.grid;
   if (!isThinnedWorldGrid(grid)) return { upgrade: false, reason: 'resident_not_thinned_world' };
@@ -90,11 +91,46 @@ export function planExactUpgrade(ctx) {
   if (!(Math.abs(rendered - currentHour) <= EXACT_UPGRADE_HOUR_TOLERANCE)) return { upgrade: false, reason: 'hour_mismatch' };   // that branch owns it
   if (!wideView) return { upgrade: false, reason: 'not_wide_view' };                   // zoomed in: the gate hides a world frame
   if (fetchPendingForHour) return { upgrade: false, reason: 'fetch_pending' };
+  if (engineHoldsExactOf(engineGrid, grid)) return { upgrade: false, reason: 'engine_has_exact' };
   if (attempts && (nowMs - attempts.lastAt) < EXACT_UPGRADE_FORGET_MS) {
     if (attempts.count >= EXACT_UPGRADE_MAX_ATTEMPTS) return { upgrade: false, reason: 'attempts_exhausted' };
     if (nowMs - attempts.lastAt < EXACT_UPGRADE_MIN_GAP_MS) return { upgrade: false, reason: 'too_soon' };
   }
   return { upgrade: true, reason: 'thinned_world_frame_settled' };
+}
+
+/**
+ * EXACT_UPGRADE_SKIP (request diet 2026-10-20, marineRequestDiet.js): the ENGINE already draws the exact frame of this data. The
+ * thinned frame can be React's marineData while the engine holds the exact world grid of the same served valid time (the engine's
+ * no-downgrade arbiter refused the thin commit, or a later commit relabelled the same data), and the upgrade then fetched a 2.35 MB
+ * world /grid only to draw what was already on screen. Same instant and run, a strictly finer world lattice (under 2/3 of the thin
+ * cell: the engine's copy does not keep __decimatedStride, so the stride is read off the cell size) and the same rating flavor.
+ * Keep the upgrade in every other case: there it adds the detail the thin lattice drops. Kill: __RAW_DISABLE_EXACT_UPGRADE_SKIP__.
+ */
+export function engineHoldsExactOf(engineGrid, thinGrid) {
+  try {
+    if (!requestDietOn('EXACT_UPGRADE_SKIP')) return false;
+    const eg = engineGrid, tg = thinGrid;
+    if (!eg || !tg || !eg.bounds || !tg.bounds || !(eg.cols > 1) || !(tg.cols > 1) || !(eg.vectors && eg.vectors.length)) return false;
+    if (lngSpan(eg.bounds) < WORLD_MIN_SPAN_DEG || !!eg.ratingMode !== !!tg.ratingMode || eg.__renderable === false) return false;
+    // A series frame is never the exact one, however fine (a stride-2 page frame is finer than a stride-4 placeholder but is still
+    // a thinned view); and the engine must hold the same model and layer (useMarineWindData's conform carries both by name).
+    if (eg.__fromSeries) return false;
+    if (eg.__sourceModel && tg.__sourceModel && eg.__sourceModel !== tg.__sourceModel) return false;
+    if (eg.__componentLayer && tg.__componentLayer && eg.__componentLayer !== tg.__componentLayer) return false;
+    if (!(lngSpan(eg.bounds) / eg.cols < (lngSpan(tg.bounds) / tg.cols) * (2 / 3))) return false;
+    const a = gridServedMs(eg), b = gridServedMs(tg);
+    if (a === null || b === null || a !== b) return false;
+    const ra = Date.parse(eg.run_time || ''), rb = Date.parse(tg.run_time || '');
+    return !(Number.isFinite(ra) && Number.isFinite(rb) && ra !== rb);
+  } catch (e) {
+    return false;
+  }
+}
+
+function gridServedMs(g) {
+  const ms = Date.parse((g && (g.served_valid_time || g.valid_time)) || '');
+  return Number.isFinite(ms) ? ms : null;
 }
 
 function servedMs(x) {
@@ -195,7 +231,9 @@ export function tryExactUpgrade(ctx) {
       attempts: _attempts.get(key) || null,
       nowMs: Date.now(),
       disabled: !!(w && w.__RAW_DISABLE_EXACT_UPGRADE__ === true),
+      engineGrid: w && w.__MARINE_ENGINE__ && w.__MARINE_ENGINE__._waveData ? w.__MARINE_ENGINE__._waveData.waveGrid : null,
     });
+    if (plan.reason === 'engine_has_exact') noteRequestDiet('exact_upgrade_skipped_engine_has_exact', { key });
     if (!plan.upgrade || !updateMarineGridRef || typeof updateMarineGridRef.current !== 'function') return false;
     const prev = _attempts.get(key);
     _lastTriggerAt = Date.now();
