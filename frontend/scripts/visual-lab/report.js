@@ -11,7 +11,7 @@ function render(results) {
     const rows = f.steps.map((s) => `
       <tr>
         <td>${verdict(s)}</td><td><b>${esc(s.label)}</b><br><span class="dim">${esc(s.expect.model)} ${esc(s.expect.layer)} +${esc(s.expect.hour)} h${s.expect.wind ? ' · wind' : ''}</span></td>
-        <td>${ms(s.marineMs)}</td><td>${ms(s.windMs)}</td>
+        <td>${ms(s.marineMs)}${s.exactMs !== undefined ? `<br><span class="dim">exact</span> ${ms(s.exactMs)}` : ''}</td><td>${ms(s.windMs)}</td>
         <td>${s.marineSilent} <span class="dim">silent</span><br>${s.marineAdmitted} <span class="dim">labelled</span><br>${s.marineSameInstant || 0} <span class="dim">same instant</span>${s.windOffFrames ? `<br>${s.windOffFrames} <span class="dim">wind off</span>` : ''}</td>
         <td>${s.stale === 'STALE' ? '<span class="bad">STALE</span>' : 'ok'}<br><span class="dim">prev ${s.pixels.toPrev} · now ${s.pixels.toNow} · moved ${s.pixels.moved} · noise ${s.pixels.noise}</span></td>
         <td class="dim">${Object.entries(s.console).filter(([, v]) => v).map(([k, v]) => `${esc(k)} ${v}`).join('<br>') || '—'}</td>

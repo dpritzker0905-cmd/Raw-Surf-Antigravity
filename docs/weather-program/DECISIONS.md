@@ -1286,3 +1286,47 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Next, not decided:** the cased crest (dark edge round a light core; model |Lc| 42.9, colour-blind 36.4) needs new DRAW_FS
   geometry and its own A/B. After #420 (float wash) lands, re-run the paired engine read for light.
 - **Reopen if:** the owner says so, or #420's float wash moves light's crossing out of 2.6-3.3 m.
+
+### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
+- **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm
+  coast at z 10 and z 7.4, calm and moderate open sea, and the storm; with each frame's fitted alpha and the legend's calm end):
+  "Hold: ship the calm wash hold on #430 (calm-water fade for dark only). Record the pick and mark #430 ready once hosted CI is green."
+- **Rule:** with a regional tile resident over a retained coarse base (BLEND BOTH), the regional pass's height fade
+  (`u_heightAlphaEnabled`, smoothstep 0.05-1.4 m) runs only in dark. Light and beach draw calm regional cells at the zoom opacity over
+  the same coarse base, so every height composes to 1 - (1 - a_zoom)(1 - washEff): 0.877 at z 7.4, 0.815 at z 10. Rating-band frames
+  keep the fade in every theme. One owner: `marineCalmWashHold.js` `blendHeightAlpha`.
+- **Evidence:** `log/2026-10-21-claude-calm-wash-hold.md`; `evidence/calm-wash-hold-2026-10-21.json`; owner page
+  https://claude.ai/artifact/82nAECDYzRBGAMgRcRgjrm; the finding in PR #425. Offline, real engine: a 0.5 m sea at z 10 drawn at alpha
+  0.31-0.40 today, 0.79-0.83 held (per-pixel vs blend-off 0.335 -> 0.816 beach); dark pixel-identical at four views; storms unchanged.
+  Legend 0 vs 0.6 m at z 10 (wave-lib composite): light colour-blind 0.7 -> 10.5 dE00, beach 1.3 -> 18.8 (APCA 0 -> 23.6).
+- **Known costs:** calm water in a blended view is a little stronger (0.82-0.88) than at regional zoom without a regional tile (0.70),
+  the step storms already take; nearshore cells near 0 m draw the palette's 0 m colour at the zoom opacity instead of fading.
+- **Rollback:** `window.__RAW_DISABLE_CALM_WASH_HOLD__ = true` restores today's uniform in every theme (pinned in
+  `marineCalmWashHold.test.js`).
+- **Next, not decided:** the colour checker (`wave-lib.mjs` ALPHAS) models the held state: blend states as constants
+  1 - (1 - main)(1 - base) for light and beach (0.851 z 5.5 zoomed out, 0.877 z 7.4, 0.815 z 10), world 0.65 and regional 0.70 kept
+  (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
+  (D-037 on its branch) does not reopen this.
+- **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.
+
+### D-039 · Dark's 8 m+ storm crests are cased: today's orange with the crest self-contrast, no colour switch; ON by default
+- **Decided:** owner, 2026-10-21 ~15:30Z, on the A/B of PR #419 (owner page https://claude.ai/artifact/A5aYRLqNXoKAboPmsUWtJg v3:
+  keep dark as it is | electric blue from 8 m | cased orange from 8 m, moving at the storm eye, regional and coastal views): "Ship the
+  cased orange from 8 m for dark's storm crests instead of electric blue." Earlier the same day he scoped the fix ("We can fix that
+  one weak point only on the extreme 8m"), turned down the dark inks ("I dont like the darker middle crests in the storm animations,
+  improve those") and, asked directly, kept the A/B to 8 m+ ("Keep 8 m+ only") over whole-field casing options.
+- **Rule:** dark's storm crest keeps its fiery orange at every height. From 8 m (the crest's own `v_wave_height`), dark only
+  (`u_theme < 0.5`), DRAW_FS turns on the engine's crest self-contrast (`crestContrastEff`): a rim at 0.55-0.64 x the colour round a
+  core at 1.30 x plus a little white, the treatment every crest already gets at z 3.5-4.4. One generated line from
+  `marineCrestPalette.js` `DARK_STORM_CRESTS.v2`; no added shader lines. Below 8 m, light and beach: byte-identical.
+- **Evidence:** `log/2026-10-20-claude-dark-storm-crest.md`; `evidence/dark-storm-crest-2026-10-20.json` (`cased`). Model
+  (`dark-storm-crest.mjs`): today's orange core |Lc| 0 at 8-10 m+; cased |Lc| 20.4-38.0 from 8 m (the rim), colour-blind 19.7 (today
+  15.5). Offline real engine, p90 |Lc| 8-10 m today -> cased: eye 11-27 -> 20-35, coastal 11-13 -> 26-37, regional 11-23 -> 14-28;
+  Leonardo (wcag3) per band at the eye 8 / 18 / 21 / 29 -> 20 / 22 / 30 / 43.
+- **Known costs:** about half of electric blue's contrast (eye 40-59) and no colour-blind gain at the eye (p90 14-26, as today); the
+  5.5-8 m band, where the orange also sits at the wash's brightness, is out of scope and unchanged.
+- **Rollback:** `window.__RAW_DISABLE_DARK_STORM_CREST__ = true` draws today's lines exactly (DRAW_FS hash-pinned in
+  `marineDarkStormCrest.test.js`).
+- **Turned down:** ember-black / ember red from 8 m (read as soot on the white eye); electric blue from 8 m (a colour switch mid-field,
+  the kind the owner rejected in light); whole-field amber or warm-white cores with a black casing (out of his 8 m+ scope).
+- **Reopen if:** the owner says so, or the dark wash's 8-10 m colours change.
