@@ -177,3 +177,5 @@ Evidence: `evidence/serve-cache-quick-wins-2026-10-20.json`.
     4 s window, not 1.5 s, against runner load. Floors: guards 3281 (projected 3287), chain 2849 (projected 2855).
   - **Accepted, not changed:** a partial page shared in flight across two anchors fails relabel and makes the joiner
     run its own build (CPU, never a value), and non-durable pages relabel across anchors within W-4's 180 s.
+- Ledger: seq 1558 `pr_open #423` (re-chained after dev's 1557; acted 2026-10-20T23:59:32Z, read back 03:13:04Z).
+  STATE anchor moved to 1558.
