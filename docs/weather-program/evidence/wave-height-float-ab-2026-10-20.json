@@ -1,0 +1,1630 @@
+{
+ "what": "The float height A/B (marineHeightFloat.js): the wash with the R16F height (v2, v2b) against the 8-bit height byte (v2@u8, v2@u8b = window.__RAW_DISABLE_WAVE_HEIGHT_FLOAT__, dev da40c3c5b exactly), offline, light/beach/dark, world/regional/coastal/calm views, crest-free (WASH=1) shots compared pixel for pixel.",
+ "at": "2026-10-20T19:09:06.184Z",
+ "build": "craco build of claude/wave-height-float 608f391f0 (dev da40c3c5b + this PR); the identity smoke ran build 372c55e99 (+ the pack-buffer reuse)",
+ "store": "serve_synthetic.py --dynamic 1 --vortex-peak 14 --calm-patch 27,-111,8 on 127.0.0.1:4141 (fresh dir); SPA on 3141",
+ "basemap": "the fallback basemap in every shot (\"Detailed map unavailable\" in all themes; water as read: [[207, 227, 242], [159, 216, 230], [11, 29, 46]])",
+ "no_live_backend": "every /api/weather/* answered by the local backend; other /api/* stubbed; sockets closed (ab_lib.js)",
+ "page_errors": {
+  "light/v2@u8": 0,
+  "light/v2": 0,
+  "light/v2@u8b": 0,
+  "light/v2b": 0,
+  "beach/v2@u8": 0,
+  "beach/v2": 0,
+  "beach/v2@u8b": 0,
+  "beach/v2b": 0,
+  "dark/v2@u8": 0,
+  "dark/v2": 0,
+  "dark/v2@u8b": 0,
+  "dark/v2b": 0
+ },
+ "instruments": [
+  "scn_wave_palette_ab.js (VARIANTS=v2@u8,v2,v2@u8b,v2b THEMES=light,beach,dark WASH=1 TIMING=1)",
+  "wave_float_stats.py (same grid, quiet = each lever's two runs agree within 2, interior = not land in any run, 3 px clear)",
+  "compose_float_ab.py (owner sheets)",
+  "wave-quant.mjs (per-texel price)"
+ ],
+ "shots": [
+  {
+   "theme": "light",
+   "variant": "v2@u8",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "9ee18510",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "5f3774c7",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": "6b0265c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": "6b0265c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "9ee18510",
+   "heightFloatHash": "c56717ba",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "light",
+   "variant": "v2",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "5f3774c7",
+   "heightFloatHash": "162cdced",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8b",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8b",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8b",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "9ee18510",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "light",
+   "variant": "v2@u8b",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "5f3774c7",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2b",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": "6b0265c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2b",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": "6b0265c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "light",
+   "variant": "v2b",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "9ee18510",
+   "heightFloatHash": "c56717ba",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "light",
+   "variant": "v2b",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 16,
+   "waveTexHash": "5f3774c7",
+   "heightFloatHash": "162cdced",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": "1c6eb620",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "beach",
+   "variant": "v2",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": "1a409e1c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8b",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8b",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8b",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "beach",
+   "variant": "v2@u8b",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2b",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2b",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "beach",
+   "variant": "v2b",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": "1c6eb620",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "beach",
+   "variant": "v2b",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": "1a409e1c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": "1c6eb620",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "dark",
+   "variant": "v2",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": "1a409e1c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8b",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8b",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8b",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "dark",
+   "variant": "v2@u8b",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": null,
+   "baseHeightFloat": false,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2b",
+   "view": "world",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2b",
+   "view": "regional",
+   "grid": "181x83",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  },
+  {
+   "theme": "dark",
+   "variant": "v2b",
+   "view": "coastal",
+   "grid": "13x11",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "a2f7d1e9",
+   "heightFloatHash": "1c6eb620",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 2.003,
+   "hMax": 13.838
+  },
+  {
+   "theme": "dark",
+   "variant": "v2b",
+   "view": "calm",
+   "grid": "29x24",
+   "valid": "2026-10-20T18:00:00Z",
+   "heightScale": 10,
+   "waveTexHash": "f2da1e86",
+   "heightFloatHash": "1a409e1c",
+   "baseHeightFloat": true,
+   "glError": 0,
+   "hMin": 0.1,
+   "hMax": 14.945
+  }
+ ],
+ "comparison": {
+  "light/world": {
+   "grids": {
+    "v2@u8": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2@u8b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 604,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.82,
+    "de00_mean_moved": 4.67
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 556,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.85,
+    "de00_mean_moved": 5.03
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023396,
+    "moved_gt_tol": 23423,
+    "max_channel": 23,
+    "de00_max": 9.32,
+    "de00_p99": 3.01,
+    "de00_mean_moved": 0.58
+   },
+   "noisy_px": 604,
+   "byte_vs_float_interior": {
+    "pixels": 505853,
+    "moved_gt_tol": 20888,
+    "max_channel": 23,
+    "de00_max": 8.85,
+    "de00_p99": 0.92,
+    "de00_mean_moved": 0.51
+   },
+   "land_rgb": [
+    255,
+    255,
+    255
+   ],
+   "null_byte_interior": {
+    "pixels": 505853,
+    "moved_gt_tol": 0,
+    "max_channel": 1,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 505853,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  },
+  "light/regional": {
+   "grids": {
+    "v2@u8": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2@u8b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 596,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.83,
+    "de00_mean_moved": 4.72
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 551,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.85,
+    "de00_mean_moved": 5.06
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023404,
+    "moved_gt_tol": 7915,
+    "max_channel": 24,
+    "de00_max": 9.62,
+    "de00_p99": 9.56,
+    "de00_mean_moved": 2.28
+   },
+   "noisy_px": 596,
+   "byte_vs_float_interior": {
+    "pixels": 524739,
+    "moved_gt_tol": 2697,
+    "max_channel": 4,
+    "de00_max": 1.13,
+    "de00_p99": 0.86,
+    "de00_mean_moved": 0.53
+   },
+   "land_rgb": [
+    255,
+    255,
+    255
+   ],
+   "null_byte_interior": {
+    "pixels": 524739,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 524739,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  },
+  "light/coastal": {
+   "grids": {
+    "v2@u8": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2@u8b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 616,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.77,
+    "de00_mean_moved": 4.71
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 604,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.82,
+    "de00_mean_moved": 4.73
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023382,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "noisy_px": 618,
+   "byte_vs_float_interior": {
+    "pixels": 555029,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "land_rgb": [
+    255,
+    255,
+    255
+   ],
+   "null_byte_interior": {
+    "pixels": 555029,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 555029,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  },
+  "light/calm": {
+   "grids": {
+    "v2@u8": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2@u8b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 608,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.8,
+    "de00_mean_moved": 4.75
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 606,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.81,
+    "de00_mean_moved": 4.72
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023389,
+    "moved_gt_tol": 209375,
+    "max_channel": 19,
+    "de00_max": 8.27,
+    "de00_p99": 8.27,
+    "de00_mean_moved": 6.08
+   },
+   "noisy_px": 611,
+   "byte_vs_float_interior": {
+    "pixels": 308036,
+    "moved_gt_tol": 197858,
+    "max_channel": 19,
+    "de00_max": 8.27,
+    "de00_p99": 8.27,
+    "de00_mean_moved": 6.24
+   },
+   "land_rgb": [
+    255,
+    255,
+    255
+   ],
+   "null_byte_interior": {
+    "pixels": 308036,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 308036,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  },
+  "beach/world": {
+   "grids": {
+    "v2@u8": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2@u8b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 590,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.83,
+    "de00_mean_moved": 5.02
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 4682,
+    "max_channel": 177,
+    "de00_max": 38.05,
+    "de00_p99": 28.86,
+    "de00_mean_moved": 6.89
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1019318,
+    "moved_gt_tol": 86615,
+    "max_channel": 10,
+    "de00_max": 3.85,
+    "de00_p99": 3.02,
+    "de00_mean_moved": 1.54
+   },
+   "noisy_px": 4682,
+   "byte_vs_float_interior": {
+    "pixels": 503920,
+    "moved_gt_tol": 74482,
+    "max_channel": 10,
+    "de00_max": 3.85,
+    "de00_p99": 3.03,
+    "de00_mean_moved": 1.59
+   },
+   "land_rgb": [
+    237,
+    232,
+    226
+   ],
+   "null_byte_interior": {
+    "pixels": 504612,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 504612,
+    "moved_gt_tol": 692,
+    "max_channel": 107,
+    "de00_max": 22.8,
+    "de00_p99": 17.74,
+    "de00_mean_moved": 2.96
+   }
+  },
+  "beach/regional": {
+   "grids": {
+    "v2@u8": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2@u8b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 585,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.84,
+    "de00_mean_moved": 4.8
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 10623,
+    "max_channel": 182,
+    "de00_max": 36.86,
+    "de00_p99": 21.57,
+    "de00_mean_moved": 2.49
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1013374,
+    "moved_gt_tol": 24593,
+    "max_channel": 9,
+    "de00_max": 3.0,
+    "de00_p99": 2.57,
+    "de00_mean_moved": 1.29
+   },
+   "noisy_px": 10626,
+   "byte_vs_float_interior": {
+    "pixels": 525132,
+    "moved_gt_tol": 11465,
+    "max_channel": 9,
+    "de00_max": 3.0,
+    "de00_p99": 2.33,
+    "de00_mean_moved": 1.1
+   },
+   "land_rgb": [
+    237,
+    232,
+    226
+   ],
+   "null_byte_interior": {
+    "pixels": 525149,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 525149,
+    "moved_gt_tol": 17,
+    "max_channel": 108,
+    "de00_max": 27.12,
+    "de00_p99": 26.95,
+    "de00_mean_moved": 9.93
+   }
+  },
+  "beach/coastal": {
+   "grids": {
+    "v2@u8": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2@u8b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 588,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.83,
+    "de00_mean_moved": 5.1
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 1883,
+    "max_channel": 159,
+    "de00_max": 51.79,
+    "de00_p99": 46.98,
+    "de00_mean_moved": 23.55
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1022117,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "noisy_px": 1883,
+   "byte_vs_float_interior": {
+    "pixels": 541733,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "land_rgb": [
+    237,
+    232,
+    226
+   ],
+   "null_byte_interior": {
+    "pixels": 541754,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 541754,
+    "moved_gt_tol": 21,
+    "max_channel": 4,
+    "de00_max": 1.79,
+    "de00_p99": 1.71,
+    "de00_mean_moved": 1.01
+   }
+  },
+  "beach/calm": {
+   "grids": {
+    "v2@u8": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2@u8b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 581,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.84,
+    "de00_mean_moved": 4.76
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 15870,
+    "max_channel": 160,
+    "de00_max": 32.93,
+    "de00_p99": 24.57,
+    "de00_mean_moved": 11.02
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1008130,
+    "moved_gt_tol": 201180,
+    "max_channel": 6,
+    "de00_max": 2.38,
+    "de00_p99": 1.87,
+    "de00_mean_moved": 1.35
+   },
+   "noisy_px": 15870,
+   "byte_vs_float_interior": {
+    "pixels": 332146,
+    "moved_gt_tol": 189069,
+    "max_channel": 6,
+    "de00_max": 2.19,
+    "de00_p99": 1.76,
+    "de00_mean_moved": 1.35
+   },
+   "land_rgb": [
+    237,
+    232,
+    226
+   ],
+   "null_byte_interior": {
+    "pixels": 332897,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 332897,
+    "moved_gt_tol": 751,
+    "max_channel": 153,
+    "de00_max": 31.18,
+    "de00_p99": 25.77,
+    "de00_mean_moved": 4.89
+   }
+  },
+  "dark/world": {
+   "grids": {
+    "v2@u8": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2@u8b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 52,
+    "max_channel": 6,
+    "de00_max": 2.22,
+    "de00_p99": 2.22,
+    "de00_mean_moved": 1.97
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 613,
+    "max_channel": 9,
+    "de00_max": 3.44,
+    "de00_p99": 3.44,
+    "de00_mean_moved": 1.45
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023387,
+    "moved_gt_tol": 143458,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 2.08,
+    "de00_mean_moved": 1.35
+   },
+   "noisy_px": 613,
+   "byte_vs_float_interior": {
+    "pixels": 507151,
+    "moved_gt_tol": 127474,
+    "max_channel": 10,
+    "de00_max": 4.14,
+    "de00_p99": 1.99,
+    "de00_mean_moved": 1.35
+   },
+   "land_rgb": [
+    66,
+    77,
+    92
+   ],
+   "null_byte_interior": {
+    "pixels": 507712,
+    "moved_gt_tol": 0,
+    "max_channel": 1,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 507712,
+    "moved_gt_tol": 561,
+    "max_channel": 4,
+    "de00_max": 1.59,
+    "de00_p99": 1.58,
+    "de00_mean_moved": 1.28
+   }
+  },
+  "dark/regional": {
+   "grids": {
+    "v2@u8": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2@u8b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z",
+    "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 171,
+    "max_channel": 12,
+    "de00_max": 3.1,
+    "de00_p99": 3.1,
+    "de00_mean_moved": 2.23
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 57,
+    "max_channel": 4,
+    "de00_max": 2.95,
+    "de00_p99": 2.73,
+    "de00_mean_moved": 1.12
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023824,
+    "moved_gt_tol": 92910,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 3.87,
+    "de00_mean_moved": 1.4
+   },
+   "noisy_px": 176,
+   "byte_vs_float_interior": {
+    "pixels": 527873,
+    "moved_gt_tol": 77379,
+    "max_channel": 5,
+    "de00_max": 2.34,
+    "de00_p99": 1.9,
+    "de00_mean_moved": 1.29
+   },
+   "land_rgb": [
+    66,
+    77,
+    92
+   ],
+   "null_byte_interior": {
+    "pixels": 527873,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 527873,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  },
+  "dark/coastal": {
+   "grids": {
+    "v2@u8": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2@u8b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z",
+    "v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 60,
+    "max_channel": 20,
+    "de00_max": 5.47,
+    "de00_p99": 5.47,
+    "de00_mean_moved": 4.81
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 60,
+    "max_channel": 16,
+    "de00_max": 4.7,
+    "de00_p99": 4.7,
+    "de00_mean_moved": 4.22
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023940,
+    "moved_gt_tol": 532,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 17.87,
+    "de00_mean_moved": 5.09
+   },
+   "noisy_px": 60,
+   "byte_vs_float_interior": {
+    "pixels": 556704,
+    "moved_gt_tol": 0,
+    "max_channel": 2,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "land_rgb": [
+    66,
+    77,
+    92
+   ],
+   "null_byte_interior": {
+    "pixels": 556704,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 556704,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  },
+  "dark/calm": {
+   "grids": {
+    "v2@u8": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2@u8b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z",
+    "v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-20T18:00:00Z"
+   },
+   "null_byte": {
+    "pixels": 1024000,
+    "moved_gt_tol": 136,
+    "max_channel": 3,
+    "de00_max": 2.93,
+    "de00_p99": 2.93,
+    "de00_mean_moved": 1.96
+   },
+   "null_float": {
+    "pixels": 1024000,
+    "moved_gt_tol": 133,
+    "max_channel": 6,
+    "de00_max": 3.01,
+    "de00_p99": 2.92,
+    "de00_mean_moved": 1.95
+   },
+   "pair": [
+    "v2@u8",
+    "v2"
+   ],
+   "byte_vs_float_quiet": {
+    "pixels": 1023731,
+    "moved_gt_tol": 248639,
+    "max_channel": 61,
+    "de00_max": 20.85,
+    "de00_p99": 3.8,
+    "de00_mean_moved": 2.77
+   },
+   "noisy_px": 269,
+   "byte_vs_float_interior": {
+    "pixels": 340120,
+    "moved_gt_tol": 227067,
+    "max_channel": 9,
+    "de00_max": 4.48,
+    "de00_p99": 3.55,
+    "de00_mean_moved": 2.77
+   },
+   "land_rgb": [
+    66,
+    77,
+    92
+   ],
+   "null_byte_interior": {
+    "pixels": 340120,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   },
+   "null_float_interior": {
+    "pixels": 340120,
+    "moved_gt_tol": 0,
+    "max_channel": 0,
+    "de00_max": 0.0,
+    "de00_p99": 0.0,
+    "de00_mean_moved": 0.0
+   }
+  }
+ },
+ "timing": {
+  "light/v2@u8": {
+   "setWaveData_ms_median": 58.1,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": null,
+   "r16f_upload_ms_max": null,
+   "r16f_uploads": 0
+  },
+  "light/v2": {
+   "setWaveData_ms_median": 37.3,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": 0.1,
+   "r16f_upload_ms_max": 0.6,
+   "r16f_uploads": 6
+  },
+  "light/v2@u8b": {
+   "setWaveData_ms_median": 41.3,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": null,
+   "r16f_upload_ms_max": null,
+   "r16f_uploads": 0
+  },
+  "light/v2b": {
+   "setWaveData_ms_median": 44.1,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": 0.05,
+   "r16f_upload_ms_max": 0.8,
+   "r16f_uploads": 6
+  },
+  "beach/v2@u8": {
+   "setWaveData_ms_median": 52.7,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": null,
+   "r16f_upload_ms_max": null,
+   "r16f_uploads": 0
+  },
+  "beach/v2": {
+   "setWaveData_ms_median": 44.3,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": 0.05,
+   "r16f_upload_ms_max": 0.7,
+   "r16f_uploads": 6
+  },
+  "beach/v2@u8b": {
+   "setWaveData_ms_median": 40.6,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": null,
+   "r16f_upload_ms_max": null,
+   "r16f_uploads": 0
+  },
+  "beach/v2b": {
+   "setWaveData_ms_median": 47.6,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": 0.1,
+   "r16f_upload_ms_max": 1.9,
+   "r16f_uploads": 6
+  },
+  "dark/v2@u8": {
+   "setWaveData_ms_median": 52.3,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": null,
+   "r16f_upload_ms_max": null,
+   "r16f_uploads": 0
+  },
+  "dark/v2": {
+   "setWaveData_ms_median": 54.8,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": 0.1,
+   "r16f_upload_ms_max": 0.8,
+   "r16f_uploads": 6
+  },
+  "dark/v2@u8b": {
+   "setWaveData_ms_median": 43.1,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": null,
+   "r16f_upload_ms_max": null,
+   "r16f_uploads": 0
+  },
+  "dark/v2b": {
+   "setWaveData_ms_median": 51.1,
+   "setWaveData_n": 5,
+   "r16f_upload_ms_median": 0.25,
+   "r16f_upload_ms_max": 1.3,
+   "r16f_uploads": 6
+  }
+ },
+ "identity_smoke_pack_buffer": {
+  "light/world": {
+   "grid": "181x83",
+   "waveTexHash": "451fbb14",
+   "heightFloatHash": "6b0265c"
+  },
+  "light/calm": {
+   "grid": "17x13",
+   "waveTexHash": "efca02e0",
+   "heightFloatHash": "a73dc153"
+  },
+  "dark/world": {
+   "grid": "181x83",
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d"
+  },
+  "dark/calm": {
+   "grid": "181x83",
+   "waveTexHash": "cf678ebd",
+   "heightFloatHash": "4efca24d"
+  }
+ },
+ "identity_note": "world views held the same grid as the A/B and uploaded the same float bytes (6b0265c light, 4efca24d dark); the calm views committed other grids that run (their wave hashes differ too), so they are not a comparison",
+ "wave_quant": [
+  "light  (v2@16, world alpha 0.65)",
+  "  u8 /10 floor (the 16 m kill)       worst texel 15.32 dE00 at 0.117 m, mean 0.216",
+  "  u8 /16 floor (#415 first push)     worst texel 23.51 dE00 at 0.125 m, mean 0.347",
+  "  u8 /16 round (dev, #415)           worst texel 11.63 dE00 at 0.094 m, mean 0.172",
+  "  R16F at /16 (this PR)              worst texel 0.01 dE00 at 0.128 m, mean 0.004",
+  "  R16F at /10 (this PR, 16 m kill)   worst texel 0.01 dE00 at 0.128 m, mean 0.004",
+  "",
+  "beach  (v1, D-035: what beach draws, world alpha 0.65)",
+  "  u8 /10 floor (dev)                 worst texel 4.20 dE00 at 0.117 m, mean 0.300",
+  "  R16F at /10 (this PR)              worst texel 0.05 dE00 at 1.187 m, mean 0.009",
+  "",
+  "beach  (v2@16, under D-035's kill __RAW_DISABLE_WAVE_BEACH_V1__, world alpha 0.65)",
+  "  u8 /16 round                       worst texel 9.69 dE00 at 0.094 m, mean 0.157",
+  "  R16F at /16 (this PR)              worst texel 0.02 dE00 at 3.583 m, mean 0.004",
+  "",
+  "dark  (shader ramp, style sea 93/117/126, world alpha 0.65)",
+  "  u8 /10 floor (dev, #415)           worst texel 6.93 dE00 at 0.117 m, mean 0.387",
+  "  R16F at /10 (this PR)              worst texel 0.10 dE00 at 9.707 m, mean 0.011",
+  "",
+  "dark  (shader ramp, fallback sea 11/29/46, world alpha 0.65)",
+  "  u8 /10 floor (dev, #415)           worst texel 7.01 dE00 at 0.117 m, mean 0.390",
+  "  R16F at /10 (this PR)              worst texel 0.10 dE00 at 9.793 m, mean 0.011"
+ ],
+ "run1_note": "A first full run on #415 head f91a8fdd4 + this change (before #417 locked beach to v1) agreed in light and dark (light calm interior 197,706 px, mean 6.24; dark calm 227,067 px, mean 2.77) and showed beach v2@16 at mean 3.72; superseded by this run on dev."
+}

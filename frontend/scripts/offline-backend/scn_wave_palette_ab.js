@@ -22,6 +22,10 @@
 // Each shot also records the scale the resident and coarse uploads carry and the FNV hash of the resident wave texture's bytes;
 // WASH=1 adds a crest-free shot of each view (the engine's own heatmap-only fallback, _fboSupported = false, set from the page);
 // CRESTS=1 adds a burst at the regional view (one crest-free frame, then CREST_FRAMES with crests) for wave_crest_stats.py.
+// THE FLOAT HEIGHT (2026-10-20): VARIANTS=v2@u8,v2,v2@u8b,v2b THEMES=light,beach,dark WASH=1 over serve_synthetic.py --calm-patch
+// 27,-111,8 (a calm bowl in the Gulf of California, the 'calm' view). v2@u8 is the float kill (window.__RAW_DISABLE_WAVE_HEIGHT_FLOAT__,
+// #415 exactly), v2@u8b the same again (the null control). Each shot also records the float texture's upload hash and the context's
+// pending GL error; TIMING=1 times every setWaveData and every R16F (RED) upload in the page. wave_float_stats.py compares the washes.
 const fs = require('fs');
 const path = require('path');
 const L = require('./ab_lib.js');
@@ -31,9 +35,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
+  'v2@u8': { __RAW_DISABLE_WAVE_HEIGHT_FLOAT__: true }, 'v2@u8b': { __RAW_DISABLE_WAVE_HEIGHT_FLOAT__: true },
   l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
-const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
+// calm: the --calm-patch bowl in the Gulf of California at a zoom whose span (~14 deg) takes the dynamic lane's own grid.
+const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4], calm: [-111.3, 27.2, 7.0] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
 const variants = pick('VARIANTS', LEVERS), themes = process.env.THEMES ? process.env.THEMES.split(',') : ['light', 'beach'], views = pick('VIEWS', VIEWS);
 const CLIP_FRAMES = +(process.env.CLIP_FRAMES || 40), CREST_FRAMES = +(process.env.CREST_FRAMES || 24), CLIP_VIEWS = (process.env.CLIP_VIEWS || 'regional').split(',');
@@ -49,7 +55,27 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
     hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__,
     heightScale: d && d.u_heightScale, baseScale: e && e._coarseBaseData ? e._coarseBaseData.u_heightScale : null,
-    waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null };
+    waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null,
+    heightFloatHash: (d && d.u_heightFloatTexture && window.__TEX__ && window.__TEX__.uploads.get(d.u_heightFloatTexture) || {}).hash || null,
+    baseHeightFloat: !!(e && e._coarseBaseData && e._coarseBaseData.u_heightFloatTexture),
+    glError: (() => { const m = window.__MAP_INSTANCE__ || window.map, gl = m && m.painter && m.painter.context && m.painter.context.gl; return gl ? gl.getError() : null; })() };
+};
+// TIMING=1 (measurement only): every setWaveData (the whole commit: encode, uploads, mask) and every RED-format upload (the R16F
+// height) timed in the page, so the float path's added cost reads against the kill's commits.
+const TIMING = () => {
+  const T = (window.__HF_TIMING__ = { setWaveData: [], red: [] });
+  const P = window.WebGL2RenderingContext && WebGL2RenderingContext.prototype;
+  if (P) for (const k of ['texImage2D', 'texSubImage2D']) {
+    const orig = P[k];
+    P[k] = function (...a) { if (a[6] !== this.RED) return orig.apply(this, a); const t = performance.now(); try { return orig.apply(this, a); } finally { T.red.push([k, a[k === 'texImage2D' ? 3 : 4], a[k === 'texImage2D' ? 4 : 5], +(performance.now() - t).toFixed(3)]); } };
+  }
+  setInterval(() => {
+    const e = window.__MARINE_ENGINE__;
+    if (!e || e.__hfTimed) return;
+    const orig = e.setWaveData.bind(e);
+    e.setWaveData = function (...a) { const t = performance.now(); try { return orig(...a); } finally { T.setWaveData.push(+(performance.now() - t).toFixed(2)); } };
+    e.__hfTimed = true;
+  }, 200);
 };
 const particles = (page, on) => page.evaluate((on) => { window.__MARINE_ENGINE__._fboSupported = on; }, on);   // instrument only
 
@@ -70,6 +96,7 @@ async function legendBox(page) {
       const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true });
       try {
         await page.addInitScript(({ theme, levers }) => { localStorage.setItem('raw-surf-theme', theme); Object.assign(window, levers); }, { theme, levers: LEVERS[v] });
+        if (process.env.TIMING === '1') await page.addInitScript(TIMING);
         await L.openMap(page);
         // The bare water before Waves is on: the colour the checker composites over (wave-lib.mjs BASEMAP).
         await L.jump(page, ...VIEWS.regional); await sleep(5000);
@@ -119,6 +146,7 @@ async function legendBox(page) {
             await sleep(120);
           }
         }
+        if (process.env.TIMING === '1') record[`timing/${theme}/${v}`] = await page.evaluate(() => window.__HF_TIMING__);
         record[`log/${theme}/${v}`] = { errors: log.errors.slice(0, 5), blockedWs: log.blockedWs.length, hosts: log.hosts, weatherRequests: log.requests.length };
       } finally { await browser.close(); }
     }

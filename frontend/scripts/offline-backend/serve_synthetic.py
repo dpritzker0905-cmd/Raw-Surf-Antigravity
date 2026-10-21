@@ -66,6 +66,11 @@ def regional_tiers(region_ids):
 VORTEX_LAT0, VORTEX_LNG0, VORTEX_DLAT, VORTEX_DLNG = 14.0, -106.0, 0.05, -0.08
 # The vortex's added height at its eye (m). --vortex-peak raises it (the wave palette A/B uses 11, so the eye crosses 10 m).
 VORTEX_PEAK = 6.5
+# A CALM PATCH (--calm-patch LAT,LNG,R; off by default): the height is multiplied by min(1, (r / R)^2) after the 0.15 m floor, so
+# it falls smoothly to ~0 at the centre. The stored field's calmest cell is otherwise ~0.5 m, and the height texture's precision
+# matters most under ~0.2 m (the wash's depth-floor blend smoothstep(0, 0.18, h) is steep there): the float height A/B (2026-10-20)
+# puts it in the Gulf of California, 27,-111,6, so it also runs along coasts (the land-aware fetch).
+CALM_PATCH = None
 
 
 def vortex_center(hours_since_start):
@@ -81,6 +86,10 @@ def field(lat, lng, h):
     r2 = dlat * dlat + (dlng * math.cos(math.radians(lat))) ** 2
     vort = VORTEX_PEAK * math.exp(-r2 / (2.0 * 3.2 ** 2))
     hs = max(0.15, swell + vort)
+    if CALM_PATCH:
+        plat, plng, prad = CALM_PATCH
+        pr2 = (lat - plat) ** 2 + (((lng - plng + 180.0) % 360.0 - 180.0) * math.cos(math.radians(lat))) ** 2
+        hs = max(0.01, hs * min(1.0, pr2 / (prad * prad)))
     direction = (math.degrees(math.atan2(dlng, dlat)) + 90.0) % 360.0 if vort > 1.0 else (250.0 + 30.0 * math.sin(math.radians(lat))) % 360.0
     return round(hs, 3), round(direction, 1), round(6.5 + 1.1 * hs, 2)
 
@@ -363,10 +372,12 @@ def main():
     ap.add_argument("--dynamic", choices=["0", "1"], default="0",
                     help="1 = answer the dynamic viewport lane (narrow zooms) with the synthetic field instead of failing it")
     ap.add_argument("--vortex-peak", type=float, default=6.5, help="the vortex's added height at its eye, m (6.5: an ~8 m storm)")
+    ap.add_argument("--calm-patch", default="", help="LAT,LNG,R: a calm bowl (height x min(1, (r/R)^2)), e.g. 27,-111,6")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK
+    global VORTEX_PEAK, CALM_PATCH
     VORTEX_PEAK = args.vortex_peak
+    CALM_PATCH = tuple(float(x) for x in args.calm_patch.split(',')) if args.calm_patch else None
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL

@@ -12,7 +12,7 @@ import {
   FloatArrayConstructor,
 } from './WebGLMarineFieldMath';
 import { getMarineGeoData } from './WebGLMarineGeoData';
-import { marineWaveHeightScale } from './marineWavePalette'; // the height byte's metres per upload (marineHeightEncoding.js)
+import { marineWaveHeightScale } from './marineWavePalette'; import { encodeHeightFloat } from './marineHeightFloat'; // height byte metres per upload (marineHeightEncoding.js); its R16F twin
 import {
   createShader,
   createProgram,
@@ -793,6 +793,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     // colors while u_waveTexture stays honest for draw/advect.
     u_waveScoreTexture: scoreTex,
     u_heightScale: hScale,   // the metres u_waveTexture's 255 means (the score texture is always /10)
+    u_heightFloatTexture: encodeHeightFloat(gl, engine, standalone, waveGrid, hArr, hScale, isGlobal),   // R16F metres for the wash (marineHeightFloat.js); null = the byte
     bounds
   };
 }

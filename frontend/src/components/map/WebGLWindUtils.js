@@ -259,10 +259,10 @@ export function initParticleTexture(gl, resolution) {
  */
 const TEX_DIMS = new WeakMap();
 
-/** Record a texture's size at creation. Called by whoever allocates; safe to call more than once. */
-export function noteTextureCreated(tex, width, height) {
+/** Record a texture's size at creation (bpp: bytes a texel, 4 for RGBA8, 2 for the R16F height). Safe to call more than once. */
+export function noteTextureCreated(tex, width, height, bpp = 4) {
   if (!tex) return;
-  TEX_DIMS.set(tex, { w: width || 0, h: height || 0 });
+  TEX_DIMS.set(tex, { w: width || 0, h: height || 0, bpp });
 }
 
 /**
@@ -298,12 +298,12 @@ export function safeDeleteTexture(gl, tex, engine) {
   // created (or a double delete) cannot drive the counters negative — an under-count would hide a
   // real leak just as effectively as the over-count did.
   if (typeof window !== 'undefined' && window.__RAW_GPU__ && TEX_DIMS.has(tex)) {
-    const { w, h } = TEX_DIMS.get(tex);
+    const { w, h, bpp } = TEX_DIMS.get(tex);
     TEX_DIMS.delete(tex);
     const g = window.__RAW_GPU__;
     if (typeof g.textureCount === 'number') g.textureCount = Math.max(0, g.textureCount - 1);
     if (typeof g.gpuMemoryEstimate === 'number') {
-      g.gpuMemoryEstimate = Math.max(0, g.gpuMemoryEstimate - (w * h * 4));
+      g.gpuMemoryEstimate = Math.max(0, g.gpuMemoryEstimate - (w * h * (bpp || 4)));
     }
   }
 }
