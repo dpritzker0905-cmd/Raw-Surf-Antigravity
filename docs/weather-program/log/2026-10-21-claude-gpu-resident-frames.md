@@ -88,4 +88,4 @@ All numbers are from this session's runs. The evidence JSON holds the raw rows.
 
 - **1558** `finding`: this phase-1 result.
 - **1559** `commitment`, due 2026-10-28T18:00Z: phase 2's draft PR after #422 merges.
-- `pr_open` for this docs-and-instruments PR, appended after it opened.
+- **1560** `pr_open`: #427 (draft), opened 2026-10-21 from dev `448deb35c` at `dcb027289`.
