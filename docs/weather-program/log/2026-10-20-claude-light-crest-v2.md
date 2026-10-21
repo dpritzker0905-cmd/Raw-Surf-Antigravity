@@ -200,3 +200,24 @@ Read-back of the deployed dev build (`dev--rawsurf.netlify.app`, static files on
 names "deep umber, cream from 3.05 m" and "umber-black foam, white from 3.05 m"), the kill name and v1's "deep navy", and dark's
 ("mint-green") and beach's ("orchid-pink") crest literals; no other file carries them. (The GLSL `step(3.05, ...)` text is built at
 runtime from the table, so it is not a literal in the bundle.) Not yet seen on a screen by the owner: the dev site is gated.
+
+## 2026-10-21 20:00Z: light's crests restored to the original (D-041)
+
+The owner, 08:02 EDT on the live dev site (relayed by the lead, who asked this session for the restore): "visually, in the live dev
+server we're on now, I do not like the animation colors of light mode, with dark animations mixed with yellow ones, its not pleasing
+to the eye as a good representation of waves moving. The original was better."
+
+**Change** (`claude/light-crest-restore` on dev `2a47fd5d8`): `resolveLightCrest` draws V2 only when asked for
+(`window.__RAW_LIGHT_CREST_V2__`), or under the restore's kill (`window.__RAW_DISABLE_LIGHT_CREST_RESTORE__`, today's V2 default);
+the V2 kill still forces the original. Harness lever `lv2` asks for V2.
+
+**Identity.** Since f6b80f724 the only DRAW_FS change is the four light lines, now filled from the table, whose v1 entries render
+the old literals character for character; nothing else DRAW_FS pulls in changed. Jest pins: default = f6b80f724's DRAW_FS (sha256
+a9e8e102..., 8811); V2 on request and the restore's kill = dev's V2 DRAW_FS (f425bf53..., 9049). Engine, offline (production bundle
+of the branch): the DRAW program the GPU compiled hashes to a9e8e102... by default in light, beach and dark, and to f425bf53... with
+`lv2` or the restore's kill; DRAW_VS a1683763... in all nine. Beach and dark draw from the same program and their lines never changed.
+
+**Known costs (for the owner, before he names it).** Over light's current wash the original crests share its luminance from 2.3 m
+up (APCA |Lc| 0, the lead's research) and over #431's spectrum from 1.7 to 14 m, crimson on crimson from 6 m (#431's session); at
+isoluminance motion direction weakens. Next, on the lead's brief: one moving A/B, the original vs the original plus a luminance-only
+two-tone (beach #433's idea), no hue change.

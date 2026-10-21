@@ -1330,3 +1330,22 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Turned down:** ember-black / ember red from 8 m (read as soot on the white eye); electric blue from 8 m (a colour switch mid-field,
   the kind the owner rejected in light); whole-field amber or warm-white cores with a black casing (out of his 8 m+ scope).
 - **Reopen if:** the owner says so, or the dark wash's 8-10 m colours change.
+### D-041 · Light's wave crests are the original again (deep navy, amber-gold, crimson red); light crest V2 only on request; ON by default
+- **Decided:** owner, 2026-10-21 08:02 EDT, on the live dev site (relayed by the lead): "visually, in the live dev server we're on
+  now, I do not like the animation colors of light mode, with dark animations mixed with yellow ones, its not pleasing to the eye as
+  a good representation of waves moving. The original was better." Supersedes D-036 as the default (V2 stays reachable for an A/B).
+- **Rule:** `resolveLightCrest` draws V2 only when asked for, set before page load: `window.__RAW_LIGHT_CREST_V2__ = true`, or the
+  restore's kill `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true`; `window.__RAW_DISABLE_LIGHT_CREST_V2__ = true` still forces the
+  original. One owner: `marineCrestPalette.js`. Standing rule from the same feedback: one colour family per theme for crests that
+  move together; never switch crest hue at a height.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 20:00Z); `evidence/light-crest-restore-2026-10-21.json`. The
+  default DRAW_FS is f6b80f724's byte for byte (sha256 a9e8e102..., 8811 chars: Jest pin, and the shader the GPU compiled in light,
+  beach and dark, read back offline); V2 on request and the restore's kill compile dev's V2 DRAW_FS (f425bf53..., 9049); DRAW_VS
+  unchanged. Dark and beach share the one DRAW_FS and their lines never changed.
+- **Known costs:** over light's current wash the original crests share the wash's luminance from 2.3 m up (APCA |Lc| 0; lead's
+  research), and over #431's spectrum from 1.7 to 14 m (crimson on the crimson storm band from 6 m); at isoluminance motion
+  direction weakens (Lindsey & Teller 1990). The original looked better on the wash it was made for, which has since changed.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true` before load restores D-036's V2 default (dev's DRAW_FS, pinned).
+- **Next, not decided:** the owner's "It still needs to adjust for areas in the colour for heatmaps that blend too much with the
+  animation colors": one A/B, the original vs the original plus a luminance-only two-tone (beach #433's idea, no hue change), moving.
+- **Reopen if:** the owner says so, or the A/B's pick changes light's crests again.
