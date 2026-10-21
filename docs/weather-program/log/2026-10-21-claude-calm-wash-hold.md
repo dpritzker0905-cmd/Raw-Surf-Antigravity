@@ -170,3 +170,13 @@ uniform and called with the frame's (blendEngaged, themeVal, surfModeVal). Not r
 Ledger **1569** (pr_merge #430) on receipt branch `claude/receipt-430`; STATE head 1569 and its "Now" line marks #430 merged.
 `#423` and `#425` merged into dev today without `pr_merge` lines on dev (the audit counts only merge commits, so it does not flag
 squash merges); left for their sessions or the lead to record. Commitment 1566 (wave-lib ALPHAS, after #416) stays open.
+
+## 12. 2026-10-21T15:23Z: receipt #434 merged; the owner's look
+
+Owner, ~15:06Z: "Merge receipt PR #434 into dev at its tested head once every hosted check is green." Head `b7a187c87` read 17
+success + 1 neutral, CLEAN, dev unchanged (`73e25a908`): **squash-merged 15:14:13Z as `5be9e9dd0`** (`--match-head-commit`).
+
+Owner, ~15:11Z, on the hold as served on the dev site: **"hold looks good on this"**. That closes the look half of section 11's
+read-back (the in-app look section 11 left to the owner's eye). Ledger **1570** (owner_action, the verdict) and **1571**
+(pr_merge #434) on branch `claude/receipt-434`; STATE head 1571, and its "Now" line quotes the verdict. Still open: commitment
+1566 (wave-lib ALPHAS for the held state, after #416).
