@@ -335,6 +335,22 @@ What the light search taught (over v2 and v2@16; light's wash passes APCA Y 0.35
   24 -> 32 for about 4 |Lc|.
 - Switch 3.05 m is the best worst case (|Lc| 39.8 at 0.01 m sampling; 3.10 -> 38.2, 3.20 -> 33.9).
 
+**Light's spectrum (D-037, 2026-10-21).** Light draws `spectrum` (seven bands on the WMO / Douglas sea-state breaks, cap 14 m);
+the kill `__RAW_DISABLE_WAVE_SPECTRUM__` draws v2 at 16 m. `wave-lib.mjs` models its opacity law (`spectrumAlpha`, no floor blend).
+
+```powershell
+node spectrum-solve.mjs      # the seven break colours: widest weakest neighbour step at max displayable chroma, lightness falling
+node spectrum-tune.mjs       # 4-6 m: violet trim + OKLab blend anchors so the band's lightness cannot climb (the winner goes in by hand)
+node wave-check.mjs --palette spectrum --theme light   # what light ships
+node crest-switch.mjs --palette spectrum --from 1.3 --to 3.2   # V2's crest colours: weakest |Lc| by switch height (1.55 m best)
+node crest-critique.mjs [--json out.json]   # crests vs the wash under them in all three themes, by height: |Lc|, colour-blind dE00, hue relation
+```
+
+Over the spectrum the crest switch moves to 1.55 m (`LIGHT_CRESTS.v2s`): at 3.05 m the spectrum would leave |Lc| 28.8, at 1.55 m
+42.4. The model's numbers are full-opacity crest cores; at world zoom the engine draws crests at partial opacity, where a
+mid-lightness wash (the spectrum's 1.5-3 m blue) leaves little room in either polarity: read the engine
+(`../offline-backend/crest_contrast.py`, paired frames) before trusting a switch height.
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models

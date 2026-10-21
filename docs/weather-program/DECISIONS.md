@@ -1286,3 +1286,39 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Next, not decided:** the cased crest (dark edge round a light core; model |Lc| 42.9, colour-blind 36.4) needs new DRAW_FS
   geometry and its own A/B. After #420 (float wash) lands, re-run the paired engine read for light.
 - **Reopen if:** the owner says so, or #420's float wash moves light's crossing out of 2.6-3.3 m.
+
+### D-037 · Light's wave-height wash is the seven-band spectrum (mint, blue, violet, magenta, crimson, umber; 0-14 m); dark and beach unchanged; ON by default
+- **Decided:** owner, 2026-10-21, on the comparison page https://claude.ai/artifact/KSm5QY1qj2yjhtb5b6ozjR (today | proposed, per
+  theme): "I like the proposed light mode"; dark "Today's dark (left)", beach "Today's beach v1 (left)"; then "Build the proposed
+  light spectrum here as one PR with a kill switch back to v2, record the decision, re-check light's crests, and leave dark and beach
+  as they are." and "just to make sure we have the best and widest spectrum of color on this scheme".
+- **Rule:** light draws `WAVE_PALETTES.spectrum` (`marineWavePalette.js`): bands on the WMO / Douglas sea-state breaks 0.5 / 1.25 /
+  2.5 / 4 / 6 / 9 / 14 m (1.6 / 4 / 8 / 13 / 20 / 30 / 46 ft): mint (0, 202, 144) to 0.5 m, cyan-blue (0, 156, 222), blue
+  (80, 109, 246), violet (128, 60, 235), magenta (181, 0, 118), crimson (164, 0, 26), umber (90, 20, 0) at 14 m; 4.5 / 5 / 5.5 m are
+  blend anchors on the OKLab line (no lightness climb); cap 14 m, light's upload scale 14. Light's deep-ocean floor blend is off and
+  its opacity is `(u_opacity + (1 - u_opacity) x 0.4286 x t) x smoothstep(0, 0.5, h)`, t = log(h / 0.5) / log 12 clamped: calm
+  water below 0.5 m fades to the map, heavier seas draw more opaque (world 0.65 -> 0.80 from 6 m). Legend: an equal-band ruler,
+  ft 0 / 1.6 / 4 / 8 / 13 / 20 / 30 / 46+. Light's crests keep D-036's colours with the switch at 1.55 m (`LIGHT_CRESTS.v2s`), where
+  the spectrum crosses mid-lightness. Dark and beach draw exactly what dev `448deb35c` draws (beach: D-035). "Widest": the
+  colours are solved for the largest weakest step between neighbouring bands at maximum displayable chroma while lightness falls
+  (`spectrum-solve.mjs`, `spectrum-tune.mjs`); yellow and orange cannot follow blue without lightness climbing, so the path runs
+  through violet and magenta to crimson and umber.
+- **Evidence:** `log/2026-10-21-claude-wave-light-spectrum.md`; `evidence/wave-light-spectrum-2026-10-21.json`. Checker (light, as
+  composited): weakest neighbouring band, normal vision 9.3 -> 15.3 dE00; lightness falls at every 0.02 m step; legend's weakest
+  stop on its panel APCA 15.3 -> 41.1; crest core vs wash |Lc| 40.0 -> 42.7, colour-blind 24.3 -> 26.3 (at today's 3.05 m switch
+  the spectrum would leave 28.8). Engine offline (production build, synthetic backend): light's wash moved over 96-99% of the sea
+  interior (mean dE00 13-27); beach 0 px and dark 0-9 px, inside the null runs' noise; crest p99 |Lc| world 35.0 -> 23.9, regional
+  42.3 -> 53.5, coastal 78.6 -> 77.4.
+- **Known costs:** the weakest neighbouring band for any colour vision drops 7.2 -> 5.3 dE00 (tritan, 6-9 m; deutan 6.0 at 2.5-4 m):
+  hue carries steps that lightness no longer can (L range 0.74 -> 0.31, v2 0.90 -> 0.30); the neighbour line stays RED (it was RED
+  for v2). At world zoom the crests are fainter (the open ocean's 1.5-3 m is now a mid-lightness blue; partial-opacity crests have
+  little room on it in either polarity). Calm water below 0.5 m shows the map's own water. Above 14 m draws as 14 m. The crest
+  polarity contour now sits at 1.55 m, a common height.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_SPECTRUM__ = true` before load draws v2 at 16 m exactly (HEATMAP_FS, DRAW_FS, palette
+  GLSL, legends and samples sha256-pinned to dev `448deb35c` in `marineWaveSpectrum.test.js`); `__RAW_DISABLE_WAVE_HEIGHT_16M__` also
+  returns light to v2; `__RAW_DISABLE_WAVE_PALETTE_V2__` returns both themes to v1.
+- **Next, not decided:** the world-zoom crest finding (the cased crest, D-036's next, or a far-zoom crest opacity lift for light),
+  each its own A/B. The crest critique (log) finds beach's and dark's crests isoluminant over part of their range (beach
+  1.5-9 m: #416 is the drafted answer; dark 6 m up: #419 covers 8 m up, 6-8 m stays open). #420 (float wash, light) merges after or before this: whichever lands second
+  re-pins the other's kill hashes.
+- **Reopen if:** the owner says so.
