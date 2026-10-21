@@ -127,3 +127,8 @@ pick, due 2026-10-24), **1561** commitment (wave-lib ALPHAS per height for the p
 
 5a says #425's branch appended seqs 1558-1560. Its hand-over now records a fourth line there (1561, the spread runs), so #425
 and #430 both hold seqs **1558-1561** after dev's 1557. The rule is unchanged: whichever merges second re-chains all four.
+
+## 8. 2026-10-21T07:32Z: correction to section 7's header time
+
+Section 7's header reads 07:33Z, an estimate written before the commit; it was committed at 07:30:18Z (`a888d30f3`). Its content
+stands. Ledger correction line 1562.
