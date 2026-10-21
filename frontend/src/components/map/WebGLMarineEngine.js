@@ -9,7 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
-import { readMarineSurfMode } from './marineSurfMode';
+import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
@@ -2015,6 +2015,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         }
       }
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityBase'), densityBase);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityCut'), crestDensityCut(themeVal, z));   // big-surf thinning by theme and zoom
 
       // Ribbon-endpoint land fade (2026-07-04): crest quads dissolve toward a land end instead of
       // overhanging barrier islands (Venice/Lido). Kill: window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
