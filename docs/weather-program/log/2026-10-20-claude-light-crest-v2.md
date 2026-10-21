@@ -246,3 +246,5 @@ regional 18.2 -> 52.3, coastal 20.3 -> 50.0; crest pixels at |Lc| >= 15:
 5.76% -> 30.46%. A first run with a flat x 3 made close-zoom crests solid blobs over the wash
 (coastal stills), hence the taper. Cost: crests read bolder; sea untouched by crests 57% -> 47% (world),
 59% -> 52% (regional), 18% -> 14% (coastal).
+
+Ledger: 1597 (`pr_open #442`), 1598 (commitment: the owner's pick, due 2026-10-24), after #438's 1595-1596 (this branch is stacked on it).
