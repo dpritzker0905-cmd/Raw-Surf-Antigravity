@@ -1305,6 +1305,6 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `marineCalmWashHold.test.js`).
 - **Next, not decided:** the colour checker (`wave-lib.mjs` ALPHAS) models the held state: blend states as constants
   1 - (1 - main)(1 - base) for light and beach (0.851 z 5.5 zoomed out, 0.877 z 7.4, 0.815 z 10), world 0.65 and regional 0.70 kept
-  (ledger commitment 1561, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
+  (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
   (D-037 on its branch) does not reopen this.
 - **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.

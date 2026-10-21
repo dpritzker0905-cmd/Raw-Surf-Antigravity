@@ -581,6 +581,8 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
         _effective_load_stride, _stride_raw_grid_dicts,
     )
 
+    from services.weather_pipeline.series_memo_keys import note_load
+    note_load(filename)      # a memoised series build records every file it read (dark GRID_SERIES_MEMO_RUN_KEYS)
     stride = _effective_load_stride(stride)
     # Strided reads get their OWN cache identity. See the warning above — this one line is what
     # keeps a decimated grid out of every other consumer's hands.

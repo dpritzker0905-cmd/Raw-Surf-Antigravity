@@ -141,3 +141,16 @@ Owner, ~11:40Z, in this session: "Hold: ship the calm wash hold on #430 (calm-wa
 3 skipped at 11:43Z, before this record; its push re-runs CI, and #430 is marked ready on a green head. Commitment 1561 now has one
 law to model: light/beach blend states as constants 1 - (1 - main)(1 - base) (0.851 / 0.877 / 0.815), still after #416 settles.
 #431 changes light's palette, not the compositing law (#425: v1 = v2), so the hold stands on it.
+
+## 10. 2026-10-21T13:08Z: re-chained after #423 and #425 merged; instruments folded in
+
+Dev took #423 (ledger 1558) and #425 (1559-1562) while #430 was open, so this branch merged `origin/dev` (`a25aaa8ae`) and
+re-appended its own six lines after dev's 1562 (`restack.py`: new seq and prev; `at` raised to dev's last line where it would
+go backwards, the true time kept in `acted_at`; own citations shifted). **Mapping: 1558 -> 1563 (finding), 1559 -> 1564
+(pr_open), 1560 -> 1565 (owner-pick commitment), 1561 -> 1566 (wave-lib commitment), 1562 -> 1567 (correction), 1563 -> 1568
+(decision, fulfils 1565).** Sections 5a, 7, 8 and 9 above, the #430 description and its pick comment cite the old numbers; read
+them through this mapping. STATE and D-038 now cite 1566; STATE head 1568. `action_ledger.py verify --base origin/dev`: OK.
+
+With #425 on dev, item 5.3 is done here: `scn_wash_alpha.js` gains the `today` variant (`__RAW_DISABLE_CALM_WASH_HOLD__`), the
+`hold` read-back on every frame and the `calmCoast` / `calmCoastC` views; `wash_alpha.py` maps both to the coastal model; the
+offline README says so. This A/B now reproduces from the tree. Commitment 1566 stays open for the wave-lib ALPHAS (after #416).
