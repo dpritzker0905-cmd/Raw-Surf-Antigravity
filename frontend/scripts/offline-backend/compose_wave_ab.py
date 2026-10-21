@@ -16,7 +16,9 @@ from PIL import Image, ImageDraw, ImageFont
 
 NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B",
          "v2@10": "v2 at 10 m (the 16 m kill = #411)", "v2@10b": "v2 at 10 m again (null control)", "v2b": "v2 at 16 m again (null control)"}
-ORDER = ("v1", "v2@10", "v2", "v2@10b", "v2b", "A", "B")
+ORDER = ("v1", "v2@10", "v2", "v2@10b", "v2b", "A", "B", "today", "tt", "ts", "tc")
+# Beach crest style A/B (2026-10-21, marineBeachCrestStyle.js).
+NAMES.update({"today": "today's beach crest", "tt": "two-tone", "ts": "two-tone soft", "tc": "cased"})
 CREST_NAMES = {"v2": "V2 polarity (default)", "l1": "TODAY's crests", "lk": "V2 + self-contrast everywhere (cased probe)",
                "l1k": "TODAY + self-contrast everywhere"}
 
