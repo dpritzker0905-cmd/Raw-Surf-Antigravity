@@ -22,6 +22,11 @@
 // set without one, WebGL1) leaves the byte decode as it is.
 //
 // Fallback: WebGL1 (no R16F) or a failed upload -> no float texture -> the byte, exactly as before.
+// LIGHT ONLY BY DEFAULT (2026-10-20): the owner keeps dark as it is and beach on v1 (D-035), and the lead review asked that dark not
+// change as a side effect. So the float is built for the light wash only; beach and dark (and an unset theme, 'default', which
+// draws dark) keep the byte pixel for pixel unless opted in before load: window.__RAW_WAVE_HEIGHT_FLOAT_BEACH__ = true,
+// window.__RAW_WAVE_HEIGHT_FLOAT_DARK__ = true (the offline A/B's beach and dark rows were taken that way). Their GLSL still carries
+// the rewrite, but with no float texture bound u_heightFloat is 0 and every fetch and the decode take the byte's own path.
 // Kill: window.__RAW_DISABLE_WAVE_HEIGHT_FLOAT__ = true before load: no texture, no uniform, and HEATMAP_FS is #415's string
 // byte for byte (sha256-pinned with the wave texture bytes in marineHeightFloat.test.js).
 import { bindTexture, noteTextureCreated, safeDeleteTexture } from './WebGLWindUtils';
@@ -29,6 +34,9 @@ import { bindTexture, noteTextureCreated, safeDeleteTexture } from './WebGLWindU
 const WIN = typeof window === 'undefined' ? {} : window;
 export const WAVE_HEIGHT_FLOAT = WIN.__RAW_DISABLE_WAVE_HEIGHT_FLOAT__ !== true;
 export const HEIGHT_FLOAT_UNIT = 6;
+const OPT_IN = { beach: WIN.__RAW_WAVE_HEIGHT_FLOAT_BEACH__ === true, dark: WIN.__RAW_WAVE_HEIGHT_FLOAT_DARK__ === true };
+/** Whether an upload drawn in `theme` gets the float: light always; beach and dark (anything else) only when opted in. */
+export const heightFloatTheme = (theme) => theme === 'light' || (theme === 'beach' ? OPT_IN.beach : OPT_IN.dark);
 
 /** WebGL2 (R16F and RED exist only there): the float path's one capability test. */
 export const supportsHeightFloat = (gl) => !!gl && typeof gl.R16F === 'number' && typeof gl.RED === 'number';
@@ -80,7 +88,8 @@ function scratchFor(engine, n) {
 export function encodeHeightFloat(gl, engine, standalone, waveGrid, h, scale, isGlobal) {
   const resident = !standalone && !!engine;
   if (!WAVE_HEIGHT_FLOAT) return null;
-  if (waveGrid.ratingMode || !supportsHeightFloat(gl)) { if (resident) releaseResidentHeightFloat(gl, engine); return null; }
+  const theme = typeof window !== 'undefined' ? window.__WEBGL_MARINE_THEME__ : undefined;
+  if (waveGrid.ratingMode || !supportsHeightFloat(gl) || !heightFloatTheme(theme)) { if (resident) releaseResidentHeightFloat(gl, engine); return null; }
   const { cols, rows } = waveGrid, dims = `${cols}x${rows}`;
   let fresh = null;
   try {

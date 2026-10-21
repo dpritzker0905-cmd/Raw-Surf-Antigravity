@@ -19,6 +19,7 @@ const AT_DEV = {
   score: 'd74ab586063e47c0ba9511d389ddf88bc51da771338aa6d59c36141fb4c350d9',
 };
 const KILL = { __RAW_DISABLE_WAVE_HEIGHT_FLOAT__: true };
+const LIGHT = { __WEBGL_MARINE_THEME__: 'light' };   // the float's default theme (beach and dark opt in)
 const NAMES = ['HEATMAP_VS', 'HEATMAP_FS', 'ADVECT_VS', 'ADVECT_FS', 'DRAW_VS', 'DRAW_FS'];
 
 function withWindow(levers, fn) {
@@ -126,8 +127,8 @@ describe('float on (the default)', () => {
       expect(sha(Buffer.from(rated.score))).toBe(AT_DEV.score);
     });
   });
-  it.each([['dark', 10], ['light', 16], ['beach', 10]])('%s: R16F from FLOAT, the height in metres clamped to the byte\'s own range (%i m)', (theme, scale) => {
-    withWindow({}, () => {
+  it.each([['light', 16, {}], ['dark', 10, { __RAW_WAVE_HEIGHT_FLOAT_DARK__: true }], ['beach', 10, { __RAW_WAVE_HEIGHT_FLOAT_BEACH__: true }]])('%s: R16F from FLOAT, the height in metres clamped to the byte\'s own range (%i m; beach and dark opted in)', (theme, scale, levers) => {
+    withWindow(levers, () => {
       const r = encode(theme, false), h = r.height;
       expect(r.calls.filter((c) => c[0] === 'texImage2D')).toEqual([['texImage2D', r.out.u_heightFloatTexture, 9, 5, RED, FLOAT]]);
       expect(r.out.u_heightScale).toBe(scale);
@@ -141,6 +142,14 @@ describe('float on (the default)', () => {
       expect(Math.max(...h)).toBe(scale);   // the fixture passes 16 m: the float stops where the byte does
     });
   });
+  it.each(['dark', 'beach', 'default', undefined])('%s by default: no float texture, no R16F upload: the byte, pixel for pixel', (theme) => {
+    withWindow({}, () => {
+      const r = encode(theme, false);
+      expect([r.out.u_heightFloatTexture, r.floats.size, r.calls.filter((c) => c[0] === 'texImage2D').length]).toEqual([null, 0, 0]);
+      const { heightFloatTheme } = require('./marineHeightFloat');
+      expect([heightFloatTheme('light'), heightFloatTheme('beach'), heightFloatTheme('dark'), heightFloatTheme(undefined)]).toEqual([true, false, false, false]);
+    });
+  });
   it('rating grids and WebGL1 get no float texture (the byte decodes, unchanged)', () => {
     withWindow({}, () => {
       const rated = encode('light', true), gl1 = encode('light', false, { glOpts: { webgl2: false } });
@@ -152,10 +161,10 @@ describe('float on (the default)', () => {
     withWindow({}, () => {
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       try {
-        const engine = {}, r = encode('dark', false, { glOpts: { failFloat: true }, engine });
+        const engine = {}, r = encode('light', false, { glOpts: { failFloat: true }, engine });
         expect([r.out.u_heightFloatTexture, engine._residentHeightTex || null]).toEqual([null, null]);
         expect(r.deleted.length).toBe(1);   // the texture created for the failed upload is deleted, not leaked
-        expect(sha(Buffer.from(r.wave))).toBe(AT_DEV.wave.dark);
+        expect(sha(Buffer.from(r.wave))).toBe(AT_DEV.wave.light);
         expect(warn.mock.calls.some((c) => /R16F height upload failed/.test(c[0]))).toBe(true);
       } finally { warn.mockRestore(); }
     });
@@ -173,7 +182,7 @@ describe('float on (the default)', () => {
 
 describe('lifecycle', () => {
   it('the resident texture is re-uploaded in place, recreated on new dims, and freed by a commit that needs none', () => {
-    withWindow({}, () => {
+    withWindow(LIGHT, () => {
       const { encodeHeightFloat } = require('./marineHeightFloat');
       const { gl, calls, deleted } = makeGL(), engine = {}, h = new Float32Array(100).fill(0.1);
       const a = encodeHeightFloat(gl, engine, false, grid(false), h, 10, false);
@@ -193,7 +202,7 @@ describe('lifecycle', () => {
     });
   });
   it('a standalone (coarse base) texture is its own: fresh each time, never the engine\'s, freed by freeHeightFloat', () => {
-    withWindow({}, () => {
+    withWindow(LIGHT, () => {
       const { encodeHeightFloat, freeHeightFloat, releaseResidentHeightFloat } = require('./marineHeightFloat');
       const { gl, deleted } = makeGL(), engine = {}, h = new Float32Array(45).fill(0.1);
       const resident = encodeHeightFloat(gl, engine, false, grid(false), h, 10, false);
@@ -211,7 +220,7 @@ describe('lifecycle', () => {
     });
   });
   it('the GPU estimate counts 2 bytes a texel and gives them back on delete', () => {
-    withWindow({}, () => {
+    withWindow(LIGHT, () => {
       window.__RAW_GPU__ = { textureCount: 0, textureUploadCount: 0, gpuMemoryEstimate: 0 };
       try {
         const { encodeHeightFloat, releaseResidentHeightFloat } = require('./marineHeightFloat');
