@@ -595,3 +595,27 @@ Phase 2 starts only after #422 merges into `dev`. Built on its codec (`staticFra
 Each step: a lab A/B against its kill switch, offline.
 
 **Phase 2 ships as a draft PR against `dev`; no merge without the owner's word.**
+
+### 12.1 Phase 2a, built 2026-10-21 (draft #437): what changed from the plan above
+
+On the owner's word ("Can we move forward on part 2?") the half of phase 2 that does not depend on #422 was built ahead of it.
+It is unwired: nothing in the app imports it, and #422's files are untouched. It contains `marineFramePack.js`,
+`marineFrameStore.js`, `marineFramePrefetch.js`, `marineFrameStoreGpu.js` and `frontend/scripts/frame-store-gpu-check/`.
+
+Three decisions differ from the plan above:
+
+1. **Packing runs on the main thread in idle slices, not in the Blob worker.** The packer calls the encoder's own functions
+   (`WebGLMarineFieldMath`, `marineWaveHeightScale`) on the encoder's own float type. Inlining them into a Blob worker as text
+   would break under minification, which renames the module variables they close over. Calling them makes the bytes identical by
+   construction. The cost is about 2.2 ms per world frame, paid before the frame is needed. #422's worker keeps doing fetch +
+   inflate. Byte parity with `encodeMarineTexture` covers both static lanes, the three themes and every kill switch (34 cases),
+   and 5 mutants each fail 12-29 cases.
+2. **WARM frames (the one-click-away sets) stay as CPU bytes,** written into the 2D texture on a toggle (`uploadBytesTo2D`,
+   0.03-0.2 ms). Arrays are only for the active and recent sets, from a pool that reuses textures. There is no shared WARM array.
+3. **The packer covers the `waves` layer only.** For other layers the series conform (`useMarineWindData`) emits vectors without
+   `is_valid`/`isOcean`, so the encoder reads land cells of raw flat series vectors as ocean on that lane, while the /grid lane
+   keeps them land. This is not reachable today, because static frames publish GFS `waves` only. It must be settled before
+   non-waves static frames ship.
+
+Also learned: `marineFrameInstant.js` (on dev since #267) identifies a resident frame by `served_valid_time`, so store commits
+must carry it (section 3.2 already requires it).
