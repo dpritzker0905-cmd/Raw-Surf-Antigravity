@@ -8,16 +8,208 @@
   "f6b80f724_DRAW_FS": {
    "sha256": "a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad",
    "length": 8811,
-   "why_this_is_f6b80f724": "git diff f6b80f724..HEAD on WebGLMarineParticleShaders.js: the only DRAW_FS change is the four light lines, now ${LIGHT_CREST_GLSL.*}; the v1 table renders them to the old literals character for character (pinned in marineCrestPaletteLight.test.js); marineHeightEncoding.js, waveSetScreenBound.js unchanged since f6b80f724"
+   "why_this_is_f6b80f724": "since f6b80f724 the only DRAW_FS changes are light's four lines (#421, now from the table; v1 renders the old literals character for character, pinned) and dark's storm line + crest-contrast term (#419, its own table, kill __RAW_DISABLE_DARK_STORM_CREST__); marineHeightEncoding.js and waveSetScreenBound.js unchanged"
   },
-  "dev_V2_DRAW_FS": {
+  "restored_default_DRAW_FS": {
+   "sha256": "e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5",
+   "length": 8872,
+   "is": "dev's DRAW_FS with light's four lines as before V2; with #419's kill as well = f6b80f724 exactly"
+  },
+  "dev_DRAW_FS_today": {
+   "sha256": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+   "length": 9110,
+   "is": "f17508ba0 default (light V2 + #419); = V2 on request and the restore kill"
+  },
+  "dev_DRAW_FS_before_419": {
    "sha256": "f425bf535ef4ae2a42560ef18ca70e1c085e6a74d24f5736c358e4d9e682f7ce",
    "length": 9049
   },
-  "jest": "default = f6b80f724 DRAW_FS; __RAW_LIGHT_CREST_V2__ and __RAW_DISABLE_LIGHT_CREST_RESTORE__ = dev V2 DRAW_FS; either plus __RAW_DISABLE_LIGHT_CREST_V2__ = f6b80f724",
+  "jest": "default = e2438586 (with #419 kill: a9e8e102 = f6b80f724); __RAW_LIGHT_CREST_V2__ / __RAW_DISABLE_LIGHT_CREST_RESTORE__ = 5057bc10 (dev today; with #419 kill f425bf53); either + __RAW_DISABLE_LIGHT_CREST_V2__ = e2438586",
   "engine_probe": {
-   "how": "production bundle of this branch, offline synthetic backend; per theme and lever set, sha256 of the DRAW program shader sources as the GPU holds them (gl.getAttachedShaders + gl.getShaderSource), and the four lines after \"// Light Mode\"",
+   "how": "production bundle of the rebased branch (3a4c93301), offline synthetic backend; per theme and lever set, sha256 of the DRAW program shader sources the GPU holds (gl.getAttachedShaders + gl.getShaderSource) and the four lines after \"// Light Mode\"",
    "results": [
+    {
+     "theme": "light",
+     "case": "default",
+     "fs": {
+      "sha": "e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5",
+      "length": 8872,
+      "light": [
+       "calmColor = vec3(0.05, 0.15, 0.45);    // deep navy",
+       "activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold",
+       "stormColor = vec3(0.75, 0.10, 0.05);   // crimson red",
+       "foamHighlight = vec3(1.00, 1.00, 1.00);"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "light",
+     "case": "darkKill",
+     "fs": {
+      "sha": "a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad",
+      "length": 8811,
+      "light": [
+       "calmColor = vec3(0.05, 0.15, 0.45);    // deep navy",
+       "activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold",
+       "stormColor = vec3(0.75, 0.10, 0.05);   // crimson red",
+       "foamHighlight = vec3(1.00, 1.00, 1.00);"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "light",
+     "case": "lv2",
+     "fs": {
+      "sha": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+      "length": 9110,
+      "light": [
+       "calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "stormColor = vec3(1.00, 0.96, 0.00);   // gold",
+       "foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "light",
+     "case": "restoreKill",
+     "fs": {
+      "sha": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+      "length": 9110,
+      "light": [
+       "calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "stormColor = vec3(1.00, 0.96, 0.00);   // gold",
+       "foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "beach",
+     "case": "default",
+     "fs": {
+      "sha": "e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5",
+      "length": 8872,
+      "light": [
+       "calmColor = vec3(0.05, 0.15, 0.45);    // deep navy",
+       "activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold",
+       "stormColor = vec3(0.75, 0.10, 0.05);   // crimson red",
+       "foamHighlight = vec3(1.00, 1.00, 1.00);"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "beach",
+     "case": "darkKill",
+     "fs": {
+      "sha": "a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad",
+      "length": 8811,
+      "light": [
+       "calmColor = vec3(0.05, 0.15, 0.45);    // deep navy",
+       "activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold",
+       "stormColor = vec3(0.75, 0.10, 0.05);   // crimson red",
+       "foamHighlight = vec3(1.00, 1.00, 1.00);"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "beach",
+     "case": "lv2",
+     "fs": {
+      "sha": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+      "length": 9110,
+      "light": [
+       "calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "stormColor = vec3(1.00, 0.96, 0.00);   // gold",
+       "foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "beach",
+     "case": "restoreKill",
+     "fs": {
+      "sha": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+      "length": 9110,
+      "light": [
+       "calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "stormColor = vec3(1.00, 0.96, 0.00);   // gold",
+       "foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "dark",
+     "case": "default",
+     "fs": {
+      "sha": "e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5",
+      "length": 8872,
+      "light": [
+       "calmColor = vec3(0.05, 0.15, 0.45);    // deep navy",
+       "activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold",
+       "stormColor = vec3(0.75, 0.10, 0.05);   // crimson red",
+       "foamHighlight = vec3(1.00, 1.00, 1.00);"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "dark",
+     "case": "darkKill",
+     "fs": {
+      "sha": "a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad",
+      "length": 8811,
+      "light": [
+       "calmColor = vec3(0.05, 0.15, 0.45);    // deep navy",
+       "activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold",
+       "stormColor = vec3(0.75, 0.10, 0.05);   // crimson red",
+       "foamHighlight = vec3(1.00, 1.00, 1.00);"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "dark",
+     "case": "lv2",
+     "fs": {
+      "sha": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+      "length": 9110,
+      "light": [
+       "calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "stormColor = vec3(1.00, 0.96, 0.00);   // gold",
+       "foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    },
+    {
+     "theme": "dark",
+     "case": "restoreKill",
+     "fs": {
+      "sha": "5057bc10bcd5ff6a36e5295d9d0b74e9c00324e50c5d316cfe3c0c49ac4edad0",
+      "length": 9110,
+      "light": [
+       "calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m",
+       "stormColor = vec3(1.00, 0.96, 0.00);   // gold",
+       "foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m"
+      ]
+     },
+     "vsSha": "a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44"
+    }
+   ],
+   "pre_rebase_run_on_2a47fd5d8": [
     {
      "theme": "light",
      "case": "default",
@@ -161,5 +353,6 @@
   "v2_wash": "the original crests drop to APCA |Lc| 0 from 2.3 m to 16 m over light's current wash (worst case over alpha 0.65/0.70/0.77, every 0.1 m)",
   "spectrum_431": "over #431's spectrum: |Lc| under 15 from 1.7 m to 14 m; from 6 m crimson crest on the crimson storm band (colour-blind dE 5.4-7.3)",
   "perception": "at isoluminance motion direction is lost and speed looks slower (Lindsey & Teller 1990; Cavanagh et al. 1984)"
- }
+ },
+ "base": "dev f17508ba0 (after #419, dark storm casing D-039)"
 }
