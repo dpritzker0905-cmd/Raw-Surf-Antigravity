@@ -13,12 +13,13 @@ const withWindow = (levers, fn) => jest.isolateModules(() => {
   try { fn(require('./WebGLMarineParticleShaders'), require('./marineBeachCrestStyle')); } finally { Object.keys(levers).forEach((k) => delete window[k]); }
 });
 const drawFsUnder = (levers) => { let fs; withWindow(levers, (s) => { fs = s.DRAW_FS; }); return fs; };
-const LINES = ['float shape = 1.0 - smoothstep(', 'vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);', 'float crestContrastEff = '];
+const LINES = ['float shape = 1.0 - smoothstep(', 'vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);', 'float crestContrastEff = ', 'float boostedAlpha = alpha * '];
 
 describe('today, the kill and unknown values draw today\'s crest exactly', () => {
   it('no lever: style today, and the shader under light\'s kill hashes to the pre-V2 shader', () => {
     expect(BEACH_CREST_STYLE).toBe('today');
-    expect(BEACH_CREST_STYLE_GLSL).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: '' });
+    expect(BEACH_CREST_STYLE_GLSL).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: '', alphaHead: '' });
+    expect(DRAW_FS).toContain('  float boostedAlpha = alpha * mix(1.2, 1.8, energy);\n');
     withWindow(LIGHT_KILL, (shaders) => {
       expect(shaders.DRAW_FS.length).toBe(DRAW_FS_BEFORE.length);
       expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
@@ -42,7 +43,7 @@ describe('today, the kill and unknown values draw today\'s crest exactly', () =>
 describe.each(Object.keys(BEACH_CREST_STYLES))('the %s lever', (style) => {
   const fs = drawFsUnder({ __RAW_BEACH_CREST_STYLE__: style });
 
-  it('changes only the three wired lines, each gated on the beach theme', () => {
+  it('changes only the wired lines, each gated on the beach theme', () => {
     const before = DRAW_FS.split('\n'), after = fs.split('\n');
     expect(after.length).toBe(before.length);
     const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);
@@ -61,9 +62,10 @@ describe.each(Object.keys(BEACH_CREST_STYLES))('the %s lever', (style) => {
   });
 });
 
-describe('the two-tone pieces', () => {
+describe('the style pieces', () => {
   it('twotone: dark rim x0.30 on the outer band, centre 75% toward white, ribbon opaque to 0.80; self-contrast off in beach', () => {
     expect(beachCrestStyleGlsl('twotone')).toEqual({
+      alphaHead: '',
       shapeEdge: 'u_theme > 1.5 ? 0.80 : 0.55',
       tone: ' if (u_theme > 1.5) finalColor = mix(mix(finalColor, finalColor * 0.30, smoothstep(0.55, 0.72, ellipseDist)), vec3(1.0), 0.75 * (1.0 - smoothstep(0.12, 0.32, ellipseDist)));',
       contrastHead: 'u_theme > 1.5 ? 0.0 : ',
@@ -72,8 +74,27 @@ describe('the two-tone pieces', () => {
   });
 
   it('cased: the engine\'s own self-contrast at full strength in beach, nothing else', () => {
-    expect(beachCrestStyleGlsl('cased')).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: 'u_theme > 1.5 ? 1.0 : ' });
+    expect(beachCrestStyleGlsl('cased')).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: 'u_theme > 1.5 ? 1.0 : ', alphaHead: '' });
     expect(drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'cased' })).toContain('  float crestContrastEff = u_theme > 1.5 ? 1.0 : max(u_crestContrast,\n');
+  });
+
+  it('seafoam: ONE constant core colour at every height (no energy mix), ink casing on the outer band, self-contrast off in beach', () => {
+    const g = beachCrestStyleGlsl('seafoam');
+    expect(g).toEqual({
+      shapeEdge: 'u_theme > 1.5 ? 0.80 : 0.55',
+      tone: ' if (u_theme > 1.5) finalColor = mix(mix(vec3(0.86, 1.00, 0.96), foamHighlight, whiteBlend), vec3(0.04, 0.06, 0.16), smoothstep(0.58, 0.70, ellipseDist));',
+      contrastHead: 'u_theme > 1.5 ? 0.0 : ',
+      alphaHead: '',
+    });
+    // seabold: the same crest, its alpha x 2.4 before the 0.85 cap, in beach only.
+    expect(beachCrestStyleGlsl('seabold')).toEqual({ ...g, alphaHead: '(u_theme > 1.5 ? 2.40 : 1.0) * ' });
+    expect(drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'seabold' })).toContain('  float boostedAlpha = alpha * (u_theme > 1.5 ? 2.40 : 1.0) * mix(1.2, 1.8, energy);\n');
+    expect(drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'seabold' })).toContain('boostedAlpha = min(boostedAlpha, 0.85);');
+    // The core reads neither baseColor, energy nor the height: its colour is the same at every height (the whitecap mixes in foam).
+    for (const dep of ['baseColor', 'energy', 'v_wave_height', 'calmColor', 'activeColor', 'stormColor']) expect(g.tone).not.toContain(dep);
+    const Y = (c) => 0.2126 * c[0] ** 2.2 + 0.7152 * c[1] ** 2.2 + 0.0722 * c[2] ** 2.2;
+    expect(Y(BEACH_CREST_STYLES.seafoam.core)).toBeGreaterThan(0.85);
+    expect(Y(BEACH_CREST_STYLES.seafoam.casing)).toBeLessThan(0.01);
   });
 
   it('the rim is darker and the centre lighter than the body, for every crest colour (luminance structure only)', () => {

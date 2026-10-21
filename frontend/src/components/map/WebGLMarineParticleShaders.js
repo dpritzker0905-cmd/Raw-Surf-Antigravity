@@ -971,7 +971,7 @@ void main() {
   }
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-  float boostedAlpha = alpha * mix(1.2, 1.8, energy);
+  float boostedAlpha = alpha * ${BEACH_CREST_STYLE_GLSL.alphaHead}mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.85);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }
