@@ -100,7 +100,7 @@ def zoom_opacity(z):   # heatmapZoomOpacity (marineEngineDecisions.js), the flat
 MODEL_VIEW = {'world': 'world', 'regional': 'regional', 'r55': 'regional', 'coastal': 'coastal', 'close': 'coastal',
               'worldOut': 'world', 'regionalOut': 'regional', 'r55Out': 'regional',
               'calm05': 'coastal', 'calm08': 'coastal', 'calm10': 'coastal', 'calm12': 'coastal', 'calm14': 'coastal',
-              'calm05c': 'coastal', 'calm10c': 'coastal', 'calm14c': 'coastal'}
+              'calm05c': 'coastal', 'calm10c': 'coastal', 'calm14c': 'coastal', 'calmCoast': 'coastal', 'calmCoastC': 'coastal'}
 CAMERA = {'worldOut': 'world', 'regionalOut': 'regional', 'r55Out': 'r55'}   # zoom-out views reuse these cameras' bare frames
 
 
