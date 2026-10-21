@@ -10,6 +10,12 @@
 import { MARINE_WAVE_PALETTE_ENABLED, MARINE_WAVE_PALETTE_IDS } from './marineWavePalette';
 
 const WIN = typeof window === 'undefined' ? {} : window;
+// Light's storm is a WARM GOLD (owner 2026-10-21, after the crest art pass: "switch light's storm to the warm gold in its own PR"): the
+// lemon (1.00, 0.96, 0.00), C* 94, was loud over large areas; the warm gold (1.00, 0.90, 0.30), C* 74, keeps every floor (the weakest
+// point is the 3.05 m switch, which the storm does not touch), tells 3 m from 6 m better for colour-blind eyes (13.3 against 10.2 dE00
+// from the cream) and sits 7.3 dE00 from the app's own yellow (yellow-400). Kill, set before page load:
+// window.__RAW_DISABLE_LIGHT_STORM_WARM__ = true draws the lemon, D-036's DRAW_FS byte for byte (hash-pinned in the test).
+export const LIGHT_STORM_WARM = WIN.__RAW_DISABLE_LIGHT_STORM_WARM__ !== true;
 // Encoded sRGB 0-1, two decimals as the shader writes them; `name` is the shader line's comment. With `switchHeight`, a colour's
 // `rgb` draws below that height and its `above` at and above it (DRAW_FS: mix(rgb, above, step(switchHeight, v_wave_height))).
 export const LIGHT_CRESTS = {
@@ -24,14 +30,14 @@ export const LIGHT_CRESTS = {
   // Teller 1990) and a crest is a moving mark. Light's wash passes APCA Y 0.352 at 2.6-3.3 m by zoom and swell lighting; the switch
   // sits at 3.05 m (the best worst case, scanned every 0.01 m). Amber's own family: a deep umber below (hue 50; brown keeps the
   // blue-yellow difference from the blue wash that colour-blind eyes keep, where navy or plum lose it under a whitecap, and stays clear
-  // of the red above-cap flag that oxblood would match), cream from 3.05 m, gold storms. The foam switches too: a white whitecap on the
+  // of the red above-cap flag that oxblood would match), cream from 3.05 m, warm-gold storms. The foam switches too: a white whitecap on the
   // dark ink meets the wash's luminance near 3 m (|Lc| 0 on its front), so below the switch the roll front deepens the crest.
   // Over v2 and v2@16, all zooms and lightings, whitecap off and on: |Lc| >= 40.0 (v1 0), colour-blind >= 24.3 (v1 13.4).
   v2: {
     switchHeight: 3.05,
     calm: { rgb: [0.27, 0.10, 0.00], above: [1.00, 1.00, 0.82], name: 'deep umber, cream from 3.05 m' },
     active: { rgb: [0.27, 0.10, 0.00], above: [1.00, 1.00, 0.82], name: 'deep umber, cream from 3.05 m' },
-    storm: { rgb: [1.00, 0.96, 0.00], name: 'gold' },
+    storm: LIGHT_STORM_WARM ? { rgb: [1.00, 0.90, 0.30], name: 'warm gold' } : { rgb: [1.00, 0.96, 0.00], name: 'gold' },
     foam: { rgb: [0.05, 0.02, 0.00], above: [1.00, 1.00, 1.00], name: 'umber-black foam, white from 3.05 m' },
   },
 };
