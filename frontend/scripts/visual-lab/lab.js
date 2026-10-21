@@ -241,6 +241,18 @@ const FLOWS = {
     steps: [['+5h', 5], ['+45h', 45], ['+131h', 131], ['EURO', { model: 'EURO' }], ['Wind Waves', { layer: 'wind_waves' }], ['+153h', 153],
       ['ICON', { model: 'ICON' }], ['Swell 2', { layer: 'swell_2' }], ['+165h', 165], ['zoom 8', { view: [-80, 27, 8] }], ['pan', { view: [-76, 28, 8] }],
       ['zoom out 3', { view: [-75, 30, 3] }], ['Waves', { layer: 'waves' }], ['GFS', { model: 'GFS' }], ['+12h', 12], ['Swell', { layer: 'swell_1' }], ['Waves again', { layer: 'waves' }]] },
+  // ONE-HOUR steps on 3-hourly data (2026-10-20, request diet): offsets 2, 3 and 4 ask for the same instant, as do 5 and 6, so the
+  // client that keys its exact /grid cache by hour offset fetches the same world grid again.
+  hour_steps: { setup: { model: 'GFS', layers: ['waves'] }, view: [-80, 25, 3.5],
+    steps: [['+1h', 1], ['+2h', 2], ['+3h', 3], ['+4h', 4], ['+5h', 5], ['+6h', 6], ['+7h', 7], ['back +3h', 3]] },
+  // EURO one-hour steps across its 48 h page boundary: EURO pages are never prewarmed (per-hour Copernicus work), so the steps
+  // past hour 48 hit no page unless the step asks for it.
+  euro_steps: { setup: { model: 'EURO', layers: ['waves'], hour: 44 }, view: [-80, 25, 3.5],
+    steps: [['+45h', 45], ['+46h', 46], ['+47h', 47], ['+48h', 48], ['+49h', 49], ['+50h', 50], ['+51h', 51], ['+52h', 52], ['+53h', 53], ['+54h', 54]] },
+  // REGIONAL one-hour steps across GFS's 144 h page boundary: at a regional zoom the series frame is full detail, so a step into a page
+  // no request has loaded yet costs a /grid per hour until that page lands.
+  regional_page_steps: { setup: { model: 'GFS', layers: ['waves'], hour: 140 }, view: [-80, 27.5, 7.5],
+    steps: [['+141h', 141], ['+142h', 142], ['+143h', 143], ['+144h', 144], ['+145h', 145], ['+146h', 146], ['+147h', 147], ['+148h', 148], ['+149h', 149], ['+150h', 150]] },
   // A map open and nothing else (2026-10-20, request diet): the load's request mix, read from the flow's loadNet / net.
   open_waves: { setup: { model: 'GFS', layers: ['waves'] }, view: [-80, 25, 3.5], steps: [], settleMs: 20000 },
   open_wind: { setup: { model: 'GFS', layers: ['wind'] }, view: [-80, 25, 3.5], steps: [], settleMs: 20000 },
