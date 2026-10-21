@@ -154,3 +154,14 @@ Tests: +3 backend (23 in the two files; estate floor 2333, projection 2335 from 
 files) and +3 Jest. Merged dev a25aaa8ae (#423, #425) into the branch: `_FLOOR_SET_FROM` = {guards 3287, chain 2855,
 estate 2335}. The ledger takes dev's chain; this PR's pr_open and commitment lines (formerly 1557/1558) are re-chained once,
 right before merge, on the lead's word.
+
+## 2026-10-21 16:00Z: stacked on #432 and re-chained once (on the lead's word)
+
+#426 merged (dev 8392f25b8); the lead queued #432 (Logfire, +5 estate tests) first and asked #422 to stack on it so both PRs'
+CI runs at once. Merged origin/claude/logfire-no-token-safe (f20cdc4c6, ledger to 1583). Resolutions:
+- backendWeatherServiceClient.js: keep both imports.
+- Floors: #432's 2317 + #422's 23 = **2340 / 330 files**, so estate MIN_PASSED **2338** and `_FLOOR_SET_FROM["estate"]` 2340. The
+  lead's message said +20; the review fixes made it 23.
+- STATE: #432's version plus this PR's bullet.
+- Ledger: the pr_open and the live-read commitment are re-appended ONCE as **seq 1584 and 1585** (acted-at 2026-10-20 23:40/23:41Z;
+  the earlier branch-only 1553/1554 and 1557/1558 are superseded). STATE's Ledger head is 1585.

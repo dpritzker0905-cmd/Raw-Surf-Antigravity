@@ -1955,6 +1955,9 @@ jobs:
           # ⬆ 2303→2310 on 2026-10-19, IN THE SAME PR THAT CAUSES IT (one-field frame-image proof): one new estate file
           # adds 7 executed tests (tests/test_frame_image.py) to the 2305 read of dev CI 39331532690: projected 2312;
           # 2312 - 2 = 2310, margin 2. _FLOOR_SET_FROM["estate"] -> 2312. This PR must read 2312 passed.
+          # ⬆ 2310→2315 on 2026-10-21, IN THE SAME PR THAT CAUSES IT (Logfire setup never stops boot): one new estate
+          # file adds 5 executed tests (tests/test_logfire_setup.py) to the 2312 read of dev CI 39594047204 (744775c86):
+          # projected 2317; 2317 - 2 = 2315, margin 2. _FLOOR_SET_FROM["estate"] -> 2317. This PR must read 2317 passed.
           # ⬆ 2310→2330 on 2026-10-20, IN THE SAME PR THAT CAUSES IT (static forecast frames, step 2b, dark): two new estate
           # files add 20 executed tests (tests/test_frame_binary.py 10, tests/test_publish_frame_sets.py 10) to the 2312 read
           # of dev CI 39474436878 @ da40c3c5 (327 files): projected 2332 / 329 files; 2332 - 2 = 2330, margin 2.
@@ -1962,7 +1965,10 @@ jobs:
           # ⬆ 2330→2333 in the same PR after its review fixes: +3 tests in tests/test_publish_frame_sets.py (23 in the two
           # files) on the 2312 read of dev CI 39594047204 @ 744775c8 (327 files): projected 2335 / 329 files; margin 2.
           # _FLOOR_SET_FROM["estate"] -> 2335. This PR must read 2335 passed.
-          MIN_PASSED = 2333
+          # ⬆ 2315→2338 when #422 stacks on #432 (Logfire, +5): #422's two estate files carry 23 tests on top of #432's
+          # projected 2317: 2340 / 330 files; 2340 - 2 = 2338, margin 2. _FLOOR_SET_FROM["estate"] -> 2340.
+          # This PR must read 2340 passed.
+          MIN_PASSED = 2338
 
           try:
               root = ET.parse('estate.xml').getroot()
