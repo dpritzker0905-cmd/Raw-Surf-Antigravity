@@ -237,3 +237,32 @@ only, shown moving beside today's, with APCA per band via Leonardo and a colour-
   decision (electric blue), 1591 push, 1592 push, 1593 D-039's decision, 1594 the push that fulfils 1587). In-text references
   remapped (1589 names finding 1588; 1594 names commitment 1587 and dev 7ac4bff4e then 2a47fd5d8). `action_ledger.py verify`:
   1594 entries, OK, with dev's ledger as the base. Scratchpad recipe: `rechain_again.py <tip> <dev sha> <first> <last>`.
+
+## 2026-10-21T21:25Z: merged as f17508ba0; read back on the deployed dev build
+
+The lead squash-merged #419 into dev as `f17508ba0` and asked for the deployed read-back.
+
+**Read-back (static files only; the map was not loaded and nothing was sent to the backend):**
+- dev--rawsurf `service-worker.js` reads BUILD_VERSION `'f17508ba'` (19:57:43Z). Of the 104 JS files in `asset-manifest.json`,
+  `/static/js/3290.96231539.chunk.js` carries the crest code: webpack concatenated `WebGLMarineParticleShaders` +
+  `marineCrestPalette` into the MapPage module (13290). Read statically there: the crest table `_d={v1:{storm:{rgb:[1,.4,.1],
+  name:"fiery orange"}},v2:{switchHeight:8,casing:!0,…}}`, the resolver `fd` (`__RAW_DISABLE_DARK_STORM_CREST__ ? "v1" : "v2"`)
+  and the shader text `float crestContrastEff = max(u_crestContrast,\n    ').concat(hd.casing, …` (Babel turned the template
+  literals into `.concat`).
+- DRAW_FS is a module-local const there, so it was built offline: the deployed module body was parsed (acorn) and run up to and
+  including DRAW_FS's declaration in a Node vm. Every import was stubbed except module 41082 (`marineWavePalette`, in
+  `3923.cf2f1631.chunk.js`, loaded for real, with its import 41670), since light's crest V2 reads it. Window levers were set per run.
+  The scratchpad tool is `eval_deployed_draw_fs.js`.
+
+| deployed DRAW_FS | length | sha256 | crestContrastEff tail |
+|---|---|---|---|
+| default | 9110 | `5057bc10bcd5ff6a…` | the cased term: `…, (1.0 - step(0.5, u_theme)) * step(8.00, v_wave_height)));` |
+| `__RAW_DISABLE_DARK_STORM_CREST__` | 9049 | `f425bf535ef4ae2a…` | today's `u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));` |
+| + light and beach crest kills | 8811 | `a9e8e1026083bc9b…` | today's (= the pin in `marineDarkStormCrest.test.js`, dev before any crest change) |
+
+- Default against the dark kill: exactly one line differs (line 163, the casing tail); the dark storm line stays
+  `vec3(1.00, 0.40, 0.10);   // fiery orange` in all three; light's crest V2 draws in the first two, as deployed.
+- **The kill restores today's DRAW_FS hash:** Jest on the source at `2a47fd5d8` (dev just before #419) gives default DRAW_FS
+  9049 / `f425bf535ef4ae2a…`, the deployed build's hash with the kill set. The source at `f17508ba0` gives `5057bc10…` and
+  `f425bf53…`, the same as the deployed build, so the offline evaluation matches the source.
+- Not read: the look in the app (an 8 m+ dark storm with the casing at the eye); that is the owner's eye.
