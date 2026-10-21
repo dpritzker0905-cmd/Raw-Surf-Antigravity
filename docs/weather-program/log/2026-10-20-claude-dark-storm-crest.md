@@ -224,3 +224,7 @@ only, shown moving beside today's, with APCA per band via Leonardo and a colour-
   time in `acted_at`. 1587's `why` named the finding by its first-chain number (1560); it now reads 1586. 1592 is the push that
   fulfils 1585. If dev moves again before merge, re-chain once more (scratchpad `rechain_onto_dev.py` is the recipe: dev's lines
   as the append-only base, `action_ledger.py verify` must pass).
+- Correction to the two bullets above: the merge (`ffea616f9`) took dev at `7ac4bff4e` (#429, the scrub-settle check, merged
+  after my fetch: another session's fetch moved the shared `origin/dev` ref), not `dbb9713fd` as its message says. #429 adds no
+  ledger line (dev's head stays 1583) and touches none of this branch's files; `action_ledger.py verify` passes with
+  `7ac4bff4e`'s ledger as the base. Lesson (again): name dev by an explicit SHA when merging, never by `origin/dev`.
