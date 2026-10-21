@@ -13,7 +13,10 @@ const withWindow = (levers, fn) => jest.isolateModules(() => {
   try { fn(require('./WebGLMarineParticleShaders'), require('./marineCrestPalette')); } finally { Object.keys(levers).forEach((k) => delete window[k]); }
 });
 const SUNSET = { __RAW_BEACH_WASH__: 'sunset' };
+const KILLS = { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_DISABLE_BEACH_CREST_V2__: true };   // light V2 (#421) is on by default
 const drawFsUnder = (levers) => { let fs; withWindow(levers, (s) => { fs = s.DRAW_FS; }); return fs; };
+// Beach's branch of DRAW_FS: from its theme test to light's.
+const beachBranch = (fs) => fs.slice(fs.indexOf('if (u_theme > 1.5) {'), fs.indexOf('} else if (u_theme > 0.5) {'));
 
 // OKLab C (Ottosson 2020) of an encoded sRGB 0-1 colour.
 const oklabC = (rgb) => {
@@ -25,14 +28,17 @@ const oklabC = (rgb) => {
 const apcaY = (rgb) => 0.2126729 * rgb[0] ** 2.4 + 0.7151522 * rgb[1] ** 2.4 + 0.0721750 * rgb[2] ** 2.4;
 
 describe('the default (D-035: beach draws the v1 sea) and the kill (window.__RAW_DISABLE_BEACH_CREST_V2__) draw the pre-V2 crests exactly', () => {
-  it('DRAW_FS hashes to the pre-V2 shader by default, and under the kill with the sunset lever set', () => {
+  it('DRAW_FS hashes to the pre-V2 shader under both crest kills, the sunset lever set or not; by default beach\'s branch is that shader\'s', () => {
     expect(BEACH_CREST_ID).toBe('v1');
-    expect(DRAW_FS.length).toBe(DRAW_FS_V1.length);
-    expect(sha(DRAW_FS)).toBe(DRAW_FS_V1.sha);
-    withWindow({ ...SUNSET, __RAW_DISABLE_BEACH_CREST_V2__: true }, (shaders, crest) => {
-      expect(crest.BEACH_CREST_ID).toBe('v1');
-      expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V1.sha);
-    });
+    for (const levers of [KILLS, { ...KILLS, ...SUNSET }]) {
+      withWindow(levers, (shaders, crest) => {
+        expect(crest.BEACH_CREST_ID).toBe('v1');
+        expect(shaders.DRAW_FS.length).toBe(DRAW_FS_V1.length);
+        expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V1.sha);
+      });
+    }
+    expect(beachBranch(DRAW_FS)).toBe(beachBranch(drawFsUnder(KILLS)));   // the default build: light V2, beach as before
+    expect(DRAW_FS).toBe(drawFsUnder({ __RAW_DISABLE_BEACH_CREST_V2__: true }));
   });
 
   it('V2 stands down wherever beach does not draw the sunset sea, the lever set or not', () => {
@@ -41,11 +47,11 @@ describe('the default (D-035: beach draws the v1 sea) and the kill (window.__RAW
         if (!Object.keys(lever).length && levers.__RAW_BEACH_WASH__) continue;   // the lever alone draws V2 (below)
         withWindow(levers, (shaders, crest) => {
           expect(crest.BEACH_CREST_ID).toBe('v1');
-          expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V1.sha);
+          expect(beachBranch(shaders.DRAW_FS)).toBe(beachBranch(drawFsUnder(KILLS)));
         });
       }
     }
-    withWindow({ __RAW_BEACH_WASH__: 'B' }, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V1.sha));   // an unknown value does nothing
+    withWindow({ __RAW_BEACH_WASH__: 'B' }, (shaders) => expect(shaders.DRAW_FS).toBe(DRAW_FS));   // an unknown value does nothing
   });
 
   it('the v1 lines are the shader\'s pre-V2 lines, comment column included', () => {
@@ -76,11 +82,11 @@ describe('V2 draws only under the sunset lever and changes the three beach colou
     for (const i of changed) { expect(i).toBeGreaterThan(beachAt); expect(i).toBeLessThan(lightAt); }
   });
 
-  it('dark and light keep their literals', () => {
-    const fs = drawFsUnder(SUNSET);
-    for (const lit of ['calmColor = vec3(0.05, 0.15, 0.45);    // deep navy', 'activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold',
-      'stormColor = vec3(0.75, 0.10, 0.05);   // crimson red', 'calmColor = vec3(0.10, 0.95, 0.60);    // mint-green',
-      'activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold', 'stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange']) expect(fs).toContain(lit);
+  it('dark keeps its literals and light draws what it draws without the lever (its own V2, #421)', () => {
+    const fs = drawFsUnder(SUNSET), rest = (s) => s.slice(s.indexOf('} else if (u_theme > 0.5) {'));
+    for (const lit of ['calmColor = vec3(0.10, 0.95, 0.60);    // mint-green', 'activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold',
+      'stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange']) expect(fs).toContain(lit);
+    expect(rest(fs)).toBe(rest(DRAW_FS));
   });
 
   it('the shader is built from the table: the switch is a step on the crest\'s own height', () => {

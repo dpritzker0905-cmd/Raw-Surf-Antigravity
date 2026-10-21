@@ -7,6 +7,13 @@
 //   node serve_spa.js <build dir> 3100
 //   PORT=4120 OUT=<dir> node scn_wave_palette_ab.js        then: python compose_wave_ab.py <dir>
 // Env: VARIANTS=v1,v2  THEMES=light,beach  VIEWS=world,regional,coastal  CLIP=1 (frames for the clip)  CLIP_FRAMES=40
+//      CLIP_VIEWS=regional,coastal (default regional; a non-regional clip's frames are named clip-<theme>-<variant>@<view>-NNN)
+//      PAIRED=1: each clip frame is followed by the same view with the crest pass off (the engine's own heatmap-only fallback,
+//      _fboSupported = false, restored after), saved as clipw-...: the exact wash under that frame, for crest_contrast.py
+// Light crest V2 (2026-10-20): l1 is the v2 wash under TODAY's light crests (window.__RAW_DISABLE_LIGHT_CREST_V2__), v2 draws light
+// crest V2 (the default); lk is V2 with the engine's crest self-contrast on at every zoom and height (window.__RAW_CREST_CONTRAST__ = 1:
+// a dark skirt round a lighter centre, the cased-crest probe) and l1k today's crests the same way. Each shot reads back light's four
+// crest lines from the DRAW program's own compiled GLSL.
 // Per shot it records what the engine held (grid shape, bounds, valid time, the drawn grid's height range) so the panes can be
 // shown to be the same data; and, before Waves is switched on, the bare water's colour (the checker's basemap model).
 // THE 16 m ENCODING (2026-10-20): VARIANTS=v2@10,v2,v2@10b  THEMES=light,beach,dark  --vortex-peak 14 (the eye passes 10 m, under 16).
@@ -31,6 +38,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
+  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
   sunset: { __RAW_BEACH_WASH__: 'sunset' }, c1: { __RAW_BEACH_WASH__: 'sunset', __RAW_DISABLE_BEACH_CREST_V2__: true } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
@@ -46,8 +54,9 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   const canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
   const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
   const beachCrest = (/if \(u_theme > 1\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);/.exec(glsl) || []).slice(1);
+  const lightCrest = (/else if \(u_theme > 0\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);[^}]*?foamHighlight = ([^;]*);/.exec(glsl) || []).slice(1);
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
-    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2',
+    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__,
     heightScale: d && d.u_heightScale, baseScale: e && e._coarseBaseData ? e._coarseBaseData.u_heightScale : null,
     waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null,
     beachWash: window.__RAW_BEACH_WASH__ || 'v1', beachCrest };

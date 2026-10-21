@@ -13,7 +13,7 @@ Checks: with a paired wash, the share of sea pixels within 1 dE00 of it (the pix
 as a low share); null control, the first and second halves of one variant's frames (other particles, later forecast hours).
 
 Usage (the backend venv has numpy and Pillow):
-  python crest_contrast.py <ab dir> <cvd_lut.json> [--pairs c1:sunset,v1:sunset] [--views world,regional,coastal] [--theme beach] [--json out]
+  python crest_contrast.py <ab dir> <cvd_lut.json> [--pairs l1:v2,l1:lk] [--views world,regional,coastal] [--theme light] [--json out]
          [--crop 0,0.06,0.93,1]   (fractions x0,y0,x1,y1 of the clip frame kept: the clip's right edge holds a sliver of the
                                     weather panel and its top-left corner a chip, the same in every pane but not sea)
 """
@@ -137,8 +137,8 @@ def main(ab, lut_path):
     L = json.load(open(lut_path))
     n = L["n"]
     luts = {k: np.array(L[k]) for k in ("protan", "deutan", "tritan")}
-    theme = opt("--theme", "beach")
-    pairs = [p.split(":") for p in opt("--pairs", "c1:sunset,v1:sunset").split(",")]
+    theme = opt("--theme", "light")
+    pairs = [p.split(":") for p in opt("--pairs", "l1:v2,l1:lk").split(",")]
     views = opt("--views", "world,regional,coastal").split(",")
     crop = [float(x) for x in opt("--crop", "0,0.06,0.93,1").split(",")]
     result, cache = {}, {}   # a variant's frames are read once, however many pairs name it

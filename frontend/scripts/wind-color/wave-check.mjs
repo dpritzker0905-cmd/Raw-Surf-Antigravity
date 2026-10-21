@@ -10,8 +10,9 @@
 //   node wave-check.mjs --strict                 # exit 1 on any RED line (here or in the colour-blind authority)
 //   node wave-check.mjs --json out.json
 //   node wave-check.mjs --palette sunset --theme beach   # PR #416's beach candidate (its lever), with the V2 crest it brings
-//   node wave-check.mjs --crest v1               # beach crests: v1 / v2 / a crest-solve.mjs JSON ({ calm, active, storm } 0-1),
-//                                                 # instead of what the app draws (V2 over the sunset sea, v1 over every other)
+//   node wave-check.mjs --crest v1               # crests: v1 / v2 (a table id of the theme checked) / a crest-solve.mjs JSON ({ calm,
+//                                                 # active, storm } 0-1, for the theme it was solved for: pass --theme too), instead of what
+//                                                 # the app draws (v1 over the v1 wash, V2 over v2)
 //
 // Bars (2026-10-20 brief + D-019): lightness falls at every step as height grows (OKLCH L, on the wash AND the composite, with
 // the swell lighting off, half and full); no grey (a ramp never runs through grey: wash C* >= 12 and composite C* >= 8 along
@@ -23,7 +24,7 @@ import os from 'os';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import { fileURLToPath } from 'url';
-import { BASEMAP, ALPHAS, DEPTH_FLOOR, loadPalettes, washAt, composite, crestOver, oklab, apcaLc, dE, allDE, chromaStar, CRESTS, crestFor } from './wave-lib.mjs';
+import { BASEMAP, ALPHAS, DEPTH_FLOOR, loadPalettes, washAt, composite, crestOver, selfContrast, oklab, apcaLc, dE, allDE, chromaStar, CRESTS_BY_THEME, crestFor } from './wave-lib.mjs';
 import { de2000, simLab } from './light-path-lib.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -36,12 +37,15 @@ const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JS
 const ids = arg('--palette') ? [arg('--palette')] : Object.keys(palettes);
 const themes = arg('--theme') ? [arg('--theme')] : ['light', 'beach'];
 const DIRS = [0, 0.5, 1];
-const crestArg = arg('--crest'), crestFile = crestArg && !CRESTS[crestArg] ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;
-/** The beach crest [calm, active, storm, foam] drawn over palette `id` (light: the shader's own, undefined here). */
-const crestOf = (id, theme) => (theme !== 'beach' ? undefined
-  : crestFile ? [crestFile.calm, crestFile.active, crestFile.storm, CRESTS.v1[3],
-    crestFile.switchHeight ? { h: crestFile.switchHeight, calm: crestFile.calmUp, active: crestFile.activeUp } : undefined]
-    : CRESTS[crestArg || crestFor(id)]);
+const crestArg = arg('--crest'), crestFile = crestArg && !/^v\d$/.test(crestArg) ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;
+/** The crest [calm, active, storm, foam, polarity?] drawn over palette `id` in `theme`, and its name. */
+const crestOf = (id, theme) => {
+  const tables = CRESTS_BY_THEME[theme];
+  if (crestFile) return { name: path.basename(crestArg), crest: [crestFile.calm, crestFile.active, crestFile.storm, crestFile.foam || tables.v1[3],
+    crestFile.switchHeight ? { h: crestFile.switchHeight, calm: crestFile.calmUp, active: crestFile.activeUp, foam: crestFile.foamUp } : undefined] };
+  const cid = crestArg && tables[crestArg] ? crestArg : crestFor(id, theme);
+  return { name: cid, crest: tables[cid] };
+};
 const fmt = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : String(x));
 const rgb255 = (c) => c.map((v) => Math.round(v * 255));
 let red = 0;
@@ -98,7 +102,7 @@ for (const id of ids) {
     for (const [view, a] of Object.entries(ALPHAS)) for (let h = 0; h <= cap + (P.over ? 1 : 0) + 1e-9; h += 0.05) { const d = dE(composite(P, theme, h, a, 0.5, false), land); if (d < ls.de) ls = { de: d, h, view }; }
     console.log(`[${flag(false, ls.de < BAR.land)}] land vs sea: the composite closest to the ${theme} land is ${fmt(ls.h, 2)} m (${ls.view}) at ${fmt(ls.de)} dE00 (watch below ${BAR.land})`);
     // 5. Crests: a crest's core (no whitecap, and a full whitecap) against the wash under it, at every 0.1 m and swell lighting.
-    const crest = crestOf(id, theme);
+    const { name: crestName, crest } = crestOf(id, theme);
     let cr = { de: Infinity }, crC = { de: Infinity }; const crLc = [{ lc: Infinity }, { lc: Infinity }];   // APCA: whitecap off / on
     // Heights every 0.1 m, then the above-cap state (2026-10-20: a crest there reads the cap's height over the above-cap colour).
     const crestHs = []; for (let h = 0.2; h <= Math.min(cap, 16) + 1e-9; h += 0.1) crestHs.push(h);
@@ -109,7 +113,22 @@ for (const id of ids) {
       if (n < cr.de) cr = { de: n, h, view, wc }; if (w.de < crC.de) crC = { ...w, h, view, wc }; if (lc < crLc[wc].lc) crLc[wc] = { lc, h, view };
     }
     if (args.includes('--pairs')) for (let h = 0.3; h <= cap; h += h < 2 ? 0.3 : 1) { const u = composite(P, theme, h, ALPHAS.world), o = crestOver(theme, h, u, 0, crest); console.log(`         crest at ${fmt(h)} m: ${fmt(dE(o, u))} dE00 normal, ${fmt(allDE(o, u).de)} weakest (${allDE(o, u).kind}); crest L ${fmt(oklab(o).L, 2)} wash L ${fmt(oklab(u).L, 2)}`); }
-    console.log(`[${flag(false, cr.de < BAR.crest)}] crests (${theme === 'beach' ? `beach ${crestArg ? path.basename(crestArg) : crestFor(id)}` : 'light'}): a crest core vs its wash is weakest at ${fmt(cr.h)} m (${cr.view}${cr.wc ? ', whitecap' : ''}) ${fmt(cr.de)} dE00; colour-blind ${fmt(crC.de)} (${crC.kind} at ${fmt(crC.h)} m); APCA |Lc| ${fmt(crLc[0].lc)} at ${fmt(crLc[0].h)} m, ${fmt(crLc[1].lc)} on a whitecap's front at ${fmt(crLc[1].h)} m (watch below ${BAR.crest} dE00)`);
+    console.log(`[${flag(false, cr.de < BAR.crest)}] crests (${theme} ${crestName}): a crest core vs its wash is weakest at ${fmt(cr.h)} m (${cr.view}${cr.wc ? ', whitecap' : ''}) ${fmt(cr.de)} dE00; colour-blind ${fmt(crC.de)} (${crC.kind} at ${fmt(crC.h)} m); APCA |Lc| ${fmt(crLc[0].lc)} at ${fmt(crLc[0].h)} m, ${fmt(crLc[1].lc)} on a whitecap's front at ${fmt(crLc[1].h)} m (watch below ${BAR.crest} dE00)`);
+    // 5b. The engine's SELF-CONTRAST on the crest (DRAW_FS): below 1.05 m at every zoom (u_lowHCrestContrast, default on) and at
+    // every height in the z 3-4.9 band (u_crestContrast): the ribbon's centre lightens (x 1.30 + foam x 0.18), its skirt darkens (x 0.55).
+    // A dark ink's centre moves toward a light wash there; its skirt carries the edge. Reported as the centre alone and as the better
+    // of centre and skirt (the edge the eye can use), whitecap off.
+    const scLc = { low: { lc: Infinity }, bandCore: { lc: Infinity }, bandBest: { lc: Infinity } };
+    for (const [view, a] of Object.entries(ALPHAS)) for (const dir of DIRS) for (const h of crestHs) {
+      if (typeof h === 'string') continue;
+      const under = composite(P, theme, h, a, dir), lc = (eff, core) => Math.abs(apcaLc(crestOver(theme, h, under, 0, crest, { eff, core }), under));
+      if (h < 1.05) { const v = lc(selfContrast(h), 1); if (v < scLc.low.lc) scLc.low = { lc: v, h, view }; }
+      const core = lc(1, 1), best = Math.max(core, lc(1, 0));
+      if (core < scLc.bandCore.lc) scLc.bandCore = { lc: core, h, view };
+      if (best < scLc.bandBest.lc) scLc.bandBest = { lc: best, h, view };
+    }
+    console.log(`[watch] crest self-contrast (APCA |Lc|, whitecap off): below 1.05 m the centre ${fmt(scLc.low.lc)} at ${fmt(scLc.low.h)} m (${scLc.low.view}); ` +
+      `in the z 3-4.9 band the centre ${fmt(scLc.bandCore.lc)} at ${fmt(scLc.bandCore.h)} m, the better of centre and skirt ${fmt(scLc.bandBest.lc)} at ${fmt(scLc.bandBest.h)} m (${scLc.bandBest.view})`);
     // 6. The legend bar on its panel (the bar draws the table opaque; APCA Lc of each stop as if it were text on the panel).
     const legendStops = stopH.map((h) => washAt(P, theme, h)), lcs = legendStops.map((c) => apcaLc(c, panel));
     const weakLc = lcs.reduce((w, lc, i) => (Math.abs(lc) < Math.abs(w.lc) ? { lc, i } : w), { lc: Infinity, i: -1 });

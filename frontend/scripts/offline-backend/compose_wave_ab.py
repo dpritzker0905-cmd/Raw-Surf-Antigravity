@@ -1,7 +1,7 @@
 """Compose the wave palette A/B (scn_wave_palette_ab.js output) into side-by-side sheets and a side-by-side moving clip.
 
-Usage:  python compose_wave_ab.py <scn output dir> [--variants v1,sunset] [--tag crest] [--clip-view coastal] [--title text]
-        (needs Pillow; the backend venv has it)
+Usage:  python compose_wave_ab.py <scn output dir> [--variants v1,sunset | l1,v2,lk] [--tag crest-<view>] [--clip-view coastal]
+        [--title text]   (needs Pillow; the backend venv has it)
 Writes, into the same dir:
   sheet-<theme>[-tag].jpg    rows = world / regional / coastal, columns = the variants (default: ORDER), each with its legend crop
   clip-<theme>[-tag].webp    the moving clip, the variants side by side, frame for frame (the same forecast hours in each pane);
@@ -18,9 +18,10 @@ NAMES = {"v1": "v1 (the V2 kill)", "v2": "v2 (default)", "A": "A", "B": "B",
          "v2@10": "v2 at 10 m (the 16 m kill = #411)", "v2@10b": "v2 at 10 m again (null control)", "v2b": "v2 at 16 m again (null control)"}
 ORDER = ("v1", "v2@10", "v2", "v2@10b", "v2b", "A", "B", "sunset", "c1")
 NAMES.update({"sunset": "sunset sea (lever)", "c1": "sunset sea, today's crests"})
-# --tag crest*: the beach A/B's own column names (#416).
-CREST_NAMES = {"v1": "OLD sea + today's crests (default)", "sunset": "SUNSET MIDDLE GROUND + warm polarity",
-               "c1": "sunset sea + today's crests"}
+# --tag crest*: the crest A/Bs' own column names (light: #421; beach: #416).
+CREST_NAMES = {"v2": "V2 polarity (default)", "l1": "TODAY's crests", "lk": "V2 + self-contrast everywhere (cased probe)",
+               "l1k": "TODAY + self-contrast everywhere",
+               "v1": "OLD sea + today's crests (default)", "sunset": "SUNSET MIDDLE GROUND + warm polarity", "c1": "sunset sea + today's crests"}
 
 
 def opt(name, default=None):

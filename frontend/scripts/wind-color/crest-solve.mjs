@@ -1,7 +1,7 @@
-// BEACH CREST SOLVER: searches the colours DRAW_FS mixes for a beach crest (calm -> active at 3 m -> storm at 6 m and up,
+// CREST SOLVER (beach, or light with --theme light): searches the colours DRAW_FS mixes for a crest (calm -> active at 3 m -> storm at 6 m and up,
 // energy = smoothstep(0, 6, h)) so a crest's core stands off the wash under it at EVERY height, for normal vision (a floor) and
-// as far as it can for the three dichromats, against each named wave-palette beach table at once (default v2, the owner's pick,
-// D-033). Scored with wave-lib.mjs's crestOver/composite, the checker's own model; what it finds is still judged by
+// as far as it can for the three dichromats, against each named wave-palette table of that theme at once (default v2, the owner's
+// pick, D-033). Below 1.05 m the crest's centre is scored with the engine's low-height self-contrast (wave-lib selfContrast). Scored with wave-lib.mjs's crestOver/composite, the checker's own model; what it finds is still judged by
 // wave-check.mjs (and coloraide) and confirmed in the real engine (scn_wave_palette_ab.js + offline-backend/crest_contrast.py).
 //
 // Two families:
@@ -10,28 +10,28 @@
 //    lost at isoluminance (Lindsey & Teller 1990), and a crest is a moving mark.
 //  - --polarity: the crest's calm and active colours switch from a DARK pair to a LIGHT pair at a height (DRAW_FS
 //    `mix(below, above, step(h, v_wave_height))`), where the wash's luminance passes mid-grey (APCA Y 0.352 on v2: 1.8-2.4 m by zoom
-//    and swell lighting). The objective adds the APCA |Lc| soft minimum (whitecap off) and a floor on it (--lc).
+//    and swell lighting; light's v2 wash: 2.6-3.3 m). The objective adds the APCA |Lc| soft minimum (whitecap off) and a floor on it (--lc).
 // Both keep the crest's own path colourful (C* floor: v1's orchid -> turquoise mix went through a grey cyan) and the top stops
 // apart (--stop-de: without it the search lays active = storm, a crest that stops telling 3 m from 6 m).
 //
-// Usage: node crest-solve.mjs [--palettes v2] [--table cand.json --palettes table] [--floor 18] [--path-c 30] [--stop-de 20] [--seed 1] [--gens 700] [--np 60] [--out f]
+// Usage: node crest-solve.mjs [--theme beach|light] [--palettes v2] [--floor 18] [--path-c 30] [--stop-de 20] [--seed 1] [--gens 700] [--np 60] [--out f]
 //   smooth:   [--keep-calm] [--calm-h lo,hi] [--active-h lo,hi] [--storm-h lo,hi] [--calm-l lo,hi] ...   (CIELAB windows; lo > hi wraps)
 //   polarity: --polarity [--lc 40] [--lc-w 0.5] [--switch 1.6,2.8] [--dark-l 15,50] [--light-l 72,99] [--dark-h lo,hi] [--light-h lo,hi]
+//             [--foam r,g,b]: the foam below the switch (0-1; the theme's foam at and above it), and the APCA terms then score a
+//             whitecap's front too (light crest V2: white foam on a dark ink below the switch meets the wash's luminance near 3 m)
 import fs from 'fs';
-import { ALPHAS, loadPalettes, composite, crestOver, CRESTS, apcaLc } from './wave-lib.mjs';
+import { ALPHAS, loadPalettes, composite, crestOver, selfContrast, CRESTS_BY_THEME, apcaLc } from './wave-lib.mjs';
 import { rgbOfLch, lchOf, labOf, simLab, de2000, KINDS } from './light-path-lib.mjs';
 
 const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const PAL = arg('--palettes', 'v2').split(','), FLOOR = Number(arg('--floor', 18)), PATH_C = Number(arg('--path-c', 30));
 const STOP_DE = Number(arg('--stop-de', 20)), POLAR = args.includes('--polarity'), LC = Number(arg('--lc', 40)), LC_W = Number(arg('--lc-w', 0.5));
-const GENS = Number(arg('--gens', 700)), NP = Number(arg('--np', 60)), KEEP_CALM = args.includes('--keep-calm');
+const GENS = Number(arg('--gens', 700)), NP = Number(arg('--np', 60)), KEEP_CALM = args.includes('--keep-calm'), THEME = arg('--theme', 'beach');
 let seed = Number(arg('--seed', 1));
 const rand = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
 const win = (k, d) => arg(k, d).split(',').map(Number);
 const { WAVE_PALETTES } = loadPalettes();
-// --table cand.json: a wave-solve.mjs candidate table to solve against instead (named 'table'; pass --palettes table).
-if (arg('--table', null)) WAVE_PALETTES.table = JSON.parse(fs.readFileSync(arg('--table'), 'utf8'));
-const FOAM = CRESTS.v1[3];
+const V1 = CRESTS_BY_THEME[THEME].v1, FOAM = V1[3], FOAM_DOWN = arg('--foam', null) ? win('--foam') : null;
 
 // Every under-colour the crest can sit on: each palette, the world and coastal alpha (the regional one lies between), the swell
 // lighting at half (and off and full in polarity mode, which moves the wash's luminance near the switch), heights 0.2-10 m
@@ -41,8 +41,8 @@ for (const id of PAL) {
   const P = WAVE_PALETTES[id];
   for (const a of [ALPHAS.world, ALPHAS.coastal]) for (const dir of POLAR ? [0, 0.5, 1] : [0.5]) {
     const hs = []; for (let h = 0.2; h <= P.cap + 1e-9; h += 0.2) hs.push(h);
-    for (const h of hs) SAMPLES.push({ id, h, under: composite(P, 'beach', h, a, dir) });
-    if (P.over) SAMPLES.push({ id, h: P.cap, under: composite(P, 'beach', P.cap + 1, a, dir), over: true });
+    for (const h of hs) SAMPLES.push({ id, h, under: composite(P, THEME, h, a, dir) });
+    if (P.over) SAMPLES.push({ id, h: P.cap, under: composite(P, THEME, P.cap + 1, a, dir), over: true });
   }
 }
 for (const s of SAMPLES) { s.lab = labOf(s.under); s.sim = KINDS.map((k) => simLab(s.under, k)); }
@@ -65,9 +65,9 @@ function decode(x) {
     excess += c.reduce((s, v) => s + Math.max(0, v - 1) + Math.max(0, -v), 0);
     out[n] = two(c);
   }
-  if (KEEP_CALM) out.calm = CRESTS.v1[0];
+  if (KEEP_CALM) out.calm = V1[0];
   const sw = POLAR ? Math.round(x[k] * 100) / 100 : null;
-  const crest = [out.calm, out.active, out.storm, FOAM, POLAR ? { h: sw, calm: out.calmUp, active: out.activeUp } : undefined];
+  const crest = [out.calm, out.active, out.storm, FOAM_DOWN || FOAM, POLAR ? { h: sw, calm: out.calmUp, active: out.activeUp, foam: FOAM } : undefined];
   return { crest, out, sw, excess };
 }
 
@@ -75,13 +75,13 @@ function score(x, report = false) {
   const { crest, out, sw, excess } = decode(x);
   let pen = excess * 300, normal = Infinity, cvd = Infinity, lcMin = Infinity, soft = 0, softLc = 0, where = null, lcAt = null;
   for (const s of SAMPLES) for (const wc of [0, 1]) {
-    const o = crestOver('beach', s.h, s.under, wc, crest);
+    const o = crestOver(THEME, s.h, s.under, wc, crest, { eff: selfContrast(s.h), core: 1 });
     const n = de2000(labOf(o), s.lab);
     let c = n; for (let i = 0; i < 3; i++) c = Math.min(c, de2000(simLab(o, KINDS[i]), s.sim[i]));
     if (n < normal) normal = n;
     if (c < cvd) { cvd = c; where = { id: s.id, h: s.h, over: s.over, wc }; }
     soft += Math.exp(-c / 0.7);
-    if (wc === 0) { const lc = Math.abs(apcaLc(o, s.under)); if (lc < lcMin) { lcMin = lc; lcAt = s.h; } softLc += Math.exp(-lc / 3); }
+    if (wc === 0 || FOAM_DOWN) { const lc = Math.abs(apcaLc(o, s.under)); if (lc < lcMin) { lcMin = lc; lcAt = s.h; } softLc += Math.exp(-lc / 3); }
   }
   // The crest's own path never runs through grey (CIELAB C* of the bare colour, energy 0 -> 1, each side of a switch).
   const e2h = (e) => { let lo2 = 0, hi2 = 6; for (let i = 0; i < 30; i++) { const m = (lo2 + hi2) / 2, t = m / 6; if (t * t * (3 - 2 * t) < e) lo2 = m; else hi2 = m; } return lo2; };
