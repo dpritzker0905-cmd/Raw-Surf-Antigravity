@@ -133,3 +133,21 @@ Evidence: `evidence/serve-cache-quick-wins-2026-10-20.json`.
 - flake8 gate and the 800-line gate pass.
 - Fixed after review of my own diff: the run-keys token and manifest snapshot now come from ONE manifest read. Two reads
   could pair a new token with an older snapshot and hide a change from the scoped invalidation.
+
+## 2026-10-21 00:30Z-00:50Z: hosted CI, and where the live `no-store` came from
+
+- **Hosted CI, first run on 5230b7d35 / 43ec103c5.**
+  - All checks green except the guards lane, which had 1 failure. It was a race in my own test
+    (`test_a_request_joining_a_build_for_another_anchor_gets_its_own_labels`): each request hops to a worker thread
+    first, so which one leads is not deterministic. It now asserts {miss, shared} in either order, and the matching
+    `/products` concurrency assertion got the same treatment.
+  - Guards read 3284 passed + 1 failed = **3285, the projection**. Chain and floor staleness are green.
+- **The `cache-control: no-store` in the 2026-10-20 live runs was the harness's own header.**
+  - `frontend/scripts/offline-backend/ab_lib.js` fulfills live responses with `{ ...resp.headers(), ...CORS }`, and
+    `CORS` carries `'cache-control': 'no-store'` (lines 14 and 100). That overwrites whatever the server sent.
+  - ONE live GET of `/api/health` (00:45:32Z, headers only; the only live request this session) returned
+    `Server: cloudflare`, `cf-cache-status: DYNAMIC`, `vary: Accept-Encoding` and no Cache-Control.
+  - So nothing downstream adds no-store; the surf-spots work saw the same.
+  - What this means for the ETag: the app's own `Cache-Control: no-cache` + weak ETag pass through, so a browser can
+    revalidate and get the 304. The ETag is weak on purpose: Cloudflare keeps weak validators when it re-encodes a body.
+  - The once-per-version encode is the win either way; the 304 only saves transfer.

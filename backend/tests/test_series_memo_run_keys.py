@@ -186,7 +186,8 @@ def test_a_request_joining_a_build_for_another_anchor_gets_its_own_labels(fresh)
             gate.set()
             return await ta, await tb
     ra, rb = asyncio.run(run())
-    assert len(calls) == 1 and _outcome(ra) == "miss" and _outcome(rb) == "shared"
+    # Which request leads is not deterministic (each first hops to a worker thread for the manifest state).
+    assert len(calls) == 1 and sorted([_outcome(ra), _outcome(rb)]) == ["miss", "shared"]
     assert _decoded(ra)["base_time"] == A.strftime(ISO) and [f["hour_offset"] for f in _decoded(ra)["frames"]] == [0, 3, 6]
     assert _decoded(rb)["base_time"] == B.strftime(ISO) and [f["hour_offset"] for f in _decoded(rb)["frames"]] == [-1, 2, 5]
 

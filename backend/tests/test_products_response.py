@@ -141,7 +141,8 @@ def test_concurrent_first_calls_share_one_encode():
     rs = asyncio.run(run())
     assert len(calls) == 1
     assert len({r.content for r in rs}) == 1 and all(r.status_code == 200 for r in rs)
-    assert sum("memo;desc=shared" in r.headers["server-timing"] for r in rs) == 3
+    outcomes = sorted(r.headers["server-timing"].split("memo;desc=")[1].split(";")[0] for r in rs)
+    assert outcomes.count("miss") == 1 and set(outcomes) <= {"miss", "shared", "hit"}, outcomes
 
 
 def test_if_none_match_answers_304_with_no_body():
