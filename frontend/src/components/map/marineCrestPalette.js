@@ -5,8 +5,12 @@
 // darker, so the two pass each other's luminance near 3 m and, at the worst zoom and lighting, stay there to 16 m and on the red
 // above-cap flag: core vs wash 16.8 dE00, colour-blind 13.4, APCA |Lc| 0. Solved by frontend/scripts/wind-color/crest-solve.mjs
 // --theme light and judged by wave-check.mjs (both read this table).
-// Kill, set before page load: window.__RAW_DISABLE_LIGHT_CREST_V2__ = true draws v1 exactly (DRAW_FS hash-pinned in the test).
-// V2 also stands down wherever light's wash is not V2 (either wash kill): it was solved for that wash.
+// RESTORED (owner 2026-10-21 08:02 EDT, on the live dev site: "I do not like the animation colors of light mode, with dark animations
+// mixed with yellow ones, its not pleasing to the eye as a good representation of waves moving. The original was better."): v1, the
+// original, is the default again, DRAW_FS byte for byte as at dev f6b80f724 (hash-pinned in the test). V2 is drawn only when asked
+// for, set before page load: window.__RAW_LIGHT_CREST_V2__ = true (the A/B), or window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true
+// (the restore's kill: today's V2 default back). window.__RAW_DISABLE_LIGHT_CREST_V2__ = true still forces v1 either way, and V2
+// still stands down wherever light's wash is not V2 (either wash kill): it was solved for that wash.
 import { MARINE_WAVE_PALETTE_ENABLED, MARINE_WAVE_PALETTE_IDS } from './marineWavePalette';
 
 const WIN = typeof window === 'undefined' ? {} : window;
@@ -37,7 +41,8 @@ export const LIGHT_CRESTS = {
 };
 
 export function resolveLightCrest(win = WIN, washOn = MARINE_WAVE_PALETTE_ENABLED, washId = MARINE_WAVE_PALETTE_IDS.light) {
-  return win.__RAW_DISABLE_LIGHT_CREST_V2__ === true || !washOn || washId !== 'v2' ? 'v1' : 'v2';
+  const v2Asked = win.__RAW_LIGHT_CREST_V2__ === true || win.__RAW_DISABLE_LIGHT_CREST_RESTORE__ === true;
+  return !v2Asked || win.__RAW_DISABLE_LIGHT_CREST_V2__ === true || !washOn || washId !== 'v2' ? 'v1' : 'v2';
 }
 export const LIGHT_CREST_ID = resolveLightCrest();
 

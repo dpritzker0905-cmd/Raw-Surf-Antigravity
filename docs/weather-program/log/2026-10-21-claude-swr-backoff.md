@@ -126,3 +126,10 @@ Three themes x desktop / mobile, ARIA: no UI, CSS, theme or layout code changed 
 
 Draft PR #441 (`claude/swr-backoff-ladder` -> `dev`); ledger seq 1595 (`pr_open`) and 1596 (the live read-back commitment, due
 2026-10-28), after `dev`'s 1594. Not merged; the lead merges.
+
+## 10. 2026-10-21 ~22:11Z: ledger re-chained once (corrects section 9's seq numbers)
+
+`dev` took #438 (`42833a52d`) and its lines at 1595-1596 while #441 was open, so #441 conflicted on `ACTIONS.jsonl`. Merged `dev`, took
+its ledger byte-for-byte, and re-appended this PR's two lines unchanged (same fields, `acted_at` = their first writing): **1597**
+(`pr_open` #441) and **1598** (the live read-back commitment, due 2026-10-28). Section 9's "1595 and 1596" were those lines' first
+numbers; on `dev` 1595-1596 are #438's.

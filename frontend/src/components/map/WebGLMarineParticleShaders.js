@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding';
-import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL } from './marineCrestPalette';   // light crest V2, dark's 8 m+ storm ink (+ their kills)
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL } from './marineCrestPalette';   // light crests (the original; V2 on request), dark's 8 m+ storm ink (+ kills)
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
