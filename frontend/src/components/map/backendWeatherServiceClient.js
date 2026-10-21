@@ -19,6 +19,7 @@ import { arrayMax, arrayMin } from './marineControllerUtils';
 import { blendIconSwell2 } from './iconSwell2Blend';
 import { requireStoredIconEstimate } from './iconEstimateDelivery';
 import { noteRequestDiet, planManifestFetch, requestDietOn } from './marineRequestDiet';
+import { staticEligible, tryStaticWorldGrid } from './staticFrames';
 
 
 export { BoundedPointCache };
@@ -444,20 +445,30 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
-    const res = await fetch(url, { signal });
-    if (!res.ok) {
-      let reason = `Backend grid returned HTTP ${res.status}`;
-      try {
-        const errorJson = await res.json();
-        if (errorJson && errorJson.reason) {
-          reason = errorJson.reason;
-        } else if (errorJson && errorJson.detail) {
-          reason = errorJson.detail;
-        }
-      } catch (e) {}
-      throw new Error(reason);
+    // STATIC FRAMES (step 2b, DARK: staticFrames.js): a WORLD box is answered from the pinned CDN frame when one
+    // covers this valid time; any miss or error returns null and /grid is fetched exactly as before.
+    const surfNow = getSurfModeFlag();
+    const staticJson = staticEligible({ model, layer, bbox: clampedBbox, surf: surfNow })
+      ? await tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf: surfNow, signal })
+      : null;
+    let res = null;
+    let json = staticJson;
+    if (!json) {
+      res = await fetch(url, { signal });
+      if (!res.ok) {
+        let reason = `Backend grid returned HTTP ${res.status}`;
+        try {
+          const errorJson = await res.json();
+          if (errorJson && errorJson.reason) {
+            reason = errorJson.reason;
+          } else if (errorJson && errorJson.detail) {
+            reason = errorJson.detail;
+          }
+        } catch (e) {}
+        throw new Error(reason);
+      }
+      json = await res.json();
     }
-    const json = await res.json();
 
     if (options.storedIconRecovery) requireStoredIconEstimate(json, layer, validTimeStr);
 
@@ -511,8 +522,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
 
     updateDiagnostics('grid', {
-      url,
-      status: res.status,
+      url: staticJson ? `static:${staticJson.static_frame.path}` : url,
+      status: res ? res.status : 200,
       validTime: validTimeStr,
       valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
       valueUnit: json.value_unit || 'm',

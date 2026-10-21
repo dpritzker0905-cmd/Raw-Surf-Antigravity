@@ -1,12 +1,13 @@
 // THE LIGHT SPECTRUM (D-037, owner 2026-10-21): light's wave-height wash draws seven colour steps on the sea-state breaks, with the widest
 // spectrum the light map can show, lightness falling at every step as drawn; dark and beach draw exactly what they drew.
-// Baselines: hashed at dev 448deb35c before any file here changed.
+// Baselines: hashed from dev 83c1c4c0c's own files (the original light crests are the default again there, D-041; dark's 8 m+ storm
+// crest, D-039). Since D-041, light's crests over the spectrum are the original by default; V2 (`v2s`) and its far-zoom lift only on request.
 import { createHash } from 'crypto';
 
 const sha = (s) => createHash('sha256').update(typeof s === 'string' ? s : JSON.stringify(s)).digest('hex');
 const DEV = {
   HEATMAP_FS: 'c8deb3bd58c1beea2aeb29d625b5af9313b6349a2bb0e3c4a12cf0a7271442a8',
-  DRAW_FS: 'f425bf535ef4ae2a42560ef18ca70e1c085e6a74d24f5736c358e4d9e682f7ce',
+  DRAW_FS: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5',
   DRAW_VS: 'a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44',
   GLSL: '05a4cc2f957c5ed7ada5b6f6980218d452cc649ea52422bbb64eb5f7efa57ba7',
   legendLightFt: '33b9f9c134057a1bfd48e44f8db78e68624b3d61dd55d1c1fc384deb77ea872d',
@@ -15,7 +16,7 @@ const DEV = {
   samplesLight: '66b497c5a5d4b813dc40aa56d12aee4bf68258feca56ef214d473f3f58d2aa58',
   samplesBeach: 'e25e5bf7e1058d820841b9f6e5d3413f4f167a10752b26900972e6dc574b5980',
 };
-const KILL = { __RAW_DISABLE_WAVE_SPECTRUM__: true };
+const KILL = { __RAW_DISABLE_WAVE_SPECTRUM__: true }, V2 = { __RAW_LIGHT_CREST_V2__: true };
 const SCALE = { unit: 'm', breakpoints: [0, 0.5, 1, 2, 3, 5, 7, 10] };
 const samples = (p, theme) => Array.from({ length: 171 }, (_, i) => p.sampleMarineWavePalette(i / 10, theme));
 
@@ -131,24 +132,33 @@ describe('the spectrum on (the default)', () => {
 });
 
 describe('light\'s crests over the spectrum', () => {
-  it('keep V2\'s colours with the switch moved to 2.35 m; v2 at 3.05 m under the spectrum kill; v1 under the crest kill', () => {
+  it('are the original by default (D-041): DRAW_FS and DRAW_VS exactly as dev, no switch, no lift', () => {
     withWindow({}, ({ s, c }) => {
+      expect(c.LIGHT_CREST_ID).toBe('v1');
+      expect([sha(s.DRAW_FS), sha(s.DRAW_VS)]).toEqual([DEV.DRAW_FS, DEV.DRAW_VS]);
+      expect(c.resolveSpectrumCrestLift()).toBeNull();
+    });
+  });
+  it('on request keep V2\'s colours with the switch moved to 2.35 m; v2 at 3.05 m under the spectrum kill; v1 under the crest kill', () => {
+    withWindow(V2, ({ s, c }) => {
       expect(c.LIGHT_CREST_ID).toBe('v2s');
       expect(s.DRAW_FS).toContain('step(2.35, v_wave_height)');
       ['calm', 'active', 'storm', 'foam'].forEach((k) => {
         expect(c.LIGHT_CRESTS.v2s[k].rgb).toEqual(c.LIGHT_CRESTS.v2[k].rgb);
         expect(c.LIGHT_CRESTS.v2s[k].above).toEqual(c.LIGHT_CRESTS.v2[k].above);
       });
-      expect([c.resolveLightCrest({}, true, 'spectrum'), c.resolveLightCrest({}, true, 'v2'), c.resolveLightCrest({ __RAW_DISABLE_LIGHT_CREST_V2__: true }, true, 'spectrum')]).toEqual(['v2s', 'v2', 'v1']);
+      expect([c.resolveLightCrest(V2, true, 'spectrum'), c.resolveLightCrest(V2, true, 'v2'), c.resolveLightCrest({ ...V2, __RAW_DISABLE_LIGHT_CREST_V2__: true }, true, 'spectrum'),
+        c.resolveLightCrest({}, true, 'spectrum')]).toEqual(['v2s', 'v2', 'v1', 'v1']);
     });
-    withWindow(KILL, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v2'));
+    withWindow({ ...KILL, ...V2 }, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v2'));
+    withWindow(KILL, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v1'));
   });
 });
 
 describe('light\'s far-zoom crest lift over the spectrum (owner: "Make sure the crest zooms are still visible")', () => {
   const LIFT = '  if (u_theme > 0.5 && u_theme < 1.5) zoomAlphaScale *= mix(';
-  it('DRAW_VS differs from dev only by the light-only lift line and the shared u_theme declaration', () => {
-    withWindow({}, ({ s, c }) => {
+  it('with V2 asked for, DRAW_VS differs from dev only by the light-only lift line and the shared u_theme declaration', () => {
+    withWindow(V2, ({ s, c }) => {
       const NL = String.fromCharCode(10), lines = s.DRAW_VS.split(NL);
       const lift = lines.filter((l) => l.startsWith(LIFT)), theme = lines.filter((l) => l.startsWith('uniform mediump float u_theme;'));
       expect([lift.length, theme.length]).toEqual([1, 1]);
@@ -157,8 +167,8 @@ describe('light\'s far-zoom crest lift over the spectrum (owner: "Make sure the 
       expect(s.DRAW_FS).toContain('uniform float u_theme;');   // the fragment shader's default float is mediump: the two declarations match
     });
   });
-  it('its kill, the spectrum kill and the crest kill each leave DRAW_VS exactly as dev', () => {
-    for (const k of [{ __RAW_DISABLE_SPECTRUM_CREST_LIFT__: true }, KILL, { __RAW_DISABLE_LIGHT_CREST_V2__: true }]) {
+  it('its kill, the spectrum kill and the crest kill each leave DRAW_VS exactly as dev, even with V2 asked for', () => {
+    for (const k of [{ __RAW_DISABLE_SPECTRUM_CREST_LIFT__: true }, KILL, { __RAW_DISABLE_LIGHT_CREST_V2__: true }].map((x) => ({ ...V2, ...x }))) {
       withWindow(k, ({ s }) => expect(sha(s.DRAW_VS)).toBe(DEV.DRAW_VS));
     }
   });

@@ -19,6 +19,8 @@
 // Usage: node spectrum-solve.mjs            (prints the table and the JSON of source colours for marineWavePalette.js)
 import { loadPalettes, composite, ALPHAS, dE, allDE, labOf, oklab } from './wave-lib.mjs';
 import { darkWash, beachWash } from './theme-distance.mjs';
+import { apcaLc, LIGHT_CRESTS } from './wave-lib.mjs';
+import { crestColour, crestAlpha } from './crest-over-wash-lib.mjs';
 
 const MOD = loadPalettes(), { spectrumAlpha } = MOD, V2 = MOD.widenWavePalette(MOD.WAVE_PALETTES.v2);
 const args = process.argv.slice(2), arg = (k, d) => { const i = args.indexOf(k); return i >= 0 ? +args[i + 1] : d; };
@@ -27,7 +29,13 @@ const CMIN_COMMON = arg('--cmin-common', 22), FLOOR_CAP = arg('--cap', 24), BEAC
 // than light's own water, and the spectrum's calm fade (from the water up to 0.5 m) would then climb in lightness.
 const FLOORS = new Map(); for (let k = 5; k <= 60; k++) { const h = k / 10, v2 = composite(V2, 'light', h, ALPHAS.world, 0.5);
   const lo = h < FROM - 1e-9; FLOORS.set(k, { dark: Math.min(lo ? LOW : FLOOR_CAP, dE(v2, darkWash(h))), beach: Math.min(lo ? LOW : BEACH_CAP, dE(v2, beachWash(h))) }); }
-const apart = (P, h) => { if (h < 0.5 - 1e-9 || h > 6 + 1e-9) return true; const f = FLOORS.get(Math.round(h * 10)); if (!f) return true;
+// --crest-lc N (D-041: the original crests are light's default): at every checked height the ORIGINAL crest's core, at the opacity the
+// engine gives it at zoom CREST_ZOOM, stays at least N APCA |Lc| off the wash under it (world opacity; lighting 0 / 0.5 / 1; whitecap off / on).
+const CREST_LC = arg('--crest-lc', 0), CREST_ZOOM = arg('--crest-zoom', 9);
+const crestOk = (P, h) => { if (!CREST_LC || h < 0.3) return true; const a = crestAlpha(h, CREST_ZOOM);
+  for (const dir of [0, 0.5, 1]) for (const wc of [0, 1]) { const u = composite(P, 'light', h, ALPHAS.world, dir), c = crestColour(h, wc, LIGHT_CRESTS.v1);
+    if (Math.abs(apcaLc(u.map((x, i) => Math.min(1, c[i] * a + x * (1 - a))), u)) < CREST_LC) return false; } return true; };
+const apart = (P, h) => { if (!crestOk(P, h)) return false; if (h < 0.5 - 1e-9 || h > 6 + 1e-9) return true; const f = FLOORS.get(Math.round(h * 10)); if (!f) return true;
   const c = composite(P, 'light', h, ALPHAS.world, 0.5); return dE(c, darkWash(h)) >= f.dark - 1e-6 && dE(c, beachWash(h)) >= f.beach - 1e-6; };
 const WATER = [144, 223, 254].map((v) => v / 255), LIGHTING = [0.03, 0.05, 0.08], BREAKS = [0.5, 1.25, 2.5, 4, 6, 9, 14];
 const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
@@ -53,11 +61,12 @@ function maxChroma(L, hue, h) {
 const VIEWS = []; for (const a of [ALPHAS.world, ALPHAS.regional, ALPHAS.coastal]) for (const dir of [0, 0.5, 1]) VIEWS.push({ a, dir });
 const pal = (h1, h2, c1, c2) => ({ heights: [h1, h2], cap: h2, over: null, spectrum: true, light: [c1.map((v) => v * 255), c2.map((v) => v * 255)] });
 const L = (rgb) => oklab(rgb).L;
-const LWIN = [[76, 86], [72, 82], [64, 74], [52, 62], [42, 52], [34, 44], [22, 32]];
-const HWIN = [[150, 190], [190, 215], [215, 245], [250, 280], [285, 325], [345, 385], [20, 60]];
+const strArg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
+const LWIN = strArg('--lwin') ? JSON.parse(strArg('--lwin')) : [[76, 86], [72, 82], [64, 74], [52, 62], [42, 52], [34, 44], [22, 32]];
+const HWIN = strArg('--hwin') ? JSON.parse(strArg('--hwin')) : [[150, 190], [190, 215], [215, 245], [250, 280], [285, 325], [345, 385], [20, 60]], LSTEP = arg('--lstep', 2), HSTEP = arg('--hstep', 5);
 const cands = BREAKS.map((h, i) => {
   const out = [];
-  for (let l = LWIN[i][0]; l <= LWIN[i][1]; l += 2) for (let hue = HWIN[i][0]; hue <= HWIN[i][1]; hue += 5) {
+  for (let l = LWIN[i][0]; l <= LWIN[i][1]; l += LSTEP) for (let hue = HWIN[i][0]; hue <= HWIN[i][1]; hue += HSTEP) {
     const Cmax = maxChroma(l, hue % 360, h); if (Cmax === null) continue;
     for (const f of [1, 0.75, 0.55, 0.4]) {   // paler options too: light's own water is a pastel, and full chroma pulls toward dark's
       const C = Cmax * f; if (C < (i >= 5 ? 18 : i === 1 || i === 2 ? CMIN_COMMON : 22)) continue;   // no dull band: C* >= 22 up to 6 m (CMIN_COMMON at 1.25/2.5 m)

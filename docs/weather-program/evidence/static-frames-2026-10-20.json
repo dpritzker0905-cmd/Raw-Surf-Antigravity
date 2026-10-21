@@ -1,0 +1,913 @@
+{
+ "what": "Static forecast frames step 2b, offline evidence (2026-10-20). Instruments: frontend/scripts/offline-backend/scn_static_parity.mjs and scn_static_frames.js over serve_synthetic.py --models GFS (115 three-hourly global_mid frames), the real backend app, a local static host as the CDN, one production build (both arms), Playwright system Chrome. The machine was shared with other sessions running harnesses; arms are interleaved A B / B A per round.",
+ "parity_vs_grid_synthetic": {
+  "frames": 115,
+  "comparisons": 231,
+  "nodes": 3470313,
+  "bad_nodes": 0,
+  "meta_mismatches": 0,
+  "max_abs_err": {
+   "speed": 0,
+   "direction": 0,
+   "period": 0,
+   "dir_confidence": 0,
+   "uv": 0
+  },
+  "tolerance": {
+   "speed": 0.000500001,
+   "direction": 0.0050000010000000004,
+   "period": 0.0050000010000000004,
+   "dir_confidence": 0.002068503937007874,
+   "uv": 0.0012
+  }
+ },
+ "parity_real_live_frames": {
+  "source": "three live world /grid responses saved 2026-10-19/20 (GFS waves global_mid, valid 2026-10-19T21Z, 2026-10-20T00Z, 03Z), encoded by frame_binary.py, decoded by staticFrameCodec.js (Node 24)",
+  "nodes": 45069,
+  "bad_nodes": 0,
+  "max_abs_err": {
+   "height_m": 0.0005,
+   "direction_deg": 0,
+   "period_s": 0,
+   "dir_confidence": 0.002,
+   "uv": 0.0009
+  },
+  "gz_bytes": [
+   55717,
+   55625,
+   55798
+  ],
+  "raw_bytes": 105329,
+  "json_bytes": [
+   2346589,
+   2346751,
+   2346552
+  ],
+  "json_gzip6_bytes": 285328,
+  "decode_build_ms_node": [
+   2.7,
+   6.5,
+   1.8
+  ]
+ },
+ "scrub": {
+  "offline_no_added_latency": {
+   "env": {
+    "PORT": 4100,
+    "CDN_PORT": 4243,
+    "ROUNDS": 3,
+    "WIN": 8000,
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "startedUtc": "2026-10-20T22:31:44.571Z"
+   },
+   "arms": {
+    "grid": {
+     "sessions": 3,
+     "steps": 30,
+     "moving_steps": 18,
+     "exact_ms_p50": 2286,
+     "exact_ms_p95": 3573,
+     "exact_ms_max": 3573,
+     "exact_missed": 0,
+     "regress_frames": 32,
+     "backend_cpu_s_per_step": 0.3943,
+     "backend_cpu_s_per_session": [
+      2.266,
+      4.438,
+      5.125
+     ],
+     "backend_requests": {
+      "/grid": 20,
+      "/grid_series": 2
+     },
+     "cdn_bytes_per_object": null,
+     "per_step": [
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        2760,
+        0
+       ],
+       [
+        "ArrowRight",
+        3,
+        2061,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        2037,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        2119,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        2023,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        1955,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        46,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        3312,
+        0
+       ],
+       [
+        "ArrowRight",
+        3,
+        2400,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        2787,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        2286,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        2157,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        2258,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        52,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        2742,
+        0
+       ],
+       [
+        "ArrowRight",
+        3,
+        2221,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        2374,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        2394,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        3573,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        3002,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        53,
+        0
+       ]
+      ]
+     ]
+    },
+    "static": {
+     "sessions": 3,
+     "steps": 30,
+     "moving_steps": 15,
+     "exact_ms_p50": 238,
+     "exact_ms_p95": 259,
+     "exact_ms_max": 259,
+     "exact_missed": 0,
+     "regress_frames": 0,
+     "backend_cpu_s_per_step": 0.0026,
+     "backend_cpu_s_per_session": [
+      0.031,
+      0.047,
+      0
+     ],
+     "backend_requests": {},
+     "cdn_bytes_per_object": 8951,
+     "per_step": [
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        64,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        253,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        253,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        246,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        222,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        53,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        50,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        258,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        238,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        259,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        241,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        63,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        52,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        251,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        237,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        224,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        224,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        51,
+        0
+       ]
+      ]
+     ]
+    }
+   }
+  },
+  "live_like_latency": {
+   "env": {
+    "PORT": 4100,
+    "CDN_PORT": 4243,
+    "ROUNDS": 3,
+    "WIN": 8000,
+    "LAT_SERIES": 9000,
+    "LAT_GRID": 1500,
+    "CDN_LAT": 150,
+    "startedUtc": "2026-10-20T22:42:08.551Z"
+   },
+   "arms": {
+    "grid": {
+     "sessions": 3,
+     "steps": 30,
+     "moving_steps": 15,
+     "exact_ms_p50": 3998,
+     "exact_ms_p95": 5964,
+     "exact_ms_max": 5964,
+     "exact_missed": 0,
+     "regress_frames": 26,
+     "backend_cpu_s_per_step": 1.3213,
+     "backend_cpu_s_per_session": [
+      11.031,
+      16.156,
+      12.453
+     ],
+     "backend_requests": {
+      "/grid_series": 6,
+      "/grid": 15
+     },
+     "cdn_bytes_per_object": null,
+     "per_step": [
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        4373,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        3998,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        3607,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        3719,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        3738,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        49,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        3930,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        4422,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        5964,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        3853,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        4387,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        65,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        3936,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        4909,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        4393,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        2873,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        4987,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        53,
+        0
+       ]
+      ]
+     ]
+    },
+    "static": {
+     "sessions": 3,
+     "steps": 30,
+     "moving_steps": 15,
+     "exact_ms_p50": 419,
+     "exact_ms_p95": 588,
+     "exact_ms_max": 588,
+     "exact_missed": 0,
+     "regress_frames": 0,
+     "backend_cpu_s_per_step": 0.0026,
+     "backend_cpu_s_per_session": [
+      0.031,
+      0.047,
+      0
+     ],
+     "backend_requests": {},
+     "cdn_bytes_per_object": 8945,
+     "per_step": [
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        64,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        479,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        454,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        398,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        391,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        52,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        540,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        408,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        588,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        421,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        400,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        51,
+        0
+       ]
+      ],
+      [
+       [
+        "ArrowRight",
+        1,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        2,
+        0,
+        1
+       ],
+       [
+        "ArrowRight",
+        3,
+        433,
+        0
+       ],
+       [
+        "ArrowRight",
+        4,
+        0,
+        1
+       ],
+       [
+        "PageUp",
+        28,
+        419,
+        0
+       ],
+       [
+        "PageUp",
+        52,
+        392,
+        0
+       ],
+       [
+        "BURST",
+        172,
+        511,
+        0
+       ],
+       [
+        "PageDown",
+        148,
+        409,
+        0
+       ],
+       [
+        "ArrowLeft",
+        147,
+        0,
+        1
+       ],
+       [
+        "Home",
+        0,
+        66,
+        0
+       ]
+      ]
+     ]
+    }
+   }
+  }
+ }
+}

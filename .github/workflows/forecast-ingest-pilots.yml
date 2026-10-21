@@ -120,3 +120,24 @@ jobs:
           # free ECMWF wave stream, no CMEMS). No-commit kill: set EURO_MARINE_PILOT_INGEST=0.
           EURO_MARINE_PILOT_INGEST: ${{ vars.EURO_MARINE_PILOT_INGEST || '1' }}
         run: python scripts/ingest_forecast_ci.py
+
+      # STATIC FORECAST FRAMES (step 2b, 2026-10-20, dark): every stored GFS waves global_mid product as one gzipped binary
+      # frame (~55 KB) in the PUBLIC bucket `weather-frames`, each decoded and checked node by node against its source
+      # before upload, plus an immutable run index and a no-cache v1/latest.json pointer written LAST; only changed frames
+      # are uploaded; the current and previous index are kept and older objects deleted. Also writes the one-field PNG
+      # proof + manifest.json. Built ONLY from this runner's own product files: nothing is downloaded from weather-products.
+      # WHY THIS LANE: the GFS world products are pilot jobs (scheduler/forecast.py pilot_jobs; global_mid rides the GFS
+      # Marine Pilot pass). This lane's disk held all 113 (run 39543806662); the core lane's only 60, 5 within 0-165 h
+      # (run 39546548998). It must run in THIS lane only: two publishers' retention could delete each other's frames.
+      # A set below FRAME_MIN_COVERAGE (0.9) of its entries publishes nothing. Serves nothing until a client is built with
+      # REACT_APP_STATIC_FRAMES=true. Can never fail the ingest cycle (continue-on-error).
+      # ON: repository variable FRAME_IMAGES_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
+      - name: Publish static forecast frames (dark)
+        if: ${{ success() && vars.FRAME_IMAGES_PUBLISH == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/publish_frame_images.py

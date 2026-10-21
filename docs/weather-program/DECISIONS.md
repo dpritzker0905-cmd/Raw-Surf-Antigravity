@@ -1333,6 +1333,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   indigo -> maroon -> dark red (0.8-3 m mean 23.9 from dark, live light 24.0, the first spectrum 15.0; 4 / 6 m 29.9 / 24.3, first 13.7 /
   11.3). Neighbour steps: normal-vision weakest 12.0 (live 9.3). Crest switch moves to 2.35 m. Shown to the owner before shipping;
   `evidence/wave-light-spectrum-apart-from-dark-2026-10-21.json`.
+- **Update 2026-10-21 (after D-041):** over the spectrum light draws the ORIGINAL crests by default, as on every light wash; V2 (`v2s`,
+  2.35 m) and the far-zoom lift only on request. The original crests read |Lc| 0 from about 2-2.5 m up on live light and on the spectrum
+  alike (engine p99, open sea: z 2.2 22.1 -> 17.5, z 4.6 14.7 -> 11.5, z 9 28.5 -> 22.2), and no light wash keeps them visible at every
+  height (solver: infeasible down to |Lc| 10). Their remedy is the crest (D-040), not the wash. `evidence/wave-light-spectrum-original-crests-2026-10-21.json`.
 
 ### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
 - **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm
@@ -1355,3 +1359,45 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
   (D-037 on its branch) does not reopen this.
 - **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.
+
+### D-039 · Dark's 8 m+ storm crests are cased: today's orange with the crest self-contrast, no colour switch; ON by default
+- **Decided:** owner, 2026-10-21 ~15:30Z, on the A/B of PR #419 (owner page https://claude.ai/artifact/A5aYRLqNXoKAboPmsUWtJg v3:
+  keep dark as it is | electric blue from 8 m | cased orange from 8 m, moving at the storm eye, regional and coastal views): "Ship the
+  cased orange from 8 m for dark's storm crests instead of electric blue." Earlier the same day he scoped the fix ("We can fix that
+  one weak point only on the extreme 8m"), turned down the dark inks ("I dont like the darker middle crests in the storm animations,
+  improve those") and, asked directly, kept the A/B to 8 m+ ("Keep 8 m+ only") over whole-field casing options.
+- **Rule:** dark's storm crest keeps its fiery orange at every height. From 8 m (the crest's own `v_wave_height`), dark only
+  (`u_theme < 0.5`), DRAW_FS turns on the engine's crest self-contrast (`crestContrastEff`): a rim at 0.55-0.64 x the colour round a
+  core at 1.30 x plus a little white, the treatment every crest already gets at z 3.5-4.4. One generated line from
+  `marineCrestPalette.js` `DARK_STORM_CRESTS.v2`; no added shader lines. Below 8 m, light and beach: byte-identical.
+- **Evidence:** `log/2026-10-20-claude-dark-storm-crest.md`; `evidence/dark-storm-crest-2026-10-20.json` (`cased`). Model
+  (`dark-storm-crest.mjs`): today's orange core |Lc| 0 at 8-10 m+; cased |Lc| 20.4-38.0 from 8 m (the rim), colour-blind 19.7 (today
+  15.5). Offline real engine, p90 |Lc| 8-10 m today -> cased: eye 11-27 -> 20-35, coastal 11-13 -> 26-37, regional 11-23 -> 14-28;
+  Leonardo (wcag3) per band at the eye 8 / 18 / 21 / 29 -> 20 / 22 / 30 / 43.
+- **Known costs:** about half of electric blue's contrast (eye 40-59) and no colour-blind gain at the eye (p90 14-26, as today); the
+  5.5-8 m band, where the orange also sits at the wash's brightness, is out of scope and unchanged.
+- **Rollback:** `window.__RAW_DISABLE_DARK_STORM_CREST__ = true` draws today's lines exactly (DRAW_FS hash-pinned in
+  `marineDarkStormCrest.test.js`).
+- **Turned down:** ember-black / ember red from 8 m (read as soot on the white eye); electric blue from 8 m (a colour switch mid-field,
+  the kind the owner rejected in light); whole-field amber or warm-white cores with a black casing (out of his 8 m+ scope).
+- **Reopen if:** the owner says so, or the dark wash's 8-10 m colours change.
+### D-041 · Light's wave crests are the original again (deep navy, amber-gold, crimson red); light crest V2 only on request; ON by default
+- **Decided:** owner, 2026-10-21 08:02 EDT, on the live dev site (relayed by the lead): "visually, in the live dev server we're on
+  now, I do not like the animation colors of light mode, with dark animations mixed with yellow ones, its not pleasing to the eye as
+  a good representation of waves moving. The original was better." Supersedes D-036 as the default (V2 stays reachable for an A/B).
+- **Rule:** `resolveLightCrest` draws V2 only when asked for, set before page load: `window.__RAW_LIGHT_CREST_V2__ = true`, or the
+  restore's kill `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true`; `window.__RAW_DISABLE_LIGHT_CREST_V2__ = true` still forces the
+  original. One owner: `marineCrestPalette.js`. Standing rule from the same feedback: one colour family per theme for crests that
+  move together; never switch crest hue at a height.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 20:00Z); `evidence/light-crest-restore-2026-10-21.json`. The
+  default DRAW_FS is dev's with light's four lines as before V2 (sha256 e2438586..., 8872); with #419's dark kill as well it is
+  f6b80f724's byte for byte (a9e8e102..., 8811). V2 on request and the restore's kill compile dev's DRAW_FS (5057bc10..., 9110).
+  Jest pins, and the shaders the GPU compiled in light, beach and dark, read back offline; DRAW_VS unchanged. Dark and beach share
+  the one DRAW_FS and their lines are dev's.
+- **Known costs:** over light's current wash the original crests share the wash's luminance from 2.3 m up (APCA |Lc| 0; lead's
+  research), and over #431's spectrum from 1.7 to 14 m (crimson on the crimson storm band from 6 m); at isoluminance motion
+  direction weakens (Lindsey & Teller 1990). The original looked better on the wash it was made for, which has since changed.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true` before load restores D-036's V2 default (dev's DRAW_FS, pinned).
+- **Next, not decided:** the owner's "It still needs to adjust for areas in the colour for heatmaps that blend too much with the
+  animation colors": one A/B, the original vs the original plus a luminance-only two-tone (beach #433's idea, no hue change), moving.
+- **Reopen if:** the owner says so, or the A/B's pick changes light's crests again.

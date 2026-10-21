@@ -363,7 +363,13 @@ colour vision. Scores (1 = every neighbour step meets normal 10 / colour-blind 6
 (no grey in the common sea) with the calm floor at 8, 1.10.
 
 Over the re-solved spectrum the crest switch sits at 2.35 m (`LIGHT_CRESTS.v2s`, |Lc| 41.7; 33.0 at v2's 3.05 m). The first spectrum
-crossed at 1.55 m (42.4). The model's numbers are full-opacity crest cores; at world zoom the engine draws crests at partial opacity, where a
+crossed at 1.55 m (42.4).
+
+**The original crests over a light wash (D-041 made them light's default again).** `crest-over-wash.mjs --crest v1` gives the weakest
+APCA |Lc| of a crest core over live light and the spectrum at the opacity the engine draws it per zoom (DRAW_VS's zoom factor x DRAW_FS's
+energy boost, `crest-over-wash-lib.mjs`): |Lc| 0 from about 2-2.5 m up on both. `spectrum-apart.mjs --crest-lc N --crest-zoom 9` asks a
+wash to keep them N off at every height: no solution down to N = 10 (amber and crimson are mid-lightness; a falling light wash passes
+through them). The remedy is in the crest, not the wash. The model's numbers are full-opacity crest cores; at world zoom the engine draws crests at partial opacity, where a
 mid-lightness wash (the spectrum's 1.5-3 m blue) leaves little room in either polarity: read the engine
 (`../offline-backend/crest_contrast.py`, paired frames) before trusting a switch height.
 
@@ -372,6 +378,35 @@ mid-lightness wash (the spectrum's 1.5-3 m blue) leaves little room in either po
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models
 give about 6, the expected near-collapse. The DaltonLens review rates Viénot (protan/deutan) and Brettel (tritan) best
 for dichromacy.
+
+## Dark's storm crest (`dark-storm-crest.mjs`; the table is `marineCrestPalette.js` `DARK_STORM_CRESTS`; 2026-10-20)
+
+Dark keeps its own palettes; this checks the one place the owner flagged, storms of 8 m and up, where dark's wash runs neon magenta
+(5 m) to white (10 m+) past the fiery-orange storm crest. It reads dark's ramp and its non-surf lifts from `WebGLMarineShaders.js`, the
+dark crest literals from `WebGLMarineParticleShaders.js` and the storm line from the crest module, and throws if any of them moves. Per
+height (0.1 m, and above the cap), worst over zoom alpha (world, the z 3.5-4.4 core lift, regional, coastal, close, and 0.90, above the
+BLEND BOTH composite's 0.885 at z 8) and swell lighting: the crest body's APCA |Lc|, a whitecap front's (and at close zoom),
+colour-blind and normal CIEDE2000; it also proves every candidate draws today's crest below the switch. `--lut` writes the wash ramp per
+harness view for `../offline-backend/crest_by_height.py`; `cvd_lut.py` (coloraide's dichromats on a 33^3 lattice, from this folder's
+`.venv`) feeds its colour-blind column.
+
+```bash
+node dark-storm-crest.mjs --json check.json --lut lut.json   # today (v1) | cased orange from 8 m (v2, shipped, D-039)
+node dark-storm-crest.mjs --from 5 --strict                  # exit 1 if the shipped crest falls under its bar at 8 m+
+.venv/Scripts/python cvd_lut.py cvd_lut.json                 # the dichromat lattice crest_by_height.py reads
+```
+
+- Over dark's measured water (93, 117, 126) today's orange core is |Lc| 0 at EVERY height from 5.5 m up in the weakest view (its
+  whitecap front from 7.5 m): orange is a mid-luminance colour, and the wash's luminance passes it on the way to white.
+- Shipped (D-039, the owner's pick): the cased orange. Today's orange stays (no colour switch), and from 8 m dark's crests take the
+  engine's own crest self-contrast: a rim at 0.55-0.64 x the colour round a core at 1.30 x plus a little white. The checker judges a
+  crest by its stronger part (core, or the rim at ellipse distance 0.7, alpha 0.70): |Lc| 20.4-38.0 from 8 m (the rim; the lifted core
+  sits at the wash's brightness), colour-blind 19.7 (today 15.5). Its bar: |Lc| >= 20, never below today's at any height, colour-blind
+  not below today's.
+- Turned down on the way, kept here as the record: ember-black / ember red (|Lc| 37-58 / 31-53, but soot on the white eye: "I dont
+  like the darker middle crests"); electric blue (0, 0, 1) (|Lc| 35-57, colour-blind 38, but a colour switch mid-field, the kind the
+  owner rejected in light). No light ink works at 8 m+ (the wash ends white).
+- A whitecap front (the colour mixed 45% toward white, 67% at close zoom) is shared by every height and left as it is.
 
 ## Keep in sync
 

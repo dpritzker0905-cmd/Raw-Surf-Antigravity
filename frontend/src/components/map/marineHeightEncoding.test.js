@@ -22,6 +22,8 @@ const BEFORE = {
 const KILL = { __RAW_DISABLE_WAVE_HEIGHT_16M__: true };
 
 function withWindow(levers, fn) {
+  // Dark's 8 m+ storm crest line (#419) is marineDarkStormCrest.test.js's to pin: killed in every case here, DRAW_FS stays #411's.
+  levers = { __RAW_DISABLE_DARK_STORM_CREST__: true, ...levers };
   let out;
   jest.isolateModules(() => {
     Object.assign(window, levers);

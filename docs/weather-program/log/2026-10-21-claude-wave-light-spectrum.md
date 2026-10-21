@@ -226,3 +226,22 @@ Crest switch over the new wash: 2.35 m (`v2s`, |Lc| 41.7; 33.0 at 3.05 m). Engin
 | dark at world, regional and calm views plus a crest burst, 18 shots, GL errors 0; the open-sea umber crests on the teal read like
 today's on cyan. The one shared hue left is the indigo ring at 4-6 m, near dark's blue-violet at 2.5-4 m (a different height, so the
 per-height measure passes it). Evidence: `evidence/wave-light-spectrum-apart-from-dark-2026-10-21.json`.
+
+## Merged with D-041: the original crests are the default over the spectrum too (lead, ~22:34Z)
+
+#438 merged (D-041): light's default crests are the original again (deep navy -> amber-gold -> crimson red); V2 only on request
+(`__RAW_LIGHT_CREST_V2__`). dev `83c1c4c0c` merged into #431; `resolveLightCrest` reconciled: no request -> `v1` on every light wash
+(the spectrum included); on request -> `v2` over v2, `v2s` (2.35 m switch) over the spectrum. The far-zoom lift is keyed on `v2s`, so
+it rides only the opt-in. By default #431 now leaves DRAW_FS and DRAW_VS exactly as dev (sha256 pinned from dev's own files; dev's DRAW_FS
+changed with #438 / #419, re-pinned to `e2438586`). Tests: the spectrum, crest, palette, height-encoding and dark storm crest suites, 88/88.
+
+**The original crests over the re-solved wash** (the lead's ask, the owner's complaint):
+- Model (`crest-over-wash.mjs --crest v1`, crest core at the engine's opacity per zoom, weakest lighting / whitecap): on BOTH live light
+  and the spectrum the original crests reach |Lc| 0 from about 2-2.5 m up at every zoom; the spectrum is 2-8 lower at 0.3-2 m.
+- Engine (open sea about 2 m, paired exact wash, p99 |Lc| live light -> spectrum): z 2.2 22.1 -> 17.5, z 4.6 14.7 -> 11.5, z 9 28.5 ->
+  22.2. The original crests are faint on live light already; the spectrum takes 3-6 more.
+- No wash fixes it: `spectrum-apart.mjs --crest-lc N` (the original crest core at close-zoom opacity at least N off the wash at every
+  height, plus the re-solve's rules) has no solution at N = 10, 12, 15, 20 or 30. Amber (about 3 m) and crimson (6 m up) are
+  mid-lightness and a light wash that darkens with height passes through them. The remedy is the crest (a casing or a constant core
+  with an opposite-brightness edge: the light-crest session's D-040 work), not the sea.
+Evidence: `evidence/wave-light-spectrum-original-crests-2026-10-21.json`.
