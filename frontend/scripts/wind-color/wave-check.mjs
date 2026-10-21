@@ -9,6 +9,7 @@
 //   node wave-check.mjs --table cand.json        # a solver's candidate ({ heights, cap, over, light, beach }) instead
 //   node wave-check.mjs --strict                 # exit 1 on any RED line (here or in the colour-blind authority)
 //   node wave-check.mjs --json out.json
+//   node wave-check.mjs --palette sunset --theme beach   # PR #416's beach candidate (its lever), with the V2 crest it brings
 //   node wave-check.mjs --crest v1               # crests: v1 / v2 (a table id of the theme checked) / a crest-solve.mjs JSON ({ calm,
 //                                                 # active, storm } 0-1, for the theme it was solved for: pass --theme too), instead of what
 //                                                 # the app draws (v1 over the v1 wash, V2 over v2)
@@ -36,7 +37,7 @@ const palettes = arg('--table') ? { [path.basename(arg('--table'), '.json')]: JS
 const ids = arg('--palette') ? [arg('--palette')] : Object.keys(palettes);
 const themes = arg('--theme') ? [arg('--theme')] : ['light', 'beach'];
 const DIRS = [0, 0.5, 1];
-const crestArg = arg('--crest'), crestFile = crestArg && !/^v\d$/.test(crestArg) ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;
+const crestArg = arg('--crest'), crestFile = crestArg && !/^v\d[a-z]?$/.test(crestArg) ? JSON.parse(fs.readFileSync(crestArg, 'utf8')) : null;   // a table id (v1, v2, v2a) or a file
 /** The crest [calm, active, storm, foam, polarity?] drawn over palette `id` in `theme`, and its name. */
 const crestOf = (id, theme) => {
   const tables = CRESTS_BY_THEME[theme];
@@ -55,6 +56,7 @@ for (const id of ids) {
   const P = palettes[id];
   out[id] = {};
   for (const theme of themes) {
+    if (!P[theme]) continue;   // a one-theme candidate (sunset: beach only)
     const H = P.heights, cap = P.cap, water = BASEMAP[theme].water.map((v) => v / 255), land = BASEMAP[theme].land.map((v) => v / 255), panel = BASEMAP[theme].panel.map((v) => v / 255);
     console.log(`\n=== ${theme.toUpperCase()}  palette ${id}  (anchors ${H.join(' ')} m; ${P.over ? `above ${cap} m: its own colour` : `clamped at ${cap} m`}; over the ${theme} water ${BASEMAP[theme].water.join(',')})`);
     // 1. Lightness: the wash, then the composite at each view and lighting. Sampled every 0.02 m from 0.18 m (the depth floor below).

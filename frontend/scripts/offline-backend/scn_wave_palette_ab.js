@@ -22,6 +22,14 @@
 // Each shot also records the scale the resident and coarse uploads carry and the FNV hash of the resident wave texture's bytes;
 // WASH=1 adds a crest-free shot of each view (the engine's own heatmap-only fallback, _fboSupported = false, set from the page);
 // CRESTS=1 adds a burst at the regional view (one crest-free frame, then CREST_FRAMES with crests) for wave_crest_stats.py.
+// CLIP_VIEWS=regional,coastal (default regional; a non-regional clip's frames are named clip-<theme>-<variant>@<view>-NNN).
+// PAIRED=1: each clip frame is followed by the same view with the crest pass off (the engine's own heatmap-only fallback,
+// _fboSupported = false, restored after), saved as clipw-...: the exact wash under that frame, for crest_contrast.py.
+// BEACH SUNSET A/B (2026-10-20, #416): v1 is beach as it draws (D-035: the old sea, today's crests); sunset the candidate sea behind
+// its lever (window.__RAW_BEACH_WASH__ = 'sunset') with the warm-polarity crest it brings; c1 the same sea under TODAY's crests
+// (window.__RAW_DISABLE_BEACH_CREST_V2__, the crest-only control); sf the same sea under the FIRST sunset crest, before the design
+// critique (window.__RAW_BEACH_CREST_V2__ = 'first'). Each shot reads back which beach crest colours the GPU compiled
+// (the DRAW program's own GLSL) and which beach wash lever the page carried.
 const fs = require('fs');
 const path = require('path');
 const L = require('./ab_lib.js');
@@ -31,7 +39,9 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
-  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 } };
+  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
+  sunset: { __RAW_BEACH_WASH__: 'sunset' }, c1: { __RAW_BEACH_WASH__: 'sunset', __RAW_DISABLE_BEACH_CREST_V2__: true },
+  sf: { __RAW_BEACH_WASH__: 'sunset', __RAW_BEACH_CREST_V2__: 'first' } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
@@ -45,11 +55,13 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   // The crest colours the GPU compiled: the DRAW program's attached fragment shader, read back (shaders stay attached until dispose).
   const canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
   const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
+  const beachCrest = (/if \(u_theme > 1\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);[^}]*?foamHighlight = ([^;]*);/.exec(glsl) || []).slice(1);
   const lightCrest = (/else if \(u_theme > 0\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);[^}]*?foamHighlight = ([^;]*);/.exec(glsl) || []).slice(1);
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
     hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__,
     heightScale: d && d.u_heightScale, baseScale: e && e._coarseBaseData ? e._coarseBaseData.u_heightScale : null,
-    waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null };
+    waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null,
+    beachWash: window.__RAW_BEACH_WASH__ || 'v1', beachCrest };
 };
 const particles = (page, on) => page.evaluate((on) => { window.__MARINE_ENGINE__._fboSupported = on; }, on);   // instrument only
 

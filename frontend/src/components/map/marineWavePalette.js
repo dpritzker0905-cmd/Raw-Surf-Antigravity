@@ -4,6 +4,7 @@
 //   window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true     -> v1, the 2026-10-14 table, exactly, in both themes
 //   window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = true     -> the 10 m encoding and v2 capped there, exactly (#411)
 //   window.__RAW_DISABLE_WAVE_BEACH_V1__ = true       -> beach draws v2 (and its 16 m row when that is on) (D-035's kill)
+// Candidate lever (owner A/B, PR #416; NOT a decision, D-035 holds): window.__RAW_BEACH_WASH__ = 'sunset' -> beach draws `sunset`.
 // BEACH DRAWS v1 (owner 2026-10-20, DECISIONS D-035: "I really like v1 color scheme heatmap for Beach mode. How do we stick with
 // that?"); light draws v2 (D-033, at 16 m by D-034). Beach's colours are pinned byte for byte in marineWavePalette.test.js: changing
 // them needs a new owner decision, whatever another session's palette work proposes. v1 has no 16 m row, so beach keeps the 10 m
@@ -43,6 +44,16 @@ export const WAVE_PALETTES = {
     // (10.8, darker as drawn): every forward hue (red, orange, maroon) left the flag 7-9 dE00 or less (joint search, 2026-10-20).
     h16: { cap: 16, light: [72, 21, 66], beach: [134, 59, 86], over: { light: [88, 0, 2], beach: [146, 1, 115] } },
   },
+  // sunset (beach only; the owner A/B of PR #416, drawn ONLY under window.__RAW_BEACH_WASH__ = 'sunset'): v1's six anchors and five
+  // steps (the owner: v1's steps between sizes are the clearest) on a sunset hue path, aqua -> lime -> gold -> coral -> rose ->
+  // purple, with lightness falling at every 0.01 m so a crest of the opposite polarity (marineCrestPalette.js) never meets its
+  // brightness. Clamped at 10 m like v1, no above-cap state: a flag darker than the purple cap vanished on the legend's black
+  // panel. Steps (CIEDE2000 at world alpha over beach's water): weakest 16.1 (v1: 14.5), colour-blind weakest 11.6 (v1:
+  // 11.6). Searched by wave-solve.mjs --turn/--l0, judged by wave-check.mjs and wave-jacobian.mjs (frontend/scripts/wind-color/).
+  sunset: {
+    heights: [0, 0.6, 1.2, 2.4, 5, 10], cap: 10, over: null, light: null,
+    beach: [[48, 254, 250], [176, 225, 114], [195, 164, 0], [236, 113, 77], [220, 30, 89], [158, 14, 168]],
+  },
 };
 // The 16 m encoding (2026-10-20): one more anchor at the new ceiling and the above-cap state moved up to it. Every anchor under
 // 10 m is the table above, unchanged; only the encoder's 8-bit step widens (10/255 -> 16/255 m). Solved against the fixed ramp by
@@ -52,10 +63,11 @@ export function widenWavePalette(p) {
   return { heights: [...p.heights, p.h16.cap], cap: p.h16.cap, light: [...p.light, p.h16.light], beach: [...p.beach, p.h16.beach], over: p.h16.over };
 }
 
-/** The table a theme draws: v2 in light (D-033), v1 in beach (D-035), v1 in both under the V2 kill. */
+/** The table a theme draws: v2 in light (D-033), v1 in beach (D-035; sunset only under #416's lever), v1 in both under the V2 kill. */
 export function resolveWavePalette(win = WIN, theme = 'light') {
   if (win.__RAW_DISABLE_WAVE_PALETTE_V2__ === true) return 'v1';
-  return theme === 'beach' && win.__RAW_DISABLE_WAVE_BEACH_V1__ !== true ? 'v1' : 'v2';
+  if (theme !== 'beach' || win.__RAW_DISABLE_WAVE_BEACH_V1__ === true) return 'v2';
+  return win.__RAW_BEACH_WASH__ === 'sunset' ? 'sunset' : 'v1';   // beach: v1 (D-035) unless the A/B's lever asks for sunset
 }
 export const MARINE_WAVE_PALETTE_IDS = { light: resolveWavePalette(WIN, 'light'), beach: resolveWavePalette(WIN, 'beach') };
 export const MARINE_WAVE_PALETTE_ID = MARINE_WAVE_PALETTE_IDS.light;

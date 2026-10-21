@@ -11,8 +11,8 @@
 //    wash only ever composites over the water colour; the land is drawn over it, so land vs sea = land colour vs the composite.
 //  - Crests (WebGLMarineParticleShaders.js DRAW_FS): base = mix(calm, active, 2e) / mix(active, storm, 2e - 1) with
 //    e = smoothstep(0, 6, h), white mixed in by whitecapRoll * 0.45, laid premultiplied at min(alpha * mix(1.2, 1.8, e), 0.85).
-//    Light's colours (and its foam) are READ from marineCrestPalette.js (LIGHT_CRESTS, the table the shader is built from); beach's
-//    are the shader's literals, copied below (BEACH_V1). Below 1.05 m (any zoom) and in the z 3-4.9 band the engine adds SELF-CONTRAST (u_lowHCrestContrast, u_crestContrast):
+//    Light's and beach's colours (and light's foam) are READ from marineCrestPalette.js (LIGHT_CRESTS, BEACH_CRESTS: the tables the
+//    shader is built from); beach draws V2 only over the sunset candidate sea (its lever), v1 over every other. Below 1.05 m (any zoom) and in the z 3-4.9 band the engine adds SELF-CONTRAST (u_lowHCrestContrast, u_crestContrast):
 //    the colour x mix(0.55, 1.30, core) plus the foam x core x 0.18 (`sc` in crestOver).
 //
 // Basemap colours: READ from the real Mapbox styles as the app draws them (navigation-day for light, outdoors for beach), by the
@@ -42,7 +42,7 @@ export const DEPTH_FLOOR = { light: [0.12, 0.35, 0.68], beach: [0.015, 0.24, 0.2
 export function loadCrests(file = CREST_SRC) {
   const src = fs.readFileSync(file, 'utf8').replace(/^import [^\n]*$/gm, '').replace(/^export /gm, '');
   return new Function('MARINE_WAVE_PALETTE_ENABLED', 'MARINE_WAVE_PALETTE_IDS',
-    `${src}; return { LIGHT_CRESTS, resolveLightCrest, lightCrestGlsl };`)(true, { light: 'v2', beach: 'v1' });
+    `${src}; return { LIGHT_CRESTS, BEACH_CRESTS, resolveLightCrest, resolveBeachCrest, lightCrestGlsl, beachCrestGlsl };`)(true, { light: 'v2', beach: 'v1' });
 }
 const BEACH_FOAM = [0.95, 0.95, 1.00], LIGHT_FOAM = [1.00, 1.00, 1.00];   // DRAW_FS foamHighlight per theme
 /** One crest table [calm, active, storm, foam, polarity] (DRAW_FS order) from a BEACH_CRESTS / LIGHT_CRESTS entry ({ calm: { rgb,
@@ -54,14 +54,14 @@ const crestTable = (t, foam) => [t.calm.rgb, t.active.rgb, t.storm.rgb, t.foam ?
 export const beachCrest = (t) => crestTable(t, BEACH_FOAM);
 export const lightCrest = (t) => crestTable(t, LIGHT_FOAM);
 const TABLES = loadCrests();
-// Beach's crest is DRAW_FS's literals (beach's colours are the owner's to change, D-035): orchid-pink, electric turquoise, sunset magenta.
-const BEACH_V1 = { calm: { rgb: [1.00, 0.45, 0.65] }, active: { rgb: [0.00, 0.92, 0.85] }, storm: { rgb: [0.80, 0.20, 0.90] } };
-export const CRESTS = { v1: beachCrest(BEACH_V1) };
+export const CRESTS = Object.fromEntries(Object.entries(TABLES.BEACH_CRESTS).map(([id, t]) => [id, beachCrest(t)]));
 export const LIGHT_CRESTS = Object.fromEntries(Object.entries(TABLES.LIGHT_CRESTS).map(([id, t]) => [id, lightCrest(t)]));
 /** Each theme's crest tables by id ({ beach: CRESTS, light: LIGHT_CRESTS }). */
 export const CRESTS_BY_THEME = { beach: CRESTS, light: LIGHT_CRESTS };
-/** Which crests the app draws over a wash palette: v1 over the v1 wash (V2 stands down there), V2 over v2 (when the theme has one). */
-export const crestFor = (paletteId, theme = 'beach') => (paletteId === 'v1' || !CRESTS_BY_THEME[theme].v2 ? 'v1' : 'v2');
+/** Which crests the app draws over a wash palette: light, V2 over v2 and v1 over the v1 wash; beach, V2 over the sunset candidate
+ *  only (its lever, PR #416), v1 over every other sea (D-035's v1 and D-033's v2 alike). */
+export const crestFor = (paletteId, theme = 'beach') => (theme === 'beach' ? (paletteId === 'sunset' ? 'v2' : 'v1')
+  : (paletteId === 'v1' || !CRESTS_BY_THEME[theme].v2 ? 'v1' : 'v2'));
 const CREST = { light: LIGHT_CRESTS[crestFor('v2', 'light')], beach: CRESTS.v1 };   // what each theme draws over its wash
 
 export const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };

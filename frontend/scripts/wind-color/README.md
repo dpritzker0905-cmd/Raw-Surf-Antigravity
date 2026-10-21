@@ -261,7 +261,7 @@ node wave-polish.mjs in.json out.json --extend 16 [--ext-lmin light=16] [--ext-t
 colour against the composite. Alpha by view (`heatmapZoomOpacity`): world 0.65, regional 0.70, coastal 0.77. Basemap water and
 land are the measured colours in `windFieldLut.test.js` (unmuted: the wind's basemap mute runs only while the wind is on). The
 shader's depth floor under 0.18 m is reported on its own line; LEGEND STOPS are composited from the table itself. Crests are
-DRAW_FS's colours (light's read from `marineCrestPalette.js`) at their 0.85 core alpha, with the whitecap the shader allows.
+DRAW_FS's colours (light's and beach's read from `marineCrestPalette.js`) at their 0.85 core alpha, with the whitecap the shader allows.
 
 | Line | Meaning | Bar |
 |---|---|---|
@@ -302,8 +302,8 @@ it as the wash draws it (the depth-floor blend under 0.18 m, the table, half swe
 byte's worst texel was 23.5 dE00 in light against dev's 15.3, so the 16 m path rounds (11.6, mean 0.17 against 0.22).
 
 **Crests (`crest-solve.mjs`; light's table is `src/components/map/marineCrestPalette.js`; 2026-10-20).** The checker's crest line
-reads light's crest colours from that module (v1 over the v1 wash, V2 over v2, as the app draws them) and beach's from the shader's
-literals (D-035: beach's colours are the owner's); `--crest v1|v2|cand.json` swaps light's (a candidate file: pass `--theme light`).
+reads light's crest colours from that module (v1 over the v1 wash, V2 over v2, as the app draws them) and beach's from the same module
+(v1 by D-035; V2 only over the sunset candidate, below); `--crest v1|v2|cand.json` swaps light's (a candidate file: pass `--theme light`).
 It samples every 0.1 m and the above-cap state, every zoom and swell lighting, whitecap off and on, and reports APCA |Lc| for the
 crest body and a whitecap's front apart; a watch line adds the engine's crest self-contrast (below 1.05 m at every zoom, and every
 height in the z 3-4.9 band). `crest-solve.mjs` searches the colours (CIELAB LCh, the shader's two decimals) for the largest
@@ -334,6 +334,41 @@ What the light search taught (over v2 and v2@16; light's wash passes APCA Y 0.35
   |Lc| to 32 at 5.3 m on the cream-to-storm path, an orange one to 25. A lemon above the switch (beach #416's ink) buys colour-blind
   24 -> 32 for about 4 |Lc|.
 - Switch 3.05 m is the best worst case (|Lc| 39.8 at 0.01 m sampling; 3.10 -> 38.2, 3.20 -> 33.9).
+
+**Beach crests and the sunset beach candidate (`marineCrestPalette.js` `BEACH_CRESTS`, `marineWavePalette.js`
+`WAVE_PALETTES.sunset`; 2026-10-20, PR #416's owner A/B).** Beach draws v1 (D-035); `sunset` is drawn only under its lever
+(`window.__RAW_BEACH_WASH__ = 'sunset'`) and brings beach's V2 crest with it, so the checker draws V2 over `sunset` and v1 over every
+other beach sea. A table with no row for a theme (`sunset` has no light row) is skipped in that theme. `wave-solve.mjs --turn lo,hi`
+widens the per-anchor hue turn and `--l0` the calm's lightness floor.
+
+```powershell
+# the sunset sea: v1's six anchors, hue turning -10 to -70 degrees a step; seed 2 kept, its flag then dropped (clamped at 10 m like v1)
+node wave-solve.mjs --theme beach --family V --heights 0,0.6,1.2,2.4,5,10 --cap 10 --gens 700 --np 60 --seed 2 --crest-weight 0.3 --turn -70,-10 --hend -40,15 --pin-h 2:62:95 --out sunset.json
+node crest-solve.mjs --palettes sunset --polarity --seed 1 --lc 33 --dark-h 345,45 --dark-l 15,35 --light-h 55,105 --storm-h 75,110 --path-c 45
+node wave-check.mjs --palette sunset --theme beach          # the candidate with its V2 crest (V2.1, after the design critique)
+node wave-check.mjs --palette sunset --theme beach --crest v2a  # the first sunset crest (the solve above, switch rounded to 2.1 m)
+node wave-check.mjs --palette sunset --theme beach --crest v1   # the crest-only control: the same sea under today's crests
+node wave-check.mjs --palette v1 --theme beach              # beach as it draws (D-035): the old sea with today's crests
+```
+
+What the beach searches taught:
+- A polarity crest needs a sea whose lightness falls with height: on the old v1 beach sea, whose brightness goes up and down, crests
+  match it over ~63% of heights and a polarity crest would flip three times.
+- The owner liked the old sea's colours and, above all, its clear steps between sizes. Seven anchors in v2's spacing made each step
+  small (8.9 dE00 at best for the first middle ground); v1's six anchors and five steps, on a hue path that turns a long way (aqua ->
+  lime -> gold -> coral -> rose -> purple, the sunset path of CARTOColors' ramps), give a weakest step of 16.1 dE00 (v1: 14.5) and a
+  colour-blind weakest of 11.6 (v1: 11.6), with lightness falling the whole way; the old sea's AVERAGE step stays larger (28.0 vs
+  22.5; colour-blind 21.8 vs 12.7), bought by brightness jumping up and down.
+- Warm inks on a warm sea share hues, so brightness carries the crest: on the sunset sea the first warm-polarity crest held 25.9
+  dE00 (v1's crests on v1's sea: 15.4), colour-blind 17.1 (v1: 0.8) and |Lc| 39.3 on the body (v1: 0). (The solve above was run
+  on #416's earlier copy of this solver with `--table`; dev's copy lands within 0.03 of it, switch 2.14 m.)
+- The design critique (2026-10-21, #416 log; instrument in the log) changed three things the contrast search does not see: the
+  switch moved onto the sea's 2.4 m anchor (the best worst-case body |Lc| of a 1.9-2.8 m scan, and the crest flip then rhymes with
+  a step of the sea); the storm became a pale tint of the storm sea's own rose (blush) because crests cover ~78% of coastal sea
+  pixels and a peach storm turned that view orange (hue 48-59 degrees) and bleached it, while cream bleached it more; and the foam
+  switches with the ink as light's does (whitecap fronts |Lc| 24.9 -> 38.5). Light's own family (umber, cream, gold) would repaint
+  the purple storm sea yellow (99-133 degrees): each theme keeps the shared rule, dark ink low, light ink high, foam following the
+  ink, in its own sea's colours.
 
 ## Why coloraide and not culori for colour blindness
 
