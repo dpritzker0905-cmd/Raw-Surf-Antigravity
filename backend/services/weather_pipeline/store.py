@@ -747,7 +747,11 @@ class ProductStore:
         docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
         """
         from services.weather_pipeline.store_helpers import load_product_helper
-        return load_product_helper(self, filename, stride)
+        product = load_product_helper(self, filename, stride)
+        if product is None:      # a series build that lost a file answered from another tier: never a durable memo page
+            from services.weather_pipeline.series_memo_keys import note_build
+            note_build("load_failed")
+        return product
 
     def prune_old_products(self, before_time: datetime):
         """Cleans up old JSON product files that fall before the cutoff date."""

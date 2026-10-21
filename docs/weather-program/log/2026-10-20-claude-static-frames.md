@@ -120,3 +120,37 @@ re-registered. So the frame-for-frame agreement test between the static path and
 the L2 manifest only every 30 min, so `latest.json` can name a run the box does not have yet. A static miss then falls back to
 /grid or /grid_series serving the OLDER run, and the frame's own model_run_time discloses it. Floors: #423 moves guards and chain,
 #422 moves estate only, so there is no overlap. Either way, the second to merge recomputes from hosted CI.
+
+## 2026-10-21 13:45Z: independent review fixes (owner's named merge set; lead merges after green CI)
+
+Review: pr-review-toolkit code-reviewer on 5f0ca3461, relayed by the lead. It cleared the codec, quantisation, atomicity,
+run identity, dark guarantee and security. Three findings, all fixed:
+1. **CRITICAL, verified from run logs.** The publisher ran in the CORE lane (`INGEST_PILOTS: 'skip'`), but the GFS world
+   products are pilot jobs (scheduler/forecast.py `pilot_jobs`, l.139 on: the 2-degree global_mid rides the GFS Marine Pilot
+   pass, and its standalone job is in pilot_jobs too).
+   - Pilots run 39543806662 wrote and uploaded **all 113** (`Atomic save complete` x113, `upload OK` x113).
+   - Core run 39546548998 held only the **60** its jobs downloaded from L2 (`Dynamically restored`), **5 within 0-165 h**
+     and 55 at 168-330 h.
+   - The #399 PNG proof published from the core lane only because it DOWNLOADS its product.
+   - Fix: the step moved to forecast-ingest-pilots.yml after its ingest step, and nowhere else (a test pins this).
+   - Fix: a set below FRAME_MIN_COVERAGE (0.9) uploads nothing, keeps the published index, and the step exits 1.
+   - Offline (fresh synthetic store, 115 frames): pilots-shaped disk, coverage 1.0, published; core-shaped disk (5 near + 65
+     far), coverage 0.61, refused, nothing uploaded; one file missing, coverage 0.99, published with one `path: null` entry.
+2. **An index gap served a frame 3 h off.** Every selected entry is now listed; an unbuilt one has `path: null` and an
+   `unbuilt` reason, and the client returns null (miss `unbuilt_frame`) so /grid serves that hour. scn_static_parity.mjs now
+   checks the gap asks too: each falls back, and /grid serves the product the entry names.
+3. **A shared frame fetch inherited the first caller's abort.** It now runs on its own AbortController, aborted only when
+   every waiter has aborted; a late caller that finds an aborted load starts a fresh one.
+
+Minor fixes:
+- Retention runs only when the previous index was actually read, so an unreadable latest.json deletes nothing.
+- `run` is the model cycle only.
+- Seam B fires `marine_series_revalidated` once at the first frame and once at the end, not per frame. That matters for #426's
+  settle listener.
+- A refused set reports 0 bytes uploaded.
+- The localStorage opt-in works in production builds BY DESIGN: it is per-browser, and it is how the live read is taken.
+
+Tests: +3 backend (23 in the two files; estate floor 2333, projection 2335 from dev CI 39594047204 @ 744775c8 = 2312 / 327
+files) and +3 Jest. Merged dev a25aaa8ae (#423, #425) into the branch: `_FLOOR_SET_FROM` = {guards 3287, chain 2855,
+estate 2335}. The ledger takes dev's chain; this PR's pr_open and commitment lines (formerly 1557/1558) are re-chained once,
+right before merge, on the lead's word.
