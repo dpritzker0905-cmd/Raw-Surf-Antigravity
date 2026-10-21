@@ -1955,7 +1955,10 @@ jobs:
           # ⬆ 2303→2310 on 2026-10-19, IN THE SAME PR THAT CAUSES IT (one-field frame-image proof): one new estate file
           # adds 7 executed tests (tests/test_frame_image.py) to the 2305 read of dev CI 39331532690: projected 2312;
           # 2312 - 2 = 2310, margin 2. _FLOOR_SET_FROM["estate"] -> 2312. This PR must read 2312 passed.
-          MIN_PASSED = 2310
+          # ⬆ 2310→2315 on 2026-10-21, IN THE SAME PR THAT CAUSES IT (Logfire setup never stops boot): one new estate
+          # file adds 5 executed tests (tests/test_logfire_setup.py) to the 2312 read of dev CI 39594047204 (744775c86):
+          # projected 2317; 2317 - 2 = 2315, margin 2. _FLOOR_SET_FROM["estate"] -> 2317. This PR must read 2317 passed.
+          MIN_PASSED = 2315
 
           try:
               root = ET.parse('estate.xml').getroot()

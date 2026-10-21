@@ -211,3 +211,16 @@ only, shown moving beside today's, with APCA per band via Leonardo and a colour-
 - Ledger, re-chained on dev's head 1569 (the seqs above this section were this branch's before the re-chain): 1558-1564 are now
   1570-1576 (1570 pr_open, 1571 the owner-pick commitment, 1572 finding, 1573 its correction, 1574 decision (electric blue),
   1575 push, 1576 push), and 1577 is D-039's decision line. 1571 is fulfilled once #419 is marked ready.
+
+## 2026-10-21T17:55Z: #419 ready for review; dev merged in, ledger re-chained on 1583
+
+- `3ec0b03fa` pushed; #419 retitled, its body quoting the owner's pick (D-039) with the per-band numbers, marked ready for review
+  at 16:57:21Z (read back from the PR's `ready_for_review` event). Not merged: the lead merges.
+- dev moved to `dbb9713fd` (#426 request diet, #432 Logfire boot fix and the lead's receipts, ledger head 1583). Neither touched
+  this branch's files except the ledger and STATE's anchor, so dev was MERGED in (not rebased): 29f6ef8b6, the SHA that D-039 and
+  the ledger name as the rollback, stays on the branch.
+- Ledger, re-chained on dev's head 1583: 1570-1577 are now 1584-1591 (1584 pr_open, 1585 the owner-pick commitment, 1586 finding,
+  1587 its correction, 1588 decision (electric blue), 1589 push, 1590 push, 1591 D-039's decision). Each keeps its first-written
+  time in `acted_at`. 1587's `why` named the finding by its first-chain number (1560); it now reads 1586. 1592 is the push that
+  fulfils 1585. If dev moves again before merge, re-chain once more (scratchpad `rechain_onto_dev.py` is the recipe: dev's lines
+  as the append-only base, `action_ledger.py verify` must pass).
