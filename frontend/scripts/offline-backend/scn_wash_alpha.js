@@ -50,7 +50,16 @@ const telemetry = () => {
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const record = { at: new Date().toISOString(), port: PORT, base: L.BASE, views: VIEWS, shots: [], bare: {}, log: {} };
+  const record = { at: new Date().toISOString(), port: PORT, base: L.BASE, views: VIEWS, shots: [], bare: {}, log: {}, gpu: {} };
+  // The GPU the map's own WebGL context runs on (ab_lib launches system Chrome with --use-angle=d3d11): name it with every number.
+  const gpuOf = (page) => page.evaluate(() => {
+    const c = document.querySelector('canvas.maplibregl-canvas');
+    const gl = c && (c.getContext('webgl2') || c.getContext('webgl'));
+    if (!gl) return null;
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return { vendor: gl.getParameter(ext ? ext.UNMASKED_VENDOR_WEBGL : gl.VENDOR), renderer: gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER),
+      version: gl.getParameter(gl.VERSION), ua: navigator.userAgent };
+  });
   const clipOf = (page) => page.evaluate(() => {
     const r = (window.__MAP_INSTANCE__ || window.map).getContainer().getBoundingClientRect();
     return { x: Math.round(r.x + r.width * 0.2), y: Math.round(r.y + r.height * 0.15), width: Math.round(r.width * 0.6), height: Math.round(r.height * 0.7) };
@@ -83,6 +92,8 @@ const telemetry = () => {
         await L.clickText(page, 'Waves'); await sleep(9000);
         const engineUp = () => page.waitForFunction(() => !!(window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData), null, { timeout: 90000 });
         await engineUp();
+        record.gpu[`${theme}/${v}`] = await gpuOf(page);
+        if (v === variants[0]) console.log('gpu', theme, JSON.stringify(record.gpu[`${theme}/${v}`]));
         for (const view of views) {
           await L.jump(page, ...VIEWS[view]); await sleep(view === 'world' ? 10000 : 12000);
           await engineUp();

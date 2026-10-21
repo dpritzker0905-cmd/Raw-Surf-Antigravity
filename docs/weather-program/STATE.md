@@ -2362,7 +2362,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-**Ledger head: seq 1560, sha256 38b027cc188ed0b01a28144261439e280d00c6ff4a3de6ee790c350e73f9f3db**
+**Ledger head: seq 1561, sha256 a98dc4936b48f114a20cd9b0f734ab886250f766346888b20235e639f6d921c9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,

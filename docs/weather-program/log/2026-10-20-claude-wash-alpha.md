@@ -195,3 +195,41 @@ The lead asked for dev's build (f6b80f724: beach on v1, sha-locked by D-035; lig
   clips were shot after a coastal view had committed a regional tile (its record: bounds -108..-102, 16..21), so they were
   zoomed out with the tile resident: the law gives 0.838 / 0.858 / 0.877, against 0.84 / 0.86 / 0.87 fitted. Run 2 visited
   only the eye, with the 181 x 83 global grid resident: no blend, 0.71 = heatmapZoomOpacity(6). Answered by message.
+
+## 8. 2026-10-21T05:25Z: spread over paired runs, per engine state (the lead's request: >= 3 runs, mean and min-max, build and GPU named)
+
+**Build** dev 448deb35c (light v2@16, beach v1, as served). **GPU** read back by runs E-G from the map's own WebGL context:
+`ANGLE (AMD, AMD Radeon(TM) 890M Graphics (0x0000150E) Direct3D11 vs_5_0 ps_5_0, D3D11)`, WebGL 2.0, HeadlessChrome 154
+(`ab_lib.js`: system Chrome, `--use-angle=d3d11`). Run D did not record it (same machine and launch arguments).
+**Runs** D (valid 2026-10-21T03Z) and E, F, G (valid 06Z): four independent browser sessions on one offline store, each with 4
+paired frames per view (`scn_wash_alpha.js VARIANTS=v2`, the defaults). "law" = the §1 formula from that run's own reported
+opacities; the last column is the largest |fitted - law| over the runs.
+
+| theme | view (z, sea h p50) | engine state | runs | fitted mean (min-max) | law | max \|fit - law\| |
+|---|---|---|---|---|---|---|
+| light | world (2.2, 1.6 m) | blend off, main 0.65 | DEFG | 0.640 (0.64-0.64) | 0.650 | 0.010 |
+| light | regional, fresh (4.6, 3.4 m) | blend off, main 0.682 | DEFG | 0.680 (0.68-0.68) | 0.682 | 0.002 |
+| light | regional, zoomed out (4.6, 3.5 m) | blend on, main 0.682 | DEFG | 0.840 (0.84-0.84) | 0.838 | 0.002 |
+| light | coastal (7.4, 6.2 m) | blend on, main 0.738 | DEFG | 0.877 (0.87-0.88) | 0.877 | 0.007 |
+| light | close (10, 6.5 m) | blend on, main 0.77 | EFG | 0.800 (0.80-0.80) | 0.815 | 0.015 |
+| light | close (10, 6.0 m) | blend on, main 0.539 (coarseFade 0.7, a 4-column tile) | D | 0.620 | 0.628 | 0.008 |
+| light | calm 0.5 m (7.4) | blend on, main 0.738 | DEFG | 0.620 (0.62-0.62) | 0.621 | 0.001 |
+| light | calm 0.5 m (10) | blend on, main 0.77 | DEFG | 0.370 (0.37-0.37) | 0.370 | 0.000 |
+| light | calm 1.4 m (10) | blend on, main 0.77 | DEFG | 0.810 (0.81-0.81) | 0.814 | 0.004 |
+| beach | world (2.2, 1.6 m) | blend off, main 0.65 | DEFG | 0.650 (0.65-0.65) | 0.650 | 0.000 |
+| beach | regional, fresh (4.6, 3.9 m) | blend off, main 0.682 | DEFG | 0.680 (0.68-0.68) | 0.682 | 0.002 |
+| beach | regional, zoomed out (4.6, 3.9 m) | blend on, main 0.682 | DEFG | 0.840 (0.84-0.84) | 0.838 | 0.002 |
+| beach | coastal (7.4, 6.2 m) | blend on, main 0.738 | DEFG | 0.880 (0.88-0.88) | 0.877 | 0.003 |
+| beach | close (10, 6 m) | blend on, main 0.77 | DEFG | 0.818 (0.81-0.82) | 0.815 | 0.005 |
+| beach | calm 0.5 m (7.4) | blend on, main 0.738 | DEFG | 0.600 (0.60-0.60) | 0.604 | 0.004 |
+| beach | calm 0.5 m (10) | blend on, main 0.77 | DEFG | 0.330 (0.33-0.33) | 0.325 | 0.005 |
+| beach | calm 1.4 m (10) | blend on, main 0.77 | DEFG | 0.810 (0.81-0.81) | 0.814 | 0.004 |
+
+- **Within one engine state the alpha is not noisy:** at most 0.01 apart over 4 runs and two forecast instants, and never more than
+  0.015 from the law. What changes between runs is the STATE: whether a regional tile is resident (blend on/off), and once
+  (light z 10 in runs D and #419-A) a coarse 2-degree tile at z 10 dimming the main pass to 0.539.
+- So a single "noisy" alpha such as dark's 0.84 vs 0.71 is two states, not scatter. Crest solvers should solve against the states
+  as listed (or the law), never one number per view.
+- **All 7 runs** (D-G plus #419-build A-C; evidence `spread.by_view`) agree within 0.02 per state. The #419 runs did not record
+  the GPU.
+- Evidence: `docs/weather-program/evidence/wash-alpha-2026-10-20.json` `spread` (every run's row, its state and GPU).
