@@ -1,0 +1,167 @@
+# 2026-10-20: static forecast frames, step 2b (world GFS waves, DARK)
+
+Session opened 2026-10-20T18:24Z, started by the lead scrub session after its lag diagnosis (memory
+`scrub-lag-diagnosis-2026-10-20`, report https://claude.ai/artifact/4kMNaqSVWxJp4idkK59imd: the server is the bottleneck,
+1.3-4.6 s per scrub step on a quiet box). Branch `claude/determined-golick-a714f9`, rebased onto dev `f6b80f724`.
+**No served number changes** by default: the publisher stays behind the repo variable `FRAME_IMAGES_PUBLISH`, and the client
+reads frames only with `REACT_APP_STATIC_FRAMES=true` or `localStorage.__RAW_STATIC_FRAMES__ = 'true'`. Draft PR, not merged.
+`python backend/scripts/memory_audit.py --docs-only` at the start: 0 FAIL, 37 WARN (all older overdue read-backs, none in this
+lane), 14 NOTE; commitment 1485 (the #399 proof's live read) is still blocked on the repo variable's name (below).
+
+## What changed
+
+- `backend/services/frame_binary.py` (codec, pure): one stored product -> a versioned little-endian frame. Header: magic `RSWF`,
+  encoding_version 1, transform_version 1, cols, rows, field mask, row/col order, **uv convention**, bounds, valid and model-run
+  epochs, one 24-byte descriptor per field (dtype, layout, missing code, f64 scale/offset). Planes, byte-shuffled u16: height
+  1 mm (0 = no data), direction 0.01 deg, period 0.01 s (65535 = null); dir_confidence u8 1/254 (255 = null). `parity()`
+  compares every decoded node with its source, including u/v rebuilt from height and direction.
+- `backend/services/frame_set.py` + `backend/scripts/publish_frame_images.py`: every GFS/marine/waves/global_mid product in the
+  runner's LOCAL manifest becomes `v1/gfs/marine/waves/global_mid/<run>/<valid>-<sha12>.bin` (gzip, mtime 0,
+  `application/octet-stream`, `public, max-age=31536000, immutable`, never a Content-Encoding header), plus an immutable run index
+  `.../index/<run>-<sha12>.json` (frames, source identity, product metadata with the shared part factored into `common_meta`)
+  and `v1/latest.json` (no-cache) written LAST, then retention (current + previous index kept, the rest of the prefix deleted;
+  an empty keep set deletes nothing). Unchanged frames are carried by source identity without reading anything; a changed
+  product not on the runner's disk is left out (the client falls back to /grid); a disk copy of another run is never mixed in.
+  **Nothing downloads from weather-products** (re-reading would be ~490 GB/month of egress). The #399 PNG proof keeps its outputs
+  (`gfs/waves/global_mid/<run>/<valid>.png` + `manifest.json`) and now also reads local files only.
+- `.github/workflows/forecast-ingest.yml`: the step is renamed "Publish static forecast frames (dark)", gains `timeout-minutes: 15`,
+  same gate and `continue-on-error`.
+- Client: `staticFrameCodec.js` (pure decoder; rebuilds the exact /grid response and series frames; `pickIndexFrame` mirrors
+  `mid_res_tier.pick_mid_item`: nearest within 3 h, authoritative first, earlier on a tie), `staticFrames.js` (flag, kill switch
+  `window.__RAW_DISABLE_STATIC_FRAMES__`, base override `window.__RAW_STATIC_FRAMES_BASE__`, inline Blob worker: fetch, check
+  1f 8b, DecompressionStream, transfer; LRU of 12 decoded frames; ONE index pinned per scrub session: a new run is announced by
+  `raw_static_frames_new_run` and adopted only after 30 s idle, or at once if a pinned frame is gone; telemetry
+  `window.__RAW_STATIC_FRAMES__`), `marineSeriesStatic.js` (seam B).
+  - Seam A, `backendWeatherServiceClient.fetchBackendMarineGrid`: a world box (>= 340 deg) on GFS waves, not surf, is answered from
+    the pinned frame (a truth tag minted as the series path does); any miss -> /grid exactly as before. With the flag off the
+    check is synchronous and nothing awaits.
+  - Seam B, `marineGridSeries.loadSeriesPage`: a world page fills the 9 page hours nearest the viewed hour (+1, -1, +2 ...; 4 in
+    flight) at full resolution and drops frames more than 6 steps away. A full-resolution world frame is ~15k vector objects,
+    a few MB of heap, so 48-frame pages (100+ MB) were ruled out. Background warms never bulk-prefetch from the CDN; the hour-0
+    mini load is skipped when the page fill owns the view.
+
+## Measured (offline; evidence `docs/weather-program/evidence/static-frames-2026-10-20.json`)
+
+Instruments: `frontend/scripts/offline-backend/scn_static_parity.mjs` and `scn_static_frames.js` (new; README rows). The real
+backend app over `serve_synthetic.py --models GFS` (115 three-hourly global_mid frames), the publisher's own output on a local
+static host as the CDN, one production build for both arms, Playwright system Chrome. The machine was shared with several
+other sessions' harnesses (simple greps took over 2 minutes at times), so the arms are interleaved A B / B A per round.
+
+1. **Parity vs /grid, synthetic store:** 115 frames, 231 comparisons (each frame's hour, and +1 h / +2 h where it is the nearest),
+   3,470,313 nodes: **0 bad nodes, 0 metadata mismatches** (served_valid_time, frame_offset_hours, frame_substituted, product_id,
+   model_run_time, run_time, provider, upstream_provider, source_dataset, estimate flags, coverage_scope). The first pass flagged
+   every frame: the synthetic store writes u, v = +h sin d while production's normalizer writes -h sin d, so the frame records the
+   convention (header byte 19) and the gate checks it (the real live frames read convention 0).
+2. **Parity on real data:** three live world /grid responses saved 2026-10-19/20 (valid 21Z, 00Z, 03Z), encoded in Python and
+   decoded by the app's JS codec: 45,069 nodes, **0 bad**, max error height 0.5 mm, direction 0, period 0, dir_confidence 0.002,
+   u/v 0.9 mm.
+3. **Bytes per frame:** real world frame **55.6-55.8 KB** gzipped (105,329 B raw) vs 2.35 MB of /grid JSON (285 KB gzip-6); the
+   smooth synthetic field is 8.9 KB. Decode + vector build 1.8-6.5 ms per frame (Node 24).
+4. **Time to the exact-correct frame per scrub step** (the uploaded product equals what /grid serves for that time, asked of
+   the backend before the timed window, at full resolution; steps that need a different product; 3 rounds = 3 sessions per arm):
+   - no added latency: **/grid path p50 2,286 ms, p95 3,573 ms (n=18); static p50 238 ms, p95 259 ms (n=15)**;
+   - live-like latency injected (/grid +1.5 s, /grid_series +9 s, CDN +150 ms per object; assumptions, not measurements):
+     **/grid p50 3,998 ms, p95 5,964 ms; static p50 419 ms, p95 588 ms**;
+   - frames that LEFT the exact-correct product after reaching it (thinned series frames replacing exact ones): /grid arm 32
+     and 26, static 0 and 0. The static arm's ~240 ms floor is the app's own settle/commit pipeline, not the frame fetch.
+   - 1-hour steps between 3-hourly products: the static path shows the right product at once (0 ms, it is already resident)
+     but keeps the product's own hour label; /grid relabels after a fetch. Same data, different label.
+5. **Server CPU per step:** /grid arm 0.39 s (no added latency; 20 /grid + 2 /grid_series over 30 steps) and 1.32 s (with
+   latency); **static arm 0 backend requests, 0.003 s per step** (the process's idle noise).
+
+## Not done / owed
+
+- **Owner action first:** create the repository variable `FRAME_IMAGES_PUBLISH` = `1` under that exact name (it exists only as
+  `FRAME_IMAGES_PUBLISHFRAME_IMAGES_PUBLISH`) and delete the doubled one. Until then nothing publishes (commitment 1485 stays blocked).
+- Live evidence for a flip (D-001): after merge and a publish, one dev-site browser run with the opt-in: parity of 0 bad nodes vs
+  live /grid over N frames, CDN headers (cache-control, content-type, no content-encoding, cf-cache-status MISS then HIT), time to
+  exact-correct flag on vs off, Render CPU and /api/health before/after, then a SCOREBOARD row. Ledger commitment.
+- Follow-ups, not this PR: MRT-style packing of several hours per file; slice 2 (all world fields and models, wind); regional
+  whole frames (needs the resolver's selection rule published in the index); hourly cadence days 1-5.
+
+## Ledger
+
+- seq 1553 `pr_open` draft #422; seq 1554 `commitment` (due 2026-10-27T18:00Z): the live read after the merge and the
+  correctly named repo variable. STATE's Ledger head moved to 1554. Any receipt PR merged before #422 re-forks these lines
+  (re-append them on top, LESSONS).
+
+## 2026-10-21 00:15Z: the variable is fixed; first live bucket read; run identity
+
+- The lead session created `FRAME_IMAGES_PUBLISH` = `1` at 2026-10-20T18:33Z and deleted the doubled name (owner-approved; the lead
+  owes that ledger line). `gh variable list` confirms. dev's #399 publisher then ran in forecast-ingest 39488231426 (20:00Z
+  schedule): `gfs/waves/global_mid/20261020T120000Z/20261020T210000Z.png`, 27,196 B, self-parity 15,023 nodes 0 bad, and
+  `manifest.json` written 21:28:42Z, so the public bucket `weather-frames` now exists.
+- **The next run's publisher FAILED:** 39502044990 (21:38Z dispatch): `RuntimeError: read weather-products/manifest.json: HTTP 429`.
+  That is #399's download of the 13 MB pipeline manifest from storage, right after the ingest's own uploads (continue-on-error kept
+  the cycle green and the step reports success). #422 reads the runner's local manifest and product files and never downloads,
+  which removes this failure class.
+- **Live CDN headers** (3 GETs from this PC, Supabase only): `manifest.json` 200, `Cache-Control: no-cache`, CF MISS, and
+  `Content-Encoding: br` (the CDN brotli-compresses JSON, so the run index is small on the wire). The PNG: `image/png`,
+  `Cache-Control: public, max-age=31536000, immutable`, **no Content-Encoding**, CF MISS then HIT, TTFB 0.83 s then 0.49 s. This
+  settles the design: frames are stored gzipped and served as is, and the worker inflates them after checking for 1f 8b.
+- **Run identity (lead cross-check, point 3):** the index and `latest.json` now carry `run_time`, the newest manifest run_time
+  among the set's frames (the identity the server cache's series memo is re-keyed to), beside `run` (the verified model cycle).
+  The client's pin telemetry shows both. One assertion was added to an existing test (still 20 backend tests; floors unchanged).
+
+## 2026-10-21 00:50Z: ledger re-fork after #421
+
+#421 (light crest V2) merged its own ledger lines 1553-1556 first, so #422's branch lines 1553 (pr_open) and 1554 (commitment) forked
+the chain. Merged dev into the branch, took dev's ledger and STATE, and re-appended the two lines as **seq 1557 (pr_open) and 1558
+(commitment, due 2026-10-27T18:00Z)**; each says it was re-forked. The 1553/1554 above in this log name the superseded branch-only
+lines. STATE's Ledger head moved to 1558.
+
+## 2026-10-21 01:25Z: run identity settled with the server cache (#423)
+
+The server-cache session (local_04e7d951, PR #423) answered the lead's point 3. Its series memo has no page-level run key: it
+validates per FILE (a hash of each manifest file's full registration) and drops a page when any of its files is added, removed or
+re-registered. So the frame-for-frame agreement test between the static path and /grid_series is each frame's `source`
+{filename, run_time, model_run_time, ingested_at} equal to the manifest entry the box serves for that filename. The index's
+`run_time` / `run` stay as labels and staleness probes, and no change is needed. **Caveat for the flip evidence:** the box re-reads
+the L2 manifest only every 30 min, so `latest.json` can name a run the box does not have yet. A static miss then falls back to
+/grid or /grid_series serving the OLDER run, and the frame's own model_run_time discloses it. Floors: #423 moves guards and chain,
+#422 moves estate only, so there is no overlap. Either way, the second to merge recomputes from hosted CI.
+
+## 2026-10-21 13:45Z: independent review fixes (owner's named merge set; lead merges after green CI)
+
+Review: pr-review-toolkit code-reviewer on 5f0ca3461, relayed by the lead. It cleared the codec, quantisation, atomicity,
+run identity, dark guarantee and security. Three findings, all fixed:
+1. **CRITICAL, verified from run logs.** The publisher ran in the CORE lane (`INGEST_PILOTS: 'skip'`), but the GFS world
+   products are pilot jobs (scheduler/forecast.py `pilot_jobs`, l.139 on: the 2-degree global_mid rides the GFS Marine Pilot
+   pass, and its standalone job is in pilot_jobs too).
+   - Pilots run 39543806662 wrote and uploaded **all 113** (`Atomic save complete` x113, `upload OK` x113).
+   - Core run 39546548998 held only the **60** its jobs downloaded from L2 (`Dynamically restored`), **5 within 0-165 h**
+     and 55 at 168-330 h.
+   - The #399 PNG proof published from the core lane only because it DOWNLOADS its product.
+   - Fix: the step moved to forecast-ingest-pilots.yml after its ingest step, and nowhere else (a test pins this).
+   - Fix: a set below FRAME_MIN_COVERAGE (0.9) uploads nothing, keeps the published index, and the step exits 1.
+   - Offline (fresh synthetic store, 115 frames): pilots-shaped disk, coverage 1.0, published; core-shaped disk (5 near + 65
+     far), coverage 0.61, refused, nothing uploaded; one file missing, coverage 0.99, published with one `path: null` entry.
+2. **An index gap served a frame 3 h off.** Every selected entry is now listed; an unbuilt one has `path: null` and an
+   `unbuilt` reason, and the client returns null (miss `unbuilt_frame`) so /grid serves that hour. scn_static_parity.mjs now
+   checks the gap asks too: each falls back, and /grid serves the product the entry names.
+3. **A shared frame fetch inherited the first caller's abort.** It now runs on its own AbortController, aborted only when
+   every waiter has aborted; a late caller that finds an aborted load starts a fresh one.
+
+Minor fixes:
+- Retention runs only when the previous index was actually read, so an unreadable latest.json deletes nothing.
+- `run` is the model cycle only.
+- Seam B fires `marine_series_revalidated` once at the first frame and once at the end, not per frame. That matters for #426's
+  settle listener.
+- A refused set reports 0 bytes uploaded.
+- The localStorage opt-in works in production builds BY DESIGN: it is per-browser, and it is how the live read is taken.
+
+Tests: +3 backend (23 in the two files; estate floor 2333, projection 2335 from dev CI 39594047204 @ 744775c8 = 2312 / 327
+files) and +3 Jest. Merged dev a25aaa8ae (#423, #425) into the branch: `_FLOOR_SET_FROM` = {guards 3287, chain 2855,
+estate 2335}. The ledger takes dev's chain; this PR's pr_open and commitment lines (formerly 1557/1558) are re-chained once,
+right before merge, on the lead's word.
+
+## 2026-10-21 16:00Z: stacked on #432 and re-chained once (on the lead's word)
+
+#426 merged (dev 8392f25b8); the lead queued #432 (Logfire, +5 estate tests) first and asked #422 to stack on it so both PRs'
+CI runs at once. Merged origin/claude/logfire-no-token-safe (f20cdc4c6, ledger to 1583). Resolutions:
+- backendWeatherServiceClient.js: keep both imports.
+- Floors: #432's 2317 + #422's 23 = **2340 / 330 files**, so estate MIN_PASSED **2338** and `_FLOOR_SET_FROM["estate"]` 2340. The
+  lead's message said +20; the review fixes made it 23.
+- STATE: #432's version plus this PR's bullet.
+- Ledger: the pr_open and the live-read commitment are re-appended ONCE as **seq 1584 and 1585** (acted-at 2026-10-20 23:40/23:41Z;
+  the earlier branch-only 1553/1554 and 1557/1558 are superseded). STATE's Ledger head is 1585.
