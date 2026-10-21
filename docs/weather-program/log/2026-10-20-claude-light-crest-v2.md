@@ -200,3 +200,33 @@ Read-back of the deployed dev build (`dev--rawsurf.netlify.app`, static files on
 names "deep umber, cream from 3.05 m" and "umber-black foam, white from 3.05 m"), the kill name and v1's "deep navy", and dark's
 ("mint-green") and beach's ("orchid-pink") crest literals; no other file carries them. (The GLSL `step(3.05, ...)` text is built at
 runtime from the table, so it is not a literal in the bundle.) Not yet seen on a screen by the owner: the dev site is gated.
+
+## 2026-10-21 17:15Z: light's storm crests in warm gold (D-040, its own PR)
+
+The owner, with the density pick for #428: "Also switch light's storm to the warm gold in its own PR." (This branch,
+`claude/light-storm-warm-gold`, is separate from #428; the 00:30Z art pass that proposed the warm gold is in #428's copy of this log.)
+
+**Change.** Light crest V2's storm (D-036, `LIGHT_CRESTS.v2.storm`) goes from the lemon (1.00, 0.96, 0.00), C* 94, to a warm gold
+(1.00, 0.90, 0.30), L* 91 C* 74 h 96. Only DRAW_FS's storm line moves; kill `window.__RAW_DISABLE_LIGHT_STORM_WARM__ = true` draws
+D-036's DRAW_FS byte for byte (sha256 pinned in `marineCrestPaletteLight.test.js`). Harness variant `wk` = the lemon.
+
+**Checker** (wave-check over v2 and v2@16, the art pass): the storm does not touch V2's weakest point, the 3.05 m switch (|Lc| 39.8 /
+whitecap front 40.8, colour-blind 24.2, dE00 31.8; coloraide 25.4; with the lemon 40.0 / 40.9 / 24.3 / 32.7 / 25.6). From the 3 m
+cream: 17.7 dE00, colour-blind 13.3 (lemon 20.1 / 10.2). 7.3 dE00 from the app's own yellow-400.
+
+**Engine, offline** (production bundle of this branch; store `--vortex-peak 11`, so storm crests are drawn; `l1` V1 / `wk` lemon /
+`v2` warm gold; world, regional and coastal clips, 24 paired frames each; every pane read back its compiled storm line: `l1`
+vec3(0.75, 0.10, 0.05), `wk` vec3(1.00, 0.96, 0.00), `v2` vec3(1.00, 0.90, 0.30), same valid hour 15Z and grid). `crest_contrast.py`,
+p99 of each pixel off its paired crest-free wash, lemon -> warm gold:
+
+| view | APCA |Lc| | normal dE00 | protan / deutan | tritan |
+|---|---|---|---|---|
+| world | 34.8 -> 34.8 | 25.7 -> 25.0 | 26.3 / 25.8 -> 25.6 / 25.2 | 24.0 -> 24.0 |
+| regional | 48.9 -> 49.5 (halves 54.9 / 44.1) | 56.6 -> 49.4 | 57.5 / 58.0 -> 51.1 / 52.1 | 37.0 -> 38.7 |
+| coastal (storm) | 78.7 -> 74.5 (halves 74.0 / 75.1) | 82.8 -> 75.8 | 83.2 / 82.6 -> 77.6 / 77.8 | 55.6 -> 55.3 |
+
+The storm crest is a little quieter where storms are, by design (C* 94 -> 74), and keeps about twice the |Lc| floor. Against V1
+(`l1`) the whole V2 set still reads as before (coastal |Lc| 23.4 -> 74.5).
+
+Ledger: 1584 (`pr_open #436`), 1585 (decision D-040), after dev's head 1583 (dev `dbb9713fd`). #428 appends its own lines, so whichever
+of the two merges second re-chains.

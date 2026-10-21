@@ -75,7 +75,7 @@ describe('V2 is the default over the v2 wash and changes light\'s four colour li
     expect(DRAW_FS).toContain(`foamHighlight = ${LIGHT_CREST_GLSL.foam}`);
     expect(DRAW_FS).toContain('calmColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m');
     expect(DRAW_FS).toContain('activeColor = mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height));  // deep umber, cream from 3.05 m');
-    expect(DRAW_FS).toContain('stormColor = vec3(1.00, 0.96, 0.00);   // gold');
+    expect(DRAW_FS).toContain('stormColor = vec3(1.00, 0.90, 0.30);   // warm gold');
     expect(DRAW_FS).toContain('foamHighlight = mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height));  // umber-black foam, white from 3.05 m');
   });
 });
@@ -88,7 +88,7 @@ describe('the V2 colours (solved by crest-solve.mjs --theme light; a hand edit m
     const { v2 } = LIGHT_CRESTS;
     expect(v2.switchHeight).toBe(3.05);
     expect([v2.calm.rgb, v2.calm.above, v2.active.rgb, v2.active.above, v2.storm.rgb, v2.foam.rgb, v2.foam.above])
-      .toEqual([[0.27, 0.10, 0.00], [1.00, 1.00, 0.82], [0.27, 0.10, 0.00], [1.00, 1.00, 0.82], [1.00, 0.96, 0.00], [0.05, 0.02, 0.00], [1.00, 1.00, 1.00]]);
+      .toEqual([[0.27, 0.10, 0.00], [1.00, 1.00, 0.82], [0.27, 0.10, 0.00], [1.00, 1.00, 0.82], [1.00, 0.90, 0.30], [0.05, 0.02, 0.00], [1.00, 1.00, 1.00]]);
   });
 
   it('polarity: a dark ink (and foam) below the switch where the wash is light, light ones at and above it where the wash is dark', () => {
@@ -114,5 +114,30 @@ describe('the V2 colours (solved by crest-solve.mjs --theme light; a hand edit m
     const { v1 } = LIGHT_CRESTS;   // v1 lightens toward its 3 m amber (APCA Y 0.28) as the wash darkens: the two cross
     expect(apcaY(v1.calm.rgb)).toBeLessThan(0.05);
     expect(apcaY(v1.active.rgb)).toBeGreaterThan(0.25);
+  });
+});
+
+// The warm-gold storm (2026-10-21). Pins: its kill draws D-036's DRAW_FS byte for byte (the lemon); on, only the storm line moves.
+describe('the warm-gold storm (window.__RAW_DISABLE_LIGHT_STORM_WARM__ restores the lemon)', () => {
+  // DRAW_FS with the lemon storm (D-036, dev 448deb35c): 9049 characters.
+  const DRAW_FS_LEMON = { sha: 'f425bf535ef4ae2a42560ef18ca70e1c085e6a74d24f5736c358e4d9e682f7ce', length: 9049 };
+  it('the kill draws D-036 exactly', () => {
+    withWindow({ __RAW_DISABLE_LIGHT_STORM_WARM__: true }, (shaders, crest) => {
+      expect(crest.LIGHT_STORM_WARM).toBe(false);
+      expect(shaders.DRAW_FS.length).toBe(DRAW_FS_LEMON.length);
+      expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_LEMON.sha);
+      expect(shaders.DRAW_FS).toContain('stormColor = vec3(1.00, 0.96, 0.00);   // gold');
+    });
+  });
+  it('on (the default), the storm line is the only change from the lemon', () => {
+    let before; withWindow({ __RAW_DISABLE_LIGHT_STORM_WARM__: true }, (s) => { before = s.DRAW_FS.split('\n'); });
+    const after = DRAW_FS.split('\n');
+    const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);
+    expect(changed.map((i) => after[i].trim())).toEqual(['stormColor = vec3(1.00, 0.90, 0.30);   // warm gold']);
+    expect(branch(after, changed[0])).toBe('light');
+  });
+  it('stays light enough for the dark storm seas (APCA Y over 0.75) and softer than the lemon', () => {
+    expect(apcaY([1.00, 0.90, 0.30])).toBeGreaterThan(0.75);
+    expect(apcaY([1.00, 0.90, 0.30])).toBeLessThan(apcaY([1.00, 0.96, 0.00]));
   });
 });

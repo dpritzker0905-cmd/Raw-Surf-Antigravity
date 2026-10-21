@@ -1,0 +1,321 @@
+{
+ "at": "2026-10-21",
+ "branch": "claude/light-storm-warm-gold",
+ "decision": "D-040",
+ "owner_words": "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch light's storm to the warm gold in its own PR.",
+ "change": {
+  "storm_before": {
+   "rgb": [
+    1.0,
+    0.96,
+    0.0
+   ],
+   "name": "gold (lemon)",
+   "lch": "L*95 C*94"
+  },
+  "storm_after": {
+   "rgb": [
+    1.0,
+    0.9,
+    0.3
+   ],
+   "name": "warm gold",
+   "lch": "L*91 C*74 h96"
+  },
+  "kill": "window.__RAW_DISABLE_LIGHT_STORM_WARM__ = true: D-036 DRAW_FS byte for byte (sha256 f425bf53...f7ce, 9049 chars); only the storm line moves"
+ },
+ "checker_candidate": {
+  "rgb": [
+   1.0,
+   0.9,
+   0.3
+  ],
+  "lch": "L*91 C*74 h96",
+  "checker": "|Lc| 39.8 / front 40.8, colour-blind 24.2, dE00 31.8",
+  "vs_3m_cream": "17.7 dE00, colour-blind 13.3 (lemon 20.1 / 10.2)",
+  "vs_ui_yellow_400": 7.3,
+  "other_candidates": {
+   "(1,0.95,0.25)": "L*94 C*82: 40.0 / 24.2",
+   "(1,0.95,0.40)": "L*94 C*68: 40.1 / 24.1",
+   "(1,0.93,0.50)": "L*93 C*55: 40.0 / 24.1; vs cream 12.9",
+   "(0.98,0.92,0.55)": "L*92 C*48: 40.0 / 24.1"
+  },
+  "engine": "local uncommitted variant wg (window.__RAW_LIGHT_STORM_WARM__ in a scratch build only); coverage within 0.6-2.6 pts of v2"
+ },
+ "engine": {
+  "how": "offline real engine (production bundle), synthetic store --vortex-peak 11 (storm crests above the storm height), scn_wave_palette_ab.js VARIANTS=l1,wk,v2 THEMES=light CLIP=1 PAIRED=1 CLIP_VIEWS=world,regional,coastal CLIP_FRAMES=24; crest_contrast.py --theme light --pairs wk:v2,l1:v2 (p99 of each pixel off its paired crest-free wash; APCA |Lc| and CIEDE2000 in four vision models)",
+  "variants": {
+   "l1": "V1 light crests (window.__RAW_DISABLE_LIGHT_CREST_V2__)",
+   "wk": "V2 with the lemon storm (the warm-gold kill)",
+   "v2": "V2 with the warm gold (default)"
+  },
+  "readback_per_pane": {
+   "l1/world": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 0.5,
+    "hMax": 12.098,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "l1/regional": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 0.5,
+    "hMax": 12.098,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "l1/coastal": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 1.383,
+    "hMax": 12.098,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "wk/world": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 0.5,
+    "hMax": 12.098,
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ]
+   },
+   "wk/regional": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 0.5,
+    "hMax": 12.098,
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ]
+   },
+   "wk/coastal": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 1.814,
+    "hMax": 12.098,
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ]
+   },
+   "v2/world": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 0.5,
+    "hMax": 12.098,
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.90, 0.30)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ]
+   },
+   "v2/regional": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 0.5,
+    "hMax": 12.098,
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.90, 0.30)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ]
+   },
+   "v2/coastal": {
+    "valid": "2026-10-21T15:00:00Z",
+    "model": "GFS",
+    "hMin": 1.814,
+    "hMax": 12.098,
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.90, 0.30)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ]
+   }
+  },
+  "p99_before_after": {
+   "world/wk:v2": {
+    "lc": [
+     34.8,
+     34.8
+    ],
+    "normal": [
+     25.7,
+     25.0
+    ],
+    "protan": [
+     26.3,
+     25.6
+    ],
+    "deutan": [
+     25.8,
+     25.2
+    ],
+    "tritan": [
+     24.0,
+     24.0
+    ],
+    "null_lc_halves_after": [
+     33.9,
+     35.7
+    ]
+   },
+   "world/l1:v2": {
+    "lc": [
+     21.2,
+     34.8
+    ],
+    "normal": [
+     16.4,
+     25.0
+    ],
+    "protan": [
+     15.6,
+     25.6
+    ],
+    "deutan": [
+     15.5,
+     25.2
+    ],
+    "tritan": [
+     15.5,
+     24.0
+    ],
+    "null_lc_halves_after": [
+     33.9,
+     35.7
+    ]
+   },
+   "regional/wk:v2": {
+    "lc": [
+     48.9,
+     49.5
+    ],
+    "normal": [
+     56.6,
+     49.4
+    ],
+    "protan": [
+     57.5,
+     51.1
+    ],
+    "deutan": [
+     58.0,
+     52.1
+    ],
+    "tritan": [
+     37.0,
+     38.7
+    ],
+    "null_lc_halves_after": [
+     54.9,
+     44.1
+    ]
+   },
+   "regional/l1:v2": {
+    "lc": [
+     17.3,
+     49.5
+    ],
+    "normal": [
+     30.5,
+     49.4
+    ],
+    "protan": [
+     29.0,
+     51.1
+    ],
+    "deutan": [
+     36.2,
+     52.1
+    ],
+    "tritan": [
+     40.9,
+     38.7
+    ],
+    "null_lc_halves_after": [
+     54.9,
+     44.1
+    ]
+   },
+   "coastal/wk:v2": {
+    "lc": [
+     78.7,
+     74.5
+    ],
+    "normal": [
+     82.8,
+     75.8
+    ],
+    "protan": [
+     83.2,
+     77.6
+    ],
+    "deutan": [
+     82.6,
+     77.8
+    ],
+    "tritan": [
+     55.6,
+     55.3
+    ],
+    "null_lc_halves_after": [
+     74.0,
+     75.1
+    ]
+   },
+   "coastal/l1:v2": {
+    "lc": [
+     23.4,
+     74.5
+    ],
+    "normal": [
+     40.3,
+     75.8
+    ],
+    "protan": [
+     47.7,
+     77.6
+    ],
+    "deutan": [
+     57.9,
+     77.8
+    ],
+    "tritan": [
+     46.7,
+     55.3
+    ],
+    "null_lc_halves_after": [
+     74.0,
+     75.1
+    ]
+   }
+  }
+ }
+}

@@ -31,7 +31,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
-  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 } };
+  l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
+  wk: { __RAW_DISABLE_LIGHT_STORM_WARM__: true } };   // wk: light's lemon storm (the warm-gold kill), against v2 (warm gold)
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4] };
 const pick = (env, all) => (process.env[env] ? process.env[env].split(',') : Object.keys(all));
