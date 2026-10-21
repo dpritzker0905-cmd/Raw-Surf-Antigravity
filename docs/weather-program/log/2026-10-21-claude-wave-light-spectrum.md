@@ -136,6 +136,21 @@ gap it leaves: 6-8 m, orange on dark's magenta, \|Lc\| 0-10 (whether #419's swit
 together that would make all three themes one crest logic, the owner's rule in D-036 (an ink of the opposite lightness to the
 wash under it). Light: the cased crest or a far-zoom opacity lift for the world-zoom finding.
 
+## Owner page
+
+https://claude.ai/artifact/2PAV3K3x43fhsUc2pMeGus: the rulers, the engine sheets per view, beach and dark unchanged, the crest
+re-check with the world-zoom choice (recommended: ship, then A/B the cased crest), and the structured crest critique with
+per-height swatches for every theme.
+
 ## Ledger
 
-LEDGER_PLACEHOLDER
+On `claude/wave-light-spectrum`, after dev's head 1557 (`448deb35c`): 1558 decision (D-037), 1559 pr_open (#431), 1560 commitment
+(hosted CI, the owner's word to merge, the owner's world-zoom crest call; due 2026-10-24 18:00Z). #420's branch also appends after
+1557 (its 1558 / 1559): whichever PR merges second re-chains its lines after dev's head at that moment.
+
+## Not done here
+
+- Dark's and beach's crests: the critique's recommendations go to #419 and #416; nothing changed in either theme.
+- Light's world-zoom crest lever (cased crest or far-zoom opacity): waits on the owner's pick.
+- The harness's spectrum levers (`sp@v2`, `sp@v2b`) were added to a local copy of #420's `scn_wave_palette_ab.js`, not committed;
+  #420 carries that file. Add them there (or on dev once #420 lands) for the next spectrum A/B.

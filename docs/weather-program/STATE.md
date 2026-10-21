@@ -14,6 +14,7 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-10-21 08:10Z: light's wave wash is the seven-band spectrum (owner, DECISIONS D-037; draft PR #431, client only, no served number moves).** Bands on the WMO / Douglas sea-state breaks (0.5 / 1.25 / 2.5 / 4 / 6 / 9 / 14 m: mint, cyan-blue, blue, violet, magenta, crimson, umber; cap 14 m), calm water under 0.5 m fades to the map, opacity rises with height, equal-band legend ruler; light's crests switch umber -> cream at 1.55 m (`v2s`). Dark and beach unchanged (engine: 0 px). Kill `__RAW_DISABLE_WAVE_SPECTRUM__` = v2 at 16 m exactly. Crest re-check: engine p99 |Lc| world 35.0 -> 23.9 (the owner's call: cased crest A/B next, recommended), regional 42.3 -> 53.5. Crest critique (all three themes): beach and dark crests isoluminant over part of their range (#416, #419). Owner page https://claude.ai/artifact/2PAV3K3x43fhsUc2pMeGus; log `log/2026-10-21-claude-wave-light-spectrum.md`; ledger 1558-1560 (re-chain if dev moves first).
 - **2026-10-20 16:20Z: beach keeps the v1 wave palette, locked (owner, DECISIONS D-035; PR #417).** Light stays on v2 at 16 m (D-033, D-034); beach draws v1 exactly as before #411 and keeps the 10 m height byte (per-theme `paletteFor`), pinned by sha256 in `marineWavePalette.test.js`; changing beach's wave colours needs the owner's word. Kill `__RAW_DISABLE_WAVE_BEACH_V1__` restores beach on v2.
 - **2026-10-20 15:15Z: the GPU sees wave heights to 16 m for the light and beach wash (#415 MERGED; client only, no served number moves).** The wave texture's height byte carries its scale per upload (`marineHeightEncoding.js`): 16 m where v2 draws the wash, 10 m for dark, rating grids and the score texture; every decoder reads `u_heightScale` (10.0 when unset). v2 gains a 16 m anchor and its flag moves up to 16 m. Kill `window.__RAW_DISABLE_WAVE_HEIGHT_16M__` = #411 exactly (shader strings and texture bytes sha256-pinned). The 16 m byte is ROUNDED (a floored first cut was worse than dev at calm water). **Owner 16:17Z: ship it, ON by default (D-034). MERGED 16:52Z as `9c6d5ebb0`; the dev site serves it (static read 17:24Z).** Log `log/2026-10-20-claude-wave-height-16m.md`.
 - **2026-10-20 12:46Z: wave-height palettes, owner pick D-033 (PR #411, client only, no served number moves).** Light ships candidate A, beach candidate B: lightness falls with height, never through grey, cap at the GPU's real 10 m ceiling with an above-cap colour and legend arrow; ON with kill `__RAW_DISABLE_WAVE_PALETTE_V2__` (v1 exactly). Checker `frontend/scripts/wind-color/wave-check.mjs`, Jacobian `wave-jacobian.mjs`. Open follow-ups (own sessions): the height encoding to ~16 m; beach crest contrast at 1.5-4 m.
@@ -2362,7 +2363,7 @@ is a claim, not a measurement.
   estate 580 (582).
 - **Accountability:** every state-changing action is a line of `ACTIONS.jsonl` (BRAIN_RULES §23), hash-chained and
   verified in CI (`weather-program-ledger.yml`). The anchor below moves with every STATE update:
-**Ledger head: seq 1557, sha256 3ca1171f8ee292e1c27faebe293397c1e48f6ff533604f218ba96ce0a71e6f51**
+**Ledger head: seq 1560, sha256 bf7302c5f397db90729c1a3daca5066cae5eb34654c9c46a9a83a181152a08b9**
 
 ## Next fixes, in order
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
