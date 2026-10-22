@@ -1617,3 +1617,12 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Rollback:** the per-set kill (one browser or window list), the global kill, or revert the PR (the publisher goes back to GFS
   waves only, and the client's other sets become `no_index` misses).
 - **Reopen if:** a set's live parity read fails, cached egress nears 250 GB a month, or the publish step nears its 15-min timeout.
+- **Correction 2026-10-22 (after merge): ICON / EURO WORLD boxes ask /grid.** The route runs
+  `coarse_gulf_fill.fill_coarse_enclosed_sea_from_gfs_served` on EURO and ICON marine grids whose served span is 350 deg or more,
+  which includes the whole global_mid clip a world request gets (and every world /grid_series frame). It rewrites every masked cell
+  (land too) that has a valid GFS coarse cell within 8 deg with GFS values, so a world frame of the stored product is NOT what /grid
+  serves. Offline, the real function on a EURO global_mid with simulated land rewrote 1,757 of 2,066 masked cells at world span and
+  0 on a 50-deg crop. The parity above missed it: the synthetic store has no masked cells. Rule now: a world box of ICON/EURO asks
+  /grid; their viewport crops (no fill below 350 deg) stay static; the GPU frame store takes no ICON/EURO set (it cannot tell world
+  from crop at its door). Kill (the pre-fix behaviour): `window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true`. It lifts when the
+  publisher mirrors the fill for world frames. No ICON/EURO frame had been published (the first post-#453 pilots run had not run).
