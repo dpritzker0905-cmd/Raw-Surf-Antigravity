@@ -232,3 +232,8 @@ original times as `acted_at`. The owner decides whether to allow the ledger-free
   - store (adaptive): p95 16 ms; the fill was granted 1.16 s after the first draw and the whole run was in the store at 7.6 s.
 - Gates on the merged tree: Jest `src/components/map` + `src/tests` 361/361 suites (5318 tests); ESLint ratchet exit 0;
   build OK.
+
+## Update (2026-10-22 02:46Z): ledger re-chained again (1611-1612)
+
+dev 95363ea27 (beach crest levers) appended ledger lines 1607-1610, so #437's pr_open and finding are now 1611 and 1612 (same
+fields, original times as `acted_at`). The 1607/1608 above are superseded.

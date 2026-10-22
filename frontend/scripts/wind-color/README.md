@@ -415,3 +415,23 @@ in `windFieldLut.test.js`: strengths, base alphas, ramp ends, particle opacities
 colours.
 
 Background: `reports/Color and motion tools for Claude.md` and `reports/Wind particle color basemap contrast.md`.
+
+**Beach crest style (`beach-crest-style.mjs`, 2026-10-21; styles in `src/components/map/marineBeachCrestStyle.js`).** How visible
+beach's crests are on the v1 sea (D-035) as the engine draws it: the wash alpha per zoom state is PR #425's measured law (no
+regional tile at world and fresh regional zoom; BLEND BOTH once a tile is resident), and each crest is sampled at its centre, body
+and edge as DRAW_FS shades them (today's self-contrast below 1.05 m and in the z ~3.6-4.3 band included). Visibility is the best of
+the three parts (the edge the eye can use), APCA |Lc|, worst over swell lighting and whitecap, every 0.2 m. It reads the style
+table from the app module, so a changed rim or centre is measured as shipped.
+
+```powershell
+node beach-crest-style.mjs                 # today's crest and every style: worst |Lc| and heights under 30 per zoom state
+node beach-crest-style.mjs --json out.json
+```
+
+What it showed (owner A/B, 2026-10-21): today's crests read under |Lc| 30 at 48-49 of 50 heights at world, coastal and close zoom
+(|Lc| 0 on the sand band near 1-2 m and the grey-mauve band near 4.4-7 m; Leonardo's APCA agrees: #c13ed8 on #84798a and
+#aba0b2 on #c8b092 both Lc 0). A single crest colour that varies smoothly with height cannot avoid that over a sea whose
+brightness goes up and down: it must cross the sea's brightness somewhere unless it is darker, or lighter, than the whole sea. A
+crest that carries a dark part and a light part escapes it: `twotone` (dark rim x0.30 + centre 75% toward white) holds |Lc| >= 35.2
+everywhere, colour-blind >= 25.0; `soft` (centre 55%) 27.8 at 5.6-6.8 m; `cased` (the engine's own self-contrast everywhere) fixes
+1.6-5 m only.
