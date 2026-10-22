@@ -2,8 +2,9 @@
  * staticFrameCrop.js — the mid tier's viewport clip, served from the static world frame (2026-10-22, the mid-zoom instant scrub).
  *
  * WHY. Static frames (staticFrames.js) answered WORLD boxes only (a 340-degree span). At the zooms people scrub (a desktop map at
- * about z4.7 to z7, a phone at about z3 to z5.5) the map asks /grid and /grid_series for its VIEWPORT, and the resolver answers
- * from the very same 2-degree global_mid product, CLIPPED to that viewport (grid_resolver Step 3.6 ->
+ * about z4.7 to z7, a small window at about z3.5 to z5.5) the map asks /grid for its VIEWPORT (up to 40 degrees; /grid_series up to
+ * 15, wider series pages ask the world box), and the resolver answers from the very same 2-degree global_mid product, CLIPPED to
+ * that viewport (grid_resolver Step 3.6 ->
  * mid_res_tier.try_serve_mid_res_tier -> route_helpers.filter_grid_to_bbox). So every step there waited on the 1-CPU box while
  * the CDN already held the frame the clip is cut from. The owner's console (dev bundle 9ecac552, z3.5-4.4): 27x20 / 29x20
  * clips, "[SCRUB] [BACKEND CACHE] Instant re-index", no static-frame activity; offline on the real run, a desktop at z5 took

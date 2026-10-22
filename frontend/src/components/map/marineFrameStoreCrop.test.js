@@ -19,7 +19,6 @@ jest.mock('./staticFrames', () => ({
   onStaticFrameParsed: (fn) => { mockSF.hooks.add(fn); return () => mockSF.hooks.delete(fn); },
   loadFrameParsed: (key, frame, signal) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, resolve }); }),
 }));
-// eslint-disable-next-line import/first
 import * as RT from './marineFrameStoreRuntime';
 
 const PARSED = parseFrame(zlib.gunzipSync(Buffer.from(REAL_GFS_FRAME_GZ_BASE64, 'base64')));
