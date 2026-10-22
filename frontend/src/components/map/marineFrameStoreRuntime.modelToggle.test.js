@@ -264,6 +264,11 @@ describe('warm frames of the other published models', () => {
     await landGfsUntilWarm();
     mockSF.loads.filter((l) => l.key === ICON).forEach((l) => { l.done = true; l.resolve({ parsed: ICON_PARSED, buffer: null, wire: 1 }); });
     await flush();
+    // The rest of the window lands (at the prefetch's cap of 4 some of it may still be out), then the fill is granted.
+    for (let i = 0; i < 10 && !snap().fill.planned; i++) {
+      mockSF.loads.filter((l) => !l.done && l.key === GFS).forEach((l) => { l.done = true; l.resolve({ parsed: PARSED, buffer: null, wire: 1 }); });
+      await flush();
+    }
     expect(snap().fill.planned).toBe(true);                               // the fill is granted: no replan follows a landing
     window.__RAW_FRAME_WARM_REST_MS__ = 40;
     RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(20) });   // a step: warm frames follow once the wheel rests

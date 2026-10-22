@@ -659,3 +659,15 @@ already decided.
   model is the one the fetch will draw. The coalesced fetch still commits the same frame.
 - **Phones** do not warm, and never compute chl/bath on the main thread: the switch there is today's path.
 - **Kills:** `__RAW_DISABLE_FRAME_MODEL_TOGGLE__` and `__RAW_DISABLE_FRAME_AUX_SHOW__`. **Lever:** `__RAW_FRAME_WARM_REST_MS__`.
+
+#### 12.3.1 On a mid-zoom clip (2026-10-22, after #459)
+At mid zoom the resident is a viewport clip (#459's crop show), not the world frame.
+- **The window's packs cover the other models too.** Any set on the window's run lattice gets packs for it (`cropWindowFor`): the
+  warm frames as they are parsed, and those that landed earlier when a window becomes fresh (`cropWarm`).
+- **The click** (`showCropSwitch`) uploads the new model's window bytes and the window's OWN chl/bath (`auxForPack` on the window
+  pack). The window is small, so that is computed at the click on any tier. The new model's clip then becomes the crop resident.
+  A wheel step never crosses models: only a click does.
+- **ICON past 168 h is never shown from the store.** The normal path draws those hours from a client-side blend
+  (`fetchBackendMarineGridIconExtended`), unless the build reads the stored tail.
+- **Code location.** The crop show's runtime half now lives in `marineFrameStoreCropShow.js`, a factory over the runtime's state,
+  which keeps `marineFrameStoreRuntime.js` under the 800-line cap.
