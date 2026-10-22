@@ -28,6 +28,8 @@ import {
   buildVectors, gridJsonFromFrame, isGzip, parseFrame, pickIndexFrame, seriesFrameFromFrame,
 } from './staticFrameCodec';
 import { buildTruthTag } from './weatherTruthTracker';
+// MID-ZOOM CROPS (2026-10-22): a viewport box the resolver answers from global_mid is served as a crop of the same frame.
+import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
 
 export const FRAME_BUCKET = 'weather-frames';
 export const LATEST_PATH = 'v1/latest.json';
@@ -403,8 +405,40 @@ export function staticEligible({ model, layer, bbox, surf }) {
   if (!staticFramesEnabled() || !staticFramesBase()) return false;
   if (surf) return false;                         // rating grids are a server transform of the product
   if ((model || '').toUpperCase() !== 'GFS' || (layer || '').toLowerCase() !== 'waves') return false; // slice 1
-  return spanOf(bbox) >= WORLD_MIN_SPAN;
+  return spanOf(bbox) >= WORLD_MIN_SPAN || isMidCropBox({ model, layer, bbox });
 }
+
+/** A viewport box (not a world one) that the resolver answers from global_mid: served as a crop (staticFrameCrop.js). */
+function isMidCropBox({ model, layer, bbox }) {
+  return !!bbox && spanOf(bbox) < WORLD_MIN_SPAN && midCropRulesPass({ model, layer, bboxStr: gridBboxParam(bbox) });
+}
+
+/** The crop window for a box in its seam's own URL format, or null (not a crop box, or not mirrored exactly: the caller asks
+ *  the backend). `param` = gridBboxParam (/grid) or seriesBboxParam (/grid_series). World boxes return undefined. */
+function cropWindowFor({ model, layer, bbox, index, frame, param }) {
+  if (spanOf(bbox) >= WORLD_MIN_SPAN) return undefined;
+  const win = midCropFor({ model, layer, bboxStr: param(bbox), grid: (frame && frame.grid) || index.grid });
+  if (!win) noteMiss('crop_unmirrored');
+  return win;
+}
+
+/**
+ * The series page key for a crop page (2026-10-22). Every series viewport wider than 15 deg shares the key 'global'
+ * (marineGridSeries.viewportKey), so a crop page and the world page would overwrite each other; a crop page carries its clip
+ * window in its key. Any other page keeps `baseKey`. Synchronous, no I/O.
+ */
+export function staticCropPageKey(baseKey, { model, layer, reqBox, surf }) {
+  try {
+    if (!staticEligible({ model, layer, bbox: reqBox, surf }) || !isMidCropBox({ model, layer, bbox: reqBox })) return baseKey;
+    const win = midCropFor({ model, layer, bboxStr: seriesBboxParam(reqBox), grid: WORLD_GRID });
+    return win ? `${baseKey}|crop:${win.clip}` : baseKey;
+  } catch (e) {
+    return baseKey;
+  }
+}
+// The global_mid lattice every published frame carries (index.grid): 181 x 83, 2 deg, -180..180 x -80..84. Only used to NAME a
+// crop page before an index is pinned; the frames are always cropped on their own index's grid.
+const WORLD_GRID = { bounds: { west: -180, south: -80, east: 180, north: 84 }, cols: 181, rows: 83 };
 
 /**
  * Seam A. The /grid JSON for a WORLD request from the pinned static frame, or null (the caller fetches /grid).
@@ -422,10 +456,16 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
     // The pick landed on an entry the publisher could not build (not on its disk, refused by parity): /grid serves this
     // hour. Never substitute a neighbouring frame, which could be up to 3 h away.
     if (!frame.path) { noteMiss('unbuilt_frame'); return null; }
+    const win = cropWindowFor({ model, layer, bbox: clampedBbox, index, frame, param: gridBboxParam });
+    if (win === null) return null;
     const vectors = await loadFrameVectors(key, frame, signal);
     if (!vectors) return null;
     telemetry().hits += 1;
-    const json = gridJsonFromFrame(index, frame, vectors, { askIso: validTimeStr, requestedBbox: clampedBbox });
+    let json = gridJsonFromFrame(index, frame, vectors, { askIso: validTimeStr, requestedBbox: clampedBbox });
+    if (win) {
+      json = cropGridJson(json, win, cropVectors(vectors, (frame.grid || index.grid).cols, win));
+      telemetry().crops = (telemetry().crops || 0) + 1;
+    }
     // /grid ships a server-minted truth tag for GFS waves; mint the lineage tag once here, as the series path does.
     try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
     return json;
@@ -457,10 +497,14 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
       const askMs = anchorMs + h * 3600000;
       const frame = pickIndexFrame(index, askMs);
       if (!frame || !frame.path) { missing.push(h); continue; }   // unbuilt: the per-hour path asks /grid
+      const win = cropWindowFor({ model, layer, bbox, index, frame, param: seriesBboxParam });
+      if (win === null) { missing.push(h); continue; }
       const vectors = await loadFrameVectors(key, frame, signal);
       if (!vectors) { missing.push(h); continue; }
       telemetry().seriesFrames += 1;
-      onFrames([seriesFrameFromFrame(index, frame, vectors, { hourOffset: h, askIso: new Date(askMs).toISOString() })]);
+      let sf = seriesFrameFromFrame(index, frame, vectors, { hourOffset: h, askIso: new Date(askMs).toISOString() });
+      if (win) { sf = cropSeriesFrame(sf, win, cropVectors(vectors, (frame.grid || index.grid).cols, win)); telemetry().crops = (telemetry().crops || 0) + 1; }
+      onFrames([sf]);
     }
   };
   await Promise.all(Array.from({ length: Math.min(MAX_IN_FLIGHT, order.length) }, worker));

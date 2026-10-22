@@ -34,8 +34,12 @@ export function resolveTier(facts = {}, win) {
   const { webgl2 = true, maxArrayLayers = 256, frames = 115, handheld = false, weak = false, deviceMemoryGB = null,
     saveData = false, effectiveType = null } = facts;
   if (!webgl2) return 'webgl1';
+  // A '3g' reading constrains only a phone or a weak device. Owner, 2026-10-22: "let desktops whose Chrome reads 3g still fill the
+  // run in idle time (keep Save-Data, 2g and phones on demand)". Chrome reports 3g from round-trip time alone (270-1400 ms), which a
+  // far CDN edge produces on a good desktop link; measured: a 3g desktop got the constrained tier and p95 456 ms per step.
+  const slow3gDevice = effectiveType === '3g' && (handheld || weak);
   if ((deviceMemoryGB !== null && deviceMemoryGB <= 2) || saveData || effectiveType === '2g' || effectiveType === 'slow-2g'
-    || effectiveType === '3g' || maxArrayLayers < frames) return 'constrained';
+    || slow3gDevice || maxArrayLayers < frames) return 'constrained';
   if (handheld || weak || (deviceMemoryGB !== null && deviceMemoryGB <= 4)) return 'handheld';
   return 'desktop';
 }

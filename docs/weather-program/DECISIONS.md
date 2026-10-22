@@ -1522,3 +1522,47 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true` before load draws D-044's crests byte for byte (DRAW_FS
   e2438586..., 8872; DRAW_VS b1569be9...); or revert the PR.
 - **Reopen if:** the owner says so, or a later light wash moves the 2.3-2.7 m crossing into a band he watches.
+
+### D-047 · Beach's crests get a subtle lift where they vanish: a little deeper on the sand band, a little whiter on grey-mauve; today's colours; ON by default
+- **Decided:** owner, 2026-10-22 09:40 EDT, to the beach crest session, after the live deploy preview of draft #450
+  (https://deploy-preview-450--rawsurf.netlify.app) and the moving A/B (today | subtle | more,
+  https://claude.ai/artifact/LebieAg312hzjyruotS9KN): "Ship the subtle beach crest lift from #450 (the default there), with its
+  kill switch." Context: "No two-tone, they don't look like real waves in my opinion" (D-045's entry above); "It needs to be a
+  subtle improvement" (00:10 EDT, relayed by the lead).
+- **Rule:** beach's crests keep their colours (orchid-pink, electric turquoise incl. the blue big-wave crests, sunset magenta, white
+  foam) and draw exactly as before except in two sea-height bands, where each crest moves its brightness away from the v1 sea under
+  it: the sand band (1-2 m, ramps 0.7-1.0 and 2.0-2.3 m) a little deeper (colour x 0.70, a wave face in shadow), the grey-mauve band
+  (4.4-6.8 m, ramps 4.0-4.4 and 6.8-7.2 m) a little whiter (35% toward white, a little more foam); inside the bands the crest alpha is
+  x1.5 far out, back to x1 by z7, before DRAW_FS's 0.85 cap. No rim, outline, centre line or hue swap. One owner:
+  `marineBeachCrestLift.js`. `window.__RAW_BEACH_CREST_LIFT__ = 'more'` (x0.55 / 50%) stays as an opt-in for A/Bs.
+- **Evidence:** `log/2026-10-21-claude-beach-crest-style.md` (2026-10-22 sections); model `frontend/scripts/wind-color/beach-crest-lift.mjs`
+  (reads the module): worst APCA |Lc| inside the bands from ~0 to 8-13 (sand) and 9-37 (grey-mauve) by zoom; band-core typical at the
+  coast 18-26 / 30-32; look change mean dE00 8-11 inside the bands, 0 outside the ramps. Engine, offline, paired exact wash, p99 |Lc|
+  today -> subtle: world 0.3 -> 16.9, coast 35.7 -> 48.6 (crest pixels at |Lc| >= 15 at the coast 17.5% -> 28.7%), null <= 2.9. GPU:
+  the DRAW program linked in light, dark and beach, with and without the lift. DRAW_FS: kill = the pre-lift default (sha256
+  e2438586..., 8872), subtle ce8b5a6e... (9323), more 06ffcc97... (9323); DRAW_VS unchanged; pinned in `marineBeachCrestLift.test.js`.
+- **Known costs:** subtle does not make every crest in the bands clear: the bar of |Lc| 30 is met only on grey-mauve at regional zoom;
+  the worst cases sit at the bands' top edges (2 m, 6.8 m), where the sea's brightness comes back toward the crest's. Reaching 30
+  everywhere would take ~0.6 in both bands (dE 15-25), not subtle. Beach's crests stay faint at many heights outside the bands, mostly
+  far out (left unchanged by the brief). A white lift was tried on the sand band and rejected: the sand is lighter than the crests.
+- **Rollback:** `window.__RAW_DISABLE_BEACH_CREST_LIFT__ = true` before load draws the pre-lift crest exactly (hash-pinned), or revert.
+- **Reopen if:** the owner says so, or beach's sea or crest colours change (re-run the checker).
+
+### D-048 · A desktop whose browser reads "3g" still preloads the whole run; Save-Data, 2g and phones stay on demand
+- **Decided:** owner, 2026-10-22 09:39 EDT, in the GPU-frames session. Asked whether desktops whose Chrome reads a "3g" connection
+  should still fill the run in idle time: "Yes: let desktops whose Chrome reads 3g still fill the run in idle time (keep Save-Data,
+  2g and phones on demand)."
+- **Rule:** `marineFrameStore.resolveTier` constrains a `3g` reading only on a handheld or weak device; a desktop keeps the desktop
+  tier. `marineFrameStoreRuntime.idleFillBlocker` blocks the idle fill on `2g` and `slow-2g` only (plus Save-Data, coarse pointer,
+  hidden tab and non-desktop tiers, as before).
+- **Why:** Chrome reports `3g` from round-trip time alone (270-1400 ms), which a far CDN edge produces on a good desktop link. The
+  live frame fetches measured p50 502 ms.
+- **Evidence:** `log/2026-10-22-claude-fill-on-3g.md`.
+  - Offline with the 113 real published frames, 340 ms per CDN object, the connection overridden to 3g.
+  - Before: constrained tier, fill blocked, 56/113 frames resident, steps p95 456 / max 458 ms.
+  - After: desktop tier, fill 1.15-7.5 s, 113/113 resident, steps p50 2 / p95 16 / max 17 ms, 0 backend requests.
+- **Known costs:** a 3g desktop now downloads the whole active run, about 6.4 MB for GFS waves, the same as a 4g desktop. On a
+  genuinely slow link the fill takes longer, but it never blocks a step: the window nearest the cursor still goes first.
+- **Rollback:** `window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true` turns the fill off everywhere; or revert the PR.
+- **Reopen if:** egress per open needs a cap (an open question, raised to the lead: fill only the first viewed set) or 3g desktops
+  report slow scrubbing.

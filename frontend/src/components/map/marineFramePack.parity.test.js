@@ -34,7 +34,10 @@ function conform(vectors, layer = 'waves') {
     return {
       lat: v.lat, lng: v.lng, u: layerData?.u || 0, v: layerData?.v || 0, speed: layerData?.speed || 0, period: layerData?.period || 0,
       height: layerData?.height !== undefined ? layerData.height : (layerData?.speed || 0),
-      direction: layerData?.direction !== undefined ? layerData.direction : undefined, isOcean: v.isOcean, dirConfidence,
+      direction: layerData?.direction !== undefined ? layerData.direction : undefined, isOcean: v.isOcean,
+      is_valid: (typeof window === 'undefined' || window.__RAW_DISABLE_CONFORM_IS_VALID__ !== true)
+        && ((layerData && layerData.is_valid === false) || (v && v.is_valid === false)) ? false : undefined,
+      dirConfidence,
       phys_speed: typeof v.phys_speed === 'number' ? v.phys_speed : (layerData && typeof layerData.phys_speed === 'number' ? layerData.phys_speed : undefined),
       [layer]: layerData,
     };
@@ -231,5 +234,46 @@ describe("marineFrameAux: a stored frame carries the encoder's exact chl/bath by
     const a = auxModule();
     expect(a.auxForPack(null)).toBeNull();
     expect(a.auxForPack({ cols: 2, rows: 2, validityBits: new Uint8Array(1) })).toBeNull();
+  });
+});
+
+// NON-WAVES LAYERS ON THE SERIES LANE (2026-10-22; the static-frames session measured 4,850 land cells of 15,023 in a real frame).
+// The conform keeps the layer's own record ([layer]: layerData) but no top-level is_valid, and the encoder read land only from a
+// waves sub-record, so for swell_1 / swell_2 / wind_waves a series-lane frame drew land as ocean (no extrapolation into it, shelf
+// shading off at every coast). Both lanes must now hand the encoder the same land.
+describe('non-waves layers: land survives the series lane exactly as on the /grid lane', () => {
+  const laneAFor = (m, parsed, layer) => {
+    const json = { grid: { vectors: buildVectors(parsed), bounds: parsed.bounds, cols: parsed.cols, rows: parsed.rows }, provider: 'static', product_id: 'p' };
+    const mapped = m.map.mapNormalizedGridToWebGL(json, parsed.bounds, 0, layer, 'GFS');
+    return encoderBytes(m, { ...mapped.grid, vectors: conform(mapped.grid.vectors, layer), __componentLayer: layer });
+  };
+  const laneBFor = (m, parsed, layer) => encoderBytes(m, { vectors: conform(buildVectors(parsed), layer), bounds: parsed.bounds,
+    cols: parsed.cols, rows: parsed.rows, __componentLayer: layer, __sourceModel: 'GFS', hourOffset: 3, productId: 'p' });
+
+  it.each(['swell_1', 'swell_2', 'wind_waves'])('%s: the real frame encodes to the same bytes on both lanes', (layer) => {
+    window.__WEBGL_MARINE_THEME__ = 'dark';
+    const m = load();
+    const parsed = REAL();
+    const land = Array.from(parsed.fields[0]).filter((h) => Number.isNaN(h)).length;
+    expect(land).toBeGreaterThan(1000);                                  // the fixture really has land
+    const a = laneAFor(m, parsed, layer); const b = laneBFor(m, parsed, layer);
+    expect([b.cols, b.rows]).toEqual([a.cols, a.rows]);
+    expect(firstDiff(a.bytes, b.bytes)).toBe(-1);
+  });
+
+  it('the waves layer is untouched by the rule (its land comes from the waves record, as before)', () => {
+    const m = load();
+    const parsed = REAL();
+    expect(firstDiff(laneA(m, parsed).bytes, laneB(m, parsed).bytes)).toBe(-1);
+  });
+
+  it('the kill switch restores the old reading on the series lane (land drawn as ocean)', () => {
+    window.__WEBGL_MARINE_THEME__ = 'dark';
+    window.__RAW_DISABLE_CONFORM_IS_VALID__ = true;
+    try {
+      const m = load();
+      const parsed = REAL();
+      expect(firstDiff(laneAFor(m, parsed, 'swell_1').bytes, laneBFor(m, parsed, 'swell_1').bytes)).not.toBe(-1);
+    } finally { delete window.__RAW_DISABLE_CONFORM_IS_VALID__; }
   });
 });
