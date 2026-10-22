@@ -150,6 +150,25 @@ describe('GPU-resident frames runtime', () => {
     expect(window.__RAW_FRAME_STORE__.gpu).toMatchObject({ uploads: 2, copies: 1 });
   });
 
+  it('after a WebGL context loss the dead arrays are dropped and the step shows the CPU bytes (never the old frame)', async () => {
+    window.__RAW_FRAME_STORE_TIER__ = 'desktop';                          // the tier that keeps CPU bytes of resident frames
+    const { gl, calls, eng } = setup({ webgl2: true });
+    let lost = false; const live = new Set([eng._residentWaveTex]);
+    const create = gl.createTexture; gl.createTexture = () => { const t = create(); live.add(t); return t; };
+    gl.isContextLost = () => lost; gl.isTexture = (t) => live.has(t);
+    await parse(0); await parse(2);
+    commitHour(eng, 0);
+    lost = true; lost = false;                                           // lost, then restored: the arrays are gone
+    for (const t of [...live]) if (t !== eng._residentWaveTex) live.delete(t);
+    calls.length = 0;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 6, requestedValidTime: vt(2) })).toBe(true);
+    expect(calls.map((c) => c[0])).toEqual(['texSubImage2D']);           // the CPU bytes into the resident texture, no copy
+    expect(calls[0][1]).toBe(eng._residentWaveTex);
+    expect(window.__RAW_FRAME_STORE__.shows.poolLost).toBe(1);
+    expect(window.__RAW_FRAME_STORE__.sets[0].resident).toBe(0);         // residency forgotten; a new pool is built on the next upload
+    delete window.__RAW_FRAME_STORE_TIER__;
+  });
+
   it('an unbuilt frame (path null) is a miss: /grid serves that hour, never a neighbour', async () => {
     const { eng } = setup({ unbuiltAt: [4] });
     await parse(0); await parse(3); await parse(5);
@@ -158,14 +177,35 @@ describe('GPU-resident frames runtime', () => {
     expect(window.__RAW_FRAME_STORE__.shows.misses.unbuilt_frame).toBe(1);
   });
 
-  it('refuses when the stored frame\'s validity pattern differs from the resident\'s (chl / bath / mask would not match)', async () => {
+  // REAL frames never share a validity mask (1-15 cells between neighbouring hours, at most 36 in a run: the 2026-10-22 live read
+  // refused 11 of 12 steps on an exact-mask rule). A few cells are shown over the resident's chl/bath; a different grid is not.
+  const withNaN = (cells) => ({ ...PARSED, fields: { ...PARSED.fields, 0: Float64Array.from(PARSED.fields[0], (h, i) => (cells.has(i) ? NaN : h)) } });
+  const oceanCells = (n) => { const out = new Set(); const H = PARSED.fields[0]; for (let i = 0; i < H.length && out.size < n; i += 7) if (!Number.isNaN(H[i]) && H[i] > 0) out.add(i); return out; };
+
+  it('shows a frame whose validity differs from the resident\'s in a few cells, and counts it', async () => {
     const { eng } = setup();
     await parse(0);
-    const other = { ...PARSED, fields: { ...PARSED.fields, 0: Float64Array.from(PARSED.fields[0], (h, i) => (i === 9000 ? NaN : h)) } };
-    await parse(1, other);
+    await parse(1, withNaN(oceanCells(1)));
+    commitHour(eng, 0);
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(true);
+    expect(window.__RAW_FRAME_STORE__.shows).toMatchObject({ n: 1, maskTolerated: 1, maskCellsMax: 1 });
+    // The resident's mask (its chl/bath) is still frame 0's until a normal commit: a second show is measured against it.
+    expect(window.__RAW_FRAME_STORE__.resident.validityHash).not.toBe(undefined);
+  });
+
+  it('refuses a frame whose validity differs in more than VALIDITY_TOLERANCE_CELLS cells (another grid), and on the kill switch', async () => {
+    const { eng } = setup();
+    await parse(0);
+    await parse(1, withNaN(oceanCells(RT.VALIDITY_TOLERANCE_CELLS + 1)));
+    await parse(2, withNaN(oceanCells(1)));
     commitHour(eng, 0);
     expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(false);
     expect(window.__RAW_FRAME_STORE__.shows.misses.validity_differs).toBe(1);
+    window.__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ = true;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 6, requestedValidTime: vt(2) })).toBe(false);
+    expect(window.__RAW_FRAME_STORE__.shows.misses.validity_differs).toBe(2);
+    delete window.__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 6, requestedValidTime: vt(2) })).toBe(true);
   });
 
   it('a theme change (another height scale) retires the set: the old resident no longer qualifies', async () => {
@@ -265,6 +305,21 @@ describe('adaptive idle fill (on demand first, then the rest of the run on a cap
     commitHour(eng, 5);
     await landAll();
     expect(new Set(asked()).size).toBe(20);
+  });
+
+  it('a link that reads slow pauses the fill; when it reads 4g again (a connection change), the fill resumes', async () => {
+    const ls = new Set();
+    const conn = { effectiveType: '3g', saveData: false, addEventListener: (t, f) => ls.add(f), removeEventListener: (t, f) => ls.delete(f) };
+    link(conn);                                                            // before the runtime registers, as in the app
+    const { eng } = setup({ n: 30 });
+    commitHour(eng, 10);
+    await landAll();
+    expect(new Set(asked()).size).toBe(17);
+    expect(window.__RAW_FRAME_STORE__.fill.blocked).toBe('slow_link');
+    conn.effectiveType = '4g';
+    ls.forEach((f) => f());                                                // navigator.connection 'change'
+    await landAll();
+    expect(new Set(asked()).size).toBe(30);
   });
 
   it('a hidden tab waits; visible again, the fill resumes', async () => {
