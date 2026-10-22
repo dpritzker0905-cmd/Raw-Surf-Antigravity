@@ -18,6 +18,8 @@ const DEV = {
   samplesBeach: 'e25e5bf7e1058d820841b9f6e5d3413f4f167a10752b26900972e6dc574b5980',
 };
 const KILL = { __RAW_DISABLE_WAVE_SPECTRUM__: true }, V2 = { __RAW_LIGHT_CREST_V2__: true };
+// The light cross x1 (owner A/B, 2026-10-22) draws by default over the spectrum and v2; its kill draws dev's crests (marineCrestCross.test.js).
+const CROSS_KILL = { __RAW_DISABLE_LIGHT_CREST_CROSS__: true };
 const SCALE = { unit: 'm', breakpoints: [0, 0.5, 1, 2, 3, 5, 7, 10] };
 const samples = (p, theme) => Array.from({ length: 171 }, (_, i) => p.sampleMarineWavePalette(i / 10, theme));
 
@@ -45,7 +47,7 @@ const ss = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e
 
 describe('the kill (window.__RAW_DISABLE_WAVE_SPECTRUM__) is dev exactly', () => {
   it('palette GLSL, heatmap shader, crest shader, legends, samples and encoder scales hash to dev 448deb35c', () => {
-    withWindow(KILL, ({ p, s }) => {
+    withWindow({ ...KILL, ...CROSS_KILL }, ({ p, s }) => {
       expect([sha(p.MARINE_WAVE_PALETTE_GLSL), sha(s.HEATMAP_FS), sha(s.DRAW_FS), sha(s.DRAW_VS)]).toEqual([DEV.GLSL, DEV.HEATMAP_FS, DEV.DRAW_FS, DEV.DRAW_VS]);
       expect([sha(p.marineWaveLegend(SCALE, 'light', 'ft')), sha(p.marineWaveLegend(SCALE, 'light', 'm')), sha(p.marineWaveLegend(SCALE, 'beach', 'ft'))])
         .toEqual([DEV.legendLightFt, DEV.legendLightM, DEV.legendBeach]);
@@ -133,8 +135,8 @@ describe('the spectrum on (the default)', () => {
 });
 
 describe('light\'s crests over the spectrum', () => {
-  it('are the original by default (D-041): DRAW_FS and DRAW_VS exactly as dev, no switch, no lift', () => {
-    withWindow({}, ({ s, c }) => {
+  it('are the original under the cross kill (D-041): DRAW_FS and DRAW_VS exactly as dev, no switch, no lift', () => {
+    withWindow(CROSS_KILL, ({ s, c }) => {
       expect(c.LIGHT_CREST_ID).toBe('v1');
       expect([sha(s.DRAW_FS), sha(s.DRAW_VS)]).toEqual([DEV.DRAW_FS, DEV.DRAW_VS]);
       expect(c.resolveSpectrumCrestLift()).toBeNull();
@@ -149,10 +151,11 @@ describe('light\'s crests over the spectrum', () => {
         expect(c.LIGHT_CRESTS.v2s[k].above).toEqual(c.LIGHT_CRESTS.v2[k].above);
       });
       expect([c.resolveLightCrest(V2, true, 'spectrum'), c.resolveLightCrest(V2, true, 'v2'), c.resolveLightCrest({ ...V2, __RAW_DISABLE_LIGHT_CREST_V2__: true }, true, 'spectrum'),
-        c.resolveLightCrest({}, true, 'spectrum')]).toEqual(['v2s', 'v2', 'v1', 'v1']);
+        c.resolveLightCrest(CROSS_KILL, true, 'spectrum'), c.resolveLightCrest({}, true, 'spectrum')]).toEqual(['v2s', 'v2', 'v1', 'v1', 'x1']);
     });
     withWindow({ ...KILL, ...V2 }, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v2'));
-    withWindow(KILL, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v1'));
+    withWindow({ ...KILL, ...CROSS_KILL }, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('v1'));
+    withWindow(KILL, ({ c }) => expect(c.LIGHT_CREST_ID).toBe('x1'));   // the cross over v2 too
   });
 });
 
