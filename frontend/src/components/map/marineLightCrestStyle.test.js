@@ -2,13 +2,18 @@ import { createHash } from 'crypto';
 import { DRAW_FS } from './WebGLMarineParticleShaders';
 import { LIGHT_CREST_STYLES, LIGHT_CREST_STYLE, lightCrestStyleGlsl, resolveLightCrestStyle } from './marineLightCrestStyle';
 
-// Light crest STYLE (owner A/B, 2026-10-21). Pins: off by default and under the kill, DRAW_FS is the restored original's byte for byte
-// (#438); the two-tone changes the four lines it hooks (ribbon edge, tone, self-contrast, alpha) and nothing else, each gated on the
-// light theme so dark and beach compute exactly as before; the values are the measured ones (light-crest-style.mjs).
+// Light crest STYLE, ON by default since the owner's pick (2026-10-22, D-043) wherever light draws its original colours. Pins: the
+// default DRAW_FS; the kill draws dev's DRAW_FS from before the flip byte for byte; V2 on request (and the restore's kill) draws dev's
+// V2 DRAW_FS as before, without the two-tone; the two-tone changes the five lines it hooks (zoom uniform, ribbon edge, tone,
+// self-contrast, alpha) and nothing else, the four drawing lines gated on the light theme; the values are the measured ones.
 const sha = (s) => createHash('sha256').update(s).digest('hex');
-// DRAW_FS on dev d84a94f26 (unchanged since 23a91534f), the default this lever must leave byte for byte: the restored original
-// light crest (#438, D-041) and #419's dark storm casing; #428 and #431 change DRAW_VS only.
-const DRAW_FS_DEFAULT = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
+// The default: the original light crest with the two-tone (D-043), on dev 95363ea27 (#433's beach levers off).
+const DRAW_FS_DEFAULT = { sha: 'ed381124193091152a1b5eb692783582cd224cb97421c3c10837d8adbf143968', length: 9233 };
+// Under the kill: dev 95363ea27's DRAW_FS before the flip (the restored original #438, #419's dark storm casing; #428 and #431 change
+// DRAW_VS only, #433's beach levers are off).
+const DRAW_FS_BEFORE = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
+// V2 on request on dev 95363ea27 (#431's v2s colours over the spectrum): unchanged by the flip.
+const DRAW_FS_V2 = { sha: '40aa1ea7b0203aac35f114ff67e9b01d67b483c0e912c505c93f86d7396dddc5', length: 9110 };
 const ON = { __RAW_LIGHT_CREST_STYLE__: 'twotone' };
 const KILL = { __RAW_DISABLE_LIGHT_CREST_STYLE__: true };
 const LIGHT = 'abs(u_theme - 1.0) < 0.5';
@@ -18,29 +23,48 @@ const withWindow = (levers, fn) => jest.isolateModules(() => {
 });
 const NL = String.fromCharCode(10);
 
-describe('off by default: the restored original crest, byte for byte', () => {
-  it('no style, every DRAW_FS piece empty, DRAW_FS hashes to the restored default', () => {
-    expect(LIGHT_CREST_STYLE).toBe('today');
-    expect(lightCrestStyleGlsl('today')).toEqual({ decl: '', shapeHead: '', tone: '', contrastHead: '', alphaHead: '' });
+describe('on by default over the original colours (D-043)', () => {
+  it('the default style is the two-tone and DRAW_FS hashes to it', () => {
+    expect(LIGHT_CREST_STYLE).toBe('twotone');
     expect(DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
     expect(sha(DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
   });
 
-  it('the kill wins over the lever; an unknown style is today', () => {
-    withWindow({ ...ON, ...KILL }, (shaders, style) => {
-      expect(style.LIGHT_CREST_STYLE).toBe('today');
-      expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
-    });
-    expect(resolveLightCrestStyle({ __RAW_LIGHT_CREST_STYLE__: 'neon' })).toBe('today');
-    expect(resolveLightCrestStyle({ __RAW_LIGHT_CREST_STYLE__: 'toString' })).toBe('today');
-    expect(resolveLightCrestStyle(ON)).toBe('twotone');
+  it('the kill draws dev\'s DRAW_FS from before the flip, byte for byte, and wins over the lever', () => {
+    for (const levers of [KILL, { ...ON, ...KILL }]) {
+      withWindow(levers, (shaders, style) => {
+        expect(style.LIGHT_CREST_STYLE).toBe('today');
+        expect(lightCrestStyleGlsl('today')).toEqual({ decl: '', shapeHead: '', tone: '', contrastHead: '', alphaHead: '' });
+        expect(shaders.DRAW_FS.length).toBe(DRAW_FS_BEFORE.length);
+        expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
+      });
+    }
+  });
+
+  it('V2 on request and the restore\'s kill draw V2 as before, without the two-tone', () => {
+    for (const levers of [{ __RAW_LIGHT_CREST_V2__: true }, { __RAW_DISABLE_LIGHT_CREST_RESTORE__: true }]) {
+      withWindow(levers, (shaders, style) => {
+        expect(style.LIGHT_CREST_STYLE).toBe('today');
+        expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V2.sha);
+      });
+    }
+  });
+
+  it('resolves by crest colours: the two-tone over the original, today over V2; the lever asks for it over any colours', () => {
+    expect(resolveLightCrestStyle({}, 'v1')).toBe('twotone');
+    expect(resolveLightCrestStyle({}, 'v2')).toBe('today');
+    expect(resolveLightCrestStyle({}, 'v2s')).toBe('today');
+    expect(resolveLightCrestStyle(ON, 'v2s')).toBe('twotone');
+    expect(resolveLightCrestStyle(KILL, 'v1')).toBe('today');
+    expect(resolveLightCrestStyle({ __RAW_LIGHT_CREST_STYLE__: 'neon' }, 'v1')).toBe('twotone');
+    expect(resolveLightCrestStyle({ __RAW_LIGHT_CREST_STYLE__: 'toString' }, 'v2')).toBe('today');
   });
 });
 
-describe('the two-tone (window.__RAW_LIGHT_CREST_STYLE__ = "twotone")', () => {
+describe('the two-tone', () => {
   it('changes only the zoom uniform, ribbon edge, tone, self-contrast and alpha lines; the four drawing lines gated on the light theme', () => {
-    const before = DRAW_FS.split(NL);
-    let after; withWindow(ON, (s) => { after = s.DRAW_FS.split(NL); });
+    let before; withWindow(KILL, (s) => { before = s.DRAW_FS.split(NL); });
+    const after = DRAW_FS.split(NL);
     expect(after.length).toBe(before.length);
     const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);
     expect(changed.map((i) => after[i].trim().split(' ').slice(0, 2).join(' '))).toEqual(['uniform float', 'float shape', 'vec3 finalColor', 'float crestContrastEff', 'float boostedAlpha']);
