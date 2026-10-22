@@ -37,6 +37,8 @@ def font(size):
 
 # The dark storm crest A/B (--tag dark-<view>, --variants d1,v2, --clip-view regional|eye|coastal).
 DARK_NAMES = {"d1": "TODAY (fiery orange)", "v2": "cased orange from 8 m (D-039)"}
+# The light crest style A/B (--tag lightstyle-<view>, --variants v2,lt): the restored original (D-041) against it with the two-tone.
+LIGHT_STYLE_NAMES = {"v2": "ORIGINAL light crests (restored)", "lt": "original + two-tone (rim x0.15, centre 85% white, alpha x3 far out)"}
 
 
 def label(img, text, size=22):
@@ -53,7 +55,8 @@ def main(out):
     order = opt("--variants").split(",") if opt("--variants") else ORDER
     variants = [v for v in order if any(s["variant"] == v for s in rec["shots"])]
     tag = ("-" + opt("--tag")) if opt("--tag") else ""
-    names = CREST_NAMES if opt("--tag", "").startswith("crest") else DENSITY_NAMES if opt("--tag", "").startswith("density") else NAMES
+    names = (CREST_NAMES if opt("--tag", "").startswith("crest") else DENSITY_NAMES if opt("--tag", "").startswith("density")
+             else LIGHT_STYLE_NAMES if opt("--tag", "").startswith("lightstyle") else NAMES)
     clip_view = opt("--clip-view", "regional")
     title = opt("--title", "wave-height wash, offline synthetic store (storm eye > 10 m)")
     for theme in ("light", "beach", "dark"):

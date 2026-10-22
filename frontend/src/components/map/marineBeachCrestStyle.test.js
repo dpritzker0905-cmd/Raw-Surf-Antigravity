@@ -101,3 +101,16 @@ describe('the style pieces', () => {
     }
   });
 });
+
+describe('beach and light styles compose (#442, marineLightCrestStyle.js)', () => {
+  it('both levers: light\'s piece first, then beach\'s, on each shared line, each gated on its own theme', () => {
+    const fs = drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'twotonebold', __RAW_LIGHT_CREST_STYLE__: 'twotone' });
+    expect(fs.split('\n').length).toBe(DRAW_FS.split('\n').length);
+    expect(fs).toContain('  float shape = 1.0 - smoothstep(abs(u_theme - 1.0) < 0.5 ? 0.80 : u_theme > 1.5 ? 0.80 : 0.55, 1.0, ellipseDist);\n');
+    expect(fs).toContain('if (abs(u_theme - 1.0) < 0.5) finalColor = mix(mix(finalColor, finalColor * 0.15,');
+    expect(fs).toContain('if (u_theme > 1.5) finalColor = mix(mix(finalColor, finalColor * 0.30,');
+    expect(fs).toContain('  float crestContrastEff = abs(u_theme - 1.0) < 0.5 ? 0.0 : u_theme > 1.5 ? 0.0 : max(u_crestContrast,\n');
+    expect(fs).toContain(' * (u_theme > 1.5 ? 3.00 : 1.0) * mix(1.2, 1.8, energy);\n');
+    expect(fs).toContain('  boostedAlpha = min(boostedAlpha, 0.85);\n');
+  });
+});
