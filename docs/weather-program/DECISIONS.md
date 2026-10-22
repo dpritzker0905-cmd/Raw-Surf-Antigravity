@@ -1454,3 +1454,21 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   default off; repo variable FRAME_IMAGES_PUBLISH != '1' stops publishing.
 - **Reopen if:** the owner says so, live parity vs /grid finds a bad node, or the first publish after the fix covers less than
   90% of the set.
+
+### D-043 · Light's crests carry the two-tone (dark rim, light centre line) by default; ON by default
+- **Decided:** owner, 2026-10-22 02:33Z (22:33 EDT), after the moving A/B re-shot on light's live spectrum
+  (https://claude.ai/artifact/QJNb3RK7ugDy7Vqpjhb9md): "Turn the light two-tone on by default (the one-line flip), with its kill switch,
+  and record the pick." The lever came in with #442 (off); this turns it on.
+- **Rule:** wherever light draws its ORIGINAL crest colours (D-041), each crest keeps its colour and gains a dark rim (the colour x 0.15)
+  and a light centre line (85% toward white), the ribbon opaque to 0.80 of its radius, crest alpha x 3 far out tapering to x 1 by z 9.
+  V2 on request (`__RAW_LIGHT_CREST_V2__`, the restore's kill) draws as before, without it; `__RAW_LIGHT_CREST_STYLE__ = 'twotone'`
+  asks for it over any colours. Every shader piece is gated on the light theme. One owner: `marineLightCrestStyle.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 22:45Z and 2026-10-22 02:40Z); `evidence/light-crest-twotone-2026-10-21.json`.
+  Offline real engine on the live spectrum (dev 28be37d3f), p99 APCA |Lc| off the paired wash, original -> two-tone: world 17.7 -> 56.4,
+  regional 21.2 -> 46.3, coastal 23.9 -> 50.2. Checker (`light-crest-style.mjs`), worst over every 0.1 m to 14 m, zoom and lighting: the
+  original 0 from 2 m on the spectrum; the two-tone >= 41.1 (v2 >= 40.2), colour-blind >= 32.4 dE00, centre vs rim >= 62.
+- **Known costs:** crests read bolder: open sea left uncovered 56 -> 47% (world), 59 -> 54% (regional), 30 -> 25% (coastal); the
+  original's look in calm far-zoom water gains dark outlines.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true` before load draws dev's DRAW_FS from before the flip byte for byte
+  (sha256 e2438586..., pinned in `marineLightCrestStyle.test.js`).
+- **Reopen if:** the owner says so, or light's wash or crest colours change (re-run the checker and the A/B).
