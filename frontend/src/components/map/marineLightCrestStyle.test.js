@@ -1,3 +1,4 @@
+import './marineBeachCrestLiftKill.testsupport';   // today's crest shader is pinned here; the beach crest lift in marineBeachCrestLift.test.js
 import { createHash } from 'crypto';
 import { DRAW_FS } from './WebGLMarineParticleShaders';
 import { LIGHT_CREST_STYLES, LIGHT_CREST_STYLE, lightCrestStyleGlsl, resolveLightCrestStyle } from './marineLightCrestStyle';

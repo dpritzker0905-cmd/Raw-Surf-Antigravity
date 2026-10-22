@@ -2,6 +2,7 @@
 // spectrum the light map can show, lightness falling at every step as drawn; dark and beach draw exactly what they drew.
 // Baselines: hashed from dev 23a91534f's own files (the original light crests are the default again there, D-041; dark's 8 m+ storm
 // crest, D-039). Since D-041, light's crests over the spectrum are the original by default; V2 (`v2s`) and its far-zoom lift only on request.
+import './marineBeachCrestLiftKill.testsupport';   // today's crest shader is pinned here; the beach crest lift in marineBeachCrestLift.test.js
 import { createHash } from 'crypto';
 
 const sha = (s) => createHash('sha256').update(typeof s === 'string' ? s : JSON.stringify(s)).digest('hex');
