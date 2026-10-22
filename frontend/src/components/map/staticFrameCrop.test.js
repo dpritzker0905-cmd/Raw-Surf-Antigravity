@@ -106,6 +106,14 @@ describe('midCropRulesPass: only where the resolver answers from global_mid', ()
     expect(pass({ west: -95, south: 20, east: -75, north: 30 })).toBe(true);
   });
 
+  test('the server yields to a tile while the request is at most tile + 0.05 deg on BOTH axes: refused there, cropped past it', () => {
+    setCachedManifest({ products: [...MANIFEST.products, product('wide_pilot', { west: -100, south: 10, east: -80, north: 25 })] });   // 20 x 15
+    expect(pass({ west: -100.015, south: 9.985, east: -79.985, north: 25.015 })).toBe(false);   // 20.03 x 15.03: inside the slack
+    expect(pass({ west: -100.02, south: 10, east: -79.98, north: 25 })).toBe(false);             // 20.04 x 15
+    expect(pass({ west: -100.04, south: 10, east: -79.96, north: 25 })).toBe(true);              // 20.08 wide: wider, the mid clip
+    expect(pass({ west: -100, south: 9.96, east: -80, north: 25.04 })).toBe(true);               // 15.08 tall: wider, the mid clip
+  });
+
   test('another model refuses on ANY overlapping regional tile (an estimated item wins whatever the width; ICON/EURO have them)', () => {
     const icon = (b) => midCropRulesPass({ model: 'ICON', layer: 'waves', bboxStr: gridBboxParam(b) });
     setCachedManifest({ products: [...MANIFEST.products.map((p) => ({ ...p, model: 'ICON' }))] });

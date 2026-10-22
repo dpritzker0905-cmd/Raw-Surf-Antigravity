@@ -99,9 +99,19 @@ for (let i = 0; i < N_BOXES; i++) {
   if (i % 4 === 0) b = { west: Math.floor(b.west), south: Math.floor(b.south), east: Math.ceil(b.east), north: Math.ceil(b.north) };
   boxes.push(b);
 }
+// THE TILE SLACK (decide_manifest_product: the request yields to a regional tile while it is at most tile + 0.05 deg on BOTH axes):
+// for every regional tile with a side over 12 deg (crops need a span over 12), a box 0.03 deg wider than the tile on both axes (the
+// server serves the tile: the rules must refuse) and one 0.08 deg wider on longitude (the mid clip: the rules may crop).
+for (const t of tiles) {
+  const c = t.bounds;
+  if (!c || c.west > c.east || c.east - c.west >= 350 || Math.max(c.east - c.west, c.north - c.south) <= 12) continue;
+  boxes.push({ west: c.west - 0.015, south: c.south - 0.015, east: c.east + 0.015, north: c.north + 0.015, edge: `${t.id}+0.03` });
+  boxes.push({ west: c.west - 0.04, south: c.south, east: c.east + 0.04, north: c.north, edge: `${t.id}+0.08lng` });
+}
 
 const t0 = Date.now();
 const rows = [];
+const edges = [];
 const totals = { boxes: 0, crop: 0, refused: 0, refusedButMid: 0, grid: newR(), series: newR(), cropButNotMid: 0, unmirrored: 0 };
 const metaKeys = ['product_id', 'served_valid_time', 'frame_offset_hours', 'frame_substituted', 'model_run_time', 'run_time', 'provider',
   'upstream_provider', 'source_dataset', 'is_estimated', 'is_forecast_authoritative', 'value_unit', 'coverage_scope', 'coverage_mode',
@@ -114,7 +124,7 @@ for (let i = 0; i < boxes.length; i++) {
   const anchorMs = Math.round(Date.now() / 3600000) * 3600000;
   const seriesHour = Math.round((askMs - anchorMs) / 3600000);
   for (const seam of ['grid', 'series']) {
-    if (seam === 'series' && (i % 5 || seriesHour < 0 || seriesHour > 336)) continue;   // every 5th box, inside the window
+    if (seam === 'series' && ((i % 5 && !b.edge) || seriesHour < 0 || seriesHour > 336)) continue;   // every 5th box (+ edges)
     if (seam === 'series') askMs = anchorMs + seriesHour * 3600000;
     const pick = C.pickIndexFrame(index, askMs);
     if (!pick || !pick.path) continue;
@@ -131,6 +141,7 @@ for (let i = 0; i < boxes.length; i++) {
     const theirGrid = seam === 'grid' ? body.grid : theirs;
     const mid = !!(seam === 'grid' ? (body.grid && body.grid.diagnostics && body.grid.diagnostics.mid_res_tier)
       : (theirs && String(theirs.product_id || '').includes('global_mid') && theirs.cols < 181));
+    if (b.edge) edges.push({ edge: b.edge, seam, rules, backend_mid: mid, product: theirs && theirs.product_id });
     if (!rules) { totals.refused++; if (mid) totals.refusedButMid++; continue; }
     totals.crop++;
     if (!mid) { totals.cropButNotMid++; rows.push({ i, seam, param, problem: 'rules said crop, backend did not serve the mid clip', got: theirs && theirs.product_id }); continue; }
@@ -161,6 +172,7 @@ const report = {
   grid: { nodes: totals.grid.nodes, bad: totals.grid.bad, meta_mismatches: totals.grid.meta.length, max_abs_err: totals.grid.maxErr },
   series: { nodes: totals.series.nodes, bad: totals.series.bad, meta_mismatches: totals.series.meta.length, max_abs_err: totals.series.maxErr },
   tolerance: TOL, tiles: tiles.filter((t) => t.bounds && (t.bounds.east - t.bounds.west) < 350).map((t) => t.id),
+  tile_slack_edges: edges,
   seconds: (Date.now() - t0) / 1000, problems: rows.slice(0, 12),
 };
 console.log(JSON.stringify(report, null, 1));
