@@ -144,9 +144,9 @@ describe('static frames loader', () => {
     expect(getPinnedIndexSync(iconKey)).toBeNull();
   });
 
-  test('a non-waves set: seam A serves its exact grid (is_valid intact); the series lane and the frame store do not take it', async () => {
-    // The series conform drops top-level is_valid and the encoder recovers land from v.waves only, so a swell series frame's land
-    // cells would encode as ocean; real world frames carry ~4,850 land cells of 15,023.
+  test('a non-waves set rides both seams since #456 (the conform carries is_valid); the frame store still does not take it', async () => {
+    // Before #456 the series conform dropped top-level is_valid and the encoder recovered land from v.waves only, so a swell
+    // series frame's land cells (~4,850 of 15,023 in a real world frame) encoded as ocean: #453 held non-waves sets to seam A.
     const idx = indexFor('s1', ['2026-10-20T00:00:00Z']);
     idx.common_meta = { ...idx.common_meta, layer: 'swell_1' };
     const swellKey = setKeyFor('GFS', 'swell_1');
@@ -161,11 +161,22 @@ describe('static frames loader', () => {
     expect(json).toMatchObject({ layer: 'swell_1', served_valid_time: '2026-10-20T00:00:00Z' });
     expect(json.grid.vectors.every((v) => 'is_valid' in v)).toBe(true);
     expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(true);
+    expect(staticSeriesEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(true);
+    const got = [];
+    expect(await staticSeriesFrames({ model: 'GFS', layer: 'swell_1', bbox: WORLD, hours: [0], anchorMs: now,
+      onFrames: (frames) => got.push(...frames) })).toEqual([]);
+    expect(got).toHaveLength(1);
+    expect(got[0].vectors.every((v) => 'is_valid' in v)).toBe(true);   // what the conform now carries to the encoder
+    // The waves-only rule comes back with #456's own kill (land would be ocean again) and with this gate's kill.
+    window.__RAW_DISABLE_CONFORM_IS_VALID__ = true;
     expect(staticSeriesEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
     expect(staticSeriesEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
-    expect(await staticSeriesFrames({ model: 'GFS', layer: 'swell_1', bbox: WORLD, hours: [0], anchorMs: now, onFrames: () => {} })).toBeNull();
-    expect(hasPinnedIndex(swellKey)).toBe(true);          // pinned by seam A ...
-    expect(getPinnedIndexSync(swellKey)).toBeNull();      // ... but the frame store (waves-only packer) never sees it
+    delete window.__RAW_DISABLE_CONFORM_IS_VALID__;
+    window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__ = true;
+    expect(staticSeriesEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
+    delete window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__;
+    expect(hasPinnedIndex(swellKey)).toBe(true);
+    expect(getPinnedIndexSync(swellKey)).toBeNull();      // the frame store (waves-only packer) still never sees it
   });
 
   test('serves the /grid JSON from the CDN frame, then from memory', async () => {

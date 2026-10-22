@@ -493,17 +493,20 @@ export function staticCropPageKey(baseKey, { model, layer, reqBox, surf }) {
 const WORLD_GRID = { bounds: { west: -180, south: -80, east: 180, north: 84 }, cols: 181, rows: 83 };
 
 /**
- * Seam B (the series lane) takes WAVES sets only. The series conform (useMarineWindData) re-emits flat backend vectors without
- * their top-level is_valid, and the encoder recovers land from the v.waves sub-record for the waves layer only; for swell_1 /
- * swell_2 / wind_waves a series frame's land cells (4,850 of 15,023 in a real world frame, 2026-10-22) would encode as OCEAN,
- * where the /grid lane (the mapper's isOcean) keeps them land. Before static frames that lane only drew the thinned preview and
- * the exact /grid frame replaced it; a full-resolution static series frame would be the settled one. So non-waves sets are
- * served through seam A (the exact per-hour grid, the /grid JSON byte for byte, is_valid included) and the series lane keeps
- * /grid_series for them. The conform carries is_valid for every layer since #456 (2026-10-22); this gate lifts in its own PR,
- * with the land-cell parity on real swell frames as its evidence. Series CROP pages (#459) follow this gate too.
+ * Seam B (the series lane): every world set since #456 (2026-10-22). History: the series conform (useMarineWindData) used to
+ * re-emit flat backend vectors without their top-level is_valid, and the encoder recovers land from the v.waves sub-record for
+ * the waves layer only, so a swell_1 / swell_2 / wind_waves series frame's land cells (4,850 of 15,023 in a real world frame)
+ * encoded as OCEAN where the /grid lane kept them land. #453 held non-waves sets to seam A until #456 made the conform carry
+ * is_valid for every layer (marineFramePack.parity.test.js: swell_1 texels that differ between the lanes 4,657 -> 0 on a real
+ * frame). The waves-only rule comes back by itself whenever that fix is killed (window.__RAW_DISABLE_CONFORM_IS_VALID__), and
+ * on its own kill: window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__ = true. Series CROP pages (#459) follow this gate too.
+ * The GPU frame store stays waves-only (getPinnedIndexSync) until its packer handles the other layers.
  */
 export function staticSeriesEligible(args) {
-  return staticEligible(args) && String((args && args.layer) || 'waves').toLowerCase() === 'waves';
+  if (!staticEligible(args)) return false;
+  if (String((args && args.layer) || 'waves').toLowerCase() === 'waves') return true;
+  if (typeof window === 'undefined') return false;
+  return window.__RAW_DISABLE_CONFORM_IS_VALID__ !== true && window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__ !== true;
 }
 
 /**
