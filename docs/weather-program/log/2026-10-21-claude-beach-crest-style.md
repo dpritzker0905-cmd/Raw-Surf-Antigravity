@@ -155,3 +155,6 @@ the Netlify deploy preview, a moving clip, nothing merges before the owner looks
   and lift, world and coastal. Kill = dev's DRAW_FS byte for byte (e2438586), subtle ce8b5a6e, more 06ffcc97; Jest 438/438 (map, tests,
   __tests__). Deploy preview https://deploy-preview-450--rawsurf.netlify.app carries the lift (its shader chunk holds beachSand).
 - Owner page (same link as the two-tone A/B, version 3): https://claude.ai/artifact/LebieAg312hzjyruotS9KN. Ledger 1655 (pr_open #450).
+- 13:40Z the owner, after the deploy preview and the moving A/B: "Ship the subtle beach crest lift from #450 (the default there), with
+  its kill switch." #450 merged with dev 972be1e82 (#452, #454; only the ledger and STATE conflicted), DECISIONS entry (numbered at
+  merge), its pr_open re-chained after dev's 1658 with its original acted-at plus a decision line; marked ready for the lead to merge.

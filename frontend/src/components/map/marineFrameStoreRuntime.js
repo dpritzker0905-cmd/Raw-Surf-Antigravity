@@ -15,7 +15,15 @@
  *      run streams in idle time (requestIdleCallback), so later steps are eager's without eager's cost before the first draw.
  *      Phones, coarse pointers, Save-Data, slow links and hidden tabs stay on demand (see idleFillBlocker).
  * The fast path refuses (and the normal path runs as before) unless the engine's resident texture holds a frame of the SAME set
- * (model, layer, pinned run, pack signature) with the SAME size and validity, recorded by noteCommitted() after a normal commit.
+ * (model, layer, pinned run, pack signature) with the SAME size and NEARLY the same validity, recorded by noteCommitted() after a
+ * normal commit.
+ *
+ * VALIDITY TOLERANCE (2026-10-22, found by the live read): REAL GFS frames never share a validity mask. Of a run's 15,023 cells,
+ * neighbouring hours differ in 1-15 (median 8, the sea-ice edges) and ANY two frames of the run in at most 36, so the exact-mask
+ * rule refused 11 of 12 live steps. The wave texture a show copies is always the frame's own (exact bytes); only the chl/bath
+ * textures derive from the mask (getMarineGeoData, 63 ms a frame: too slow for a step). So a frame whose mask differs from the
+ * resident's by at most VALIDITY_TOLERANCE_CELLS is shown with the resident's chl/bath, and the normal commit that follows (it
+ * always runs) brings that frame's own chl/bath. Kill: window.__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ = true (exact masks only).
  *
  * SHIPS ON behind static frames. Kills (read per call):
  *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
@@ -27,7 +35,7 @@
  */
 import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, loadFrameParsed, setKeyFor } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
-import { packStaticFrame, packSignature } from './marineFramePack';
+import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
 import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
@@ -35,13 +43,16 @@ import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
 
 const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
+// Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
+// 0.24% of 15,023; 64 leaves room and still refuses a different grid outright).
+export const VALIDITY_TOLERANCE_CELLS = 64;
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
 
 const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
 const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
   resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
-  fill: freshFill(), lastStep: null, openedAt: null, onVis: null };
+  fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null };
 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -160,7 +171,7 @@ function resolvePending(info, validTime) {
   const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
   rt.pendingResident = null;
   if (!engine || engine._texWidth !== p.cols || engine._texHeight !== p.rows || p.cols !== e.pack.cols || p.rows !== e.pack.rows) return;
-  rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
+  rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, validityBits: e.pack.validityBits || null, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
   rt.commits.resident_late = (rt.commits.resident_late || 0) + 1;
 }
 
@@ -184,10 +195,22 @@ function upload(info, validTime) {
   armIdleFill();
 }
 
+// A pool whose WebGL context was lost (marineFrameStoreGpu: its arrays are dead objects): drop it and the store's GPU residency (the
+// frames keep their CPU bytes where the tier keeps them, else they are fetched again), so shows use CPU bytes and the next upload
+// builds a new pool on the restored context.
+function dropDeadPool() {
+  if (!rt.pool || rt.pool.alive()) return false;
+  for (const x of rt.sets.values()) store().dropResidency(x.key);
+  rt.pool = null; rt.poolDims = null;
+  rt.shows.poolLost = (rt.shows.poolLost || 0) + 1;
+  return true;
+}
+
 function uploadGpu(info, validTime) {
   const e = store().entry(info.key, validTime);
   if (!e || !e.packed || !e.pack) return;
-  const pool = gpuPool(e.pack.cols, e.pack.rows);
+  let pool = gpuPool(e.pack.cols, e.pack.rows);
+  if (pool && !pool.alive()) { dropDeadPool(); pool = gpuPool(e.pack.cols, e.pack.rows); }
   if (!pool) return;
   const { evicted } = pool.acquire(info.key);
   if (evicted) store().dropResidency(evicted);
@@ -233,13 +256,17 @@ function ensureInit() {
       onPacked: (key, validTime) => { const info = [...rt.sets.values()].find((x) => x.key === key); if (info) upload(info, validTime); },
     });
   }
-  // A hidden tab pauses the fill (no new requests beyond the on-demand window); visible again, it resumes in an idle slice.
-  if (!rt.onVis && typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+  // A hidden tab or a link that turns slow or Save-Data pauses the fill (no new requests beyond the on-demand window); when the
+  // blocker clears, the fill resumes in an idle slice. Before 2026-10-22 only visibility re-armed it: a link that read slow for a
+  // moment left the fill stopped until the next landing or step (the live fill took 93 s against 7.9 s offline).
+  if (!rt.onVis) {
     rt.onVis = () => {
       if (!rt.lastStep) return;
-      if (idleFillBlocker() === 'hidden') { if (rt.fill.planned) noteStep({ ...rt.lastStep, commit: true }); } else armIdleFill();
+      if (idleFillBlocker()) { if (rt.fill.planned) noteStep({ ...rt.lastStep, commit: true }); } else armIdleFill();
     };
-    document.addEventListener('visibilitychange', rt.onVis);
+    if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('visibilitychange', rt.onVis);
+    const conn = typeof navigator !== 'undefined' ? navigator.connection : null;
+    if (conn && typeof conn.addEventListener === 'function') { conn.addEventListener('change', rt.onVis); rt.onConn = conn; }
   }
 }
 
@@ -280,7 +307,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   }
   if (!engine || engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows) return why('dims_differ');
   why('resident');
-  rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
+  rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, validityBits: e.pack.validityBits || null, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
 }
 
 /** Every scrub step (and every normal commit): keep the prefetch plan on the cursor. */
@@ -344,10 +371,17 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     if (!engine || !gl || !tex || !wg) return miss('no_engine');
     const r = rt.resident;
     if (!r || r.setKey !== info.key || r.signature !== packSignature()) return miss('resident_not_this_set');
-    if (r.validityHash !== e.pack.validityHash) return miss('validity_differs');
+    // The resident's chl/bath follow ITS mask until the next normal commit: a show leaves rt.resident's mask as it was.
+    let maskCells = 0;
+    if (r.validityHash !== e.pack.validityHash) {
+      if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) return miss('validity_differs');
+      maskCells = validityDiff(r.validityBits, e.pack.validityBits);
+      if (!(maskCells <= VALIDITY_TOLERANCE_CELLS)) return miss('validity_differs');
+    }
     if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return miss('dims_differ');
     let ok = false;
     if (e.layer !== null && rt.pool && rt.pool.has(info.key)) ok = rt.pool.copyToTexture(info.key, e.layer, tex);
+    if (!ok) dropDeadPool();                       // a lost context: never trust the array again; the CPU bytes below are exact
     if (!ok && e.packed) ok = uploadBytesTo2D(gl, tex, e.packed, e.pack.cols, e.pack.rows);
     if (!ok) return miss('copy_failed');
     const meta = frameMeta(index, frame);
@@ -359,6 +393,7 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     const map = rt.target.getMap && rt.target.getMap();
     if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
     rt.shows.n += 1;
+    if (maskCells > 0) { rt.shows.maskTolerated = (rt.shows.maskTolerated || 0) + 1; rt.shows.maskCellsMax = Math.max(rt.shows.maskCellsMax || 0, maskCells); }
     rt.shows.lastMs = +(((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)).toFixed(3);
     return true;
   } catch (err) {
@@ -388,7 +423,8 @@ export function _resetFrameStoreRuntimeForTest() {
   if (rt.unhook) rt.unhook();
   if (rt.pool) rt.pool.dispose();
   if (rt.onVis && typeof document !== 'undefined') document.removeEventListener('visibilitychange', rt.onVis);
+  if (rt.onVis && rt.onConn && typeof rt.onConn.removeEventListener === 'function') rt.onConn.removeEventListener('change', rt.onVis);
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
     resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
-    fill: freshFill(), lastStep: null, openedAt: null, onVis: null });
+    fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null });
 }
