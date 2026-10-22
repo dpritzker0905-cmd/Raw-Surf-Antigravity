@@ -245,3 +245,11 @@ changed with #438 / #419, re-pinned to `e2438586`). Tests: the spectrum, crest, 
   mid-lightness and a light wash that darkens with height passes through them. The remedy is the crest (a casing or a constant core
   with an opposite-brightness edge: the light-crest session's D-040 work), not the sea.
 Evidence: `evidence/wave-light-spectrum-original-crests-2026-10-21.json`.
+
+## Ledger lines handed to the lead (2026-10-22 ~00:20Z)
+
+The owner to the lead: "resolve all the conflicts and merge, communicate between sub chats". To merge without serial re-chains, #431
+carries no ledger lines or STATE edit: ACTIONS.jsonl and STATE.md are dev 23a91534f's exactly. #431's seven lines (decision D-037,
+pr_open, commitment, the crest-zoom finding, the re-solve finding, the D-041 finding, the ship decision; numbered 1603-1609 on this
+branch before the hand-over) and its STATE "Now" line were sent verbatim to the lead session for one receipts PR after the merges.
+The seq numbers quoted above in this log are the branch's at the time; the receipts PR assigns the final ones.
