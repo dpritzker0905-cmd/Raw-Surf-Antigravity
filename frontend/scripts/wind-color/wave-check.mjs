@@ -77,12 +77,12 @@ for (const id of ids) {
     if (P.over) for (const a of Object.values(ALPHAS)) { const k = chromaStar(composite(P, theme, cap + 1, a)); if (k < cC.c) cC = { c: k, h: 'above the cap', a }; }   // the above-cap state is no grey either
     console.log(`[${flag(wC.c < BAR.washC || cC.c < BAR.compC)}] no grey: the wash's weakest colour C* ${fmt(wC.c)} at ${fmt(wC.h, 2)} m; the composite's C* ${fmt(cC.c)} at ${typeof cC.h === 'number' ? fmt(cC.h, 2) + ' m' : cC.h} (bars ${BAR.washC} / ${BAR.compC})`);
     // 3. Neighbouring legend stops (the anchors, and the above-cap state against the cap), as composited at each view.
-    const stopH = P.over ? [...H, cap + 1] : H, pairs = [];
+    const T = P.ticks || H, stopH = P.over ? [...T, cap + 1] : T, pairs = [];   // the legend's stops (a table's `ticks` when it has blend-only anchors)
     let adjW = { de: Infinity }, adjN = { de: Infinity };
     for (const [view, a] of Object.entries(ALPHAS)) {
       const comps = stopH.map((h) => composite(P, theme, h, a, 0.5, false));   // the stops themselves (the table), not the depth floor
       for (let i = 0; i + 1 < stopH.length; i++) {
-        const label = `${H[i]}-${i + 1 < H.length ? H[i + 1] : 'over'} m`, w = allDE(comps[i], comps[i + 1]), n = dE(comps[i], comps[i + 1]);
+        const label = `${T[i]}-${i + 1 < T.length ? T[i + 1] : 'over'} m`, w = allDE(comps[i], comps[i + 1]), n = dE(comps[i], comps[i + 1]);
         pairs.push({ label, view, a: comps[i], b: comps[i + 1] });
         if (w.de < adjW.de) adjW = { ...w, label, view };
         if (n < adjN.de) adjN = { de: n, label, view };
