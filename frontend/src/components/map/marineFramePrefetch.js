@@ -65,15 +65,15 @@ export function planWant({ active, cursor = 0, dir = 1, expanded = false, warm =
   const built = active.built || (() => true);
   const radius = slow ? WINDOW_SLOW : WINDOW;
   const seen = new Set();
-  const push = (key, validTime, ok) => {
+  const push = (key, validTime, ok, isWarm) => {
     const id = `${key}@${validTime}`;
     if (!ok || seen.has(id)) return;
-    seen.add(id); plan.push({ key, validTime });
+    seen.add(id); plan.push(isWarm ? { key, validTime, warm: true } : { key, validTime });
   };
   const order = nearestFirst(n, cursor, dir);
   const near = order.filter((i) => Math.abs(i - cursor) <= radius);
   for (const i of near) push(active.key, active.validTimes[i], built(active.validTimes[i]));
-  for (const w of warm) push(w.key, w.validTime, w.built !== false && !!w.validTime);
+  for (const w of warm) push(w.key, w.validTime, w.built !== false && !!w.validTime, true);
   if (expanded && full) for (const i of order) push(active.key, active.validTimes[i], built(active.validTimes[i]));
   return plan;
 }
@@ -143,8 +143,9 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     return !!(e && e.path && e.state === 'absent' && !((retryAt.get(idOf(p.key, p.validTime)) || 0) > now()));
   }
 
+  // A warm entry (another model's frame at the cursor, kept for an instant model toggle) is never stale while it is planned.
   function abortStale() {
-    const top = new Set(plan.slice(0, 2 * capNow).map((p) => idOf(p.key, p.validTime)));
+    const top = new Set(plan.filter((p, i) => i < 2 * capNow || p.warm).map((p) => idOf(p.key, p.validTime)));
     for (const [id, f] of [...inflight]) {
       if (f.key === activeKey || top.has(id)) continue;
       f.ctrl.abort(); inflight.delete(id); store.markAbsent(f.key, f.validTime); t.aborted += 1;

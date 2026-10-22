@@ -10,7 +10,8 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { publishMarineTimelineRequest, publishMarineTimelineFrame } from './marineTimelineCoverage';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
-import { tryShowStoredFrame, noteStep } from './marineFrameStoreRuntime';
+import { tryShowStoredFrame, tryShowStoredFrameForSwitch, noteStep } from './marineFrameStoreRuntime';
+import { resolveMarineFetchModel } from './marineSeekIdentity';
 
 let _lastMarineScrubLogTime = 0;
 
@@ -34,6 +35,29 @@ export function requestStepPage(model, layer, bounds, hourOffset) {
     return true;
   } catch (e) {
     return false;                      // best effort: the /grid for the step is already on its way
+  }
+}
+
+/**
+ * INSTANT MODEL TOGGLE (Stage A of the GPU-resident frames, 2026-10-22). At a model switch, before the coalesced fetch, put the new
+ * model's stored world frame for the current hour on screen (marineFrameStoreRuntime.tryShowStoredFrameForSwitch: a warm frame
+ * the prefetch keeps for the other published waves sets, with its own chl/bath). The model is the one the fetch will ask for
+ * (resolveMarineFetchModel: past a model's horizon the fetcher draws GFS) and only on a backend lane, the same gates as the scrub
+ * step above. The coalesced fetch still runs and commits the same frame; on any miss nothing changes. Then the prefetch follows
+ * the new model. Kill: window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true.
+ */
+export function showStoredFrameOnModelSwitch({ model, layer, hour }) {
+  try {
+    const lyr = layer || 'waves';
+    const m = resolveMarineFetchModel(model || 'GFS', lyr, hour, getBackendIconMarineFlag());
+    const backend = (m === 'GFS' && getBackendWeatherFlag()) || (m === 'ICON' && getBackendIconMarineFlag()) || (m === 'EURO' && getBackendCopernicusFlag());
+    if (!backend) return false;
+    const requestedValidTime = getSharedValidTime(hour, lyr, m, { readOnly: true });
+    const shown = tryShowStoredFrameForSwitch({ model: m, layer: lyr, hourOffset: hour, requestedValidTime });
+    noteStep({ model: m, layer: lyr, requestedValidTime });
+    return shown;
+  } catch (e) {
+    return false;                      // best effort: the coalesced fetch serves the switch
   }
 }
 

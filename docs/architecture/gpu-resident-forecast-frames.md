@@ -469,6 +469,9 @@ before any field-skill claim.
 | `window.__RAW_DISABLE_STORE_WHEEL_RAF__ = true` | per-frame commits on store hits | the 90 ms wheel throttle |
 | `window.__RAW_FRAME_STORE_TIER__` | detected | force `desktop` / `handheld` / `constrained` / `webgl1` |
 | `window.__RAW_TIME_INTERP__` / `__RAW_TIME_INTERP_6H__` | OFF | dark interpolation (section 6) |
+| `window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true` | model toggles ON (section 12.3) | no show at a model click, no warm frames of the other models |
+| `window.__RAW_DISABLE_FRAME_AUX_SHOW__ = true` | exact chl/bath shows ON | the resident-gated path alone (phase 2) |
+| `window.__RAW_FRAME_WARM_REST_MS__` | 500 | how long the wheel rests before the other models' warm frames follow it |
 
 **Shipping rule.**
 - The store changes no drawn number by itself: it shows the same frame bytes the encoder would have produced. It ships ON with
@@ -639,3 +642,32 @@ Measured offline at the live-hit latency (log 2026-10-21-claude-gpu-frame-store,
 
 At 6.3 MB per desktop open, Supabase Pro's 250 GB of cached egress covers about 40k desktop opens a month, before phones, which
 stay near 0.8 MB.
+
+### 12.3 Stage A: instant MODEL toggles (2026-10-22, log 2026-10-22-claude-model-toggles)
+
+The WARM state of section 3.3, built. Instead of section 3.4's shared WARM array, warm frames stay as CPU bytes, as section 12.1
+already decided.
+- **A frame can carry its own chl/bath.** `marineFrameAux.js` computes the chlorophyll and bathymetry bytes the encoder would
+  upload, from the frame's own masks (the same function, pinned by the parity test).
+  - The show writes them into the resident chl/bath textures beside the wave bytes, so it no longer needs the resident to be this
+    set's frame. It needs only the same size, bounds, layer and flavour, and the resident textures in use.
+  - That covers a model switch, and a step after a `/grid` fallback commit.
+- **Warm frames.** On a capable desktop (the idle fill's gate), once the wheel has rested 500 ms (this section's "settles"), the
+  other published waves sets are planned at the cursor's time +-1 frame, after the +-8 window. Their chl/bath are computed in idle
+  time, and a replan never aborts a planned warm frame in flight.
+- **The seam.** At a model click (`useMarineOrchestrator`, right after `beginTransition`) the new model's frame goes on screen. The
+  model is the one the fetch will draw. The coalesced fetch still commits the same frame.
+- **Phones** do not warm, and never compute chl/bath on the main thread: the switch there is today's path.
+- **Kills:** `__RAW_DISABLE_FRAME_MODEL_TOGGLE__` and `__RAW_DISABLE_FRAME_AUX_SHOW__`. **Lever:** `__RAW_FRAME_WARM_REST_MS__`.
+
+#### 12.3.1 On a mid-zoom clip (2026-10-22, after #459)
+At mid zoom the resident is a viewport clip (#459's crop show), not the world frame.
+- **The window's packs cover the other models too.** Any set on the window's run lattice gets packs for it (`cropWindowFor`): the
+  warm frames as they are parsed, and those that landed earlier when a window becomes fresh (`cropWarm`).
+- **The click** (`showCropSwitch`) uploads the new model's window bytes and the window's OWN chl/bath (`auxForPack` on the window
+  pack). The window is small, so that is computed at the click on any tier. The new model's clip then becomes the crop resident.
+  A wheel step never crosses models: only a click does.
+- **ICON past 168 h is never shown from the store.** The normal path draws those hours from a client-side blend
+  (`fetchBackendMarineGridIconExtended`), unless the build reads the stored tail.
+- **Code location.** The crop show's runtime half now lives in `marineFrameStoreCropShow.js`, a factory over the runtime's state,
+  which keeps `marineFrameStoreRuntime.js` under the 800-line cap.

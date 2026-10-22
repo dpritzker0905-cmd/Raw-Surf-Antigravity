@@ -77,7 +77,8 @@ function encoderBytes(m, grid) {
   const { gl, uploads } = makeRecordingGL();
   const out = m.enc.encodeMarineTexture(gl, g, null, {}, undefined);
   const wave = uploads.get(out.u_waveTexture);
-  return { bytes: wave.data, cols: wave.width, rows: wave.height };
+  const chl = uploads.get(out.u_chlorophyllTexture); const bath = uploads.get(out.u_bathymetryTexture);
+  return { bytes: wave.data, cols: wave.width, rows: wave.height, chl: chl && chl.data, bath: bath && bath.data };
 }
 function laneA(m, parsed) {
   const json = { grid: { vectors: buildVectors(parsed), bounds: parsed.bounds, cols: parsed.cols, rows: parsed.rows }, provider: 'static', product_id: 'p' };
@@ -209,6 +210,30 @@ describe('marineFramePack: scope and signature', () => {
     const a = Uint8Array.from([1, 0, 1, 1]); const b = Uint8Array.from([1, 1, 0, 1]);
     expect(m.pack.validityHash(a)).toBe(m.pack.validityHash(Uint8Array.from(a)));
     expect(m.pack.validityHash(a)).not.toBe(m.pack.validityHash(b));
+  });
+});
+
+// STAGE A (2026-10-22): a frame's OWN chl/bath, rebuilt from the pack's two masks by marineFrameAux in a fresh module instance (its
+// own getMarineGeoData cache, so equality is the derivation's, not a cache hit), equal the encoder's chl/bath uploads on both lanes.
+describe("marineFrameAux: a stored frame carries the encoder's exact chl/bath bytes", () => {
+  const auxModule = () => { let a; jest.isolateModules(() => { a = require('./marineFrameAux'); }); return a; };
+  it.each(['dark', 'light'])('the real frame, %s theme: chl and bath equal lane A and lane B', (theme) => {
+    window.__WEBGL_MARINE_THEME__ = theme;
+    const m = load();
+    const parsed = REAL();
+    const pack = m.pack.packStaticFrame(parsed);
+    const aux = auxModule().auxForPack(pack);
+    expect(aux).not.toBeNull();
+    for (const lane of [laneA(m, parsed), laneB(m, parsed)]) {
+      expect([lane.cols, lane.rows]).toEqual([aux.cols, aux.rows]);
+      expect(firstDiff(Uint8Array.from(aux.chl), lane.chl)).toBe(-1);
+      expect(firstDiff(Uint8Array.from(aux.bath), lane.bath)).toBe(-1);
+    }
+  });
+  it('a pack without its masks has no aux (the caller falls back to the tolerance rule)', () => {
+    const a = auxModule();
+    expect(a.auxForPack(null)).toBeNull();
+    expect(a.auxForPack({ cols: 2, rows: 2, validityBits: new Uint8Array(1) })).toBeNull();
   });
 });
 
