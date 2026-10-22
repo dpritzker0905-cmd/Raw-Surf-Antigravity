@@ -1,0 +1,1255 @@
+{
+ "what": "HOLD WITHOUT DIMMING (owner 2026-10-22 via the lead): the stale-hour dim replaced by a full-strength hold, the status line carrying the honesty, a non-dimming indicator after 2.5 s",
+ "method": "visual-lab lab.js, one production build, both arms with the frame store killed and a slow backend (LAT_SERIES 4000, LAT_GRID 1500 ms) so loads outlast the 600 ms hold; flows icon_waves_scrub, erratic, layer_switch_future, model_switch_future; arms differ only by __RAW_DISABLE_HOLD_NO_DIM__",
+ "before_hold_killed": {
+  "env": {
+   "PORT": 4100,
+   "VIEW": "desktop",
+   "LAT_SERIES": 4000,
+   "LAT_GRID": 1500,
+   "LAT_PRODUCTS": 0,
+   "staticFrames": true,
+   "cdnLat": 340,
+   "kills": "__RAW_DISABLE_FRAME_STORE__,__RAW_DISABLE_HOLD_NO_DIM__",
+   "flags": "",
+   "windowJson": "",
+   "staleS": 60,
+   "live": false,
+   "startedUtc": "2026-10-22T09:39:34.266Z"
+  },
+  "totals": {
+   "steps": 33,
+   "stale_dim_ms": 1035,
+   "soft_dim_ms": 0,
+   "held_ms": 0,
+   "indicator_ms": 0,
+   "indicator_steps": 0,
+   "silent_mislabel_frames": 35,
+   "admitted_frames": 3427
+  },
+  "steps": [
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+3h",
+    "marineMs": 2468,
+    "exactMs": 2468,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 126,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+6h",
+    "marineMs": 5442,
+    "exactMs": 5442,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+18h",
+    "marineMs": 4667,
+    "exactMs": 4667,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 4,
+    "marineAdmitted": 1,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+26h",
+    "marineMs": 10,
+    "exactMs": 8169,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 4,
+    "marineAdmitted": 1,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+42h",
+    "marineMs": 5189,
+    "exactMs": 5189,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 3,
+    "marineAdmitted": 2,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+82h",
+    "marineMs": 3640,
+    "exactMs": 3640,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 5,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+115h",
+    "marineMs": 3641,
+    "exactMs": 3641,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 6,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "Home",
+    "marineMs": 49,
+    "exactMs": 49,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+5h",
+    "marineMs": 603,
+    "exactMs": 603,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 3,
+    "marineAdmitted": 39,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+45h",
+    "marineMs": 570,
+    "exactMs": 570,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 49,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+131h",
+    "marineMs": 592,
+    "exactMs": 592,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 50,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "EURO",
+    "marineMs": 2544,
+    "exactMs": 2544,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 151,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "Wind Waves",
+    "marineMs": 2678,
+    "exactMs": null,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 160,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+153h",
+    "marineMs": 1726,
+    "exactMs": null,
+    "dim": {
+     "staleMs": 1035,
+     "softMs": 0,
+     "minMult": 0.4
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 4,
+    "marineAdmitted": 110,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "ICON",
+    "marineMs": 2650,
+    "exactMs": 2650,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 157,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: beyond ICON’s native range"
+   },
+   {
+    "flow": "erratic",
+    "label": "Swell 2",
+    "marineMs": 3953,
+    "exactMs": 3953,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 234,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "+165h",
+    "marineMs": 4275,
+    "exactMs": 4275,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 266,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "zoom 8",
+    "marineMs": 15,
+    "exactMs": 15,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "pan",
+    "marineMs": 6,
+    "exactMs": 6,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "zoom out 3",
+    "marineMs": 9,
+    "exactMs": null,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "Waves",
+    "marineMs": 4510,
+    "exactMs": 4510,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 269,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: beyond ICON’s native range"
+   },
+   {
+    "flow": "erratic",
+    "label": "GFS",
+    "marineMs": 865,
+    "exactMs": 865,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 48,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+12h",
+    "marineMs": 586,
+    "exactMs": 586,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 51,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "Swell",
+    "marineMs": 3300,
+    "exactMs": 3300,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 195,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "Waves again",
+    "marineMs": 15,
+    "exactMs": 15,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Swell",
+    "marineMs": 2490,
+    "exactMs": 2490,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 149,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Swell 2",
+    "marineMs": 3798,
+    "exactMs": 3798,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 224,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "+3h on Swell 2",
+    "marineMs": 5340,
+    "exactMs": 5340,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 320,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Wind Waves",
+    "marineMs": 3109,
+    "exactMs": 3109,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 184,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Waves",
+    "marineMs": 4216,
+    "exactMs": 4216,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 251,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "model_switch_future",
+    "label": "ICON",
+    "marineMs": 2557,
+    "exactMs": 2557,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 152,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "model_switch_future",
+    "label": "EURO",
+    "marineMs": 3523,
+    "exactMs": 3523,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 210,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "model_switch_future",
+    "label": "GFS",
+    "marineMs": 392,
+    "exactMs": 392,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 23,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   }
+  ]
+ },
+ "after_default": {
+  "env": {
+   "PORT": 4100,
+   "VIEW": "desktop",
+   "LAT_SERIES": 4000,
+   "LAT_GRID": 1500,
+   "LAT_PRODUCTS": 0,
+   "staticFrames": true,
+   "cdnLat": 340,
+   "kills": "__RAW_DISABLE_FRAME_STORE__",
+   "flags": "",
+   "windowJson": "",
+   "staleS": 60,
+   "live": false,
+   "startedUtc": "2026-10-22T09:43:33.104Z"
+  },
+  "totals": {
+   "steps": 33,
+   "stale_dim_ms": 0,
+   "soft_dim_ms": 0,
+   "held_ms": 34,
+   "indicator_ms": 12437,
+   "indicator_steps": 10,
+   "silent_mislabel_frames": 32,
+   "admitted_frames": 3176
+  },
+  "steps": [
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+3h",
+    "marineMs": 2302,
+    "exactMs": 2302,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 65,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+6h",
+    "marineMs": 5722,
+    "exactMs": 5722,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+18h",
+    "marineMs": 3192,
+    "exactMs": 3192,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 2,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+26h",
+    "marineMs": 9,
+    "exactMs": 6166,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 1,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+42h",
+    "marineMs": 5081,
+    "exactMs": 5081,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 4,
+    "marineAdmitted": 1,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+82h",
+    "marineMs": 3564,
+    "exactMs": 3564,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 3,
+    "marineAdmitted": 1,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "+115h",
+    "marineMs": 3612,
+    "exactMs": 3612,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 5,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "icon_waves_scrub",
+    "label": "Home",
+    "marineMs": 50,
+    "exactMs": 50,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 3,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+5h",
+    "marineMs": 632,
+    "exactMs": 632,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 34,
+     "dotMs": 0
+    },
+    "marineSilent": 3,
+    "marineAdmitted": 38,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+45h",
+    "marineMs": 611,
+    "exactMs": 611,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 53,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+131h",
+    "marineMs": 574,
+    "exactMs": 574,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 47,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "EURO",
+    "marineMs": 2488,
+    "exactMs": 2488,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 148,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "Wind Waves",
+    "marineMs": 2299,
+    "exactMs": null,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 137,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+153h",
+    "marineMs": 1740,
+    "exactMs": null,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 38,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "ICON",
+    "marineMs": 2505,
+    "exactMs": 2505,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 2,
+    "marineAdmitted": 148,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: beyond ICON’s native range"
+   },
+   {
+    "flow": "erratic",
+    "label": "Swell 2",
+    "marineMs": 3382,
+    "exactMs": 3382,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 884
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 199,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "+165h",
+    "marineMs": 4196,
+    "exactMs": 4196,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 1685
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 262,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "zoom 8",
+    "marineMs": 19,
+    "exactMs": 19,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "pan",
+    "marineMs": 7,
+    "exactMs": 7,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "zoom out 3",
+    "marineMs": 7,
+    "exactMs": null,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "erratic",
+    "label": "Waves",
+    "marineMs": 4224,
+    "exactMs": 4224,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 1735
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 252,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: beyond ICON’s native range"
+   },
+   {
+    "flow": "erratic",
+    "label": "GFS",
+    "marineMs": 793,
+    "exactMs": 793,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 47,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "+12h",
+    "marineMs": 572,
+    "exactMs": 572,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 3,
+    "marineAdmitted": 45,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "Swell",
+    "marineMs": 2919,
+    "exactMs": 2919,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 409
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 171,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "erratic",
+    "label": "Waves again",
+    "marineMs": 5,
+    "exactMs": 5,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 0,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Swell",
+    "marineMs": 3914,
+    "exactMs": 3914,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 1401
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 231,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Swell 2",
+    "marineMs": 3234,
+    "exactMs": 3234,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 734
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 189,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "+3h on Swell 2",
+    "marineMs": 3743,
+    "exactMs": 3743,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 1235
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 223,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Estimated forecast: blended from GFS and EURO"
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Wind Waves",
+    "marineMs": 3327,
+    "exactMs": 3327,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 818
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 197,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "layer_switch_future",
+    "label": "Waves",
+    "marineMs": 5029,
+    "exactMs": 5029,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 2502
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 298,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "model_switch_future",
+    "label": "ICON",
+    "marineMs": 2455,
+    "exactMs": 2455,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 1,
+    "marineAdmitted": 145,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "model_switch_future",
+    "label": "EURO",
+    "marineMs": 3538,
+    "exactMs": 3538,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 1034
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 211,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   },
+   {
+    "flow": "model_switch_future",
+    "label": "GFS",
+    "marineMs": 415,
+    "exactMs": 415,
+    "dim": {
+     "staleMs": 0,
+     "softMs": 0,
+     "minMult": 1
+    },
+    "hold": {
+     "heldMs": 0,
+     "dotMs": 0
+    },
+    "marineSilent": 0,
+    "marineAdmitted": 24,
+    "status": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+   }
+  ]
+ },
+ "caveats": [
+  "one round each; the before arm caught ONE stale-dim event (1035 ms at 0.4): n=1, recorded, not generalised",
+  "silent = frames whose drawn hour/layer/model is not the selection with no admitting status line (the #267 rule); admitted = the status line says Loading/nearest",
+  "left unchanged on purpose: coarse fade (resolution cue), no-truth guard (stops land painting), cold-activation veil (no previous frame), rating-band fade"
+ ]
+}

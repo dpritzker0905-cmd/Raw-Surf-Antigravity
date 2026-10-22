@@ -254,3 +254,6 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - **Re-chained after #452** (dev 213ff3217 took seq 1655/1656): this branch's lines are now 1657 (the read-back finding), 1658
   (pr_open #453), 1659 (finding: the live in-browser read; 1585 open) and 1660 (correction of 1658's swell claim). The numbers
   1655-1658 written above are superseded by these.
+- **Re-chained again after #454** (dev 972be1e82 took 1657/1658), on the lead's word: this branch's lines are now 1659 (the
+  read-back finding), 1660 (pr_open #453), 1661 (finding: the live in-browser read; 1585 open) and 1662 (correction of 1660's
+  swell claim), same fields and acted_at. They supersede 1657-1660 above.
