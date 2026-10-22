@@ -149,7 +149,7 @@ describe('the runtime shows the window of the stepped-to frame', () => {
     RT.noteCommitted(CROP_GRID(0), { hour: 0, model: 'GFS', layer: 'waves' });
     expect(window.__RAW_FRAME_STORE__.commits.resident_crop).toBe(1);
     await settle();
-    expect(window.__RAW_FRAME_STORE__.resident).toMatchObject({ crop: true, window: { c0: 37, r0: 44, cols: 27, rows: 20 }, cols: PACK.cols, rows: PACK.rows });
+    expect(window.__RAW_FRAME_STORE__.crop.resident).toMatchObject({ crop: true, window: { c0: 37, r0: 44, cols: 27, rows: 20 }, cols: PACK.cols, rows: PACK.rows });
     for (const fn of mockSF.hooks) fn({ key: KEY, frame: mockSF.index.frames[1], parsed: PARSED, buffer: null });   // frame 1 lands
     await flush();
     expect(step(1)).toBe(true);
@@ -170,18 +170,45 @@ describe('the runtime shows the window of the stepped-to frame', () => {
     expect(window.__RAW_FRAME_STORE__.shows.deferred).toBe(1);
   });
 
-  it('kill switch; a commit the engine refused (another resident) is never taken for the clip; a world commit clears the window', async () => {
-    const { eng } = setup();
+  const WORLD_COMMIT = () => RT.noteCommitted({ bounds: IG.bounds, cols: IG.cols, rows: IG.rows, served_valid_time: vt(0), __sourceModel: 'GFS',
+    __componentLayer: 'waves' }, { hour: 0, model: 'GFS', layer: 'waves' });
+
+  it('kill switch: a clip commit is not taken, and no step is shown from a window', async () => {
+    const { calls } = setup();
     window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
     RT.noteCommitted(CROP_GRID(0), { hour: 0, model: 'GFS', layer: 'waves' });
+    await settle();
     expect(window.__RAW_FRAME_STORE__.commits.resident_crop).toBeUndefined();
-    delete window.__RAW_DISABLE_FRAME_STORE_CROP__;
-    eng._waveData.waveGrid.bounds = { west: -100, south: 10, east: -60, north: 40 };   // the engine kept something else
+    expect(window.__RAW_FRAME_STORE__.crop.resident).toBeNull();
+    expect(step(1)).toBe(false);
+    expect(calls).toHaveLength(0);
+  });
+
+  it('a commit the engine refused leaves the clip resident; a world frame the engine took ends it', async () => {
+    const { calls, eng } = setup();
     RT.noteCommitted(CROP_GRID(0), { hour: 0, model: 'GFS', layer: 'waves' });
     await settle();
-    expect(window.__RAW_FRAME_STORE__.resident).toBeNull();
-    expect(window.__RAW_FRAME_STORE__.commits.crop_not_resident).toBe(1);
-    RT.noteCommitted({ bounds: IG.bounds, cols: IG.cols, rows: IG.rows, served_valid_time: vt(0), __sourceModel: 'GFS', __componentLayer: 'waves' }, { hour: 0, model: 'GFS', layer: 'waves' });
+    WORLD_COMMIT();                                                  // the guard refused it: the engine still holds the clip
+    expect(window.__RAW_FRAME_STORE__.crop.resident).not.toBeNull();
+    for (const fn of mockSF.hooks) fn({ key: KEY, frame: mockSF.index.frames[2], parsed: PARSED, buffer: null });
+    await flush();
+    expect(step(2)).toBe(true);
+    expect(calls).toHaveLength(1);
+    Object.assign(eng, { _texWidth: 181, _texHeight: 81 });          // now the engine holds a world frame
+    eng._waveData.waveGrid = { ...eng._waveData.waveGrid, cols: 181, rows: 81, bounds: { west: -180, south: -78, east: 180, north: 82 } };
+    WORLD_COMMIT();
+    expect(window.__RAW_FRAME_STORE__.crop.resident).toBeNull();
     expect(window.__RAW_FRAME_STORE__.crop.window).toBeNull();
+    expect(step(3)).toBe(false);
+    expect(calls).toHaveLength(1);
+  });
+
+  it('a clip commit the engine did not take (it holds another box) is never the resident', async () => {
+    const { eng } = setup();
+    eng._waveData.waveGrid.bounds = { west: -100, south: 10, east: -60, north: 40 };
+    RT.noteCommitted(CROP_GRID(0), { hour: 0, model: 'GFS', layer: 'waves' });
+    await settle();
+    expect(window.__RAW_FRAME_STORE__.crop.resident).toBeNull();
+    expect(window.__RAW_FRAME_STORE__.commits.crop_not_resident).toBe(1);
   });
 });

@@ -303,7 +303,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   // 181 x 81 while the committed grid says 181 x 83; the pack is trimmed the same way.
   const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
   if (!e) return why('not_indexed');
-  if (noteCropCommitted(info, vt, grid, engine)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
+  if (noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
   if (!e.pack) {
     // Committed before its own pack landed (the prefetch or the idle pack is still out): resolve when it lands.
     if (engine) rt.pendingResident = { setKey: info.key, validTime: vt, cols: engine._texWidth, rows: engine._texHeight };
@@ -363,7 +363,7 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     if (!frame) return miss('no_frame_in_window');
     if (!frame.path) return miss('unbuilt_frame');
     const info = setFor(key, index);
-    if (rt.resident && rt.resident.crop) return showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    if (cropResidentFor(info)) return showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     const e = store().lookup(info.key, frame.valid_time);
     if (!e || !e.pack) {
       rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
@@ -413,7 +413,7 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
 // every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
 // resident texture; a 27 x 20 window is 2 KB). Kill: window.__RAW_DISABLE_FRAME_STORE_CROP__ = true.
 const CROP_AHEAD = 128;           // stored frames nearest the cursor whose window packs are built (from local bytes) when a new window becomes resident
-const crop = { packs: createCropPacks(), window: null, pending: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
+const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
 const idleRun = (fn) => { if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 200 }); else setTimeout(fn, 0); };
 
 // The window's pack for a parsed frame of the resident set; then the pending resident and a deferred show that waited on it.
@@ -465,10 +465,23 @@ function buildAhead(info, validTime) {
   idleRun(next);
 }
 
-// The committed grid is a window of frame `validTime`: remember it; the resident is known once its own window pack exists.
-function noteCropCommitted(info, validTime, grid, engine) {
+// The ENGINE holds that clip: the same texture size and the same (trimmed) bounds. A commit the guard refused, or a world frame
+// that replaced the clip, is told apart by this, never by which grid was last offered.
+const nearB = (a, b) => ['west', 'south', 'east', 'north'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
+function engineHolds(r) {
+  const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
+  const wg = engine && engine._waveData && engine._waveData.waveGrid;
+  return !!(engine && wg && wg.bounds && engine._texWidth === r.cols && engine._texHeight === r.rows && nearB(wg.bounds, r.bounds));
+}
+
+// After a normal commit. A window of frame `validTime`: remember it (the resident is known once its own window pack exists). Any
+// other grid: keep the clip resident only while the engine still holds it (the guard may have refused the commit).
+function noteCropCommitted(info, validTime, grid) {
   const win = cropShowOn() ? frameWindowOf(grid, info.index && info.index.grid) : null;
-  if (!win) { crop.window = null; crop.pending = null; return false; }
+  if (!win) {
+    if (crop.resident && !engineHolds(crop.resident)) Object.assign(crop, { resident: null, window: null, pending: null });
+    return false;
+  }
   const fresh = !(crop.window && crop.window.key === win.key && crop.window.setKey === info.key);
   crop.window = { ...win, setKey: info.key };
   crop.pending = { setKey: info.key, validTime, winKey: win.key };
@@ -478,26 +491,29 @@ function noteCropCommitted(info, validTime, grid, engine) {
   return true;
 }
 
-// The engine must HOLD that window (a commit the guard refused leaves another resident): same texture size, same trimmed bounds.
 function resolveCropPending(info, validTime) {
   const pd = crop.pending; const w = crop.window;
   if (!pd || !w || pd.setKey !== info.key || pd.validTime !== validTime || pd.winKey !== w.key) return;
   const p = crop.packs.get(info.key, validTime, w.key, packSignature());
   if (!p) return;
   crop.pending = null;
-  const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
-  const wg = engine && engine._waveData && engine._waveData.waveGrid;
-  const near = (a, b) => Math.abs(a - b) < 1e-6;
-  if (!engine || !wg || !wg.bounds || engine._texWidth !== p.cols || engine._texHeight !== p.rows
-    || !['west', 'south', 'east', 'north'].every((k) => near(wg.bounds[k], p.bounds[k]))) { rt.commits.crop_not_resident = (rt.commits.crop_not_resident || 0) + 1; return; }
-  rt.resident = { setKey: info.key, crop: true, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key },
+  const r = { setKey: info.key, crop: true, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key }, bounds: { ...p.bounds },
     validityHash: p.validityHash, validityBits: p.validityBits || null, cols: p.cols, rows: p.rows, signature: p.signature };
+  if (!engineHolds(r)) { crop.resident = null; rt.commits.crop_not_resident = (rt.commits.crop_not_resident || 0) + 1; return; }
+  crop.resident = r;
+}
+
+// tryShowStoredFrame's first question: is a clip of this lattice resident? (Checked against the engine on every step.)
+function cropResidentFor(info) {
+  const r = crop.resident;
+  if (!r || !cropShowOn()) return null;
+  if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return null; }
+  return r.setKey === info.key ? r : null;
 }
 
 function showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0) {
-  const r = rt.resident;
-  if (!cropShowOn()) return miss('crop_killed');
-  if (r.setKey !== info.key || r.signature !== packSignature()) return miss('resident_not_this_set');
+  const r = crop.resident;
+  if (r.signature !== packSignature()) return miss('resident_not_this_set');
   const p = crop.packs.get(info.key, frame.valid_time, r.window.key, r.signature);
   if (!p) {
     rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
@@ -536,7 +552,8 @@ function snapshot() {
     prefetch: rt.prefetcher ? rt.prefetcher.telemetry() : null, gpu: rt.pool ? rt.pool.telemetry() : null,
     shows: { ...rt.shows, misses: { ...rt.shows.misses } }, resident: rt.resident, commits: { ...rt.commits },
     fill: { ...rt.fill, blockedNow: rt.store ? idleFillBlocker() : null, sinceOpenMs: sinceOpen() },
-    crop: { on: cropShowOn(), window: crop.window, packs: crop.packs.size(), built: crop.built, shows: crop.shows, ahead: crop.ahead, pending: crop.pending },
+    crop: { on: cropShowOn(), window: crop.window, resident: crop.resident && { ...crop.resident, validityBits: undefined }, packs: crop.packs.size(),
+      built: crop.built, shows: crop.shows, ahead: crop.ahead, pending: crop.pending },
   };
 }
 // A live getter: every read is current (a prefetch lands between scrub steps, so a snapshot taken at a step would lag).
@@ -555,5 +572,5 @@ export function _resetFrameStoreRuntimeForTest() {
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
     resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
     fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null });
-  Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, building: new Set(), built: 0, shows: 0, ahead: 0 });
+  Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 });
 }
