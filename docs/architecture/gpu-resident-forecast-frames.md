@@ -626,10 +626,10 @@ The owner asked "what is more state of the art? eager or on demand loading on de
 alone:
 - **Open on demand.** The map opens with section 4.1's intent-gated window.
 - **Then fill in idle time.** Once that window has landed and after the first draw, an idle slice expands the plan to the whole
-  active run. This happens only on a `desktop` tier with no Save-Data, a `4g` link (or no Network Information API), a fine
-  primary pointer and a visible tab.
-- **Elsewhere, stay on demand.** Phones, coarse pointers, Save-Data, slow links and hidden tabs keep the intent-gated window
-  alone.
+  active run. This happens only on a `desktop` tier with no Save-Data, a link that is not `2g` / `slow-2g` (a `3g` reading fills
+  on a desktop: owner, 2026-10-22, DECISIONS; no Network Information API counts as fine), a fine primary pointer and a visible tab.
+- **Elsewhere, stay on demand.** Phones (including a phone that reads `3g`), coarse pointers, Save-Data, 2g links and hidden tabs
+  keep the intent-gated window alone.
 - **Kill:** `window.__RAW_DISABLE_FRAME_IDLE_FILL__`.
 
 Measured offline at the live-hit latency (log 2026-10-21-claude-gpu-frame-store, update 2026-10-22):

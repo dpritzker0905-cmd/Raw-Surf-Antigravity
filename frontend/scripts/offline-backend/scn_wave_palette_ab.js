@@ -35,7 +35,9 @@ const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
   l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lv2: { __RAW_LIGHT_CREST_V2__: true }, lt: { __RAW_LIGHT_CREST_STYLE__: 'twotone' }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
-  dk: { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true } };   // dk: the crest-density kill (marineCrestDensity.js), against v2 (on)
+  dk: { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true },   // dk: the crest-density kill (marineCrestDensity.js), against v2 (on)
+  // Beach crest lift (2026-10-22, marineBeachCrestLift.js, ON by default): bt = today (its kill), bl = subtle (the default), bm = more.
+  bt: { __RAW_DISABLE_BEACH_CREST_LIFT__: true }, bl: {}, bm: { __RAW_BEACH_CREST_LIFT__: 'more' } };
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4],
   mid: [-106.0, 16.5, 5.5], close: [-105.2, 18.4, 9.0], closer: [-105.2, 18.4, 10.5] };   // mid: light's density ramp is full (z5); close: dark's (z8)
