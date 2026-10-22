@@ -1487,3 +1487,19 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   which is what the two-tone was for; the owner prefers that to the two-tone's look.
 - **Rollback:** set `window.__RAW_LIGHT_CREST_STYLE__ = 'twotone'` before load to see the two-tone, or revert this PR.
 - **Reopen if:** the owner says so. A subtler crest change for light and beach is being built as a separate draft by the beach session.
+### D-0XX (numbered at merge) · Beach's crests stay as they are: no two-tone; the beach crest style code is removed
+- **Decided:** owner, 2026-10-22 00:04 EDT, to the beach crest session, after light's two-tone went live (#445, D-043) and before
+  beach's flip shipped: "No two-tone, they don't look like real waves in my opinion"; then, 00:10 EDT: "Remove the unused beach
+  two-tone code from dev (keep today's beach crests exactly)." Closes the beach A/B (#433, levers off by default) with no style
+  picked; light's two-tone went back off in its own PR (#448, D-044).
+- **Rule:** beach draws today's crests (orchid-pink, electric turquoise, sunset magenta, white foam, the engine's own self-contrast
+  where it runs) with no luminance structure inside them. `marineBeachCrestStyle.js`, its test, its shader hooks, its harness
+  variants and `wind-color/beach-crest-style.mjs` are removed. The standing rule from D-041's feedback holds (one colour family per
+  theme, no hue switch at a height); the two-tone's dark rim and light centre line are rejected as unlike real waves.
+- **Evidence:** `log/2026-10-21-claude-beach-crest-style.md` (2026-10-22 section). DRAW_FS and DRAW_VS on the branch hash exactly as
+  on dev 9b49111e8 under the default, light's two-tone lever, light V2 on request and dark's storm kill (sha256
+  e2438586... 8872, ed381124... 9233, 40aa1ea7... 9110, a9e8e102... 8811); the shader file is pre-#433 dev's apart from one JS comment word.
+- **Known costs:** beach's original complaint stands: today's crests share the v1 sea's brightness on the sand (1-2 m) and grey-mauve
+  (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
+- **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).
+- **Reopen if:** the owner asks again about crests blending into beach's heatmap.
