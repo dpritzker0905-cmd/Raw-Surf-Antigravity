@@ -135,6 +135,15 @@ describe('instant model toggle: the new model\'s stored frame with its own chl/b
     expect(toIcon(2)).toBe(true);                                        // at 6 h (inside ICON's native range) it is shown
   });
 
+  it('a world switch supersedes a stashed downgrade reject of the previous model', async () => {
+    const { eng } = setup();
+    await parse(GFS, 0); await parse(ICON, 2);
+    commitGfs(0);
+    eng._pendingDowngrade = { __sourceModel: 'GFS', __componentLayer: 'waves', productId: 'gfs0', hourOffset: 0, cols: 41, rows: 30 };
+    expect(toIcon(2)).toBe(true);
+    expect(eng._pendingDowngrade).toBeNull();
+  });
+
   it('after the switch, an ICON step takes the resident path (no second chl/bath compute)', async () => {
     setup();
     await parse(GFS, 0); await parse(ICON, 2); await parse(ICON, 3);

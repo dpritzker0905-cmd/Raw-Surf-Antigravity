@@ -12,7 +12,7 @@ import { uploadBytesTo2D } from './marineFrameStoreGpu';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { auxForPack } from './marineFrameAux';
 
-export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS }) {
+export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS, supersedeStash }) {
   // ── THE CROP SHOW (2026-10-22, marineFrameStoreCrop.js) ───────────────────────────────────────────────────────────────────────
   // At mid zoom the resident is a viewport CLIP of the frame (staticFrameCrop), not the world frame. While such a window is resident,
   // every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
@@ -168,6 +168,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     engine._waveData.waveGrid = { ...wg, hourOffset, valid_time: requestedValidTime, served_valid_time: frame.valid_time, run_time: meta.run_time ?? wg.run_time,
       model_run_time: meta.model_run_time ?? wg.model_run_time, productId: meta.product_id || wg.productId, __servedProductId: meta.product_id || null,
       is_estimated: !!meta.is_estimated, __fromFrameStore: true };
+    supersedeStash(engine, { model, layer, productId: meta.product_id || null, hourOffset });
     publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
     const map = rt.target.getMap && rt.target.getMap();
     if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
@@ -244,6 +245,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     crop.resident = { setKey: info.key, crop: true, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key }, bounds: { ...p.bounds },
       validityHash: p.validityHash, validityBits: p.validityBits || null, cols: p.cols, rows: p.rows, signature: p.signature };
     buildAhead(info, frame.valid_time);
+    supersedeStash(engine, { model, layer, productId: meta.product_id || null, hourOffset });
     publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
     const map = rt.target.getMap && rt.target.getMap();
     if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();

@@ -81,8 +81,27 @@ const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const sinceOpen = () => (rt.openedAt === null ? null : Math.round(nowMs() - rt.openedAt));
+// A STORE SHOW IS NEWER DATA ON SCREEN, as an accepted commit is (2026-10-22, found by the mid-zoom toggle A/B). The engine stashes a
+// grid its no-downgrade guard rejected (_pendingDowngrade) and swaps it in once the guard no longer holds; its commit choke clears
+// that stash on every ACCEPTED commit ("the stash must not resurrect"), but a show never passes through the choke. So a stash of
+// ANOTHER frame survived a show and resurrected later: after a model click at mid zoom, ICON's rejected world frame was drawn under
+// GFS for ~400 ms. A stash of the SAME product (another extent of the frame now drawn) stays: it is what a zoom-out brings back.
+// Kill: window.__RAW_DISABLE_FRAME_STASH_SUPERSEDE__ = true.
+export function supersedeStash(engine, { model, layer, productId, hourOffset }) {
+  const pd = engine && engine._pendingDowngrade;
+  if (!pd || W().__RAW_DISABLE_FRAME_STASH_SUPERSEDE__ === true) return false;
+  const pid = pd.__servedProductId || pd.productId || pd.product_id || null;
+  const same = (pd.__sourceModel || 'GFS') === (model || 'GFS') && (pd.__componentLayer || 'waves') === (layer || 'waves')
+    && (pid && productId ? pid === productId : pd.hourOffset === hourOffset);
+  if (same) return false;
+  engine._pendingDowngrade = null;
+  rt.shows.stashSuperseded = (rt.shows.stashSuperseded || 0) + 1;
+  return true;
+}
+
 // The crop show (#459) and model toggles on a crop resident (#458): marineFrameStoreCropShow.js, over this module's state.
-const CS = createCropShow({ rt, store: () => store(), miss, deferredShow: (info, vt) => deferredShow(info, vt), W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS });
+const CS = createCropShow({ rt, store: () => store(), miss, deferredShow: (info, vt) => deferredShow(info, vt), W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS,
+  supersedeStash: (engine, id) => supersedeStash(engine, id) });
 
 // ADAPTIVE IDLE FILL. The owner asked "what is more state of the art? eager or on demand loading on desktop?"; the lead's answer
 // (2026-10-22) is the plan: open on demand, then fill the run in idle time where the device and the link allow it. Returns why
@@ -562,6 +581,7 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
       rt.shows.aux = (rt.shows.aux || 0) + 1;
       if (crossModel) rt.shows.crossModel = (rt.shows.crossModel || 0) + 1;
     }
+    supersedeStash(engine, { model, layer, productId: meta.product_id || null, hourOffset });
     publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
     const map = rt.target.getMap && rt.target.getMap();
     if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();

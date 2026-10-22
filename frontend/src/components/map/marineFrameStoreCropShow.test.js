@@ -62,7 +62,7 @@ const parse = async (key, k, parsed) => { for (const fn of mockSF.hooks) fn({ ke
 const residentGfsClip = async () => { RT.noteCommitted(CLIP('GFS', 0), { hour: 0, model: 'GFS', layer: 'waves' }); await landAll((l) => l.key === GFS); };
 const toIcon = (k) => RT.tryShowStoredFrameForSwitch({ model: 'ICON', layer: 'waves', hourOffset: k * 3, requestedValidTime: vt(k) });
 const snap = () => window.__RAW_FRAME_STORE__;
-const KILLS = ['__RAW_DISABLE_FRAME_MODEL_TOGGLE__', '__RAW_DISABLE_FRAME_AUX_SHOW__', '__RAW_DISABLE_FRAME_STORE_CROP__', '__RAW_FRAME_STORE_TIER__', '__MARINE_DRAWN__'];
+const KILLS = ['__RAW_DISABLE_FRAME_MODEL_TOGGLE__', '__RAW_DISABLE_FRAME_AUX_SHOW__', '__RAW_DISABLE_FRAME_STORE_CROP__', '__RAW_FRAME_STORE_TIER__', '__MARINE_DRAWN__', '__RAW_DISABLE_FRAME_STASH_SUPERSEDE__'];
 afterEach(() => KILLS.forEach((k) => delete window[k]));
 
 describe('a model click on a mid-zoom clip shows the new model\'s window with its own chl/bath', () => {
@@ -98,6 +98,39 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
     expect(calls).toHaveLength(1);                                       // wave bytes only: the clip's chl/bath are ICON's already
     expect(firstDiff(calls[0][1], ICON_PACK.bytes)).toBe(-1);
     expect(snap().crop.shows).toBe(2);
+  });
+
+  it('the click supersedes a stashed downgrade reject of the previous model (it must never resurrect under ICON)', async () => {
+    const { eng } = setup();
+    await residentGfsClip();
+    await parse(ICON, 2, ICON_PARSED);
+    eng._pendingDowngrade = { __sourceModel: 'GFS', __componentLayer: 'waves', productId: 'GFS0', hourOffset: 0, cols: 181, rows: 83 };
+    expect(toIcon(2)).toBe(true);
+    expect(eng._pendingDowngrade).toBeNull();
+    expect(snap().shows.stashSuperseded).toBe(1);
+  });
+
+  it('a step keeps a stash of the SAME product (another extent of the frame now drawn: a zoom-out brings it back)', async () => {
+    const { eng } = setup();
+    await residentGfsClip();
+    await parse(GFS, 1, PARSED);
+    const stash = { __sourceModel: 'GFS', __componentLayer: 'waves', productId: 'GFS1', hourOffset: 3, cols: 181, rows: 83 };
+    eng._pendingDowngrade = stash;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(true);
+    expect(eng._pendingDowngrade).toBe(stash);
+  });
+
+  it('a step supersedes a stash of another hour; the kill switch keeps it', async () => {
+    const { eng } = setup();
+    await residentGfsClip();
+    await parse(GFS, 1, PARSED); await parse(GFS, 2, PARSED);
+    eng._pendingDowngrade = { __sourceModel: 'GFS', __componentLayer: 'waves', productId: 'GFS0', hourOffset: 0, cols: 181, rows: 83 };
+    window.__RAW_DISABLE_FRAME_STASH_SUPERSEDE__ = true;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(true);
+    expect(eng._pendingDowngrade).not.toBeNull();
+    delete window.__RAW_DISABLE_FRAME_STASH_SUPERSEDE__;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 6, requestedValidTime: vt(2) })).toBe(true);
+    expect(eng._pendingDowngrade).toBeNull();
   });
 
   it('a wheel step (not a click) never crosses models on a clip', async () => {
