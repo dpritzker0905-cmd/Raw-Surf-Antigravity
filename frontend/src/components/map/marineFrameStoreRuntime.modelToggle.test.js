@@ -93,7 +93,7 @@ const commitGfs = (k) => RT.noteCommitted({ served_valid_time: vt(k), cols: 181,
 const toIcon = (k) => RT.tryShowStoredFrameForSwitch({ model: 'ICON', layer: 'waves', hourOffset: k * 3, requestedValidTime: vt(k) });
 const snap = () => window.__RAW_FRAME_STORE__;
 const KILLS = ['__RAW_DISABLE_FRAME_STORE__', '__RAW_DISABLE_FRAME_PREFETCH__', '__RAW_DISABLE_FRAME_STORE_GPU__', '__RAW_DISABLE_FRAME_IDLE_FILL__',
-  '__RAW_DISABLE_FRAME_MODEL_TOGGLE__', '__RAW_DISABLE_FRAME_AUX_SHOW__', '__RAW_FRAME_STORE_TIER__', '__WEBGL_MARINE_THEME__', '__MARINE_DRAWN__'];
+  '__RAW_DISABLE_FRAME_MODEL_TOGGLE__', '__RAW_DISABLE_FRAME_AUX_SHOW__', '__RAW_FRAME_WARM_REST_MS__', '__RAW_FRAME_STORE_TIER__', '__WEBGL_MARINE_THEME__', '__MARINE_DRAWN__'];
 
 beforeEach(() => {
   RT._resetFrameStoreRuntimeForTest();
@@ -149,7 +149,9 @@ describe('instant model toggle: the new model\'s stored frame with its own chl/b
   });
 
   it.each([
-    ['the engine samples non-resident chl/bath', (eng) => { eng._waveData.u_chlorophyllTexture = { other: true }; }, 'textures'],
+    ['the engine samples a non-resident chlorophyll texture', (eng) => { eng._waveData.u_chlorophyllTexture = { other: true }; }, 'textures'],
+    ['the engine samples a non-resident bathymetry texture', (eng) => { eng._waveData.u_bathymetryTexture = { other: true }; }, 'textures'],
+    ['the engine samples a non-resident wave texture', (eng) => { eng._waveData.u_waveTexture = { other: true }; }, 'textures'],
     ['a rating grid is resident', (eng) => { eng._waveData.waveGrid.ratingMode = true; }, 'flavor'],
     ['another layer is resident', (eng) => { eng._waveData.waveGrid.__componentLayer = 'swell_1'; }, 'flavor'],
     ['a regional tile of the same size is resident', (eng) => { eng._waveData.bounds = { west: -130, east: -60, south: 10, north: 60 }; }, 'bounds'],
@@ -230,6 +232,32 @@ describe('warm frames of the other published models', () => {
     expect(snap().aux.sync || 0).toBe(0);
   });
 
+  it('warm frames that land after the run fill is planned (the cursor moved) still get their chl/bath in idle', async () => {
+    setup({ n: 30 });
+    commitGfs(10);
+    await landGfsUntilWarm();
+    mockSF.loads.filter((l) => l.key === ICON).forEach((l) => { l.done = true; l.resolve({ parsed: ICON_PARSED, buffer: null, wire: 1 }); });
+    await flush();
+    expect(snap().fill.planned).toBe(true);                               // the fill is granted: no replan follows a landing
+    window.__RAW_FRAME_WARM_REST_MS__ = 40;
+    RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(20) });   // a step: warm frames follow once the wheel rests
+    await flush();
+    expect(mockSF.loads.filter((l) => l.key === ICON)).toHaveLength(3);   // moving: nothing new asked of the other models
+    await new Promise((r) => setTimeout(r, 120));                         // resting
+    for (let i = 0; i < 10 && mockSF.loads.filter((l) => l.key === ICON).length < 6; i++) {
+      mockSF.loads.filter((l) => !l.done && l.key === GFS).forEach((l) => { l.done = true; l.resolve({ parsed: PARSED, buffer: null, wire: 1 }); });
+      await flush();
+    }
+    const fresh = mockSF.loads.filter((l) => l.key === ICON && !l.done);
+    expect(fresh.map((l) => l.frame.valid_time).sort()).toEqual([vt(19), vt(20), vt(21)]);
+    const before = snap().aux.idle;
+    fresh.forEach((l) => { l.done = true; l.resolve({ parsed: ICON_PARSED, buffer: null, wire: 1 }); });
+    await flush();
+    expect(snap().aux.idle - before).toBe(3);
+    expect(RT.tryShowStoredFrameForSwitch({ model: 'ICON', layer: 'waves', hourOffset: 60, requestedValidTime: vt(20) })).toBe(true);
+    expect(snap().aux.sync || 0).toBe(0);                                 // nothing computed at the click
+  });
+
   it('a set whose index is not pinned yet is pinned in the background, then planned', async () => {
     setup({ n: 30 });
     const iconIndex = mockSF.byKey[ICON];
@@ -237,8 +265,8 @@ describe('warm frames of the other published models', () => {
     commitGfs(10);
     expect(mockSF.pins).toEqual([ICON]);
     expect(iconAsked()).toEqual([]);
-    mockSF.byKey[ICON] = iconIndex;                                        // the pin lands (the mock resolves the second ask)
-    RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(10) });
+    mockSF.byKey[ICON] = iconIndex;                                        // the pin lands: pinWarm's callback replans
+    RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(10), commit: true });
     await landGfsUntilWarm();
     expect(iconAsked().sort()).toEqual([vt(9), vt(10), vt(11)]);
   });
@@ -258,14 +286,17 @@ describe('warm frames of the other published models', () => {
     expect(iconAsked()).toEqual([]);
   });
 
-  it('a GFS step never aborts a warm ICON request in flight', async () => {
+  it('a drag never aborts the warm requests in flight nor asks the other models for the hours it passes', async () => {
     setup({ n: 30 });
     commitGfs(10);
     await landGfsUntilWarm();
     const warm = mockSF.loads.filter((l) => l.key === ICON);
     expect(warm.length).toBeGreaterThan(0);
-    RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(10) });   // a replan, same cursor
+    const n = mockSF.loads.filter((l) => l.key === ICON).length;
+    for (const k of [11, 12, 13, 14, 15]) RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(k) });   // a drag
+    await flush();
     expect(warm.every((l) => !(l.signal && l.signal.aborted))).toBe(true);
+    expect(mockSF.loads.filter((l) => l.key === ICON)).toHaveLength(n);
   });
 
   it('when ICON becomes active its packed frames join the GPU (texture array), and GFS turns warm', async () => {

@@ -30,8 +30,8 @@
  * texture). Then nothing about the resident matters but its size and bounds: a MODEL SWITCH (tryShowStoredFrameForSwitch, called
  * by the orchestrator at the click) shows the new model's stored frame for the current hour at once, and a step after a /grid
  * fallback commit (rt.resident null) re-enters the fast path. To have those frames ready, a capable desktop keeps the OTHER
- * published waves sets warm at the cursor +-1 frame (planWant's warm entries, after the +-8 window, before the run fill) and
- * computes their chl/bath in idle time. A scrub step computes chl/bath synchronously (~63 ms) at most once a second.
+ * published waves sets warm at the cursor +-1 frame (planWant's warm entries, after the +-8 window, before the run fill), once the
+ * wheel has rested WARM_REST_MS (a drag never asks the other models for every hour it passes), and computes their chl/bath in idle. A scrub step computes chl/bath synchronously (~63 ms) at most once a second.
  *
  * SHIPS ON behind static frames. Kills (read per call):
  *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
@@ -41,6 +41,7 @@
  *   window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true     no show at a model switch and no warm frames of the other models
  *   window.__RAW_DISABLE_FRAME_AUX_SHOW__ = true         no exact chl/bath shows at all: the resident-gated path alone (phase 2)
  * Lever (OFF by default, egress): window.__RAW_FRAME_PREFETCH_EAGER__ = true streams the whole series from the first draw.
+ * Lever: window.__RAW_FRAME_WARM_REST_MS__ (500): how long the wheel must rest before the other models' warm frames follow it.
  * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
  */
 import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, setKeyFor, staticEligible } from './staticFrames';
@@ -60,13 +61,16 @@ export const VALIDITY_TOLERANCE_CELLS = 64;
 // Exact chl/bath (marineFrameAux) kept for this many frames (~117 KB each at 181 x 81), and how often a scrub step may compute one.
 const AUX_CAP = 12;
 const AUX_SYNC_EVERY_MS = 1000;
+// Warm frames follow the cursor only once the wheel RESTS this long: a drag across the run would otherwise ask the other models
+// for every position it passes (two whole runs, ~12 MB). While it moves, the last resting position's warm frames stay planned.
+const WARM_REST_MS = 500;
 const WARM_MODELS = ['GFS', 'ICON', 'EURO'];
 const WORLD_BBOX = { west: -180, east: 180, south: -80, north: 80 };
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
 
 const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
-const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Infinity, warmPinAt: new Map(),
+const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Infinity, warmPinAt: new Map(), lastPressAt: -Infinity, lastWarm: [], warmTimer: null,
   auxStats: { computed: 0, idle: 0, sync: 0, failed: 0, lastMs: null }, switches: { asked: 0, shown: 0, lastMs: null } });
 const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
   resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
@@ -250,7 +254,13 @@ function auxInIdle(setKey, validTime) {
 // WARM FRAMES: the other published waves sets of this layer, at the cursor's time +-1 frame, on a capable desktop only (the idle
 // fill's gate). A set whose run index is not pinned yet is pinned in the background (latest.json is cached; one index fetch).
 function warmPlan(info, layer, requestedValidTime) {
-  if (W().__RAW_DISABLE_FRAME_MODEL_TOGGLE__ === true || W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true || idleFillBlocker()) return [];
+  if (W().__RAW_DISABLE_FRAME_MODEL_TOGGLE__ === true || W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true || idleFillBlocker()) { rt.lastWarm = []; return []; }
+  const restMs = typeof W().__RAW_FRAME_WARM_REST_MS__ === 'number' ? W().__RAW_FRAME_WARM_REST_MS__ : WARM_REST_MS;
+  const moving = Date.now() - rt.lastPressAt;
+  if (moving < restMs) {
+    if (!rt.warmTimer) rt.warmTimer = setTimeout(() => { rt.warmTimer = null; if (rt.lastStep) noteStep({ ...rt.lastStep, commit: true }); }, restMs - moving + 20);
+    return rt.lastWarm.filter((w) => w.key !== info.key);
+  }
   const askMs = Date.parse(requestedValidTime);
   const out = [];
   for (const m of WARM_MODELS) {
@@ -270,6 +280,7 @@ function warmPlan(info, layer, requestedValidTime) {
       if (e && e.pack) auxInIdle(wi.key, v);        // already packed (the set was active before): its chl/bath in idle
     }
   }
+  rt.lastWarm = out;
   return out;
 }
 
@@ -413,6 +424,7 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
     for (const v of info.validTimes) uploadGpu(info, v);   // a set that was warm: its packed frames join the GPU now
   } else if (!commit) rt.intent.press(cursor);
   rt.lastStep = { model, layer, requestedValidTime };
+  if (!commit) rt.lastPressAt = Date.now();       // a wheel step or a model click: warm frames wait for the rest
   const st = rt.intent.state(); const t = store().tier;
   const slow = t === 'constrained';
   // EAGER (a lever, OFF by default: egress): the whole series from the first draw, not only after the wheel moved 4 frames.
@@ -571,6 +583,7 @@ export function _resetFrameStoreRuntimeForTest() {
   if (rt.pool) rt.pool.dispose();
   if (rt.onVis && typeof document !== 'undefined') document.removeEventListener('visibilitychange', rt.onVis);
   if (rt.onVis && rt.onConn && typeof rt.onConn.removeEventListener === 'function') rt.onConn.removeEventListener('change', rt.onVis);
+  if (rt.warmTimer) clearTimeout(rt.warmTimer);
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
     resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
     fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() });
