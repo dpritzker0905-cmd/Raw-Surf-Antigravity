@@ -43,6 +43,7 @@ beforeAll(() => {
   global.WebGL2RenderingContext = global.WebGL2RenderingContext || class {};
 });
 beforeEach(() => {
+  window.__RAW_DISABLE_HOLD_NO_DIM__ = true;   // these suites pin the stale-hour DIM (the hold's kill-switch path); the hold is pinned in marineStaleHour.test.js
   jest.useFakeTimers();
   jest.setSystemTime(ANCHOR + 10 * 60 * 1000);
   _resetSelectedMemoForTest();
@@ -56,6 +57,7 @@ beforeEach(() => {
   jest.spyOn(console, 'log').mockImplementation(() => {});
 });
 afterEach(() => {
+  delete window.__RAW_DISABLE_HOLD_NO_DIM__;
   jest.useRealTimers();
   delete window.__RAW_GPU__;
   delete window.__MOCK_DATE_NOW__;
@@ -73,6 +75,17 @@ describe('the multiplier the real layer passes to engine.render', () => {
     frame(layer);
     expect(opacityOf(engine)).toBe(STALE_WORLD_DIM);
     expect(window.__RAW_GPU__.staleHour).toMatchObject({ stale: true, why: 'stale_world', mult: STALE_WORLD_DIM });
+  });
+
+  it('HOLD WITHOUT DIMMING (the default): the same stale frame stays at full strength, judged stale, and the bridge still gets the hour', () => {
+    delete window.__RAW_DISABLE_HOLD_NO_DIM__;
+    const { layer, engine } = makeLayer(grid(NOW0));
+    frame(layer);
+    jest.advanceTimersByTime(STALE_HOLD_MS + 50);
+    frame(layer);
+    expect(opacityOf(engine)).toBe(1);
+    expect(window.__RAW_GPU__.staleHour).toMatchObject({ stale: true, why: 'stale_world', mult: 1, held: true });
+    expect(engine.__staleSwapMs).toBe(Date.parse(WED15));                // the resident swap's judgment is unchanged
   });
 
   it('hands the engine the selected instant while the stale frame is dimmed (its per-frame bridge may then promote the held base), and nothing otherwise', () => {

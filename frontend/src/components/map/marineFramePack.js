@@ -54,6 +54,21 @@ export function validityHash(mask) {
   return h.toString(16).padStart(8, '0');
 }
 
+/** The 0/1 validity mask as a bitset (1.9 KB for a world frame): kept with each pack so two frames' masks can be compared. */
+export function validityBits(mask) {
+  const out = new Uint8Array((mask.length + 7) >> 3);
+  for (let i = 0; i < mask.length; i++) if (mask[i]) out[i >> 3] |= 1 << (i & 7);
+  return out;
+}
+
+/** Cells whose validity differs between two bitsets of the same grid (Infinity when they are not comparable). */
+export function validityDiff(a, b) {
+  if (!a || !b || a.length !== b.length) return Infinity;
+  let n = 0;
+  for (let i = 0; i < a.length; i++) { let x = a[i] ^ b[i]; while (x) { n += x & 1; x >>= 1; } }
+  return n;
+}
+
 // trimDeadEdges' decision on planes: live = valid AND speed > 0 (its `v.speed > 0 || value` test; static frames carry no value).
 function trimWindow(cols, rows, bounds, live, w) {
   const full = { c0: 0, c1: cols - 1, r0: 0, r1: rows - 1, mirror: false };
@@ -146,6 +161,7 @@ export function packStaticFrame(parsed, { layer = 'waves', ratingMode = false, w
     }
   }
   const vHash = validityHash(oceanArr);
+  const vBits = validityBits(oceanArr);
   const isGlobal = !(bounds.east - bounds.west < 359.0);
   extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal);
   if (w.__RAW_DISABLE_DIR_DILATION__ !== true) dilateDirectionField(uArr, vArr, cols, rows, isGlobal);
@@ -200,5 +216,5 @@ export function packStaticFrame(parsed, { layer = 'waves', ratingMode = false, w
       out[i0 + 3] = out[iN + 3] = avgP;
     }
   }
-  return { bytes: out, cols, rows, bounds, isGlobal, validityHash: vHash, signature: packSignature(w), trimmed };
+  return { bytes: out, cols, rows, bounds, isGlobal, validityHash: vHash, validityBits: vBits, signature: packSignature(w), trimmed };
 }
