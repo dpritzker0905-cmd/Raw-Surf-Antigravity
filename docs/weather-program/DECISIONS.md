@@ -1498,7 +1498,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   theme, no hue switch at a height); the two-tone's dark rim and light centre line are rejected as unlike real waves.
 - **Evidence:** `log/2026-10-21-claude-beach-crest-style.md` (2026-10-22 section). DRAW_FS and DRAW_VS on the branch hash exactly as
   on dev 9b49111e8 under the default, light's two-tone lever, light V2 on request and dark's storm kill (sha256
-  e2438586... 8872, ed381124... 9233, 40aa1ea7... 9110, 52a20fd8... 9172); the shader file is pre-#433 dev's apart from one JS comment word.
+  e2438586... 8872, ed381124... 9233, 40aa1ea7... 9110, a9e8e102... 8811); the shader file is pre-#433 dev's apart from one JS comment word.
 - **Known costs:** beach's original complaint stands: today's crests share the v1 sea's brightness on the sand (1-2 m) and grey-mauve
   (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
 - **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).
