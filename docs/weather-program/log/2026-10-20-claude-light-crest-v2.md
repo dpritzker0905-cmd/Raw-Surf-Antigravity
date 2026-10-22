@@ -201,6 +201,114 @@ names "deep umber, cream from 3.05 m" and "umber-black foam, white from 3.05 m")
 ("mint-green") and beach's ("orchid-pink") crest literals; no other file carries them. (The GLSL `step(3.05, ...)` text is built at
 runtime from the table, so it is not a literal in the bundle.) Not yet seen on a screen by the owner: the dev site is gated.
 
+## 2026-10-21 00:30Z: crest density at mid-to-close zoom in big surf, and an art pass
+
+The owner (2026-10-20 ~21:00 EDT): "For light mode: Can we reduce the wave animation density at midclose to closer up zooms starting
+where when you can see the entire state name labels appear on the map and inward? Maybe 15-20% less dense? For beach mode from zoom
+where you can see city names on the label and closer, reduce the wave animation density 10-15%? And dark mode as well. But starting
+from two zooms closer in than beach mode. And only at areas where there are bigger surf does this affect, because bigger animations
+take over the screen. You might need to test the zoom levels for this as well using special tools and art." Then: "Give it all one more
+pass with special art skills to make sure we're making the crests as pleasing as possible to the eye with the themes color scheme in
+place". (Merged first, on the owner's word: #424, the #421 receipt, squash `448deb35c` at 01:54:15Z, every check green on its head.)
+
+**Label zooms, read from the real basemaps** (`scn_label_zoom.js`, new: per symbol layer, what each style PLACES at every half zoom
+from z2.5 to z11 over central California, with its minzoom and text-field, plus a screenshot per zoom): all three styles
+(navigation-day-v1, outdoors-v11, navigation-night-v1) spell every state out from **z5** (`state-label` steps on zoom 5; below it,
+"CALIF.", "NEV.", "ORE."). City names exist from z2.5 in every style (the big ones); beach's local coastal towns (Santa Cruz,
+Salinas, San Luis Obispo, Santa Barbara) fill in at **z6**. So: light from z5, beach from z6, dark from z8 (beach + 2). Each ramps in
+over the half zoom before it.
+
+**Where big surf takes over:** a crest's area grows ~4x from 1 m to 4 m (DRAW_VS: 18 -> 40 px long, 3 -> 8 px thick by
+smoothstep(0.1, 4.0, h)) while the engine holds ~1650 seeds on screen, so the cut ramps in from 2 m and is full from 4 m.
+
+**Built** (`marineCrestDensity.js`, branch `claude/crest-density-zoom` on dev `448deb35c`): DRAW_VS keeps a seed when its hash is
+under the density threshold; the threshold is scaled by (1 - cut x smoothstep(2 m, 4 m, h)), cut = light 17.5%, beach 12.5%, dark
+12.5% (the middle of each asked range) x the zoom ramp. The engine sets `u_densityCut` from `crestDensityCut(themeVal, z)` (one line;
+3206 of 3207); the shader's two touch points are interpolated into existing lines (still 978). Kill
+`window.__RAW_DISABLE_CREST_DENSITY_ZOOM__ = true` = dev's DRAW_VS byte for byte (sha256 pinned); a lever for the A/B,
+`window.__RAW_CREST_DENSITY_VISIBLE__ = true`, converts the owner's share into the seed cut that lowers COVERAGE by that share.
+
+**Measured in the real engine, offline** (production bundle, `scn_wave_palette_ab.js` variants `dk` (kill) / `v2` (as asked) / `vis`
+(as the eye sees it), views mid z5.5, coastal z7.4, close z9 over the synthetic storm; `crest_coverage.py`, new: the share of the
+frame the crests cover, against each frame's paired crest-free frame; 30 frames each). Share of the frame covered, today -> as asked
+-> as the eye sees it:
+
+| theme | coastal z7.4 | close z9 |
+|---|---|---|
+| light (17.5%) | 74.8% -> 66.5% (-11.0%) -> 58.8% (-21.4%) | 91.9% -> 87.4% (-4.9%) -> 75.9% (-17.5%) |
+| beach (12.5%) | 72.8% -> 69.3% (-4.8%) -> 63.5% (-12.7%) | 91.7% -> 86.9% (-5.2%) -> 73.6% (-19.8%) |
+| dark (12.5%, from z8) | 75.6% -> 74.5% (no cut: control) | 91.9% -> 87.8% (-4.4%) -> 75.2% (-18.2%) |
+
+Nulls (half vs half) <= 0.9 pts at coastal and close; the mid view's run 3-15 pts (the storm moves between captures), so mid is not
+read. **The finding:** crests overlap, so the cut as asked (a share of seeds) shows less the closer you zoom: 17.5% of light's seeds
+is 11% less coverage at z7.4 and 5% at z9, where crests already cover 92% of the frame. The as-the-eye-sees-it lever hits light's
+target at z9 (-17.5%) and overshoots beach and dark there (-18 to -20% against 12.5%): fitted on light; a per-theme fit if picked.
+
+**Art pass** (design critique of the engine stills in all three themes, with the theme's basemap, wash and UI): (1) the biggest
+problem in every theme is close-zoom big surf: crests cover ~90% of the frame and hide the wash, which carries the height; (2) light's
+lemon storm gold (C* 94) is loud over large areas; a warm gold (1.00, 0.90, 0.30) keeps the floors (|Lc| 39.8 at the switch,
+colour-blind 24.2), tells 3 m from 6 m better (17.7 dE00, colour-blind 13.3, against 20.1 / 10.2), is less saturated (C* 74) and
+sits 7.3 dE00 from light's own UI yellow (yellow-400): a local, uncommitted engine variant (`wg`) shows it; (3) beach's v1 magenta
+crests over its v1 sea and dark's orange crests over its hot-pink storm wash read hue-only in places: those crests are owned by the
+beach session (#416, undecided) and the dark-storm session (#419), told separately.
+
+## 2026-10-21 15:30Z: the density cut as the eye sees it, fitted per theme (D-042), and a staircase in the crest hash
+
+The owner, on #428's A/B: "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch light's
+storm to the warm gold in its own PR." (The warm gold is its own branch, `claude/light-storm-warm-gold`, D-040.)
+
+**First fit, and why it did not hold.** A one-pass sweep (`scn_density_sweep.js`, new: steps the live knob
+`window.__RAW_CREST_DENSITY_SEED_CUT__` inside one browser session per theme, paired crest-free frames, the GPU's `u_densityCut` read
+back at every step) gave per-theme seed cuts; a same-session check of those rows missed (light z7.4 -13.5%, beach z9 -7.5%). Bracketing
+(no cut / rows / no cut / rows / no cut, 20 s after each zoom jump, each step tagged on its own) reproduced the check to 1 pt and showed
+drift of at most 3.3 pts: the one-pass sweep (11 s settle) had folded the crests' fill-in into its first cuts. A refit then missed
+differently in the next session (beach z9 -22.2% at 0.37 against -7.3% at 0.25), so the response itself was mapped finely in one
+session at z9, beach and dark: threshold cuts 0.22 / 0.25 / 0.28 all read -7%, 0.31 read -18%, and 0.34 to 0.45 all read -22 to -23%,
+the same staircase in both themes.
+
+**The cause: the crest hash.** DRAW_VS keeps a crest when `particleHash = fract(sin(index x 12.9898) x 43758.5453)` is under the
+density threshold. With 296^2 particles the sine argument reaches ~1.1e6; GPUs range-reduce it in float32, so the hash collapses onto
+a few hundred values. A float32 emulation: 881 distinct values over 87,616 crests; at z9's threshold (0.183) one level holds 11% of
+the kept crests and 4.8% are exactly 0; lowering the threshold removes 16% of kept crests for any cut from 0.22 to 0.25, then 30% at
+0.31, then ~37% from 0.34 to 0.40 (the engine's staircase, offset). Where the steps fall moves with the threshold, i.e. with zoom and
+screen size, so no fitted row would hold on another screen. The same quantisation sits under the constant-screen-density cull
+(`u_densityBase`), which #428 does not touch: a follow-up, not this change (ledger finding 1601).
+
+**The fix.** The cut picks its crests with a hash of its own: `crestCutHash(vec2(col, row))`, Dave Hoskins' hash without sine over the
+particle's texel (13,798 distinct values; removes 12.51% +- 0.48 of the kept crests at a 12.5% cut over random on-screen subsets,
+11-15% within each of the sine hash's big levels, so the crest-size mix, which follows `particleHash`, is kept). A removed crest's
+threshold goes to -2, so crests whose sine hash is exactly 0 go too. The same two DRAW_VS lines change (the uniform line also carries
+the hash function, global scope; the threshold line gains a term after its clamp); the kill is still dev's DRAW_VS byte for byte.
+
+**Fitted on the new mechanism** (one bracketed session per theme, cuts 0 / 0.1 / 0.2 / 0.3 / 0.4 / 0, each against the no-cut
+coverage interpolated to its time; change in crest coverage):
+
+| theme | 0.1 | 0.2 | 0.3 | 0.4 | share for the target |
+|---|---|---|---|---|---|
+| light z7.4 / z9 / z10.5 | -4.4 / -2.1 / -2.5 | -11.4 / -5.9 / -7.9 | -17.9 / -9.5 / -12.7 | -25.1 / -15.0 / -19.4 | 0.29 / 0.45 / 0.37 |
+| beach z7.4 / z9 / z10.5 | -4.5 / -2.9 / -3.2 | -10.2 / -6.9 / -9.2 | -18.1 / -11.6 / -14.5 | -26.2 / -17.8 / -21.2 | 0.23 / 0.32 / 0.26 |
+| dark z8.25 / z9 / z10.5 | -2.9 / -2.2 / -3.5 | -8.3 / -6.6 / -7.2 | -14.1 / -10.8 / -13.8 | -20.4 / -15.9 / -20.1 | 0.27 / 0.33 / 0.28 |
+
+Smooth and convex everywhere, within 0.01-0.04 of the overlap model (coverage 1 - exp(-k (1 - share))). Light z9 needs 0.45 (-15.0% at
+0.4, extrapolated on its 0.3-0.4 slope; the model says 0.46): z9 is where this storm's crests stack deepest (91-93% coverage). Each
+row's first point (the ramp's start) is the overlap model at ~70% big-surf coverage: light z5 0.28, beach z6 0.22, dark z8 0.26.
+
+**Verified on the shipped rows** (the bundle's table, not the knob; bracketed, one session per theme; `u_densityCut` read back at every
+step): light -15.6 / -19.4 / -17.7% (z7.4 / z9 / z10.5; asked 15-20), beach -14.3 / -11.7 / -13.0% (asked 10-15), dark -12.4 /
+-12.1 / -12.1% (z8.25 / z9 / z10.5; asked 10-15). Repeat steps within a session agree to 1.5 pts; sessions differ by ~2 pts (light
+z7.4 read -17.9% at 0.3 in the fit session and -15.6% at 0.29 here), so the rows are not chased further.
+
+**Branch rebuilt on dev `f17508ba0`** (#423, #425, #430, #434, #426, #432, #429, #422 and #419 had landed), then dev `83c1c4c0c` merged in (#438, #439); ledger lines 1558-1560 of
+the first push re-chained after dev's head 1597 as 1598 (`pr_merge #424`), 1599 (`pr_open #428`), 1600 (the pick commitment), then 1601
+(finding: the hash staircase) and 1602 (decision D-042, fulfils 1600). Hosted CI's encoding-debris guard read the hash's plus-equals as
+mojibake (a token made only of box-drawing decay characters), so the GLSL says `p3 = p3 + dot(...)`, the same arithmetic. Decision numbers: D-037 is #431's (light spectrum, open), D-038
+is #430's (merged), D-039 is #419's (merged), so density is D-042, the warm gold D-040 and the light restore (#438) D-041.
+
+**Light's rows under the original crests** (18:15Z). The owner turned down light V2's height colour flips at 12:02Z ("The original
+was better") and the restore of the pre-#421 crests is #438 (D-041), so light's rows were re-read with
+`__RAW_DISABLE_LIGHT_CREST_V2__` (`scn_density_sweep.js` FLAGS, bracketed, shipped rows): -17.5 / -18.6 / -16.2% at z7.4 / z9 / z10.5,
+inside 15-20%. The fit holds whichever light crest colours ship (coverage counts crest pixels, not their colour).
+
 ## 2026-10-21 20:00Z: light's crests restored to the original (D-041)
 
 The owner, 08:02 EDT on the live dev site (relayed by the lead, who asked this session for the restore): "visually, in the live dev
@@ -247,4 +355,4 @@ regional 18.2 -> 52.3, coastal 20.3 -> 50.0; crest pixels at |Lc| >= 15:
 (coastal stills), hence the taper. Cost: crests read bolder; sea untouched by crests 57% -> 47% (world),
 59% -> 52% (regional), 18% -> 14% (coastal).
 
-Ledger: 1597 (`pr_open #442`), 1598 (commitment: the owner's pick, due 2026-10-24), after #438's 1595-1596 (this branch is stacked on it).
+Ledger: #442's `pr_open` and the owner's-pick commitment are carried by the lead's receipts PR; this branch adds no ledger lines.
