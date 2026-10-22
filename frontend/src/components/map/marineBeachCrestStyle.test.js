@@ -10,7 +10,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 const DRAW_FS_DEV = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
 // DRAW_FS before any crest change (dev f6b80f724): what the light V2 kill + dark's #419 kill draw, with or without this module.
 const DRAW_FS_BEFORE = { sha: 'a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad', length: 8811 };
-const OTHER_CREST_KILLS = { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_DISABLE_DARK_STORM_CREST__: true };
+const OTHER_CREST_KILLS = { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_DISABLE_DARK_STORM_CREST__: true, __RAW_DISABLE_LIGHT_CREST_STYLE__: true };
+const LIGHT_STYLE_KILL = { __RAW_DISABLE_LIGHT_CREST_STYLE__: true };   // the light two-tone (D-043) is on by default and shares these lines
 const withWindow = (levers, fn) => jest.isolateModules(() => {
   Object.assign(window, levers);
   try { fn(require('./WebGLMarineParticleShaders'), require('./marineBeachCrestStyle')); } finally { Object.keys(levers).forEach((k) => delete window[k]); }
@@ -22,16 +23,17 @@ describe('today, the kill and unknown values draw today\'s crest exactly', () =>
   it('no lever: style today, DRAW_FS is dev\'s byte for byte, and under the other crest kills it is the pre-V2 shader', () => {
     expect(BEACH_CREST_STYLE).toBe('today');
     expect(BEACH_CREST_STYLE_GLSL).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: '', alphaHead: '' });
-    expect(DRAW_FS.length).toBe(DRAW_FS_DEV.length);
-    expect(sha(DRAW_FS)).toBe(DRAW_FS_DEV.sha);
-    expect(DRAW_FS).toContain('  float boostedAlpha = alpha * mix(1.2, 1.8, energy);\n');
+    const DEV_FS = drawFsUnder(LIGHT_STYLE_KILL);   // dev's DRAW_FS before the light flip (D-043)
+    expect(DEV_FS.length).toBe(DRAW_FS_DEV.length);
+    expect(sha(DEV_FS)).toBe(DRAW_FS_DEV.sha);
+    expect(DEV_FS).toContain('  float boostedAlpha = alpha * mix(1.2, 1.8, energy);\n');
     withWindow(OTHER_CREST_KILLS, (shaders) => {
       expect(shaders.DRAW_FS.length).toBe(DRAW_FS_BEFORE.length);
       expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
     });
-    expect(DRAW_FS).toContain('  float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);\n');
-    expect(DRAW_FS).toContain('  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);\n');
-    expect(DRAW_FS).toContain('  float crestContrastEff = max(u_crestContrast,\n');
+    expect(DEV_FS).toContain('  float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);\n');
+    expect(DEV_FS).toContain('  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);\n');
+    expect(DEV_FS).toContain('  float crestContrastEff = max(u_crestContrast,\n');
   });
 
   it('the kill wins over every lever; unknown values do nothing', () => {
@@ -80,13 +82,13 @@ describe('the style pieces', () => {
 
   it('cased: the engine\'s own self-contrast at full strength in beach, nothing else', () => {
     expect(beachCrestStyleGlsl('cased')).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: 'u_theme > 1.5 ? 1.0 : ', alphaHead: '' });
-    expect(drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'cased' })).toContain('  float crestContrastEff = u_theme > 1.5 ? 1.0 : max(u_crestContrast,\n');
+    expect(drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'cased', ...LIGHT_STYLE_KILL })).toContain('  float crestContrastEff = u_theme > 1.5 ? 1.0 : max(u_crestContrast,\n');
   });
 
   it('twotonebold: twotone with beach\'s crest alpha x3 before the 0.85 cap, in beach only (the recommendation, listed first)', () => {
     expect(Object.keys(BEACH_CREST_STYLES)[0]).toBe('twotonebold');
     expect(beachCrestStyleGlsl('twotonebold')).toEqual({ ...beachCrestStyleGlsl('twotone'), alphaHead: '(u_theme > 1.5 ? 3.00 : 1.0) * ' });
-    const fs = drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'twotonebold' });
+    const fs = drawFsUnder({ __RAW_BEACH_CREST_STYLE__: 'twotonebold', ...LIGHT_STYLE_KILL });
     expect(fs).toContain('  float boostedAlpha = alpha * (u_theme > 1.5 ? 3.00 : 1.0) * mix(1.2, 1.8, energy);\n');
     expect(fs).toContain('boostedAlpha = min(boostedAlpha, 0.85);');   // the cap stays: x3 lifts faint crests to it, never past it
   });

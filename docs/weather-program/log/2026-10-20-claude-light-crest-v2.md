@@ -360,3 +360,19 @@ regional 18.2 -> 52.3, coastal 20.3 -> 50.0; crest pixels at |Lc| >= 15:
 the two-tone >= 41.1 there and >= 40.2 on v2, colour-blind >= 32.4 / 33.9 dE00, centre vs rim >= 65 / 62.
 
 Ledger: #442's `pr_open` and the owner's-pick commitment are carried by the lead's receipts PR; this branch adds no ledger lines.
+
+## 2026-10-22 02:40Z: the light two-tone ON by default (D-043, the owner's pick)
+
+The owner, after the A/B re-shot on light's live spectrum (same page, version 2): "Turn the light two-tone on by default (the one-line
+flip), with its kill switch, and record the pick."
+
+**Change** (`claude/light-twotone-on` on dev `95363ea27`, after #433's beach levers): `resolveLightCrestStyle` returns the two-tone by
+default wherever light draws its original colours (`LIGHT_CREST_ID === 'v1'`); V2 on request and the restore's kill draw V2 as before
+(the two-tone stays off over V2's colours, so their pins hold); the kill `__RAW_DISABLE_LIGHT_CREST_STYLE__` draws dev's DRAW_FS from
+before the flip byte for byte. DRAW_FS default sha256 ed381124... (9233); kill e2438586... (8872, dev's); V2 on request 40aa1ea7...
+(9110, dev's); every crest kill together a9e8e102... (8811, f6b80f724).
+
+**Tests:** six other crest suites pinned the pre-flip shader as their baseline (WebGLMarineShaders, marineHeightEncoding,
+marineDarkStormCrest, marineBeachCrestStyle, marineWaveSpectrum, marineCrestPaletteLight); each now names the two-tone kill where it
+means "the shader before X", the pattern #419 set with its dark kill. `light-crest-style.mjs` strips the module's new import and passes
+the crest id. Re-shot clips on the spectrum: world 17.7 -> 56.4, regional 21.2 -> 46.3, coastal 23.9 -> 50.2 (p99 |Lc|).
