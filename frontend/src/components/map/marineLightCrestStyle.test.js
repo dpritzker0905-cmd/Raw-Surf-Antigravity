@@ -6,7 +6,8 @@ import { LIGHT_CREST_STYLES, LIGHT_CREST_STYLE, lightCrestStyleGlsl, resolveLigh
 // (#438); the two-tone changes the four lines it hooks (ribbon edge, tone, self-contrast, alpha) and nothing else, each gated on the
 // light theme so dark and beach compute exactly as before; the values are the measured ones (light-crest-style.mjs).
 const sha = (s) => createHash('sha256').update(s).digest('hex');
-// DRAW_FS of the restored default (#438 on dev f17508ba0: the original light crest, #419's dark storm casing).
+// DRAW_FS on dev 23a91534f, the default this lever must leave byte for byte: the restored original light crest (#438, D-041), #419's
+// dark storm casing; #428 changes DRAW_VS only.
 const DRAW_FS_DEFAULT = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
 const ON = { __RAW_LIGHT_CREST_STYLE__: 'twotone' };
 const KILL = { __RAW_DISABLE_LIGHT_CREST_STYLE__: true };
