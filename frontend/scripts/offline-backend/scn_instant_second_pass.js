@@ -42,13 +42,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const FIXED = [['ArrowRight'], ['ArrowRight'], ['ArrowRight'], ['ArrowRight'], ['PageUp'], ['PageUp'], ['BURST'], ['PageDown'], ['ArrowLeft'], ['Home']];
 
 // ---- the local CDN, with optional faults (deterministic per path: the first ask of a faulted path fails, a retry succeeds) ----
-const cdnLog = { requests: 0, bytes: 0, frames: 0, faults: 0, truncated: 0 };
+const cdnLog = { requests: 0, bytes: 0, frames: 0, faults: 0, truncated: 0, rateLimited: 0, maxConcurrent: 0 };
+// CDN_RATE_LIMIT=N (2026-10-22): a stand-in for Supabase Storage's rate limit (the live read saw 3 x 429 at 6 in flight): a frame
+// ask that arrives while N are already being served is answered 429 at once.
+const RATE_LIMIT = +(process.env.CDN_RATE_LIMIT || 0);
+let concurrent = 0;
 let FAULTS = false;
 const asked = new Map();
 const hash32 = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
 const cdn = http.createServer((req, res) => {
   const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
   const file = path.join(CDN_DIR, rel);
+  if (rel.endsWith('.bin')) {
+    if (RATE_LIMIT && concurrent >= RATE_LIMIT) { cdnLog.rateLimited += 1; res.writeHead(429, { 'access-control-allow-origin': '*' }); return res.end('rate limited'); }
+    concurrent += 1; cdnLog.maxConcurrent = Math.max(cdnLog.maxConcurrent, concurrent);
+    res.on('close', () => { concurrent -= 1; });
+  }
   const send = () => {
     const cors = { 'access-control-allow-origin': '*' };
     if (!file.startsWith(path.resolve(CDN_DIR)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -239,7 +248,8 @@ async function session(arm, round) {
       return { store: t ? { tier: t.tier, fill: t.fill, prefetch: t.prefetch, shows: t.shows, gpu: t.gpu, sets: (t.sets || []).map((s) => ({ frames: s.frames, packed: s.packed, resident: s.resident, absent: s.absent, unbuilt: s.unbuilt })) } : null,
         pairs: P.pairs, texSame: P.texSame, sf: window.__RAW_STATIC_FRAMES__ ? { hits: window.__RAW_STATIC_FRAMES__.hits, misses: window.__RAW_STATIC_FRAMES__.misses, errors: window.__RAW_STATIC_FRAMES__.errors } : null }; });
     return { arm, round, theme, phone, wholeRunMs, ctx, max, steps, backendRequests: byPath, cdn: { requests: cdnLog.requests - cdn0.requests, frames: cdnLog.frames - cdn0.frames,
-      faults: cdnLog.faults - cdn0.faults, truncated: cdnLog.truncated - cdn0.truncated }, errors: [...errors, ...log.errors.slice(0, 5)], ...tail };
+      faults: cdnLog.faults - cdn0.faults, truncated: cdnLog.truncated - cdn0.truncated, rateLimited: cdnLog.rateLimited - cdn0.rateLimited, maxConcurrent: cdnLog.maxConcurrent },
+      errors: [...errors, ...log.errors.slice(0, 5)], ...tail };
   } finally { await browser.close(); FAULTS = false; }
 }
 
