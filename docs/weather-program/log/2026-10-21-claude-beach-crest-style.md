@@ -135,3 +135,23 @@ the two dev merges and this re-chain). STATE's anchor is moved to 1610. If #437 
 - Lesson: a luminance structure inside a moving crest (dark outline, white core) reads as a drawn symbol, not lit water; the owner
   judges crests by whether they look like real waves first, contrast numbers second. The blend on beach's sand and grey-mauve bands
   is still open.
+
+## 2026-10-22 (later): the subtle beach crest lift, draft #450
+
+Ask (lead, relaying the owner's "It needs to be a subtle improvement", beach only): today's colours, act only where crests vanish
+(sand ~1-2 m, grey-mauve ~4.4-6.8 m) with a smooth height ramp, foam-like and subtle, worst |Lc| >= 30 in the bands, a draft ON for
+the Netlify deploy preview, a moving clip, nothing merges before the owner looks.
+- Model first (`frontend/scripts/wind-color/beach-crest-lift.mjs`, reads `marineBeachCrestLift.js`): a white lift fails on the SAND
+  band. The sand is lighter (Y 0.35-0.57) than the crests (Y 0.34-0.47), so whitening carries a crest through the sand's brightness;
+  |Lc| stayed 0 at every zoom for any lift up to 0.6. So each band moves the crest AWAY from the sea under it: sand -> a little deeper
+  (x 0.70, a wave face in shadow), grey-mauve (Y 0.06-0.29) -> a little whiter (35% toward white, foam); alpha x1.5 far out to x1 by z7
+  inside the bands; ramps 0.3 / 0.4 m; 0 outside 0.7-2.3 m and 4.0-7.2 m. Levels: subtle (default), more (x0.55 / 50%).
+- Worst |Lc| inside the bands (today mostly 0): subtle sand 8-13, grey-mauve 0-37 (33-37 at regional, 9-10 at coast/close); more 13-21
+  / 13-51. Typical in the band cores at coast: subtle 18-26 / 30-32. Look change (mean dE00 of crest pixels vs today): 8-11 subtle,
+  10-18 more inside the bands, 0 outside. The 30 target is reached subtly only on grey-mauve at regional zoom; reaching it everywhere
+  takes ~0.6 in both bands (dE 15-25), not subtle. Worst cases sit at the bands' top edges, where the sea's brightness returns.
+- Engine (offline, paired exact wash, p99 |Lc| today -> subtle -> more): world 0.3 -> 16.9 -> 22.9; coastal 35.7 -> 48.6 -> 56.6; crest
+  pixels at |Lc| >= 15 at the coast 17.5% -> 28.7% -> 32.5%; null <= 2.9. GPU: the DRAW program linked in light, dark and beach, today
+  and lift, world and coastal. Kill = dev's DRAW_FS byte for byte (e2438586), subtle ce8b5a6e, more 06ffcc97; Jest 438/438 (map, tests,
+  __tests__). Deploy preview https://deploy-preview-450--rawsurf.netlify.app carries the lift (its shader chunk holds beachSand).
+- Owner page (same link as the two-tone A/B, version 3): https://claude.ai/artifact/LebieAg312hzjyruotS9KN. Ledger 1655 (pr_open #450).
