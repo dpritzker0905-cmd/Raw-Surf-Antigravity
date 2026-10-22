@@ -113,6 +113,15 @@ SNAPPED box (Step 3, `filter_grid_to_bbox(get_snapped_bbox(bbox))`, data-extent 
 `publish_frame_images.py` runs since #422), and the GFS pass slices one whole-globe NOAA download per box. A set per
 (model, layer, region): `GFS/marine/waves/<region_id>`, same RSWF v1 codec, same index and `latest.json`, parity-gated node by
 node at publish. Worldwide regions refresh every 32 h (the rotation), so each region pins its own run.
+- Shape (proposed by the static-frames session, 2026-10-22; the lead or the owner decides): ONE immutable bundle per regional
+  set per run, because ~131 map sets x per-frame objects would not fit the publish budget. The bundle is the concatenation of
+  the per-frame gzip members, each byte for byte the per-frame object (RSWF v1, mtime 0). The run index lists each frame as
+  {valid_time, is_estimated, offset, length, sha12}; an unbuilt frame has offset null and falls back to `/grid`. The client
+  inflates member by member, so frame identity and the existing codec and `packWindow` are unchanged. Paths:
+  `v1/<model>/marine/<layer>/<region_id>/<run>/bundle-<sha12>.bin`; `latest.json` gets one entry per set key; the bucket keeps
+  the current and the previous bundle. HTTP Range reads of one member are a later option (not verified on the CDN).
+- The tile rule on the client mirrors the slack exactly: the server yields to a tile while the request is at most tile + 0.05
+  deg on BOTH axes (pinned by `scn_static_crop_parity.mjs`'s edge boxes against the real resolver).
 
 **Budget** (world frames measure 3.7 bytes per cell gzipped: 55.4 KB / 15,023 cells).
 
