@@ -79,3 +79,12 @@ What changed in light's crest animations on 10-21/22, newest first, with each pe
 
 #445 is the change that deployed just before the verdict. The beach two-tone flip (same method) is PAUSED until the owner
 says which part he dislikes.
+
+## 7. 2026-10-22 04:05Z: the owner rejects two-tone crests for light and beach (ledger 1651)
+
+- 23:57 EDT, to the lead: "yes" to turning light's two-tone (#445) back off; the light crest session is making that PR
+  (default off, a new decision superseding D-043; D-043's text stays).
+- 00:04 EDT, to the beach crest session: "No two-tone, they don't look like real waves in my opinion". #433's levers stay off;
+  commitment 1608 is closed by decision 1651 ("none").
+- Open, not being built: crests still blend into parts of the light and beach washes. Any next attempt must look like real
+  waves to the owner and be shown to him moving on the real dev map before it ships.
