@@ -389,3 +389,5 @@ crest suites #445 touched go back to their state before #445 (dev `576e021b1`): 
 (`__RAW_LIGHT_CREST_STYLE__ = 'twotone'`), the kill stays, and light's default DRAW_FS is dev `28be37d3f`'s byte for byte (sha256
 e2438586..., 8872). `marineBeachCrestStyle.test.js` keeps #445's edits (inert with the default off): the beach session is deleting
 that file with the unused beach two-tone code, so this PR does not touch it.
+
+Ledger: 1652 (`pr_open #448`) and 1653 (decision D-044), after dev's 1651 (dev `c0db9c57e`, merged in after #446 landed).
