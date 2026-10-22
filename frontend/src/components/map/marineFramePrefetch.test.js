@@ -24,7 +24,7 @@ describe('planWant (the intent-gated policy the simulator scored)', () => {
     const plan = planWant({ active, cursor: 10, dir: 1, warm });
     expect(plan.slice(0, 3)).toEqual([{ key: 'A', validTime: vt(10) }, { key: 'A', validTime: vt(11) }, { key: 'A', validTime: vt(9) }]);
     expect(plan.filter((p) => p.key === 'A')).toHaveLength(2 * WINDOW + 1);
-    expect(plan.slice(2 * WINDOW + 1)).toEqual(warm);
+    expect(plan.slice(2 * WINDOW + 1)).toEqual(warm.map((w) => ({ ...w, warm: true })));   // flagged: never aborted while planned
   });
 
   it('(c) the rest of the series streams once the gate is open, nearest-first, with no duplicates', () => {
@@ -113,24 +113,28 @@ describe('createPrefetcher', () => {
     expect(pf.telemetry()).toMatchObject({ landed: 1, bytes: 100 });
   });
 
-  it('on a toggle, the old set\'s requests outside the new top 2 x CAP are aborted; the active set\'s never are', async () => {
+  it('on a toggle, the old set\'s requests outside the new top 2 x CAP are aborted unless still planned warm; the active set\'s never are', async () => {
     const { store, mkSet, pf, calls } = rig();
     const A = mkSet('GFS'); const B = mkSet('ICON');
     pf.open();
     pf.replan(planWant({ active: { key: A, validTimes: series(30) }, cursor: 5 }), A);
     const firstSix = calls.slice(0, CAP);
-    // Toggle to B (a 30-frame series): A's cursor frame is a warm frame, but it sits at plan position 17, after B's 17-frame
-    // window, outside the top 2 x CAP = 12, so it is aborted with the rest.
+    // Toggle to B (a 30-frame series): A's cursor frame stays planned as a WARM frame (a toggle back needs it), so it is NOT
+    // aborted although it sits outside the top 2 x CAP; A's other requests are. (Before Stage A, 2026-10-22, a warm frame in
+    // flight was aborted too: harmless while nothing planned one, but a scrub replans on every step, so it would re-ask the
+    // CDN for the same warm frame each time.)
     pf.replan(planWant({ active: { key: B, validTimes: series(30) }, cursor: 5, warm: [{ key: A, validTime: vt(5) }] }), B);
-    expect(firstSix.filter((c) => c.signal && c.signal.aborted)).toHaveLength(CAP);
-    expect(store.entry(A, vt(5)).state).toBe('absent');
-    expect(pf.telemetry().aborted).toBe(CAP);
+    expect(firstSix.filter((c) => c.signal && c.signal.aborted)).toHaveLength(CAP - 1);
+    expect(firstSix.find((c) => c.path === `GFS/${vt(5)}.bin`).signal.aborted).toBe(false);
+    expect(store.entry(A, vt(5)).state).toBe('inflight');
+    expect(pf.telemetry().aborted).toBe(CAP - 1);
     // Re-planning the SAME active set never ABORTS its requests as stale (the series is fetched anyway); a big jump only
     // PREEMPTS the lowest-priority ones so the new cursor's first two frames start at once.
     const inB = calls.slice(CAP).filter((c) => c.path.startsWith('ICON/'));
+    // (This plan has no warm entry, so A's frame is stale now and aborted; one B request is preempted for the second head slot.)
     pf.replan(planWant({ active: { key: B, validTimes: series(30) }, cursor: 25 }), B);
-    expect(pf.telemetry()).toMatchObject({ aborted: CAP, preempted: 2 });
-    expect(inB.filter((c) => c.signal.aborted)).toHaveLength(2);
+    expect(pf.telemetry()).toMatchObject({ aborted: CAP, preempted: 1 });
+    expect(inB.filter((c) => c.signal.aborted)).toHaveLength(1);
     expect(calls.slice(-2).map((c) => c.path)).toEqual([`ICON/${vt(25)}.bin`, `ICON/${vt(26)}.bin`]);
   });
 

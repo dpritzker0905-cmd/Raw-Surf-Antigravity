@@ -25,39 +25,83 @@
  * resident's by at most VALIDITY_TOLERANCE_CELLS is shown with the resident's chl/bath, and the normal commit that follows (it
  * always runs) brings that frame's own chl/bath. Kill: window.__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ = true (exact masks only).
  *
+ * EXACT AUX SHOW AND INSTANT MODEL TOGGLES (Stage A, 2026-10-22): a frame can also go on screen with its OWN chl/bath bytes
+ * (marineFrameAux: the encoder's function on the frame's own masks, uploaded into the resident chl/bath textures beside the wave
+ * texture). Then nothing about the resident matters but its size and bounds: a MODEL SWITCH (tryShowStoredFrameForSwitch, called
+ * by the orchestrator at the click) shows the new model's stored frame for the current hour at once, and a step after a /grid
+ * fallback commit (rt.resident null) re-enters the fast path. To have those frames ready, a capable desktop keeps the OTHER
+ * published waves sets warm at the cursor +-1 frame (planWant's warm entries, after the +-8 window, before the run fill), once the
+ * wheel has rested WARM_REST_MS (a drag never asks the other models for every hour it passes), and computes their chl/bath in idle.
+ * Only a desktop tier computes chl/bath synchronously (~63 ms): at a click, or on a scrub step at most once a second.
+ *
  * SHIPS ON behind static frames. Kills (read per call):
  *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
  *   window.__RAW_DISABLE_FRAME_PREFETCH__ = true         no prefetch: the store fills only from #422's own loads
  *   window.__RAW_DISABLE_FRAME_STORE_GPU__ = true        no texture arrays: CPU bytes + texSubImage2D per step
  *   window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true        no idle fill: the intent-gated policy alone (the series after 4 frames)
+ *   window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true     no show at a model switch and no warm frames of the other models
+ *   window.__RAW_DISABLE_FRAME_AUX_SHOW__ = true         no exact chl/bath shows at all: the resident-gated path alone (phase 2)
  * Lever (OFF by default, egress): window.__RAW_FRAME_PREFETCH_EAGER__ = true streams the whole series from the first draw.
+ * Lever: window.__RAW_FRAME_WARM_REST_MS__ (500): how long the wheel must rest before the other models' warm frames follow it.
  * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
  */
-import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, loadFrameParsed, setKeyFor } from './staticFrames';
+import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, setKeyFor, staticEligible } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
 import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
 import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
+import { auxForPack } from './marineFrameAux';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
-import { cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';   // the crop show (2026-10-22)
+import { createCropShow } from './marineFrameStoreCropShow';   // the crop show (2026-10-22)
 
 const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
 // Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
 // 0.24% of 15,023; 64 leaves room and still refuses a different grid outright).
 export const VALIDITY_TOLERANCE_CELLS = 64;
+// Exact chl/bath (marineFrameAux) kept for this many frames (~117 KB each at 181 x 81), and how often a scrub step may compute one.
+const AUX_CAP = 12;
+const AUX_SYNC_EVERY_MS = 1000;
+// Warm frames follow the cursor only once the wheel RESTS this long: a drag across the run would otherwise ask the other models
+// for every position it passes (two whole runs, ~12 MB). While it moves, the last resting position's warm frames stay planned.
+const WARM_REST_MS = 500;
+const WARM_MODELS = ['GFS', 'ICON', 'EURO'];
+const WORLD_BBOX = { west: -180, east: 180, south: -80, north: 80 };
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
 
 const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
+const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Infinity, warmPinAt: new Map(), lastPressAt: -Infinity, lastWarm: [], warmTimer: null,
+  auxStats: { computed: 0, idle: 0, sync: 0, failed: 0, lastMs: null }, switches: { asked: 0, shown: 0, lastMs: null } });
 const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
   resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
-  fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null };
+  fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() };
 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const sinceOpen = () => (rt.openedAt === null ? null : Math.round(nowMs() - rt.openedAt));
+// A STORE SHOW IS NEWER DATA ON SCREEN, as an accepted commit is (2026-10-22, found by the mid-zoom toggle A/B). The engine stashes a
+// grid its no-downgrade guard rejected (_pendingDowngrade) and swaps it in once the guard no longer holds; its commit choke clears
+// that stash on every ACCEPTED commit ("the stash must not resurrect"), but a show never passes through the choke. So a stash of
+// ANOTHER frame survived a show and resurrected later: after a model click at mid zoom, ICON's rejected world frame was drawn under
+// GFS for ~400 ms. A stash of the SAME product (another extent of the frame now drawn) stays: it is what a zoom-out brings back.
+// Kill: window.__RAW_DISABLE_FRAME_STASH_SUPERSEDE__ = true.
+export function supersedeStash(engine, { model, layer, productId, hourOffset }) {
+  const pd = engine && engine._pendingDowngrade;
+  if (!pd || W().__RAW_DISABLE_FRAME_STASH_SUPERSEDE__ === true) return false;
+  const pid = pd.__servedProductId || pd.productId || pd.product_id || null;
+  const same = (pd.__sourceModel || 'GFS') === (model || 'GFS') && (pd.__componentLayer || 'waves') === (layer || 'waves')
+    && (pid && productId ? pid === productId : pd.hourOffset === hourOffset);
+  if (same) return false;
+  engine._pendingDowngrade = null;
+  rt.shows.stashSuperseded = (rt.shows.stashSuperseded || 0) + 1;
+  return true;
+}
+
+// The crop show (#459) and model toggles on a crop resident (#458): marineFrameStoreCropShow.js, over this module's state.
+const CS = createCropShow({ rt, store: () => store(), miss, deferredShow: (info, vt) => deferredShow(info, vt), W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS,
+  supersedeStash: (engine, id) => supersedeStash(engine, id) });
 
 // ADAPTIVE IDLE FILL. The owner asked "what is more state of the art? eager or on demand loading on desktop?"; the lead's answer
 // (2026-10-22) is the plan: open on demand, then fill the run in idle time where the device and the link allow it. Returns why
@@ -139,7 +183,8 @@ function setFor(key, index) {
     const validTimes = (index.frames || []).map((f) => f.valid_time).filter(Boolean).sort();
     const byVt = new Map((index.frames || []).map((f) => [f.valid_time, f]));
     const byPid = new Map((index.frames || []).filter((f) => f.meta && f.meta.product_id).map((f) => [f.meta.product_id, f.valid_time]));
-    info = { key: s.key, staticKey: key, index, validTimes, byVt, byPid, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
+    const byPath = new Map((index.frames || []).filter((f) => f.path).map((f) => [f.path, f]));
+    info = { key: s.key, staticKey: key, index, validTimes, byVt, byPid, byPath, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
     rt.sets.set(sk, info);
     // A new run or signature retires the old sets of the same model x layer (theme change, kill switch, re-pin).
     const keep = new Set([...rt.sets.values()].filter((x) => x.staticKey !== key || x.key === s.key).map((x) => x.key));
@@ -186,15 +231,89 @@ function deferredShow(info, validTime) {
   if (!w || w.setKey !== info.key || w.validTime !== validTime) return;
   rt.want = null;
   if (Date.now() - w.at > WANT_TTL_MS) return;
-  if (tryShowStoredFrame(w.args)) rt.shows.deferred = (rt.shows.deferred || 0) + 1;
+  if (showStored(w.args, !!w.switching)) rt.shows.deferred = (rt.shows.deferred || 0) + 1;
 }
 
 function upload(info, validTime) {
   resolvePending(info, validTime);
   uploadGpu(info, validTime);
+  if (rt.activeKey && info.key !== rt.activeKey) auxInIdle(info.key, validTime);   // a warm frame: its chl/bath before the click
   deferredShow(info, validTime);
   noteFillDone(info);
   armIdleFill();
+}
+
+// ── Exact chl/bath (Stage A) ──────────────────────────────────────────────────────────────────────────────────────────────
+// The frame's own chl/bath bytes, from the LRU or computed now (`compute`), else null.
+function auxFor(setKey, validTime, e, compute, how) {
+  const id = `${setKey}@${validTime}`;
+  const hit = rt.aux.get(id);
+  if (hit && hit.validityHash === e.pack.validityHash && hit.cols === e.pack.cols && hit.rows === e.pack.rows) {
+    rt.aux.delete(id); rt.aux.set(id, hit);
+    return hit;
+  }
+  if (!compute) return null;
+  const t0 = nowMs();
+  let a = null;
+  try { a = auxForPack(e.pack); } catch (err) { a = null; }
+  rt.auxStats.lastMs = +(nowMs() - t0).toFixed(1);
+  if (!a) { rt.auxStats.failed += 1; return null; }
+  rt.auxStats.computed += 1; rt.auxStats[how] = (rt.auxStats[how] || 0) + 1;
+  rt.aux.set(id, a);
+  while (rt.aux.size > AUX_CAP) rt.aux.delete(rt.aux.keys().next().value);
+  return a;
+}
+
+function auxInIdle(setKey, validTime) {
+  const id = `${setKey}@${validTime}`;
+  if (W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true || rt.aux.has(id) || rt.auxPending.has(id)) return;
+  rt.auxPending.add(id);
+  idleSlice(() => {
+    rt.auxPending.delete(id);
+    const e = store().entry(setKey, validTime);
+    if (e && e.pack) auxFor(setKey, validTime, e, true, 'idle');
+  });
+}
+
+// WARM FRAMES: the other published waves sets of this layer, at the cursor's time +-1 frame, on a capable desktop only (the idle
+// fill's gate). A set whose run index is not pinned yet is pinned in the background (latest.json is cached; one index fetch).
+function warmPlan(info, layer, requestedValidTime) {
+  if (W().__RAW_DISABLE_FRAME_MODEL_TOGGLE__ === true || W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true || idleFillBlocker()) { rt.lastWarm = []; return []; }
+  const restMs = typeof W().__RAW_FRAME_WARM_REST_MS__ === 'number' ? W().__RAW_FRAME_WARM_REST_MS__ : WARM_REST_MS;
+  const moving = Date.now() - rt.lastPressAt;
+  if (moving < restMs) {
+    if (!rt.warmTimer) rt.warmTimer = setTimeout(() => { rt.warmTimer = null; if (rt.lastStep) noteStep({ ...rt.lastStep, commit: true }); }, restMs - moving + 20);
+    return rt.lastWarm.filter((w) => w.key !== info.key);
+  }
+  const askMs = Date.parse(requestedValidTime);
+  const out = [];
+  for (const m of WARM_MODELS) {
+    const k = setKeyFor(m, layer);
+    if (k === info.staticKey || !staticEligible({ model: m, layer, bbox: WORLD_BBOX, surf: false })) continue;
+    const idx = getPinnedIndexSync(k);
+    if (!idx) { pinWarm(k); continue; }
+    const wi = setFor(k, idx);
+    const f = pickIndexFrame(idx, askMs);
+    const i = f ? wi.layerOf.get(f.valid_time) : undefined;
+    if (i === undefined) continue;
+    for (const j of [i, i + 1, i - 1]) {
+      const v = wi.validTimes[j];
+      if (!v) continue;
+      out.push({ key: wi.key, validTime: v, built: !!(wi.byVt.get(v) || {}).path });
+      const e = store().entry(wi.key, v);
+      if (e && e.pack) auxInIdle(wi.key, v);        // already packed (the set was active before): its chl/bath in idle
+      if (CS.crop.window) CS.buildCrop(wi, v);            // a mid-zoom window is resident: its pack of this warm frame too
+    }
+  }
+  rt.lastWarm = out;
+  return out;
+}
+
+function pinWarm(k) {
+  const now = Date.now();
+  if ((rt.warmPinAt.get(k) || 0) > now - 60000) return;
+  rt.warmPinAt.set(k, now);
+  Promise.resolve(getPinnedIndex(k)).then((idx) => { if (idx && rt.lastStep) noteStep({ ...rt.lastStep, commit: true }); }).catch(() => {});
 }
 
 // A pool whose WebGL context was lost (marineFrameStoreGpu: its arrays are dead objects): drop it and the store's GPU residency (the
@@ -209,8 +328,9 @@ function dropDeadPool() {
 }
 
 function uploadGpu(info, validTime) {
+  if (rt.activeKey && info.key !== rt.activeKey) return;   // a warm set stays in CPU bytes: no 7.5 MB array for a few frames
   const e = store().entry(info.key, validTime);
-  if (!e || !e.packed || !e.pack) return;
+  if (!e || !e.packed || !e.pack || (e.layer !== null && e.layer !== undefined && rt.pool && rt.pool.has(info.key))) return;
   let pool = gpuPool(e.pack.cols, e.pack.rows);
   if (pool && !pool.alive()) { dropDeadPool(); pool = gpuPool(e.pack.cols, e.pack.rows); }
   if (!pool) return;
@@ -236,7 +356,7 @@ function onParsed({ key, frame, parsed, buffer }) {
   const index = getPinnedIndexSync(key);
   if (!index) return;
   const info = setFor(key, index);
-  cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
+  CS.cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
   const e = store().entry(info.key, frame.valid_time);
   if (!e || e.state !== 'absent') return;
   const run = () => { const now = store().entry(info.key, frame.valid_time); if (now && now.state === 'absent') packInto(info, frame.valid_time, parsed, buffer); };
@@ -249,8 +369,8 @@ function ensureInit() {
     rt.prefetcher = createPrefetcher({
       store: store(),
       fetchFrame: async (path, signal) => {
-        const info = [...rt.sets.values()].find((x) => x.key === rt.activeKey) || [...rt.sets.values()][0];
-        const frame = info && [...info.byVt.values()].find((f) => f.path === path);
+        const info = [...rt.sets.values()].find((x) => x.byPath.has(path));   // the active set's or a warm set's frame
+        const frame = info && info.byPath.get(path);
         if (!info || !frame) return { error: 'unknown_frame' };
         const got = await loadFrameParsed(info.staticKey, frame, signal);
         return got ? { buffer: { parsed: got.parsed }, raw: got.buffer || null, wire: got.wire } : { error: signal && signal.aborted ? 'aborted' : 'load_failed' };
@@ -286,7 +406,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   if (!frameStoreOn() || !grid) return;
   const key = setKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
   const index = getPinnedIndexSync(key);
-  if (!index) return why('no_index');
+  if (!index) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index'); }
   if (grid.ratingMode) return why('rating');
   const info = setFor(key, index);
   // Which stored frame is it? Its served time when it carries one; else its product id through the run index (the
@@ -303,7 +423,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   // 181 x 81 while the committed grid says 181 x 83; the pack is trimmed the same way.
   const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
   if (!e) return why('not_indexed');
-  if (noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
+  if (CS.noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
   if (!e.pack) {
     // Committed before its own pack landed (the prefetch or the idle pack is still out): resolve when it lands.
     if (engine) rt.pendingResident = { setKey: info.key, validTime: vt, cols: engine._texWidth, rows: engine._texHeight };
@@ -325,8 +445,13 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
   const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
   const cursor = frame ? info.layerOf.get(frame.valid_time) : undefined;
   if (cursor === undefined) return;
-  if (rt.activeKey !== info.key) { rt.intent.switchTo(info.key, cursor); rt.activeKey = info.key; rt.want = null; } else if (!commit) rt.intent.press(cursor);
+  if (rt.activeKey !== info.key) {
+    rt.intent.switchTo(info.key, cursor); rt.activeKey = info.key;
+    if (!(rt.want && rt.want.setKey === info.key)) rt.want = null;
+    for (const v of info.validTimes) uploadGpu(info, v);   // a set that was warm: its packed frames join the GPU now
+  } else if (!commit) rt.intent.press(cursor);
   rt.lastStep = { model, layer, requestedValidTime };
+  if (!commit) rt.lastPressAt = Date.now();       // a wheel step or a model click: warm frames wait for the rest
   const st = rt.intent.state(); const t = store().tier;
   const slow = t === 'constrained';
   // EAGER (a lever, OFF by default: egress): the whole series from the first draw, not only after the wheel moved 4 frames.
@@ -335,7 +460,7 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
   const fill = rt.fill.key === info.key && !idleFillBlocker();
   rt.fill.planned = fill;
   const plan = planWant({ active: { key: info.key, validTimes: info.validTimes, built: (v) => !!(info.byVt.get(v) || {}).path },
-    cursor, dir: st.dir, expanded: st.expanded || eager || fill, warm: [], slow, full: store().budget.full });
+    cursor, dir: st.dir, expanded: st.expanded || eager || fill, warm: warmPlan(info, layer, requestedValidTime), slow, full: store().budget.full });
   rt.prefetcher.replan(plan, info.key, { slow });
   const eng = rt.target.getEngine && rt.target.getEngine();
   if (eng && eng._waveData) {                                    // never before the first marine draw
@@ -350,12 +475,55 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
  * The fast path: put the stored frame for (model, layer, requested valid time) on screen now. Returns true when it did; false
  * (with the reason counted) when the normal path must do it. Never throws.
  */
-export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTime }) {
+export function tryShowStoredFrame(args) {
+  return showStored(args, false);
+}
+
+/**
+ * INSTANT MODEL TOGGLE (Stage A): the same, at a model switch. The resident is another model's frame, so the show carries this
+ * frame's own chl/bath (computed now when a warm frame's are not ready yet, ~63 ms once). The orchestrator calls it at the click;
+ * its coalesced fetch still follows and commits the same frame. Kill: window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true.
+ */
+export function tryShowStoredFrameForSwitch(args) {
+  if (W().__RAW_DISABLE_FRAME_MODEL_TOGGLE__ === true) return false;
+  const t0 = nowMs();
+  rt.switches.asked += 1;
+  const ok = showStored(args, true);
+  if (ok) { rt.switches.shown += 1; rt.switches.lastMs = +(nowMs() - t0).toFixed(3); }
+  return ok;
+}
+
+const near = (a, b) => Math.abs(a - b) < 1e-6;
+const sameBounds = (a, b) => !!(a && b) && near(a.west, b.west) && near(a.east, b.east) && near(a.south, b.south) && near(a.north, b.north);
+
+// May this frame go on screen with its OWN chl/bath (whatever the resident is)? Returns the aux bytes, or the reason it may not.
+function auxShowable(engine, wg, e, info, validTime, layer, switching) {
+  if (W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true) return 'killed';
+  const wd = engine._waveData;
+  if (!engine._residentChlTex || !engine._residentBathTex || wd.u_chlorophyllTexture !== engine._residentChlTex
+    || wd.u_bathymetryTexture !== engine._residentBathTex || (wd.u_waveTexture && wd.u_waveTexture !== engine._residentWaveTex)) return 'textures';
+  if (wg.ratingMode || (wg.__componentLayer || 'waves') !== (layer || 'waves')) return 'flavor';
+  if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return 'dims';
+  if (!sameBounds(wd.bounds || wg.bounds, e.pack.bounds)) return 'bounds';
+  const now = nowMs();
+  const cached = auxFor(info.key, validTime, e, false);
+  if (cached) return cached;
+  // Computed now only on a desktop tier (~63 ms; a phone would block its main thread several times longer), and on a scrub step
+  // at most once a second (a drag never pays it on every step).
+  if (store().tier !== 'desktop' || (!switching && now - rt.auxSyncAt < AUX_SYNC_EVERY_MS)) return 'aux_not_ready';
+  rt.auxSyncAt = now;
+  return auxFor(info.key, validTime, e, true, 'sync') || 'aux_failed';
+}
+
+function showStored({ model, layer, hourOffset, requestedValidTime }, switching) {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   rt.want = null;                                   // a new step supersedes any deferred show
   try {
     if (!frameStoreOn()) return false;
     if (!rt.target) return miss('no_target');
+    // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
+    // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
+    if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
     const key = setKeyFor(model, layer);
     const index = getPinnedIndexSync(key);
     if (!index) return miss('no_index');
@@ -363,10 +531,11 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     if (!frame) return miss('no_frame_in_window');
     if (!frame.path) return miss('unbuilt_frame');
     const info = setFor(key, index);
-    if (cropResidentFor(info)) return showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    if (CS.cropResidentFor(info)) return CS.showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    if (switching && CS.cropResidentOther(info)) return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     const e = store().lookup(info.key, frame.valid_time);
     if (!e || !e.pack) {
-      rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
+      rt.want = { args: { model, layer, hourOffset, requestedValidTime }, switching, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
       return miss('not_ready');
     }
     const engine = rt.target.getEngine && rt.target.getEngine();
@@ -375,25 +544,44 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     const wg = engine && engine._waveData && engine._waveData.waveGrid;
     if (!engine || !gl || !tex || !wg) return miss('no_engine');
     const r = rt.resident;
-    if (!r || r.setKey !== info.key || r.signature !== packSignature()) return miss('resident_not_this_set');
-    // The resident's chl/bath follow ITS mask until the next normal commit: a show leaves rt.resident's mask as it was.
-    let maskCells = 0;
-    if (r.validityHash !== e.pack.validityHash) {
-      if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) return miss('validity_differs');
-      maskCells = validityDiff(r.validityBits, e.pack.validityBits);
-      if (!(maskCells <= VALIDITY_TOLERANCE_CELLS)) return miss('validity_differs');
+    // The resident path: the resident is this set's frame, and its chl/bath follow ITS mask until the next normal commit (a show
+    // leaves rt.resident's mask as it was). Otherwise (another model, a /grid frame, too many cells apart) the exact aux path.
+    let why = null; let maskCells = 0; let aux = null;
+    if (!r || r.setKey !== info.key || r.signature !== packSignature()) why = 'resident_not_this_set';
+    else if (r.validityHash !== e.pack.validityHash) {
+      if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) why = 'validity_differs';
+      else {
+        maskCells = validityDiff(r.validityBits, e.pack.validityBits);
+        if (!(maskCells <= VALIDITY_TOLERANCE_CELLS)) why = 'validity_differs';
+      }
+    }
+    if (why) {
+      const got = auxShowable(engine, wg, e, info, frame.valid_time, layer, switching);
+      if (typeof got === 'string') { rt.shows.auxMiss = { ...(rt.shows.auxMiss || {}), [got]: ((rt.shows.auxMiss || {})[got] || 0) + 1 }; return miss(why); }
+      aux = got; maskCells = 0;
     }
     if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return miss('dims_differ');
+    if (aux && !(uploadBytesTo2D(gl, engine._residentChlTex, aux.chl, aux.cols, aux.rows)
+      && uploadBytesTo2D(gl, engine._residentBathTex, aux.bath, aux.cols, aux.rows))) { rt.resident = null; return miss('copy_failed'); }
     let ok = false;
     if (e.layer !== null && rt.pool && rt.pool.has(info.key)) ok = rt.pool.copyToTexture(info.key, e.layer, tex);
     if (!ok) dropDeadPool();                       // a lost context: never trust the array again; the CPU bytes below are exact
     if (!ok && e.packed) ok = uploadBytesTo2D(gl, tex, e.packed, e.pack.cols, e.pack.rows);
-    if (!ok) return miss('copy_failed');
+    if (!ok) { if (aux) rt.resident = null; return miss('copy_failed'); }   // chl/bath already moved: no resident is known
     const meta = frameMeta(index, frame);
     const ask = requestedValidTime;
+    const crossModel = (wg.__sourceModel || 'GFS') !== model;
     engine._waveData.waveGrid = { ...wg, hourOffset, valid_time: ask, served_valid_time: frame.valid_time, run_time: meta.run_time ?? wg.run_time,
       model_run_time: meta.model_run_time ?? wg.model_run_time, productId: meta.product_id || wg.productId, __servedProductId: meta.product_id || null,
-      is_estimated: !!meta.is_estimated, __fromFrameStore: true };
+      is_estimated: !!meta.is_estimated, __fromFrameStore: true,
+      ...(crossModel ? { __sourceModel: model, provider: meta.provider ?? wg.provider, estimate_basis: meta.estimate_basis ?? null } : {}) };
+    if (aux) {
+      // The engine now holds exactly this frame (wave bytes and its own chl/bath): it is the resident a later step compares with.
+      rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, validityBits: e.pack.validityBits || null, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
+      rt.shows.aux = (rt.shows.aux || 0) + 1;
+      if (crossModel) rt.shows.crossModel = (rt.shows.crossModel || 0) + 1;
+    }
+    supersedeStash(engine, { model, layer, productId: meta.product_id || null, hourOffset });
     publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
     const map = rt.target.getMap && rt.target.getMap();
     if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
@@ -408,158 +596,14 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
   }
 }
 
-// ── THE CROP SHOW (2026-10-22, marineFrameStoreCrop.js) ───────────────────────────────────────────────────────────────────────
-// At mid zoom the resident is a viewport CLIP of the frame (staticFrameCrop), not the world frame. While such a window is resident,
-// every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
-// resident texture; a 27 x 20 window is 2 KB). Kill: window.__RAW_DISABLE_FRAME_STORE_CROP__ = true.
-const CROP_AHEAD = 49;            // stored frames nearest the cursor (+-24) whose window packs are built when a new window becomes resident;
-                                  // the rest are built as they are stepped to (a miss, then the deferred show) or parsed
-const CROP_AHEAD_SMALL = 17;      // the same on a phone or a constrained device: the cursor +-8
-const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
-const idleRun = (fn) => { if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 200 }); else setTimeout(fn, 0); };
-
-// The window's pack for a parsed frame of the resident set; then the pending resident and a deferred show that waited on it.
-function cropFromParsed(info, validTime, parsed, now = false) {
-  const w = crop.window;
-  if (!cropShowOn() || !w || w.setKey !== info.key || !parsed || crop.packs.has(info.key, validTime, w.key)) return;
-  const run = () => {
-    const w2 = crop.window;
-    if (!w2 || w2.key !== w.key || w2.setKey !== info.key || crop.packs.has(info.key, validTime, w2.key)) return;
-    let p = null;
-    try { p = packWindow(parsed, w2); } catch (e) { p = null; }
-    if (!p) return;
-    crop.packs.put(info.key, validTime, w2.key, p);
-    crop.built += 1;
-    resolveCropPending(info, validTime);
-    deferredShow(info, validTime);
-  };
-  if (now) run(); else idleRun(run);
-}
-
-// Build one window pack through #422's shared loader (the frame's bytes are usually in the HTTP cache already).
-function buildCrop(info, validTime) {
-  const w = crop.window;
-  const frame = info.byVt.get(validTime);
-  if (!w || w.setKey !== info.key || !frame || !frame.path || crop.packs.has(info.key, validTime, w.key)) return null;
-  const id = `${info.key}|${validTime}|${w.key}`;
-  if (crop.building.has(id)) return null;
-  crop.building.add(id);
-  return loadFrameParsed(info.staticKey, frame)
-    .then((got) => { if (got) cropFromParsed(info, validTime, got.parsed, true); })
-    .catch(() => {})
-    .finally(() => crop.building.delete(id));
-}
-
-// A new window: build the packs of the frames nearest the cursor, one at a time in idle time. Only frames the store already holds
-// (their bytes were fetched under the store's own egress policy); frames that land later get theirs as they are parsed.
-function buildAhead(info, validTime) {
-  const at = info.layerOf.get(validTime);
-  if (at === undefined) return;
-  // The cursor +-24 on a desktop, +-8 on a phone or a constrained device: each build re-reads the frame through the shared loader
-  // (the HTTP cache when it is warm; with the cache off, a download outside the prefetch limiter), and every pan is a new window.
-  const ahead = (store().tier === 'desktop' || store().tier === 'webgl1') ? CROP_AHEAD : CROP_AHEAD_SMALL;
-  const order = info.validTimes.map((v, i) => [v, Math.abs(i - at)]).filter(([v]) => { const e = store().entry(info.key, v); return !!(e && e.pack); })
-    .sort((a, b) => a[1] - b[1]).slice(0, ahead).map((x) => x[0]);
-  const winKey = crop.window && crop.window.key;
-  const next = () => {
-    if (!crop.window || crop.window.key !== winKey || !order.length) return;
-    const p = buildCrop(info, order.shift());
-    crop.ahead += p ? 1 : 0;
-    (p || Promise.resolve()).then(() => idleRun(next));
-  };
-  idleRun(next);
-}
-
-// The ENGINE holds that clip: the same texture size and the same (trimmed) bounds. A commit the guard refused, or a world frame
-// that replaced the clip, is told apart by this, never by which grid was last offered.
-const nearB = (a, b) => ['west', 'south', 'east', 'north'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
-function engineHolds(r) {
-  const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
-  const wg = engine && engine._waveData && engine._waveData.waveGrid;
-  return !!(engine && wg && wg.bounds && engine._texWidth === r.cols && engine._texHeight === r.rows && nearB(wg.bounds, r.bounds));
-}
-
-// After a normal commit. A window of frame `validTime`: remember it (the resident is known once its own window pack exists). Any
-// other grid: keep the clip resident only while the engine still holds it (the guard may have refused the commit).
-function noteCropCommitted(info, validTime, grid) {
-  const own = info.byVt.get(validTime);                     // a frame on its own lattice (frame.grid) is windowed on that one
-  const win = cropShowOn() ? frameWindowOf(grid, (own && own.grid) || (info.index && info.index.grid)) : null;
-  if (!win) {
-    if (crop.resident && !engineHolds(crop.resident)) Object.assign(crop, { resident: null, window: null, pending: null });
-    return false;
-  }
-  const fresh = !(crop.window && crop.window.key === win.key && crop.window.setKey === info.key);
-  crop.window = { ...win, setKey: info.key };
-  crop.pending = { setKey: info.key, validTime, winKey: win.key };
-  if (crop.packs.get(info.key, validTime, win.key, packSignature())) resolveCropPending(info, validTime);
-  else buildCrop(info, validTime);
-  if (fresh) buildAhead(info, validTime);
-  return true;
-}
-
-function resolveCropPending(info, validTime) {
-  const pd = crop.pending; const w = crop.window;
-  if (!pd || !w || pd.setKey !== info.key || pd.validTime !== validTime || pd.winKey !== w.key) return;
-  const p = crop.packs.get(info.key, validTime, w.key, packSignature());
-  if (!p) return;
-  crop.pending = null;
-  const r = { setKey: info.key, crop: true, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key }, bounds: { ...p.bounds },
-    validityHash: p.validityHash, validityBits: p.validityBits || null, cols: p.cols, rows: p.rows, signature: p.signature };
-  if (!engineHolds(r)) { crop.resident = null; rt.commits.crop_not_resident = (rt.commits.crop_not_resident || 0) + 1; return; }
-  crop.resident = r;
-}
-
-// tryShowStoredFrame's first question: is a clip of this lattice resident? (Checked against the engine on every step.)
-function cropResidentFor(info) {
-  const r = crop.resident;
-  if (!r || !cropShowOn()) return null;
-  if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return null; }
-  return r.setKey === info.key ? r : null;
-}
-
-function showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0) {
-  const r = crop.resident;
-  if (r.signature !== packSignature()) return miss('resident_not_this_set');
-  const p = crop.packs.get(info.key, frame.valid_time, r.window.key, r.signature);
-  if (!p) {
-    rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
-    buildCrop(info, frame.valid_time);
-    return miss('crop_not_ready');
-  }
-  const engine = rt.target.getEngine && rt.target.getEngine();
-  const gl = rt.target.getGl && rt.target.getGl();
-  const tex = engine && engine._residentWaveTex;
-  const wg = engine && engine._waveData && engine._waveData.waveGrid;
-  if (!engine || !gl || !tex || !wg) return miss('no_engine');
-  let maskCells = 0;
-  if (r.validityHash !== p.validityHash) {
-    if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) return miss('validity_differs');
-    maskCells = validityDiff(r.validityBits, p.validityBits);
-    if (!(maskCells <= cropToleranceCells(p.cols * p.rows, VALIDITY_TOLERANCE_CELLS))) return miss('validity_differs');   // scaled to the window
-  }
-  if (engine._texWidth !== p.cols || engine._texHeight !== p.rows || wg.cols !== p.cols || wg.rows !== p.rows) return miss('dims_differ');
-  if (!uploadBytesTo2D(gl, tex, p.bytes, p.cols, p.rows)) return miss('copy_failed');
-  const meta = frameMeta(index, frame);
-  engine._waveData.waveGrid = { ...wg, hourOffset, valid_time: requestedValidTime, served_valid_time: frame.valid_time, run_time: meta.run_time ?? wg.run_time,
-    model_run_time: meta.model_run_time ?? wg.model_run_time, productId: meta.product_id || wg.productId, __servedProductId: meta.product_id || null,
-    is_estimated: !!meta.is_estimated, __fromFrameStore: true };
-  publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
-  const map = rt.target.getMap && rt.target.getMap();
-  if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
-  rt.shows.n += 1; crop.shows += 1;
-  if (maskCells > 0) { rt.shows.maskTolerated = (rt.shows.maskTolerated || 0) + 1; rt.shows.maskCellsMax = Math.max(rt.shows.maskCellsMax || 0, maskCells); }
-  rt.shows.lastMs = +(((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)).toFixed(3);
-  return true;
-}
-
 function snapshot() {
   return {
     on: frameStoreOn(), ...(rt.store ? rt.store.telemetry() : {}),
     prefetch: rt.prefetcher ? rt.prefetcher.telemetry() : null, gpu: rt.pool ? rt.pool.telemetry() : null,
     shows: { ...rt.shows, misses: { ...rt.shows.misses } }, resident: rt.resident, commits: { ...rt.commits },
+    aux: { ...rt.auxStats, cached: rt.aux.size }, switches: { ...rt.switches },
     fill: { ...rt.fill, blockedNow: rt.store ? idleFillBlocker() : null, sinceOpenMs: sinceOpen() },
-    crop: { on: cropShowOn(), window: crop.window, resident: crop.resident && { ...crop.resident, validityBits: undefined }, packs: crop.packs.size(),
-      built: crop.built, shows: crop.shows, ahead: crop.ahead, pending: crop.pending },
+    crop: CS.telemetry(),
   };
 }
 // A live getter: every read is current (a prefetch lands between scrub steps, so a snapshot taken at a step would lag).
@@ -575,8 +619,9 @@ export function _resetFrameStoreRuntimeForTest() {
   if (rt.pool) rt.pool.dispose();
   if (rt.onVis && typeof document !== 'undefined') document.removeEventListener('visibilitychange', rt.onVis);
   if (rt.onVis && rt.onConn && typeof rt.onConn.removeEventListener === 'function') rt.onConn.removeEventListener('change', rt.onVis);
+  if (rt.warmTimer) clearTimeout(rt.warmTimer);
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
     resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
-    fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null });
-  Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 });
+    fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() });
+  CS.reset();
 }

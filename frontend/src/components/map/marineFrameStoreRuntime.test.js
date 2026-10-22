@@ -9,10 +9,15 @@ jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => mockSF.enabled,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
   getPinnedIndexSync: () => mockSF.index,
+  getPinnedIndex: async () => mockSF.index,
+  staticEligible: ({ model }) => String(model).toUpperCase() === 'GFS',   // one published set: no warm frames of other models
   onStaticFrameParsed: (fn) => { mockSF.hooks.add(fn); return () => mockSF.hooks.delete(fn); },
   loadFrameParsed: (key, frame, signal) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, resolve }); }),
 }));
 import * as RT from './marineFrameStoreRuntime';
+
+// These pack REAL world frames (the idle-fill cases pack a whole run): under a full parallel run a case can pass 5 s.
+jest.setTimeout(20000);
 
 const PARSED = parseFrame(zlib.gunzipSync(Buffer.from(REAL_GFS_FRAME_GZ_BASE64, 'base64')));
 const vt = (k) => new Date(Date.UTC(2026, 9, 20, 0) + k * 3 * 3600000).toISOString().replace(/\.\d{3}Z$/, 'Z');
