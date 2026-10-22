@@ -92,7 +92,7 @@ Lever: `window.__RAW_FRAME_WARM_REST_MS__` (500).
   This is the existing per-active-set policy, and it feeds the open per-open egress cap question for the lead and owner.
 - Layer toggles (Stage B) wait for #456 (the conform carries `is_valid`) and the packer's non-waves parity.
 
-## Update 2026-10-22 ~21:40Z: on #459 (mid zoom) and #457; two fixes the mid-zoom A/B found
+## Update 2026-10-22 ~21:30Z: on #459 (mid zoom) and #457; two fixes the mid-zoom A/B found
 **Ask (lead, after #459 merged):** "merge origin/dev into claude/stage-a-model-toggles and resolve against #459's six marked crop
 lines, so instant model toggles also work on a crop resident; re-chain your ledger lines after dev's head; run the store / crop /
 static suites, mark it ready, and send me the full head SHA."
