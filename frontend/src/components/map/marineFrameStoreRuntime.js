@@ -41,7 +41,7 @@ import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFra
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
-import { cropShowOn, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';   // the crop show (2026-10-22)
+import { cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';   // the crop show (2026-10-22)
 
 const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
 // Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
@@ -412,7 +412,8 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
 // At mid zoom the resident is a viewport CLIP of the frame (staticFrameCrop), not the world frame. While such a window is resident,
 // every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
 // resident texture; a 27 x 20 window is 2 KB). Kill: window.__RAW_DISABLE_FRAME_STORE_CROP__ = true.
-const CROP_AHEAD = 128;           // stored frames nearest the cursor whose window packs are built (from local bytes) when a new window becomes resident
+const CROP_AHEAD = 49;            // stored frames nearest the cursor (+-24) whose window packs are built when a new window becomes resident;
+                                  // the rest are built as they are stepped to (a miss, then the deferred show) or parsed
 const CROP_AHEAD_SMALL = 17;      // the same on a phone or a constrained device: the cursor +-8
 const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
 const idleRun = (fn) => { if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 200 }); else setTimeout(fn, 0); };
@@ -454,8 +455,8 @@ function buildCrop(info, validTime) {
 function buildAhead(info, validTime) {
   const at = info.layerOf.get(validTime);
   if (at === undefined) return;
-  // Every stored frame on a desktop; the cursor +-8 on a phone or a constrained device (each build is an inflate + parse, and a
-  // pan-heavy session meets a new window often).
+  // The cursor +-24 on a desktop, +-8 on a phone or a constrained device: each build re-reads the frame through the shared loader
+  // (the HTTP cache when it is warm; with the cache off, a download outside the prefetch limiter), and every pan is a new window.
   const ahead = (store().tier === 'desktop' || store().tier === 'webgl1') ? CROP_AHEAD : CROP_AHEAD_SMALL;
   const order = info.validTimes.map((v, i) => [v, Math.abs(i - at)]).filter(([v]) => { const e = store().entry(info.key, v); return !!(e && e.pack); })
     .sort((a, b) => a[1] - b[1]).slice(0, ahead).map((x) => x[0]);
@@ -481,7 +482,8 @@ function engineHolds(r) {
 // After a normal commit. A window of frame `validTime`: remember it (the resident is known once its own window pack exists). Any
 // other grid: keep the clip resident only while the engine still holds it (the guard may have refused the commit).
 function noteCropCommitted(info, validTime, grid) {
-  const win = cropShowOn() ? frameWindowOf(grid, info.index && info.index.grid) : null;
+  const own = info.byVt.get(validTime);                     // a frame on its own lattice (frame.grid) is windowed on that one
+  const win = cropShowOn() ? frameWindowOf(grid, (own && own.grid) || (info.index && info.index.grid)) : null;
   if (!win) {
     if (crop.resident && !engineHolds(crop.resident)) Object.assign(crop, { resident: null, window: null, pending: null });
     return false;
@@ -533,7 +535,7 @@ function showCropFrame(info, index, frame, { model, layer, hourOffset, requested
   if (r.validityHash !== p.validityHash) {
     if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) return miss('validity_differs');
     maskCells = validityDiff(r.validityBits, p.validityBits);
-    if (!(maskCells <= VALIDITY_TOLERANCE_CELLS)) return miss('validity_differs');
+    if (!(maskCells <= cropToleranceCells(p.cols * p.rows, VALIDITY_TOLERANCE_CELLS))) return miss('validity_differs');   // scaled to the window
   }
   if (engine._texWidth !== p.cols || engine._texHeight !== p.rows || wg.cols !== p.cols || wg.rows !== p.rows) return miss('dims_differ');
   if (!uploadBytesTo2D(gl, tex, p.bytes, p.cols, p.rows)) return miss('copy_failed');

@@ -6,7 +6,7 @@ import zlib from 'zlib';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import { buildVectors, gridJsonFromFrame, parseFrame, seriesFrameFromFrame } from './staticFrameCodec';
 import { cropGridJson, cropSeriesFrame, cropVectors, midClipWindow } from './staticFrameCrop';
-import { frameWindowOf, packWindow, createCropPacks } from './marineFrameStoreCrop';
+import { cropToleranceCells, frameWindowOf, packWindow, createCropPacks } from './marineFrameStoreCrop';
 import { encodeMarineTexture } from './WebGLMarineTextureEncoder';
 import { trimDeadEdges } from './marineEngineDecisions';
 import { mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
@@ -106,11 +106,26 @@ describe('packWindow: the clip\'s own encoder bytes, not a copy of the world tex
 
   it('frameWindowOf: a clip of the lattice is a window; the world frame, another lattice or a misaligned box is not', () => {
     const win = midClipWindow('-95,20,-65,35', IG, 'GFS');
-    expect(frameWindowOf({ bounds: win.bounds, cols: win.cols, rows: win.rows }, IG)).toEqual({ c0: 37, r0: 44, cols: 27, rows: 20, key: '37,44,27,20' });
+    expect(frameWindowOf({ bounds: win.bounds, cols: win.cols, rows: win.rows }, IG)).toEqual({ c0: 37, r0: 44, cols: 27, rows: 20,
+      key: '37,44,27,20@181x83', lattice: { cols: 181, rows: 83, bounds: IG.bounds } });
     expect(frameWindowOf({ bounds: IG.bounds, cols: IG.cols, rows: IG.rows }, IG)).toBeNull();
     expect(frameWindowOf({ bounds: { west: -81, south: 25, east: -79, north: 27 }, cols: 9, rows: 9 }, IG)).toBeNull();     // 0.25 deg
     expect(frameWindowOf({ bounds: { west: -105, south: 8, east: -53, north: 46 }, cols: 27, rows: 20 }, IG)).toBeNull();   // off-lattice
     expect(frameWindowOf({ bounds: { west: 170, south: 8, east: 190, north: 46 }, cols: 11, rows: 20 }, IG)).toBeNull();    // past +180
+  });
+
+  it('a frame on another lattice is never sliced by the window (packWindow refuses it)', () => {
+    const win = frameWindowOf({ bounds: midClipWindow('-95,20,-65,35', IG, 'GFS').bounds, cols: 27, rows: 20 }, IG);
+    expect(packWindow(PARSED, win)).not.toBeNull();
+    expect(packWindow({ ...PARSED, bounds: { ...PARSED.bounds, west: -179, east: 181 } }, win)).toBeNull();
+    expect(packWindow({ ...PARSED, cols: 180 }, win)).toBeNull();
+  });
+
+  it('the validity tolerance scales to the window (64 cells is 0.4 % of the world, 12 % of a 27 x 20 clip)', () => {
+    expect(cropToleranceCells(27 * 20)).toBe(3);
+    expect(cropToleranceCells(4)).toBe(1);
+    expect(cropToleranceCells(181 * 81)).toBe(59);
+    expect(cropToleranceCells(1e6)).toBe(64);
   });
 
   it('the LRU keys by set, time and window, and refuses a pack of another signature (theme, kill switches)', () => {
@@ -171,6 +186,29 @@ describe('the runtime shows the window of the stepped-to frame', () => {
 
   const WORLD_COMMIT = () => RT.noteCommitted({ bounds: IG.bounds, cols: IG.cols, rows: IG.rows, served_valid_time: vt(0), __sourceModel: 'GFS',
     __componentLayer: 'waves' }, { hour: 0, model: 'GFS', layer: 'waves' });
+
+  // The same frame with `n` ocean cells inside the window turned to land (a mask that changed between hours).
+  function withLand(n) {
+    const H = Float64Array.from(PARSED.fields[0]); let left = n;
+    for (let r = WIN.r0 + 5; r < WIN.r0 + 15 && left; r++) for (let c = WIN.c0 + 5; c < WIN.c0 + 20 && left; c++) {
+      if (!Number.isNaN(H[r * IG.cols + c])) { H[r * IG.cols + c] = NaN; left -= 1; }
+    }
+    return { ...PARSED, fields: { ...PARSED.fields, 0: H } };
+  }
+
+  it('a step whose mask differs from the resident clip by more than the window tolerance is refused; within it, shown', async () => {
+    const { calls } = setup();
+    RT.noteCommitted(CROP_GRID(0), { hour: 0, model: 'GFS', layer: 'waves' });
+    await settle();
+    for (const fn of mockSF.hooks) fn({ key: KEY, frame: mockSF.index.frames[2], parsed: withLand(2), buffer: null });
+    for (const fn of mockSF.hooks) fn({ key: KEY, frame: mockSF.index.frames[3], parsed: withLand(5), buffer: null });
+    await flush();
+    expect(step(2)).toBe(true);                                       // 2 cells: within the 27 x 20 window's 3
+    expect(window.__RAW_FRAME_STORE__.shows.maskTolerated).toBe(1);
+    expect(step(3)).toBe(false);                                      // 5 cells: refused (the normal commit brings its own mask)
+    expect(window.__RAW_FRAME_STORE__.shows.misses.validity_differs).toBe(1);
+    expect(calls).toHaveLength(1);
+  });
 
   it('kill switch: a clip commit is not taken, and no step is shown from a window', async () => {
     const { calls } = setup();

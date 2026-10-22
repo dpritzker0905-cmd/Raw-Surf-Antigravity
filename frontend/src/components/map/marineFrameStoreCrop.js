@@ -40,12 +40,23 @@ export function frameWindowOf(grid, ig) {
   const near = (a, x) => Math.abs(a - x) < 1e-6;
   if (!near(g.west + c0 * dLng, b.west) || !near(g.west + (c0 + cols - 1) * dLng, b.east)
     || !near(g.south + r0 * dLat, b.south) || !near(g.south + (r0 + rows - 1) * dLat, b.north)) return null;
-  return { c0, r0, cols, rows, key: `${c0},${r0},${cols},${rows}` };
+  // The lattice travels with the window: a frame on another lattice is never sliced by it (packWindow refuses).
+  return { c0, r0, cols, rows, key: `${c0},${r0},${cols},${rows}@${ig.cols}x${ig.rows}`, lattice: { cols: ig.cols, rows: ig.rows, bounds: { ...g } } };
 }
 
-/** packStaticFrame on the window's planes only: the encoder's bytes for the clip, trimmed as the engine trims it. */
+/** The validity cells a crop show tolerates: the world's 64 (0.4 % of 15,023) scaled to the window, at least 1. */
+export function cropToleranceCells(cells, worldTolerance = 64) {
+  return Math.min(worldTolerance, Math.max(1, Math.ceil(0.004 * cells)));
+}
+
+/** packStaticFrame on the window's planes only: the encoder's bytes for the clip, trimmed as the engine trims it. Null when the
+ *  frame is not on the window's lattice. */
 export function packWindow(parsed, win, opts) {
   if (!parsed || !win || !parsed.fields) return null;
+  const L = win.lattice;
+  const same = (a, x) => Math.abs(a - x) < 1e-6;
+  if (L && (parsed.cols !== L.cols || parsed.rows !== L.rows
+    || !['west', 'south', 'east', 'north'].every((k) => same(parsed.bounds[k], L.bounds[k])))) return null;
   const { cols: C, bounds: B } = parsed;
   const dLng = (B.east - B.west) / (parsed.cols - 1); const dLat = (B.north - B.south) / (parsed.rows - 1);
   const fields = {};
