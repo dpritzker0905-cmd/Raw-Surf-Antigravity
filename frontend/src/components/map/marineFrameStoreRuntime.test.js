@@ -279,7 +279,8 @@ describe('adaptive idle fill (on demand first, then the rest of the run on a cap
   it.each([
     ['the kill switch', () => { window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true; }, 'killed'],
     ['a link that turns on Save-Data', () => link({ saveData: true, effectiveType: '4g' }), 'save_data'],
-    ['a slow link', () => link({ saveData: false, effectiveType: '3g' }), 'slow_link'],
+    ['a 2g link', () => link({ saveData: false, effectiveType: '2g' }), 'slow_link'],
+    ['a slow-2g link', () => link({ saveData: false, effectiveType: 'slow-2g' }), 'slow_link'],
     ['a coarse primary pointer', () => { window.matchMedia = (q) => ({ matches: q === '(pointer: coarse)' }); }, 'coarse_pointer'],
   ])('stays on demand with %s', async (_, arrange, reason) => {
     const { eng } = setup({ n: 30 });
@@ -299,6 +300,15 @@ describe('adaptive idle fill (on demand first, then the rest of the run on a cap
     expect(window.__RAW_FRAME_STORE__.fill.blocked).toBe('tier');
   });
 
+  it('a desktop whose Chrome reads 3g still fills the run (owner, 2026-10-22; resolveTier keeps it desktop, its own test)', async () => {
+    link({ saveData: false, effectiveType: '3g' });
+    const { eng } = setup({ n: 20 });
+    commitHour(eng, 5);
+    await landAll();
+    expect(new Set(asked()).size).toBe(20);
+    expect(window.__RAW_FRAME_STORE__.fill.blocked).toBe(null);
+  });
+
   it('a 4G link and no Network Information API both count as fine on a desktop', async () => {
     const { eng } = setup({ n: 20 });
     link({ saveData: false, effectiveType: '4g' });
@@ -309,7 +319,7 @@ describe('adaptive idle fill (on demand first, then the rest of the run on a cap
 
   it('a link that reads slow pauses the fill; when it reads 4g again (a connection change), the fill resumes', async () => {
     const ls = new Set();
-    const conn = { effectiveType: '3g', saveData: false, addEventListener: (t, f) => ls.add(f), removeEventListener: (t, f) => ls.delete(f) };
+    const conn = { effectiveType: '2g', saveData: false, addEventListener: (t, f) => ls.add(f), removeEventListener: (t, f) => ls.delete(f) };
     link(conn);                                                            // before the runtime registers, as in the app
     const { eng } = setup({ n: 30 });
     commitHour(eng, 10);
