@@ -1472,3 +1472,18 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true` before load draws dev's DRAW_FS from before the flip byte for byte
   (sha256 e2438586..., pinned in `marineLightCrestStyle.test.js`).
 - **Reopen if:** the owner says so, or light's wash or crest colours change (re-run the checker and the A/B).
+
+### D-044 · Light's crests drop the two-tone again: the original crests without it; the two-tone stays an opt-in lever; supersedes D-043
+- **Decided:** owner, 2026-10-22, seeing #445 (D-043) deployed on dev 67021e936: "The light mode animations that just deployed look
+  strange to me. Make a note of the new changes I don't like in light mode." (23:41 EDT, relayed by the lead), then, asked whether to
+  turn #445's crest edge back off so light shows his original crests without it: "yes" (23:57 EDT). Supersedes D-043.
+- **Rule:** light draws its original crest colours (D-041) without the two-tone by default. `window.__RAW_LIGHT_CREST_STYLE__ =
+  'twotone'` stays as an opt-in lever (for A/Bs), and `window.__RAW_DISABLE_LIGHT_CREST_STYLE__` stays. One owner:
+  `marineLightCrestStyle.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-22 04:30Z). Light's default DRAW_FS is dev 28be37d3f's byte for
+  byte (sha256 e2438586..., 8872), pinned in `marineLightCrestStyle.test.js` and read back from the shader the GPU compiled in light,
+  beach and dark. The pinpoint page (https://claude.ai/artifact/Sjk76DT4kGx2A9LqBgbCWq) showed each recent light change undone.
+- **Known costs:** the original crests share the spectrum wash's brightness from about 2 m up (APCA |Lc| 0; D-043's measurement),
+  which is what the two-tone was for; the owner prefers that to the two-tone's look.
+- **Rollback:** set `window.__RAW_LIGHT_CREST_STYLE__ = 'twotone'` before load to see the two-tone, or revert this PR.
+- **Reopen if:** the owner says so. A subtler crest change for light and beach is being built as a separate draft by the beach session.
