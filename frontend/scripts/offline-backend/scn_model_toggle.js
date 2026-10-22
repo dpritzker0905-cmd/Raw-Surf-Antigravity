@@ -15,6 +15,9 @@
 //   CDN_DIR=<cdn> PORT=4100 CDN_LAT=340 ARMS=on,off ROUNDS=2 OUT=toggle.json node frontend/scripts/offline-backend/scn_model_toggle.js
 // Env: ROUNDS (2), ARMS (on,off; also on-light, on-beach, on-handheld), WIN (ms per click, 8000), CDN_LAT (ms per static object),
 // CDN_PORT (4192), WARM_WAIT (ms to wait for the warm frames' chl/bath before the first click, 20000).
+// MID ZOOM (2026-10-22, #458 on #459): ZOOM (3.2 = the world view), CENTER (lng,lat; -80,24), VIEW (desktop = 1280 x 800; owner =
+// 844 x 390 at dpr 2), MIN_COLS (the exact frame's least width: 150 for a world frame; 10 for a mid-zoom clip). Run the backend with
+// --dynamic 1 so a zoomed-in view commits its own clip.
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -28,6 +31,10 @@ const ROUNDS = +(process.env.ROUNDS || 2);
 const WIN = +(process.env.WIN || 8000);
 const CDN_LAT = +(process.env.CDN_LAT || 0);
 const WARM_WAIT = +(process.env.WARM_WAIT || 20000);
+const ZOOM = +(process.env.ZOOM || 3.2);
+const [CLNG, CLAT] = (process.env.CENTER || '-80,24').split(',').map(Number);
+const VIEW = process.env.VIEW || 'desktop';
+const MIN_COLS = +(process.env.MIN_COLS || 150);
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -54,7 +61,7 @@ const cdn = http.createServer((req, res) => {
 });
 
 // ---- the in-page probe ----
-const PROBE = (bytesCheck) => {
+const PROBE = ({ bytesCheck, minCols }) => {
   const P = (window.__MT__ = { w: null, pairs: [], reads: new Map() });
   window.addEventListener('pointerup', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
   window.addEventListener('click', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
@@ -69,7 +76,7 @@ const PROBE = (bytesCheck) => {
       pid: (g && g.__fromFrameStore && g.__servedProductId) || (window.__WEBGL_MARINE_UPLOAD_DIAG__ && window.__WEBGL_MARINE_UPLOAD_DIAG__.servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null),
       status };
   };
-  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && s.cols >= 150;
+  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && s.cols >= minCols;
   const fnv = (u8) => { let h = 2166136261; for (let i = 0; i < u8.length; i++) h = Math.imul(h ^ u8[i], 16777619); return (h >>> 0).toString(16); };
   function readTex(tex) {
     const eng = window.__MARINE_ENGINE__; const m = window.__MAP_INSTANCE__ || window.map;
@@ -141,19 +148,20 @@ async function session(arm, round) {
   const phone = arm.endsWith('-handheld');
   const theme = arm.endsWith('-light') ? 'light' : arm.endsWith('-beach') ? 'beach' : 'dark';
   const killToggle = arm.startsWith('off');
-  const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: false, ...(phone ? { width: 390, height: 844, dpr: 2 } : {}) });
+  const dims = phone ? { width: 390, height: 844, dpr: 2 } : VIEW === 'owner' ? { width: 844, height: 390, dpr: 2 } : {};
+  const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: false, ...dims });
   await page.addInitScript(({ base, theme, killToggle, phone }) => {
     localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base;
     localStorage.setItem('raw-surf-theme', theme);
     if (killToggle) window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true;
     if (phone) window.__RAW_FRAME_STORE_TIER__ = 'handheld';
   }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone });
-  await page.addInitScript(PROBE, !killToggle);
+  await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e && e.message || e).slice(0, 200)));
   const clicks = []; const cdn0 = { ...cdnLog };
   try {
-    await L.openMap(page); await L.jump(page, -80, 24, phone ? 1.6 : 3.2);
+    await L.openMap(page); await L.jump(page, CLNG, CLAT, phone && ZOOM === 3.2 ? 1.6 : ZOOM);
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
     const anchor = Math.round(Date.now() / 3600000) * 3600000; const expected = {};
@@ -207,7 +215,7 @@ async function session(arm, round) {
     }
     const req = log.requests; const byPath = {}; for (const q of req) byPath[q.path] = (byPath[q.path] || 0) + 1;
     const tail = await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; const P = window.__MT__;
-      return { store: t ? { tier: t.tier, shows: t.shows, switches: t.switches, aux: t.aux, prefetch: t.prefetch, gpu: t.gpu,
+      return { store: t ? { tier: t.tier, shows: t.shows, switches: t.switches, aux: t.aux, prefetch: t.prefetch, gpu: t.gpu, crop: t.crop,
         sets: (t.sets || []).map((s) => ({ key: s.key, frames: s.frames, packed: s.packed, resident: s.resident, absent: s.absent })) } : null, pairs: P.pairs }; });
     return { arm, round, theme, phone, clicks, backendRequests: byPath, cdn: { requests: cdnLog.requests - cdn0.requests, frames: cdnLog.frames - cdn0.frames, bytes: cdnLog.bytes - cdn0.bytes },
       errors: [...errors, ...log.errors.slice(0, 5)], ...tail };
@@ -218,7 +226,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
 (async () => {
   await new Promise((r) => cdn.listen(CDN_PORT, '127.0.0.1', r));
   const sessions = [];
-  const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, CDN_LAT, WARM_WAIT, startedUtc: new Date().toISOString() }, sessions, summary: {} };
+  const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, CDN_LAT, WARM_WAIT, ZOOM, CENTER: [CLNG, CLAT], VIEW, MIN_COLS, startedUtc: new Date().toISOString() }, sessions, summary: {} };
   try {
     const ARMS = (process.env.ARMS || 'on,off').split(',');
     for (let i = 0; i < ROUNDS; i++) {
