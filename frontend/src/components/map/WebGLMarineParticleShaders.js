@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding'; import { CREST_DENSITY_GLSL } from './marineCrestDensity';
-import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette';   // crests + kills (see there)
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle';   // crests + kills (see there); light two-tone style lever
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -808,7 +808,7 @@ varying highp float v_phase;       // wave-train phase for rolling whitewater
 varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
 varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
-uniform float u_theme;
+uniform float u_theme;${LIGHT_CREST_STYLE_GLSL.decl}
 uniform float u_trochoidal;   // [0..1] warp the symmetric ribbon into an asymmetric TROCHOIDAL crest (sharp leading face, broad trailing back). 0 = legacy symmetric ellipse.
 uniform float u_crestContrast; // [0..1] zoom-band SELF-CONTRAST (2026-07-03): dark skirt + brighter core + slight white lift so crests read on any heatmap hue. Engine ramps it in around z3.65-4.25 where the crest and heatmap palettes collide (dark: mint on teal/cyan; light: navy on azure). 0 = legacy (byte-identical).
 uniform float u_lowHCrestContrast; // [0..1] LOW-HEIGHT self-contrast (2026-07-05): the same palette collision happens at ANY zoom wherever crest height <~0.75 m (island swell shadows: pale dash on pale wash = "animations don't cover the heatmap"). Ramped out by 1.05 m in main(). 0 = legacy.
@@ -859,7 +859,7 @@ void main() {
     acWarp = mix(acrossCrest, warped, clamp(u_trochoidal, 0.0, 1.0));
   }
   float ellipseDist = length(vec2(alongCrest, acWarp));
-  float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);
+  float shape = 1.0 - smoothstep(${LIGHT_CREST_STYLE_GLSL.shapeHead}0.55, 1.0, ellipseDist);
 
   // Soften ribbon tips along crest axis
   float tipFade = 1.0 - smoothstep(0.6, 0.95, abs(alongCrest));
@@ -951,7 +951,7 @@ void main() {
   // === WHITECAP HIGHLIGHT (separate from base ripple) ===
   // Bright white/cyan at the breaking front, proportional to v_whitecap
   float whiteBlend = whitecapRoll * 0.45;
-  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);
+  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);${LIGHT_CREST_STYLE_GLSL.tone}
 
   // === SELF-CONTRAST: zoom band (2026-07-03) + low-height band (2026-07-05) ===
   // In the coarse band the crest palette can land on a same-hue heatmap (mint on teal, navy on
@@ -961,7 +961,7 @@ void main() {
   // don't cover the heatmap". Give each crest an INTERNAL luminance gradient — darkened skirt,
   // boosted + slightly whitened core — so it reads on any background color without changing any
   // theme palette. Gated: both terms 0 → byte-identical legacy output.
-  float crestContrastEff = max(u_crestContrast,
+  float crestContrastEff = ${LIGHT_CREST_STYLE_GLSL.contrastHead}max(u_crestContrast,
     ${DARK_STORM_CREST_GLSL.casing}
   if (crestContrastEff > 0.001) {
     float core = 1.0 - smoothstep(0.15, 0.85, ellipseDist);
@@ -971,7 +971,7 @@ void main() {
   }
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-  float boostedAlpha = alpha * mix(1.2, 1.8, energy);
+  float boostedAlpha = alpha * ${LIGHT_CREST_STYLE_GLSL.alphaHead}mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.85);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }
