@@ -117,3 +117,21 @@ audit-log tampering, so #433 keeps its lines. The merge with dev had taken dev's
 (they had never reached a merged ledger). They are now re-chained once after dev's head, append-only, with their original acted-at:
 1607 (`pr_open` #433), 1608 (`commitment`: the owner's pick by 2026-10-24), 1609 (`push`, the two-tone bold push), plus 1610 (`push`:
 the two dev merges and this re-chain). STATE's anchor is moved to 1610. If #437 merges first, the lead names the head to re-chain onto.
+
+## 2026-10-22: no two-tone; the beach crest style code removed
+
+- 03:34Z the owner picked "Turn the crest edge on for both light and beach (beach with the zoom taper)" (relayed by the lead). Light
+  went on separately (#445, D-043). I built the combined flip on a local branch (`claude/crest-edge-on`, 5886da38f, never pushed):
+  beach two-tone bold by default with light's z9 taper; offline GPU run (light, beach, dark x today/on x world, regional, coastal):
+  every DRAW program compiled and linked, gl.getError() 0; model with the taper: heights under |Lc| 30 0/0/0/0/3 (the 3 at z10 on
+  0.2-0.4 m seas, worst 26.4), colour-blind worst 17.8 (23.3 with a flat x3).
+- 03:55Z the lead paused it: the owner said light's deployed two-tone "look[s] strange"; he then agreed to turn light's back off.
+- 04:04Z the owner to me: "No two-tone, they don't look like real waves in my opinion"; 04:10Z: "Remove the unused beach two-tone code
+  from dev (keep today's beach crests exactly)."
+- Done (this PR): the module, its test, its four shader hooks and import, the harness's beach variants and the model script are
+  removed. Proof: DRAW_FS / DRAW_VS hash as dev 67021e936 under the default, light's kill, light V2 and dark's kill (a temporary Jest
+  probe, both trees); Jest 478/479 suites (only the known netlifyIconStoredTailScope spawn timeout), check_eslint 0 new,
+  loc_ratchet 0 new / 0 regressed, craco build compiled. The local flip branch stays unpushed.
+- Lesson: a luminance structure inside a moving crest (dark outline, white core) reads as a drawn symbol, not lit water; the owner
+  judges crests by whether they look like real waves first, contrast numbers second. The blend on beach's sand and grey-mauve bands
+  is still open.
