@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { conformServedIdentity } from './marineConformServed';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -168,6 +169,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // before — every stamped flag must be carried here BY NAME or the engine never sees it.
       __commitLane: marineData?.grid?.__commitLane || marineData?.__commitLane || null,
       __fromSeries: !!(marineData?.grid?.__fromSeries || marineData?.__fromSeries),
+      // SERVED IDENTITY, by name (2026-10-21, marineConformServed.js): `served_valid_time` (DARK, D-001: drawn decisions read it on the
+      // engine's grid) and `__servedProductId` (on; diagnostics only). Without them marineFrameInstant() was null on every lane.
+      ...conformServedIdentity(marineData),
       __nonzeroCount: nonzeroCount,
       __maxHeight: maxHeight,
       hasCopernicusGrid,

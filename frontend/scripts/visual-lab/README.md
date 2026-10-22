@@ -55,6 +55,13 @@ carries `exactMs`: input to the first frame with the selected instant at FULL de
 app's own selected frame is the expected hour, and not a world grid coarser than 2.5 deg a cell: the engine's copy drops
 `__decimatedStride`, so a stride-4 series frame is told by its 8-degree cells).
 
+**Served vs asked clock (2026-10-21, `marineConformServed.js`):** each step row carries `servedOff` (the marine `/grid` replies in the
+step whose `served_valid_time` is not their `valid_time`, the ask's echo: `off`, the offsets `offH` in hours, `substituted`), each flow
+`loadServedOff` (the same over the load), and `end.mServed` / `end.mAsk` / `end.drawnDataMs` (the engine grid's two clocks and the drawn
+record's data instant). Read off the wire through the harness's `afterWeather` hook, which parses each marine `/grid` reply before it is
+delivered (a few tens of ms per world grid, the same in both arms); not collected with `LAB_LIVE_BASE`. Only where `off` is above 0 can
+the conform's served clock (dark: `LAB_FLAGS=__RAW_MARINE_CONFORM_SERVED_TIME__` for the B arm) change a decision.
+
 ## What each column means
 
 - **Marine / Wind correct**: input to the first animation frame whose resident grid has the selected hour, layer and model
