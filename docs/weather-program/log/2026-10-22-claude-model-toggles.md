@@ -91,3 +91,68 @@ Lever: `window.__RAW_FRAME_WARM_REST_MS__` (500).
 - Egress: toggling makes the desktop idle fill run for EVERY model that becomes active (each run ~6 MB of real frames), not one.
   This is the existing per-active-set policy, and it feeds the open per-open egress cap question for the lead and owner.
 - Layer toggles (Stage B) wait for #456 (the conform carries `is_valid`) and the packer's non-waves parity.
+
+## Update 2026-10-22 ~21:40Z: on #459 (mid zoom) and #457; two fixes the mid-zoom A/B found
+**Ask (lead, after #459 merged):** "merge origin/dev into claude/stage-a-model-toggles and resolve against #459's six marked crop
+lines, so instant model toggles also work on a crop resident; re-chain your ledger lines after dev's head; run the store / crop /
+static suites, mark it ready, and send me the full head SHA."
+
+**Merges:**
+- dev with #459: #459's crop hook landed in `showStored` after `setFor`, which covers the scrub step, the switch and the deferred
+  show. Real conflicts only in the test reset and an appended parity test.
+- dev with #457: `marineFramePrefetch.js` merged clean (AIMD `capEff` + the warm flag in `abortStale`).
+- Ledger re-chained twice: after #459 (1671-1673), then after #457 (1673-1675).
+
+**Mid-zoom model toggles** (`marineFrameStoreCropShow.js`):
+- `cropWindowFor`: any set on the window's run lattice gets window packs. That covers the warm frames as they are parsed, and
+  `cropWarm` covers those that landed before the window.
+- `showCropSwitch`: the new model's window bytes plus the window's OWN chl/bath (`auxForPack` on the window pack, computed at the
+  click on any tier; the window is ~1/30 of the world). The new model's clip becomes the crop resident.
+- Only a click crosses models; a wheel step never does.
+- The crop show's runtime half moved out of `marineFrameStoreRuntime.js` into the new file, as a factory over the runtime's state.
+  It is #459's code unchanged; the move keeps the runtime under the 800-line cap (it would have been 843).
+
+**Fix 1: ICON past 168 h is never shown from the store.**
+- A production build draws those hours from a client-side blend (`fetchBackendMarineGridIconExtended`), never the stored frame.
+- Offline the publisher built those frames, so a store show was replaced by the blend ~5.8 s later.
+- Live, the pilots lane lists them unbuilt, so this is a safety guard.
+
+**Fix 2: a store show supersedes the engine's stashed downgrade reject of another frame.**
+- What happened, found by the forensic ring:
+  1. At a mid-zoom click to ICON at hour 168, the store drew ICON's clip.
+  2. The normal ICON commit was a WORLD frame (181 x 83). The no-downgrade guard rejected it against the same-model clip and
+     stashed it in `_pendingDowngrade`.
+  3. After the next click to GFS, the guard's every-frame re-check no longer held, so the self-heal committed the stale ICON
+     frame: 23-25 frames of ICON under GFS, unadmitted.
+- The engine's choke clears that stash on every accepted commit ("the stash must not resurrect"); a show never passes through it.
+- The fix: `supersedeStash` clears a stash of ANOTHER frame (another model, layer or product) at every show. A stash of the SAME
+  product (another extent of the frame now drawn) is kept, because a zoom-out brings it back.
+- Kill: `__RAW_DISABLE_FRAME_STASH_SUPERSEDE__`.
+
+**Measured** (offline, ONE combined build of this branch + #453; backend `--dynamic 1`; CDN 340 ms; on/off interleaved; 10 clicks
+per session at hours 0, 24, 168):
+
+| mid zoom, per click | off (today) | on, before the fixes | on, final |
+|---|---|---|---|
+| desktop 1280 x 800 at z5.5 (19 x 15 clips): p50 / p95 ms | 444 / 1196 | 8 / 9 | **10 / 11** |
+| owner window 844 x 390 at z4.2 (27 x 19 clips): p50 / p95 ms | 440 / 1243 | 7 / 10 | **10 / 11** |
+| from the store | 0 of 20 | 20 of 20 | 19 of 20 |
+| wrong-model frames the status line did NOT admit | 13 + 9 | 25 + 24 (the stash) | **0 + 0** |
+| frames regressed after the exact frame | 0 | 25 + 24 | **0** |
+
+- **The one owner click that is not exact:** GFS -> EURO at hour 168. The app asked for EURO's 18Z frame (6-hourly past 144 h)
+  and the probe's reference `/grid` ask tie-broke to 00Z. The two off sessions picked 18Z and 00Z by their own hour-rounded
+  anchor. The status line read "nearest stored forecast" and no wrong-model frame was drawn, so this is the harness's tie-break,
+  not a store mismatch.
+- **The unequal read-back pair (1 per view, hour 48 scrub step):** the store showed a world frame (the engine held one), and the
+  normal commit was the clip of the same product. That is #459's world/clip extent flip at mid zoom, not a switch.
+
+**Gates:**
+- Store / crop / prefetch / static / scrub-cache suites pass.
+- `marineFrameStoreCropShow.test.js`: 17 cases.
+- Mutants:
+  - 11 mid-zoom-toggle mutants, including the window owner, every texture check, warm packs for a fresh window, a deferred
+    switch, and a wheel step crossing models;
+  - 5 stash mutants: each call site, the same-product exemption, and the kill;
+  - each turns a test red.
+- The warm-landing test now lands the window until the fill is granted (#457's cap of 4 changed the timing).
