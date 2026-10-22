@@ -12,7 +12,8 @@
  *      (c) the rest of the active series, nearest-first, ONLY once the wheel has moved >= 4 frames from where this set
  *          started (dwell alone never expands) and the tier allows full series;
  *      (d) nothing else; (e) never an unbuilt index entry (`path: null`), which /grid serves.
- *   3. At most 6 frame requests in flight (3 on slow links), none before the map's first marine draw (`open()`).
+ *   3. At most 4 frame requests in flight (2 on slow links), none before the map's first marine draw (`open()`); after a failed
+ *      ask the limit halves and nothing starts for a cool-off, then one slot comes back per success (COOL_MIN_MS / COOL_MAX_MS).
  *   4. An in-flight request is aborted when it drops out of the top 2 x cap of the plan AND is not in the active set (the active
  *      series is fetched anyway). With #422's shared per-path fetch, an abort only detaches this caller. When the plan's first
  *      two frames need fetching and every slot is busy, the lowest-priority in-flight request is preempted (a big jump).
@@ -23,8 +24,14 @@
 export const WINDOW = 8;
 export const WINDOW_SLOW = 4;
 export const EXPAND_AFTER_FRAMES = 4;
-export const CAP = 6;
-export const CAP_SLOW = 3;
+// CONCURRENCY (2026-10-22, the live read: 3 of 116 whole-run frame asks got Supabase Storage 429 at 6 in flight; the lead: 3-4).
+export const CAP = 4;
+export const CAP_SLOW = 2;
+// After a failed frame ask (a 429 is the usual one: the loader does not hand the status through, so any non-abort failure
+// counts) the loop halves its in-flight limit, starts nothing for a cool-off (1 s, doubling to 8 s while failures continue),
+// and wins one slot back per success: additive increase, multiplicative decrease, so a rate-limited CDN is not hammered.
+export const COOL_MIN_MS = 1000;
+export const COOL_MAX_MS = 8000;
 // A failed frame waits before it is asked again: 2 s, doubling to 60 s (found 2026-10-22: an error put the frame straight back
 // to `absent` and the same pump re-asked it at once, a tight loop against the CDN for as long as the error lasted).
 export const RETRY_MIN_MS = 2000;
@@ -103,12 +110,27 @@ export function idleSlice(fn) {
  * { replan(plan, activeKey), open(), telemetry() }.
  */
 export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = () => {}, onStale = () => {}, schedule = idleSlice,
-  cap = CAP, now = () => Date.now() } = {}) {
+  cap = CAP, now = () => Date.now(), setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h) } = {}) {
   let plan = []; let activeKey = null; let opened = false; let capNow = cap;
+  let capErr = Infinity; let coolUntil = 0; let coolN = 0; let timer = null; let timerAt = 0;
+  const capEff = () => Math.max(1, Math.min(capNow, capErr));
+  // One pending wake-up at a time: the earliest moment something may start (a cool-off ending, a retry delay passing). Without it
+  // a frame waiting out its delay was asked again only at the next landing or step.
+  function wakeIn(ms) {
+    const at = now() + Math.max(0, ms);
+    if (timer !== null && timerAt <= at) return;
+    if (timer !== null) clearTimer(timer);
+    timerAt = at; timer = setTimer(() => { timer = null; pump(); }, Math.max(0, ms));
+  }
+  function backOff() {
+    capErr = Math.max(1, Math.floor(capEff() / 2)); coolN += 1;
+    coolUntil = now() + Math.min(COOL_MAX_MS, COOL_MIN_MS * 2 ** (coolN - 1)); t.coolOffs += 1;
+  }
+  function recovered() { coolN = 0; if (capErr < capNow) capErr += 1; if (capErr >= capNow) capErr = Infinity; }
   const inflight = new Map(); // id -> { key, validTime, ctrl }
   const fails = new Map();    // id -> consecutive failures
   const retryAt = new Map();  // id -> the earliest time it may be asked again
-  const t = { requests: 0, landed: 0, aborted: 0, preempted: 0, errors: 0, bytes: 0, packFail: 0, stale: 0, backedOff: 0 };
+  const t = { requests: 0, landed: 0, aborted: 0, preempted: 0, errors: 0, bytes: 0, packFail: 0, stale: 0, backedOff: 0, coolOffs: 0 };
   const idOf = (key, validTime) => `${key}@${validTime}`;
   function failed(id) {
     const n = (fails.get(id) || 0) + 1;
@@ -137,7 +159,7 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
   function preemptForHead() {
     const rank = new Map(plan.map((p, i) => [idOf(p.key, p.validTime), i]));
     const need = plan.slice(0, 2).filter(waiting).length;
-    while (need > 0 && inflight.size > capNow - need) {
+    while (need > 0 && inflight.size > capEff() - need) {
       let worst = null;
       for (const [id, f] of inflight) {
         const r = rank.has(id) ? rank.get(id) : Infinity;
@@ -161,12 +183,12 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
       inflight.delete(id);
       if (!got || got.error) {
         store.markAbsent(p.key, p.validTime);
-        if (!got || got.error !== 'aborted') { t.errors += 1; failed(id); }
+        if (!got || got.error !== 'aborted') { t.errors += 1; failed(id); backOff(); }
         if (got && (got.status === 404 || got.status === 400)) { t.stale += 1; onStale(p.key); }
         pump();
         return;
       }
-      fails.delete(id); retryAt.delete(id);
+      fails.delete(id); retryAt.delete(id); recovered();
       t.bytes += got.wire || 0;
       schedule(() => {
         let pack = null;
@@ -180,20 +202,24 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
         }
       });
       pump();
-    }, () => { if (inflight.delete(id)) { store.markAbsent(p.key, p.validTime); t.errors += 1; failed(id); } pump(); });
+    }, () => { if (inflight.delete(id)) { store.markAbsent(p.key, p.validTime); t.errors += 1; failed(id); backOff(); } pump(); });
     return true;
   }
 
   function pump() {
     if (!opened) return;
+    if (coolUntil > now()) { wakeIn(coolUntil - now()); return; }
+    let nextRetry = Infinity;
     for (const p of plan) {
-      if (inflight.size >= capNow) break;
+      if (inflight.size >= capEff()) break;
       const e = store.entry(p.key, p.validTime);
       if (e && e.state === 'absent') {
-        if ((retryAt.get(idOf(p.key, p.validTime)) || 0) > now()) { t.backedOff += 1; continue; }
+        const r = retryAt.get(idOf(p.key, p.validTime)) || 0;
+        if (r > now()) { t.backedOff += 1; nextRetry = Math.min(nextRetry, r); continue; }
         start(p);
       }
     }
+    if (nextRetry < Infinity && inflight.size < capEff()) wakeIn(nextRetry - now());
   }
 
   return {
@@ -207,6 +233,6 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     inflightCount: () => inflight.size,
     /** The plan is done: nothing in flight and no plan entry still waiting for a request (unbuilt and backed-off ones excepted). */
     idle: () => inflight.size === 0 && !plan.some(waiting),
-    telemetry: () => ({ ...t, inflight: inflight.size, cap: capNow, opened, planned: plan.length }),
+    telemetry: () => ({ ...t, inflight: inflight.size, cap: capEff(), capMax: capNow, coolingMs: Math.max(0, coolUntil - now()), opened, planned: plan.length }),
   };
 }

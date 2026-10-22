@@ -226,12 +226,12 @@ describe('GPU-resident frames runtime', () => {
     expect(mockSF.loads).toHaveLength(0);
     eng._waveData = { waveGrid: { cols: eng._texWidth, rows: eng._texHeight } };
     RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(10) });
-    expect(mockSF.loads.map((l) => l.frame.valid_time)).toEqual([vt(10), vt(11), vt(9), vt(12), vt(8), vt(13)]);
+    expect(mockSF.loads.map((l) => l.frame.valid_time)).toEqual([vt(10), vt(11), vt(9), vt(12)]);   // CAP 4 in flight
     mockSF.loads[0].resolve({ parsed: PARSED, buffer: null, wire: 55589 });
     await flush();
     expect(window.__RAW_FRAME_STORE__.prefetch).toMatchObject({ landed: 1, bytes: 55589 });
-    expect(window.__RAW_FRAME_STORE__.sets[0]).toMatchObject({ packed: 1, inflight: 6 });  // the landing started the next one
-    expect(mockSF.loads).toHaveLength(7);
+    expect(window.__RAW_FRAME_STORE__.sets[0]).toMatchObject({ packed: 1, inflight: 4 });  // the landing started the next one
+    expect(mockSF.loads).toHaveLength(5);
     window.__RAW_DISABLE_FRAME_PREFETCH__ = true;
     const before = mockSF.loads.length;
     RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(20) });
