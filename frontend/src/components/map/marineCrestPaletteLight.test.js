@@ -1,3 +1,4 @@
+import './marineBeachCrestLiftKill.testsupport';   // today's crest shader is pinned here; the beach crest lift in marineBeachCrestLift.test.js
 import './marineWaveSpectrumKill.testsupport';   // light's v2 is pinned here; the spectrum (D-037) in marineWaveSpectrum.test.js
 import { createHash } from 'crypto';
 import { DRAW_FS } from './WebGLMarineParticleShaders';
