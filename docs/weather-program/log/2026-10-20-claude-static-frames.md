@@ -291,3 +291,24 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   fill at publish for world frames (needs the same-layer GFS global_coarse donor on the pilots runner), which also needs crops to
   come from unfilled frames, so it means two frame variants or a crop-side unfill; or keep this guard.
 - Ledger: a correction of 1674 (#453's pr_open parity claim) and the fix PR's pr_open.
+
+## 2026-10-22 22:45Z: option 2 - MARINE_GULF_FILL_MID (dark): the Gulf fill can keep to its 10-deg tier; /capabilities reports it
+
+- **The lead picked option 2** over mirroring the fill into the CDN (a documented defect, a racy donor pointer). Built DARK
+  per D-001; the flip is the owner's call (DECISIONS draft "D-0XX (owner's call, NOT taken)").
+- **Backend:** `coarse_gulf_fill.gulf_fill_mid_enabled()` reads `MARINE_GULF_FILL_MID` at call time (default '1' = today);
+  '0' skips the fill when the served grid is the 2-deg mid tier (region_id global_mid, or a lattice finer than 5 deg) and keeps
+  it on the 10-deg coarse tier. Registered in `_RATING_FLAGS` (Render env). `/capabilities` adds `gulf_fill_mid` to the EURO/ICON
+  marine rows at call time (the module-level matrix is not mutated).
+- **Client:** `serveTimeFillAtWorld` lifts the #461 guard only when the loaded matrix says `gulf_fill_mid: false` for that model;
+  not loaded, an older server or an unreadable matrix keep it. The frame store's EURO/ICON door follows the same predicate.
+- **Tests:** tests/test_coarse_gulf_fill_mid.py (6: default fills, flag off serves as stored for EURO and ICON, the coarse tier
+  still filled, the tier told by its lattice without a region_id, the capability report), guards lane floor 209/3281 -> 210/3287.
+  staticFrames.test.js: the capability lifts the guard per model, the fallbacks keep it.
+- **Masked-cell control, flag off** (store_mask2 served with MARINE_GULF_FILL_MID=0 on :4105, no GUARD): capabilities report
+  EURO/ICON `gulf_fill_mid: false`; scn_static_parity over 8 sets 312 comparisons, 4,687,176 nodes, **0 bad**, 0 meta (the same
+  store with the fill on: ICON/EURO 45,747 bad nodes per set). SCOREBOARD: a BEFORE row (live counts) and a candidate AFTER row.
+- **Owner pack: after the next pilots run publishes ICON/EURO world frames** (the first post-#453 publish, 03:45Z cron): the
+  published frame is the stored product (fill off); the 21:55Z live /grid responses (kept) are fill on, from the same land mask.
+  The pack: an A/B image of world coastlines and the Antarctic ice edge, the filled-cell diff by region and latitude, the inland
+  Texas/Mississippi/Georgia cells, and a count check against the live stamps. No box load.
