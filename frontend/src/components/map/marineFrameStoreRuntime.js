@@ -25,20 +25,31 @@
  * resident's by at most VALIDITY_TOLERANCE_CELLS is shown with the resident's chl/bath, and the normal commit that follows (it
  * always runs) brings that frame's own chl/bath. Kill: window.__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ = true (exact masks only).
  *
+ * EXACT AUX SHOW AND INSTANT MODEL TOGGLES (Stage A, 2026-10-22): a frame can also go on screen with its OWN chl/bath bytes
+ * (marineFrameAux: the encoder's function on the frame's own masks, uploaded into the resident chl/bath textures beside the wave
+ * texture). Then nothing about the resident matters but its size and bounds: a MODEL SWITCH (tryShowStoredFrameForSwitch, called
+ * by the orchestrator at the click) shows the new model's stored frame for the current hour at once, and a step after a /grid
+ * fallback commit (rt.resident null) re-enters the fast path. To have those frames ready, a capable desktop keeps the OTHER
+ * published waves sets warm at the cursor +-1 frame (planWant's warm entries, after the +-8 window, before the run fill) and
+ * computes their chl/bath in idle time. A scrub step computes chl/bath synchronously (~63 ms) at most once a second.
+ *
  * SHIPS ON behind static frames. Kills (read per call):
  *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
  *   window.__RAW_DISABLE_FRAME_PREFETCH__ = true         no prefetch: the store fills only from #422's own loads
  *   window.__RAW_DISABLE_FRAME_STORE_GPU__ = true        no texture arrays: CPU bytes + texSubImage2D per step
  *   window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true        no idle fill: the intent-gated policy alone (the series after 4 frames)
+ *   window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true     no show at a model switch and no warm frames of the other models
+ *   window.__RAW_DISABLE_FRAME_AUX_SHOW__ = true         no exact chl/bath shows at all: the resident-gated path alone (phase 2)
  * Lever (OFF by default, egress): window.__RAW_FRAME_PREFETCH_EAGER__ = true streams the whole series from the first draw.
  * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
  */
-import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, loadFrameParsed, setKeyFor } from './staticFrames';
+import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, setKeyFor, staticEligible } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
 import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
 import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
+import { auxForPack } from './marineFrameAux';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
 
@@ -46,13 +57,20 @@ const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/IC
 // Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
 // 0.24% of 15,023; 64 leaves room and still refuses a different grid outright).
 export const VALIDITY_TOLERANCE_CELLS = 64;
+// Exact chl/bath (marineFrameAux) kept for this many frames (~117 KB each at 181 x 81), and how often a scrub step may compute one.
+const AUX_CAP = 12;
+const AUX_SYNC_EVERY_MS = 1000;
+const WARM_MODELS = ['GFS', 'ICON', 'EURO'];
+const WORLD_BBOX = { west: -180, east: 180, south: -80, north: 80 };
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
 
 const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
+const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Infinity, warmPinAt: new Map(),
+  auxStats: { computed: 0, idle: 0, sync: 0, failed: 0, lastMs: null }, switches: { asked: 0, shown: 0, lastMs: null } });
 const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
   resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
-  fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null };
+  fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() };
 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -137,7 +155,8 @@ function setFor(key, index) {
     const validTimes = (index.frames || []).map((f) => f.valid_time).filter(Boolean).sort();
     const byVt = new Map((index.frames || []).map((f) => [f.valid_time, f]));
     const byPid = new Map((index.frames || []).filter((f) => f.meta && f.meta.product_id).map((f) => [f.meta.product_id, f.valid_time]));
-    info = { key: s.key, staticKey: key, index, validTimes, byVt, byPid, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
+    const byPath = new Map((index.frames || []).filter((f) => f.path).map((f) => [f.path, f]));
+    info = { key: s.key, staticKey: key, index, validTimes, byVt, byPid, byPath, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
     rt.sets.set(sk, info);
     // A new run or signature retires the old sets of the same model x layer (theme change, kill switch, re-pin).
     const keep = new Set([...rt.sets.values()].filter((x) => x.staticKey !== key || x.key === s.key).map((x) => x.key));
@@ -184,15 +203,81 @@ function deferredShow(info, validTime) {
   if (!w || w.setKey !== info.key || w.validTime !== validTime) return;
   rt.want = null;
   if (Date.now() - w.at > WANT_TTL_MS) return;
-  if (tryShowStoredFrame(w.args)) rt.shows.deferred = (rt.shows.deferred || 0) + 1;
+  if (showStored(w.args, !!w.switching)) rt.shows.deferred = (rt.shows.deferred || 0) + 1;
 }
 
 function upload(info, validTime) {
   resolvePending(info, validTime);
   uploadGpu(info, validTime);
+  if (rt.activeKey && info.key !== rt.activeKey) auxInIdle(info.key, validTime);   // a warm frame: its chl/bath before the click
   deferredShow(info, validTime);
   noteFillDone(info);
   armIdleFill();
+}
+
+// ── Exact chl/bath (Stage A) ──────────────────────────────────────────────────────────────────────────────────────────────
+// The frame's own chl/bath bytes, from the LRU or computed now (`compute`), else null.
+function auxFor(setKey, validTime, e, compute, how) {
+  const id = `${setKey}@${validTime}`;
+  const hit = rt.aux.get(id);
+  if (hit && hit.validityHash === e.pack.validityHash && hit.cols === e.pack.cols && hit.rows === e.pack.rows) {
+    rt.aux.delete(id); rt.aux.set(id, hit);
+    return hit;
+  }
+  if (!compute) return null;
+  const t0 = nowMs();
+  let a = null;
+  try { a = auxForPack(e.pack); } catch (err) { a = null; }
+  rt.auxStats.lastMs = +(nowMs() - t0).toFixed(1);
+  if (!a) { rt.auxStats.failed += 1; return null; }
+  rt.auxStats.computed += 1; rt.auxStats[how] = (rt.auxStats[how] || 0) + 1;
+  rt.aux.set(id, a);
+  while (rt.aux.size > AUX_CAP) rt.aux.delete(rt.aux.keys().next().value);
+  return a;
+}
+
+function auxInIdle(setKey, validTime) {
+  const id = `${setKey}@${validTime}`;
+  if (W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true || rt.aux.has(id) || rt.auxPending.has(id)) return;
+  rt.auxPending.add(id);
+  idleSlice(() => {
+    rt.auxPending.delete(id);
+    const e = store().entry(setKey, validTime);
+    if (e && e.pack) auxFor(setKey, validTime, e, true, 'idle');
+  });
+}
+
+// WARM FRAMES: the other published waves sets of this layer, at the cursor's time +-1 frame, on a capable desktop only (the idle
+// fill's gate). A set whose run index is not pinned yet is pinned in the background (latest.json is cached; one index fetch).
+function warmPlan(info, layer, requestedValidTime) {
+  if (W().__RAW_DISABLE_FRAME_MODEL_TOGGLE__ === true || W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true || idleFillBlocker()) return [];
+  const askMs = Date.parse(requestedValidTime);
+  const out = [];
+  for (const m of WARM_MODELS) {
+    const k = setKeyFor(m, layer);
+    if (k === info.staticKey || !staticEligible({ model: m, layer, bbox: WORLD_BBOX, surf: false })) continue;
+    const idx = getPinnedIndexSync(k);
+    if (!idx) { pinWarm(k); continue; }
+    const wi = setFor(k, idx);
+    const f = pickIndexFrame(idx, askMs);
+    const i = f ? wi.layerOf.get(f.valid_time) : undefined;
+    if (i === undefined) continue;
+    for (const j of [i, i + 1, i - 1]) {
+      const v = wi.validTimes[j];
+      if (!v) continue;
+      out.push({ key: wi.key, validTime: v, built: !!(wi.byVt.get(v) || {}).path });
+      const e = store().entry(wi.key, v);
+      if (e && e.pack) auxInIdle(wi.key, v);        // already packed (the set was active before): its chl/bath in idle
+    }
+  }
+  return out;
+}
+
+function pinWarm(k) {
+  const now = Date.now();
+  if ((rt.warmPinAt.get(k) || 0) > now - 60000) return;
+  rt.warmPinAt.set(k, now);
+  Promise.resolve(getPinnedIndex(k)).then((idx) => { if (idx && rt.lastStep) noteStep({ ...rt.lastStep, commit: true }); }).catch(() => {});
 }
 
 // A pool whose WebGL context was lost (marineFrameStoreGpu: its arrays are dead objects): drop it and the store's GPU residency (the
@@ -207,8 +292,9 @@ function dropDeadPool() {
 }
 
 function uploadGpu(info, validTime) {
+  if (rt.activeKey && info.key !== rt.activeKey) return;   // a warm set stays in CPU bytes: no 7.5 MB array for a few frames
   const e = store().entry(info.key, validTime);
-  if (!e || !e.packed || !e.pack) return;
+  if (!e || !e.packed || !e.pack || (e.layer !== null && e.layer !== undefined && rt.pool && rt.pool.has(info.key))) return;
   let pool = gpuPool(e.pack.cols, e.pack.rows);
   if (pool && !pool.alive()) { dropDeadPool(); pool = gpuPool(e.pack.cols, e.pack.rows); }
   if (!pool) return;
@@ -246,8 +332,8 @@ function ensureInit() {
     rt.prefetcher = createPrefetcher({
       store: store(),
       fetchFrame: async (path, signal) => {
-        const info = [...rt.sets.values()].find((x) => x.key === rt.activeKey) || [...rt.sets.values()][0];
-        const frame = info && [...info.byVt.values()].find((f) => f.path === path);
+        const info = [...rt.sets.values()].find((x) => x.byPath.has(path));   // the active set's or a warm set's frame
+        const frame = info && info.byPath.get(path);
         if (!info || !frame) return { error: 'unknown_frame' };
         const got = await loadFrameParsed(info.staticKey, frame, signal);
         return got ? { buffer: { parsed: got.parsed }, raw: got.buffer || null, wire: got.wire } : { error: signal && signal.aborted ? 'aborted' : 'load_failed' };
@@ -321,7 +407,11 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
   const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
   const cursor = frame ? info.layerOf.get(frame.valid_time) : undefined;
   if (cursor === undefined) return;
-  if (rt.activeKey !== info.key) { rt.intent.switchTo(info.key, cursor); rt.activeKey = info.key; rt.want = null; } else if (!commit) rt.intent.press(cursor);
+  if (rt.activeKey !== info.key) {
+    rt.intent.switchTo(info.key, cursor); rt.activeKey = info.key;
+    if (!(rt.want && rt.want.setKey === info.key)) rt.want = null;
+    for (const v of info.validTimes) uploadGpu(info, v);   // a set that was warm: its packed frames join the GPU now
+  } else if (!commit) rt.intent.press(cursor);
   rt.lastStep = { model, layer, requestedValidTime };
   const st = rt.intent.state(); const t = store().tier;
   const slow = t === 'constrained';
@@ -331,7 +421,7 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
   const fill = rt.fill.key === info.key && !idleFillBlocker();
   rt.fill.planned = fill;
   const plan = planWant({ active: { key: info.key, validTimes: info.validTimes, built: (v) => !!(info.byVt.get(v) || {}).path },
-    cursor, dir: st.dir, expanded: st.expanded || eager || fill, warm: [], slow, full: store().budget.full });
+    cursor, dir: st.dir, expanded: st.expanded || eager || fill, warm: warmPlan(info, layer, requestedValidTime), slow, full: store().budget.full });
   rt.prefetcher.replan(plan, info.key, { slow });
   const eng = rt.target.getEngine && rt.target.getEngine();
   if (eng && eng._waveData) {                                    // never before the first marine draw
@@ -346,7 +436,45 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
  * The fast path: put the stored frame for (model, layer, requested valid time) on screen now. Returns true when it did; false
  * (with the reason counted) when the normal path must do it. Never throws.
  */
-export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTime }) {
+export function tryShowStoredFrame(args) {
+  return showStored(args, false);
+}
+
+/**
+ * INSTANT MODEL TOGGLE (Stage A): the same, at a model switch. The resident is another model's frame, so the show carries this
+ * frame's own chl/bath (computed now when a warm frame's are not ready yet, ~63 ms once). The orchestrator calls it at the click;
+ * its coalesced fetch still follows and commits the same frame. Kill: window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true.
+ */
+export function tryShowStoredFrameForSwitch(args) {
+  if (W().__RAW_DISABLE_FRAME_MODEL_TOGGLE__ === true) return false;
+  const t0 = nowMs();
+  rt.switches.asked += 1;
+  const ok = showStored(args, true);
+  if (ok) { rt.switches.shown += 1; rt.switches.lastMs = +(nowMs() - t0).toFixed(3); }
+  return ok;
+}
+
+const near = (a, b) => Math.abs(a - b) < 1e-6;
+const sameBounds = (a, b) => !!(a && b) && near(a.west, b.west) && near(a.east, b.east) && near(a.south, b.south) && near(a.north, b.north);
+
+// May this frame go on screen with its OWN chl/bath (whatever the resident is)? Returns the aux bytes, or the reason it may not.
+function auxShowable(engine, wg, e, info, validTime, layer, switching) {
+  if (W().__RAW_DISABLE_FRAME_AUX_SHOW__ === true) return 'killed';
+  const wd = engine._waveData;
+  if (!engine._residentChlTex || !engine._residentBathTex || wd.u_chlorophyllTexture !== engine._residentChlTex
+    || wd.u_bathymetryTexture !== engine._residentBathTex || (wd.u_waveTexture && wd.u_waveTexture !== engine._residentWaveTex)) return 'textures';
+  if (wg.ratingMode || (wg.__componentLayer || 'waves') !== (layer || 'waves')) return 'flavor';
+  if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return 'dims';
+  if (!sameBounds(wd.bounds || wg.bounds, e.pack.bounds)) return 'bounds';
+  const now = nowMs();
+  const cached = auxFor(info.key, validTime, e, false);
+  if (cached) return cached;
+  if (!switching && now - rt.auxSyncAt < AUX_SYNC_EVERY_MS) return 'aux_not_ready';   // a drag never pays 63 ms on every step
+  rt.auxSyncAt = now;
+  return auxFor(info.key, validTime, e, true, 'sync') || 'aux_failed';
+}
+
+function showStored({ model, layer, hourOffset, requestedValidTime }, switching) {
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   rt.want = null;                                   // a new step supersedes any deferred show
   try {
@@ -361,7 +489,7 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     const info = setFor(key, index);
     const e = store().lookup(info.key, frame.valid_time);
     if (!e || !e.pack) {
-      rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
+      rt.want = { args: { model, layer, hourOffset, requestedValidTime }, switching, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
       return miss('not_ready');
     }
     const engine = rt.target.getEngine && rt.target.getEngine();
@@ -370,25 +498,43 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
     const wg = engine && engine._waveData && engine._waveData.waveGrid;
     if (!engine || !gl || !tex || !wg) return miss('no_engine');
     const r = rt.resident;
-    if (!r || r.setKey !== info.key || r.signature !== packSignature()) return miss('resident_not_this_set');
-    // The resident's chl/bath follow ITS mask until the next normal commit: a show leaves rt.resident's mask as it was.
-    let maskCells = 0;
-    if (r.validityHash !== e.pack.validityHash) {
-      if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) return miss('validity_differs');
-      maskCells = validityDiff(r.validityBits, e.pack.validityBits);
-      if (!(maskCells <= VALIDITY_TOLERANCE_CELLS)) return miss('validity_differs');
+    // The resident path: the resident is this set's frame, and its chl/bath follow ITS mask until the next normal commit (a show
+    // leaves rt.resident's mask as it was). Otherwise (another model, a /grid frame, too many cells apart) the exact aux path.
+    let why = null; let maskCells = 0; let aux = null;
+    if (!r || r.setKey !== info.key || r.signature !== packSignature()) why = 'resident_not_this_set';
+    else if (r.validityHash !== e.pack.validityHash) {
+      if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) why = 'validity_differs';
+      else {
+        maskCells = validityDiff(r.validityBits, e.pack.validityBits);
+        if (!(maskCells <= VALIDITY_TOLERANCE_CELLS)) why = 'validity_differs';
+      }
+    }
+    if (why) {
+      const got = auxShowable(engine, wg, e, info, frame.valid_time, layer, switching);
+      if (typeof got === 'string') { rt.shows.auxMiss = { ...(rt.shows.auxMiss || {}), [got]: ((rt.shows.auxMiss || {})[got] || 0) + 1 }; return miss(why); }
+      aux = got; maskCells = 0;
     }
     if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return miss('dims_differ');
+    if (aux && !(uploadBytesTo2D(gl, engine._residentChlTex, aux.chl, aux.cols, aux.rows)
+      && uploadBytesTo2D(gl, engine._residentBathTex, aux.bath, aux.cols, aux.rows))) { rt.resident = null; return miss('copy_failed'); }
     let ok = false;
     if (e.layer !== null && rt.pool && rt.pool.has(info.key)) ok = rt.pool.copyToTexture(info.key, e.layer, tex);
     if (!ok) dropDeadPool();                       // a lost context: never trust the array again; the CPU bytes below are exact
     if (!ok && e.packed) ok = uploadBytesTo2D(gl, tex, e.packed, e.pack.cols, e.pack.rows);
-    if (!ok) return miss('copy_failed');
+    if (!ok) { if (aux) rt.resident = null; return miss('copy_failed'); }   // chl/bath already moved: no resident is known
     const meta = frameMeta(index, frame);
     const ask = requestedValidTime;
+    const crossModel = (wg.__sourceModel || 'GFS') !== model;
     engine._waveData.waveGrid = { ...wg, hourOffset, valid_time: ask, served_valid_time: frame.valid_time, run_time: meta.run_time ?? wg.run_time,
       model_run_time: meta.model_run_time ?? wg.model_run_time, productId: meta.product_id || wg.productId, __servedProductId: meta.product_id || null,
-      is_estimated: !!meta.is_estimated, __fromFrameStore: true };
+      is_estimated: !!meta.is_estimated, __fromFrameStore: true,
+      ...(crossModel ? { __sourceModel: model, provider: meta.provider ?? wg.provider, estimate_basis: meta.estimate_basis ?? null } : {}) };
+    if (aux) {
+      // The engine now holds exactly this frame (wave bytes and its own chl/bath): it is the resident a later step compares with.
+      rt.resident = { setKey: info.key, validityHash: e.pack.validityHash, validityBits: e.pack.validityBits || null, cols: e.pack.cols, rows: e.pack.rows, signature: packSignature() };
+      rt.shows.aux = (rt.shows.aux || 0) + 1;
+      if (crossModel) rt.shows.crossModel = (rt.shows.crossModel || 0) + 1;
+    }
     publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
     const map = rt.target.getMap && rt.target.getMap();
     if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
@@ -408,6 +554,7 @@ function snapshot() {
     on: frameStoreOn(), ...(rt.store ? rt.store.telemetry() : {}),
     prefetch: rt.prefetcher ? rt.prefetcher.telemetry() : null, gpu: rt.pool ? rt.pool.telemetry() : null,
     shows: { ...rt.shows, misses: { ...rt.shows.misses } }, resident: rt.resident, commits: { ...rt.commits },
+    aux: { ...rt.auxStats, cached: rt.aux.size }, switches: { ...rt.switches },
     fill: { ...rt.fill, blockedNow: rt.store ? idleFillBlocker() : null, sinceOpenMs: sinceOpen() },
   };
 }
@@ -426,5 +573,5 @@ export function _resetFrameStoreRuntimeForTest() {
   if (rt.onVis && rt.onConn && typeof rt.onConn.removeEventListener === 'function') rt.onConn.removeEventListener('change', rt.onVis);
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
     resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
-    fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null });
+    fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() });
 }
