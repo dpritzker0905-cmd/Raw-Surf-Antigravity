@@ -35,9 +35,7 @@ const PORT = +(process.env.PORT || 4120);
 const OUT = process.env.OUT || path.join(process.cwd(), 'wave-ab');
 const LEVERS = { v1: { __RAW_DISABLE_WAVE_PALETTE_V2__: true }, v2: {}, 'v2@10': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, 'v2@10b': { __RAW_DISABLE_WAVE_HEIGHT_16M__: true }, v2b: {},
   l1: { __RAW_DISABLE_LIGHT_CREST_V2__: true }, lv2: { __RAW_LIGHT_CREST_V2__: true }, lt: { __RAW_LIGHT_CREST_STYLE__: 'twotone' }, lk: { __RAW_CREST_CONTRAST__: 1 }, l1k: { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_CREST_CONTRAST__: 1 },
-  dk: { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true },   // dk: the crest-density kill (marineCrestDensity.js), against v2 (on)
-  // Beach crest style A/B (2026-10-21, marineBeachCrestStyle.js): today's crest, two-tone bold, two-tone, soft, cased (THEMES=beach).
-  today: {}, ttb: { __RAW_BEACH_CREST_STYLE__: 'twotonebold' }, tt: { __RAW_BEACH_CREST_STYLE__: 'twotone' }, ts: { __RAW_BEACH_CREST_STYLE__: 'soft' }, tc: { __RAW_BEACH_CREST_STYLE__: 'cased' } };
+  dk: { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true } };   // dk: the crest-density kill (marineCrestDensity.js), against v2 (on)
 // The synthetic storm's eye starts at 14N 106W and drifts north-west (serve_synthetic.py vortex_center); the coast is Jalisco/Colima.
 const VIEWS = { world: [-118, 10, 2.2], regional: [-106.5, 15.5, 4.6], coastal: [-105.2, 18.4, 7.4],
   mid: [-106.0, 16.5, 5.5], close: [-105.2, 18.4, 9.0], closer: [-105.2, 18.4, 10.5] };   // mid: light's density ramp is full (z5); close: dark's (z8)
@@ -52,13 +50,12 @@ const drawn = () => {   // what the engine holds (not the layer's parity record:
   // The crest colours the GPU compiled: the DRAW program's attached fragment shader, read back (shaders stay attached until dispose).
   const canvas = document.querySelector('canvas.maplibregl-canvas'), gl = canvas && (canvas.getContext('webgl2') || canvas.getContext('webgl'));
   const glsl = gl && e && e.drawProgram ? (gl.getAttachedShaders(e.drawProgram) || []).map((s) => gl.getShaderSource(s)).join('\n') : '';
-  const beachStyle = { shapeEdge: (/float shape = 1\.0 - smoothstep\(([^,]*?(?:\?[^,]*?)?), 1\.0, ellipseDist\)/.exec(glsl) || [])[1] || null,
-    twoTone: (/if \(u_theme > 1\.5\) finalColor = mix\(mix\(finalColor, finalColor \* ([\d.]+)[^;]*vec3\(1\.0\), ([\d.]+) \*/.exec(glsl) || []).slice(1),
+  const crestStyle = { shapeEdge: (/float shape = 1\.0 - smoothstep\(([^,]*?(?:\?[^,]*?)?), 1\.0, ellipseDist\)/.exec(glsl) || [])[1] || null,
     contrastHead: (/float crestContrastEff = ([^\n]*?)max\(u_crestContrast/.exec(glsl) || [])[1] || '',
     linked: gl && e && e.drawProgram ? gl.getProgramParameter(e.drawProgram, gl.LINK_STATUS) : null };
   const lightCrest = (/else if \(u_theme > 0\.5\) \{[^}]*?calmColor = ([^;]*);[^}]*?activeColor = ([^;]*);[^}]*?stormColor = ([^;]*);[^}]*?foamHighlight = ([^;]*);/.exec(glsl) || []).slice(1);
   return { cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds, valid: d && d.truthTag && d.truthTag.valid_time, model: g && g.__sourceModel,
-    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__, beachStyle,
+    hMin: lo, hMax: hi, cellsAt10m: over10, palette: window.__RAW_DISABLE_WAVE_PALETTE_V2__ ? 'v1' : 'v2', lightCrest, crestContrast: window.__RAW_CREST_CONTRAST__, crestStyle,
     densityCut: /u_densityCut \* smoothstep/.test(glsl), particleDensity: window.__RAW_GPU__ && window.__RAW_GPU__.particleDensity,
     heightScale: d && d.u_heightScale, baseScale: e && e._coarseBaseData ? e._coarseBaseData.u_heightScale : null,
     waveTexHash: (d && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture) || {}).hash || null };
