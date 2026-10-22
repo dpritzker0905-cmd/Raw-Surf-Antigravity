@@ -1,4 +1,4 @@
-import { CAP, CAP_SLOW, createIntent, createPrefetcher, nearestFirst, planWant, WINDOW } from './marineFramePrefetch';
+import { CAP, CAP_SLOW, COOL_MIN_MS, createIntent, createPrefetcher, nearestFirst, planWant, WINDOW } from './marineFramePrefetch';
 import { createFrameStore } from './marineFrameStore';
 
 const SIG = 'h10|dil1|conf0.75|trim1|wrap1|f32';
@@ -203,6 +203,52 @@ describe('createPrefetcher', () => {
     calls[2]({ buffer: new ArrayBuffer(4), wire: 4 }); await flush();
     expect(store.entry(s.key, vt(0)).state).toBe('packed');
     expect(pf.telemetry()).toMatchObject({ errors: 2, landed: 1 });
+  });
+
+  it('CDN etiquette: at most 4 in flight (2 slow); a failure halves the limit and pauses for a cool-off; successes win slots back', async () => {
+    expect(CAP).toBe(4); expect(CAP_SLOW).toBe(2);                    // the live read saw Supabase 429s at 6 in flight
+    let clock = 0; const timers = [];
+    const store = createFrameStore({ tier: 'desktop' });
+    const s = store.ensureSet({ model: 'GFS', layer: 'waves', modelRunTime: 'r', signature: SIG });
+    store.noteIndex(s.key, series(12).map((v) => ({ valid_time: v, path: `GFS/${v}.bin` })));
+    const calls = [];
+    const pf = createPrefetcher({ store, fetchFrame: (path) => new Promise((resolve) => { calls.push({ path, resolve }); }), decodeAndPack: () => fakePack(),
+      schedule: (fn) => fn(), now: () => clock, setTimer: (fn, ms) => { timers.push({ fn, at: clock + ms }); return timers.length; }, clearTimer: () => {} });
+    const plan = planWant({ active: { key: s.key, validTimes: series(12), built: () => true }, cursor: 0, expanded: true });
+    pf.open(); pf.replan(plan, s.key);
+    expect(calls).toHaveLength(4);
+    calls[0].resolve({ error: 'http_429', status: 429 }); await flush();  // rate limited
+    expect(pf.telemetry()).toMatchObject({ cap: 2, coolOffs: 1, inflight: 3 });
+    expect(pf.telemetry().coolingMs).toBe(COOL_MIN_MS);
+    calls[1].resolve({ buffer: new ArrayBuffer(8), wire: 1 }); await flush();
+    expect(calls).toHaveLength(4);                                       // a landing during the cool-off starts nothing
+    clock += COOL_MIN_MS; timers.filter((x) => x.at <= clock).forEach((x) => x.fn());
+    expect(pf.telemetry().cap).toBe(3);                                  // halved to 2, the landing won one back
+    expect(calls.length).toBe(5);                                        // 2 in flight + 1 new = 3
+    calls[2].resolve({ buffer: new ArrayBuffer(8), wire: 1 }); await flush();
+    expect(pf.telemetry().cap).toBe(4);                                  // the next success: back to the full limit
+    expect(pf.inflightCount()).toBe(4);
+  });
+
+  it('a frame waiting out its retry delay is asked again on a wake-up, without waiting for the next step', async () => {
+    let clock = 0; const timers = [];
+    const store = createFrameStore({ tier: 'desktop' });
+    const s = store.ensureSet({ model: 'GFS', layer: 'waves', modelRunTime: 'r', signature: SIG });
+    store.noteIndex(s.key, series(1).map((v) => ({ valid_time: v, path: `GFS/${v}.bin` })));
+    const calls = [];
+    const pf = createPrefetcher({ store, fetchFrame: () => new Promise((resolve) => { calls.push(resolve); }), decodeAndPack: () => fakePack(),
+      schedule: (fn) => fn(), now: () => clock, setTimer: (fn, ms) => { timers.push({ fn, at: clock + ms }); return timers.length; }, clearTimer: () => {} });
+    pf.open(); pf.replan(planWant({ active: { key: s.key, validTimes: series(1) }, cursor: 0 }), s.key);
+    calls[0]({ error: 'load_failed' }); await flush();
+    expect(calls).toHaveLength(1);
+    for (let k = 0; k < 4 && calls.length === 1; k++) {                  // run the wake-ups the loop armed, as the clock reaches them
+      const due = timers.filter((x) => !x.done).sort((a, b) => a.at - b.at)[0];
+      if (!due) break;
+      clock = due.at; due.done = true; due.fn();
+    }
+    expect(calls).toHaveLength(2);                                       // re-asked with no replan
+    calls[1]({ buffer: new ArrayBuffer(4), wire: 4 }); await flush();
+    expect(store.entry(s.key, vt(0)).state).toBe('packed');
   });
 
   it('idle(): nothing in flight and nothing in the plan still waiting for a request', async () => {
