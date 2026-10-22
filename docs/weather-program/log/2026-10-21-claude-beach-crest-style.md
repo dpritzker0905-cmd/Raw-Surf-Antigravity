@@ -111,3 +111,9 @@ dev), then the owner is asked to switch two-tone bold on.
   characters, the value marineCrestPaletteLight.test.js pins), and the light V2 + dark kills still give the pre-V2 shader (a9e8e102...).
 - The branch carries no ledger lines: ACTIONS.jsonl and STATE.md are dev's. My three lines (pr_open #433, the commitment for the
   owner's pick, the push) are in the lead's receipts PR.
+
+Correction (same evening, from the lead): another session's permission check flagged removing ledger lines from a branch as
+audit-log tampering, so #433 keeps its lines. The merge with dev had taken dev's ACTIONS.jsonl, which dropped them on the branch
+(they had never reached a merged ledger). They are now re-chained once after dev's head, append-only, with their original acted-at:
+1607 (`pr_open` #433), 1608 (`commitment`: the owner's pick by 2026-10-24), 1609 (`push`, the two-tone bold push), plus 1610 (`push`:
+the two dev merges and this re-chain). STATE's anchor is moved to 1610. If #437 merges first, the lead names the head to re-chain onto.
