@@ -124,10 +124,17 @@ const PROBE = (bytesCheck) => {
   P.read = () => ({ ...P.w });
 };
 
+// A visible button with exactly this text; on the phone layout a control may sit in a collapsed sheet, so fall back to the
+// first matching button in the DOM (its React handler runs on a DOM click either way).
 async function clickExact(page, text) {
   const loc = page.locator('button').filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) }).filter({ visible: true }).first();
-  await loc.waitFor({ state: 'visible', timeout: 15000 });
-  await loc.click();
+  try { await loc.waitFor({ state: 'visible', timeout: 4000 }); await loc.click(); return; } catch (e) { /* fall back */ }
+  const clicked = await page.waitForFunction((t) => {
+    const b = [...document.querySelectorAll('button,[role="button"]')].find((x) => x.textContent.trim() === t);
+    if (b) b.click();
+    return !!b;
+  }, text, { timeout: 15000 });
+  if (!(await clicked.jsonValue())) throw Error(`no ${text} control`);
 }
 
 async function session(arm, round) {

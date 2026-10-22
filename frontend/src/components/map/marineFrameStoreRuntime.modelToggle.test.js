@@ -102,6 +102,7 @@ beforeEach(() => {
 });
 
 describe('instant model toggle: the new model\'s stored frame with its own chl/bath', () => {
+  beforeEach(() => { window.__RAW_FRAME_STORE_TIER__ = 'desktop'; });   // the tier that may compute chl/bath at the click
   it('shows the ICON frame over a GFS resident, uploading the frame\'s exact chl/bath beside its wave bytes', async () => {
     const { calls, eng, map } = setup();
     await parse(GFS, 0); await parse(ICON, 2);
@@ -168,6 +169,19 @@ describe('instant model toggle: the new model\'s stored frame with its own chl/b
     expect(eng._waveData.waveGrid.__sourceModel).toBe('GFS');
   });
 
+  it('a phone never computes chl/bath on the main thread: without warm bytes the switch is the normal path', async () => {
+    window.__RAW_FRAME_STORE_TIER__ = 'handheld';
+    const { calls, eng } = setup();
+    await parse(GFS, 0); await parse(ICON, 2);
+    commitGfs(0);
+    calls.length = 0;
+    expect(toIcon(2)).toBe(false);
+    expect(snap().shows.auxMiss).toEqual({ aux_not_ready: 1 });
+    expect(snap().aux.computed).toBe(0);
+    expect(calls).toEqual([]);
+    expect(eng._waveData.waveGrid.__sourceModel).toBe('GFS');
+  });
+
   it('a switch to a frame still loading is shown when it lands (deferred), with its chl/bath', async () => {
     const { eng } = setup();
     await parse(GFS, 0);
@@ -182,6 +196,7 @@ describe('instant model toggle: the new model\'s stored frame with its own chl/b
 });
 
 describe('a step after a /grid fallback commit (no stored frame resident)', () => {
+  beforeEach(() => { window.__RAW_FRAME_STORE_TIER__ = 'desktop'; });
   it('shows the stored frame with its own chl/bath, then later steps take the resident path', async () => {
     const { eng } = setup({ models: ['GFS'] });
     await parse(GFS, 0); await parse(GFS, 1); await parse(GFS, 2);

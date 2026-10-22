@@ -31,7 +31,8 @@
  * by the orchestrator at the click) shows the new model's stored frame for the current hour at once, and a step after a /grid
  * fallback commit (rt.resident null) re-enters the fast path. To have those frames ready, a capable desktop keeps the OTHER
  * published waves sets warm at the cursor +-1 frame (planWant's warm entries, after the +-8 window, before the run fill), once the
- * wheel has rested WARM_REST_MS (a drag never asks the other models for every hour it passes), and computes their chl/bath in idle. A scrub step computes chl/bath synchronously (~63 ms) at most once a second.
+ * wheel has rested WARM_REST_MS (a drag never asks the other models for every hour it passes), and computes their chl/bath in idle.
+ * Only a desktop tier computes chl/bath synchronously (~63 ms): at a click, or on a scrub step at most once a second.
  *
  * SHIPS ON behind static frames. Kills (read per call):
  *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
@@ -481,7 +482,9 @@ function auxShowable(engine, wg, e, info, validTime, layer, switching) {
   const now = nowMs();
   const cached = auxFor(info.key, validTime, e, false);
   if (cached) return cached;
-  if (!switching && now - rt.auxSyncAt < AUX_SYNC_EVERY_MS) return 'aux_not_ready';   // a drag never pays 63 ms on every step
+  // Computed now only on a desktop tier (~63 ms; a phone would block its main thread several times longer), and on a scrub step
+  // at most once a second (a drag never pays it on every step).
+  if (store().tier !== 'desktop' || (!switching && now - rt.auxSyncAt < AUX_SYNC_EVERY_MS)) return 'aux_not_ready';
   rt.auxSyncAt = now;
   return auxFor(info.key, validTime, e, true, 'sync') || 'aux_failed';
 }
