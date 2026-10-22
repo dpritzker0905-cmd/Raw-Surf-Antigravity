@@ -229,3 +229,25 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   frontend Jest `src/components/map` + `src/tests` 361 suites / 5,322 tests, check_eslint, `npm run build` (craco).
 - Evidence: `evidence/static-frames-more-sets-2026-10-22.json`. DECISIONS "D-0XX (numbered at merge) · Static frames for eight
   world sets".
+
+## 2026-10-22 09:50Z: the live in-browser read, and a land-mask correction (swell sets ride seam A only)
+
+- **Live read (commitment 1585 part 3), by the instant-scrub session:** one dev-site open, 05:57-06:21Z, world GFS waves, 12
+  wheel steps. `__RAW_STATIC_FRAMES__`: hits 1, fetches 113 (6,296,904 B; fetchMs p50 502 / p95 687), misses {http_429: 3},
+  errors 3 (all recovered by the client's backoff); pin run 2026-10-21T18:00Z = the index run. Parity vs live /grid at 06:00Z:
+  resident product = grid product, 14,842 nodes, 0 bad, max height error 0.0005 m. No /grid or /grid_series during the steps;
+  /api/health 200 in 1.29 s before, 0.96 s after. 1585 stays OPEN: its check asks errors 0 (the three 429s are Supabase's origin
+  rate limit on a cold whole-run fill at 6 in flight) and flag-on/off timings, which this open did not record.
+- **Correction (the instant-scrub session's catch):** the series conform (useMarineWindData) re-emits flat backend vectors
+  without top-level `is_valid`, and the encoder recovers land from `v.waves` only, so a swell / wind-wave SERIES frame encodes
+  land as ocean. A real world frame has 4,850 land cells of 15,023 (decoded live frame); the synthetic store has 0, so the
+  offline parity above could not see it. The first offline GFS swell_1 scrub settled 4 of 10 steps from the series lane
+  (exactFromSeries true; the "p95 17 ms" in the section above). Fix in #453: `staticSeriesEligible` (seam B: waves sets only)
+  and `getPinnedIndexSync` (the frame store: waves sets only, so it never idle-fills a run its packer refuses). Swell and
+  wind-wave sets are served by seam A (the /grid JSON, is_valid included); their series pages stay on /grid_series.
+- **Re-measured GFS swell_1** (same harness, rebuilt bundle): exact-correct frame p50 / p95 2,058 / 3,479 (grid) -> 1,605 / 1,676 ms
+  (store; every step from seam A after the per-hour settle), backend requests during the steps 9 -> 0, backend CPU 8.9 -> 0.05 s.
+  Waves sets unchanged (EURO 3 / 18 ms, ICON 6 / 1,045 ms with the tail fallback).
+- Checks after the fix: Jest 361 suites / 5,323 tests (one run timed out `marineFrameStoreRuntime` "a hidden tab waits" at 5 s
+  under full-suite load; 19/19 in isolation twice, and the next full run passed), check_eslint, craco build. Ledger: 1657
+  (finding: the live read; 1585 open), 1658 (correction to 1656's swell scrub claim).

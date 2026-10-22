@@ -313,11 +313,14 @@ export function onStaticFrameParsed(fn) {
   return () => _parsedHooks.delete(fn);
 }
 
-/** The pinned index for a set right now, synchronously; null when none, stale, or the set is killed (the frame store
- *  reaches sets only through this, so a per-set kill flipped after a pin also stops stored frames for that set). No I/O. */
+/** The pinned index for a set right now, synchronously; null when none, stale, the set is killed, or it is not a WAVES set.
+ *  The GPU frame store (#437) reaches sets only through this: a per-set kill flipped after a pin also stops it, and it never
+ *  plans or prefetches a non-waves run its packer would refuse (packStaticFrame: waves only), which would be egress for
+ *  nothing (a whole run is ~6.3 MB). No I/O. */
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
-  return pin && !pin.stale && staticSetEnabled(key) ? pin.index : null;
+  const waves = String(key || '').split('/')[2] === 'waves';
+  return pin && !pin.stale && staticSetEnabled(key) && waves ? pin.index : null;
 }
 
 function sharedParsedLoad(key, frame) {
@@ -435,6 +438,19 @@ export function staticEligible({ model, layer, bbox, surf }) {
 }
 
 /**
+ * Seam B (the series lane) takes WAVES sets only. The series conform (useMarineWindData) re-emits flat backend vectors without
+ * their top-level is_valid, and the encoder recovers land from the v.waves sub-record for the waves layer only; for swell_1 /
+ * swell_2 / wind_waves a series frame's land cells (4,850 of 15,023 in a real world frame, 2026-10-22) would encode as OCEAN,
+ * where the /grid lane (the mapper's isOcean) keeps them land. Before static frames that lane only drew the thinned preview and
+ * the exact /grid frame replaced it; a full-resolution static series frame would be the settled one. So non-waves sets are
+ * served through seam A (the exact per-hour grid, the /grid JSON byte for byte, is_valid included) and the series lane keeps
+ * /grid_series for them, until the conform carries validity for every layer.
+ */
+export function staticSeriesEligible(args) {
+  return staticEligible(args) && String((args && args.layer) || 'waves').toLowerCase() === 'waves';
+}
+
+/**
  * Seam A. The /grid JSON for a WORLD request from the pinned static frame, or null (the caller fetches /grid).
  * `validTimeStr` is what the caller would have put in the /grid URL.
  */
@@ -470,7 +486,7 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
  * the index is missing (the caller then uses /grid_series as before).
  */
 export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anchorMs, focusHour, signal, onFrames }) {
-  if (!staticEligible({ model, layer, bbox, surf })) return null;
+  if (!staticSeriesEligible({ model, layer, bbox, surf })) return null;
   const key = setKeyFor(model, layer);
   const index = await getPinnedIndex(key).catch(() => null);
   if (!index) { noteMiss('no_index'); return null; }

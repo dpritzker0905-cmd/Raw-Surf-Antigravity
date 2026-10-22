@@ -1515,6 +1515,12 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   unbuilt (path null), and every ask that picks one falls back to /grid, whose resolver picks the same product. Once
   `FRAME_PUBLISH_BUDGET_S` (600 s, inside the step's 15-min timeout) has elapsed, no further set starts; a skipped set keeps its
   published index (the stagger).
+- **Lanes:** seam A (the exact per-hour grid: the /grid JSON, is_valid included) serves all eight sets. Seam B (the series lane)
+  and the #437 frame store take the three WAVES sets only: the series conform drops top-level `is_valid` and the encoder recovers
+  land from `v.waves` alone, so a swell / wind-wave series frame's land cells (4,850 of 15,023 in a real world frame) would encode
+  as ocean. Before static frames that lane drew only the thinned preview and the exact /grid frame replaced it; a full-resolution
+  static series frame would be the settled one (seen offline: 4 of 10 swell steps). The gate lifts when the conform (or the
+  encoder's non-waves branch) carries validity.
 - **Not included:** EURO swell_1, swell_2 and wind_waves (stored at global_coarse only, and /grid fills the Gulf at serve time,
   so a frame of the stored product would not equal what /grid serves); ICON swell_2 (a client-side blend; its GFS swell_2 input
   is served from frames through the same seam).
@@ -1527,15 +1533,18 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     27,522,136 nodes, 0 bad, 0 provenance mismatches. Production-shaped (estimated tails absent): 1,408 comparisons, 21,152,384
     nodes, 0 bad; 424 asks land on unbuilt tail entries, and every one falls back to the product /grid names. Positive control:
     one flipped byte in one frame read 2 bad rows (16 mm) and exit 1.
-  - Offline scrub on the shipped default (static frames + the #437 frame store), exact-correct frame p95 per step: GFS swell_1
-    5,778 -> 17 ms, EURO waves 2,979 -> 18 ms, both with 0 backend requests; ICON waves 5,413 -> 1,045 ms, the one /grid ask being
-    the 168 h+ tail entry, which falls back by design. EURO needed seam A in `backendCopernicusServiceClient` (its own client).
+  - Offline scrub on the shipped default (static frames + the #437 frame store), exact-correct frame p50 / p95 per step: EURO
+    waves 66 / 2,979 -> 3 / 18 ms with 0 backend requests; ICON waves 35 / 5,413 -> 6 / 1,045 ms, the one /grid ask being the
+    168 h+ tail entry, which falls back by design; GFS swell_1 (seam A only) 2,058 / 3,479 -> 1,605 / 1,676 ms, backend requests
+    during the steps 9 -> 0, backend CPU 8.9 -> 0.05 s. EURO needed seam A in `backendCopernicusServiceClient` (its own client).
   - Live (world GFS waves, pilots run 39722114072): 113 built, 0 refused, 6,296,904 B in 29.0 s; latest.json 200 (no-cache),
     frames immutable with no Content-Encoding, CDN MISS then HIT.
 - **Known costs:** CDN egress grows with the sets a visitor views: about 0.7 MB for a glance, and on desktop the #437 idle fill
   loads the whole run of the viewed set (about 6.3 MB for a GFS set, 3.2-3.6 MB for an ICON/EURO set's native hours). Within
   Supabase Pro's 250 GB cached egress that is about 39,000 desktop opens a month on one GFS set, fewer for visitors who toggle.
-  Storage is about 78 MB steady state (current and previous run).
+  Storage is about 78 MB steady state (current and previous run). Swell and wind-wave sets get no instant scrub yet (seam A
+  only: the exact frame lands after the per-hour settle, ~1.6 s offline), and their series pages still come from /grid_series.
+  A cold whole-run fill hits the Supabase origin once per frame; the live read saw 3 x 429 at 6 in flight (recovered).
 - **Rollback:** the per-set kill (one browser or window list), the global kill, or revert the PR (the publisher goes back to GFS
   waves only, and the client's other sets become `no_index` misses).
 - **Reopen if:** a set's live parity read fails, cached egress nears 250 GB a month, or the publish step nears its 15-min timeout.

@@ -1,6 +1,6 @@
 import {
   _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, hasPinnedIndex, loadFrameVectors, setKeyFor, staticEligible,
-  staticFramesEnabled, staticSetEnabled, tryStaticWorldGrid, STATIC_SETS,
+  staticFramesEnabled, staticSeriesEligible, staticSeriesFrames, staticSetEnabled, tryStaticWorldGrid, STATIC_SETS,
 } from './staticFrames';
 import { fetchBackendMarineGrid, setCachedManifest } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
@@ -127,6 +127,30 @@ describe('static frames loader', () => {
     expect(hasPinnedIndex(iconKey)).toBe(false);
     delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
     expect(hasPinnedIndex(iconKey)).toBe(true);
+  });
+
+  test('a non-waves set: seam A serves its exact grid (is_valid intact); the series lane and the frame store do not take it', async () => {
+    // The series conform drops top-level is_valid and the encoder recovers land from v.waves only, so a swell series frame's land
+    // cells would encode as ocean; real world frames carry ~4,850 land cells of 15,023.
+    const idx = indexFor('s1', ['2026-10-20T00:00:00Z']);
+    idx.common_meta = { ...idx.common_meta, layer: 'swell_1' };
+    const swellKey = setKeyFor('GFS', 'swell_1');
+    global.fetch = jest.fn(async (url) => {
+      const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+      if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [swellKey]: { index: idx.path } } });
+      if (url === BASE + idx.path) return ok(idx);
+      if (url.endsWith('.bin')) { const buf = goldenBuffer('2026-10-20T00:00:00Z'); return { ok: true, status: 200, arrayBuffer: async () => buf.slice(0) }; }
+      return { ok: false, status: 400, json: async () => ({}) };
+    });
+    const json = await tryStaticWorldGrid({ model: 'GFS', layer: 'swell_1', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(json).toMatchObject({ layer: 'swell_1', served_valid_time: '2026-10-20T00:00:00Z' });
+    expect(json.grid.vectors.every((v) => 'is_valid' in v)).toBe(true);
+    expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(true);
+    expect(staticSeriesEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
+    expect(staticSeriesEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
+    expect(await staticSeriesFrames({ model: 'GFS', layer: 'swell_1', bbox: WORLD, hours: [0], anchorMs: now, onFrames: () => {} })).toBeNull();
+    expect(hasPinnedIndex(swellKey)).toBe(true);          // pinned by seam A ...
+    expect(getPinnedIndexSync(swellKey)).toBeNull();      // ... but the frame store (waves-only packer) never sees it
   });
 
   test('serves the /grid JSON from the CDN frame, then from memory', async () => {

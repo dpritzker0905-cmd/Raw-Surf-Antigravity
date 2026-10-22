@@ -671,22 +671,22 @@
     "CDN_LAT": 0,
     "MODEL": "GFS",
     "LAYER": "swell_1",
-    "startedUtc": "2026-10-22T08:46:19.760Z"
+    "startedUtc": "2026-10-22T10:07:57.832Z"
    },
    "summary": {
     "grid": {
      "sessions": 1,
      "steps": 10,
      "exact_missed": 0,
-     "exact_ms_p50": 42,
-     "exact_ms_p95": 5778,
-     "exact_ms_max": 5778,
-     "label_ms_p50": 66,
+     "exact_ms_p50": 2058,
+     "exact_ms_p95": 3479,
+     "exact_ms_max": 3479,
+     "label_ms_p50": 2058,
      "backend_requests": {
       "/grid_series": 2,
-      "/grid": 5
+      "/grid": 7
      },
-     "backend_cpu_s_per_step": 0.85,
+     "backend_cpu_s_per_step": 0.8875,
      "cdn_bytes_per_frame": null,
      "open": {
       "glance_frame_bytes": [
@@ -707,25 +707,25 @@
      "sessions": 1,
      "steps": 10,
      "exact_missed": 0,
-     "exact_ms_p50": 1,
-     "exact_ms_p95": 17,
-     "exact_ms_max": 17,
-     "label_ms_p50": 15,
+     "exact_ms_p50": 1605,
+     "exact_ms_p95": 1676,
+     "exact_ms_max": 1676,
+     "label_ms_p50": 1605,
      "backend_requests": {},
-     "backend_cpu_s_per_step": 0.0016,
-     "cdn_bytes_per_frame": 8728,
+     "backend_cpu_s_per_step": 0.0047,
+     "cdn_bytes_per_frame": 15081,
      "open": {
       "glance_frame_bytes": [
-       1048358
+       8921
       ],
       "whole_run_ms": [
-       1713
+       null
       ],
       "before_steps_frame_bytes": [
-       1048358
+       8921
       ],
       "session_static_bytes": [
-       1083268
+       144653
       ]
      }
     }
@@ -734,124 +734,124 @@
     "grid": [
      {
       "target": 1,
-      "exact_ms": 0,
-      "label_ms": 66,
+      "exact_ms": 1191,
+      "label_ms": 1191,
       "misses": null
      },
      {
       "target": 2,
-      "exact_ms": 5778,
-      "label_ms": 5778,
+      "exact_ms": 0,
+      "label_ms": 37,
       "misses": null
      },
      {
       "target": 3,
       "exact_ms": 0,
-      "label_ms": 39,
-      "misses": null
-     },
-     {
-      "target": 4,
-      "exact_ms": 0,
       "label_ms": 48,
       "misses": null
      },
      {
+      "target": 4,
+      "exact_ms": 3479,
+      "label_ms": 3479,
+      "misses": null
+     },
+     {
       "target": 28,
-      "exact_ms": 2291,
-      "label_ms": 2291,
+      "exact_ms": 2143,
+      "label_ms": 2143,
       "misses": null
      },
      {
       "target": 52,
-      "exact_ms": 2285,
-      "label_ms": 2285,
+      "exact_ms": 2058,
+      "label_ms": 2058,
       "misses": null
      },
      {
       "target": 172,
-      "exact_ms": 3089,
-      "label_ms": 3089,
+      "exact_ms": 2088,
+      "label_ms": 2088,
       "misses": null
      },
      {
       "target": 148,
-      "exact_ms": 2172,
-      "label_ms": 2172,
+      "exact_ms": 2710,
+      "label_ms": 2710,
       "misses": null
      },
      {
       "target": 147,
-      "exact_ms": 0,
-      "label_ms": 35,
+      "exact_ms": 2091,
+      "label_ms": 2091,
       "misses": null
      },
      {
       "target": 0,
-      "exact_ms": 42,
-      "label_ms": 42,
+      "exact_ms": 70,
+      "label_ms": 70,
       "misses": null
      }
     ],
     "store": [
      {
       "target": 1,
-      "exact_ms": 0,
-      "label_ms": 11,
+      "exact_ms": 1676,
+      "label_ms": 1676,
       "misses": {}
      },
      {
       "target": 2,
-      "exact_ms": 16,
-      "label_ms": null,
+      "exact_ms": 0,
+      "label_ms": 41,
       "misses": {}
      },
      {
       "target": 3,
       "exact_ms": 0,
-      "label_ms": null,
+      "label_ms": 23,
       "misses": {}
      },
      {
       "target": 4,
-      "exact_ms": 0,
-      "label_ms": null,
+      "exact_ms": 1602,
+      "label_ms": 1602,
       "misses": {}
      },
      {
       "target": 28,
-      "exact_ms": 1,
-      "label_ms": null,
+      "exact_ms": 1607,
+      "label_ms": 1607,
       "misses": {}
      },
      {
       "target": 52,
-      "exact_ms": 7,
-      "label_ms": null,
+      "exact_ms": 1635,
+      "label_ms": 1635,
       "misses": {}
      },
      {
       "target": 172,
-      "exact_ms": 10,
-      "label_ms": null,
+      "exact_ms": 1600,
+      "label_ms": 1600,
       "misses": {}
      },
      {
       "target": 148,
-      "exact_ms": 8,
-      "label_ms": null,
+      "exact_ms": 1611,
+      "label_ms": 1611,
       "misses": {}
      },
      {
       "target": 147,
-      "exact_ms": 0,
-      "label_ms": 15,
+      "exact_ms": 1605,
+      "label_ms": 1605,
       "misses": {}
      },
      {
       "target": 0,
-      "exact_ms": 17,
-      "label_ms": 17,
+      "exact_ms": 1651,
+      "label_ms": 1651,
       "misses": {}
      }
     ]
@@ -1296,5 +1296,18 @@
    "full_store_all_built": 247.8,
    "production_shaped": 223.9
   }
+ },
+ "land_mask_check": {
+  "real_world_frame": "v1/gfs/marine/waves/global_mid/20261021T180000Z/20261022T030000Z-a6a8bbec5fae.bin (live, decoded with frame_binary)",
+  "land_or_no_data_cells": 4850,
+  "nodes": 15023,
+  "synthetic_store_land_cells": 0,
+  "finding": "the series conform drops top-level is_valid and the encoder recovers land from v.waves only, so non-waves series frames encode land as ocean; before the gate, the offline GFS swell_1 store arm settled 4 of 10 steps from the series lane (exactFromSeries true, p95 17 ms). Gate: seam B and the frame store take waves sets only; swell rides seam A."
+ },
+ "live_inbrowser_read_instant_scrub_session": {
+  "window": "2026-10-22 05:57-06:21Z, one dev-site open, world GFS waves, 12 wheel steps",
+  "static_frames": "hits 1, misses {http_429: 3}, errors 3 (recovered by backoff), fetches 113, bytes 6,296,904; fetchMs p50 502 / p95 687",
+  "parity_vs_live_grid": "ask 2026-10-22T06:00Z, resident = grid product gfs_marine_waves_global_mid_20261022T060000Z.json, n 14,842, bad 0, max height err 0.0005 m",
+  "backend": "no /grid or /grid_series during the steps; /api/health 200 1.29 s before, 0.96 s after"
  }
 }
