@@ -168,3 +168,55 @@ active model-layer's whole series on every map open while static frames are on: 
 for an intent-gated glance. At 5.7-8.5 MB per session that is still about 30-40k sessions a month inside Supabase Pro's 250 GB
 cached egress. The default stays intent-gated, as the lead's brief asked; `__RAW_FRAME_PREFETCH_EAGER__` is the lever, measured
 above.
+
+## Update (2026-10-22 02:16Z): the ADAPTIVE IDLE FILL is the default on desktop; a retry-loop fix; rebased standalone on dev
+
+**Why.** The owner asked "what is more state of the art? eager or on demand loading on desktop?". The lead answered ADAPTIVE,
+and that is the plan (relayed 2026-10-22): open on demand, then on a capable desktop fill the rest of the run in idle time.
+
+**What changed** (`marineFrameStoreRuntime.js`, `marineFramePrefetch.js`):
+- Map open: the intent-gated policy as before (the +-8 frame window nearest the cursor).
+- Once those frames have landed (the prefetcher is idle) and after the first marine draw, an idle slice (`requestIdleCallback`,
+  else a macrotask) grants the fill: the plan expands to the whole active run, nearest-first.
+- The fill runs only when `idleFillBlocker()` returns null, read on every call:
+  - the store tier is `desktop` (phones, weak devices, <= 4 GB, WebGL1 and the constrained tier stay on demand);
+  - no Save-Data;
+  - `effectiveType` is `4g` or the Network Information API is absent;
+  - the primary pointer is not coarse;
+  - the tab is visible. Hiding the tab pauses the fill: no new requests beyond the window. It resumes in an idle slice when the
+    tab is visible again.
+- Kill: `window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true` (the intent-gated policy alone). The eager lever stays.
+- Telemetry: `__RAW_FRAME_STORE__.fill` holds `{ key, planned, startedMs, doneMs, blocked, blockedNow }`, in ms since the first
+  draw.
+- **Fixed in passing:** a failed frame went straight back to `absent`, and the same pump re-asked it at once, a tight loop
+  against the CDN for as long as the error lasted. A failed frame now waits 2 s, doubling to 60 s; a success clears the delay.
+  `idle()` ignores backed-off and unbuilt frames, so a failure never holds the fill shut.
+
+**Measured offline** (evidence `gpu-frame-store-idle-fill-2026-10-22.json`):
+- Setup: `scn_static_frames.js` with the new `intent` arm (fill killed) and per-open measures. One build, 340 ms added per CDN
+  object, 2 rounds interleaved.
+- Step times are ms from key press to the EXACT-CORRECT frame. Bytes are real-frame equivalents: frames x 56 KB, because the
+  synthetic frames compress to 8.9 KB.
+
+  | Arm | p50 | p95 | max | whole run in store after first draw | frames in the first 6 s | frames before the steps |
+  |---|---|---|---|---|---|---|
+  | static (store killed) | 51 | 795 | 887 | - | 1 | 1 |
+  | intent (fill killed) | 2 | 427 | 452 | never (window only) | 13-14 (0.71-0.77 MB) | 13-14 |
+  | **store (adaptive, default)** | **0** | **15** | **16** | **7.4-7.8 s** (fill granted at 0.8-1.2 s) | 86-91 (4.7-5.0 MB) | 115-116 (6.3 MB) |
+  | eager (lever) | 1 | 13 | 15 | 7.6-7.8 s | 91-94 (5.0-5.1 MB) | 116 (6.3 MB) |
+
+- 0 `/grid` and 0 `/grid_series` requests in every arm. 0 prefetch errors.
+- **Reading:** at the live-hit latency the window lands in about a second, so on a desktop the fill begins almost at once. A
+  glance of 6 s or more then costs nearly the whole run, about 6.3 MB, like eager.
+  - What the fill adds over eager: the cursor's frames are never queued behind the series, and it backs off on hidden tabs,
+    Save-Data, slow links, coarse pointers and phones.
+  - Steps after the fill equal eager's (p95 15 vs 13 ms).
+  - The intent-only glance is 0.7-0.8 MB, not the simulator's 1.9 MB: no one-click-away sets have static frames yet, so none
+    are warmed.
+- Gates: Jest `src/components/map` + `src/tests` 360/360 suites (5313 tests), including 11 new fill and backoff tests. Two
+  mutants were caught (no fill: 4 tests fail; no backoff: 1). ESLint ratchet exit 0.
+
+**Branch.** #437 no longer stacks on #427; it is rebased standalone on dev `d84a94f26`, which includes #427. The lead asked for
+ledger-free branches, but this session's permission classifier refused the commit that deletes #437's two ledger lines
+("Logging/Audit Tampering"). The lines are instead re-chained after dev's 1606 as 1607 (pr_open) and 1608 (finding), with their
+original times as `acted_at`. The owner decides whether to allow the ledger-free method.

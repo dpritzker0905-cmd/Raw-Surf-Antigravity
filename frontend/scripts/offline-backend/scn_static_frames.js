@@ -19,8 +19,13 @@
 // Env: ROUNDS (3), WIN (ms per step, 8000), LAT_SERIES / LAT_GRID (ms added per backend response), CDN_LAT (ms added per
 // static object), CDN_PORT (4190), ARMS (default grid,static). The GPU-resident frames arms (2026-10-21):
 //   static  static frames on, the frame store KILLED (window.__RAW_DISABLE_FRAME_STORE__ = true): #422 as merged
-//   store   static frames on and the frame store on (the default once static frames are on): prefetch + the layer copy
+//   store   static frames on and the frame store on (the default once static frames are on): prefetch + the layer copy, and
+//           (2026-10-22) the adaptive idle fill: the rest of the run in idle time once the first frames have landed
+//   intent  as store with the idle fill KILLED (window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true): the intent-gated policy alone
 //   eager   as store, plus window.__RAW_FRAME_PREFETCH_EAGER__ = true (the whole series from the first draw; an egress lever)
+// Per open (2026-10-22): the static frame bytes in the first 6 s after the first draw (a glance), the time from the first draw
+// until the whole run is in the store (store / eager arms; FILL_WAIT ms at most, default 45000; the steps start after it),
+// and the frame bytes before the steps.
 // The probe names the resident product from the engine grid itself when the frame store put it there (__fromFrameStore),
 // because a store show writes no texture upload record (it is a GPU-side layer copy).
 const fs = require('fs');
@@ -36,6 +41,7 @@ const CDN_PORT = +(process.env.CDN_PORT || 4190);
 const ROUNDS = +(process.env.ROUNDS || 3);
 const WIN = +(process.env.WIN || 8000);
 const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
+const FILL_WAIT = +(process.env.FILL_WAIT || 45000);
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -127,18 +133,38 @@ async function clickExact(page, text) {
 async function session(arm) {
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true, hooks: { beforeWeather: async (url) => {
     const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
-  await page.addInitScript(({ on, base, killStore, eager }) => {
+  await page.addInitScript(({ on, base, killStore, eager, killFill }) => {
     if (on) { localStorage.setItem('__RAW_STATIC_FRAMES__', 'true'); window.__RAW_STATIC_FRAMES_BASE__ = base; } else localStorage.removeItem('__RAW_STATIC_FRAMES__');
     if (killStore) window.__RAW_DISABLE_FRAME_STORE__ = true;
     if (eager) window.__RAW_FRAME_PREFETCH_EAGER__ = true;
-  }, { on: ['static', 'store', 'eager'].includes(arm), base: `http://127.0.0.1:${CDN_PORT}/`, killStore: arm === 'static', eager: arm === 'eager' });
+    if (killFill) window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true;
+  }, { on: ['static', 'store', 'intent', 'eager'].includes(arm), base: `http://127.0.0.1:${CDN_PORT}/`, killStore: arm === 'static', eager: arm === 'eager',
+    killFill: arm === 'intent' });
   await page.addInitScript(PROBE);
   const steps = [];
+  const frameBytes = () => ({ n: (cdnLog.byKind.frame || { n: 0 }).n, bytes: (cdnLog.byKind.frame || { bytes: 0 }).bytes });
+  const open0 = frameBytes();
+  const since = (b) => ({ frames: b.n - open0.n, bytes: b.bytes - open0.bytes });
   try {
     await L.openMap(page); await L.jump(page, -80, 24, 3.2);
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
-    await sleep(6000);
+    // After the first draw: a 6 s glance, then (store / eager) until the whole run is in the store, at most FILL_WAIT.
+    const tDraw = Date.now(); let glance = null; let wholeRunMs = null;
+    const fills = ['store', 'eager'].includes(arm);
+    for (;;) {
+      await sleep(100);
+      const el = Date.now() - tDraw;
+      if (glance === null && el >= 6000) glance = since(frameBytes());
+      if (fills && wholeRunMs === null) {
+        const whole = await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; const s = t && t.sets && (t.sets.find((x) => t.fill && x.key === t.fill.key) || t.sets[0]);
+          return !!(s && s.frames > 0 && s.absent === 0 && s.inflight === 0); });
+        if (whole) wholeRunMs = el;
+      }
+      if (el >= 6000 && (!fills || wholeRunMs !== null || el >= FILL_WAIT)) break;
+    }
+    const open = { glance, wholeRunMs, beforeSteps: since(frameBytes()),
+      fill: await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; return t && t.fill ? { ...t.fill } : null; }) };
     // What /grid serves for each step's time (the app's anchor: the hour-rounded clock), asked BEFORE the timed window.
     const anchor = Math.round(Date.now() / 3600000) * 3600000;
     const expected = {};
@@ -165,7 +191,7 @@ async function session(arm) {
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) steps.forEach((x) => { x.anchorRolled = true; });
     const req = log.requests.slice(reqs0);
     const byPath = {}; for (const q of req) byPath[q.path] = (byPath[q.path] || 0) + 1;
-    return { arm, steps, backendCpuS: +(cpu1 - cpu0).toFixed(3), backendRequests: byPath,
+    return { arm, steps, open, backendCpuS: +(cpu1 - cpu0).toFixed(3), backendRequests: byPath,
       cdn: { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes },
       errors: log.errors.slice(0, 5), hosts: log.hosts,
       frameStore: await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; return t ? { shows: t.shows, commits: t.commits, prefetch: t.prefetch, gpu: t.gpu, cpuMB: t.cpuMB, gpuMB: t.gpuMB, tier: t.tier } : null; }) };
@@ -185,7 +211,8 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
       for (const arm of (i % 2 === 0 ? ARMS : [...ARMS].reverse())) {   // A B, B A, A B ... (interleaved)
         const s = await session(arm);
         sessions.push(s);
-        console.log(arm, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.labelMs])), 'cpu', s.backendCpuS, JSON.stringify(s.backendRequests), 'cdn', JSON.stringify(s.cdn));
+        console.log(arm, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.labelMs])), 'cpu', s.backendCpuS, JSON.stringify(s.backendRequests), 'cdn', JSON.stringify(s.cdn),
+          'open', JSON.stringify(s.open));
         if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
       }
     }
@@ -201,6 +228,10 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         backend_requests: ss.reduce((acc, s) => { for (const [k, v] of Object.entries(s.backendRequests)) acc[k] = (acc[k] || 0) + v; return acc; }, {}),
         cdn_bytes_per_frame: (() => { const n = ss.reduce((a, s) => a + s.cdn.requests, 0); return n ? Math.round(ss.reduce((a, s) => a + s.cdn.bytes, 0) / n) : null; })() };
       summary[arm].by_step = STEPS.map(([key, target], k) => ({ key, target, exact_ms: ss.map((s) => s.steps[k] && s.steps[k].exactMs) }));
+      summary[arm].open = { glance_frame_bytes: ss.map((s) => s.open && s.open.glance && s.open.glance.bytes),
+        whole_run_ms: ss.map((s) => s.open && s.open.wholeRunMs), before_steps_frame_bytes: ss.map((s) => s.open && s.open.beforeSteps.bytes),
+        // the frames before the steps plus every static object asked during them (the index reads are a few KB)
+        session_static_bytes: ss.map((s) => s.open && s.open.beforeSteps.bytes + s.cdn.bytes) };
     }
     out.summary = summary;
     console.log(JSON.stringify(summary, null, 1));

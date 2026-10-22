@@ -179,7 +179,43 @@ describe('createPrefetcher', () => {
     await flush();
     expect(stale).toEqual([A]);
     expect(pf.telemetry()).toMatchObject({ errors: 1, stale: 1 });
-    expect(['absent', 'inflight']).toContain(store.entry(A, vt(0)).state);
+    expect(store.entry(A, vt(0)).state).toBe('absent');
+  });
+
+  it('a failed frame is not re-asked at once: it waits 2 s, then 4 s, ...; a success clears the delay', async () => {
+    let clock = 1000;
+    const store = createFrameStore({ tier: 'desktop' });
+    const s = store.ensureSet({ model: 'GFS', layer: 'waves', modelRunTime: 'r', signature: SIG });
+    store.noteIndex(s.key, series(1).map((v) => ({ valid_time: v, path: `GFS/${v}.bin` })));
+    const calls = [];
+    const pf = createPrefetcher({ store, fetchFrame: (path) => new Promise((resolve) => { calls.push(resolve); }), decodeAndPack: () => fakePack(),
+      schedule: (fn) => fn(), now: () => clock });
+    const plan = planWant({ active: { key: s.key, validTimes: series(1) }, cursor: 0 });
+    pf.open(); pf.replan(plan, s.key);
+    calls[0]({ error: 'load_failed' }); await flush();
+    expect(calls).toHaveLength(1);                                  // before 2026-10-22 the same pump asked again here
+    expect(pf.idle()).toBe(true);                                   // a backed-off frame does not hold the plan open
+    clock += 1999; pf.replan(plan, s.key); expect(calls).toHaveLength(1);
+    clock += 1; pf.replan(plan, s.key); expect(calls).toHaveLength(2);
+    calls[1]({ error: 'load_failed' }); await flush();
+    clock += 3999; pf.replan(plan, s.key); expect(calls).toHaveLength(2);   // the second failure doubles the wait
+    clock += 1; pf.replan(plan, s.key); expect(calls).toHaveLength(3);
+    calls[2]({ buffer: new ArrayBuffer(4), wire: 4 }); await flush();
+    expect(store.entry(s.key, vt(0)).state).toBe('packed');
+    expect(pf.telemetry()).toMatchObject({ errors: 2, landed: 1 });
+  });
+
+  it('idle(): nothing in flight and nothing in the plan still waiting for a request', async () => {
+    const { mkSet, pf, calls } = rig({ unbuiltAt: [2] });
+    const A = mkSet('GFS');
+    expect(pf.idle()).toBe(true);
+    pf.open();
+    pf.replan(planWant({ active: { key: A, validTimes: series(3) }, cursor: 0 }), A);
+    expect(pf.idle()).toBe(false);
+    calls[0].resolve({ buffer: new ArrayBuffer(8), wire: 1 }); await flush();
+    expect(pf.idle()).toBe(false);
+    calls[1].resolve({ buffer: new ArrayBuffer(8), wire: 1 }); await flush();
+    expect(pf.idle()).toBe(true);                                   // frame 2 is unbuilt: /grid serves it, it never blocks
   });
 
   it('a frame the packer declines becomes a terminal miss: it is never re-fetched', async () => {

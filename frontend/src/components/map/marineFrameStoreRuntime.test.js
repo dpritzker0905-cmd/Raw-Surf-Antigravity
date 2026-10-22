@@ -65,7 +65,8 @@ async function parse(k, parsed = PARSED) { for (const fn of mockSF.hooks) fn({ k
 const commitHour = (eng, k) => RT.noteCommitted({ served_valid_time: vt(k), cols: 181, rows: 83, __sourceModel: 'GFS', __componentLayer: 'waves' }, { hour: k * 3, model: 'GFS', layer: 'waves' });
 
 beforeEach(() => { RT._resetFrameStoreRuntimeForTest(); mockSF.enabled = true; mockSF.hooks.clear(); mockSF.loads = [];
-  ['__RAW_DISABLE_FRAME_STORE__', '__RAW_DISABLE_FRAME_PREFETCH__', '__RAW_DISABLE_FRAME_STORE_GPU__', '__WEBGL_MARINE_THEME__', '__MARINE_DRAWN__'].forEach((k) => delete window[k]); });
+  ['__RAW_DISABLE_FRAME_STORE__', '__RAW_DISABLE_FRAME_PREFETCH__', '__RAW_DISABLE_FRAME_STORE_GPU__', '__RAW_DISABLE_FRAME_IDLE_FILL__',
+    '__WEBGL_MARINE_THEME__', '__MARINE_DRAWN__'].forEach((k) => delete window[k]); });
 
 describe('GPU-resident frames runtime', () => {
   it('does nothing while static frames are off or the store is killed', async () => {
@@ -193,5 +194,105 @@ describe('GPU-resident frames runtime', () => {
     const before = mockSF.loads.length;
     RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(20) });
     expect(mockSF.loads.length).toBe(before);
+  });
+});
+
+// Land every pending prefetch load until nothing new is asked (the idle fill asks in an idle slice after the window lands).
+async function landAll() {
+  for (let quiet = 0, guard = 0; quiet < 2 && guard < 60; guard++) {
+    const open = mockSF.loads.filter((x) => !x.done);
+    for (const l of open) { l.done = true; l.resolve({ parsed: PARSED, buffer: null, wire: 55000 }); }
+    await flush();
+    quiet = open.length ? 0 : quiet + 1;
+  }
+}
+const asked = () => mockSF.loads.map((l) => mockSF.index.frames.findIndex((f) => f.valid_time === l.frame.valid_time));
+
+describe('adaptive idle fill (on demand first, then the rest of the run on a capable desktop)', () => {
+  let vis = 'visible';
+  beforeEach(() => {
+    vis = 'visible';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => vis });
+    ['__RAW_DISABLE_FRAME_IDLE_FILL__', '__RAW_FRAME_PREFETCH_EAGER__', 'matchMedia'].forEach((k) => delete window[k]);
+    window.__RAW_FRAME_STORE_TIER__ = 'desktop';                            // jsdom's device facts are not a desktop's
+    delete window.navigator.connection;
+  });
+  afterEach(() => { delete document.visibilityState; delete window.navigator.connection; delete window.matchMedia; delete window.__RAW_FRAME_STORE_TIER__; });
+  const link = (c) => Object.defineProperty(window.navigator, 'connection', { configurable: true, value: c });
+
+  it('opens with the +-8 window only, then, once it has landed, fills the rest of the run in idle time', async () => {
+    const { eng } = setup({ n: 30 });
+    commitHour(eng, 10);                                                   // the first draw: plan around frame 10
+    expect(asked().every((k) => Math.abs(k - 10) <= 8)).toBe(true);
+    expect(window.__RAW_FRAME_STORE__.fill.key).toBeNull();
+    await landAll();
+    const order = asked();
+    expect(new Set(order).size).toBe(30);                                  // the whole run
+    expect(order.slice(0, 17).every((k) => Math.abs(k - 10) <= 8)).toBe(true);   // the window first, all of it
+    const f = window.__RAW_FRAME_STORE__.fill;
+    expect(f.key).toBe(window.__RAW_FRAME_STORE__.sets[0].key);
+    expect(f.startedMs).not.toBeNull();
+    expect(f.doneMs).not.toBeNull();                                       // every built frame packed
+    expect(f.doneMs).toBeGreaterThanOrEqual(f.startedMs);
+  });
+
+  it.each([
+    ['the kill switch', () => { window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true; }, 'killed'],
+    ['a link that turns on Save-Data', () => link({ saveData: true, effectiveType: '4g' }), 'save_data'],
+    ['a slow link', () => link({ saveData: false, effectiveType: '3g' }), 'slow_link'],
+    ['a coarse primary pointer', () => { window.matchMedia = (q) => ({ matches: q === '(pointer: coarse)' }); }, 'coarse_pointer'],
+  ])('stays on demand with %s', async (_, arrange, reason) => {
+    const { eng } = setup({ n: 30 });
+    arrange();
+    commitHour(eng, 10);
+    await landAll();
+    expect(new Set(asked()).size).toBe(17);                                // the window, nothing more
+    expect(window.__RAW_FRAME_STORE__.fill).toMatchObject({ key: null, blocked: reason });
+  });
+
+  it('stays on demand on a phone tier (and with Save-Data from the start, the constrained tier)', async () => {
+    window.__RAW_FRAME_STORE_TIER__ = 'handheld';
+    const { eng } = setup({ n: 30 });
+    commitHour(eng, 10);
+    await landAll();
+    expect(new Set(asked()).size).toBe(17);
+    expect(window.__RAW_FRAME_STORE__.fill.blocked).toBe('tier');
+  });
+
+  it('a 4G link and no Network Information API both count as fine on a desktop', async () => {
+    const { eng } = setup({ n: 20 });
+    link({ saveData: false, effectiveType: '4g' });
+    commitHour(eng, 5);
+    await landAll();
+    expect(new Set(asked()).size).toBe(20);
+  });
+
+  it('a hidden tab waits; visible again, the fill resumes', async () => {
+    const { eng } = setup({ n: 30 });
+    vis = 'hidden';
+    commitHour(eng, 10);
+    await landAll();
+    expect(new Set(asked()).size).toBe(17);
+    expect(window.__RAW_FRAME_STORE__.fill.blocked).toBe('hidden');
+    vis = 'visible';
+    document.dispatchEvent(new Event('visibilitychange'));
+    await landAll();
+    expect(new Set(asked()).size).toBe(30);
+  });
+
+  it('hiding the tab mid-fill stops new requests beyond the window', async () => {
+    const { eng } = setup({ n: 60 });
+    commitHour(eng, 10);
+    // Land the window, then the fill's first requests start; hide the tab before they land.
+    for (let i = 0; i < 6 && !window.__RAW_FRAME_STORE__.fill.planned; i++) {
+      mockSF.loads.filter((x) => !x.done).forEach((l) => { l.done = true; l.resolve({ parsed: PARSED, buffer: null, wire: 1 }); });
+      await flush();
+    }
+    expect(window.__RAW_FRAME_STORE__.fill.planned).toBe(true);
+    vis = 'hidden';
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(window.__RAW_FRAME_STORE__.fill.planned).toBe(false);
+    await landAll();                                                       // the requests already out still land
+    expect(new Set(asked()).size).toBeLessThan(60);
   });
 });

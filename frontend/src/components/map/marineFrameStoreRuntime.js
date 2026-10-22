@@ -10,7 +10,10 @@
  *      and asks for a repaint. The normal commit (vectors for the infobox, glyphs, arbiter, truth tags) still follows and writes
  *      the same bytes, so the picture never changes when it lands;
  *   3. noteStep() keeps the intent-gated prefetch running (marineFramePrefetch): the +-8 window, then the whole series once the
- *      wheel has moved 4 frames. CDN only, through #422's shared loader.
+ *      wheel has moved 4 frames. CDN only, through #422's shared loader;
+ *   4. ADAPTIVE IDLE FILL (2026-10-22): on a desktop with a good link, once the first frames have landed, the rest of the active
+ *      run streams in idle time (requestIdleCallback), so later steps are eager's without eager's cost before the first draw.
+ *      Phones, coarse pointers, Save-Data, slow links and hidden tabs stay on demand (see idleFillBlocker).
  * The fast path refuses (and the normal path runs as before) unless the engine's resident texture holds a frame of the SAME set
  * (model, layer, pinned run, pack signature) with the SAME size and validity, recorded by noteCommitted() after a normal commit.
  *
@@ -18,6 +21,7 @@
  *   window.__RAW_DISABLE_FRAME_STORE__ = true            everything here off: today's path, byte for byte
  *   window.__RAW_DISABLE_FRAME_PREFETCH__ = true         no prefetch: the store fills only from #422's own loads
  *   window.__RAW_DISABLE_FRAME_STORE_GPU__ = true        no texture arrays: CPU bytes + texSubImage2D per step
+ *   window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true        no idle fill: the intent-gated policy alone (the series after 4 frames)
  * Lever (OFF by default, egress): window.__RAW_FRAME_PREFETCH_EAGER__ = true streams the whole series from the first draw.
  * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
  */
@@ -25,7 +29,7 @@ import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, loadFrame
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
 import { packStaticFrame, packSignature } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
-import { createIntent, createPrefetcher, planWant } from './marineFramePrefetch';
+import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
@@ -34,10 +38,63 @@ const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/IC
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
 
+const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
 const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
-  resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {} };
+  resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
+  fill: freshFill(), lastStep: null, openedAt: null, onVis: null };
 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
+const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+const sinceOpen = () => (rt.openedAt === null ? null : Math.round(nowMs() - rt.openedAt));
+
+// ADAPTIVE IDLE FILL. The owner asked "what is more state of the art? eager or on demand loading on desktop?"; the lead's answer
+// (2026-10-22) is the plan: open on demand, then fill the run in idle time where the device and the link allow it. Returns why
+// the fill may not run now, or null. Read per call: a link can drop to Save-Data and a tab can hide at any time.
+function idleFillBlocker() {
+  const w = W();
+  if (w.__RAW_DISABLE_FRAME_IDLE_FILL__ === true) return 'killed';
+  if (!rt.store || rt.store.tier !== 'desktop' || !rt.store.budget.full) return 'tier';
+  const conn = (typeof navigator !== 'undefined' && navigator.connection) || null;
+  if (conn && conn.saveData === true) return 'save_data';
+  if (conn && conn.effectiveType && conn.effectiveType !== '4g') return 'slow_link';   // no Network Information API = fine
+  try { if (typeof w.matchMedia === 'function' && w.matchMedia('(pointer: coarse)').matches) return 'coarse_pointer'; } catch (e) { /* none */ }
+  if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return 'hidden';
+  return null;
+}
+
+// Arm the fill for the active set once its first frames have landed (the plan is idle), then grant it in an idle slice. Also
+// re-plans a granted fill that a hidden tab paused.
+function armIdleFill() {
+  const f = rt.fill;
+  if (f.armed || !rt.prefetcher || !rt.activeKey || !rt.lastStep || !rt.prefetcher.telemetry().opened) return;
+  const granted = f.key === rt.activeKey;
+  if (granted && f.planned) return;
+  if (!granted && !rt.prefetcher.idle()) return;          // the first frames first
+  f.blocked = idleFillBlocker();
+  if (f.blocked) return;
+  f.armed = true;
+  idleSlice(() => {
+    f.armed = false;
+    f.blocked = idleFillBlocker();
+    if (f.blocked || !rt.lastStep || !rt.activeKey) return;
+    if (f.key !== rt.activeKey) Object.assign(f, { key: rt.activeKey, startedMs: sinceOpen(), doneMs: null });
+    noteStep({ ...rt.lastStep, commit: true });
+    const info = [...rt.sets.values()].find((x) => x.key === f.key);
+    if (info) noteFillDone(info);                          // already whole (eager, or the run is short): done now
+  });
+}
+
+// The time from the first draw until every built frame of the filled set is packed (the harness reads it).
+function noteFillDone(info) {
+  const f = rt.fill;
+  if (f.key !== info.key || f.doneMs !== null || f.startedMs === null) return;
+  for (const v of info.validTimes) {
+    const fr = info.byVt.get(v);
+    const e = store().entry(info.key, v);
+    if (fr && fr.path && !(e && e.pack) && !(e && e.unbuilt)) return;
+  }
+  f.doneMs = sinceOpen();
+}
 
 function tier() {
   const w = W(); const nav = typeof navigator !== 'undefined' ? navigator : {};
@@ -123,6 +180,8 @@ function upload(info, validTime) {
   resolvePending(info, validTime);
   uploadGpu(info, validTime);
   deferredShow(info, validTime);
+  noteFillDone(info);
+  armIdleFill();
 }
 
 function uploadGpu(info, validTime) {
@@ -173,6 +232,14 @@ function ensureInit() {
       decodeAndPack: ({ parsed }) => packStaticFrame(parsed),
       onPacked: (key, validTime) => { const info = [...rt.sets.values()].find((x) => x.key === key); if (info) upload(info, validTime); },
     });
+  }
+  // A hidden tab pauses the fill (no new requests beyond the on-demand window); visible again, it resumes in an idle slice.
+  if (!rt.onVis && typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    rt.onVis = () => {
+      if (!rt.lastStep) return;
+      if (idleFillBlocker() === 'hidden') { if (rt.fill.planned) noteStep({ ...rt.lastStep, commit: true }); } else armIdleFill();
+    };
+    document.addEventListener('visibilitychange', rt.onVis);
   }
 }
 
@@ -228,15 +295,23 @@ export function noteStep({ model, layer, requestedValidTime, commit = false } = 
   const cursor = frame ? info.layerOf.get(frame.valid_time) : undefined;
   if (cursor === undefined) return;
   if (rt.activeKey !== info.key) { rt.intent.switchTo(info.key, cursor); rt.activeKey = info.key; rt.want = null; } else if (!commit) rt.intent.press(cursor);
+  rt.lastStep = { model, layer, requestedValidTime };
   const st = rt.intent.state(); const t = store().tier;
   const slow = t === 'constrained';
   // EAGER (a lever, OFF by default: egress): the whole series from the first draw, not only after the wheel moved 4 frames.
   const eager = W().__RAW_FRAME_PREFETCH_EAGER__ === true && !slow;
+  // IDLE FILL: the whole series too, but only once armIdleFill granted it for this set (first frames landed, idle, allowed).
+  const fill = rt.fill.key === info.key && !idleFillBlocker();
+  rt.fill.planned = fill;
   const plan = planWant({ active: { key: info.key, validTimes: info.validTimes, built: (v) => !!(info.byVt.get(v) || {}).path },
-    cursor, dir: st.dir, expanded: st.expanded || eager, warm: [], slow, full: store().budget.full });
+    cursor, dir: st.dir, expanded: st.expanded || eager || fill, warm: [], slow, full: store().budget.full });
   rt.prefetcher.replan(plan, info.key, { slow });
   const eng = rt.target.getEngine && rt.target.getEngine();
-  if (eng && eng._waveData) rt.prefetcher.open();               // never before the first marine draw
+  if (eng && eng._waveData) {                                    // never before the first marine draw
+    if (rt.openedAt === null) rt.openedAt = nowMs();
+    rt.prefetcher.open();
+    armIdleFill();
+  }
   publishTelemetry();
 }
 
@@ -298,6 +373,7 @@ function snapshot() {
     on: frameStoreOn(), ...(rt.store ? rt.store.telemetry() : {}),
     prefetch: rt.prefetcher ? rt.prefetcher.telemetry() : null, gpu: rt.pool ? rt.pool.telemetry() : null,
     shows: { ...rt.shows, misses: { ...rt.shows.misses } }, resident: rt.resident, commits: { ...rt.commits },
+    fill: { ...rt.fill, blockedNow: rt.store ? idleFillBlocker() : null, sinceOpenMs: sinceOpen() },
   };
 }
 // A live getter: every read is current (a prefetch lands between scrub steps, so a snapshot taken at a step would lag).
@@ -311,6 +387,8 @@ function publishTelemetry() {
 export function _resetFrameStoreRuntimeForTest() {
   if (rt.unhook) rt.unhook();
   if (rt.pool) rt.pool.dispose();
+  if (rt.onVis && typeof document !== 'undefined') document.removeEventListener('visibilitychange', rt.onVis);
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
-    resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {} });
+    resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
+    fill: freshFill(), lastStep: null, openedAt: null, onVis: null });
 }

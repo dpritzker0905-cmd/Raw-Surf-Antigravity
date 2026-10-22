@@ -25,6 +25,10 @@ export const WINDOW_SLOW = 4;
 export const EXPAND_AFTER_FRAMES = 4;
 export const CAP = 6;
 export const CAP_SLOW = 3;
+// A failed frame waits before it is asked again: 2 s, doubling to 60 s (found 2026-10-22: an error put the frame straight back
+// to `absent` and the same pump re-asked it at once, a tight loop against the CDN for as long as the error lasted).
+export const RETRY_MIN_MS = 2000;
+export const RETRY_MAX_MS = 60000;
 
 /** Frame indices of a sorted series, nearest `c` first, `dir` (+1 / -1) first on a tie, within `radius` (Infinity = all). */
 export function nearestFirst(n, c, dir = 1, radius = Infinity) {
@@ -99,11 +103,23 @@ export function idleSlice(fn) {
  * { replan(plan, activeKey), open(), telemetry() }.
  */
 export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = () => {}, onStale = () => {}, schedule = idleSlice,
-  cap = CAP } = {}) {
+  cap = CAP, now = () => Date.now() } = {}) {
   let plan = []; let activeKey = null; let opened = false; let capNow = cap;
   const inflight = new Map(); // id -> { key, validTime, ctrl }
-  const t = { requests: 0, landed: 0, aborted: 0, preempted: 0, errors: 0, bytes: 0, packFail: 0, stale: 0 };
+  const fails = new Map();    // id -> consecutive failures
+  const retryAt = new Map();  // id -> the earliest time it may be asked again
+  const t = { requests: 0, landed: 0, aborted: 0, preempted: 0, errors: 0, bytes: 0, packFail: 0, stale: 0, backedOff: 0 };
   const idOf = (key, validTime) => `${key}@${validTime}`;
+  function failed(id) {
+    const n = (fails.get(id) || 0) + 1;
+    fails.set(id, n);
+    retryAt.set(id, now() + Math.min(RETRY_MAX_MS, RETRY_MIN_MS * 2 ** (n - 1)));
+  }
+  // A plan entry that still needs a request: absent, built, and not waiting out a retry delay.
+  function waiting(p) {
+    const e = store.entry(p.key, p.validTime);
+    return !!(e && e.path && e.state === 'absent' && !((retryAt.get(idOf(p.key, p.validTime)) || 0) > now()));
+  }
 
   function abortStale() {
     const top = new Set(plan.slice(0, 2 * capNow).map((p) => idOf(p.key, p.validTime)));
@@ -119,7 +135,7 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
   // the plan, or one no longer in it) to make room. It goes back to absent and is fetched again in its turn.
   function preemptForHead() {
     const rank = new Map(plan.map((p, i) => [idOf(p.key, p.validTime), i]));
-    const need = plan.slice(0, 2).filter((p) => { const e = store.entry(p.key, p.validTime); return e && e.state === 'absent'; }).length;
+    const need = plan.slice(0, 2).filter(waiting).length;
     while (need > 0 && inflight.size > capNow - need) {
       let worst = null;
       for (const [id, f] of inflight) {
@@ -144,11 +160,12 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
       inflight.delete(id);
       if (!got || got.error) {
         store.markAbsent(p.key, p.validTime);
-        if (got && got.error !== 'aborted') t.errors += 1;
+        if (!got || got.error !== 'aborted') { t.errors += 1; failed(id); }
         if (got && (got.status === 404 || got.status === 400)) { t.stale += 1; onStale(p.key); }
         pump();
         return;
       }
+      fails.delete(id); retryAt.delete(id);
       t.bytes += got.wire || 0;
       schedule(() => {
         let pack = null;
@@ -162,7 +179,7 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
         }
       });
       pump();
-    }, () => { if (inflight.delete(id)) { store.markAbsent(p.key, p.validTime); t.errors += 1; } pump(); });
+    }, () => { if (inflight.delete(id)) { store.markAbsent(p.key, p.validTime); t.errors += 1; failed(id); } pump(); });
     return true;
   }
 
@@ -171,7 +188,10 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     for (const p of plan) {
       if (inflight.size >= capNow) break;
       const e = store.entry(p.key, p.validTime);
-      if (e && e.state === 'absent') start(p);
+      if (e && e.state === 'absent') {
+        if ((retryAt.get(idOf(p.key, p.validTime)) || 0) > now()) { t.backedOff += 1; continue; }
+        start(p);
+      }
     }
   }
 
@@ -184,6 +204,8 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     /** The map drew its first marine frame: frame requests may start. */
     open() { if (!opened) { opened = true; pump(); } },
     inflightCount: () => inflight.size,
+    /** The plan is done: nothing in flight and no plan entry still waiting for a request (unbuilt and backed-off ones excepted). */
+    idle: () => inflight.size === 0 && !plan.some(waiting),
     telemetry: () => ({ ...t, inflight: inflight.size, cap: capNow, opened, planned: plan.length }),
   };
 }
