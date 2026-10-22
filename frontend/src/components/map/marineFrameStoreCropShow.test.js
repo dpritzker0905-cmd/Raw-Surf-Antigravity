@@ -82,6 +82,7 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
     expect(eng._waveData.waveGrid).toMatchObject({ __sourceModel: 'ICON', served_valid_time: vt(2), productId: 'ICON2', provider: 'icon-p', __fromFrameStore: true });
     expect(window.__MARINE_DRAWN__).toMatchObject({ model: 'ICON', validTime: vt(2) });
     expect(snap().crop.resident).toMatchObject({ setKey: expect.stringContaining('ICON'), validityHash: ICON_PACK.validityHash });
+    expect(snap().crop.window).toMatchObject({ setKey: expect.stringContaining('ICON'), key: W0.key });   // the window is ICON's now
     expect(snap().shows).toMatchObject({ cropSwitch: 1, crossModel: 1 });
     expect(snap().switches).toMatchObject({ asked: 1, shown: 1 });
   });
@@ -113,6 +114,8 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
     ['the crop kill', () => { window.__RAW_DISABLE_FRAME_STORE_CROP__ = true; }],
     ['the model-toggle kill', () => { window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true; }],
     ['the engine sampling non-resident chl', (eng) => { eng._waveData.u_chlorophyllTexture = { other: true }; }],
+    ['the engine sampling non-resident bathymetry', (eng) => { eng._waveData.u_bathymetryTexture = { other: true }; }],
+    ['the engine sampling a non-resident wave texture', (eng) => { eng._waveData.u_waveTexture = { other: true }; }],
     ['a rating grid resident', (eng) => { eng._waveData.waveGrid.ratingMode = true; }],
   ])('refuses with %s (nothing uploaded, the GFS clip stays)', async (_, arrange) => {
     const { calls, eng } = setup();
@@ -147,6 +150,20 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
     expect(snap().shows.deferred).toBe(1);
     expect(eng._waveData.waveGrid).toMatchObject({ __sourceModel: 'ICON', served_valid_time: vt(4) });
     expect(calls.map((c) => c[0])).toEqual([eng._residentChlTex, eng._residentBathTex, eng._residentWaveTex]);
+  });
+
+  it('warm ICON frames that landed BEFORE the window (at world zoom) get its packs when the window becomes resident', async () => {
+    window.__RAW_FRAME_STORE_TIER__ = 'desktop';
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+    const { eng } = setup();
+    await parse(ICON, 0, ICON_PARSED); await parse(ICON, 1, ICON_PARSED);   // packed before any window exists
+    RT.noteCommitted(CLIP('GFS', 0), { hour: 0, model: 'GFS', layer: 'waves' });   // the clip: a fresh window
+    await landAll((l) => l.key === ICON || (l.key === GFS && l.frame.valid_time === vt(0)));   // no further step or replan
+    const before = mockSF.loads.length;
+    expect(toIcon(0)).toBe(true);
+    expect(mockSF.loads.length).toBe(before);                            // ready at the click
+    expect(eng._waveData.waveGrid.__sourceModel).toBe('ICON');
+    delete document.visibilityState;
   });
 
   it('on a desktop, the warm ICON frames get the window\'s packs, so the click builds nothing', async () => {
