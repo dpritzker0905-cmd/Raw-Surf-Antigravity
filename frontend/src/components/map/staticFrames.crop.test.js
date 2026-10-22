@@ -145,6 +145,7 @@ test('every world set takes the crop rules (#453 eight sets + #459): per model a
   ] });
   // ICON waves: no ICON regional tile overlaps the view -> the resolver answers from global_mid -> a crop
   expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: VIEW })).toBe(true);
+  expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: WORLD })).toBe(false);   // world span: /grid's Gulf fill, so /grid
   // EURO waves: its SoCal tile is far from this view, so it crops here; a view over SoCal refuses (estimated regional tails)
   expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: VIEW })).toBe(true);
   expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: { west: -135, south: 25, east: -105, north: 45 } })).toBe(false);
