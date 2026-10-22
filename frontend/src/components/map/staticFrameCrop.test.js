@@ -106,6 +106,16 @@ describe('midCropRulesPass: only where the resolver answers from global_mid', ()
     expect(pass({ west: -95, south: 20, east: -75, north: 30 })).toBe(true);
   });
 
+  test('another model refuses on ANY overlapping regional tile (an estimated item wins whatever the width; ICON/EURO have them)', () => {
+    const icon = (b) => midCropRulesPass({ model: 'ICON', layer: 'waves', bboxStr: gridBboxParam(b) });
+    setCachedManifest({ products: [...MANIFEST.products.map((p) => ({ ...p, model: 'ICON' }))] });
+    expect(icon({ west: -90, south: 20, east: -60, north: 35 })).toBe(false);          // over the FL tile, though 30 deg wider than it
+    expect(icon({ west: 10, south: 20, east: 30, north: 30 })).toBe(true);             // no tile there
+    expect(pass({ west: -90, south: 20, east: -60, north: 35 })).toBe(false);          // GFS: the manifest has no GFS product now
+    setCachedManifest(MANIFEST);
+    expect(pass({ west: -90, south: 20, east: -60, north: 35 })).toBe(true);           // GFS: wider than the tile is enough
+  });
+
   test('fails closed: no manifest, an unreadable tile, the kill switch', () => {
     const box = { west: -60, south: 0, east: -30, north: 20 };
     expect(pass(box)).toBe(true);

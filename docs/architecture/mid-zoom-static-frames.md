@@ -68,7 +68,8 @@ series' own clip and the exact clip are cut from different boxes and take turns,
 `staticFrameCrop.js` mirrors the mid tier's clip step for step (get_snapped_bbox, the proportional pad, clip_lattice) and both
 static seams answer such boxes with a crop of the pinned frame. It is used only where the resolver provably answers from
 `global_mid` (span over 12 and at most 40 deg, no antimeridian crossing, no regional tile in the products manifest that the
-request is not wider than; no manifest = no crop). Crop series pages get their own key (D). Kill:
+request is not wider than; for a model other than GFS no overlapping regional tile at all, because an estimated item is served
+whatever the width and ICON / EURO carry estimated regional tails; no manifest = no crop). Crop series pages get their own key (D). Kill:
 `window.__RAW_DISABLE_STATIC_MID_CROP__ = true`.
 
 Parity (`scn_static_crop_parity.mjs`, the app's own modules against the real backend over the published run): 382 crop requests

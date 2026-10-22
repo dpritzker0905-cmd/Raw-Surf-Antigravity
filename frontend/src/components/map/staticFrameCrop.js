@@ -20,7 +20,9 @@
  *     boxes keep today's path (the /grid seam already asks for the world box there);
  *   - no antimeridian crossing and nothing outside [-180, 180] (the server wraps each edge on its own there);
  *   - no regional tile in the client's products manifest that the request is NOT wider than (decide_manifest_product serves a
- *     regional tile only when the request is not wider than it in either axis); without a loaded manifest, nothing is eligible.
+ *     regional tile only when the request is not wider than it in either axis); without a loaded manifest, nothing is eligible;
+ *     for a model other than GFS no overlapping regional tile at all (an estimated item wins whatever the width, and ICON / EURO
+ *     carry estimated regional tails).
  * HOW (midClipWindow): the server's arithmetic, step for step, in the same IEEE doubles: get_snapped_bbox (floor/ceil to 1 deg for
  * GFS, 2 deg otherwise, then clamp_and_normalize_bbox, printed at 4 dp), the pad min(12, max(2, 0.5 * span)) with span from the
  * request as sent, the padded window (clamped to -180/-80/180/85, printed at 4 dp and parsed back), then clip_lattice: the cell
@@ -162,6 +164,7 @@ export function midCropRulesPass({ model, layer, bboxStr }) {
     if (!(span > MIN_CROP_SPAN) || span > maxCropSpan()) return false;
     const { tiles, fallbackReason } = getAvailableTilesFromManifest(model, 'marine', layer);
     if (fallbackReason || !Array.isArray(tiles)) return false;   // no manifest, or no product of this set in it: /grid decides
+    const gfs = String(model || 'GFS').toUpperCase() === 'GFS';
     for (const tile of tiles) {
       const c = tile && tile.bounds;
       if (!c || ![c.west, c.south, c.east, c.north].every(Number.isFinite)) return false;
@@ -170,6 +173,9 @@ export function midCropRulesPass({ model, layer, bboxStr }) {
       const wraps = c.west > c.east;
       const overlaps = wraps || (Math.min(e, c.east) > Math.max(w, c.west) && Math.min(n, c.north) > Math.max(s, c.south));
       if (!overlaps) continue;
+      // An ESTIMATED item is served whatever the request's width (decide_manifest_product: `is_estimated` -> use it), and ICON /
+      // EURO carry estimated regional tails; GFS has none inside the 14-day horizon. So another model refuses on any overlap.
+      if (!gfs) return false;
       if (!(lng > tLng + WIDER_EPS || lat > tLat + WIDER_EPS)) return false;   // the server may serve this regional tile
     }
     return true;

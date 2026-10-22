@@ -413,6 +413,7 @@ export function tryShowStoredFrame({ model, layer, hourOffset, requestedValidTim
 // every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
 // resident texture; a 27 x 20 window is 2 KB). Kill: window.__RAW_DISABLE_FRAME_STORE_CROP__ = true.
 const CROP_AHEAD = 128;           // stored frames nearest the cursor whose window packs are built (from local bytes) when a new window becomes resident
+const CROP_AHEAD_SMALL = 17;      // the same on a phone or a constrained device: the cursor +-8
 const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
 const idleRun = (fn) => { if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 200 }); else setTimeout(fn, 0); };
 
@@ -453,8 +454,11 @@ function buildCrop(info, validTime) {
 function buildAhead(info, validTime) {
   const at = info.layerOf.get(validTime);
   if (at === undefined) return;
+  // Every stored frame on a desktop; the cursor +-8 on a phone or a constrained device (each build is an inflate + parse, and a
+  // pan-heavy session meets a new window often).
+  const ahead = (store().tier === 'desktop' || store().tier === 'webgl1') ? CROP_AHEAD : CROP_AHEAD_SMALL;
   const order = info.validTimes.map((v, i) => [v, Math.abs(i - at)]).filter(([v]) => { const e = store().entry(info.key, v); return !!(e && e.pack); })
-    .sort((a, b) => a[1] - b[1]).slice(0, CROP_AHEAD).map((x) => x[0]);
+    .sort((a, b) => a[1] - b[1]).slice(0, ahead).map((x) => x[0]);
   const winKey = crop.window && crop.window.key;
   const next = () => {
     if (!crop.window || crop.window.key !== winKey || !order.length) return;
