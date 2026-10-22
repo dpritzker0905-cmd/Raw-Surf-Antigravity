@@ -12,6 +12,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // DRAW_VS and DRAW_FS before this change (dev 448deb35c).
 const DRAW_VS_BEFORE = { sha: 'a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44', length: 29051 };
 const KILL = { __RAW_DISABLE_CREST_DENSITY_ZOOM__: true };
+// The light cross (owner A/B, 2026-10-22) carries #431's far-zoom lift on DRAW_VS; its kill stands it down for the before pin.
+const CROSS_KILL = { __RAW_DISABLE_LIGHT_CREST_CROSS__: true };
 const withWindow = (levers, fn) => jest.isolateModules(() => {
   Object.assign(window, levers);
   try { fn(require('./WebGLMarineParticleShaders'), require('./marineCrestDensity')); } finally { Object.keys(levers).forEach((k) => delete window[k]); }
@@ -19,7 +21,7 @@ const withWindow = (levers, fn) => jest.isolateModules(() => {
 
 describe('the kill (window.__RAW_DISABLE_CREST_DENSITY_ZOOM__) draws the crests as before', () => {
   it('DRAW_VS hashes to the shader before this change, and the cut is 0 at every zoom', () => {
-    withWindow(KILL, (shaders, d) => {
+    withWindow({ ...KILL, ...CROSS_KILL }, (shaders, d) => {
       expect(shaders.DRAW_VS.length).toBe(DRAW_VS_BEFORE.length);
       expect(sha(shaders.DRAW_VS)).toBe(DRAW_VS_BEFORE.sha);
       for (const t of [0, 1, 2]) for (const z of [3, 5, 6, 8, 12, 16]) expect(d.crestDensityCut(t, z)).toBe(0);

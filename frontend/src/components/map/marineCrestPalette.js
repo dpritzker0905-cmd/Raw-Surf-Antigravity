@@ -49,27 +49,71 @@ export const LIGHT_CRESTS = {
     storm: { rgb: [1.00, 0.96, 0.00], name: 'gold' },
     foam: { rgb: [0.05, 0.02, 0.00], above: [1.00, 1.00, 1.00], name: 'umber-black foam, white from 2.35 m' },
   },
+  // CROSSES between the original and V2 (owner 2026-10-22, 00:29 EDT: "Light mode I if we acn do a cross between no two-tone and v2 ,
+  // would maybe be best?"; his standing rules: subtle, looks like real waves, no hue flip, no two-tone). Each is ONE continuous family:
+  // a smooth ramp over `ramp` metres (DRAW_FS smoothstep, never a step), the original's deep navy in small seas, crests that lighten
+  // where the wash darkens (V2's lightness: dark ink on light water, light ink on dark water), the whitecap foam dark below the ramp
+  // and white above (a white roll front lifts a dark crest to the wash's brightness near 2 m), and #431's far-zoom crest lift (`lift`).
+  // A crest that is dark on the calm sea and light on the storm must pass the wash's brightness once; each cross passes it fast, near
+  // 2.3-2.7 m, where the wash is blue and the crest warm. Worst APCA |Lc| of the crest's best part, every 0.1 m to 14 m, every zoom,
+  // lighting and whitecap, over the spectrum (frontend/scripts/wind-color/light-crest-cross.mjs): heights under 15, colour-blind floor,
+  // CIEDE2000 from the original / from V2 (means), largest 0.1 m colour step (V2: 80 at its switch; the original: 4.9):
+  //   x1  2.3-2.7 m, 22.5, 30.8 / 31.2, 5.6   the original's warm hues at V2's lightness: amber to light gold, crimson to light coral
+  //   x2  2.3-2.8 m, 22.1, 41.2 / 19.0, 4.9   closer to V2: amber to cream, cream-gold storms, the widest ramp
+  //   x3  2.0-2.7 m, 13.2, 32.3 / 32.1, 5.1   the lighter anchors alone, no colour ramp
+  // The original: 1.2-14 m, 6.8; V2 over the spectrum: none, 11.8, 80 at 2.35 m. Over v2's aqua wash the crosses read alike.
+  x1: {
+    ramp: [2.0, 2.9], lift: true,
+    calm: { rgb: [0.05, 0.15, 0.45], name: 'deep navy' },
+    active: { rgb: [0.85, 0.50, 0.00], above: [1.00, 0.82, 0.45], name: 'amber-gold to light gold, 2-2.9 m' },
+    storm: { rgb: [1.00, 0.76, 0.66], name: 'light coral' },
+    foam: { rgb: [0.10, 0.12, 0.25], above: [1.00, 1.00, 1.00], name: 'navy foam to white, 2-2.9 m' },
+  },
+  x2: {
+    ramp: [1.8, 3.4], lift: true,
+    calm: { rgb: [0.05, 0.15, 0.45], name: 'deep navy' },
+    active: { rgb: [0.85, 0.50, 0.00], above: [1.00, 0.95, 0.78], name: 'amber-gold to cream, 1.8-3.4 m' },
+    storm: { rgb: [1.00, 0.92, 0.70], name: 'cream-gold' },
+    foam: { rgb: [0.10, 0.12, 0.25], above: [1.00, 1.00, 1.00], name: 'navy foam to white, 1.8-3.4 m' },
+  },
+  x3: {
+    ramp: [1.6, 2.6], lift: true,
+    calm: { rgb: [0.05, 0.15, 0.45], name: 'deep navy' },
+    active: { rgb: [1.00, 0.82, 0.45], name: 'light gold' },
+    storm: { rgb: [1.00, 0.76, 0.66], name: 'light coral' },
+    foam: { rgb: [0.10, 0.12, 0.25], above: [1.00, 1.00, 1.00], name: 'navy foam to white, 1.6-2.6 m' },
+  },
 };
+// x1 is light's crest by default: the owner's pick (D-046, 2026-10-22: "Ship x1, the cross in the preview (pane 2)."). Others, set
+// before page load: window.__RAW_LIGHT_CREST_CROSS__ = 'x2' | 'x3'. Kill: window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true draws the
+// crests from before it exactly (the original, D-041/D-044; DRAW_FS and DRAW_VS hash-pinned in marineCrestCross.test.js).
+export const LIGHT_CREST_CROSS = 'x1';
+export const LIGHT_CREST_CROSSES = ['x1', 'x2', 'x3'];
 
 export function resolveLightCrest(win = WIN, washOn = MARINE_WAVE_PALETTE_ENABLED, washId = MARINE_WAVE_PALETTE_IDS.light) {
   const v2Asked = win.__RAW_LIGHT_CREST_V2__ === true || win.__RAW_DISABLE_LIGHT_CREST_RESTORE__ === true;
-  if (!v2Asked || win.__RAW_DISABLE_LIGHT_CREST_V2__ === true || !washOn) return 'v1';
-  return washId === 'v2' ? 'v2' : washId === 'spectrum' ? 'v2s' : 'v1';   // V2 on request only (D-041); over the spectrum at 2.35 m
+  if (win.__RAW_DISABLE_LIGHT_CREST_V2__ === true || !washOn || (washId !== 'v2' && washId !== 'spectrum')) return 'v1';
+  if (v2Asked) return washId === 'v2' ? 'v2' : 'v2s';   // V2 on request only (D-041); over the spectrum at 2.35 m
+  if (win.__RAW_DISABLE_LIGHT_CREST_CROSS__ === true) return 'v1';   // today: the original (D-041)
+  const x = win.__RAW_LIGHT_CREST_CROSS__;
+  return LIGHT_CREST_CROSSES.includes(x) ? x : LIGHT_CREST_CROSS;
 }
 export const LIGHT_CREST_ID = resolveLightCrest();
 
 // One DRAW_FS statement tail per colour, padded to the shader's comment column: v1's are the shader's lines from before V2 byte for
 // byte (its foam line has no comment).
 const vec = (rgb) => `vec3(${rgb.map((v) => v.toFixed(2)).join(', ')})`;
-const line = (key, { rgb, above, name }, sw) => {
-  const code = above ? `mix(${vec(rgb)}, ${vec(above)}, step(${sw.toFixed(2)}, v_wave_height));` : `${vec(rgb)};`;
+// A colour with `above` mixes into it by a step at the table's `switchHeight` (V2), or smoothly over its `ramp` (the crosses).
+const line = (key, { rgb, above, name }, sw, ramp) => {
+  const by = ramp ? `smoothstep(${ramp[0].toFixed(2)}, ${ramp[1].toFixed(2)}, v_wave_height)` : above ? `step(${sw.toFixed(2)}, v_wave_height)` : '';
+  const code = above ? `mix(${vec(rgb)}, ${vec(above)}, ${by});` : `${vec(rgb)};`;
   if (!name) return code;
   const lead = key.length + 8;   // the statement's head before the value: key, "Color", space, equals sign, space
   return `${code}${' '.repeat(Math.max(2, 39 - lead - code.length))}// ${name}`;
 };
 export const lightCrestGlsl = (id = LIGHT_CREST_ID) => {
-  const c = LIGHT_CRESTS[id], sw = c.switchHeight;
-  return { calm: line('calm', c.calm, sw), active: line('active', c.active, sw), storm: line('storm', c.storm), foam: line('foam', c.foam, sw) };
+  const c = LIGHT_CRESTS[id], sw = c.switchHeight, r = c.ramp;
+  return { calm: line('calm', c.calm, sw, r), active: line('active', c.active, sw, r), storm: line('storm', c.storm), foam: line('foam', c.foam, sw, r) };
 };
 export const LIGHT_CREST_GLSL = lightCrestGlsl();
 
@@ -88,7 +132,8 @@ export const LIGHT_CREST_GLSL = lightCrestGlsl();
 export const SPECTRUM_CREST_LIFT = { far: 0.80, end: 9.0 };
 const num = (v, lo, hi, d) => (typeof v === 'number' && v >= lo && v <= hi ? v : d);
 export function resolveSpectrumCrestLift(win = WIN, crestId = LIGHT_CREST_ID) {
-  if (crestId !== 'v2s' || win.__RAW_DISABLE_SPECTRUM_CREST_LIFT__ === true) return null;
+  const lifted = crestId === 'v2s' || Boolean(LIGHT_CRESTS[crestId] && LIGHT_CRESTS[crestId].lift);   // V2 over the spectrum, and the crosses
+  if (!lifted || win.__RAW_DISABLE_SPECTRUM_CREST_LIFT__ === true) return null;
   return { far: num(win.__RAW_SPECTRUM_CREST_FAR__, 0.45, 1, SPECTRUM_CREST_LIFT.far), end: num(win.__RAW_SPECTRUM_CREST_END__, 3.5, 9, SPECTRUM_CREST_LIFT.end) };
 }
 const ZOOM_ALPHA = '  float zoomAlphaScale = mix(0.45, 1.0, smoothstep(3.0, 9.0, u_zoom));\n';
