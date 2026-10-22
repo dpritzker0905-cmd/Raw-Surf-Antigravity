@@ -376,3 +376,16 @@ before the flip byte for byte. DRAW_FS default sha256 ed381124... (9233); kill e
 marineDarkStormCrest, marineBeachCrestStyle, marineWaveSpectrum, marineCrestPaletteLight); each now names the two-tone kill where it
 means "the shader before X", the pattern #419 set with its dark kill. `light-crest-style.mjs` strips the module's new import and passes
 the crest id. Re-shot clips on the spectrum: world 17.7 -> 56.4, regional 21.2 -> 46.3, coastal 23.9 -> 50.2 (p99 |Lc|).
+
+## 2026-10-22 04:30Z: the light two-tone OFF again (D-044, the owner's word)
+
+The owner, seeing #445 deployed (dev 67021e936), 23:41 EDT: "The light mode animations that just deployed look strange to me. Make a
+note of the new changes I don't like in light mode." The lead asked whether to turn #445's crest edge back off so light shows his
+original crests without it; at 23:57 EDT he said "yes". (A five-pane moving page shot on dev 67021e936, today against each recent change
+undone, was published for him: https://claude.ai/artifact/Sjk76DT4kGx2A9LqBgbCWq.)
+
+**Change** (`claude/light-twotone-off` on dev `67021e936`): `marineLightCrestStyle.js`, its test, `light-crest-style.mjs` and the five
+crest suites #445 touched go back to their state before #445 (dev `576e021b1`): the two-tone is an opt-in lever again
+(`__RAW_LIGHT_CREST_STYLE__ = 'twotone'`), the kill stays, and light's default DRAW_FS is dev `28be37d3f`'s byte for byte (sha256
+e2438586..., 8872). `marineBeachCrestStyle.test.js` keeps #445's edits (inert with the default off): the beach session is deleting
+that file with the unused beach two-tone code, so this PR does not touch it.
