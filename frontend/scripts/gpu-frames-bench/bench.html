@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU frames bench</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #111; --muted: #555; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; --muted: #aaa; } }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, sans-serif; }
+  canvas { display: block; width: 100%; max-width: 1280px; aspect-ratio: 16 / 10; background: #000; }
+  pre { white-space: pre-wrap; font: 12px/1.35 ui-monospace, monospace; color: var(--muted); }
+  button { font: inherit; padding: 8px 14px; }
+</style>
+</head>
+<body>
+<h1>GPU frames bench</h1>
+<p>Streams a forecast series of RSWF v1 frames through a decode worker into one WebGL2 texture array, then scrubs it by a
+  layer uniform. Nothing here talks to the Raw Surf backend. Results post back to the bench server.</p>
+<button id="run" type="button">Run the bench</button>
+<canvas id="c" tabindex="0" aria-label="Bench render target: the forecast frame being scrubbed"></canvas>
+<pre id="log" aria-live="polite"></pre>
+<script type="module" src="bench.js"></script>
+</body>
+</html>
