@@ -229,7 +229,7 @@ describe('static frames loader', () => {
     expect(await pd).toBeNull();
   });
 
-  test('a missing latest.json is not re-asked on every step (60 s negative cache)', async () => {
+  test('a missing latest.json is not re-asked on every step (negative cache, 60 s doubling to 15 min)', async () => {
     const calls = cdn({ latestIndex: () => null, indexes: [] });
     global.fetch.mockImplementation(async (url) => { calls.push(url); return { ok: false, status: 400, json: async () => ({}) }; });
     const ask = () => tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
@@ -243,5 +243,11 @@ describe('static frames loader', () => {
     now += 61000;
     await ask();
     expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(2);   // re-asked after the negative TTL
+    now += 61000;
+    await ask();
+    expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(2);   // backoff: the second miss waits 120 s
+    now += 60000;
+    await ask();
+    expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(3);
   });
 });

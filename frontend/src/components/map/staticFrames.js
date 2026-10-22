@@ -33,8 +33,9 @@ export const FRAME_BUCKET = 'weather-frames';
 export const LATEST_PATH = 'v1/latest.json';
 const IDLE_REPIN_MS = 30000;      // a pin may move only after this long without a static-frame request
 const LATEST_TTL_MS = 120000;     // and latest.json is re-read at most this often
-const NEGATIVE_TTL_MS = 60000;    // a missing/unreadable latest.json is re-asked at most this often (each 400 is an origin
-                                  // round trip the step waits on before /grid: measured 120-560 ms on dev, 2026-10-22)
+const NEGATIVE_TTL_MS = 60000;    // a missing/unreadable latest.json is re-asked at most this often, doubling per consecutive
+const NEGATIVE_TTL_MAX_MS = 900000; // failure up to 15 min (each 400 is an origin round trip the step waits on before /grid:
+                                  // measured 120-560 ms on dev, 2026-10-22); a successful read resets it
 const LRU_MAX = 12;               // decoded frames kept (each ~15k vector objects, a few MB of heap)
 const MAX_IN_FLIGHT = 4;
 const WORLD_MIN_SPAN = 340;
@@ -176,7 +177,7 @@ export async function fetchFrameBytes(url, signal) {
 }
 
 // ── The pinned index ────────────────────────────────────────────────────────────────────────────────────────
-const _state = { latest: null, latestAt: 0, latestLoad: null, pins: new Map(), lastUse: 0, indexLoads: new Map() };
+const _state = { latest: null, latestAt: 0, latestLoad: null, latestFails: 0, pins: new Map(), lastUse: 0, indexLoads: new Map() };
 const _lru = new Map();
 const _inflight = new Map();
 
@@ -194,12 +195,13 @@ async function readLatest(force) {
   const base = staticFramesBase();
   if (!base) return null;
   const now = Date.now();
-  const ttl = _state.latest ? LATEST_TTL_MS : NEGATIVE_TTL_MS;
+  const ttl = _state.latest ? LATEST_TTL_MS
+    : Math.min(NEGATIVE_TTL_MAX_MS, NEGATIVE_TTL_MS * 2 ** Math.max(0, _state.latestFails - 1));
   if (!force && _state.latestAt && now - _state.latestAt < ttl) return _state.latest;
   if (_state.latestLoad) return _state.latestLoad;
   _state.latestLoad = loadJson(base + LATEST_PATH, true)
-    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); return j; })
-    .catch(() => { _state.latestAt = Date.now(); return _state.latest; })
+    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); _state.latestFails = 0; return j; })
+    .catch(() => { _state.latestAt = Date.now(); _state.latestFails += 1; return _state.latest; })
     .finally(() => { _state.latestLoad = null; });
   return _state.latestLoad;
 }
@@ -469,7 +471,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
 
 /** Test hook: forget every pin, index, decoded frame and the worker. */
 export function _resetStaticFramesForTest() {
-  _state.latest = null; _state.latestAt = 0; _state.latestLoad = null; _state.pins.clear(); _state.lastUse = 0;
+  _state.latest = null; _state.latestAt = 0; _state.latestLoad = null; _state.latestFails = 0; _state.pins.clear(); _state.lastUse = 0;
   _state.indexLoads.clear(); _lru.clear(); _inflight.clear(); _parsedInflight.clear(); _pending.clear();
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }
   _worker = null; _workerFailed = false;
