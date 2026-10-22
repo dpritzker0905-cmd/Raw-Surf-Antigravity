@@ -1,0 +1,8 @@
+{
+ "what": "Non-waves layers (swell_1, swell_2, wind_waves) on the series / static-frame lane drew land as ocean: the useMarineWindData conform dropped is_valid; fixed by carrying it (2026-10-22)",
+ "method": "marineFramePack.parity.test.js: the REAL GFS frame fixture (land cells > 1000) through lane A (the /grid JSON: mapNormalizedGridToWebGL then the conform) and lane B (flat vectors, as a series page or a static frame: the conform) into encodeMarineTexture with a recording GL; wave-texture bytes compared",
+ "before_kill_switch_on": { "first_differing_byte": 28, "swell_1_texels_differing": 4657, "swell_1_height_texels_differing": 2622, "of_texels": 14842, "swell_2": "first byte 28", "wind_waves": "first byte 28" },
+ "after": { "swell_1_texels_differing": 0, "swell_2_texels_differing": 0, "wind_waves_texels_differing": 0, "waves_layer": "unchanged (byte-identical on both lanes, as before)" },
+ "static_frames_session_measurement": "a real world frame has 4,850 land cells (is_valid false) of 15,023; the synthetic store has 0",
+ "caveats": ["most differing texels are land cells under the geometric land mask; their values reach coastal ocean pixels through bilinear filtering and the chl/bath shelf shading", "the conform's is_valid is new metadata on every layer; full map/tests/__tests__ Jest trees run green"]
+}

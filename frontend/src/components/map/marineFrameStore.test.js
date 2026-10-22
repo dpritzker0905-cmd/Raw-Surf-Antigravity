@@ -25,7 +25,12 @@ describe('resolveTier', () => {
     expect(resolveTier({ deviceMemoryGB: 4 }, {})).toBe('handheld');
     expect(resolveTier({ deviceMemoryGB: 2 }, {})).toBe('constrained');
     expect(resolveTier({ saveData: true }, {})).toBe('constrained');
-    expect(resolveTier({ effectiveType: '3g' }, {})).toBe('constrained');
+    expect(resolveTier({ effectiveType: '2g' }, {})).toBe('constrained');
+    expect(resolveTier({ effectiveType: 'slow-2g' }, {})).toBe('constrained');
+    // 3g (owner, 2026-10-22): a desktop keeps its tier and fills; a phone or a weak device is constrained as before.
+    expect(resolveTier({ effectiveType: '3g' }, {})).toBe('desktop');
+    expect(resolveTier({ effectiveType: '3g', handheld: true }, {})).toBe('constrained');
+    expect(resolveTier({ effectiveType: '3g', weak: true }, {})).toBe('constrained');
     expect(resolveTier({ maxArrayLayers: 100, frames: 115 }, {})).toBe('constrained');
     expect(resolveTier({ webgl2: false, handheld: true }, {})).toBe('webgl1');
   });

@@ -1,3 +1,4 @@
+import './marineBeachCrestLiftKill.testsupport';   // today's crest shader is pinned here; the beach crest lift in marineBeachCrestLift.test.js
 import './marineWaveSpectrumKill.testsupport';   // light's v2 is pinned here; the spectrum (D-037) in marineWaveSpectrum.test.js
 import { createHash } from 'crypto';
 import { DRAW_FS } from './WebGLMarineParticleShaders';
@@ -17,6 +18,9 @@ const DRAW_FS_V2_BEFORE_419 = { sha: 'f425bf535ef4ae2a42560ef18ca70e1c085e6a74d2
 // The restored default: dev's DRAW_FS with light's four lines as before V2 (with #419's kill as well: DRAW_FS_BEFORE exactly).
 const DRAW_FS_DEFAULT = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
 const DARK_KILL = { __RAW_DISABLE_DARK_STORM_CREST__: true };
+// The light cross x1 (owner A/B, 2026-10-22) draws by default over the v2 and spectrum washes; its kill draws the original, which these
+// pins mean by "the default" (marineCrestCross.test.js pins the crosses).
+const CROSS_KILL = { __RAW_DISABLE_LIGHT_CREST_CROSS__: true };
 const KILL = { __RAW_DISABLE_LIGHT_CREST_V2__: true };
 const ASK_V2 = { __RAW_LIGHT_CREST_V2__: true };
 const RESTORE_KILL = { __RAW_DISABLE_LIGHT_CREST_RESTORE__: true };
@@ -59,11 +63,14 @@ describe('the kill (window.__RAW_DISABLE_LIGHT_CREST_V2__) draws the crests from
 
 describe('RESTORED: the original light crest is the default again (owner 2026-10-21, D-041)', () => {
   it('the default draws light\'s lines from before V2 over the V2 wash; with #419\'s dark kill, f6b80f724\'s DRAW_FS byte for byte', () => {
-    expect(LIGHT_CREST_ID).toBe('v1');
-    expect(resolveLightCrest({}, true, 'v2')).toBe('v1');
-    expect(DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
-    expect(sha(DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
-    withWindow(DARK_KILL, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha));
+    expect(LIGHT_CREST_ID).toBe('x1');   // the cross A/B; under its kill, the original
+    expect(resolveLightCrest(CROSS_KILL, true, 'v2')).toBe('v1');
+    withWindow(CROSS_KILL, (shaders, crest) => {
+      expect(crest.LIGHT_CREST_ID).toBe('v1');
+      expect(shaders.DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
+      expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
+    });
+    withWindow({ ...DARK_KILL, ...CROSS_KILL }, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha));
   });
 
   it('V2 on request and the restore kill both draw dev\'s DRAW_FS byte for byte; the V2 kill still wins', () => {
@@ -92,7 +99,7 @@ describe('V2, on request, draws over the v2 wash only and changes light\'s four 
   });
 
   it('the only lines that differ from the default are calm, active, storm and foam inside the light branch', () => {
-    const before = DRAW_FS.split('\n');
+    let before; withWindow(CROSS_KILL, (s) => { before = s.DRAW_FS.split('\n'); });
     let after; withWindow(ASK_V2, (s) => { after = s.DRAW_FS.split('\n'); });
     expect(after.length).toBe(before.length);
     const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);

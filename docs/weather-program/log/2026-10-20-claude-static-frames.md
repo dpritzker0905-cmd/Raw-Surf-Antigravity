@@ -257,3 +257,17 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - **Re-chained again after #454** (dev 972be1e82 took 1657/1658), on the lead's word: this branch's lines are now 1659 (the
   read-back finding), 1660 (pr_open #453), 1661 (finding: the live in-browser read; 1585 open) and 1662 (correction of 1660's
   swell claim), same fields and acted_at. They supersede 1657-1660 above.
+
+## 2026-10-22 20:40Z: merged with dev after #459 (mid-zoom crops), on the lead's word
+
+- **Code:** #459 had changed `staticEligible` (world box OR `isMidCropBox`) and `marineGridSeries` (crop page keys). Resolved so
+  both work: `staticEligible` keeps the per-set check (`staticSetEnabled`) and takes #459's crop rule, so every one of the eight
+  sets (all global_mid) is cropped at the viewport boxes the resolver answers from global_mid (#459's rules are model-aware: 2-deg
+  snap off GFS, any overlapping regional tile refuses ICON/EURO). Seam A in both clients (`backendWeatherServiceClient`,
+  `backendCopernicusServiceClient`) crops through `tryStaticWorldGrid`. `staticCropPageKey` follows `staticSeriesEligible` (series
+  pages: waves sets only), so a non-waves page keeps its /grid_series key. The series gate's comment now records #456.
+- **Docs:** DECISIONS entry numbered **D-049** (the lead's number, after D-048 = #455), placed after dev's D-046..D-048, with the
+  #459 lanes line and #456's status. The #443 entry ("Static forecast frames ON by default ...") is still "D-0XX (numbered at merge)".
+- **Ledger:** re-chained after dev's 1670: 1671 (read-back finding), 1672 (pr_open #453), 1673 (live in-browser read; 1585 open),
+  1674 (correction of 1672's swell claim). They supersede 1659-1662.
+- **Floors:** dev has not touched the backend, so estate stays 2341 (this PR must read 2343).

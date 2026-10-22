@@ -39,7 +39,7 @@ import {
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
 import { noteStaticFocus, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
-import { staticSeriesEligible } from './staticFrames';
+import { staticCropPageKey, staticSeriesEligible } from './staticFrames';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new MarineSeriesCache();
@@ -219,11 +219,13 @@ function scheduleIdlePrefetch(fn, signal) {
 // Load ONE page of the series. Idempotent + TTL'd + deduped (keyed by page). Never throws.
 async function loadSeriesPage(model, layer, bounds, page, signal, force = false, background = false) {
   if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
-  const key = pageKey(model, layer, bounds, page);
   // Padded request box (also used for the coverage-aware dedup below). Computed once here.
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));
+  // A static CROP page (staticFrames.staticCropPageKey) carries its clip in its key: every viewport over 15 deg shares the key
+  // 'global' with the world page, and the two would overwrite each other. Every other page keeps its key.
+  const key = staticCropPageKey(pageKey(model, layer, bounds, page), { model, layer, reqBox, surf: getSurfModeFlag() });
   const existing = _seriesCache.get(key);
   if (existing && !force && !existing.staticFrames) {
     // A coarse-preview entry is allowed to RE-FETCH (capped + spaced) so the SWR-revalidated regional
