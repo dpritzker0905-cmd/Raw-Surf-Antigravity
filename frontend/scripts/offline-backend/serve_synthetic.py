@@ -417,7 +417,81 @@ def install_stale_window(app):
     app.add_api_route("/__lab/stale/status", lab_stale_status, methods=["GET"])
 
 
-def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON"), layers=("waves",), regions=()):
+# REAL FRAMES (2026-10-22, the mid-zoom instant scrub): `--real-frames <dir>` replaces the synthetic GFS waves global_mid
+# products with the REAL published field, decoded from a local copy of the public weather-frames bucket (v1/latest.json, the run
+# index it points at, and every frame the index lists). /grid and /grid_series then clip the same numbers the CDN frames carry,
+# so a frame cropped in the browser can be compared node by node with the resolver's own clip, and the probe's product ids are
+# the real ones. Values are written exactly as the client codec rebuilds them (staticFrameCodec.buildVectors: height 4 dp,
+# direction and period 2 dp, confidence 4 dp, u = -h sin d and v = -h cos d at 4 dp for uv convention 0). The 10-deg
+# global_coarse is every 5th node of the same field (a lab stand-in, not production's block mean; diagnostics say so).
+# Models and layers other than GFS waves stay synthetic.
+def real_frame_products(frames_dir):
+    """[(filename, body, resolution)] for the GFS waves global_mid run in `frames_dir` and its derived global_coarse."""
+    sys.path.insert(0, str(BACKEND))
+    from services.frame_binary import decode_frame
+    root = Path(frames_dir)
+    latest = json.loads((root / "v1" / "latest.json").read_text(encoding="utf-8"))
+    index = json.loads((root / latest["sets"]["GFS/marine/waves/global_mid"]["index"]).read_text(encoding="utf-8"))
+    common = index.get("common_meta") or {}
+    r2, r4 = (lambda x: round(x + 0.0, 2)), (lambda x: round(x + 0.0, 4))
+    out = []
+    for fr in index["frames"]:
+        if not fr.get("path"):
+            continue
+        dec = decode_frame((root / fr["path"]).read_bytes())
+        cols, rows = dec["cols"], dec["rows"]
+        west, south, east, north = dec["bounds"]
+        sign = 1.0 if dec["uv_convention"] == 1 else -1.0
+        H, D, P, C = (dec["fields"].get(k) for k in (0, 1, 2, 3))
+        meta = {**common, **(fr.get("meta") or {})}
+        for region_id, stride, res in (("global_mid", 1, RES), ("global_coarse", 5, COARSE_RES)):
+            vectors = []
+            for r in range(0, rows, stride):
+                lat = round(south + r * (north - south) / (rows - 1), 6)
+                if region_id == "global_coarse" and lat > COARSE["north"]:
+                    continue
+                for c in range(0, cols, stride):
+                    i = r * cols + c
+                    lng = round(west + c * (east - west) / (cols - 1), 6)
+                    h = H[i]
+                    d = r2(D[i]) if D and D[i] is not None else 0.0
+                    p = r2(P[i]) if P and P[i] is not None else None
+                    q = r4(C[i]) if C and C[i] is not None else None
+                    if h is None:
+                        vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": d, "u": 0.0, "v": 0.0, "period": p,
+                                        "is_valid": False, "dir_confidence": q})
+                        continue
+                    s = r4(h)
+                    rad = math.radians(d)
+                    vectors.append({"lat": lat, "lng": lng, "speed": s, "direction": d, "u": r4(sign * s * math.sin(rad)),
+                                    "v": r4(sign * s * math.cos(rad)), "period": p, "is_valid": True, "dir_confidence": q})
+            lats = sorted({v["lat"] for v in vectors})
+            lngs = sorted({v["lng"] for v in vectors})
+            bounds = {"west": lngs[0], "south": lats[0], "east": lngs[-1], "north": lats[-1]}
+            stamp = fr["valid_time"].replace("-", "").replace(":", "")
+            filename = (meta.get("product_id") if region_id == "global_mid"
+                        else f"gfs_marine_waves_global_coarse_{stamp}.json")
+            body = {
+                "model": "GFS", "domain": "marine", "layer": "waves", "run_time": meta.get("run_time"),
+                "model_run_time": meta.get("model_run_time"), "model_run_time_status": meta.get("model_run_time_status") or "known",
+                "ingested_at": meta.get("ingested_at"), "valid_time": fr["valid_time"],
+                "is_forecast_authoritative": bool(meta.get("is_forecast_authoritative", True)),
+                "is_estimated": bool(fr.get("is_estimated")), "estimate_basis": meta.get("estimate_basis"),
+                "coverage": COVERAGE,
+                "grid": {"bounds": bounds, "cols": len(lngs), "rows": len(lats), "vectors": vectors,
+                         "diagnostics": {"source": "stored" if region_id == "global_mid" else "lab_every_5th_real_node"}},
+                "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft", "product_id": filename,
+                "source_variables": meta.get("source_variables") or ["wave_height"], "freshness_sec": meta.get("freshness_sec") or 3600,
+                "region_id": region_id, "resolution": None, "coverage_mode": "global_tile",
+                "provider": meta.get("provider") or "open-meteo", "upstream_provider": meta.get("upstream_provider") or "noaa",
+                "source_dataset": meta.get("source_dataset") or "ncep_gfswave025",
+            }
+            out.append((filename, body, res))
+    return out, index
+
+
+def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON"), layers=("waves",), regions=(),
+                real_frames=None):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     now = now or datetime.now(timezone.utc)
@@ -452,12 +526,25 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
                     body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated, layer)
                     (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
                     entries.append(manifest_entry(body, filename, res))
-    (directory / "store_meta.json").write_text(json.dumps({"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ")}), encoding="utf-8")
+    real = None
+    if real_frames:
+        # The real GFS waves run REPLACES the synthetic GFS waves world tiers (regional tiles, other models and layers stay).
+        products, index = real_frame_products(real_frames)
+        drop = {"global_mid", "global_coarse"}
+        for e in [e for e in entries if e["model"] == "GFS" and e["layer"] == "waves" and e["region_id"] in drop]:
+            entries.remove(e)
+            (directory / e["filename"]).unlink(missing_ok=True)
+        for filename, body, res in products:
+            (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+            entries.append(manifest_entry(body, filename, res))
+        real = {"index": index.get("path"), "run": index.get("run"), "frames": sum(1 for f in index["frames"] if f.get("path"))}
+    (directory / "store_meta.json").write_text(json.dumps({"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                                           "real_frames": real}), encoding="utf-8")
     (directory / "manifest.json").write_text(
         json.dumps({"last_manifest_update": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": entries}),
         encoding="utf-8")
     return {"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"), "frames": n, "models": list(models), "layers": list(layers),
-            "regions": [r[0] for r in regions], "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ")}
+            "regions": [r[0] for r in regions], "run_time": run_time.strftime("%Y-%m-%dT%H:%M:%SZ"), "real_frames": real}
 
 
 CHILD_SITECUSTOMIZE = '''"""Generated by serve_synthetic.py: a child process of the offline harness cannot resolve a non-local host."""
@@ -495,6 +582,9 @@ def main():
     ap.add_argument("--stale-model", default="", help="only this model (default every model)")
     ap.add_argument("--stale-layer", default="", help="only this layer (default every layer)")
     ap.add_argument("--stale-stride", type=int, default=3, help="the stale grid keeps every Nth latitude and longitude")
+    ap.add_argument("--real-frames", default="",
+                    help="a local copy of the weather-frames bucket: GFS waves global_mid (and its coarse stand-in) become the real "
+                         "published run (see REAL FRAMES above)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
     global VORTEX_PEAK
@@ -538,7 +628,8 @@ def main():
     if not (Path(args.dir) / "manifest.json").exists():
         meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(',')),
                            layers=tuple(x.strip() for x in args.layers.split(',') if x.strip()),
-                           regions=regional_tiers(tuple(x.strip() for x in args.regions.split(',') if x.strip())))
+                           regions=regional_tiers(tuple(x.strip() for x in args.regions.split(',') if x.strip())),
+                           real_frames=args.real_frames or None)
     print(json.dumps({"store": meta, "thin_bounds": args.thin_bounds}), flush=True)
     if args.build_only:
         return
