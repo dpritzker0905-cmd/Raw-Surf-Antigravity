@@ -76,6 +76,9 @@ const PROBE = (patterns) => {
     return { wheel: w ? Number(w.getAttribute('aria-valuenow')) : null,
       mHour: mg ? mg.hourOffset : null, mLayer: mg ? mg.__componentLayer : null, mModel: mg ? mg.__sourceModel : null,
       mSeries: !!(mg && mg.__fromSeries), mCols: mg ? mg.cols : null,
+      // SERVED vs ASKED clock on the engine's grid (2026-10-21, marineConformServed.js): mServed is null on every frame unless the
+      // conform carries served_valid_time (dark: __RAW_MARINE_CONFORM_SERVED_TIME__); mAsk is the ask's echo on /grid.
+      mServed: mg ? (mg.served_valid_time || null) : null, mAsk: mg ? (mg.valid_time || null) : null,
       // The engine's copy of the grid does not keep __decimatedStride, so detail is judged by cell size: a WORLD grid coarser than
       // 2.5 deg a cell (a stride-4 series frame is 8 deg, the exact global_mid 2 deg) is not the exact frame.
       mStride: (() => { const b = mg && mg.bounds; if (!b || !(mg.cols > 1)) return null; const sp = b.east < b.west ? b.east + 360 - b.west : b.east - b.west;
@@ -104,7 +107,11 @@ const PROBE = (patterns) => {
         // HEATMAP DIM (2026-10-19, owner: "heatmap dimming"): the custom layer's opacity multiplier; 0.4 = the stale-world-hour dim
         // (marineStaleHour.STALE_WORLD_DIM), 0.45-0.95 = a provisional/transition fade.
         const op = window.__RAW_GPU__ && window.__RAW_GPU__.opacity; const mu = op && Number.isFinite(op.mult) ? op.mult : null;
-        if (mu != null && S.expect.marine) { if (mu <= 0.45) S.dimStale += dt; else if (mu < 0.95) S.dimSoft += dt; if (mu < S.minMult) S.minMult = mu; } }
+        if (mu != null && S.expect.marine) { if (mu <= 0.45) S.dimStale += dt; else if (mu < 0.95) S.dimSoft += dt; if (mu < S.minMult) S.minMult = mu;
+          // the first stale-dim frame's resident and both clocks (2026-10-21): which grid the dim judged, by which clock
+          if (mu <= 0.45 && !S.dimAt) { const sel = window.__RAW_SELECTED_FRAME__; const sh = window.__RAW_GPU__ && window.__RAW_GPU__.staleHour;
+            S.dimAt = { rel: S.tIn != null ? Math.round(t - S.tIn) : null, mHour: s.mHour, mLayer: s.mLayer, mModel: s.mModel, mSeries: s.mSeries, mCols: s.mCols,
+              mServed: s.mServed, mAsk: s.mAsk, selHour: sel ? sel.hour : null, selMs: sel ? sel.instantMs : null, why: sh ? sh.why : null }; } } }
       if (S.tIn != null && t >= S.tIn) {
         const rel = t - S.tIn;
         const admitted = /Loading|nearest|Estimated|Verifying|does not match/i.test(s.status);
@@ -135,7 +142,7 @@ const PROBE = (patterns) => {
   };
   requestAnimationFrame(loop);
   W.arm = (expect) => { W.step = { expect, tIn: null, mOk: null, mExact: null, wOk: null, mSilent: 0, mAdm: 0, wOff: 0, frames: 0, gaps: 0, maxGap: 0,
-    lt0: W.lt.length, c0: { ...W.counts }, mSameInstant: 0, dimStale: 0, dimSoft: 0, minMult: 1 }; };
+    lt0: W.lt.length, c0: { ...W.counts }, mSameInstant: 0, dimStale: 0, dimSoft: 0, minMult: 1, dimAt: null }; };
   W.read = () => { const S = W.step; const lt = W.lt.slice(S.lt0);
     const counts = Object.fromEntries(Object.keys(W.counts).map((k) => [k, W.counts[k] - (S.c0[k] || 0)]));
     return { ...S, counts, ltN: lt.length, ltMax: Math.round(lt.reduce((a, x) => Math.max(a, x[1]), 0)), end: W.snap() }; };
@@ -329,9 +336,25 @@ const FLOWS = {
   for (const name of which) {
     const flow = FLOWS[name]; if (!flow) continue;
     const LIVE = process.env.LAB_LIVE_BASE;   // e.g. http://localhost:3009: dev server on the LIVE backend, set up as the nightly does
+    // SERVED vs ASKED per marine /grid reply (2026-10-21, marineConformServed.js): the reply's valid_time echoes the ask and
+    // served_valid_time names the frame served. Where they differ, a reader of the engine's grid decides differently by which one
+    // it is handed, so this counts the cases the conform A/B can show at all (both arms: read off the wire, not the app).
+    const gridServed = [];
     const { browser, page, log } = LIVE ? await liveLaunch(LIVE, size) : await L.launch({ port: PORT, ...size, hooks: { beforeWeather: async (url) => {
       const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID
-        : url.pathname.endsWith('/products') ? LAT_PRODUCTS : 0; if (d) await sleep(d); } } });
+        : url.pathname.endsWith('/products') ? LAT_PRODUCTS : 0; if (d) await sleep(d); },
+    afterWeather: async (url, resp) => {
+      if (url.searchParams.get('domain') === 'wind' || resp.status() !== 200) return;
+      const off = (x) => { const a = Date.parse(x.valid_time || ''), s = Date.parse(x.served_valid_time || ''); return Number.isFinite(a) && Number.isFinite(s) ? (s - a) / 3600000 : null; };
+      const base = { t: Date.now(), model: url.searchParams.get('model'), layer: url.searchParams.get('layer') };
+      if (url.pathname.endsWith('/grid')) {
+        const j = await resp.json();
+        gridServed.push({ ...base, kind: 'grid', offH: off(j), substituted: !!j.frame_substituted, noServed: !j.served_valid_time });
+      } else if (url.pathname.endsWith('/grid_series')) {   // a series frame's valid_time is the hour it was ASKED for, too
+        const j = await resp.json();
+        for (const f of (j.frames || [])) gridServed.push({ ...base, kind: 'series', offH: off(f), substituted: !!f.frame_substituted, noServed: !f.served_valid_time });
+      }
+    } } });
     if (process.env.LAB_KILLS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_KILLS.split(','));   // A/B: kill switches set before the app boots
     // LAB_FLAGS: other window flags set true before boot, the same in both arms (e.g. __SURF_MODE__: the rating overlay on, whose spot
     // lookups resolve valid times before the manifest lands, as the live app's spot hubs and glyphs do).
@@ -365,6 +388,8 @@ const FLOWS = {
       fr.setupPressed = await page.evaluate(() => [...document.querySelectorAll('button[aria-pressed="true"]')].map((b) => (b.textContent || '').trim()).filter(Boolean));
       fr.load = await page.evaluate(() => ({ ...window.__LAB_LOAD__, windBatchNow: (window.__RAW_GPU__ && window.__RAW_GPU__.shaderBatch && window.__RAW_GPU__.shaderBatch.wind) || null }));
       fr.loadNet = netSummary(log.requests); fr.loadStarted = netSummary(started);
+      fr.loadServedOff = Object.fromEntries(['grid', 'series'].map((k) => { const g = gridServed.filter((x) => x.kind === k);
+        return [k, { n: g.length, off: g.filter((x) => x.offH).length, offH: [...new Set(g.filter((x) => x.offH).map((x) => x.offH))] }]; }));
       fr.loadList = log.requests.map((q) => [q.path, q.t, q.ms, q.q && q.q.hours ? q.q.hours.split(',').length : null, q.q && q.q.domain]);
       console.log(name, 'load', JSON.stringify(fr.load), JSON.stringify(fr.loadNet));
       if (flow.setup.hour) { await seek(page, flow.setup.hour); await sleep(6000); }
@@ -378,7 +403,7 @@ const FLOWS = {
         // Step marker for CPU profiles: a uniquely NAMED function that runs ~4 ms, so stall_profile.js can pin each stall to a step.
         if (cdp) await page.evaluate((nm) => { const f = new Function(`return function ${nm}(){const t=performance.now();while(performance.now()-t<4){}}`)(); f(); }, `LABSTEP_${fr.steps.length}_${label.replace(/[^A-Za-z0-9]/g, '_')}`);
         await page.evaluate((e) => window.__LAB__.arm(e), { marine: !!next.layer, wind: next.wind, hour: next.hour, layer: next.layer, model: next.model });
-        const r0 = log.requests.length; const cc0 = { ...ccount };
+        const r0 = log.requests.length; const cc0 = { ...ccount }; const g0 = gridServed.length;
         // a `stale` step arms the backend's stale window just before its move (offline only: the live backend has no such route)
         const staleArm = act && act.stale && !LIVE ? await labStale(`/__lab/stale?${new URLSearchParams({ seconds: String(STALE_S), ...act.stale })}`) : null;
         if (typeof act === 'number') await seek(page, act);
@@ -414,7 +439,13 @@ const FLOWS = {
           marineSilent: r.mSilent, marineAdmitted: r.mAdm, marineSameInstant: r.mSameInstant, windOffFrames: r.wOff,
           dim: { staleMs: Math.round(r.dimStale), softMs: Math.round(r.dimSoft), minMult: +(+r.minMult).toFixed(2) },
           stale: staleVerdict, pixels: { toPrev, toNow, moved, noise },
-          end: { mHour: r.end.mHour, mLayer: r.end.mLayer, mModel: r.end.mModel, mStride: r.end.mStride, mCols: r.end.mCols, wHour: r.end.wHour, status: r.end.status },
+          end: { mHour: r.end.mHour, mLayer: r.end.mLayer, mModel: r.end.mModel, mStride: r.end.mStride, mCols: r.end.mCols, wHour: r.end.wHour, status: r.end.status,
+            mServed: r.end.mServed, mAsk: r.end.mAsk, drawnDataMs: r.end.drawn ? r.end.drawn.dataMs : null },
+          // marine /grid replies in the step whose served frame is not the asked instant (offH = served - ask, hours)
+          servedOff: (() => { const sum = (g) => ({ n: g.length, off: g.filter((x) => x.offH).length, offH: [...new Set(g.filter((x) => x.offH).map((x) => x.offH))],
+            substituted: g.filter((x) => x.substituted).length, noServed: g.filter((x) => x.noServed).length });
+            const g = gridServed.slice(g0); return { grid: sum(g.filter((x) => x.kind === 'grid')), series: sum(g.filter((x) => x.kind === 'series')) }; })(),
+          dimAt: r.dimAt || null,
           console: Object.fromEntries(Object.keys(ccount).map((k) => [k, ccount[k] - cc0[k]])), requests: { n: reqs.length, series: reqs.filter((q) => q.path === '/grid_series').length, grid: reqs.filter((q) => q.path === '/grid').length,
             products: reqs.filter((q) => q.path === '/products').length,
             wind: reqs.filter((q) => (q.q && q.q.domain === 'wind') || /wind/.test(q.path)).length, dupes, failed: reqs.filter((q) => q.error || (q.status && q.status >= 400)).length },
