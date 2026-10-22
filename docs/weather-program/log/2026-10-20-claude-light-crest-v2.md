@@ -429,3 +429,12 @@ GPU: every case links in light, beach and dark; default DRAW_FS d75b2bbf (9063),
 **Tests:** `marineCrestCross.test.js` (new); five crest suites that pin today's shader run those pins under the cross kill (the #445
 pattern). `marineBeachCrestStyle.test.js` gets the kill too: #449 deletes that file, so a merge after #449 resolves by deletion.
 Evidence: `docs/weather-program/evidence/light-crest-cross-2026-10-22.json`.
+
+## 2026-10-22 13:50Z: the owner picked cross x1 (D-046)
+
+The owner, 09:41 EDT, after the moving A/B page and #451's Netlify preview: "Ship x1, the cross in the preview (pane 2)." D-046 records
+it. The code already drew x1 by default in the draft, so the pick changes no shader: only the comment in `marineCrestPalette.js`
+and the test names now cite D-046. x2 and x3 stay as levers; the kill stays.
+
+**Branch:** dev `972be1e82` (#452, #454) merged in; the ledger forked again (dev's 1655-1658 are other PRs'), so #451's pr_open and
+commitment were re-appended after dev's 1658 with their acted_at kept (now 1659, 1660), and the decision line fulfils 1660.

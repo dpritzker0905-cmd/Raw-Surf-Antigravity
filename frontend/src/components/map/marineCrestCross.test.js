@@ -3,7 +3,8 @@ import { DRAW_FS, DRAW_VS } from './WebGLMarineParticleShaders';
 import { LIGHT_CRESTS, LIGHT_CREST_ID, LIGHT_CREST_CROSS, LIGHT_CREST_CROSSES, SPECTRUM_CREST_LIFT, lightCrestGlsl, resolveLightCrest, resolveSpectrumCrestLift }
   from './marineCrestPalette';
 
-// LIGHT CREST CROSSES (owner A/B, 2026-10-22: "Light mode I if we acn do a cross between no two-tone and v2 , would maybe be best?").
+// LIGHT CREST CROSSES (owner A/B, 2026-10-22: "Light mode I if we acn do a cross between no two-tone and v2 , would maybe be best?";
+// he picked x1, D-046).
 // Pins: x1 draws by default over light's spectrum and v2 washes; the kill (window.__RAW_DISABLE_LIGHT_CREST_CROSS__) draws dev 9b49111e8's
 // DRAW_FS and DRAW_VS byte for byte; each cross changes light's four colour lines (smooth ramps, never a step) and adds #431's light-only
 // far-zoom lift to DRAW_VS, nothing else; dark and beach draw exactly as before; V2 on request and its kill behave as before.
@@ -11,7 +12,7 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 // dev 9b49111e8 (#448): the original light crests (D-041), no two-tone (D-044), dark's 8 m+ storm casing (D-039).
 const DEV = { DRAW_FS: { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 },
   DRAW_VS: 'b1569be996bc67eb85cc51e77e995d011b28700711214f480a5e3748034cf9a3' };
-// The default, x1, as built by this change (the A/B the owner looks at).
+// The default, x1 (the owner's pick, D-046).
 const X1 = { DRAW_FS: 'd75b2bbf6de6ed2401c18f67c704115b945b67fe2ef32c173f0cc5d636673bac', DRAW_VS: '5bd171fbd5cec5efa14f74d3139f362f69173ab15ee33652c60368e069430cb8' };
 const KILL = { __RAW_DISABLE_LIGHT_CREST_CROSS__: true };
 const NL = String.fromCharCode(10);
@@ -39,7 +40,7 @@ const maxStep = (t) => {   // the largest channel change between heights 0.1 m a
   return m;
 };
 
-describe('the default: x1 over the spectrum (the owner looks at it before anything merges)', () => {
+describe('the default: x1 over the spectrum (picked by the owner, D-046)', () => {
   it('is x1, with its four light lines and the far-zoom lift', () => {
     expect([LIGHT_CREST_CROSS, LIGHT_CREST_ID, LIGHT_CREST_CROSSES]).toEqual(['x1', 'x1', ['x1', 'x2', 'x3']]);
     for (const k of ['calm', 'active', 'storm', 'foam']) expect(DRAW_FS).toContain(lightCrestGlsl('x1')[k]);

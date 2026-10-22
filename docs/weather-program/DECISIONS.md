@@ -1503,3 +1503,22 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
 - **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).
 - **Reopen if:** the owner asks again about crests blending into beach's heatmap.
+### D-046 · Light's crests are cross x1: the original's navy in small seas, lightening to warm gold and coral where the surf is big
+- **Decided:** owner, 2026-10-22 09:41 EDT, after the moving A/B (https://claude.ai/artifact/CH83LAqf8h5qHVEtBPsxPD) and draft #451's
+  Netlify preview over live weather: "Ship x1, the cross in the preview (pane 2)." His ask, 00:29 EDT: "Light mode I if we acn do a
+  cross between no two-tone and v2 , would maybe be best?" Builds on D-041 (the original colours) and D-044 (no two-tone).
+- **Rule:** light draws `LIGHT_CRESTS.x1` by default over its spectrum and v2 washes: deep navy calm; amber-gold ramping to light gold
+  over 2.0-2.9 m of the crest's own height (DRAW_FS `smoothstep`, never a step); light coral storms; whitecap foam navy ramping to
+  white over the same heights; #431's far-zoom crest lift (0.80, ending at z 9). One colour family, no switch at a height, no
+  two-tone. One owner: `marineCrestPalette.js` (`LIGHT_CREST_CROSS`). x2 and x3 stay as levers (`window.__RAW_LIGHT_CREST_CROSS__`).
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-22 08:10Z and 13:50Z sections), `evidence/light-crest-cross-2026-10-22.json`.
+  Real engine, one storm hour, every pane on the same wave texture: p99 APCA |Lc| of crests against the sea, world 17.1 -> 35.5,
+  coastal 22.8 -> 62.3 (null control <= 0.5). Checker (every 0.1 m to 14 m, every zoom, lighting and whitecap): crests share the
+  sea's brightness only at 2.3-2.7 m (the original: 1.2-14 m); colour-blind floor 6.8 -> 22.5 dE00; largest 0.1 m colour step 5.6
+  dE00 (V2's switch: 80). Default DRAW_FS d75b2bbf... (9063) and DRAW_VS 5bd171fb... (29558), pinned in `marineCrestCross.test.js`
+  and read back from the shader the GPU compiled in light, beach and dark.
+- **Known costs:** any crest that is dark on the calm sea and light on the storm has to match the sea's brightness once; x1 does so
+  between 2.3 and 2.7 m, where crests read by hue alone. Big-surf crests are lighter and less saturated than the original's red.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true` before load draws D-044's crests byte for byte (DRAW_FS
+  e2438586..., 8872; DRAW_VS b1569be9...); or revert the PR.
+- **Reopen if:** the owner says so, or a later light wash moves the 2.3-2.7 m crossing into a band he watches.

@@ -84,9 +84,9 @@ export const LIGHT_CRESTS = {
     foam: { rgb: [0.10, 0.12, 0.25], above: [1.00, 1.00, 1.00], name: 'navy foam to white, 1.6-2.6 m' },
   },
 };
-// The cross light draws by default (the owner's A/B, 2026-10-22; nothing merges before he looks). Others, set before page load:
-// window.__RAW_LIGHT_CREST_CROSS__ = 'x2' | 'x3'. Kill: window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true draws today's light crests
-// exactly (the original, D-041; DRAW_FS and DRAW_VS hash-pinned in marineCrestCross.test.js).
+// x1 is light's crest by default: the owner's pick (D-046, 2026-10-22: "Ship x1, the cross in the preview (pane 2)."). Others, set
+// before page load: window.__RAW_LIGHT_CREST_CROSS__ = 'x2' | 'x3'. Kill: window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true draws the
+// crests from before it exactly (the original, D-041/D-044; DRAW_FS and DRAW_VS hash-pinned in marineCrestCross.test.js).
 export const LIGHT_CREST_CROSS = 'x1';
 export const LIGHT_CREST_CROSSES = ['x1', 'x2', 'x3'];
 
