@@ -39,7 +39,7 @@ import {
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
 import { noteStaticFocus, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
-import { staticCropPageKey, staticEligible } from './staticFrames';
+import { staticCropPageKey, staticSeriesEligible } from './staticFrames';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new MarineSeriesCache();
@@ -278,7 +278,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   // STATIC FRAMES (step 2b, DARK; marineSeriesStatic.js): a WORLD page fills from the pinned CDN frames around the
   // viewed hour. Not eligible, or no index -> /grid_series below exactly as before.
   // The eligibility check is synchronous, so with the flag off nothing here awaits and the timing is unchanged.
-  if (staticEligible({ model, layer, bbox: reqBox, surf: surfFlavor })
+  if (staticSeriesEligible({ model, layer, bbox: reqBox, surf: surfFlavor })
     && await loadSeriesPageStatic(key, { model, layer, reqBox, surf: surfFlavor, hours, page, signal, background })) return;
   // Request the padded box (computed above) so the served tile contains the viewport (+small pans) —
   // fixes the degree-boundary clamp. Cache key + coarse-preview detection still use the UNPADDED bounds.

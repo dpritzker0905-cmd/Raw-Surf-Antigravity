@@ -260,3 +260,62 @@ def test_the_local_cache_refuses_paths_outside_its_directory(tmp_path):
     assert pub.LocalCache(tmp_path / "store").product_bytes("../secret.json") is None
     with pytest.raises(RuntimeError, match="no local manifest"):
         pub.LocalCache(tmp_path / "store").manifest()
+
+
+def _write_set(store, model, layer, valids, run="2026-10-20T06:00:00Z", estimated_from=None, skip=()):
+    """Add one set's products + manifest entries to a store; valid times at or after `estimated_from` are estimated."""
+    store.mkdir(parents=True, exist_ok=True)
+    path = store / "manifest.json"
+    manifest = json.loads(path.read_text()) if path.exists() else {"products": []}
+    for vt in valids:
+        est = bool(estimated_from and vt >= estimated_from)
+        name = f"{model.lower()}_marine_{layer}_global_mid_{vt.replace('-', '').replace(':', '')}.json"
+        if name not in skip:
+            prod = _product(vt, run)
+            prod.update(model=model, layer=layer, is_estimated=est, is_forecast_authoritative=not est)
+            (store / name).write_text(json.dumps(prod))
+        manifest["products"].append({"model": model, "domain": "marine", "layer": layer, "region_id": "global_mid",
+                                     "filename": name, "valid_time_start": vt, "model_run_time": run, "run_time": run,
+                                     "ingested_at": run, "is_estimated": est})
+    path.write_text(json.dumps(manifest))
+    return [f"{model.lower()}_marine_{layer}_global_mid_{vt.replace('-', '').replace(':', '')}.json" for vt in valids]
+
+
+def test_the_world_sets_are_the_pilots_lane_ones():
+    keys = [fs.set_key(t) for t in fs.SETS]
+    assert keys[0] == "GFS/marine/waves/global_mid"                      # the most-used set publishes first
+    assert set(keys) == {f"{m}/marine/{l}/global_mid" for m, l in (
+        ("GFS", "waves"), ("GFS", "swell_1"), ("GFS", "swell_2"), ("GFS", "wind_waves"),
+        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))}
+    assert "EURO/marine/swell_1/global_mid" not in keys and "ICON/marine/swell_2/global_mid" not in keys
+
+
+def test_an_estimated_tail_from_another_lane_is_listed_unbuilt_not_a_coverage_failure(tmp_path):
+    """ICON/EURO: the native hours are written by the pilots lane, the estimated 14-day tail by the core lane. The gate
+    counts authoritative entries; the tail is listed with path null and /grid serves it (it is also the resolver's pick)."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    names = _write_set(store, "ICON", "waves", TEN, estimated_from=TEN[6])
+    tail = names[6:]
+    for n in tail:
+        (store / n).unlink()                                          # baked by the other lane: not on this disk
+    report, _sink = _publish(store, out)
+    stats = report["ICON/marine/waves/global_mid"]
+    assert (stats["built"], stats["not_local"], stats["coverage"], stats["coverage_authoritative"]) == (6, 4, 0.6, 1.0)
+    index = json.loads((out / _latest(out)["sets"]["ICON/marine/waves/global_mid"]["index"]).read_text())
+    assert [(f["is_estimated"], f["path"] is None) for f in index["frames"]] == [(False, False)] * 6 + [(True, True)] * 4
+    assert index["common_meta"]["model"] == "ICON" and index["path"].startswith("v1/icon/marine/waves/global_mid/index/")
+
+
+def test_a_run_past_its_time_budget_stops_starting_sets_and_keeps_their_index(tmp_path):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    _write_set(store, "GFS", "swell_1", VALIDS)
+    pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None)
+    first = _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"]
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)
+    ticks = iter([0.0, 0.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0])
+    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None, budget_s=10,
+                                    clock=lambda: next(ticks))
+    assert report["GFS/marine/swell_1/global_mid"] == {"skipped_budget": True, "index": first}
+    assert report[fs.set_key(TARGET)]["built"] == 3                  # the first set still ran
+    assert _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"] == first

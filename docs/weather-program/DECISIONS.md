@@ -1566,3 +1566,54 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Rollback:** `window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true` turns the fill off everywhere; or revert the PR.
 - **Reopen if:** egress per open needs a cap (an open question, raised to the lead: fill only the first viewed set) or 3g desktops
   report slow scrubbing.
+
+### D-049 · Static frames for eight world sets, each ON behind its own kill
+- **Decided:** owner, 2026-10-22 00:22 EDT, relayed by the lead session: "Have the static-frames session publish more layers
+  and models". The lead's scope: every set gets its own kill and is ON once its parity is proven; no SCOREBOARD row (no served
+  number moves: every frame is checked node by node against the stored product /grid serves).
+- **Rule:** the publisher (forecast-ingest-pilots.yml) publishes each world set in `frame_set.SETS`, in this order: GFS waves,
+  swell_1, swell_2, wind_waves; ICON waves; EURO waves; ICON swell_1, wind_waves (all global_mid, 2 deg). The client's
+  `STATIC_SETS` lists the same eight; a set missing from latest.json is a `no_index` miss and /grid serves it. The 90% coverage gate
+  counts AUTHORITATIVE entries: the ICON/EURO estimated 14-day tails are written by the core lane, so in this lane they are listed
+  unbuilt (path null), and every ask that picks one falls back to /grid, whose resolver picks the same product. Once
+  `FRAME_PUBLISH_BUDGET_S` (600 s, inside the step's 15-min timeout) has elapsed, no further set starts; a skipped set keeps its
+  published index (the stagger).
+- **Lanes:** seam A (the exact per-hour grid: the /grid JSON, is_valid included) serves all eight sets. Seam B (the series lane)
+  and the #437 frame store take the three WAVES sets only: the series conform drops top-level `is_valid` and the encoder recovers
+  land from `v.waves` alone, so a swell / wind-wave series frame's land cells (4,850 of 15,023 in a real world frame) would encode
+  as ocean. Before static frames that lane drew only the thinned preview and the exact /grid frame replaced it; a full-resolution
+  static series frame would be the settled one (seen offline: 4 of 10 swell steps). Since #456 (merged 2026-10-22) the conform
+  carries `is_valid` for every layer, so the series gate lifts in its own PR with the land-cell parity on real swell frames; the
+  frame-store gate lifts when its packer handles non-waves layers.
+- **Mid-zoom crops (#459):** every one of the eight sets' tier is global_mid, so #459's crop rules (model-aware snap, proportional
+  pad, regional refusal) serve all eight through seam A at viewport boxes the resolver answers from global_mid. Series crop pages
+  follow the series gate (waves sets only).
+- **Not included:** EURO swell_1, swell_2 and wind_waves (stored at global_coarse only, and /grid fills the Gulf at serve time,
+  so a frame of the stored product would not equal what /grid serves); ICON swell_2 (a client-side blend; its GFS swell_2 input
+  is served from frames through the same seam).
+- **Kills:** global `window.__RAW_DISABLE_STATIC_FRAMES__ = true` (restores /grid exactly); per set
+  `window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...]` (or `'*'`), or for one browser
+  localStorage `__RAW_STATIC_FRAMES_SETS_OFF__` (a comma list). A per-set kill also hides that set's pin from the GPU frame store
+  (#437), which reaches sets only through `getPinnedIndexSync`. Publisher side: `FRAME_SETS` (comma list of set keys) narrows a run.
+- **Evidence:** log/2026-10-20-claude-static-frames.md (2026-10-22 section); evidence/static-frames-more-sets-2026-10-22.json.
+  - Parity, offline, the app's own codec vs the real backend over a synthetic store of all eight sets: 1,832 comparisons,
+    27,522,136 nodes, 0 bad, 0 provenance mismatches. Production-shaped (estimated tails absent): 1,408 comparisons, 21,152,384
+    nodes, 0 bad; 424 asks land on unbuilt tail entries, and every one falls back to the product /grid names. Positive control:
+    one flipped byte in one frame read 2 bad rows (16 mm) and exit 1.
+  - Offline scrub on the shipped default (static frames + the #437 frame store), exact-correct frame p50 / p95 per step: EURO
+    waves 66 / 2,979 -> 3 / 18 ms with 0 backend requests; ICON waves 35 / 5,413 -> 6 / 1,045 ms, the one /grid ask being the
+    168 h+ tail entry, which falls back by design; GFS swell_1 (seam A only) 2,058 / 3,479 -> 1,605 / 1,676 ms, backend requests
+    during the steps 9 -> 0, backend CPU 8.9 -> 0.05 s. EURO needed seam A in `backendCopernicusServiceClient` (its own client).
+  - Live (world GFS waves, pilots run 39722114072): 113 built, 0 refused, 6,296,904 B in 29.0 s; latest.json 200 (no-cache),
+    frames immutable with no Content-Encoding, CDN MISS then HIT.
+- **Known costs:** CDN egress grows with the sets a visitor views: about 0.7 MB for a glance, and on desktop the #437 idle fill
+  loads the whole run of the viewed WAVES set (GFS waves about 6.4 MB, ICON waves 3.2 MB and EURO waves 3.7 MB, native hours
+  only); a swell / wind-wave set is fetched on demand only, about 56 KB a frame as the scrub asks for it. Within Supabase Pro's
+  250 GB cached egress that is about 39,000 desktop opens a month on GFS waves alone, fewer for visitors who toggle between
+  waves models (the instant-scrub session is proposing a per-open cap).
+  Storage is about 78 MB steady state (current and previous run). Swell and wind-wave sets get no instant scrub yet (seam A
+  only: the exact frame lands after the per-hour settle, ~1.6 s offline), and their series pages still come from /grid_series.
+  A cold whole-run fill hits the Supabase origin once per frame; the live read saw 3 x 429 at 6 in flight (recovered).
+- **Rollback:** the per-set kill (one browser or window list), the global kill, or revert the PR (the publisher goes back to GFS
+  waves only, and the client's other sets become `no_index` misses).
+- **Reopen if:** a set's live parity read fails, cached egress nears 250 GB a month, or the publish step nears its 15-min timeout.

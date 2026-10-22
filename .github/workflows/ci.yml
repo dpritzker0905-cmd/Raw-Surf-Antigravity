@@ -1968,7 +1968,10 @@ jobs:
           # ⬆ 2315→2338 when #422 stacks on #432 (Logfire, +5): #422's two estate files carry 23 tests on top of #432's
           # projected 2317: 2340 / 330 files; 2340 - 2 = 2338, margin 2. _FLOOR_SET_FROM["estate"] -> 2340.
           # This PR must read 2340 passed.
-          MIN_PASSED = 2338
+          # ⬆ 2338→2341 on 2026-10-22, IN THE SAME PR THAT CAUSES IT (static frames for more world sets): +3 tests in the
+          # existing tests/test_publish_frame_sets.py on the 2340 read of dev CI 39732086620 @ eb3e4bcf: projected 2343,
+          # no new file; 2343 - 2 = 2341, margin 2. _FLOOR_SET_FROM["estate"] -> 2343. This PR must read 2343 passed.
+          MIN_PASSED = 2341
 
           try:
               root = ET.parse('estate.xml').getroot()

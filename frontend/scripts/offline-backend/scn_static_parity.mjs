@@ -26,9 +26,6 @@ const C = await import(pathToFileURL(tmp).href);
 const TOL = { speed: 0.0005 + 1e-9, direction: 0.005 + 1e-9, period: 0.005 + 1e-9, dir_confidence: 0.5 / 254 + 1e-4, uv: 0.0012 };
 const WORLD = '-180,-80,180,85';
 const latest = JSON.parse(fs.readFileSync(path.join(cdnDir, 'v1/latest.json'), 'utf8'));
-const entry = latest.sets['GFS/marine/waves/global_mid'];
-const index = JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8'));
-index.path = index.path || entry.index;
 
 const angle = (a, b) => { const d = Math.abs(a - b) % 360; return Math.min(d, 360 - d); };
 function compare(mine, theirs) {
@@ -63,54 +60,66 @@ function compare(mine, theirs) {
   return r;
 }
 
-const rows = [];
-let worst = { bad: 0, meta: 0 };
-const maxErr = { speed: 0, direction: 0, period: 0, dir_confidence: 0, uv: 0 };
-const t0 = Date.now();
-let gapAsks = 0;
-const gapRows = [];
-for (const frame of index.frames) {
-  if (!frame.path) {
-    // An entry the publisher could not build. Every ask that picks it must FALL BACK (the client returns null and asks
-    // /grid), and /grid must serve exactly the product this entry names. The pick must never substitute a neighbour.
+const reports = [];
+for (const [setKey, entry] of Object.entries(latest.sets)) {   // EVERY published set (one model x layer each)
+  const [MODEL, , LAYER] = setKey.split('/');
+  const index = JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8'));
+  index.path = index.path || entry.index;
+  const rows = [];
+  let worst = { bad: 0, meta: 0 };
+  const maxErr = { speed: 0, direction: 0, period: 0, dir_confidence: 0, uv: 0 };
+  const t0 = Date.now();
+  let gapAsks = 0;
+  const gapRows = [];
+  for (const frame of index.frames) {
+    if (!frame.path) {
+      // An entry the publisher could not build. Every ask that picks it must FALL BACK (the client returns null and asks
+      // /grid), and /grid must serve exactly the product this entry names. The pick must never substitute a neighbour.
+      for (const offH of [0, 1, 2]) {
+        const askMs = Date.parse(frame.valid_time) + offH * 3600000;
+        const pick = C.pickIndexFrame(index, askMs);
+        if (pick !== frame) continue;
+        gapAsks++;
+        const res = await fetch(`http://127.0.0.1:${port}/api/weather/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(new Date(askMs).toISOString())}&bbox=${WORLD}`);
+        const grid = await res.json();
+        const ok = grid.product_id === (frame.source || {}).filename;
+        if (!ok) worst.meta += 1;
+        gapRows.push({ valid: frame.valid_time, ask: C.apiIso(askMs), unbuilt: frame.unbuilt, falls_back: true, grid_product: grid.product_id, ok });
+      }
+      continue;
+    }
+    const gz = fs.readFileSync(path.join(cdnDir, frame.path));
+    const raw = gz[0] === 0x1f && gz[1] === 0x8b ? zlib.gunzipSync(gz) : gz;
+    const vectors = C.buildVectors(C.parseFrame(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)));
     for (const offH of [0, 1, 2]) {
       const askMs = Date.parse(frame.valid_time) + offH * 3600000;
+      const askIso = new Date(askMs).toISOString();
       const pick = C.pickIndexFrame(index, askMs);
-      if (pick !== frame) continue;
-      gapAsks++;
-      const res = await fetch(`http://127.0.0.1:${port}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(new Date(askMs).toISOString())}&bbox=${WORLD}`);
+      if (!pick || pick.path !== frame.path) continue;      // a later frame is nearer: compared on its own row
+      const res = await fetch(`http://127.0.0.1:${port}/api/weather/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${WORLD}`);
       const grid = await res.json();
-      const ok = grid.product_id === (frame.source || {}).filename;
-      if (!ok) worst.meta += 1;
-      gapRows.push({ valid: frame.valid_time, ask: C.apiIso(askMs), unbuilt: frame.unbuilt, falls_back: true, grid_product: grid.product_id, ok });
+      const mine = C.gridJsonFromFrame(index, pick, vectors, { askIso, requestedBbox: { west: -180, south: -80, east: 180, north: 85 } });
+      const r = compare(mine, grid);
+      for (const k of Object.keys(maxErr)) maxErr[k] = Math.max(maxErr[k], r.maxErr[k]);
+      worst.bad += r.bad; worst.meta += r.meta.length;
+      rows.push({ valid: frame.valid_time, ask: C.apiIso(askMs), nodes: r.nodes, bad: r.bad, validity: r.validity, position: r.position, meta: r.meta });
     }
-    continue;
   }
-  const gz = fs.readFileSync(path.join(cdnDir, frame.path));
-  const raw = gz[0] === 0x1f && gz[1] === 0x8b ? zlib.gunzipSync(gz) : gz;
-  const vectors = C.buildVectors(C.parseFrame(raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)));
-  for (const offH of [0, 1, 2]) {
-    const askMs = Date.parse(frame.valid_time) + offH * 3600000;
-    const askIso = new Date(askMs).toISOString();
-    const pick = C.pickIndexFrame(index, askMs);
-    if (!pick || pick.path !== frame.path) continue;      // a later frame is nearer: compared on its own row
-    const res = await fetch(`http://127.0.0.1:${port}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(askIso)}&bbox=${WORLD}`);
-    const grid = await res.json();
-    const mine = C.gridJsonFromFrame(index, pick, vectors, { askIso, requestedBbox: { west: -180, south: -80, east: 180, north: 85 } });
-    const r = compare(mine, grid);
-    for (const k of Object.keys(maxErr)) maxErr[k] = Math.max(maxErr[k], r.maxErr[k]);
-    worst.bad += r.bad; worst.meta += r.meta.length;
-    rows.push({ valid: frame.valid_time, ask: C.apiIso(askMs), nodes: r.nodes, bad: r.bad, validity: r.validity, position: r.position, meta: r.meta });
-  }
+  const report = {
+    set: setKey, index: index.path, frames: index.frames.length, built: index.frames.filter((f) => f.path).length,
+    unbuilt: index.frames.filter((f) => !f.path).length, gap_asks_falling_back: gapAsks, gap_rows: gapRows.slice(0, 6),
+    comparisons: rows.length, nodes: rows.reduce((a, r) => a + r.nodes, 0),
+    bad_nodes: worst.bad, meta_mismatches: worst.meta, max_abs_err: Object.fromEntries(Object.entries(maxErr).map(([k, v]) => [k, +v.toFixed(6)])),
+    tolerance: TOL, seconds: (Date.now() - t0) / 1000, mismatched_rows: rows.filter((r) => r.bad || r.meta.length).slice(0, 10),
+  };
+  reports.push({ report, rows });
+  console.log(JSON.stringify({ set: setKey, frames: report.frames, built: report.built, unbuilt: report.unbuilt,
+    gap_asks: report.gap_asks_falling_back, comparisons: report.comparisons, nodes: report.nodes, bad: report.bad_nodes,
+    meta: report.meta_mismatches, max_abs_err: report.max_abs_err, secs: report.seconds }));
 }
-const report = {
-  index: index.path, frames: index.frames.length, built: index.frames.filter((f) => f.path).length,
-  unbuilt: index.frames.filter((f) => !f.path).length, gap_asks_falling_back: gapAsks, gap_rows: gapRows.slice(0, 6),
-  comparisons: rows.length, nodes: rows.reduce((a, r) => a + r.nodes, 0),
-  bad_nodes: worst.bad, meta_mismatches: worst.meta, max_abs_err: Object.fromEntries(Object.entries(maxErr).map(([k, v]) => [k, +v.toFixed(6)])),
-  tolerance: TOL, seconds: (Date.now() - t0) / 1000, mismatched_rows: rows.filter((r) => r.bad || r.meta.length).slice(0, 10),
-};
-console.log(JSON.stringify(report, null, 1));
-if (outFile) fs.writeFileSync(outFile, JSON.stringify({ report, rows }, null, 1));
+const totals = reports.reduce((a, { report: r }) => ({ sets: a.sets + 1, nodes: a.nodes + r.nodes, bad: a.bad + r.bad_nodes,
+  meta: a.meta + r.meta_mismatches, comparisons: a.comparisons + r.comparisons }), { sets: 0, nodes: 0, bad: 0, meta: 0, comparisons: 0 });
+console.log(JSON.stringify({ totals }));
+if (outFile) fs.writeFileSync(outFile, JSON.stringify({ totals, sets: reports }, null, 1));
 fs.unlinkSync(tmp);
-process.exitCode = worst.bad || worst.meta ? 1 : 0;
+process.exitCode = totals.bad || totals.meta ? 1 : 0;

@@ -133,3 +133,29 @@ test('a crop page has its own series key (viewports over 15 deg all share "globa
   window.__RAW_DISABLE_STATIC_MID_CROP__ = true;
   expect(staticCropPageKey(base, { model: 'GFS', layer: 'waves', reqBox: VIEW, surf: false })).toBe(base);
 });
+
+test('every world set takes the crop rules (#453 eight sets + #459): per model and layer; a non-waves series page keeps its key', () => {
+  const GLOBAL = { west: -180, south: -80, east: 180, north: 85 };
+  setCachedManifest({ products: [
+    ...MANIFEST.products,
+    { model: 'ICON', domain: 'marine', layer: 'waves', region_id: 'global_mid', coverage: GLOBAL },
+    { model: 'EURO', domain: 'marine', layer: 'waves', region_id: 'global_mid', coverage: GLOBAL },
+    { model: 'EURO', domain: 'marine', layer: 'waves', region_id: 'us_west_coast_socal', coverage: { west: -125, south: 30, east: -115, north: 38 } },
+    { model: 'GFS', domain: 'marine', layer: 'swell_1', region_id: 'global_mid', coverage: GLOBAL },
+  ] });
+  // ICON waves: no ICON regional tile overlaps the view -> the resolver answers from global_mid -> a crop
+  expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: VIEW })).toBe(true);
+  // EURO waves: its SoCal tile is far from this view, so it crops here; a view over SoCal refuses (estimated regional tails)
+  expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: VIEW })).toBe(true);
+  expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: { west: -135, south: 25, east: -105, north: 45 } })).toBe(false);
+  // not one of the eight sets (EURO swells are global_coarse + serve-time Gulf fill): never, at any box
+  expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: VIEW })).toBe(false);
+  // GFS swell_1: seam A crops it, but the series lane is waves-only, so its series page keeps the /grid_series key
+  const base = 'GFS_swell_1_swell_global_p0@2026-10-20T00:00:00Z';
+  expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: VIEW })).toBe(true);
+  expect(staticCropPageKey(base, { model: 'GFS', layer: 'swell_1', reqBox: VIEW, surf: false })).toBe(base);
+  // the per-set kill reaches the crop too
+  window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = [setKeyFor('ICON', 'waves')];
+  expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: VIEW })).toBe(false);
+  delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
+});
