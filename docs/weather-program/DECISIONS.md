@@ -1503,3 +1503,21 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
 - **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).
 - **Reopen if:** the owner asks again about crests blending into beach's heatmap.
+### D-0XX (numbered at merge) · A desktop whose browser reads "3g" still preloads the whole run; Save-Data, 2g and phones stay on demand
+- **Decided:** owner, 2026-10-22 09:39 EDT, in the GPU-frames session. Asked whether desktops whose Chrome reads a "3g" connection
+  should still fill the run in idle time: "Yes: let desktops whose Chrome reads 3g still fill the run in idle time (keep Save-Data,
+  2g and phones on demand)."
+- **Rule:** `marineFrameStore.resolveTier` constrains a `3g` reading only on a handheld or weak device; a desktop keeps the desktop
+  tier. `marineFrameStoreRuntime.idleFillBlocker` blocks the idle fill on `2g` and `slow-2g` only (plus Save-Data, coarse pointer,
+  hidden tab and non-desktop tiers, as before).
+- **Why:** Chrome reports `3g` from round-trip time alone (270-1400 ms), which a far CDN edge produces on a good desktop link. The
+  live frame fetches measured p50 502 ms.
+- **Evidence:** `log/2026-10-22-claude-fill-on-3g.md`.
+  - Offline with the 113 real published frames, 340 ms per CDN object, the connection overridden to 3g.
+  - Before: constrained tier, fill blocked, 56/113 frames resident, steps p95 456 / max 458 ms.
+  - After: desktop tier, fill 1.15-7.5 s, 113/113 resident, steps p50 2 / p95 16 / max 17 ms, 0 backend requests.
+- **Known costs:** a 3g desktop now downloads the whole active run, about 6.4 MB for GFS waves, the same as a 4g desktop. On a
+  genuinely slow link the fill takes longer, but it never blocks a step: the window nearest the cursor still goes first.
+- **Rollback:** `window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true` turns the fill off everywhere; or revert the PR.
+- **Reopen if:** egress per open needs a cap (an open question, raised to the lead: fill only the first viewed set) or 3g desktops
+  report slow scrubbing.

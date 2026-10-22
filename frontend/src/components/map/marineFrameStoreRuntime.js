@@ -13,7 +13,7 @@
  *      wheel has moved 4 frames. CDN only, through #422's shared loader;
  *   4. ADAPTIVE IDLE FILL (2026-10-22): on a desktop with a good link, once the first frames have landed, the rest of the active
  *      run streams in idle time (requestIdleCallback), so later steps are eager's without eager's cost before the first draw.
- *      Phones, coarse pointers, Save-Data, slow links and hidden tabs stay on demand (see idleFillBlocker).
+ *      Phones, coarse pointers, Save-Data, 2g links and hidden tabs stay on demand (see idleFillBlocker); a desktop reading 3g fills.
  * The fast path refuses (and the normal path runs as before) unless the engine's resident texture holds a frame of the SAME set
  * (model, layer, pinned run, pack signature) with the SAME size and NEARLY the same validity, recorded by noteCommitted() after a
  * normal commit.
@@ -67,7 +67,8 @@ function idleFillBlocker() {
   if (!rt.store || rt.store.tier !== 'desktop' || !rt.store.budget.full) return 'tier';
   const conn = (typeof navigator !== 'undefined' && navigator.connection) || null;
   if (conn && conn.saveData === true) return 'save_data';
-  if (conn && conn.effectiveType && conn.effectiveType !== '4g') return 'slow_link';   // no Network Information API = fine
+  // 2g and slow-2g only: a desktop reading 3g still fills (owner, 2026-10-22; phones never reach here: the tier gate above).
+  if (conn && (conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g')) return 'slow_link';   // no Network Information API = fine
   try { if (typeof w.matchMedia === 'function' && w.matchMedia('(pointer: coarse)').matches) return 'coarse_pointer'; } catch (e) { /* none */ }
   if (typeof document !== 'undefined' && document.visibilityState && document.visibilityState !== 'visible') return 'hidden';
   return null;
