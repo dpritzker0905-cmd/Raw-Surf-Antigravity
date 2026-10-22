@@ -11,8 +11,7 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 const DRAW_FS_DEV = { sha: 'a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad', length: 8811 };
 // Light crest V2's kill (#421) and beach's (#416, a lever only where that PR lands) are set beside dark's, so the pin holds whichever
 // crest change lands.
-const ALL_CREST_KILLS = { __RAW_DISABLE_DARK_STORM_CREST__: true, __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_DISABLE_BEACH_CREST_V2__: true, __RAW_DISABLE_LIGHT_CREST_STYLE__: true };
-const LIGHT_STYLE_KILL = { __RAW_DISABLE_LIGHT_CREST_STYLE__: true };   // the light two-tone (D-043) prefixes the self-contrast line in light
+const ALL_CREST_KILLS = { __RAW_DISABLE_DARK_STORM_CREST__: true, __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_DISABLE_BEACH_CREST_V2__: true };
 const TODAY = '    stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange';
 const TODAY_CASING = '    u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));';
 const CASED = '    max(u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)), (1.0 - step(0.5, u_theme)) * step(8.00, v_wave_height)));';
@@ -49,7 +48,7 @@ describe('the default (D-039): cased orange from 8 m, one line, no colour switch
   });
 
   it('changes one line only, the self-contrast term, and keeps today\'s orange storm line', () => {
-    const before = drawFsWith({ ...KILL, ...LIGHT_STYLE_KILL }).split('\n'), after = drawFsWith(LIGHT_STYLE_KILL).split('\n');
+    const before = drawFsWith(KILL).split('\n'), after = DRAW_FS.split('\n');
     expect(after.length).toBe(before.length);
     const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);
     expect(changed).toHaveLength(1);
