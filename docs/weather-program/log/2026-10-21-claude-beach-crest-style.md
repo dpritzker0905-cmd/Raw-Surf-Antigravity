@@ -120,7 +120,7 @@ the two dev merges and this re-chain). STATE's anchor is moved to 1610. If #437 
 
 ## 2026-10-22: no two-tone; the beach crest style code removed
 
-- 03:34Z the owner picked "Turn the crest edge on for both light and beach (beach with the zoom taper)" (relayed by the lead). Light
+- 02:34Z the owner picked "Turn the crest edge on for both light and beach (beach with the zoom taper)" (relayed by the lead). Light
   went on separately (#445, D-043). I built the combined flip on a local branch (`claude/crest-edge-on`, 5886da38f, never pushed):
   beach two-tone bold by default with light's z9 taper; offline GPU run (light, beach, dark x today/on x world, regional, coastal):
   every DRAW program compiled and linked, gl.getError() 0; model with the taper: heights under |Lc| 30 0/0/0/0/3 (the 3 at z10 on
