@@ -391,3 +391,41 @@ e2438586..., 8872). `marineBeachCrestStyle.test.js` keeps #445's edits (inert wi
 that file with the unused beach two-tone code, so this PR does not touch it.
 
 Ledger: 1652 (`pr_open #448`) and 1653 (decision D-044), after dev's 1651 (dev `c0db9c57e`, merged in after #446 landed).
+
+## 2026-10-22 08:10Z: light crest CROSSES between the original and V2 (owner A/B, draft; nothing merges before he looks)
+
+The owner, relayed by the lead at 00:29 EDT: "Light mode I if we acn do a cross between no two-tone and v2 , would maybe be best?
+research this using art skills and plugins and connectors and animation science too". Standing rules: subtle, looks like real waves,
+no hue flip, no two-tone. The lead's brief: 2-3 crosses as ONE continuous family (no visible switch), measured over the live spectrum at
+real crest opacity; a draft PR with the top one ON so the Netlify preview shows it over live weather; levers for the others; a moving
+offline clip, today vs each, at world and coastal zoom; a kill restoring today exactly.
+
+**Why a cross has to cross the wash once.** Light's spectrum is light at calm and dark in storms. The original crest (navy -> amber ->
+crimson) is dark at calm and stays mid-dark, so it matches the wash's brightness over most of the big-surf range (crest under APCA
+|Lc| 15 from 1.2 to 14 m). V2 is dark below its switch and light above it, so it never matches, at the cost of an 80 dE00 jump at one
+height. A continuous crest that is dark on the calm sea and light on the storm must pass the wash's brightness once. The crosses make
+that pass short (about 0.4 m), put it near 2.3-2.7 m where the wash is blue and the crest warm, and ramp the foam from navy to white
+over the same heights (a white roll front lifts a dark crest to the wash's brightness near 2 m). They also carry #431's far-zoom crest
+lift, as V2 over the spectrum did.
+
+**Candidates** (`LIGHT_CRESTS` x1/x2/x3, `marineCrestPalette.js`; every two-colour line is a DRAW_FS `smoothstep` ramp, never a step):
+x1 (default) navy calm, amber-gold to light gold over 2-2.9 m, light coral storm; x2 amber-gold to cream over 1.8-3.4 m, cream-gold
+storm (closest to V2); x3 light gold active with no colour ramp, foam ramp 1.6-2.6 m. Rejected: an OKLab 50/50 mix of the original and
+V2 per height (crests under |Lc| 15 from 2.1 to 7.3 m).
+
+**Measured** (`frontend/scripts/wind-color/light-crest-cross.mjs`, the crest's best part every 0.1 m to 14 m, every zoom state,
+lighting and whitecap, over the spectrum at the engine's crest opacity): heights under |Lc| 15 / colour-blind floor dE00 / mean dE00
+from the original / from V2 / largest 0.1 m step: x1 2.3-2.7 m (5 bins) / 22.5 / 30.8 / 31.2 / 5.6; x2 2.3-2.8 m (6) / 22.1 / 41.2 /
+19.0 / 4.9; x3 2.0-2.7 m (8) / 13.2 / 32.3 / 32.1 / 5.1; the original 1.2-14 m (129) / 6.8; V2 none / 11.8 / step 80 at 2.35 m.
+Engine clips (offline, `serve_synthetic.py --dynamic 1 --vortex-peak 11`, one run, every pane on GFS 2026-10-22T09:00Z with the same
+wave-texture hash, 24 frames each paired with its crest-free wash, `crest_contrast.py`): p99 |Lc| today -> x1 / x2 / x3: world 17.1 ->
+35.5 / 37.7 / 30.3; coastal 22.8 -> 62.3 / 73.7 / 62.5. Null control (a warm-up pane drawing x1 against x1): <= 0.5. The first run put
+today's coastal pane on a different (cold-cache) grid and was discarded.
+
+**Kill and levers.** `window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true` draws dev 9b49111e8's DRAW_FS (e2438586, 8872) and DRAW_VS
+(b1569be9) byte for byte; `__RAW_LIGHT_CREST_CROSS__ = 'x2' | 'x3'` picks the others; V2 on request and the V2 kill behave as before.
+GPU: every case links in light, beach and dark; default DRAW_FS d75b2bbf (9063), DRAW_VS 5bd171fb (29558) = the Jest pins.
+
+**Tests:** `marineCrestCross.test.js` (new); five crest suites that pin today's shader run those pins under the cross kill (the #445
+pattern). `marineBeachCrestStyle.test.js` gets the kill too: #449 deletes that file, so a merge after #449 resolves by deletion.
+Evidence: `docs/weather-program/evidence/light-crest-cross-2026-10-22.json`.
