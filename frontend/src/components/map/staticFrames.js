@@ -2,7 +2,8 @@
  * staticFrames.js — load forecast frames from the CDN instead of the 1-CPU backend (step 2b, 2026-10-20). ON by default
  * since 2026-10-21 (owner: "turn on static frames"; DECISIONS).
  *
- * The ingest runner publishes the world-view GFS wave field once per model run as immutable gzipped binary frames
+ * The ingest runner publishes the world-view (2-degree global_mid) marine sets in STATIC_SETS once per model run as
+ * immutable gzipped binary frames
  * in the PUBLIC Supabase bucket `weather-frames` (backend/scripts/publish_frame_images.py):
  *   v1/latest.json                        no-cache pointer: { sets: { 'GFS/marine/waves/global_mid': { index } } }
  *   <index path>                          immutable run index: frames, product identity, metadata
@@ -18,6 +19,7 @@
  * 8-degree lattice) and static frames draw the full 2-degree field, the same numbers /grid serves for the exact frame
  * (parity-gated node by node at publish), so no served number moves.
  *   KILL: window.__RAW_DISABLE_STATIC_FRAMES__ = true restores the /grid path exactly (wins over everything).
+ *   ONE SET: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid'] (or '*'), see staticSetEnabled.
  *   THIS BROWSER: localStorage '__RAW_STATIC_FRAMES__' = 'false' (off) or 'true' (on).
  *   BUILD: REACT_APP_STATIC_FRAMES=false turns the default off; without REACT_APP_SUPABASE_URL (or the base override)
  *   nothing is eligible, synchronously.
@@ -185,6 +187,29 @@ export function setKeyFor(model, layer) {
   return `${(model || 'GFS').toUpperCase()}/marine/${(layer || 'waves').toLowerCase()}/global_mid`;
 }
 
+// The world sets the client reads from the CDN (the publisher's frame_set.SETS; each parity-gated node by node at publish
+// and offline against /grid, 2026-10-22). A set the publisher has not published yet is simply a miss ('no_index' or
+// 'set_not_published') and /grid serves it. Not here: EURO swell layers (global_coarse + serve-time Gulf fill) and ICON
+// swell_2 (a client blend; its GFS swell_2 input IS served from frames through the same seam).
+export const STATIC_SETS = [
+  'GFS/marine/waves/global_mid', 'GFS/marine/swell_1/global_mid', 'GFS/marine/swell_2/global_mid',
+  'GFS/marine/wind_waves/global_mid', 'ICON/marine/waves/global_mid', 'EURO/marine/waves/global_mid',
+  'ICON/marine/swell_1/global_mid', 'ICON/marine/wind_waves/global_mid',
+];
+
+/** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
+ *  localStorage '__RAW_STATIC_FRAMES_SETS_OFF__' = a comma list, for this browser. The global kill still wins over all. */
+export function staticSetEnabled(key) {
+  if (!STATIC_SETS.includes(key)) return false;
+  const off = (list) => list === '*' || (Array.isArray(list) && list.includes(key));
+  if (typeof window !== 'undefined' && off(window.__RAW_DISABLE_STATIC_FRAMES_SETS__)) return false;
+  try {
+    const ls = window.localStorage && window.localStorage.getItem('__RAW_STATIC_FRAMES_SETS_OFF__');
+    if (ls && (ls.trim() === '*' || ls.split(',').map((x) => x.trim()).includes(key))) return false;
+  } catch (e) { /* storage blocked */ }
+  return true;
+}
+
 async function loadJson(url, noCache) {
   const res = await fetch(url, { cache: noCache ? 'no-cache' : 'default', credentials: 'omit' });
   if (!res.ok) throw new Error(`http_${res.status}`);
@@ -264,7 +289,7 @@ export async function getPinnedIndex(key) {
 /** Is an index pinned (and not stale) for this set right now? Synchronous; no I/O. */
 export function hasPinnedIndex(key) {
   const pin = _state.pins.get(key);
-  return !!(pin && !pin.stale);
+  return !!(pin && !pin.stale) && staticSetEnabled(key);
 }
 
 function markPinStale(key) {
@@ -288,10 +313,11 @@ export function onStaticFrameParsed(fn) {
   return () => _parsedHooks.delete(fn);
 }
 
-/** The pinned index for a set right now, synchronously; null when none or stale. No I/O. */
+/** The pinned index for a set right now, synchronously; null when none, stale, or the set is killed (the frame store
+ *  reaches sets only through this, so a per-set kill flipped after a pin also stops stored frames for that set). No I/O. */
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
-  return pin && !pin.stale ? pin.index : null;
+  return pin && !pin.stale && staticSetEnabled(key) ? pin.index : null;
 }
 
 function sharedParsedLoad(key, frame) {
@@ -404,7 +430,7 @@ const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east
 export function staticEligible({ model, layer, bbox, surf }) {
   if (!staticFramesEnabled() || !staticFramesBase()) return false;
   if (surf) return false;                         // rating grids are a server transform of the product
-  if ((model || '').toUpperCase() !== 'GFS' || (layer || '').toLowerCase() !== 'waves') return false; // slice 1
+  if (!staticSetEnabled(setKeyFor(model, layer))) return false;
   return spanOf(bbox) >= WORLD_MIN_SPAN;
 }
 
@@ -428,7 +454,7 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
     if (!vectors) return null;
     telemetry().hits += 1;
     const json = gridJsonFromFrame(index, frame, vectors, { askIso: validTimeStr, requestedBbox: clampedBbox });
-    // /grid ships a server-minted truth tag for GFS waves; mint the lineage tag once here, as the series path does.
+    // /grid ships a server-minted truth tag; mint the lineage tag once here, as the series path does.
     try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
     return json;
   } catch (e) {

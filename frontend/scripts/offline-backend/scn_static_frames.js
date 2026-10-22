@@ -18,7 +18,8 @@
 //   node frontend/scripts/offline-backend/serve_spa.js frontend/build 3100
 //   CDN_DIR=<cdn> PORT=4100 OUT=static.json node frontend/scripts/offline-backend/scn_static_frames.js
 // Env: ROUNDS (3), WIN (ms per step, 8000), LAT_SERIES / LAT_GRID (ms added per backend response), CDN_LAT (ms added per
-// static object), CDN_PORT (4190), ARMS (default grid,static). The GPU-resident frames arms (2026-10-21):
+// static object), CDN_PORT (4190), ARMS (default grid,static), MODEL / LAYER (default GFS / waves: which world set to
+// scrub, 2026-10-22). The GPU-resident frames arms (2026-10-21):
 //   static  as above (static frames on, the default), with the frame store KILLED (window.__RAW_DISABLE_FRAME_STORE__ = true)
 //   store   static frames on and the frame store on (the default once static frames are on): prefetch + the layer copy, and
 //           (2026-10-22) the adaptive idle fill: the rest of the run in idle time once the first frames have landed
@@ -43,6 +44,10 @@ const ROUNDS = +(process.env.ROUNDS || 3);
 const WIN = +(process.env.WIN || 8000);
 const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
 const FILL_WAIT = +(process.env.FILL_WAIT || 45000);
+// Which world set to scrub (2026-10-22: every STATIC_SETS entry; serve the store with the matching --models / --layers).
+const MODEL = (process.env.MODEL || 'GFS').toUpperCase();
+const LAYER = process.env.LAYER || 'waves';
+const LABEL = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves' };
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -86,7 +91,7 @@ function backendCpuS() {
   } catch (e) { return NaN; }
 }
 
-const PROBE = () => {
+const PROBE = ({ model, layer }) => {
   const P = (window.__SF__ = { w: null });
   window.addEventListener('keydown', (e) => { if (P.w) P.w.tLast = e.timeStamp; }, true);
   P.snap = () => {
@@ -104,12 +109,12 @@ const PROBE = () => {
   // product at anchor + h; series grids reach the engine without their stored id).
   const stampMs = (pid) => { const m = /_(\d{8}T\d{6}Z)\.json$/.exec(pid || ''); return m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : null; };
   const productMs = (s, W) => (s.pid ? stampMs(s.pid) : (s.series && s.hour != null ? W.anchor + s.hour * 3600000 : null));
-  const exactNow = (s, W) => productMs(s, W) === W.expectedMs && s.layer === 'waves' && s.model === 'GFS' && s.stride === 0 && s.cols >= 150;
+  const exactNow = (s, W) => productMs(s, W) === W.expectedMs && s.layer === layer && s.model === model && s.stride === 0 && s.cols >= 150;
   const loop = (t) => {
     const W = P.w;
     if (W && !W.done && W.tLast != null && t >= W.tLast) {
       const s = P.snap(); const rel = t - W.tLast;
-      if (W.label == null && s.hour === W.target && s.layer === 'waves' && s.model === 'GFS' && s.seq > W.seq0) W.label = rel;
+      if (W.label == null && s.hour === W.target && s.layer === layer && s.model === model && s.seq > W.seq0) W.label = rel;
       const ok = exactNow(s, W);
       if (W.exact == null && ok) { W.exact = W.already ? 0 : rel; W.exactSeries = s.series; W.pid = s.pid; }
       else if (W.exact != null && !ok) W.regress += 1;   // frames that left the exact-correct product after reaching it
@@ -143,7 +148,7 @@ async function session(arm) {
     if (killFill) window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true;
   }, { on: ['static', 'store', 'intent', 'eager'].includes(arm), base: `http://127.0.0.1:${CDN_PORT}/`, killStore: arm === 'static', eager: arm === 'eager',
     killFill: arm === 'intent' });
-  await page.addInitScript(PROBE);
+  await page.addInitScript(PROBE, { model: MODEL, layer: LAYER });
   const steps = [];
   const frameBytes = () => ({ n: (cdnLog.byKind.frame || { n: 0 }).n, bytes: (cdnLog.byKind.frame || { bytes: 0 }).bytes });
   const open0 = frameBytes();
@@ -151,7 +156,10 @@ async function session(arm) {
   try {
     await L.openMap(page); await L.jump(page, -80, 24, 3.2);
     await clickExact(page, 'Waves');
-    await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
+    if (MODEL !== 'GFS') { await sleep(150); await clickExact(page, MODEL); }
+    if (LAYER !== 'waves') { await sleep(150); await clickExact(page, LABEL[LAYER]); }
+    await page.waitForFunction(({ m, l }) => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
+      return g && g.__sourceModel === m && g.__componentLayer === l; }, { m: MODEL, l: LAYER }, { timeout: 60000 });
     // After the first draw: a 6 s glance, then (store / eager) until the whole run is in the store, at most FILL_WAIT.
     const tDraw = Date.now(); let glance = null; let wholeRunMs = null;
     const fills = ['store', 'eager'].includes(arm);
@@ -173,7 +181,7 @@ async function session(arm) {
     const expected = {};
     for (const [, target] of STEPS) {
       const ask = new Date(anchor + target * 3600000).toISOString();
-      const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=-180,-80,180,85`)).json();
+      const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(ask)}&bbox=-180,-80,180,85`)).json();
       expected[target] = j.product_id;
     }
     const reqs0 = log.requests.length; const cdn0 = { ...cdnLog, byKind: JSON.parse(JSON.stringify(cdnLog.byKind)) };
@@ -194,7 +202,10 @@ async function session(arm) {
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) steps.forEach((x) => { x.anchorRolled = true; });
     const req = log.requests.slice(reqs0);
     const byPath = {}; for (const q of req) byPath[q.path] = (byPath[q.path] || 0) + 1;
-    return { arm, steps, open, backendCpuS: +(cpu1 - cpu0).toFixed(3), backendRequests: byPath,
+    // Each backend request during the steps, by what it asked (which model/layer/box/time reached the backend, and why).
+    const backendRequestDetail = req.map((q) => ({ path: q.path, model: q.q && q.q.model, layer: q.q && q.q.layer, bbox: q.q && q.q.bbox,
+      valid_time: q.q && q.q.valid_time, ms: q.ms }));
+    return { arm, steps, open, backendCpuS: +(cpu1 - cpu0).toFixed(3), backendRequests: byPath, backendRequestDetail,
       cdn: { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes },
       errors: log.errors.slice(0, 5), hosts: log.hosts,
       frameStore: await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; return t ? { shows: t.shows, commits: t.commits, prefetch: t.prefetch, gpu: t.gpu, cpuMB: t.cpuMB, gpuMB: t.gpuMB, tier: t.tier } : null; }) };
@@ -207,7 +218,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
 (async () => {
   await new Promise((r) => cdn.listen(CDN_PORT, '127.0.0.1', r));
   const sessions = [];
-  const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, LAT_SERIES, LAT_GRID, CDN_LAT, startedUtc: new Date().toISOString() }, sessions };
+  const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, LAT_SERIES, LAT_GRID, CDN_LAT, MODEL, LAYER, startedUtc: new Date().toISOString() }, sessions };
   try {
     const ARMS = (process.env.ARMS || 'grid,static').split(',');
     for (let i = 0; i < ROUNDS; i++) {

@@ -251,15 +251,31 @@ def _uploader(sink):
     return upload
 
 
-def publish_frame_sets(source, sink, sets=fs.SETS, log=print):
-    """Every set: frames, then its index; then latest.json LAST; then retention. Returns {set key: stats}."""
+def selected_sets(sets=fs.SETS):
+    """FRAME_SETS (comma list of set keys, e.g. 'GFS/marine/waves/global_mid') narrows the run; default every set."""
+    want = [k.strip() for k in os.environ.get("FRAME_SETS", "").split(",") if k.strip()]
+    return [t for t in sets if not want or fs.set_key(t) in want]
+
+
+def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=time.perf_counter):
+    """Every set: frames, then its index; then latest.json LAST; then retention. Returns {set key: stats}.
+
+    STAGGER: once `budget_s` (FRAME_PUBLISH_BUDGET_S, default 600 s, inside the step's 15-min timeout) has elapsed, no
+    further set is started this run; a skipped set keeps its published index and is reported `skipped_budget`."""
+    sets = selected_sets() if sets is None else sets
+    budget = float(os.environ.get("FRAME_PUBLISH_BUDGET_S", "600")) if budget_s is None else budget_s
     raw_latest = sink.read(fs.LATEST)
     latest = json.loads(raw_latest) if raw_latest else {"version": 1, "sets": {}}
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
+    started = clock()
     for target in sets:
         key = fs.set_key(target)
+        if clock() - started > budget:
+            report[key] = {"skipped_budget": True, "index": (latest.get("sets", {}).get(key) or {}).get("index")}
+            log(f"[frames] {key}: skipped, the run is past its {budget:.0f} s budget (the published index stays)")
+            continue
         entry = latest.get("sets", {}).get(key)
         prev_raw = sink.read(entry["index"]) if entry and entry.get("index") else None
         prev_index = json.loads(prev_raw) if prev_raw else None

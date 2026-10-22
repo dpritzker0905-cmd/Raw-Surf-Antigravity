@@ -17,7 +17,7 @@ the ingest step just wrote). Nothing here downloads a product. A frame whose sou
 run time, ingested_at) matches the previous index is carried over without reading anything; a changed product that
 is not on disk is listed with `path: null`, and the client falls back to /grid for that hour. The GFS world products
 are written by the PILOTS lane (scheduler/forecast.py pilot_jobs), so the step runs in forecast-ingest-pilots.yml; a
-lane whose disk holds less than FRAME_MIN_COVERAGE of a set publishes nothing for it.
+lane whose disk holds less than FRAME_MIN_COVERAGE of a set's AUTHORITATIVE entries publishes nothing for it.
 
 SELECTION RULE (parity with /grid): the index lists every stored product of the set, flagged authoritative or
 estimated. The client picks the frame /grid would serve (grid_resolver -> mid_res_tier.pick_mid_item): the nearest
@@ -40,9 +40,16 @@ INDEX_VERSION = 1
 WINDOW_S = 3 * 3600
 MIN_COVERAGE_DEFAULT = 0.9   # a set publishes a new index only when this share of its entries has a frame
 
-SETS = (
-    {"model": "GFS", "domain": "marine", "layer": "waves", "region_id": "global_mid"},
-)
+# The WORLD tier (global_mid, 2 deg): every set the pilots lane writes natively (forecast-ingest-pilots.yml; storage reads
+# 2026-10-22: GFS 4 layers x 113 frames; ICON 3 layers x 57 native (0-168 h); EURO waves x 65 native). The ICON/EURO
+# estimated 14-day tails are baked by the CORE lane, so in this lane they are listed unbuilt and fall back to /grid.
+# Not here yet: EURO swell layers (global_coarse only, where /grid applies coarse_gulf_fill at serve time) and ICON
+# swell_2 (a client-side GFS/EURO blend, iconSwell2Blend.js). Order = publish order (a run over its time budget stops
+# starting sets, so the most-used set comes first).
+SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_mid"} for m, l in (
+    ("GFS", "waves"), ("GFS", "swell_1"), ("GFS", "swell_2"), ("GFS", "wind_waves"),
+    ("ICON", "waves"), ("EURO", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"),
+))
 
 # Product fields the client needs to rebuild the /grid response (backendWeatherServiceClient + mapNormalizedGridToWebGL).
 PRODUCT_META = (
@@ -172,7 +179,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             f = dict(f, meta={**prev_common, **(f.get("meta") or {})}, grid=f.get("grid") or prev_grid)
         prev_frames[(f["valid_time"], bool(f.get("is_estimated")))] = f
     stats = {"entries": 0, "built": 0, "carried": 0, "unchanged": 0, "uploaded": 0, "not_local": 0, "stale_local": 0,
-             "refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0, "coverage_refused": False}
+             "refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0, "coverage_authoritative": 0.0,
+             "coverage_refused": False}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
     entries = select_entries(source.manifest().get("products"), target)
     stats["entries"] = len(entries)
@@ -230,13 +238,17 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
                        "raw_bytes": len(raw), "grid": g, "source": ident, "meta": meta})
     built = [f for f in frames if f.get("path")]
     stats["coverage"] = round(len(built) / len(entries), 4) if entries else 0.0
+    # THE GATE counts AUTHORITATIVE entries: an estimated tail baked by another lane (ICON/EURO 168-336 h, the core lane)
+    # is listed unbuilt and served by /grid, which is also what the resolver picks there (authoritative first).
+    auth = [f for f in frames if not f["is_estimated"]]
+    stats["coverage_authoritative"] = round(sum(1 for f in auth if f.get("path")) / len(auth), 4) if auth else 0.0
     if not built:
         return None, stats
-    if stats["coverage"] < floor:
+    if stats["coverage_authoritative"] < floor:
         stats["coverage_refused"] = True   # e.g. a lane whose disk holds only part of the set: keep the published index
         stats["bytes_uploaded"] = 0
-        log(f"[frames] {set_key(target)}: only {len(built)}/{len(entries)} entries have a frame "
-            f"(coverage {stats['coverage']} < {floor}); nothing uploaded, the published index stays")
+        log(f"[frames] {set_key(target)}: only {sum(1 for f in auth if f.get('path'))}/{len(auth)} authoritative entries "
+            f"have a frame (coverage {stats['coverage_authoritative']} < {floor}); nothing uploaded, the published index stays")
         return None, stats
     if uploads:
         uploader(uploads)
@@ -256,6 +268,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         "version": INDEX_VERSION, "encoding_version": fb.ENCODING_VERSION, "transform_version": fb.TRANSFORM_VERSION,
         "set": set_key(target), **target, "run": runs[-1] if runs else None, "runs": runs,
         "run_time": run_times[-1] if run_times else None, "grid": grid, "coverage": stats["coverage"],
+        "coverage_authoritative": stats["coverage_authoritative"],
         "selection": "nearest valid_time within 3 h over EVERY entry; authoritative before estimated; earlier on a tie "
                      "(grid_resolver -> mid_res_tier.pick_mid_item); an entry with path null -> /grid",
         "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fb.DEFAULT_FIELDS},
