@@ -1,0 +1,131 @@
+{
+ "what": "CDN etiquette for the frame prefetch: at most 4 in flight (2 slow), AIMD back-off on failed asks, a wake-up that re-asks backed-off frames (2026-10-22)",
+ "method": "scn_instant_second_pass.js with CDN_RATE_LIMIT=4 (a frame ask that arrives while 4 are being served is answered 429: a stand-in for the Supabase Storage limit the live read hit at 6 in flight), the 113 REAL published frames, 340 ms per object, arms dark and light, 10 fixed + 20 random steps; one production build per side",
+ "before_dev_972be1e82": [
+  {
+   "arm": "dark",
+   "steps_in_run": 25,
+   "exact_ms_p50": 2,
+   "exact_ms_p95": 594,
+   "exact_ms_max": 851,
+   "missed": 0,
+   "cdn_429": 346,
+   "cdn_max_concurrent": 4,
+   "prefetch": {
+    "requests": 384,
+    "landed": 39,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 345,
+    "bytes": 2177330,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 22013,
+    "inflight": 0,
+    "cap": 6,
+    "opened": true,
+    "planned": 113
+   },
+   "frames_resident": 45,
+   "fill_done_ms": null,
+   "whole_run_ms": null
+  },
+  {
+   "arm": "light",
+   "steps_in_run": 30,
+   "exact_ms_p50": 2,
+   "exact_ms_p95": 580,
+   "exact_ms_max": 583,
+   "missed": 0,
+   "cdn_429": 354,
+   "cdn_max_concurrent": 4,
+   "prefetch": {
+    "requests": 390,
+    "landed": 36,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 354,
+    "bytes": 2011949,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 23371,
+    "inflight": 0,
+    "cap": 6,
+    "opened": true,
+    "planned": 113
+   },
+   "frames_resident": 40,
+   "fill_done_ms": null,
+   "whole_run_ms": null
+  }
+ ],
+ "after_branch": [
+  {
+   "arm": "dark",
+   "steps_in_run": 25,
+   "exact_ms_p50": 2,
+   "exact_ms_p95": 16,
+   "exact_ms_max": 17,
+   "missed": 0,
+   "cdn_429": 0,
+   "cdn_max_concurrent": 4,
+   "prefetch": {
+    "requests": 113,
+    "landed": 113,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 6296904,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "coolOffs": 0,
+    "inflight": 0,
+    "cap": 4,
+    "capMax": 4,
+    "coolingMs": 0,
+    "opened": true,
+    "planned": 113
+   },
+   "frames_resident": 113,
+   "fill_done_ms": 10905,
+   "whole_run_ms": 11047
+  },
+  {
+   "arm": "light",
+   "steps_in_run": 30,
+   "exact_ms_p50": 3,
+   "exact_ms_p95": 13,
+   "exact_ms_max": 14,
+   "missed": 0,
+   "cdn_429": 0,
+   "cdn_max_concurrent": 4,
+   "prefetch": {
+    "requests": 113,
+    "landed": 113,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 6296904,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "coolOffs": 0,
+    "inflight": 0,
+    "cap": 4,
+    "capMax": 4,
+    "coolingMs": 0,
+    "opened": true,
+    "planned": 113
+   },
+   "frames_resident": 113,
+   "fill_done_ms": 10717,
+   "whole_run_ms": 10800
+  }
+ ],
+ "without_rate_limit_reference": "whole-run fill 7.5-8.0 s at 6 in flight (instant-second-pass-2026-10-22.json); ~10.8 s at 4 (this run, limit never hit)",
+ "caveats": [
+  "the first after run was invalid (the build took dev's prefetcher because the worktree had switched branch); re-run with the file from the branch commit",
+  "a concurrency limit is one model of a rate limit; Supabase's real rule is unknown"
+ ]
+}
