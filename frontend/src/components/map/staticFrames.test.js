@@ -79,7 +79,8 @@ describe('static frames loader', () => {
       ['ICON', 'waves'], ['ICON', 'swell_1'], ['ICON', 'wind_waves'], ['EURO', 'waves']]) {
       expect(staticEligible({ model: m, layer: l, bbox: WORLD })).toBe(true);
     }
-    expect(STATIC_SETS).toHaveLength(8);
+    expect(STATIC_SETS).toHaveLength(9);   // the eight marine sets + GFS wind (windStaticFrames.js), which marine never serves
+    expect(staticEligible({ model: 'GFS', layer: 'wind', bbox: WORLD })).toBe(false);
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD, surf: true })).toBe(false);
     expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: WORLD })).toBe(false);
     expect(staticEligible({ model: 'ICON', layer: 'swell_2', bbox: WORLD })).toBe(false);

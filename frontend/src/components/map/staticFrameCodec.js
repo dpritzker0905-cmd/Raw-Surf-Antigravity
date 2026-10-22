@@ -13,7 +13,7 @@
 export const FRAME_MAGIC = [0x52, 0x53, 0x57, 0x46]; // "RSWF"
 export const SUPPORTED_ENCODING = 1;
 export const SUPPORTED_TRANSFORM = 1;
-export const FIELD = { HEIGHT: 0, DIRECTION: 1, PERIOD: 2, DIR_CONFIDENCE: 3 };
+export const FIELD = { HEIGHT: 0, DIRECTION: 1, PERIOD: 2, DIR_CONFIDENCE: 3, SPEED_KT: 4, LANE_WEIGHT: 5 };
 const HEADER_FIXED = 72;
 const DESCRIPTOR_BYTES = 24;
 const NO_MISSING = 0xFFFFFFFF;
@@ -121,6 +121,37 @@ export function buildVectors(parsed) {
     }
   }
   return out;
+}
+
+/**
+ * WIND frames (frame_binary.WIND_FIELDS, 2026-10-22): the vectors /grid serves for GFS wind, in the shape
+ * backendWindServiceClient.mapNormalizedWindGridToWebGL reads ({lat, lng, speed, direction, u, v, is_valid}), speed in knots at
+ * the frame's 0.01 kn step, u, v = -s sin d, -s cos d at 4 dp (the wind normalizer's convention). Returns { vectors, laneW }:
+ * laneW = Float64Array of the HRRR lane's weight per node (0 = untouched), or null when the frame carries no lane plane.
+ */
+export function buildWindVectors(parsed) {
+  const { cols, rows, bounds, fields } = parsed;
+  const S = fields[FIELD.SPEED_KT];
+  const D = fields[FIELD.DIRECTION];
+  if (!S || !D) throw new Error('static frame: not a wind frame');
+  const sign = parsed.uvConvention === 1 ? 1 : -1;
+  const dLat = rows > 1 ? (bounds.north - bounds.south) / (rows - 1) : 0;
+  const dLng = cols > 1 ? (bounds.east - bounds.west) / (cols - 1) : 0;
+  const out = new Array(cols * rows);
+  for (let r = 0; r < rows; r++) {
+    const lat = r6(bounds.south + r * dLat);
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c;
+      const lng = r6(bounds.west + c * dLng);
+      const s = S[i];
+      if (Number.isNaN(s)) { out[i] = { lat, lng, speed: 0, direction: 0, u: 0, v: 0, is_valid: false }; continue; }
+      const speed = r2(s);
+      const dir = Number.isNaN(D[i]) ? 0 : r2(D[i]);
+      const rad = dir * (Math.PI / 180);
+      out[i] = { lat, lng, speed, direction: dir, u: r4(sign * speed * Math.sin(rad)) + 0, v: r4(sign * speed * Math.cos(rad)) + 0, is_valid: true };
+    }
+  }
+  return { vectors: out, laneW: fields[FIELD.LANE_WEIGHT] || null };
 }
 
 const _ms = (iso) => {

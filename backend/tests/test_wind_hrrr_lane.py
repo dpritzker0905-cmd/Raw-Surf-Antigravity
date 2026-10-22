@@ -300,8 +300,15 @@ def test_only_the_grid_route_calls_the_lane():
     # the route (apply), server.py (the kill-switch middleware + warm-up), the ingest (publishes the lane) and the
     # series page memo, which only READS the lane's identity (current_lane().key, request_mode) to key and re-check a
     # kept GFS wind page (2026-10-20, GRID_SERIES_MEMO_RUN_KEYS); it must never apply the lane itself (asserted below).
-    assert sorted(callers) == ["routes/weather.py", "server.py", "services/weather_pipeline/series_memo_keys.py",
+    # The static wind frames' publisher (2026-10-22, services/frame_set_wind.py) applies the lane too, to build the CDN frames that
+    # stand in for /grid's own GFS wind response; it writes frames to the public frames bucket and never a product back (asserted
+    # below: no store write in it).
+    assert sorted(callers) == ["routes/weather.py", "server.py", "services/frame_set_wind.py",
+                               "services/weather_pipeline/series_memo_keys.py",
                                "services/weather_pipeline/wind_lane_ingest.py"], callers
+    fsw_tree = ast.parse((BACKEND / "services/frame_set_wind.py").read_text(encoding="utf-8"))
+    assert not [n for n in ast.walk(fsw_tree) if isinstance(n, ast.Attribute)
+                and n.attr in ("save_product", "_upload_to_supabase", "write_product", "store_product")]
     memo = ast.parse((BACKEND / "services/weather_pipeline/series_memo_keys.py").read_text(encoding="utf-8"))
     assert not [n for n in ast.walk(memo) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "apply_wind_lane"]
     tree = ast.parse((BACKEND / "routes/weather.py").read_text(encoding="utf-8"))

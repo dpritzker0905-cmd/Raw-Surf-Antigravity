@@ -39,6 +39,14 @@ Fields (v1 quantisation, measured on a live world frame 2026-10-20: 55.5 KB gzip
 The renderer's own texture is coarser than every step above (WebGLMarineTextureEncoder: height in 3.9-6.3 cm bytes,
 direction as 8-bit unit-vector components, period in 0.078 s bytes).
 
+WIND frames (2026-10-22, the GFS wind world set; frame_set_wind.py) carry fields 1, 4 and, when the HRRR lane touched the
+frame, 5. Height's 1 mm u16 tops out at 65.5, and 10 m wind in knots goes past that:
+  4 speed_kt        u16  code 0 = no data (is_valid false), else round(speed / 0.01 kn) + 1   error <= 0.005 kn
+  5 lane_weight     u16  code 0 = the HRRR lane did not touch the node, else max(1, round(w * 10000)): the lane's weight
+                         (wind_lane._blend `use`), so a crop of the frame rebuilds the /grid lane stamp of the crop
+u, v follow from speed and direction by uv_convention 0, as the wind normalizer computes them. The wind texture
+(WebGLWindUtils.encodeWindTexture) quantises u, v and speed into 8-bit bytes over the frame's range (0.3-0.5 kn a step).
+
 Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise, where the bounds are the
 OUTER CELL CENTRES (cell_bounds; what /grid serves). `encode_frame` refuses a product whose lat/lng are not that regular
 grid, and `parity` compares every decoded node with its source.
@@ -59,22 +67,37 @@ DESCRIPTOR = struct.Struct("<BBBBIdd")  # 24 bytes
 NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
-HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE = 0, 1, 2, 3
-FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence"}
+HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED_KT, LANE_WEIGHT = 0, 1, 2, 3, 4, 5
+FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
+               SPEED_KT: "speed_kt", LANE_WEIGHT: "lane_weight"}
 
-# (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data.
+# (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
+# speed_kt does the same at 0.01 kn.
 FIELD_SPECS = {
     HEIGHT: (2, 1, 0, 0.001, -0.001),
     DIRECTION: (2, 1, NO_MISSING, 0.01, 0.0),
     PERIOD: (2, 1, 0xFFFF, 0.01, 0.0),
     DIR_CONFIDENCE: (1, 0, 0xFF, 1.0 / 254.0, 0.0),
+    SPEED_KT: (2, 1, 0, 0.01, -0.01),
+    LANE_WEIGHT: (2, 1, NO_MISSING, 0.0001, 0.0),
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
+WIND_FIELDS = (DIRECTION, SPEED_KT)
 
 # What the decoded value may differ from the source by, per field (half a step, plus float slack).
-TOLERANCE = {HEIGHT: 0.0005 + 1e-9, DIRECTION: 0.005 + 1e-9, PERIOD: 0.005 + 1e-9, DIR_CONFIDENCE: 0.5 / 254 + 1e-9}
+TOLERANCE = {HEIGHT: 0.0005 + 1e-9, DIRECTION: 0.005 + 1e-9, PERIOD: 0.005 + 1e-9, DIR_CONFIDENCE: 0.5 / 254 + 1e-9,
+             SPEED_KT: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9}
 POSITION_TOL_DEG = 1e-6
 UV_TOL = 0.0012  # u, v rebuilt from the decoded height and direction: 1 mm height step plus 4-dp rounding
+# Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
+# UNROUNDED speed and direction (and rounded to 4 dp): 0.005 kn + 0.005 deg of the speed + both 4-dp roundings, with slack.
+WIND_UV_TOL_BASE = 0.006
+WIND_UV_TOL_PER_KN = 0.0001
+
+
+def magnitude_field(field_ids):
+    """The field that carries the vector's magnitude and validity: height (marine) or speed_kt (wind)."""
+    return SPEED_KT if SPEED_KT in field_ids else HEIGHT
 
 
 def _grid_of(product):
@@ -134,10 +157,13 @@ def _valid(vec):
 def field_code(fid, vec):
     """The integer code one vector stores for one field."""
     _nb, _layout, missing, scale, offset = FIELD_SPECS[fid]
-    if fid == HEIGHT:
+    if fid in (HEIGHT, SPEED_KT):
         if not _valid(vec):
             return 0
         return min(0xFFFF, int(round(float(vec["speed"]) / scale)) + 1)
+    if fid == LANE_WEIGHT:
+        w = _finite(vec.get("_lane_w"))    # set by frame_set_wind on the vectors it encodes (the lane's weight; None = untouched)
+        return 0 if not w or w <= 0 else max(1, min(0xFFFE, int(round(w / scale))))
     if fid == DIRECTION:
         d = _finite(vec.get("direction"))
         return int(round((d % 360.0) / scale)) % 36000 if d is not None else 0
@@ -258,21 +284,24 @@ def parity(product, decoded):
         return {"nodes": cols * rows, "bad": cols * rows, "missing_mismatch": 0, "max_abs_err": {}, "uv_max_err": None,
                 "shape": "mismatch"}
     f = decoded["fields"]
+    mag = magnitude_field(f)
     bad = missing_mismatch = 0
     errs = {FIELD_NAMES[k]: 0.0 for k in f}
     uv_err = 0.0
     for i, vec in enumerate(vectors):
         node_bad = False
         valid = _valid(vec)
-        got_h = f[HEIGHT][i] if HEIGHT in f else None
+        got_h = f[mag][i] if mag in f else None
         if valid != (got_h is not None):
             missing_mismatch += 1
             bad += 1
             continue
         for fid, values in f.items():
             got = values[i]
-            if fid == HEIGHT:
+            if fid in (HEIGHT, SPEED_KT):
                 want = float(vec["speed"]) if valid else None
+            elif fid == LANE_WEIGHT:
+                want = _finite(vec.get("_lane_w")) or 0.0
             elif fid == DIRECTION:
                 want = (_finite(vec.get("direction")) or 0.0) % 360.0
                 if got is not None and want is not None:
@@ -292,15 +321,16 @@ def parity(product, decoded):
                 err = abs(got - want)
                 errs[FIELD_NAMES[fid]] = max(errs[FIELD_NAMES[fid]], err)
                 node_bad |= err > TOLERANCE[fid]
-        if valid and HEIGHT in f and DIRECTION in f:
+        if valid and mag in f and DIRECTION in f:
             rad = math.radians(f[DIRECTION][i])
             sign = 1.0 if decoded.get("uv_convention") == 1 else -1.0
-            u, v = round(sign * f[HEIGHT][i] * math.sin(rad), 4), round(sign * f[HEIGHT][i] * math.cos(rad), 4)
+            u, v = round(sign * f[mag][i] * math.sin(rad), 4), round(sign * f[mag][i] * math.cos(rad), 4)
             su, sv = _finite(vec.get("u")) or 0.0, _finite(vec.get("v")) or 0.0
+            tol = UV_TOL if mag == HEIGHT else WIND_UV_TOL_BASE + WIND_UV_TOL_PER_KN * abs(f[mag][i])
             if su or sv:  # stored 0/0 means "derive from direction", which the renderer does the same way
                 e = max(abs(u - su), abs(v - sv))
                 uv_err = max(uv_err, e)
-                node_bad |= e > UV_TOL
+                node_bad |= e > tol
         bad += node_bad
     return {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
             "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}

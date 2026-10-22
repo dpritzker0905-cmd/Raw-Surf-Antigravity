@@ -270,23 +270,35 @@ def apply_wind_lane(product, model, domain, layer, lane=None):
         return product
 
 
-def _blend(product, grid, lane, valid, w_t, base):
-    import copy
+def lane_use(vectors, lane, valid, w_t):
+    """Which nodes the lane blends at `valid` and how much: (idx, w, hu, hv, use) over the nodes near HRRR's lattice, or None
+    when no node is near it. ONE function for the served blend (_blend) and the static wind frames' publisher
+    (services/frame_set_wind.py), so the frames can never mark other nodes than /grid blends."""
     import numpy as np
     hg = _grid()
-    vectors = grid.vectors
     lats = np.fromiter((v.lat for v in vectors), dtype=float, count=len(vectors))
     lngs = np.fromiter((v.lng for v in vectors), dtype=float, count=len(vectors))
     lngs = ((lngs + 180.0) % 360.0) - 180.0
     near = ((lats >= lane.lat0 - lane.res) & (lats <= lane.lat0 + lane.nlat * lane.res)
             & (lngs >= lane.lon0 - lane.res) & (lngs <= lane.lon0 + lane.nlon * lane.res))
     idx = np.nonzero(near)[0]
-    info = {**base, "valid_time": _iso(valid), "time_weight": round(w_t, 4)}
     if idx.size == 0:
-        return _stamped(product, {**info, "reason": "outside_hrrr_domain"})
+        return None
     w = hg.space_weight_np(lats[idx], lngs[idx], feather_km()) * w_t
     hu, hv = lane.sample(lats[idx], lngs[idx], lane.hour_index(valid))
     use = (w > 0.0) & np.isfinite(hu) & np.isfinite(hv)
+    return idx, w, hu, hv, use
+
+
+def _blend(product, grid, lane, valid, w_t, base):
+    import copy
+    import numpy as np
+    vectors = grid.vectors
+    info = {**base, "valid_time": _iso(valid), "time_weight": round(w_t, 4)}
+    found = lane_use(vectors, lane, valid, w_t)
+    if found is None:
+        return _stamped(product, {**info, "reason": "outside_hrrr_domain"})
+    idx, w, hu, hv, use = found
     if not use.any():
         return _stamped(product, {**info, "reason": "outside_hrrr_domain"})
     out_vectors = list(vectors)

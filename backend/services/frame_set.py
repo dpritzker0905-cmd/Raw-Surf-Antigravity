@@ -30,6 +30,7 @@ import os
 from datetime import datetime, timezone
 
 from services import frame_binary as fb
+from services import frame_set_wind as fsw
 
 LATEST = "v1/latest.json"
 IMMUTABLE = "public, max-age=31536000, immutable"
@@ -49,7 +50,11 @@ MIN_COVERAGE_DEFAULT = 0.9   # a set publishes a new index only when this share 
 SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_mid"} for m, l in (
     ("GFS", "waves"), ("GFS", "swell_1"), ("GFS", "swell_2"), ("GFS", "wind_waves"),
     ("ICON", "waves"), ("EURO", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"),
-))
+)) + (
+    # WIND (2026-10-22, the wind instant scrub): GFS 10 m wind, 2 deg, written by the same pilots lane. Each frame is the stored
+    # product with the HRRR lane applied as /grid serves it (frame_set_wind.py). Last: the stagger drops it first.
+    dict(fsw.WIND_TARGET),
+)
 
 # Product fields the client needs to rebuild the /grid response (backendWeatherServiceClient + mapNormalizedGridToWebGL).
 PRODUCT_META = (
@@ -136,9 +141,16 @@ def factor_common(frames):
     return common
 
 
-def build_frame(product, entry):
+def fields_for(target, lane_touched=False):
+    """The frame fields of a set: the marine four, or wind's speed + direction (+ lane_weight when the HRRR lane touched it)."""
+    if fsw.is_wind(target):
+        return fb.WIND_FIELDS + ((fb.LANE_WEIGHT,) if lane_touched else ())
+    return fb.DEFAULT_FIELDS
+
+
+def build_frame(product, entry, fields=fb.DEFAULT_FIELDS):
     """(raw frame bytes, parity report) for one product; raises ValueError when it cannot be encoded."""
-    raw = fb.encode_frame(product)
+    raw = fb.encode_frame(product, fields)
     return raw, fb.parity(product, fb.decode_frame(raw))
 
 
@@ -158,7 +170,7 @@ def min_coverage():
         return MIN_COVERAGE_DEFAULT
 
 
-def publish_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None):
+def publish_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None, wind_lane=None):
     """Build, check and upload one set's frames; return (index or None, stats).
 
     `source.product_bytes(filename)` returns local bytes or None and never downloads. `uploader(jobs)` uploads
@@ -168,7 +180,11 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     lands on it and falls back to /grid instead of substituting a neighbouring frame up to 3 h away.
     Returns index None when nothing changed, nothing could be built, or fewer than `coverage_floor` (default
     FRAME_MIN_COVERAGE) of the entries have a frame: then NOTHING is uploaded and the published index stays.
+    A WIND set takes `wind_lane` (frame_set_wind.load_publish_lane): every frame is its product with that lane applied, and the
+    lane key is part of each frame's source identity.
     """
+    wind = fsw.is_wind(target)
+    lane_key = (wind_lane.key if wind_lane is not None else None) if wind else None
     prefix = set_prefix(target)
     floor = min_coverage() if coverage_floor is None else coverage_floor
     prev_common = (previous_index or {}).get("common_meta") or {}
@@ -192,6 +208,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     for entry in entries:
         vt, est = iso(entry.get("valid_time_start") or entry.get("valid_time")), bool(entry.get("is_estimated"))
         ident = source_identity(entry)
+        if wind:
+            ident["wind_lane"] = lane_key      # a new HRRR lane rebuilds the frame (its bytes change only where HRRR blends)
         prev = prev_frames.get((vt, est))
         if prev and prev.get("path") and prev.get("source") == ident:
             frames.append(prev)
@@ -205,8 +223,16 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         if iso(product.get("model_run_time")) != ident["model_run_time"] or iso(product.get("run_time")) != ident["run_time"]:
             unbuilt(vt, est, ident, "stale_local")   # the disk copy is not the run the manifest names: never mix runs
             continue
+        lane_stamp, touched = None, 0
+        if wind:
+            try:
+                product, lane_stamp, touched = fsw.lane_applied(product, wind_lane)
+            except Exception as e:             # a lane that cannot be applied must never ship a frame /grid would not serve
+                log(f"[frames] {entry['filename']}: wind lane refused ({type(e).__name__}: {e})")
+                unbuilt(vt, est, ident, "refused")
+                continue
         try:
-            raw, check = build_frame(product, entry)
+            raw, check = build_frame(product, entry, fields_for(target, touched > 0))
         except ValueError as e:
             log(f"[frames] {entry['filename']}: refused ({e})")
             unbuilt(vt, est, ident, "refused")
@@ -225,6 +251,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         grid = grid or g
         sha = fb.sha256_hex(raw)
         meta = product_meta(product, entry["filename"])
+        if wind:
+            meta["wind_lane"] = lane_stamp     # the stamp /grid puts on the world response for this product
         run_stamp = stamp(meta["model_run_time"] or meta["run_time"])
         if prev and prev.get("path") and prev.get("sha256") == sha:
             path, nbytes = prev["path"], prev["bytes"]
@@ -271,11 +299,13 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         "coverage_authoritative": stats["coverage_authoritative"],
         "selection": "nearest valid_time within 3 h over EVERY entry; authoritative before estimated; earlier on a tie "
                      "(grid_resolver -> mid_res_tier.pick_mid_item); an entry with path null -> /grid",
-        "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fb.DEFAULT_FIELDS},
+        "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fields_for(target, wind)},
         "parity_max_abs_err": {k: round(v, 6) for k, v in max_err.items()},
         "common_meta": common,
         "frames": frames,
     }
+    if wind:
+        index["wind_lane"] = wind_lane.identity() if wind_lane is not None else None
     body = json.dumps(index, sort_keys=True, separators=(",", ":")).encode("utf-8")
     index["path"] = f"{prefix}/index/{stamp(index['run'])}-{fb.sha256_hex(body)[:12]}.json"
     return index, stats
