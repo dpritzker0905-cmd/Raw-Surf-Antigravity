@@ -124,6 +124,17 @@ describe('instant model toggle: the new model\'s stored frame with its own chl/b
     expect(snap().shows).toMatchObject({ aux: 1, crossModel: 1 });
   });
 
+  it('ICON past 168 h is never shown from the store: the normal path draws those hours from a client-side blend', async () => {
+    const { calls } = setup();
+    await parse(GFS, 0); await parse(ICON, 2);
+    commitGfs(0);
+    calls.length = 0;
+    expect(RT.tryShowStoredFrameForSwitch({ model: 'ICON', layer: 'waves', hourOffset: 171, requestedValidTime: vt(2) })).toBe(false);
+    expect(snap().shows.misses.icon_blend_hour).toBe(1);
+    expect(calls).toEqual([]);
+    expect(toIcon(2)).toBe(true);                                        // at 6 h (inside ICON's native range) it is shown
+  });
+
   it('after the switch, an ICON step takes the resident path (no second chl/bath compute)', async () => {
     setup();
     await parse(GFS, 0); await parse(ICON, 2); await parse(ICON, 3);

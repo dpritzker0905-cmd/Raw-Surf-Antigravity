@@ -94,7 +94,7 @@ const PROBE = ({ bytesCheck, minCols }) => {
     gl.deleteFramebuffer(fb);
     return ok ? fnv(out) : null;
   }
-  const readAll = () => { const e = window.__MARINE_ENGINE__; return { wave: readTex(e._residentWaveTex), chl: readTex(e._residentChlTex), bath: readTex(e._residentBathTex) }; };
+  const readAll = () => { const e = window.__MARINE_ENGINE__; return { wave: readTex(e._residentWaveTex), chl: readTex(e._residentChlTex), bath: readTex(e._residentBathTex), dims: `${e._texWidth}x${e._texHeight}` }; };
   let lastN = -1;
   const loop = (t) => {
     const W = P.w;
@@ -111,7 +111,7 @@ const PROBE = ({ bytesCheck, minCols }) => {
         if (op.mult < 0.999) W.dimmed += 1;
       }
       if (W.exact == null && ok) { W.exact = t - W.t0; W.viaStore = s.store; W.pid = s.pid; W.statusAtExact = s.status; }
-      else if (W.exact != null && !ok) W.regress += 1;
+      else if (W.exact != null && !ok) { W.regress += 1; const k = `${s.model}:${s.cols}`; W.regressAs[k] = (W.regressAs[k] || 0) + 1; }
     }
     if (bytesCheck) {
       const s = snap();
@@ -120,14 +120,14 @@ const PROBE = ({ bytesCheck, minCols }) => {
       else if (s.g && !s.store && s.pid && P.reads.has(s.pid) && !P.reads.get(s.pid).done) {
         const a = P.reads.get(s.pid); a.done = true; const b = readAll();
         P.pairs.push({ pid: s.pid, model: a.model, wave: a.at.wave != null && a.at.wave === b.wave, chl: a.at.chl != null && a.at.chl === b.chl,
-          bath: a.at.bath != null && a.at.bath === b.bath, afterMs: Math.round(t - a.t) });
+          bath: a.at.bath != null && a.at.bath === b.bath, afterMs: Math.round(t - a.t), dimsShow: a.at.dims, dimsCommit: b.dims });
       }
     }
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   P.arm = (model, expected) => { P.w = { model, expectedMs: stampMs(expected), t0: null, exact: null, viaStore: null, pid: null, regress: 0, frames: 0,
-    framesToExact: 0, wrongSilent: 0, wrongAdmitted: 0, labelLag: 0, dimmed: 0, statusAtExact: null }; };
+    framesToExact: 0, wrongSilent: 0, wrongAdmitted: 0, labelLag: 0, dimmed: 0, statusAtExact: null, regressAs: {} }; };
   P.read = () => ({ ...P.w });
 };
 
@@ -209,7 +209,7 @@ async function session(arm, round) {
       await page.evaluate(() => { window.__MT__.w.done = true; });
       await page.keyboard.press('ArrowLeft'); await sleep(1200);
       clicks.push({ from: model, to: target, hour, warmMs, ms: r.exact == null ? null : Math.round(r.exact), viaStore: r.viaStore, framesToExact: r.framesToExact,
-        frames: r.frames, wrongSilent: r.wrongSilent, wrongAdmitted: r.wrongAdmitted, labelLag: r.labelLag, dimmed: r.dimmed, regress: r.regress,
+        frames: r.frames, wrongSilent: r.wrongSilent, wrongAdmitted: r.wrongAdmitted, labelLag: r.labelLag, dimmed: r.dimmed, regress: r.regress, regressAs: r.regressAs,
         statusAtExact: r.statusAtExact, nextStepMs: s.exact == null ? null : Math.round(s.exact), nextViaStore: s.viaStore });
       model = target; warmMs = await settle();
     }

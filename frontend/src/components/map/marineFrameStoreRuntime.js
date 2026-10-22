@@ -502,6 +502,9 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
   try {
     if (!frameStoreOn()) return false;
     if (!rt.target) return miss('no_target');
+    // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
+    // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
+    if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
     const key = setKeyFor(model, layer);
     const index = getPinnedIndexSync(key);
     if (!index) return miss('no_index');
