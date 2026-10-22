@@ -55,13 +55,19 @@ describe('static frames loader', () => {
     jest.restoreAllMocks();
   });
 
-  test('off by default; the localStorage opt-in turns it on; the kill switch wins', () => {
+  test('ON by default (owner 2026-10-21); localStorage false turns it off here; the kill switch wins over all', () => {
     window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    expect(staticFramesEnabled()).toBe(true);
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'false');
     expect(staticFramesEnabled()).toBe(false);
     window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
     expect(staticFramesEnabled()).toBe(true);
     window.__RAW_DISABLE_STATIC_FRAMES__ = true;
     expect(staticFramesEnabled()).toBe(false);
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(false);
+    delete window.__RAW_DISABLE_STATIC_FRAMES__;
+    delete window.__RAW_STATIC_FRAMES_BASE__;
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(!!process.env.REACT_APP_SUPABASE_URL); // no CDN: never eligible
   });
 
   test('only world GFS waves boxes, never surf (slice 1)', () => {

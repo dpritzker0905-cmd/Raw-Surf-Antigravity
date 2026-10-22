@@ -48,6 +48,11 @@ def _product(vals=_VALS, cols=4, rows=3, sign=-1.0):
 def test_golden_layout_is_byte_exact():
     """The layout is a contract with the browser decoder: any change here must change staticFrameCodec.js too."""
     assert fb.encode_frame(_product()) == base64.b64decode(GOLDEN_B64)
+    # A STORED product carries the request box in grid.bounds (the live global_mid: north 85, last row 84); the frame takes
+    # its node lattice from the cells, so the bytes are the same (the first live publish refused every frame without this).
+    boxed = _product()
+    boxed["grid"]["bounds"] = {"west": 99.0, "south": -11.0, "east": 108.0, "north": 2.0}
+    assert fb.encode_frame(boxed) == base64.b64decode(GOLDEN_B64)
 
 
 def test_header_fields_and_round_trip_within_tolerance():
