@@ -16,6 +16,9 @@ jest.mock('./staticFrames', () => ({
 }));
 import * as RT from './marineFrameStoreRuntime';
 
+// These pack REAL world frames (the idle-fill cases pack a whole run): under a full parallel run a case can pass 5 s.
+jest.setTimeout(20000);
+
 const PARSED = parseFrame(zlib.gunzipSync(Buffer.from(REAL_GFS_FRAME_GZ_BASE64, 'base64')));
 const vt = (k) => new Date(Date.UTC(2026, 9, 20, 0) + k * 3 * 3600000).toISOString().replace(/\.\d{3}Z$/, 'Z');
 const KEY = 'GFS/marine/waves/global_mid';
