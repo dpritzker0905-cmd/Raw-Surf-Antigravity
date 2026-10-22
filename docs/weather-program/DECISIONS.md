@@ -1374,3 +1374,31 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Next, not decided:** the constant-screen-density cull (`u_densityBase` against `particleHash`) has the same staircase; giving it
   a well-spread hash would move today's density at every zoom, so it is its own change with its own A/B.
 - **Reopen if:** the owner says so, or a crest-size or seed-count change moves the coverage the rows were fitted on.
+
+### D-0XX (numbered at merge) · Static forecast frames ON by default for the world GFS waves view; kill switch restores /grid
+- **Decided:** owner, 2026-10-21 20:09 EDT, in the lead session (relayed to the static-frames session): "turn on static frames".
+  #422 (merged 2026-10-21 18:25Z as 2a47fd5d8) built the path dark; this flips the client default.
+- **Rule:** the client reads world GFS waves frames (every viewport wider than 15 deg, not surf) from the public bucket
+  `weather-frames` by default: seam A answers the world /grid, seam B fills world series pages around the viewed hour. Every miss
+  (no index, an unbuilt entry, a fetch or decode error, no frame within 3 h) falls back to /grid or /grid_series exactly as before.
+  The publisher runs in forecast-ingest-pilots.yml with FRAME_IMAGES_PUBLISH=1. No served number moves: each frame is decoded and
+  compared node by node with its source before upload, and /grid serves the same stored product. What changes on screen is that a
+  scrub draws the full 2-deg frame at once where the series path drew the thinned 46 x 21 world frame first.
+- **Evidence:** log/2026-10-20-claude-static-frames.md; evidence/static-frames-2026-10-20.json.
+  - Offline, interleaved, 3 sessions per arm, steps that need a different product: exact-correct frame p50 2,286 -> 238 ms,
+    0 backend requests on the static path.
+  - Parity: 3,470,313 synthetic nodes and 45,069 real live nodes, 0 bad.
+  - Live publisher read-back: the first two post-merge pilots runs (39670557729, 39688997158) held all 113 products on disk
+    (not_local 0) but refused every frame, because a stored product's grid.bounds is the request box (north 85) and not the cell
+    centres (84). latest.json was never written (CDN 400). The same PR fixes the encoder to take the lattice from the cells; on the
+    real world frame the header now reads -80..84, with Python and JS parity 0 bad.
+- **Known costs:**
+  - Until the first publish with the bounds fix, the flip is inert (every request falls back).
+  - The live in-browser parity read (ledger commitment 1585, part 3) was not taken before this flip.
+  - Each decoded world frame is ~15k vector objects (LRU 12, series window 9).
+  - The localStorage override works in production builds by design.
+- **Rollback:** `window.__RAW_DISABLE_STATIC_FRAMES__ = true` restores the /grid path exactly (synchronous, nothing awaits);
+  `localStorage.__RAW_STATIC_FRAMES__ = 'false'` turns it off in one browser; a build with REACT_APP_STATIC_FRAMES=false turns the
+  default off; repo variable FRAME_IMAGES_PUBLISH != '1' stops publishing.
+- **Reopen if:** the owner says so, live parity vs /grid finds a bad node, or the first publish after the fix covers less than
+  90% of the set.

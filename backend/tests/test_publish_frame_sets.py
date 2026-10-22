@@ -41,7 +41,8 @@ def _product(valid, run="2026-10-20T06:00:00Z", bump=0.0, cols=6, rows=4):
             "is_forecast_authoritative": True, "is_estimated": False, "estimate_basis": None, "value_kind": "wave_height",
             "value_unit": "m", "display_unit_hint": "ft", "source_dataset": "ncep_gfswave025", "upstream_provider": "noaa",
             "region_id": "global_mid",
-            "grid": {"cols": cols, "rows": rows, "bounds": {"west": -180.0, "south": -60.0, "east": 180.0, "north": 60.0},
+            # Bounds as STORED products carry them: the request box, wider than the outer cell centres (-60..60).
+            "grid": {"cols": cols, "rows": rows, "bounds": {"west": -180.0, "south": -62.0, "east": 180.0, "north": 61.0},
                      "vectors": vecs, "diagnostics": {"gridMode": "rectangular", "nonzeroCount": 17}}}
 
 
@@ -91,6 +92,7 @@ def test_first_publish_writes_checked_immutable_frames_then_the_pointer_last(tmp
     assert index["coverage"] == latest["coverage"] == 1.0 and latest["frames"] == latest["entries"] == 3
     assert index["frames"][0]["meta"]["product_id"].startswith("gfs_marine_waves_global_mid_")
     assert index["common_meta"]["diagnostics"] == {"gridMode": "rectangular"}   # only the keys a client reads
+    assert index["grid"]["bounds"] == {"west": -180.0, "south": -60.0, "east": 180.0, "north": 60.0}  # cell centres, as /grid
 
 
 def test_an_unchanged_cycle_uploads_nothing_and_leaves_the_pointer(tmp_path):

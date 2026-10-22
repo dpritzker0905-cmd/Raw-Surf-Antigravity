@@ -1,10 +1,11 @@
 // Static frames vs the backend, scrubbed the same way (step 2b, 2026-10-20). Offline only.
 //
 // Two arms from ONE production build, interleaved A B B A per round (ROUNDS rounds, default 3), each in a fresh browser:
-//   grid    static frames off (today's path: /grid_series pages + per-hour /grid from the real backend app)
-//   static  localStorage '__RAW_STATIC_FRAMES__' = 'true' and window.__RAW_STATIC_FRAMES_BASE__ -> a local static host
-//           standing in for the Supabase CDN (it serves the publisher's --out-dir as is: gzipped frames, no
-//           Content-Encoding header, so the app's own worker inflates them)
+//   grid    window.__RAW_DISABLE_STATIC_FRAMES__ = true (the kill switch: /grid_series pages + per-hour /grid from the real
+//           backend app, today's path before 2026-10-21)
+//   static  the app's DEFAULT (static frames ON since 2026-10-21; no opt-in is set), with window.__RAW_STATIC_FRAMES_BASE__
+//           -> a local static host standing in for the Supabase CDN (it serves the publisher's --out-dir as is: gzipped
+//           frames, no Content-Encoding header, so the app's own worker inflates them)
 // Per scrub step (world view, GFS Waves): time from the key press to the EXACT-CORRECT frame on the GPU = the engine's
 // resident grid is the stored product /grid serves for that time (its product_id, asked of the backend BEFORE the timed
 // window), GFS, waves, at full resolution (no decimated_stride; 181 x 83 here). 0 ms when the resident frame already is
@@ -123,7 +124,9 @@ async function session(arm) {
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true, hooks: { beforeWeather: async (url) => {
     const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
   await page.addInitScript(({ on, base }) => {
-    if (on) { localStorage.setItem('__RAW_STATIC_FRAMES__', 'true'); window.__RAW_STATIC_FRAMES_BASE__ = base; } else localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    localStorage.removeItem('__RAW_STATIC_FRAMES__');          // no per-browser choice: the build default decides
+    window.__RAW_STATIC_FRAMES_BASE__ = base;
+    if (!on) window.__RAW_DISABLE_STATIC_FRAMES__ = true;      // the kill switch
   }, { on: arm === 'static', base: `http://127.0.0.1:${CDN_PORT}/` });
   await page.addInitScript(PROBE);
   const steps = [];

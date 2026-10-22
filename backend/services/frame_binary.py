@@ -39,8 +39,9 @@ Fields (v1 quantisation, measured on a live world frame 2026-10-20: 55.5 KB gzip
 The renderer's own texture is coarser than every step above (WebGLMarineTextureEncoder: height in 3.9-6.3 cm bytes,
 direction as 8-bit unit-vector components, period in 0.078 s bytes).
 
-Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise. `encode_frame` refuses a
-product whose stored lat/lng are not that regular grid, and `parity` compares every decoded node with its source.
+Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise, where the bounds are the
+OUTER CELL CENTRES (cell_bounds; what /grid serves). `encode_frame` refuses a product whose lat/lng are not that regular
+grid, and `parity` compares every decoded node with its source.
 """
 from __future__ import annotations
 
@@ -80,16 +81,23 @@ def _grid_of(product):
     grid = product.get("grid") or {}
     cols, rows = int(grid.get("cols") or 0), int(grid.get("rows") or 0)
     vectors = grid.get("vectors") or []
-    bounds = grid.get("bounds") or {}
     if cols < 2 or rows < 2 or len(vectors) != cols * rows:
         raise ValueError(f"grid shape mismatch: cols={cols} rows={rows} vectors={len(vectors)}")
     if cols > 0xFFFF or rows > 0xFFFF:
         raise ValueError(f"grid too large for a v1 frame: {cols}x{rows}")
+    return cols, rows, vectors, cell_bounds(vectors)
+
+
+def cell_bounds(vectors):
+    """(west, south, east, north) of the OUTER CELL CENTRES. Not grid.bounds: a STORED product carries the request box
+    there (the live global_mid: north 85 while its last row sits at 84; every frame of the first live publish was refused
+    for it, runs 39670557729 / 39688997158), and /grid serves bounds recomputed from the cells (filter_grid_to_bbox)."""
     try:
-        b = tuple(float(bounds[k]) for k in ("west", "south", "east", "north"))
+        lats = [float(v["lat"]) for v in vectors]
+        lngs = [float(v["lng"]) for v in vectors]
     except (KeyError, TypeError, ValueError):
-        raise ValueError(f"grid bounds missing or malformed: {bounds!r}")
-    return cols, rows, vectors, b
+        raise ValueError("vector lat/lng missing or malformed")
+    return min(lngs), min(lats), max(lngs), max(lats)
 
 
 def node_position(r, c, cols, rows, bounds):
