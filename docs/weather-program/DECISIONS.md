@@ -1503,3 +1503,39 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
 - **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).
 - **Reopen if:** the owner asks again about crests blending into beach's heatmap.
+
+### D-0XX (numbered at merge) · Static frames for eight world sets, each ON behind its own kill
+- **Decided:** owner, 2026-10-22 00:22 EDT, relayed by the lead session: "Have the static-frames session publish more layers
+  and models". The lead's scope: every set gets its own kill and is ON once its parity is proven; no SCOREBOARD row (no served
+  number moves: every frame is checked node by node against the stored product /grid serves).
+- **Rule:** the publisher (forecast-ingest-pilots.yml) publishes each world set in `frame_set.SETS`, in this order: GFS waves,
+  swell_1, swell_2, wind_waves; ICON waves; EURO waves; ICON swell_1, wind_waves (all global_mid, 2 deg). The client's
+  `STATIC_SETS` lists the same eight; a set missing from latest.json is a `no_index` miss and /grid serves it. The 90% coverage gate
+  counts AUTHORITATIVE entries: the ICON/EURO estimated 14-day tails are written by the core lane, so in this lane they are listed
+  unbuilt (path null), and every ask that picks one falls back to /grid, whose resolver picks the same product. Once
+  `FRAME_PUBLISH_BUDGET_S` (600 s, inside the step's 15-min timeout) has elapsed, no further set starts; a skipped set keeps its
+  published index (the stagger).
+- **Not included:** EURO swell_1, swell_2 and wind_waves (stored at global_coarse only, and /grid fills the Gulf at serve time,
+  so a frame of the stored product would not equal what /grid serves); ICON swell_2 (a client-side blend; its GFS swell_2 input
+  is served from frames through the same seam).
+- **Kills:** global `window.__RAW_DISABLE_STATIC_FRAMES__ = true` (restores /grid exactly); per set
+  `window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...]` (or `'*'`), or for one browser
+  localStorage `__RAW_STATIC_FRAMES_SETS_OFF__` (a comma list). A per-set kill also hides that set's pin from the GPU frame store
+  (#437), which reaches sets only through `getPinnedIndexSync`. Publisher side: `FRAME_SETS` (comma list of set keys) narrows a run.
+- **Evidence:** log/2026-10-20-claude-static-frames.md (2026-10-22 section); evidence/static-frames-more-sets-2026-10-22.json.
+  - Parity, offline, the app's own codec vs the real backend over a synthetic store of all eight sets: 1,832 comparisons,
+    27,522,136 nodes, 0 bad, 0 provenance mismatches. Production-shaped (estimated tails absent): 1,408 comparisons, 21,152,384
+    nodes, 0 bad; 424 asks land on unbuilt tail entries, and every one falls back to the product /grid names. Positive control:
+    one flipped byte in one frame read 2 bad rows (16 mm) and exit 1.
+  - Offline scrub on the shipped default (static frames + the #437 frame store), exact-correct frame p95 per step: GFS swell_1
+    5,778 -> 17 ms, EURO waves 2,979 -> 18 ms, both with 0 backend requests; ICON waves 5,413 -> 1,045 ms, the one /grid ask being
+    the 168 h+ tail entry, which falls back by design. EURO needed seam A in `backendCopernicusServiceClient` (its own client).
+  - Live (world GFS waves, pilots run 39722114072): 113 built, 0 refused, 6,296,904 B in 29.0 s; latest.json 200 (no-cache),
+    frames immutable with no Content-Encoding, CDN MISS then HIT.
+- **Known costs:** CDN egress grows with the sets a visitor views: about 0.7 MB for a glance, and on desktop the #437 idle fill
+  loads the whole run of the viewed set (about 6.3 MB for a GFS set, 3.2-3.6 MB for an ICON/EURO set's native hours). Within
+  Supabase Pro's 250 GB cached egress that is about 39,000 desktop opens a month on one GFS set, fewer for visitors who toggle.
+  Storage is about 78 MB steady state (current and previous run).
+- **Rollback:** the per-set kill (one browser or window list), the global kill, or revert the PR (the publisher goes back to GFS
+  waves only, and the client's other sets become `no_index` misses).
+- **Reopen if:** a set's live parity read fails, cached egress nears 250 GB a month, or the publish step nears its 15-min timeout.

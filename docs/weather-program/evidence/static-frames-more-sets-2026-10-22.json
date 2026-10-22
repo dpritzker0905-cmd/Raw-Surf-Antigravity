@@ -1,0 +1,1300 @@
+{
+ "what": "Static forecast frames for eight world sets (GFS waves/swell_1/swell_2/wind_waves, ICON waves/swell_1/wind_waves, EURO waves; global_mid). Synthetic numbers are invented fields: a delivery oracle, not forecast skill.",
+ "live_readback_39722114072": {
+  "frame_sets": {
+   "GFS/marine/waves/global_mid": {
+    "entries": 113,
+    "built": 113,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 113,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 6296904,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_refused": false,
+    "seconds": 29.0,
+    "index": "v1/gfs/marine/waves/global_mid/index/20261021T180000Z-175214f5ac74.json",
+    "deleted": 0
+   }
+  },
+  "latest_json": "200, 462 B, Cache-Control no-cache (06:02Z)",
+  "index": "200, 68,579 B, public max-age=31536000 immutable",
+  "frame": "200, 55,557 B, application/octet-stream, immutable, no Content-Encoding; CF MISS then HIT; gzip 1f8b -> 105,329 B RSWF"
+ },
+ "offline_publish": {
+  "full_store": {
+   "GFS/marine/waves/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 1030838,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 25.7,
+    "index": "v1/gfs/marine/waves/global_mid/index/20261021T180000Z-b492a93500dd.json",
+    "deleted": 0
+   },
+   "GFS/marine/swell_1/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 1004888,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 27.6,
+    "index": "v1/gfs/marine/swell_1/global_mid/index/20261021T180000Z-1d826991afe7.json",
+    "deleted": 0
+   },
+   "GFS/marine/swell_2/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 101853,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 31.3,
+    "index": "v1/gfs/marine/swell_2/global_mid/index/20261021T180000Z-f68da44a9b06.json",
+    "deleted": 0
+   },
+   "GFS/marine/wind_waves/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 587332,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 28.7,
+    "index": "v1/gfs/marine/wind_waves/global_mid/index/20261021T180000Z-a7630a6223ed.json",
+    "deleted": 0
+   },
+   "ICON/marine/waves/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 1029988,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 29.6,
+    "index": "v1/icon/marine/waves/global_mid/index/20261021T180000Z-0eaf90b45338.json",
+    "deleted": 0
+   },
+   "EURO/marine/waves/global_mid": {
+    "entries": 99,
+    "built": 99,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 99,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 887743,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 28.8,
+    "index": "v1/euro/marine/waves/global_mid/index/20261021T180000Z-01a33d63b3c8.json",
+    "deleted": 0
+   },
+   "ICON/marine/swell_1/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 1008521,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 30.6,
+    "index": "v1/icon/marine/swell_1/global_mid/index/20261021T180000Z-faa53c38d225.json",
+    "deleted": 0
+   },
+   "ICON/marine/wind_waves/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 571590,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 34.5,
+    "index": "v1/icon/marine/wind_waves/global_mid/index/20261021T180000Z-ca2f325feb6c.json",
+    "deleted": 0
+   }
+  },
+  "production_shaped": {
+   "GFS/marine/waves/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 1030838,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 24.2,
+    "index": "v1/gfs/marine/waves/global_mid/index/20261021T180000Z-b492a93500dd.json",
+    "deleted": 0
+   },
+   "GFS/marine/swell_1/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 1004888,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 29.9,
+    "index": "v1/gfs/marine/swell_1/global_mid/index/20261021T180000Z-1d826991afe7.json",
+    "deleted": 0
+   },
+   "GFS/marine/swell_2/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 101853,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 29.1,
+    "index": "v1/gfs/marine/swell_2/global_mid/index/20261021T180000Z-f68da44a9b06.json",
+    "deleted": 0
+   },
+   "GFS/marine/wind_waves/global_mid": {
+    "entries": 115,
+    "built": 115,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 115,
+    "not_local": 0,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 587332,
+    "parity_bad": 0,
+    "coverage": 1.0,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 31.0,
+    "index": "v1/gfs/marine/wind_waves/global_mid/index/20261021T180000Z-a7630a6223ed.json",
+    "deleted": 0
+   },
+   "ICON/marine/waves/global_mid": {
+    "entries": 115,
+    "built": 56,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 56,
+    "not_local": 59,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 499916,
+    "parity_bad": 0,
+    "coverage": 0.487,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 16.4,
+    "index": "v1/icon/marine/waves/global_mid/index/20261021T180000Z-8af8d1596559.json",
+    "deleted": 0
+   },
+   "EURO/marine/waves/global_mid": {
+    "entries": 99,
+    "built": 64,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 64,
+    "not_local": 35,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 572454,
+    "parity_bad": 0,
+    "coverage": 0.6465,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 50.6,
+    "index": "v1/euro/marine/waves/global_mid/index/20261021T180000Z-0cbe5c1f61ca.json",
+    "deleted": 0
+   },
+   "ICON/marine/swell_1/global_mid": {
+    "entries": 115,
+    "built": 56,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 56,
+    "not_local": 59,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 489803,
+    "parity_bad": 0,
+    "coverage": 0.487,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 17.0,
+    "index": "v1/icon/marine/swell_1/global_mid/index/20261021T180000Z-eea679773cc7.json",
+    "deleted": 0
+   },
+   "ICON/marine/wind_waves/global_mid": {
+    "entries": 115,
+    "built": 56,
+    "carried": 0,
+    "unchanged": 0,
+    "uploaded": 56,
+    "not_local": 59,
+    "stale_local": 0,
+    "refused": 0,
+    "bytes_uploaded": 277375,
+    "parity_bad": 0,
+    "coverage": 0.487,
+    "coverage_authoritative": 1.0,
+    "coverage_refused": false,
+    "seconds": 15.4,
+    "index": "v1/icon/marine/wind_waves/global_mid/index/20261021T180000Z-174c747aecdd.json",
+    "deleted": 0
+   }
+  }
+ },
+ "offline_parity": {
+  "full_store": {
+   "totals": {
+    "sets": 8,
+    "nodes": 27522136,
+    "bad": 0,
+    "meta": 0,
+    "comparisons": 1832
+   },
+   "sets": {
+    "EURO/marine/waves/global_mid": {
+     "frames": 99,
+     "built": 99,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 215,
+     "nodes": 3229945,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 92.397
+    },
+    "GFS/marine/swell_1/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 115.741
+    },
+    "GFS/marine/swell_2/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 100.831
+    },
+    "GFS/marine/waves/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 143.43
+    },
+    "GFS/marine/wind_waves/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 108.447
+    },
+    "ICON/marine/swell_1/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 118.014
+    },
+    "ICON/marine/waves/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 125.185
+    },
+    "ICON/marine/wind_waves/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 120.521
+    }
+   }
+  },
+  "production_shaped": {
+   "totals": {
+    "sets": 8,
+    "nodes": 21152384,
+    "bad": 0,
+    "meta": 0,
+    "comparisons": 1408
+   },
+   "sets": {
+    "EURO/marine/waves/global_mid": {
+     "frames": 99,
+     "built": 64,
+     "unbuilt": 35,
+     "gap_asks_falling_back": 70,
+     "comparisons": 145,
+     "nodes": 2178335,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 115.129
+    },
+    "GFS/marine/swell_1/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 139.456
+    },
+    "GFS/marine/swell_2/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 119.358
+    },
+    "GFS/marine/waves/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 173.908
+    },
+    "GFS/marine/wind_waves/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 126.905
+    },
+    "ICON/marine/swell_1/global_mid": {
+     "frames": 115,
+     "built": 56,
+     "unbuilt": 59,
+     "gap_asks_falling_back": 118,
+     "comparisons": 113,
+     "nodes": 1697599,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 162.659
+    },
+    "ICON/marine/waves/global_mid": {
+     "frames": 115,
+     "built": 56,
+     "unbuilt": 59,
+     "gap_asks_falling_back": 118,
+     "comparisons": 113,
+     "nodes": 1697599,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 217.375
+    },
+    "ICON/marine/wind_waves/global_mid": {
+     "frames": 115,
+     "built": 56,
+     "unbuilt": 59,
+     "gap_asks_falling_back": 118,
+     "comparisons": 113,
+     "nodes": 1697599,
+     "bad_nodes": 0,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0
+     },
+     "seconds": 128.059
+    }
+   }
+  },
+  "positive_control_one_flipped_byte": {
+   "totals": {
+    "sets": 1,
+    "nodes": 3470313,
+    "bad": 2,
+    "meta": 0,
+    "comparisons": 231
+   },
+   "sets": {
+    "GFS/marine/swell_1/global_mid": {
+     "frames": 115,
+     "built": 115,
+     "unbuilt": 0,
+     "gap_asks_falling_back": 0,
+     "comparisons": 231,
+     "nodes": 3470313,
+     "bad_nodes": 2,
+     "meta_mismatches": 0,
+     "max_abs_err": {
+      "speed": 0.016,
+      "direction": 0,
+      "period": 0,
+      "dir_confidence": 0,
+      "uv": 0.0148
+     },
+     "seconds": 124.743
+    }
+   }
+  }
+ },
+ "offline_scrub_e2e": {
+  "GFS_swell_1": {
+   "env": {
+    "PORT": 4102,
+    "CDN_PORT": 4244,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "MODEL": "GFS",
+    "LAYER": "swell_1",
+    "startedUtc": "2026-10-22T08:46:19.760Z"
+   },
+   "summary": {
+    "grid": {
+     "sessions": 1,
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 42,
+     "exact_ms_p95": 5778,
+     "exact_ms_max": 5778,
+     "label_ms_p50": 66,
+     "backend_requests": {
+      "/grid_series": 2,
+      "/grid": 5
+     },
+     "backend_cpu_s_per_step": 0.85,
+     "cdn_bytes_per_frame": null,
+     "open": {
+      "glance_frame_bytes": [
+       0
+      ],
+      "whole_run_ms": [
+       null
+      ],
+      "before_steps_frame_bytes": [
+       0
+      ],
+      "session_static_bytes": [
+       0
+      ]
+     }
+    },
+    "store": {
+     "sessions": 1,
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 1,
+     "exact_ms_p95": 17,
+     "exact_ms_max": 17,
+     "label_ms_p50": 15,
+     "backend_requests": {},
+     "backend_cpu_s_per_step": 0.0016,
+     "cdn_bytes_per_frame": 8728,
+     "open": {
+      "glance_frame_bytes": [
+       1048358
+      ],
+      "whole_run_ms": [
+       1713
+      ],
+      "before_steps_frame_bytes": [
+       1048358
+      ],
+      "session_static_bytes": [
+       1083268
+      ]
+     }
+    }
+   },
+   "steps": {
+    "grid": [
+     {
+      "target": 1,
+      "exact_ms": 0,
+      "label_ms": 66,
+      "misses": null
+     },
+     {
+      "target": 2,
+      "exact_ms": 5778,
+      "label_ms": 5778,
+      "misses": null
+     },
+     {
+      "target": 3,
+      "exact_ms": 0,
+      "label_ms": 39,
+      "misses": null
+     },
+     {
+      "target": 4,
+      "exact_ms": 0,
+      "label_ms": 48,
+      "misses": null
+     },
+     {
+      "target": 28,
+      "exact_ms": 2291,
+      "label_ms": 2291,
+      "misses": null
+     },
+     {
+      "target": 52,
+      "exact_ms": 2285,
+      "label_ms": 2285,
+      "misses": null
+     },
+     {
+      "target": 172,
+      "exact_ms": 3089,
+      "label_ms": 3089,
+      "misses": null
+     },
+     {
+      "target": 148,
+      "exact_ms": 2172,
+      "label_ms": 2172,
+      "misses": null
+     },
+     {
+      "target": 147,
+      "exact_ms": 0,
+      "label_ms": 35,
+      "misses": null
+     },
+     {
+      "target": 0,
+      "exact_ms": 42,
+      "label_ms": 42,
+      "misses": null
+     }
+    ],
+    "store": [
+     {
+      "target": 1,
+      "exact_ms": 0,
+      "label_ms": 11,
+      "misses": {}
+     },
+     {
+      "target": 2,
+      "exact_ms": 16,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 3,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 4,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 28,
+      "exact_ms": 1,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 52,
+      "exact_ms": 7,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 172,
+      "exact_ms": 10,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 148,
+      "exact_ms": 8,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 147,
+      "exact_ms": 0,
+      "label_ms": 15,
+      "misses": {}
+     },
+     {
+      "target": 0,
+      "exact_ms": 17,
+      "label_ms": 17,
+      "misses": {}
+     }
+    ]
+   }
+  },
+  "ICON_waves": {
+   "env": {
+    "PORT": 4102,
+    "CDN_PORT": 4244,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "MODEL": "ICON",
+    "LAYER": "waves",
+    "startedUtc": "2026-10-22T08:48:25.315Z"
+   },
+   "summary": {
+    "grid": {
+     "sessions": 1,
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 35,
+     "exact_ms_p95": 5413,
+     "exact_ms_max": 5413,
+     "label_ms_p50": 38,
+     "backend_requests": {
+      "/grid_series": 2,
+      "/grid": 7
+     },
+     "backend_cpu_s_per_step": 1.0234,
+     "cdn_bytes_per_frame": null,
+     "open": {
+      "glance_frame_bytes": [
+       0
+      ],
+      "whole_run_ms": [
+       null
+      ],
+      "before_steps_frame_bytes": [
+       0
+      ],
+      "session_static_bytes": [
+       0
+      ]
+     }
+    },
+    "store": {
+     "sessions": 1,
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 6,
+     "exact_ms_p95": 1045,
+     "exact_ms_max": 1045,
+     "label_ms_p50": 7,
+     "backend_requests": {
+      "/grid": 1
+     },
+     "backend_cpu_s_per_step": 0.0672,
+     "cdn_bytes_per_frame": 8952,
+     "open": {
+      "glance_frame_bytes": [
+       544461
+      ],
+      "whole_run_ms": [
+       1031
+      ],
+      "before_steps_frame_bytes": [
+       544461
+      ],
+      "session_static_bytes": [
+       589221
+      ]
+     }
+    }
+   },
+   "steps": {
+    "grid": [
+     {
+      "target": 1,
+      "exact_ms": 0,
+      "label_ms": 36,
+      "misses": null
+     },
+     {
+      "target": 2,
+      "exact_ms": 1516,
+      "label_ms": 1516,
+      "misses": null
+     },
+     {
+      "target": 3,
+      "exact_ms": 0,
+      "label_ms": 30,
+      "misses": null
+     },
+     {
+      "target": 4,
+      "exact_ms": 0,
+      "label_ms": 38,
+      "misses": null
+     },
+     {
+      "target": 28,
+      "exact_ms": 4627,
+      "label_ms": 4627,
+      "misses": null
+     },
+     {
+      "target": 52,
+      "exact_ms": 2173,
+      "label_ms": 2173,
+      "misses": null
+     },
+     {
+      "target": 172,
+      "exact_ms": 5413,
+      "label_ms": 5413,
+      "misses": null
+     },
+     {
+      "target": 148,
+      "exact_ms": 2585,
+      "label_ms": 2585,
+      "misses": null
+     },
+     {
+      "target": 147,
+      "exact_ms": 0,
+      "label_ms": 38,
+      "misses": null
+     },
+     {
+      "target": 0,
+      "exact_ms": 35,
+      "label_ms": 35,
+      "misses": null
+     }
+    ],
+    "store": [
+     {
+      "target": 1,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 2,
+      "exact_ms": 8,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 3,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 4,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 28,
+      "exact_ms": 16,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 52,
+      "exact_ms": 16,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 172,
+      "exact_ms": 1045,
+      "label_ms": 1045,
+      "misses": {
+       "unbuilt_frame": 1
+      }
+     },
+     {
+      "target": 148,
+      "exact_ms": 267,
+      "label_ms": 267,
+      "misses": {
+       "unbuilt_frame": 1
+      }
+     },
+     {
+      "target": 147,
+      "exact_ms": 0,
+      "label_ms": 7,
+      "misses": {
+       "unbuilt_frame": 1
+      }
+     },
+     {
+      "target": 0,
+      "exact_ms": 6,
+      "label_ms": 6,
+      "misses": {
+       "unbuilt_frame": 1
+      }
+     }
+    ]
+   }
+  },
+  "EURO_waves": {
+   "env": {
+    "PORT": 4102,
+    "CDN_PORT": 4244,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "MODEL": "EURO",
+    "LAYER": "waves",
+    "startedUtc": "2026-10-22T09:24:25.377Z"
+   },
+   "summary": {
+    "grid": {
+     "sessions": 1,
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 66,
+     "exact_ms_p95": 2979,
+     "exact_ms_max": 2979,
+     "label_ms_p50": 73,
+     "backend_requests": {
+      "/grid": 5
+     },
+     "backend_cpu_s_per_step": 0.2813,
+     "cdn_bytes_per_frame": null,
+     "open": {
+      "glance_frame_bytes": [
+       0
+      ],
+      "whole_run_ms": [
+       null
+      ],
+      "before_steps_frame_bytes": [
+       0
+      ],
+      "session_static_bytes": [
+       0
+      ]
+     }
+    },
+    "store": {
+     "sessions": 1,
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 3,
+     "exact_ms_p95": 18,
+     "exact_ms_max": 18,
+     "label_ms_p50": 4,
+     "backend_requests": {},
+     "backend_cpu_s_per_step": 0.0063,
+     "cdn_bytes_per_frame": 8948,
+     "open": {
+      "glance_frame_bytes": [
+       608107
+      ],
+      "whole_run_ms": [
+       1083
+      ],
+      "before_steps_frame_bytes": [
+       608107
+      ],
+      "session_static_bytes": [
+       643900
+      ]
+     }
+    }
+   },
+   "steps": {
+    "grid": [
+     {
+      "target": 1,
+      "exact_ms": 0,
+      "label_ms": 47,
+      "misses": null
+     },
+     {
+      "target": 2,
+      "exact_ms": 2979,
+      "label_ms": 2979,
+      "misses": null
+     },
+     {
+      "target": 3,
+      "exact_ms": 0,
+      "label_ms": 73,
+      "misses": null
+     },
+     {
+      "target": 4,
+      "exact_ms": 0,
+      "label_ms": 33,
+      "misses": null
+     },
+     {
+      "target": 28,
+      "exact_ms": 2186,
+      "label_ms": 2186,
+      "misses": null
+     },
+     {
+      "target": 52,
+      "exact_ms": 2051,
+      "label_ms": 2051,
+      "misses": null
+     },
+     {
+      "target": 172,
+      "exact_ms": 685,
+      "label_ms": 685,
+      "misses": null
+     },
+     {
+      "target": 148,
+      "exact_ms": 700,
+      "label_ms": 700,
+      "misses": null
+     },
+     {
+      "target": 147,
+      "exact_ms": 0,
+      "label_ms": 53,
+      "misses": null
+     },
+     {
+      "target": 0,
+      "exact_ms": 66,
+      "label_ms": 66,
+      "misses": null
+     }
+    ],
+    "store": [
+     {
+      "target": 1,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 2,
+      "exact_ms": 16,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 3,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 4,
+      "exact_ms": 0,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 28,
+      "exact_ms": 16,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 52,
+      "exact_ms": 3,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 172,
+      "exact_ms": 18,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 148,
+      "exact_ms": 4,
+      "label_ms": null,
+      "misses": {}
+     },
+     {
+      "target": 147,
+      "exact_ms": 0,
+      "label_ms": 4,
+      "misses": {}
+     },
+     {
+      "target": 0,
+      "exact_ms": 6,
+      "label_ms": 6,
+      "misses": {}
+     }
+    ]
+   }
+  }
+ },
+ "budget": {
+  "basis": "live pilots run 39722114072 (GFS waves: bytes and seconds per uploaded frame, CI runner, uploads included) times the pilots lane's native frame counts per set (storage reads 2026-10-22: GFS 4 x 113, ICON 3 x 57, EURO waves 65)",
+  "live_bytes_per_frame": 55725,
+  "live_seconds_per_frame": 0.2566,
+  "frames_per_run": 688,
+  "native_frames_by_set": {
+   "GFS/marine/waves/global_mid": 113,
+   "GFS/marine/swell_1/global_mid": 113,
+   "GFS/marine/swell_2/global_mid": 113,
+   "GFS/marine/wind_waves/global_mid": 113,
+   "ICON/marine/waves/global_mid": 57,
+   "ICON/marine/swell_1/global_mid": 57,
+   "ICON/marine/wind_waves/global_mid": 57,
+   "EURO/marine/waves/global_mid": 65
+  },
+  "projected_publish_seconds": 176.6,
+  "projected_publish_seconds_all_115_built": 236.1,
+  "set_budget_s": 600,
+  "step_timeout_s": 900,
+  "projected_bytes_per_run": 38338672,
+  "projected_storage_steady_bytes": 76677344,
+  "index_bytes_live": 68579,
+  "egress_per_open_bytes": {
+   "glance_one_set": "about 0.7-0.8 MB (#437 offline: intent-only glance)",
+   "desktop_idle_fill_gfs_set": 6365483,
+   "desktop_idle_fill_icon_set_native": 3244893,
+   "desktop_idle_fill_euro_waves_native": 3690692
+  },
+  "cached_egress_allowance_bytes_per_month": 250000000000.0,
+  "desktop_gfs_opens_per_month_within_allowance": 39274,
+  "glance_opens_per_month_within_allowance": 312500,
+  "offline_wall_seconds": {
+   "full_store_all_built": 247.8,
+   "production_shaped": 223.9
+  }
+ }
+}

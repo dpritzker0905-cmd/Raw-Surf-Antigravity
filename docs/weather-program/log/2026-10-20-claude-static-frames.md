@@ -185,3 +185,47 @@ CI runs at once. Merged origin/claude/logfire-no-token-safe (f20cdc4c6, ledger t
   default (REACT_APP_STATIC_FRAMES=false turns it off). `staticEligible` also requires a CDN base URL. setupTests.js sets the kill
   switch for suites that are not about static frames; staticFrames.test.js clears it. DECISIONS entry "D-0XX (numbered at merge)".
   The live in-browser parity read (commitment part 3) is still owed: after the first publish with the fix.
+
+## 2026-10-22 06:00Z to 09:30Z: the live read-back passed; eight world sets (owner: "publish more layers and models")
+
+The owner, 2026-10-22 00:22 EDT, relayed by the lead: "Have the static-frames session publish more layers and models". The lead's
+order: read back world GFS waves live first; then the latest.json backoff; then the sets, each with codec support, a per-node
+parity gate, client eligibility and its own kill, ON once its parity is proven; a budget in the PR body; no SCOREBOARD row.
+- **Read-back (commitment 1585, parts 1-2):** pilots run 39722114072 (67021e936, includes #443; done 05:40:40Z): GFS waves
+  entries 113, built 113, uploaded 113, not_local 0, stale_local 0, refused 0, parity_bad 0, coverage 1.0, 6,296,904 B, 29.0 s,
+  index `v1/gfs/marine/waves/global_mid/index/20261021T180000Z-175214f5ac74.json`; PNG proof 27,253 B, parity 0 bad. CDN at
+  06:02Z (curl -D): latest.json 200, 462 B, `no-cache`; index 200, 68,579 B, immutable; one frame twice: 200, 55,557 B,
+  application/octet-stream, immutable, no Content-Encoding, CF MISS then HIT, gzip to 105,329 B starting RSWF. Part 3 (the
+  in-browser parity against live /grid) is the instant-scrub session's one live open; not in yet at this writing.
+- **The backoff:** #447 merged without its second commit (dev ebcef2f4f has the flat 60 s negative cache). The backoff (60 s
+  doubling to 15 min, reset by a successful read) is carried on this branch (63dcbc182).
+- **Publisher:** `frame_set.SETS` holds eight world sets (GFS waves, swell_1, swell_2, wind_waves; ICON waves; EURO waves; ICON
+  swell_1, wind_waves). The coverage gate counts AUTHORITATIVE entries, because the ICON/EURO estimated tails are written by the
+  core lane (storage read: pilots writes ICON 3 x 57 native and EURO waves 65; core writes the tails); the tail is listed unbuilt.
+  `FRAME_PUBLISH_BUDGET_S` (600 s) stops starting sets past the budget (a skipped set keeps its index); `FRAME_SETS` narrows a run.
+  Codec: no change; every set carries the same four fields (height, direction, period, dir_confidence).
+- **Client:** `STATIC_SETS` (eight) and `staticSetEnabled` (per-set kill); `getPinnedIndexSync`/`hasPinnedIndex` honour the kill,
+  so the #437 frame store stops for a killed set too. EURO marine requests go through `backendCopernicusServiceClient`, which had
+  no seam A: the first EURO scrub made 4 world /grid asks per run even though the store had shown every frame; it has seam A now.
+- **Offline publish** (synthetic store, all models and layers, first_valid 2026-10-21T21Z): every set built, 247.8 s wall;
+  production-shaped (the estimated global_mid tails removed, as on the pilots runner): ICON 56/115 and EURO 64/99 built, the rest
+  not_local, coverage_authoritative 1.0 for all eight, 223.9 s wall.
+- **Parity** (`scn_static_parity.mjs`, now over every set in latest.json; the app's own codec vs the real backend over the same
+  store, on each frame's hour and +1 h/+2 h): full 1,832 comparisons, 27,522,136 nodes, 0 bad, 0 provenance mismatches;
+  production-shaped 1,408 comparisons, 21,152,384 nodes, 0 bad, and 424 asks on unbuilt tail entries all fall back to the
+  product /grid names. The synthetic values are already quantised (1 mm, 0.1 deg, 0.01 s), so the error reads exactly 0;
+  POSITIVE CONTROL: one flipped byte in one GFS swell_1 frame read bad 2 (16 mm, on the frame's hour and +1 h) and exit 1.
+- **Offline scrub** (`scn_static_frames.js MODEL=... LAYER=...`, production build, production-shaped CDN, one session per arm;
+  `store` = the shipped default, static frames plus the frame store): exact-correct frame per step, p50/p95 ms, backend requests:
+  GFS swell_1 grid 42/5,778, 7 requests vs store 1/17, 0; ICON waves grid 35/5,413, 9 vs store 6/1,045, 1 (the 172 h tail
+  entry falls back to /grid by design); EURO waves (after the EURO seam) grid 66/2,979, 5 vs store 3/18, 0.
+- **Budget** (live GFS waves per frame: 55,725 B and 0.257 s on the CI runner, uploads included, times 688 native frames a run):
+  about 177 s a publish (236 s if all 920 were built) against the 600 s set budget and the step's 15 min; about 38 MB a run,
+  77 MB stored steady state. Egress per desktop open (the #437 idle fill loads the viewed set's whole run): 6.4 MB a GFS set,
+  3.2-3.7 MB an ICON/EURO set; within 250 GB/month that is about 39,000 desktop opens on one GFS set. The other layers' frame
+  sizes are assumed equal to waves' until the first live run reports each set's bytes.
+- **Floors:** +3 estate tests in tests/test_publish_frame_sets.py on dev CI 39732086620's 2340: 2343 projected, floor 2338 ->
+  2341. Checks: backend frame/floor/lane suites 103 passed, ledger verify, partition, flake8 gate, file size, LOC ratchet;
+  frontend Jest `src/components/map` + `src/tests` 361 suites / 5,322 tests, check_eslint, `npm run build` (craco).
+- Evidence: `evidence/static-frames-more-sets-2026-10-22.json`. DECISIONS "D-0XX (numbered at merge) · Static frames for eight
+  world sets".
