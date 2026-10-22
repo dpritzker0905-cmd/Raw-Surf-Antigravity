@@ -96,3 +96,18 @@ Harness fix: VIDEO=1 marks are now timed from page creation (the recording's sta
 so the first trims caught the storm where the world view was meant.
 
 Ledger lines 1563-1564 were re-chained after dev's head as 1573 (`pr_open`) and 1574 (`commitment`).
+
+## 2026-10-21 evening: merge-ready, lever-only, ledger-free
+
+The lead, relaying the owner ("resolve all the conflicts and merge, communicate between sub chats"; "we need the fixes that we want
+to go through properly, so make sure we're merging everything correctly"): #433 merges LEVER-ONLY (beach's default byte for byte as
+dev), then the owner is asked to switch two-tone bold on.
+- Merged dev 23a91534f (#438 light restore D-041, #419 dark cased 8 m+ D-039, #428 density D-042), then dev d84a94f26 (#431 light
+  spectrum wash D-037, #441, #427), which landed during the first merge. Shader conflicts were the import lines and the
+  self-contrast line: every side kept (dev's density, dark storm ink and spectrum-lift imports beside the beach style import;
+  dark's casing term with the beach style head in front). The shader stays at 978 lines; its diff against dev is the five beach
+  lines.
+- With no beach lever DRAW_FS is dev's byte for byte: marineBeachCrestStyle.test.js now pins dev's default hash (e2438586..., 8872
+  characters, the value marineCrestPaletteLight.test.js pins), and the light V2 + dark kills still give the pre-V2 shader (a9e8e102...).
+- The branch carries no ledger lines: ACTIONS.jsonl and STATE.md are dev's. My three lines (pr_open #433, the commitment for the
+  owner's pick, the push) are in the lead's receipts PR.
