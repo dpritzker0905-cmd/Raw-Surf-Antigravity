@@ -54,7 +54,7 @@ import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStore
 import { auxForPack } from './marineFrameAux';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
-import { cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';   // the crop show (2026-10-22)
+import { createCropShow } from './marineFrameStoreCropShow';   // the crop show (2026-10-22)
 
 const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
 // Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
@@ -81,6 +81,8 @@ const rt = { store: null, prefetcher: null, intent: createIntent(), pool: null, 
 function miss(reason) { rt.shows.misses[reason] = (rt.shows.misses[reason] || 0) + 1; return false; }
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 const sinceOpen = () => (rt.openedAt === null ? null : Math.round(nowMs() - rt.openedAt));
+// The crop show (#459) and model toggles on a crop resident (#458): marineFrameStoreCropShow.js, over this module's state.
+const CS = createCropShow({ rt, store: () => store(), miss, deferredShow: (info, vt) => deferredShow(info, vt), W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS });
 
 // ADAPTIVE IDLE FILL. The owner asked "what is more state of the art? eager or on demand loading on desktop?"; the lead's answer
 // (2026-10-22) is the plan: open on demand, then fill the run in idle time where the device and the link allow it. Returns why
@@ -281,6 +283,7 @@ function warmPlan(info, layer, requestedValidTime) {
       out.push({ key: wi.key, validTime: v, built: !!(wi.byVt.get(v) || {}).path });
       const e = store().entry(wi.key, v);
       if (e && e.pack) auxInIdle(wi.key, v);        // already packed (the set was active before): its chl/bath in idle
+      if (CS.crop.window) CS.buildCrop(wi, v);            // a mid-zoom window is resident: its pack of this warm frame too
     }
   }
   rt.lastWarm = out;
@@ -334,7 +337,7 @@ function onParsed({ key, frame, parsed, buffer }) {
   const index = getPinnedIndexSync(key);
   if (!index) return;
   const info = setFor(key, index);
-  cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
+  CS.cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
   const e = store().entry(info.key, frame.valid_time);
   if (!e || e.state !== 'absent') return;
   const run = () => { const now = store().entry(info.key, frame.valid_time); if (now && now.state === 'absent') packInto(info, frame.valid_time, parsed, buffer); };
@@ -401,7 +404,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   // 181 x 81 while the committed grid says 181 x 83; the pack is trimmed the same way.
   const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
   if (!e) return why('not_indexed');
-  if (noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
+  if (CS.noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
   if (!e.pack) {
     // Committed before its own pack landed (the prefetch or the idle pack is still out): resolve when it lands.
     if (engine) rt.pendingResident = { setKey: info.key, validTime: vt, cols: engine._texWidth, rows: engine._texHeight };
@@ -506,7 +509,8 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     if (!frame) return miss('no_frame_in_window');
     if (!frame.path) return miss('unbuilt_frame');
     const info = setFor(key, index);
-    if (cropResidentFor(info)) return showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    if (CS.cropResidentFor(info)) return CS.showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    if (switching && CS.cropResidentOther(info)) return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     const e = store().lookup(info.key, frame.valid_time);
     if (!e || !e.pack) {
       rt.want = { args: { model, layer, hourOffset, requestedValidTime }, switching, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
@@ -569,150 +573,6 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
   }
 }
 
-// ── THE CROP SHOW (2026-10-22, marineFrameStoreCrop.js) ───────────────────────────────────────────────────────────────────────
-// At mid zoom the resident is a viewport CLIP of the frame (staticFrameCrop), not the world frame. While such a window is resident,
-// every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
-// resident texture; a 27 x 20 window is 2 KB). Kill: window.__RAW_DISABLE_FRAME_STORE_CROP__ = true.
-const CROP_AHEAD = 49;            // stored frames nearest the cursor (+-24) whose window packs are built when a new window becomes resident;
-                                  // the rest are built as they are stepped to (a miss, then the deferred show) or parsed
-const CROP_AHEAD_SMALL = 17;      // the same on a phone or a constrained device: the cursor +-8
-const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
-const idleRun = (fn) => { if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 200 }); else setTimeout(fn, 0); };
-
-// The window's pack for a parsed frame of the resident set; then the pending resident and a deferred show that waited on it.
-function cropFromParsed(info, validTime, parsed, now = false) {
-  const w = crop.window;
-  if (!cropShowOn() || !w || w.setKey !== info.key || !parsed || crop.packs.has(info.key, validTime, w.key)) return;
-  const run = () => {
-    const w2 = crop.window;
-    if (!w2 || w2.key !== w.key || w2.setKey !== info.key || crop.packs.has(info.key, validTime, w2.key)) return;
-    let p = null;
-    try { p = packWindow(parsed, w2); } catch (e) { p = null; }
-    if (!p) return;
-    crop.packs.put(info.key, validTime, w2.key, p);
-    crop.built += 1;
-    resolveCropPending(info, validTime);
-    deferredShow(info, validTime);
-  };
-  if (now) run(); else idleRun(run);
-}
-
-// Build one window pack through #422's shared loader (the frame's bytes are usually in the HTTP cache already).
-function buildCrop(info, validTime) {
-  const w = crop.window;
-  const frame = info.byVt.get(validTime);
-  if (!w || w.setKey !== info.key || !frame || !frame.path || crop.packs.has(info.key, validTime, w.key)) return null;
-  const id = `${info.key}|${validTime}|${w.key}`;
-  if (crop.building.has(id)) return null;
-  crop.building.add(id);
-  return loadFrameParsed(info.staticKey, frame)
-    .then((got) => { if (got) cropFromParsed(info, validTime, got.parsed, true); })
-    .catch(() => {})
-    .finally(() => crop.building.delete(id));
-}
-
-// A new window: build the packs of the frames nearest the cursor, one at a time in idle time. Only frames the store already holds
-// (their bytes were fetched under the store's own egress policy); frames that land later get theirs as they are parsed.
-function buildAhead(info, validTime) {
-  const at = info.layerOf.get(validTime);
-  if (at === undefined) return;
-  // The cursor +-24 on a desktop, +-8 on a phone or a constrained device: each build re-reads the frame through the shared loader
-  // (the HTTP cache when it is warm; with the cache off, a download outside the prefetch limiter), and every pan is a new window.
-  const ahead = (store().tier === 'desktop' || store().tier === 'webgl1') ? CROP_AHEAD : CROP_AHEAD_SMALL;
-  const order = info.validTimes.map((v, i) => [v, Math.abs(i - at)]).filter(([v]) => { const e = store().entry(info.key, v); return !!(e && e.pack); })
-    .sort((a, b) => a[1] - b[1]).slice(0, ahead).map((x) => x[0]);
-  const winKey = crop.window && crop.window.key;
-  const next = () => {
-    if (!crop.window || crop.window.key !== winKey || !order.length) return;
-    const p = buildCrop(info, order.shift());
-    crop.ahead += p ? 1 : 0;
-    (p || Promise.resolve()).then(() => idleRun(next));
-  };
-  idleRun(next);
-}
-
-// The ENGINE holds that clip: the same texture size and the same (trimmed) bounds. A commit the guard refused, or a world frame
-// that replaced the clip, is told apart by this, never by which grid was last offered.
-const nearB = (a, b) => ['west', 'south', 'east', 'north'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
-function engineHolds(r) {
-  const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
-  const wg = engine && engine._waveData && engine._waveData.waveGrid;
-  return !!(engine && wg && wg.bounds && engine._texWidth === r.cols && engine._texHeight === r.rows && nearB(wg.bounds, r.bounds));
-}
-
-// After a normal commit. A window of frame `validTime`: remember it (the resident is known once its own window pack exists). Any
-// other grid: keep the clip resident only while the engine still holds it (the guard may have refused the commit).
-function noteCropCommitted(info, validTime, grid) {
-  const own = info.byVt.get(validTime);                     // a frame on its own lattice (frame.grid) is windowed on that one
-  const win = cropShowOn() ? frameWindowOf(grid, (own && own.grid) || (info.index && info.index.grid)) : null;
-  if (!win) {
-    if (crop.resident && !engineHolds(crop.resident)) Object.assign(crop, { resident: null, window: null, pending: null });
-    return false;
-  }
-  const fresh = !(crop.window && crop.window.key === win.key && crop.window.setKey === info.key);
-  crop.window = { ...win, setKey: info.key };
-  crop.pending = { setKey: info.key, validTime, winKey: win.key };
-  if (crop.packs.get(info.key, validTime, win.key, packSignature())) resolveCropPending(info, validTime);
-  else buildCrop(info, validTime);
-  if (fresh) buildAhead(info, validTime);
-  return true;
-}
-
-function resolveCropPending(info, validTime) {
-  const pd = crop.pending; const w = crop.window;
-  if (!pd || !w || pd.setKey !== info.key || pd.validTime !== validTime || pd.winKey !== w.key) return;
-  const p = crop.packs.get(info.key, validTime, w.key, packSignature());
-  if (!p) return;
-  crop.pending = null;
-  const r = { setKey: info.key, crop: true, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key }, bounds: { ...p.bounds },
-    validityHash: p.validityHash, validityBits: p.validityBits || null, cols: p.cols, rows: p.rows, signature: p.signature };
-  if (!engineHolds(r)) { crop.resident = null; rt.commits.crop_not_resident = (rt.commits.crop_not_resident || 0) + 1; return; }
-  crop.resident = r;
-}
-
-// tryShowStoredFrame's first question: is a clip of this lattice resident? (Checked against the engine on every step.)
-function cropResidentFor(info) {
-  const r = crop.resident;
-  if (!r || !cropShowOn()) return null;
-  if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return null; }
-  return r.setKey === info.key ? r : null;
-}
-
-function showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0) {
-  const r = crop.resident;
-  if (r.signature !== packSignature()) return miss('resident_not_this_set');
-  const p = crop.packs.get(info.key, frame.valid_time, r.window.key, r.signature);
-  if (!p) {
-    rt.want = { args: { model, layer, hourOffset, requestedValidTime }, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
-    buildCrop(info, frame.valid_time);
-    return miss('crop_not_ready');
-  }
-  const engine = rt.target.getEngine && rt.target.getEngine();
-  const gl = rt.target.getGl && rt.target.getGl();
-  const tex = engine && engine._residentWaveTex;
-  const wg = engine && engine._waveData && engine._waveData.waveGrid;
-  if (!engine || !gl || !tex || !wg) return miss('no_engine');
-  let maskCells = 0;
-  if (r.validityHash !== p.validityHash) {
-    if (W().__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__ === true) return miss('validity_differs');
-    maskCells = validityDiff(r.validityBits, p.validityBits);
-    if (!(maskCells <= cropToleranceCells(p.cols * p.rows, VALIDITY_TOLERANCE_CELLS))) return miss('validity_differs');   // scaled to the window
-  }
-  if (engine._texWidth !== p.cols || engine._texHeight !== p.rows || wg.cols !== p.cols || wg.rows !== p.rows) return miss('dims_differ');
-  if (!uploadBytesTo2D(gl, tex, p.bytes, p.cols, p.rows)) return miss('copy_failed');
-  const meta = frameMeta(index, frame);
-  engine._waveData.waveGrid = { ...wg, hourOffset, valid_time: requestedValidTime, served_valid_time: frame.valid_time, run_time: meta.run_time ?? wg.run_time,
-    model_run_time: meta.model_run_time ?? wg.model_run_time, productId: meta.product_id || wg.productId, __servedProductId: meta.product_id || null,
-    is_estimated: !!meta.is_estimated, __fromFrameStore: true };
-  publishMarineDrawn(engine._waveData.waveGrid, { hour: hourOffset, layer, model });
-  const map = rt.target.getMap && rt.target.getMap();
-  if (map && typeof map.triggerRepaint === 'function') map.triggerRepaint();
-  rt.shows.n += 1; crop.shows += 1;
-  if (maskCells > 0) { rt.shows.maskTolerated = (rt.shows.maskTolerated || 0) + 1; rt.shows.maskCellsMax = Math.max(rt.shows.maskCellsMax || 0, maskCells); }
-  rt.shows.lastMs = +(((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0)).toFixed(3);
-  return true;
-}
-
 function snapshot() {
   return {
     on: frameStoreOn(), ...(rt.store ? rt.store.telemetry() : {}),
@@ -720,8 +580,7 @@ function snapshot() {
     shows: { ...rt.shows, misses: { ...rt.shows.misses } }, resident: rt.resident, commits: { ...rt.commits },
     aux: { ...rt.auxStats, cached: rt.aux.size }, switches: { ...rt.switches },
     fill: { ...rt.fill, blockedNow: rt.store ? idleFillBlocker() : null, sinceOpenMs: sinceOpen() },
-    crop: { on: cropShowOn(), window: crop.window, resident: crop.resident && { ...crop.resident, validityBits: undefined }, packs: crop.packs.size(),
-      built: crop.built, shows: crop.shows, ahead: crop.ahead, pending: crop.pending },
+    crop: CS.telemetry(),
   };
 }
 // A live getter: every read is current (a prefetch lands between scrub steps, so a snapshot taken at a step would lag).
@@ -741,5 +600,5 @@ export function _resetFrameStoreRuntimeForTest() {
   Object.assign(rt, { store: null, prefetcher: null, intent: createIntent(), pool: null, poolDims: null, target: null, unhook: null,
     resident: null, pendingResident: null, want: null, sets: new Map(), shows: { n: 0, misses: {}, lastMs: null }, activeKey: null, commits: {},
     fill: freshFill(), lastStep: null, openedAt: null, onVis: null, onConn: null, ...freshAux() });
-  Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 });
+  CS.reset();
 }
