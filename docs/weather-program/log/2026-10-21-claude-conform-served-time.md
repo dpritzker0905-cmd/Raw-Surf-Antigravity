@@ -166,3 +166,14 @@ desktop, flows `hour_steps, erratic, euro_steps, model_switch_future, pan_zoom_f
   stamps the field (`grid_series_helper.py`) and one offline reply settled it in minutes. Read the writer, not the reader's comment.
 - **Count requests by START for an A/B.** The lab's per-step request lists are by completion, so a slow reply moved a `/grid` into the
   next step and looked like a per-step difference; the whole-flow count by start is the paired number.
+
+## 9. 2026-10-22 ~03:05Z: merge-method change (the lead, relayed by local_397a03c5)
+
+The lead now merges each PR once hosted CI is green and asked branches to stay ledger-free (restore dev's `ACTIONS.jsonl` and
+`STATE.md`, send the lines to the lead for one receipts PR). The rule reached this session after its three lines were appended.
+Restoring dev's `ACTIONS.jsonl` on the branch was REFUSED by this session's permission classifier ("Logging/Audit Tampering"); per
+the relay's own caveat it was not worked around. The lines stay on the branch, chained after dev's last line at the time
+(dev `95363ea27`, seq 1610), and were sent raw to the lead (local_d6b521eb), labelled PR #444. If dev's ledger moves before #444
+merges, they need re-appending after dev's new tail with `--acted-at` set to their original `at`. `STATE.md` on the branch is dev's.
+The proposed follow-up session (attribute the B-arm request delta) was withdrawn: the owner wants no new sessions; the work stays
+owed as commitment 1612 and section 7 above.
