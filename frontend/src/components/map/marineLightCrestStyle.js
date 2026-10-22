@@ -2,8 +2,8 @@
 // default again since D-041) with a luminance-only TWO-TONE, the method beach's #433 measured best: each crest carries a dark rim (its
 // own colour x RIM) round its outer band and a light centre line (CENTRE of the way toward white) in its core, today's colour between,
 // so one part always stands off the wash's brightness and the crest never changes hue at a height (the owner's rule, 2026-10-21: one
-// colour family per theme). Why: light's wash (v2) passes the original crests' brightness from 2.3 m up (APCA |Lc| 0), and #431's
-// spectrum from 1.7 m to 14 m; a single colour that varies smoothly with height cannot avoid crossing a wash whose brightness falls
+// colour family per theme). Why: light's wash passes the original crests' brightness from about 2 m up (APCA |Lc| 0), on #431's
+// spectrum (light's default since D-037) and on v2 alike; a single colour that varies smoothly with height cannot avoid crossing a wash whose brightness falls
 // and rises, a crest with a dark and a light part always keeps one of them off it. The owner asked for this ("It still needs to adjust
 // for areas in the colour for heatmaps that blend too much with the animation colors"; "yes or adjust the animation colors, whatever
 // is better"). Measured by frontend/scripts/wind-color/light-crest-style.mjs (reads this table).
@@ -13,8 +13,8 @@
 // prefix or suffix on a line beach's #433 also extends, so the two compose.
 const WIN = typeof window === 'undefined' ? {} : window;
 // Chosen by light-crest-style.mjs (worst APCA |Lc| of the crest's best part vs the wash, every 0.1 m to 14 m, every zoom state and
-// lighting, whitecap off and on): the original 0 on v2 and on #431's spectrum; this two-tone >= 40.2 on v2 and >= 41.1 on the spectrum,
-// colour-blind >= 33.9 / 29.0 dE00, centre vs rim >= 72 (targets: 45 / floor 30 at the edge, 60 inside). Alpha x 3 before DRAW_FS's
+// lighting, whitecap off and on): the original 0 on #431's spectrum and on v2; this two-tone >= 41.1 on the spectrum and >= 40.2 on
+// v2, colour-blind >= 32.4 / 33.9 dE00, centre vs rim >= 62 (targets: 45 / floor 30 at the edge, 60 inside). Alpha x 3 before DRAW_FS's
 // 0.85 cap, tapering to x 1 by z 9, is what lifts far zoom (DRAW_VS draws crests at 45% there): without it the world view stays at
 // 21; a flat x 3 also turned close-zoom crests into solid blobs that hid the wash (engine stills, 2026-10-21). #433's beach values
 // (rim 0.30, centre 0.75) give >= 33.9; rim 0.10 / centre 0.90 reaches 43 but turns crests into near-black outlines round white cores.

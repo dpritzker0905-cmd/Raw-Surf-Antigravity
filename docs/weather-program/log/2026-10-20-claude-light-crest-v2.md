@@ -355,4 +355,8 @@ regional 18.2 -> 52.3, coastal 20.3 -> 50.0; crest pixels at |Lc| >= 15:
 (coastal stills), hence the taper. Cost: crests read bolder; sea untouched by crests 57% -> 47% (world),
 59% -> 52% (regional), 18% -> 14% (coastal).
 
+**Re-measured on the shipped spectrum** (2026-10-22, #431 merged, dev `d84a94f26`; the checker now reads both washes from
+`marineWavePalette.js` through wave-lib's composite): the original reads 0 from 2 m on the spectrum (light's default wash, D-037);
+the two-tone >= 41.1 there and >= 40.2 on v2, colour-blind >= 32.4 / 33.9 dE00, centre vs rim >= 65 / 62.
+
 Ledger: #442's `pr_open` and the owner's-pick commitment are carried by the lead's receipts PR; this branch adds no ledger lines.
