@@ -1,7 +1,9 @@
 import {
-  _resetStaticFramesForTest, getPinnedIndex, loadFrameVectors, setKeyFor, staticEligible, staticFramesEnabled, tryStaticWorldGrid,
+  _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, hasPinnedIndex, loadFrameVectors, setKeyFor, staticEligible,
+  staticFramesEnabled, staticSeriesEligible, staticSeriesFrames, staticSetEnabled, tryStaticWorldGrid, STATIC_SETS,
 } from './staticFrames';
 import { fetchBackendMarineGrid, setCachedManifest } from './backendWeatherServiceClient';
+import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { loadWorldPageFromStatic, nearestFirst } from './marineSeriesStatic';
 import { goldenBuffer } from './staticFrameGolden.fixture';
 
@@ -49,6 +51,8 @@ describe('static frames loader', () => {
   });
   afterEach(() => {
     window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    window.localStorage.removeItem('__RAW_STATIC_FRAMES_SETS_OFF__');
+    delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
     delete window.__RAW_STATIC_FRAMES_BASE__;
     delete window.__RAW_DISABLE_STATIC_FRAMES__;
     global.fetch = realFetch;
@@ -70,12 +74,83 @@ describe('static frames loader', () => {
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(!!process.env.REACT_APP_SUPABASE_URL); // no CDN: never eligible
   });
 
-  test('only world GFS waves boxes, never surf (slice 1)', () => {
-    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
+  test('the eight world sets, world boxes only, never surf; EURO swells and ICON swell_2 stay on /grid', () => {
+    for (const [m, l] of [['GFS', 'waves'], ['GFS', 'swell_1'], ['GFS', 'swell_2'], ['GFS', 'wind_waves'],
+      ['ICON', 'waves'], ['ICON', 'swell_1'], ['ICON', 'wind_waves'], ['EURO', 'waves']]) {
+      expect(staticEligible({ model: m, layer: l, bbox: WORLD })).toBe(true);
+    }
+    expect(STATIC_SETS).toHaveLength(8);
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD, surf: true })).toBe(false);
-    expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(false);
-    expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
+    expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: WORLD })).toBe(false);
+    expect(staticEligible({ model: 'ICON', layer: 'swell_2', bbox: WORLD })).toBe(false);
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: { west: -100, south: 0, east: -60, north: 40 } })).toBe(false);
+  });
+
+  test('each set has its own kill (window list or this browser), and the global kill still wins', () => {
+    window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid'];
+    expect(staticSetEnabled('ICON/marine/waves/global_mid')).toBe(false);
+    expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: WORLD })).toBe(false);
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
+    window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = '*';
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(false);
+    delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
+    window.localStorage.setItem('__RAW_STATIC_FRAMES_SETS_OFF__', 'EURO/marine/waves/global_mid, GFS/marine/swell_2/global_mid');
+    expect(staticSetEnabled('EURO/marine/waves/global_mid')).toBe(false);
+    expect(staticSetEnabled('GFS/marine/swell_2/global_mid')).toBe(false);
+    expect(staticSetEnabled('GFS/marine/swell_1/global_mid')).toBe(true);
+    window.localStorage.removeItem('__RAW_STATIC_FRAMES_SETS_OFF__');
+    window.__RAW_DISABLE_STATIC_FRAMES__ = true;
+    expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
+  });
+
+  test('an ICON world request is served from its own set, with its own provenance', async () => {
+    const idx = indexFor('icon', ['2026-10-20T00:00:00Z']);
+    idx.common_meta = { model: 'ICON', provider: 'open-meteo', domain: 'marine', layer: 'waves', upstream_provider: 'dwd', is_estimated: false };
+    const iconKey = setKeyFor('ICON', 'waves');
+    const calls = [];
+    global.fetch = jest.fn(async (url) => {
+      calls.push(url);
+      const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+      if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [iconKey]: { index: idx.path } } });
+      if (url === BASE + idx.path) return ok(idx);
+      if (url.endsWith('.bin')) { const buf = goldenBuffer('2026-10-20T00:00:00Z'); return { ok: true, status: 200, arrayBuffer: async () => buf.slice(0) }; }
+      return { ok: false, status: 400, json: async () => ({}) };
+    });
+    const json = await tryStaticWorldGrid({ model: 'ICON', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(json).toMatchObject({ model: 'ICON', upstream_provider: 'dwd', served_valid_time: '2026-10-20T00:00:00Z' });
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'swell_1', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD })).toBeNull();
+    expect(window.__RAW_STATIC_FRAMES__.misses.no_index).toBe(1);            // a set not in latest.json: /grid
+    // A per-set kill flipped AFTER the pin also hides the pin from the frame store (it reaches sets only through these).
+    expect(getPinnedIndexSync(iconKey)).toBe(idx);
+    window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = [iconKey];
+    expect(getPinnedIndexSync(iconKey)).toBeNull();
+    expect(hasPinnedIndex(iconKey)).toBe(false);
+    delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
+    expect(hasPinnedIndex(iconKey)).toBe(true);
+  });
+
+  test('a non-waves set: seam A serves its exact grid (is_valid intact); the series lane and the frame store do not take it', async () => {
+    // The series conform drops top-level is_valid and the encoder recovers land from v.waves only, so a swell series frame's land
+    // cells would encode as ocean; real world frames carry ~4,850 land cells of 15,023.
+    const idx = indexFor('s1', ['2026-10-20T00:00:00Z']);
+    idx.common_meta = { ...idx.common_meta, layer: 'swell_1' };
+    const swellKey = setKeyFor('GFS', 'swell_1');
+    global.fetch = jest.fn(async (url) => {
+      const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+      if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [swellKey]: { index: idx.path } } });
+      if (url === BASE + idx.path) return ok(idx);
+      if (url.endsWith('.bin')) { const buf = goldenBuffer('2026-10-20T00:00:00Z'); return { ok: true, status: 200, arrayBuffer: async () => buf.slice(0) }; }
+      return { ok: false, status: 400, json: async () => ({}) };
+    });
+    const json = await tryStaticWorldGrid({ model: 'GFS', layer: 'swell_1', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(json).toMatchObject({ layer: 'swell_1', served_valid_time: '2026-10-20T00:00:00Z' });
+    expect(json.grid.vectors.every((v) => 'is_valid' in v)).toBe(true);
+    expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(true);
+    expect(staticSeriesEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
+    expect(staticSeriesEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
+    expect(await staticSeriesFrames({ model: 'GFS', layer: 'swell_1', bbox: WORLD, hours: [0], anchorMs: now, onFrames: () => {} })).toBeNull();
+    expect(hasPinnedIndex(swellKey)).toBe(true);          // pinned by seam A ...
+    expect(getPinnedIndexSync(swellKey)).toBeNull();      // ... but the frame store (waves-only packer) never sees it
   });
 
   test('serves the /grid JSON from the CDN frame, then from memory', async () => {
@@ -149,6 +224,35 @@ describe('static frames loader', () => {
       expect(calls.some((u) => u.includes('/api/weather/grid?'))).toBe(true);
     } finally {
       delete window.__MOCK_DATE_NOW__;
+    }
+  });
+
+  test('seam A for EURO: the Copernicus client answers a world EURO waves box without /grid; its per-set kill restores /grid', async () => {
+    const idx = indexFor('euro', ['2026-10-20T00:00:00Z']);
+    idx.common_meta = { ...idx.common_meta, model: 'EURO', upstream_provider: 'ecmwf' };
+    const euroKey = setKeyFor('EURO', 'waves');
+    const calls = [];
+    global.fetch = jest.fn(async (url) => {
+      calls.push(url);
+      const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+      if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [euroKey]: { index: idx.path } } });
+      if (url === BASE + idx.path) return ok(idx);
+      if (url.endsWith('.bin')) { const buf = goldenBuffer('2026-10-20T00:00:00Z'); return { ok: true, status: 200, arrayBuffer: async () => buf.slice(0) }; }
+      return { ok: false, status: 400, json: async () => ({}) };
+    });
+    setCachedManifest({ products: [{ model: 'EURO', domain: 'marine', layer: 'waves', region_id: 'global_mid', valid_time_start: '2026-10-20T00:00:00Z',
+      coverage: { west: -180, south: -80, east: 180, north: 85 } }] });
+    window.__MOCK_DATE_NOW__ = now;
+    try {
+      const out = await fetchBackendCopernicusGrid(WORLD, 0, undefined, WORLD, 'test', 'waves');
+      expect(out.grid.vectors).toHaveLength(12);
+      expect(calls.some((u) => u.includes('/api/weather/grid?'))).toBe(false);
+      window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = [euroKey];
+      await expect(fetchBackendCopernicusGrid(WORLD, 0, undefined, WORLD, 'test', 'waves')).rejects.toThrow();   // the mocked /grid is a 400
+      expect(calls.some((u) => u.includes('/api/weather/grid?model=EURO'))).toBe(true);
+    } finally {
+      delete window.__MOCK_DATE_NOW__;
+      delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
     }
   });
 
@@ -229,7 +333,7 @@ describe('static frames loader', () => {
     expect(await pd).toBeNull();
   });
 
-  test('a missing latest.json is not re-asked on every step (60 s negative cache)', async () => {
+  test('a missing latest.json is not re-asked on every step (negative cache, 60 s doubling to 15 min)', async () => {
     const calls = cdn({ latestIndex: () => null, indexes: [] });
     global.fetch.mockImplementation(async (url) => { calls.push(url); return { ok: false, status: 400, json: async () => ({}) }; });
     const ask = () => tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
@@ -243,5 +347,11 @@ describe('static frames loader', () => {
     now += 61000;
     await ask();
     expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(2);   // re-asked after the negative TTL
+    now += 61000;
+    await ask();
+    expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(2);   // backoff: the second miss waits 120 s
+    now += 60000;
+    await ask();
+    expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(3);
   });
 });

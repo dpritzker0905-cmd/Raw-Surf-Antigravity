@@ -2,7 +2,8 @@
  * staticFrames.js — load forecast frames from the CDN instead of the 1-CPU backend (step 2b, 2026-10-20). ON by default
  * since 2026-10-21 (owner: "turn on static frames"; DECISIONS).
  *
- * The ingest runner publishes the world-view GFS wave field once per model run as immutable gzipped binary frames
+ * The ingest runner publishes the world-view (2-degree global_mid) marine sets in STATIC_SETS once per model run as
+ * immutable gzipped binary frames
  * in the PUBLIC Supabase bucket `weather-frames` (backend/scripts/publish_frame_images.py):
  *   v1/latest.json                        no-cache pointer: { sets: { 'GFS/marine/waves/global_mid': { index } } }
  *   <index path>                          immutable run index: frames, product identity, metadata
@@ -18,6 +19,7 @@
  * 8-degree lattice) and static frames draw the full 2-degree field, the same numbers /grid serves for the exact frame
  * (parity-gated node by node at publish), so no served number moves.
  *   KILL: window.__RAW_DISABLE_STATIC_FRAMES__ = true restores the /grid path exactly (wins over everything).
+ *   ONE SET: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid'] (or '*'), see staticSetEnabled.
  *   THIS BROWSER: localStorage '__RAW_STATIC_FRAMES__' = 'false' (off) or 'true' (on).
  *   BUILD: REACT_APP_STATIC_FRAMES=false turns the default off; without REACT_APP_SUPABASE_URL (or the base override)
  *   nothing is eligible, synchronously.
@@ -35,8 +37,9 @@ export const FRAME_BUCKET = 'weather-frames';
 export const LATEST_PATH = 'v1/latest.json';
 const IDLE_REPIN_MS = 30000;      // a pin may move only after this long without a static-frame request
 const LATEST_TTL_MS = 120000;     // and latest.json is re-read at most this often
-const NEGATIVE_TTL_MS = 60000;    // a missing/unreadable latest.json is re-asked at most this often (each 400 is an origin
-                                  // round trip the step waits on before /grid: measured 120-560 ms on dev, 2026-10-22)
+const NEGATIVE_TTL_MS = 60000;    // a missing/unreadable latest.json is re-asked at most this often, doubling per consecutive
+const NEGATIVE_TTL_MAX_MS = 900000; // failure up to 15 min (each 400 is an origin round trip the step waits on before /grid:
+                                  // measured 120-560 ms on dev, 2026-10-22); a successful read resets it
 const LRU_MAX = 12;               // decoded frames kept (each ~15k vector objects, a few MB of heap)
 const MAX_IN_FLIGHT = 4;
 const WORLD_MIN_SPAN = 340;
@@ -178,12 +181,35 @@ export async function fetchFrameBytes(url, signal) {
 }
 
 // ── The pinned index ────────────────────────────────────────────────────────────────────────────────────────
-const _state = { latest: null, latestAt: 0, latestLoad: null, pins: new Map(), lastUse: 0, indexLoads: new Map() };
+const _state = { latest: null, latestAt: 0, latestLoad: null, latestFails: 0, pins: new Map(), lastUse: 0, indexLoads: new Map() };
 const _lru = new Map();
 const _inflight = new Map();
 
 export function setKeyFor(model, layer) {
   return `${(model || 'GFS').toUpperCase()}/marine/${(layer || 'waves').toLowerCase()}/global_mid`;
+}
+
+// The world sets the client reads from the CDN (the publisher's frame_set.SETS; each parity-gated node by node at publish
+// and offline against /grid, 2026-10-22). A set the publisher has not published yet is simply a miss ('no_index' or
+// 'set_not_published') and /grid serves it. Not here: EURO swell layers (global_coarse + serve-time Gulf fill) and ICON
+// swell_2 (a client blend; its GFS swell_2 input IS served from frames through the same seam).
+export const STATIC_SETS = [
+  'GFS/marine/waves/global_mid', 'GFS/marine/swell_1/global_mid', 'GFS/marine/swell_2/global_mid',
+  'GFS/marine/wind_waves/global_mid', 'ICON/marine/waves/global_mid', 'EURO/marine/waves/global_mid',
+  'ICON/marine/swell_1/global_mid', 'ICON/marine/wind_waves/global_mid',
+];
+
+/** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
+ *  localStorage '__RAW_STATIC_FRAMES_SETS_OFF__' = a comma list, for this browser. The global kill still wins over all. */
+export function staticSetEnabled(key) {
+  if (!STATIC_SETS.includes(key)) return false;
+  const off = (list) => list === '*' || (Array.isArray(list) && list.includes(key));
+  if (typeof window !== 'undefined' && off(window.__RAW_DISABLE_STATIC_FRAMES_SETS__)) return false;
+  try {
+    const ls = window.localStorage && window.localStorage.getItem('__RAW_STATIC_FRAMES_SETS_OFF__');
+    if (ls && (ls.trim() === '*' || ls.split(',').map((x) => x.trim()).includes(key))) return false;
+  } catch (e) { /* storage blocked */ }
+  return true;
 }
 
 async function loadJson(url, noCache) {
@@ -196,12 +222,13 @@ async function readLatest(force) {
   const base = staticFramesBase();
   if (!base) return null;
   const now = Date.now();
-  const ttl = _state.latest ? LATEST_TTL_MS : NEGATIVE_TTL_MS;
+  const ttl = _state.latest ? LATEST_TTL_MS
+    : Math.min(NEGATIVE_TTL_MAX_MS, NEGATIVE_TTL_MS * 2 ** Math.max(0, _state.latestFails - 1));
   if (!force && _state.latestAt && now - _state.latestAt < ttl) return _state.latest;
   if (_state.latestLoad) return _state.latestLoad;
   _state.latestLoad = loadJson(base + LATEST_PATH, true)
-    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); return j; })
-    .catch(() => { _state.latestAt = Date.now(); return _state.latest; })
+    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); _state.latestFails = 0; return j; })
+    .catch(() => { _state.latestAt = Date.now(); _state.latestFails += 1; return _state.latest; })
     .finally(() => { _state.latestLoad = null; });
   return _state.latestLoad;
 }
@@ -264,7 +291,7 @@ export async function getPinnedIndex(key) {
 /** Is an index pinned (and not stale) for this set right now? Synchronous; no I/O. */
 export function hasPinnedIndex(key) {
   const pin = _state.pins.get(key);
-  return !!(pin && !pin.stale);
+  return !!(pin && !pin.stale) && staticSetEnabled(key);
 }
 
 function markPinStale(key) {
@@ -288,10 +315,14 @@ export function onStaticFrameParsed(fn) {
   return () => _parsedHooks.delete(fn);
 }
 
-/** The pinned index for a set right now, synchronously; null when none or stale. No I/O. */
+/** The pinned index for a set right now, synchronously; null when none, stale, the set is killed, or it is not a WAVES set.
+ *  The GPU frame store (#437) reaches sets only through this: a per-set kill flipped after a pin also stops it, and it never
+ *  plans or prefetches a non-waves run its packer would refuse (packStaticFrame: waves only), which would be egress for
+ *  nothing (a whole run is ~6.3 MB). No I/O. */
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
-  return pin && !pin.stale ? pin.index : null;
+  const waves = String(key || '').split('/')[2] === 'waves';
+  return pin && !pin.stale && staticSetEnabled(key) && waves ? pin.index : null;
 }
 
 function sharedParsedLoad(key, frame) {
@@ -404,7 +435,9 @@ const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east
 export function staticEligible({ model, layer, bbox, surf }) {
   if (!staticFramesEnabled() || !staticFramesBase()) return false;
   if (surf) return false;                         // rating grids are a server transform of the product
-  if ((model || '').toUpperCase() !== 'GFS' || (layer || '').toLowerCase() !== 'waves') return false; // slice 1
+  if (!staticSetEnabled(setKeyFor(model, layer))) return false;
+  // A world box, or a viewport box the resolver answers from global_mid (the mid-zoom crop, #459): every world set's tier is
+  // global_mid, so the crop rules (model-aware snap, regional refusal) apply to all of them.
   return spanOf(bbox) >= WORLD_MIN_SPAN || isMidCropBox({ model, layer, bbox });
 }
 
@@ -429,7 +462,7 @@ function cropWindowFor({ model, layer, bbox, index, frame, param }) {
  */
 export function staticCropPageKey(baseKey, { model, layer, reqBox, surf }) {
   try {
-    if (!staticEligible({ model, layer, bbox: reqBox, surf }) || !isMidCropBox({ model, layer, bbox: reqBox })) return baseKey;
+    if (!staticSeriesEligible({ model, layer, bbox: reqBox, surf }) || !isMidCropBox({ model, layer, bbox: reqBox })) return baseKey;
     const win = midCropFor({ model, layer, bboxStr: seriesBboxParam(reqBox), grid: WORLD_GRID });
     return win ? `${baseKey}|crop:${win.clip}` : baseKey;
   } catch (e) {
@@ -439,6 +472,20 @@ export function staticCropPageKey(baseKey, { model, layer, reqBox, surf }) {
 // The global_mid lattice every published frame carries (index.grid): 181 x 83, 2 deg, -180..180 x -80..84. Only used to NAME a
 // crop page before an index is pinned; the frames are always cropped on their own index's grid.
 const WORLD_GRID = { bounds: { west: -180, south: -80, east: 180, north: 84 }, cols: 181, rows: 83 };
+
+/**
+ * Seam B (the series lane) takes WAVES sets only. The series conform (useMarineWindData) re-emits flat backend vectors without
+ * their top-level is_valid, and the encoder recovers land from the v.waves sub-record for the waves layer only; for swell_1 /
+ * swell_2 / wind_waves a series frame's land cells (4,850 of 15,023 in a real world frame, 2026-10-22) would encode as OCEAN,
+ * where the /grid lane (the mapper's isOcean) keeps them land. Before static frames that lane only drew the thinned preview and
+ * the exact /grid frame replaced it; a full-resolution static series frame would be the settled one. So non-waves sets are
+ * served through seam A (the exact per-hour grid, the /grid JSON byte for byte, is_valid included) and the series lane keeps
+ * /grid_series for them. The conform carries is_valid for every layer since #456 (2026-10-22); this gate lifts in its own PR,
+ * with the land-cell parity on real swell frames as its evidence. Series CROP pages (#459) follow this gate too.
+ */
+export function staticSeriesEligible(args) {
+  return staticEligible(args) && String((args && args.layer) || 'waves').toLowerCase() === 'waves';
+}
 
 /**
  * Seam A. The /grid JSON for a WORLD request from the pinned static frame, or null (the caller fetches /grid).
@@ -466,7 +513,7 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
       json = cropGridJson(json, win, cropVectors(vectors, (frame.grid || index.grid).cols, win));
       telemetry().crops = (telemetry().crops || 0) + 1;
     }
-    // /grid ships a server-minted truth tag for GFS waves; mint the lineage tag once here, as the series path does.
+    // /grid ships a server-minted truth tag; mint the lineage tag once here, as the series path does.
     try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
     return json;
   } catch (e) {
@@ -482,7 +529,7 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
  * the index is missing (the caller then uses /grid_series as before).
  */
 export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anchorMs, focusHour, signal, onFrames }) {
-  if (!staticEligible({ model, layer, bbox, surf })) return null;
+  if (!staticSeriesEligible({ model, layer, bbox, surf })) return null;
   const key = setKeyFor(model, layer);
   const index = await getPinnedIndex(key).catch(() => null);
   if (!index) { noteMiss('no_index'); return null; }
@@ -513,7 +560,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
 
 /** Test hook: forget every pin, index, decoded frame and the worker. */
 export function _resetStaticFramesForTest() {
-  _state.latest = null; _state.latestAt = 0; _state.latestLoad = null; _state.pins.clear(); _state.lastUse = 0;
+  _state.latest = null; _state.latestAt = 0; _state.latestLoad = null; _state.latestFails = 0; _state.pins.clear(); _state.lastUse = 0;
   _state.indexLoads.clear(); _lru.clear(); _inflight.clear(); _parsedInflight.clear(); _pending.clear();
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }
   _worker = null; _workerFailed = false;
