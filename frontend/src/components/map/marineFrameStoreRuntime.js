@@ -406,7 +406,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   if (!frameStoreOn() || !grid) return;
   const key = setKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
   const index = getPinnedIndexSync(key);
-  if (!index) return why('no_index');
+  if (!index) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index'); }
   if (grid.ratingMode) return why('rating');
   const info = setFor(key, index);
   // Which stored frame is it? Its served time when it carries one; else its product id through the run index (the

@@ -89,10 +89,32 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   // The ENGINE holds that clip: the same texture size and the same (trimmed) bounds. A commit the guard refused, or a world frame
   // that replaced the clip, is told apart by this, never by which grid was last offered.
   const nearB = (a, b) => ['west', 'south', 'east', 'north'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
+  // IDENTITY TOO (2026-10-22, #458 on #461): a clip of ANOTHER model (a normal EURO/ICON commit, which the store no longer
+  // indexes) or a rating grid of the same box has the same size and bounds; it is not this resident either.
+  const idOf = (r) => { const [m, l] = String(r.setKey || '').split('/'); return { model: r.model || m || 'GFS', layer: r.layer || l || 'waves' }; };
   function engineHolds(r) {
     const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
     const wg = engine && engine._waveData && engine._waveData.waveGrid;
-    return !!(engine && wg && wg.bounds && engine._texWidth === r.cols && engine._texHeight === r.rows && nearB(wg.bounds, r.bounds));
+    const id = idOf(r);
+    return !!(engine && wg && wg.bounds && engine._texWidth === r.cols && engine._texHeight === r.rows && nearB(wg.bounds, r.bounds)
+      && (wg.__sourceModel || 'GFS') === id.model && (wg.__componentLayer || 'waves') === id.layer && !wg.ratingMode);
+  }
+
+  // A normal commit of a set the store does not index (EURO/ICON since #461: /grid's world Gulf fill) that is a clip of a known run
+  // lattice: remember the window as a FOREIGN resident, so a model click back to an indexed set (GFS) still shows that set's
+  // window with its own chl/bath (showCropSwitch). Anything else ends the crop resident.
+  function noteForeignCommit(grid, model, layer) {
+    if (!cropShowOn() || !grid) return;
+    const lat = [...rt.sets.values()].find((x) => x.index && x.index.grid && String(x.staticKey || '').split('/')[2] === (layer || 'waves'));
+    const win = lat ? frameWindowOf(grid, lat.index.grid) : null;
+    const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
+    const wg = engine && engine._waveData && engine._waveData.waveGrid;
+    if (!win || !wg || !wg.bounds || grid.ratingMode) { Object.assign(crop, { resident: null, window: null, pending: null }); return; }
+    const r = { setKey: null, foreign: true, model: model || 'GFS', layer: layer || 'waves', crop: true,
+      window: { c0: win.c0, r0: win.r0, cols: win.cols, rows: win.rows, key: win.key }, bounds: { ...wg.bounds },
+      validityHash: null, validityBits: null, cols: engine._texWidth, rows: engine._texHeight, signature: packSignature() };
+    if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return; }   // the engine refused it
+    Object.assign(crop, { window: { ...win, setKey: null }, pending: null, resident: r });
   }
 
   // After a normal commit. A window of frame `validTime`: remember it (the resident is known once its own window pack exists). Any
@@ -257,7 +279,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
 
 
   return {
-    crop, cropFromParsed, buildCrop, noteCropCommitted, cropResidentFor, showCropFrame, cropResidentOther, showCropSwitch,
+    crop, cropFromParsed, buildCrop, noteCropCommitted, noteForeignCommit, cropResidentFor, showCropFrame, cropResidentOther, showCropSwitch,
     telemetry: () => ({ on: cropShowOn(), window: crop.window, resident: crop.resident && { ...crop.resident, validityBits: undefined },
       packs: crop.packs.size(), built: crop.built, shows: crop.shows, ahead: crop.ahead, pending: crop.pending }),
     reset: () => Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 }),

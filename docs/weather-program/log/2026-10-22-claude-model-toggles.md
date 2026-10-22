@@ -156,3 +156,19 @@ per session at hours 0, 24, 168):
   - 5 stash mutants: each call site, the same-product exemption, and the kill;
   - each turns a test red.
 - The warm-landing test now lands the window until the fill is granted (#457's cap of 4 changed the timing).
+
+## Update 2026-10-22 ~22:05Z: on #461 (EURO/ICON world fill guard)
+- #461 makes `getPinnedIndexSync` refuse EURO/ICON keys and `staticEligible` refuse their world boxes: /grid's serve-time Gulf
+  fill is not in the frames.
+- Checked on the lead's re-chained head 800989e35 (46 suites, 632 tests pass):
+  - a click TO EURO/ICON misses with `no_index` and takes the normal path (no show, no loads);
+  - warm frames and crop packs for them stop (`staticEligible` / no index), so no egress;
+  - toggles to GFS stay instant.
+- One interplay fixed:
+  - Before, a normal EURO/ICON clip commit returned at `no_index`, before #459's crop bookkeeping. And #459's "the engine still
+    holds this clip" check compared size and bounds only, so the old GFS crop resident survived under EURO's clip, and the next
+    GFS step would have written GFS wave bytes over EURO's chl/bath. A rating grid of the same box was the same case.
+  - Now that check also compares the engine's model, layer and rating flag.
+  - A commit of a non-indexed set that is a clip of a known lattice is kept as a FOREIGN resident, so a click back to GFS still
+    shows GFS's window with its own chl/bath.
+  - 3 tests and 2 mutants, killed.

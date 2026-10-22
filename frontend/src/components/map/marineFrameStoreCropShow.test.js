@@ -136,6 +136,53 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
     expect(eng._pendingDowngrade).toBeNull();
   });
 
+  // #461: the store indexes no EURO/ICON set (/grid's world Gulf fill), so their clips arrive by the normal path only.
+  const euroClipCommit = (eng, k) => {
+    eng._waveData.waveGrid = { ...eng._waveData.waveGrid, __sourceModel: 'EURO', productId: `EURO${k}`, hourOffset: k * 3 };
+    RT.noteCommitted(CLIP('EURO', k), { hour: k * 3, model: 'EURO', layer: 'waves' });
+  };
+
+  it('a click to a model the store does not index (EURO since #461) is the normal path: no show, no loads', async () => {
+    const { calls } = setup();
+    await residentGfsClip();
+    calls.length = 0; const before = mockSF.loads.length;
+    expect(RT.tryShowStoredFrameForSwitch({ model: 'EURO', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(false);
+    expect(snap().shows.misses.no_index).toBe(1);
+    expect(calls).toEqual([]);
+    expect(mockSF.loads.length).toBe(before);
+  });
+
+  it('a normal EURO clip commit ends the GFS clip resident (same box, other model), and a click back to GFS shows GFS\'s window with its own chl/bath', async () => {
+    const { calls, eng } = setup();
+    await residentGfsClip();
+    await parse(GFS, 1, PARSED);
+    euroClipCommit(eng, 1);
+    expect(snap().commits.no_index).toBe(1);
+    expect(snap().crop.resident).toMatchObject({ foreign: true, model: 'EURO' });
+    calls.length = 0;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(false);   // a step never
+    expect(calls).toEqual([]);
+    expect(RT.tryShowStoredFrameForSwitch({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(true);   // the click
+    const P1 = packWindow(PARSED, W0); const aux = auxForPack(P1);
+    const to = (tex) => calls.filter((c) => c[0] === tex).map((c) => c[1]);
+    expect(firstDiff(to(eng._residentWaveTex)[0], P1.bytes)).toBe(-1);
+    expect(firstDiff(to(eng._residentChlTex)[0], aux.chl)).toBe(-1);
+    expect(firstDiff(to(eng._residentBathTex)[0], aux.bath)).toBe(-1);
+    expect(eng._waveData.waveGrid.__sourceModel).toBe('GFS');
+    expect(snap().crop.resident).toMatchObject({ setKey: expect.stringContaining('GFS') });
+  });
+
+  it('a rating grid of the same box ends the clip resident: no window pack is written over it', async () => {
+    const { calls, eng } = setup();
+    await residentGfsClip();
+    await parse(GFS, 1, PARSED);
+    eng._waveData.waveGrid = { ...eng._waveData.waveGrid, ratingMode: true };
+    RT.noteCommitted({ ...CLIP('GFS', 0), ratingMode: true }, { hour: 0, model: 'GFS', layer: 'waves' });
+    calls.length = 0;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(false);
+    expect(calls).toEqual([]);
+  });
+
   it('a wheel step (not a click) never crosses models on a clip', async () => {
     const { calls } = setup();
     await residentGfsClip();
