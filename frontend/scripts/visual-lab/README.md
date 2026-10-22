@@ -55,6 +55,16 @@ carries `exactMs`: input to the first frame with the selected instant at FULL de
 app's own selected frame is the expected hour, and not a world grid coarser than 2.5 deg a cell: the engine's copy drops
 `__decimatedStride`, so a stride-4 series frame is told by its 8-degree cells).
 
+**Stale backend (2026-10-21, SWR_BACKOFF):** `FLOWS=stale_world,stale_regional` arm `serve_synthetic.py`'s stale window (`GET /__lab/stale`)
+just before an hour step (+6 h) on the world view (z3.5) or at zoom 6, after a 30 s settle there. For `LAB_STALE_S` seconds (default 60) the
+backend answers that view's `/grid` stale and coarse (`swr_revalidation_pending`), then fresh; the map then sits idle and the step dwells
+until the fresh grid has been drawn for 5 s (or `LAB_STALE_TAIL_MS`, default 75000, after the window). The step row's `stale` block: every
+`/grid` the BACKEND saw for the view (`serverLog`, ms from the window's end), `reasksPerMin` while stale, `staleAskAtS` (the ladder as seen),
+`freshAskLagMs` (backend fresh -> next ask) and `freshDrawnMs` (-> the fresh grid's cols in the marine engine, from the page's per-frame
+`drawLog`). `LAB_WINDOW_JSON='{"__RAW_MARINE_SWR_STALE_DELAYS__":[...]}'` sets non-`true` window values before boot (an arm's rungs).
+`node stale_summary.js A=<dir>,<dir> B=<dir>,... [--json out.json]` prints each run and the medians per flow and arm.
+Zoom 6 caveat: the view's series frame (non-stale) can take over mid-window and end the re-ask in every arm (see the 2026-10-21 log).
+
 ## What each column means
 
 - **Marine / Wind correct**: input to the first animation frame whose resident grid has the selected hour, layer and model

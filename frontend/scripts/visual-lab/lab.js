@@ -104,7 +104,18 @@ const PROBE = (patterns) => {
       status };
   };
   let prev = null;
+  // DRAW LOG (2026-10-21, SWR_BACKOFF): every change of the marine engine's resident grid (shape, layer, hour), stamped with the
+  // wall clock (Date.now(), the clock serve_synthetic.py's stale window logs in), whatever step is armed.
+  W.drawLog = []; let drawKey = null;
+  const logDraw = () => {
+    const md = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const mg = md && md.waveGrid;
+    const key = mg ? `${mg.cols}|${mg.rows}|${mg.__componentLayer}|${mg.__sourceModel}|${mg.hourOffset}` : '';
+    if (key === drawKey) return;
+    drawKey = key; W.drawLog.push([Date.now(), mg ? mg.cols : null, mg ? mg.rows : null, mg ? mg.__componentLayer : null, mg ? mg.hourOffset : null]);
+    if (W.drawLog.length > 600) W.drawLog.shift();
+  };
   const loop = (t) => {
+    try { logDraw(); } catch (e) { /* an instrument never breaks the page */ }
     const S = W.step;
     if (S && !S.done) {
       const s = W.snap();
@@ -233,6 +244,44 @@ function netSummary(reqs) {
     return q ? { t: q.t, ms: q.ms } : null; };
   return { n: reqs.length, byPath, firstProducts: first('/products'), firstGrid: first('/grid'), firstSeries: first('/grid_series') };
 }
+// ---- STALE WINDOW (2026-10-21, SWR_BACKOFF): the backend answers the view's /grid stale for LAB_STALE_S s, then fresh ----
+// serve_synthetic.py's window (GET /__lab/stale arms it, /__lab/stale/status reads it) logs every matching /grid the BACKEND saw,
+// stale or fresh, on the wall clock; the page's draw log says when the fresh grid (its cols) reached the engine.
+const STALE_S = +(process.env.LAB_STALE_S || 60);
+const STALE_TAIL_MS = +(process.env.LAB_STALE_TAIL_MS || 75000);   // the longest wait after the window for the fresh frame
+async function labStale(q) { const r = await fetch(`http://127.0.0.1:${PORT}${q}`); if (!r.ok) throw new Error(`${q}: ${r.status}`); return r.json(); }
+async function dwellStale(page, armed) {
+  const until = armed.until * 1000; const end = until + STALE_TAIL_MS;
+  const readDraw = () => page.evaluate(() => window.__LAB__.drawLog);
+  while (Date.now() < end) {          // until the fresh grid has been drawn for 5 s (so a stray extra ask would be seen), or the tail
+    await sleep(1000);
+    const st = await labStale('/__lab/stale/status');
+    const fresh = st.log.find((x) => !x.stale && x.t_in_ms >= until);
+    const d = fresh && (await readDraw()).find((x) => x[0] >= until && x[1] === fresh.fresh_cols);
+    if (d && Date.now() - d[0] > 5000) break;
+  }
+  const st = await labStale('/__lab/stale/status'); const dl = await readDraw();
+  const log = st.log; const staleAsks = log.filter((x) => x.stale);
+  const t1 = staleAsks.length ? staleAsks[0].t_in_ms : null;
+  const fresh = log.find((x) => !x.stale && x.t_in_ms >= until);
+  const freshCols = fresh ? fresh.fresh_cols : (staleAsks[0] ? staleAsks[0].fresh_cols : null);
+  const drawnFresh = dl.find((x) => x[0] >= until && x[1] === freshCols);
+  const span = t1 != null ? until - t1 : null;
+  const reasks = Math.max(0, staleAsks.length - 1);
+  return { seconds: armed.seconds, scope: armed.scope, stride: armed.stride,
+    // every /grid the backend answered for this view while the window was armed, stale and fresh
+    asks: log.length, staleAsks: staleAsks.length, reasksWhileStale: reasks,
+    reasksPerMin: span > 0 ? +(reasks / (span / 60000)).toFixed(2) : null,
+    staleAskAtS: staleAsks.map((x) => +((x.t_in_ms - t1) / 1000).toFixed(1)),   // the ladder as the backend saw it
+    staleSpanMs: span, firstStaleAfterArmMs: t1 != null ? Math.round(t1 - armed.armed_at * 1000) : null,
+    staleCols: staleAsks.length ? staleAsks[0].served_cols : null, freshCols,
+    staleDrawn: staleAsks.length ? dl.some((x) => x[0] >= t1 && x[1] === staleAsks[0].served_cols) : false,
+    freshAskLagMs: fresh ? fresh.t_in_ms - until : null,        // backend turned fresh -> the next ask reached it
+    freshDrawnMs: drawnFresh ? drawnFresh[0] - until : null,    // backend turned fresh -> the fresh grid in the engine
+    asksAfterFresh: fresh ? log.filter((x) => x.t_in_ms > fresh.t_in_ms).length : null,
+    serverLog: log.map((x) => ({ in: x.t_in_ms - until, out: x.t_out_ms - until, stale: x.stale, cols: x.served_cols, vt: x.valid_time })),
+    drawLog: dl.filter((x) => x[0] >= armed.armed_at * 1000 - 2000).map((x) => [x[0] - until, ...x.slice(1)]) };
+}
 function mad(a, b) {
   if (!a || !b) return null;
   const x = blocks(a), y = blocks(b); const n = Math.min(x.length, y.length);
@@ -277,6 +326,17 @@ const FLOWS = {
   open_wind: { setup: { model: 'GFS', layers: ['wind'] }, view: [-80, 25, 3.5], steps: [], settleMs: 20000 },
   pan_zoom_future: { setup: { model: 'ICON', layers: ['waves'], hour: 24 }, view: [-80, 25, 3.5],
     steps: [['zoom 6', { view: [-80, 26, 6] }], ['zoom 8', { view: [-80, 26, 8] }], ['pan east', { view: [-77, 26, 8] }], ['zoom out 4', { view: [-80, 25, 4] }], ['+3h after zoom', 27]] },
+  // SWR_BACKOFF (2026-10-21): one move onto a view whose /grid the backend answers STALE (coarse, swr_revalidation_pending) for
+  // LAB_STALE_S s and then fresh; the map then sits idle while the client's own re-asks are the only thing that can pull the fresh
+  // grid. The step's `stale` block: asks while stale (per minute, and when), backend fresh -> next ask, -> fresh grid drawn.
+  // Both are an hour step after a 30 s settle at the view, so the view's series pages have landed before the window opens and the
+  // step's own exact /grid is what comes back stale. (A move onto the world view finds the exact world grid the activation
+  // prewarmed and asks no /grid; a move onto zoom 6 at hour 0 lands the view's series page INSIDE the window, a frame labelled
+  // hour -1 that the settle watchdog keeps re-driving, which restarts the ladder and in both arms ends the re-ask: pilot 2026-10-21.)
+  stale_world: { setup: { model: 'GFS', layers: ['waves'] }, view: [-80, 25, 3.5], settleMs: 30000,
+    steps: [['+6h on the world view, stale backend', { hour: 6, stale: { scope: 'world', model: 'GFS', layer: 'waves', stride: 3 } }]] },
+  stale_regional: { setup: { model: 'GFS', layers: ['waves'] }, view: [-80, 26, 6], settleMs: 30000,
+    steps: [['+6h at zoom 6, stale backend', { hour: 6, stale: { scope: 'regional', model: 'GFS', layer: 'waves', stride: 2 } }]] },
 };
 
 (async () => {
@@ -284,7 +344,8 @@ const FLOWS = {
   const which = (process.env.FLOWS || Object.keys(FLOWS).join(',')).split(',');
   const size = VIEW === 'phone' ? { width: 390, height: 844, dpr: 3 } : { width: 1280, height: 800, dpr: 1 };
   const cdnServer = STATIC_DIR ? await startCdn() : null;
-  const results = { env: { PORT, VIEW, LAT_SERIES, LAT_GRID, LAT_PRODUCTS, staticFrames: !!STATIC_DIR, cdnLat: CDN_LAT, kills: process.env.LAB_KILLS || '', flags: process.env.LAB_FLAGS || '', live: process.env.AB_LIVE === '1', startedUtc: new Date().toISOString() }, flows: [] };
+  const results = { env: { PORT, VIEW, LAT_SERIES, LAT_GRID, LAT_PRODUCTS, staticFrames: !!STATIC_DIR, cdnLat: CDN_LAT, kills: process.env.LAB_KILLS || '', flags: process.env.LAB_FLAGS || '',
+    windowJson: process.env.LAB_WINDOW_JSON || '', staleS: STALE_S, live: process.env.AB_LIVE === '1', startedUtc: new Date().toISOString() }, flows: [] };
   for (const name of which) {
     const flow = FLOWS[name]; if (!flow) continue;
     const LIVE = process.env.LAB_LIVE_BASE;   // e.g. http://localhost:3009: dev server on the LIVE backend, set up as the nightly does
@@ -296,6 +357,8 @@ const FLOWS = {
     // LAB_FLAGS: other window flags set true before boot, the same in both arms (e.g. __SURF_MODE__: the rating overlay on, whose spot
     // lookups resolve valid times before the manifest lands, as the live app's spot hubs and glyphs do).
     if (process.env.LAB_FLAGS) await page.addInitScript((ks) => { ks.forEach((k) => { window[k] = true; }); }, process.env.LAB_FLAGS.split(','));
+    // LAB_WINDOW_JSON: window values that are not `true`, set before boot (e.g. '{"__RAW_MARINE_SWR_STALE_DELAYS__":[1500,3000]}')
+    if (process.env.LAB_WINDOW_JSON) await page.addInitScript((o) => { Object.assign(window, o); }, JSON.parse(process.env.LAB_WINDOW_JSON));
     await page.addInitScript(PROBE, Object.fromEntries(Object.entries(PATTERNS).map(([k, v]) => [k, v.source])));
     await page.addInitScript(LOAD_PROBE);
     // Console patterns counted from Node (page.on('console')): independent of any in-page console override.
@@ -331,12 +394,16 @@ const FLOWS = {
       let prevSettled = await page.screenshot({ clip });
       for (const [label, act] of flow.steps) {
         const next = { ...state };
-        if (typeof act === 'number') next.hour = act; else Object.assign(next, act.layer ? { layer: act.layer } : {}, act.model ? { model: act.model } : {});
+        if (typeof act === 'number') next.hour = act;
+        else Object.assign(next, act.layer ? { layer: act.layer } : {}, act.model ? { model: act.model } : {}, act.hour != null ? { hour: act.hour } : {});
         // Step marker for CPU profiles: a uniquely NAMED function that runs ~4 ms, so stall_profile.js can pin each stall to a step.
         if (cdp) await page.evaluate((nm) => { const f = new Function(`return function ${nm}(){const t=performance.now();while(performance.now()-t<4){}}`)(); f(); }, `LABSTEP_${fr.steps.length}_${label.replace(/[^A-Za-z0-9]/g, '_')}`);
         await page.evaluate((e) => window.__LAB__.arm(e), { marine: !!next.layer, wind: next.wind, hour: next.hour, layer: next.layer, model: next.model });
         const r0 = log.requests.length; const cc0 = { ...ccount };
+        // a `stale` step arms the backend's stale window just before its move (offline only: the live backend has no such route)
+        const staleArm = act && act.stale && !LIVE ? await labStale(`/__lab/stale?${new URLSearchParams({ seconds: String(STALE_S), ...act.stale })}`) : null;
         if (typeof act === 'number') await seek(page, act);
+        else if (act.hour != null) await seek(page, act.hour);     // an hour step carrying options (a `stale` window)
         else if (act.layer) await clickExact(page, LABEL[act.layer]);
         else if (act.model) await clickExact(page, act.model);
         else if (act.view) await L.jump(page, ...act.view);
@@ -344,6 +411,7 @@ const FLOWS = {
         await sleep(150);
         const immediate = await page.screenshot({ clip });
         const immediateJpg = await page.screenshot({ clip, type: 'jpeg', quality: 55, scale: 'css' });   // report thumbnail (PNG stays for metrics)
+        const staleBlock = staleArm ? await dwellStale(page, staleArm) : undefined;   // the idle map through the window and after
         const t0 = Date.now(); let r;
         do { await sleep(150); r = await page.evaluate(() => window.__LAB__.read()); }
         while (((next.layer && (r.mOk == null || (WAIT_EXACT && r.mExact == null))) || (next.wind && r.wOk == null)) && Date.now() - t0 < WIN);
@@ -372,7 +440,7 @@ const FLOWS = {
             products: reqs.filter((q) => q.path === '/products').length,
             wind: reqs.filter((q) => (q.q && q.q.domain === 'wind') || /wind/.test(q.path)).length, dupes, failed: reqs.filter((q) => q.error || (q.status && q.status >= 400)).length },
           requestList: reqs.slice(0, 20).map((q) => ({ t: q.t, ms: q.ms, path: q.path, model: q.q && q.q.model, domain: q.q && q.q.domain, layer: q.q && q.q.layer, vt: q.q && q.q.valid_time, bbox: q.q && q.q.bbox, h0: q.q && q.q.hours ? q.q.hours.split(',')[0] : undefined, nh: q.q && q.q.hours ? q.q.hours.split(',').length : undefined, status: q.status })),
-          pacing: { gaps50: r.gaps, maxGap: Math.round(r.maxGap), longtasks: r.ltN, ltMax: r.ltMax },
+          pacing: { gaps50: r.gaps, maxGap: Math.round(r.maxGap), longtasks: r.ltN, ltMax: r.ltMax }, stale: staleBlock,
           shots: { immediate: immediateJpg.toString('base64'), settled: settledJpg.toString('base64') } };
         fr.steps.push(row);
         console.log(name, JSON.stringify({ ...row, shots: undefined }));

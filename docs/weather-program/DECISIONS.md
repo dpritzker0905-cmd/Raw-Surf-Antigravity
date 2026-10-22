@@ -1287,6 +1287,58 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   geometry and its own A/B. After #420 (float wash) lands, re-run the paired engine read for light.
 - **Reopen if:** the owner says so, or #420's float wash moves light's crossing out of 2.6-3.3 m.
 
+### D-037 · Light's wave-height wash is the seven-band spectrum (mint, blue, violet, magenta, crimson, umber; 0-14 m); dark and beach unchanged; ON by default
+- **Decided:** owner, 2026-10-21, on the comparison page https://claude.ai/artifact/KSm5QY1qj2yjhtb5b6ozjR (today | proposed, per
+  theme): "I like the proposed light mode"; dark "Today's dark (left)", beach "Today's beach v1 (left)"; then "Build the proposed
+  light spectrum here as one PR with a kill switch back to v2, record the decision, re-check light's crests, and leave dark and beach
+  as they are." and "just to make sure we have the best and widest spectrum of color on this scheme".
+- **Rule:** light draws `WAVE_PALETTES.spectrum` (`marineWavePalette.js`): bands on the WMO / Douglas sea-state breaks 0.5 / 1.25 /
+  2.5 / 4 / 6 / 9 / 14 m (1.6 / 4 / 8 / 13 / 20 / 30 / 46 ft): mint (0, 202, 144) to 0.5 m, cyan-blue (0, 156, 222), blue
+  (80, 109, 246), violet (128, 60, 235), magenta (181, 0, 118), crimson (164, 0, 26), umber (90, 20, 0) at 14 m; 4.5 / 5 / 5.5 m are
+  blend anchors on the OKLab line (no lightness climb); cap 14 m, light's upload scale 14. Light's deep-ocean floor blend is off and
+  its opacity is `(u_opacity + (1 - u_opacity) x 0.4286 x t) x smoothstep(0, 0.5, h)`, t = log(h / 0.5) / log 12 clamped: calm
+  water below 0.5 m fades to the map, heavier seas draw more opaque (world 0.65 -> 0.80 from 6 m). Legend: an equal-band ruler,
+  ft 0 / 1.6 / 4 / 8 / 13 / 20 / 30 / 46+. Light's crests keep D-036's colours with the switch at 1.55 m (`LIGHT_CRESTS.v2s`), where
+  the spectrum crosses mid-lightness. Dark and beach draw exactly what dev `448deb35c` draws (beach: D-035). "Widest": the
+  colours are solved for the largest weakest step between neighbouring bands at maximum displayable chroma while lightness falls
+  (`spectrum-solve.mjs`, `spectrum-tune.mjs`); yellow and orange cannot follow blue without lightness climbing, so the path runs
+  through violet and magenta to crimson and umber.
+- **Evidence:** `log/2026-10-21-claude-wave-light-spectrum.md`; `evidence/wave-light-spectrum-2026-10-21.json`. Checker (light, as
+  composited): weakest neighbouring band, normal vision 9.3 -> 15.3 dE00; lightness falls at every 0.02 m step; legend's weakest
+  stop on its panel APCA 15.3 -> 41.1; crest core vs wash |Lc| 40.0 -> 42.7, colour-blind 24.3 -> 26.3 (at today's 3.05 m switch
+  the spectrum would leave 28.8). Engine offline (production build, synthetic backend): light's wash moved over 96-99% of the sea
+  interior (mean dE00 13-27); beach 0 px and dark 0-9 px, inside the null runs' noise; crest p99 |Lc| world 35.0 -> 23.9, regional
+  42.3 -> 53.5, coastal 78.6 -> 77.4.
+- **Known costs:** the weakest neighbouring band for any colour vision drops 7.2 -> 5.3 dE00 (tritan, 6-9 m; deutan 6.0 at 2.5-4 m):
+  hue carries steps that lightness no longer can (L range 0.74 -> 0.31, v2 0.90 -> 0.30); the neighbour line stays RED (it was RED
+  for v2). At world zoom the crests are fainter (the open ocean's 1.5-3 m is now a mid-lightness blue; partial-opacity crests have
+  little room on it in either polarity). Calm water below 0.5 m shows the map's own water. Above 14 m draws as 14 m. The crest
+  polarity contour now sits at 1.55 m, a common height.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_SPECTRUM__ = true` before load draws v2 at 16 m exactly (HEATMAP_FS, DRAW_FS, palette
+  GLSL, legends and samples sha256-pinned to dev `448deb35c` in `marineWaveSpectrum.test.js`); `__RAW_DISABLE_WAVE_HEIGHT_16M__` also
+  returns light to v2; `__RAW_DISABLE_WAVE_PALETTE_V2__` returns both themes to v1.
+- **Next, not decided:** the world-zoom crest finding (the cased crest, D-036's next, or a far-zoom crest opacity lift for light),
+  each its own A/B. The crest critique (log) finds beach's and dark's crests isoluminant over part of their range (beach
+  1.5-9 m: #416 is the drafted answer; dark 6 m up: #419 covers 8 m up, 6-8 m stays open). #420 (float wash, light) merges after or before this: whichever lands second
+  re-pins the other's kill hashes.
+- **Reopen if:** the owner says so.
+- **Update 2026-10-21 (owner: "Make sure the crest zooms are still visible, ship and test"):** light's crests over the spectrum get a
+  far-zoom opacity lift (DRAW_VS's zoom factor x mix(0.80 / 0.45, 1, smoothstep(3, 9, zoom)), light over the spectrum only; kill
+  `__RAW_DISABLE_SPECTRUM_CREST_LIFT__`, DRAW_VS = dev). Engine zoom ladder, p99 |Lc| today -> shipped: z 2.2 37.1 -> 41.4, z 3.8
+  26.0 -> 49.1, z 4.6 27.5 -> 40.9, z 6 36.5 -> 31.9, z 9 52.9 -> 38.0 (`evidence/wave-light-spectrum-crest-lift-2026-10-21.json`).
+  Close-in the gap is the wash's (a mid-lightness blue), not the crest's opacity; the cased crest stays the next step.
+- **Update 2026-10-21 (owner: "I'm not sold on light modes blue water, it seems too close to the same color as dark modes water";
+  then "Resolve it so light improves but isnt too much like dark"):** the spectrum is re-solved apart from dark. Light's composite stays
+  at least as far from dark's (CIEDE2000, per height) as live light is from 1.2 to 6 m: soft green -> aqua -> teal -> steel blue ->
+  indigo -> maroon -> dark red (0.8-3 m mean 23.9 from dark, live light 24.0, the first spectrum 15.0; 4 / 6 m 29.9 / 24.3, first 13.7 /
+  11.3). Neighbour steps: normal-vision weakest 12.0 (live 9.3). Crest switch moves to 2.35 m. Shown to the owner before shipping;
+  `evidence/wave-light-spectrum-apart-from-dark-2026-10-21.json`.
+- **Update 2026-10-21 (after D-041):** over the spectrum light draws the ORIGINAL crests by default, as on every light wash; V2 (`v2s`,
+  2.35 m) and the far-zoom lift only on request. The original crests read |Lc| 0 from about 2-2.5 m up on live light and on the spectrum
+  alike (engine p99, open sea: z 2.2 22.1 -> 17.5, z 4.6 14.7 -> 11.5, z 9 28.5 -> 22.2), and no light wash keeps them visible at every
+  height (solver: infeasible down to |Lc| 10). Their remedy is the crest (D-040), not the wash. `evidence/wave-light-spectrum-original-crests-2026-10-21.json`.
+- **Shipped 2026-10-21 23:52Z (owner: "Ship #431: the lead merges it when hosted CI is green."):** as re-solved, original crests by default.
+
 ### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
 - **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm
   coast at z 10 and z 7.4, calm and moderate open sea, and the storm; with each frame's fitted alpha and the legend's calm end):
@@ -1350,3 +1402,27 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Next, not decided:** the owner's "It still needs to adjust for areas in the colour for heatmaps that blend too much with the
   animation colors": one A/B, the original vs the original plus a luminance-only two-tone (beach #433's idea, no hue change), moving.
 - **Reopen if:** the owner says so, or the A/B's pick changes light's crests again.
+### D-042 · Big-surf crests thin at mid-to-close zoom by theme, as the eye sees it (light z5, beach z6, dark z8); ON by default
+- **Decided:** owner, 2026-10-21, on #428's A/B (today | the cut as asked | the cut as the eye sees it, three themes, coastal and close
+  zoom over the synthetic storm): "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch
+  light's storm to the warm gold in its own PR." The ask (2026-10-20): light 15-20% less dense from where state names show in full,
+  beach 10-15% from where city names show, dark the same from two zooms closer than beach, only where the surf is big.
+- **Rule:** where the sea is 2 m and up (full from 4 m: a crest's size saturates there), a share of the crests DRAW_VS keeps is
+  removed so they cover the owner's share less of the screen: light 17.5% from z5, beach 12.5% from z6, dark 12.5% from z8 (label
+  zooms read off navigation-day-v1 / outdoors-v11 / navigation-night-v1 by `scn_label_zoom.js`), each ramping in over the half zoom
+  before. Crests overlap, so the share removed is fitted per theme and zoom (`CREST_DENSITY_SEED_CUT`): light .28 / .29 / .45 / .37 at
+  z5 / 7.4 / 9 / 10.5, beach .22 / .23 / .32 / .26 at z6 / 7.4 / 9 / 10.5, dark .26 / .27 / .33 / .28 at z8 / 8.25 / 9 / 10.5. WHICH
+  crests go is a hash of its own (`crestCutHash`, hash without sine over the particle's texel), not a lower density threshold:
+  `particleHash` collapses onto a few hundred float32 values, so a lowered threshold removes crests in steps (ledger finding 1601).
+  One owner: `marineCrestDensity.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 00:30Z and 15:30Z); `evidence/crest-density-2026-10-21.json`;
+  owner page https://claude.ai/artifact/7UVhRYh3kRVwgjm2jTop3r. Offline real engine, shipped rows, one bracketed session per theme:
+  crest coverage light -15.6 / -19.4 / -17.7% (z7.4 / z9 / z10.5), beach -14.3 / -11.7 / -13.0%, dark -12.4 / -12.1 / -12.1%
+  (z8.25 / z9 / z10.5); repeat steps within 1.5 pts, sessions ~2 pts apart.
+- **Known costs:** the rows are fitted over one synthetic storm at one place (a real coast's mix of heights and land differs); light
+  at z9 removes 45% of big-surf crests to show 17.5% less, the most of any point; the cut's hash adds a one-line function to DRAW_VS.
+- **Rollback:** `window.__RAW_DISABLE_CREST_DENSITY_ZOOM__ = true` before load draws dev's DRAW_VS byte for byte (sha256 pinned in
+  `marineCrestDensity.test.js`); `window.__RAW_CREST_DENSITY_SEED_CUT__ = <share>` overrides the rows live, for measurement.
+- **Next, not decided:** the constant-screen-density cull (`u_densityBase` against `particleHash`) has the same staircase; giving it
+  a well-spread hash would move today's density at every zoom, so it is its own change with its own A/B.
+- **Reopen if:** the owner says so, or a crest-size or seed-count change moves the coverage the rows were fitted on.

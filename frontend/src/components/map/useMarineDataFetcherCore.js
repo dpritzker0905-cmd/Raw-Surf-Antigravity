@@ -260,7 +260,7 @@ export function useMarineDataFetcherCore({
         }
         return;
       }
-      if (!keepSwrRetryCount(source)) resetRetryCounts();   // SWR_RETRY_CAP: its own re-drive keeps the count, so the cap of 3 holds (marineRequestDiet.js)
+      if (!keepSwrRetryCount(source)) resetRetryCounts();   // SWR_BACKOFF: its own re-drive keeps the count, so the ladder climbs (marineRequestDiet.js)
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation' || source === 'clamp_resharpen';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;

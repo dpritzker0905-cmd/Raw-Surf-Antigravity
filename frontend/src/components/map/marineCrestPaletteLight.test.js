@@ -1,3 +1,4 @@
+import './marineWaveSpectrumKill.testsupport';   // light's v2 is pinned here; the spectrum (D-037) in marineWaveSpectrum.test.js
 import { createHash } from 'crypto';
 import { DRAW_FS } from './WebGLMarineParticleShaders';
 import { LIGHT_CRESTS, LIGHT_CREST_ID, LIGHT_CREST_GLSL, lightCrestGlsl, resolveLightCrest } from './marineCrestPalette';
