@@ -7,10 +7,15 @@ import { BEACH_CREST_LIFT, BEACH_CREST_LIFT_LEVEL, BEACH_LIFT_BANDS, bandWeight,
 // the alpha line, every drawing piece gated on the beach theme, and only inside the two bands (weight 0 elsewhere); beach's crest
 // colours and every theme's colour lines are untouched; light's two-tone lever still composes (u_zoom declared once).
 const sha = (s) => createHash('sha256').update(s).digest('hex');
-// dev 9b49111e8's default DRAW_FS (light's original crests D-044, dark's 8 m+ cased storm ink D-039): what the kill must draw.
-const DRAW_FS_TODAY = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
-const DRAW_FS_SUBTLE = { sha: 'ce8b5a6e9a9d2c849a041c0d5ff8e9073de386cec8ce586c58ce3151d24e1caa', length: 9323 };
-const DRAW_FS_MORE = { sha: '06ffcc975ae4586c9838961e40153dd55dea2c37894082d8c6eb770399edc57d', length: 9323 };
+// dev 6232b67ba's default DRAW_FS (light's x1 cross D-046, dark's 8 m+ cased storm ink D-039; marineCrestCross.test.js pins it as X1):
+// what the lift's kill must draw. With light's cross kill too: dev 9b49111e8's (the original light crests, D-044).
+const DRAW_FS_TODAY = { sha: 'd75b2bbf6de6ed2401c18f67c704115b945b67fe2ef32c173f0cc5d636673bac', length: 9063 };
+const DRAW_FS_BEFORE_CROSS = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
+const DRAW_FS_SUBTLE = { sha: '5a9f550c4f60aaeb9f776a373ff2458a7c5737f7b5367f94585c207d49abea52', length: 9514 };
+const DRAW_FS_MORE = { sha: '912f4cdb15295234a05c2a4705e400f7cc54e8607e18cb18990ae1009eab3cc2', length: 9514 };
+// The lift over light's original crests (the cross's kill): the same beach pieces, so the same text as before #451.
+const DRAW_FS_SUBTLE_NO_CROSS = { sha: 'ce8b5a6e9a9d2c849a041c0d5ff8e9073de386cec8ce586c58ce3151d24e1caa', length: 9323 };
+const CROSS_KILL = { __RAW_DISABLE_LIGHT_CREST_CROSS__: true };
 const KILL = { __RAW_DISABLE_BEACH_CREST_LIFT__: true };
 const BEACH = 'u_theme > 1.5';
 const withWindow = (levers, fn) => jest.isolateModules(() => {
@@ -29,6 +34,8 @@ describe('on by default; the kill draws today exactly', () => {
   it('the kill is dev\'s DRAW_FS byte for byte and wins over the lever; "more" is the stronger level; unknown values are subtle', () => {
     pin(drawFsUnder(KILL), DRAW_FS_TODAY);
     pin(drawFsUnder({ ...KILL, __RAW_BEACH_CREST_LIFT__: 'more' }), DRAW_FS_TODAY);
+    pin(drawFsUnder({ ...KILL, ...CROSS_KILL }), DRAW_FS_BEFORE_CROSS);   // each theme's kill restores that theme exactly
+    pin(drawFsUnder(CROSS_KILL), DRAW_FS_SUBTLE_NO_CROSS);
     pin(drawFsUnder({ __RAW_BEACH_CREST_LIFT__: 'more' }), DRAW_FS_MORE);
     expect(beachCrestLiftGlsl('today')).toEqual({ decl: '', tone: '', alphaHead: '' });
     for (const v of ['twotone', 'today', 'toString', 1, true, '']) expect(resolveBeachCrestLift({ __RAW_BEACH_CREST_LIFT__: v })).toBe('subtle');
