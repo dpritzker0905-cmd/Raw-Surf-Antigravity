@@ -1540,8 +1540,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - Live (world GFS waves, pilots run 39722114072): 113 built, 0 refused, 6,296,904 B in 29.0 s; latest.json 200 (no-cache),
     frames immutable with no Content-Encoding, CDN MISS then HIT.
 - **Known costs:** CDN egress grows with the sets a visitor views: about 0.7 MB for a glance, and on desktop the #437 idle fill
-  loads the whole run of the viewed set (about 6.3 MB for a GFS set, 3.2-3.6 MB for an ICON/EURO set's native hours). Within
-  Supabase Pro's 250 GB cached egress that is about 39,000 desktop opens a month on one GFS set, fewer for visitors who toggle.
+  loads the whole run of the viewed WAVES set (GFS waves about 6.4 MB, ICON waves 3.2 MB and EURO waves 3.7 MB, native hours
+  only); a swell / wind-wave set is fetched on demand only, about 56 KB a frame as the scrub asks for it. Within Supabase Pro's
+  250 GB cached egress that is about 39,000 desktop opens a month on GFS waves alone, fewer for visitors who toggle between
+  waves models (the instant-scrub session is proposing a per-open cap).
   Storage is about 78 MB steady state (current and previous run). Swell and wind-wave sets get no instant scrub yet (seam A
   only: the exact frame lands after the per-hour settle, ~1.6 s offline), and their series pages still come from /grid_series.
   A cold whole-run fill hits the Supabase origin once per frame; the live read saw 3 x 429 at 6 in flight (recovered).
