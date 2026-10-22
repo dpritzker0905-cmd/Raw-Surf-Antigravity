@@ -62,3 +62,20 @@ question; get the PR names in the same breath as the go-ahead.
 - Crest edge ON for light and beach (owner's pick 2026-10-21 22:34 EDT; one flip PR by the beach session).
 - Static frames + instant scrub read-back after the first post-#443 pilots run (one map open, /api/health before and after).
 - Production promotion (dev -> main) waits for the owner's word.
+
+## 6. 2026-10-22 03:41Z: owner dislikes light's animations at dev 67021e936 (ledger 1650)
+
+Owner, 23:41 EDT: "The light mode animations that just deployed look strange to me. Make a note of the new changes I don't
+like in light mode for the dev@67821e9" (67821e9 read as 67021e936, dev's head at the time).
+
+What changed in light's crest animations on 10-21/22, newest first, with each per-viewer kill switch:
+
+| PR | change | kill (window flag, set before load) |
+|---|---|---|
+| #445 (67021e936, D-043) | two-tone ON: each crest keeps its colour with a dark rim (colour x0.15) and a light centre line (85% toward white), ribbon to 0.80; far-out crests x3 stronger, back to x1 by z9 | `__RAW_DISABLE_LIGHT_CREST_STYLE__` |
+| #431 (11cb46400, D-037) | the sea under the crests: green -> aqua -> teal -> steel blue -> indigo -> maroon | `__RAW_DISABLE_WAVE_SPECTRUM__` |
+| #428 (23a91534f, D-042) | big-surf crests thinned at mid-to-close zoom (light from z5) | `__RAW_DISABLE_CREST_DENSITY_ZOOM__` |
+| #438 (42833a52d, D-041) | crest colours back to the original (navy / amber / crimson) | `__RAW_DISABLE_LIGHT_CREST_RESTORE__` |
+
+#445 is the change that deployed just before the verdict. The beach two-tone flip (same method) is PAUSED until the owner
+says which part he dislikes.
