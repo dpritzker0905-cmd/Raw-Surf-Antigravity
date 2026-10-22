@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding'; import { CREST_DENSITY_GLSL } from './marineCrestDensity';
-import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle';   // crests + kills (see there); light two-tone style
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle'; import { BEACH_CREST_LIFT_GLSL } from './marineBeachCrestLift';   // crests + kills (see there); light two-tone style; beach crest lift
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -808,7 +808,7 @@ varying highp float v_phase;       // wave-train phase for rolling whitewater
 varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
 varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
-uniform float u_theme;${LIGHT_CREST_STYLE_GLSL.decl}
+uniform float u_theme;${LIGHT_CREST_STYLE_GLSL.decl || BEACH_CREST_LIFT_GLSL.decl}
 uniform float u_trochoidal;   // [0..1] warp the symmetric ribbon into an asymmetric TROCHOIDAL crest (sharp leading face, broad trailing back). 0 = legacy symmetric ellipse.
 uniform float u_crestContrast; // [0..1] zoom-band SELF-CONTRAST (2026-07-03): dark skirt + brighter core + slight white lift so crests read on any heatmap hue. Engine ramps it in around z3.65-4.25 where the crest and heatmap palettes collide (dark: mint on teal/cyan; light: navy on azure). 0 = legacy (byte-identical).
 uniform float u_lowHCrestContrast; // [0..1] LOW-HEIGHT self-contrast (2026-07-05): the same palette collision happens at ANY zoom wherever crest height <~0.75 m (island swell shadows: pale dash on pale wash = "animations don't cover the heatmap"). Ramped out by 1.05 m in main(). 0 = legacy.
@@ -951,7 +951,7 @@ void main() {
   // === WHITECAP HIGHLIGHT (separate from base ripple) ===
   // Bright white/cyan at the breaking front, proportional to v_whitecap
   float whiteBlend = whitecapRoll * 0.45;
-  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);${LIGHT_CREST_STYLE_GLSL.tone}
+  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);${LIGHT_CREST_STYLE_GLSL.tone}${BEACH_CREST_LIFT_GLSL.tone}
 
   // === SELF-CONTRAST: zoom band (2026-07-03) + low-height band (2026-07-05) ===
   // In the coarse band the crest palette can land on a same-hue heatmap (mint on teal, navy on
@@ -971,7 +971,7 @@ void main() {
   }
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-  float boostedAlpha = alpha * ${LIGHT_CREST_STYLE_GLSL.alphaHead}mix(1.2, 1.8, energy);
+  float boostedAlpha = alpha * ${LIGHT_CREST_STYLE_GLSL.alphaHead}${BEACH_CREST_LIFT_GLSL.alphaHead}mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.85);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }

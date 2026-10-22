@@ -1,3 +1,4 @@
+import './marineBeachCrestLiftKill.testsupport';   // light's shader is pinned here; the beach crest lift in marineBeachCrestLift.test.js
 import { createHash } from 'crypto';
 import { DRAW_FS, DRAW_VS } from './WebGLMarineParticleShaders';
 import { LIGHT_CRESTS, LIGHT_CREST_ID, LIGHT_CREST_CROSS, LIGHT_CREST_CROSSES, SPECTRUM_CREST_LIFT, lightCrestGlsl, resolveLightCrest, resolveSpectrumCrestLift }
