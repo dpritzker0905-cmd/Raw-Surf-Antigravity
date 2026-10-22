@@ -1337,6 +1337,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   2.35 m) and the far-zoom lift only on request. The original crests read |Lc| 0 from about 2-2.5 m up on live light and on the spectrum
   alike (engine p99, open sea: z 2.2 22.1 -> 17.5, z 4.6 14.7 -> 11.5, z 9 28.5 -> 22.2), and no light wash keeps them visible at every
   height (solver: infeasible down to |Lc| 10). Their remedy is the crest (D-040), not the wash. `evidence/wave-light-spectrum-original-crests-2026-10-21.json`.
+- **Shipped 2026-10-21 23:52Z (owner: "Ship #431: the lead merges it when hosted CI is green."):** as re-solved, original crests by default.
 
 ### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
 - **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm
@@ -1401,3 +1402,27 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Next, not decided:** the owner's "It still needs to adjust for areas in the colour for heatmaps that blend too much with the
   animation colors": one A/B, the original vs the original plus a luminance-only two-tone (beach #433's idea, no hue change), moving.
 - **Reopen if:** the owner says so, or the A/B's pick changes light's crests again.
+### D-042 · Big-surf crests thin at mid-to-close zoom by theme, as the eye sees it (light z5, beach z6, dark z8); ON by default
+- **Decided:** owner, 2026-10-21, on #428's A/B (today | the cut as asked | the cut as the eye sees it, three themes, coastal and close
+  zoom over the synthetic storm): "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch
+  light's storm to the warm gold in its own PR." The ask (2026-10-20): light 15-20% less dense from where state names show in full,
+  beach 10-15% from where city names show, dark the same from two zooms closer than beach, only where the surf is big.
+- **Rule:** where the sea is 2 m and up (full from 4 m: a crest's size saturates there), a share of the crests DRAW_VS keeps is
+  removed so they cover the owner's share less of the screen: light 17.5% from z5, beach 12.5% from z6, dark 12.5% from z8 (label
+  zooms read off navigation-day-v1 / outdoors-v11 / navigation-night-v1 by `scn_label_zoom.js`), each ramping in over the half zoom
+  before. Crests overlap, so the share removed is fitted per theme and zoom (`CREST_DENSITY_SEED_CUT`): light .28 / .29 / .45 / .37 at
+  z5 / 7.4 / 9 / 10.5, beach .22 / .23 / .32 / .26 at z6 / 7.4 / 9 / 10.5, dark .26 / .27 / .33 / .28 at z8 / 8.25 / 9 / 10.5. WHICH
+  crests go is a hash of its own (`crestCutHash`, hash without sine over the particle's texel), not a lower density threshold:
+  `particleHash` collapses onto a few hundred float32 values, so a lowered threshold removes crests in steps (ledger finding 1601).
+  One owner: `marineCrestDensity.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 00:30Z and 15:30Z); `evidence/crest-density-2026-10-21.json`;
+  owner page https://claude.ai/artifact/7UVhRYh3kRVwgjm2jTop3r. Offline real engine, shipped rows, one bracketed session per theme:
+  crest coverage light -15.6 / -19.4 / -17.7% (z7.4 / z9 / z10.5), beach -14.3 / -11.7 / -13.0%, dark -12.4 / -12.1 / -12.1%
+  (z8.25 / z9 / z10.5); repeat steps within 1.5 pts, sessions ~2 pts apart.
+- **Known costs:** the rows are fitted over one synthetic storm at one place (a real coast's mix of heights and land differs); light
+  at z9 removes 45% of big-surf crests to show 17.5% less, the most of any point; the cut's hash adds a one-line function to DRAW_VS.
+- **Rollback:** `window.__RAW_DISABLE_CREST_DENSITY_ZOOM__ = true` before load draws dev's DRAW_VS byte for byte (sha256 pinned in
+  `marineCrestDensity.test.js`); `window.__RAW_CREST_DENSITY_SEED_CUT__ = <share>` overrides the rows live, for measurement.
+- **Next, not decided:** the constant-screen-density cull (`u_densityBase` against `particleHash`) has the same staircase; giving it
+  a well-spread hash would move today's density at every zoom, so it is its own change with its own A/B.
+- **Reopen if:** the owner says so, or a crest-size or seed-count change moves the coverage the rows were fitted on.

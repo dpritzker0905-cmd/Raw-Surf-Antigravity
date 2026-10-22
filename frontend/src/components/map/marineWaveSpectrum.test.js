@@ -1,6 +1,6 @@
 // THE LIGHT SPECTRUM (D-037, owner 2026-10-21): light's wave-height wash draws seven colour steps on the sea-state breaks, with the widest
 // spectrum the light map can show, lightness falling at every step as drawn; dark and beach draw exactly what they drew.
-// Baselines: hashed from dev 83c1c4c0c's own files (the original light crests are the default again there, D-041; dark's 8 m+ storm
+// Baselines: hashed from dev 23a91534f's own files (the original light crests are the default again there, D-041; dark's 8 m+ storm
 // crest, D-039). Since D-041, light's crests over the spectrum are the original by default; V2 (`v2s`) and its far-zoom lift only on request.
 import { createHash } from 'crypto';
 
@@ -8,7 +8,7 @@ const sha = (s) => createHash('sha256').update(typeof s === 'string' ? s : JSON.
 const DEV = {
   HEATMAP_FS: 'c8deb3bd58c1beea2aeb29d625b5af9313b6349a2bb0e3c4a12cf0a7271442a8',
   DRAW_FS: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5',
-  DRAW_VS: 'a1683763aa85437a8681935b869359904e878d3d4a34b4fbba9da612ac7aec44',
+  DRAW_VS: 'b1569be996bc67eb85cc51e77e995d011b28700711214f480a5e3748034cf9a3',
   GLSL: '05a4cc2f957c5ed7ada5b6f6980218d452cc649ea52422bbb64eb5f7efa57ba7',
   legendLightFt: '33b9f9c134057a1bfd48e44f8db78e68624b3d61dd55d1c1fc384deb77ea872d',
   legendLightM: '10a7f2adc07fd129f1bda3a6bfe7dd32ee9d8966b3ef5742562df059b5d74fc8',
