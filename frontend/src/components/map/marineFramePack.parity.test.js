@@ -188,6 +188,19 @@ describe('marineFramePack: scope and signature', () => {
     expect(sigs.size).toBe(SETTINGS.length - 1); // dark and beach share the 10 m scale and every other setting
   });
 
+  it('validityBits round-trips the mask and validityDiff counts the cells that differ', () => {
+    const m = load();
+    const a = Uint8Array.from({ length: 1003 }, (_, i) => (i % 3 === 0 ? 1 : 0));
+    const b = Uint8Array.from(a); b[0] = 0; b[500] = 1 - b[500]; b[1002] = 1 - b[1002];
+    const ba = m.pack.validityBits(a);
+    expect(ba.length).toBe(126);
+    for (let i = 0; i < a.length; i++) expect((ba[i >> 3] >> (i & 7)) & 1).toBe(a[i]);
+    expect(m.pack.validityDiff(ba, m.pack.validityBits(a))).toBe(0);
+    expect(m.pack.validityDiff(ba, m.pack.validityBits(b))).toBe(3);
+    expect(m.pack.validityDiff(ba, null)).toBe(Infinity);
+    expect(m.pack.validityDiff(ba, new Uint8Array(3))).toBe(Infinity);
+  });
+
   it('validityHash tells validity patterns apart and is stable', () => {
     const m = load();
     const a = Uint8Array.from([1, 0, 1, 1]); const b = Uint8Array.from([1, 1, 0, 1]);

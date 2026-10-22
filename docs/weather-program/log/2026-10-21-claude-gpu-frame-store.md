@@ -237,3 +237,71 @@ original times as `acted_at`. The owner decides whether to allow the ledger-free
 
 dev 95363ea27 (beach crest levers) appended ledger lines 1607-1610, so #437's pr_open and finding are now 1611 and 1612 (same
 fields, original times as `acted_at`). The 1607/1608 above are superseded.
+
+## Update (2026-10-22 08:48Z): SECOND PASS. Live, the instant path refused 11 of 12 steps; two bugs found and fixed (branch claude/frame-validity-tolerance)
+
+**Why.** The owner asked for "a second pass test" so that "we're definitely in position to be instant with scrubbing and
+delivering heatmap data", using Reflection. Logfire's connector failed to connect (InvalidHTTPResponse); only the owner can
+reconnect it.
+
+**Live reads** (ONE map open each, /api/health before and after):
+- **Pre-publish** (03:57-04:15Z, build 67021e936): latest.json was 400. The store stepped aside (no_index) and no errors.
+- **Post-publish** (05:57-06:21Z, pilots run 39722114072, run 18Z):
+  - 113/113 frames resident on the GPU (7.25 MB). Fetches p50 502 ms, p95 687 ms; 3 Supabase **429**s, all recovered.
+  - Parity vs /grid: 14,842 cells, 0 bad.
+  - **The fast path refused 11 of 12 steps: validity_differs.**
+  - The live fill took 93 s, against 7.9 s offline; the cause is not determined.
+  - Health: 1.29 s before, 0.96 s after.
+
+**Root cause 1: validity masks.** The fast path required the frame's validity mask to hash equal to the resident's, because the
+chl/bath textures derive from the mask (getMarineGeoData, a distance transform: 63 ms p50 per frame). Synthetic stores never vary
+the mask; REAL GFS frames always do:
+- all 113 of the run's masks are distinct;
+- neighbouring hours differ in 1-15 of 15,023 cells (median 8);
+- any two frames differ in at most 36 cells.
+
+**Fix 1:** each pack keeps a 1.9 KB validity bitset. A frame whose mask differs from the resident's chl/bath mask by at most
+`VALIDITY_TOLERANCE_CELLS` (64) is shown.
+- Its wave texture is exact.
+- The chl/bath stay the resident's until the normal commit (which always follows, about 0.6 s later) uploads the frame's own.
+- Measured cost of that lag: 25 texels typical, 141 at most, of 15,023 (bath deltas at most 64/255).
+- Today's path shows the whole previous hour for those 0.6 s.
+- Kill: `window.__RAW_DISABLE_FRAME_VALIDITY_TOLERANCE__`.
+
+**Root cause 2: context loss.** After a WebGL context loss and restore, the texture arrays are dead objects. GL calls on them fail
+without throwing, so a "successful" copy left the previous frame on screen under the new hour's label. GPU readback after a
+context loss: 0 of 8 pairs equal.
+
+**Fix 2:** before each upload and copy, the pool checks `!isContextLost()` and `isTexture(array)`.
+- When the pool is dead, it drops its references and the runtime drops the GPU residency.
+- The step shows the frame's CPU bytes (exact), and a new pool is built on the next upload.
+
+**Also:** the idle fill now re-arms on `navigator.connection` 'change', not only on visibility. A link that read slow for a moment
+used to leave the fill stopped until the next landing or step.
+
+**Measured offline with the 113 REAL frames** (`scn_instant_second_pass.js`; 340 ms per CDN object; 10 fixed + 20 random steps;
+evidence `instant-second-pass-2026-10-22.json`). Steps inside the run, ms from key press to the exact frame:
+
+| Arm | Before (dev) | After (fixes) |
+|---|---|---|
+| dark | p50 573 / p95 603; 0 of 25 via the store | p50 4 / p95 14 / max 16 |
+| light, beach | n/a | p50 3 / p95 11-16 / max 14-16 |
+| CDN faults (25% 503 + truncated) | n/a | p95 17 / max 21; all 113 frames land |
+| context loss + readback | readback 0/8 equal | readback **7/7 equal**; p95 15 |
+| GPU readback | n/a | **7/7 and 11/11 equal** |
+| store killed (baseline) | p50 55 / p95 614 / max 632 | same |
+
+- 0 dimmed and 0 silent-stale frames inside the run in every fixed arm. 0 /grid and 0 /grid_series during steps.
+- Phone tier (on demand by design): p50 5 / p95 100 / max 460.
+
+**Still not instant (decisions and limits, not fixed here):**
+1. **A desktop whose Chrome reads effectiveType 3g:** the constrained tier, no fill, p95 456 ms. The lead's spec gates the fill on
+   4g; whether 3g desktops should fill is a policy question.
+2. **Hours past the pinned run:** the 18Z run, published at 05:40Z, ends about 13 h before the 14-day wheel end. Those hours go
+   to /grid.
+3. **Supabase 429s** at 6 in flight: they recover, but they slow a whole-run fill.
+4. **The chl/bath lag:** under 1% of texels for about 0.6 s. Making it exact means precomputing per frame (63 ms CPU each, plus
+   14.5 MB GPU per set): a follow-up.
+
+**Gates:** frame suites 190/190, including 7 new tests; 6 mutants caught across both fixes. Jest map + tests 362/362 suites (5341
+tests). ESLint ratchet exit 0. LOC ratchet 0 new, 0 regressed.

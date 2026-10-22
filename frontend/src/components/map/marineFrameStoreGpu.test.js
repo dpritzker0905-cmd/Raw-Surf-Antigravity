@@ -97,6 +97,26 @@ describe('upload and copy: state hygiene', () => {
     expect(st).toEqual(before);
   });
 
+  it('after a context loss the pool is dead: copies and uploads report failure instead of silently doing nothing', () => {
+    // A real context gives no exception for calls on objects from before the loss: the copy used to "succeed" with the old frame.
+    const { gl, calls } = fakeGL();
+    let lost = false; const liveTex = new Set();
+    const create = gl.createTexture; gl.createTexture = () => { const t = create(); liveTex.add(t); return t; };
+    gl.isContextLost = () => lost; gl.isTexture = (t) => liveTex.has(t);
+    const p = createFrameArrays(gl, { cols: COLS, rows: ROWS, depth: 20 });
+    p.acquire('A');
+    expect(p.copyToTexture('A', 1, liveTex.values().next().value)).toBe(true);
+    expect(p.alive()).toBe(true);
+    lost = true;                                                         // webglcontextlost
+    expect(p.copyToTexture('A', 1, { engineWaveTex: true })).toBe(false);
+    expect(p.alive()).toBe(false);
+    lost = false; liveTex.clear();                                      // restored: every old object is gone
+    expect(p.uploadMany('A', [{ layer: 0, bytes: frame() }])).toBe(0);
+    expect(p.has('A')).toBe(false);
+    expect(p.telemetry()).toMatchObject({ lost: 1, arrays: 0, sets: 0 });
+    expect(calls.filter((c) => c[0] === 'copyTexSubImage2D')).toHaveLength(1);   // no GL call ran on a dead object
+  });
+
   it('refuses unknown sets and out-of-range layers (the caller falls back to the normal commit)', () => {
     const { gl } = fakeGL();
     const p = createFrameArrays(gl, { cols: COLS, rows: ROWS, depth: 20 });
