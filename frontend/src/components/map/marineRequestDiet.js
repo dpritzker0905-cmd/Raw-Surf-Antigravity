@@ -17,9 +17,12 @@
  *   STEP_PAGE                   an hour step that misses every cache also asks for the 48-frame page holding that hour, the hour's
  *                               own frame first (useMarineOrchestratorScrubCache.js), not only one exact /grid per step.
  *                               OFF by default (measured no gain, see REQUEST_DIET_OPT_IN): window.__RAW_STEP_PAGE__ = true
- *   SWR_RETRY_CAP               the stale-grid revalidation keeps its retry count across its own re-drive, so its cap of 3 applies
- *                               (useMarineDataFetcherCore.js resets it on every run otherwise: a stale backend was re-polled forever).
- *                               OFF by default (it would change the steady-state frame, see REQUEST_DIET_OPT_IN): __RAW_SWR_RETRY_CAP__
+ *   SWR_BACKOFF                 a stale or empty grid is re-asked at the old cadence for its first 10 asks (1.5 s, ~25 s: a typical
+ *                               sharpen), then on a never-stopping ladder (3, 6, 12, 24, 48 s, then every 48 s; empty grids from
+ *                               2.5 s: 5, 10, 20, 40, 48 s) instead of every 1.5 s / 2.5 s for as long as it stays stale. Its re-drive
+ *                               keeps the attempt count (useMarineDataFetcherCore.js reset it on every run); a fresh commit or any
+ *                               other ask starts it again (planSwrRevalidation, useMarineRevalidation).
+ *                               Supersedes #426's opt-in SWR_RETRY_CAP (a hard stop at 3): see the note above planSwrRevalidation
  *   PRODUCTS_COMPACT            /products is asked for with ?fields=compact (#423): the seven fields the client reads (model, domain,
  *                               layer, valid_time_start, valid_time_end, coverage, region_id), byte-identical values; a backend
  *                               without #423 ignores the parameter and returns the full list (backendWeatherServiceClient)
@@ -32,7 +35,7 @@
  */
 
 export const REQUEST_DIET_PARTS = Object.freeze([
-  'PRODUCTS_SHARE', 'GRID_INSTANT_KEY', 'EXACT_UPGRADE_SKIP', 'SERIES_PAINT_WHILE_PENDING', 'STEP_PAGE', 'SWR_RETRY_CAP',
+  'PRODUCTS_SHARE', 'GRID_INSTANT_KEY', 'EXACT_UPGRADE_SKIP', 'SERIES_PAINT_WHILE_PENDING', 'STEP_PAGE', 'SWR_BACKOFF',
   'PRODUCTS_COMPACT',
 ]);
 
@@ -45,14 +48,9 @@ export const REQUEST_DIET_PARTS = Object.freeze([
  * pages from where the layer was activated, at a regional zoom.
  * Lead ruling 2026-10-21: it STAYS OFF pending the static-frame path (#422) and GPU-resident frames, which make per-step page
  * requests moot. Do not turn it on to "finish" #426: that adds server load the A/B found no return for.
- * SWR_RETRY_CAP (lead ruling 2026-10-21, from #426's independent review): the cap never applied since June, so the live client
- * re-asks a stale or empty grid every 1.5 s / 2.5 s until it is fresh, and that endless re-ask is what eventually pulls the
- * revalidated grid. Capped at 3, polling stops after ~4.5 s / 7.5 s and nothing else re-drives an idle map (detectClamp does not
- * fire for a mid-tier preview at z5-7): a zoom-6 stale preview could stay coarse, and ICON just after a run lands could stay blank.
- * That changes the steady-state frame, so it ships OFF until a never-stopping backoff (1.5, 3, 6, 12, 24, 48 s, then hold) is
- * built and measured against a synthetic backend that answers stale.
+ * SWR_BACKOFF is NOT opt-in (it never stops, so the steady-state frame is the same): see planSwrRevalidation.
  */
-export const REQUEST_DIET_OPT_IN = Object.freeze(['STEP_PAGE', 'SWR_RETRY_CAP']);
+export const REQUEST_DIET_OPT_IN = Object.freeze(['STEP_PAGE']);
 
 /** True unless the umbrella switch or this part's own switch is set (an opt-in part: only when asked for). Never throws. */
 export function requestDietOn(name) {
@@ -77,13 +75,60 @@ export function noteRequestDiet(event, detail) {
 }
 
 /**
- * SWR_RETRY_CAP: should this updateMarineGrid run keep the SWR retry count? Only its own re-drive does ('swr_revalidation'): any
- * other source is a new ask, which starts a fresh budget exactly as before. useMarineRevalidation increments the count when the
- * timer fires and caps at 3 (live-tunable), but useMarineDataFetcherCore reset it at the top of every run, so the re-drive always
+ * SWR_BACKOFF: should this updateMarineGrid run keep the SWR attempt count? Only its own re-drive does ('swr_revalidation'): any
+ * other source is a new ask, which starts the ladder again exactly as it started a fresh budget before. useMarineRevalidation
+ * increments the count when the timer fires, but useMarineDataFetcherCore reset it at the top of every run, so the re-drive always
  * saw 0 and a backend that kept answering stale was asked again every 1.5 s for as long as the view stayed put.
  */
 export function keepSwrRetryCount(source) {
-  return source === 'swr_revalidation' && requestDietOn('SWR_RETRY_CAP');
+  return source === 'swr_revalidation' && requestDietOn('SWR_BACKOFF');
+}
+
+/** SWR_BACKOFF rungs (ms): the first stale rung and the first empty rung are the old fixed cadences; both double up to the hold. */
+export const SWR_BACKOFF_STALE_FIRST_MS = 1500;
+export const SWR_BACKOFF_EMPTY_FIRST_MS = 2500;
+export const SWR_BACKOFF_HOLD_MS = 48000;
+/**
+ * How many re-asks stay on the first rung (the old cadence) before the doubling starts. 10 = ~25 s at the live box's round trip,
+ * which covers the one live sharpen on record (mid preview -> fine viewport in 25 s, HANDOFF-2026-07-20). 1 = the ladder exactly as
+ * first specified (1.5, 3, 6, ...): offline it cost +30 s to the fresh frame in a 120 s stall and, computed, up to +24 s on a 25 s
+ * sharpen (log/2026-10-21-claude-swr-backoff.md). Live trial of another shape: window.__RAW_MARINE_SWR_STALE_DELAYS__.
+ */
+export const SWR_BACKOFF_FAST_ASKS = 10;
+/** The old default cap. It never applied (the reset above), so under the kill switch the re-ask still never stops, as before. */
+export const SWR_LEGACY_MAX_RETRIES = 3;
+
+/**
+ * SWR_BACKOFF, pure: when to re-ask a committed stale grid (a mid-tier or coarse preview the backend is still sharpening) or an
+ * empty one (a run still ingesting), and whether to stop. `attempt` = re-drives already made for this ask (0 before the first),
+ * `empty` = the empty/cold-ingest transient (else stale), `staleDelays` / `maxRetries` = the live tunables
+ * window.__RAW_MARINE_SWR_STALE_DELAYS__ (an array of ms, or null) / __RAW_MARINE_SWR_MAX_RETRIES__ (an integer > 0, or null).
+ *
+ * WHY a ladder that never stops (lead ruling 2026-10-21, from #426's independent review): the client's re-ask is what pulls the
+ * revalidated grid: nothing else re-drives an idle map (detectClamp does not fire for a mid-tier preview at z5-7). The old fixed
+ * 1.5 s re-ask never stopped (its cap of 3 was reset on every run), about 30 asks a minute per idle stale view on the 1-CPU box;
+ * #426's SWR_RETRY_CAP made the cap real but stopped after ~4.5 s, leaving a zoom-6 preview coarse or ICON blank just after a run.
+ * The ladder keeps asking (the frame still reaches fresh) at a cost that falls to one ask per 48 s. A fresh commit or any user
+ * action asks at once and restarts it. SWR_RETRY_CAP is SUPERSEDED: its hard stop is window.__RAW_MARINE_SWR_MAX_RETRIES__ = 3.
+ * WHY the first SWR_BACKOFF_FAST_ASKS stay fast (offline A/B, 2026-10-21): each stale world /grid costs the box ~0.3-0.5 s, so a
+ * stall left at the old cadence is ~25 asks a minute per idle view; but a ladder from the first ask makes the common ~25 s sharpen
+ * wait for the next rung. Fast first, then the ladder: equal to today through 25 s, 7 asks a minute (vs 24.5) over a 120 s stall.
+ *   on (default):  1.5 s x 10, then 3, 6, 12, 24, 48, 48, ... s (stale; staleDelays, when set, replaces these rungs and its last
+ *                  entry is held); 2.5 s x 10, then 5, 10, 20, 40, 48, ... s (empty); stops only when maxRetries is set and reached.
+ *   off (kill __RAW_DISABLE_SWR_BACKOFF__ or the umbrella): the old rule, byte-identical: 1.5 s (or staleDelays) / 2.5 s, stop at
+ *                  maxRetries or 3, which the reset at the top of every run kept from ever being reached.
+ * Returns { delayMs, stop }.
+ */
+export function planSwrRevalidation({ attempt, empty, staleDelays, maxRetries }) {
+  const n = Math.max(0, Math.floor(Number(attempt) || 0));
+  const listed = (fallback) => (staleDelays && staleDelays.length
+    ? (Number(staleDelays[Math.min(n, staleDelays.length - 1)]) || fallback) : fallback);
+  if (!requestDietOn('SWR_BACKOFF')) {
+    return { delayMs: empty ? SWR_BACKOFF_EMPTY_FIRST_MS : listed(SWR_BACKOFF_STALE_FIRST_MS), stop: n >= (maxRetries || SWR_LEGACY_MAX_RETRIES) };
+  }
+  const first = empty ? SWR_BACKOFF_EMPTY_FIRST_MS : SWR_BACKOFF_STALE_FIRST_MS;
+  const rung = Math.min(SWR_BACKOFF_HOLD_MS, first * 2 ** Math.min(Math.max(0, n - (SWR_BACKOFF_FAST_ASKS - 1)), 16));
+  return { delayMs: empty ? rung : listed(rung), stop: !!maxRetries && n >= maxRetries };
 }
 
 /** The minimum spacing of BACKGROUND /products refreshes (a manifest not loaded yet, or empty): one 10.75 MB download per 30 s. */
