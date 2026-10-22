@@ -11,6 +11,8 @@ const sha = (s) => createHash('sha256').update(s).digest('hex');
 const DRAW_FS_DEFAULT = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
 const ON = { __RAW_LIGHT_CREST_STYLE__: 'twotone' };
 const KILL = { __RAW_DISABLE_LIGHT_CREST_STYLE__: true };
+// The light cross x1 (owner A/B, 2026-10-22) is the default crest colour; under its kill light draws the original these pins mean.
+const CROSS_KILL = { __RAW_DISABLE_LIGHT_CREST_CROSS__: true };
 const LIGHT = 'abs(u_theme - 1.0) < 0.5';
 const withWindow = (levers, fn) => jest.isolateModules(() => {
   Object.assign(window, levers);
@@ -22,12 +24,15 @@ describe('off by default: the restored original crest, byte for byte', () => {
   it('no style, every DRAW_FS piece empty, DRAW_FS hashes to the restored default', () => {
     expect(LIGHT_CREST_STYLE).toBe('today');
     expect(lightCrestStyleGlsl('today')).toEqual({ decl: '', shapeHead: '', tone: '', contrastHead: '', alphaHead: '' });
-    expect(DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
-    expect(sha(DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
+    withWindow(CROSS_KILL, (shaders) => {
+      expect(shaders.DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
+      expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
+    });
+    expect(DRAW_FS).not.toContain('ellipseDist)), vec3(1.0),');   // no two-tone over the cross either
   });
 
   it('the kill wins over the lever; an unknown style is today', () => {
-    withWindow({ ...ON, ...KILL }, (shaders, style) => {
+    withWindow({ ...ON, ...KILL, ...CROSS_KILL }, (shaders, style) => {
       expect(style.LIGHT_CREST_STYLE).toBe('today');
       expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
     });
