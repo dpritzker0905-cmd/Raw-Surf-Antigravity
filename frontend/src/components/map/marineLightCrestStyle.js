@@ -3,18 +3,15 @@
 // own colour x RIM) round its outer band and a light centre line (CENTRE of the way toward white) in its core, today's colour between,
 // so one part always stands off the wash's brightness and the crest never changes hue at a height (the owner's rule, 2026-10-21: one
 // colour family per theme). Why: light's wash passes the original crests' brightness from about 2 m up (APCA |Lc| 0), on #431's
-// spectrum (light's default since D-037) and on v2 alike; a single colour that varies smoothly with height cannot avoid crossing a
-// wash whose brightness falls and rises, a crest with a dark and a light part always keeps one of them off it. The owner asked for this ("It still needs to adjust
+// spectrum (light's default since D-037) and on v2 alike; a single colour that varies smoothly with height cannot avoid crossing a wash whose brightness falls
+// and rises, a crest with a dark and a light part always keeps one of them off it. The owner asked for this ("It still needs to adjust
 // for areas in the colour for heatmaps that blend too much with the animation colors"; "yes or adjust the animation colors, whatever
 // is better"). Measured by frontend/scripts/wind-color/light-crest-style.mjs (reads this table).
-// ON by default (the owner's pick, 2026-10-22, D-043: "Turn the light two-tone on by default (the one-line flip), with its kill switch,
-// and record the pick.") wherever light draws its ORIGINAL colours; V2 on request (__RAW_LIGHT_CREST_V2__, the restore's kill) draws
-// as it was. Kill, set before page load: window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true draws the original exactly, the DRAW_FS from
-// before the flip byte for byte (hash-pinned in the test). window.__RAW_LIGHT_CREST_STYLE__ = 'twotone' asks for it over any colours.
+// Lever, set before page load: window.__RAW_LIGHT_CREST_STYLE__ = 'twotone'. OFF by default: the owner turned it on (D-043, #445) and,
+// seeing it deployed, off again (D-044: "The light mode animations that just deployed look strange to me..."; "yes" to turning it off).
+// Kill: window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true draws the original exactly (DRAW_FS hash-pinned in the test).
 // Every DRAW_FS piece is gated on the light theme (u_theme 1): dark and beach draw exactly as before under any style; each piece is a
 // prefix or suffix on a line beach's #433 also extends, so the two compose.
-import { LIGHT_CREST_ID } from './marineCrestPalette';
-
 const WIN = typeof window === 'undefined' ? {} : window;
 // Chosen by light-crest-style.mjs (worst APCA |Lc| of the crest's best part vs the wash, every 0.1 m to 14 m, every zoom state and
 // lighting, whitecap off and on): the original 0 on #431's spectrum and on v2; this two-tone >= 41.1 on the spectrum and >= 40.2 on
@@ -26,11 +23,10 @@ export const LIGHT_CREST_STYLES = {
   twotone: { rim: 0.15, centre: 0.85, alpha: 3.0 },
 };
 
-export function resolveLightCrestStyle(win = WIN, crestId = LIGHT_CREST_ID) {
+export function resolveLightCrestStyle(win = WIN) {
   if (win.__RAW_DISABLE_LIGHT_CREST_STYLE__ === true) return 'today';
   const s = win.__RAW_LIGHT_CREST_STYLE__;
-  if (typeof s === 'string' && Object.prototype.hasOwnProperty.call(LIGHT_CREST_STYLES, s)) return s;
-  return crestId === 'v1' ? 'twotone' : 'today';   // the default: the two-tone over the original colours (D-043)
+  return typeof s === 'string' && Object.prototype.hasOwnProperty.call(LIGHT_CREST_STYLES, s) ? s : 'today';
 }
 export const LIGHT_CREST_STYLE = resolveLightCrestStyle();
 

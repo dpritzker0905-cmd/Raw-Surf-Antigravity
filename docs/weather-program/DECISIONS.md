@@ -1472,18 +1472,33 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true` before load draws dev's DRAW_FS from before the flip byte for byte
   (sha256 e2438586..., pinned in `marineLightCrestStyle.test.js`).
 - **Reopen if:** the owner says so, or light's wash or crest colours change (re-run the checker and the A/B).
+
+### D-044 · Light's crests drop the two-tone again: the original crests without it; the two-tone stays an opt-in lever; supersedes D-043
+- **Decided:** owner, 2026-10-22, seeing #445 (D-043) deployed on dev 67021e936: "The light mode animations that just deployed look
+  strange to me. Make a note of the new changes I don't like in light mode." (23:41 EDT, relayed by the lead), then, asked whether to
+  turn #445's crest edge back off so light shows his original crests without it: "yes" (23:57 EDT). Supersedes D-043.
+- **Rule:** light draws its original crest colours (D-041) without the two-tone by default. `window.__RAW_LIGHT_CREST_STYLE__ =
+  'twotone'` stays as an opt-in lever (for A/Bs), and `window.__RAW_DISABLE_LIGHT_CREST_STYLE__` stays. One owner:
+  `marineLightCrestStyle.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-22 04:30Z). Light's default DRAW_FS is dev 28be37d3f's byte for
+  byte (sha256 e2438586..., 8872), pinned in `marineLightCrestStyle.test.js` and read back from the shader the GPU compiled in light,
+  beach and dark. The pinpoint page (https://claude.ai/artifact/Sjk76DT4kGx2A9LqBgbCWq) showed each recent light change undone.
+- **Known costs:** the original crests share the spectrum wash's brightness from about 2 m up (APCA |Lc| 0; D-043's measurement),
+  which is what the two-tone was for; the owner prefers that to the two-tone's look.
+- **Rollback:** set `window.__RAW_LIGHT_CREST_STYLE__ = 'twotone'` before load to see the two-tone, or revert this PR.
+- **Reopen if:** the owner says so. A subtler crest change for light and beach is being built as a separate draft by the beach session.
 ### D-0XX (numbered at merge) · Beach's crests stay as they are: no two-tone; the beach crest style code is removed
 - **Decided:** owner, 2026-10-22 00:04 EDT, to the beach crest session, after light's two-tone went live (#445, D-043) and before
   beach's flip shipped: "No two-tone, they don't look like real waves in my opinion"; then, 00:10 EDT: "Remove the unused beach
   two-tone code from dev (keep today's beach crests exactly)." Closes the beach A/B (#433, levers off by default) with no style
-  picked; light's two-tone is being turned back off in its own PR (light crest session).
+  picked; light's two-tone went back off in its own PR (#448, D-044).
 - **Rule:** beach draws today's crests (orchid-pink, electric turquoise, sunset magenta, white foam, the engine's own self-contrast
   where it runs) with no luminance structure inside them. `marineBeachCrestStyle.js`, its test, its shader hooks, its harness
   variants and `wind-color/beach-crest-style.mjs` are removed. The standing rule from D-041's feedback holds (one colour family per
   theme, no hue switch at a height); the two-tone's dark rim and light centre line are rejected as unlike real waves.
 - **Evidence:** `log/2026-10-21-claude-beach-crest-style.md` (2026-10-22 section). DRAW_FS and DRAW_VS on the branch hash exactly as
-  on dev 67021e936 under the default, light's style kill, light V2 on request and dark's storm kill (sha256 ed381124... 9233,
-  e2438586... 8872, 40aa1ea7... 9110, 52a20fd8... 9172); the shader file is pre-#433 dev's apart from one JS comment word.
+  on dev 9b49111e8 under the default, light's two-tone lever, light V2 on request and dark's storm kill (sha256
+  e2438586... 8872, ed381124... 9233, 40aa1ea7... 9110, 52a20fd8... 9172); the shader file is pre-#433 dev's apart from one JS comment word.
 - **Known costs:** beach's original complaint stands: today's crests share the v1 sea's brightness on the sand (1-2 m) and grey-mauve
   (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
 - **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).

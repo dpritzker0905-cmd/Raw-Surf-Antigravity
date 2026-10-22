@@ -220,8 +220,7 @@ describe('low-height crest self-contrast (island swell-shadow dash camouflage)',
     expect(DRAW_FS).toContain('u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height))');
   });
   it('applies the EFFECTIVE strength (max of zoom band and low-height), not the band alone', () => {
-    // (the light two-tone, D-043, and beach's style prefix this line in their own themes: marineLightCrestStyle.test.js)
-    expect(DRAW_FS).toMatch(/float crestContrastEff = [^;]*max\(u_crestContrast,/);
+    expect(DRAW_FS).toContain('float crestContrastEff = max(u_crestContrast,');
     expect(DRAW_FS).toContain('if (crestContrastEff > 0.001)');
     expect(DRAW_FS).toContain('clamp(crestContrastEff, 0.0, 1.0)');
   });

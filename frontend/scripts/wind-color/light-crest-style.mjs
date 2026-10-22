@@ -15,9 +15,8 @@ import { fileURLToPath } from 'url';
 import { loadPalettes, composite, apcaLc, allDE, ss } from './wave-lib.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const src = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'marineLightCrestStyle.js'), 'utf8')
-  .replace(/^import .*$/gm, '').replace(/^export /gm, '');
-const { LIGHT_CREST_STYLES } = new Function('LIGHT_CREST_ID', `${src}; return { LIGHT_CREST_STYLES };`)('v1');
+const src = fs.readFileSync(path.join(HERE, '..', '..', 'src', 'components', 'map', 'marineLightCrestStyle.js'), 'utf8').replace(/^export /gm, '');
+const { LIGHT_CREST_STYLES } = new Function(`${src}; return { LIGHT_CREST_STYLES };`)();
 const STYLES = { ...LIGHT_CREST_STYLES };
 process.argv.forEach((a, i) => {
   if (a === '--try') { const [rim, centre, alpha] = process.argv[i + 1].split(',').map(Number); STYLES[`try ${process.argv[i + 1]}`] = { rim, centre, alpha }; }

@@ -17,9 +17,6 @@ const DRAW_FS_V2_BEFORE_419 = { sha: 'f425bf535ef4ae2a42560ef18ca70e1c085e6a74d2
 // The restored default: dev's DRAW_FS with light's four lines as before V2 (with #419's kill as well: DRAW_FS_BEFORE exactly).
 const DRAW_FS_DEFAULT = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
 const DARK_KILL = { __RAW_DISABLE_DARK_STORM_CREST__: true };
-// The light two-tone (D-043) is on by default over the original colours; these pins are the crest colours under it, so it stands down
-// here (marineLightCrestStyle.test.js pins the two-tone).
-const STYLE_KILL = { __RAW_DISABLE_LIGHT_CREST_STYLE__: true };
 const KILL = { __RAW_DISABLE_LIGHT_CREST_V2__: true };
 const ASK_V2 = { __RAW_LIGHT_CREST_V2__: true };
 const RESTORE_KILL = { __RAW_DISABLE_LIGHT_CREST_RESTORE__: true };
@@ -35,7 +32,7 @@ const branch = (lines, i) => {   // which DRAW_FS theme branch line i sits in
 
 describe('the kill (window.__RAW_DISABLE_LIGHT_CREST_V2__) draws the crests from before light V2 exactly', () => {
   it('DRAW_FS hashes to the shader before light V2', () => {
-    withWindow({ ...KILL, ...STYLE_KILL, __RAW_DISABLE_DARK_STORM_CREST__: true }, (shaders, crest) => {   // + dark's 8 m+ storm ink kill (#419)
+    withWindow({ ...KILL, __RAW_DISABLE_DARK_STORM_CREST__: true }, (shaders, crest) => {   // + dark's 8 m+ storm ink kill (#419)
       expect(crest.LIGHT_CREST_ID).toBe('v1');
       expect(shaders.DRAW_FS.length).toBe(DRAW_FS_BEFORE.length);
       expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
@@ -44,7 +41,7 @@ describe('the kill (window.__RAW_DISABLE_LIGHT_CREST_V2__) draws the crests from
 
   it('either wave-palette kill stands light V2 down too: it was solved for the V2 wash', () => {
     for (const lever of ['__RAW_DISABLE_WAVE_PALETTE_V2__', '__RAW_DISABLE_MARINE_WAVE_PALETTE__']) {
-      withWindow({ [lever]: true, ...STYLE_KILL, __RAW_DISABLE_DARK_STORM_CREST__: true }, (shaders, crest) => {
+      withWindow({ [lever]: true, __RAW_DISABLE_DARK_STORM_CREST__: true }, (shaders, crest) => {
         expect(crest.LIGHT_CREST_ID).toBe('v1');
         expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
       });
@@ -64,12 +61,9 @@ describe('RESTORED: the original light crest is the default again (owner 2026-10
   it('the default draws light\'s lines from before V2 over the V2 wash; with #419\'s dark kill, f6b80f724\'s DRAW_FS byte for byte', () => {
     expect(LIGHT_CREST_ID).toBe('v1');
     expect(resolveLightCrest({}, true, 'v2')).toBe('v1');
-    for (const k of ['calm', 'active', 'storm', 'foam']) expect(DRAW_FS).toContain(lightCrestGlsl('v1')[k]);   // under the two-tone too
-    withWindow(STYLE_KILL, (shaders) => {
-      expect(shaders.DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
-      expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
-    });
-    withWindow({ ...DARK_KILL, ...STYLE_KILL }, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha));
+    expect(DRAW_FS.length).toBe(DRAW_FS_DEFAULT.length);
+    expect(sha(DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
+    withWindow(DARK_KILL, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha));
   });
 
   it('V2 on request and the restore kill both draw dev\'s DRAW_FS byte for byte; the V2 kill still wins', () => {
@@ -80,7 +74,7 @@ describe('RESTORED: the original light crest is the default again (owner 2026-10
         expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V2.sha);
       });
       withWindow({ ...levers, ...DARK_KILL }, (shaders) => expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_V2_BEFORE_419.sha));
-      withWindow({ ...levers, ...KILL, ...STYLE_KILL }, (shaders, crest) => {
+      withWindow({ ...levers, ...KILL }, (shaders, crest) => {
         expect(crest.LIGHT_CREST_ID).toBe('v1');
         expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_DEFAULT.sha);
       });
@@ -98,7 +92,7 @@ describe('V2, on request, draws over the v2 wash only and changes light\'s four 
   });
 
   it('the only lines that differ from the default are calm, active, storm and foam inside the light branch', () => {
-    let before; withWindow(STYLE_KILL, (s) => { before = s.DRAW_FS.split('\n'); });
+    const before = DRAW_FS.split('\n');
     let after; withWindow(ASK_V2, (s) => { after = s.DRAW_FS.split('\n'); });
     expect(after.length).toBe(before.length);
     const changed = after.map((_, i) => i).filter((i) => after[i] !== before[i]);
