@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding'; import { CREST_DENSITY_GLSL } from './marineCrestDensity';
-import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle';   // light crests (the original; V2 on request; two-tone style lever), dark's 8 m+ storm ink (+ kills)
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle';   // crests + kills (see there); light two-tone style lever
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -330,7 +330,7 @@ void main() {
 }
 `, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: the resident or ring-fill scale (marineHeightEncoding.js)
 
-export const DRAW_VS = withHeightScale(`
+export const DRAW_VS = withSpectrumCrestLift(withHeightScale(`
 attribute highp float a_vertex_id;       // 0 to (numParticles*6 - 1), six vertices per particle
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
 uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height, A=period)
@@ -797,7 +797,7 @@ void main() {
     v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;
   }
 }
-`, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: as ADVECT_FS
+`, 'useCoarse ? u_heightScale.y : u_heightScale.x'));   // THE HEIGHT BYTE: as ADVECT_FS
 
 export const DRAW_FS = `
 precision mediump float;

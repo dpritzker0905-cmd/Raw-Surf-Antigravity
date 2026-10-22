@@ -1,5 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { getRemainingCooldown } from '../components/map/marineController';
+import { SWR_LEGACY_MAX_RETRIES, noteRequestDiet, planSwrRevalidation } from '../components/map/marineRequestDiet';
 
 /**
  * useMarineRevalidation - Custom hook for managing weather simulation retry timers,
@@ -48,28 +49,27 @@ export function useMarineRevalidation() {
 
     if (isStale || isEmptyTransient) {
       // SWR RE-DRIVE LADDER — the dominant term in zoom-out "slow expansion" (HANDOFF-2026-07-15 §1,
-      // mechanism traced 2026-07-15): the mid-res preview commits INSTANTLY, then this fixed-delay
-      // re-request is what actually pulls the sharpened fine grid once the backend's background
-      // _revalidate_fetch (serialized, MARINE_REVAL_CONCURRENCY=1) has warmed the dynamic cache. So the
-      // perceived sharpen latency ≈ delay × (retries until the reval lands), and the 3-retry cap is
-      // what leaves a slow reval STUCK at the mid tier (the residual "clamping"). The delay ladder and
-      // retry cap are LIVE-TUNABLE for A/B against __SHARPEN_TRACE__ — DEFAULTS ARE BYTE-IDENTICAL to
-      // the prior hardcoded 1500ms × 3. On the live site set e.g.
-      //   window.__RAW_MARINE_SWR_STALE_DELAYS__ = [700, 1200, 1800, 2500]
-      //   window.__RAW_MARINE_SWR_MAX_RETRIES__  = 4
-      // to trial a faster+deeper ladder at ZERO upstream cost (the re-request reads the now-warm cache,
-      // not upstream). Empty/cold-ingestion transients keep their own 2500ms cadence — a different
-      // phenomenon (a freshly-published run still ingesting), left untouched.
+      // mechanism traced 2026-07-15): the mid-res preview commits INSTANTLY, then this re-request is
+      // what actually pulls the sharpened fine grid once the backend's background _revalidate_fetch
+      // (serialized, MARINE_REVAL_CONCURRENCY=1) has warmed the dynamic cache. Nothing else re-drives an
+      // idle map, so it must never stop. SWR_BACKOFF (2026-10-21, marineRequestDiet.planSwrRevalidation):
+      // 10 asks at the old 1.5 s (a typical sharpen), then 3, 6, 12, 24, 48 s, then every 48 s (empty
+      // grids from 2.5 s), restarted by a fresh commit or any other ask; kill
+      // window.__RAW_DISABLE_SWR_BACKOFF__ = the old fixed 1.5 s / 2.5 s. Still
+      // LIVE-TUNABLE for A/B against __SHARPEN_TRACE__:
+      //   window.__RAW_MARINE_SWR_STALE_DELAYS__ = [700, 1200, 1800, 2500]   (stale rungs; the last is held)
+      //   window.__RAW_MARINE_SWR_MAX_RETRIES__  = 4                         (a hard stop; unset = never stop)
+      // at ZERO upstream cost (the re-request reads the now-warm cache, not upstream).
       const _w = (typeof window !== 'undefined') ? window : undefined;
       const _maxRetries = (_w && Number(_w.__RAW_MARINE_SWR_MAX_RETRIES__) > 0)
-        ? Math.floor(Number(_w.__RAW_MARINE_SWR_MAX_RETRIES__)) : 3;
+        ? Math.floor(Number(_w.__RAW_MARINE_SWR_MAX_RETRIES__)) : null;
       const _staleLadder = (_w && Array.isArray(_w.__RAW_MARINE_SWR_STALE_DELAYS__) && _w.__RAW_MARINE_SWR_STALE_DELAYS__.length)
         ? _w.__RAW_MARINE_SWR_STALE_DELAYS__ : null;
-      if (swrRetryCountRef.current < _maxRetries) {
-        const _idx = swrRetryCountRef.current;
-        const delay = isEmptyTransient
-          ? 2500
-          : (_staleLadder ? (Number(_staleLadder[Math.min(_idx, _staleLadder.length - 1)]) || 1500) : 1500);
+      const { delayMs: delay, stop } = planSwrRevalidation({
+        attempt: swrRetryCountRef.current, empty: isEmptyTransient, staleDelays: _staleLadder, maxRetries: _maxRetries,
+      });
+      if (!stop) {
+        noteRequestDiet('swr_redrive_scheduled', { attempt: swrRetryCountRef.current, delayMs: delay, empty: isEmptyTransient });
         console.log(`[SWR] ${isEmptyTransient ? 'Empty/non-renderable grid (likely cold ingestion of a fresh run)' : 'Committed stale/coarse grid'}. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in ${delay}ms`);
         if (swrTimerRef.current) {
           clearTimeout(swrTimerRef.current);
@@ -80,7 +80,7 @@ export function useMarineRevalidation() {
           updateFn('swr_revalidation');
         }, delay);
       } else {
-        console.warn(`[SWR] Max revalidation retries reached (${_maxRetries}), stopping polling.`);
+        console.warn(`[SWR] Max revalidation retries reached (${_maxRetries || SWR_LEGACY_MAX_RETRIES}), stopping polling.`);
       }
     } else {
       swrRetryCountRef.current = 0;
