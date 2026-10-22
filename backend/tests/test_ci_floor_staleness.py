@@ -479,7 +479,13 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3255, "chain": 2843, "estate": 2312}
+_FLOOR_SET_FROM = {"guards": 3287, "chain": 2855, "estate": 2340}
+# Logfire setup never stops boot: +5 estate tests (tests/test_logfire_setup.py, one new file) on hosted 2312 (dev CI 39594047204); floor 2315.
+# #422 stacked on #432: +23 estate tests (two new files) on #432's projected 2317 = 2340; floor 2338, margin 2.
+# Series memo run keys (dark) + /products encoded once: +32 guards tests (tests/test_series_memo_run_keys.py) and +12 chain tests
+# (tests/test_products_response.py), both new files: guards 3255 + 32 = 3287 (first hosted run read 3285 with 30), floor
+# 3249 -> 3281, files 208 -> 209; chain 2843 + 12 = 2855, floor 2837 -> 2849, files 172 -> 173; margins 6. The estate file
+# it edits keeps its 2 tests.
 # CMEMS source labels: +3 chain tests in a new file (tests/test_cmems_source_labels.py): dev 11d19ef0 read 2823 + 3 = 2826 projected; floor 2817 -> 2820, files 170 -> 171, margin 6.
 # Peak-period flags (dark): +16 chain tests in a new file (tests/test_peak_period_flags.py), after #407: hosted 2826 + 16 = 2842 projected; floor 2820 -> 2836, files 171 -> 172, margin 6.
 # #412 review fix: +1 chain test (flag-on CMEMS window guard): 2842 -> 2843 projected; floor 2836 -> 2837, margin 6.
@@ -491,6 +497,8 @@ _FLOOR_SET_FROM = {"guards": 3255, "chain": 2843, "estate": 2312}
 # W-4 series page memo (#389): +37 guards tests in a new file (hosted 39259510389 read 3218 + 30; 3255 projected; floor 3212 -> 3249, files 207 -> 208, margin 6).
 # One-field frame-image proof: +7 estate tests in a new file (tests/test_frame_image.py): 2305 + 7 = 2312 projected; floor 2303 -> 2310, margin 2.
 # Model-spread data collector (dark): +14 chain tests in a new file (tests/test_model_spread.py): 2809 + 14 = 2823 projected; floor 2803 -> 2817, files 169 -> 170, margin 6.
+# Static forecast frames (step 2b, dark): +20 estate tests in two new files (tests/test_frame_binary.py, tests/test_publish_frame_sets.py): dev CI 39474436878 @ da40c3c5 read 2312 + 20 = 2332 projected; floor 2310 -> 2330, margin 2.
+# #422 review fixes: +3 estate tests in tests/test_publish_frame_sets.py (23 in the two files): dev CI 39594047204 @ 744775c8 read 2312 + 23 = 2335 projected; floor 2310 -> 2333, margin 2.
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

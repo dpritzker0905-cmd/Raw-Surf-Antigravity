@@ -42,6 +42,18 @@ not (`FOCUS=WebGLProgramBatch` = the engines' shader batch, which the stage tabl
 draw (page rAF frame, ms since navigation, layer calls so far), and each engine's shader-batch telemetry when it settled
 (`mode` async / deferred / serial, `polls`, `ms`; `window.__RAW_GPU__.shaderBatch`).
 | `AB_LIVE=1` | the REAL backend: real load on the 1-CPU box that serves production; one run, `/api/health` before and after, owner's word only |
+| `LAT_PRODUCTS` | ms injected per `/products` reply (live: 1.3-2.1 s for 10.75 MB; the synthetic one is 4.3 MB and lands in a few ms, so without it no lookup can start before the manifest lands) |
+| `LAB_EXACT=0` | stop waiting for the EXACT frame per step (default: wait, bounded by `WIN`, for `exactMs` as well as `marineMs`) |
+| `LAB_FLAGS` | comma list of other window flags set true before boot, the same in both arms (`__SURF_MODE__`: the rating overlay on, whose spot lookups resolve valid times before the manifest lands, as the live spot hubs and glyphs do) |
+| `FLOWS=open_waves,open_wind` | a map open and nothing else (20 s settle): the load's request mix |
+
+**Request counts (2026-10-20, request diet):** each flow's `lab.json` entry carries `loadNet` / `net` (finished weather requests by kind at the end of
+setup / of the flow, wind counted apart, with when the first `/products`, `/grid` and `/grid_series` started and took), `loadStarted` /
+`started` (the same by request START, so a request still in flight at the end counts), `loadList` (every finished load request: path,
+start, ms, frames asked, domain) and `telemetry` (`window.__MARINE_REQUEST_DIET__` counts, `__MARINE_EXACT_UPGRADE__`). Each step row
+carries `exactMs`: input to the first frame with the selected instant at FULL detail (identity as `marineMs`, or the same instant once the
+app's own selected frame is the expected hour, and not a world grid coarser than 2.5 deg a cell: the engine's copy drops
+`__decimatedStride`, so a stride-4 series frame is told by its 8-degree cells).
 
 ## What each column means
 

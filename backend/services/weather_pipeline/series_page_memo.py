@@ -22,6 +22,11 @@ WHAT, with the flag on (route `get_grid_series` dispatches here; flag off is unt
 
 Payload semantics are unchanged: decoded JSON equals the flag-off response for the snapped bbox (pinned in
 tests/test_series_page_memo.py). Kill: unset the flag.
+
+2026-10-20: the key also carries the `wind_lane=gfs` request mode (the HRRR lane's client kill switch), so a request
+that turned the lane off is never served a lane-blended page or vice versa. GRID_SERIES_MEMO_RUN_KEYS=1 (dark) keys
+pages on valid times, keeps durable pages through unrelated manifest writes and keeps regional pages:
+series_memo_keys.py.
 """
 import asyncio
 import gzip
@@ -33,6 +38,7 @@ from collections import OrderedDict
 from starlette.responses import Response
 
 from services.weather_pipeline.config_env import env_float, env_int
+from services.weather_pipeline import series_memo_keys as run_keys
 from services.weather_pipeline import grid_series_helper as _gsh   # looked up per call: tests patch build_grid_series
 from services.weather_pipeline.grid_series_helper import MAX_FRAMES, SERIES_FRAME_SINK, _resolve_series_anchor
 from services.weather_pipeline.route_helpers import get_snapped_bbox, parse_bbox
@@ -131,10 +137,11 @@ class _Abandoned(Exception):
 
 
 class _Page:
-    __slots__ = ("body", "gzipped", "raw_len", "timing", "cacheable")
+    __slots__ = ("body", "gzipped", "raw_len", "timing", "cacheable", "deps")
 
-    def __init__(self, body, gzipped, raw_len, timing, cacheable):
+    def __init__(self, body, gzipped, raw_len, timing, cacheable, deps=None):
         self.body, self.gzipped, self.raw_len, self.timing, self.cacheable = body, gzipped, raw_len, timing, cacheable
+        self.deps = deps      # series_memo_keys.PageDeps under GRID_SERIES_MEMO_RUN_KEYS, else None
 
 
 class PageMemo:
@@ -142,17 +149,38 @@ class PageMemo:
         self.entries = OrderedDict()      # key -> (expires_monotonic, _Page)
         self.bytes = 0
         self.token = None
+        self.snapshot = None              # series_memo_keys.manifest_snapshot of `token`'s manifest (run keys only)
         self.inflight = {}                # (key, token) -> (task, _Waiters)
 
     def _drop(self, key):
         _, page = self.entries.pop(key)
         self.bytes -= len(page.body)
 
-    def set_token(self, token):
-        if token != self.token:
+    def set_token(self, token, snapshot=None):
+        """A new manifest clears the memo; with both snapshots known (run keys), only the pages it touched."""
+        if token == self.token:
+            return
+        if snapshot is not None and self.snapshot is not None and NO_TOKEN not in (token, self.token):
+            models, files = run_keys.manifest_diff(self.snapshot, snapshot)
+            for key in [k for k, (_, page) in self.entries.items() if not run_keys.keeps_through(page.deps, models, files)]:
+                self._drop(key)
+        else:
             self.entries.clear()
             self.bytes = 0
-            self.token = token
+        self.token, self.snapshot = token, snapshot
+
+    def discard(self, key, page):
+        """Drop `key` only if it still holds `page` (another request may have replaced it meanwhile)."""
+        hit = self.entries.get(key)
+        if hit is not None and hit[1] is page:
+            self._drop(key)
+
+    def swap(self, key, old, new):
+        """Replace `old` with `new` under the same expiry, if `key` still holds `old`."""
+        hit = self.entries.get(key)
+        if hit is not None and hit[1] is old:
+            self.entries[key] = (hit[0], new)
+            self.bytes += len(new.body) - len(old.body)
 
     def get(self, key):
         hit = self.entries.get(key)
@@ -165,14 +193,20 @@ class PageMemo:
         return hit[1]
 
     def put(self, key, page):
-        cap = env_float("GRID_SERIES_PAGE_MEMO_MAX_MB", 32.0, lo=0.0, hi=256.0) * 1024 * 1024
+        if page.deps is not None:       # kept under GRID_SERIES_MEMO_RUN_KEYS
+            cap, max_entries = run_keys.memo_caps()
+        else:
+            cap = env_float("GRID_SERIES_PAGE_MEMO_MAX_MB", 32.0, lo=0.0, hi=256.0) * 1024 * 1024
+            max_entries = env_int("GRID_SERIES_PAGE_MEMO_MAX_ENTRIES", 64, lo=1, hi=1024)
         if len(page.body) > cap or self.token == NO_TOKEN:
             return
         if key in self.entries:
             self._drop(key)
-        self.entries[key] = (time.monotonic() + env_float("GRID_SERIES_PAGE_MEMO_TTL_S", 180.0, lo=1.0, hi=3600.0), page)
+        ttl = (run_keys.durable_ttl_s() if page.deps is not None and page.deps.durable
+               else env_float("GRID_SERIES_PAGE_MEMO_TTL_S", 180.0, lo=1.0, hi=3600.0))
+        self.entries[key] = (time.monotonic() + ttl, page)
         self.bytes += len(page.body)
-        while self.bytes > cap or len(self.entries) > env_int("GRID_SERIES_PAGE_MEMO_MAX_ENTRIES", 64, lo=1, hi=1024):
+        while self.bytes > cap or len(self.entries) > max_entries:
             self._drop(next(iter(self.entries)))
 
 
@@ -193,14 +227,26 @@ NO_TOKEN = ("manifest-unavailable",)
 _token_warned_at = [0.0]
 
 
-def _manifest_token(store):
-    m = store.get_manifest()
+def _manifest_token(store, m=None):
+    m = store.get_manifest() if m is None else m
     stamp = getattr(m, "last_manifest_update", None)
-    return (id(m), stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp), len(getattr(m, "products", ()) or ()))
+    products = getattr(m, "products", ()) or ()
+    return (id(m), id(products), stamp.isoformat() if hasattr(stamp, "isoformat") else str(stamp), len(products))
 
 
-def _cacheable(payload, sink, n_hours, domain, snapped):
-    """Keep a page only if a later identical request would build exactly it (see module docstring, 2)."""
+def _run_state(store, token_now, snapshot_now, path):
+    """Run keys (worker thread): the manifest token, its snapshot (re-taken only for a new manifest) and the
+    dynamic-viewport index (stat, parsed entries; parsed once per file version)."""
+    m = store.get_manifest()            # ONE read: the token and the snapshot must describe the same manifest
+    token = _manifest_token(store, m)
+    snapshot = snapshot_now if token == token_now and snapshot_now is not None else run_keys.manifest_snapshot(m)
+    stat = run_keys.index_stat(path)
+    return token, snapshot, stat, run_keys.index_by_key(path, stat)
+
+
+def _cacheable(payload, sink, n_hours, domain, snapped, allow_mid=False):
+    """Keep a page only if a later identical request would build exactly it (see module docstring, 2). `allow_mid`:
+    run keys check the dynamic-viewport index on every hit instead (series_memo_keys, 3)."""
     frames = payload.get("frames") if isinstance(payload, dict) else None
     if not frames or len(frames) != n_hours or len(sink) != len(frames):
         return False
@@ -210,7 +256,8 @@ def _cacheable(payload, sink, n_hours, domain, snapped):
         return False
     cap = env_float("WIND_MID_REVAL_MAX_SPAN" if domain.lower() == "wind" else "MARINE_MID_REVAL_MAX_SPAN",
                     20.0 if domain.lower() == "wind" else 8.0)
-    if _spans(*parse_bbox(snapped))[2] <= cap and any("global_mid" in str(f.get("product_id") or "") for f in frames):
+    if (not allow_mid and _spans(*parse_bbox(snapped))[2] <= cap
+            and any("global_mid" in str(f.get("product_id") or "") for f in frames)):
         return False
     return True
 
@@ -271,18 +318,24 @@ async def _build_watched(builder, waiters):
     return build.result()
 
 
-async def _lead(builder, n_hours, domain, snapped, waiters, lane, deadline):
+async def _lead(builder, n_hours, domain, snapped, waiters, lane, deadline, run=None):
+    """`run` (GRID_SERIES_MEMO_RUN_KEYS): {model, layer, anchor, source, snapshot, start} for the page's deps."""
     sink = []
+    facts, notes, loads = [], {}, set()
     if lane is not None:
         from services.weather_pipeline.series_response import ADMISSION
         await ADMISSION.acquire(lane, waiters, deadline)
     try:
         tok = SERIES_FRAME_SINK.set(sink)       # set BEFORE the build task exists: the task copies this context
+        run_toks = [(var, var.set(val)) for var, val in ((run_keys.SERIES_FRAME_FACTS, facts),
+                    (run_keys.SERIES_BUILD_NOTES, notes), (run_keys.SERIES_LOADS, loads))] if run else []
         t0 = time.perf_counter()
         try:
             payload = await _build_watched(builder, waiters)
         finally:
             SERIES_FRAME_SINK.reset(tok)
+            for var, t in reversed(run_toks):
+                var.reset(t)
         build_ms = (time.perf_counter() - t0) * 1000.0
         if deadline is not None and time.monotonic() >= deadline:
             raise _late()
@@ -296,7 +349,55 @@ async def _lead(builder, n_hours, domain, snapped, waiters, lane, deadline):
     _record("grid_series.encode", enc_ms)
     _record("grid_series.gzip", gz_ms)
     timing = {"build": build_ms, "encode": enc_ms, "gzip": gz_ms}
-    return _Page(body, gz, raw_len, timing, _cacheable(payload, sink, n_hours, domain, snapped))
+    if not run:
+        return _Page(body, gz, raw_len, timing, _cacheable(payload, sink, n_hours, domain, snapped))
+    durable = (not run["surf"] and _cacheable(payload, sink, n_hours, domain, snapped, allow_mid=True)
+               and run_keys.is_durable(facts, notes, n_hours, run["snapshot"], run_keys.dynamic_ids(run["start"]["dyn_rows"])))
+    files = frozenset({f[0] for f in facts if f[0]} | loads)
+    deps = run_keys.PageDeps(anchor=run["anchor"], source=run["source"], frames=n_hours, durable=durable, files=files,
+                             models=run_keys.page_models(run["model"], domain, run["layer"], files, run["snapshot"] or {}),
+                             **run["start"])
+    return _Page(body, gz, raw_len, timing, durable or _cacheable(payload, sink, n_hours, domain, snapped), deps)
+
+
+async def _relabel_for(key, page, anchor, source):
+    """Run keys: `page` with this request's anchor labels (series_memo_keys.relabel), or None to rebuild. The kept
+    page is replaced by the relabelled one, so the next request at this anchor is a plain hit."""
+    d = page.deps
+    if d is None or (d.anchor, d.source) == (anchor, source):
+        return page
+    out = await asyncio.to_thread(run_keys.relabel_body, page.body, page.gzipped, d.frames, d.anchor, d.source,
+                                  anchor, source, gzip_level())
+    if out is None:
+        logger.warning("[series-memo] a kept page's anchor labels were not where expected; rebuilding")
+        MEMO.discard(key, page)
+        return None
+    fields = {name: getattr(d, name) for name in run_keys.PageDeps.__slots__}
+    fields.update(anchor=anchor, source=source)
+    new = _Page(out[0], out[1], out[2], page.timing, page.cacheable, run_keys.PageDeps(**fields))
+    MEMO.swap(key, page, new)
+    return new
+
+
+async def _still_valid(key, page, stat):
+    """Run keys: re-check every input a durable page's build read besides the manifest (series_memo_keys, 3)."""
+    d = page.deps
+    if d is None or not d.durable:
+        return True
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+    ok = run_keys.clock_still_valid(d, now) and run_keys.lane_key(d.model, d.domain, d.layer) == d.lane
+    if ok and d.dyn_expiry is not None and now.timestamp() >= d.dyn_expiry:
+        ok = False
+    if ok and stat != d.dyn_stat:
+        by_key = await asyncio.to_thread(run_keys.index_by_key, d.dyn_path, stat)
+        rows, expiry = run_keys.dynamic_signature(by_key, d.dyn_keys)
+        ok = rows == d.dyn_rows
+        if ok:
+            d.dyn_stat, d.dyn_expiry = stat, expiry
+    if not ok:
+        MEMO.discard(key, page)
+    return ok
 
 
 def _respond(page, request, outcome, t_start):
@@ -324,19 +425,37 @@ async def serve_memo_series(resolve_grid, viewport_service, store, model, domain
         return await _gsh.build_grid_series(resolve_grid, viewport_service, model, domain, layer, bbox, hours,
                                             request=request, surf=surf, base_time=base_time)
     from datetime import datetime, timezone
-    anchor, anchor_source = _resolve_series_anchor(base_time, datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    anchor, anchor_source = _resolve_series_anchor(base_time, now)
     snapped = snap_series_bbox(bbox, model)
-    key = (model.upper(), domain.lower(), layer.lower(), snapped, hour_key, bool(surf),
-           anchor.strftime("%Y-%m-%dT%H:%M:%SZ"), anchor_source)
+    run = run_keys.enabled()
+    mode = run_keys.request_mode()           # `wind_lane=gfs`: never share a page across lane modes
+    if run:
+        vts = run_keys.valid_times(anchor, hour_key)
+        key = ("vt", model.upper(), domain.lower(), layer.lower(), snapped, vts, bool(surf), mode)
+    else:
+        key = (model.upper(), domain.lower(), layer.lower(), snapped, hour_key, bool(surf), mode,
+               anchor.strftime("%Y-%m-%dT%H:%M:%SZ"), anchor_source)
+    path = run_keys.index_path(viewport_service) if run else None
+    stat, by_key = None, {}
     try:
-        MEMO.set_token(await asyncio.to_thread(_manifest_token, store))
+        if run:
+            token, snap, stat, by_key = await asyncio.to_thread(_run_state, store, MEMO.token, MEMO.snapshot, path)
+            MEMO.set_token(token, snap)
+        else:
+            MEMO.set_token(await asyncio.to_thread(_manifest_token, store))
     except Exception:
         if time.monotonic() - _token_warned_at[0] > 60.0:
             _token_warned_at[0] = time.monotonic()
             logger.warning("[series-memo] manifest token unavailable; memo cleared, in-flight sharing only", exc_info=True)
         MEMO.set_token(NO_TOKEN)
     page = MEMO.get(key)
-    if page is not None:
+    if page is not None and run:
+        held = page
+        page = await _relabel_for(key, page, anchor, anchor_source) if await _still_valid(key, page, stat) else None
+        if page is not None:
+            return _respond(page, request, "hit" if page is held else "relabel", t_start)
+    elif page is not None:
         return _respond(page, request, "hit", t_start)
     token = MEMO.token
     fkey = (key, token)          # a build started under an older manifest never serves a newer request
@@ -347,13 +466,19 @@ async def serve_memo_series(resolve_grid, viewport_service, store, model, domain
         waiters = _Waiters()
         lane = _admission_lane(len(hour_key))
         deadline = _deadline_for(lane)
+        run_ctx = None
+        if run:
+            run_ctx = dict(model=model, layer=layer, anchor=anchor, source=anchor_source, surf=bool(surf),
+                           snapshot=MEMO.snapshot if token != NO_TOKEN else None,
+                           start=run_keys.build_start_state(model, domain, layer, snapped, vts, viewport_service,
+                                                            by_key, stat, path, now))
 
         def builder():
             # The anchor the key was built from, so an hour rollover cannot file one hour's page under another's key.
             return _gsh.build_grid_series(resolve_grid, viewport_service, model, domain, layer, snapped, hours,
                                           request=waiters, surf=surf, base_time=base_time,
                                           resolved_anchor=(anchor, anchor_source))
-        task = asyncio.create_task(_lead(builder, len(hour_key), domain, snapped, waiters, lane, deadline))
+        task = asyncio.create_task(_lead(builder, len(hour_key), domain, snapped, waiters, lane, deadline, run_ctx))
         flight = MEMO.inflight[fkey] = (task, waiters, deadline)
 
         def _done(t, key=key, token=token, fkey=fkey):
@@ -383,4 +508,10 @@ async def serve_memo_series(resolve_grid, viewport_service, store, model, domain
     except _Abandoned:
         from fastapi import HTTPException
         raise HTTPException(499, "Client disconnected")
+    if run and outcome == "shared":      # joined a build started for another anchor of the same valid times
+        page = await _relabel_for(key, page, anchor, anchor_source)
+        if page is None:
+            return await _gsh.build_grid_series(resolve_grid, viewport_service, model, domain, layer, snapped, hours,
+                                                request=request, surf=surf, base_time=base_time,
+                                                resolved_anchor=(anchor, anchor_source))
     return _respond(page, request, outcome, t_start)

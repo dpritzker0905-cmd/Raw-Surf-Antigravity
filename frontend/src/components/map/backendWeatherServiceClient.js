@@ -18,6 +18,8 @@ import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './
 import { arrayMax, arrayMin } from './marineControllerUtils';
 import { blendIconSwell2 } from './iconSwell2Blend';
 import { requireStoredIconEstimate } from './iconEstimateDelivery';
+import { noteRequestDiet, planManifestFetch, requestDietOn } from './marineRequestDiet';
+import { staticEligible, tryStaticWorldGrid } from './staticFrames';
 
 
 export { BoundedPointCache };
@@ -36,16 +38,26 @@ import './backendWeatherServiceClientTrace';
  * Forces refetch if cachedManifest is empty to support dynamic ingestion updates.
  */
 let manifestFetchPromise = null;
+let lastBackgroundManifestStartMs = null;
 
-export async function fetchProductsManifest(forceRefresh = false) {
+// PRODUCTS_SHARE (request diet 2026-10-20, marineRequestDiet.js): `background` marks the fire-and-forget refresh getSharedValidTime
+// starts while the manifest is not loaded (or empty). Before, every such call skipped the in-flight promise and started its own
+// 10.75 MB download (9-13 per map open in the live access logs, ~1.8 s of server event loop each); now a forced call shares the
+// running download and background refreshes are spaced MANIFEST_BACKGROUND_REFRESH_MIN_MS apart. Kill: __RAW_DISABLE_PRODUCTS_SHARE__.
+export async function fetchProductsManifest(forceRefresh = false, { background = false } = {}) {
   const cached = getCachedManifest();
   const isEmpty = cached && Array.isArray(cached.products) && cached.products.length === 0;
   if (cached && !forceRefresh && !isEmpty) return cached;
-  if (manifestFetchPromise && !forceRefresh) return manifestFetchPromise;
+  const plan = planManifestFetch({ inFlight: !!manifestFetchPromise, force: forceRefresh, background,
+    lastBackgroundStartMs: lastBackgroundManifestStartMs, nowMs: Date.now() });
+  if (plan === 'share') { if (forceRefresh) noteRequestDiet('products_shared'); return manifestFetchPromise; }
+  if (plan === 'skip') { noteRequestDiet('products_refresh_spaced'); return cached || null; }
+  if (background) lastBackgroundManifestStartMs = Date.now();
 
-  manifestFetchPromise = (async () => {
+  const p = (async () => {
     try {
-      const res = await fetch(STATUS_URL.replace('/status', '/products'));
+      // PRODUCTS_COMPACT (#423): only the seven fields the client reads; an older backend ignores the parameter (full list).
+      const res = await fetch(STATUS_URL.replace('/status', '/products') + (requestDietOn('PRODUCTS_COMPACT') ? '?fields=compact' : ''));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setCachedManifest(data);
@@ -54,11 +66,19 @@ export async function fetchProductsManifest(forceRefresh = false) {
       console.warn("[Backend Weather Service] Failed to fetch products manifest:", err.message);
       return null;
     } finally {
-      manifestFetchPromise = null;
+      // Identity-safe: a download superseded under the kill switch must not clear the newer one's slot.
+      if (manifestFetchPromise === p || !requestDietOn('PRODUCTS_SHARE')) manifestFetchPromise = null;
     }
   })();
+  manifestFetchPromise = p;
 
   return manifestFetchPromise;
+}
+
+/** Test seam: forget the in-flight download and the background spacing clock. */
+export function _resetProductsManifestFetchForTest() {
+  manifestFetchPromise = null;
+  lastBackgroundManifestStartMs = null;
 }
 
 /**
@@ -280,7 +300,7 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   } else {
     fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
     // Prefetch or refresh manifest in background
-    if (!readOnly) fetchProductsManifest(true).catch(() => {});
+    if (!readOnly) fetchProductsManifest(true, { background: true }).catch(() => {});
   }
 
   const cacheDiagKey = `${filterModel}_${filterLayer}`;
@@ -425,20 +445,30 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
-    const res = await fetch(url, { signal });
-    if (!res.ok) {
-      let reason = `Backend grid returned HTTP ${res.status}`;
-      try {
-        const errorJson = await res.json();
-        if (errorJson && errorJson.reason) {
-          reason = errorJson.reason;
-        } else if (errorJson && errorJson.detail) {
-          reason = errorJson.detail;
-        }
-      } catch (e) {}
-      throw new Error(reason);
+    // STATIC FRAMES (step 2b, DARK: staticFrames.js): a WORLD box is answered from the pinned CDN frame when one
+    // covers this valid time; any miss or error returns null and /grid is fetched exactly as before.
+    const surfNow = getSurfModeFlag();
+    const staticJson = staticEligible({ model, layer, bbox: clampedBbox, surf: surfNow })
+      ? await tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf: surfNow, signal })
+      : null;
+    let res = null;
+    let json = staticJson;
+    if (!json) {
+      res = await fetch(url, { signal });
+      if (!res.ok) {
+        let reason = `Backend grid returned HTTP ${res.status}`;
+        try {
+          const errorJson = await res.json();
+          if (errorJson && errorJson.reason) {
+            reason = errorJson.reason;
+          } else if (errorJson && errorJson.detail) {
+            reason = errorJson.detail;
+          }
+        } catch (e) {}
+        throw new Error(reason);
+      }
+      json = await res.json();
     }
-    const json = await res.json();
 
     if (options.storedIconRecovery) requireStoredIconEstimate(json, layer, validTimeStr);
 
@@ -492,8 +522,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
 
     updateDiagnostics('grid', {
-      url,
-      status: res.status,
+      url: staticJson ? `static:${staticJson.static_frame.path}` : url,
+      status: res ? res.status : 200,
       validTime: validTimeStr,
       valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
       valueUnit: json.value_unit || 'm',

@@ -38,6 +38,8 @@ import {
   acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
+import { noteStaticFocus, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
+import { staticEligible } from './staticFrames';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new MarineSeriesCache();
@@ -223,7 +225,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));
   const existing = _seriesCache.get(key);
-  if (existing && !force) {
+  if (existing && !force && !existing.staticFrames) {
     // A coarse-preview entry is allowed to RE-FETCH (capped + spaced) so the SWR-revalidated regional
     // grid replaces the cold global frame; otherwise honour the normal TTL dedup. `force` bypasses the
     // TTL dedup entirely — used by the clamp backstop (#8) when the engine is HELD on a stale non-covering
@@ -271,6 +273,11 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   // frames carry SCOREs + ratingMode:true, and the engine's reverse gate then keeps painting the
   // band while this serve preempts the honest commit that would release it).
   const surfFlavor = getSurfModeFlag();
+  // STATIC FRAMES (step 2b, DARK; marineSeriesStatic.js): a WORLD page fills from the pinned CDN frames around the
+  // viewed hour. Not eligible, or no index -> /grid_series below exactly as before.
+  // The eligibility check is synchronous, so with the flag off nothing here awaits and the timing is unchanged.
+  if (staticEligible({ model, layer, bbox: reqBox, surf: surfFlavor })
+    && await loadSeriesPageStatic(key, { model, layer, reqBox, surf: surfFlavor, hours, page, signal, background })) return;
   // Request the padded box (computed above) so the served tile contains the viewport (+small pans) —
   // fixes the degree-boundary clamp. Cache key + coarse-preview detection still use the UNPADDED bounds.
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
@@ -416,6 +423,13 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   await p;
 }
 
+// Seam B of the static frames (dark; marineSeriesStatic.runStaticPageFlight): the windowed fill runs as this page's flight.
+function loadSeriesPageStatic(key, ctx) {
+  const flight = runStaticPageFlight(key, ctx, { seriesCache: _seriesCache, frameToMarineData, finish: (f) => finishFlight(key, f) });
+  _inFlight.set(key, flight);
+  return flight;
+}
+
 // === HOUR-0-FIRST PAINT LANE (2026-07-18, the time-to-fine arc's measured fix) ===
 // PROOF CHAIN (HANDOFF-2026-07-18-hour0-first-paint-lane-design.md): at activation the 48-hour
 // series page takes 2.5-3.3 s first-byte in the request storm while a 1-hour request answers in
@@ -433,6 +447,8 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   if (marineSeriesCallerAborted(signal)) return;
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isMarineSeriesEnabled() || !bounds) return;
+  // Static frames (dark): the page fill fetches the viewed hour first, so the mini would only load the box.
+  if (staticOwnsWorldPage(model, layer, normalizeRequestBbox(padRegionalBbox(bounds)), getSurfModeFlag())) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
@@ -543,6 +559,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
     return;
   }
   const page = marineSeriesPageForHour(hourOffset, model);
+  if (!background) noteStaticFocus(model, layer, hourOffset);   // static frames (dark): the page fill starts here
   // HOUR-0-FIRST: when the current page is COLD, race a 1-hour mini load ahead of it
   // (fire-and-forget — it must not delay the page load it exists to beat). Fires on EVERY cold
   // ensureMarineSeries call including the sibling prewarm's currentPageOnly path — the REAL

@@ -1,8 +1,8 @@
 /**
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
-import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding';
-import { LIGHT_CREST_GLSL } from './marineCrestPalette';   // light crest colours, V2 + its kill (__RAW_DISABLE_LIGHT_CREST_V2__)
+import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding'; import { CREST_DENSITY_GLSL } from './marineCrestDensity';
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL } from './marineCrestPalette';   // light crests (the original; V2 on request), dark's 8 m+ storm ink (+ kills)
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -370,7 +370,7 @@ uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_opacity;
-uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
+uniform float u_densityBase;${CREST_DENSITY_GLSL.decl}   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
 uniform float u_crestLandThreshold; // crest-center oceanFlag discard cut (2026-07-07): match the heatmap's 0.5 so crests don't survive on soft/partial-land mask values (thin cays, coastal edges) the wash discards
 // COAST SDF (2026-07-21): when the mask .b carries a signed distance-to-coast, threshold the DISTANCE
@@ -568,7 +568,7 @@ void main() {
   // over 2.4→2.7 so the deliberate z2 globe-thinning floor stays put). Mirror: WebGLMarineEngineDiagnostics.
   float effBase = u_densityBase > 0.0 ? u_densityBase
     : (mix(0.128, 0.90, smoothstep(2.0, 10.0, u_zoom)) + 0.0076 * smoothstep(2.4, 2.7, u_zoom));
-  float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97);
+  float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97)${CREST_DENSITY_GLSL.drop};
 
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
@@ -940,7 +940,7 @@ void main() {
     // Dark Mode
     calmColor = vec3(0.10, 0.95, 0.60);    // mint-green
     activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold
-    stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange
+    stormColor = ${DARK_STORM_CREST_GLSL.storm}
     foamHighlight = vec3(1.00, 1.00, 1.00);
   }
 
@@ -962,7 +962,7 @@ void main() {
   // boosted + slightly whitened core — so it reads on any background color without changing any
   // theme palette. Gated: both terms 0 → byte-identical legacy output.
   float crestContrastEff = max(u_crestContrast,
-    u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));
+    ${DARK_STORM_CREST_GLSL.casing}
   if (crestContrastEff > 0.001) {
     float core = 1.0 - smoothstep(0.15, 0.85, ellipseDist);
     float lum = mix(0.55, 1.30, core);
