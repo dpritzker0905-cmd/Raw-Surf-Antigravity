@@ -55,12 +55,25 @@ carries `exactMs`: input to the first frame with the selected instant at FULL de
 app's own selected frame is the expected hour, and not a world grid coarser than 2.5 deg a cell: the engine's copy drops
 `__decimatedStride`, so a stride-4 series frame is told by its 8-degree cells).
 
-**Served vs asked clock (2026-10-21, `marineConformServed.js`):** each step row carries `servedOff` (the marine `/grid` replies in the
-step whose `served_valid_time` is not their `valid_time`, the ask's echo: `off`, the offsets `offH` in hours, `substituted`), each flow
-`loadServedOff` (the same over the load), and `end.mServed` / `end.mAsk` / `end.drawnDataMs` (the engine grid's two clocks and the drawn
-record's data instant). Read off the wire through the harness's `afterWeather` hook, which parses each marine `/grid` reply before it is
-delivered (a few tens of ms per world grid, the same in both arms); not collected with `LAB_LIVE_BASE`. Only where `off` is above 0 can
-the conform's served clock (dark: `LAB_FLAGS=__RAW_MARINE_CONFORM_SERVED_TIME__` for the B arm) change a decision.
+**Served vs asked clock (2026-10-21, `marineConformServed.js`):** each step row carries `servedOff.grid` (the marine `/grid` replies in
+the step) and `servedOff.series` (the marine `/grid_series` frames), each `{ n, off, offH, substituted, noServed }`: how many name a
+`served_valid_time` that is not their `valid_time` (the ask's echo; a stored-series frame's `valid_time` is the hour asked, too) and by
+how many hours. Each flow carries `loadServedOff` (the same over the load); each step `end.mServed` / `end.mAsk` / `end.drawnDataMs`
+(the engine grid's two clocks and the drawn record's data instant) and `dimAt` (the resident and both clocks at the step's first
+stale-dim frame). Read off the wire through the harness's `afterWeather` hook, which parses each marine reply before it is delivered
+(tens of ms per world grid or page, the same in both arms); not collected with `LAB_LIVE_BASE`. Only where `off` is above 0 can the
+conform's served clock (dark: `LAB_FLAGS=__RAW_MARINE_CONFORM_SERVED_TIME__` for the B arm) change a decision. The per-step request
+lists are by COMPLETION; compare arms on the flow's `started` counts.
+
+**Stale backend (2026-10-21, SWR_BACKOFF):** `FLOWS=stale_world,stale_regional` arm `serve_synthetic.py`'s stale window (`GET /__lab/stale`)
+just before an hour step (+6 h) on the world view (z3.5) or at zoom 6, after a 30 s settle there. For `LAB_STALE_S` seconds (default 60) the
+backend answers that view's `/grid` stale and coarse (`swr_revalidation_pending`), then fresh; the map then sits idle and the step dwells
+until the fresh grid has been drawn for 5 s (or `LAB_STALE_TAIL_MS`, default 75000, after the window). The step row's `stale` block: every
+`/grid` the BACKEND saw for the view (`serverLog`, ms from the window's end), `reasksPerMin` while stale, `staleAskAtS` (the ladder as seen),
+`freshAskLagMs` (backend fresh -> next ask) and `freshDrawnMs` (-> the fresh grid's cols in the marine engine, from the page's per-frame
+`drawLog`). `LAB_WINDOW_JSON='{"__RAW_MARINE_SWR_STALE_DELAYS__":[...]}'` sets non-`true` window values before boot (an arm's rungs).
+`node stale_summary.js A=<dir>,<dir> B=<dir>,... [--json out.json]` prints each run and the medians per flow and arm.
+Zoom 6 caveat: the view's series frame (non-stale) can take over mid-window and end the re-ask in every arm (see the 2026-10-21 log).
 
 ## What each column means
 

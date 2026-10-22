@@ -1,5 +1,6 @@
 /**
- * staticFrames.js — load forecast frames from the CDN instead of the 1-CPU backend (step 2b, 2026-10-20). DARK.
+ * staticFrames.js — load forecast frames from the CDN instead of the 1-CPU backend (step 2b, 2026-10-20). ON by default
+ * since 2026-10-21 (owner: "turn on static frames"; DECISIONS).
  *
  * The ingest runner publishes the world-view GFS wave field once per model run as immutable gzipped binary frames
  * in the PUBLIC Supabase bucket `weather-frames` (backend/scripts/publish_frame_images.py):
@@ -13,11 +14,13 @@
  * scrub has been idle for IDLE_REPIN_MS (a 'raw_static_frames_new_run' event announces a waiting run), or when a
  * frame of the pinned index is gone (retention keeps the current and previous index only).
  *
- * WHY DARK (D-001): during a scrub the series path draws the THINNED world frame (46 x 21, an 8-degree lattice);
- * static frames draw the full 2-degree field, which changes visible heights. Flip only on the owner's word, with live
- * parity against /grid, scrub timings flag on vs off, Render CPU before/after and a SCOREBOARD row.
- *   ON:   build with REACT_APP_STATIC_FRAMES=true, or localStorage '__RAW_STATIC_FRAMES__' = 'true' (this browser).
- *   KILL: window.__RAW_DISABLE_STATIC_FRAMES__ = true (wins over both).
+ * It served dark until the owner's word: during a scrub the series path draws the THINNED world frame (46 x 21, an
+ * 8-degree lattice) and static frames draw the full 2-degree field, the same numbers /grid serves for the exact frame
+ * (parity-gated node by node at publish), so no served number moves.
+ *   KILL: window.__RAW_DISABLE_STATIC_FRAMES__ = true restores the /grid path exactly (wins over everything).
+ *   THIS BROWSER: localStorage '__RAW_STATIC_FRAMES__' = 'false' (off) or 'true' (on).
+ *   BUILD: REACT_APP_STATIC_FRAMES=false turns the default off; without REACT_APP_SUPABASE_URL (or the base override)
+ *   nothing is eligible, synchronously.
  *   CDN:  window.__RAW_STATIC_FRAMES_BASE__ overrides the bucket's public URL (the offline harness's local host).
  * Telemetry: window.__RAW_STATIC_FRAMES__ (hits, misses by reason, bytes, fetch/inflate/build ms, the pin).
  */
@@ -34,15 +37,20 @@ const LRU_MAX = 12;               // decoded frames kept (each ~15k vector objec
 const MAX_IN_FLIGHT = 4;
 const WORLD_MIN_SPAN = 340;
 
-function readEnvFlag() {
-  try { return process.env.REACT_APP_STATIC_FRAMES === 'true'; } catch (e) { return false; }
+function readBuildDefault() {
+  try { return process.env.REACT_APP_STATIC_FRAMES !== 'false'; } catch (e) { return true; }
 }
 
+/** ON by default (owner, 2026-10-21). Kill switch first, then this browser's explicit choice, then the build default. */
 export function staticFramesEnabled() {
   if (typeof window === 'undefined') return false;
   if (window.__RAW_DISABLE_STATIC_FRAMES__ === true) return false;
-  if (readEnvFlag()) return true;
-  try { return window.localStorage && window.localStorage.getItem('__RAW_STATIC_FRAMES__') === 'true'; } catch (e) { return false; }
+  try {
+    const choice = window.localStorage && window.localStorage.getItem('__RAW_STATIC_FRAMES__');
+    if (choice === 'true') return true;
+    if (choice === 'false') return false;
+  } catch (e) { /* storage blocked: the build default decides */ }
+  return readBuildDefault();
 }
 
 export function staticFramesBase() {
@@ -341,7 +349,7 @@ const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east
 
 /** Does this request get a static frame at all? (Cheap; no I/O.) */
 export function staticEligible({ model, layer, bbox, surf }) {
-  if (!staticFramesEnabled()) return false;
+  if (!staticFramesEnabled() || !staticFramesBase()) return false;
   if (surf) return false;                         // rating grids are a server transform of the product
   if ((model || '').toUpperCase() !== 'GFS' || (layer || '').toLowerCase() !== 'waves') return false; // slice 1
   return spanOf(bbox) >= WORLD_MIN_SPAN;

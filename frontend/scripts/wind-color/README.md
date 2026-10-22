@@ -335,6 +335,44 @@ What the light search taught (over v2 and v2@16; light's wash passes APCA Y 0.35
   24 -> 32 for about 4 |Lc|.
 - Switch 3.05 m is the best worst case (|Lc| 39.8 at 0.01 m sampling; 3.10 -> 38.2, 3.20 -> 33.9).
 
+**Light's spectrum (D-037, 2026-10-21).** Light draws `spectrum` (seven bands on the WMO / Douglas sea-state breaks, cap 14 m);
+the kill `__RAW_DISABLE_WAVE_SPECTRUM__` draws v2 at 16 m. `wave-lib.mjs` models its opacity law (`spectrumAlpha`, no floor blend).
+
+```powershell
+node spectrum-solve.mjs      # the seven break colours: widest weakest neighbour step at max displayable chroma, lightness falling
+node spectrum-tune.mjs       # 4-6 m: violet trim + OKLab blend anchors so the band's lightness cannot climb (the winner goes in by hand)
+node wave-check.mjs --palette spectrum --theme light   # what light ships
+node crest-switch.mjs --palette spectrum --from 1.3 --to 3.2   # V2's crest colours: weakest |Lc| by switch height (1.55 m best)
+node crest-critique.mjs [--json out.json]   # crests vs the wash under them in all three themes, by height: |Lc|, colour-blind dE00, hue relation
+```
+
+**Re-solved apart from dark (same day; owner: "too close to the same color as dark modes water").** `theme-distance.mjs` measures, per
+height, light's composite against dark's (the shader ramp over the dark style's sea) and beach's (v1): the first spectrum sat at 0.8-3 m
+mean 15.0 dE00 from dark (v2 24.0), and its 4-6 m violet/magenta was dark's own (13.7 / 11.3). `spectrum-apart.mjs` is the solver with a
+hard floor: from 1.2 to 6 m light stays at least as far from dark (and beach) as v2 is, at every 0.1 m.
+
+```powershell
+node theme-distance.mjs                        # v2@16 and the spectrum against dark and beach, by height
+node spectrum-apart.mjs --water-cvd 4 --cmin-common 32 --low 8   # the shipped table: soft green -> aqua -> teal -> steel blue -> indigo -> maroon -> dark red
+```
+
+Below 1.2 m the floor is 10 (not v2's): a colour as far from dark's 0.5 m green as v2's is would be lighter than light's own water, and
+the spectrum's calm fade (water to 0.5 m) would then climb in lightness. `--water-cvd` keeps that fade's own step visible to every
+colour vision. Scores (1 = every neighbour step meets normal 10 / colour-blind 6.5 / lightness 5): a lime start 1.01 but a dusty sage
+1.25 m band (the solver kept 1-2 m far from dark's bright cyan by greying it); mint starts 0.22-0.50; shipped: `--cmin-common 32`
+(no grey in the common sea) with the calm floor at 8, 1.10.
+
+Over the re-solved spectrum the crest switch sits at 2.35 m (`LIGHT_CRESTS.v2s`, |Lc| 41.7; 33.0 at v2's 3.05 m). The first spectrum
+crossed at 1.55 m (42.4).
+
+**The original crests over a light wash (D-041 made them light's default again).** `crest-over-wash.mjs --crest v1` gives the weakest
+APCA |Lc| of a crest core over live light and the spectrum at the opacity the engine draws it per zoom (DRAW_VS's zoom factor x DRAW_FS's
+energy boost, `crest-over-wash-lib.mjs`): |Lc| 0 from about 2-2.5 m up on both. `spectrum-apart.mjs --crest-lc N --crest-zoom 9` asks a
+wash to keep them N off at every height: no solution down to N = 10 (amber and crimson are mid-lightness; a falling light wash passes
+through them). The remedy is in the crest, not the wash. The model's numbers are full-opacity crest cores; at world zoom the engine draws crests at partial opacity, where a
+mid-lightness wash (the spectrum's 1.5-3 m blue) leaves little room in either polarity: read the engine
+(`../offline-backend/crest_contrast.py`, paired frames) before trusting a switch height.
+
 ## Why coloraide and not culori for colour blindness
 
 culori's Machado filter rendered a textbook red/green pair 17.6 ΔE2000 apart under deuteranopia. Both coloraide models
@@ -377,3 +415,23 @@ in `windFieldLut.test.js`: strengths, base alphas, ramp ends, particle opacities
 colours.
 
 Background: `reports/Color and motion tools for Claude.md` and `reports/Wind particle color basemap contrast.md`.
+
+**Beach crest style (`beach-crest-style.mjs`, 2026-10-21; styles in `src/components/map/marineBeachCrestStyle.js`).** How visible
+beach's crests are on the v1 sea (D-035) as the engine draws it: the wash alpha per zoom state is PR #425's measured law (no
+regional tile at world and fresh regional zoom; BLEND BOTH once a tile is resident), and each crest is sampled at its centre, body
+and edge as DRAW_FS shades them (today's self-contrast below 1.05 m and in the z ~3.6-4.3 band included). Visibility is the best of
+the three parts (the edge the eye can use), APCA |Lc|, worst over swell lighting and whitecap, every 0.2 m. It reads the style
+table from the app module, so a changed rim or centre is measured as shipped.
+
+```powershell
+node beach-crest-style.mjs                 # today's crest and every style: worst |Lc| and heights under 30 per zoom state
+node beach-crest-style.mjs --json out.json
+```
+
+What it showed (owner A/B, 2026-10-21): today's crests read under |Lc| 30 at 48-49 of 50 heights at world, coastal and close zoom
+(|Lc| 0 on the sand band near 1-2 m and the grey-mauve band near 4.4-7 m; Leonardo's APCA agrees: #c13ed8 on #84798a and
+#aba0b2 on #c8b092 both Lc 0). A single crest colour that varies smoothly with height cannot avoid that over a sea whose
+brightness goes up and down: it must cross the sea's brightness somewhere unless it is darker, or lighter, than the whole sea. A
+crest that carries a dark part and a light part escapes it: `twotone` (dark rim x0.30 + centre 75% toward white) holds |Lc| >= 35.2
+everywhere, colour-blind >= 25.0; `soft` (centre 55%) 27.8 at 5.6-6.8 m; `cased` (the engine's own self-contrast everywhere) fixes
+1.6-5 m only.
