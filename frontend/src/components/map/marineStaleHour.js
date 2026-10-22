@@ -250,15 +250,31 @@ export function judgeStaleWorld(ctx) {
 }
 
 /**
- * The dim, pure. ctx as `judgeStaleWorld`. Returns { mult, stale, why }: `mult` is what the layer's opacity is multiplied by (1 = untouched).
+ * The dim, pure. ctx as `judgeStaleWorld`. Returns { mult, stale, why, held? }: `mult` is what the layer's opacity is multiplied by
+ * (1 = untouched).
+ *
+ * HOLD WITHOUT DIMMING (2026-10-22; owner: "hold the heatmap without dimming"): a world frame for another hour is now HELD at full
+ * strength (`held: true`, mult 1) instead of drawn at STALE_WORLD_DIM. Honesty moves to the words: the timeline status line
+ * (ForecastTimeStatus, the drawn-frame readout) already says "Loading <selected>… still showing <drawn>" for exactly this frame, and
+ * after HOLD_INDICATOR_MS a small non-dimming indicator joins it. The judgment (and the resident swap that reads it) is unchanged.
+ * Kill: window.__RAW_DISABLE_HOLD_NO_DIM__ = true restores the dim exactly as before (tune: __RAW_STALE_HOUR_DIM__).
  */
 export function resolveStaleWorldDim(ctx) {
   const w = (ctx && ctx.win) || (typeof window !== 'undefined' ? window : null);
   if (w && w.__RAW_DISABLE_STALE_HOUR_DIM__ === true) return { mult: 1, stale: false, why: 'killed' };
   const j = judgeStaleWorld(ctx);
   if (j.why !== 'stale_world') return { mult: 1, stale: j.stale, why: j.why };
+  if (!holdNoDimKilled(w)) return { mult: 1, stale: true, why: 'stale_world', held: true };
   const tuned = w ? Number(w.__RAW_STALE_HOUR_DIM__) : NaN;
   return { mult: tuned > 0 && tuned <= 1 ? tuned : STALE_WORLD_DIM, stale: true, why: 'stale_world' };
+}
+
+/** How long a load must be pending before the status line adds its (non-dimming) indicator. */
+export const HOLD_INDICATOR_MS = 2500;
+/** The hold-without-dimming kill switch, read per call. */
+export function holdNoDimKilled(win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  return !!(w && w.__RAW_DISABLE_HOLD_NO_DIM__ === true);
 }
 
 /** Tracker of how long the selected hour has held still (a closure inside the custom layer: one per layer instance). */

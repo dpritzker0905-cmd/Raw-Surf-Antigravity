@@ -80,6 +80,35 @@ describe('the drawn-frame store feeds the status line in the same frame', () => 
     act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'swell_2', __sourceModel: 'GFS' }); });
     expect(screen.queryByRole('status')).toBeNull();
   });
+  test.each(['light', 'dark', 'beach'])('HOLD WITHOUT DIMMING: a load pending for 2.5 s adds a non-dimming indicator (%s theme); the words stay the status', (theme) => {
+    jest.useFakeTimers();
+    try {
+      render(<ForecastTimeStatus model="GFS" layer="swell_2" hour={24} theme={theme} />);
+      act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'waves', __sourceModel: 'GFS' }); });
+      const s = screen.getByRole('status');
+      expect(s).toHaveAttribute('aria-busy', 'true');
+      expect(screen.queryByTestId('hold-indicator')).toBeNull();
+      act(() => { jest.advanceTimersByTime(2499); });
+      expect(screen.queryByTestId('hold-indicator')).toBeNull();
+      act(() => { jest.advanceTimersByTime(2); });
+      const dot = screen.getByTestId('hold-indicator');
+      expect(dot).toHaveAttribute('aria-hidden', 'true');
+      expect(dot.className).toContain('motion-reduce:animate-none');
+      expect(screen.getByRole('status')).toHaveTextContent('Loading GFS Swell 2… still showing GFS Waves');
+      act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'swell_2', __sourceModel: 'GFS' }); });
+      expect(screen.queryByRole('status')).toBeNull();                       // drawn: the line and the dot go
+    } finally { jest.useRealTimers(); }
+  });
+  test('with the hold killed, no indicator is ever added', () => {
+    jest.useFakeTimers();
+    window.__RAW_DISABLE_HOLD_NO_DIM__ = true;
+    try {
+      render(<ForecastTimeStatus model="GFS" layer="swell_2" hour={24} theme="dark" />);
+      act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'waves', __sourceModel: 'GFS' }); });
+      act(() => { jest.advanceTimersByTime(10000); });
+      expect(screen.queryByTestId('hold-indicator')).toBeNull();
+    } finally { delete window.__RAW_DISABLE_HOLD_NO_DIM__; jest.useRealTimers(); }
+  });
   test.each(['light', 'dark', 'beach'])('renders in the %s theme', (theme) => {
     render(<ForecastTimeStatus model="GFS" layer="waves" hour={25} theme={theme} />);
     act(() => { publishMarineDrawn({ hourOffset: 24, __componentLayer: 'waves', __sourceModel: 'GFS' }); });
