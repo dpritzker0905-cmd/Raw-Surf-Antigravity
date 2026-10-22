@@ -228,4 +228,20 @@ describe('static frames loader', () => {
     expect(await pc).toBeNull();
     expect(await pd).toBeNull();
   });
+
+  test('a missing latest.json is not re-asked on every step (60 s negative cache)', async () => {
+    const calls = cdn({ latestIndex: () => null, indexes: [] });
+    global.fetch.mockImplementation(async (url) => { calls.push(url); return { ok: false, status: 400, json: async () => ({}) }; });
+    const ask = () => tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(await ask()).toBeNull();
+    now += 10000;
+    expect(await ask()).toBeNull();
+    now += 10000;
+    expect(await ask()).toBeNull();
+    expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(1);   // three steps, one 400
+    expect(window.__RAW_STATIC_FRAMES__.misses.no_index).toBe(3);
+    now += 61000;
+    await ask();
+    expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(2);   // re-asked after the negative TTL
+  });
 });
