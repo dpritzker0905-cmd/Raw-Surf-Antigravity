@@ -619,3 +619,23 @@ Three decisions differ from the plan above:
 
 Also learned: `marineFrameInstant.js` (on dev since #267) identifies a resident frame by `served_valid_time`, so store commits
 must carry it (section 3.2 already requires it).
+
+### 12.2 The desktop policy is ADAPTIVE (2026-10-22, #437)
+
+The owner asked "what is more state of the art? eager or on demand loading on desktop?". The answer, now the plan, is neither
+alone:
+- **Open on demand.** The map opens with section 4.1's intent-gated window.
+- **Then fill in idle time.** Once that window has landed and after the first draw, an idle slice expands the plan to the whole
+  active run. This happens only on a `desktop` tier with no Save-Data, a `4g` link (or no Network Information API), a fine
+  primary pointer and a visible tab.
+- **Elsewhere, stay on demand.** Phones, coarse pointers, Save-Data, slow links and hidden tabs keep the intent-gated window
+  alone.
+- **Kill:** `window.__RAW_DISABLE_FRAME_IDLE_FILL__`.
+
+Measured offline at the live-hit latency (log 2026-10-21-claude-gpu-frame-store, update 2026-10-22):
+- the whole run is in the store 7.4-7.8 s after the first draw;
+- later steps take p95 15 ms, as eager does;
+- a desktop open of 6 s or more costs about 6.3 MB of real frames, against 0.7-0.8 MB for an intent-only glance.
+
+At 6.3 MB per desktop open, Supabase Pro's 250 GB of cached egress covers about 40k desktop opens a month, before phones, which
+stay near 0.8 MB.

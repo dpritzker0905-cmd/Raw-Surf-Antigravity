@@ -267,11 +267,29 @@ function markPinStale(key) {
   if (pin) pin.stale = true;
 }
 
-/** Decoded vectors for one frame record (LRU + in-flight de-dup). Null on any failure (reason recorded). */
-// A frame fetch is SHARED by every caller that wants the same immutable path (seam A's exact /grid and seam B's window
-// often ask for the same frame at once). It runs on its OWN AbortController, aborted only when EVERY waiter has
-// aborted: one caller's supersede must not leave another caller (or the LRU) without the frame.
-function sharedFrameLoad(key, frame) {
+// ── Frame loads: ONE fetch + parse per path, shared; vectors built on top, once per path ──────────────────────
+// A frame fetch is SHARED by every caller that wants the same immutable path (seam A's exact /grid, seam B's window and the
+// GPU frame store's prefetch often ask for the same frame at once). It runs on its OWN AbortController, aborted only when
+// EVERY waiter has aborted: one caller's supersede must not leave another caller (or the LRU) without the frame.
+// Two layers share that rule: the PARSED frame (fetch + inflate + parse; what the frame store packs, with no per-node
+// objects) and, on top of it, the VECTORS (the ~15k objects /grid and the series pages carry), built once per path.
+const _parsedInflight = new Map();
+const _parsedHooks = new Set();
+
+/** Subscribe to every frame this loader parses: fn({ key, frame, parsed, buffer }). Returns the unsubscribe. A hook that
+ *  throws is ignored (it never breaks a load). The GPU frame store (marineFrameStoreRuntime) packs frames from here. */
+export function onStaticFrameParsed(fn) {
+  _parsedHooks.add(fn);
+  return () => _parsedHooks.delete(fn);
+}
+
+/** The pinned index for a set right now, synchronously; null when none or stale. No I/O. */
+export function getPinnedIndexSync(key) {
+  const pin = _state.pins.get(key);
+  return pin && !pin.stale ? pin.index : null;
+}
+
+function sharedParsedLoad(key, frame) {
   const controller = new AbortController();
   const promise = (async () => {
     const t = telemetry();
@@ -283,18 +301,14 @@ function sharedFrameLoad(key, frame) {
       return null;
     }
     try {
-      const t0 = performance.now();
       const parsed = parseFrame(got.buffer);
       if (Math.abs(parsed.validEpoch * 1000 - Date.parse(frame.valid_time)) > 1000) throw new Error('frame/index valid_time mismatch');
-      const vectors = buildVectors(parsed);
       t.fetches += 1;
       t.bytes += got.wire || 0;
       pushSample(t.fetchMs, got.fetchMs || 0);
       pushSample(t.inflateMs, got.inflateMs || 0);
-      pushSample(t.buildMs, performance.now() - t0);
-      _lru.set(frame.path, vectors);
-      while (_lru.size > LRU_MAX) _lru.delete(_lru.keys().next().value);
-      return vectors;
+      for (const fn of _parsedHooks) { try { fn({ key, frame, parsed, buffer: got.buffer }); } catch (e) { /* never break a load */ } }
+      return { parsed, buffer: got.buffer, wire: got.wire || 0 };
     } catch (e) {
       noteMiss('decode_error');
       t.errors += 1;
@@ -304,24 +318,16 @@ function sharedFrameLoad(key, frame) {
   return { promise, controller, waiters: 0 };
 }
 
-/** Decoded vectors for one frame record (LRU + shared in-flight load). Null on any failure (reason recorded) or when
- *  THIS caller's signal aborts (the shared load keeps going for the other waiters). */
-export async function loadFrameVectors(key, frame, signal) {
-  if (!frame || !frame.path) return null;
-  const hit = _lru.get(frame.path);
-  if (hit) {
-    _lru.delete(frame.path);
-    _lru.set(frame.path, hit);
-    telemetry().lruHits += 1;
-    return hit;
-  }
+// Join the shared load for `path` in `map` (making it with `make` when there is none, or when every earlier waiter gave up on
+// it). Resolves to the load's result, or null as soon as THIS caller's signal aborts (the load goes on for the others).
+async function joinShared(map, path, make, signal) {
   if (signal && signal.aborted) return null;
-  let entry = _inflight.get(frame.path);
-  if (!entry || entry.controller.signal.aborted) {        // none yet, or every earlier waiter gave up on it
-    entry = sharedFrameLoad(key, frame);
-    _inflight.set(frame.path, entry);
+  let entry = map.get(path);
+  if (!entry || entry.controller.signal.aborted) {
+    entry = make();
+    map.set(path, entry);
     const mine = entry;
-    entry.promise.finally(() => { if (_inflight.get(frame.path) === mine) _inflight.delete(frame.path); });
+    entry.promise.finally(() => { if (map.get(path) === mine) map.delete(path); });
   }
   const shared = entry;
   shared.waiters += 1;
@@ -343,6 +349,48 @@ export async function loadFrameVectors(key, frame, signal) {
     signal.removeEventListener('abort', onAbort);
     if (!left) { left = true; shared.waiters -= 1; }
   }
+}
+
+/** The parsed frame ({ parsed, buffer, wire }) for one frame record, shared per path; null on any failure or when THIS
+ *  caller's signal aborts. No vectors are built: this is what the GPU frame store prefetches through. */
+export function loadFrameParsed(key, frame, signal) {
+  if (!frame || !frame.path) return Promise.resolve(null);
+  return joinShared(_parsedInflight, frame.path, () => sharedParsedLoad(key, frame), signal);
+}
+
+function sharedVectorsLoad(key, frame) {
+  const controller = new AbortController();
+  const promise = (async () => {
+    const got = await loadFrameParsed(key, frame, controller.signal);
+    if (!got) return null;
+    try {
+      const t0 = performance.now();
+      const vectors = buildVectors(got.parsed);
+      pushSample(telemetry().buildMs, performance.now() - t0);
+      _lru.set(frame.path, vectors);
+      while (_lru.size > LRU_MAX) _lru.delete(_lru.keys().next().value);
+      return vectors;
+    } catch (e) {
+      noteMiss('decode_error');
+      telemetry().errors += 1;
+      return null;
+    }
+  })();
+  return { promise, controller, waiters: 0 };
+}
+
+/** Decoded vectors for one frame record (LRU + shared in-flight load). Null on any failure (reason recorded) or when
+ *  THIS caller's signal aborts (the shared load keeps going for the other waiters). */
+export async function loadFrameVectors(key, frame, signal) {
+  if (!frame || !frame.path) return null;
+  const hit = _lru.get(frame.path);
+  if (hit) {
+    _lru.delete(frame.path);
+    _lru.set(frame.path, hit);
+    telemetry().lruHits += 1;
+    return hit;
+  }
+  return joinShared(_inflight, frame.path, () => sharedVectorsLoad(key, frame), signal);
 }
 
 const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west) : 0);
@@ -419,7 +467,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
 /** Test hook: forget every pin, index, decoded frame and the worker. */
 export function _resetStaticFramesForTest() {
   _state.latest = null; _state.latestAt = 0; _state.latestLoad = null; _state.pins.clear(); _state.lastUse = 0;
-  _state.indexLoads.clear(); _lru.clear(); _inflight.clear(); _pending.clear();
+  _state.indexLoads.clear(); _lru.clear(); _inflight.clear(); _parsedInflight.clear(); _pending.clear();
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }
   _worker = null; _workerFailed = false;
   if (typeof window !== 'undefined') delete window.__RAW_STATIC_FRAMES__;

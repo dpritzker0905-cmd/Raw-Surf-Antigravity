@@ -23,6 +23,7 @@ import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
 import { marineGridRejection } from './marineGridValidation';
+import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -93,6 +94,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   // High-zoom land-mask refinement state: which mask resolution the engine currently reflects
   // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
   const maskResRef = useRef('standard');
+  // GPU-resident frames: the store reaches this engine, GL context and map through refs read at call time.
+  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => registerFrameStoreTarget(null); }, []);
   const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
@@ -284,6 +287,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
     noteMarineRenderableCommit();
     publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: what is on screen
+    noteCommitted(grid, { hour: timeOffsetHoursRef.current, model: gridModel, layer: activeMarineLayer }); // which stored frame is resident
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 

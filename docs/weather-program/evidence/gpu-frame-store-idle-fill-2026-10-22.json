@@ -1,0 +1,1234 @@
+{
+ "what": "GPU-resident frames: the ADAPTIVE IDLE FILL (on demand first, then the rest of the run in idle time on a capable desktop), offline A/B",
+ "method": "scn_static_frames.js, one production build, real offline backend over synthetic data (serve_synthetic.py), a local static host standing in for the CDN with 340 ms added per object (the live Cloudflare hit), 2 rounds interleaved A B C D / D C B A, fresh browser per session; world view, GFS Waves; key press to the EXACT-CORRECT frame on the GPU",
+ "arms": {
+  "static": "static frames on, frame store KILLED (#422 as merged)",
+  "intent": "frame store on, idle fill KILLED (__RAW_DISABLE_FRAME_IDLE_FILL__): the intent-gated policy alone (the default before 2026-10-22)",
+  "store": "frame store on with the adaptive idle fill (the default from 2026-10-22)",
+  "eager": "store plus __RAW_FRAME_PREFETCH_EAGER__ (the whole series from the first draw)"
+ },
+ "bytes_note": "Synthetic frames compress to ~8.9 KB; real GFS world frames are 55.3-56.7 KB gz. Real-equivalent bytes = frames x 56 KB.",
+ "env": {
+  "PORT": 4100,
+  "CDN_PORT": 4190,
+  "ROUNDS": 2,
+  "WIN": 8000,
+  "LAT_SERIES": 0,
+  "LAT_GRID": 0,
+  "CDN_LAT": 340,
+  "startedUtc": "2026-10-22T01:56:59.380Z"
+ },
+ "summary": {
+  "static": {
+   "exact_ms_p50": 51,
+   "exact_ms_p95": 795,
+   "exact_ms_max": 887,
+   "exact_missed": 0,
+   "steps": 20,
+   "backend_requests": {},
+   "whole_run_ms_after_first_draw": [
+    null,
+    null
+   ],
+   "glance_6s_frames": [
+    1,
+    1
+   ],
+   "before_steps_frames": [
+    1,
+    1
+   ],
+   "glance_6s_real_equiv_MB": [
+    0.05,
+    0.05
+   ],
+   "before_steps_real_equiv_MB": [
+    0.05,
+    0.05
+   ],
+   "by_step": [
+    {
+     "key": "ArrowRight",
+     "target": 1,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 2,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 3,
+     "exact_ms": [
+      619,
+      887
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 4,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 28,
+     "exact_ms": [
+      611,
+      677
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 52,
+     "exact_ms": [
+      605,
+      637
+     ]
+    },
+    {
+     "key": "BURST",
+     "target": 172,
+     "exact_ms": [
+      594,
+      795
+     ]
+    },
+    {
+     "key": "PageDown",
+     "target": 148,
+     "exact_ms": [
+      594,
+      586
+     ]
+    },
+    {
+     "key": "ArrowLeft",
+     "target": 147,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "Home",
+     "target": 0,
+     "exact_ms": [
+      51,
+      48
+     ]
+    }
+   ]
+  },
+  "intent": {
+   "exact_ms_p50": 2,
+   "exact_ms_p95": 427,
+   "exact_ms_max": 452,
+   "exact_missed": 0,
+   "steps": 20,
+   "backend_requests": {},
+   "whole_run_ms_after_first_draw": [
+    null,
+    null
+   ],
+   "glance_6s_frames": [
+    13,
+    14
+   ],
+   "before_steps_frames": [
+    13,
+    14
+   ],
+   "glance_6s_real_equiv_MB": [
+    0.71,
+    0.77
+   ],
+   "before_steps_real_equiv_MB": [
+    0.71,
+    0.77
+   ],
+   "by_step": [
+    {
+     "key": "ArrowRight",
+     "target": 1,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 2,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 3,
+     "exact_ms": [
+      3,
+      3
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 4,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 28,
+     "exact_ms": [
+      15,
+      7
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 52,
+     "exact_ms": [
+      109,
+      109
+     ]
+    },
+    {
+     "key": "BURST",
+     "target": 172,
+     "exact_ms": [
+      427,
+      452
+     ]
+    },
+    {
+     "key": "PageDown",
+     "target": 148,
+     "exact_ms": [
+      11,
+      1
+     ]
+    },
+    {
+     "key": "ArrowLeft",
+     "target": 147,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "Home",
+     "target": 0,
+     "exact_ms": [
+      7,
+      2
+     ]
+    }
+   ]
+  },
+  "store": {
+   "exact_ms_p50": 0,
+   "exact_ms_p95": 15,
+   "exact_ms_max": 16,
+   "exact_missed": 0,
+   "steps": 20,
+   "backend_requests": {},
+   "whole_run_ms_after_first_draw": [
+    7441,
+    7837
+   ],
+   "glance_6s_frames": [
+    91,
+    86
+   ],
+   "before_steps_frames": [
+    115,
+    116
+   ],
+   "glance_6s_real_equiv_MB": [
+    4.98,
+    4.7
+   ],
+   "before_steps_real_equiv_MB": [
+    6.29,
+    6.34
+   ],
+   "by_step": [
+    {
+     "key": "ArrowRight",
+     "target": 1,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 2,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 3,
+     "exact_ms": [
+      12,
+      4
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 4,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 28,
+     "exact_ms": [
+      1,
+      16
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 52,
+     "exact_ms": [
+      5,
+      5
+     ]
+    },
+    {
+     "key": "BURST",
+     "target": 172,
+     "exact_ms": [
+      6,
+      7
+     ]
+    },
+    {
+     "key": "PageDown",
+     "target": 148,
+     "exact_ms": [
+      0,
+      15
+     ]
+    },
+    {
+     "key": "ArrowLeft",
+     "target": 147,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "Home",
+     "target": 0,
+     "exact_ms": [
+      3,
+      0
+     ]
+    }
+   ]
+  },
+  "eager": {
+   "exact_ms_p50": 1,
+   "exact_ms_p95": 13,
+   "exact_ms_max": 15,
+   "exact_missed": 0,
+   "steps": 20,
+   "backend_requests": {},
+   "whole_run_ms_after_first_draw": [
+    7760,
+    7571
+   ],
+   "glance_6s_frames": [
+    91,
+    94
+   ],
+   "before_steps_frames": [
+    116,
+    116
+   ],
+   "glance_6s_real_equiv_MB": [
+    4.98,
+    5.14
+   ],
+   "before_steps_real_equiv_MB": [
+    6.34,
+    6.34
+   ],
+   "by_step": [
+    {
+     "key": "ArrowRight",
+     "target": 1,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 2,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 3,
+     "exact_ms": [
+      15,
+      11
+     ]
+    },
+    {
+     "key": "ArrowRight",
+     "target": 4,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 28,
+     "exact_ms": [
+      5,
+      1
+     ]
+    },
+    {
+     "key": "PageUp",
+     "target": 52,
+     "exact_ms": [
+      8,
+      7
+     ]
+    },
+    {
+     "key": "BURST",
+     "target": 172,
+     "exact_ms": [
+      13,
+      8
+     ]
+    },
+    {
+     "key": "PageDown",
+     "target": 148,
+     "exact_ms": [
+      4,
+      1
+     ]
+    },
+    {
+     "key": "ArrowLeft",
+     "target": 147,
+     "exact_ms": [
+      0,
+      0
+     ]
+    },
+    {
+     "key": "Home",
+     "target": 0,
+     "exact_ms": [
+      6,
+      5
+     ]
+    }
+   ]
+  }
+ },
+ "sessions": [
+  {
+   "arm": "static",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     619
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     611
+    ],
+    [
+     "PageUp",
+     52,
+     605
+    ],
+    [
+     "BURST",
+     172,
+     594
+    ],
+    [
+     "PageDown",
+     148,
+     594
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     51
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 1,
+     "bytes": 8921
+    },
+    "wholeRunMs": null,
+    "beforeSteps": {
+     "frames": 1,
+     "bytes": 8921
+    },
+    "fill": null
+   },
+   "prefetch": {
+    "requests": 0,
+    "landed": 0,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 0,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 0,
+    "cap": 6,
+    "opened": false,
+    "planned": 0
+   },
+   "shows": {
+    "n": 0,
+    "misses": {},
+    "lastMs": null
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "intent",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     3
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     15
+    ],
+    [
+     "PageUp",
+     52,
+     109
+    ],
+    [
+     "BURST",
+     172,
+     427
+    ],
+    [
+     "PageDown",
+     148,
+     11
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     7
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 13,
+     "bytes": 115890
+    },
+    "wholeRunMs": null,
+    "beforeSteps": {
+     "frames": 13,
+     "bytes": 115890
+    },
+    "fill": {
+     "key": null,
+     "planned": false,
+     "armed": false,
+     "startedMs": null,
+     "doneMs": null,
+     "blocked": "killed",
+     "blockedNow": "killed",
+     "sinceOpenMs": 6072
+    }
+   },
+   "prefetch": {
+    "requests": 97,
+    "landed": 85,
+    "aborted": 0,
+    "preempted": 6,
+    "errors": 0,
+    "bytes": 760729,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 6,
+    "cap": 6,
+    "opened": true,
+    "planned": 115
+   },
+   "shows": {
+    "n": 10,
+    "misses": {
+     "not_ready": 5
+    },
+    "lastMs": 0.3,
+    "deferred": 1
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "store",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     12
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     1
+    ],
+    [
+     "PageUp",
+     52,
+     5
+    ],
+    [
+     "BURST",
+     172,
+     6
+    ],
+    [
+     "PageDown",
+     148,
+     0
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     3
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 91,
+     "bytes": 814596
+    },
+    "wholeRunMs": 7441,
+    "beforeSteps": {
+     "frames": 115,
+     "bytes": 1030820
+    },
+    "fill": {
+     "key": "GFS/waves/world/2026-10-21T12:00:00Z/h10|dil1|conf0.75|trim1|wrap1|f16",
+     "planned": true,
+     "armed": false,
+     "startedMs": 831,
+     "doneMs": 7427,
+     "blocked": null,
+     "blockedNow": null,
+     "sinceOpenMs": 7492
+    }
+   },
+   "prefetch": {
+    "requests": 115,
+    "landed": 115,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 1030820,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 0,
+    "cap": 6,
+    "opened": true,
+    "planned": 115
+   },
+   "shows": {
+    "n": 14,
+    "misses": {},
+    "lastMs": 0.2
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "eager",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     15
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     5
+    ],
+    [
+     "PageUp",
+     52,
+     8
+    ],
+    [
+     "BURST",
+     172,
+     13
+    ],
+    [
+     "PageDown",
+     148,
+     4
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     6
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 91,
+     "bytes": 814522
+    },
+    "wholeRunMs": 7760,
+    "beforeSteps": {
+     "frames": 116,
+     "bytes": 1039741
+    },
+    "fill": {
+     "key": "GFS/waves/world/2026-10-21T12:00:00Z/h10|dil1|conf0.75|trim1|wrap1|f16",
+     "planned": true,
+     "armed": false,
+     "startedMs": 7755,
+     "doneMs": null,
+     "blocked": null,
+     "blockedNow": null,
+     "sinceOpenMs": 7824
+    }
+   },
+   "prefetch": {
+    "requests": 115,
+    "landed": 115,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 1030820,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 0,
+    "cap": 6,
+    "opened": true,
+    "planned": 115
+   },
+   "shows": {
+    "n": 14,
+    "misses": {},
+    "lastMs": 0.2
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "eager",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     11
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     1
+    ],
+    [
+     "PageUp",
+     52,
+     7
+    ],
+    [
+     "BURST",
+     172,
+     8
+    ],
+    [
+     "PageDown",
+     148,
+     1
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     5
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 94,
+     "bytes": 841504
+    },
+    "wholeRunMs": 7571,
+    "beforeSteps": {
+     "frames": 116,
+     "bytes": 1039741
+    },
+    "fill": {
+     "key": "GFS/waves/world/2026-10-21T12:00:00Z/h10|dil1|conf0.75|trim1|wrap1|f16",
+     "planned": true,
+     "armed": false,
+     "startedMs": 7581,
+     "doneMs": null,
+     "blocked": null,
+     "blockedNow": null,
+     "sinceOpenMs": 7614
+    }
+   },
+   "prefetch": {
+    "requests": 115,
+    "landed": 115,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 1030820,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 0,
+    "cap": 6,
+    "opened": true,
+    "planned": 115
+   },
+   "shows": {
+    "n": 14,
+    "misses": {},
+    "lastMs": 0.3
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "store",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     4
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     16
+    ],
+    [
+     "PageUp",
+     52,
+     5
+    ],
+    [
+     "BURST",
+     172,
+     7
+    ],
+    [
+     "PageDown",
+     148,
+     15
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     0
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 86,
+     "bytes": 769588
+    },
+    "wholeRunMs": 7837,
+    "beforeSteps": {
+     "frames": 116,
+     "bytes": 1039741
+    },
+    "fill": {
+     "key": "GFS/waves/world/2026-10-21T12:00:00Z/h10|dil1|conf0.75|trim1|wrap1|f16",
+     "planned": true,
+     "armed": false,
+     "startedMs": 1189,
+     "doneMs": 7850,
+     "blocked": null,
+     "blockedNow": null,
+     "sinceOpenMs": 7886
+    }
+   },
+   "prefetch": {
+    "requests": 115,
+    "landed": 115,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 1030820,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 0,
+    "cap": 6,
+    "opened": true,
+    "planned": 115
+   },
+   "shows": {
+    "n": 14,
+    "misses": {},
+    "lastMs": 0.1
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "intent",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     3
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     7
+    ],
+    [
+     "PageUp",
+     52,
+     109
+    ],
+    [
+     "BURST",
+     172,
+     452
+    ],
+    [
+     "PageDown",
+     148,
+     1
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     2
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 14,
+     "bytes": 124811
+    },
+    "wholeRunMs": null,
+    "beforeSteps": {
+     "frames": 14,
+     "bytes": 124811
+    },
+    "fill": {
+     "key": null,
+     "planned": false,
+     "armed": false,
+     "startedMs": null,
+     "doneMs": null,
+     "blocked": "killed",
+     "blockedNow": "killed",
+     "sinceOpenMs": 6123
+    }
+   },
+   "prefetch": {
+    "requests": 100,
+    "landed": 88,
+    "aborted": 0,
+    "preempted": 6,
+    "errors": 0,
+    "bytes": 787614,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 6,
+    "cap": 6,
+    "opened": true,
+    "planned": 115
+   },
+   "shows": {
+    "n": 10,
+    "misses": {
+     "not_ready": 5
+    },
+    "lastMs": 0.3,
+    "deferred": 1
+   },
+   "tier": "desktop"
+  },
+  {
+   "arm": "static",
+   "steps": [
+    [
+     "ArrowRight",
+     1,
+     0
+    ],
+    [
+     "ArrowRight",
+     2,
+     0
+    ],
+    [
+     "ArrowRight",
+     3,
+     887
+    ],
+    [
+     "ArrowRight",
+     4,
+     0
+    ],
+    [
+     "PageUp",
+     28,
+     677
+    ],
+    [
+     "PageUp",
+     52,
+     637
+    ],
+    [
+     "BURST",
+     172,
+     795
+    ],
+    [
+     "PageDown",
+     148,
+     586
+    ],
+    [
+     "ArrowLeft",
+     147,
+     0
+    ],
+    [
+     "Home",
+     0,
+     48
+    ]
+   ],
+   "open": {
+    "glance": {
+     "frames": 1,
+     "bytes": 8921
+    },
+    "wholeRunMs": null,
+    "beforeSteps": {
+     "frames": 1,
+     "bytes": 8921
+    },
+    "fill": null
+   },
+   "prefetch": {
+    "requests": 0,
+    "landed": 0,
+    "aborted": 0,
+    "preempted": 0,
+    "errors": 0,
+    "bytes": 0,
+    "packFail": 0,
+    "stale": 0,
+    "backedOff": 0,
+    "inflight": 0,
+    "cap": 6,
+    "opened": false,
+    "planned": 0
+   },
+   "shows": {
+    "n": 0,
+    "misses": {},
+    "lastMs": null
+   },
+   "tier": "desktop"
+  }
+ ],
+ "caveats": [
+  "backend CPU column is the WMI probe and is unreliable on this machine (negative deltas); ignore it",
+  "one machine (AMD 890M), offline; the live CDN adds variance the fixed 340 ms does not model",
+  "only GFS waves has static frames, so no one-click-away (warm) sets exist to fill"
+ ]
+}

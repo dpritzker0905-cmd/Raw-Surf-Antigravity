@@ -10,6 +10,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { publishMarineTimelineRequest, publishMarineTimelineFrame } from './marineTimelineCoverage';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
+import { tryShowStoredFrame, noteStep } from './marineFrameStoreRuntime';
 
 let _lastMarineScrubLogTime = 0;
 
@@ -99,6 +100,12 @@ export function useMarineOrchestratorScrubCache({
 
     if (isBackendActive) {
       const requestedValidTime = getSharedValidTime(timeOffsetHours, curLayer, curModel, { readOnly: true });
+      // GPU-RESIDENT FRAMES (static frames on; spec docs/architecture/gpu-resident-forecast-frames.md): the stored frame goes on
+      // screen NOW (a layer copy into the resident wave texture); the normal commit below still follows and writes the same
+      // bytes. Refuses (normal path only) unless the resident is this set's frame at the same size and validity. Then keep the
+      // prefetch on the cursor. Kill: window.__RAW_DISABLE_FRAME_STORE__ = true.
+      tryShowStoredFrame({ model: curModel, layer: curLayer, hourOffset: timeOffsetHours, requestedValidTime });
+      noteStep({ model: curModel, layer: curLayer, requestedValidTime });
       let cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
       // The series frame is the EXACT scrubbed hour (±1.5h snap). getModelSafeMarine can return a
       // NEAREST/stale-hour fallback (flagged __staleHour) which the commit below intentionally
