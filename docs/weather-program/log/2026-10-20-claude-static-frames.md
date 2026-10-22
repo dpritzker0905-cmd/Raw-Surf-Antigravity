@@ -271,3 +271,23 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - **Ledger:** re-chained after dev's 1670: 1671 (read-back finding), 1672 (pr_open #453), 1673 (live in-browser read; 1585 open),
   1674 (correction of 1672's swell claim). They supersede 1659-1662.
 - **Floors:** dev has not touched the backend, so estate stays 2341 (this PR must read 2343).
+
+## 2026-10-22 21:45Z: CORRECTION - ICON/EURO world frames are not what /grid serves (serve-time Gulf fill); guard PR
+
+- **Found while reviewing the wind session's plan** (routes/weather.py runs `coarse_gulf_fill` and then `wind_lane` on every
+  /grid, and /grid_series reuses the route per frame): `fill_coarse_enclosed_sea_from_gfs_served` applies to EURO and ICON marine
+  grids (waves, swell_1, swell_2, wind_waves) whose served span is >= 350 deg, i.e. every world request, which the mid tier answers
+  with the whole global_mid. It fills every masked cell (`not is_valid or speed is None`, land included) that has a valid GFS
+  global_coarse cell of the same layer within 8 deg (L1) with that cell's speed/direction/u/v/period and marks it valid.
+- **Measured offline** (the real function, the synthetic store3's EURO waves global_mid with land simulated over three continent
+  boxes, the store's GFS global_coarse as donor): world span 1,757 of 2,066 masked cells rewritten, stamp `coarse_fill
+  {donor_model: GFS, cells_filled: 1757}`; a 50-deg viewport crop 0. Real world frames carry ~4,850 masked cells.
+- **My miss:** #453's offline parity ran over a synthetic store with NO masked cells, so the fill was a no-op there; the "0 bad"
+  for ICON/EURO world frames did not cover it. #453 merged 2026-10-22 21:30:43Z (6a03c442a); no ICON/EURO frame was published yet
+  (the in-progress pilots run started 20:23Z on pre-#453 code), so nothing wrong reached a browser.
+- **Fix PR (guard):** `serveTimeFillAtWorld(model, layer)`; `staticEligible` refuses world boxes for EURO/ICON (both seams; the
+  series lane inherits it), their crops stay static; `getPinnedIndexSync` refuses EURO/ICON keys so the frame store cannot show an
+  unfilled world pack over a filled /grid commit. Kill `window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__`. Next (separate): mirror the
+  fill at publish for world frames (needs the same-layer GFS global_coarse donor on the pilots runner), which also needs crops to
+  come from unfilled frames, so it means two frame variants or a crop-side unfill; or keep this guard.
+- Ledger: a correction of 1674 (#453's pr_open parity claim) and the fix PR's pr_open.

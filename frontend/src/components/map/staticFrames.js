@@ -318,14 +318,17 @@ export function onStaticFrameParsed(fn) {
   return () => _parsedHooks.delete(fn);
 }
 
-/** The pinned index for a set right now, synchronously; null when none, stale, the set is killed, or it is not a WAVES set.
+/** The pinned index for a set right now, synchronously; null when none, stale, the set is killed, it is not a WAVES set, or
+ *  it is a EURO / ICON set (serveTimeFillAtWorld: /grid's world-span Gulf fill).
  *  The GPU frame store (#437) reaches sets only through this: a per-set kill flipped after a pin also stops it, and it never
  *  plans or prefetches a non-waves run its packer would refuse (packStaticFrame: waves only), which would be egress for
  *  nothing (a whole run is ~6.3 MB). No I/O. */
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
-  const waves = String(key || '').split('/')[2] === 'waves';
-  return pin && !pin.stale && staticSetEnabled(key) && waves ? pin.index : null;
+  const [model, , layer] = String(key || '').split('/');
+  // EURO / ICON: the store cannot tell a world view (where /grid's serve-time Gulf fill makes the served grid differ from the
+  // stored frame; serveTimeFillAtWorld) from a crop at this door, so it takes none of their frames for now.
+  return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
 }
 
 function sharedParsedLoad(key, frame) {
@@ -441,7 +444,23 @@ export function staticEligible({ model, layer, bbox, surf }) {
   if (!staticSetEnabled(setKeyFor(model, layer))) return false;
   // A world box, or a viewport box the resolver answers from global_mid (the mid-zoom crop, #459): every world set's tier is
   // global_mid, so the crop rules (model-aware snap, regional refusal) apply to all of them.
-  return spanOf(bbox) >= WORLD_MIN_SPAN || isMidCropBox({ model, layer, bbox });
+  if (spanOf(bbox) >= WORLD_MIN_SPAN) return !serveTimeFillAtWorld(model, layer);
+  return isMidCropBox({ model, layer, bbox });
+}
+
+/**
+ * A WORLD-span /grid (and /grid_series frame) of this set is NOT the stored product (2026-10-22): the route runs
+ * coarse_gulf_fill.fill_coarse_enclosed_sea_from_gfs_served on EURO and ICON marine grids whose served span is 350 deg or more,
+ * which includes the whole global_mid clip a world request gets. It rewrites every masked cell (land too) that has a valid GFS
+ * coarse cell within 8 deg with GFS values (offline, the real function on a EURO global_mid with simulated land: 1,757 of 2,066
+ * masked cells rewritten at world span; 0 on a 50-deg crop). A static frame of the stored product would differ there, so a world
+ * box of these sets asks /grid; their viewport crops (span < 350, no fill) stay static. Lifts when the publisher mirrors the fill.
+ * Kill (serve these world boxes from frames anyway, the pre-fix behaviour): window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true.
+ */
+export function serveTimeFillAtWorld(model, layer) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ === true) return false;
+  const m = String(model || 'GFS').toUpperCase();
+  return (m === 'EURO' || m === 'ICON') && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(String(layer || 'waves').toLowerCase());
 }
 
 /** A viewport box (not a world one) that the resolver answers from global_mid: served as a crop (staticFrameCrop.js). */
