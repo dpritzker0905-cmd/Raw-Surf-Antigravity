@@ -53,12 +53,15 @@ const STEPS = [['ArrowRight', 1], ['ArrowRight', 2], ['ArrowRight', 3], ['ArrowR
 const LOG_PATTERNS = { attempt: 'Fetching wind (attempt', cacheMiss: 'Cache miss for wind', fetchError: 'Wind grid fetch error',
   containedHit: 'Contained Wind Cache Hit', cacheHit: 'Backend Wind Cache Hit', aborted: 'signal is aborted' };
 
+// An arm ending "-alt" reads a second copy of the bucket (CDN_DIR2 on CDN_PORT2): e.g. one whose v1/wind_lane.json names
+// ANOTHER HRRR lane, so the box and the frames disagree (the fallback: lane-window hours must go to /grid).
+const CDN_DIR2 = process.env.CDN_DIR2 || ''; const CDN_PORT2 = +(process.env.CDN_PORT2 || 4193);
 const cdnLog = { requests: 0, bytes: 0, byKind: {} };
-const cdn = http.createServer((req, res) => {
+const cdnHandler = (DIR) => (req, res) => {
   const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
-  const file = path.join(CDN_DIR, rel);
+  const file = path.join(DIR, rel);
   const send = () => {
-    if (!CDN_DIR || !file.startsWith(path.resolve(CDN_DIR)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    if (!DIR || !file.startsWith(path.resolve(DIR)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
       res.writeHead(400, { 'access-control-allow-origin': '*', 'content-type': 'application/json' });
       return res.end('{"statusCode":"404","error":"not_found"}');
     }
@@ -74,7 +77,9 @@ const cdn = http.createServer((req, res) => {
     res.end(body);
   };
   CDN_LAT ? setTimeout(send, CDN_LAT) : send();
-});
+};
+const cdn = http.createServer(cdnHandler(CDN_DIR));
+const cdn2 = CDN_DIR2 ? http.createServer(cdnHandler(CDN_DIR2)) : null;
 
 const PROBE = () => {
   const P = (window.__WT__ = { w: null, seriesServed: {} });
@@ -178,9 +183,10 @@ async function session(arm, zoom) {
     if (arm.endsWith('grid')) window.__RAW_DISABLE_STATIC_FRAMES__ = true;
     if (arm.endsWith('nowind')) window.__RAW_DISABLE_WIND_STATIC_FRAMES__ = true;
     if (arm.endsWith('noprefetch')) window.__RAW_DISABLE_WIND_PREFETCH__ = true;
-  }, { arm, base: `http://127.0.0.1:${CDN_PORT}/` });
+  }, { arm, base: `http://127.0.0.1:${arm.endsWith('-alt') ? CDN_PORT2 : CDN_PORT}/` });
   await page.addInitScript(PROBE);
   const out = { arm, zoom, view: VIEW };
+  const cdnStart = cdnLog.bytes; const cdnStartN = cdnLog.requests;   // the counters are process-wide: per session = deltas
   try {
     if (useOld) {
       if (!OLD_BASE) throw Error('arm old* needs OLD_BASE');
@@ -192,8 +198,11 @@ async function session(arm, zoom) {
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
     await sleep(SETTLE);
+    // The app's hour 0 is now ROUNDED to the hour (seriesAnchor), so it rolls at every half hour: the expected frame is read at
+    // the anchor in force when each window is armed (a fixed table made a session that crossed :30 count phantom mislabels).
     const anchor = Math.round(Date.now() / 3600000) * 3600000;
-    const expected = await expectedFor(anchor, [0, ...STEPS.map((s) => s[1])]);
+    const expectNow = async (h) => (await expectedFor(Math.round(Date.now() / 3600000) * 3600000, [h]))[h];
+    const expected = await expectedFor(anchor, [0]);
     out.vp = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds(); return { z: +m.getZoom().toFixed(2), w: +b.getWest().toFixed(2), s: +b.getSouth().toFixed(2), e: +b.getEast().toFixed(2), n: +b.getNorth().toFixed(2) }; });
     out.beforeToggle = await page.evaluate(() => window.__WT__.counters());
     const cdn0 = JSON.parse(JSON.stringify(cdnLog));
@@ -230,7 +239,8 @@ async function session(arm, zoom) {
     }
     out.steps = [];
     for (const [key, target] of STEPS) {
-      await page.evaluate(({ t, e }) => window.__WT__.arm(t, e, false), { t: target, e: expected[target] });
+      const e = await expectNow(target);
+      await page.evaluate(({ t, e }) => window.__WT__.arm(t, e, false), { t: target, e });
       for (const k of Object.keys(counts)) delete counts[k];
       const s0 = log.requests.length; const ts = Date.now();
       const wheel = page.locator(WHEEL).filter({ visible: true }).first(); await wheel.focus();
@@ -244,7 +254,8 @@ async function session(arm, zoom) {
     counting = false;
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) out.anchorRolled = true;
     out.after = await page.evaluate(() => window.__WT__.counters());
-    out.cdn = { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes, beforeToggleBytes: cdn0.bytes };
+    out.cdn = { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes, beforeToggleBytes: cdn0.bytes - cdnStart,
+      beforeToggleRequests: cdn0.requests - cdnStartN };
     out.errors = log.errors.slice(0, 5);
     out.hosts = Object.keys(log.hosts);
     return out;
@@ -256,6 +267,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
 
 (async () => {
   await new Promise((r) => cdn.listen(CDN_PORT, '127.0.0.1', r));
+  if (cdn2) await new Promise((r) => cdn2.listen(CDN_PORT2, '127.0.0.1', r));
   const sessions = [];
   const out = { env: { PORT, CDN_PORT, CDN_DIR, ROUNDS, WIN, SETTLE, ZOOMS, CENTER: [CLNG, CLAT], VIEW, LAT_SERIES, LAT_SERIES_FRAME, LAT_GRID, CDN_LAT, base: L.BASE, startedUtc: new Date().toISOString() }, sessions };
   const ARMS = (process.env.ARMS || 'cur').split(',');
@@ -295,5 +307,6 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
   } finally {
     if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
     cdn.close();
+    if (cdn2) cdn2.close();
   }
 })().catch((e) => { console.error('FAIL', e.stack); process.exitCode = 1; });

@@ -644,8 +644,31 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
   return promise;
 }
 
+// A static grid's vectors are already in the mapped shape ({lat, lng, speed, direction, u, v}, plus is_valid: staticFrameCodec.
+// buildWindVectors), so the result reuses them instead of copying 15k objects again; mapNormalizedWindGridToWebGL still builds
+// every other field (one mapper, so the two paths cannot drift).
+function mapStaticWind(json, box, hourOffset) {
+  const vectors = json.grid.vectors;
+  // The shell is mapped as hour -1 so the mapper's hour-0 truth stage never records the one-vector stand-in; the real grid is
+  // recorded below instead.
+  const shell = mapNormalizedWindGridToWebGL({ ...json, grid: { ...json.grid, vectors: [{ lat: 0, lng: 0, speed: 1 }] } }, box, -1);
+  let nonzero = 0;
+  for (let i = 0; i < vectors.length; i++) if (vectors[i].speed > 0) nonzero += 1;
+  shell.vectors = vectors;
+  shell.hourOffset = hourOffset;
+  shell.nonzeroCount = nonzero;
+  shell.renderable = vectors.length > 0 && nonzero > 0;
+  if (typeof window !== 'undefined' && hourOffset === 0) {
+    recordTruthStage('mappedGrid', { model: json.model || 'GFS', domain: 'wind', layer: 'wind', valid_time: json.valid_time,
+      run_time: json.run_time, product_id: json.product_id, is_dynamic_viewport_product: false, coverage_scope: json.coverage_scope,
+      requested_bbox: json.requested_bbox, served_bbox: json.served_bbox, grid: json.grid, truthTag: json.truthTag },
+    'backendWindServiceClient.js', 'mapStaticWind');
+  }
+  return shell;
+}
+
 function staticWindResult(json, { clampedBbox, hourOffset, model, actualBounds, actualSource, start, validTimeStr, clampResult }) {
-  const result = mapNormalizedWindGridToWebGL(json, clampedBbox, hourOffset);
+  const result = mapStaticWind(json, clampedBbox, hourOffset);
   result.source = model;
   result.__staticWind = true;
   updateWindDiagnostics('grid', {
@@ -678,7 +701,7 @@ function mappedStatic(json, box, hourOffset, model) {
   let r = byHour.get(hourOffset);
   if (!r) {
     const first = byHour.values().next().value;
-    r = first ? { ...first, hourOffset } : mapNormalizedWindGridToWebGL(json, box, hourOffset);
+    r = first ? { ...first, hourOffset } : mapStaticWind(json, box, hourOffset);
     r.source = model;
     r.__staticWind = true;
     byHour.set(hourOffset, r);
