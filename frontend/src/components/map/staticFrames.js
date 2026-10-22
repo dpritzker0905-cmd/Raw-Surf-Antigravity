@@ -33,6 +33,8 @@ export const FRAME_BUCKET = 'weather-frames';
 export const LATEST_PATH = 'v1/latest.json';
 const IDLE_REPIN_MS = 30000;      // a pin may move only after this long without a static-frame request
 const LATEST_TTL_MS = 120000;     // and latest.json is re-read at most this often
+const NEGATIVE_TTL_MS = 60000;    // a missing/unreadable latest.json is re-asked at most this often (each 400 is an origin
+                                  // round trip the step waits on before /grid: measured 120-560 ms on dev, 2026-10-22)
 const LRU_MAX = 12;               // decoded frames kept (each ~15k vector objects, a few MB of heap)
 const MAX_IN_FLIGHT = 4;
 const WORLD_MIN_SPAN = 340;
@@ -192,7 +194,8 @@ async function readLatest(force) {
   const base = staticFramesBase();
   if (!base) return null;
   const now = Date.now();
-  if (!force && _state.latest && now - _state.latestAt < LATEST_TTL_MS) return _state.latest;
+  const ttl = _state.latest ? LATEST_TTL_MS : NEGATIVE_TTL_MS;
+  if (!force && _state.latestAt && now - _state.latestAt < ttl) return _state.latest;
   if (_state.latestLoad) return _state.latestLoad;
   _state.latestLoad = loadJson(base + LATEST_PATH, true)
     .then((j) => { _state.latest = j; _state.latestAt = Date.now(); return j; })
