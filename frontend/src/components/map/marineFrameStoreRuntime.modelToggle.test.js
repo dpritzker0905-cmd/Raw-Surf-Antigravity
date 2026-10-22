@@ -21,6 +21,9 @@ jest.mock('./staticFrames', () => ({
 }));
 import * as RT from './marineFrameStoreRuntime';
 
+// These pack REAL world frames and compute their chl/bath (~63 ms each): under a full parallel run a case can pass 5 s.
+jest.setTimeout(20000);
+
 const PARSED = parseFrame(zlib.gunzipSync(Buffer.from(REAL_GFS_FRAME_GZ_BASE64, 'base64')));
 // Another model's frame: same grid, its own land and ice (200 ocean cells invalid: far past the one-run tolerance of 64).
 // Cells from mid-grid, so no edge row empties and the trimmed size stays the same as GFS's (a real ICON world frame: same grid).

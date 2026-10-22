@@ -22,6 +22,9 @@ jest.mock('./staticFrames', () => ({
 }));
 import * as RT from './marineFrameStoreRuntime';
 
+// These pack REAL world frames and compute their chl/bath (~63 ms each): under a full parallel run a case can pass 5 s.
+jest.setTimeout(20000);
+
 const PARSED = parseFrame(zlib.gunzipSync(Buffer.from(REAL_GFS_FRAME_GZ_BASE64, 'base64')));
 const IG = { bounds: PARSED.bounds, cols: PARSED.cols, rows: PARSED.rows };
 const GFS = 'GFS/marine/waves/global_mid';
