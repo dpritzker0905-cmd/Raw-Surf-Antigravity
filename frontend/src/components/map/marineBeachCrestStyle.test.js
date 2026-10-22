@@ -23,7 +23,7 @@ describe('today, the kill and unknown values draw today\'s crest exactly', () =>
   it('no lever: style today, DRAW_FS is dev\'s byte for byte, and under the other crest kills it is the pre-V2 shader', () => {
     expect(BEACH_CREST_STYLE).toBe('today');
     expect(BEACH_CREST_STYLE_GLSL).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: '', alphaHead: '' });
-    const DEV_FS = drawFsUnder(LIGHT_STYLE_KILL);   // dev's DRAW_FS before the light flip (D-043)
+    const DEV_FS = drawFsUnder({ ...LIGHT_STYLE_KILL, __RAW_DISABLE_LIGHT_CREST_CROSS__: true });   // dev's DRAW_FS: the light cross A/B stands down
     expect(DEV_FS.length).toBe(DRAW_FS_DEV.length);
     expect(sha(DEV_FS)).toBe(DRAW_FS_DEV.sha);
     expect(DEV_FS).toContain('  float boostedAlpha = alpha * mix(1.2, 1.8, energy);\n');
