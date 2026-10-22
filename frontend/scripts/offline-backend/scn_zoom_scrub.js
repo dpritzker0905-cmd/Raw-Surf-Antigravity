@@ -17,12 +17,14 @@
 //   node frontend/scripts/offline-backend/serve_spa.js <build> 3100
 //   CDN_DIR=<bucket copy> PORT=4100 OUT=zoom.json node frontend/scripts/offline-backend/scn_zoom_scrub.js
 // Env: ZOOMS (2,3,4,5,7,9), CENTER (lng,lat; -79.5,28.6 = the Florida east coast, where z9 sits on a regional tile),
-// VIEW (desktop = 1280 x 800, phone = 390 x 844 at dpr 3), ARMS (cur: the build's defaults; others below), ROUNDS (1),
+// VIEW (desktop = 1280 x 800; owner = 844 x 390 at dpr 2, whose z3.5-4.4 boxes are the owner's 27 x 20 / 29 x 20 / 31 x 21
+// clips; phone = 390 x 844 at dpr 3, the mobile layout), ARMS (cur: the build's defaults; others below), ROUNDS (1),
 // SETTLE (8000), WIN (8000), CDN_PORT (4191), CDN_LAT (ms per static object), LAT_SERIES / LAT_GRID (ms per backend response).
 // Arms (all on ONE build; kill switches read per call):
 //   cur      the build as it ships
 //   nocrop   window.__RAW_DISABLE_STATIC_MID_CROP__ = true (static frames serve world boxes only, as before 2026-10-22)
 //   nostore  window.__RAW_DISABLE_FRAME_STORE__ = true
+//   nocropshow  window.__RAW_DISABLE_FRAME_STORE_CROP__ = true (the store shows world-sized residents only, as before 2026-10-22)
 //   grid     window.__RAW_DISABLE_STATIC_FRAMES__ = true (no CDN at all: /grid + /grid_series only)
 const fs = require('fs');
 const http = require('http');
@@ -39,7 +41,7 @@ const SETTLE = +(process.env.SETTLE || 8000);
 const ZOOMS = (process.env.ZOOMS || '2,3,4,5,7,9').split(',').map(Number);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
-const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, phone: { width: 390, height: 844, dpr: 3 } };
+const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, owner: { width: 844, height: 390, dpr: 2 }, phone: { width: 390, height: 844, dpr: 3 } };
 const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
 if (!CDN_DIR) throw Error('CDN_DIR=<a local copy of the weather-frames bucket> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
@@ -118,7 +120,7 @@ const PROBE = () => {
     return { sf: sf ? { hits: sf.hits, seriesFrames: sf.seriesFrames, crops: sf.crops || 0, misses: { ...sf.misses }, fetches: sf.fetches, bytes: sf.bytes } : null,
       store: fsx ? { shows: fsx.shows && fsx.shows.n, misses: fsx.shows ? { ...fsx.shows.misses } : null, deferred: fsx.shows && fsx.shows.deferred,
         lastMs: fsx.shows && fsx.shows.lastMs, resident: fsx.resident ? { cols: fsx.resident.cols, rows: fsx.resident.rows, window: fsx.resident.window || null } : null,
-        commits: { ...(fsx.commits || {}) } } : null,
+        commits: { ...(fsx.commits || {}) }, crop: fsx.crop ? { window: fsx.crop.window && fsx.crop.window.key, packs: fsx.crop.packs, built: fsx.crop.built, shows: fsx.crop.shows } : null } : null,
       nodowngrade: window.__MARINE_NO_DOWNGRADE__ ? { count: window.__MARINE_NO_DOWNGRADE__.count, selfHealed: window.__MARINE_NO_DOWNGRADE__.selfHealed || 0, last: window.__MARINE_NO_DOWNGRADE__.last } : null };
   };
 };
@@ -139,6 +141,7 @@ async function session(arm, zoom) {
     if (arm === 'grid') window.__RAW_DISABLE_STATIC_FRAMES__ = true;
     if (arm === 'nocrop') window.__RAW_DISABLE_STATIC_MID_CROP__ = true;
     if (arm === 'nostore') window.__RAW_DISABLE_FRAME_STORE__ = true;
+    if (arm === 'nocropshow') window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
   }, { arm, base: `http://127.0.0.1:${CDN_PORT}/` });
   await page.addInitScript(PROBE);
   const steps = [];
@@ -195,7 +198,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
           const s = await session(arm, zoom);
           sessions.push(s);
           console.log(`z${zoom} ${arm} vp=${JSON.stringify(s.vp)}`, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.via, x.mislabel, x.end.cols + 'x' + x.end.rows])),
-            'reqs', JSON.stringify(s.backendRequests), 'store', JSON.stringify(s.after.store && { shows: s.after.store.shows, misses: s.after.store.misses }),
+            'reqs', JSON.stringify(s.backendRequests), 'store', JSON.stringify(s.after.store && { shows: s.after.store.shows, misses: s.after.store.misses, crop: s.after.store.crop }),
             'sf', JSON.stringify(s.after.sf && { hits: s.after.sf.hits, series: s.after.sf.seriesFrames, crops: s.after.sf.crops, misses: s.after.sf.misses }));
           if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
         }
