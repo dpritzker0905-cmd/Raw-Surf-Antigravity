@@ -5,9 +5,12 @@ import { BEACH_CREST_STYLES, BEACH_CREST_STYLE, BEACH_CREST_STYLE_GLSL, beachCre
 // Beach crest style (owner A/B, 2026-10-21). Pins: with no lever, or the kill, DRAW_FS is today's shader byte for byte; each lever
 // changes only the wired lines, each gated on the beach theme, and beach's crest COLOURS are untouched (luminance structure only).
 const sha = (s) => createHash('sha256').update(s).digest('hex');
-// DRAW_FS before any crest V2 (dev 0fc67408a; light crest V2's kill restores it, marineCrestPaletteLight.test.js): 8811 characters.
+// dev 23a91534f's default DRAW_FS (light's original crests D-041, dark's 8 m+ cased storm ink D-039; marineCrestPaletteLight.test.js
+// pins the same value): beach's default must draw it byte for byte.
+const DRAW_FS_DEV = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
+// DRAW_FS before any crest change (dev f6b80f724): what the light V2 kill + dark's #419 kill draw, with or without this module.
 const DRAW_FS_BEFORE = { sha: 'a9e8e1026083bc9b9ca950d1e209bb0139a89f1a52ca9ba02306ddbc51d3a0ad', length: 8811 };
-const LIGHT_KILL = { __RAW_DISABLE_LIGHT_CREST_V2__: true };
+const OTHER_CREST_KILLS = { __RAW_DISABLE_LIGHT_CREST_V2__: true, __RAW_DISABLE_DARK_STORM_CREST__: true };
 const withWindow = (levers, fn) => jest.isolateModules(() => {
   Object.assign(window, levers);
   try { fn(require('./WebGLMarineParticleShaders'), require('./marineBeachCrestStyle')); } finally { Object.keys(levers).forEach((k) => delete window[k]); }
@@ -16,11 +19,13 @@ const drawFsUnder = (levers) => { let fs; withWindow(levers, (s) => { fs = s.DRA
 const LINES = ['float shape = 1.0 - smoothstep(', 'vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);', 'float crestContrastEff = ', 'float boostedAlpha = alpha * '];
 
 describe('today, the kill and unknown values draw today\'s crest exactly', () => {
-  it('no lever: style today, and the shader under light\'s kill hashes to the pre-V2 shader', () => {
+  it('no lever: style today, DRAW_FS is dev\'s byte for byte, and under the other crest kills it is the pre-V2 shader', () => {
     expect(BEACH_CREST_STYLE).toBe('today');
     expect(BEACH_CREST_STYLE_GLSL).toEqual({ shapeEdge: '0.55', tone: '', contrastHead: '', alphaHead: '' });
+    expect(DRAW_FS.length).toBe(DRAW_FS_DEV.length);
+    expect(sha(DRAW_FS)).toBe(DRAW_FS_DEV.sha);
     expect(DRAW_FS).toContain('  float boostedAlpha = alpha * mix(1.2, 1.8, energy);\n');
-    withWindow(LIGHT_KILL, (shaders) => {
+    withWindow(OTHER_CREST_KILLS, (shaders) => {
       expect(shaders.DRAW_FS.length).toBe(DRAW_FS_BEFORE.length);
       expect(sha(shaders.DRAW_FS)).toBe(DRAW_FS_BEFORE.sha);
     });

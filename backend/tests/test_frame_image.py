@@ -1,7 +1,7 @@
 """One-field proof (2026-10-19): the per-time-step field image must decode back to the stored product exactly.
 
 Pins services/frame_image.py (encoding, orientation, missing cells) and scripts/publish_frame_images.py (which product
-it picks, the self-parity gate, the cache policy of what it writes). Offline only: LocalStore, no network.
+it picks, the self-parity gate, the cache policy of what it writes). Offline only: LocalCache + LocalSink, no network.
 """
 import json
 import sys
@@ -91,11 +91,12 @@ def test_publish_writes_an_immutable_image_and_a_revalidating_index(tmp_path):
     (store_dir / "manifest.json").write_text(json.dumps({"products": [
         {"model": "GFS", "domain": "marine", "layer": "waves", "region_id": "global_mid",
          "filename": "p.json", "valid_time_start": product["valid_time"]}]}))
-    store = pub.LocalStore(store_dir, out_dir)
-    record = pub.publish(store, now=datetime(2026, 10, 19, 12, tzinfo=timezone.utc))
+    # Since step 2b (2026-10-20) the proof reads the runner's own files (LocalCache) and never downloads a product.
+    source, sink = pub.LocalCache(store_dir), pub.LocalSink(out_dir)
+    record = pub.publish_png_proof(source, sink, now=datetime(2026, 10, 19, 12, tzinfo=timezone.utc))
     assert record["path"] == "gfs/waves/global_mid/20261019T060000Z/20261019T120000Z.png"
     assert record["parity"]["bad"] == 0 and record["bytes"] == (out_dir / record["path"]).stat().st_size
-    assert store.headers[record["path"]] == {"content-type": "image/png", "cache-control": pub.IMMUTABLE}
-    assert store.headers["manifest.json"]["cache-control"] == "no-cache"
+    assert sink.headers[record["path"]] == {"content-type": "image/png", "cache-control": pub.IMMUTABLE}
+    assert sink.headers["manifest.json"]["cache-control"] == "no-cache"
     index = json.loads((out_dir / "manifest.json").read_text())
     assert index["frames"][0]["path"] == record["path"]

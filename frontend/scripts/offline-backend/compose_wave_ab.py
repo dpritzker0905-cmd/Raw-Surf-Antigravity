@@ -21,6 +21,7 @@ ORDER = ("v1", "v2@10", "v2", "v2@10b", "v2b", "A", "B", "today", "ttb", "tt", "
 NAMES.update({"today": "today's beach crest", "ttb": "two-tone bold", "tt": "two-tone", "ts": "two-tone soft", "tc": "cased"})
 CREST_NAMES = {"v2": "V2 polarity (default)", "l1": "TODAY's crests", "lk": "V2 + self-contrast everywhere (cased probe)",
                "l1k": "TODAY + self-contrast everywhere"}
+DENSITY_NAMES = {"dk": "TODAY's crest density", "v2": "big-surf cut, as the eye sees it (default)"}   # --tag density-...
 
 
 def opt(name, default=None):
@@ -32,6 +33,10 @@ def font(size):
         if os.path.exists(f):
             return ImageFont.truetype(f, size)
     return ImageFont.load_default()
+
+
+# The dark storm crest A/B (--tag dark-<view>, --variants d1,v2, --clip-view regional|eye|coastal).
+DARK_NAMES = {"d1": "TODAY (fiery orange)", "v2": "cased orange from 8 m (D-039)"}
 
 
 def label(img, text, size=22):
@@ -48,14 +53,15 @@ def main(out):
     order = opt("--variants").split(",") if opt("--variants") else ORDER
     variants = [v for v in order if any(s["variant"] == v for s in rec["shots"])]
     tag = ("-" + opt("--tag")) if opt("--tag") else ""
-    names = CREST_NAMES if opt("--tag", "").startswith("crest") else NAMES
+    names = CREST_NAMES if opt("--tag", "").startswith("crest") else DENSITY_NAMES if opt("--tag", "").startswith("density") else NAMES
     clip_view = opt("--clip-view", "regional")
     title = opt("--title", "wave-height wash, offline synthetic store (storm eye > 10 m)")
     for theme in ("light", "beach", "dark"):
         shots = [s for s in rec["shots"] if s["theme"] == theme and s.get("file")]
         if not shots:
             continue
-        views = [v for v in ("world", "regional", "coastal") if any(s["view"] == v for s in shots)]
+        views = [v for v in ("world", "regional", "eye", "mid", "coastal", "close", "closer") if any(s["view"] == v for s in shots)]
+        names = DARK_NAMES if theme == "dark" and opt("--tag", "").startswith("dark") else names
         scale = 0.5
         cell_w, cell_h, leg_h = int(1280 * scale), int(800 * scale), 70
         sheet = Image.new("RGB", (cell_w * len(variants), (cell_h + leg_h) * len(views) + 40), (30, 30, 30))

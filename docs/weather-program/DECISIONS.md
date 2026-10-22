@@ -1308,3 +1308,69 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
   (D-037 on its branch) does not reopen this.
 - **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.
+
+### D-039 · Dark's 8 m+ storm crests are cased: today's orange with the crest self-contrast, no colour switch; ON by default
+- **Decided:** owner, 2026-10-21 ~15:30Z, on the A/B of PR #419 (owner page https://claude.ai/artifact/A5aYRLqNXoKAboPmsUWtJg v3:
+  keep dark as it is | electric blue from 8 m | cased orange from 8 m, moving at the storm eye, regional and coastal views): "Ship the
+  cased orange from 8 m for dark's storm crests instead of electric blue." Earlier the same day he scoped the fix ("We can fix that
+  one weak point only on the extreme 8m"), turned down the dark inks ("I dont like the darker middle crests in the storm animations,
+  improve those") and, asked directly, kept the A/B to 8 m+ ("Keep 8 m+ only") over whole-field casing options.
+- **Rule:** dark's storm crest keeps its fiery orange at every height. From 8 m (the crest's own `v_wave_height`), dark only
+  (`u_theme < 0.5`), DRAW_FS turns on the engine's crest self-contrast (`crestContrastEff`): a rim at 0.55-0.64 x the colour round a
+  core at 1.30 x plus a little white, the treatment every crest already gets at z 3.5-4.4. One generated line from
+  `marineCrestPalette.js` `DARK_STORM_CRESTS.v2`; no added shader lines. Below 8 m, light and beach: byte-identical.
+- **Evidence:** `log/2026-10-20-claude-dark-storm-crest.md`; `evidence/dark-storm-crest-2026-10-20.json` (`cased`). Model
+  (`dark-storm-crest.mjs`): today's orange core |Lc| 0 at 8-10 m+; cased |Lc| 20.4-38.0 from 8 m (the rim), colour-blind 19.7 (today
+  15.5). Offline real engine, p90 |Lc| 8-10 m today -> cased: eye 11-27 -> 20-35, coastal 11-13 -> 26-37, regional 11-23 -> 14-28;
+  Leonardo (wcag3) per band at the eye 8 / 18 / 21 / 29 -> 20 / 22 / 30 / 43.
+- **Known costs:** about half of electric blue's contrast (eye 40-59) and no colour-blind gain at the eye (p90 14-26, as today); the
+  5.5-8 m band, where the orange also sits at the wash's brightness, is out of scope and unchanged.
+- **Rollback:** `window.__RAW_DISABLE_DARK_STORM_CREST__ = true` draws today's lines exactly (DRAW_FS hash-pinned in
+  `marineDarkStormCrest.test.js`).
+- **Turned down:** ember-black / ember red from 8 m (read as soot on the white eye); electric blue from 8 m (a colour switch mid-field,
+  the kind the owner rejected in light); whole-field amber or warm-white cores with a black casing (out of his 8 m+ scope).
+- **Reopen if:** the owner says so, or the dark wash's 8-10 m colours change.
+### D-041 · Light's wave crests are the original again (deep navy, amber-gold, crimson red); light crest V2 only on request; ON by default
+- **Decided:** owner, 2026-10-21 08:02 EDT, on the live dev site (relayed by the lead): "visually, in the live dev server we're on
+  now, I do not like the animation colors of light mode, with dark animations mixed with yellow ones, its not pleasing to the eye as
+  a good representation of waves moving. The original was better." Supersedes D-036 as the default (V2 stays reachable for an A/B).
+- **Rule:** `resolveLightCrest` draws V2 only when asked for, set before page load: `window.__RAW_LIGHT_CREST_V2__ = true`, or the
+  restore's kill `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true`; `window.__RAW_DISABLE_LIGHT_CREST_V2__ = true` still forces the
+  original. One owner: `marineCrestPalette.js`. Standing rule from the same feedback: one colour family per theme for crests that
+  move together; never switch crest hue at a height.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 20:00Z); `evidence/light-crest-restore-2026-10-21.json`. The
+  default DRAW_FS is dev's with light's four lines as before V2 (sha256 e2438586..., 8872); with #419's dark kill as well it is
+  f6b80f724's byte for byte (a9e8e102..., 8811). V2 on request and the restore's kill compile dev's DRAW_FS (5057bc10..., 9110).
+  Jest pins, and the shaders the GPU compiled in light, beach and dark, read back offline; DRAW_VS unchanged. Dark and beach share
+  the one DRAW_FS and their lines are dev's.
+- **Known costs:** over light's current wash the original crests share the wash's luminance from 2.3 m up (APCA |Lc| 0; lead's
+  research), and over #431's spectrum from 1.7 to 14 m (crimson on the crimson storm band from 6 m); at isoluminance motion
+  direction weakens (Lindsey & Teller 1990). The original looked better on the wash it was made for, which has since changed.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true` before load restores D-036's V2 default (dev's DRAW_FS, pinned).
+- **Next, not decided:** the owner's "It still needs to adjust for areas in the colour for heatmaps that blend too much with the
+  animation colors": one A/B, the original vs the original plus a luminance-only two-tone (beach #433's idea, no hue change), moving.
+- **Reopen if:** the owner says so, or the A/B's pick changes light's crests again.
+### D-042 · Big-surf crests thin at mid-to-close zoom by theme, as the eye sees it (light z5, beach z6, dark z8); ON by default
+- **Decided:** owner, 2026-10-21, on #428's A/B (today | the cut as asked | the cut as the eye sees it, three themes, coastal and close
+  zoom over the synthetic storm): "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch
+  light's storm to the warm gold in its own PR." The ask (2026-10-20): light 15-20% less dense from where state names show in full,
+  beach 10-15% from where city names show, dark the same from two zooms closer than beach, only where the surf is big.
+- **Rule:** where the sea is 2 m and up (full from 4 m: a crest's size saturates there), a share of the crests DRAW_VS keeps is
+  removed so they cover the owner's share less of the screen: light 17.5% from z5, beach 12.5% from z6, dark 12.5% from z8 (label
+  zooms read off navigation-day-v1 / outdoors-v11 / navigation-night-v1 by `scn_label_zoom.js`), each ramping in over the half zoom
+  before. Crests overlap, so the share removed is fitted per theme and zoom (`CREST_DENSITY_SEED_CUT`): light .28 / .29 / .45 / .37 at
+  z5 / 7.4 / 9 / 10.5, beach .22 / .23 / .32 / .26 at z6 / 7.4 / 9 / 10.5, dark .26 / .27 / .33 / .28 at z8 / 8.25 / 9 / 10.5. WHICH
+  crests go is a hash of its own (`crestCutHash`, hash without sine over the particle's texel), not a lower density threshold:
+  `particleHash` collapses onto a few hundred float32 values, so a lowered threshold removes crests in steps (ledger finding 1601).
+  One owner: `marineCrestDensity.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 00:30Z and 15:30Z); `evidence/crest-density-2026-10-21.json`;
+  owner page https://claude.ai/artifact/7UVhRYh3kRVwgjm2jTop3r. Offline real engine, shipped rows, one bracketed session per theme:
+  crest coverage light -15.6 / -19.4 / -17.7% (z7.4 / z9 / z10.5), beach -14.3 / -11.7 / -13.0%, dark -12.4 / -12.1 / -12.1%
+  (z8.25 / z9 / z10.5); repeat steps within 1.5 pts, sessions ~2 pts apart.
+- **Known costs:** the rows are fitted over one synthetic storm at one place (a real coast's mix of heights and land differs); light
+  at z9 removes 45% of big-surf crests to show 17.5% less, the most of any point; the cut's hash adds a one-line function to DRAW_VS.
+- **Rollback:** `window.__RAW_DISABLE_CREST_DENSITY_ZOOM__ = true` before load draws dev's DRAW_VS byte for byte (sha256 pinned in
+  `marineCrestDensity.test.js`); `window.__RAW_CREST_DENSITY_SEED_CUT__ = <share>` overrides the rows live, for measurement.
+- **Next, not decided:** the constant-screen-density cull (`u_densityBase` against `particleHash`) has the same staircase; giving it
+  a well-spread hash would move today's density at every zoom, so it is its own change with its own A/B.
+- **Reopen if:** the owner says so, or a crest-size or seed-count change moves the coverage the rows were fitted on.

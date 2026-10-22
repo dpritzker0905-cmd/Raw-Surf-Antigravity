@@ -37,7 +37,8 @@ import {
   recordTerminalNoCoverage,
   hasTimeCoverage,
   isContainedInMarineCache,
-  recordSelectorLookup
+  recordSelectorLookup,
+  aliasMarineHourByInstant
 } from './marineControllerCache';
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
@@ -208,6 +209,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   if (bounds) {
     const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
+    if (isBackendActive) aliasMarineHourByInstant(wanted, wantedLayer, tileId, wantedHour);   // GRID_INSTANT_KEY (marineControllerCache.js)
     exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       const sig = exact.signature;
@@ -524,6 +526,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     // Mode-keyed like getModelSafeMarine (surf/plain frames must never cross-hit).
     const layerPart = (_isAllVarModel(model) ? 'all' : activeLayer) + (getSurfModeFlag() ? '~surf' : '');
     const tileId = clampRes.selectedTileId || 'outside';
+    aliasMarineHourByInstant(model, activeLayer, tileId, hourOffset);   // GRID_INSTANT_KEY (marineControllerCache.js): no refetch of a held instant
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       if (exact.data?.stale || exact.data?.grid?.stale) {
