@@ -251,3 +251,6 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - Checks after the fix: Jest 361 suites / 5,323 tests (one run timed out `marineFrameStoreRuntime` "a hidden tab waits" at 5 s
   under full-suite load; 19/19 in isolation twice, and the next full run passed), check_eslint, craco build. Ledger: 1657
   (finding: the live read; 1585 open), 1658 (correction to 1656's swell scrub claim).
+- **Re-chained after #452** (dev 213ff3217 took seq 1655/1656): this branch's lines are now 1657 (the read-back finding), 1658
+  (pr_open #453), 1659 (finding: the live in-browser read; 1585 open) and 1660 (correction of 1658's swell claim). The numbers
+  1655-1658 written above are superseded by these.

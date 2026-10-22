@@ -59,8 +59,22 @@ export function createFrameArrays(gl, { cols, rows, depth, maxArrays = 4, now = 
   const bySet = new Map();     // setKey -> { tex, lastUse }
   const free = [];             // textures with no set (the spare pool)
   let allocated = 0;
-  const t = { allocs: 0, reuses: 0, evictions: 0, uploads: 0, copies: 0, errors: 0 };
+  const t = { allocs: 0, reuses: 0, evictions: 0, uploads: 0, copies: 0, errors: 0, lost: 0 };
   let readFbo = null;
+  let dead = false;
+
+  // CONTEXT LOSS (found 2026-10-22, second pass): after webglcontextlost + restore every object made before the loss is invalid, and
+  // GL calls on it fail WITHOUT throwing, so a copy "succeeded" while the engine's texture kept the previous frame (its identity said
+  // the new hour). Each upload and copy first checks that the context is live and its array is still a texture; when not, the pool
+  // is dead: it drops its references (no GL calls on dead objects) and reports false, so the caller uses the CPU bytes instead.
+  const isTex = (x) => typeof gl.isTexture !== 'function' || gl.isTexture(x);
+  function alive(tex) {
+    if (dead) return false;
+    let ok = false;
+    try { ok = !(typeof gl.isContextLost === 'function' && gl.isContextLost()) && (!tex || isTex(tex)); } catch (e) { ok = false; }
+    if (!ok) { dead = true; t.lost += 1; bySet.clear(); free.length = 0; allocated = 0; readFbo = null; }
+    return ok;
+  }
 
   function allocate() {
     const prev = gl.getParameter(gl.TEXTURE_BINDING_2D_ARRAY);
@@ -110,7 +124,7 @@ export function createFrameArrays(gl, { cols, rows, depth, maxArrays = 4, now = 
   /** Upload frames: items = [{ layer, bytes }] into `setKey`'s array. One state save/restore for the batch. */
   function uploadMany(setKey, items) {
     const have = bySet.get(setKey);
-    if (!have || !items || !items.length) return 0;
+    if (!have || !items || !items.length || !alive(have.tex)) return 0;
     const s = saveState(gl);
     let n = 0;
     try {
@@ -133,7 +147,7 @@ export function createFrameArrays(gl, { cols, rows, depth, maxArrays = 4, now = 
    */
   function copyToTexture(setKey, layer, dstTex) {
     const have = bySet.get(setKey);
-    if (!have || !dstTex || !(layer >= 0 && layer < depth)) return false;
+    if (!have || !dstTex || !(layer >= 0 && layer < depth) || !alive(have.tex) || !isTex(dstTex)) return false;
     const s = saveState(gl);
     try {
       if (!readFbo) readFbo = gl.createFramebuffer();
@@ -160,6 +174,8 @@ export function createFrameArrays(gl, { cols, rows, depth, maxArrays = 4, now = 
     cols, rows, depth, bytesPerLayer, maxArrays,
     ensureSpare, acquire, release, uploadMany, copyToTexture, dispose,
     has: (setKey) => bySet.has(setKey),
+    /** False once the context was lost: the caller drops this pool and the store's residency, and builds a new pool later. */
+    alive: () => alive(null),
     allocatedBytes: () => allocated * depth * bytesPerLayer,
     telemetry: () => ({ ...t, arrays: allocated, sets: bySet.size, spare: free.length, allocatedMB: +((allocated * depth * bytesPerLayer) / 1048576).toFixed(2) }),
   };
