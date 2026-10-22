@@ -120,7 +120,7 @@ export function createFrameStore({ tier = 'desktop', now = () => Date.now() } = 
     if (!s.dims) s.dims = { cols: pack.cols, rows: pack.rows, validityHash: pack.validityHash };
     cpuBytes -= frameBytes(e);
     e.packed = pack.bytes; e.raw = raw; e.pack = { cols: pack.cols, rows: pack.rows, bounds: pack.bounds, isGlobal: pack.isGlobal,
-      validityHash: pack.validityHash, validityBits: pack.validityBits || null, trimmed: pack.trimmed };
+      validityHash: pack.validityHash, validityBits: pack.validityBits || null, oceanBitsPost: pack.oceanBitsPost || null, trimmed: pack.trimmed };
     e.state = e.layer !== null ? 'resident' : 'packed'; e.lastUse = now();
     cpuBytes += frameBytes(e);
     return true;
