@@ -7,7 +7,10 @@ decide whether carrying them changes any decision today, carry them by name, pro
 backend only), and ship dark if it changes a drawn result (D-001). Branch `claude/dazzling-tereshkova-dd52ca` from `dev`
 `23a91534f`. **No served number changes by default** (no SCOREBOARD row): `served_valid_time` is carried only behind a default-off
 flag; `__servedProductId` is carried on and only diagnostics read it. Never touched the live backend: the only network read of a
-deployed thing was a STATIC read of the dev site's JS chunks (Netlify CDN, no Render request).
+deployed thing was a STATIC read of the dev site's JS chunks (Netlify CDN, no Render request). Merged `origin/dev` `95363ea27` into
+the branch before the ledger lines (the app's sync failed with "Committer identity unknown", as before on this machine; a manual
+merge, two additive conflicts in the visual lab resolved by keeping both). Ledger: 1611 (finding), 1612 (commitment: the evidence a
+flip needs, due 2026-10-28), 1613 (`pr_open`). STATE.md is left to the merge receipts (a draft changes no served state).
 
 ## 1. What the conform drops, measured in code
 
