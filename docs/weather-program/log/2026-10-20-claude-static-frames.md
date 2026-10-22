@@ -165,3 +165,23 @@ CI runs at once. Merged origin/claude/logfire-no-token-safe (f20cdc4c6, ledger t
 - STATE: #432's version plus this PR's bullet.
 - Ledger: the pr_open and the live-read commitment are re-appended ONCE as **seq 1584 and 1585** (acted-at 2026-10-20 23:40/23:41Z;
   the earlier branch-only 1553/1554 and 1557/1558 are superseded). STATE's Ledger head is 1585.
+
+## 2026-10-22 00:45Z: live publisher read-back, the bounds fix, and the flip (owner: "turn on static frames")
+
+#422 merged 2026-10-21 18:25Z (2a47fd5d8). The owner, 2026-10-21 20:09 EDT in the lead session: "turn on static frames".
+- **Read-back (commitment, part 1):** the first two post-merge forecast-ingest-pilots runs, 39670557729 (20:28Z dispatch) and
+  39688997158 (22:47Z schedule), both read entries 113, **not_local 0** (the pilots lane holds the whole set, which confirms the
+  move), but **built 0, refused 113, coverage 0**: "vector 181 at (-78.0, -180.0) is off the regular grid (-77.98780487804878,
+  -180.0)". No index was written, and the CDN answers `v1/latest.json` with 400. The PNG proof published both times (27,219 B and
+  27,325 B, parity 0 bad).
+- **Cause:** a STORED product's `grid.bounds` is the request box (global_mid north 85) while its last row sits at 84; /grid serves
+  bounds recomputed from the cells (filter_grid_to_bbox), and the synthetic store writes cell centres, so offline never saw it.
+- **Fix:** `frame_binary.cell_bounds` takes the lattice from the vectors' outer cell centres, and the index's grid bounds follow.
+  On the real world frame with stored-shape bounds (north 85) the old rule gives exactly the CI log's -77.98780487804878; the fix
+  writes header bounds -80..84, with Python parity 0 bad over 15,023 nodes and the JS codec vs live /grid 0 bad. The existing
+  tests now carry request-box bounds (no new tests, floors unchanged).
+- **Flip PR** (ledger-free; the lead appends the pr_open): static frames ON by default (`staticFramesEnabled`). Order: the kill
+  switch `window.__RAW_DISABLE_STATIC_FRAMES__` first (restores /grid exactly), then localStorage 'true'/'false', then the build
+  default (REACT_APP_STATIC_FRAMES=false turns it off). `staticEligible` also requires a CDN base URL. setupTests.js sets the kill
+  switch for suites that are not about static frames; staticFrames.test.js clears it. DECISIONS entry "D-0XX (numbered at merge)".
+  The live in-browser parity read (commitment part 3) is still owed: after the first publish with the fix.

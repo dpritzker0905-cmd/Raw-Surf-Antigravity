@@ -220,3 +220,15 @@ and that is the plan (relayed 2026-10-22): open on demand, then on a capable des
 ledger-free branches, but this session's permission classifier refused the commit that deletes #437's two ledger lines
 ("Logging/Audit Tampering"). The lines are instead re-chained after dev's 1606 as 1607 (pr_open) and 1608 (finding), with their
 original times as `acted_at`. The owner decides whether to allow the ledger-free method.
+
+## Update (2026-10-22 02:40Z): merged dev b240401f8, where static frames are ON; smoke on the merged build
+
+- dev now ships static frames ON for world GFS waves (b240401f8), so the frame store and the idle fill run as soon as #437
+  merges. The kill switches above still hold, and `__RAW_DISABLE_STATIC_FRAMES__` turns off everything below it.
+- Only `scn_static_frames.js` conflicted. The flip's arm setup (the kill switch, no opt-in) is combined with the store arms'
+  window flags.
+- Smoke, 1 round, merged build, frames republished with the merged publisher (115/115 built, parity_bad 0), 340 ms per CDN object:
+  - intent: p95 435 ms;
+  - store (adaptive): p95 16 ms; the fill was granted 1.16 s after the first draw and the whole run was in the store at 7.6 s.
+- Gates on the merged tree: Jest `src/components/map` + `src/tests` 361/361 suites (5318 tests); ESLint ratchet exit 0;
+  build OK.

@@ -1,10 +1,11 @@
 // Static frames vs the backend, scrubbed the same way (step 2b, 2026-10-20). Offline only.
 //
 // Two arms from ONE production build, interleaved A B B A per round (ROUNDS rounds, default 3), each in a fresh browser:
-//   grid    static frames off (today's path: /grid_series pages + per-hour /grid from the real backend app)
-//   static  localStorage '__RAW_STATIC_FRAMES__' = 'true' and window.__RAW_STATIC_FRAMES_BASE__ -> a local static host
-//           standing in for the Supabase CDN (it serves the publisher's --out-dir as is: gzipped frames, no
-//           Content-Encoding header, so the app's own worker inflates them)
+//   grid    window.__RAW_DISABLE_STATIC_FRAMES__ = true (the kill switch: /grid_series pages + per-hour /grid from the real
+//           backend app, today's path before 2026-10-21)
+//   static  the app's DEFAULT (static frames ON since 2026-10-21; no opt-in is set), with window.__RAW_STATIC_FRAMES_BASE__
+//           -> a local static host standing in for the Supabase CDN (it serves the publisher's --out-dir as is: gzipped
+//           frames, no Content-Encoding header, so the app's own worker inflates them)
 // Per scrub step (world view, GFS Waves): time from the key press to the EXACT-CORRECT frame on the GPU = the engine's
 // resident grid is the stored product /grid serves for that time (its product_id, asked of the backend BEFORE the timed
 // window), GFS, waves, at full resolution (no decimated_stride; 181 x 83 here). 0 ms when the resident frame already is
@@ -18,7 +19,7 @@
 //   CDN_DIR=<cdn> PORT=4100 OUT=static.json node frontend/scripts/offline-backend/scn_static_frames.js
 // Env: ROUNDS (3), WIN (ms per step, 8000), LAT_SERIES / LAT_GRID (ms added per backend response), CDN_LAT (ms added per
 // static object), CDN_PORT (4190), ARMS (default grid,static). The GPU-resident frames arms (2026-10-21):
-//   static  static frames on, the frame store KILLED (window.__RAW_DISABLE_FRAME_STORE__ = true): #422 as merged
+//   static  as above (static frames on, the default), with the frame store KILLED (window.__RAW_DISABLE_FRAME_STORE__ = true)
 //   store   static frames on and the frame store on (the default once static frames are on): prefetch + the layer copy, and
 //           (2026-10-22) the adaptive idle fill: the rest of the run in idle time once the first frames have landed
 //   intent  as store with the idle fill KILLED (window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true): the intent-gated policy alone
@@ -134,7 +135,9 @@ async function session(arm) {
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: true, hooks: { beforeWeather: async (url) => {
     const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
   await page.addInitScript(({ on, base, killStore, eager, killFill }) => {
-    if (on) { localStorage.setItem('__RAW_STATIC_FRAMES__', 'true'); window.__RAW_STATIC_FRAMES_BASE__ = base; } else localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    localStorage.removeItem('__RAW_STATIC_FRAMES__');          // no per-browser choice: the build default decides
+    window.__RAW_STATIC_FRAMES_BASE__ = base;
+    if (!on) window.__RAW_DISABLE_STATIC_FRAMES__ = true;      // the kill switch
     if (killStore) window.__RAW_DISABLE_FRAME_STORE__ = true;
     if (eager) window.__RAW_FRAME_PREFETCH_EAGER__ = true;
     if (killFill) window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true;

@@ -136,8 +136,11 @@ def build_frame(product, entry):
 
 
 def _grid_record(product):
+    """The grid as /grid serves it: bounds are the outer cell centres (fb.cell_bounds), not the stored request box."""
     g = product["grid"]
-    return {"cols": g["cols"], "rows": g["rows"], "bounds": g["bounds"], "row0": "south", "col0": "west"}
+    west, south, east, north = fb.cell_bounds(g["vectors"])
+    return {"cols": g["cols"], "rows": g["rows"], "bounds": {"west": west, "south": south, "east": east, "north": north},
+            "row0": "south", "col0": "west"}
 
 
 def min_coverage():
