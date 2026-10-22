@@ -1,5 +1,6 @@
 // THE HEIGHT BYTE (2026-10-20): the per-upload scale, its kill, and the byte-identity of everything that must not move.
 // Baselines: hashed at #411's head c40cbe67f before any file here changed (dev f550d2502, #411's squash, has the same tree).
+import './marineWaveSpectrumKill.testsupport';   // light's v2 is pinned here; the spectrum (D-037) in marineWaveSpectrum.test.js
 import { createHash } from 'crypto';
 import fs from 'fs';
 import path from 'path';

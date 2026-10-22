@@ -1,3 +1,4 @@
+import './marineWaveSpectrumKill.testsupport';   // light's v2 is pinned here; the spectrum (D-037) in marineWaveSpectrum.test.js
 import { createHash } from 'crypto';
 import { getThemedWaveColorJS, applyThemeWaveScale, BASE_CUSTOM_COLOR_SCALES } from './colorScales';
 import { hasMarineWavePalette, marineWaveLegendGradientCSS, marineWaveLegend, WAVE_PALETTES, widenWavePalette, MARINE_WAVE_PALETTE_ID, MARINE_WAVE_PALETTE_IDS, MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, marineWavePaletteGlsl, sampleMarineWavePalette, ARROW_PCT, marineWaveHeightScale } from './marineWavePalette';
@@ -173,7 +174,7 @@ describe.each([['v2', 16], ['v2', 10]])('palette %s capped at %i m', (id, top) =
 
   it('ships by default, with only v1 behind the kill and no candidate lever left', () => {
     expect(MARINE_WAVE_PALETTE_ID).toBe('v2');
-    expect(Object.keys(WAVE_PALETTES).sort()).toEqual(['v1', 'v2']);
+    expect(Object.keys(WAVE_PALETTES).sort()).toEqual(['spectrum', 'v1', 'v2']);   // the spectrum (D-037) is light's default; pinned in marineWaveSpectrum.test.js
     withWindow({ __RAW_WAVE_PALETTE_V2__: 'B' }, palette => expect(palette.MARINE_WAVE_PALETTE_ID).toBe('v2'));   // the A/B lever is gone
     load(palette => expect(palette.marineWaveHeightScale('light')).toBe(top));   // the encoder's ceiling is this table's cap
   });

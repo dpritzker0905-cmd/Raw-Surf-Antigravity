@@ -5,7 +5,7 @@ import { BEACH_CREST_STYLES, BEACH_CREST_STYLE, BEACH_CREST_STYLE_GLSL, beachCre
 // Beach crest style (owner A/B, 2026-10-21). Pins: with no lever, or the kill, DRAW_FS is today's shader byte for byte; each lever
 // changes only the wired lines, each gated on the beach theme, and beach's crest COLOURS are untouched (luminance structure only).
 const sha = (s) => createHash('sha256').update(s).digest('hex');
-// dev 23a91534f's default DRAW_FS (light's original crests D-041, dark's 8 m+ cased storm ink D-039; marineCrestPaletteLight.test.js
+// dev's default DRAW_FS at 23a91534f and d84a94f26 (light's original crests D-041, dark's 8 m+ cased storm ink D-039; marineCrestPaletteLight.test.js
 // pins the same value): beach's default must draw it byte for byte.
 const DRAW_FS_DEV = { sha: 'e24385865160c841d04f9bfb8108f4bcda361fe8512648ae8f4a5e372d0289e5', length: 8872 };
 // DRAW_FS before any crest change (dev f6b80f724): what the light V2 kill + dark's #419 kill draw, with or without this module.

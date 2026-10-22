@@ -1,9 +1,10 @@
 /**
- * SWR_RETRY_CAP through the REAL updateMarineGrid (#426 review, 2026-10-21): the re-implemented loop in marineRequestDiet.test.js
- * stayed green with the fetcher's call site reverted, so this drives useMarineDataFetcherCore itself. The part ships OFF (opt-in
- * window.__RAW_SWR_RETRY_CAP__): by default every run resets the retry counts, exactly as before; opted in, the SWR re-drive
- * keeps them. Harness: useMarineDataFetcherCore.race.test.js's mount, with the viewport hash already current so the viewport-change
- * reset (a separate, legitimate reset) stays out of the count.
+ * SWR_BACKOFF's call site through the REAL updateMarineGrid (first written for #426's SWR_RETRY_CAP, 2026-10-21; the re-implemented
+ * loop in marineRequestDiet.test.js stayed green with the fetcher's call site reverted, so this drives useMarineDataFetcherCore
+ * itself). The part ships ON (kill window.__RAW_DISABLE_SWR_BACKOFF__): the SWR re-drive keeps its attempt count so the ladder
+ * climbs; every other source resets it, and under the kill every run resets it, exactly as before. Harness:
+ * useMarineDataFetcherCore.race.test.js's mount, with the viewport hash already current so the viewport-change reset (a separate,
+ * legitimate reset) stays out of the count.
  */
 import { renderHook, act } from '@testing-library/react';
 import { useMarineDataFetcherCore } from './useMarineDataFetcherCore';
@@ -35,7 +36,7 @@ function mount() {
     abortControllerRef: ref(null), activeMarineLayersRef: ref(['waves']),
     inFlight: { registerForeground: jest.fn(), find: jest.fn(() => null), detach: jest.fn(), markWanted: jest.fn(),
       complete: jest.fn(() => ({ shouldWake: false })), noteWakeEnqueued: jest.fn(), key: (i) => JSON.stringify(i) },
-    // lastHash already the current viewport: only the run-top reset (the SWR_RETRY_CAP site) can call resetRetryCounts.
+    // lastHash already the current viewport: only the run-top reset (the SWR_BACKOFF site) can call resetRetryCounts.
     marineFetchLocksRef: ref({ isFetching: false, activeSource: null, fetchStartedAt: 0, lastHash: 'vp-1', lastTime: 0 }),
     isCommittingDataRef: ref(false), isInternalMapUpdateRef: ref(false), internalUpdateTimerRef: ref(null),
     swrTimerRef: ref(null), swrRetryCountRef: ref(2), cooldownRetryRef: ref(null),
@@ -64,8 +65,7 @@ beforeEach(() => {
   commitMarineData.mockImplementation(() => {});
   fetchMarineData.mockResolvedValue(null);
   window.isScrubbingTimeline = false;
-  delete window.__RAW_SWR_RETRY_CAP__;
-  delete window.__RAW_DISABLE_SWR_RETRY_CAP__;
+  delete window.__RAW_DISABLE_SWR_BACKOFF__;
   delete window.__RAW_DISABLE_REQUEST_DIET__;
   logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
   errSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -75,8 +75,8 @@ afterEach(() => {
   jest.clearAllTimers();
   jest.useRealTimers();
   logSpy.mockRestore(); errSpy.mockRestore(); warnSpy.mockRestore();
-  delete window.__RAW_SWR_RETRY_CAP__;
-  delete window.__RAW_DISABLE_SWR_RETRY_CAP__;
+  delete window.__RAW_DISABLE_SWR_BACKOFF__;
+  delete window.__RAW_DISABLE_REQUEST_DIET__;
   delete window.isScrubbingTimeline;
 });
 
@@ -86,18 +86,19 @@ const run = async (source) => {
   return p.resetRetryCounts.mock.calls.length;
 };
 
-test('by default (the shipped behaviour) the SWR re-drive resets the retry counts at the top of the run, as before', async () => {
-  expect(await run('swr_revalidation')).toBe(1);
-});
-
-test('opted in, the SWR re-drive keeps its count (no reset), so the cap of 3 can apply', async () => {
-  window.__RAW_SWR_RETRY_CAP__ = true;
+test('by default (SWR_BACKOFF on) the SWR re-drive keeps its count (no reset), so the ladder climbs', async () => {
   expect(await run('swr_revalidation')).toBe(0);
 });
 
-test('opted in, every other source still starts a fresh budget; the kill wins over the opt-in', async () => {
-  window.__RAW_SWR_RETRY_CAP__ = true;
+test('every other source still starts the ladder again', async () => {
   expect(await run('moveend')).toBe(1);
-  window.__RAW_DISABLE_SWR_RETRY_CAP__ = true;
+  expect(await run('timeline_scrub')).toBe(1);
+});
+
+test('under the kill (or the umbrella) every run resets the counts at the top, as before', async () => {
+  window.__RAW_DISABLE_SWR_BACKOFF__ = true;
+  expect(await run('swr_revalidation')).toBe(1);
+  delete window.__RAW_DISABLE_SWR_BACKOFF__;
+  window.__RAW_DISABLE_REQUEST_DIET__ = true;
   expect(await run('swr_revalidation')).toBe(1);
 });
