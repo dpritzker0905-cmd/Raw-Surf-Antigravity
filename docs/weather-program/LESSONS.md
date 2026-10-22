@@ -1315,3 +1315,21 @@ A stored estimate can be estimated again in a browser branch with different sour
 - A "first scheduled run" watch must include the storage and cost criteria, not only "no errors": the lane published correctly and quietly filled the bucket. The commitment that named "storage growth bounded" caught it on
   the first read, which is the reason to name the criteria before enabling.
 - A logged count can be right and still describe the wrong thing: the gauge's own text said "listing capped at 100: there may be more". When a gauge states its blind spot, that sentence is the first thing to test.
+
+
+### 2026-10-22 — L-S22 · A parity fixture is only as good as the population it holds: seed masked cells, and compare with what the route SERVES
+
+- #453 shipped eight static world sets on an offline parity of 27.5 M nodes, 0 bad, over a synthetic store with NO masked cells.
+  /grid runs `coarse_gulf_fill` on EURO/ICON grids of served span >= 350 deg (every world request) and rewrites masked cells with
+  GFS coarse values. Over an all-ocean store that step is a no-op, so the parity could not see it. Live, one world /grid read
+  2026-10-22 21:55Z: EURO 2,465 of 4,689 masked cells rewritten, ICON 1,708 of 3,788. Caught on review before any ICON/EURO frame
+  was published; guard #461.
+- Second trap, same day: the first synthetic land mask also masked the 10-deg GFS donor over whole continents, so no masked 2-deg
+  cell had a donor within the fill's bucket reach and the fill still did nothing; my first offline number (1,757 of 2,066) had come
+  from an all-valid donor. A fixture must reproduce the PRODUCTION shape of every input a transform reads (here: coarse cells valid
+  wherever they hold ocean), not just the input under test.
+- Rule: a parity that claims "static == /grid" runs over a store that carries the cells every serve-time step touches (masked
+  cells, enclosed seas, estimated tails), compares against the route's full output (resolve_grid, then every post-resolve step in
+  routes/weather.py: coarse_gulf_fill, wind_lane), and carries a POSITIVE CONTROL that is seen to fail (`serve_synthetic.py
+  --land-mask 1` + `scn_static_parity.mjs` reads ICON/EURO world frames bad > 0; GUARD=1 reads 0). When the live product holds a
+  population the fixture lacks, measure one live response's stamp (here `coarse_fill.cells_filled`) before trusting the fixture.
