@@ -79,7 +79,7 @@ describe('instantTelemetry', () => {
     expect(rows()).toEqual([]);
     advance(15);
     drawMarine(1);                                                      // the ask's frame at t = 1545
-    expect(rows()).toEqual([[0, 0, 45, null, 'GFS', 'waves', 2]]);
+    expect(rows()).toEqual([[0, 0, 45, null, 'GFS', 'waves', 2, 0]]);
     expect(batch().hist).toEqual({ 'marine.step': [0, 0, 1, 0, 0, 0, 0, 0, 0, 0] });   // 45 ms: the <= 50 ms bin
   });
 
@@ -91,7 +91,7 @@ describe('instantTelemetry', () => {
     drawMarine(4);
     advance(6);
     noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 4 });
-    expect(rows()).toEqual([[0, 0, 10, null, 'GFS', 'waves', 2]]);
+    expect(rows()).toEqual([[0, 0, 10, null, 'GFS', 'waves', 2, 0]]);
   });
 
   it('a drag counts while the button is held; a newer ask supersedes; nothing drawn in 8 s is a timeout', () => {
@@ -107,7 +107,7 @@ describe('instantTelemetry', () => {
     noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 3 });
     advance(12);
     drawMarine(3);
-    expect(rows()).toEqual([[0, 0, 12, null, 'GFS', 'waves', 1]]);
+    expect(rows()).toEqual([[0, 0, 12, null, 'GFS', 'waves', 1, 0]]);
     expect(batch().lost.superseded).toBe(1);
     window.dispatchEvent(new MouseEvent('pointermove', { buttons: 1 }));
     noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 4 });
@@ -149,9 +149,9 @@ describe('instantTelemetry', () => {
       publishWindDrawn({ hourOffset: 0, model: 'GFS' });
       drawMarine(0, 'ICON');
       expect(rows()).toEqual([
-        [0, 2, 7, 4.3, 'EURO', 'waves', 2],
-        [1, 1, 9, 4.3, 'EURO', 'wind', 2],
-        [0, 2, 5, 4.3, 'ICON', 'waves', 2],
+        [0, 2, 7, 4.3, 'EURO', 'waves', 2, 0],
+        [1, 1, 9, 4.3, 'EURO', 'wind', 2, null],
+        [0, 2, 5, 4.3, 'ICON', 'waves', 2, 0],
       ]);
       expect(Object.keys(batch().hist).sort()).toEqual(['marine.model', 'wind.layer']);
       expect(batch().lost.superseded).toBe(0);
@@ -194,7 +194,7 @@ describe('instantTelemetry', () => {
     const local = flushInstantTelemetry('hidden');                     // no endpoint (test build): published, not sent
     expect(local.via).toBeNull();
     expect(beacon).not.toHaveBeenCalled();
-    expect(window.__RAW_RUM__.last.details.p2f).toEqual([[0, 0, 30, null, 'GFS', 'waves', 2]]);
+    expect(window.__RAW_RUM__.last.details.p2f).toEqual([[0, 0, 30, null, 'GFS', 'waves', 2, 0]]);
     expect(window.__RAW_RUM__.last.details.inp).toEqual({ v: 180, r: 'good', t: 'pointerdown', el: 'div.forecast-wheel>button', ls: 'complete' });
 
     window.__RAW_RUM_URL__ = '/api/weather/client-diagnostics';
@@ -216,8 +216,8 @@ describe('instantTelemetry', () => {
     expect(Number.isFinite(Date.parse(sent.timestamp))).toBe(true);
     expect(sent.correlationId).toMatch(/^[0-9a-f]{1,8}$/);
     expect(sent.details.why).toBe('pagehide');
-    expect(sent.details.p2f).toEqual([[0, 0, 12, null, 'GFS', 'waves', 2]]);
-    expect(sent.details.cols).toEqual(['fam', 'kind', 'ms', 'zoom', 'model', 'layer', 'input']);
+    expect(sent.details.p2f).toEqual([[0, 0, 12, null, 'GFS', 'waves', 2, 0]]);
+    expect(sent.details.cols).toEqual(['fam', 'kind', 'ms', 'zoom', 'model', 'layer', 'input', 'src']);
     expect(sent.details.edges).toEqual(HIST_EDGES);
     expect(pySize(JSON.stringify(sent.details))).toBeLessThanOrEqual(3900);
     expect(JSON.stringify(sent)).not.toMatch(/localhost|http:/);       // no page URL in the record
@@ -286,5 +286,49 @@ describe('instantTelemetry', () => {
     } finally {
       delete window.__MAP_INSTANCE__;
     }
+  });
+  it('frame-store hit or miss, per marine layer and zoom band, on every timed press', () => {
+    window.__MAP_INSTANCE__ = { getZoom: () => 4.6 };
+    try {
+      install();
+      noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 0 });
+      key();
+      noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 1 });
+      publishMarineDrawn({ hourOffset: 1, __sourceModel: 'GFS', __componentLayer: 'waves', __fromFrameStore: true });
+      key();
+      noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 2 });
+      drawMarine(2);                                                      // the normal path drew it
+      expect(rows().map((r) => r[7])).toEqual([1, 0]);
+      expect(batch().store).toEqual({ 'waves|z4': [1, 1] });
+    } finally {
+      delete window.__MAP_INSTANCE__;
+    }
+  });
+
+  it('scrub velocity and jump size: the gap between step presses and the hours jumped, presses only', () => {
+    install();
+    noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 0 });
+    key(); noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 1 });            // first step: a jump, no gap yet
+    advance(80); key(); noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 2 }); // 80 ms: a held key
+    advance(400); key(); noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 26 }); // 400 ms, 24 h: a day jump
+    advance(5000); noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 27 });   // no press within 1 s (autoplay-like): not counted
+    expect(batch().jump).toEqual([2, 0, 0, 1, 0]);
+    expect(batch().gap).toEqual([1, 0, 1, 0, 0, 0]);
+  });
+
+  it('server fallbacks: /grid, /grid_series and /point requests from Resource Timing, counted with their time', () => {
+    const cbs = {};
+    window.PerformanceObserver = class { constructor(fn) { this.fn = fn; } observe(o) { cbs[o.type] = this.fn; } disconnect() {} };
+    window.PerformanceObserver.supportedEntryTypes = ['resource'];
+    install();
+    cbs.resource({ getEntries: () => [
+      { name: 'https://x.test/api/weather/grid?model=GFS&bbox=1', duration: 300.4 },
+      { name: 'https://x.test/api/weather/grid_series?hours=48', duration: 1200 },
+      { name: 'https://x.test/api/weather/grid?model=EURO', duration: 99.6 },
+      { name: 'https://x.test/api/weather/point?lat=1', duration: 50 },
+      { name: 'https://x.test/api/weather/capabilities', duration: 10 },
+      { name: 'https://cdn.test/weather-frames/v1/latest.json', duration: 5 },
+    ] });
+    expect(batch().backend).toEqual({ grid: [2, 400], grid_series: [1, 1200], point: [1, 50] });
   });
 });

@@ -15,6 +15,10 @@
  *   - LONG ANIMATION FRAMES: count, frames >= 200 ms, total blocking time, and the worst few with their top scripts' file
  *     name, function and invoker (no query strings, no page URL).
  *   - INP from web-vitals onINP, with attribution (event type, target selector, load state). FID is no longer reported.
+ *   - (the lead, 2026-10-23) FRAME-STORE hit/miss per marine layer and zoom band (was the matching frame the store's?), SCRUB
+ *     velocity and jump size (histograms of the gap between step presses and of the hours jumped: they size the windows), and
+ *     SERVER FALLBACKS (main-thread Resource Timing entries for /api/weather/grid, /grid_series and /point: count and total ms;
+ *     the static frames come from the worker and are not counted).
  *
  * THE SINK is the existing, bounded, public POST /api/weather/client-diagnostics (MC-07: schema max-lengths, `details` <= 4096
  * bytes as Python's json.dumps writes it, one sanitized log line, a rotated log): event_type 'instant_rum', everything in
@@ -37,6 +41,9 @@ const KINDS = ['step', 'layer', 'model'];
 const INPUTS = ['pointerdown', 'pointermove', 'keydown', 'wheel'];
 // Histogram upper edges (ms): the contract's lines (50 / 100 / 200 / 500) plus a frame, two frames and the slow tail.
 export const HIST_EDGES = [16, 33, 50, 100, 200, 500, 1000, 2000, 4000];
+export const GAP_EDGES = [100, 250, 500, 1000, 3000];     // ms between two step presses (a drag, held keys, a deliberate step, a pause)
+export const JUMP_EDGES = [1, 3, 12, 48];                 // hours jumped by one step (a step, a 3-h frame, a half day, two days, more)
+const BACKEND_RE = /\/api\/weather\/(grid_series|grid|point)(?:[/?]|$)/;
 const PRESS_WINDOW_MS = 1000;
 const TIMEOUT_MS = 8000;
 const MAX_ROWS = 50;
@@ -88,7 +95,8 @@ export function pySize(json) {
 }
 
 function freshBatch() {
-  return { rows: [], hist: {}, lost: { superseded: 0, timeout: 0 }, loaf: { n: 0, over200: 0, blockMs: 0, worst: [] }, dirty: false };
+  return { rows: [], hist: {}, lost: { superseded: 0, timeout: 0 }, loaf: { n: 0, over200: 0, blockMs: 0, worst: [] },
+    store: {}, gap: new Array(GAP_EDGES.length + 1).fill(0), jump: new Array(JUMP_EDGES.length + 1).fill(0), backend: {}, dirty: false };
 }
 
 function zoomNow() {
@@ -112,9 +120,9 @@ function matches(p, d) {
   return d.layer === p.layer && (d.model || 'GFS') === p.model;
 }
 
-function binOf(ms) {
-  const i = HIST_EDGES.findIndex((edge) => ms <= edge);
-  return i < 0 ? HIST_EDGES.length : i;
+function binOf(ms, edges = HIST_EDGES) {
+  const i = edges.findIndex((edge) => ms <= edge);
+  return i < 0 ? edges.length : i;
 }
 
 function record(p, ms) {
@@ -122,7 +130,13 @@ function record(p, ms) {
   const k = `${p.fam}.${p.kind}`;
   const h = B.hist[k] || (B.hist[k] = new Array(HIST_EDGES.length + 1).fill(0));
   h[binOf(ms)] += 1;
-  B.rows.push([FAMS.indexOf(p.fam), KINDS.indexOf(p.kind), Math.round(ms), p.zoom, p.model, p.layer, INPUTS.indexOf(p.input)]);
+  const src = p.fam === 'marine' && typeof p.store === 'boolean' ? (p.store ? 1 : 0) : null;
+  if (src !== null) {
+    const sk = `${p.layer}|z${p.zoom === null ? '?' : Math.floor(p.zoom)}`;
+    const c = B.store[sk] || (B.store[sk] = [0, 0]);
+    c[src ? 0 : 1] += 1;
+  }
+  B.rows.push([FAMS.indexOf(p.fam), KINDS.indexOf(p.kind), Math.round(ms), p.zoom, p.model, p.layer, INPUTS.indexOf(p.input), src]);
   if (B.rows.length > MAX_ROWS) B.rows.shift();   // the newest rows keep their detail; the histogram has them all
   B.dirty = true;
   arm();
@@ -134,6 +148,7 @@ function checkDrawn(fam) {
   if (!p || !d || d.at < p.t0 || !matches(p, d)) return;
   clearTimeout(p.timer);
   S.pending[fam] = null;
+  p.store = typeof d.store === 'boolean' ? d.store : null;
   // ON SCREEN: the upload has happened; the frame shows at the next animation frame.
   const raf = W().requestAnimationFrame;
   if (typeof raf === 'function') raf(() => { if (S) record(p, now() - p.t0); });
@@ -143,7 +158,7 @@ function checkDrawn(fam) {
 function onDrawn(fam) {
   if (!S) return;
   const d = fam === 'marine' ? getMarineDrawn() : getWindDrawn();
-  S.drawn[fam] = d ? { hour: d.hour, layer: d.layer, model: d.model, at: now() } : null;
+  S.drawn[fam] = d ? { hour: d.hour, layer: d.layer, model: d.model, store: d.store, at: now() } : null;
   checkDrawn(fam);
 }
 
@@ -167,6 +182,12 @@ export function noteWeatherAsk({ model, layers, hour, playing } = {}) {
   const t = now();
   if (!inp || t - inp.t > PRESS_WINDOW_MS) return;
   const zoom = zoomNow();
+  if (kind === 'step' && prev.hour !== null && ask.hour !== null) {   // scrub velocity and jump size (presses only)
+    if (S.lastStepAt !== null) S.batch.gap[binOf(inp.t - S.lastStepAt, GAP_EDGES)] += 1;
+    S.batch.jump[binOf(Math.abs(ask.hour - prev.hour), JUMP_EDGES)] += 1;
+    S.lastStepAt = inp.t;
+    S.batch.dirty = true;
+  }
   for (const fam of FAMS) {
     const layer = fam === 'marine' ? ask.marine : (ask.wind ? 'wind' : null);
     if (!layer) continue;
@@ -216,6 +237,26 @@ function observeLoaf() {
   } catch (e) { return false; }
 }
 
+function noteResource(e) {
+  if (!S || !e || typeof e.name !== 'string') return;
+  const m = BACKEND_RE.exec(e.name);
+  if (!m) return;
+  const b = S.batch.backend[m[1]] || (S.batch.backend[m[1]] = [0, 0]);
+  b[0] += 1; b[1] += Math.round(e.duration || 0);
+  S.batch.dirty = true;
+}
+
+function observeResources() {
+  try {
+    const PO = W().PerformanceObserver;
+    if (!PO || !PO.supportedEntryTypes || !PO.supportedEntryTypes.includes('resource')) return false;
+    const po = new PO((list) => { list.getEntries().forEach(noteResource); });
+    po.observe({ type: 'resource', buffered: false });
+    S.resourceObserver = po;
+    return true;
+  } catch (e) { return false; }
+}
+
 function observeInp(loadVitals) {
   Promise.resolve().then(loadVitals).then((mod) => {
     if (!S || !mod || typeof mod.onINP !== 'function') return;
@@ -237,8 +278,8 @@ function payload(reason) {
     v: 1, build: BUILD_VERSION, why: reason, t: Math.round(now()),
     dev: { coarse: !!(W().matchMedia && W().matchMedia('(pointer: coarse)').matches), cores: nav.hardwareConcurrency || null,
       mem: nav.deviceMemory || null, net: conn.effectiveType || null, saveData: conn.saveData === true },
-    edges: HIST_EDGES, hist: B.hist,
-    cols: ['fam', 'kind', 'ms', 'zoom', 'model', 'layer', 'input'], fams: FAMS, kinds: KINDS, inputs: INPUTS,
+    edges: HIST_EDGES, hist: B.hist, store: B.store, gapEdges: GAP_EDGES, gap: B.gap, jumpEdges: JUMP_EDGES, jump: B.jump, backend: B.backend,
+    cols: ['fam', 'kind', 'ms', 'zoom', 'model', 'layer', 'input', 'src'], fams: FAMS, kinds: KINDS, inputs: INPUTS,
     p2f: B.rows, lost: { ...B.lost }, loaf: { ...B.loaf, worst: B.loaf.worst.slice() }, inp: S.inp,
   };
   let size = pySize(JSON.stringify(details));
@@ -303,10 +344,11 @@ export function installInstantTelemetry({ sampled = rumSampled(), loadVitals = (
   if (S || !sampled || typeof window === 'undefined' || W().__RAW_DISABLE_RUM__ === true) return false;
   S = { pid: Math.random().toString(16).slice(2, 10), lastInput: null, ask: null, pending: { marine: null, wind: null },
     drawn: { marine: null, wind: null }, batch: freshBatch(), inp: null, sent: 0, armed: null, armTimer: null, unsub: [],
-    loafObserver: null };
+    loafObserver: null, resourceObserver: null, lastStepAt: null };
   for (const type of INPUTS) window.addEventListener(type, onInput, { capture: true, passive: true });
   S.unsub.push(subscribeMarineDrawn(() => onDrawn('marine')), subscribeWindDrawn(() => onDrawn('wind')));
   const loaf = observeLoaf();
+  observeResources();
   observeInp(loadVitals);
   const onHide = () => { if (document.visibilityState === 'hidden') flushInstantTelemetry('hidden'); };
   const onPageHide = () => flushInstantTelemetry('pagehide');
@@ -328,6 +370,7 @@ export function _resetInstantTelemetryForTest() {
     Object.values(S.pending).forEach((p) => p && clearTimeout(p.timer));
     if (S.armTimer) clearTimeout(S.armTimer);
     if (S.loafObserver) { try { S.loafObserver.disconnect(); } catch (e) { /* ignore */ } }
+    if (S.resourceObserver) { try { S.resourceObserver.disconnect(); } catch (e) { /* ignore */ } }
     if (S.off) S.off();
   }
   S = null;
