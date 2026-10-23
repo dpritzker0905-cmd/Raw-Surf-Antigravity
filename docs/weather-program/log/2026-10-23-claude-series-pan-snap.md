@@ -30,11 +30,13 @@ Evidence: `evidence/series-pan-snap-2026-10-23.json`. Client only. No served num
   `regional_too_coarse` at z8; a covering series frame exists (`frameFound` true, `frameCovers` true) but is the same coarse grid, so
   `willSharpen` false; then `runScrubSettleCheck`'s else branch force-loads the view's page (`ensureMarineSeries(..., force=true)`) on
   every tick. A reload of the same product can never sharpen. dev loops too (18 repeats of its final box), but the slower box ended it.
-- Fix: `settleSeriesReloadNeeded(coveringRegionalFrame)`: force-reload only when no covering regional frame exists (what the branch's
-  own comment says it is for); the capped fuller-tile /grid upgrade below it still runs. Kill: `__RAW_DISABLE_SETTLE_RELOAD_GUARD__`.
+- Fix: SPLIT OUT at the lead's ask into its own PR, #505 (`marineSettleReloadGuard.js`), which this branch now stacks on. The first
+  version here ("never reload with a covering frame") asked MORE in swell under the lead's surf-OFF control (a covering coarse frame can
+  be an interim product, and the reload is how the fine one arrives); #505 makes it a budget (2 at once, 1 per 30 s, 5 per view and hour).
+  Kill: `__RAW_DISABLE_SETTLE_RELOAD_GUARD__`.
 - Live, real ICON at z7-9 can read too coarse the same way, and each reload is a 10-25 s surf page.
 
-## Change (`marineSeriesPanGuard.js`; 3 net lines in `marineGridSeries.js`, 1 in `useMarineScrubSettle.js`)
+## Change (`marineSeriesPanGuard.js`; 3 net lines in `marineGridSeries.js`; the settle reload guard is #505's)
 - SERIES_REQUEST_SNAP: the /grid_series request box (padded) is snapped OUTWARD to 1 deg (the backend's own GFS bbox snap); never across
   the 15-deg global line or the dateline. The static seams keep the unsnapped box (a regional bundle answers only full covers).
 - SERIES_CONTAIN_REUSE: a fresh cached page (or one in flight, by its request box) of the same model, layer, flavour, page and anchor

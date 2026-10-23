@@ -10,6 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, RoleEnum
 from .schemas import OnDemandSettingsRequest, WatermarkSettingsRequest
 
@@ -110,9 +111,12 @@ async def save_on_demand_settings(
 async def update_watermark_settings(
     photographer_id: str,
     data: WatermarkSettingsRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's watermark customization settings"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     profile = result.scalar_one_or_none()
     if not profile:
