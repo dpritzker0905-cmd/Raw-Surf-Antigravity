@@ -286,19 +286,21 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
 # EURO 48 full GFS loads, 33 L1 evictions, CPU 8.9 s vs 3.3 s legacy, peak RSS +110 MB; ICON 42 / 52. On the 1-CPU box, with
 # L1 bounded at ~8 full mid products (PRODUCT_CACHE_VECTOR_BUDGET 120k, the 2026-07-05 OOM root), that churn is the cost.
 # Now each GFS file becomes ONE compact donor: its lattice plus five float32 planes (speed, direction, u, v, period; NaN = not sea),
-# ~0.3 MB, built from the stored file WITHOUT passing through L1 (a file not yet on disk is fetched once by load_product and its
-# L1 entry dropped again), kept in a small LRU shared by EURO and ICON frames at the same valid time, and never written to.
+# ~0.3 MB, built from the stored file WITHOUT passing through L1 (a file not yet on disk is fetched to disk by the store's own L2
+# download, store_helpers.fetch_l2_to_disk, never parsed into L1), kept in an LRU shared by EURO and ICON frames (default 96 donors,
+# ~29 MB: a 48-frame EURO page then a 48-frame ICON page must share, review 2026-10-23), and never written to.
 _DONOR_LRU = OrderedDict()                 # (GFS filename, run identity) -> _CompactDonor (a newer run rewrites the same filename)
 _DONOR_LOCK = threading.Lock()
+_DONOR_BUILDING = {}                       # key -> threading.Lock (one build per key at a time)
 TARGETED_NO_FILL = Counter()               # (model, layer, reason) -> frames served unfilled by the targeted mode
 _LAST_NO_FILL = {}                         # (model, layer) -> last reason logged (log once per change)
 
 
 def _donor_cache_size():
     try:
-        return max(1, int(os.environ.get("MARINE_TARGETED_DONOR_CACHE", "24")))
+        return max(1, int(os.environ.get("MARINE_TARGETED_DONOR_CACHE", "96")))
     except ValueError:
-        return 24
+        return 96
 
 
 class _CompactDonor:
@@ -307,6 +309,8 @@ class _CompactDonor:
 
     def __init__(self, filename, vectors, cols, rows, resolution):
         import numpy as np
+        if not vectors:
+            raise ValueError(f"{filename}: no vectors")
         lats = [float(v["lat"]) for v in vectors]
         lngs = [float(v["lng"]) for v in vectors]
         self.filename, self.resolution = filename, (float(resolution) if resolution else None)
@@ -339,6 +343,10 @@ class _CompactDonor:
         if not (0 <= c < self.cols and 0 <= r < self.rows):
             return None
         return r * self.cols + c
+
+    def has_sea(self):
+        import numpy as np
+        return bool(np.isfinite(self.planes["speed"]).any())
 
     def sea_at(self, lat, lng):
         """(speed, direction, u, v, period) at an exact node where GFS is sea, else None."""
@@ -374,9 +382,12 @@ def _iso_s(t):
 
 
 def _compact_donor(store, item):
-    """The compact donor of one GFS manifest item (LRU by filename AND run). Reads the stored JSON directly when the store keeps
-    the item's run on disk, so the full product never enters L1; otherwise (no file, or a file of another run) it loads through
-    the store, exactly as the legacy donor does, and drops that L1 entry again. None when unreadable."""
+    """The compact donor of one GFS manifest item (LRU by filename AND run). Raises on an unreadable donor (the caller stamps it).
+
+    With a ProductStore-like store (cache_dir): the file is made local by the store's own L2 download (fetch_l2_to_disk, no parse,
+    no L1 insert, so nothing else in L1 is evicted) and read as JSON. A file of another run than the manifest names is used (it is
+    what the store would serve) but NOT cached, so the next call sees the refreshed file. A store without cache_dir (tests, mocks)
+    is asked through load_product. A donor with no sea node is refused (a parse bug must not look like "nothing to fill")."""
     filename = item.filename
     key = (filename, _run_identity(item))
     with _DONOR_LOCK:
@@ -384,52 +395,43 @@ def _compact_donor(store, item):
         if hit is not None:
             _DONOR_LRU.move_to_end(key)
             return hit
-    donor = None
-    path = getattr(store, "cache_dir", None)
-    path = (path / filename) if path is not None else None
-    data = None
-    if path is not None and path.exists():
-        with open(path, "r") as fh:
-            data = json.load(fh)
-        if not _same_run(item, data):
-            data = None
-    if data is not None:
-        g = data.get("grid") or {}
-        if g.get("vectors"):
-            donor = _CompactDonor(filename, g["vectors"], g.get("cols"), g.get("rows"), data.get("resolution"))
-    else:
-        cache = _l1_cache()
-        resident = cache is not None and filename in cache
-        p = store.load_product(filename)
-        if not resident and cache is not None:
-            _l1_drop(filename)
-        if p is not None and getattr(p, "grid", None) and p.grid.vectors:
-            donor = _CompactDonor(filename, _vector_dicts(p), p.grid.cols, p.grid.rows, getattr(p, "resolution", None))
-    if donor is not None:
+        building = _DONOR_BUILDING.setdefault(key, threading.Lock())
+    with building:                                   # one build per key; a waiter then finds it in the LRU
         with _DONOR_LOCK:
-            _DONOR_LRU[key] = donor
-            _DONOR_LRU.move_to_end(key)
-            while len(_DONOR_LRU) > _donor_cache_size():
-                _DONOR_LRU.popitem(last=False)
-    return donor
-
-
-def _l1_cache():
-    try:
-        from services.weather_pipeline.store import ProductStore
-        return ProductStore._product_cache
-    except Exception:
-        return None
-
-
-def _l1_drop(filename):
-    try:
-        from services.weather_pipeline.store import ProductStore
-        with ProductStore._product_cache_lock:
-            ProductStore._product_cache.pop(filename, None)
-            ProductStore._product_cache_vectors.pop(filename, None)
-    except Exception:
-        pass
+            hit = _DONOR_LRU.get(key)
+            if hit is not None:
+                return hit
+        resolution = getattr(item, "resolution", None)
+        cache_dir = getattr(store, "cache_dir", None)
+        stale = False
+        if cache_dir is not None:
+            path = cache_dir / filename
+            if not path.exists():
+                from services.weather_pipeline.store_helpers import fetch_l2_to_disk
+                if not fetch_l2_to_disk(store, filename):
+                    raise FileNotFoundError(f"{filename}: not on disk and the L2 read did not deliver it")
+            with open(path, "r") as fh:
+                data = json.load(fh)
+            stale = not _same_run(item, data)
+            g = data.get("grid") or {}
+            donor = _CompactDonor(filename, g.get("vectors") or [], g.get("cols"), g.get("rows"), resolution or data.get("resolution"))
+        else:
+            prod = store.load_product(filename)
+            if prod is None or not getattr(prod, "grid", None) or not prod.grid.vectors:
+                raise FileNotFoundError(f"{filename}: the store returned no product")
+            donor = _CompactDonor(filename, _vector_dicts(prod), prod.grid.cols, prod.grid.rows,
+                                  resolution or getattr(prod, "resolution", None))
+        if not donor.has_sea():
+            raise ValueError(f"{filename}: the donor has no sea node")
+        if not stale:
+            with _DONOR_LOCK:
+                _DONOR_LRU[key] = donor
+                _DONOR_LRU.move_to_end(key)
+                while len(_DONOR_LRU) > _donor_cache_size():
+                    _DONOR_LRU.popitem(last=False)
+        with _DONOR_LOCK:
+            _DONOR_BUILDING.pop(key, None)
+        return donor
 
 
 def _node_key(v):
@@ -509,12 +511,17 @@ async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
     as the coarse donor) is the donor, node for node, through the compact LRU donor. A missing or unreadable donor, or a lattice
     mismatch, serves the grid as stored WITH a stamp and a log line (_no_fill)."""
     vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
-    item = _find_gfs_item(store, vt, layer_l, "global_mid")
+    errors = []
+    item = _find_gfs_item(store, vt, layer_l, "global_mid", errors)
     if item is None:
+        if errors:
+            return _no_fill(product, model, layer_l, "manifest_unreadable", errors[0][:200], len(masked), len(grid.vectors))
         return _no_fill(product, model, layer_l, "missing", "no same-layer GFS global_mid within 3 h", len(masked), len(grid.vectors))
-    donor = await asyncio.to_thread(_compact_donor, store, item)
-    if donor is None:
-        return _no_fill(product, model, layer_l, "unreadable", item.filename, len(masked), len(grid.vectors))
+    try:
+        donor = await asyncio.to_thread(_compact_donor, store, item)
+    except Exception as e:      # a corrupt / truncated / refused donor: served as stored, stamped, counted, logged once
+        return _no_fill(product, model, layer_l, "unreadable", f"{item.filename}: {type(e).__name__}: {e}"[:200],
+                        len(masked), len(grid.vectors))
     why = _lattice_mismatch(product, grid, donor, masked)
     if why:
         return _no_fill(product, model, layer_l, "lattice_mismatch", why, len(masked), len(grid.vectors))
@@ -538,7 +545,7 @@ async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
     return product
 
 
-def _find_gfs_item(store, valid_time, layer="waves", region_id="global_coarse"):
+def _find_gfs_item(store, valid_time, layer="waves", region_id="global_coarse", errors=None):
     """The manifest item of the GFS marine product for `layer` and `region_id` nearest `valid_time` (within 3 h), or None. No load.
 
     ⚠️ `layer` is a PARAMETER, not a constant, since 2026-08-01: the donor must carry the SAME
@@ -548,7 +555,9 @@ def _find_gfs_item(store, valid_time, layer="waves", region_id="global_coarse"):
     try:
         manifest = store.get_manifest()
         items = getattr(manifest, "products", None) or []
-    except Exception:
+    except Exception as e:
+        if errors is not None:
+            errors.append(f"manifest unreadable: {type(e).__name__}: {e}")
         return None
     from datetime import datetime, timezone
 

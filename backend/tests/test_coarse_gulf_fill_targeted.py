@@ -201,3 +201,138 @@ def test_a_newer_gfs_run_under_the_same_filename_is_a_new_donor(monkeypatch):
     newer = store.products["gfs_marine_waves_global_mid.json"]
     newer.grid.vectors[0] = _vec(SEA_GULF, 2.5, direction=111.0, period=7.5)
     assert _by_node(_fill(_recipient(), store))[SEA_GULF].speed == 2.5 and len(store.loads) == 2
+
+
+# -- The donor's read path (the second review, 2026-10-23): disk, cold L2, refusals, staleness, the production lattice ----------
+
+import json as _json  # noqa: E402
+
+
+def _lattice_vectors(sea_speed, land=(), extra=None, all_masked=False):
+    """A full global_mid lattice (181 x 83: lat -80..84, lng -180..180 every 2 deg, both -180 and 180), sea except `land`."""
+    out = []
+    for r in range(83):
+        for c in range(181):
+            la, lo = -80.0 + 2 * r, -180.0 + 2 * c
+            if all_masked or (la, lo) in land:
+                out.append({"lat": la, "lng": lo, "speed": 0.0, "is_valid": False})
+            else:
+                s = (extra or {}).get((la, lo), sea_speed)
+                out.append({"lat": la, "lng": lo, "speed": s, "direction": 90.0, "u": -s, "v": 0.0, "period": 9.0, "is_valid": True})
+    return out
+
+
+class _DiskStore:
+    """A ProductStore-shaped store (cache_dir + manifest) whose load_product must never be needed for a donor."""
+
+    def __init__(self, tmp_path, run="2026-10-23T00:00:00Z", resolution=None, file_run=None, raw=None, vectors=None, write=True):
+        self.cache_dir, self.loads = tmp_path, []
+        self.name = "gfs_marine_waves_global_mid_disk.json"
+        self.item = types.SimpleNamespace(model="GFS", domain="marine", layer="waves", region_id="global_mid", valid_time_start=_VT,
+                                          filename=self.name, run_time=run, model_run_time=run, resolution=resolution)
+        if write:
+            body = raw if raw is not None else _json.dumps({"model": "GFS", "run_time": file_run or run, "model_run_time": file_run or run,
+                                                             "grid": {"cols": 181, "rows": 83, "vectors": vectors or _lattice_vectors(1.0)}})
+            (tmp_path / self.name).write_text(body)
+
+    def get_manifest(self):
+        return types.SimpleNamespace(products=[self.item])
+
+    def load_product(self, filename):
+        self.loads.append(filename)
+        return None
+
+
+def _full_recipient(masked_nodes, model="EURO", resolution=2.0):
+    vecs = [GridVector(lat=v["lat"], lng=v["lng"], speed=0.0, is_valid=False) if (v["lat"], v["lng"]) in masked_nodes
+            else GridVector(lat=v["lat"], lng=v["lng"], speed=1.5, direction=90.0, u=-1.5, v=0.0, period=9.0, is_valid=True)
+            for v in _lattice_vectors(1.0)]
+    p = _product(model, "global_mid", "waves", vecs, 181, f"{model.lower()}_waves_full.json")
+    p.resolution = resolution
+    return p
+
+
+def test_the_disk_path_reads_the_file_and_never_loads_the_product_into_l1(monkeypatch, tmp_path):
+    from services.weather_pipeline.store import ProductStore
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    store = _DiskStore(tmp_path)
+    before = dict(ProductStore._product_cache)
+    out = _fill(_full_recipient({(26.0, -90.0)}), store)
+    assert out.coarse_fill["cells_filled"] == 1 and store.loads == [] and dict(ProductStore._product_cache) == before
+
+
+def test_the_cold_path_fetches_to_disk_without_parsing_into_l1_and_a_refused_read_is_stamped(monkeypatch, tmp_path):
+    from services.weather_pipeline import store_helpers
+    from services.weather_pipeline.store import ProductStore
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    store = _DiskStore(tmp_path, write=False)
+    fetched = []
+
+    def fake_fetch(st, filename, now=None):
+        fetched.append(filename)
+        (st.cache_dir / filename).write_text(_json.dumps({"grid": {"cols": 181, "rows": 83, "vectors": _lattice_vectors(1.0)}}))
+        return True
+    monkeypatch.setattr(store_helpers, "fetch_l2_to_disk", fake_fetch)
+    before = dict(ProductStore._product_cache)
+    out = _fill(_full_recipient({(26.0, -90.0)}), store)
+    assert out.coarse_fill["cells_filled"] == 1 and fetched == [store.name] and store.loads == []
+    assert dict(ProductStore._product_cache) == before                         # nothing parsed into L1, nothing evicted
+    gf._DONOR_LRU.clear()
+    (tmp_path / store.name).unlink()
+    monkeypatch.setattr(store_helpers, "fetch_l2_to_disk", lambda st, f, now=None: False)
+    out = _fill(_full_recipient({(26.0, -90.0)}), store)
+    assert (out.coarse_fill["donor"], out.coarse_fill["cells_filled"]) == ("unreadable", 0)
+
+
+def test_a_file_of_another_run_is_used_but_never_cached(monkeypatch, tmp_path):
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    store = _DiskStore(tmp_path, run="2026-10-23T06:00:00Z", file_run="2026-10-23T00:00:00Z")
+    out = _fill(_full_recipient({(26.0, -90.0)}), store)
+    assert out.coarse_fill["cells_filled"] == 1 and len(gf._DONOR_LRU) == 0
+
+
+def test_the_manifest_resolution_guards_the_lattice_and_the_production_shape_fills_with_none(monkeypatch, tmp_path):
+    """Stored global_mid files carry no resolution: the manifest's is used. A 1-deg recipient against a 2-deg GFS is refused;
+    resolution None on a full lattice (the production shape) fills exactly, with -180 and 180 kept apart."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    out = _fill(_full_recipient({(26.0, -90.0)}, resolution=1.0), _DiskStore(tmp_path, resolution=2.0))
+    assert out.coarse_fill["donor"] == "lattice_mismatch"
+    gf._DONOR_LRU.clear()
+    vecs = _lattice_vectors(1.0, extra={(0.0, -180.0): 3.25, (0.0, 180.0): 0.5})
+    out = _fill(_full_recipient({(0.0, -180.0), (0.0, 180.0)}, resolution=None), _DiskStore(tmp_path, vectors=vecs))
+    cells = _by_node(out)
+    assert (cells[(0.0, -180.0)].speed, cells[(0.0, 180.0)].speed) == (3.25, 0.5)
+
+
+@pytest.mark.parametrize("kind", ["corrupt_json", "no_sea_node"])
+def test_a_corrupt_or_empty_donor_is_stamped_counted_and_logged_once(monkeypatch, tmp_path, caplog, kind):
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    raw = "{not json" if kind == "corrupt_json" else _json.dumps(
+        {"grid": {"cols": 181, "rows": 83, "vectors": _lattice_vectors(1.0, all_masked=True)}})
+    store = _DiskStore(tmp_path, raw=raw)
+    with caplog.at_level("WARNING"):
+        a = _fill(_full_recipient({(26.0, -90.0)}), store)
+        b = _fill(_full_recipient({(26.0, -90.0)}), store)
+    for out in (a, b):
+        assert (out.coarse_fill["donor"], out.coarse_fill["cells_filled"]) == ("unreadable", 0)
+    assert gf.TARGETED_NO_FILL[("EURO", "waves", "unreadable")] == 2
+    assert sum("targeted fill skipped (unreadable" in r.message for r in caplog.records) == 1
+
+
+def test_an_unreadable_manifest_says_so_and_the_warning_rearms_after_a_good_fill(monkeypatch, tmp_path, caplog):
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+
+    class _NoManifest(_DiskStore):
+        def get_manifest(self):
+            raise OSError("manifest.json: permission denied")
+    with caplog.at_level("WARNING"):
+        out = _fill(_full_recipient({(26.0, -90.0)}), _NoManifest(tmp_path))
+        assert out.coarse_fill["donor"] == "manifest_unreadable" and "permission denied" in out.coarse_fill["detail"]
+        assert _fill(_full_recipient({(26.0, -90.0)}), _DiskStore(tmp_path)).coarse_fill["cells_filled"] == 1
+        _fill(_full_recipient({(26.0, -90.0)}), _NoManifest(tmp_path))
+    assert sum("manifest_unreadable" in r.message for r in caplog.records) == 2       # re-armed by the good fill
+
+
+def test_the_lru_default_holds_two_48_frame_pages(monkeypatch):
+    monkeypatch.delenv("MARINE_TARGETED_DONOR_CACHE", raising=False)
+    assert gf._donor_cache_size() >= 96

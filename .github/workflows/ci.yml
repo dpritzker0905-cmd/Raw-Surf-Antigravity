@@ -931,7 +931,9 @@ jobs:
           # ⬆ 210/3291 → 211/3302 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the targeted 2-deg Gulf fill, dark):
           # tests/test_coarse_gulf_fill_targeted.py (+1 real-store case in tests/test_coarse_fill_shared_vectors.py) (11, a new file selector-verified into this lane: --lane guards 210 -> 211); dev hosted
           # read dev's hosted guards 3297/210 (set-from on dev 891c815b7) + 11 -> projected 3308/211; 3308 - 6 = 3302. This PR must read 211 files / 3308.
-          MIN_FILES, MIN_PASSED = 211, 3302
+          # +8 (2026-10-23, the second review: the donor's read path, refusals, staleness, the production lattice) -> 3316/211;
+          # 3316 - 6 = 3310. This PR must read 211 files / 3316.
+          MIN_FILES, MIN_PASSED = 211, 3310
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

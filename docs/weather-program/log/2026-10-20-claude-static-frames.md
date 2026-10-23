@@ -418,3 +418,14 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   - **ICON layers counted (valid 2026-10-25T00Z, published frames):** waves 125 of 3,788 masked filled, swell_1 22 of 3,822,
     wind_waves 99 of 3,788; nearly all at the ice edges (>60N / <60S); inland TX/MS/GA 0 in every layer; isolated open-sea holes
     (all 8 ICON neighbours valid, likely "no train here", not land): 11 / 9 / 11, of which the targeted rule fills 5 / 0 / 5.
+- **#476 second review (17:00Z; the lead's independent review at a17d0b94a + Reflection):** (1) the cold path no longer goes through
+  L1: `store_helpers.fetch_l2_to_disk` (factored out of `load_product_helper`, which calls it unchanged) puts the file on disk and the
+  donor is read as JSON, so nothing is parsed into L1 or evicted, and the unlocked drop race is gone with `_l1_drop`; (2) a donor
+  build that RAISES (corrupt JSON, OSError, a parse error) is stamped `donor: unreadable`, counted, logged once; (3) the donor LRU
+  default is 96 (two 48-frame pages, ~29 MB); (4) the manifest's `resolution` feeds the lattice guard (stored files carry none);
+  (5) an all-masked donor is `unreadable` (not "nothing to fill"), a manifest read failure is `manifest_unreadable` with its text;
+  (6) a disk file of another run is used (what the store serves) but never cached; a per-key build lock removes duplicate builds.
+  +8 tests (disk path never loads, cold path fetch-to-disk with L1 unchanged, refused read, stale run not cached, manifest resolution
+  guard, production lattice with resolution None and -180/180 apart, corrupt / empty donor, manifest error + warning re-arm, LRU
+  default). Each of the review's eight green mutations now fails a test. Guards floor 211/3310 (set-from 3316).
+
