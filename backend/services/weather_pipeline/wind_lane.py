@@ -197,6 +197,16 @@ def _l2_get(key):
     return resp.json() if resp.status_code == 200 else None
 
 
+def _note_error(error):
+    """Record the refresh outcome; log only when it CHANGES (a failure once, its recovery once), never every keeper tick."""
+    before = _state.get("error")
+    _state["error"] = error
+    if error and error != before:
+        logger.warning(f"[wind-lane] refresh failed (serving the last lane, or GFS): {error}")
+    elif before and not error:
+        logger.info("[wind-lane] refresh recovered")
+
+
 def refresh():
     """Read the index; load its cycle when it is not the one in memory. Never raises."""
     if not _lock.acquire(blocking=False):
@@ -204,22 +214,21 @@ def refresh():
     try:
         index = _l2_get(INDEX_KEY)
         if not index or not index.get("key"):
-            _state["error"] = "IndexUnreadable: no lane index in L2"
+            _note_error("IndexUnreadable: no lane index in L2")
             return
         cur = _state["lane"]
         if cur is not None and cur.key == index["key"]:
-            _state["error"] = None
+            _note_error(None)
             return
         obj = _l2_get(index["key"])
         if not obj:
-            _state["error"] = f"CycleUnreadable: {index['key']}"
+            _note_error(f"CycleUnreadable: {index['key']}")
             return
         install(Lane(obj, key=index["key"]))
-        _state["error"] = None
+        _note_error(None)
         logger.info(f"[wind-lane] loaded HRRR cycle {obj.get('cycle')} ({len(obj.get('hours') or [])} hours)")
     except Exception as e:
-        _state["error"] = f"{type(e).__name__}: {e}"
-        logger.warning(f"[wind-lane] refresh failed (serving the last lane, or GFS): {_state['error']}")
+        _note_error(f"{type(e).__name__}: {e}")
     finally:
         _state["checked"] = time.monotonic()
         _lock.release()

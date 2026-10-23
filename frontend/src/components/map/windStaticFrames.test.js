@@ -182,6 +182,19 @@ describe('static GFS wind frames', () => {
     }
   });
 
+  test('a box whose lane refresh FAILED keeps an older lane: lane hours go to /grid, later hours name the box lane', async () => {
+    // What /api/weather/wind_lane reports when the box could not read L2 (wind_lane.refresh -> refresh_error) and still holds
+    // the previous cycle, while the frames and the pointer name the new one.
+    box = { ...HELD, key: 'wind_lane/hrrr-2026102212.json', cycle: '2026-10-22T12:00:00Z', horizon: '2026-10-24T12:00:00Z',
+      refresh_error: 'IndexUnreadable' };
+    _resetWindStaticForTest();
+    expect(await ask(WORLD)).toBe(null);                                                          // the caller asks /grid
+    expect(window.__RAW_WIND_STATIC__.misses.box_lane_differs).toBeGreaterThan(0);
+    box = HELD;                                                                                   // the refresh recovers
+    _resetWindStaticForTest();
+    expect(await ask(WORLD)).not.toBe(null);
+  });
+
   test('the box read: GET /api/weather/wind_lane on the pointer\'s TTL; too old or failed confirms nothing', async () => {
     _resetWindStaticForTest();
     expect(await readBoxLane()).toEqual(HELD);

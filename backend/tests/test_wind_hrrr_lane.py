@@ -303,6 +303,22 @@ def test_a_refresh_loads_a_new_cycle_and_says_what_failed(lane, monkeypatch):
     WL._state["error"] = None
 
 
+def test_a_failing_refresh_logs_once_per_change_not_every_tick(lane, monkeypatch, caplog):
+    """The keeper ticks every 300 s on a 1-CPU box: a lasting failure is one warning, and its recovery one line."""
+    WL._state["error"] = None
+    state = {"index": None}
+    monkeypatch.setattr(WL, "_l2_get", lambda key: state["index"] if key == WL.INDEX_KEY else None)
+    with caplog.at_level("INFO", logger=WL.logger.name):
+        for _ in range(5):
+            WL.refresh()                                                           # the same failure, five ticks
+        state["index"] = {"key": lane.key}                                        # L2 readable again, same lane
+        WL.refresh()
+        WL.refresh()
+    msgs = [r.getMessage() for r in caplog.records if r.name == WL.logger.name]
+    assert sum("refresh failed" in m for m in msgs) == 1 and sum("recovered" in m for m in msgs) == 1, msgs
+    assert WL.box_state()["refresh_error"] is None and WL.current_lane().key == lane.key   # the last lane was kept throughout
+
+
 def test_the_keeper_rereads_the_lane_with_no_wind_request_at_all(monkeypatch):
     """current_lane() refreshes only when a wind request asks; the keeper re-reads on its own, every TTL."""
     from services import _fetch_common
