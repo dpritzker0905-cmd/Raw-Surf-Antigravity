@@ -130,6 +130,27 @@ async def unsubscribe_push(
     return {"message": "Unsubscribed from push notifications"}
 
 
+@router.get("/push/status")
+async def push_status(
+    endpoint: str,
+    actor_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Whether the signed-in account gets web push on THIS device (its browser endpoint). Read-only.
+
+    The browser's notification permission is per origin, so it cannot answer this for an account; Settings
+    shows this row's truth in its on/off switch (2026-10-23).
+    """
+    result = await db.execute(
+        select(PushSubscription.id).where(
+            PushSubscription.user_id == actor_id,
+            PushSubscription.endpoint == endpoint,
+            PushSubscription.is_active == True,  # noqa: E712 (SQL expression)
+        )
+    )
+    return {"subscribed": result.first() is not None}
+
+
 @router.get("/push/vapid-key")
 async def get_vapid_public_key():
     vapid_public_key = os.environ.get('VAPID_PUBLIC_KEY', 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U')

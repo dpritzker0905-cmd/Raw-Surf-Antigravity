@@ -12,7 +12,7 @@ jest.mock('./staticFrames', () => ({
   getPinnedIndex: async () => mockSF.index,
   staticEligible: ({ model }) => String(model).toUpperCase() === 'GFS',   // one published set: no warm frames of other models
   onStaticFrameParsed: (fn) => { mockSF.hooks.add(fn); return () => mockSF.hooks.delete(fn); },
-  loadFrameParsed: (key, frame, signal) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, resolve }); }),
+  loadFrameParsed: (key, frame, signal, opts) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, opts, resolve }); }),
 }));
 import * as RT from './marineFrameStoreRuntime';
 
@@ -229,7 +229,9 @@ describe('GPU-resident frames runtime', () => {
     expect(mockSF.loads).toHaveLength(0);
     eng._waveData = { waveGrid: { cols: eng._texWidth, rows: eng._texHeight } };
     RT.noteStep({ model: 'GFS', layer: 'waves', requestedValidTime: vt(10) });
-    expect(mockSF.loads.map((l) => l.frame.valid_time)).toEqual([vt(10), vt(11), vt(9), vt(12)]);   // CAP 4 in flight
+    expect(mockSF.loads.map((l) => l.frame.valid_time)).toEqual([vt(10), vt(11), vt(9), vt(12)]);
+    // FETCH PRIORITY (2026-10-23): the cursor's frame and the next ask 'high', the rest of the window the browser default.
+    expect(mockSF.loads.map((l) => l.opts && l.opts.priority)).toEqual(['high', 'high', ...mockSF.loads.slice(2).map(() => undefined)]);   // CAP 4 in flight
     mockSF.loads[0].resolve({ parsed: PARSED, buffer: null, wire: 55589 });
     await flush();
     expect(window.__RAW_FRAME_STORE__.prefetch).toMatchObject({ landed: 1, bytes: 55589 });

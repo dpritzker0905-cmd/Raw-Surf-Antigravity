@@ -118,7 +118,7 @@ describe('the cut: the shares the owner asked for, as the eye sees them, from th
 
   it('the engine sets u_densityCut from crestDensityCut(themeVal, z) next to u_densityBase', () => {
     const src = fs.readFileSync(path.join(__dirname, 'WebGLMarineEngine.js'), 'utf8');
-    expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityCut'), crestDensityCut(themeVal, z));");
+    expect(src).toContain("gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_densityCut'), crestDensityCut(themeVal, z));");
     expect(src).toContain("import { crestDensityCut } from './marineCrestDensity';");
   });
 });
