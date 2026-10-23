@@ -83,11 +83,12 @@ Evidence: `evidence/marine-main-thread-2026-10-23.json`. Client only. No served 
 ## Tests
 - **5,554 tests are green** across `src/components/map` and `src/tests`. Two source pins were updated to the new spellings:
   the seed-consume order (`baseHourSync`) and `u_densityCut` (`marineCrestDensity`).
-- **Mutants: 18 of 18 killed** (each in `scratchpad/mutants_jank.py`, one change each). They cover:
+- **Mutants: 19 of 19 killed** (each in `scratchpad/mutants_jank.py`, one change each; re-run after the LOC refactor that moved
+  the mask-cache decision into `marineCoarseMaskCache.coarseMaskReuse` / `noteCoarseMaskUse`). They cover:
   - each kill switch ignored;
   - the uniform cache never keeping a location, and one engine lookup going back to the driver;
-  - a cached mask never found, a raster never remembered, a mask without canvas dims cached, teardown keeping the masks,
-    and eviction never letting go;
+  - a cached mask never found, a raster never remembered, a reuse gaining no holder, a mask without canvas dims cached,
+    teardown keeping the masks, and eviction never letting go;
   - every frame quiet, the lazy install, a zoom change not counted, and the engine consuming the seed on any frame;
   - a read-only hit copied, a read-only miss copied, and the capture not read-only.
 - **One equivalent mutant is documented, not counted:** removing the engine's `base.__maskCanvasDims` guard changes
