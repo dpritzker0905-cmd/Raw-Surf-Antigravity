@@ -494,8 +494,8 @@ _FLOOR_SET_FROM = {
     # chain: set from 2891 = max(dev run 40005013863 read 2873, dev's map 2882) + 9 (rm480, 2026-10-23); floor 2885, margin 6.
     "chain": 2891,
 
-    # estate: set from 2506 = max(dev run 40034067551 read 2505, dev's map 2505) + 1 (claude/fold-point-race, 2026-10-23); floor 2504, margin 2.
-    "estate": 2506,
+    # estate: set from 2530 = max(dev run 40036572020 read 2505, dev's map 2506) + 24 (HEAD, 2026-10-23); floor 2528, margin 2.
+    "estate": 2530,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

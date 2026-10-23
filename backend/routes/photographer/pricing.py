@@ -402,9 +402,12 @@ async def update_gallery_pricing(
 async def get_earnings_breakdown(
     photographer_id: str,
     days: int = Query(default=30, le=365),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get photographer's earnings breakdown by revenue stream for the Unified Earnings Dashboard"""
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from datetime import timedelta
     from sqlalchemy import text
     
@@ -475,12 +478,15 @@ async def get_earnings_breakdown(
 async def get_earnings_history(
     photographer_id: str,
     months: int = Query(default=12, le=24),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get photographer's earnings history by month for trend analysis.
     Returns monthly totals for the last N months.
     """
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from datetime import timedelta
     from sqlalchemy import text, extract
     

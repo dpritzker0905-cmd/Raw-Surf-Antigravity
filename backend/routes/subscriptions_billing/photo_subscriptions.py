@@ -534,8 +534,14 @@ async def complete_card_subscription(
 # ══════════════════════════════════════════════════════════════
 
 @router.get("/photo-subscriptions/my-subscriptions/{user_id}")
-async def get_my_subscriptions(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_my_subscriptions(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Surfer views their active and recent subscriptions."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Expire any overdue subs first
     now = datetime.now(timezone.utc)
     overdue = await db.execute(
@@ -606,8 +612,14 @@ async def cancel_subscription(
 # ══════════════════════════════════════════════════════════════
 
 @router.get("/photo-subscriptions/my-subscribers/{photographer_id}")
-async def get_my_subscribers(photographer_id: str, db: AsyncSession = Depends(get_db)):
+async def get_my_subscribers(
+    photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Photographer sees who is subscribed to them."""
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(SurferPhotoSubscription)
         .where(and_(

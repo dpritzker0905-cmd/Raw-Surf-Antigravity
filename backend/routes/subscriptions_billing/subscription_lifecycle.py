@@ -45,8 +45,14 @@ class ParentSurferModeRequest(BaseModel):
 
 
 @router.get("/subscriptions/account-billing/{user_id}")
-async def get_account_billing_status(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_account_billing_status(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Get user's current subscription and status for the Account & Billing hub"""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
