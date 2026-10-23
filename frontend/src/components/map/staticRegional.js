@@ -16,7 +16,9 @@
  *     2026-10-16..23: every dynamic-cache answer over a tile was such a partial cover; none on a fully covered box.
  *   - The tile is the one Step 3 would pick for a box inside it: among the regional tiles whose manifest coverage contains the
  *     request, the smallest (select_best_candidate: largest intersection, then smallest coverage area); an exact tie -> /grid.
- *   - Phase 1: GFS waves (the frame store does not take regional sets yet: getPinnedIndexSync keeps them out).
+ *   - GFS waves, swell_1, swell_2 and wind_waves: the four layers the publisher bundles (#486; the swell trains were most of the
+ *     opening view's /grid_series time). A box with no stored tile or no published set of a layer (SoCal swell_2) is a miss ->
+ *     /grid. The frame store does not take regional sets yet: getPinnedIndexSync keeps them out.
  * Kill: window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (every regional box asks /grid as before). The per-set kill
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__ with the regional key) and the global static-frames kill also apply.
  * Telemetry: window.__RAW_STATIC_REGIONAL__ (also window.__RAW_STATIC_FRAMES__.regional) = { bundles, bundleBytes, slices, hits, series,
@@ -26,7 +28,7 @@ import { clampAndNormalize, latticeWindow, parseBboxString } from './staticFrame
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 
 export const REGIONAL_MODELS = ['GFS'];
-export const REGIONAL_LAYERS = ['waves'];
+export const REGIONAL_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const BUNDLES_KEPT = 6;                 // bundles held in memory (the current and previous run of a few boxes; each 0.03-0.9 MB)
 
 const W = () => (typeof window !== 'undefined' ? window : {});

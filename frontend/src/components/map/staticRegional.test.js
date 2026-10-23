@@ -85,7 +85,10 @@ describe('which box reads a regional bundle', () => {
   it('set keys: a pilot box is regional, the world tiers are not; phase 1 is GFS waves', () => {
     expect(isRegionalSetKey('GFS/marine/waves/florida_east_coast')).toBe(true);
     expect(isRegionalSetKey('GFS/marine/waves/global_mid')).toBe(false);
-    expect(isRegionalSetKey('GFS/marine/swell_1/florida_east_coast')).toBe(false);
+    expect(isRegionalSetKey('GFS/marine/swell_1/florida_east_coast')).toBe(true);
+    expect(isRegionalSetKey('GFS/marine/wind_waves/us_west_coast_socal')).toBe(true);
+    expect(isRegionalSetKey('GFS/marine/wind/florida_east_coast')).toBe(false);
+    expect(isRegionalSetKey('GFS/wind/wind/florida_east_coast')).toBe(false);
     expect(isRegionalSetKey('ICON/marine/waves/florida_east_coast')).toBe(false);
   });
 

@@ -10,7 +10,8 @@
 //     missed opportunity, never a wrong answer).
 // /grid boxes in /grid's URL format, /grid_series at 4 dp, one hour each; frames are read from the BUNDLE (slice + sha12 + gunzip).
 //
-//   node frontend/scripts/offline-backend/scn_regional_client_parity.mjs <cdn dir with the regional sets> <backend port> [boxes=300] [out.json]
+//   [LAYER=waves|swell_1|swell_2|wind_waves] node frontend/scripts/offline-backend/scn_regional_client_parity.mjs <cdn dir with the
+//       regional sets> <backend port> [boxes=300] [out.json]
 // Build the sets with backend/scripts/publish_frame_images.py --store-dir <store> --out-dir <cdn> --only frames (FRAME_SETS=...), and
 // serve the SAME store with serve_synthetic.py --regions flagship.
 import crypto from 'crypto';
@@ -27,12 +28,13 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const mapDir = path.resolve(here, '../../src/components/map');
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'regional-parity-'));
 const API = `http://127.0.0.1:${port}/api/weather`;
+const LAYER = process.env.LAYER || 'waves';
 
 const manifest = await (await fetch(`${API}/products`)).json();
 const products = Array.isArray(manifest) ? manifest : (manifest.products || []);
 const tiles = []; const seen = new Set();
 for (const p of products) {
-  if (String(p.model).toUpperCase() !== 'GFS' || String(p.domain).toLowerCase() !== 'marine' || String(p.layer).toLowerCase() !== 'waves') continue;
+  if (String(p.model).toUpperCase() !== 'GFS' || String(p.domain).toLowerCase() !== 'marine' || String(p.layer).toLowerCase() !== LAYER) continue;
   if (p.region_id && !seen.has(p.region_id)) { seen.add(p.region_id); tiles.push({ id: p.region_id, bounds: p.coverage }); }
 }
 const TILES = `const __TILES = ${JSON.stringify(tiles)};\nconst getAvailableTilesFromManifest = () => ({ tiles: __TILES, fallbackReason: null });`;
@@ -51,7 +53,7 @@ const R = await import(pathToFileURL(path.join(tmpDir, 'staticRegional.mjs')).hr
 const latest = JSON.parse(fs.readFileSync(path.join(cdnDir, 'v1/latest.json'), 'utf8'));
 const sets = {};
 for (const [key, entry] of Object.entries(latest.sets || {})) {
-  if (!R.isRegionalSetKey(key) || !entry.bundle) continue;
+  if (!R.isRegionalSetKey(key) || !entry.bundle || key.split('/')[2] !== LAYER) continue;
   const index = R.normalizeBundleIndex(JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8')));
   index.path = index.path || entry.index;
   sets[key] = { index, bundle: fs.readFileSync(path.join(cdnDir, entry.bundle.path)) };
@@ -97,7 +99,7 @@ const metaCmp = (mine, theirs, keys, r) => { for (const k of keys) if (JSON.stri
 // tile's own coverage box, the box 0.01 deg inside it, and one poking 0.5 deg past each edge (a partial cover: never claimed).
 let seed = 20261023;
 const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-const regTiles = tiles.filter((t) => sets[R.regionalSetKey('GFS', 'waves', t.id)]);
+const regTiles = tiles.filter((t) => sets[R.regionalSetKey('GFS', LAYER, t.id)]);
 const boxes = [];
 for (let i = 0; i < N_BOXES; i++) {
   const t = regTiles[i % regTiles.length].bounds;
@@ -126,7 +128,7 @@ for (let i = 0; i < boxes.length; i++) {
   for (const seam of ['grid', 'series']) {
     if (seam === 'series' && (i % 3) && !b.edge) continue;
     const param = seam === 'grid' ? X.gridBboxParam(b) : X.seriesBboxParam(b);
-    const tile = R.pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: param });
+    const tile = R.pickRegionalTile({ model: 'GFS', layer: LAYER, bboxStr: param });
     const set = tile && sets[tile.key];
     const anyIdx = (set || Object.values(sets)[0]).index;
     const built = anyIdx.frames.filter((f) => f.path);
@@ -139,8 +141,8 @@ for (let i = 0; i < boxes.length; i++) {
     if (set) { pick = C.pickIndexFrame(set.index, askMs); if (pick && pick.path) win = R.regionalClipWindow(param, pick.grid || set.index.grid, 'GFS'); }
     const claimed = !!(win && win.covers);
     const url = seam === 'grid'
-      ? `${API}/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
-      : `${API}/grid_series?model=GFS&domain=marine&layer=waves&bbox=${param}&hours=${hour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
+      ? `${API}/grid?model=GFS&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
+      : `${API}/grid_series?model=GFS&domain=marine&layer=${LAYER}&bbox=${param}&hours=${hour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
     const body = await (await fetch(url)).json();
     const theirs = seam === 'grid' ? body : (body.frames || [])[0];
     if (!theirs) continue;
@@ -180,7 +182,7 @@ for (let i = 0; i < boxes.length; i++) {
   }
 }
 const report = {
-  sets: Object.keys(sets), boxes_x_seams: totals.boxes, claimed: totals.claimed, refused: totals.refused,
+  layer: LAYER, sets: Object.keys(sets), boxes_x_seams: totals.boxes, claimed: totals.claimed, refused: totals.refused,
   refused_but_backend_full_regional: totals.refusedButFullRegional, claimed_but_backend_not_full_regional: totals.claimedButNot, sha12_bad: shaBad,
   grid: { nodes: totals.grid.nodes, bad: totals.grid.bad, meta_mismatches: totals.grid.meta.length, max_abs_err: totals.grid.maxErr },
   series: { nodes: totals.series.nodes, bad: totals.series.bad, meta_mismatches: totals.series.meta.length, max_abs_err: totals.series.maxErr },

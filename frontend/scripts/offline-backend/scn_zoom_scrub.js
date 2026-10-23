@@ -28,7 +28,7 @@
 //   grid     window.__RAW_DISABLE_STATIC_FRAMES__ = true (no CDN at all: /grid + /grid_series only)
 //   noaheadrun  window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true (a new window's packs for the cursor +-24 only, as before pass 2)
 //   noregional  window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (z7-9 boxes a pilot tile covers go to /grid + /grid_series, as before
-//            2026-10-23). Per session `wavesAll` counts the WAVES /grid and /grid_series asks over the WHOLE session (load, settle and
+//            2026-10-23). Per session `marineAll` counts every marine /grid and /grid_series ask, per layer, over the WHOLE session (load, settle and
 //            steps) with the backend ms they took, and `regional` reads window.__RAW_STATIC_REGIONAL__ (hits, series frames, misses).
 const fs = require('fs');
 const http = require('http');
@@ -207,12 +207,13 @@ async function session(arm, zoom) {
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) steps.forEach((x) => { x.anchorRolled = true; });
     const after = await page.evaluate(() => window.__ZS__.counters());
     const byPath = {}; for (const q of log.requests.slice(reqs0)) byPath[q.path] = (byPath[q.path] || 0) + 1;
-    const wavesAll = {};
+    const marineAll = {};
     for (const q of log.requests) {
-      if (!q.q || q.q.layer !== 'waves' || !/^\/grid(_series)?$/.test(q.path)) continue;
-      const w = (wavesAll[q.path] = wavesAll[q.path] || { n: 0, ms: 0 }); w.n += 1; w.ms += q.ms || 0;
+      if (!q.q || q.q.domain !== 'marine' || !/^\/grid(_series)?$/.test(q.path)) continue;
+      const k = `${q.q.layer}${q.path}`;
+      const w = (marineAll[k] = marineAll[k] || { n: 0, ms: 0 }); w.n += 1; w.ms += q.ms || 0;
     }
-    return { arm, zoom, view: VIEW, vp, steps, before, after, backendRequests: byPath, wavesAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
+    return { arm, zoom, view: VIEW, vp, steps, before, after, backendRequests: byPath, marineAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
   } finally { await browser.close(); }
 }
 
@@ -233,7 +234,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
           console.log(`z${zoom} ${arm} vp=${JSON.stringify(s.vp)}`, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.via, x.mislabel, x.end.cols + 'x' + x.end.rows])),
             'reqs', JSON.stringify(s.backendRequests), 'store', JSON.stringify(s.after.store && { shows: s.after.store.shows, misses: s.after.store.misses, crop: s.after.store.crop }),
             'sf', JSON.stringify(s.after.sf && { hits: s.after.sf.hits, series: s.after.sf.seriesFrames, crops: s.after.sf.crops, misses: s.after.sf.misses }),
-            'wavesAll', JSON.stringify(s.wavesAll), 'regional', JSON.stringify(s.after.regional));
+            'marineAll', JSON.stringify(s.marineAll), 'regional', JSON.stringify(s.after.regional));
           if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
         }
       }
@@ -251,7 +252,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
           grid_per_step: +(grids / Math.max(1, steps)).toFixed(2), series_per_step: +(series / Math.max(1, steps)).toFixed(2),
           via: st.reduce((a, x) => { a[x.via || 'none'] = (a[x.via || 'none'] || 0) + 1; return a; }, {}),
           resident_dims: [...new Set(st.map((x) => `${x.end.cols}x${x.end.rows}`))],
-          waves_session: ss.map((s) => s.wavesAll), regional: ss.map((s) => s.after.regional),
+          marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
           store_shows: ss.map((s) => s.after.store && s.after.store.shows), store_misses: ss.map((s) => s.after.store && s.after.store.misses) };
       }
     }
