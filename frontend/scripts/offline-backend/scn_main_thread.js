@@ -36,6 +36,9 @@ const IDLE_MS = +(process.env.IDLE_MS || 6000);
 const VIEW = process.env.VIEW || 'owner';
 // READBACK=1: the screen read-back (correctness run). It syncs the GPU every frame, so a READBACK run's frame times are NOT timings.
 const READBACK = process.env.READBACK === '1';
+// SEED_STEPS=2,5,9: 150 ms after those keys, stage a coarse-base SEED the way prewarmGlobalMarineGrid does, but with the /grid
+// REQUEST box (north 85) and an older hour: the live alternation of two world bounds boxes (static frames say north 84).
+const SEED_STEPS = (process.env.SEED_STEPS || '').split(',').filter(Boolean).map(Number);
 const ZOOM = +(process.env.ZOOM || 3.9);
 const ZOOM_OUT = +(process.env.ZOOM_OUT || 1.9);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
@@ -233,7 +236,13 @@ async function session(arm) {
         await sleep(3000);
       } else {
         await page.keyboard.press(step);
-        await sleep(STEP_GAP);
+        if (SEED_STEPS.includes(steps.length - 1)) {
+          await sleep(150);
+          await page.evaluate(() => { const e = window.__MARINE_ENGINE__; const b = e && e._coarseBaseData && e._coarseBaseData.waveGrid; if (!b) return;
+            e._pendingCoarseBaseGrid = { ...b, bounds: { ...b.bounds, north: 85 }, hourOffset: (b.hourOffset || 0) - 3,
+              valid_time: new Date(Date.parse(b.valid_time) - 3 * 3600000).toISOString(), __fromSeries: false }; });
+          await sleep(STEP_GAP - 150);
+        } else await sleep(STEP_GAP);
       }
       const b = await page.evaluate(() => performance.now());
       const hourAfter = +(await page.evaluate((sel) => { const w = [...document.querySelectorAll(sel)].find((x) => x.offsetParent); return w ? w.getAttribute('aria-valuenow') : 0; }, WHEEL));
@@ -246,8 +255,9 @@ async function session(arm) {
     }
     const store = await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; return t ? { shows: t.shows, commits: t.commits, gpu: t.gpu, crop: t.crop } : null; });
     const counts = await page.evaluate(() => ({ counts: window.__JK__.counts, engines: window.__JK__.engines, renderSmall: window.__JK__.renderSmall || 0 }));
+    const gpuMaskCache = await page.evaluate(() => (window.__RAW_GPU__ && window.__RAW_GPU__.coarseMaskCache) || null);
     const backend = {}; for (const q of log.requests) backend[q.path] = (backend[q.path] || 0) + 1;
-    return { arm: arm.name, flags: arm.flags, idle, steps, store, backend, counts, errors: [...errors, ...log.errors.slice(0, 5)] };
+    return { arm: arm.name, flags: arm.flags, idle, steps, store, backend, counts, gpuMaskCache, errors: [...errors, ...log.errors.slice(0, 5)] };
   } finally { await browser.close(); }
 }
 
@@ -302,6 +312,8 @@ function staleness(steps) {
         + ` (${(100 * s.idle.renderMs / s.idle.ms).toFixed(1)}% of wall), engine ${Math.round(s.idle.engineMs)} ms, getUniformLocation ${s.idle.ul} (${(s.idle.ul / Math.max(1, s.idle.frames)).toFixed(1)}/frame), loaf ${JSON.stringify(s.idle.loaf)}`);
       console.log(`   keys: event-timing ms ${JSON.stringify(keySteps.map((x) => (x.ev[0] ? Math.round(x.ev[0].d) : null)))} | LoAF>=50 per step ${JSON.stringify(keySteps.map((x) => x.loaf.map((l) => Math.round(l.d))))}`);
       console.log(`   zoom: LoAF ${JSON.stringify(zoomSteps.map((x) => x.loaf.map((l) => Math.round(l.d))))} | all LoAF over 50: ${loafs(s.steps).filter((d) => d >= 50).length}, max ${Math.max(0, ...loafs(s.steps))}`);
+      const rast = caps.filter((c) => !c.maskReused).length;
+      console.log(`   rasterized masks in steps: ${rast} | coarseMaskCache ${JSON.stringify(s.gpuMaskCache)}`);
       console.log(`   _captureCoarseBase: ${caps.length} calls, ms ${JSON.stringify(caps.map((c) => Math.round(c.ms)))}, parent ${JSON.stringify(caps.map((c) => c.parent))}, maskReused ${JSON.stringify(caps.map((c) => c.maskReused))}, store ${JSON.stringify(caps.map((c) => c.store))}`);
       for (const st of s.stale) console.log(`   stale? ${st.kind} ${st.from}->${st.to}: voting ${st.votingPatches}, first new ${st.firstNewMs} ms, old frames after key ${st.oldFramesAfterKey} (last ${st.lastOldMs} ms), mixed ${st.mixed}, parity false until ${st.parityFalseUntilMs} ms ${JSON.stringify(st.reasons)}`);
       console.log(`   backend ${JSON.stringify(s.backend)} | engine calls ${JSON.stringify(s.counts)} | store ${JSON.stringify(s.store && { shows: s.store.shows && s.store.shows.n, commits: s.store.commits })} | errors ${s.errors.length} ${JSON.stringify(s.errors.slice(0, 2))}`);
