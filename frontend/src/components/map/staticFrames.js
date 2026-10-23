@@ -521,6 +521,9 @@ export function staticSetKeyForBox({ model, layer, bbox, surf }) {
   return tile ? tile.key : setKeyFor(model, layer);
 }
 
+/** The set is listed in the latest.json already read (synchronous; false before the first read). */
+export const isSetListed = (key) => !!(_state.latest && _state.latest.sets && _state.latest.sets[key] && _state.latest.sets[key].index);
+
 /** The pinned regional index and this ask's frame and Step 3 window, or null with the miss recorded (the caller asks /grid). */
 async function regionalPick({ tile, model, askMs, bboxStr }) {
   const index = await getPinnedIndex(tile.key).catch(() => null);

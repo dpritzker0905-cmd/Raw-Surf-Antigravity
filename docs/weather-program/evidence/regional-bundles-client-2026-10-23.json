@@ -1,0 +1,1601 @@
+{
+ "what": "Regional z7-9 bundle client (staticRegional.js): parity vs the offline resolver and the z9 Florida measurement",
+ "date": "2026-10-23",
+ "branch": "claude/regional-bundles-client",
+ "base": "dev abd70891c (#486)",
+ "store": "offline: serve_synthetic.py --models GFS --layers waves,swell_1,swell_2,wind_waves --regions flagship --dynamic 1 --real-frames <the published GFS waves global_mid run>; regional bundles from backend/scripts/publish_frame_images.py --only frames (FRAME_SETS = the 8 florida_east_coast / us_west_coast_socal sets, parity_bad 0 each)",
+ "parity": {
+  "waves": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "swell_1": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "swell_2": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "wind_waves": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "waves_300_boxes": {
+   "boxes_x_seams": 416,
+   "claimed": 56,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid_nodes": 18074,
+   "grid_bad": 0,
+   "series_nodes": 7262,
+   "series_bad": 0,
+   "meta": 0
+  }
+ },
+ "parity_positive_control": {
+  "how": "swell_1 set keys pointed at the waves bundles, compared with the backend's swell_1",
+  "claimed": 10,
+  "grid_bad": 5374,
+  "series_bad": 4156,
+  "max_abs_err": {
+   "speed": 1.0999999999999996,
+   "direction": 0,
+   "period": 2.000000000000001,
+   "dir_confidence": 0,
+   "uv": 0.9666999999999999
+  },
+  "exit": 1
+ },
+ "measure": {
+  "fin-owner": {
+   "view": "owner 844x390 dpr2, centre -80.6,28.1 (the live read box)",
+   "sessions": [
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       35,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       40,
+       "series",
+       0
+      ],
+      [
+       28,
+       37,
+       "series",
+       0
+      ],
+      [
+       52,
+       37,
+       "series",
+       0
+      ],
+      [
+       172,
+       40,
+       "series",
+       0
+      ],
+      [
+       148,
+       27,
+       "series",
+       0
+      ],
+      [
+       147,
+       34,
+       "series",
+       0
+      ],
+      [
+       0,
+       26,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {},
+     "regional": {
+      "bundles": 4,
+      "bundleBytes": 340409,
+      "slices": 250,
+      "hits": 1,
+      "series": 250,
+      "misses": {
+       "no_frame_in_window": 7
+      },
+      "dynamicOnCovered": 0
+     }
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       47,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       37,
+       "series",
+       0
+      ],
+      [
+       28,
+       38,
+       "series",
+       0
+      ],
+      [
+       52,
+       37,
+       "series",
+       0
+      ],
+      [
+       172,
+       31,
+       "series",
+       0
+      ],
+      [
+       148,
+       42,
+       "series",
+       0
+      ],
+      [
+       147,
+       36,
+       "series",
+       0
+      ],
+      [
+       0,
+       47,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 14803
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 561
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9414
+      },
+      "swell_2/grid_series": {
+       "n": 2,
+       "ms": 6371
+      },
+      "wind_waves/grid_series": {
+       "n": 2,
+       "ms": 3760
+      }
+     },
+     "regional": null
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       34,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       40,
+       "series",
+       0
+      ],
+      [
+       28,
+       38,
+       "series",
+       0
+      ],
+      [
+       52,
+       33,
+       "series",
+       0
+      ],
+      [
+       172,
+       27,
+       "series",
+       0
+      ],
+      [
+       148,
+       44,
+       "series",
+       0
+      ],
+      [
+       147,
+       32,
+       "series",
+       0
+      ],
+      [
+       0,
+       32,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 16332
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 678
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 8019
+      },
+      "swell_2/grid_series": {
+       "n": 2,
+       "ms": 4810
+      },
+      "wind_waves/grid_series": {
+       "n": 1,
+       "ms": 113
+      }
+     },
+     "regional": null
+    },
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       38,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       45,
+       "series",
+       0
+      ],
+      [
+       28,
+       35,
+       "series",
+       0
+      ],
+      [
+       52,
+       27,
+       "series",
+       0
+      ],
+      [
+       172,
+       26,
+       "series",
+       0
+      ],
+      [
+       148,
+       29,
+       "series",
+       0
+      ],
+      [
+       147,
+       32,
+       "series",
+       0
+      ],
+      [
+       0,
+       42,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {},
+     "regional": {
+      "bundles": 4,
+      "bundleBytes": 340409,
+      "slices": 250,
+      "hits": 1,
+      "series": 250,
+      "misses": {
+       "no_frame_in_window": 7
+      },
+      "dynamicOnCovered": 0
+     }
+    }
+   ],
+   "summary": {
+    "cur@z9": {
+     "steps": 20,
+     "exact_missed": 0,
+     "exact_ms_p50": 32,
+     "exact_ms_p95": 42,
+     "label_ms_p50": 26,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0,
+     "via": {
+      "series": 18,
+      "grid": 2
+     },
+     "resident_dims": [
+      "13x9",
+      "13x13"
+     ],
+     "marine_session": [
+      {},
+      {}
+     ],
+     "regional": [
+      {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 250,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      },
+      {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 250,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     ],
+     "store_shows": [
+      0,
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      },
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    },
+    "noregional@z9": {
+     "steps": 20,
+     "exact_missed": 0,
+     "exact_ms_p50": 34,
+     "exact_ms_p95": 47,
+     "label_ms_p50": 32,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0.15,
+     "via": {
+      "series": 18,
+      "grid": 2
+     },
+     "resident_dims": [
+      "13x9",
+      "13x13"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 14803
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 561
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9414
+       },
+       "swell_2/grid_series": {
+        "n": 2,
+        "ms": 6371
+       },
+       "wind_waves/grid_series": {
+        "n": 2,
+        "ms": 3760
+       }
+      },
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 16332
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 678
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 8019
+       },
+       "swell_2/grid_series": {
+        "n": 2,
+        "ms": 4810
+       },
+       "wind_waves/grid_series": {
+        "n": 1,
+        "ms": 113
+       }
+      }
+     ],
+     "regional": [
+      null,
+      null
+     ],
+     "store_shows": [
+      0,
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      },
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    }
+   }
+  },
+  "fin-desktop": {
+   "view": "desktop 1280x800, same centre",
+   "sessions": [
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -81.34,
+      "s": 27.61,
+      "e": -79.86,
+      "n": 28.58
+     },
+     "steps": [
+      [
+       1,
+       41,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       38,
+       "series",
+       0
+      ],
+      [
+       28,
+       33,
+       "series",
+       0
+      ],
+      [
+       52,
+       40,
+       "series",
+       0
+      ],
+      [
+       172,
+       35,
+       "series",
+       0
+      ],
+      [
+       148,
+       34,
+       "series",
+       0
+      ],
+      [
+       147,
+       23,
+       "series",
+       0
+      ],
+      [
+       0,
+       39,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {},
+     "regional": {
+      "bundles": 4,
+      "bundleBytes": 340409,
+      "slices": 250,
+      "hits": 1,
+      "series": 250,
+      "misses": {
+       "no_frame_in_window": 7
+      },
+      "dynamicOnCovered": 0
+     }
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -81.34,
+      "s": 27.61,
+      "e": -79.86,
+      "n": 28.58
+     },
+     "steps": [
+      [
+       1,
+       36,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       34,
+       "series",
+       0
+      ],
+      [
+       28,
+       24,
+       "series",
+       0
+      ],
+      [
+       52,
+       39,
+       "series",
+       0
+      ],
+      [
+       172,
+       39,
+       "series",
+       0
+      ],
+      [
+       148,
+       27,
+       "series",
+       0
+      ],
+      [
+       147,
+       32,
+       "series",
+       0
+      ],
+      [
+       0,
+       36,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 13076
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 504
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9270
+      },
+      "swell_2/grid_series": {
+       "n": 2,
+       "ms": 5393
+      },
+      "wind_waves/grid_series": {
+       "n": 2,
+       "ms": 4413
+      }
+     },
+     "regional": null
+    }
+   ],
+   "summary": {
+    "cur@z9": {
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 34,
+     "exact_ms_p95": 41,
+     "label_ms_p50": 39,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0,
+     "via": {
+      "series": 9,
+      "grid": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "17x17"
+     ],
+     "marine_session": [
+      {}
+     ],
+     "regional": [
+      {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 250,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    },
+    "noregional@z9": {
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 32,
+     "exact_ms_p95": 39,
+     "label_ms_p50": 36,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0,
+     "via": {
+      "series": 9,
+      "grid": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "17x17"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 13076
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 504
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9270
+       },
+       "swell_2/grid_series": {
+        "n": 2,
+        "ms": 5393
+       },
+       "wind_waves/grid_series": {
+        "n": 2,
+        "ms": 4413
+       }
+      }
+     ],
+     "regional": [
+      null
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    }
+   }
+  },
+  "fin-edge": {
+   "view": "owner, centre -79.5,28.6: the view crosses the tile east edge -79 (partial cover)",
+   "sessions": [
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -80.04,
+      "s": 28.36,
+      "e": -78.96,
+      "n": 28.83
+     },
+     "steps": [
+      [
+       1,
+       32,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       36,
+       "series",
+       0
+      ],
+      [
+       28,
+       28,
+       "series",
+       0
+      ],
+      [
+       52,
+       38,
+       "series",
+       0
+      ],
+      [
+       172,
+       43,
+       "series",
+       0
+      ],
+      [
+       148,
+       37,
+       "series",
+       0
+      ],
+      [
+       147,
+       36,
+       "series",
+       0
+      ],
+      [
+       0,
+       null,
+       null,
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 29969
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 1527
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9070
+      },
+      "swell_2/grid_series": {
+       "n": 1,
+       "ms": 552
+      },
+      "wind_waves/grid_series": {
+       "n": 1,
+       "ms": 1268
+      }
+     },
+     "regional": null
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -80.04,
+      "s": 28.36,
+      "e": -78.96,
+      "n": 28.83
+     },
+     "steps": [
+      [
+       1,
+       46,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       39,
+       "series",
+       0
+      ],
+      [
+       28,
+       34,
+       "series",
+       0
+      ],
+      [
+       52,
+       34,
+       "series",
+       0
+      ],
+      [
+       172,
+       37,
+       "series",
+       0
+      ],
+      [
+       148,
+       33,
+       "series",
+       0
+      ],
+      [
+       147,
+       23,
+       "series",
+       0
+      ],
+      [
+       0,
+       null,
+       null,
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 29406
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 791
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9146
+      },
+      "swell_2/grid_series": {
+       "n": 1,
+       "ms": 790
+      },
+      "wind_waves/grid_series": {
+       "n": 1,
+       "ms": 1418
+      }
+     },
+     "regional": null
+    }
+   ],
+   "summary": {
+    "cur@z9": {
+     "steps": 10,
+     "exact_missed": 1,
+     "exact_ms_p50": 36,
+     "exact_ms_p95": 43,
+     "label_ms_p50": 37,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0.2,
+     "via": {
+      "series": 9,
+      "none": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "9x13"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 29969
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 1527
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9070
+       },
+       "swell_2/grid_series": {
+        "n": 1,
+        "ms": 552
+       },
+       "wind_waves/grid_series": {
+        "n": 1,
+        "ms": 1268
+       }
+      }
+     ],
+     "regional": [
+      null
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    },
+    "noregional@z9": {
+     "steps": 10,
+     "exact_missed": 1,
+     "exact_ms_p50": 34,
+     "exact_ms_p95": 46,
+     "label_ms_p50": 36,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0.1,
+     "via": {
+      "series": 9,
+      "none": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "9x13"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 29406
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 791
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9146
+       },
+       "swell_2/grid_series": {
+        "n": 1,
+        "ms": 790
+       },
+       "wind_waves/grid_series": {
+        "n": 1,
+        "ms": 1418
+       }
+      }
+     ],
+     "regional": [
+      null
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    }
+   }
+  }
+ },
+ "before_fixes": {
+  "z9b (manifest race, no wait)": "cur: waves /grid_series 4 pages 28-29 s; trace: 11 picks 'manifest_not_loaded' at t~3 s, every page decided before the manifest landed (~4.5 s)",
+  "z9d (wait, windowed fill)": "cur: 0 marine backend asks; day steps 172-206 ms via the per-hour seam (window +-4 steps)",
+  "z9f/z9h (viewed-page full fill)": "page 1-2 still 170-220 ms: the scrub prewarm decides them at t~3.6 s before a focus exists (trace with boxes)"
+ }
+}

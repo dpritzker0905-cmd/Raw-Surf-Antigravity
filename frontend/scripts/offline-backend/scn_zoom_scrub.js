@@ -127,6 +127,7 @@ const PROBE = () => {
         lastMs: fsx.shows && fsx.shows.lastMs, resident: fsx.resident ? { cols: fsx.resident.cols, rows: fsx.resident.rows, window: fsx.resident.window || null } : null,
         commits: { ...(fsx.commits || {}) }, crop: fsx.crop ? { window: fsx.crop.window && fsx.crop.window.key, packs: fsx.crop.packs, built: fsx.crop.built, shows: fsx.crop.shows } : null } : null,
       regional: window.__RAW_STATIC_REGIONAL__ ? JSON.parse(JSON.stringify(window.__RAW_STATIC_REGIONAL__)) : null,
+      regionalTrace: Array.isArray(window.__RAW_STATIC_REGIONAL_TRACE__) ? window.__RAW_STATIC_REGIONAL_TRACE__.slice() : undefined,
       nodowngrade: window.__MARINE_NO_DOWNGRADE__ ? { count: window.__MARINE_NO_DOWNGRADE__.count, selfHealed: window.__MARINE_NO_DOWNGRADE__.selfHealed || 0, last: window.__MARINE_NO_DOWNGRADE__.last } : null };
   };
 };
@@ -159,7 +160,7 @@ async function session(arm, zoom) {
     let body = null; try { body = JSON.parse((await resp.body()).toString('utf8')); } catch (e) { /* not json */ }
     reqLog.push({ t: Date.now() - log.t0, ...describeWeather(url, body) });
   } : undefined } });
-  await page.addInitScript(({ arm, base }) => {
+  await page.addInitScript(({ arm, base, regTrace }) => {
     localStorage.removeItem('__RAW_STATIC_FRAMES__');
     window.__RAW_STATIC_FRAMES_BASE__ = base;
     if (arm === 'grid') window.__RAW_DISABLE_STATIC_FRAMES__ = true;
@@ -168,7 +169,8 @@ async function session(arm, zoom) {
     if (arm === 'nocropshow') window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
     if (arm === 'noaheadrun') window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
     if (arm === 'noregional') window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
-  }, { arm, base: `http://127.0.0.1:${CDN_PORT}/` });
+    if (regTrace) window.__RAW_STATIC_REGIONAL_TRACE__ = [];
+  }, { arm, base: `http://127.0.0.1:${CDN_PORT}/`, regTrace: process.env.REGTRACE === '1' });
   await page.addInitScript(PROBE);
   const steps = [];
   try {

@@ -38,7 +38,7 @@ import {
   acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
-import { noteStaticFocus, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
+import { noteStaticFocus, regionalSeriesWait, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
 import { staticCropPageKey, staticSeriesEligible } from './staticFrames';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
@@ -223,6 +223,10 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));
+  // A box a regional bundle could answer waits (bounded) for the products manifest BEFORE the dedup below, so waiters resume
+  // one by one and see each other's flight (marineSeriesStatic.regionalSeriesWait; null = no wait, nothing awaited).
+  const wait = regionalSeriesWait(model, layer, reqBox, getSurfModeFlag());
+  if (wait !== null) { await wait; if (marineSeriesCallerAborted(signal)) return; }
   // A static CROP page (staticFrames.staticCropPageKey) carries its clip in its key: every viewport over 15 deg shares the key
   // 'global' with the world page, and the two would overwrite each other. Every other page keeps its key.
   const key = staticCropPageKey(pageKey(model, layer, bounds, page), { model, layer, reqBox, surf: getSurfModeFlag() });
@@ -450,7 +454,8 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isMarineSeriesEnabled() || !bounds) return;
   // Static frames (dark): the page fill fetches the viewed hour first, so the mini would only load the box.
-  if (staticOwnsWorldPage(model, layer, normalizeRequestBbox(padRegionalBbox(bounds)), getSurfModeFlag())) return;
+  const box0 = normalizeRequestBbox(padRegionalBbox(bounds)); const wait0 = regionalSeriesWait(model, layer, box0, getSurfModeFlag());
+  if ((wait0 === null || await wait0) && staticOwnsWorldPage(model, layer, box0, getSurfModeFlag())) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);

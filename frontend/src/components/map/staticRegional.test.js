@@ -13,8 +13,12 @@ import { setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import {
   _setRegionalCodecForTest, isRegionalSetKey, noteBackendAnswer, normalizeBundleIndex, pickRegionalTile, regionalClipWindow,
-  regionalFrameBytes, regionalSetKey,
+  regionalFrameBytes, regionalManifestPending, regionalSetKey,
 } from './staticRegional';
+import {
+  MANIFEST_WAIT_MS, REGIONAL_BACKGROUND_FILL_CELLS, REGIONAL_FULL_PAGE_CELLS, regionalFullPage, regionalSeriesWait, staticOwnsWorldPage,
+} from './marineSeriesStatic';
+import { _resetProductsManifestFetchForTest } from './backendWeatherServiceClient';
 
 const BASE = 'https://cdn.test/weather-frames/';
 const VT = '2026-10-20T00:00:00Z';
@@ -73,7 +77,10 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
-  ['__RAW_STATIC_FRAMES_BASE__', '__RAW_DISABLE_REGIONAL_BUNDLES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__'].forEach((k) => delete window[k]);
+  ['__RAW_STATIC_FRAMES_BASE__', '__RAW_DISABLE_REGIONAL_BUNDLES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__',
+    '__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__'].forEach((k) => delete window[k]);
+  _resetProductsManifestFetchForTest();
+  jest.useRealTimers();
   _setRegionalCodecForTest();
   setCachedManifest(null);
   if (killBefore === undefined) delete window.__RAW_DISABLE_STATIC_FRAMES__; else window.__RAW_DISABLE_STATIC_FRAMES__ = killBefore;
@@ -190,5 +197,73 @@ describe('the seams answer a fully covered box from the bundle, and nothing else
     noteBackendAnswer({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30', json: { is_dynamic_viewport_product: false } });
     noteBackendAnswer({ model: 'GFS', layer: 'waves', bboxStr: '-120,20,-110,30', json: { is_dynamic_viewport_product: true } });
     expect(window.__RAW_STATIC_REGIONAL__.dynamicOnCovered).toBe(1);
+  });
+});
+
+describe('at the map opening, before the products manifest has loaded (the z9 Florida trace, 2026-10-23)', () => {
+  const BOX = { west: -90, south: 20, east: -80, north: 30 };
+  const WORLD = { west: -180, south: -80, east: 180, north: 85 };
+  it('a box a pilot tile could answer waits for the manifest, then picks its tile; other boxes and the kill never wait', async () => {
+    setCachedManifest(null);
+    _resetProductsManifestFetchForTest();
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();     // what every early page saw
+    expect(regionalManifestPending({ model: 'GFS', layer: 'swell_1', bbox: BOX })).toBe(true);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(false);
+    expect(regionalManifestPending({ model: 'ICON', layer: 'waves', bbox: BOX })).toBe(false);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: BOX, surf: true })).toBe(false);
+    window.__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__ = true;
+    expect(regionalSeriesWait('GFS', 'waves', BOX, false)).toBeNull();
+    delete window.__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__;
+    const cdnFetch = global.fetch;
+    global.fetch = jest.fn(async (url) => (String(url).includes('/products') ? { ok: true, status: 200, json: async () => MANIFEST } : cdnFetch(url)));
+    const wait = regionalSeriesWait('GFS', 'waves', BOX, false);
+    expect(wait).not.toBeNull();
+    await expect(wait).resolves.toBe(true);
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toMatchObject({ id: 'test_big' });
+    expect(regionalSeriesWait('GFS', 'waves', BOX, false)).toBeNull();                                  // loaded: nothing awaited
+  });
+
+  it('a manifest that never arrives costs at most MANIFEST_WAIT_MS, then the page decides as before', async () => {
+    setCachedManifest(null);
+    _resetProductsManifestFetchForTest();
+    jest.useFakeTimers();
+    global.fetch = jest.fn(() => new Promise(() => {}));
+    let done = false;
+    regionalSeriesWait('GFS', 'waves', BOX, false).then(() => { done = true; });
+    await Promise.resolve();
+    jest.advanceTimersByTime(MANIFEST_WAIT_MS - 1);
+    await Promise.resolve();
+    expect(done).toBe(false);
+    jest.advanceTimersByTime(1);
+    for (let i = 0; i < 10; i++) await Promise.resolve();                                              // race -> then -> then
+    expect(done).toBe(true);
+  });
+
+  it('the hour-0 mini stands down once latest.json lists the regional set (its index is pinned by the page fill)', async () => {
+    expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(false);                               // latest.json not read yet
+    expect(await getPinnedIndex('GFS/marine/waves/global_mid')).toBeNull();                            // reads latest.json, pins nothing
+    expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(true);
+    expect(getPinnedIndexSync(KEY)).toBeNull();
+    window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
+    expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(false);
+  });
+});
+
+describe('a viewed regional page fills every hour while its box is small', () => {
+  it('a z9-sized box inside a pilot tile: whole page; a wider box, a world box and the kill: the window', () => {
+    const z9 = { west: -90, south: 20, east: -87.9, north: 21.5 };                        // ~ the owner's z9 series box
+    expect(regionalFullPage('GFS', 'waves', z9, false)).toBe(true);
+    const wide = { west: -95, south: 15, east: -80, north: 30 };                          // (60+2) x (60+2) nodes > the cap
+    expect((60 + 2) * (60 + 2)).toBeGreaterThan(REGIONAL_FULL_PAGE_CELLS);
+    expect(regionalFullPage('GFS', 'waves', wide, false)).toBe(false);
+    expect(regionalFullPage('GFS', 'waves', { west: -180, south: -80, east: 180, north: 85 }, false)).toBe(false);
+    expect(regionalFullPage('GFS', 'waves', { west: -150, south: 20, east: -148, north: 21 }, false)).toBe(false);   // no tile
+    const z7 = { west: -95, south: 15, east: -88, north: 20 };                            // (28+2) x (20+2) = 660 nodes
+    expect(regionalFullPage('GFS', 'waves', z7, false)).toBe(true);                     // the viewed page
+    expect(regionalFullPage('GFS', 'waves', z7, false, REGIONAL_BACKGROUND_FILL_CELLS)).toBe(false);   // a background page
+    expect(regionalFullPage('GFS', 'waves', z9, false, REGIONAL_BACKGROUND_FILL_CELLS)).toBe(true);
+    window.__RAW_DISABLE_REGIONAL_FULL_PAGE__ = true;
+    expect(regionalFullPage('GFS', 'waves', z9, false)).toBe(false);
+    delete window.__RAW_DISABLE_REGIONAL_FULL_PAGE__;
   });
 });

@@ -22,7 +22,11 @@
  * Kill: window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (every regional box asks /grid as before). The per-set kill
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__ with the regional key) and the global static-frames kill also apply.
  * Telemetry: window.__RAW_STATIC_REGIONAL__ (also window.__RAW_STATIC_FRAMES__.regional) = { bundles, bundleBytes, slices, hits, series,
- *   misses, dynamicOnCovered }.
+ *   misses, dynamicOnCovered }. Opt-in decision trace: window.__RAW_STATIC_REGIONAL_TRACE__ = [] (each tile pick and why; the
+ *   series seam's waits and page decisions).
+ * The map's opening: the tile list is the products manifest, which lands seconds after the first series pages are decided; a page
+ *   that could be regional waits for it, bounded (marineSeriesStatic.regionalSeriesWait). Small regional pages fill every hour
+ *   (marineSeriesStatic.regionalFullPage).
  */
 import { clampAndNormalize, latticeWindow, parseBboxString } from './staticFrameCrop';
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
@@ -73,9 +77,9 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
   const req = parseBboxString(bboxStr);
   if (!req) return null;
   const [w, s, e, n] = req;
-  if (!(w < e) || !(s < n) || w < -180 || e > 180) return null;
+  if (!(w < e) || !(s < n) || w < -180 || e > 180) return trace({ l, bboxStr, pick: 'bad_box' });
   const { tiles, fallbackReason } = getAvailableTilesFromManifest(m, 'marine', l);
-  if (fallbackReason || !Array.isArray(tiles)) return null;
+  if (fallbackReason || !Array.isArray(tiles)) return trace({ l, bboxStr, pick: fallbackReason || 'no_tiles' });
   let best = null; let bestArea = Infinity; let tie = false;
   for (const tile of tiles) {
     const c = tile && tile.bounds;
@@ -86,7 +90,31 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
     if (Math.abs(area - bestArea) < 1e-9) tie = true;
     else if (area < bestArea) { best = tile; bestArea = area; tie = false; }
   }
-  return best && !tie ? { id: best.id, bounds: { ...best.bounds }, key: regionalSetKey(m, l, best.id) } : null;
+  if (best && !tie) { trace({ l, bboxStr, pick: best.id }); return { id: best.id, bounds: { ...best.bounds }, key: regionalSetKey(m, l, best.id) }; }
+  return trace({ l, bboxStr, pick: tie ? 'tie' : 'outside' });
+}
+
+/**
+ * True when this box could be answered by a regional bundle but the products manifest (the tile list Step 3 picks from) has
+ * not loaded yet: pickRegionalTile would say "no tile" only because it is early. The /grid seam awaits the manifest before it
+ * decides (fetchBackendMarineGrid); the series pages decide synchronously, so at the map's opening every page was sent to
+ * /grid_series before the manifest landed (the z9 Florida trace, 2026-10-23: 11 picks 'manifest_not_loaded', all four waves
+ * pages queued to the backend, ~4 s before the manifest arrived). Boxes wider than any pilot tile never wait.
+ */
+export function regionalManifestPending({ model, layer, bbox, surf }) {
+  if (surf || !bbox || !regionalBundlesOn()) return false;
+  const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
+  if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return false;
+  if (lngSpan(bbox.west, bbox.east) > 40 || bbox.north - bbox.south > 40) return false;
+  return getAvailableTilesFromManifest(m, 'marine', l).fallbackReason === 'manifest_not_loaded';
+}
+
+/** Opt-in decision trace (diagnostics only): set window.__RAW_STATIC_REGIONAL_TRACE__ = [] and every tile pick is appended
+ *  (layer, box, the tile or why none), capped at 500. Free when unset. Always returns null (the callers' "no tile"). */
+export function trace(rec) {
+  const t = W().__RAW_STATIC_REGIONAL_TRACE__;
+  if (Array.isArray(t) && t.length < 500) t.push({ t: Math.round(typeof performance !== 'undefined' ? performance.now() : 0), ...rec });
+  return null;
 }
 
 /**

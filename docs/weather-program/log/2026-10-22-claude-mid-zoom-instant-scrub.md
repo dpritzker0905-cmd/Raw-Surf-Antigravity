@@ -113,3 +113,39 @@ mutants caught (the guard line, the layer wiring, the full-run count, the chain 
 ## No served number changes
 The guard and the layer decide WHICH served frame is drawn (the world frame of the same product, or a fresh upload of the same
 bytes); the build-ahead packs the same frames earlier. No SCOREBOARD row.
+
+## 2026-10-23 (18:45Z): regional z7-9 bundles, the client (the lead's brief after #465's live read)
+
+**Why.** The map opens at z9 over florida_east_coast and one load cost ~34 s of `/grid_series` box work (the lead's live read,
+16:33Z). Contract agreed with static-frames (#467 / #486 bundles); Decision 3 amendment: only boxes a tile FULLY covers.
+
+**Changed.**
+- `staticRegional.js` (new): tile pick (Step 3's smallest containing tile, tie -> /grid), the Step 3 window on the tile lattice
+  (`latticeWindow`, factored out of `staticFrameCrop.js`), bundle fetch + slice + sha12 on the gzip slice + inflate, the Step 3
+  JSON shape (`requested_bbox` = the snapped box), the `dynamicOnCovered` counter, telemetry `window.__RAW_STATIC_REGIONAL__`, an
+  opt-in decision trace. Layers: GFS waves, swell_1, swell_2, wind_waves.
+- `staticFrames.js`: both seams branch to the regional set for a box inside a pilot tile; the frame store keeps regional sets out.
+- `marineSeriesStatic.js` + two call lines in `marineGridSeries.js`: the bounded manifest wait at the opening, and whole-page fills
+  for small regional boxes (both measured as needed, see below). `backendWeatherServiceClient.js`: one line feeds the counter.
+- Instruments: `scn_regional_client_parity.mjs` (new, `LAYER`), `scn_zoom_scrub.js` (`noregional` arm, `marineAll` per layer over
+  the whole session, `REGTRACE=1`).
+
+**Found by measuring.** (1) At the harness's default centre (-79.5) the view crosses the tile's -79 edge: a partial cover, correctly
+not served; the live box is -81.65..-79.58 (centre -80.6, 28.1). (2) With the client on, only the `/grid` seam hit: every series page
+was decided at ~3 s, before the products manifest landed (trace: 11 picks `manifest_not_loaded`), and queued to `/grid_series`.
+Fixed with a bounded wait before the page dedup. (3) Then 0 backend asks, but day jumps took 170-220 ms: the windowed fill (sized for
+15k-vector world frames) left page 1 to the per-hour path, and the scrub prewarm decides pages 1-2 at ~3.6 s before a focus exists.
+Fixed with whole-page fills for small regional boxes (background pages too, <= 300 nodes a frame).
+
+**Measured** (offline; `evidence/regional-bundles-client-2026-10-23.json`): parity 0 bad / 0 meta on every layer, positive control
+fails as it must; z9 owner and desktop views: 0 marine backend asks per load (kill arm: 10-11 asks, 30-35 s), steps 26-45 ms vs
+27-47 ms, 0 mislabelled frames; the partial-cover view behaves exactly as the kill arm.
+
+**No served number changes.** The bundles are the stored tiles' bytes (parity at publish and here); which source answers changes,
+not the values. Ships ON with the kill switch. No SCOREBOARD row.
+
+**Owed.** ONE live read after the 19:45Z pilots publish lists the Florida sets: the opening view at z9 (0 `/grid_series` for the
+marine layers, `__RAW_STATIC_REGIONAL__.series` > 0, `dynamicOnCovered` 0), `/api/health` before and after.
+
+**Follow-up seen, not fixed here.** At the partial-cover centre (-79.5) both arms miss the Home step's exact frame (`exactMs` null),
+as earlier dev runs did: pre-existing, outside this change.

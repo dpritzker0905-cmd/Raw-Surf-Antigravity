@@ -192,3 +192,51 @@ crosses an hour's :30 (the anchor rounds) reports correct frames as mislabelled.
 
 Gates: Jest map + `src/tests` 5,470 pass (2 suites fail only in the dot-free copy: they read `program/` and `backend/` files);
 mutants caught (the guard line, the layer wiring, the full-run count, the chain count); ESLint ratchet exit 0; LOC ratchet 0 regressed.
+
+## 8. Regional bundles, the client (2026-10-23)
+
+The map OPENS at zoom 9 over the Florida east coast. The lead's live read (16:33Z) measured ~34 s of `/grid_series` work on the
+1-CPU box per load there: three waves pages (5.1 / 3.9 / 1.2 s) and the swell_1 / swell_2 / wind_waves prefetch pages (6.3 / 6.6 /
+11.1 s). The publisher writes each pilot box's run as ONE bundle (#467 waves, #486 the three swell trains); `staticRegional.js` reads
+it. Kill: `window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true`.
+
+**Contract** (agreed with the static-frames session, approved by the lead): `latest.json` lists each set
+`GFS/marine/<layer>/<region_id>` with its run index and bundle; the client fetches the bundle once (an LRU of 6), slices a frame
+(`offset`, `length`), checks `sha12` over the GZIP slice, inflates it, and decodes it with the world codec. Only a box the tile
+FULLY covers reads it: the Step 3 window (`get_snapped_bbox`, the data-extent clamp, `clip_lattice`, no pad) must cover the request
+with margin 0, the server's own `partial_coverage` test. A partial cover is `regional_partial` and sharpened dynamic on the server,
+so it stays on `/grid` (Decision 3: every dynamic-cache answer over a tile in the Render logs was such a partial cover). The tile is
+the one Step 3 picks (smallest containing tile; an exact tie goes to `/grid`). A cheap counter, `dynamicOnCovered`, notes any dynamic
+`/grid` answer on a box a bundle covers (expected 0).
+
+**Two fixes found by measuring, not by reading:**
+- *The opening race.* The tile list is the products manifest. `/grid` awaits it before deciding; the series pages decided
+  synchronously, and at the opening every page (the viewed one, the scrub prewarm's, the hour-0 mini) was decided at ~3 s, ~1.5 s
+  before the manifest landed, so all of them queued to `/grid_series` (decision trace: 11 picks `manifest_not_loaded`). A page whose
+  box a regional bundle could answer now waits for the manifest, bounded at 3 s, BEFORE the page dedup, so waiters resume one by one
+  (`regionalSeriesWait`; kill `__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__`). The hour-0 mini stands down once `latest.json` lists the set.
+- *Day jumps.* The static series fill is windowed (+-4 steps) because a world frame is ~15k vectors. A regional frame at the owner's
+  z9 is 13 x 9, sliced from a bundle already in memory, so a small regional page fills every hour (viewed page <= 1,200 nodes a
+  frame, any background page <= 300; `regionalFullPage`, kill `__RAW_DISABLE_REGIONAL_FULL_PAGE__`). Windowed, a jump to +172 h went
+  to the per-hour path at 170-220 ms; whole, 26-40 ms.
+
+**Parity** (`scn_regional_client_parity.mjs`, the app's own modules against the offline resolver, the 8 Florida / SoCal sets; seeded
+z7-9 boxes plus each tile's exact box, 0.01 deg inside it and 0.5 deg past an edge): every layer, 30 claimed of 230 asks, 11,554
+`/grid` + 5,620 `/grid_series` nodes, 0 bad, 0 metadata mismatches (product, served time, scope, mode, requested / query / served
+bbox, coverage, partial_coverage), 0 false claims, 0 refused full covers, every sha12 good; waves on 300 boxes: 56 claimed, 25,336
+nodes, 0 bad. `requested_bbox` is the SNAPPED box, as `filter_grid_to_bbox` stamps it (the first run's only mismatch). Positive
+control: swell_1 keys pointed at the waves bundles -> 5,374 bad nodes, exit 1.
+
+**Measured** (offline, the real waves run plus synthetic swells; `docs/weather-program/evidence/regional-bundles-client-2026-10-23.json`;
+no session across :30):
+
+| z9 Florida, centre -80.6, 28.1 (the live box) | regional bundles (ships) | `__RAW_DISABLE_REGIONAL_BUNDLES__` |
+|---|---|---|
+| owner view, marine `/grid` + `/grid_series` asks per load | **0** (2 of 2 sessions) | 10-11, 30.0-34.9 s of backend time |
+| desktop view | **0** | 11, 32.7 s |
+| step to the exact frame, worst of 10 steps | 40-45 ms | 39-47 ms |
+| mislabelled frames | 0 | 0 |
+| the view crossing the tile's -79 edge (partial cover) | same as the kill (9 asks): no bundle read | 9 asks |
+
+**Not yet:** the frame store does not take regional sets (`getPinnedIndexSync` keeps them out); boxes outside the pilot boxes stay
+on the dynamic lane (section 6).
