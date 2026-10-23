@@ -21,6 +21,7 @@ import { getFallbackMapStyle } from './basemapFallback';
 import { useMapErrorSurface } from './useMapErrorSurface';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
+import { radarFrameTiming, holdRadarFrame, forgetShownRadarFrame } from './radarFrameHold'; import { slotTiming } from './rasterFrameSwap';
 
 // SPOT GEOFENCE circles. The radius ramp and the layer's zoom floor are ONE contract: below the
 // ramp's first stop Mapbox clamps the radius, so the circles stop shrinking with zoom and ~1900 of
@@ -435,6 +436,7 @@ const MapWebGL = ({
       return PREFIX + h.toString(36);
     };
     const removeAll = () => {
+      forgetShownRadarFrame();
       try {
         const st = mapInstance.getStyle();
         for (const l of st.layers.filter(x => x.id.startsWith(PREFIX))) { try { mapInstance.removeLayer(l.id); } catch (e) {} }
@@ -496,11 +498,13 @@ const MapWebGL = ({
         if (!mapInstance.getLayer(id)) {
           mapInstance.addLayer({
             id, type: 'raster', source: id,
-            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 }, 'raster-fade-duration': fadeMs },
+            paint: { 'raster-opacity': 0, ...radarFrameTiming(fadeMs) },   // hard cut (radarFrameHold.js)
           }, mapInstance.getLayer('lightning-glow') ? 'lightning-glow' : undefined);
         }
         mapInstance.setPaintProperty(id, 'raster-opacity', opacity);
       }
+      // Keep the frame on screen until the requested one has loaded (radarFrameHold.js).
+      return holdRadarFrame(mapInstance, [...want].find(([, v]) => v.opacity > 0)?.[0], curOp);
     } catch (e) { /* style transition — next index change retries */ }
     return undefined;
   }, [mapInstance, radarFrames, radarFrameIndex, activeLayers]);
@@ -874,7 +878,7 @@ const MapWebGL = ({
                       ? [12.5, 0.62, 13.5, 0.35, 15, 0.12] : []),
                   ] : 0.0,
                 'raster-resampling': 'linear',
-                'raster-fade-duration': fadeFor(layerKey)
+                ...slotTiming(fadeFor(layerKey), fadeOverride !== null || fadeDisabled)   // hard cut (rasterFrameSwap.js)
               }}
             />
           </Source>
