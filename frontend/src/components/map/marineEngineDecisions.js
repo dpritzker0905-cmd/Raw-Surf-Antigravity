@@ -26,6 +26,7 @@ import { readMarineSurfMode } from './marineSurfMode';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity';
 import { marineFrameInstant, sameMarineFrameInstant, sameMarineLabelledHour } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { CLIP_FULL_COVER, clipNeedsFullCover } from './marineZoomOutRelease';
 
 export function latToMercatorY(lat) {
   const latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -329,6 +330,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
     // Live lever unchanged: __RAW_DOWNGRADE_COVER_FRAC__.
     const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
     covers = frac >= minFrac;
+    if (covers && clipNeedsFullCover(resident, incoming)) covers = frac >= CLIP_FULL_COVER;   // a clip of the world frame's own field: whole view (marineZoomOutRelease.js)
   }
   // RATING-INTERLUDE GRACE (2026-07-14, round-12 §4f — "heatmap + animations clear between zooms
   // with the rating band ON"): the coverage release below is CORRECT data-wise (the rated clip is

@@ -24,6 +24,7 @@ import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds }
 import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
 import { marineGridRejection } from './marineGridValidation';
 import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
+import { layerUploadIsStale } from './marineZoomOutRelease';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -157,7 +158,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
     const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_geo_${geojsonSig}_thm_${themeSig}`;
-    const alreadyResident = !!engine._waveData;
+    // A frame-store show wrote the engine directly, so the last upload below no longer describes it: nothing is a duplicate of it.
+    const alreadyResident = !!engine._waveData && !layerUploadIsStale(engine);
 
     const requestedHour = timeOffsetHoursRef.current;
     const renderedDataHour = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid?.hourOffset !== undefined ? grid.grid.hourOffset : null);

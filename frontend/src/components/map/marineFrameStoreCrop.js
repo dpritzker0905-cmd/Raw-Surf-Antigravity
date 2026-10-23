@@ -75,6 +75,36 @@ export function packWindow(parsed, win, opts) {
   return packStaticFrame({ ...parsed, cols: win.cols, rows: win.rows, bounds, fields }, opts);
 }
 
+// BUILD-AHEAD (how many stored frames get a NEW window's pack before they are stepped to). Frames parsed while a window is resident
+// get theirs as they are parsed; this covers the frames parsed BEFORE the window appeared (the world frame was resident then).
+export const CROP_AHEAD = 49;            // the cursor +-24: a desktop tier that does not fill the run (Save-Data, 2g, a hidden tab), webgl1
+export const CROP_AHEAD_SMALL = 17;      // the cursor +-8: a phone or a constrained device
+export const CROP_AHEAD_RUN = 144;       // every stored frame (GFS/ICON runs are 113-115), kept under the pack LRU (CROP_LRU_MAX)
+export const cropAheadRunOn = () => (typeof window === 'undefined' || window.__RAW_DISABLE_CROP_AHEAD_RUN__ !== true);
+
+/**
+ * The build-ahead count. `fills` = the store's idle fill may run on this device now (marineFrameStoreRuntime.idleFillBlocker() is
+ * null: a desktop with a fine pointer, a full budget, no Save-Data, no 2g, a visible tab). There every stored frame is built: its
+ * bytes were already downloaded under the fill's own policy and are served immutable, so each re-read is an HTTP-cache hit (CPU in
+ * idle time, no egress; 2026-10-22 pass 2). Elsewhere, today's +-24 / +-8. Kill: window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true.
+ */
+export function cropAheadCount({ tier, fills }) {
+  const base = (tier === 'desktop' || tier === 'webgl1') ? CROP_AHEAD : CROP_AHEAD_SMALL;
+  return (fills && cropAheadRunOn()) ? Math.max(base, CROP_AHEAD_RUN) : base;
+}
+
+/** Build chains running at once: two where the whole run is built (the first seconds after a window appears are when a far jump can
+ *  still miss; measured ~28 packs/s on one chain with warm bytes), one elsewhere. */
+export function cropAheadChains({ fills }) {
+  return (fills && cropAheadRunOn()) ? 2 : 1;
+}
+
+/** A build queue of valid times around index `at`: nearest first, the later frame first on a tie (scrubs run forward). */
+export function cropAheadOrder(queue, indexOf, at) {
+  const d = (v) => { const i = indexOf(v); return i === undefined ? Infinity : Math.abs(i - at); };
+  return [...queue].sort((a, b) => (d(a) - d(b)) || ((indexOf(b) ?? 0) - (indexOf(a) ?? 0)));
+}
+
 /** A small LRU of crop packs keyed by set, valid time and window. */
 export function createCropPacks(max = CROP_LRU_MAX) {
   const m = new Map();

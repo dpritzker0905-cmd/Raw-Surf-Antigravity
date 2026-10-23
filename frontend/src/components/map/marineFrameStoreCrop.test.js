@@ -6,7 +6,7 @@ import zlib from 'zlib';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import { buildVectors, gridJsonFromFrame, parseFrame, seriesFrameFromFrame } from './staticFrameCodec';
 import { cropGridJson, cropSeriesFrame, cropVectors, midClipWindow } from './staticFrameCrop';
-import { cropToleranceCells, frameWindowOf, packWindow, createCropPacks } from './marineFrameStoreCrop';
+import { CROP_AHEAD, CROP_AHEAD_RUN, CROP_AHEAD_SMALL, cropAheadCount, cropAheadOrder, cropToleranceCells, frameWindowOf, packWindow, createCropPacks } from './marineFrameStoreCrop';
 import { encodeMarineTexture } from './WebGLMarineTextureEncoder';
 import { trimDeadEdges } from './marineEngineDecisions';
 import { mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
@@ -16,6 +16,8 @@ jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => mockSF.enabled,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
   getPinnedIndexSync: () => mockSF.index,
+  getPinnedIndex: async () => mockSF.index,
+  staticEligible: ({ model }) => String(model).toUpperCase() === 'GFS',   // #458's model-toggle warm reads it: one published set
   onStaticFrameParsed: (fn) => { mockSF.hooks.add(fn); return () => mockSF.hooks.delete(fn); },
   loadFrameParsed: (key, frame, signal) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, resolve }); }),
 }));
@@ -138,14 +140,33 @@ describe('packWindow: the clip\'s own encoder bytes, not a copy of the world tex
   });
 });
 
+describe('build-ahead: how many stored frames get the pack of a new window, and in what order (2026-10-22, pass 2)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_CROP_AHEAD_RUN__; });
+  it('a desktop that fills the run builds every stored frame; elsewhere the cursor +-24 / +-8, as before', () => {
+    expect(cropAheadCount({ tier: 'desktop', fills: true })).toBe(CROP_AHEAD_RUN);
+    expect(CROP_AHEAD_RUN).toBeGreaterThanOrEqual(115);                              // a whole GFS / ICON run
+    expect(cropAheadCount({ tier: 'desktop', fills: false })).toBe(CROP_AHEAD);       // Save-Data, 2g, a hidden tab
+    expect(cropAheadCount({ tier: 'webgl1', fills: false })).toBe(CROP_AHEAD);
+    expect(cropAheadCount({ tier: 'handheld', fills: false })).toBe(CROP_AHEAD_SMALL);
+    expect(cropAheadCount({ tier: 'constrained', fills: false })).toBe(CROP_AHEAD_SMALL);
+    window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
+    expect(cropAheadCount({ tier: 'desktop', fills: true })).toBe(CROP_AHEAD);
+  });
+  it('the queue: nearest the window first, the later frame first on a tie, unknown frames last', () => {
+    const at = new Map([['a', 0], ['b', 1], ['c', 2], ['d', 3], ['e', 4]]);
+    expect(cropAheadOrder(['a', 'b', 'c', 'd', 'e', 'x'], (v) => at.get(v), 2)).toEqual(['c', 'd', 'b', 'e', 'a', 'x']);
+    expect(cropAheadOrder(['a', 'b', 'c', 'd', 'e'], (v) => at.get(v), 4)).toEqual(['e', 'd', 'c', 'b', 'a']);
+  });
+});
+
 describe('the runtime shows the window of the stepped-to frame', () => {
   const WIN = midClipWindow('-95,20,-65,35', IG, 'GFS');
   const CROP_GRID = (k) => ({ bounds: WIN.bounds, cols: WIN.cols, rows: WIN.rows, served_valid_time: vt(k), __sourceModel: 'GFS', __componentLayer: 'waves' });
   const PACK = packWindow(PARSED, frameWindowOf(CROP_GRID(0), IG));
-  function setup() {
+  function setup(n = 8) {
     RT._resetFrameStoreRuntimeForTest(); mockSF.hooks.clear(); mockSF.loads = []; mockSF.enabled = true;
     mockSF.index = { path: 'v1/idx/run.json', run: 'r', grid: IG, common_meta: { model: 'GFS', layer: 'waves' },
-      frames: Array.from({ length: 8 }, (_, k) => ({ valid_time: vt(k), path: `v1/f/${k}.bin`, meta: { product_id: `p${k}` } })) };
+      frames: Array.from({ length: n }, (_, k) => ({ valid_time: vt(k), path: `v1/f/${k}.bin`, meta: { product_id: `p${k}` } })) };
     const calls = [];
     const gl = { TEXTURE_2D: 'T2D', RGBA: 'RGBA', UNSIGNED_BYTE: 'UB', TEXTURE_BINDING_2D: 'B2D', UNPACK_FLIP_Y_WEBGL: 'FLIP', UNPACK_PREMULTIPLY_ALPHA_WEBGL: 'PRE',
       getParameter: () => null, bindTexture: () => {}, pixelStorei: () => {}, texSubImage2D: (...a) => calls.push(a[8]) };
@@ -248,4 +269,60 @@ describe('the runtime shows the window of the stepped-to frame', () => {
     expect(window.__RAW_FRAME_STORE__.crop.resident).toBeNull();
     expect(window.__RAW_FRAME_STORE__.commits.crop_not_resident).toBe(1);
   });
+  // A run whose frames were all parsed while the WORLD frame was resident (no window then), so none has a window pack yet.
+  const N = 60;
+  const idxOf = (l) => mockSF.index.frames.findIndex((f) => f.valid_time === l.frame.valid_time);
+  async function drain(max = 400) {
+    for (let i = 0, quiet = 0; i < max && quiet < 3; i++) {
+      const open = mockSF.loads.filter((l) => !l.done);
+      open.forEach((l) => { l.done = true; l.resolve({ parsed: PARSED, buffer: null, wire: 1 }); });
+      quiet = open.length ? 0 : quiet + 1;
+      await flush();
+    }
+  }
+  async function aheadRun({ tier = 'desktop', hidden = false, kill = false } = {}) {
+    window.__RAW_FRAME_STORE_TIER__ = tier;
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+    if (kill) window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
+    setup(N);
+    for (const f of mockSF.index.frames) for (const fn of mockSF.hooks) fn({ key: KEY, frame: f, parsed: PARSED, buffer: null });
+    await flush();
+    RT.noteCommitted(CROP_GRID(30), { hour: 90, model: 'GFS', layer: 'waves' });
+  }
+  const cleanAhead = () => { delete document.visibilityState; ['__RAW_FRAME_STORE_TIER__', '__RAW_DISABLE_CROP_AHEAD_RUN__'].forEach((k) => delete window[k]); };
+
+  it('a desktop that fills the run builds the pack of a new window for EVERY stored frame (the far jumps stop missing)', async () => {
+    try {
+      await aheadRun();
+      await drain();
+      expect(window.__RAW_FRAME_STORE__.crop.built).toBe(N);
+      expect(window.__RAW_FRAME_STORE__.crop.queued).toBe(0);
+      expect(step(0)).toBe(true);                                      // the far end of the run, 30 frames from the cursor
+      expect(step(N - 1)).toBe(true);
+      expect(window.__RAW_FRAME_STORE__.shows.misses.crop_not_ready).toBeUndefined();
+    } finally { cleanAhead(); }
+  }, 30000);
+
+  it('the kill switch, a hidden tab and a phone keep the old build-ahead (+-24, +-24, +-8)', async () => {
+    try {
+      for (const [opts, n] of [[{ kill: true }, CROP_AHEAD], [{ hidden: true }, CROP_AHEAD], [{ tier: 'handheld' }, CROP_AHEAD_SMALL]]) {
+        await aheadRun(opts);
+        await drain();
+        expect([opts, window.__RAW_FRAME_STORE__.crop.built]).toEqual([opts, n]);
+        cleanAhead();
+      }
+    } finally { cleanAhead(); }
+  }, 60000);
+
+  it('a new window builds its own neighbourhood first: two chains on a desktop that fills the run, one elsewhere', async () => {
+    try {
+      for (const [tier, open] of [['desktop', [29, 30, 31]], ['handheld', [30, 31]]]) {
+        await aheadRun({ tier });
+        await flush();
+        expect([tier, mockSF.loads.filter((l) => !l.done).map(idxOf).sort((a, b) => a - b)]).toEqual([tier, open]);
+        await drain();
+        cleanAhead();
+      }
+    } finally { cleanAhead(); }
+  }, 60000);
 });
