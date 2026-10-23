@@ -454,13 +454,34 @@ export function staticEligible({ model, layer, bbox, surf }) {
  * which includes the whole global_mid clip a world request gets. It rewrites every masked cell (land too) that has a valid GFS
  * coarse cell within 8 deg with GFS values (offline, the real function on a EURO global_mid with simulated land: 1,757 of 2,066
  * masked cells rewritten at world span; 0 on a 50-deg crop). A static frame of the stored product would differ there, so a world
- * box of these sets asks /grid; their viewport crops (span < 350, no fill) stay static. Lifts when the publisher mirrors the fill.
+ * box of these sets asks /grid; their viewport crops (span < 350, no fill) stay static. It lifts by itself when the server
+ * reports the fill off for global_mid (MARINE_GULF_FILL_MID=0, the owner's call: serverFillsWorldMid), because /grid then serves
+ * the stored world grid these frames encode.
  * Kill (serve these world boxes from frames anyway, the pre-fix behaviour): window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true.
  */
 export function serveTimeFillAtWorld(model, layer) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ === true) return false;
   const m = String(model || 'GFS').toUpperCase();
-  return (m === 'EURO' || m === 'ICON') && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(String(layer || 'waves').toLowerCase());
+  if (!((m === 'EURO' || m === 'ICON') && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(String(layer || 'waves').toLowerCase()))) return false;
+  return serverFillsWorldMid(m);
+}
+
+/**
+ * Does the server still run the Gulf fill on this model's 2-deg world grid? /capabilities says so on its EURO/ICON marine rows
+ * (`gulf_fill_mid`, from MARINE_GULF_FILL_MID; LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__). Only an
+ * explicit `false` lifts the guard: not loaded yet, an older server without the field, or an unreadable matrix all keep it,
+ * because then /grid may differ from the stored frame. Read per call, so a matrix that loads later takes effect at once.
+ */
+function serverFillsWorldMid(model) {
+  try {
+    const rows = typeof window !== 'undefined' ? window.__WEATHER_CAPABILITIES__ : null;
+    if (!Array.isArray(rows)) return true;
+    const row = rows.find((r) => r && String(r.domain).toLowerCase() === 'marine' && String(r.model).toUpperCase() === model
+      && Object.prototype.hasOwnProperty.call(r, 'gulf_fill_mid'));
+    return !row || row.gulf_fill_mid !== false;
+  } catch (e) {
+    return true;
+  }
 }
 
 /** A viewport box (not a world one) that the resolver answers from global_mid: served as a crop (staticFrameCrop.js). */

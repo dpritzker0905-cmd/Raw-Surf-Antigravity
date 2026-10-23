@@ -88,6 +88,26 @@ describe('static frames loader', () => {
     window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true;                  // the guard's kill: the pre-fix behaviour
     expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(true);
     delete window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__;
+  });
+
+  test('the guard lifts only when /capabilities reports the fill off for that model (MARINE_GULF_FILL_MID=0)', () => {
+    const row = (model, fill) => ({ model, domain: 'marine', layer: 'waves', ...(fill === undefined ? {} : { gulf_fill_mid: fill }) });
+    try {
+      window.__WEATHER_CAPABILITIES__ = [row('GFS'), row('EURO', true), row('ICON', true)];          // today: the fill runs
+      expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(false);
+      window.__WEATHER_CAPABILITIES__ = [row('GFS'), row('EURO', false), row('ICON', true)];         // EURO off, ICON on
+      expect(serveTimeFillAtWorld('EURO', 'waves')).toBe(false);
+      expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(true);
+      expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: WORLD })).toBe(false);
+      window.__WEATHER_CAPABILITIES__ = [row('GFS'), row('EURO'), row('ICON')];                       // an older server: no field
+      expect(serveTimeFillAtWorld('EURO', 'waves')).toBe(true);
+      window.__WEATHER_CAPABILITIES__ = { not: 'a list' };                                             // unreadable: guard stays
+      expect(serveTimeFillAtWorld('ICON', 'swell_1')).toBe(true);
+      delete window.__WEATHER_CAPABILITIES__;                                                          // not loaded yet
+      expect(serveTimeFillAtWorld('ICON', 'waves')).toBe(true);
+    } finally {
+      delete window.__WEATHER_CAPABILITIES__;
+    }
     expect(STATIC_SETS).toHaveLength(9);   // the eight marine sets + GFS wind (windStaticFrames.js), which marine never serves
     expect(staticEligible({ model: 'GFS', layer: 'wind', bbox: WORLD })).toBe(false);
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD, surf: true })).toBe(false);
