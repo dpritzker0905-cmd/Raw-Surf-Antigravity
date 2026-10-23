@@ -24,6 +24,8 @@ one key per line and no blank between) any two PRs that moved DIFFERENT lanes co
 
 USAGE (from the repo root or backend/; needs `gh` for the hosted read):
     python backend/scripts/rederive_floor.py --lane estate --add 13
+    # mid-conflict (`git merge origin/dev`, then `git checkout --theirs` the two files): read the PR's own change
+    python backend/scripts/rederive_floor.py --lane chain --add auto       # HEAD vs its merge base, files included
     python backend/scripts/rederive_floor.py --lane chain --add 8 --add-files 1 --dry-run
     python backend/scripts/rederive_floor.py --lane guards --add 6 --add-files 1 --run 39861554298
 """
@@ -155,17 +157,44 @@ def base_text(rel: str, base_ref: str) -> str:
     return r.stdout.decode("utf-8")
 
 
+def own_delta(lane: str, base_ref: str, head: str = "HEAD"):
+    """(tests, files) THIS branch added to the lane: its own map and ci.yml at `head` minus at its merge base with
+    `base_ref`. During a conflicted `git merge origin/dev`, HEAD is still the branch's own tip, so this reads the PR's
+    change even after `git checkout --theirs` put dev's files in the working tree. Works on the old one-line map too:
+    the lead's case of an old-map PR conflicting with the block layout (2026-10-23)."""
+    mb = subprocess.run(["git", "merge-base", head, base_ref], cwd=REPO, capture_output=True, text=True)
+    if mb.returncode != 0 or not mb.stdout.strip():
+        raise Refusal(f"no merge base between {head} and {base_ref}: {mb.stderr.strip()}")
+    base = mb.stdout.strip()
+    tests = parse_map(base_text(MAP_REL, head))[lane] - parse_map(base_text(MAP_REL, base))[lane]
+    files = 0
+    if S.LANES[lane]["has_files_floor"]:
+        files = floor_values(base_text(CI_REL, head), lane)[0] - floor_values(base_text(CI_REL, base), lane)[0]
+    return tests, files
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--lane", required=True, choices=sorted(S.LANES))
-    ap.add_argument("--add", type=int, required=True, help="tests this PR adds to the lane")
-    ap.add_argument("--add-files", type=int, default=0, help="test files this PR adds to the lane (guards/chain)")
+    ap.add_argument("--add", required=True,
+                    help="tests this PR adds to the lane, or 'auto': its own map at HEAD minus at its merge base")
+    ap.add_argument("--add-files", help="test files this PR adds (guards/chain); default 0, or the auto read")
     ap.add_argument("--base", default="origin/dev", help="the ref whose map and ci.yml are the base")
     ap.add_argument("--branch", default="dev", help="the branch whose last green CI run is the hosted read")
     ap.add_argument("--run", type=int, help="read this CI run instead of the last green one")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args(argv)
     try:
+        if args.add == "auto":
+            args.add, auto_files = own_delta(args.lane, args.base)
+            args.add_files = auto_files if args.add_files in (None, "auto") else int(args.add_files)
+            print(f"{args.lane}: this branch's own change (HEAD vs its merge base with {args.base}): +{args.add} "
+                  f"test(s), +{args.add_files} file(s)")
+        else:
+            if not str(args.add).isdigit():
+                raise Refusal(f"--add {args.add!r}: a count of tests, or 'auto'")
+            args.add = int(args.add)
+            args.add_files = int(args.add_files or 0)
         run = args.run or S.last_green_run(args.branch)[0]
         hosted_files, hosted_passed = S.observed(run, args.lane)
         map_dev = parse_map(base_text(MAP_REL, args.base))[args.lane]
@@ -190,7 +219,7 @@ def main(argv=None) -> int:
         new_map = set_map(mp, args.lane, d["set_from"],
                           f"set from {d['set_from']} = max(dev run {run} read {hosted_passed}, dev's map {map_dev}) "
                           f"+ {args.add} ({branch}, {today}); floor {d['floor']}, margin {d['budget']}.")
-    except (Refusal, S.Refusal, KeyError) as exc:
+    except (Refusal, S.Refusal, KeyError, ValueError) as exc:
         print(f"rederive_floor: REFUSED: {exc}")
         return 1
     print(f"{args.lane}: dev run {run} read {hosted_passed}{files_txt}; dev's map {map_dev}; base {d['base']} "

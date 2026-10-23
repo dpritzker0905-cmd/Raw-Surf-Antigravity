@@ -1,5 +1,6 @@
 import { encodeMarineTexture } from './WebGLMarineTextureEncoder';
-import { stashServes, carryWouldAddTruth, stashResidentMask, takeMaskStash, freeMaskStash, isStashedMaskTex, releaseSwappedMask, maskStashEnabled } from './maskTextureStash';
+import { stashServes, carryWouldAddTruth, stashHoldsPatch, stashResidentMask, takeMaskStash, freeMaskStash, isStashedMaskTex, releaseSwappedMask, maskStashEnabled } from './maskTextureStash';
+import { stampMaskPatch, maskGridKey } from './maskPatchKeep';
 import { safeDeleteTexture } from './WebGLWindUtils';
 
 // jsdom has no canvas: the mask "canvas" is its dims, and the upload of it is what costs (4096 x 2048 RGBA = 32 MB).
@@ -231,6 +232,30 @@ describe('stashServes / carryWouldAddTruth (the rule)', () => {
     expect(stashServes(entry(FL), LAND, FL, patched(FL2, { west: 10, south: 10, east: 11, north: 11 }))).toBe(true);
     window.__RAW_DISABLE_MASK_PATCH_CARRY__ = true;
     expect(stashServes(entry(FL), LAND, FL, patched(FL2, { west: -80.5, south: 25.5, east: -79.5, north: 26.5 }))).toBe(true);
+  });
+  // PATCH TRUST (2026-10-23): z9 Florida offline alternated the /grid tile (north 30) and the series frame (north 29) at one view,
+  // and every swap back rebuilt + repainted (~150-200 ms) because the carry rule above declined the stash.
+  test('a stashed texture whose own CLEAN paint covers the last painted box holds that truth: serve despite the carry', () => {
+    const box = { west: -80.5, south: 25.5, east: -79.5, north: 26.5 };
+    const last = patched(FL2, box);
+    const e = entry(FL);
+    stampMaskPatch(e.tex, { gridKey: maskGridKey(FL), box: { west: -80.6, south: 25.4, east: -79.4, north: 26.6 }, degraded: false, z: 9 });
+    expect(carryWouldAddTruth(last, FL, FL)).toBe(true);
+    expect(stashHoldsPatch(e, last)).toBe(true);
+    expect(stashServes(e, LAND, FL, last)).toBe(true);
+  });
+  test('the trust needs a clean paint, filed under the stashed bounds, whose box contains the last one; the kill restores the decline', () => {
+    const box = { west: -80.5, south: 25.5, east: -79.5, north: 26.5 };
+    const last = patched(FL2, box);
+    const mk = (rec) => { const e = entry(FL); if (rec) stampMaskPatch(e.tex, rec); return e; };
+    expect(stashServes(mk(null), LAND, FL, last)).toBe(false);                                                       // never painted
+    expect(stashServes(mk({ gridKey: maskGridKey(FL), box, degraded: true }), LAND, FL, last)).toBe(false);         // degraded
+    expect(stashServes(mk({ gridKey: maskGridKey(FL2), box, degraded: false }), LAND, FL, last)).toBe(false);       // filed elsewhere
+    expect(stashServes(mk({ gridKey: maskGridKey(FL), box: { ...box, east: -79.9 }, degraded: false }), LAND, FL, last)).toBe(false);  // smaller box
+    window.__RAW_DISABLE_STASH_PATCH_TRUST__ = true;
+    expect(stashServes(mk({ gridKey: maskGridKey(FL), box, degraded: false }), LAND, FL, last)).toBe(false);
+    delete window.__RAW_DISABLE_STASH_PATCH_TRUST__;
+    expect(stashServes(mk({ gridKey: maskGridKey(FL), box, degraded: false }), LAND, FL, last)).toBe(true);         // equal box: contains
   });
   test('world rebuilds never take a carry, so a world stash is never blocked by one', () => {
     expect(carryWouldAddTruth(patched(FL, { west: -80.5, south: 25.5, east: -79.5, north: 26.5 }), WORLD, WORLD)).toBe(false);

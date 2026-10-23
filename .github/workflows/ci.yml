@@ -1527,7 +1527,12 @@ jobs:
           # ⬆ 174/2859 → 175/2867 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (regional static frame bundles):
           # tests/test_frame_set_bundle.py (8, a new file selector-verified into this lane: --lane chain 174 -> 175); dev b88b5ca32
           # hosted read 2865/174 (CI 39896720617) + 8 -> projected 2873/175; 2873 - 6 = 2867. This PR must read 175 files / 2873.
-          MIN_FILES, MIN_PASSED = 175, 2867
+          # ⬆ 175/2867 → 176/2876 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (raster static frames, GFS pressure):
+          # tests/test_frame_set_raster.py (9, a new file selector-verified into this lane: --lane chain 175 -> 176); dev hosted
+          # read dev's hosted chain 2873/175 (set-from on dev 891c815b7) + 9 -> projected 2882/176; 2882 - 6 = 2876. This PR must read 176 files / 2882.
+          # ⬆ 2867→2876 on 2026-10-23 (rederive_floor.py, rm-pressure-raster-frames): dev run 39994928838 read 2873 / 175 files; dev's map 2873;
+          #   base 2873 (hosted read) + 9 new test(s) = 2882, files 176; floor 2882 - 6 = 2876. This PR must read 2882 passed.
+          MIN_FILES, MIN_PASSED = 176, 2876
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2005,7 +2010,9 @@ jobs:
           # _FLOOR_SET_FROM["estate"] -> 2411. This PR must read 2411 passed.
           # ⬆ 2409→2427 on 2026-10-23 (rederive_floor.py, claude/floor-map-lanes): dev run 39994928838 read 2411; dev's map 2411;
           #   base 2411 (hosted read) + 18 new test(s) = 2429; floor 2429 - 2 = 2427. This PR must read 2429 passed.
-          MIN_PASSED = 2427
+          # ⬆ 2427→2429 on 2026-10-23 (rederive_floor.py, claude/rederive-add-auto): dev run 39994928838 read 2411; dev's map 2429;
+          #   base 2429 (dev's map) + 2 new test(s) = 2431; floor 2431 - 2 = 2429. This PR must read 2431 passed.
+          MIN_PASSED = 2429
 
           try:
               root = ET.parse('estate.xml').getroot()

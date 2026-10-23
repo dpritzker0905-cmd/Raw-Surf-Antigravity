@@ -1359,7 +1359,9 @@ A stored estimate can be estimated again in a browser branch with different sour
   block per lane (its provenance comment line + its key) with a blank line between lanes, and a PR REPLACES its lane's
   provenance line instead of appending history next to the map (appending at the same spot is a conflict of its own).
 - A same-lane collision still conflicts, and should: the right answer is neither side. Re-derive it. Take dev's side of
-  both files, then `python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]`. It works out:
+  both files, then `python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]` (or `--add auto`
+  mid-conflict: the PR's own change, read as its HEAD minus its merge base with dev, which also works for a PR still on
+  the old one-line map). It works out:
   - base = max(dev's last GREEN hosted read, dev's `_FLOOR_SET_FROM`), because the map can be ahead of the last
     green run when a PR merged after it;
   - set-from = base + N;
