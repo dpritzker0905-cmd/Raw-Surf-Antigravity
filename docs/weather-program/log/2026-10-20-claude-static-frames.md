@@ -306,6 +306,29 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   day jumps take ~0.22 s.
 - **Checks:** Jest `src/components/map` + `src/tests` 367 suites / 5,415 tests; check_eslint; craco build.
 
+## 2026-10-22 22:10Z: the live fill read, and a parity control WITH masked cells (the lead's follow-up)
+
+- **#461 merged** 2026-10-22 21:59:23Z (57632973b), before the 03:45Z pilots cron: ICON/EURO world boxes ask /grid.
+- **Live read** (one short scenario, the rules' allowance): /api/health 200 in 1.24 s, then one world /grid each for EURO and ICON
+  waves at 2026-10-23T00Z, then /api/health 200 in 0.35 s. `coarse_fill` stamps: EURO {cells_filled 2,465, cells_masked 4,689,
+  cells_total 15,023}; ICON {1,708 of 3,788}. So the fill is large live, and #461 was needed.
+- **Correction of my own offline figure:** the 1,757-of-2,066 run (D-049's correction bullet, #461's body) used store3, whose GFS
+  coarse donor had no land, so every masked cell found a donor. The fill only reaches donors in its 2-deg-bucket neighbourhood (+-2
+  buckets, < 8 deg L1). A first land mask that also masked the coarse tier over whole continents gave 0 filled cells: no donor near
+  any coast. Real 10-deg cells are valid wherever they hold ocean, so the control store now masks only interior land at the 10-deg
+  tier: 1,173 of 2,714 masked cells filled, the same order as live (43% vs 53% / 45%).
+- **Positive control** (`serve_synthetic.py --land-mask 1`, 48 h, every model and layer, published, served on :4104):
+  `scn_static_parity.mjs` default reads EURO waves, ICON waves, ICON swell_1, ICON wind_waves 45,747 bad nodes each (1,173 per
+  comparison x 39), GFS sets 0, exit 1; `GUARD=1` (mirrors #461) reads 0 bad over the four GFS sets, the four ICON/EURO guarded,
+  exit 0. Crops (`scn_static_crop_parity.mjs`, now with MODEL/LAYER) over the same store: GFS waves, EURO waves, ICON waves, ICON
+  swell_1, 120 crops each, 0 bad, the backend answered every crop from the mid tier.
+- **Mirror at publish (proposal, not built):** the GFS global_coarse donors are written by the CORE lane (forecast-ingest.yml:
+  113 per layer), not the pilots lane, and the box's donor changes with every GFS run it ingests. Exact ICON/EURO world frames
+  therefore need (a) the donor at publish (read from L2, like the wind session's lane index) and (b) a pointer the client checks
+  (the donor run the box serves), the same pattern as the wind lane's `v1/wind_lane.json`: one `v1/serve_deps.json` from the core
+  lane could carry both. Crops must stay unfilled, so world frames would be a second variant (`world_path`). Waiting on the lead. (Superseded at 22:45Z: the lead picked option 2, below.)
+- **LESSONS L-S22.**
+
 ## 2026-10-22 22:45Z: option 2 - MARINE_GULF_FILL_MID (dark): the Gulf fill can keep to its 10-deg tier; /capabilities reports it
 
 - **The lead picked option 2** over mirroring the fill into the CDN (a documented defect, a racy donor pointer). Built DARK
