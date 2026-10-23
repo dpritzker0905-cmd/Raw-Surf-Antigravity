@@ -94,6 +94,21 @@ describe('instantTelemetry', () => {
     expect(rows()).toEqual([[0, 0, 10, null, 'GFS', 'waves', 2, 0]]);
   });
 
+  it('a draw from BEFORE the press never answers it: Waves off and on again waits for a new frame, not the old record', () => {
+    install();
+    noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 0 });
+    drawMarine(0);                                                      // on screen before anything below
+    advance(500);
+    noteWeatherAsk({ model: 'GFS', layers: [], hour: 0 });              // Waves off (the engine clears; no new drawn record)
+    advance(500);
+    key();
+    noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 0 });       // on again: the old record matches the ask, but is stale
+    expect(rows()).toEqual([]);
+    advance(40);
+    drawMarine(0);
+    expect(rows()).toEqual([[0, 1, 40, null, 'GFS', 'waves', 2, 0]]);
+  });
+
   it('a drag counts while the button is held; a newer ask supersedes; nothing drawn in 8 s is a timeout', () => {
     install();
     noteWeatherAsk({ model: 'GFS', layers: ['waves'], hour: 0 });
