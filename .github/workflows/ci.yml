@@ -1997,7 +1997,9 @@ jobs:
           # _FLOOR_SET_FROM["estate"] -> 2411. This PR must read 2411 passed.
           # ⬆ 2409→2427 on 2026-10-23 (rederive_floor.py, claude/floor-map-lanes): dev run 39994928838 read 2411; dev's map 2411;
           #   base 2411 (hosted read) + 18 new test(s) = 2429; floor 2429 - 2 = 2427. This PR must read 2429 passed.
-          MIN_PASSED = 2427
+          # ⬆ 2427→2429 on 2026-10-23 (rederive_floor.py, claude/rederive-add-auto): dev run 39994928838 read 2411; dev's map 2429;
+          #   base 2429 (dev's map) + 2 new test(s) = 2431; floor 2431 - 2 = 2429. This PR must read 2431 passed.
+          MIN_PASSED = 2429
 
           try:
               root = ET.parse('estate.xml').getroot()
