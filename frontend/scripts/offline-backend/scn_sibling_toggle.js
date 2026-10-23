@@ -40,6 +40,17 @@ const COST = { page: +(process.env.COST_PAGE || 4000), mini: +(process.env.COST_
 const SURF = process.env.SURF === '1';
 const MODEL = process.env.MODEL || 'GFS';
 const PAN_GAP = +(process.env.PAN_GAP || 1200);
+// DRAIN=<ms>: after WATCH, keep watching until the client has asked nothing new for DRAIN ms and nothing is in flight (the work a
+// pan session leaves queued, which a fixed window hides on a saturated box), up to WATCH_MAX ms after Waves.
+const DRAIN = +(process.env.DRAIN || 0);
+const WATCH_MAX = +(process.env.WATCH_MAX || 900000);
+// DIAG=1: once a second, the settle check's own record (__MARINE_SHARPEN_DIAG__), the engine's resident grid and the mismatch counters.
+const DIAG = process.env.DIAG === '1';
+// STEPS=<n>: after WATCH / DRAIN, Home then n PageUp steps (+24 h each, on the 3-hourly lattice) STEP_GAP ms apart: per step the ms from
+// the key to the engine holding the selected hour (|hourOffset - the wheel's value| <= 1.5), and the frames over 50 ms meanwhile.
+const STEPS = +(process.env.STEPS || 0);
+const STEP_GAP = +(process.env.STEP_GAP || 1500);
+const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const LABEL = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves' };
 const ARMS = (process.env.ARMS || 'cur,before:__RAW_DISABLE_SIBLING_IDLE_PAGES__').split(',').map((a) => {
   const [name, flags] = a.split(':'); return { name, flags: flags ? flags.split('+') : [] };
@@ -125,6 +136,21 @@ const PROBE = () => {
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
+  P.step = null;
+  window.addEventListener('keydown', () => { if (P.step && P.step.t0 == null) P.step.t0 = performance.now(); }, true);
+  const stepLoop = (t) => {
+    const S = P.step;
+    if (S && S.t0 != null && S.ms == null) {
+      const w = [...document.querySelectorAll('[role="slider"][aria-label*="Forecast timeline"]')].find((x) => x.offsetParent !== null);
+      const target = w ? Number(w.getAttribute('aria-valuenow')) : null;
+      const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+      if (S.prevT != null && t - S.prevT > 50) S.long++;
+      S.prevT = t;
+      if (target != null && target !== S.before && g && Math.abs((g.hourOffset ?? -99) - target) <= 1.5) { S.ms = t - S.t0; S.target = target; S.hour = g.hourOffset; S.series = !!g.__fromSeries; }
+    }
+    requestAnimationFrame(stepLoop);
+  };
+  requestAnimationFrame(stepLoop);
   P.toggle = (layer, label) => {
     const b = [...document.querySelectorAll('button,[role="button"]')].find((x) => x.textContent.trim() === label && x.offsetParent !== null);
     if (!b) return false;
@@ -172,6 +198,23 @@ async function session(arm, kase) {
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid; return g && g.__componentLayer === 'waves'; }, null, { timeout: 60000 });
     out.firstWavesMs = Date.now() - tW;
+    if (DIAG) {
+      out.diag = [];
+      const sample = async () => {
+        try {
+          const d = await page.evaluate(() => {
+            const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+            const m = window.__MAP_INSTANCE__ || window.map; const b = m && m.getBounds();
+            return { sharpen: window.__MARINE_SHARPEN_DIAG__ || null, mism: window.__MARINE_GRIDMISMATCH_COUNT__ || 0,
+              res: g ? { cols: g.cols, rows: g.rows, b: g.bounds, model: g.__sourceModel, series: !!g.__fromSeries, surf: !!g.ratingMode } : null,
+              view: b ? [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => +v.toFixed(2)) : null, z: m ? +m.getZoom().toFixed(2) : null,
+              pan: window.__RAW_SERIES_PAN__ || null };
+          });
+          out.diag.push({ t: Date.now() - tW, ...d });
+        } catch (e) { /* page busy */ }
+      };
+      const iv = setInterval(sample, 1000); out.__stopDiag = () => clearInterval(iv);
+    }
     if (MODEL !== 'GFS') {
       await clickExact(page, MODEL);
       await page.waitForFunction((m) => { const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid; return g && g.__sourceModel === m; }, MODEL, { timeout: 60000 }).catch(() => null);
@@ -204,8 +247,37 @@ async function session(arm, kase) {
         commitMs: sw.instant.length ? Math.round(sw.instant[0][0] - sw.t0) : null, fpsBefore: sw.fps2s, setWaveData: sw.swd };
     }
     await sleep(Math.max(0, WATCH - (Date.now() - tW)));
+    if (DRAIN) {
+      for (;;) {
+        const live = asks.filter((a) => a.kind !== 'other');
+        const last = Math.max(0, ...live.map((a) => a.t0));
+        if ((live.every((a) => a.t1 != null) && Date.now() - last >= DRAIN) || Date.now() - tW >= WATCH_MAX) break;
+        await sleep(500);
+      }
+      out.drainedAt = Date.now() - tW;
+    }
     out.warm = await page.evaluate(() => JSON.parse(JSON.stringify(window.__RAW_SIBLING_WARM__ || null)));
     out.regional = await page.evaluate(() => JSON.parse(JSON.stringify((window.__RAW_STATIC_REGIONAL__ || window.__RAW_STATIC_FRAMES__ || {}).regional || window.__RAW_STATIC_REGIONAL__ || null)));
+    if (STEPS) {
+      out.steps = [];
+      const wheel = page.locator(WHEEL).filter({ visible: true }).first();
+      await wheel.focus(); await page.keyboard.press('Home'); await sleep(STEP_GAP);
+      for (let i = 0; i < STEPS; i++) {
+        await page.evaluate((sel) => { const w = [...document.querySelectorAll(sel)].find((x) => x.offsetParent !== null);
+          window.__SB__.step = { t0: null, ms: null, long: 0, before: w ? Number(w.getAttribute('aria-valuenow')) : null }; }, WHEEL);
+        await page.keyboard.press('PageUp');
+        await sleep(STEP_GAP);
+        const st = await page.evaluate((sel) => {
+          const w = [...document.querySelectorAll(sel)].find((x) => x.offsetParent !== null);
+          const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
+          return { ...window.__SB__.step, wheelNow: w ? Number(w.getAttribute('aria-valuenow')) : null,
+            engineHour: g ? g.hourOffset : null, dataHour: d ? d.hourOffset : null };
+        }, WHEEL);
+        out.steps.push({ target: st.target ?? null, ms: st.ms == null ? null : Math.round(st.ms), long: st.long, series: st.series ?? null,
+          before: st.before, wheelNow: st.wheelNow, engineHour: st.engineHour, dataHour: st.dataHour, keySeen: st.t0 != null });
+      }
+    }
+    if (out.__stopDiag) { out.__stopDiag(); delete out.__stopDiag; }
     out.asks = asks.filter((a) => a.kind !== 'other').map((a) => ({ kind: a.kind, layer: a.layer, hours: a.hours, surf: a.surf, model: a.model, bbox: a.bbox,
       cost: Math.round(a.cost), t0: a.t0 - tW, t1: a.t1 == null ? null : a.t1 - tW }));
     out.box = { busyMs: Math.round(box.st.busyMs), cpu: Object.fromEntries(Object.entries(box.st.cpu).map(([k, v]) => [k, Math.round(v)])) };
@@ -246,10 +318,12 @@ function summary(s) {
         const t = s.toggle ? ` | toggle ${s.toggle.layer} at ${s.toggleAt} ms: ${s.toggle.ms} ms (instant commit ${s.toggle.instantCommit} at ${s.toggle.commitMs} ms, series ${s.toggle.series}, ${s.toggle.fpsBefore} fps before; setWaveData [at, ms, layer] ${JSON.stringify(s.toggle.setWaveData)})` : '';
         console.log(`== ${kase.name} / ${arm.name}${s.error ? ' ERROR ' + s.error : ''} | first Waves ${s.firstWavesMs} ms${t}`);
         console.log(`   /grid_series ${s.summary.series} (pages ${s.summary.pages}, minis ${s.summary.minis}); hidden layers: pages ${s.summary.hiddenPages}, minis ${s.summary.hiddenMinis}, box CPU ${s.summary.hiddenCpuMs} ms; waves pages done ${s.summary.wavesPagesDoneMs} ms, first hidden page ${s.summary.firstHiddenPageMs} ms; box busy ${s.box && s.box.busyMs} ms`);
+        if (s.drainedAt != null) console.log(`   drained at ${s.drainedAt} ms after Waves`);
+        if (s.steps) console.log(`   steps (PageUp, ms to the hour on the GPU / frames >50 ms): ${s.steps.map((x) => `${x.ms}/${x.long}`).join(' ')}`);
         console.log(`   by model:layer:kind ${JSON.stringify(s.summary.byLayer)} | visible page boxes ${s.summary.visiblePageBoxes} | series CPU asked ${s.summary.seriesCpuMs} ms | /grid ${s.summary.gridAsks}`);
         console.log(`   warm ${JSON.stringify(s.warm)}`);
       }
     }
   } finally { if (cdn) cdn.close(); }
-  if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ env: { ZOOM, CLNG, CLAT, VIEW, BOX, COST, WATCH, CDN: !!CDN_DIR, SURF, MODEL, PAN_GAP }, results }, null, 1));
+  if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ env: { ZOOM, CLNG, CLAT, VIEW, BOX, COST, WATCH, CDN: !!CDN_DIR, SURF, MODEL, PAN_GAP, DRAIN, WATCH_MAX, STEPS, STEP_GAP }, results }, null, 1));
 })();

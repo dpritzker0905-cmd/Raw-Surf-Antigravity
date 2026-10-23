@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
 import { runScrubSettleCheck, detectClamp } from './useMarineScrubSettle';
-import { settleSeriesReloadNeeded } from './marineSettleReloadGuard';
+import { SETTLE_RELOAD_GAP_MS, SETTLE_RELOAD_MAX, SETTLE_RELOAD_QUICK, _resetSettleReloadGuardForTest, settleReloadKey, settleSeriesReloadNeeded } from './marineSettleReloadGuard';
 
 const VIEW = { west: -79.79, south: 25.5, east: -77.64, north: 26.46 };                 // the replay's z8 view at 21 s
 const ICON = { bounds: { west: -82, south: 24, east: -76, north: 30 }, cols: 13, rows: 13 };   // 0.46-deg cells: covers, too coarse
@@ -35,22 +35,27 @@ const forced = () => ensureMarineSeries.mock.calls.filter((c) => c[6] === true).
 describe('the settle check does not force-reload a page it holds a covering frame of', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    _resetSettleReloadGuardForTest();
     ensureMarineSeries.mockImplementation(() => Promise.resolve());
     window.__MARINE_ENGINE__ = { _waveData: { waveGrid: resident } };
     delete window.isScrubbingTimeline;
   });
-  afterEach(() => { delete window.__MARINE_ENGINE__; delete window.__RAW_DISABLE_SETTLE_RELOAD_GUARD__; });
+  afterEach(() => { delete window.__MARINE_ENGINE__; delete window.__RAW_DISABLE_SETTLE_RELOAD_GUARD__; delete window.__RAW_SETTLE_RELOAD_HELD__; jest.restoreAllMocks(); });
 
   it('the scene is the replay: regional_too_coarse, with a covering series frame that is the same coarse grid', () => {
     expect(detectClamp(mkMap())).toMatchObject({ clamp: true, kind: 'regional_too_coarse' });
   });
 
-  it('a covering, not finer, frame: no sharpen and NO forced reload (it looped every tick)', () => {
+  it('a covering, not finer, frame: no sharpen, and the reload runs under a budget instead of every tick (it looped)', () => {
     getMarineSeriesFrame.mockImplementation(() => ({ grid: { ...ICON, vectors: vec, hourOffset: 0 }, hourOffset: 0 }));
+    let now = 1e12; jest.spyOn(Date, 'now').mockImplementation(() => now);
     const c = ctx();
-    for (let i = 0; i < 5; i++) runScrubSettleCheck(c);
+    for (let i = 0; i < 10; i++) { runScrubSettleCheck(c); now += 1000; }
     expect(c.setMarineData).not.toHaveBeenCalled();
-    expect(forced()).toBe(0);
+    expect(forced()).toBe(SETTLE_RELOAD_QUICK);                        // 2 at once (a coarse INTERIM may still turn fine)
+    expect(window.__RAW_SETTLE_RELOAD_HELD__).toBe(10 - SETTLE_RELOAD_QUICK);
+    for (let i = 0; i < 20; i++) { now += SETTLE_RELOAD_GAP_MS / 2; runScrubSettleCheck(c); }
+    expect(forced()).toBe(SETTLE_RELOAD_MAX);                          // then one per 30 s, 5 in all, for this view and hour
   });
 
   it('no covering frame yet: the reload it exists for still happens', () => {
@@ -68,14 +73,24 @@ describe('the settle check does not force-reload a page it holds a covering fram
     expect(forced()).toBe(5);
   });
 
-  it('the helper: reload only without a covering regional frame; the kill reloads always', () => {
-    expect([settleSeriesReloadNeeded(true), settleSeriesReloadNeeded(false)]).toEqual([false, true]);
+  it('the helper: without a covering frame always; with one, 2 at once then 1 per 30 s, 5 in all, per view and hour; the kill', () => {
+    const a = { model: 'ICON', layer: 'waves', hour: 0, vb: VIEW };
+    const b = { ...a, vb: { ...VIEW, west: VIEW.west + 1, east: VIEW.east + 1 } };
+    expect(settleReloadKey(a)).not.toBe(settleReloadKey(b));
+    expect([1, 2, 3, 4].map(() => settleSeriesReloadNeeded(false, a, 0))).toEqual([true, true, true, true]);
+    expect([0, 1, 2].map((t) => settleSeriesReloadNeeded(true, a, t))).toEqual([true, true, false]);
+    expect(settleSeriesReloadNeeded(true, b, 2)).toBe(true);                                      // another view has its own budget
+    expect(settleSeriesReloadNeeded(true, a, 2 + SETTLE_RELOAD_GAP_MS)).toBe(true);
+    expect(settleSeriesReloadNeeded(true, a, 3 + SETTLE_RELOAD_GAP_MS)).toBe(false);
+    expect(settleSeriesReloadNeeded(true, a, 3 + 2 * SETTLE_RELOAD_GAP_MS)).toBe(true);
+    expect(settleSeriesReloadNeeded(true, a, 4 + 3 * SETTLE_RELOAD_GAP_MS)).toBe(true);           // the 5th
+    expect(settleSeriesReloadNeeded(true, a, 5 + 9 * SETTLE_RELOAD_GAP_MS)).toBe(false);          // spent
     window.__RAW_DISABLE_SETTLE_RELOAD_GUARD__ = true;
-    expect(settleSeriesReloadNeeded(true)).toBe(true);
+    expect(settleSeriesReloadNeeded(true, a, 6 + 9 * SETTLE_RELOAD_GAP_MS)).toBe(true);
   });
 
   it('wiring: the clamp branch asks the guard with the covering-regional-frame test', () => {
     const src = fs.readFileSync(path.join(__dirname, 'useMarineScrubSettle.js'), 'utf8');
-    expect(src).toMatch(/\} else if \(settleSeriesReloadNeeded\(!!\(frame && fw < 340 && frameCovers\)\)\) \{/);
+    expect(src).toMatch(/\} else if \(settleSeriesReloadNeeded\(!!\(frame && fw < 340 && frameCovers\), \{ model, layer, hour: currentHour, vb: clampVb \}\)\) \{/);
   });
 });
