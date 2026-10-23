@@ -96,7 +96,7 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     expect(pagesOf()).toEqual(['swell_1']);
   });
 
-  it('the lanes must stay quiet SIBLING_QUIET_MS (the visible layer's adjacent pages queue ~1.5 s after its page): a blip restarts the wait', async () => {
+  it('the lanes must stay quiet SIBLING_QUIET_MS (the visible layer\'s adjacent pages queue ~1.5 s after its page): a blip restarts the wait', async () => {
     warm('swell_1');
     await flush();
     await step(SIBLING_QUIET_MS - SIBLING_PAGE_POLL_MS);                    // quiet, but not long enough
