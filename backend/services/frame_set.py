@@ -288,7 +288,8 @@ def index_bytes(index):
 def referenced_paths(index):
     if not index:
         return set()
-    return {index["path"], *(f["path"] for f in index.get("frames", []) if f.get("path"))}
+    bundle = (index.get("bundle") or {}).get("path")   # a regional bundle index (frame_set_bundle.py) names one object
+    return {index["path"], *(f["path"] for f in index.get("frames", []) if f.get("path")), *([bundle] if bundle else [])}
 
 
 def retention_deletes(existing_paths, target, keep):

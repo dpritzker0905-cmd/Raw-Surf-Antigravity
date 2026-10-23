@@ -6,6 +6,7 @@ and content-addressed; latest.json is no-cache and written LAST; an unchanged cy
 the current and previous index and deletes the rest; uploads never carry a Content-Encoding header.
 """
 import gzip
+import itertools
 import json
 import math
 import sys
@@ -313,7 +314,7 @@ def test_a_run_past_its_time_budget_stops_starting_sets_and_keeps_their_index(tm
     pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None)
     first = _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"]
     _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)
-    ticks = iter([0.0, 0.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0])
+    ticks = itertools.chain([0.0, 0.0], itertools.repeat(999.0))      # past the budget after the first set, for EVERY later set
     report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None, budget_s=10,
                                     clock=lambda: next(ticks))
     assert report["GFS/marine/swell_1/global_mid"] == {"skipped_budget": True, "index": first}
