@@ -479,7 +479,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3293, "chain": 2855, "estate": 2343}
+_FLOOR_SET_FROM = {"guards": 3293, "chain": 2855, "estate": 2348}
+# Push status for the Settings switch (#470): +5 estate tests in tests/test_audit_push_authority.py (existing file) on dev CI 39894535707's 2343 = 2348; floor 2341 -> 2346, margin 2.
 # MARINE_GULF_FILL_MID (dark): +6 guards tests in a new file (tests/test_coarse_gulf_fill_mid.py) on dev CI 39861554298's 3287 / 209 files = 3293 / 210; floor 3281 -> 3287, files 209 -> 210, margin 6.
 # Static frames for more world sets: +3 estate tests in tests/test_publish_frame_sets.py on dev CI 39732086620's 2340 = 2343; floor 2341, margin 2.
 # Logfire setup never stops boot: +5 estate tests (tests/test_logfire_setup.py, one new file) on hosted 2312 (dev CI 39594047204); floor 2315.
