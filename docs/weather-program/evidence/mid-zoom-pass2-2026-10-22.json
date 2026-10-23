@@ -1,0 +1,446 @@
+{
+ "written": "2026-10-23T02:02:00Z",
+ "base": "dev d1dbeed8b (#460) vs claude/mid-zoom-pass2 on it",
+ "harness": "offline: serve_synthetic.py --models GFS --layers waves,swell_1,swell_2,wind_waves --regions flagship --dynamic 1 --real-frames (the 115 real GFS waves global_mid frames of run 2026-10-22T06Z); CDN_LAT 0; Playwright routing disables the HTTP cache",
+ "notes": [
+  "no session crossed :30 (anchorRolled false everywhere)",
+  "zoom-out: scn_zoom_out.js, owner 844x390 dpr2, PageUp x2 + Home at z4.45, ease to ZOOM_TO around 25% of the width, WATCH 15 s"
+ ],
+ "zoom_out": {
+  "dev:cur@3.25": [
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14945,
+    "minCovers": 0.801,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   },
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14922,
+    "minCovers": 0.801,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   }
+  ],
+  "dev:cur@3.6": [
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14991,
+    "minCovers": 0.952,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   },
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14928,
+    "minCovers": 0.952,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   }
+  ],
+  "pass2:cur@3.25": [
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   },
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   }
+  ],
+  "pass2:noclipcover@3.25": [
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14995,
+    "minCovers": 0.801,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   },
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14947,
+    "minCovers": 0.801,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   }
+  ],
+  "pass2:noresync@3.25": [
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   },
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   }
+  ],
+  "pass2:cur@3.6": [
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   },
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   }
+  ],
+  "pass2:noclipcover@3.6": [
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14952,
+    "minCovers": 0.952,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   },
+   {
+    "firstFull": null,
+    "firstWorld": null,
+    "partialMs": 14971,
+    "minCovers": 0.952,
+    "rejects": 1,
+    "selfHeals": 0,
+    "backstops": 0,
+    "residents": [
+     "26x19/50"
+    ]
+   }
+  ],
+  "pass2:noresync@3.6": [
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   },
+   {
+    "firstFull": 0,
+    "firstWorld": 0,
+    "partialMs": 0,
+    "minCovers": 1,
+    "rejects": 0,
+    "selfHeals": 1,
+    "backstops": 0,
+    "residents": [
+     "181x82/360"
+    ]
+   }
+  ]
+ },
+ "scrub": {
+  "dev:owner:cur@z3.9": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 3,
+   "exact_ms_p95": 52,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 6
+    },
+    {
+     "crop_not_ready": 3
+    }
+   ],
+   "resident_dims": [
+    "181x82",
+    "31x21"
+   ]
+  },
+  "dev:owner:cur@z4.4": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 3,
+   "exact_ms_p95": 56,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 3
+    },
+    {
+     "crop_not_ready": 6
+    }
+   ],
+   "resident_dims": [
+    "181x82",
+    "26x19"
+   ]
+  },
+  "pass2:owner:cur@z3.9": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 4,
+   "exact_ms_p95": 15,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {},
+    {}
+   ],
+   "resident_dims": [
+    "181x82",
+    "31x21"
+   ]
+  },
+  "pass2:owner:cur@z4.4": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 2,
+   "exact_ms_p95": 15,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 1
+    },
+    {}
+   ],
+   "resident_dims": [
+    "181x82",
+    "26x19"
+   ]
+  },
+  "pass2:owner:noaheadrun@z3.9": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 4,
+   "exact_ms_p95": 46,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 3
+    },
+    {
+     "crop_not_ready": 3
+    }
+   ],
+   "resident_dims": [
+    "181x82",
+    "31x21"
+   ]
+  },
+  "pass2:owner:noaheadrun@z4.4": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 2,
+   "exact_ms_p95": 43,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 5
+    },
+    {
+     "crop_not_ready": 3
+    }
+   ],
+   "resident_dims": [
+    "181x82",
+    "26x19"
+   ]
+  },
+  "dev:desktop:cur@z5": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 1,
+   "exact_ms_p95": 51,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 3
+    },
+    {
+     "crop_not_ready": 6
+    }
+   ],
+   "resident_dims": [
+    "181x82",
+    "25x21"
+   ]
+  },
+  "dev:desktop:cur@z6": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 3,
+   "exact_ms_p95": 40,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 3
+    },
+    {
+     "crop_not_ready": 3
+    }
+   ],
+   "resident_dims": [
+    "17x14"
+   ]
+  },
+  "pass2:desktop:cur@z5": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 1,
+   "exact_ms_p95": 16,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {},
+    {}
+   ],
+   "resident_dims": [
+    "181x82",
+    "25x21"
+   ]
+  },
+  "pass2:desktop:cur@z6": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 1,
+   "exact_ms_p95": 15,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "resident_not_this_set": 1
+    },
+    {}
+   ],
+   "resident_dims": [
+    "17x14"
+   ]
+  },
+  "pass2:desktop:noaheadrun@z5": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 1,
+   "exact_ms_p95": 62,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 6
+    },
+    {
+     "crop_not_ready": 5
+    }
+   ],
+   "resident_dims": [
+    "181x82",
+    "25x21"
+   ]
+  },
+  "pass2:desktop:noaheadrun@z6": {
+   "steps": 20,
+   "exact_missed": 0,
+   "exact_ms_p50": 4,
+   "exact_ms_p95": 43,
+   "mislabel_frames": 0,
+   "grid_per_step": 0,
+   "store_misses": [
+    {
+     "crop_not_ready": 3
+    },
+    {
+     "crop_not_ready": 3
+    }
+   ],
+   "resident_dims": [
+    "17x14"
+   ]
+  }
+ }
+}

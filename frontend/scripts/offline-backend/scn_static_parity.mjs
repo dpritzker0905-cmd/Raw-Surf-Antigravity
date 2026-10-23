@@ -9,6 +9,11 @@
 // the product it names (a gap must never be filled with a neighbouring frame).
 //
 //   node frontend/scripts/offline-backend/scn_static_parity.mjs <cdn dir> <backend port> [out.json]
+//
+// MASKED CELLS (2026-10-22): run it over a store built with `serve_synthetic.py --land-mask 1`. An all-ocean store hid that /grid
+// rewrites EURO/ICON world grids' masked cells (coarse_gulf_fill), so EURO/ICON world frames read 0 bad there and differ live.
+// With the mask, EURO/ICON sets read bad > 0 here: that is the POSITIVE CONTROL. GUARD=1 mirrors the client's guard
+// (staticFrames.serveTimeFillAtWorld: those world asks go to /grid) and skips them, reporting them as guarded.
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -61,8 +66,12 @@ function compare(mine, theirs) {
 }
 
 const reports = [];
+const GUARD = process.env.GUARD === '1';
+const FILL_WORLD = (m, l) => ['EURO', 'ICON'].includes(m) && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l);
+const guarded = [];
 for (const [setKey, entry] of Object.entries(latest.sets)) {   // EVERY published set (one model x layer each)
   const [MODEL, , LAYER] = setKey.split('/');
+  if (GUARD && FILL_WORLD(MODEL, LAYER)) { guarded.push(setKey); continue; }   // world asks of this set go to /grid
   const index = JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8'));
   index.path = index.path || entry.index;
   const rows = [];
@@ -119,6 +128,7 @@ for (const [setKey, entry] of Object.entries(latest.sets)) {   // EVERY publishe
 }
 const totals = reports.reduce((a, { report: r }) => ({ sets: a.sets + 1, nodes: a.nodes + r.nodes, bad: a.bad + r.bad_nodes,
   meta: a.meta + r.meta_mismatches, comparisons: a.comparisons + r.comparisons }), { sets: 0, nodes: 0, bad: 0, meta: 0, comparisons: 0 });
+totals.guarded = guarded;
 console.log(JSON.stringify({ totals }));
 if (outFile) fs.writeFileSync(outFile, JSON.stringify({ totals, sets: reports }, null, 1));
 fs.unlinkSync(tmp);

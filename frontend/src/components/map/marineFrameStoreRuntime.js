@@ -101,7 +101,7 @@ export function supersedeStash(engine, { model, layer, productId, hourOffset }) 
 
 // The crop show (#459) and model toggles on a crop resident (#458): marineFrameStoreCropShow.js, over this module's state.
 const CS = createCropShow({ rt, store: () => store(), miss, deferredShow: (info, vt) => deferredShow(info, vt), W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS,
-  supersedeStash: (engine, id) => supersedeStash(engine, id) });
+  supersedeStash: (engine, id) => supersedeStash(engine, id), idleFillBlocker: () => idleFillBlocker() });
 
 // ADAPTIVE IDLE FILL. The owner asked "what is more state of the art? eager or on demand loading on desktop?"; the lead's answer
 // (2026-10-22) is the plan: open on demand, then fill the run in idle time where the device and the link allow it. Returns why
