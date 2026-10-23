@@ -159,7 +159,10 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 377, MIN_TESTS = 4177;
+            // Regional z7-9 bundle client: dev's hosted receipt (run 39994928838 at abd70891, suites 514/514 tests 6737/6737)
+            // + staticRegional.test.js (+1 suite / +16 tests): hosted 515/6753 at b482566c (run 40005823797). The review's guards add
+            // marineGridSeries.regional.test.js and 9 staticRegional tests (+1 suite / +15 tests).
+            const MIN_SUITES = 516, MIN_TESTS = 6768;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -928,7 +931,15 @@ jobs:
           # ⬆ 210/3287 → 210/3291 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the box keeps its HRRR lane fresh, and says
           # which it holds): +4 tests in tests/test_wind_hrrr_lane.py (an existing guards file) on dev CI 39896720617 @ b88b5ca32's
           # 3293 / 210 = 3297 / 210 projected; 3297 - 6 = 3291. _FLOOR_SET_FROM["guards"] -> 3297.
-          MIN_FILES, MIN_PASSED = 210, 3291
+          # ⬆ 210/3291 → 211/3302 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the targeted 2-deg Gulf fill, dark):
+          # tests/test_coarse_gulf_fill_targeted.py (+1 real-store case in tests/test_coarse_fill_shared_vectors.py) (11, a new file selector-verified into this lane: --lane guards 210 -> 211); dev hosted
+          # read dev's hosted guards 3297/210 (set-from on dev 891c815b7) + 11 -> projected 3308/211; 3308 - 6 = 3302. This PR must read 211 files / 3308.
+          # +8 (2026-10-23, the second review: the donor's read path, refusals, staleness, the production lattice) -> 3316/211;
+          # 3316 - 6 = 3310. This PR must read 211 files / 3316.
+          # +1 (2026-10-23, targeted_fill_stats on /admin/surf-forecast/status) -> 3317/211; 3317 - 6 = 3311.
+          # ⬆ 3291→3311 on 2026-10-23 (rederive_floor.py, rm-gulf-fill-targeted): dev run 39994928838 read 3297 / 210 files; dev's map 3297;
+          #   base 3297 (hosted read) + 20 new test(s) = 3317, files 211; floor 3317 - 6 = 3311. This PR must read 3317 passed.
+          MIN_FILES, MIN_PASSED = 211, 3311
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1524,7 +1535,9 @@ jobs:
           # read dev's hosted chain 2873/175 (set-from on dev 891c815b7) + 9 -> projected 2882/176; 2882 - 6 = 2876. This PR must read 176 files / 2882.
           # ⬆ 2867→2876 on 2026-10-23 (rederive_floor.py, rm-pressure-raster-frames): dev run 39994928838 read 2873 / 175 files; dev's map 2873;
           #   base 2873 (hosted read) + 9 new test(s) = 2882, files 176; floor 2882 - 6 = 2876. This PR must read 2882 passed.
-          MIN_FILES, MIN_PASSED = 176, 2876
+          # ⬆ 2876→2885 on 2026-10-23 (rederive_floor.py, rm480): dev run 40005013863 read 2873 / 175 files; dev's map 2882;
+          #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
+          MIN_FILES, MIN_PASSED = 177, 2885
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

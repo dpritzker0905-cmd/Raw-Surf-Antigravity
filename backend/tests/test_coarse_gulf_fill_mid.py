@@ -4,8 +4,9 @@ WHY THIS EXISTS (2026-10-22)
 ----------------------------
 `coarse_gulf_fill.fill_coarse_enclosed_sea_from_gfs_served` was built for the 10-deg `global_coarse` tier (its docstring).
 Since the mid tier answers world requests (MARINE_MID_RES_MAX_SPAN=400, 2026-07-23) it also runs on the 2-deg `global_mid`
-world clip, where it has no enclosed-sea job and its 8-deg reach pastes GFS 10-deg values onto coast, land and ice cells
-under a EURO/ICON label. Live, one world /grid each (2026-10-22 21:55Z): EURO waves 2,465 of 4,689 masked cells rewritten,
+world clip, where its 8-deg reach pastes GFS 10-deg values onto coast, land and ice cells (and also keeps real enclosed
+sea EURO's 2-deg grid masks: CORRECTED 2026-10-23, see test_coarse_gulf_fill_targeted.py) under a EURO/ICON label.
+Live, one world /grid each (2026-10-22 21:55Z): EURO waves 2,465 of 4,689 masked cells rewritten,
 ICON 1,708 of 3,788. Because of it a static world frame of the stored EURO/ICON product is not what /grid serves (#461 guards
 the client against that).
 
