@@ -1,0 +1,457 @@
+{
+ "what": "skills audit items 1, 2, 4 (fetch priority, boot prewarm + preconnect, explicit SW bypass + headers), 2026-10-23",
+ "first_waves_ab": {
+  "instrument": "frontend/scripts/offline-backend/scn_first_waves.js",
+  "build": "claude/frame-fetch-priority 5020f6aed (craco production build)",
+  "store": "synthetic GFS waves run 2026-10-22T06Z, 115 frames, 3-hourly, published with publish_frame_images.py",
+  "cdn_latency_ms_per_object": 340,
+  "view": "desktop 1280x800, z3.2 at (-80, 24)",
+  "runs": {
+   "idle_3000_ms": {
+    "summary": {
+     "on": {
+      "n": 3,
+      "firstP50": 660,
+      "fullP50": 660,
+      "fullMax": 844,
+      "staticShare": 0
+     },
+     "off": {
+      "n": 3,
+      "firstP50": 1491,
+      "fullP50": 1491,
+      "fullMax": 1575,
+      "staticShare": 0
+     }
+    },
+    "sessions": [
+     {
+      "arm": "on",
+      "round": 0,
+      "openToClickMs": 5962,
+      "cdnBeforeClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 1
+      },
+      "cdnAfterClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 6
+      },
+      "gridAsks": 0,
+      "seriesAsks": 0,
+      "firstMs": 536,
+      "fullMs": 536,
+      "prewarm": {
+       "model": "GFS",
+       "layer": "waves",
+       "startedAt": 1792726957392,
+       "indexMs": 1123,
+       "frameMs": 1517,
+       "frame": "2026-10-23T03:00:00Z",
+       "skipped": null
+      }
+     },
+     {
+      "arm": "off",
+      "round": 0,
+      "openToClickMs": 6091,
+      "cdnBeforeClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 0
+      },
+      "cdnAfterClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 5
+      },
+      "gridAsks": 0,
+      "seriesAsks": 1,
+      "firstMs": 1491,
+      "fullMs": 1491,
+      "prewarm": null
+     },
+     {
+      "arm": "off",
+      "round": 1,
+      "openToClickMs": 6239,
+      "cdnBeforeClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 0
+      },
+      "cdnAfterClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 5
+      },
+      "gridAsks": 0,
+      "seriesAsks": 1,
+      "firstMs": 1575,
+      "fullMs": 1575,
+      "prewarm": null
+     },
+     {
+      "arm": "on",
+      "round": 1,
+      "openToClickMs": 6009,
+      "cdnBeforeClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 1
+      },
+      "cdnAfterClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 6
+      },
+      "gridAsks": 0,
+      "seriesAsks": 0,
+      "firstMs": 660,
+      "fullMs": 660,
+      "prewarm": {
+       "model": "GFS",
+       "layer": "waves",
+       "startedAt": 1792726982567,
+       "indexMs": 1010,
+       "frameMs": 1392,
+       "frame": "2026-10-23T03:00:00Z",
+       "skipped": null
+      }
+     },
+     {
+      "arm": "on",
+      "round": 2,
+      "openToClickMs": 6297,
+      "cdnBeforeClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 1
+      },
+      "cdnAfterClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 6
+      },
+      "gridAsks": 0,
+      "seriesAsks": 0,
+      "firstMs": 844,
+      "fullMs": 844,
+      "prewarm": {
+       "model": "GFS",
+       "layer": "waves",
+       "startedAt": 1792726990449,
+       "indexMs": 1150,
+       "frameMs": 1534,
+       "frame": "2026-10-23T03:00:00Z",
+       "skipped": null
+      }
+     },
+     {
+      "arm": "off",
+      "round": 2,
+      "openToClickMs": 6044,
+      "cdnBeforeClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 0
+      },
+      "cdnAfterClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 5
+      },
+      "gridAsks": 0,
+      "seriesAsks": 1,
+      "firstMs": 1444,
+      "fullMs": 1444,
+      "prewarm": null
+     }
+    ]
+   },
+   "idle_0_ms": {
+    "summary": {
+     "on": {
+      "n": 3,
+      "firstP50": 670,
+      "fullP50": 670,
+      "fullMax": 813,
+      "staticShare": 0
+     },
+     "off": {
+      "n": 3,
+      "firstP50": 1432,
+      "fullP50": 1432,
+      "fullMax": 1635,
+      "staticShare": 0
+     }
+    },
+    "sessions": [
+     {
+      "arm": "on",
+      "round": 0,
+      "openToClickMs": 2841,
+      "cdnBeforeClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 1
+      },
+      "cdnAfterClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 6
+      },
+      "gridAsks": 0,
+      "seriesAsks": 0,
+      "firstMs": 670,
+      "fullMs": 670,
+      "prewarm": {
+       "model": "GFS",
+       "layer": "waves",
+       "startedAt": 1792727007706,
+       "indexMs": 962,
+       "frameMs": 1340,
+       "frame": "2026-10-23T03:00:00Z",
+       "skipped": null
+      }
+     },
+     {
+      "arm": "off",
+      "round": 0,
+      "openToClickMs": 2978,
+      "cdnBeforeClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 0
+      },
+      "cdnAfterClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 5
+      },
+      "gridAsks": 0,
+      "seriesAsks": 1,
+      "firstMs": 1432,
+      "fullMs": 1432,
+      "prewarm": null
+     },
+     {
+      "arm": "off",
+      "round": 1,
+      "openToClickMs": 3143,
+      "cdnBeforeClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 0
+      },
+      "cdnAfterClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 5
+      },
+      "gridAsks": 0,
+      "seriesAsks": 1,
+      "firstMs": 1635,
+      "fullMs": 1635,
+      "prewarm": null
+     },
+     {
+      "arm": "on",
+      "round": 1,
+      "openToClickMs": 2898,
+      "cdnBeforeClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 1
+      },
+      "cdnAfterClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 6
+      },
+      "gridAsks": 0,
+      "seriesAsks": 0,
+      "firstMs": 637,
+      "fullMs": 637,
+      "prewarm": {
+       "model": "GFS",
+       "layer": "waves",
+       "startedAt": 1792727023704,
+       "indexMs": 1022,
+       "frameMs": 1399,
+       "frame": "2026-10-23T03:00:00Z",
+       "skipped": null
+      }
+     },
+     {
+      "arm": "on",
+      "round": 2,
+      "openToClickMs": 3138,
+      "cdnBeforeClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 1
+      },
+      "cdnAfterClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 6
+      },
+      "gridAsks": 0,
+      "seriesAsks": 0,
+      "firstMs": 813,
+      "fullMs": 813,
+      "prewarm": {
+       "model": "GFS",
+       "layer": "waves",
+       "startedAt": 1792727028656,
+       "indexMs": 1033,
+       "frameMs": 1419,
+       "frame": "2026-10-23T03:00:00Z",
+       "skipped": null
+      }
+     },
+     {
+      "arm": "off",
+      "round": 2,
+      "openToClickMs": 2987,
+      "cdnBeforeClick": {
+       "latest": 0,
+       "index": 0,
+       "frame": 0
+      },
+      "cdnAfterClick": {
+       "latest": 1,
+       "index": 1,
+       "frame": 5
+      },
+      "gridAsks": 0,
+      "seriesAsks": 1,
+      "firstMs": 1432,
+      "fullMs": 1432,
+      "prewarm": null
+     }
+    ]
+   }
+  }
+ },
+ "worker_priority_trace": {
+  "chrome": "154.0.8037.100",
+  "trace": [
+   {
+    "url": "main-low-1",
+    "priority": "Low",
+    "hint": "low",
+    "thread": "CrRendererMain"
+   },
+   {
+    "url": "main-low-2",
+    "priority": "Low",
+    "hint": "low",
+    "thread": "CrRendererMain"
+   },
+   {
+    "url": "main-low-3",
+    "priority": "Low",
+    "hint": "low",
+    "thread": "CrRendererMain"
+   },
+   {
+    "url": "main-none",
+    "priority": "High",
+    "hint": "auto",
+    "thread": "CrRendererMain"
+   },
+   {
+    "url": "main-high",
+    "priority": "High",
+    "hint": "high",
+    "thread": "CrRendererMain"
+   },
+   {
+    "url": "worker-low-1",
+    "priority": "Low",
+    "hint": "low",
+    "thread": "DedicatedWorker thread"
+   },
+   {
+    "url": "worker-low-2",
+    "priority": "Low",
+    "hint": "low",
+    "thread": "DedicatedWorker thread"
+   },
+   {
+    "url": "worker-low-3",
+    "priority": "Low",
+    "hint": "low",
+    "thread": "DedicatedWorker thread"
+   },
+   {
+    "url": "worker-none",
+    "priority": "High",
+    "hint": "auto",
+    "thread": "DedicatedWorker thread"
+   },
+   {
+    "url": "worker-high",
+    "priority": "High",
+    "hint": "high",
+    "thread": "DedicatedWorker thread"
+   }
+  ],
+  "mainTimes": [
+   {
+    "url": "http://127.0.0.1:4195/f/main-none",
+    "ms": 352
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/main-high",
+    "ms": 352
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/main-low-1",
+    "ms": 353
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/main-low-2",
+    "ms": 353
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/main-low-3",
+    "ms": 353
+   }
+  ],
+  "workerTimes": [
+   {
+    "url": "http://127.0.0.1:4195/f/worker-none",
+    "ms": 322
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/worker-low-3",
+    "ms": 323
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/worker-low-1",
+    "ms": 324
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/worker-low-2",
+    "ms": 324
+   },
+   {
+    "url": "http://127.0.0.1:4195/f/worker-high",
+    "ms": 321
+   }
+  ]
+ },
+ "live_headers_2026_10_23": {
+  "site": "dev--rawsurf.netlify.app",
+  "main_js": "Cache-Control: no-cache (the catch-all won over /static/js/* immutable)",
+  "index_html": "Cache-Control: no-cache (the no-store rule was never served)",
+  "conditional_304_ms": 347,
+  "full_download_ms": 759,
+  "main_js_bytes": 1140616
+ }
+}

@@ -46,6 +46,7 @@ function combo(r) {
     stepsInstant: stepMs.filter((v) => v <= 100).length, stepsTimedOut: changing.filter((a) => a.msFull == null).length,
     longMs: lj.msFull, longTimedOut: !!lj.timedOut, backMs: back ? back.msFull : null, reloadToggleMs: rel ? rel.msFull : null,
     staleFrames: sum(moved, 'stale'), blankFrames: sum(moved, 'blank'), partialFrames: sum(moved, 'partial'),
+    staleAdmitted: sum(moved, 'staleAdmitted'), staleSilentLate: sum(moved, 'staleSilentLate'),
     mixedFrames: sum(all, 'mixed'), fadingFrames: sum(all, 'fadingFrames'), decodeErrors: (r.decodeErrors || []).length,
     stepReqMed: med(changing.map((a) => a.req || 0)), stepBytesMed: med(changing.map((a) => a.bytes || 0)),
   };
@@ -57,18 +58,18 @@ out.sort((a, b) => a.vp.localeCompare(b.vp) || ORDER.indexOf(a.layer) - ORDER.in
 const roll = {};
 for (const c of out) {
   const k = `${c.vp}|${c.layer}|${c.arm}`;
-  const g = (roll[k] = roll[k] || { vp: c.vp, layer: c.layer, arm: c.arm, n: 0, toggle: [], steps: [], long: [], back: [], reload: [], stale: 0, blank: 0, mixed: 0, fading: 0, decodeErrors: 0 });
+  const g = (roll[k] = roll[k] || { vp: c.vp, layer: c.layer, arm: c.arm, n: 0, toggle: [], steps: [], long: [], back: [], reload: [], stale: 0, admitted: 0, silentLate: 0, blank: 0, mixed: 0, fading: 0, decodeErrors: 0 });
   g.n += 1; g.toggle.push(c.toggleFull != null ? c.toggleFull : 30000); g.steps.push(...c.stepList);
   if (c.longMs != null) g.long.push(c.longMs);
   if (c.backMs != null) g.back.push(c.backMs);
   if (c.reloadToggleMs != null) g.reload.push(c.reloadToggleMs);
-  g.stale += c.staleFrames; g.blank += c.blankFrames; g.mixed += c.mixedFrames; g.fading += c.fadingFrames; g.decodeErrors += c.decodeErrors;
+  g.stale += c.staleFrames; g.admitted += c.staleAdmitted; g.silentLate += c.staleSilentLate; g.blank += c.blankFrames; g.mixed += c.mixedFrames; g.fading += c.fadingFrames; g.decodeErrors += c.decodeErrors;
 }
 const rolls = Object.values(roll).sort((a, b) => a.vp.localeCompare(b.vp) || ORDER.indexOf(a.layer) - ORDER.indexOf(b.layer) || a.arm.localeCompare(b.arm));
-let md2 = '| vp | layer | arm | combos | toggle p50 / max | step p50 / p95 | steps <=100 ms | long jump p50 | back to h0 p50 | reload toggle p50 | stale | blank | mixed | tile fades | decode errors |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
+let md2 = '| vp | layer | arm | combos | toggle p50 / max | step p50 / p95 | steps <=100 ms | long jump p50 | back to h0 p50 | reload toggle p50 | stale (admitted / silent > 350 ms) | blank | mixed | tile fades | decode errors |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
 for (const g of rolls) {
   md2 += `| ${g.vp} | ${g.layer} | ${g.arm} | ${g.n} | ${fmtMs(med(g.toggle))} / ${fmtMs(Math.max(...g.toggle))} | ${fmtMs(q(g.steps, 0.5))} / ${fmtMs(q(g.steps, 0.95))} | `
-    + `${g.steps.filter((v) => v <= 100).length}/${g.steps.length} | ${fmtMs(med(g.long))} | ${fmtMs(med(g.back))} | ${fmtMs(med(g.reload))} | ${g.stale} | ${g.blank} | ${g.mixed} | ${g.fading} | ${g.decodeErrors} |\n`;
+    + `${g.steps.filter((v) => v <= 100).length}/${g.steps.length} | ${fmtMs(med(g.long))} | ${fmtMs(med(g.back))} | ${fmtMs(med(g.reload))} | ${g.stale} (${g.admitted} / ${g.silentLate}) | ${g.blank} | ${g.mixed} | ${g.fading} | ${g.decodeErrors} |\n`;
 }
 let md = '| vp | layer | model | z | arm | toggle first / full | step p50 / p95 / max (<=100 ms) | long | back | reload | stale | blank | mixed | toggle req / bytes | step req / bytes |\n';
 md += '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n';
@@ -83,6 +84,6 @@ if (opt('--md')) fs.writeFileSync(opt('--md'), mdAll);
 if (opt('--json')) {
   fs.writeFileSync(opt('--json'), JSON.stringify({ combos: out.map(({ stepList, ...c }) => c), rollup: rolls.map((g) => ({ vp: g.vp, layer: g.layer, arm: g.arm, n: g.n,
     toggleP50: med(g.toggle), stepP50: q(g.steps, 0.5), stepP95: q(g.steps, 0.95), instant: g.steps.filter((v) => v <= 100).length, steps: g.steps.length,
-    longP50: med(g.long), backP50: med(g.back), reloadP50: med(g.reload), stale: g.stale, blank: g.blank, mixed: g.mixed, fading: g.fading, decodeErrors: g.decodeErrors })) }, null, 1));
+    longP50: med(g.long), backP50: med(g.back), reloadP50: med(g.reload), stale: g.stale, staleAdmitted: g.admitted, staleSilentLate: g.silentLate, blank: g.blank, mixed: g.mixed, fading: g.fading, decodeErrors: g.decodeErrors })) }, null, 1));
 }
 console.log(mdAll);

@@ -27,6 +27,7 @@
 // pre-2026-10-20 text exactly (no declaration, the constant 10.0): sha256-pinned with the texture bytes in
 // marineHeightEncoding.test.js.
 import { WAVE_HEIGHT_16M } from './marineWavePalette';
+import { uniformLoc } from './glUniformCache';
 
 export const LEGACY_HEIGHT_SCALE = 10;
 
@@ -36,7 +37,7 @@ export const heightScaleOf = (enc) => (enc && enc.u_heightScale > 0 ? enc.u_heig
 /** Sets vec2 u_heightScale on `prog` (in use): x = `wave`'s scale, y = `coarse`'s (defaults to `wave`'s). A no-op under the kill. */
 export function setWaveHeightScale(gl, prog, wave, coarse = wave) {
   if (!WAVE_HEIGHT_16M || !gl || !prog) return;
-  gl.uniform2f(gl.getUniformLocation(prog, 'u_heightScale'), heightScaleOf(wave), heightScaleOf(coarse));
+  gl.uniform2f(uniformLoc(gl, prog, 'u_heightScale'), heightScaleOf(wave), heightScaleOf(coarse));
 }
 
 // GLSL: the shader modules wrap their source (export const ADVECT_FS = withHeightScale(<template>, pick)), so the shader text itself

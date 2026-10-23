@@ -281,8 +281,9 @@ async def run_background_cache_population():
     import os
     logger.info("[lifespan] Starting background cache pre-population check...")
     try:  # the HRRR wind lane's cycle starts loading now (a background thread), so the first wind grids carry it (D-017)
-        from services.weather_pipeline.wind_lane import current_lane
+        from services.weather_pipeline.wind_lane import current_lane, start_keeper
         current_lane()
+        start_keeper()   # and keeps re-reading it every 300 s, whatever the wind /grid traffic (2026-10-23)
     except Exception as e:
         logger.warning(f"[lifespan] wind lane warm-up skipped: {e}")
 

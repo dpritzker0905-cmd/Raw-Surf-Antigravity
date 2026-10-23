@@ -457,6 +457,14 @@ def main(argv=None) -> int:
     fp.add_argument("--replace", metavar="BRANCH", help="re-fold onto fresh dev and force-push this fold branch")
     fp.add_argument("--no-pr", action="store_true", help="push the branch but do not open the PR")
     fp.add_argument("--co-author", action="append", default=[], help="a Co-Authored-By trailer (repeatable)")
+    fp.add_argument("--record-merges", action="store_true",
+                    help="also record a reconstructed pr_merge line for every merge on the base the ledger lacks")
+    fp.add_argument("--actor", help="--record-merges: who writes the reconstructed lines")
+    rm = sub.add_parser("record-merges", help="append a reconstructed pr_merge line to this branch's fragment for "
+                                              "every merge on the base that the ledger (folded + fragments) lacks")
+    rm.add_argument("--actor", required=True)
+    rm.add_argument("--base", default="origin/dev")
+    rm.add_argument("--fragment", help="the fragment's name (default: the branch's slug)")
     cp = sub.add_parser("check-pr", help="CI: is this PR's change to the ledger legal?")
     cp.add_argument("--base", required=True, help="the base ref, e.g. origin/dev")
     cp.add_argument("--head", default="HEAD")
@@ -524,8 +532,20 @@ def main(argv=None) -> int:
         print(s["head"] or "nothing to fold")
         return 0
     if args.cmd == "fold-pr":
+        if args.record_merges and not args.actor:
+            raise ValueError("--record-merges needs --actor (who writes the reconstructed lines)")
         _fragments().fold_pr(ROOT, remote=args.remote, base=args.base, dry_run=args.dry_run, replace=args.replace,
-                             open_pr=not args.no_pr, co_authors=args.co_author)
+                             open_pr=not args.no_pr, co_authors=args.co_author,
+                             record_actor=args.actor if args.record_merges else None)
+        return 0
+    if args.cmd == "record-merges":
+        if __package__:
+            from . import ledger_merges as LM
+        else:
+            import ledger_merges as LM
+        done = LM.record_merges(ROOT, args.base, LM.ledger_as_it_will_be(ROOT), args.actor, name=args.fragment)
+        print(f"record-merges: {len(done)} pr_merge line(s) recorded" + (f" ({', '.join(f'#{n}' for n in done)})"
+                                                                           if done else ""))
         return 0
     if args.cmd == "check-pr":
         return _check_pr_cli(args)

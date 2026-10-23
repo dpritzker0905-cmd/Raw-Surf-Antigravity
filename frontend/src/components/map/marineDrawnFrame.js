@@ -25,6 +25,7 @@ export function publishMarineDrawn(grid, fallback = {}) {
     estimated: !!(grid.is_estimated || grid.isEstimated),
     basisType: basis && basis.type ? basis.type : null,
     provider: grid.__gridProvider || grid.provider || null,
+    store: !!grid.__fromFrameStore,   // the GPU frame store put it there (field telemetry's hit/miss)
     ts: Date.now(),
   };
   if (typeof window !== 'undefined') window.__MARINE_DRAWN__ = current;   // instruments (visual lab, TruthOverlay) read this

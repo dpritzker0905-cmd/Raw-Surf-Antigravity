@@ -18,7 +18,11 @@ sha12 = the first 12 hex of sha256 over the slice's gzip bytes (a client checks 
 UNCHANGED RUNS upload nothing: the bundle and index are content-addressed, so when the new index path equals the published one
 the set is left as it is. Retention keeps the current and previous index and their bundles (frame_set.referenced_paths).
 
-SETS (phase 1, the lead's contract 2026-10-22): GFS waves on every GFS marine pilot box. Kill: FRAME_REGIONAL_BUNDLES=0.
+SETS: GFS waves on every GFS marine pilot box (phase 1, the lead's contract 2026-10-22), then (2026-10-23) GFS swell_1, swell_2
+and wind_waves on the same boxes: the live read of the owner's opening view (florida_east_coast, z9) measured their prefetch
+/grid_series pages at 6.3, 6.6 and 11.1 s of box work, against 5.1 + 3.9 + 1.2 s for waves. Ordered layer by layer, waves first,
+so the publish budget's stagger drops the trains before any waves set. A box with no stored products of a layer (SoCal has
+no swell_2) builds nothing. Kill: FRAME_REGIONAL_BUNDLES=0 (all); FRAME_REGIONAL_BUNDLE_LAYERS narrows the layers (comma list).
 The client half is dark (the mid-zoom session's PR); publishing alone changes nothing a user sees.
 """
 from __future__ import annotations
@@ -43,8 +47,15 @@ def _regional_ids():
     return ids
 
 
-REGIONAL_SETS = tuple({"model": "GFS", "domain": "marine", "layer": "waves", "region_id": r, "bundle": True}
-                      for r in _regional_ids())
+REGIONAL_LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
+REGIONAL_SETS = tuple({"model": "GFS", "domain": "marine", "layer": layer, "region_id": r, "bundle": True}
+                      for layer in REGIONAL_LAYERS for r in _regional_ids())
+
+
+def selected_regional_sets():
+    """REGIONAL_SETS narrowed by FRAME_REGIONAL_BUNDLE_LAYERS (comma list; default every layer)."""
+    want = [x.strip() for x in os.environ.get("FRAME_REGIONAL_BUNDLE_LAYERS", "").split(",") if x.strip()]
+    return tuple(t for t in REGIONAL_SETS if not want or t["layer"] in want)
 
 
 def enabled():

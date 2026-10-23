@@ -1,4 +1,4 @@
-import { CAP, CAP_SLOW, COOL_MIN_MS, createIntent, createPrefetcher, nearestFirst, planWant, WINDOW } from './marineFramePrefetch';
+import { CAP, CAP_SLOW, COOL_MIN_MS, createIntent, createPrefetcher, nearestFirst, planPriority, planWant, WINDOW } from './marineFramePrefetch';
 import { createFrameStore } from './marineFrameStore';
 
 const SIG = 'h10|dil1|conf0.75|trim1|wrap1|f32';
@@ -282,5 +282,37 @@ describe('createPrefetcher', () => {
     expect(store.lookup(A, vt(0))).toBeNull();
     expect(store.entry(A, vt(0)).unbuilt).toBe('unpackable');
     expect(pf.telemetry().packFail).toBe(2);
+  });
+});
+
+// FETCH PRIORITY (2026-10-23, skills audit #1): the plan's first two entries ask 'high', warm sets and the run fill 'low', the rest of
+// the window the browser default; the prefetcher hands each start its class (the worker fetch carries it, staticFrames.js).
+describe('fetch priority per plan entry', () => {
+  it('the plan tags the run fill and the warm frames; the near window stays untagged', () => {
+    const plan = planWant({ active: { key: 'A', validTimes: series(30) }, cursor: 10, expanded: true, warm: [{ key: 'B', validTime: vt(10) }] });
+    const near = plan.slice(0, 2 * WINDOW + 1);
+    expect(near.every((p) => p.key === 'A' && !p.fill && !p.warm)).toBe(true);
+    expect(plan[2 * WINDOW + 1]).toEqual({ key: 'B', validTime: vt(10), warm: true });
+    expect(plan.slice(2 * WINDOW + 2).every((p) => p.key === 'A' && p.fill === true)).toBe(true);
+    expect(plan.slice(2 * WINDOW + 2)).toHaveLength(30 - (2 * WINDOW + 1));
+  });
+
+  it("planPriority: the first two 'high', warm and fill 'low', the window the default", () => {
+    expect(planPriority({ key: 'A' }, 0)).toBe('high');
+    expect(planPriority({ key: 'B', warm: true }, 1)).toBe('high');      // position wins: the head of the plan is the frame on screen
+    expect(planPriority({ key: 'A' }, 2)).toBeUndefined();
+    expect(planPriority({ key: 'B', warm: true }, 5)).toBe('low');
+    expect(planPriority({ key: 'A', fill: true }, 20)).toBe('low');
+  });
+
+  it('each start carries its class to fetchFrame', () => {
+    const got = [];
+    const { mkSet, pf } = rig({ fetchImpl: (path, signal, priority) => new Promise(() => { got.push({ path, priority }); }) });
+    const A = mkSet('GFS'); const B = mkSet('ICON');
+    pf.open();
+    // a 3-frame series: the window is 0..2, then one warm frame of B; CAP (4) slots take all four
+    pf.replan(planWant({ active: { key: A, validTimes: series(3) }, cursor: 0, warm: [{ key: B, validTime: vt(0) }] }), A);
+    expect(got.map((g) => g.priority)).toEqual(['high', 'high', undefined, 'low']);
+    expect(got[3].path).toBe(`ICON/${vt(0)}.bin`);
   });
 });

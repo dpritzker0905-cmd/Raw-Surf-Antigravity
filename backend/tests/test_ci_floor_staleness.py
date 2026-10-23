@@ -479,10 +479,14 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3293, "chain": 2873, "estate": 2466}
-# LA-SEC-03 batch 4 (23 routes bound): +74 estate tests (two new files + 41 in the binding file) on dev's 2392 = 2466; floor 2390 -> 2464, margin 2.
+_FLOOR_SET_FROM = {"guards": 3297, "chain": 2873, "estate": 2485}
+# LA-SEC-03 batch 4 (23 routes bound): +74 estate tests (two new files + 41 in the binding file) on dev's 2411 = 2485; floor 2409 -> 2483, margin 2.
+# Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
+# in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.
+# The wind lane keeper + the box lane read: +4 guards tests in tests/test_wind_hrrr_lane.py on dev CI 39896720617's 3293 / 210 = 3297; floor 3291, margin 6.
 # Per-PR ledger fragments (D-0XX): +49 estate tests in a new file (tests/test_ledger_fragments.py) on dev CI 39896720617's
 # 2343 / 330 files = 2392 / 331; floor 2341 -> 2390, margin 2.
+# Push status for the Settings switch (#470, re-derived after #472: 2392 + 5 = 2397): +5 estate tests in tests/test_audit_push_authority.py (existing file) on dev CI 39894535707's 2343 = 2348; floor 2341 -> 2346, margin 2.
 # Static GFS wind frames: +10 chain tests in a new file (tests/test_frame_set_wind.py) on dev CI 39861554298's 2855/173 = 2865/174; floor 2859, margin 6.
 # Regional static frame bundles: +8 chain tests in a new file (tests/test_frame_set_bundle.py) on dev CI 39896720617's 2865 / 174 = 2873 / 175; floor 2859 -> 2867, margin 6.
 # MARINE_GULF_FILL_MID (dark): +6 guards tests in a new file (tests/test_coarse_gulf_fill_mid.py) on dev CI 39861554298's 3287 / 209 files = 3293 / 210; floor 3281 -> 3287, files 209 -> 210, margin 6.
