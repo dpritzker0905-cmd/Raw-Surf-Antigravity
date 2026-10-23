@@ -4,7 +4,7 @@
 // capabilities.max_forecast_hours. (The native/estimate boundary, 240h, lives in the backend
 // estimator + capabilities; post-240 EURO products stay model=EURO, provider=estimated.)
 import { getMarineSeriesFrame } from './marineGridSeries';
-import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
 import { recordMarineEvent } from './marineForensics';
@@ -95,7 +95,7 @@ export function checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, 
     // COVERAGE-ALIGNED (2026-07-05): same exemption as the display gate (Fix A) + the useMarineWindData
     // conform — a regional COVERING ≥0.8 of the viewport is display-acceptable at zoomed-out (the mid
     // tier commits covering clipped grids at z5-7); only a non-covering regional clears. Same levers.
-    const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    const _coverFrac = alignedCoverFrac();   // the guard's and the gate's 0.6 (marineZoomThresholds)
     const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
     const _zoomedOutClear = _coverAlignOff
       ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)
