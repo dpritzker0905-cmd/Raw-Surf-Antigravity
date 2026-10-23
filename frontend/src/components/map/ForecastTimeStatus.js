@@ -4,6 +4,7 @@ import { useMarineDrawnFrame } from './marineDrawnFrame';
 import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
+import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
 
 // What the map DRAWS against what the user SELECTED, in words, in the same frame (W-1, scrub audit 2026-10-18): the
 // drawn-frame record is published by WebGLMarineLayer at the upload (marineDrawnFrame.js), so this line no longer waits
@@ -14,15 +15,29 @@ import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 // (marineStaleHour.resolveStaleWorldDim), so this line carries the honesty alone: "Loading <selected>… still showing <drawn>".
 // When that has been pending for HOLD_INDICATOR_MS, a small pulsing dot joins it (aria-hidden: the words are the status; it does
 // not pulse under prefers-reduced-motion). Kill: window.__RAW_DISABLE_HOLD_NO_DIM__ = true (the dim returns, no dot).
-export default function ForecastTimeStatus({ model, layer, hour, theme }) {
+// RASTER layers (2026-10-22, rasterDrawnFrame.js): the same words from the raster layer's own shown/wanted pair, never the marine
+// record; a pending line appears only after PENDING_QUIET_MS. `radarMs` = the radar frame asked for.
+export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs }) {
   const drawn = useMarineDrawnFrame();
+  const rasterRec = useRasterDrawnFrame();
+  const isRaster = RASTER_STATUS_LAYERS.has(layer);
+  const rasterReadout = isRaster ? describeRasterFrame(rasterRec, layer, layer === 'radar' ? radarMs : Date.now() + hour * 3600000) : null;
+  const rasterPendingKey = rasterReadout && rasterReadout.state === 'pending' ? rasterReadout.text : null;
+  const [rasterShowPending, setRasterShowPending] = useState(false);
+  useEffect(() => {
+    setRasterShowPending(false);
+    if (!rasterPendingKey) return undefined;
+    const t = setTimeout(() => setRasterShowPending(true), PENDING_QUIET_MS);
+    return () => clearTimeout(t);
+  }, [rasterPendingKey]);
   const readoutOff = typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_FRAME_READOUT__ === true;
   let instantMs = null;   // what a fetch for the selected hour asks for now: the app's own hour -> instant mapping (read-only)
   try { instantMs = Date.parse(getSharedValidTime(hour, layer, model, { readOnly: true })); } catch (e) { instantMs = null; }
   // Half the stored marine lattice step (3-hourly; EURO WAM 6-hourly past 144 h): a frame further off is an exact upgrade
   // still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
   const nearestMaxHours = latticeNearestMaxHours(model, hour);
-  const readout = readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, nearestMaxHours }, drawn);
+  const readout = isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
+    : (readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, nearestMaxHours }, drawn));
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs };   // instruments compare by instant
 
   const readStatus = useCallback(() => {
@@ -62,6 +77,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme }) {
       </div>
     );
   }
+  if (isRaster) return null;   // the marine coverage check does not speak for raster layers
   const mismatch = status === 'response_time_mismatch' || status === 'render_time_mismatch';
   if (!mismatch && status !== 'render_time_unverified') return null;
   return (

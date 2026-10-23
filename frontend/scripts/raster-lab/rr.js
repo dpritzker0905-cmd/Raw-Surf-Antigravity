@@ -62,10 +62,12 @@ class RR {
   noteAxes(url, body) {
     try {
       const u = new URL(url);
-      if (!u.hostname.includes('openmeteo') || !u.pathname.endsWith('/latest.json')) return;
+      // Only the manifest the app and the decoder read (no time_step query: the app's old preloader pings carry one, and a
+      // ping recorded later can hold a NEWER run's manifest); the first one seen per model wins, as the app's own cache does.
+      if (!u.hostname.includes('openmeteo') || !u.pathname.endsWith('/latest.json') || u.searchParams.has('time_step')) return;
       const model = u.pathname.split('/')[2];
       const j = JSON.parse(Buffer.from(body).toString('utf8'));
-      if (Array.isArray(j.valid_times)) this.axes[model] = j.valid_times;
+      if (Array.isArray(j.valid_times) && !this.axes[model]) this.axes[model] = j.valid_times;
     } catch (e) { /* not a manifest */ }
   }
 

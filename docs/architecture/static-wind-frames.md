@@ -139,3 +139,14 @@ Clocks:
 - Close zooms (z6, z9): the base is instant; the sharpened overlay is an on-demand product and still comes from `/grid`.
 - ICON and EURO wind have no static set yet (the same publisher would take them; ICON/EURO world boxes also carry the Gulf
   fill question #461 found for marine).
+
+## 7. Correction, 2026-10-23: the box can hold an older lane than the pointer names (live read of #468)
+
+Section 2 assumed the box re-reads its lane every 300 s. It did not: `current_lane()` refreshed only when a wind `/grid` or
+series request asked for the lane, and #468 took most of those requests away. Live on 2026-10-23, the box kept the 10-22 18Z HRRR
+cycle for ~5 h after the 06Z cycle was published and pointed at. The frames (06Z) then differed from `/grid` (18Z) on 733 of
+15,919 CONUS nodes, by up to 13.6 kn. Within a minute of one `/grid` request the box loaded 06Z and the same check passed node for
+node. Repaired by `claude/wind-box-lane` (log `2026-10-23-claude-wind-instant-scrub.md`):
+- a keeper thread re-reads the lane index every 300 s, whatever the traffic;
+- the box reports the lane it holds (`GET /api/weather/wind_lane`, /capabilities `wind_lane.key`), and the client serves a
+  lane-window hour only when that key equals the frames'. The pointer stays as the early warning for a new lane.
