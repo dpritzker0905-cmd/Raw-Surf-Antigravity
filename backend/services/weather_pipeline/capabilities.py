@@ -697,8 +697,15 @@ for _row in WEATHER_CAPABILITIES:
 
 
 def get_weather_capabilities() -> List[Dict[str, Any]]:
-    """Returns the backend-owned capabilities matrix for weather, marine, and wind models."""
-    return WEATHER_CAPABILITIES
+    """Returns the backend-owned capabilities matrix for weather, marine, and wind models.
+
+    EURO / ICON marine rows also carry `gulf_fill_mid` (2026-10-22), read at call time: whether /grid's serve-time Gulf fill
+    rewrites their 2-deg world grid (coarse_gulf_fill.gulf_fill_mid_enabled, MARINE_GULF_FILL_MID). The client serves a static
+    world frame of these sets only when it is False, because only then does /grid equal the stored product."""
+    from services.weather_pipeline.coarse_gulf_fill import gulf_fill_mid_enabled
+    mid = gulf_fill_mid_enabled()
+    return [dict(row, gulf_fill_mid=mid) if row.get("domain") == "marine" and row.get("model") in ("EURO", "ICON") else row
+            for row in WEATHER_CAPABILITIES]
 
 def validate_capabilities_contract(capabilities: List[Dict[str, Any]]) -> None:
     """Validates the exact shape and semantic contract of capabilities."""

@@ -83,6 +83,12 @@ _RATING_FLAGS = {
     "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
     "WIND_GRID_GFS_GLOBAL": ("0", "GFS wind grids ask Open-Meteo for gfs_global, not gfs_seamless (HRRR inside its domain): "
                                   "one model under the GFS label, so a zoom cannot swap the eye's model", "Render env"),
+    # SERVED NUMBER, DARK (2026-10-22; owner's call, DECISIONS draft): default '1' keeps today's world /grid for EURO/ICON marine.
+    # tests/test_coarse_gulf_fill_mid.py pins both values; /capabilities reports it (EURO/ICON marine rows, `gulf_fill_mid`).
+    "MARINE_GULF_FILL_MID": ("1", "coarse_gulf_fill runs on the 2-deg global_mid world clip too (EURO/ICON marine, served span >= 350 deg): "
+                                  "masked coast/land/ice cells within 8 deg of a GFS 10-deg ocean cell get GFS values; 0 = the fill keeps to "
+                                  "the 10-deg coarse tier it was built for and the world grid is served as stored (static frames then match it)",
+                             "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
     "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "

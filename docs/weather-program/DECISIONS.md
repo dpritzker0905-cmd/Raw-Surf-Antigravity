@@ -1626,6 +1626,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   /grid; their viewport crops (no fill below 350 deg) stay static; the GPU frame store takes no ICON/EURO set (it cannot tell world
   from crop at its door). Kill (the pre-fix behaviour): `window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true`. It lifts when the
   publisher mirrors the fill for world frames. No ICON/EURO frame had been published (the first post-#453 pilots run had not run).
+  Measured live 2026-10-22 21:55Z (one world /grid each, health probed): EURO waves `coarse_fill.cells_filled` 2,465 of 4,689
+  masked cells, ICON 1,708 of 3,788. (The offline 1,757-of-2,066 figure above used an all-valid GFS donor; with a land-masked
+  synthetic donor the control store now reads 1,173 of 2,714, and its parity sees the gap: `scn_static_parity.mjs` over
+  `serve_synthetic.py --land-mask 1`, ICON/EURO world frames bad > 0, crops 0 bad. LESSONS L-S22.)
 - **Update 2026-10-22 (the series gate lifts, #460):** since #456 the conform carries `is_valid` for every layer,
   so seam B (the series lane, and #459's crop pages) takes all eight sets, not only the waves sets. The waves-only rule comes
   back by itself whenever #456's fix is killed (`window.__RAW_DISABLE_CONFORM_IS_VALID__`) and on its own kill
@@ -1634,3 +1638,26 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   swell_2 and wind_waves 0); offline GFS swell_1 scrub on the shipped default, exact-correct frame p50 / p95 1,605 / 1,676 ms
   (seam A only) -> 43 / 237 ms with 0 backend requests (the /grid path: 53 / 2,877 ms, 7 requests); the series lane now fills
   the 1-h steps, and day jumps land in ~0.22 s instead of the ~1.6 s per-hour settle.
+
+
+### D-0XX (owner's call, NOT taken) · Scope the serve-time Gulf fill to the 10-deg tier it was built for (MARINE_GULF_FILL_MID=0)
+- **The question:** /grid runs `coarse_gulf_fill` on EURO/ICON marine grids of served span >= 350 deg. It was built for the
+  10-deg `global_coarse` tier (EURO's coarse grid masks the Gulf and other enclosed seas). Since the mid tier answers world
+  requests (MARINE_MID_RES_MAX_SPAN=400, 2026-07-23) it also runs on the 2-deg `global_mid` world clip, where it has no
+  enclosed-sea job (EURO's global_mid Gulf is valid, ICON has no holes) and its 8-deg reach, sized for 10-deg cells, pastes GFS
+  10-deg values onto coast, inland and sea-ice cells under a EURO/ICON label. The module's own docstring names the inland
+  reach (Texas, Mississippi, Georgia) as the owner's call. Live 2026-10-22: EURO 2,465 of 4,689 masked cells, ICON 1,708 of 3,788.
+- **What flips:** Render env `MARINE_GULF_FILL_MID='0'` (built DARK, default '1' = today). The 10-deg tier keeps its fill.
+  /capabilities reports the state (`gulf_fill_mid` on EURO/ICON marine rows) and the client then serves ICON/EURO world views from
+  the CDN (exact, instant scrub and toggles at world view, #458), lifting the #461 guard by itself.
+- **What changes on screen:** EURO/ICON world view only. The cells the fill paints today show as masked (no colour) instead; the
+  rest of the field is unchanged. Viewport zooms (span < 350 deg) and GFS are unchanged.
+- **Evidence for the call (owner pack, built from published data with no box load):** an A/B on real data of EURO/ICON world
+  coastlines and the Antarctic ice edge, fill on vs off; the served-cell diff (how many, where, by how much); the inland
+  Texas/Mississippi/Georgia cells shown. Verified so far: tests/test_coarse_gulf_fill_mid.py (both values, the coarse tier, the
+  capability), the offline masked-cell control (flag off: 0 bad over 8 sets), the live counts above.
+- **Rollback:** `MARINE_GULF_FILL_MID='1'`. A browser that loaded /capabilities while it was '0' keeps serving static world frames
+  until it reloads.
+- **Recommendation (static-frames session):** flip, unless the A/B shows something the owner wants kept. At 2 deg the fill repairs
+  nothing, it labels another model's 10-deg values as EURO/ICON (the provenance class this repo records as its recurring defect),
+  and the flip makes ICON/EURO world views instant.

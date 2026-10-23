@@ -922,7 +922,10 @@ jobs:
           # ⬆ 208/3249 → 209/3281 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (GRID_SERIES_MEMO_RUN_KEYS, dark):
           # tests/test_series_memo_run_keys.py (32, a new file selector-verified into this lane: --lane guards 208 -> 209);
           # the first hosted run read 3285 with 30 of them (= 3255 + 30); +2 after review -> 3287 projected; 3287 - 6 = 3281.
-          MIN_FILES, MIN_PASSED = 209, 3281
+          # ⬆ 209/3281 → 210/3287 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (MARINE_GULF_FILL_MID, dark): one new guards
+          # file (tests/test_coarse_gulf_fill_mid.py, matched by tests/test_coarse_*.py) adds 6 tests to the 3287 / 209 read of dev
+          # CI 39861554298 @ 57632973b: projected 3293 / 210; 3293 - 6 = 3287. _FLOOR_SET_FROM["guards"] -> 3293.
+          MIN_FILES, MIN_PASSED = 210, 3287
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

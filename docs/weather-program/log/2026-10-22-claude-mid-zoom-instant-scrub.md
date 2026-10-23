@@ -65,3 +65,51 @@ desktop z6 (two clips from different boxes take turns, p95 212 ms) and z7-9 (reg
 ## No served number changes
 Crops are the resolver's own clip of the same product (parity 0 bad); the store's crop show writes the encoder's own bytes for
 the clip. No SCOREBOARD row: nothing served moves.
+
+# Pass 2 (2026-10-22 evening; branch claude/mid-zoom-pass2)
+
+## Ask (the lead, after #459's live read)
+(1) Wider build-ahead on desktop only, where it costs no egress; phones, Save-Data and 2g keep today's. (2) The desktop z6 residual:
+measure on the real run first, fix the smallest cause. Added mid-pass: the owner's ZOOM-OUT defect (dev 8b396b11, beach: after a z4.45
+scrub, a zoom-out to z3.25 kept the 31 x 20 clip; 11 backstop re-drives over ~35 s; self-heal only at z3.0).
+
+## Found (design doc section 7)
+- Zoom-out: two old rules. WebGLMarineLayer's dup-upload skip trusts its own last upload, which a frame-store show makes stale (the
+  zoom-out's world commit never reached the engine offline); and the guard holds a 2-deg clip against the same-field world frame down
+  to 60 % coverage. #459 made the clip resident at mid zoom, so the zoom-out hit both often; the rules predate it.
+- Build-ahead: a far jump right after a new window misses when its frame is beyond +-24 or not yet packed; warm build rate ~28 packs/s.
+- Desktop z6 residual: an artefact of a waves-only offline store (dynamic 1-deg products answered the series). With all four GFS
+  marine layers, dev holds the 17 x 14 clip steady at z6.
+- Instruments: Playwright routing disables the HTTP cache (pack builds re-download in the harness and in the live read); a scrub
+  session crossing :30 mislabels correct frames (anchor at session start).
+
+## Changed
+- `marineZoomOutRelease.js` (new): `layerUploadIsStale` (wired in WebGLMarineLayer's `alreadyResident`; kill
+  `__RAW_DISABLE_STORE_SHOW_RESYNC__`) and `clipNeedsFullCover` (one line in the guard's coverage test; kill
+  `__RAW_DISABLE_CLIP_COVER_RELEASE__`). marineEngineDecisions.js 790 -> 792 lines (cap 800).
+- `marineFrameStoreCrop.js`: `cropAheadCount` (every stored frame where the run fills, cap 144), `cropAheadChains` (2 there, 1
+  elsewhere), `cropAheadOrder`; `marineFrameStoreCropShow.js` builds the queue from them (factory gains `idleFillBlocker`); kill
+  `__RAW_DISABLE_CROP_AHEAD_RUN__`. Cursor re-centring tried and removed (it pushed Home's frame back).
+- Instruments: `scn_zoom_out.js` (new), `scn_zoom_scrub.js` (`REQLOG`, `noaheadrun`, `mid`), README rows.
+
+## Measured (offline, the real run, dev d1dbeed8b vs this branch on it; `evidence/mid-zoom-pass2-2026-10-22.json`)
+40 sessions, 0 missed steps, 0 mislabelled frames, no session across :30:
+
+| flow | dev | pass 2 | pass 2, one kill on |
+|---|---|---|---|
+| zoom-out z4.45 -> 3.25 / 3.6 (owner window) | clip stays the whole 15 s watch (80 / 95 % of the view), 4 of 4 | world frame on screen by the end of the zoom, 4 of 4 | clip release killed: stuck, 4 of 4; layer resync killed: fine, 4 of 4 (the same-product stash, which #458 keeps) |
+| owner scrub z3.9 / z4.4, correct frame p95 | 52 / 56 ms | 15 / 15 ms | build-ahead run killed: 46 / 43 ms |
+| desktop scrub z5 / z6, p95 | 51 / 40 ms | 16 / 15 ms | build-ahead run killed: 62 / 43 ms |
+| crop packs not ready, per session | 3-6 | 0-1 | 3-6 |
+
+Gates: Jest map + `src/tests` 5,470 pass (2 suites fail only in the dot-free copy: they read `program/` and `backend/` files);
+mutants caught (the guard line, the layer wiring, the full-run count, the chain count); ESLint ratchet exit 0; LOC ratchet 0 regressed.
+
+## Owed
+- ONE live read on the dev site after the merge deploys: the owner window, a z4.45 scrub then a zoom-out to z3.25 (the world frame
+  lands at the end of the zoom, no "kept resident" line), and z3.9 scrub steps (crop shows, no `crop_not_ready`); `/api/health` before
+  and after.
+
+## No served number changes
+The guard and the layer decide WHICH served frame is drawn (the world frame of the same product, or a fresh upload of the same
+bytes); the build-ahead packs the same frames earlier. No SCOREBOARD row.
