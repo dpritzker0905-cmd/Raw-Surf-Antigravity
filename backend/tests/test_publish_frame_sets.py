@@ -286,7 +286,8 @@ def test_the_world_sets_are_the_pilots_lane_ones():
     assert keys[0] == "GFS/marine/waves/global_mid"                      # the most-used set publishes first
     assert set(keys) == {f"{m}/marine/{l}/global_mid" for m, l in (
         ("GFS", "waves"), ("GFS", "swell_1"), ("GFS", "swell_2"), ("GFS", "wind_waves"),
-        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))}
+        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))} | {"GFS/wind/wind/global_mid"}
+    assert keys[-1] == "GFS/wind/wind/global_mid"                         # wind last: the stagger drops it first
     assert "EURO/marine/swell_1/global_mid" not in keys and "ICON/marine/swell_2/global_mid" not in keys
 
 
@@ -313,7 +314,7 @@ def test_a_run_past_its_time_budget_stops_starting_sets_and_keeps_their_index(tm
     pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None)
     first = _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"]
     _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)
-    ticks = iter([0.0, 0.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0, 999.0])
+    ticks = iter([0.0, 0.0] + [999.0] * len(fs.SETS))                 # the start, then one look per set
     report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None, budget_s=10,
                                     clock=lambda: next(ticks))
     assert report["GFS/marine/swell_1/global_mid"] == {"skipped_budget": True, "index": first}

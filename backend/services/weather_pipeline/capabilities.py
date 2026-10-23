@@ -701,11 +701,22 @@ def get_weather_capabilities() -> List[Dict[str, Any]]:
 
     EURO / ICON marine rows also carry `gulf_fill_mid` (2026-10-22), read at call time: whether /grid's serve-time Gulf fill
     rewrites their 2-deg world grid (coarse_gulf_fill.gulf_fill_mid_enabled, MARINE_GULF_FILL_MID). The client serves a static
-    world frame of these sets only when it is False, because only then does /grid equal the stored product."""
+    world frame of these sets only when it is False, because only then does /grid equal the stored product.
+
+    GFS wind rows carry `wind_lane` (2026-10-22): {enabled, feather_km, taper_hours} of the HRRR lane /grid blends in
+    (wind_lane.box_state, no I/O). The client serves a static wind frame inside the lane's window only when these equal the
+    frames' recorded ones."""
     from services.weather_pipeline.coarse_gulf_fill import gulf_fill_mid_enabled
-    mid = gulf_fill_mid_enabled()
-    return [dict(row, gulf_fill_mid=mid) if row.get("domain") == "marine" and row.get("model") in ("EURO", "ICON") else row
-            for row in WEATHER_CAPABILITIES]
+    from services.weather_pipeline.wind_lane import box_state
+    mid, lane = gulf_fill_mid_enabled(), box_state()
+
+    def row_for(row):
+        if row.get("domain") == "marine" and row.get("model") in ("EURO", "ICON"):
+            return dict(row, gulf_fill_mid=mid)
+        if row.get("domain") == "wind" and row.get("model") == "GFS":
+            return dict(row, wind_lane=dict(lane))
+        return row
+    return [row_for(row) for row in WEATHER_CAPABILITIES]
 
 def validate_capabilities_contract(capabilities: List[Dict[str, Any]]) -> None:
     """Validates the exact shape and semantic contract of capabilities."""
