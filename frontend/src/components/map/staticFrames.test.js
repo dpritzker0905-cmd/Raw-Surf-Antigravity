@@ -1,5 +1,5 @@
 import {
-  _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, hasPinnedIndex, loadFrameVectors, serveTimeFillAtWorld, setKeyFor,
+  _resetStaticFramesForTest, fetchFrameBytes, fetchPriorityOf, getPinnedIndex, getPinnedIndexSync, hasPinnedIndex, loadFrameVectors, serveTimeFillAtWorld, setKeyFor,
   staticEligible, staticFramesEnabled, staticSeriesEligible, staticSeriesFrames, staticSetEnabled, tryStaticWorldGrid, STATIC_SETS,
 } from './staticFrames';
 import { fetchBackendMarineGrid, setCachedManifest } from './backendWeatherServiceClient';
@@ -405,5 +405,51 @@ describe('static frames loader', () => {
     now += 60000;
     await ask();
     expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(3);
+  });
+});
+
+// FETCH PRIORITY (2026-10-23, skills audit #1). Chrome gives a worker fetch the same scheduling priority as the main thread's
+// (trace-verified, Chrome 154); here jsdom has no Worker, so the main-thread fallback carries the same init.
+describe('fetch priority on frame fetches', () => {
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    _resetStaticFramesForTest();
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
+    window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+  });
+  afterEach(() => {
+    window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    delete window.__RAW_STATIC_FRAMES_BASE__;
+    delete window.__RAW_DISABLE_FETCH_PRIORITY__;
+    global.fetch = realFetch;
+    jest.restoreAllMocks();
+  });
+  const initOf = (url) => (global.fetch.mock.calls.find((c) => String(c[0]).includes(url)) || [])[1] || {};
+
+  it("passes 'high' / 'low' as RequestInit.priority, nothing for the default, and nothing at all under the kill switch", async () => {
+    const buf = goldenBuffer('2026-10-20T00:00:00Z');
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => buf.slice(0) }));
+    await fetchFrameBytes(BASE + 'a.bin', undefined, 'low');
+    await fetchFrameBytes(BASE + 'b.bin', undefined, 'high');
+    await fetchFrameBytes(BASE + 'c.bin');
+    await fetchFrameBytes(BASE + 'd.bin', undefined, 'urgent');          // not a RequestInit.priority value: the default
+    expect(initOf('a.bin').priority).toBe('low');
+    expect(initOf('b.bin').priority).toBe('high');
+    expect('priority' in initOf('c.bin')).toBe(false);
+    expect('priority' in initOf('d.bin')).toBe(false);
+    expect(initOf('a.bin').credentials).toBe('omit');
+    window.__RAW_DISABLE_FETCH_PRIORITY__ = true;
+    await fetchFrameBytes(BASE + 'e.bin', undefined, 'low');
+    expect('priority' in initOf('e.bin')).toBe(false);
+    expect(window.__RAW_STATIC_FRAMES__.byPriority).toEqual({ high: 1, low: 1, auto: 3 });
+    expect(fetchPriorityOf('low')).toBeUndefined();                        // still killed
+  });
+
+  it("seam A's exact frame (the step on screen) asks 'high'", async () => {
+    const idx = indexFor('gfs', ['2026-10-20T00:00:00Z']);
+    cdn({ latestIndex: () => idx.path, indexes: [idx] });
+    const json = await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(json).toBeTruthy();
+    expect(initOf('.bin').priority).toBe('high');
   });
 });

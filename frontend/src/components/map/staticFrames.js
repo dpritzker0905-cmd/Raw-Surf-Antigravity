@@ -102,7 +102,7 @@ self.onmessage = async (e) => {
   const c = new AbortController(); ctl.set(m.id, c);
   const t0 = performance.now();
   try {
-    const res = await fetch(m.url, { signal: c.signal, credentials: 'omit' });
+    const res = await fetch(m.url, m.priority ? { signal: c.signal, credentials: 'omit', priority: m.priority } : { signal: c.signal, credentials: 'omit' });
     if (!res.ok) { self.postMessage({ id: m.id, error: 'http_' + res.status, status: res.status }); return; }
     let buf = await res.arrayBuffer();
     const wire = buf.byteLength, t1 = performance.now();
@@ -150,9 +150,9 @@ function getWorker() {
   return _worker;
 }
 
-async function fetchInflateMainThread(url, signal) {
+async function fetchInflateMainThread(url, signal, priority) {
   const t0 = performance.now();
-  const res = await fetch(url, { signal, credentials: 'omit' });
+  const res = await fetch(url, priority ? { signal, credentials: 'omit', priority } : { signal, credentials: 'omit' });
   if (!res.ok) return { error: `http_${res.status}`, status: res.status };
   let buf = await res.arrayBuffer();
   const wire = buf.byteLength;
@@ -164,19 +164,32 @@ async function fetchInflateMainThread(url, signal) {
   return { buffer: buf, wire, fetchMs: t1 - t0, inflateMs: performance.now() - t1 };
 }
 
-/** { buffer, wire, fetchMs, inflateMs } or { error, status }. Never throws. */
-export async function fetchFrameBytes(url, signal) {
+// FETCH PRIORITY (2026-10-23; skills audit #1). `priority` is RequestInit.priority: 'high' for the frame on screen, 'low' for
+// prefetch the user MIGHT need (warm sets, the run fill, crop build-ahead), undefined = the browser's default (High for fetch).
+// Trace-verified on Chrome 154: a dedicated (Blob) worker's fetch gets the same scheduling priority as the main thread's
+// (ResourceSendRequest: low -> Low, none -> High, high -> High). Kill: window.__RAW_DISABLE_FETCH_PRIORITY__ = true (no hint).
+export function fetchPriorityOf(priority) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_FETCH_PRIORITY__ === true) return undefined;
+  return priority === 'high' || priority === 'low' ? priority : undefined;
+}
+
+/** { buffer, wire, fetchMs, inflateMs } or { error, status }. Never throws. `priority`: 'high' | 'low' | undefined. */
+export async function fetchFrameBytes(url, signal, priority) {
   if (signal && signal.aborted) return { error: 'aborted' };
+  const pr = fetchPriorityOf(priority);
+  const t = telemetry();
+  t.byPriority = t.byPriority || { high: 0, low: 0, auto: 0 };
+  t.byPriority[pr || 'auto'] += 1;
   const w = getWorker();
   if (!w) {
-    try { return await fetchInflateMainThread(url, signal); } catch (e) { return { error: (e && e.name === 'AbortError') ? 'aborted' : String(e && e.message) }; }
+    try { return await fetchInflateMainThread(url, signal, pr); } catch (e) { return { error: (e && e.name === 'AbortError') ? 'aborted' : String(e && e.message) }; }
   }
   const id = ++_seq;
   return new Promise((resolve) => {
     _pending.set(id, { resolve });
     const onAbort = () => { try { w.postMessage({ id, abort: true }); } catch (e) { /* ignore */ } };
     if (signal) signal.addEventListener('abort', onAbort, { once: true });
-    w.postMessage({ id, url });
+    w.postMessage(pr ? { id, url, priority: pr } : { id, url });
   });
 }
 
@@ -328,11 +341,11 @@ export function getPinnedIndexSync(key) {
   return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
 }
 
-function sharedParsedLoad(key, frame) {
+function sharedParsedLoad(key, frame, priority) {
   const controller = new AbortController();
   const promise = (async () => {
     const t = telemetry();
-    const got = await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal);
+    const got = await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
     if (got.error) {
       if (got.status === 404 || got.status === 400) markPinStale(key); // retention removed it: re-pin next time
       noteMiss(got.error === 'aborted' ? 'aborted' : (got.status ? `http_${got.status}` : 'fetch_error'));
@@ -392,15 +405,17 @@ async function joinShared(map, path, make, signal) {
 
 /** The parsed frame ({ parsed, buffer, wire }) for one frame record, shared per path; null on any failure or when THIS
  *  caller's signal aborts. No vectors are built: this is what the GPU frame store prefetches through. */
-export function loadFrameParsed(key, frame, signal) {
+// `priority` ('high' | 'low') applies when THIS call starts the shared load; a load already in flight keeps the priority of the
+// caller that started it (a fetch's priority cannot change once sent).
+export function loadFrameParsed(key, frame, signal, { priority } = {}) {
   if (!frame || !frame.path) return Promise.resolve(null);
-  return joinShared(_parsedInflight, frame.path, () => sharedParsedLoad(key, frame), signal);
+  return joinShared(_parsedInflight, frame.path, () => sharedParsedLoad(key, frame, priority), signal);
 }
 
-function sharedVectorsLoad(key, frame) {
+function sharedVectorsLoad(key, frame, priority) {
   const controller = new AbortController();
   const promise = (async () => {
-    const got = await loadFrameParsed(key, frame, controller.signal);
+    const got = await loadFrameParsed(key, frame, controller.signal, { priority });
     if (!got) return null;
     try {
       const t0 = performance.now();
@@ -420,7 +435,7 @@ function sharedVectorsLoad(key, frame) {
 
 /** Decoded vectors for one frame record (LRU + shared in-flight load). Null on any failure (reason recorded) or when
  *  THIS caller's signal aborts (the shared load keeps going for the other waiters). */
-export async function loadFrameVectors(key, frame, signal) {
+export async function loadFrameVectors(key, frame, signal, { priority } = {}) {
   if (!frame || !frame.path) return null;
   const hit = _lru.get(frame.path);
   if (hit) {
@@ -429,7 +444,7 @@ export async function loadFrameVectors(key, frame, signal) {
     telemetry().lruHits += 1;
     return hit;
   }
-  return joinShared(_inflight, frame.path, () => sharedVectorsLoad(key, frame), signal);
+  return joinShared(_inflight, frame.path, () => sharedVectorsLoad(key, frame, priority), signal);
 }
 
 const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west) : 0);
@@ -548,7 +563,7 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
     if (!frame.path) { noteMiss('unbuilt_frame'); return null; }
     const win = cropWindowFor({ model, layer, bbox: clampedBbox, index, frame, param: gridBboxParam });
     if (win === null) return null;
-    const vectors = await loadFrameVectors(key, frame, signal);
+    const vectors = await loadFrameVectors(key, frame, signal, { priority: 'high' });
     if (!vectors) return null;
     telemetry().hits += 1;
     let json = gridJsonFromFrame(index, frame, vectors, { askIso: validTimeStr, requestedBbox: clampedBbox });
