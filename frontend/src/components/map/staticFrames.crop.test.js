@@ -59,6 +59,7 @@ afterEach(() => {
   window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
   delete window.__RAW_STATIC_FRAMES_BASE__;
   delete window.__RAW_DISABLE_STATIC_MID_CROP__;
+  delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
   setCachedManifest(null);
   if (killBefore === undefined) delete window.__RAW_DISABLE_STATIC_FRAMES__; else window.__RAW_DISABLE_STATIC_FRAMES__ = killBefore;
   global.fetch = realFetch;
@@ -72,10 +73,14 @@ test('a viewport box the mid tier answers is eligible; a world box still is; a n
   // mid-zoom crop; with the regional kill, or in a browser that cannot check and inflate slices, it is not static at all.
   const TILE_BOX = { west: -84, south: 25, east: -80, north: 30 };
   _setRegionalCodecForTest({ sha12: async () => 'x', gunzip: async () => new ArrayBuffer(0) });   // a capable browser
+  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;                                                   // dark by default: opt in
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(true);
   window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);
   delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
+  delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // dark by default: not static
+  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;
   _setRegionalCodecForTest();
   if (typeof DecompressionStream === 'undefined' || !(global.crypto && global.crypto.subtle)) {
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // this jsdom: not capable

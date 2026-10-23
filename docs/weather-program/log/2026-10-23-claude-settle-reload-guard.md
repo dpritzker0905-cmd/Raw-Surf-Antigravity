@@ -3,6 +3,9 @@
 Written 2026-10-23. Branch `claude/settle-reload-guard` from dev `9bf8d065c`. Evidence: `evidence/settle-reload-guard-2026-10-23.json`.
 Client only. No served number changes. ON, with a kill switch. Split out of the pan fix (#501) at the lead's ask: "Please ship the
 reload guard as its OWN small PR first ... It's a pure bug fix with the biggest leverage and the fewest moving parts".
+- ORDER OF EVENTS: #501 squash-merged at 22:35Z (1c27d69e1) before the split reached it, so dev carries the guard's FIRST version
+  ("never reload with a covering frame", in `marineSeriesPanGuard.js`), the one the lead's surf-OFF control showed asking more in
+  swell. This PR, merged with dev, REPLACES it: the guard lives only in `marineSettleReloadGuard.js`, as the budget below.
 
 ## The loop
 - Where: `useMarineScrubSettle.runScrubSettleCheck`, the clamp branch. If the resident grid does not suit the view (`detectClamp`), it

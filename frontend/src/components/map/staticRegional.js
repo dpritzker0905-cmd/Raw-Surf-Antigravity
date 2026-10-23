@@ -36,7 +36,14 @@ export const REGIONAL_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const BUNDLES_KEPT = 6;                 // bundles held in memory (the current and previous run of a few boxes; each 0.03-0.9 MB)
 
 const W = () => (typeof window !== 'undefined' ? window : {});
-export const regionalBundlesOn = () => W().__RAW_DISABLE_REGIONAL_BUNDLES__ !== true;
+// DARK until the LIVE parity passes (2026-10-23 evening): static-frames' live bundle-vs-/grid_series parity FAILED for
+// florida_east_coast (the whole-tile lattice differs; 465 of 585 sub-box nodes), so the server may answer these boxes from another
+// product than the tile, which would make the bundle a served-number change (D-001: dark). Opt in per browser with
+// window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true; the kill (__RAW_DISABLE_REGIONAL_BUNDLES__) still wins. Flip
+// REGIONAL_BUNDLES_DEFAULT_ON once the served product is named and the live parity passes.
+export const REGIONAL_BUNDLES_DEFAULT_ON = false;
+export const regionalBundlesOn = () => W().__RAW_DISABLE_REGIONAL_BUNDLES__ !== true
+  && (REGIONAL_BUNDLES_DEFAULT_ON || W().__RAW_ENABLE_REGIONAL_BUNDLES__ === true);
 
 /** A regional set key ('GFS/marine/waves/florida_east_coast'): anything but the world sets. */
 export function isRegionalSetKey(key) {
