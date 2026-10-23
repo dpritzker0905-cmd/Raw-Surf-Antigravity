@@ -479,9 +479,10 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3297, "chain": 2873, "estate": 2405}
+_FLOOR_SET_FROM = {"guards": 3297, "chain": 2873, "estate": 2406}
 # Completeness sees squash merges: +13 estate tests in a new file (tests/test_ledger_merges.py) on #472's hosted 2392 /
-# 331 files (run 39964614711; #467 and #471 read the same 2392) = 2405 / 332; floor 2390 -> 2403, margin 2.
+# 331 files (run 39964614711; #467 and #471 read the same 2392) = 2405 / 332; floor 2390 -> 2403, margin 2. +1 (the
+# fold-point refusal): 2406 / 332; floor 2404.
 # The wind lane keeper + the box lane read: +4 guards tests in tests/test_wind_hrrr_lane.py on dev CI 39896720617's 3293 / 210 = 3297; floor 3291, margin 6.
 # Per-PR ledger fragments (D-0XX): +49 estate tests in a new file (tests/test_ledger_fragments.py) on dev CI 39896720617's
 # 2343 / 330 files = 2392 / 331; floor 2341 -> 2390, margin 2.
