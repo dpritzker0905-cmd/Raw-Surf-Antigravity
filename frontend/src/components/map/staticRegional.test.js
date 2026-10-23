@@ -135,11 +135,12 @@ describe('the bundle: one fetch, the slice checked on its gzip bytes, then infla
 
 describe('the seams answer a fully covered box from the bundle, and nothing else', () => {
   const BOX = { west: -90, south: 20, east: -80, north: 30 };          // inside test_big; the 2-deg lattice window covers it
-  it('seam A: Step 3 shaped JSON, the real frame cropped to the window, the request echoed as sent', async () => {
+  it('seam A: Step 3 shaped JSON, the real frame cropped to the window, requested_bbox = the snapped box', async () => {
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: BOX })).toBe(true);
     const json = await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX });
     expect(json).toMatchObject({ coverage_scope: 'regional', coverage_mode: 'regional_tile', partial_coverage: false,
-      requested_bbox: '-90,20,-80,30', served_bbox: '-90.0000,20.0000,-80.0000,30.0000', product_id: 'gfs_marine_waves_test_big_20261020T000000Z.json' });
+      requested_bbox: '-90.0000,20.0000,-80.0000,30.0000', query_bbox: '-90,20,-80,30', requested_bbox_original: '-90,20,-80,30',
+      served_bbox: '-90.0000,20.0000,-80.0000,30.0000', product_id: 'gfs_marine_waves_test_big_20261020T000000Z.json' });
     expect([json.grid.cols, json.grid.rows]).toEqual([6, 6]);
     const want = WORLD_VECTORS.filter((v) => v.lng >= -90 && v.lng <= -80 && v.lat >= 20 && v.lat <= 30);
     expect(json.grid.vectors.map((v) => [v.lat, v.lng, v.speed])).toEqual(want.map((v) => [v.lat, v.lng, v.speed]));

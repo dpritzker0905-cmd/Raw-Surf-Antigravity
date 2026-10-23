@@ -190,12 +190,13 @@ export function normalizeBundleIndex(idx) {
 // ── The JSON the seams return, shaped as Step 3 shapes a clipped regional tile ─────────────────────────────────────────
 const bbox4 = (b) => `${b.west.toFixed(4)},${b.south.toFixed(4)},${b.east.toFixed(4)},${b.north.toFixed(4)}`;
 
-/** gridJsonFromFrame's JSON (the whole tile) clipped to the Step 3 window: requested_bbox = the request as sent. */
+/** gridJsonFromFrame's JSON (the whole tile) clipped to the Step 3 window. As Step 3: requested_bbox = the SNAPPED box
+ *  (filter_grid_to_bbox stamps its get_snapped_bbox argument there), query_bbox and requested_bbox_original = the request. */
 export function regionalGridJson(json, win, cropped, bboxStr) {
   const g = json.grid;
   return {
     ...json,
-    requested_bbox: bboxStr, query_bbox: bboxStr, requested_bbox_original: bboxStr,
+    requested_bbox: win.snapped, query_bbox: bboxStr, requested_bbox_original: bboxStr,
     served_bbox: bbox4(win.bounds), coverage: { ...win.bounds }, coverage_scope: 'regional', coverage_mode: 'regional_tile',
     partial_coverage: false,
     grid: {
