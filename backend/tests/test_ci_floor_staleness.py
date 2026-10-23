@@ -483,6 +483,7 @@ _FLOOR_SET_FROM = {"guards": 3297, "chain": 2873, "estate": 2392}
 # The wind lane keeper + the box lane read: +4 guards tests in tests/test_wind_hrrr_lane.py on dev CI 39896720617's 3293 / 210 = 3297; floor 3291, margin 6.
 # Per-PR ledger fragments (D-0XX): +49 estate tests in a new file (tests/test_ledger_fragments.py) on dev CI 39896720617's
 # 2343 / 330 files = 2392 / 331; floor 2341 -> 2390, margin 2.
+# Raster static frames (GFS pressure): +9 chain tests in a new file (tests/test_frame_set_raster.py) on dev CI 39896720617's 2865 / 174 = 2874 / 175; floor 2859 -> 2868, margin 6.
 # Static GFS wind frames: +10 chain tests in a new file (tests/test_frame_set_wind.py) on dev CI 39861554298's 2855/173 = 2865/174; floor 2859, margin 6.
 # Regional static frame bundles: +8 chain tests in a new file (tests/test_frame_set_bundle.py) on dev CI 39896720617's 2865 / 174 = 2873 / 175; floor 2859 -> 2867, margin 6.
 # MARINE_GULF_FILL_MID (dark): +6 guards tests in a new file (tests/test_coarse_gulf_fill_mid.py) on dev CI 39861554298's 3287 / 209 files = 3293 / 210; floor 3281 -> 3287, files 209 -> 210, margin 6.
