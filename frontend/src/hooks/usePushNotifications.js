@@ -2,6 +2,19 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
+// Which accounts opted in to push ON THIS BROWSER (written only by a successful subscribe, which needs an Enable click).
+// The browser's notification permission is per origin, not per account, and the backend keys subscriptions by
+// (user, endpoint): PushNotificationInit used to subscribe whoever signed in on a browser where anyone had said yes.
+const optInKey = (userId) => `rs-push-optin-${userId}`;
+export const hasPushOptIn = (userId) => {
+  try { return !!userId && localStorage.getItem(optInKey(userId)) === '1'; } catch (e) { return false; }
+};
+export const recordPushOptIn = (userId) => {
+  try { if (userId) localStorage.setItem(optInKey(userId), '1'); } catch (e) { /* storage unavailable */ }
+};
+export const clearPushOptIn = (userId) => {
+  try { if (userId) localStorage.removeItem(optInKey(userId)); } catch (e) { /* storage unavailable */ }
+};
 
 export const usePushNotifications = (userId) => {
   const [isSupported, setIsSupported] = useState(false);
@@ -106,6 +119,7 @@ export const usePushNotifications = (userId) => {
 
       setIsSubscribed(true);
       setError(null);
+      recordPushOptIn(userId);
       logger.debug('[Push] Successfully subscribed');
       return true;
     } catch (err) {
@@ -131,6 +145,7 @@ export const usePushNotifications = (userId) => {
       }
 
       setIsSubscribed(false);
+      clearPushOptIn(userId);
       logger.debug('[Push] Successfully unsubscribed');
       return true;
     } catch (err) {
