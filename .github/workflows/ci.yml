@@ -162,7 +162,8 @@ jobs:
             // Regional z7-9 bundle client: dev's hosted receipt (run 39994928838 at abd70891, suites 514/514 tests 6737/6737)
             // + staticRegional.test.js (+1 suite / +16 tests): hosted 515/6753 at b482566c (run 40005823797). The review's guards add
             // marineGridSeries.regional.test.js (8) and 14 staticRegional tests (+1 suite / +22 tests).
-            const MIN_SUITES = 516, MIN_TESTS = 6775;
+            // Regional client dark by default (2026-10-23 evening, the live parity failed): +1 test.
+            const MIN_SUITES = 516, MIN_TESTS = 6776;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

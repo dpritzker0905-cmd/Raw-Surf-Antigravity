@@ -23,6 +23,12 @@ export function createSeriesViewportIntent(isEnabled) {
   };
 }
 
+// A pan to another snapped request box supersedes the old box's series work BY DEFAULT (2026-10-23, marineSeriesPanGuard.js): with the
+// build flag unset (production) a pan session queued every view's pages on the 1-CPU box. Kill: __RAW_DISABLE_SERIES_PAN_SUPERSEDE__.
+export function marineSeriesSupersedeOn() {
+  return marineSeriesWorkBoundsEnabled() || !(typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__ === true);
+}
+
 export function createMarineViewportIntent() {
-  return createSeriesViewportIntent(marineSeriesWorkBoundsEnabled);
+  return createSeriesViewportIntent(marineSeriesSupersedeOn);
 }
