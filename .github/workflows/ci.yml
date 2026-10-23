@@ -925,7 +925,10 @@ jobs:
           # ⬆ 209/3281 → 210/3287 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (MARINE_GULF_FILL_MID, dark): one new guards
           # file (tests/test_coarse_gulf_fill_mid.py, matched by tests/test_coarse_*.py) adds 6 tests to the 3287 / 209 read of dev
           # CI 39861554298 @ 57632973b: projected 3293 / 210; 3293 - 6 = 3287. _FLOOR_SET_FROM["guards"] -> 3293.
-          MIN_FILES, MIN_PASSED = 210, 3287
+          # ⬆ 210/3287 → 210/3290 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the box keeps its HRRR lane fresh, and says
+          # which it holds): +3 tests in tests/test_wind_hrrr_lane.py (an existing guards file) on dev CI 39896720617 @ b88b5ca32's
+          # 3293 / 210 = 3296 / 210 projected; 3296 - 6 = 3290. _FLOOR_SET_FROM["guards"] -> 3296.
+          MIN_FILES, MIN_PASSED = 210, 3290
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
