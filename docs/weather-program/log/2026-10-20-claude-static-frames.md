@@ -375,3 +375,20 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   connections, never on a refusal; and a regional set whose bundle upload still fails is reported (`error`) and skipped, keeping
   its published bundle, while the world sets publish. +2 tests (8 in the file; chain floor 174/2857, `_FLOOR_SET_FROM` 2863);
   the isolation test fails when the guard is narrowed.
+
+## 2026-10-23 15:20Z: EURO's own wave values at land-centre nodes (ECMWF_WAVE_LAND_CENTRE_BLOCK, dark)
+
+- **Why:** the owner (10:43 EDT) queued "the EURO own-values fix (block-sampled direction/period) dark", after the targeted fill's
+  root-cause note (#476): EURO's height is block-meaned, its direction and period point-sampled at a land centre, so the normalizer
+  drops the node and /grid fills it from GFS.
+- **Built:** `ecmwf_opendata_fetcher.fill_land_centre` + the decode-loop hook: per valid time, native swh and the paired field
+  (mwd / pp1d / mwp) are held only until both arrived (either message order), the land-centre nodes are filled by
+  `energy_mean_direction_block` / `energy_mean_scalar_block` over the height's own block, and the arrays are dropped. Block
+  resolutions only. Registered in `_RATING_FLAGS` (ingest lanes). The test file caught a real bug on the way: a resolved slot was
+  re-run with a None array when the next message of the step arrived.
+- **Real cycle (offline):** 842 of 868 EURO-masked GFS-sea nodes valid with EURO's own values (97.0%; the earlier 847 used a 9x9
+  window, the fetcher's block is 8x8); all enclosed-sea cells recovered; vs the GFS donor: height median +0.05 m (p10 -0.16, p90
+  +0.34), direction median 10.5 deg (p90 47). 108 extra coastal nodes valid where GFS's mask says land/ice.
+- **Tests:** tests/test_ecmwf_land_centre_block.py (5, chain: the real decode loop over stub GRIB; flag off = height without a
+  direction; flag on = block direction/period in either message order; open sea byte-identical and all-land masked; the helper).
+  Two fail when the fill may overwrite sea-centre nodes. ECMWF/EURO suites 146 passed. Chain floor 174/2859 -> 175/2864.

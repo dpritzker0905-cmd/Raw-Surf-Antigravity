@@ -40,13 +40,15 @@ try:
     from _fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
-        meteo_wind_dir, make_point_dict, energy_mean_height_block,
+        meteo_wind_dir, make_point_dict, energy_mean_height_block, energy_mean_direction_block,
+        energy_mean_scalar_block,
     )
 except ImportError:  # pragma: no cover - package-context fallback
     from services._fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
-        meteo_wind_dir, make_point_dict, energy_mean_height_block,
+        meteo_wind_dir, make_point_dict, energy_mean_height_block, energy_mean_direction_block,
+        energy_mean_scalar_block,
     )
 # Module top, in the script/package idiom: production spawns this file by path for waves, wind AND pressure
 # (hotfix 2026-09-29; see the GFS fetcher's note and tests/test_fetcher_script_imports.py).
@@ -58,6 +60,38 @@ except ImportError:  # pragma: no cover - package-context fallback
 LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
 # Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
 LAYER_STREAM = {"wind": "oper", "pressure": "oper", "waves": "wave"}
+
+
+# LAND-CENTRE BLOCK SAMPLING (2026-10-23, DARK; ECMWF_WAVE_LAND_CENTRE_BLOCK, default "0"). The wave HEIGHT is block-meaned at a
+# coarse node (ECMWF_WAVE_SCALAR_BLOCKMEAN), but direction and period were point-sampled at the node's own native cell, and the
+# normalizer drops a vector with no direction. Where that cell is land the node therefore went MASKED although its block holds
+# ECMWF sea. Measured on ECMWF open data (cycle 2026-10-23 00Z, step 0): at all 868 EURO 2-deg nodes that GFS calls sea but EURO
+# masked, the native cell AT the node is land (swh, mwd, pp1d all missing), and 847 of them (97.6%) hold valid ECMWF sea in their
+# own 2-deg block (median 22 of 81 cells). With the flag on, such a node takes its direction and period from the SAME block the
+# height already uses, by the SAME reductions the GFS and ICON fetchers use (energy_mean_direction_block: E = H^2 circular mean;
+# energy_mean_scalar_block: E-weighted mean). Period is the energy-weighted MEAN of the block's peak periods, not the dominant
+# cell's: it is the reduction the other two consensus members use, and a dominant-cell pick flips whole seconds when the
+# dominant cell changes between hours. A node whose centre is sea is untouched; an all-land block stays masked.
+# It changes served EURO numbers at those nodes (today: a GFS donor value, the coarse_gulf_fill), so it ships dark (D-001).
+
+
+def land_centre_block_enabled():
+    return os.environ.get("ECMWF_WAVE_LAND_CENTRE_BLOCK", "0") == "1"
+
+
+def fill_land_centre(vals, im, x_arr, h_arr, half, kind):
+    """(vals with land-centre nodes filled, count): every node whose point sample is NaN takes the energy-weighted block value
+    of `x_arr` paired with `h_arr` (direction for kind "d", a scalar mean otherwise) over the same block as the height. Nodes
+    whose block carries no energy keep NaN. `vals` is not written to."""
+    out, n = list(vals), 0
+    for i, (r, c) in enumerate(im):
+        if out[i] == out[i]:
+            continue
+        x = (energy_mean_direction_block if kind == "d" else energy_mean_scalar_block)(x_arr, h_arr, r, c, half, True)
+        if x == x:
+            out[i] = x
+            n += 1
+    return out, n
 
 # ── ECMWF PERIOD BANDS (M4 ingest half) ─────────────────────────────────────────────────────────
 #
@@ -376,6 +410,11 @@ def fetch_global_coarse(payload):
     spread = {}    # rid -> kind -> vt -> (sds, counts); populated only in ensemble mode
     ensemble_on = (layer == "waves") and wave_ensemble_enabled()
     idx_by = None    # rid -> [(r, c), ...]
+    # Land-centre block sampling (land_centre_block_enabled): native swh and the paired field of ONE valid time, held only
+    # until both arrived (messages of a step are adjacent), then dropped. lc_count reports how many nodes it filled.
+    # Block resolutions only (2 deg, 10 deg): a native-resolution call (the 0.25-deg regional tiles) has no block to borrow from.
+    land_centre = layer == "waves" and scalar_blockmean and not is_native(resolution) and land_centre_block_enabled()
+    lc_pend, lc_count = {}, {"d": 0, "pk": 0, "mp": 0}
     # F-05 (audit 14.0/15.0): the client resolves the latest cycle itself and the fetcher used to drop
     # it, so 98.4% of EURO products said model_run_time "missing". Only a complete, consistent set
     # of analysis times on the selected messages can establish the deterministic batch's cycle.
@@ -423,8 +462,23 @@ def fetch_global_coarse(payload):
                 # into `ens` keyed by perturbationNumber — which is what stops them overwriting each
                 # other, and is why no member branch belongs in this loop.
                 by[rid][kind][vt] = vals
+            if land_centre and kind in ("h", "d", "pk", "mp"):
+                slot = lc_pend.setdefault(vt, {})
+                slot[kind] = arr.astype(np.float32)
+                if "h" in slot:
+                    for k in [k for k in ("d", "pk", "mp") if slot.get(k) is not None]:
+                        for rid, im in idx_by.items():
+                            by[rid][k][vt], n = fill_land_centre(by[rid][k][vt], im, slot[k], slot["h"], _half, k)
+                            lc_count[k] += n
+                        slot[k] = None             # resolved: keep the key so a late duplicate is not refilled
+                    if all(slot.get(k, 0) is None for k in ("d", "pk", "mp")):
+                        lc_pend.pop(vt, None)
             del arr
         grbs.close()
+        lc_pend.clear()
+        if land_centre:
+            sys.stderr.write(f"[ecmwf_opendata_fetcher] land-centre block sampling filled direction {lc_count['d']}, "
+                             f"peak period {lc_count['pk']}, mean period {lc_count['mp']} node-hours\n")
 
         # ── SECOND FETCH: the members, for SPREAD ONLY ────────────────────────────────────────────
         # A separate request into a separate file, `swh` alone. The deterministic decode above is

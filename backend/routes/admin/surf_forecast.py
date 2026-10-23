@@ -281,6 +281,13 @@ _RATING_FLAGS = {
     # to something other than its code default without this column naming that workflow. It said
     # "Render env" while BOTH ingest lanes had already set it to '1' since 2026-07-18, so a reader of
     # this table could not learn the precomputed frames' true state.
+    # SERVED NUMBER, DARK (2026-10-23; the owner: "queue the EURO own-values fix (block-sampled direction/period) dark").
+    # Read by the INGEST runner (ecmwf_opendata_fetcher), not Render: EURO marine global_mid is a pilots-lane job and the
+    # 10-deg EURO marine global a core-lane one. tests/test_ecmwf_land_centre_block.py pins both values.
+    "ECMWF_WAVE_LAND_CENTRE_BLOCK": ("0", "EURO wave nodes (2 deg, 10 deg) whose own native cell is land take direction and period from "
+                                         "the block the height already uses (E-weighted circular mean / E-weighted mean), so they "
+                                         "carry ECMWF's own sea values instead of being dropped and filled from GFS; 0 = point samples",
+                                     "forecast-ingest-pilots.yml AND forecast-ingest.yml env (both lanes together)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this

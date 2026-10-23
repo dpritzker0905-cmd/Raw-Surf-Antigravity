@@ -1674,3 +1674,24 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   then a step in an existing required ci.yml job once it has run clean for a few days).
 - **Reopen if:** a fold PR cannot keep pace with merges, or the guard blocks a correct PR.
 - **Rollback:** revert the PR; `append --direct` is the old writer and still works.
+
+### D-0XX (owner queued 2026-10-23 10:43 EDT; the FLIP is his call) · EURO's own wave values at land-centre nodes (ECMWF_WAVE_LAND_CENTRE_BLOCK)
+- **The owner's words:** "Also queue the EURO own-values fix (block-sampled direction/period) dark."
+- **The defect, measured:** EURO's 2-deg (and 10-deg) wave height is block-meaned from ECMWF's native 0.25-deg field, but direction
+  and period were point-sampled at the node's own native cell, and the normalizer drops a vector with no direction. Where that cell
+  is land the node went MASKED although its block holds ECMWF sea, and /grid then showed a GFS donor value there (coarse_gulf_fill).
+  ECMWF open data, cycle 2026-10-23 00Z step 0: all 868 EURO-masked GFS-sea 2-deg nodes have a land centre cell.
+- **What the flag does (default '0'):** at block resolutions only (2 deg, 10 deg; never the native 0.25-deg regional tiles), a node
+  whose centre is land takes direction from `energy_mean_direction_block` (E = H^2 circular mean) and period from
+  `energy_mean_scalar_block` (E-weighted mean of the block's peak periods; chosen over the dominant cell's period because it is the
+  reduction GFS and ICON already use, and a dominant-cell pick flips whole seconds when the dominant cell changes between hours).
+  Sea-centre nodes are byte-identical; all-land blocks stay masked.
+- **Before/after on the real cycle (offline, the fetcher's own reductions, half = 4):** 842 of the 868 cells (97.0%) get EURO's own
+  values; every enclosed-sea cell is recovered (Mediterranean 44/44, Baltic 26/26, Gulf of Mexico 16/16, Hudson Bay 16/16, Sea of
+  Japan 16/16, Caribbean 15/15, Red Sea 14/14, Gulf of California 8/8, Persian Gulf 6/6, Black Sea 2/2). Against the GFS donor value
+  the targeted fill (#476) would show: height median +0.05 m (p10 -0.16, p90 +0.34, mean |diff| 0.18 m), direction median 10.5 deg
+  (p90 47). 108 more nodes become valid where GFS's 2-deg mask says land/ice (coastal blocks with ECMWF sea). Inland TX/MS/GA 0/0/1
+  (32N 82W, whose block reaches the Atlantic). Evidence: side-session notes euro-own-values-evidence-2026-10-23/.
+- **What flips:** repo env `ECMWF_WAVE_LAND_CENTRE_BLOCK='1'` in forecast-ingest-pilots.yml (EURO marine global_mid) AND
+  forecast-ingest.yml (EURO marine global, 10 deg), together; products change from the next ingest. With it on, the targeted fill
+  finds almost nothing left to fill for EURO, and the GFS donor retires for EURO at 2 deg. Rollback: '0' (the next ingest).
