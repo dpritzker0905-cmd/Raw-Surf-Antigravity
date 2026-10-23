@@ -521,7 +521,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         standaloneMaskDims = opts.reuseMaskDims || null;
       } else if (landGeoJSON) {
         try {
-          const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
+          const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds, { readOnly: true });   // uploaded as is, never painted on
           // Recorded on the returned set (2026-07-16 staircase forensics): the damp sites need to
           // know whether the base's OWN mask is the dense tier (island halos bounded) or the
           // legacy 1024×512 (the damps' original rationale).

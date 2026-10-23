@@ -604,11 +604,16 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   // whenever the land geojson upgrades. Kill: window.__RAW_DISABLE_MASK_CANVAS_CACHE__ = true.
   const cacheOn = typeof window === 'undefined' || window.__RAW_DISABLE_MASK_CANVAS_CACHE__ !== true;
   const cacheKey = (bounds ? `${bounds.west}_${bounds.south}_${bounds.east}_${bounds.north}` : 'global') + `_${width}`;
+  // READ-ONLY callers (2026-10-23; the coarse-base capture uploads its canvas and never paints on it): a hit hands back the
+  // cached canvas itself and a miss caches the canvas it returns, so neither pays the 4096 x 2048 drawImage copy (36.6 ms in the
+  // lead's live trace, beside a 31.9 ms upload). The caller must not mutate it. Kill: __RAW_DISABLE_MASK_READONLY_CANVAS__.
+  const readOnly = !!(opts && opts.readOnly) && (typeof window === 'undefined' || window.__RAW_DISABLE_MASK_READONLY_CANVAS__ !== true);
   if (cacheOn) {
     if (_maskCanvasCacheGeo !== geojson) { _maskCanvasCache.clear(); _maskCanvasCacheGeo = geojson; }
     const hit = _maskCanvasCache.get(cacheKey);
     if (hit) {
       _maskCanvasCache.delete(cacheKey); _maskCanvasCache.set(cacheKey, hit); // LRU touch
+      if (readOnly) return hit;
       const copy = document.createElement('canvas');
       copy.width = hit.width; copy.height = hit.height;
       copy.getContext('2d', { willReadFrequently: true }).drawImage(hit, 0, 0);
@@ -781,9 +786,12 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   // 100-250 ms polygon fill.
   if (cacheOn) {
     try {
-      const keep = document.createElement('canvas');
-      keep.width = canvas.width; keep.height = canvas.height;
-      keep.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
+      let keep = canvas;   // a read-only caller never mutates it: the cache may hold the very canvas returned
+      if (!readOnly) {
+        keep = document.createElement('canvas');
+        keep.width = canvas.width; keep.height = canvas.height;
+        keep.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
+      }
       _maskCanvasCache.delete(cacheKey);
       _maskCanvasCache.set(cacheKey, keep);
       while (_maskCanvasCache.size > MASK_CANVAS_CACHE_MAX) {
