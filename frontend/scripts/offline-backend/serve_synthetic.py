@@ -66,6 +66,22 @@ def regional_tiers(region_ids):
 VORTEX_LAT0, VORTEX_LNG0, VORTEX_DLAT, VORTEX_DLNG = 14.0, -106.0, 0.05, -0.08
 # The vortex's added height at its eye (m). --vortex-peak raises it (the wave palette A/B uses 11, so the eye crosses 10 m).
 VORTEX_PEAK = 6.5
+# LAND MASK (2026-10-22, `--land-mask 1`): a synthetic store with NO masked cells hides every serve-time transform that only touches
+# masked cells. /grid runs coarse_gulf_fill on EURO/ICON world-span grids and rewrites masked (land) cells with GFS values; #453's
+# parity passed over an all-ocean store while real world frames carry ~4,850 masked cells of 15,023. With the mask on, every marine
+# product marks these continent boxes as land the way real stored products do (speed 0, is_valid false), so offline parity sees the
+# fill. Wind products stay unmasked (wind is valid everywhere).
+LAND_MASK = False
+LAND_BOXES = ((-125.0, 25.0, -70.0, 60.0), (-75.0, -50.0, -40.0, 5.0), (-10.0, 0.0, 40.0, 60.0), (60.0, 20.0, 130.0, 60.0),
+              (115.0, -35.0, 150.0, -20.0))
+
+
+def is_land(lat, lng, res=2.0):
+    # A coarse (10-deg) cell is valid wherever it holds any ocean, so only deep-interior land is masked there; that is what makes the
+    # live Gulf fill rewrite thousands of coastal 2-deg land cells (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689
+    # masked cells, ICON 1,708 of 3,788). A coarse tier with the full boxes would leave no donor near any coast and hide the fill.
+    m = 6.0 if res >= 5.0 else 0.0
+    return LAND_MASK and any(w + m <= lng <= e - m and s + m <= lat <= n - m for (w, s, e, n) in LAND_BOXES)
 
 
 def vortex_center(hours_since_start):
@@ -229,6 +245,10 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
             hs, direction, period = layer_field(layer, hs, direction, period, lat, lng, h)
             hs = round(max(0.1, hs * scale), 3)
             rad = math.radians(direction)
+            if is_land(lat, lng, res):
+                vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": 0.0, "u": 0.0, "v": 0.0, "period": None,
+                                "is_valid": False})
+                continue
             vectors.append({"lat": lat, "lng": lng, "speed": hs, "direction": direction,
                             "u": round(hs * math.sin(rad), 4), "v": round(hs * math.cos(rad), 4),
                             "period": period, "is_valid": True})
@@ -627,7 +647,7 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
             entries.append(manifest_entry(body, filename, res))
         real = dict(real or {}, wind_products=len(rw))
     (directory / "store_meta.json").write_text(json.dumps({"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                                                           "real_frames": real}), encoding="utf-8")
+                                                           "real_frames": real, "land_mask": LAND_MASK}), encoding="utf-8")
     (directory / "manifest.json").write_text(
         json.dumps({"last_manifest_update": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "products": entries}),
         encoding="utf-8")
@@ -675,10 +695,14 @@ def main():
                          "published run (see REAL FRAMES above)")
     ap.add_argument("--real-wind", default="", help="a real GFS wind run (<dir>/products; see REAL WIND above)")
     ap.add_argument("--real-wind-lane", default="", help="a real HRRR wind lane object JSON, installed as the box's lane")
+    ap.add_argument("--land-mask", choices=["0", "1"], default="0",
+                    help="mark continent boxes as land (is_valid false, speed 0) in every marine product, as real stored products "
+                         "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK
+    global VORTEX_PEAK, LAND_MASK
     VORTEX_PEAK = args.vortex_peak
+    LAND_MASK = args.land_mask == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL

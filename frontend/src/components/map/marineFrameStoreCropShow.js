@@ -4,7 +4,7 @@
  * instance over its own state (`rt`, `store`, `miss`, `deferredShow`), so behaviour is the same as when this lived inline.
  * The packing (frameWindowOf, packWindow, the LRU) is marineFrameStoreCrop.js; this module is the runtime half.
  */
-import { cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';
+import { cropAheadChains, cropAheadCount, cropAheadOrder, cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';
 import { loadFrameParsed } from './staticFrames';
 import { frameMeta } from './staticFrameCodec';
 import { packSignature, validityDiff } from './marineFramePack';
@@ -12,15 +12,15 @@ import { uploadBytesTo2D } from './marineFrameStoreGpu';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { auxForPack } from './marineFrameAux';
 
-export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS, supersedeStash }) {
+export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CAP, VALIDITY_TOLERANCE_CELLS, supersedeStash, idleFillBlocker = () => 'none' }) {
   // ── THE CROP SHOW (2026-10-22, marineFrameStoreCrop.js) ───────────────────────────────────────────────────────────────────────
   // At mid zoom the resident is a viewport CLIP of the frame (staticFrameCrop), not the world frame. While such a window is resident,
   // every frame this module sees parsed also gets the window's exact pack, and a step shows that pack (texSubImage2D into the
   // resident texture; a 27 x 20 window is 2 KB). Kill: window.__RAW_DISABLE_FRAME_STORE_CROP__ = true.
-  const CROP_AHEAD = 49;            // stored frames nearest the cursor (+-24) whose window packs are built when a new window becomes resident;
-                                    // the rest are built as they are stepped to (a miss, then the deferred show) or parsed
-  const CROP_AHEAD_SMALL = 17;      // the same on a phone or a constrained device: the cursor +-8
-  const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 };
+  // A new window's packs are built ahead for the stored frames (marineFrameStoreCrop.cropAheadCount: every one on a desktop that
+  // fills the run, else the cursor +-24 / +-8), nearest the frame where the window appeared first; the rest are built as they are
+  // stepped to (a miss, then the deferred show) or parsed.
+  const crop = { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0, queue: null };
   const idleRun = (fn) => { if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 200 }); else setTimeout(fn, 0); };
 
   // The window a set may have packs for: the resident set's own, or (instant model toggles at mid zoom) another set's when its run
@@ -66,24 +66,27 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
       .finally(() => crop.building.delete(id));
   }
 
-  // A new window: build the packs of the frames nearest the cursor, one at a time in idle time. Only frames the store already holds
-  // (their bytes were fetched under the store's own egress policy); frames that land later get theirs as they are parsed.
+  // A new window (or a model switch onto it): build the packs of the stored frames nearest `validTime` in idle time. Only frames the
+  // store already holds (their bytes were fetched under the store's own egress policy); frames that land later get theirs as they are
+  // parsed. Each build re-reads the frame through the shared loader (the HTTP cache when it is warm; with the cache off, a download
+  // outside the prefetch limiter), and every pan is a new window: hence the whole run only where the run is filled anyway (2026-10-22
+  // pass 2: a far jump after a new window missed beyond +-24), on two chains there. The latest call owns the queue.
   function buildAhead(info, validTime) {
-    const at = info.layerOf.get(validTime);
+    const idx = new Map(info.validTimes.map((v, i) => [v, i]));
+    const at = idx.get(validTime);
     if (at === undefined) return;
-    // The cursor +-24 on a desktop, +-8 on a phone or a constrained device: each build re-reads the frame through the shared loader
-    // (the HTTP cache when it is warm; with the cache off, a download outside the prefetch limiter), and every pan is a new window.
-    const ahead = (store().tier === 'desktop' || store().tier === 'webgl1') ? CROP_AHEAD : CROP_AHEAD_SMALL;
-    const order = info.validTimes.map((v, i) => [v, Math.abs(i - at)]).filter(([v]) => { const e = store().entry(info.key, v); return !!(e && e.pack); })
-      .sort((a, b) => a[1] - b[1]).slice(0, ahead).map((x) => x[0]);
+    const fills = !idleFillBlocker();
+    const ahead = cropAheadCount({ tier: store().tier, fills });
+    const stored = info.validTimes.filter((v) => { const e = store().entry(info.key, v); return !!(e && e.pack); });
     const winKey = crop.window && crop.window.key;
+    const q = (crop.queue = { setKey: info.key, winKey, list: cropAheadOrder(stored, (v) => idx.get(v), at).slice(0, ahead) });
     const next = () => {
-      if (!crop.window || crop.window.key !== winKey || !order.length) return;
-      const p = buildCrop(info, order.shift());
+      if (crop.queue !== q || !crop.window || crop.window.key !== winKey || !q.list.length) return;
+      const p = buildCrop(info, q.list.shift());
       crop.ahead += p ? 1 : 0;
       (p || Promise.resolve()).then(() => idleRun(next));
     };
-    idleRun(next);
+    for (let i = 0; i < cropAheadChains({ fills }); i++) idleRun(next);
   }
 
   // The ENGINE holds that clip: the same texture size and the same (trimmed) bounds. A commit the guard refused, or a world frame
@@ -281,7 +284,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   return {
     crop, cropFromParsed, buildCrop, noteCropCommitted, noteForeignCommit, cropResidentFor, showCropFrame, cropResidentOther, showCropSwitch,
     telemetry: () => ({ on: cropShowOn(), window: crop.window, resident: crop.resident && { ...crop.resident, validityBits: undefined },
-      packs: crop.packs.size(), built: crop.built, shows: crop.shows, ahead: crop.ahead, pending: crop.pending }),
-    reset: () => Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0 }),
+      packs: crop.packs.size(), built: crop.built, shows: crop.shows, ahead: crop.ahead, queued: crop.queue ? crop.queue.list.length : 0, pending: crop.pending }),
+    reset: () => Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0, queue: null }),
   };
 }

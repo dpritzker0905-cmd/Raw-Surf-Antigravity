@@ -141,3 +141,54 @@ the crop mirror on the tile lattice, and the store's crop show. Not covered: zoo
 0.25-deg product per viewport from Open-Meteo), which stay on `/grid`. A global 0.25-deg tile pyramid from the same NOAA download
 (about 400 ocean tiles of 10 x 10 deg, ~6 KB each per frame) would cover them, but it changes the close-zoom source outside the
 boxes (Open-Meteo dynamic -> NOAA tiles): a served-number change, owner decision first (D-001).
+
+## 7. Pass 2 (2026-10-22 evening): the zoom-out release, the desktop build-ahead, and what desktop z6 really was
+
+**A. Zoom-out after scrubbing on a clip (the owner's console, dev 8b396b11).** Scrubbing at z4.45 keeps the 2-degree clip resident
+(section 5, by design). The owner then zoomed out to z3.25: "No-downgrade: kept resident 31x20; rejected 181x82", the render backstop
+re-drove 11 times, and the world frame landed ~35 s later when the self-heal fired at z3.0. Reproduced offline by `scn_zoom_out.js`:
+on dev the clip stays for the whole watch with 80 % (z3.25) or 95 % (z3.6) of the view covered. Two old rules, each fixed behind its
+own kill (`marineZoomOutRelease.js`):
+- `WebGLMarineLayer`'s duplicate-upload skip compared a commit with the layer's OWN last upload. A frame-store show writes the engine
+  directly, so after a show that record no longer describes the engine, and the zoom-out's world frame for the same hour matched the
+  layer's earlier upload of it and was skipped (offline trace: `data_committed` 15,023 vectors, no `setWaveData`, the dup counter +1;
+  live: "chain died after orchestratorCommit (37s silent)"). Fix: while the engine's resident came from a store show, no commit is a
+  duplicate (`layerUploadIsStale`; kill `__RAW_DISABLE_STORE_SHOW_RESYNC__`).
+- The no-downgrade guard keeps a regional resident against a coarse world frame while it covers >= 60 % of the view. Right for a
+  0.25-deg tile; wrong for a clip of the 2-degree field itself (the world frame carries the same node values plus the rest of the view).
+  Fix: a world frame no coarser than the clip, same model, no rating protection, replaces it unless the clip covers the WHOLE view
+  (`clipNeedsFullCover`; kill `__RAW_DISABLE_CLIP_COVER_RELEASE__`). While scrubbing the padded clip covers the view, so section 4's
+  no-ping-pong refusal still holds; tiles, the 10-deg coarse field, other models and rating grids keep the 60 % rule.
+- It composes with #458's stash supersede (a store show clears a stashed reject of ANOTHER frame, keeps one of the same product):
+  measured on #458 + the fix, the world frame was on screen by the end of the zoom in 4 of 4 sessions.
+
+**B. Desktop build-ahead.** On a desktop that fills the run (`idleFillBlocker()` null) a new window's packs are now built for EVERY
+stored frame (`cropAheadCount`, 144 cap under the 160-pack LRU), on two idle chains (`cropAheadChains`); phones, Save-Data, 2g and
+hidden tabs keep +-24 / +-8. Kill `__RAW_DISABLE_CROP_AHEAD_RUN__`. Measured build rate with warm bytes: ~28 packs/s on one chain
+(the run in ~4 s). Re-centring the queue on the cursor at each step was tried and removed: it pushed Home's frame back and a Home step
+fell to the series world frame (a different hour, so the guard let it replace the clip).
+- Harness caveat: Playwright's `page.route` disables the browser HTTP cache, so in the harness (and in the live read, which used the
+  same door) every pack build re-downloads its frame. A real browser serves those re-reads from cache (frames are
+  `public, max-age=31536000, immutable`, CDN HIT on GET; a HEAD answers `private, no-cache`, so read cache headers with GET).
+
+**C. Desktop z6 "two clips taking turns" was the offline store, not the client.** With `--layers waves` only, the map's swell and
+wind-wave series fell to the coarse preview, whose background revalidation built a dynamic 1-deg product for the series box, and the
+dynamic cache (resolver Steps 1-2) then answered the waves series ahead of the mid tier: a 14 x 10 1-deg frame alternating with the
+17 x 14 2-deg clip. Production publishes global_mid for all four GFS marine layers; with them, dev holds the 17 x 14 clip steady at z6.
+
+**D. Instrument note.** `scn_zoom_scrub.js` computes each step's expected frame from the anchor at session start; a session that
+crosses an hour's :30 (the anchor rounds) reports correct frames as mislabelled. Exclude sessions flagged `anchorRolled` (one did:
+1,521 "mislabelled" frames; 8 re-runs away from :30 showed 0 on both builds).
+
+**Measured** (offline, the real run, dev d1dbeed8b vs this branch on it; `docs/weather-program/evidence/mid-zoom-pass2-2026-10-22.json`;
+40 sessions, 0 missed steps, 0 mislabelled frames, no session across :30):
+
+| flow | dev | pass 2 | pass 2, one kill on |
+|---|---|---|---|
+| zoom-out z4.45 -> 3.25 / 3.6 (owner window) | clip stays the whole 15 s watch (80 / 95 % of the view), 4 of 4 | world frame on screen by the end of the zoom, 4 of 4 | clip release killed: stuck, 4 of 4; layer resync killed: fine, 4 of 4 (the same-product stash, which #458 keeps) |
+| owner scrub z3.9 / z4.4, correct frame p95 | 52 / 56 ms | 15 / 15 ms | build-ahead run killed: 46 / 43 ms |
+| desktop scrub z5 / z6, p95 | 51 / 40 ms | 16 / 15 ms | build-ahead run killed: 62 / 43 ms |
+| crop packs not ready, per session | 3-6 | 0-1 | 3-6 |
+
+Gates: Jest map + `src/tests` 5,470 pass (2 suites fail only in the dot-free copy: they read `program/` and `backend/` files);
+mutants caught (the guard line, the layer wiring, the full-run count, the chain count); ESLint ratchet exit 0; LOC ratchet 0 regressed.
