@@ -349,3 +349,24 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   published frame is the stored product (fill off); the 21:55Z live /grid responses (kept) are fill on, from the same land mask.
   The pack: an A/B image of world coastlines and the Antarctic ice edge, the filled-cell diff by region and latitude, the inland
   Texas/Mississippi/Georgia cells, and a count check against the live stamps. No box load.
+
+## 2026-10-23 02:30Z: regional static frames as one bundle per set per run (GFS waves, every GFS marine pilot box)
+
+- **Why:** the lead approved the regional z7-9 client contract (phase 1 = GFS waves; the mid-zoom session builds the client,
+  dark). My 10-22 brief measured ~4,500 regional frames a run: as one object each, the pilots step would upload them one by one
+  (~230-680 s, past FRAME_PUBLISH_BUDGET_S), and a client would make up to 113 requests per box.
+- **What:** `services/frame_set_bundle.py` wraps `frame_set.publish_set`: the same codec, per-node parity, coverage gate and
+  run identity as the world sets. A capturing uploader keeps the frames off the sink until the whole set has passed, then their
+  gzip members are concatenated into `v1/gfs/marine/waves/<region_id>/<run>/bundle-<sha12>.bin` (public, immutable). The index
+  lists every entry with `offset`, `length` and `sha12` (offset null + `unbuilt` = /grid), the tile lattice as `grid`, and
+  `bundle` {path, bytes, sha12}; the latest.json record adds `bundle` beside `index`. Every slice is byte-identical to the
+  per-frame object the world path would upload (pinned).
+- **Sets:** all 19 GFS marine pilot boxes (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS + GFS_MARINE_EXTRA_REGIONS + the dark
+  Stage B box; a box with no stored products builds nothing). They run AFTER the world sets, so the budget stagger drops them
+  first. Kill: `FRAME_REGIONAL_BUNDLES=0`. Retention keeps the current and previous bundle (`referenced_paths` names it).
+- **A real sample before merge was not possible:** weather-products is private (the public URL answers 400) and this machine
+  holds no service key, by design; 113 regional /grid reads would be box load. The first real bundle comes with the first
+  pilots publish after merge.
+- **Tests:** tests/test_frame_set_bundle.py (6, chain lane; floor 173/2849 -> 174/2855, `_FLOOR_SET_FROM` chain 2861). Seen
+  failing under two mutations (every offset +1; retention without the bundle path). The budget test in
+  test_publish_frame_sets.py now ticks past the budget for every later set, whatever the set count.
