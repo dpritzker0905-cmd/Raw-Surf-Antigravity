@@ -2024,7 +2024,9 @@ jobs:
           #   base 2429 (dev's map) + 2 new test(s) = 2431; floor 2431 - 2 = 2429. This PR must read 2431 passed.
           # ⬆ 2429→2503 on 2026-10-23 (rederive_floor.py, HEAD): dev run 40019272331 read 2431; dev's map 2431;
           #   base 2431 (hosted read) + 74 new test(s) = 2505; floor 2505 - 2 = 2503. This PR must read 2505 passed.
-          MIN_PASSED = 2503
+          # ⬆ 2503→2504 on 2026-10-23 (rederive_floor.py, claude/fold-point-race): dev run 40034067551 read 2505; dev's map 2505;
+          #   base 2505 (hosted read) + 1 new test(s) = 2506; floor 2506 - 2 = 2504. This PR must read 2506 passed.
+          MIN_PASSED = 2504
 
           try:
               root = ET.parse('estate.xml').getroot()
