@@ -559,57 +559,17 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
 # Names `load_product_helper` needs from the store module. Imported INSIDE the function to keep
 # the store <-> store_helpers pair free of an import cycle (store_helpers is imported lazily by
 # store's delegators for exactly that reason).
-def load_product_helper(store, filename: str, stride: Optional[int] = None) -> Optional[NormalizedProduct]:
-    """Loads and returns a stored grid product by filename.
+def fetch_l2_to_disk(store, filename: str, now: Optional[float] = None) -> bool:
+    """Make `filename` a local file in store.cache_dir (the L2 download, its negative cache and per-file lock), WITHOUT
+    parsing it or touching the L1 product cache. True when the file is on disk afterwards.
 
-    ``stride`` (>1) decimates the grid BEFORE `model_validate`, so the discarded cells are
-    never turned into `GridVector` models. Default None keeps all 36 existing call sites
-    byte-identical. Measured: a cold global series constructs ~525k vectors for ~210 MB
-    resident; the warm repeat constructs almost nothing and costs +2.0 MB.
-
-    ⚠️⚠️ A strided product must NEVER land under the full grid's cache key — `_product_cache`
-    hands out SHALLOW copies to the point lane, spot ratings and the gulf fill, so a decimated
-    entry there would be silently wrong for every later reader. Hence `filename#sN`.
-
-    Kill switch: SERIES_LOAD_STRIDE=0. Full rationale + the four guarded hazards:
-    docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
-    """
+    Factored out of load_product_helper (2026-10-23) so a reader that needs only a few values of a product (the targeted
+    Gulf fill's compact donor, coarse_gulf_fill._compact_donor) can fetch it without a full parse and an L1 insert that
+    would evict other entries under the vector budget. load_product_helper calls it unchanged."""
     import time
     import threading
-    from services.weather_pipeline.store import (
-        ProductStore, WEATHER_BUCKET, _get_supabase_storage,
-        _effective_load_stride, _stride_raw_grid_dicts,
-    )
-
-    from services.weather_pipeline.series_memo_keys import note_load
-    note_load(filename)      # a memoised series build records every file it read (dark GRID_SERIES_MEMO_RUN_KEYS)
-    stride = _effective_load_stride(stride)
-    # Strided reads get their OWN cache identity. See the warning above — this one line is what
-    # keeps a decimated grid out of every other consumer's hands.
-    cache_key = filename if stride <= 1 else f"{filename}#s{stride}"
-
-    revision, revision_reason = None, None
-    if os.environ.get('PRODUCT_REVISION_REFRESH', '0') == '1':
-        from services.weather_pipeline.product_revision_refresh import refresh_revision, registration, mark_revision_refusal
-        revision, revision_reason = refresh_revision(store, filename)
-
-    # 1. Check in-memory product cache
-    now = time.time()
-    with ProductStore._product_cache_lock:
-        if cache_key in ProductStore._product_cache:
-            cached_product, cached_time = ProductStore._product_cache[cache_key]
-            if (now - cached_time < ProductStore._PRODUCT_CACHE_TTL
-                    and (revision is None or revision_reason or registration(cached_product) == revision)):
-                logger.debug(f"[Product Store] Memory cache HIT for {cache_key}")
-                # Shallow copy product and grid container to avoid deep-copying vector list
-                cloned = cached_product.model_copy()
-                if cloned.grid is not None:
-                    cloned.grid = cloned.grid.model_copy()
-                return mark_revision_refusal(cloned, revision_reason) if revision_reason else cloned
-            else:
-                ProductStore._product_cache.pop(cache_key, None)
-                ProductStore._product_cache_vectors.pop(cache_key, None)
-
+    from services.weather_pipeline.store import ProductStore, WEATHER_BUCKET, _get_supabase_storage
+    now = time.time() if now is None else now
     filepath = store.cache_dir / filename
     if not filepath.exists():
         with ProductStore._l2_negative_cache_lock:
@@ -617,7 +577,7 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
                 fail_time = ProductStore._l2_negative_cache[filename]
                 if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
                     logger.debug(f"[Product Store] L2 negative cache HIT for {filename}. Skipping Supabase download.")
-                    return None
+                    return False
 
         with ProductStore._download_locks_lock:
             if filename not in ProductStore._download_locks:
@@ -630,7 +590,7 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
                     if filename in ProductStore._l2_negative_cache:
                         fail_time = ProductStore._l2_negative_cache[filename]
                         if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
-                            return None
+                            return False
 
                 logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
                 sb = _get_supabase_storage()
@@ -664,7 +624,62 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
         # Re-check filepath existence after download attempt
         if not filepath.exists():
             logger.warning(f"[Product Store] Stored product path not found: {filename}")
-            return None
+            return False
+    return True
+
+
+def load_product_helper(store, filename: str, stride: Optional[int] = None) -> Optional[NormalizedProduct]:
+    """Loads and returns a stored grid product by filename.
+
+    ``stride`` (>1) decimates the grid BEFORE `model_validate`, so the discarded cells are
+    never turned into `GridVector` models. Default None keeps all 36 existing call sites
+    byte-identical. Measured: a cold global series constructs ~525k vectors for ~210 MB
+    resident; the warm repeat constructs almost nothing and costs +2.0 MB.
+
+    ⚠️⚠️ A strided product must NEVER land under the full grid's cache key — `_product_cache`
+    hands out SHALLOW copies to the point lane, spot ratings and the gulf fill, so a decimated
+    entry there would be silently wrong for every later reader. Hence `filename#sN`.
+
+    Kill switch: SERIES_LOAD_STRIDE=0. Full rationale + the four guarded hazards:
+    docs/research/DESIGN-2026-08-10-the-grid-series-load-time-stride.md
+    """
+    import time
+    from services.weather_pipeline.store import (
+        ProductStore, _effective_load_stride, _stride_raw_grid_dicts,
+    )
+
+    from services.weather_pipeline.series_memo_keys import note_load
+    note_load(filename)      # a memoised series build records every file it read (dark GRID_SERIES_MEMO_RUN_KEYS)
+    stride = _effective_load_stride(stride)
+    # Strided reads get their OWN cache identity. See the warning above — this one line is what
+    # keeps a decimated grid out of every other consumer's hands.
+    cache_key = filename if stride <= 1 else f"{filename}#s{stride}"
+
+    revision, revision_reason = None, None
+    if os.environ.get('PRODUCT_REVISION_REFRESH', '0') == '1':
+        from services.weather_pipeline.product_revision_refresh import refresh_revision, registration, mark_revision_refusal
+        revision, revision_reason = refresh_revision(store, filename)
+
+    # 1. Check in-memory product cache
+    now = time.time()
+    with ProductStore._product_cache_lock:
+        if cache_key in ProductStore._product_cache:
+            cached_product, cached_time = ProductStore._product_cache[cache_key]
+            if (now - cached_time < ProductStore._PRODUCT_CACHE_TTL
+                    and (revision is None or revision_reason or registration(cached_product) == revision)):
+                logger.debug(f"[Product Store] Memory cache HIT for {cache_key}")
+                # Shallow copy product and grid container to avoid deep-copying vector list
+                cloned = cached_product.model_copy()
+                if cloned.grid is not None:
+                    cloned.grid = cloned.grid.model_copy()
+                return mark_revision_refusal(cloned, revision_reason) if revision_reason else cloned
+            else:
+                ProductStore._product_cache.pop(cache_key, None)
+                ProductStore._product_cache_vectors.pop(cache_key, None)
+
+    filepath = store.cache_dir / filename
+    if not fetch_l2_to_disk(store, filename, now):
+        return None
     
     try:
         with open(filepath, "r") as f:

@@ -1,0 +1,2505 @@
+{
+ "what": "Regional z7-9 bundle client (staticRegional.js): parity vs the offline resolver and the z9 Florida measurement",
+ "date": "2026-10-23",
+ "branch": "claude/regional-bundles-client",
+ "base": "dev abd70891c (#486)",
+ "store": "offline: serve_synthetic.py --models GFS --layers waves,swell_1,swell_2,wind_waves --regions flagship --dynamic 1 --real-frames <the published GFS waves global_mid run>; regional bundles from backend/scripts/publish_frame_images.py --only frames (FRAME_SETS = the 8 florida_east_coast / us_west_coast_socal sets, parity_bad 0 each)",
+ "parity": {
+  "waves": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "swell_1": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "swell_2": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "wind_waves": {
+   "boxes_x_seams": 230,
+   "claimed": 30,
+   "refused": 200,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 11554,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 5620,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "edges": [
+    [
+     "florida_east_coast exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "florida_east_coast -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "florida_east_coast past east",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "florida_east_coast past west",
+     "grid",
+     false,
+     "viewport"
+    ],
+    [
+     "florida_east_coast past west",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal exact",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal exact",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "grid",
+     true,
+     "regional"
+    ],
+    [
+     "us_west_coast_socal -0.01",
+     "series",
+     true,
+     null
+    ],
+    [
+     "us_west_coast_socal past east",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past east",
+     "series",
+     false,
+     null
+    ],
+    [
+     "us_west_coast_socal past west",
+     "grid",
+     false,
+     "regional_partial"
+    ],
+    [
+     "us_west_coast_socal past west",
+     "series",
+     false,
+     null
+    ]
+   ]
+  },
+  "waves_300_boxes": {
+   "boxes_x_seams": 416,
+   "claimed": 56,
+   "refused_but_backend_full_regional": 0,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid_nodes": 18074,
+   "grid_bad": 0,
+   "series_nodes": 7262,
+   "series_bad": 0,
+   "meta": 0
+  }
+ },
+ "parity_positive_control": {
+  "how": "swell_1 set keys pointed at the waves bundles, compared with the backend's swell_1",
+  "claimed": 10,
+  "grid_bad": 5374,
+  "series_bad": 4156,
+  "max_abs_err": {
+   "speed": 1.0999999999999996,
+   "direction": 0,
+   "period": 2.000000000000001,
+   "dir_confidence": 0,
+   "uv": 0.9666999999999999
+  },
+  "exit": 1
+ },
+ "measure": {
+  "fin-owner": {
+   "view": "owner 844x390 dpr2, centre -80.6,28.1 (the live read box)",
+   "sessions": [
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       35,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       40,
+       "series",
+       0
+      ],
+      [
+       28,
+       37,
+       "series",
+       0
+      ],
+      [
+       52,
+       37,
+       "series",
+       0
+      ],
+      [
+       172,
+       40,
+       "series",
+       0
+      ],
+      [
+       148,
+       27,
+       "series",
+       0
+      ],
+      [
+       147,
+       34,
+       "series",
+       0
+      ],
+      [
+       0,
+       26,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {},
+     "regional": {
+      "bundles": 4,
+      "bundleBytes": 340409,
+      "slices": 250,
+      "hits": 1,
+      "series": 250,
+      "misses": {
+       "no_frame_in_window": 7
+      },
+      "dynamicOnCovered": 0
+     }
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       47,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       37,
+       "series",
+       0
+      ],
+      [
+       28,
+       38,
+       "series",
+       0
+      ],
+      [
+       52,
+       37,
+       "series",
+       0
+      ],
+      [
+       172,
+       31,
+       "series",
+       0
+      ],
+      [
+       148,
+       42,
+       "series",
+       0
+      ],
+      [
+       147,
+       36,
+       "series",
+       0
+      ],
+      [
+       0,
+       47,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 14803
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 561
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9414
+      },
+      "swell_2/grid_series": {
+       "n": 2,
+       "ms": 6371
+      },
+      "wind_waves/grid_series": {
+       "n": 2,
+       "ms": 3760
+      }
+     },
+     "regional": null
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       34,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       40,
+       "series",
+       0
+      ],
+      [
+       28,
+       38,
+       "series",
+       0
+      ],
+      [
+       52,
+       33,
+       "series",
+       0
+      ],
+      [
+       172,
+       27,
+       "series",
+       0
+      ],
+      [
+       148,
+       44,
+       "series",
+       0
+      ],
+      [
+       147,
+       32,
+       "series",
+       0
+      ],
+      [
+       0,
+       32,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 16332
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 678
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 8019
+      },
+      "swell_2/grid_series": {
+       "n": 2,
+       "ms": 4810
+      },
+      "wind_waves/grid_series": {
+       "n": 1,
+       "ms": 113
+      }
+     },
+     "regional": null
+    },
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -81.14,
+      "s": 27.86,
+      "e": -80.06,
+      "n": 28.34
+     },
+     "steps": [
+      [
+       1,
+       38,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       45,
+       "series",
+       0
+      ],
+      [
+       28,
+       35,
+       "series",
+       0
+      ],
+      [
+       52,
+       27,
+       "series",
+       0
+      ],
+      [
+       172,
+       26,
+       "series",
+       0
+      ],
+      [
+       148,
+       29,
+       "series",
+       0
+      ],
+      [
+       147,
+       32,
+       "series",
+       0
+      ],
+      [
+       0,
+       42,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {},
+     "regional": {
+      "bundles": 4,
+      "bundleBytes": 340409,
+      "slices": 250,
+      "hits": 1,
+      "series": 250,
+      "misses": {
+       "no_frame_in_window": 7
+      },
+      "dynamicOnCovered": 0
+     }
+    }
+   ],
+   "summary": {
+    "cur@z9": {
+     "steps": 20,
+     "exact_missed": 0,
+     "exact_ms_p50": 32,
+     "exact_ms_p95": 42,
+     "label_ms_p50": 26,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0,
+     "via": {
+      "series": 18,
+      "grid": 2
+     },
+     "resident_dims": [
+      "13x9",
+      "13x13"
+     ],
+     "marine_session": [
+      {},
+      {}
+     ],
+     "regional": [
+      {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 250,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      },
+      {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 250,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     ],
+     "store_shows": [
+      0,
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      },
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    },
+    "noregional@z9": {
+     "steps": 20,
+     "exact_missed": 0,
+     "exact_ms_p50": 34,
+     "exact_ms_p95": 47,
+     "label_ms_p50": 32,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0.15,
+     "via": {
+      "series": 18,
+      "grid": 2
+     },
+     "resident_dims": [
+      "13x9",
+      "13x13"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 14803
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 561
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9414
+       },
+       "swell_2/grid_series": {
+        "n": 2,
+        "ms": 6371
+       },
+       "wind_waves/grid_series": {
+        "n": 2,
+        "ms": 3760
+       }
+      },
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 16332
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 678
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 8019
+       },
+       "swell_2/grid_series": {
+        "n": 2,
+        "ms": 4810
+       },
+       "wind_waves/grid_series": {
+        "n": 1,
+        "ms": 113
+       }
+      }
+     ],
+     "regional": [
+      null,
+      null
+     ],
+     "store_shows": [
+      0,
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      },
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    }
+   }
+  },
+  "fin-desktop": {
+   "view": "desktop 1280x800, same centre",
+   "sessions": [
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -81.34,
+      "s": 27.61,
+      "e": -79.86,
+      "n": 28.58
+     },
+     "steps": [
+      [
+       1,
+       41,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       38,
+       "series",
+       0
+      ],
+      [
+       28,
+       33,
+       "series",
+       0
+      ],
+      [
+       52,
+       40,
+       "series",
+       0
+      ],
+      [
+       172,
+       35,
+       "series",
+       0
+      ],
+      [
+       148,
+       34,
+       "series",
+       0
+      ],
+      [
+       147,
+       23,
+       "series",
+       0
+      ],
+      [
+       0,
+       39,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {},
+     "regional": {
+      "bundles": 4,
+      "bundleBytes": 340409,
+      "slices": 250,
+      "hits": 1,
+      "series": 250,
+      "misses": {
+       "no_frame_in_window": 7
+      },
+      "dynamicOnCovered": 0
+     }
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -81.34,
+      "s": 27.61,
+      "e": -79.86,
+      "n": 28.58
+     },
+     "steps": [
+      [
+       1,
+       36,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       34,
+       "series",
+       0
+      ],
+      [
+       28,
+       24,
+       "series",
+       0
+      ],
+      [
+       52,
+       39,
+       "series",
+       0
+      ],
+      [
+       172,
+       39,
+       "series",
+       0
+      ],
+      [
+       148,
+       27,
+       "series",
+       0
+      ],
+      [
+       147,
+       32,
+       "series",
+       0
+      ],
+      [
+       0,
+       36,
+       "grid",
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 13076
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 504
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9270
+      },
+      "swell_2/grid_series": {
+       "n": 2,
+       "ms": 5393
+      },
+      "wind_waves/grid_series": {
+       "n": 2,
+       "ms": 4413
+      }
+     },
+     "regional": null
+    }
+   ],
+   "summary": {
+    "cur@z9": {
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 34,
+     "exact_ms_p95": 41,
+     "label_ms_p50": 39,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0,
+     "via": {
+      "series": 9,
+      "grid": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "17x17"
+     ],
+     "marine_session": [
+      {}
+     ],
+     "regional": [
+      {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 250,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    },
+    "noregional@z9": {
+     "steps": 10,
+     "exact_missed": 0,
+     "exact_ms_p50": 32,
+     "exact_ms_p95": 39,
+     "label_ms_p50": 36,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0,
+     "via": {
+      "series": 9,
+      "grid": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "17x17"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 13076
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 504
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9270
+       },
+       "swell_2/grid_series": {
+        "n": 2,
+        "ms": 5393
+       },
+       "wind_waves/grid_series": {
+        "n": 2,
+        "ms": 4413
+       }
+      }
+     ],
+     "regional": [
+      null
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    }
+   }
+  },
+  "fin-edge": {
+   "view": "owner, centre -79.5,28.6: the view crosses the tile east edge -79 (partial cover)",
+   "sessions": [
+    {
+     "arm": "cur",
+     "vp": {
+      "z": 9,
+      "w": -80.04,
+      "s": 28.36,
+      "e": -78.96,
+      "n": 28.83
+     },
+     "steps": [
+      [
+       1,
+       32,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       36,
+       "series",
+       0
+      ],
+      [
+       28,
+       28,
+       "series",
+       0
+      ],
+      [
+       52,
+       38,
+       "series",
+       0
+      ],
+      [
+       172,
+       43,
+       "series",
+       0
+      ],
+      [
+       148,
+       37,
+       "series",
+       0
+      ],
+      [
+       147,
+       36,
+       "series",
+       0
+      ],
+      [
+       0,
+       null,
+       null,
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 29969
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 1527
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9070
+      },
+      "swell_2/grid_series": {
+       "n": 1,
+       "ms": 552
+      },
+      "wind_waves/grid_series": {
+       "n": 1,
+       "ms": 1268
+      }
+     },
+     "regional": null
+    },
+    {
+     "arm": "noregional",
+     "vp": {
+      "z": 9,
+      "w": -80.04,
+      "s": 28.36,
+      "e": -78.96,
+      "n": 28.83
+     },
+     "steps": [
+      [
+       1,
+       46,
+       "series",
+       0
+      ],
+      [
+       2,
+       0,
+       "series",
+       0
+      ],
+      [
+       3,
+       0,
+       "series",
+       0
+      ],
+      [
+       4,
+       39,
+       "series",
+       0
+      ],
+      [
+       28,
+       34,
+       "series",
+       0
+      ],
+      [
+       52,
+       34,
+       "series",
+       0
+      ],
+      [
+       172,
+       37,
+       "series",
+       0
+      ],
+      [
+       148,
+       33,
+       "series",
+       0
+      ],
+      [
+       147,
+       23,
+       "series",
+       0
+      ],
+      [
+       0,
+       null,
+       null,
+       0
+      ]
+     ],
+     "anchorRolled": false,
+     "marine_backend_asks_whole_session": {
+      "waves/grid_series": {
+       "n": 4,
+       "ms": 29406
+      },
+      "waves/grid": {
+       "n": 1,
+       "ms": 791
+      },
+      "swell_1/grid_series": {
+       "n": 2,
+       "ms": 9146
+      },
+      "swell_2/grid_series": {
+       "n": 1,
+       "ms": 790
+      },
+      "wind_waves/grid_series": {
+       "n": 1,
+       "ms": 1418
+      }
+     },
+     "regional": null
+    }
+   ],
+   "summary": {
+    "cur@z9": {
+     "steps": 10,
+     "exact_missed": 1,
+     "exact_ms_p50": 36,
+     "exact_ms_p95": 43,
+     "label_ms_p50": 37,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0.2,
+     "via": {
+      "series": 9,
+      "none": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "9x13"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 29969
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 1527
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9070
+       },
+       "swell_2/grid_series": {
+        "n": 1,
+        "ms": 552
+       },
+       "wind_waves/grid_series": {
+        "n": 1,
+        "ms": 1268
+       }
+      }
+     ],
+     "regional": [
+      null
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    },
+    "noregional@z9": {
+     "steps": 10,
+     "exact_missed": 1,
+     "exact_ms_p50": 34,
+     "exact_ms_p95": 46,
+     "label_ms_p50": 36,
+     "mislabel_frames": 0,
+     "grid_per_step": 0,
+     "series_per_step": 0.1,
+     "via": {
+      "series": 9,
+      "none": 1
+     },
+     "resident_dims": [
+      "13x13",
+      "9x13"
+     ],
+     "marine_session": [
+      {
+       "waves/grid_series": {
+        "n": 4,
+        "ms": 29406
+       },
+       "waves/grid": {
+        "n": 1,
+        "ms": 791
+       },
+       "swell_1/grid_series": {
+        "n": 2,
+        "ms": 9146
+       },
+       "swell_2/grid_series": {
+        "n": 1,
+        "ms": 790
+       },
+       "wind_waves/grid_series": {
+        "n": 1,
+        "ms": 1418
+       }
+      }
+     ],
+     "regional": [
+      null
+     ],
+     "store_shows": [
+      0
+     ],
+     "store_misses": [
+      {
+       "resident_not_this_set": 14
+      }
+     ]
+    }
+   }
+  }
+ },
+ "before_fixes": {
+  "z9b (manifest race, no wait)": "cur: waves /grid_series 4 pages 28-29 s; trace: 11 picks 'manifest_not_loaded' at t~3 s, every page decided before the manifest landed (~4.5 s)",
+  "z9d (wait, windowed fill)": "cur: 0 marine backend asks; day steps 172-206 ms via the per-hour seam (window +-4 steps)",
+  "z9f/z9h (viewed-page full fill)": "page 1-2 still 170-220 ms: the scrub prewarm decides them at t~3.6 s before a focus exists (trace with boxes)"
+ },
+ "review_fixes": {
+  "what": "the lead's review of b482566c (8 findings); every guard has a test that fails without it",
+  "mutants": [
+   {
+    "guard": "failure cache (backoff)",
+    "verdict": "CAUGHT",
+    "tests": "4 failed, 27 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "real status (always 404)",
+    "verdict": "CAUGHT",
+    "tests": "6 failed, 25 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "a failing bundle: one request, the page goes to /grid_series, the next page backs off, lat"
+    ]
+   },
+   {
+    "guard": "failed page still claimed",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 28 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "a failing bundle: one request, the page goes to /grid_series, the next page backs off, lat"
+    ]
+   },
+   {
+    "guard": "no fetch timeout",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 29 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "hour-0 held for the manifest",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 29 passed, 31 total",
+    "failing": [
+     "the opening: the hour-0 mini goes at once; the page waits for the manifest, then is served"
+    ]
+   },
+   {
+    "guard": "static pages unbounded",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 29 passed, 31 total",
+    "failing": [
+     "static pages are bounded like /grid_series pages (SERIES_MAX, 48)"
+    ]
+   },
+   {
+    "guard": "pages mix runs",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 29 passed, 31 total",
+    "failing": [
+     "a page holds frames of one run: a frame from another run index drops the earlier ones"
+    ]
+   },
+   {
+    "guard": "fractional edge (old cover rule)",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 28 passed, 31 total",
+    "failing": [
+     "a box whose snapped box leaves the tile data (fractional data edge) is not claimed: its pa",
+     "the Step 3 window on a 0.25-deg tile lattice (snap 1 deg, data-extent clamp, clip_lattice,"
+    ]
+   },
+   {
+    "guard": "sha12 fails open",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 29 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "gzip error thrown",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 29 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no pre-manifest pilot pick",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 28 passed, 31 total",
+    "failing": [
+     "a late manifest (the live read: ~4 s): once latest.json is read the page is served from th",
+     "at the map opening, before the products manifest has loaded (the z9 Florida trace, 2026-10"
+    ]
+   },
+   {
+    "guard": "no concurrent dedup",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 28 passed, 31 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "the bundle: one fetch, the slice checked on its gzip bytes, then inflated \u203a a slice decode"
+    ]
+   }
+  ],
+  "fractional_edge_parity": {
+   "sets": [
+    "GFS/marine/waves/florida_east_coast",
+    "GFS/marine/waves/us_southeast_midatlantic"
+   ],
+   "boxes_x_seams": 283,
+   "claimed": 14,
+   "claimed_but_backend_not_full_regional": 0,
+   "sha12_bad": 0,
+   "grid": {
+    "nodes": 3850,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "series": {
+    "nodes": 2064,
+    "bad": 0,
+    "meta_mismatches": 0
+   },
+   "refused_full_regional_first_ask": 4,
+   "same_key": [
+    {
+     "tile": "us_southeast_midatlantic",
+     "edge": "east",
+     "full": "-76.5,33.1,-74.6,35.8",
+     "snapped": "-77.0000,33.0000,-74.0000,36.0000",
+     "data_extent": {
+      "east": -74.5,
+      "north": 37.5,
+      "south": 31,
+      "west": -82
+     },
+     "backend_full_first": {
+      "scope": "regional",
+      "dynamic": false,
+      "product": "gfs_marine_waves_us_southeast_midatlantic_20261023T120000Z.json",
+      "partial": false
+     },
+     "backend_partial": {
+      "scope": "regional_partial",
+      "dynamic": false,
+      "product": "gfs_marine_waves_us_southeast_midatlantic_20261023T120000Z.json",
+      "partial": true
+     },
+     "backend_full_after_partial": {
+      "scope": "viewport",
+      "dynamic": true,
+      "product": "viewport_gfs_marine_waves_20261023T120000Z_-77.00_33.00_-74.00_36.00.json",
+      "partial": false
+     },
+     "previous_rule_claims": true,
+     "client_claims_now": false,
+     "unsafe_before": true,
+     "safe_now": true
+    },
+    {
+     "tile": "us_southeast_midatlantic",
+     "edge": "north",
+     "full": "-79.9,35.5,-77.2,37.4",
+     "snapped": "-80.0000,35.0000,-77.0000,38.0000",
+     "data_extent": {
+      "east": -74.5,
+      "north": 37.5,
+      "south": 31,
+      "west": -82
+     },
+     "backend_full_first": {
+      "scope": "regional",
+      "dynamic": false,
+      "product": "gfs_marine_waves_us_southeast_midatlantic_20261023T120000Z.json",
+      "partial": false
+     },
+     "backend_partial": {
+      "scope": "regional_partial",
+      "dynamic": false,
+      "product": "gfs_marine_waves_us_southeast_midatlantic_20261023T120000Z.json",
+      "partial": true
+     },
+     "backend_full_after_partial": {
+      "scope": "viewport",
+      "dynamic": true,
+      "product": "viewport_gfs_marine_waves_20261023T120000Z_-80.00_35.00_-77.00_38.00.json",
+      "partial": false
+     },
+     "previous_rule_claims": true,
+     "client_claims_now": false,
+     "unsafe_before": true,
+     "safe_now": true
+    }
+   ]
+  },
+  "measure_after_fixes": {
+   "manifest_on_time": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 0
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 1446,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 3,
+      "one_frame_minis": 3,
+      "backend_seconds": 0.4,
+      "worst_step_ms": 38,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 249,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1839,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 9,
+      "one_frame_minis": 4,
+      "backend_seconds": 30.2,
+      "worst_step_ms": 40,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1426,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 9,
+      "one_frame_minis": 4,
+      "backend_seconds": 31.2,
+      "worst_step_ms": 52,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 1270,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 3,
+      "one_frame_minis": 3,
+      "backend_seconds": 0.4,
+      "worst_step_ms": 50,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 4,
+       "bundleBytes": 340409,
+       "slices": 249,
+       "hits": 1,
+       "series": 250,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     }
+    ]
+   },
+   "manifest_4s_late": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 4000
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 1100,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 45,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 105,
+       "hits": 0,
+       "series": 106,
+       "misses": {
+        "no_frame_in_window": 7
+       },
+       "dynamicOnCovered": 0
+      }
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 2432,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 21.7,
+      "worst_step_ms": 42,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1556,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 18.6,
+      "worst_step_ms": 48,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 519,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 40,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 105,
+       "hits": 0,
+       "series": 106,
+       "misses": {
+        "no_frame_in_window": 14
+       },
+       "dynamicOnCovered": 0
+      }
+     }
+    ]
+   }
+  },
+  "measure_before_pilot_pick": {
+   "manifest_4s_late": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 4000
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 948,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 12.9,
+      "worst_step_ms": 43,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1723,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 14.1,
+      "worst_step_ms": 43,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1767,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 28.0,
+      "worst_step_ms": 45,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 1280,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 25.4,
+      "worst_step_ms": 50,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     }
+    ]
+   },
+   "note": "wait capped at 3 s, manifest at 4 s: every page went to /grid_series (the lead predicted it)"
+  }
+ },
+ "review_round_2": {
+  "what": "Reflection's parameters via the lead (backoff 30 s->2->10->30 min with Retry-After; 404/400/sha12 dead + re-pin; 8 s timeout scaled by size; 1.5 s manifest wait; fetch priority; all-miss page -> /grid_series), the platform capability gate, surf / ICON / EURO never claimed",
+  "build": "the full dev tree at ceeeaf361 + this branch (merge target)",
+  "mutants": [
+   {
+    "guard": "failure cache (backoff)",
+    "verdict": "CAUGHT",
+    "tests": "6 failed, 32 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "real status (always 404)",
+    "verdict": "CAUGHT",
+    "tests": "7 failed, 31 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "a failing bundle: one request, the page goes to /grid_series, the next page backs off, lat"
+    ]
+   },
+   {
+    "guard": "failed page still claimed",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no fetch timeout",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "hour-0 held for the manifest",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a failing bundle: one request, the page goes to /grid_series, the next page backs off, lat",
+     "the opening: the hour-0 mini goes at once; the page waits for the manifest, then is served"
+    ]
+   },
+   {
+    "guard": "static pages unbounded",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "static pages are bounded like /grid_series pages (SERIES_MAX, 48)"
+    ]
+   },
+   {
+    "guard": "pages mix runs",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a page holds frames of one run: a frame from another run index drops the earlier ones"
+    ]
+   },
+   {
+    "guard": "fractional edge (old cover rule)",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a box whose snapped box leaves the tile data (fractional data edge) is not claimed: its pa",
+     "the Step 3 window on a 0.25-deg tile lattice (snap 1 deg, data-extent clamp, clip_lattice,"
+    ]
+   },
+   {
+    "guard": "sha12 fails open",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "gzip error thrown",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no pre-manifest pilot pick",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a late manifest (the live read: ~4 s): once latest.json is read the page is served from th",
+     "at the map opening, before the products manifest has loaded (the z9 Florida trace, 2026-10"
+    ]
+   },
+   {
+    "guard": "Retry-After ignored",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "404 not dead",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "integrity does not re-pin",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no capability gate",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no fetch priority",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "all-miss page claimed",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "an ALL-MISS page (every hour outside the run) is the backend's: it asks /grid_series inste"
+    ]
+   },
+   {
+    "guard": "surf may read a bundle",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "the seams answer a fully covered box from the bundle, and nothing else \u203a the frame store n"
+    ]
+   },
+   {
+    "guard": "timeout not scaled",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no concurrent dedup",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "the bundle: one fetch, the slice checked on its gzip bytes, then inflated \u203a a slice decode"
+    ]
+   },
+   {
+    "guard": "surf may be static (both guards)",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "surf mode and models without bundles (ICON, EURO) never read a bundle or wait: their exist",
+     "the seams answer a fully covered box from the bundle, and nothing else \u203a the frame store n"
+    ]
+   }
+  ],
+  "measure": {
+   "manifest_on_time": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 0
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 1062,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 41,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 2378,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 7,
+      "one_frame_minis": 4,
+      "backend_seconds": 40.3,
+      "worst_step_ms": 68,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 3946,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 7,
+      "one_frame_minis": 4,
+      "backend_seconds": 43.1,
+      "worst_step_ms": 39,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 832,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 37,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     }
+    ]
+   },
+   "manifest_4s_late": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 4000
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 945,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 41,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1745,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 38.9,
+      "worst_step_ms": 67,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 6398,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 6,
+      "one_frame_minis": 3,
+      "backend_seconds": 58.9,
+      "worst_step_ms": 39,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 789,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 37,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     }
+    ]
+   }
+  }
+ }
+}

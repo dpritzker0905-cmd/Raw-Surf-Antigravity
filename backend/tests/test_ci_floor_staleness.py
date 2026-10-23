@@ -479,8 +479,24 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3297, "chain": 2873, "estate": 2485}
-# LA-SEC-03 batch 4 (23 routes bound): +74 estate tests (two new files + 41 in the binding file) on dev's 2411 = 2485; floor 2409 -> 2483, margin 2.
+# ⬇ 2026-10-23 (the lead): ONE BLOCK PER LANE, A BLANK LINE BETWEEN LANES. With the three lanes on one line, any
+# two PRs that moved floors in DIFFERENT lanes conflicted here (#470 estate vs #467 chain, #474 guards vs #467 chain,
+# #475 estate vs #474 guards). One key per line is NOT enough: git conflicts on changes to ADJACENT lines (measured in a
+# throwaway repo: adjacent keys CONFLICT; one blank line between them merges CLEAN; test_rederive_floor.py pins both).
+# Each lane's provenance is the ONE comment line directly above its key, REPLACED (never appended) by the PR that
+# moves it; the history lines above and below this block are frozen (git log keeps them). A same-lane collision still
+# conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
+# PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
+_FLOOR_SET_FROM = {
+    # guards: set from 3317 = max(dev run 39994928838 read 3297, dev's map 3297) + 20 (rm-gulf-fill-targeted, 2026-10-23); floor 3311, margin 6.
+    "guards": 3317,
+
+    # chain: set from 2891 = max(dev run 40005013863 read 2873, dev's map 2882) + 9 (rm480, 2026-10-23); floor 2885, margin 6.
+    "chain": 2891,
+
+    # estate: set from 2505 = max(dev run 40019272331 read 2431, dev's map 2431) + 74 (HEAD, 2026-10-23); floor 2503, margin 2.
+    "estate": 2505,
+}
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.
 # The wind lane keeper + the box lane read: +4 guards tests in tests/test_wind_hrrr_lane.py on dev CI 39896720617's 3293 / 210 = 3297; floor 3291, margin 6.

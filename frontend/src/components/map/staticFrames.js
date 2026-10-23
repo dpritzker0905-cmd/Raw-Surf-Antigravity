@@ -32,6 +32,8 @@ import {
 import { buildTruthTag } from './weatherTruthTracker';
 // MID-ZOOM CROPS (2026-10-22): a viewport box the resolver answers from global_mid is served as a crop of the same frame.
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
+import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, setRegionalLatestProbes, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
+  regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
 
 export const FRAME_BUCKET = 'weather-frames';
 export const LATEST_PATH = 'v1/latest.json';
@@ -221,7 +223,7 @@ export const STATIC_SETS = [
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
  *  localStorage '__RAW_STATIC_FRAMES_SETS_OFF__' = a comma list, for this browser. The global kill still wins over all. */
 export function staticSetEnabled(key) {
-  if (!STATIC_SETS.includes(key)) return false;
+  if (!STATIC_SETS.includes(key) && !(isRegionalSetKey(key) && regionalBundlesOn())) return false;
   const off = (list) => list === '*' || (Array.isArray(list) && list.includes(key));
   if (typeof window !== 'undefined' && off(window.__RAW_DISABLE_STATIC_FRAMES_SETS__)) return false;
   try {
@@ -259,6 +261,7 @@ async function loadIndex(path) {
       throw new Error('unsupported index');
     }
     idx.path = idx.path || path;
+    normalizeBundleIndex(idx);                       // a regional bundle set: frames read slices of one object (staticRegional)
     return idx;
   });
   _state.indexLoads.set(path, p);
@@ -342,6 +345,7 @@ export function onStaticFrameParsed(fn) {
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
   const [model, , layer] = String(key || '').split('/');
+  if (isRegionalSetKey(key)) return null;            // regional bundles (phase 1): the GPU frame store keeps to world sets
   // EURO / ICON: the store cannot tell a world view (where /grid's serve-time Gulf fill makes the served grid differ from the
   // stored frame; serveTimeFillAtWorld) from a crop at this door, so it takes none of their frames for now.
   return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
@@ -351,9 +355,13 @@ function sharedParsedLoad(key, frame, priority) {
   const controller = new AbortController();
   const promise = (async () => {
     const t = telemetry();
-    const got = await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
+    let got;
+    try {
+      got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal, priority)
+        : await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
+    } catch (e) { got = { error: 'fetch_error' }; }                      // never an unhandled rejection
     if (got.error) {
-      if (got.status === 404 || got.status === 400) markPinStale(key); // retention removed it: re-pin next time
+      if (got.status === 404 || got.status === 400 || got.status === 'integrity') markPinStale(key); // gone or wrong: re-pin
       noteMiss(got.error === 'aborted' ? 'aborted' : (got.status ? `http_${got.status}` : 'fetch_error'));
       if (got.error !== 'aborted') t.errors += 1;
       return null;
@@ -459,6 +467,8 @@ const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east
 export function staticEligible({ model, layer, bbox, surf }) {
   if (!staticFramesEnabled() || !staticFramesBase()) return false;
   if (surf) return false;                         // rating grids are a server transform of the product
+  const tile = regionalTileFor({ model, layer, bbox, surf, param: gridBboxParam });
+  if (tile) return staticSetEnabled(tile.key);    // z7-9 inside a pilot box: the regional bundle or /grid, never the world tiers
   if (!staticSetEnabled(setKeyFor(model, layer))) return false;
   // A world box, or a viewport box the resolver answers from global_mid (the mid-zoom crop, #459): every world set's tier is
   // global_mid, so the crop rules (model-aware snap, regional refusal) apply to all of them.
@@ -500,6 +510,68 @@ function serverFillsWorldMid(model) {
   } catch (e) {
     return true;
   }
+}
+
+/** The regional tile Step 3 serves this box from (staticRegional.pickRegionalTile), or null. `param` = the seam's bbox format. */
+function regionalTileFor({ model, layer, bbox, surf, param }) {
+  if (surf || !bbox || spanOf(bbox) >= WORLD_MIN_SPAN) return null;
+  try { return pickRegionalTile({ model, layer, bboxStr: param(bbox) }); } catch (e) { return null; }
+}
+
+/** The set a box reads: its regional bundle set inside a pilot box, else the world set. Synchronous, no I/O. */
+export function staticSetKeyForBox({ model, layer, bbox, surf }) {
+  const tile = regionalTileFor({ model, layer, bbox, surf, param: gridBboxParam });
+  return tile ? tile.key : setKeyFor(model, layer);
+}
+
+/** The set is listed in the latest.json already read (synchronous; false before the first read). */
+export const isSetListed = (key) => !!(_state.latest && _state.latest.sets && _state.latest.sets[key] && _state.latest.sets[key].index);
+setRegionalLatestProbes({ listed: isSetListed, read: () => !!_state.latest });   // the pre-manifest tile pick (staticRegional)
+
+/** The pinned regional index and this ask's frame and Step 3 window, or null with the miss recorded (the caller asks /grid). */
+async function regionalPick({ tile, model, askMs, bboxStr }) {
+  const index = await getPinnedIndex(tile.key).catch(() => null);
+  if (!index) { noteRegionalMiss('no_index'); return null; }
+  return regionalPickFrom(index, { model, askMs, bboxStr });
+}
+
+/** A regional PAGE is served from `index` only when the cover holds on its lattice and its bundle is not in a failure backoff. */
+function regionalPageServable(index, model, bbox) {
+  const win = regionalClipWindow(seriesBboxParam(bbox), index && index.grid, model);
+  return !!(win && win.covers) && !(index.bundle && bundleBackingOff(index.bundle.path));
+}
+
+/** Synchronous: the PINNED index serves this box's regional page (false when nothing is pinned yet). No I/O. */
+export function regionalPageServableSync({ model, layer, bbox, surf }) {
+  const tile = regionalTileFor({ model, layer, bbox, surf, param: seriesBboxParam });
+  const pin = tile && _state.pins.get(tile.key);
+  return !!(pin && !pin.stale && staticSetEnabled(tile.key) && regionalPageServable(pin.index, model, bbox));
+}
+
+/** This ask's frame and Step 3 window in `index`, or null with the miss recorded. */
+function regionalPickFrom(index, { model, askMs, bboxStr }) {
+  const frame = pickIndexFrame(index, askMs);
+  if (!frame) { noteRegionalMiss('no_frame_in_window'); return null; }
+  if (!frame.path) { noteRegionalMiss('unbuilt_frame'); return null; }
+  const grid = frame.grid || index.grid;
+  const win = regionalClipWindow(bboxStr, grid, model);
+  if (!win) { noteRegionalMiss('window_unmirrored'); return null; }
+  if (!win.covers) { noteRegionalMiss('partial_cover'); return null; }   // the server serves regional_partial and sharpens it
+  return { index, frame, grid, win };
+}
+
+/** Seam A for a regional box: Step 3's clipped tile from the bundle, or null. */
+async function tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }) {
+  const bboxStr = gridBboxParam(clampedBbox);
+  const p = await regionalPick({ tile, model, askMs: Date.parse(validTimeStr), bboxStr });
+  if (!p) return null;
+  const vectors = await loadFrameVectors(tile.key, p.frame, signal, { priority: 'high' });
+  if (!vectors) return null;
+  regionalTelemetry().hits += 1;
+  const json = regionalGridJson(gridJsonFromFrame(p.index, p.frame, vectors, { askIso: validTimeStr, requestedBbox: clampedBbox }),
+    p.win, cropVectors(vectors, p.grid.cols, p.win), bboxStr);
+  try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
+  return json;
 }
 
 /** A viewport box (not a world one) that the resolver answers from global_mid: served as a crop (staticFrameCrop.js). */
@@ -557,6 +629,10 @@ export function staticSeriesEligible(args) {
  */
 export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf, signal }) {
   if (!staticEligible({ model, layer, bbox: clampedBbox, surf })) return null;
+  const tile = regionalTileFor({ model, layer, bbox: clampedBbox, surf, param: gridBboxParam });
+  if (tile) {
+    try { return await tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }); } catch (e) { noteRegionalMiss('error'); return null; }
+  }
   const key = setKeyFor(model, layer);
   try {
     const index = await getPinnedIndex(key);
@@ -592,8 +668,10 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
  * hours it could not fill (the caller leaves those to the per-hour path), or null when the page is not eligible or
  * the index is missing (the caller then uses /grid_series as before).
  */
-export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anchorMs, focusHour, signal, onFrames }) {
+export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anchorMs, focusHour, signal, onFrames, priority }) {
   if (!staticSeriesEligible({ model, layer, bbox, surf })) return null;
+  const tile = regionalTileFor({ model, layer, bbox, surf, param: seriesBboxParam });
+  if (tile) return staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames, priority });
   const key = setKeyFor(model, layer);
   const index = await getPinnedIndex(key).catch(() => null);
   if (!index) { noteMiss('no_index'); return null; }
@@ -615,10 +693,46 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
       telemetry().seriesFrames += 1;
       let sf = seriesFrameFromFrame(index, frame, vectors, { hourOffset: h, askIso: new Date(askMs).toISOString() });
       if (win) { sf = cropSeriesFrame(sf, win, cropVectors(vectors, (frame.grid || index.grid).cols, win)); telemetry().crops = (telemetry().crops || 0) + 1; }
+      sf.static_index = index.path;                       // the page keeps frames of one run (marineSeriesStatic commit)
       onFrames([sf]);
     }
   };
   await Promise.all(Array.from({ length: Math.min(MAX_IN_FLIGHT, order.length) }, worker));
+  return missing.sort((a, b) => a - b);
+}
+
+/** Seam B for a regional page: Step 3's clipped tile per hour from the bundle (one CDN request for the whole run). Null when the
+ *  set has no index (the caller asks /grid_series); otherwise the hours it could not fill (partial covers, unbuilt hours). */
+// null = this page is NOT served from the bundle (the caller asks /grid_series): no index, the cover does not hold on the tile
+// lattice (a box past the last data node: us_southeast_midatlantic, us_northeast, france_biscay), or the bundle failed (fetch,
+// sha12, decode) before a frame was served. ONE index for the whole fill, so a page never mixes two runs. Hours the run cannot
+// serve (outside its window, unbuilt) are returned for the per-hour path.
+async function staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames, priority }) {
+  const index = await getPinnedIndex(tile.key).catch(() => null);
+  if (!index) { noteRegionalMiss('no_index'); return null; }
+  if (!regionalPageServable(index, model, bbox)) { noteRegionalMiss('page_not_servable'); return null; }
+  const bboxStr = seriesBboxParam(bbox);
+  const focus = Number.isFinite(focusHour) ? focusHour : hours[0];
+  const order = [...hours].sort((a, b) => (Math.abs(a - focus) - Math.abs(b - focus)) || (b - a));
+  const missing = [];
+  let served = 0;
+  for (const h of order) {
+    if (signal && signal.aborted) break;
+    const askMs = anchorMs + h * 3600000;
+    const p = regionalPickFrom(index, { model, askMs, bboxStr });
+    if (!p) { missing.push(h); continue; }
+    const vectors = await loadFrameVectors(tile.key, p.frame, signal, { priority });
+    if (!vectors) {
+      if (served === 0 && !(signal && signal.aborted)) { noteRegionalMiss('page_failed'); return null; }
+      missing.push(h); continue;
+    }
+    served += 1;
+    regionalTelemetry().series += 1;
+    const sf = seriesFrameFromFrame(p.index, p.frame, vectors, { hourOffset: h, askIso: new Date(askMs).toISOString() });
+    const out = cropSeriesFrame(sf, { ...p.win, clip: p.win.snapped }, cropVectors(vectors, p.grid.cols, p.win));
+    out.static_index = index.path;
+    onFrames([out]);
+  }
   return missing.sort((a, b) => a - b);
 }
 
@@ -672,5 +786,6 @@ export function _resetStaticFramesForTest() {
   _state.indexLoads.clear(); _lru.clear(); _inflight.clear(); _parsedInflight.clear(); _pending.clear();
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }
   _worker = null; _workerFailed = false;
+  _resetRegionalForTest();
   if (typeof window !== 'undefined') delete window.__RAW_STATIC_FRAMES__;
 }

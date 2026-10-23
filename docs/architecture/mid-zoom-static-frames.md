@@ -192,3 +192,102 @@ crosses an hour's :30 (the anchor rounds) reports correct frames as mislabelled.
 
 Gates: Jest map + `src/tests` 5,470 pass (2 suites fail only in the dot-free copy: they read `program/` and `backend/` files);
 mutants caught (the guard line, the layer wiring, the full-run count, the chain count); ESLint ratchet exit 0; LOC ratchet 0 regressed.
+
+## 8. Regional bundles, the client (2026-10-23)
+
+The map OPENS at zoom 9 over the Florida east coast. The lead's live read (16:33Z) measured ~34 s of `/grid_series` work on the
+1-CPU box per load there: three waves pages (5.1 / 3.9 / 1.2 s) and the swell_1 / swell_2 / wind_waves prefetch pages (6.3 / 6.6 /
+11.1 s). The publisher writes each pilot box's run as ONE bundle (#467 waves, #486 the three swell trains); `staticRegional.js` reads
+it. Kill: `window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true`.
+
+**Contract** (agreed with the static-frames session, approved by the lead): `latest.json` lists each set
+`GFS/marine/<layer>/<region_id>` with its run index and bundle; the client fetches the bundle once (an LRU of 6), slices a frame
+(`offset`, `length`), checks `sha12` over the GZIP slice, inflates it, and decodes it with the world codec. Only a box the tile
+FULLY covers reads it: the Step 3 window (`get_snapped_bbox`, the data-extent clamp, `clip_lattice`, no pad) must cover the request
+with margin 0, the server's own `partial_coverage` test. A partial cover is `regional_partial` and sharpened dynamic on the server,
+so it stays on `/grid` (Decision 3: every dynamic-cache answer over a tile in the Render logs was such a partial cover). The tile is
+the one Step 3 picks (smallest containing tile; an exact tie goes to `/grid`). A cheap counter, `dynamicOnCovered`, notes any dynamic
+`/grid` answer on a box a bundle covers (expected 0).
+
+**Two fixes found by measuring, not by reading:**
+- *The opening race.* The tile list is the products manifest. `/grid` awaits it before deciding; the series pages decided
+  synchronously, and at the opening every page (the viewed one, the scrub prewarm's, the hour-0 mini) was decided at ~3 s, ~1.5 s
+  before the manifest landed, so all of them queued to `/grid_series` (decision trace: 11 picks `manifest_not_loaded`). A page whose
+  box a regional bundle could answer now waits for the manifest, bounded at 3 s, BEFORE the page dedup, so waiters resume one by one
+  (`regionalSeriesWait`; kill `__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__`). Superseded by the review fixes below: the hour-0 mini is
+  never held, and once `latest.json` is read the tile is picked from the pilot boxes, so nothing waits.
+- *Day jumps.* The static series fill is windowed (+-4 steps) because a world frame is ~15k vectors. A regional frame at the owner's
+  z9 is 13 x 9, sliced from a bundle already in memory, so a small regional page fills every hour (viewed page <= 1,200 nodes a
+  frame, any background page <= 300; `regionalFullPage`, kill `__RAW_DISABLE_REGIONAL_FULL_PAGE__`). Windowed, a jump to +172 h went
+  to the per-hour path at 170-220 ms; whole, 26-40 ms.
+
+**Parity** (`scn_regional_client_parity.mjs`, the app's own modules against the offline resolver, the 8 Florida / SoCal sets; seeded
+z7-9 boxes plus each tile's exact box, 0.01 deg inside it and 0.5 deg past an edge): every layer, 30 claimed of 230 asks, 11,554
+`/grid` + 5,620 `/grid_series` nodes, 0 bad, 0 metadata mismatches (product, served time, scope, mode, requested / query / served
+bbox, coverage, partial_coverage), 0 false claims, 0 refused full covers, every sha12 good; waves on 300 boxes: 56 claimed, 25,336
+nodes, 0 bad. `requested_bbox` is the SNAPPED box, as `filter_grid_to_bbox` stamps it (the first run's only mismatch). Positive
+control: swell_1 keys pointed at the waves bundles -> 5,374 bad nodes, exit 1.
+
+**Measured** (offline, the real waves run plus synthetic swells; `docs/weather-program/evidence/regional-bundles-client-2026-10-23.json`;
+no session across :30):
+
+| z9 Florida, centre -80.6, 28.1 (the live box) | regional bundles (ships) | `__RAW_DISABLE_REGIONAL_BUNDLES__` |
+|---|---|---|
+| owner view, marine `/grid` + `/grid_series` asks per load | **0** (2 of 2 sessions) | 10-11, 30.0-34.9 s of backend time |
+| desktop view | **0** | 11, 32.7 s |
+| step to the exact frame, worst of 10 steps | 40-45 ms | 39-47 ms |
+| mislabelled frames | 0 | 0 |
+| the view crossing the tile's -79 edge (partial cover) | same as the kill (9 asks): no bundle read | 9 asks |
+
+**Not yet:** the frame store does not take regional sets (`getPinnedIndexSync` keeps them out); boxes outside the pilot boxes stay
+on the dynamic lane (section 6).
+
+**Review fixes (2026-10-23 evening; the lead's review of `b482566c`, 8 findings, each verified in the code first):**
+
+| finding | fix | test that fails without it |
+|---|---|---|
+| 1. failures never cached; every failure reported as 404 -> stale pin -> forced `latest.json` per hour | failure cache per bundle path with backoff (5 s doubling to 120 s); the real status passed on (0 for network / CORS / timeout, `backoff` inside it); only a real 404 / 400 re-pins | 429 backoff, CORS, 404-vs-429 stale mark, page backoff |
+| 2. a page that served nothing still claimed the page | cover checked once on the set's lattice before the loop; a bundle failure before the first frame returns null (the page asks `/grid_series`); background pages and the hour-0 mini need a pinned, servable page (`regionalPageServableSync`) | failed page not claimed (unit + loader) |
+| 3. no fetch timeout | 15 s abort on the bundle fetch | the timeout test |
+| 4. the manifest wait delayed the first frame and gave no saving with a late manifest | the hour-0 mini is never held; only boxes inside a pilot box wait; and once `latest.json` is read a box inside a pilot box is picked from that box (the pilot boxes do not overlap: backend-test-banned; `PILOT_BOXES` pinned to `pilot_regions.py`; the set listed = written from that tile), so nothing waits | hour-0 not held, late manifest served, pilot pick |
+| 5. static pages escaped `SERIES_MAX` | the same eviction on static commits | 60 pages -> <= 48 |
+| 6. dynamic cache keyed on the snapped box, ahead of the tile | a box is claimed only if its SNAPPED box also lies inside the data: no partial cover shares its key | fractional-edge window + loader test; parity below |
+| 7. a re-pin mid-fill mixed runs on a page | one index per fill; frames carry `static_index`; a frame of another run clears the page | run-mixing test |
+| 8. gzip error unhandled; sha12 failed open without `crypto.subtle` | errors caught at the loader; no digest = refused (fail closed) | gzip / missing-digest test |
+
+Mutants: 12 guards removed one at a time, 12 caught (`evidence: review_fixes.mutants`).
+
+*Finding 6 reproduced offline* (`scn_regional_client_parity.mjs SAMEKEY=1`, us_southeast_midatlantic: coverage east -74.4, last node
+-74.5; north 37.5). A full-cover box snapping past the data is first served from the tile (`regional`). After ONE partial-cover ask
+under the same snapped key, the server serves it from a dynamic product (`viewport_gfs_marine_waves_..._-77.00_33.00_-74.00_36.00`).
+The previous rule would have answered from the bundle; the new rule refuses such boxes. Parity on Florida + that tile: 283 asks,
+0 bad, 0 metadata mismatches, 0 false claims.
+
+*Measured after the fixes* (owner view, z9 Florida, the live box; `LAT_PRODUCTS` delays the products manifest as the live read saw it):
+
+| | regional (ships) | kill switch |
+|---|---|---|
+| manifest 4 s late: first frame | **0.5-1.1 s** | 1.6-2.4 s |
+| manifest 4 s late: marine `/grid_series` asks, backend time | **0, 0 s** | 4, 18.6-21.7 s |
+| manifest on time: first frame | 1.3-1.4 s | 1.4-1.8 s |
+| manifest on time: asks, backend time | 3 one-frame minis, 0.4 s | 9, 30-31 s |
+| worst step to the exact frame / mislabelled | 38-50 ms / 0 | 40-52 ms / 0 |
+
+Before the pilot pick the late-manifest case served nothing (every page waited 3 s and then asked `/grid_series`), as the review
+predicted.
+
+**Second round (2026-10-23 late; Reflection's parameters via the lead, platform notes, the 19:44Z saturation):**
+- Backoff 30 s -> 2 min -> 10 min -> 30 min per bundle path, a longer `Retry-After` wins; a 404 / 400 or a sha12 mismatch is a
+  dead path for the pin (30 min) and re-pins once (status `integrity` for the mismatch, which also drops the cached bytes).
+- Fetch timeout 8 s, or the bundle's size at 150 KB/s when that is longer (a flat 8 s would abort brazil_east's ~2.5 MB on a slow
+  link and send every page to `/grid_series`). Fetch priority `high` for the viewed page and the `/grid` seam, `low` for
+  background pages (ignored where unsupported).
+- Manifest wait 1.5 s (only before `latest.json` is read; the pilot pick decides after).
+- An all-miss regional page (nothing held, nothing served) returns to `/grid_series`.
+- A browser without `crypto.subtle` or `DecompressionStream('gzip')` (Safari < 16.4, insecure contexts) picks no regional tile:
+  nothing is downloaded and every box keeps its existing path.
+- Surf mode and models without bundles (ICON, EURO) never read a bundle or wait (two guards: `staticEligible` and
+  `regionalTileFor`; a mutant removing both is caught). The 19:44Z saturation (surf rating on, ICON + EURO, unsnapped pans) is
+  outside this client; its pan debounce / surf sibling gate went to the GPU-frames session.
+- Mutants: 21 guards, 21 caught.
+

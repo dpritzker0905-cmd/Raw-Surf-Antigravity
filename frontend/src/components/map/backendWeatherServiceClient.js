@@ -20,6 +20,7 @@ import { blendIconSwell2 } from './iconSwell2Blend';
 import { requireStoredIconEstimate } from './iconEstimateDelivery';
 import { noteRequestDiet, planManifestFetch, requestDietOn } from './marineRequestDiet';
 import { staticEligible, tryStaticWorldGrid } from './staticFrames';
+import { noteBackendAnswer } from './staticRegional';
 
 
 export { BoundedPointCache };
@@ -468,6 +469,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
         throw new Error(reason);
       }
       json = await res.json();
+      noteBackendAnswer({ model, layer, bboxStr: bboxParam, json });   // a dynamic answer on a box a regional bundle covers (expected 0)
     }
 
     if (options.storedIconRecovery) requireStoredIconEstimate(json, layer, validTimeStr);
