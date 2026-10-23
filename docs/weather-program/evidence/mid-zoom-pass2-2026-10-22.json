@@ -1,5 +1,5 @@
 {
- "written": "2026-10-22T22:05:00Z",
+ "written": "2026-10-23T02:02:00Z",
  "base": "dev d1dbeed8b (#460) vs claude/mid-zoom-pass2 on it",
  "harness": "offline: serve_synthetic.py --models GFS --layers waves,swell_1,swell_2,wind_waves --regions flagship --dynamic 1 --real-frames (the 115 real GFS waves global_mid frames of run 2026-10-22T06Z); CDN_LAT 0; Playwright routing disables the HTTP cache",
  "notes": [
