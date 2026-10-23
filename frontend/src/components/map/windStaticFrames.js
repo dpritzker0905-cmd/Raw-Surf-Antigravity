@@ -18,7 +18,8 @@
  * frames' own lane and is older than LANE_SETTLE_MS (the box's re-read); otherwise /grid serves the hour. A frame outside both
  * windows is GFS on both sides, and its stamp is rebuilt from the pointer's lane, as /grid stamps it.
  * Nothing here can reach the backend. Kills (read per call): window.__RAW_DISABLE_WIND_STATIC_FRAMES__ = true (wind only),
- * window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['GFS/wind/wind/global_mid'], or the global __RAW_DISABLE_STATIC_FRAMES__.
+ * window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['GFS/wind/wind/global_mid'], or the global __RAW_DISABLE_STATIC_FRAMES__;
+ * window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ = true keeps only the hours the HRRR lane can touch on /grid.
  * Telemetry: window.__RAW_WIND_STATIC__.
  */
 import {
@@ -118,9 +119,13 @@ export function laneVerdict(index, frame, ptr, now = nowMs()) {
   const frames = index.wind_lane || null;
   const settled = Number.isFinite(ms(ptr.written_at)) && now - ms(ptr.written_at) >= LANE_SETTLE_MS;
   const same = !!(frames && frames.key === ptr.key && frames.feather_km === ptr.feather_km && frames.taper_hours === ptr.taper_hours);
-  if (same && settled && own) return { stamp: own };
   const inWindow = (lane) => !!lane && vt >= ms(lane.cycle) && vt <= ms(lane.horizon);
-  if (inWindow(ptr) || inWindow(frames) || (own && own.lane === 'hrrr+gfs')) return { refuse: same ? 'lane_unsettled' : 'lane_mismatch' };
+  const touched = inWindow(ptr) || inWindow(frames) || !!(own && own.lane === 'hrrr+gfs');
+  // KILL for a box that failed to re-read its lane (it would keep an older one past the 330 s settle): every hour the lane can
+  // touch asks /grid. window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ = true.
+  if (touched && W().__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ === true) return { refuse: 'lane_hours_killed' };
+  if (same && settled && own) return { stamp: own };
+  if (touched) return { refuse: same ? 'lane_unsettled' : 'lane_mismatch' };
   // GFS on both sides: /grid's stamp names the box's lane.
   return { stamp: { ...laneBase(ptr), valid_time: iso(vt), reason: vt < ms(ptr.cycle) ? 'before_hrrr_cycle' : 'beyond_hrrr_horizon' } };
 }

@@ -133,6 +133,10 @@ describe('static GFS wind frames', () => {
     expect(laneVerdict(INDEX, INDEX.frames[1], other, now)).toEqual({ stamp: { lane: 'gfs', feather_km: 200, taper_hours: 3,
       hrrr_cycle: other.cycle, hrrr_horizon: other.horizon, source: LANE.source, valid_time: '2026-10-28T00:00:00Z', reason: 'beyond_hrrr_horizon' } });
     expect(laneVerdict(INDEX, FRAME, null, now)).toEqual({ refuse: 'no_lane_pointer' });
+    window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ = true;                 // the box may hold an older lane: lane hours ask /grid
+    expect(laneVerdict(INDEX, FRAME, { ...LANE, written_at: '2026-10-22T20:00:00Z' }, now)).toEqual({ refuse: 'lane_hours_killed' });
+    expect(laneVerdict(INDEX, INDEX.frames[1], other, now).stamp.reason).toBe('beyond_hrrr_horizon');   // later hours stay static
+    delete window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__;
   });
 
   test('a mismatched lane, a missing pointer and an unbuilt hour all leave the hour to /grid', async () => {

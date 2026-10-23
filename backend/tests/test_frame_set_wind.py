@@ -93,12 +93,12 @@ def test_a_wind_frame_carries_fast_wind_and_passes_parity():
     raw, check = fs.build_frame(p, {}, fs.fields_for(WIND))
     assert check["bad"] == 0 and check["missing_mismatch"] == 0
     dec = fb.decode_frame(raw)
-    assert set(dec["fields"]) == {fb.DIRECTION, fb.SPEED_KT} and dec["uv_convention"] == 0
-    speeds = dec["fields"][fb.SPEED_KT]
+    assert set(dec["fields"]) == {fb.DIRECTION, fb.SPEED} and dec["uv_convention"] == 0
+    speeds = dec["fields"][fb.SPEED]
     assert speeds[5] is None                                              # the invalid node stays no-data
     i = 3 * 16 + 4
     assert abs(speeds[i] - p["grid"]["vectors"][i]["speed"]) <= 0.005 and speeds[i] > 100   # past height's 65.5 cap
-    assert check["max_abs_err"]["speed_kt"] <= 0.005 and check["max_abs_err"]["direction_deg"] == 0.0
+    assert check["max_abs_err"]["speed"] <= 0.005 and check["max_abs_err"]["direction_deg"] == 0.0
 
 
 def test_a_lane_window_frame_is_what_grid_serves_and_marks_the_blended_nodes():
@@ -115,7 +115,7 @@ def test_a_lane_window_frame_is_what_grid_serves_and_marks_the_blended_nodes():
     used = {int(i) for k, i in enumerate(found[0]) if bool(found[4][k])}
     assert {i for i, w in enumerate(weights) if w} == used                # exactly the nodes the blend uses
     for i, g in enumerate(grid.grid.vectors):                             # the decoded field IS /grid's, node by node
-        s = dec["fields"][fb.SPEED_KT][i]
+        s = dec["fields"][fb.SPEED][i]
         if not g.is_valid:
             assert s is None
             continue
@@ -164,7 +164,7 @@ def test_the_index_names_the_lane_and_a_new_lane_rebuilds_only_what_it_touches(t
     meta = {vt: {**index["common_meta"], **f["meta"]} for vt, f in frames.items()}
     assert meta[valids[0]]["wind_lane"]["lane"] == "hrrr+gfs" and meta[valids[1]]["wind_lane"]["reason"] == "beyond_hrrr_horizon"
     assert all(f["source"]["wind_lane"] == lane_a.key for f in frames.values())
-    assert set(index["quantisation"]) == {"direction_deg", "speed_kt", "lane_weight"}
+    assert set(index["quantisation"]) == {"direction_deg", "speed", "lane_weight"}
     # The same lane again: nothing to publish.
     again, _ = fs.publish_set(pub.LocalCache(store), pub.LocalSink(out), WIND, index, lambda jobs: None, log=lambda *_: None,
                               wind_lane=publish_lane(ms=15.45))

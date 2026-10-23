@@ -20,7 +20,7 @@ wind is not immediately instant scrub upon toggling over to that layer. However 
 
 **Publisher** (`backend/services/frame_set_wind.py`, `frame_set.SETS` last, the pilots lane, beside the marine sets):
 - GFS wind global_mid (3-hourly f000-f336, 113 frames, 181 x 83), RSWF v1 with two new field ids:
-  `speed_kt` (u16, 0.01 kn; height's 1 mm u16 tops out at 65.5) and `lane_weight` (u16, only when HRRR touched the frame).
+  `speed` (u16, 0.01 kn, the unit in the index meta; height's 1 mm u16 tops out at 65.5) and `lane_weight` (u16, only when HRRR touched the frame).
 - **The HRRR lane (D-017).** `/grid` runs `wind_lane.apply_wind_lane` on every GFS wind grid it serves, blending HRRR into
   CONUS for the HRRR cycle's 48 h. A frame of the stored product would not equal `/grid` there. So every frame is the stored
   product WITH THE LANE APPLIED by the same function and the lane the box loads (L2 `wind_lane/index.json`), checked node by node;

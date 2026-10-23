@@ -11,7 +11,7 @@ differ from /grid there, so each frame is the stored product WITH THE LANE APPLI
 serve box loads (L2 wind_lane/index.json -> its cycle object). The blend runs at the product's own valid time (served_valid_time
 is stamped before the lane), so one frame per product equals /grid for every hour that picks it. Parity is checked against that
 blend node by node (frame_binary.parity, wind tolerances), and the frame carries:
-  - fields speed_kt + direction (frame_binary.WIND_FIELDS), and lane_weight when the lane touched any node (so a CROP of the
+  - fields speed (kn) + direction (frame_binary.WIND_FIELDS), and lane_weight when the lane touched any node (so a CROP of the
     frame rebuilds the lane stamp /grid puts on the clip: hrrr+gfs inside the touched nodes, outside_hrrr_domain otherwise);
   - in its index meta, the `wind_lane` stamp /grid puts on the world response;
   - in the index, `wind_lane`: the lane's identity (key, cycle, horizon, feather_km, taper_hours, source), and the lane key is

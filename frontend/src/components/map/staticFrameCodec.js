@@ -13,7 +13,7 @@
 export const FRAME_MAGIC = [0x52, 0x53, 0x57, 0x46]; // "RSWF"
 export const SUPPORTED_ENCODING = 1;
 export const SUPPORTED_TRANSFORM = 1;
-export const FIELD = { HEIGHT: 0, DIRECTION: 1, PERIOD: 2, DIR_CONFIDENCE: 3, SPEED_KT: 4, LANE_WEIGHT: 5 };
+export const FIELD = { HEIGHT: 0, DIRECTION: 1, PERIOD: 2, DIR_CONFIDENCE: 3, SPEED: 4, LANE_WEIGHT: 5 };
 const HEADER_FIXED = 72;
 const DESCRIPTOR_BYTES = 24;
 const NO_MISSING = 0xFFFFFFFF;
@@ -131,7 +131,7 @@ export function buildVectors(parsed) {
  */
 export function buildWindVectors(parsed) {
   const { cols, rows, bounds, fields } = parsed;
-  const S = fields[FIELD.SPEED_KT];
+  const S = fields[FIELD.SPEED];
   const D = fields[FIELD.DIRECTION];
   if (!S || !D) throw new Error('static frame: not a wind frame');
   const sign = parsed.uvConvention === 1 ? 1 : -1;

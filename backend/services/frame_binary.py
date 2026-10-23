@@ -41,7 +41,7 @@ direction as 8-bit unit-vector components, period in 0.078 s bytes).
 
 WIND frames (2026-10-22, the GFS wind world set; frame_set_wind.py) carry fields 1, 4 and, when the HRRR lane touched the
 frame, 5. Height's 1 mm u16 tops out at 65.5, and 10 m wind in knots goes past that:
-  4 speed_kt        u16  code 0 = no data (is_valid false), else round(speed / 0.01 kn) + 1   error <= 0.005 kn
+  4 speed           u16  code 0 = no data (is_valid false), else round(speed / 0.01 kn) + 1   error <= 0.005 kn
   5 lane_weight     u16  code 0 = the HRRR lane did not touch the node, else max(1, round(w * 10000)): the lane's weight
                          (wind_lane._blend `use`), so a crop of the frame rebuilds the /grid lane stamp of the crop
 u, v follow from speed and direction by uv_convention 0, as the wind normalizer computes them. The wind texture
@@ -67,26 +67,26 @@ DESCRIPTOR = struct.Struct("<BBBBIdd")  # 24 bytes
 NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
-HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED_KT, LANE_WEIGHT = 0, 1, 2, 3, 4, 5
+HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT = 0, 1, 2, 3, 4, 5
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
-               SPEED_KT: "speed_kt", LANE_WEIGHT: "lane_weight"}
+               SPEED: "speed", LANE_WEIGHT: "lane_weight"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
-# speed_kt does the same at 0.01 kn.
+# speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
 FIELD_SPECS = {
     HEIGHT: (2, 1, 0, 0.001, -0.001),
     DIRECTION: (2, 1, NO_MISSING, 0.01, 0.0),
     PERIOD: (2, 1, 0xFFFF, 0.01, 0.0),
     DIR_CONFIDENCE: (1, 0, 0xFF, 1.0 / 254.0, 0.0),
-    SPEED_KT: (2, 1, 0, 0.01, -0.01),
+    SPEED: (2, 1, 0, 0.01, -0.01),
     LANE_WEIGHT: (2, 1, NO_MISSING, 0.0001, 0.0),
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
-WIND_FIELDS = (DIRECTION, SPEED_KT)
+WIND_FIELDS = (DIRECTION, SPEED)
 
 # What the decoded value may differ from the source by, per field (half a step, plus float slack).
 TOLERANCE = {HEIGHT: 0.0005 + 1e-9, DIRECTION: 0.005 + 1e-9, PERIOD: 0.005 + 1e-9, DIR_CONFIDENCE: 0.5 / 254 + 1e-9,
-             SPEED_KT: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9}
+             SPEED: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9}
 POSITION_TOL_DEG = 1e-6
 UV_TOL = 0.0012  # u, v rebuilt from the decoded height and direction: 1 mm height step plus 4-dp rounding
 # Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
@@ -96,8 +96,8 @@ WIND_UV_TOL_PER_KN = 0.0001
 
 
 def magnitude_field(field_ids):
-    """The field that carries the vector's magnitude and validity: height (marine) or speed_kt (wind)."""
-    return SPEED_KT if SPEED_KT in field_ids else HEIGHT
+    """The field that carries the vector's magnitude and validity: height (marine) or speed (wind)."""
+    return SPEED if SPEED in field_ids else HEIGHT
 
 
 def _grid_of(product):
@@ -157,7 +157,7 @@ def _valid(vec):
 def field_code(fid, vec):
     """The integer code one vector stores for one field."""
     _nb, _layout, missing, scale, offset = FIELD_SPECS[fid]
-    if fid in (HEIGHT, SPEED_KT):
+    if fid in (HEIGHT, SPEED):
         if not _valid(vec):
             return 0
         return min(0xFFFF, int(round(float(vec["speed"]) / scale)) + 1)
@@ -298,7 +298,7 @@ def parity(product, decoded):
             continue
         for fid, values in f.items():
             got = values[i]
-            if fid in (HEIGHT, SPEED_KT):
+            if fid in (HEIGHT, SPEED):
                 want = float(vec["speed"]) if valid else None
             elif fid == LANE_WEIGHT:
                 want = _finite(vec.get("_lane_w")) or 0.0
