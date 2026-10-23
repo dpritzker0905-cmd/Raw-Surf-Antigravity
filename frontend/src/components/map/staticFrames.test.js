@@ -1,5 +1,5 @@
 import {
-  _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, hasPinnedIndex, loadFrameVectors, serveTimeFillAtWorld, setKeyFor,
+  _resetStaticFramesForTest, fetchFrameBytes, fetchPriorityOf, prewarmStaticFrames, getPinnedIndex, getPinnedIndexSync, hasPinnedIndex, loadFrameVectors, serveTimeFillAtWorld, setKeyFor,
   staticEligible, staticFramesEnabled, staticSeriesEligible, staticSeriesFrames, staticSetEnabled, tryStaticWorldGrid, STATIC_SETS,
 } from './staticFrames';
 import { fetchBackendMarineGrid, setCachedManifest } from './backendWeatherServiceClient';
@@ -406,5 +406,147 @@ describe('static frames loader', () => {
     now += 60000;
     await ask();
     expect(calls.filter((u) => u.endsWith('v1/latest.json'))).toHaveLength(3);
+  });
+});
+
+// FETCH PRIORITY (2026-10-23, skills audit #1). Chrome gives a worker fetch the same scheduling priority as the main thread's
+// (trace-verified, Chrome 154); here jsdom has no Worker, so the main-thread fallback carries the same init.
+describe('fetch priority on frame fetches', () => {
+  const realFetch = global.fetch;
+  beforeEach(() => {
+    _resetStaticFramesForTest();
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
+    window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+  });
+  afterEach(() => {
+    window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    delete window.__RAW_STATIC_FRAMES_BASE__;
+    delete window.__RAW_DISABLE_FETCH_PRIORITY__;
+    global.fetch = realFetch;
+    jest.restoreAllMocks();
+  });
+  const initOf = (url) => (global.fetch.mock.calls.find((c) => String(c[0]).includes(url)) || [])[1] || {};
+
+  it("passes 'high' / 'low' as RequestInit.priority, nothing for the default, and nothing at all under the kill switch", async () => {
+    const buf = goldenBuffer('2026-10-20T00:00:00Z');
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => buf.slice(0) }));
+    await fetchFrameBytes(BASE + 'a.bin', undefined, 'low');
+    await fetchFrameBytes(BASE + 'b.bin', undefined, 'high');
+    await fetchFrameBytes(BASE + 'c.bin');
+    await fetchFrameBytes(BASE + 'd.bin', undefined, 'urgent');          // not a RequestInit.priority value: the default
+    expect(initOf('a.bin').priority).toBe('low');
+    expect(initOf('b.bin').priority).toBe('high');
+    expect('priority' in initOf('c.bin')).toBe(false);
+    expect('priority' in initOf('d.bin')).toBe(false);
+    expect(initOf('a.bin').credentials).toBe('omit');
+    window.__RAW_DISABLE_FETCH_PRIORITY__ = true;
+    await fetchFrameBytes(BASE + 'e.bin', undefined, 'low');
+    expect('priority' in initOf('e.bin')).toBe(false);
+    expect(window.__RAW_STATIC_FRAMES__.byPriority).toEqual({ high: 1, low: 1, auto: 3 });
+    expect(fetchPriorityOf('low')).toBeUndefined();                        // still killed
+  });
+
+  it("seam A's exact frame (the step on screen) asks 'high'", async () => {
+    const idx = indexFor('gfs', ['2026-10-20T00:00:00Z']);
+    cdn({ latestIndex: () => idx.path, indexes: [idx] });
+    const json = await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(json).toBeTruthy();
+    expect(initOf('.bin').priority).toBe('high');
+  });
+
+  it("the inline worker's own fetch carries the priority (its REAL source, run in a fake worker scope)", async () => {
+    let src = null;
+    const RealBlob = global.Blob;
+    const hadCreate = URL.createObjectURL;
+    const workerFetch = jest.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(8) }));
+    global.Blob = function CapturingBlob(parts, opts) { src = parts.join(''); return new RealBlob(parts, opts); };
+    URL.createObjectURL = () => 'blob:frames-worker';
+    global.Worker = class FakeWorker {
+      constructor() {
+        const scope = { postMessage: (data) => this.onmessage && this.onmessage({ data }) };
+        new Function('self', 'fetch', 'performance', 'AbortController', src)(scope, workerFetch, performance, AbortController);
+        this.scope = scope;
+      }
+      postMessage(m) { this.scope.onmessage({ data: m }); }
+      terminate() {}
+    };
+    try {
+      global.fetch = jest.fn();                                              // the main-thread fallback must not run
+      expect((await fetchFrameBytes(BASE + 'w1.bin', undefined, 'high')).error).toBeUndefined();
+      expect((await fetchFrameBytes(BASE + 'w2.bin')).error).toBeUndefined();
+      expect(window.__RAW_STATIC_FRAMES__.worker).toBe('blob');
+      expect(workerFetch.mock.calls[0][1]).toMatchObject({ credentials: 'omit', priority: 'high' });
+      expect('priority' in workerFetch.mock.calls[1][1]).toBe(false);
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      global.Blob = RealBlob;
+      URL.createObjectURL = hadCreate;
+      delete global.Worker;
+      _resetStaticFramesForTest();
+    }
+  });
+});
+
+// BOOT WARM-UP (2026-10-23, skills audit #2): at MapPage mount the worker, latest.json, the index pin and the current hour's
+// frame (vectors built, 'low' priority) start before the map asks; once per page; skipped on Save-Data / 2g, killed by a switch.
+describe('prewarmStaticFrames', () => {
+  const realFetch = global.fetch;
+  let now;
+  beforeEach(() => {
+    _resetStaticFramesForTest();
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
+    window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+    now = Date.parse('2026-10-20T00:20:00Z');                              // the app's hour 0 rounds to 00Z
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    window.requestIdleCallback = (fn) => setTimeout(fn, 0);
+  });
+  afterEach(() => {
+    window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
+    delete window.__RAW_STATIC_FRAMES_BASE__;
+    delete window.__RAW_DISABLE_STATIC_FRAMES_PREWARM__;
+    delete window.requestIdleCallback;
+    Object.defineProperty(window.navigator, 'connection', { configurable: true, value: undefined });
+    global.fetch = realFetch;
+    jest.restoreAllMocks();
+  });
+  const idx = () => indexFor('gfs', ['2026-10-19T21:00:00Z', '2026-10-20T00:00:00Z', '2026-10-20T03:00:00Z']);
+
+  it("pins the model's index and loads the current hour's frame at 'low' priority, once per page", async () => {
+    const index = idx();
+    const calls = cdn({ latestIndex: () => index.path, indexes: [index] });
+    const p = prewarmStaticFrames({ model: 'GFS' });
+    expect(prewarmStaticFrames({ model: 'GFS' })).toBe(p);                 // once per page
+    expect(await p).toBe('2026-10-20T00:00:00Z');
+    expect(getPinnedIndexSync(KEY)).toBe(index);
+    const frameCalls = global.fetch.mock.calls.filter((c) => String(c[0]).endsWith('.bin'));
+    expect(frameCalls.map((c) => c[0])).toEqual([BASE + 'v1/f/gfs/2026-10-20T00:00:00Z.bin']);
+    expect(frameCalls[0][1].priority).toBe('low');
+    expect(window.__RAW_STATIC_FRAMES__.prewarm).toMatchObject({ model: 'GFS', frame: '2026-10-20T00:00:00Z', skipped: null });
+    // seam A then finds the vectors in place: no second frame fetch
+    const before = calls.length;
+    const json = await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: '2026-10-20T00:00:00Z', clampedBbox: WORLD });
+    expect(json).toBeTruthy();
+    expect(calls.slice(before).filter((u) => u.endsWith('.bin'))).toEqual([]);
+  });
+
+  it.each([
+    ['Save-Data', () => Object.defineProperty(window.navigator, 'connection', { configurable: true, value: { saveData: true, effectiveType: '4g' } })],
+    ['a 2g link', () => Object.defineProperty(window.navigator, 'connection', { configurable: true, value: { saveData: false, effectiveType: '2g' } })],
+    ['the kill switch', () => { window.__RAW_DISABLE_STATIC_FRAMES_PREWARM__ = true; }],
+  ])('does nothing on %s', async (_, arrange) => {
+    const index = idx();
+    cdn({ latestIndex: () => index.path, indexes: [index] });
+    arrange();
+    expect(prewarmStaticFrames({ model: 'GFS' })).toBeNull();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('a model whose world box stays on /grid (EURO since #461) fetches nothing', async () => {
+    const index = idx();
+    cdn({ latestIndex: () => index.path, indexes: [index] });
+    expect(await prewarmStaticFrames({ model: 'EURO' })).toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+    expect(window.__RAW_STATIC_FRAMES__.prewarm.skipped).toBe('not_eligible');
   });
 });
