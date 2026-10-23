@@ -80,6 +80,19 @@ Evidence: `evidence/marine-main-thread-2026-10-23.json`. Client only. No served 
 - The idle loop offline is MapLibre `_render` at 7-12% of wall time and the engine render at 2-5%, not the live 54%. The
   uniform cache lowers the engine part by about a third. No animation was touched.
 
+## Tests
+- **5,554 tests are green** across `src/components/map` and `src/tests`. Two source pins were updated to the new spellings:
+  the seed-consume order (`baseHourSync`) and `u_densityCut` (`marineCrestDensity`).
+- **Mutants: 18 of 18 killed** (each in `scratchpad/mutants_jank.py`, one change each). They cover:
+  - each kill switch ignored;
+  - the uniform cache never keeping a location, and one engine lookup going back to the driver;
+  - a cached mask never found, a raster never remembered, a mask without canvas dims cached, teardown keeping the masks,
+    and eviction never letting go;
+  - every frame quiet, the lazy install, a zoom change not counted, and the engine consuming the seed on any frame;
+  - a read-only hit copied, a read-only miss copied, and the capture not read-only.
+- **One equivalent mutant is documented, not counted:** removing the engine's `base.__maskCanvasDims` guard changes
+  nothing, because `rememberCoarseMask` refuses a mask without dims. That module guard has its own test and mutant.
+
 ## Not done, next levers (measured, not changed here)
 - **React's keydown handler and commits:** 52-87 ms frames remain on interaction paths. They hold `setWaveData` encodes of
   5-64 ms for grids that are not the frame store's resident; the live trace had the handler at 26-60 ms, 213 ms on the
