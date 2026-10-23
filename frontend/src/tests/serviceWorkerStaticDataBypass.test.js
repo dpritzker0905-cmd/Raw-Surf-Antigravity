@@ -1,7 +1,7 @@
 /**
  * Skills audit #4 (2026-10-23): the service worker bypasses the static forecast data buckets EXPLICITLY (host + bucket prefix),
  * not because their names happen to contain '/weather'; gallery media keeps its cache branch; the HTML shell is no-cache, not
- * no-store (no-store keeps the page out of the back/forward cache).
+ * no-store (no-store keeps the page out of the back/forward cache); the catch-all header rule leaves the bundles' immutable alone.
  *
  * `service-worker.js` is a classic worker in `public/` (no imports), so, as serviceWorkerSpotsFallback.test.js does, the REAL file
  * runs against a mock worker global.
@@ -74,5 +74,16 @@ describe('the HTML shell header (skills audit #4)', () => {
     const block = text.split(/\n(?=\/)/).find((b) => b.startsWith('/index.html'));
     expect(block).toMatch(/Cache-Control:\s*no-cache\s*$/m);
     expect(block).not.toMatch(/no-store/);
+  });
+
+  it('the catch-all sets no Cache-Control, so the hashed bundles keep immutable (on Netlify its no-cache won over them)', () => {
+    const text = fs.readFileSync(HEADERS_PATH, 'utf8');
+    const blocks = text.split(/\n(?=\/)/);
+    const catchAll = blocks.find((b) => b.startsWith('/*'));
+    expect(catchAll).toMatch(/X-Content-Type-Options:\s*nosniff/);
+    expect(catchAll.split('\n').filter((l) => !l.trim().startsWith('#')).join('\n')).not.toMatch(/Cache-Control/i);
+    for (const dir of ['/static/js/*', '/static/css/*']) {
+      expect(blocks.find((b) => b.startsWith(dir))).toMatch(/Cache-Control:\s*public, max-age=31536000, immutable/);
+    }
   });
 });
