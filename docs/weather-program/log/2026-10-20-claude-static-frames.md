@@ -292,6 +292,20 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   come from unfilled frames, so it means two frame variants or a crop-side unfill; or keep this guard.
 - Ledger: a correction of 1674 (#453's pr_open parity claim) and the fix PR's pr_open.
 
+## 2026-10-22 21:30Z: the series gate lifts for swell and wind waves (#460, rebased onto #461)
+
+- **Why now:** #456 (merged 2026-10-22) makes the series conform carry `is_valid` for every layer; its lane parity on a real frame
+  (`marineFramePack.parity.test.js`) reads swell_1 texels that differ between the /grid and series lanes 4,657 -> 0, swell_2 and
+  wind_waves 0. That was the condition #453's waves-only series gate waited on.
+- **Change:** `staticSeriesEligible` takes every world set. The waves-only rule comes back by itself when #456's fix is killed
+  (`window.__RAW_DISABLE_CONFORM_IS_VALID__`) and on its own kill (`window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__`). Crop pages
+  (#459) follow it. `getPinnedIndexSync` (the GPU frame store) stays waves-only until its packer handles the other layers.
+- **Measured** (`scn_static_frames.js MODEL=GFS LAYER=swell_1`, production build, production-shaped CDN, one session per arm):
+  exact-correct frame p50 / p95 grid 53 / 2,877 ms (7 backend requests) vs store 43 / 237 ms (0 requests, backend CPU 0.016 s);
+  before the lift the store arm read 1,605 / 1,676 ms (seam A only, the per-hour settle). The series lane serves the 1-h steps;
+  day jumps take ~0.22 s.
+- **Checks:** Jest `src/components/map` + `src/tests` 367 suites / 5,415 tests; check_eslint; craco build.
+
 ## 2026-10-22 22:45Z: option 2 - MARINE_GULF_FILL_MID (dark): the Gulf fill can keep to its 10-deg tier; /capabilities reports it
 
 - **The lead picked option 2** over mirroring the fill into the CDN (a documented defect, a racy donor pointer). Built DARK
