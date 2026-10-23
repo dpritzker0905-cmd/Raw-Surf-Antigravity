@@ -1,0 +1,822 @@
+{
+ "what": "z9 Florida scrub: the per-commit land-mask repaint and the hidden-layer series prewarm (2026-10-23)",
+ "instrument": "frontend/scripts/offline-backend/scn_main_thread.js (ZOOM=9 CENTER=-80.62,28.05 STEP_GAP=600), owner window 844x390 dpr 2",
+ "setup": "serve_synthetic.py --models GFS --layers waves,swell_1,swell_2,wind_waves --regions florida_east_coast --dynamic 1; frames published with publish_frame_images.py; production build WITH the Mapbox basemap (a local gitignored .env; without it the style has no water layer and the paint never runs)",
+ "live_reference": "the lead, dev 5460d13b 2026-10-23 16:33Z: maskWaterPaint 8 calls 853 ms; two-rAF 21,138,192,27,33,139,34,22,132,32 ms; swell_1/swell_2/wind_waves series 6.3/6.6/11.1 s",
+ "runs": {
+  "baseline_dev_diagnosis": {
+   "desc": "dev 4082ba4bf: every paint with the patch record null beforehand",
+   "paints": [
+    {
+     "step": "ArrowRight",
+     "paintMs": 191,
+     "maskMode": "reuse",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      29
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    },
+    {
+     "step": "ArrowRight",
+     "paintMs": 160,
+     "maskMode": "reuse",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      29
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    },
+    {
+     "step": "ArrowRight",
+     "paintMs": 144,
+     "maskMode": "reuse",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      29
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    },
+    {
+     "step": "ArrowRight",
+     "paintMs": 245,
+     "maskMode": "reuse",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      29
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    },
+    {
+     "step": "PageDown",
+     "paintMs": 136,
+     "maskMode": "reuse",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      29
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    },
+    {
+     "step": "ZOOM_IN",
+     "paintMs": 324,
+     "maskMode": "rebuild",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      29
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    },
+    {
+     "step": "ZOOM_IN",
+     "paintMs": 209,
+     "maskMode": "rebuild",
+     "rpBefore": null,
+     "view": [
+      -81.1556,
+      27.8134,
+      -80.0844,
+      28.2861
+     ],
+     "maskBounds": [
+      -82,
+      27,
+      -79,
+      30
+     ],
+     "delivered": {
+      "short": false,
+      "force": false
+     }
+    }
+   ]
+  },
+  "ab1": {
+   "desc": "keep + sibling gate, on/off/off/on (off = both kills)",
+   "arms": [
+    {
+     "arm": "on",
+     "flags": [],
+     "idleFramesPer6s": 361,
+     "machineQuiet": true,
+     "waterPaintsInSteps": 2,
+     "paintMs": [
+      194,
+      200
+     ],
+     "commitMaskModes": {
+      "reuse": 4,
+      "rebuild": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 4
+     },
+     "loafOver50Within500msOfKey": [
+      [],
+      [],
+      [
+       293
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+       290
+      ]
+     ],
+     "keyEventTimingMs": [
+      48,
+      48,
+      56,
+      56,
+      56,
+      56,
+      48,
+      56,
+      56,
+      56,
+      56
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 15,
+       "ms": 885
+      },
+      "regionalMaskRefresh": {
+       "calls": 176,
+       "ms": 1363
+      },
+      "maskWaterPaint": {
+       "calls": 7,
+       "ms": 1009
+      },
+      "maskPaintRenderedClean": {
+       "calls": 7,
+       "ms": 1009
+      }
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_MASK_PATCH_KEEP__",
+      "__RAW_DISABLE_SIBLING_STATIC_GATE__"
+     ],
+     "idleFramesPer6s": 360,
+     "machineQuiet": true,
+     "waterPaintsInSteps": 6,
+     "paintMs": [
+      180,
+      151,
+      178,
+      180,
+      240,
+      176
+     ],
+     "commitMaskModes": {
+      "reuse": 4,
+      "rebuild": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 5,
+      "swell_1": 2,
+      "swell_2": 2,
+      "wind_waves": 2
+     },
+     "loafOver50Within500msOfKey": [
+      [
+       205
+      ],
+      [
+       176
+      ],
+      [
+       241
+      ],
+      [],
+      [],
+      [
+       204
+      ],
+      [],
+      [],
+      [
+       254
+      ],
+      [],
+      [
+       244
+      ]
+     ],
+     "keyEventTimingMs": [
+      56,
+      56,
+      56,
+      64,
+      56,
+      56,
+      56,
+      64,
+      56,
+      56,
+      56
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 16,
+       "ms": 840
+      },
+      "regionalMaskRefresh": {
+       "calls": 176,
+       "ms": 2452
+      },
+      "maskWaterPaint": {
+       "calls": 12,
+       "ms": 1811
+      },
+      "maskPaintRenderedClean": {
+       "calls": 12,
+       "ms": 1810
+      }
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_MASK_PATCH_KEEP__",
+      "__RAW_DISABLE_SIBLING_STATIC_GATE__"
+     ],
+     "idleFramesPer6s": 358,
+     "machineQuiet": true,
+     "waterPaintsInSteps": 6,
+     "paintMs": [
+      156,
+      133,
+      136,
+      144,
+      129,
+      161
+     ],
+     "commitMaskModes": {
+      "reuse": 4,
+      "rebuild": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 4,
+      "swell_1": 2,
+      "swell_2": 2,
+      "wind_waves": 2
+     },
+     "loafOver50Within500msOfKey": [
+      [
+       174
+      ],
+      [
+       146,
+       56
+      ],
+      [
+       193
+      ],
+      [],
+      [],
+      [
+       158,
+       51
+      ],
+      [],
+      [],
+      [
+       143
+      ],
+      [],
+      [
+       225
+      ]
+     ],
+     "keyEventTimingMs": [
+      64,
+      48,
+      56,
+      56,
+      56,
+      56,
+      56,
+      48,
+      56,
+      56,
+      80
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 15,
+       "ms": 1076
+      },
+      "regionalMaskRefresh": {
+       "calls": 174,
+       "ms": 2271
+      },
+      "maskWaterPaint": {
+       "calls": 12,
+       "ms": 1700
+      },
+      "maskPaintRenderedClean": {
+       "calls": 12,
+       "ms": 1700
+      }
+     }
+    },
+    {
+     "arm": "on",
+     "flags": [],
+     "idleFramesPer6s": 360,
+     "machineQuiet": true,
+     "waterPaintsInSteps": 2,
+     "paintMs": [
+      148,
+      195
+     ],
+     "commitMaskModes": {
+      "reuse": 4,
+      "rebuild": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 4
+     },
+     "loafOver50Within500msOfKey": [
+      [],
+      [],
+      [
+       200
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [
+       284
+      ]
+     ],
+     "keyEventTimingMs": [
+      48,
+      56,
+      48,
+      64,
+      64,
+      64,
+      56,
+      56,
+      64,
+      56,
+      56
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 15,
+       "ms": 796
+      },
+      "regionalMaskRefresh": {
+       "calls": 173,
+       "ms": 1578
+      },
+      "maskWaterPaint": {
+       "calls": 8,
+       "ms": 1206
+      },
+      "maskPaintRenderedClean": {
+       "calls": 8,
+       "ms": 1206
+      }
+     }
+    }
+   ]
+  },
+  "ab2": {
+   "desc": "keep + sibling gate + stash trust, on/off/off/on (off = all three kills); sessions 3-4 ran on a loaded machine (idle frames 165/111 of ~360): their timings are not timings",
+   "arms": [
+    {
+     "arm": "on",
+     "flags": [],
+     "idleFramesPer6s": 360,
+     "machineQuiet": true,
+     "waterPaintsInSteps": 0,
+     "paintMs": [],
+     "commitMaskModes": {
+      "reuse": 4,
+      "stash_swap": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 4
+     },
+     "loafOver50Within500msOfKey": [
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      []
+     ],
+     "keyEventTimingMs": [
+      56,
+      64,
+      48,
+      56,
+      48,
+      48,
+      64,
+      56,
+      48,
+      56,
+      56
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 15,
+       "ms": 620
+      },
+      "regionalMaskRefresh": {
+       "calls": 171,
+       "ms": 843
+      },
+      "maskWaterPaint": {
+       "calls": 5,
+       "ms": 643
+      },
+      "maskPaintRenderedClean": {
+       "calls": 5,
+       "ms": 642
+      }
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_MASK_PATCH_KEEP__",
+      "__RAW_DISABLE_SIBLING_STATIC_GATE__",
+      "__RAW_DISABLE_STASH_PATCH_TRUST__"
+     ],
+     "idleFramesPer6s": 360,
+     "machineQuiet": true,
+     "waterPaintsInSteps": 6,
+     "paintMs": [
+      139,
+      110,
+      170,
+      137,
+      195,
+      108
+     ],
+     "commitMaskModes": {
+      "reuse": 4,
+      "rebuild": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 5,
+      "swell_1": 2,
+      "swell_2": 2,
+      "wind_waves": 2
+     },
+     "loafOver50Within500msOfKey": [
+      [
+       155
+      ],
+      [
+       125
+      ],
+      [
+       223
+      ],
+      [],
+      [],
+      [
+       156
+      ],
+      [],
+      [],
+      [
+       216
+      ],
+      [],
+      [
+       159
+      ]
+     ],
+     "keyEventTimingMs": [
+      56,
+      56,
+      48,
+      48,
+      48,
+      56,
+      56,
+      56,
+      48,
+      56,
+      56
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 15,
+       "ms": 699
+      },
+      "regionalMaskRefresh": {
+       "calls": 174,
+       "ms": 1968
+      },
+      "maskWaterPaint": {
+       "calls": 12,
+       "ms": 1531
+      },
+      "maskPaintRenderedClean": {
+       "calls": 12,
+       "ms": 1530
+      }
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_MASK_PATCH_KEEP__",
+      "__RAW_DISABLE_SIBLING_STATIC_GATE__",
+      "__RAW_DISABLE_STASH_PATCH_TRUST__"
+     ],
+     "idleFramesPer6s": 165,
+     "machineQuiet": false,
+     "waterPaintsInSteps": 6,
+     "paintMs": [
+      236,
+      221,
+      185,
+      213,
+      178,
+      215
+     ],
+     "commitMaskModes": {
+      "reuse": 4,
+      "rebuild": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 4,
+      "swell_1": 2,
+      "swell_2": 2,
+      "wind_waves": 2
+     },
+     "loafOver50Within500msOfKey": [
+      [
+       259
+      ],
+      [
+       242,
+       80
+      ],
+      [],
+      [
+       50,
+       94,
+       82
+      ],
+      [
+       105,
+       125,
+       74
+      ],
+      [
+       225
+      ],
+      [
+       110
+      ],
+      [
+       65,
+       83,
+       85
+      ],
+      [],
+      [
+       51,
+       113,
+       51,
+       78,
+       70,
+       52
+      ],
+      [
+       350
+      ]
+     ],
+     "keyEventTimingMs": [
+      120,
+      120,
+      560,
+      56,
+      160,
+      160,
+      216,
+      96,
+      304,
+      240,
+      112
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 15,
+       "ms": 1281
+      },
+      "regionalMaskRefresh": {
+       "calls": 164,
+       "ms": 2551
+      },
+      "maskWaterPaint": {
+       "calls": 13,
+       "ms": 1768
+      },
+      "maskPaintRenderedClean": {
+       "calls": 13,
+       "ms": 1768
+      }
+     }
+    },
+    {
+     "arm": "on",
+     "flags": [],
+     "idleFramesPer6s": 111,
+     "machineQuiet": false,
+     "waterPaintsInSteps": 0,
+     "paintMs": [],
+     "commitMaskModes": {
+      "reuse": 4,
+      "stash_swap": 2
+     },
+     "gridSeriesByLayer": {
+      "waves": 4
+     },
+     "loafOver50Within500msOfKey": [
+      [
+       57,
+       138,
+       109
+      ],
+      [
+       52,
+       68,
+       69
+      ],
+      [
+       79,
+       114
+      ],
+      [
+       82,
+       154
+      ],
+      [
+       94,
+       141
+      ],
+      [
+       102,
+       166
+      ],
+      [
+       99
+      ],
+      [
+       59,
+       80,
+       90,
+       76
+      ],
+      [
+       83,
+       154
+      ],
+      [
+       70,
+       61,
+       187
+      ],
+      [
+       98,
+       80
+      ]
+     ],
+     "keyEventTimingMs": [
+      88,
+      200,
+      264,
+      136,
+      320,
+      256,
+      256,
+      120,
+      256,
+      144,
+      216
+     ],
+     "phases": {
+      "waveDataUpdate": {
+       "calls": 16,
+       "ms": 1268
+      },
+      "regionalMaskRefresh": {
+       "calls": 158,
+       "ms": 2308
+      },
+      "maskWaterPaint": {
+       "calls": 8,
+       "ms": 1672
+      },
+      "maskPaintRenderedClean": {
+       "calls": 8,
+       "ms": 1672
+      }
+     }
+    }
+   ]
+  }
+ }
+}
