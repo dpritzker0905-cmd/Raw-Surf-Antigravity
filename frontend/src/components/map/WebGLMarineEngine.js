@@ -11,6 +11,8 @@ import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marine
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
+import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames';   // 2026-10-23 main-thread jank
+import { coarseMaskCacheEnabled, coarseMaskKey, findCachedCoarseMask, rememberCoarseMask, releaseCoarseMaskCache } from './marineCoarseMaskCache';
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -539,7 +541,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // first) so blend-both re-engages for the new model without waiting for an organic world commit.
   // A base already matching the seed's identity means an organic commit beat the seed here — the seed
   // is DISCARDED (the old gate left it pending forever, which then blocked every future staging) unless it is a 2-degree seed over a coarser base of that hour.
-  if (this._pendingCoarseBaseGrid) {
+  // QUIET SEED (2026-10-23): the seed's capture can cost a whole frame; it waits for a frame with no input in the last second and
+  // no zoom change (marineQuietFrames.js). Kill: __RAW_DISABLE_QUIET_SEED__.
+  if (this._pendingCoarseBaseGrid && seedConsumeAllowed(zoom)) {
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
     const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, another HOUR (F-21, marineStaleHour.js) or a finer lattice of the same hour (rule 6)
@@ -1452,26 +1456,26 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
 
     gl.useProgram(this.heatmapProgram);
-    gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+    gl.uniformMatrix4fv(uniformLoc(gl, this.heatmapProgram, 'u_matrix'), false, mat4);
     // Gate + SAFE_DEGRADED clip (marineCoverageContract.js); a verdict stamped for a DIFFERENT mask object than the one bound this frame is stale ⇒ void.
     setHeatmapGateUniforms(gl, this.heatmapProgram, 'resident', (this._maskDeliveredState
       && this._maskDeliveredState.__mb === this._cachedMaskBounds) ? this._maskDeliveredState : null, maskBounds === this._cachedMaskBounds);
-    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
-    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
+    gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+    gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+    gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
+    gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
 
-    gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
-    gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
-    gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
-    gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
-    gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
-    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), ob.west, ob.south);
-    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), ob.east, ob.north);
+    gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_waveTexture'), 0);
+    gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_chlorophyllTexture'), 1);
+    gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_bathymetryTexture'), 2);
+    gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_oceanMaskTexture'), 3);
+    gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_overlayMaskTexture'), 4);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
+    gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_overlayBounds_min'), ob.west, ob.south);
+    gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_overlayBounds_max'), ob.east, ob.north);
     setOverlayTruthUniforms(gl, this.heatmapProgram, resolveOverlayTruthUv(ob, (ob === this._overlayMaskBounds) ? this._overlayMaskTruthBox : null)); // AV-01a: truth ONLY for the viewport overlay (identity check — the __mb discipline)
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_theme'), themeVal);
 
     const isRegionalGrid = (waveBounds.east - waveBounds.west < 359.9);
     const edgeFeatherEnabledVal = isRegionalGrid ? 1.0 : 0.0;
@@ -1480,7 +1484,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         ? 'partial_regional_coverage'
         : 'full_coverage';
     }
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
 
     // CLAMP SOFTENER: a regional tile narrower than the viewport (a sub-viewport tile committed during zoom-out)
     // otherwise renders as a hard-edged rectangle against the fainter coarse base. When the blend coarse base is
@@ -1497,7 +1501,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         window.__RAW_GPU__.clampSoften = { coverage: +coverage.toFixed(2), featherWidth: +edgeFeatherWidthVal.toFixed(2) };
       }
     }
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherWidth'), edgeFeatherWidthVal);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_edgeFeatherWidth'), edgeFeatherWidthVal);
 
     if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
       window.__GPU_DEBUG__ = { mode: null };
@@ -1511,7 +1515,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       else if (mode === 'mercator') debugModeVal = 4.0;
       else if (mode === 'why') debugModeVal = 5.0;   // discard-reason map (the 255° teardown)
     }
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_debug_mode'), debugModeVal);
 
     // Only apply the power-law visual scaling to actual trend-blended estimated products (provider "estimated" or source_dataset "estimated_blend")
     // and NOT to direct model fallbacks (like open-meteo or GFS fallback) which contain actual physical wave heights.
@@ -1536,7 +1540,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // Forensics lever: __RAW_ESTIMATED_POWERLAW__ = true restores the old curve.
     const _estPowerLaw = isEstimatedBlend &&
       (typeof window !== 'undefined' && window.__RAW_ESTIMATED_POWERLAW__ === true);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), _estPowerLaw ? 1.0 : 0.0);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_is_estimated'), _estPowerLaw ? 1.0 : 0.0);
 
     // Swell↔Surf coastal-band mode: rescale the color ramp to the surf range (0-4 m) so the band
     // differentiates. Read the flag inline (mirrors getSurfModeFlag) to avoid an engine import cycle; it
@@ -1639,8 +1643,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         if (_snapStr !== this._lastSnapStr || window.__RAW_FORENSIC_SNAP_EVERY__ === true) { this._lastSnapStr = _snapStr; console.log('[FORENSIC-SNAP]', _snapStr); }
       }
     }
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_surfMode'), surfModeVal);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_time'), time);
 
     // COASTAL RIBBON (user spec ~10 mi, see resolveRibbonTaper): only the band pays — radius is
     // forced 0 on honest frames so the shader never ring-samples outside rating mode.
@@ -1650,15 +1654,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         ? 1.0 / Math.max(1e-6, maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds))
         : null,
       blendEngaged);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonRadiusDeg'),
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_ribbonRadiusDeg'),
       (surfModeVal > 0.5) ? _ribbon.radiusDeg : 0.0);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonFloor'), _ribbon.floor);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_ribbonFloor'), _ribbon.floor);
     // INLAND-WATER GATE strength (2026-07-15, "land mask halo when rating is activated"): fades
     // the band on ENCLOSED water (lagoons/bays behind barrier islands) so rating-on mirrors the
     // honest path there (which colors by real data → empty). 1 = full gate; 0 = pre-gate behavior.
     const _inlandGate = (typeof window !== 'undefined' && typeof window.__RAW_BAND_INLAND_GATE__ === 'number')
       ? Math.max(0, Math.min(1, window.__RAW_BAND_INLAND_GATE__)) : 1.0;
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_bandInlandGate'), _inlandGate);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_bandInlandGate'), _inlandGate);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.ratingRibbon = {
         active: surfModeVal > 0.5 && _ribbon.radiusDeg > 0,
@@ -1673,11 +1677,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // 1.4m crossover: below it the faint regional lets the coarse wash bleed through (lifts the nearshore where
     // surf is small); above it the regional dominates (real swell still reads as the precise regional tile).
     const _haHi = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_HEIGHT_HI__ === 'number') ? window.__RAW_BLEND_HEIGHT_HI__ : 1.4;
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), blendHeightAlpha(blendEngaged, themeVal, surfModeVal));
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), _haLo);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaEnabled'), blendHeightAlpha(blendEngaged, themeVal, surfModeVal));
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaLo'), _haLo);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
     // Crisp mask edge for coarse residents (the heatmap pass's own halo — see the damp block).
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
     setLandAwareFetchUniforms(gl, this.heatmapProgram, this._waveData && this._waveData.waveGrid);
     // COAST SDF (2026-07-21): a crisp, resolution-independent coast + tunable erosion from the .b
     // signed-distance field. Off (__RAW_DISABLE_COAST_SDF__ or no .b field) => legacy binary edge.
@@ -1686,10 +1690,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const _ovSDF = (!_sdfKill && !!this._overlayMaskHasSDF) ? 1.0 : 0.0;
     const _coastErode = (typeof window !== 'undefined' && typeof window.__RAW_COAST_ERODE__ === 'number') ? window.__RAW_COAST_ERODE__ : 0.0;
     const _coastAA = (typeof window !== 'undefined' && typeof window.__RAW_COAST_AA__ === 'number') ? window.__RAW_COAST_AA__ : 0.012;
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_coastSDFEnabled'), _baseSDF);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlaySDFEnabled'), _ovSDF);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_coastErode'), _coastErode);
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_coastAA'), _coastAA);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_coastSDFEnabled'), _baseSDF);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_overlaySDFEnabled'), _ovSDF);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_coastErode'), _coastErode);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_coastAA'), _coastAA);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.coastSDF = { base: _baseSDF > 0.5, overlay: _ovSDF > 0.5, erode: _coastErode, aa: _coastAA };
     }
@@ -1828,7 +1832,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
     }
 
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_opacity'), heatmapOpacity);
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       // t/n (2026-09-21): unstamped, this object goes STALE when the heatmap stops drawing — so
@@ -1858,7 +1862,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
 
-    var heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
+    var heatLngOffsetLoc = uniformLoc(gl, this.heatmapProgram, 'u_lng_offset');
     if (this.heatmapVAO) {
       gl.bindVertexArray(this.heatmapVAO);
     } else {
@@ -1894,13 +1898,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       gl.useProgram(this.drawProgram);
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_waveTexture'), 1);
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_oceanMaskTexture'), 2);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
-      gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_particles'), 0);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_waveTexture'), 1);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_oceanMaskTexture'), 2);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_particles_res'), this.particleRes);
+      gl.uniformMatrix4fv(uniformLoc(gl, this.drawProgram, 'u_matrix'), false, mat4);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_theme'), themeVal);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
       // CREST FEATHER CAP under ring-fill (2026-07-18 EVE-2, transient-band forensics ×3 traces):
       // the crest pass shares the heatmap's edge feather width, but on the SPARSE crest field a
       // 0.18-0.31 feather is a DEAD RING — a fixed-lng stripe of crest-dead water just inside the
@@ -1920,25 +1924,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           heatmapW: +edgeFeatherWidthVal.toFixed(3),
         };
       }
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherWidth'), _crestFeatherW);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_edgeFeatherWidth'), _crestFeatherW);
       // Directional-spectrum spread (breaks the parallel-crest lattice over uniform/coarse fields). OPT-IN until
       // visually verified + tuned on real swell data (default 0 = legacy parallel crests, no regression). Enable +
       // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
       const _crestDirJitter = resolveAnimValue('__RAW_CREST_DIR_JITTER__');
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
       // Direction-coherence floor: DIM crests sampled from bilinear-interpolated DIVERGENT-direction zones (the
       // synthetic close-zoom vortex). Engine-computed close-zoom ramp above; 0 = off (legacy). Matches ADVECT_FS.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
       // Seam-fade alpha FLOOR (2026-07-03): incoherent-direction zones dim to this instead of vanishing —
       // the zero-alpha fade made divergence hotspots (Baja rows 177° apart) a crest DEAD ZONE across the
       // whole band. 0.3 keeps motion visible at low emphasis. Tune live: __RAW_SEAM_FADE_FLOOR_ALPHA__.
       const _seamFadeFloor = (typeof window !== 'undefined' && typeof window.__RAW_SEAM_FADE_FLOOR_ALPHA__ === 'number')
         ? window.__RAW_SEAM_FADE_FLOOR_ALPHA__ : 0.3;
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_seamFadeFloor'), _seamFadeFloor);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_seamFadeFloor'), _seamFadeFloor);
       // Coarse-band nearest-cell direction (vortex band, default mode): crest orientation snaps to the nearest
       // coarse cell-center heading — matches ADVECT so orientation == motion. 0 outside the band.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.drawProgram, 'u_wave_reg', this._waveData.waveGrid);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.drawProgram, 'u_wave_reg', this._waveData.waveGrid);
 
       // Zoom-band crest SELF-CONTRAST (2026-07-03): full strength where the crest palette collides
       // with the heatmap palette (user-reported z3.65–4.25 wash-out), ramping in from z3.0 and out
@@ -1954,7 +1958,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         const _ccDown = 1 - Math.min(1, Math.max(0, (z - 4.4) / 0.5));
         _crestContrast = Math.max(0, Math.min(_ccUp, _ccDown));
       }
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestContrast'), _crestContrast);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_crestContrast'), _crestContrast);
 
       // LOW-HEIGHT crest self-contrast (2026-07-05): the zoom band above fixes the palette
       // collision at world zoom, but the SAME collision happens at any zoom where height <~0.75 m
@@ -1972,25 +1976,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         _lowHCC = (typeof window !== 'undefined' && typeof window.__RAW_LOWH_CREST_CONTRAST__ === 'number')
           ? Math.max(0, Math.min(1, window.__RAW_LOWH_CREST_CONTRAST__)) : 1.0;
       }
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowHCrestContrast'), _lowHCC);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_lowHCrestContrast'), _lowHCC);
 
       // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
       // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
       const _trochoidal = resolveAnimValue('__RAW_TROCHOIDAL__');
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trochoidal'), _trochoidal);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_trochoidal'), _trochoidal);
       // Orbital pitch: phase-synced forward/back sway (CSS px) so crests pitch, not just translate. window.__RAW_ORBITAL_PITCH__.
       const _orbitalPitch = resolveAnimValue('__RAW_ORBITAL_PITCH__');
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_orbitalPitch'), _orbitalPitch);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_orbitalPitch'), _orbitalPitch);
       // Shoaling foam: extra whitecap in shallow water via bathymetry. GATED on a resident bath texture so the
       // sampler (bound to unit 3 below) is never READ unbound. window.__RAW_SHOAL_FOAM__.
       const _hasBathTex = !!(this._waveData && this._waveData.u_bathymetryTexture);
       const _shoalFoam = _hasBathTex ? resolveAnimValue('__RAW_SHOAL_FOAM__') : 0.0;
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_shoalFoam'), _shoalFoam);
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_bathTexture'), 3);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_shoalFoam'), _shoalFoam);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_bathTexture'), 3);
 
       // Tiny-tile parity applies to the crest/particle ink too — a fully-faded heatmap with
       // crisp crest animation inside the tile is still an animated rectangle.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
       // zoom instead of an ad-hoc per-zoom fraction. Particles live in a tile ~Nx the screen; the viewport's share
@@ -2014,25 +2018,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           window.__RAW_GPU__.particleDensity = { zoom: +z.toFixed(2), onScreenFrac: +onScreenFrac.toFixed(4), densityBase: +densityBase.toFixed(3), targetSeeds: _partTarget, estInViewport: Math.round(totalParticles * onScreenFrac) };
         }
       }
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityBase'), densityBase);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityCut'), crestDensityCut(themeVal, z));   // big-surf thinning by theme and zoom
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_densityBase'), densityBase);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_densityCut'), crestDensityCut(themeVal, z));   // big-surf thinning by theme and zoom
 
       // Ribbon-endpoint land fade (2026-07-04): crest quads dissolve toward a land end instead of
       // overhanging barrier islands (Venice/Lido). Kill: window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
       const _endpointLandFade = (typeof window !== 'undefined' && window.__RAW_DISABLE_ENDPOINT_LAND_FADE__ === true) ? 0.0 : 1.0;
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_endpointLandFade'), _endpointLandFade);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_endpointLandFade'), _endpointLandFade);
       // Crest-center land cut (2026-07-07, "crests on islands at various zooms"): align crests with
       // the heatmap's 0.5 discard so they stop surviving on soft/partial-land mask values (thin cays,
       // coastal edges) the wash already rejects. Tune live: __RAW_CREST_LAND_THRESH__ (0.3 = legacy).
       const _crestLandThresh = (typeof window !== 'undefined' && Number.isFinite(+window.__RAW_CREST_LAND_THRESH__)) ? +window.__RAW_CREST_LAND_THRESH__ : 0.5;
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestLandThreshold'), _crestLandThresh);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_crestLandThreshold'), _crestLandThresh);
       // COAST SDF (2026-07-21): crests cut at the SAME crisp, eroded coast as the heatmap wash. Mirror
       // the heatmap uniforms EXACTLY every frame, or crests + wash separate again. Off => legacy binary.
       const _sdfKillD = (typeof window !== 'undefined' && window.__RAW_DISABLE_COAST_SDF__ === true);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coastSDFEnabled'), (!_sdfKillD && !!this._cachedMaskHasSDF) ? 1.0 : 0.0);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlaySDFEnabled'), (!_sdfKillD && !!this._overlayMaskHasSDF) ? 1.0 : 0.0);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coastErode'), (typeof window !== 'undefined' && typeof window.__RAW_COAST_ERODE__ === 'number') ? window.__RAW_COAST_ERODE__ : 0.0);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coastAA'), (typeof window !== 'undefined' && typeof window.__RAW_COAST_AA__ === 'number') ? window.__RAW_COAST_AA__ : 0.012);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_coastSDFEnabled'), (!_sdfKillD && !!this._cachedMaskHasSDF) ? 1.0 : 0.0);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_overlaySDFEnabled'), (!_sdfKillD && !!this._overlayMaskHasSDF) ? 1.0 : 0.0);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_coastErode'), (typeof window !== 'undefined' && typeof window.__RAW_COAST_ERODE__ === 'number') ? window.__RAW_COAST_ERODE__ : 0.0);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_coastAA'), (typeof window !== 'undefined' && typeof window.__RAW_COAST_AA__ === 'number') ? window.__RAW_COAST_AA__ : 0.012);
       // §4.2 MOTION-UNLOCK (DEFAULT ON since 2026-07-14 §0e — the user directive "animations
       // identical rating-on/off" IS the A/B verdict): in rating mode lift crest land checks to
       // max(mask.r, mask.g) — g is the encoder's motion-water channel — so crests ride the real
@@ -2040,25 +2044,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // window.__RAW_RATING_MOTION_UNLOCK__ = false. 0 on non-rating commits = byte-identical.
       const _motionUnlock = (this._residentRatingMode === true && (typeof window === 'undefined' ||
         window.__RAW_RATING_MOTION_UNLOCK__ !== false)) ? 1.0 : 0.0;
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motionUnlock'), _motionUnlock);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_motionUnlock'), _motionUnlock);
       // §0e ANIM-PHYS (2026-07-14): on rating grids the encoder keeps the MAIN wave texture
       // honest (animation reads it untouched) and packs the score into a heatmap-only variant
       // (u_waveScoreTexture, bound at the heatmap site). This flag is telemetry-only here.
       const _animPhys = !!(this._waveData && this._waveData.u_waveScoreTexture);
       // Viewport-truth overlay mask (unit 4; fallback-bound below so the sampler is always complete).
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskTexture'), 4);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_min'), ob.west, ob.south);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_max'), ob.east, ob.north);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_overlayMaskTexture'), 4);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_overlayBounds_min'), ob.west, ob.south);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_overlayBounds_max'), ob.east, ob.north);
       // CREST RING-FILL (2026-07-16): coarse-base fallback pair on units 5/6 (fallback-bound below
       // so the samplers are always complete; resolveCrestRingFill forces enabled=false when no
       // complete base is held, so the fallback binds are never read).
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseWaveTexture'), 5); setWaveHeightScale(gl, this.drawProgram, this._waveData, _rfBase || this._waveData);
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseMaskTexture'), 6);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_coarseBounds_max'), _rfB.east, _rfB.north);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_coarseWaveTexture'), 5); setWaveHeightScale(gl, this.drawProgram, this._waveData, _rfBase || this._waveData);
+      gl.uniform1i(uniformLoc(gl, this.drawProgram, 'u_coarseMaskTexture'), 6);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_coarseBounds_max'), _rfB.east, _rfB.north);
 
       // TRUTHFULNESS ECHO: publish the exact animation values the engine is applying THIS frame (+ live zoom)
       // so the tuner can prove the sliders reach the GPU and show what's active per zoom. Read every frame.
@@ -2103,31 +2107,31 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         else if (mode === 'part_offset') drawDebugModeVal = 7.0;
         else if (mode === 'part_fbo') drawDebugModeVal = 8.0;
       }
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_debug_mode'), drawDebugModeVal);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_debug_mode'), drawDebugModeVal);
 
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
       // ANTIMERIDIAN LNG WRAP (2026-07-23) — see the u_wrapLng note in WebGLMarineParticleShaders.js.
       // The camera-centered tile puts half its particles at global_pos.x<0 near lng ±180; without the wrap
       // their lookup UV falls outside [0,1] and the crest field dies on one side. Kill: __RAW_DISABLE_PARTICLE_LNG_WRAP__.
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_wrapLng'), _wrapLngVal);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tileZoomMin'), tileZoomMin);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_wrapLng'), _wrapLngVal);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_time'), time);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_zoom'), z);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_tileZoomMin'), tileZoomMin);
       // U3 density-aware crest size: far-zoom size floor (0.55 default; 0.4 = legacy pre-2026-07-02 look).
       const _fzFloor = (typeof window !== 'undefined' && typeof window.__RAW_FARZOOM_SIZE_FLOOR__ === 'number')
         ? window.__RAW_FARZOOM_SIZE_FLOOR__ : 0.55;
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_farzoomSizeFloor'), _fzFloor);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth); applyWaveSetUniforms(gl, this.drawProgram);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_farzoomSizeFloor'), _fzFloor);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_motion_scale'), motionScale);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_tile_width'), tileWidth); applyWaveSetUniforms(gl, this.drawProgram);
 
       // v5.3: viewport and DPR uniforms for pixel-space quad expansion
       var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
-      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_device_pixel_ratio'), dpr);
+      gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
+      gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_device_pixel_ratio'), dpr);
 
       bindTexture(gl, this.particleStateA, 0);
       bindTexture(gl, this._waveData.u_waveTexture, 1);
@@ -2140,7 +2144,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       bindTexture(gl, _rfBase ? _rfBase.u_waveTexture : this._waveData.u_waveTexture, 5);
       bindTexture(gl, _rfBase ? _rfBase.u_oceanMaskTexture : this._waveData.u_oceanMaskTexture, 6);
 
-      var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
+      var mercOffsetLoc = uniformLoc(gl, this.drawProgram, 'u_merc_offset');
       if (this.drawVAO) {
         gl.bindVertexArray(this.drawVAO);
       } else {
@@ -2197,57 +2201,57 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
       gl.useProgram(this.advectProgram);
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_waveTexture'), 1);
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_wrapLng'), _wrapLngVal);  // antimeridian wrap — see drawProgram note
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskTexture'), 3);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_min'), ob.west, ob.south);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
+      gl.uniform1i(uniformLoc(gl, this.advectProgram, 'u_particles'), 0);
+      gl.uniform1i(uniformLoc(gl, this.advectProgram, 'u_waveTexture'), 1);
+      gl.uniform1i(uniformLoc(gl, this.advectProgram, 'u_oceanMaskTexture'), 2);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_wrapLng'), _wrapLngVal);  // antimeridian wrap — see drawProgram note
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
+      gl.uniform1i(uniformLoc(gl, this.advectProgram, 'u_overlayMaskTexture'), 3);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_overlayBounds_min'), ob.west, ob.south);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
       // CREST RING-FILL — must match the DRAW pass exactly (same _ringFill decision, same base
       // set; advect units 4/5 since this pass only uses 0-3). Fallback-bound below.
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseWaveTexture'), 4); setWaveHeightScale(gl, this.advectProgram, this._waveData, _rfBase || this._waveData);
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseMaskTexture'), 5);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_coarseBounds_max'), _rfB.east, _rfB.north);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
+      gl.uniform1i(uniformLoc(gl, this.advectProgram, 'u_coarseWaveTexture'), 4); setWaveHeightScale(gl, this.advectProgram, this._waveData, _rfBase || this._waveData);
+      gl.uniform1i(uniformLoc(gl, this.advectProgram, 'u_coarseMaskTexture'), 5);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_coarseBounds_max'), _rfB.east, _rfB.north);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_speed_scale'), stableSpeedScale);
       // Cap the height term that drives drift speed (big swell otherwise drifts ~linearly with height → unnaturally
       // fast at mid-zoom over the coarse-global). Default 3.0 m; tunable live via window.__RAW_SPEED_HEIGHT_CAP__.
       const _speedHeightCap = (typeof window !== 'undefined' && typeof window.__RAW_SPEED_HEIGHT_CAP__ === 'number') ? window.__RAW_SPEED_HEIGHT_CAP__ : 3.0;
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speedHeightCap'), _speedHeightCap);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_speedHeightCap'), _speedHeightCap);
       // Direction-coherence floor (matches DRAW): drop particles advecting through interpolated divergent-direction
       // zones so they can't spiral the synthetic vortex. Engine-computed close-zoom ramp above; 0 = off (legacy).
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
       // Coarse-band nearest-cell direction (matches DRAW): advect along the nearest cell-center heading so the
       // per-cell motion is uniform — the bilinear swirl cannot form. 0 outside the vortex band.
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_coarseNearestDir'), coarseNearestDir);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.advectProgram, 'u_wave_reg', this._waveData.waveGrid);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_coarseNearestDir'), coarseNearestDir);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows); setGridPointRegUniform(gl, this.advectProgram, 'u_wave_reg', this._waveData.waveGrid);
 
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_zoom'), z);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tileZoomMin'), tileZoomMin);
-      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_rand_seed'), Math.random());
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_drop_rate'), this.dropRate);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_zoom'), z);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_tileZoomMin'), tileZoomMin);
+      gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_tile_width'), tileWidth);
       // U2 stratified reseeding (default ON): respawn each particle inside its own state-texel stratum for
       // Jobard–Lefer-style even seed spacing (kills uniform-random reseed clumps at low density). Kill:
       // window.__RAW_STRATIFIED_RESEED__ = 0.
       const _stratified = (typeof window !== 'undefined' && window.__RAW_STRATIFIED_RESEED__ === 0) ? 0.0 : 1.0;
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_stratifiedReseed'), _stratified);
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_particles_res'), this.particleRes);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_stratifiedReseed'), _stratified);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_particles_res'), this.particleRes);
       // §4.2 MOTION-UNLOCK — must match the DRAW pass exactly (advected positions and drawn
       // crests share land semantics, or particles die where crests would render and vice versa).
       // DEFAULT ON since 2026-07-14 §0e (kill __RAW_RATING_MOTION_UNLOCK__ = false).
       const _advMotionUnlock = (this._residentRatingMode === true && (typeof window === 'undefined' ||
         window.__RAW_RATING_MOTION_UNLOCK__ !== false)) ? 1.0 : 0.0;
-      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_motionUnlock'), _advMotionUnlock);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_motionUnlock'), _advMotionUnlock);
 
       bindTexture(gl, null, 0);
       bindTexture(gl, null, 1);
@@ -2925,14 +2929,20 @@ WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
       }
     }
   }
+  // MASK CACHE (2026-10-23, marineCoarseMaskCache.js): no LRU set with these bounds -> a mask rasterized earlier for the same
+  // bounds + land GeoJSON, kept past its set. Kill: __RAW_DISABLE_COARSE_MASK_CACHE__.
+  const _maskKey = coarseMaskCacheEnabled() && waveGrid && waveGrid.bounds ? coarseMaskKey(waveGrid.bounds, this._landGeoJSON || null) : null;
+  const _reuse = _shareSrc ? { tex: _shareSrc.u_oceanMaskTexture, dims: _shareSrc.__maskCanvasDims } : (_maskKey ? findCachedCoarseMask(this, _maskKey) : null);
   try {
     // Pass the land GeoJSON so the standalone encode renders a high-res MERCATOR ocean mask (the heatmap shader
     // samples mask_v in mercator; a grid mask would be read at the wrong latitude and hide the wash).
-    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, _shareSrc
-      ? { standalone: true, reuseMaskTex: _shareSrc.u_oceanMaskTexture, reuseMaskDims: _shareSrc.__maskCanvasDims }
+    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, _reuse
+      ? { standalone: true, reuseMaskTex: _reuse.tex, reuseMaskDims: _reuse.dims }
       : { standalone: true });
-    if (base && base.u_waveTexture && _shareSrc && base.u_oceanMaskTexture === _shareSrc.u_oceanMaskTexture) {
+    if (base && base.u_waveTexture && _reuse && base.u_oceanMaskTexture === _reuse.tex) {
       base.u_oceanMaskTexture.__rsRefs = (base.u_oceanMaskTexture.__rsRefs || 1) + 1;
+    } else if (base && base.u_waveTexture && _maskKey && base.__maskCanvasDims) {   // a fresh GeoJSON raster (never the grid-mask fallback)
+      rememberCoarseMask(gl, this, _maskKey, base.u_oceanMaskTexture, base.__maskCanvasDims, (g, t) => safeDeleteTexture(g, t, this));
     }
   } catch (e) {
     console.warn('[WebGLMarineEngine] coarse-base encode failed:', e && e.message);
@@ -3004,6 +3014,7 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl, obj) {
   }
   this._coarseBaseData = null;
   for (const b of seen) freeOne(b);
+  releaseCoarseMaskCache(gl, this, (g, t) => safeDeleteTexture(g, t, this));   // after the sets: the last holder deletes
 };
 
 // WIDE-VIEW OVERLAY COMPOSITING MODE (2026-07-15, live-proven continent crest land-bleed on
@@ -3076,49 +3087,49 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   }
 
   gl.useProgram(this.heatmapProgram);
-  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniformMatrix4fv(uniformLoc(gl, this.heatmapProgram, 'u_matrix'), false, mat4);
   setHeatmapGateUniforms(gl, this.heatmapProgram, 'coarse', null, false); // wash never clips (world bounds; own mask): pins clip=0 + telemetry
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
+  gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
+  gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
   // The base binds its OWN world mask (bounds = its grid); crisp coastal truth arrives via the
   // OVERLAY slot below, never by swapping this mask, whose bounds must match the world draw.
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), bb.west, bb.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), bb.east, bb.north);
+  gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_maskBounds_min'), bb.west, bb.south);
+  gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_maskBounds_max'), bb.east, bb.north);
   // Viewport-truth overlay on the base wash (2026-07-04). REPLACE was UNCONDITIONAL here until
   // 2026-08-15 (step-1 attribution: the wash paints the halo strip; the padded ring's water-flood
   // overrode this pass's own DENSE mask over land — the asymmetry the main pass retired 07-15).
   // resolveWashOverlayMode: dense global mask ⇒ min-combine. Kill: __RAW_DISABLE_WASH_NO_REPLACE__.
   const _bovOn = !!(overlay && overlay.tex && overlay.bounds);
   const _bob = _bovOn ? overlay.bounds : { west: 0, south: 0, east: 0, north: 0 };
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), _bovOn ? 1.0 : 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), (_bovOn && resolveWashOverlayMode(base).replace) ? 1.0 : 0.0);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), _bob.west, _bob.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), _bob.east, _bob.north);
+  gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_overlayMaskTexture'), 4);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_overlayMaskEnabled'), _bovOn ? 1.0 : 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_overlayReplace'), (_bovOn && resolveWashOverlayMode(base).replace) ? 1.0 : 0.0);
+  gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_overlayBounds_min'), _bob.west, _bob.south);
+  gl.uniform2f(uniformLoc(gl, this.heatmapProgram, 'u_overlayBounds_max'), _bob.east, _bob.north);
   setOverlayTruthUniforms(gl, this.heatmapProgram, resolveOverlayTruthUv(_bob, (_bovOn && _bob === this._overlayMaskBounds) ? this._overlayMaskTruthBox : null)); // AV-01a: baseCrispMask fallback rides this slot with the CACHED mask's bounds — identity check fails ⇒ gate open
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
-  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonRadiusDeg'), 0.0); // honest wash: never ring-sample
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_bandInlandGate'), 0.0);  // (inert here — band branch never runs on the wash)
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), 1.0);
+  gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_waveTexture'), 0);
+  gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_chlorophyllTexture'), 1);
+  gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_bathymetryTexture'), 2);
+  gl.uniform1i(uniformLoc(gl, this.heatmapProgram, 'u_oceanMaskTexture'), 3);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_theme'), themeVal);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_edgeFeatherEnabled'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_debug_mode'), debugModeVal);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_is_estimated'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_surfMode'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_ribbonRadiusDeg'), 0.0); // honest wash: never ring-sample
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_bandInlandGate'), 0.0);  // (inert here — band branch never runs on the wash)
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_time'), time);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaLo'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaHi'), 1.0);
   // Same crisp-edge verdict as the main pass — the wash's coarse mask edge was the other halo face.
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
   setLandAwareFetchUniforms(gl, this.heatmapProgram, base && base.waveGrid);
   // The coarse-wash binds a DIFFERENT (global) base mask whose .b is not a resident SDF — force the
   // SDF path OFF here so it can't inherit the main pass's enabled uniform and misread .b as distance.
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_coastSDFEnabled'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlaySDFEnabled'), 0.0);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), baseOpacity);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_coastSDFEnabled'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_overlaySDFEnabled'), 0.0);
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_opacity'), baseOpacity);
 
   bindTexture(gl, base.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, base);
   bindTexture(gl, base.u_chlorophyllTexture, 1);
@@ -3126,7 +3137,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   bindTexture(gl, base.u_oceanMaskTexture, 3);
   bindTexture(gl, _bovOn ? overlay.tex : base.u_oceanMaskTexture, 4);
 
-  const heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
+  const heatLngOffsetLoc = uniformLoc(gl, this.heatmapProgram, 'u_lng_offset');
   let heatUVLoc = -1;
   if (this.heatmapVAO) {
     gl.bindVertexArray(this.heatmapVAO);
