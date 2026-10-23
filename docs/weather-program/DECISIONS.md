@@ -1658,6 +1658,30 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   capability), the offline masked-cell control (flag off: 0 bad over 8 sets), the live counts above.
 - **Rollback:** `MARINE_GULF_FILL_MID='1'`. A browser that loaded /capabilities while it was '0' keeps serving static world frames
   until it reloads.
+- **CORRECTED 2026-10-23 (superseded; not a candidate):** the premise "EURO's global_mid Gulf is valid" was never measured and
+  is FALSE. The lead measured the published frames (valid 2026-10-25T00Z): EURO's 2-deg grid masks 870 of 10,168 GFS-sea nodes
+  (Gulf of Mexico 15/59, Caribbean 15/102, Mediterranean 44/113, Red Sea 14/25, Persian Gulf 6/12, Baltic 26/45, Black Sea 2/2,
+  Hudson Bay 13/47, Gulf of California 8/20, Sea of Japan 16/52); ICON 125. So `MARINE_GULF_FILL_MID='0'` would blank real sea.
+  The owner chose the targeted fill instead (next entry). LESSONS L-S23.
+
+### D-0XX (owner decided 2026-10-23 09:56 EDT to BUILD it dark; the flip is still his call) · The targeted 2-deg Gulf fill
+- **The owner's words:** "Yes: build the targeted fill dark (only fill EURO/ICON 2-deg cells where GFS 2-deg is sea, stop painting
+  land/ice), then show me the before/after before switching it on. Also look into EURO's own values at ingest as the root fix."
+- **What it does (flag `MARINE_GULF_FILL_MID_TARGETED`, default '0' = today):** on the 2-deg `global_mid` world clip only, a masked
+  EURO/ICON cell takes the SAME-LAYER GFS `global_mid` value at the SAME node (the three share the 181 x 83 lattice), and only where
+  that GFS node is valid. The 10-deg tier keeps today's fill. `MARINE_GULF_FILL_MID='0'` still wins. /capabilities reports
+  `gulf_fill_mid_mode`; the client's #461 guard stays on (the targeted fill still substitutes GFS values at sea).
+- **Before/after on real data** (valid 2026-10-23T00Z; the live world /grid as today, the published stored frames as fill-off,
+  the published GFS frame as the donor): EURO today paints 2,465 cells, targeted fills 868 (kept as sea) and leaves 1,716
+  masked (land, coast, ice: 352 south of 60S, 413 north of 60N); ICON today 1,708, targeted 124, 1,597 no longer painted.
+  Inland Texas/Mississippi/Georgia: 13/4/3 -> 0/0/1 for EURO (the one is 32N 82W, which GFS's own 2-deg grid calls sea and the
+  GFS map already shows); 13/4/2 -> 0/0/0 for ICON. Evidence: side-session notes gulf-fill-targeted-evidence-2026-10-23/.
+- **What flips:** Render env `MARINE_GULF_FILL_MID_TARGETED='1'`, on the owner's word after the before/after. Rollback: '0'.
+- **The root fix (proposal, not built):** EURO's own values. ECMWF's native 0.25-deg wave cell AT the node is land in all 868 cells,
+  but 847 of them (97.6%) hold valid ECMWF sea cells inside their own 2-deg block (median 22 of 81). The fetcher already
+  block-means the height (ECMWF_WAVE_SCALAR_BLOCKMEAN, default on); direction and period are still point-sampled at the land
+  centre, and the normalizer drops a vector whose direction is missing. Sampling direction (circular, energy-weighted) and
+  period from the same block when the centre is land would give EURO its own values there and retire the GFS donor for EURO.
 - **Recommendation (static-frames session):** flip, unless the A/B shows something the owner wants kept. At 2 deg the fill repairs
   nothing, it labels another model's 10-deg values as EURO/ICON (the provenance class this repo records as its recurring defect),
   and the flip makes ICON/EURO world views instant.
