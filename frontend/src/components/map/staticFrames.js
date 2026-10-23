@@ -617,7 +617,51 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
 }
 
 /** Test hook: forget every pin, index, decoded frame and the worker. */
+// ── BOOT WARM-UP (2026-10-23, skills audit #2) ────────────────────────────────────────────────────────────────────────────
+// The first Waves click paid a waterfall: latest.json, then the run index, then the frame, then the inflate worker's spawn, one
+// after another and only after the map style, the layer and the first /grid ask were up. MapPage calls this at mount instead, so
+// they run while the style and tiles load:
+//   - the inflate worker is spawned;
+//   - latest.json is read and the persisted model's waves index pinned;
+//   - in idle time, the frame for the app's current hour is loaded and its vectors built, at 'low' priority (the map's own
+//     style and tiles come first).
+// Nothing is drawn, and seam A then finds the pin and the vectors in place. Only for a world-eligible set (EURO/ICON world boxes
+// stay on /grid, #461). Skipped on Save-Data and 2g links; once per page load.
+// Kill: window.__RAW_DISABLE_STATIC_FRAMES_PREWARM__ = true.
+const PREWARM_WORLD = { west: -180, south: -80, east: 180, north: 85 };
+let _prewarm = null;
+export function prewarmStaticFrames({ model = 'GFS', layer = 'waves' } = {}) {
+  if (_prewarm) return _prewarm;
+  if (typeof window === 'undefined' || window.__RAW_DISABLE_STATIC_FRAMES_PREWARM__ === true) return null;
+  if (!staticFramesEnabled() || !staticFramesBase()) return null;
+  const conn = typeof navigator !== 'undefined' ? navigator.connection : null;
+  if (conn && (conn.saveData === true || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g')) return null;
+  const t = telemetry();
+  const t0 = performance.now();
+  const ms = () => Math.round(performance.now() - t0);
+  const rec = (t.prewarm = { model, layer, startedAt: Date.now(), indexMs: null, frameMs: null, frame: null, skipped: null });
+  getWorker();
+  if (!staticEligible({ model, layer, bbox: PREWARM_WORLD })) {
+    rec.skipped = 'not_eligible';
+    _prewarm = Promise.resolve(null);
+    return _prewarm;
+  }
+  const key = setKeyFor(model, layer);
+  const idle = (fn) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 0));
+  _prewarm = getPinnedIndex(key).then((index) => {
+    rec.indexMs = ms();
+    if (!index) { rec.skipped = 'no_index'; return null; }
+    const base = window.__MOCK_DATE_NOW__ || Date.now();
+    const frame = pickIndexFrame(index, Math.round(base / 3600000) * 3600000);   // the app's hour 0 (getSeriesAnchorMs)
+    if (!frame || !frame.path) { rec.skipped = 'no_frame'; return null; }
+    return new Promise((resolve) => { idle(() => resolve(loadFrameVectors(key, frame, undefined, { priority: 'low' }))); })
+      .then((vectors) => { rec.frameMs = ms(); rec.frame = vectors ? frame.valid_time : null; return vectors ? frame.valid_time : null; });
+  }).catch(() => { rec.skipped = 'error'; return null; });
+  return _prewarm;
+}
+
 export function _resetStaticFramesForTest() {
+  _prewarm = null;
   _state.latest = null; _state.latestAt = 0; _state.latestLoad = null; _state.latestFails = 0; _state.pins.clear(); _state.lastUse = 0;
   _state.indexLoads.clear(); _lru.clear(); _inflight.clear(); _parsedInflight.clear(); _pending.clear();
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }

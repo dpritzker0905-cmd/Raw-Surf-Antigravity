@@ -185,6 +185,7 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
 
   it("crop builds ask 'high' for the frame a commit, a step or a click needs and 'low' for build-ahead (fetch priority)", async () => {
     setup();
+    await parse(GFS, 1, PARSED); await parse(GFS, 2, PARSED);           // stored before the window: build-ahead re-reads them
     RT.noteCommitted(CLIP('GFS', 0), { hour: 0, model: 'GFS', layer: 'waves' });
     await flush();
     const builds = () => mockSF.loads.filter((l) => !l.signal);           // the prefetcher's loads carry an AbortSignal; crop builds none
