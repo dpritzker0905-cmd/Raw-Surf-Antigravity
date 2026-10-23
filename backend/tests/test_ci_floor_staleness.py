@@ -494,8 +494,8 @@ _FLOOR_SET_FROM = {
     # chain: dev CI 39896720617's 2865 / 174 files + 8 (#467, tests/test_frame_set_bundle.py) = 2873 / 175; floor 2867.
     "chain": 2873,
 
-    # estate: #472's hosted 2392 / 331 files (run 39964614711) + 13 (#475, tests/test_ledger_merges.py) = 2405; floor 2403.
-    "estate": 2405,
+    # estate: set from 2423 = max(dev run 39967681687 read 2392, dev's map 2405) + 18 (claude/floor-map-lanes, 2026-10-23); floor 2421, margin 2.
+    "estate": 2423,
 }
 # Completeness sees squash merges: +13 estate tests in a new file (tests/test_ledger_merges.py) on #472's hosted 2392 /
 # 331 files (run 39964614711; #467 and #471 read the same 2392) = 2405 / 332; floor 2390 -> 2403, margin 2.

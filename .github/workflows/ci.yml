@@ -1989,7 +1989,9 @@ jobs:
           # file adds 13 executed tests (tests/test_ledger_merges.py) to the 2392 / 331 files #472 read on hosted CI
           # (run 39964614711, merged as e7fc9efda): projected 2405 / 332 files; 2405 - 2 = 2403, margin 2.
           # _FLOOR_SET_FROM["estate"] -> 2405. This PR must read 2405 passed.
-          MIN_PASSED = 2403
+          # ⬆ 2403→2421 on 2026-10-23 (rederive_floor.py, claude/floor-map-lanes): dev run 39967681687 read 2392; dev's map 2405;
+          #   base 2405 (dev's map) + 18 new test(s) = 2423; floor 2423 - 2 = 2421. This PR must read 2423 passed.
+          MIN_PASSED = 2421
 
           try:
               root = ET.parse('estate.xml').getroot()
