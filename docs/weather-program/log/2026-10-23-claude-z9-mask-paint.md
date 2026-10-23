@@ -33,9 +33,12 @@ Client only. No served number changes. Each change is ON with a kill switch.
 - **`maskTextureStash.stashHoldsPatch`.** The stash serves a swap back when the stashed texture's own CLEAN paint, filed under
   its bounds, contains the last painted box. It then holds that truth; the swap needs no rebuild, and the keep makes it need
   no repaint. Kill: `__RAW_DISABLE_STASH_PATCH_TRUST__`.
-- **Sibling static-source gate (`marineController`).** A hidden layer is warmed only where `staticSeriesEligible` says a
-  static source serves it. A regional view has none until the z7-9 bundles ship, so switching to that layer fetches on demand.
-  Kill: `__RAW_DISABLE_SIBLING_STATIC_GATE__`.
+- **SPLIT OUT (the lead, 2026-10-23, after CI):** a sibling static-source gate in `marineController` was in this branch and is
+  NOT in this PR. It broke `src/__tests__/marineSiblingPrewarm.test.js` (that tree was not run here), and it traded away the
+  instant layer toggle the sibling prewarm exists for. The owner's mandate is an instant toggle AND an instant scrub. The
+  redesign is a follow-up PR: read regional bundles or world frames for siblings first, and elsewhere warm in idle time,
+  after the visible layer, one layer at a time. The `/grid_series` counts below were measured with the gate and stay as
+  evidence for that PR.
 
 ## Results (offline, the live view, the real basemap; evidence file `runs`)
 - **Water paints during the 11 steps.** These counts do not depend on machine load.
@@ -69,7 +72,5 @@ Client only. No served number changes. Each change is ON with a kill switch.
   - the hidden-layer warm back on the backend.
 
 ## Not done
-- The live read after the merge, at the same z9 view: `maskWaterPaint` calls during a 10-step scrub, and `/grid_series` only
-  for waves after the Waves toggle.
-- A switch to a hidden layer at a regional view now fetches on demand. It becomes instant again once a static regional source
-  (the z7-9 bundles) is eligible.
+- The live read after the merge, at the same z9 view: `maskWaterPaint` calls during a 10-step scrub.
+- The hidden-layer series load: in the follow-up PR (see SPLIT OUT above).
