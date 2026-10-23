@@ -403,3 +403,18 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   when the centre is land; EURO then carries its OWN values in ~847 of 868 cells and needs no GFS donor at 2 deg.
 - **Tests:** tests/test_coarse_gulf_fill_targeted.py (7, guards; floor 210/3287 -> 211/3294, `_FLOOR_SET_FROM` 3300). Seen failing
   (3) when masked GFS nodes are allowed as donors.
+- **Review fixes (16:00Z; the lead's regression review + Reflection, "no flip until fixed"):**
+  - **Series cost (blocker), measured offline** (48-frame world /grid_series, #462 masked store, cold, measure_series.py): the
+    first cut loaded the FULL 15,023-vector GFS global_mid per frame: EURO CPU 8.9 s (legacy 3.3 s), 48 full loads, 33 L1
+    evictions, peak RSS 518 MB (legacy 405); ICON 8.1 s, 42 loads, 52 evictions. Now one COMPACT donor per GFS file (lattice + five
+    float32 planes, ~0.3 MB) read from the stored file without entering L1, keyed by filename AND run, in a bounded LRU
+    (MARINE_TARGETED_DONOR_CACHE 24) shared by EURO and ICON: EURO 4.7 s, ICON 3.1 s, 0 full loads, 0 evictions, RSS 401 / 489 MB.
+  - **Loud no-donor:** missing / unreadable donor -> grid as stored WITH `coarse_fill {mode targeted, donor: reason}`, WARNING once
+    per change, counted (`TARGETED_NO_FILL`). **Lattice guard:** resolution or origin drift between EURO/ICON/GFS mids ->
+    `donor: lattice_mismatch`, no fill, never a misaligned one.
+  - **Periods, stated:** filled cells carry the donor's period, GFS PERPW (a PEAK); ICON's own cells carry tm10 (energy period,
+    ~16% shorter, #412). Kept because dropping it would leave period=0.0 on a valid vector (0b5182436); the stamp says
+    `filled_period: GFS peak (PERPW), the donor's`.
+  - **ICON layers counted (valid 2026-10-25T00Z, published frames):** waves 125 of 3,788 masked filled, swell_1 22 of 3,822,
+    wind_waves 99 of 3,788; nearly all at the ice edges (>60N / <60S); inland TX/MS/GA 0 in every layer; isolated open-sea holes
+    (all 8 ICON neighbours valid, likely "no train here", not land): 11 / 9 / 11, of which the targeted rule fills 5 / 0 / 5.
