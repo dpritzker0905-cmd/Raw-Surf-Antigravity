@@ -221,3 +221,15 @@ Time to first frame stays on the offline arms (0.8-1.4 s vs 1.4-3.9 s without bu
 **Observation:** every tile pick in the trace was the pre-manifest pilot pick. The products manifest never reached the tile reader during the read, so without the review's pilot pick the bundle would not have served. Likely cause: in this flow nothing fetches the manifest. There was no marine /grid ask, and latest.json was already read, so no wait triggered it. That's not proven.
 
 Evidence: `evidence/regional-bundles-client-2026-10-23.json` (`live_read_491`).
+
+## 2026-10-23 (22:10Z): the regional client goes DARK by default (live parity failed)
+
+**What happened:** static-frames' live bundle-vs-/grid_series parity for florida_east_coast failed. The lattice differs, 465 of 585 sub-box nodes are bad, and 8 metadata fields mismatch (sha12 fine). Offline it passed.
+
+**Why dark:** the server may serve another product there, and #491 is live and ON. That makes the bundle a served-number change under D-001.
+
+**Change (one commit):** `regionalBundlesOn()` now needs `window.__RAW_ENABLE_REGIONAL_BUNDLES__ === true` (`REGIONAL_BUNDLES_DEFAULT_ON = false`); the kill still wins. Tests and offline tools opt in.
+
+**Checks:** Jest 5,738 pass (3 copy-only failures); ESLint exit 0; floor +1 test.
+
+**Owed:** flip back after static-frames names the served product and the live parity passes.
