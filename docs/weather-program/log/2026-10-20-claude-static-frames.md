@@ -370,3 +370,8 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - **Tests:** tests/test_frame_set_bundle.py (6, chain lane; floor 173/2849 -> 174/2855, `_FLOOR_SET_FROM` chain 2861). Seen
   failing under two mutations (every offset +1; retention without the bundle path). The budget test in
   test_publish_frame_sets.py now ticks past the budget for every later set, whatever the set count.
+- **Review fix (same PR, 02:45Z): uploads had NO backoff.** `SupabaseSink.write` raised on the first 429, and a raise aborted the
+  whole step, before latest.json moved for the world sets. Now: 4 attempts (waits 2, 5, 12 s) on 429/5xx and dropped
+  connections, never on a refusal; and a regional set whose bundle upload still fails is reported (`error`) and skipped, keeping
+  its published bundle, while the world sets publish. +2 tests (8 in the file; chain floor 174/2857, `_FLOOR_SET_FROM` 2863);
+  the isolation test fails when the guard is narrowed.

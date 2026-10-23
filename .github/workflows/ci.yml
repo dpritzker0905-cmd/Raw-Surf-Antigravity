@@ -1509,10 +1509,10 @@ jobs:
           # ⬆ 172/2837 → 173/2849 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (/products encoded once per manifest version):
           # tests/test_products_response.py (12, a new file selector-verified into this lane: --lane chain 172 -> 173);
           # 2843 + 12 = 2855 projected; 2855 - 6 = 2849. This PR must read 173 files / 2855.
-          # ⬆ 173/2849 → 174/2855 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (regional static frame bundles):
-          # tests/test_frame_set_bundle.py (6, a new file selector-verified into this lane: --lane chain 173 -> 174); dev hosted
-          # 2855/173 (CI 39861554298) + 6 -> projected 2861/174; 2861 - 6 = 2855. This PR must read 174 files / 2861.
-          MIN_FILES, MIN_PASSED = 174, 2855
+          # ⬆ 173/2849 → 174/2857 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (regional static frame bundles):
+          # tests/test_frame_set_bundle.py (8, a new file selector-verified into this lane: --lane chain 173 -> 174); dev hosted
+          # 2855/173 (CI 39861554298) + 8 -> projected 2863/174; 2863 - 6 = 2857. This PR must read 174 files / 2863.
+          MIN_FILES, MIN_PASSED = 174, 2857
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

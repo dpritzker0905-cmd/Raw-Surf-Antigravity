@@ -165,3 +165,60 @@ def test_the_regional_sets_are_every_gfs_marine_pilot_box_after_the_world_sets(m
     assert keys[len(fs.SETS):] == [fs.set_key(t) for t in fsb.REGIONAL_SETS]  # regional LAST: the stagger drops them first
     monkeypatch.setenv("FRAME_REGIONAL_BUNDLES", "0")
     assert [fs.set_key(t) for t in pub.selected_sets()] == [fs.set_key(t) for t in fs.SETS]
+
+
+def test_an_upload_is_retried_on_429_and_5xx_with_backoff_then_gives_up(monkeypatch):
+    """Supabase answered cold-cache bursts with 429 (2026-10-20); a bundle is one object, so one 429 must not lose the set."""
+    waits, codes = [], []
+
+    class _Resp:
+        def __init__(self, code):
+            self.status_code, self.text = code, "x"
+
+    class _Requests:
+        ConnectionError, Timeout = ConnectionError, TimeoutError
+
+        def __init__(self, script):
+            self.script = list(script)
+
+        def post(self, url, headers=None, data=None, timeout=None):
+            code = self.script.pop(0)
+            codes.append(code)
+            if code == "drop":
+                raise ConnectionError("reset")
+            return _Resp(code)
+    monkeypatch.setattr(pub, "_sleep", waits.append)
+    monkeypatch.setenv("SUPABASE_URL", "https://example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    sink = pub.SupabaseSink()
+    sink.requests = _Requests([429, "drop", 503, 200])
+    sink.write(f"{PREFIX}/r/bundle-abc.bin", b"\x1f\x8b", fs.FRAME_TYPE, fs.IMMUTABLE)
+    assert sink.order == [f"{PREFIX}/r/bundle-abc.bin"] and waits == list(pub.UPLOAD_BACKOFF_S)
+    sink.requests, waits[:] = _Requests([429, 429, 429, 429]), []
+    with pytest.raises(RuntimeError, match="HTTP 429"):
+        sink.write(f"{PREFIX}/r/bundle-def.bin", b"\x1f\x8b", fs.FRAME_TYPE, fs.IMMUTABLE)
+    sink.requests, codes[:] = _Requests([403]), []
+    with pytest.raises(RuntimeError, match="HTTP 403"):
+        sink.write(f"{PREFIX}/r/bundle-ghi.bin", b"\x1f\x8b", fs.FRAME_TYPE, fs.IMMUTABLE)
+    assert codes == [403]                                                     # a refusal is not retried
+
+
+def test_a_failed_bundle_upload_does_not_stop_the_world_sets(tmp_path, monkeypatch):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    manifest = json.loads((store / "manifest.json").read_text())
+    world = [dict(p, region_id="global_mid") for p in manifest["products"]]     # the same files, listed as the world set
+    (store / "manifest.json").write_text(json.dumps({"products": manifest["products"] + world}))
+    world_key = fs.set_key(fs.SETS[0])
+    monkeypatch.setenv("FRAME_SETS", f"{world_key},{KEY}")
+
+    class _Sink(pub.LocalSink):
+        def write(self, path, data, content_type, cache_control):
+            if "/bundle-" in path:
+                raise RuntimeError("upload: HTTP 429")
+            super().write(path, data, content_type, cache_control)
+    sink = _Sink(out)
+    report = pub.publish_frame_sets(pub.LocalCache(store), sink, log=lambda *_: None)
+    assert "HTTP 429" in report[KEY]["error"] and report[KEY]["index"] is None
+    assert report[world_key]["built"] == 10 and sink.order[-1] == fs.LATEST
+    assert set(_latest(out)["sets"]) == {world_key}                              # the world pointer moved; no regional record

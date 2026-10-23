@@ -51,6 +51,9 @@ TARGET = {"model": "GFS", "domain": "marine", "layer": "waves", "region_id": "gl
 IMMUTABLE = fs.IMMUTABLE
 REVALIDATE = fs.REVALIDATE
 UPLOAD_WORKERS = 4
+UPLOAD_BACKOFF_S = (2.0, 5.0, 12.0)        # waits between the 4 attempts of one upload (SupabaseSink.write)
+RETRY_STATUS = (429, 500, 502, 503, 504)
+_sleep = time.sleep                        # the tests replace it
 
 
 def _parse(ts):
@@ -167,12 +170,24 @@ class SupabaseSink:
         return resp.content
 
     def write(self, path, data, content_type, cache_control):
+        """One upload, retried with backoff on 429 / 5xx / a dropped connection (Supabase answered cold-cache bursts with
+        429 on 2026-10-20). Every object is content-addressed or a whole-file upsert, so a retry is always safe."""
         headers = dict(self.auth, **{"Content-Type": content_type, "x-upsert": "true", "cache-control": cache_control})
-        resp = self.requests.post(f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}", headers=headers, data=data,
-                                  timeout=60)
-        if resp.status_code not in (200, 201):
-            raise RuntimeError(f"upload {FRAME_BUCKET}/{path}: HTTP {resp.status_code}: {resp.text[:200]}")
-        self.order.append(path)
+        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
+            try:
+                resp = self.requests.post(url, headers=headers, data=data, timeout=60)
+            except (self.requests.ConnectionError, self.requests.Timeout) as e:
+                if wait is None:
+                    raise RuntimeError(f"upload {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                _sleep(wait)
+                continue
+            if resp.status_code in (200, 201):
+                self.order.append(path)
+                return
+            if resp.status_code not in RETRY_STATUS or wait is None:
+                raise RuntimeError(f"upload {FRAME_BUCKET}/{path}: HTTP {resp.status_code}: {resp.text[:200]}")
+            _sleep(wait)
 
     def list(self, prefix):
         """Every object path under `prefix`, recursing into folders (the list API returns one level at a time)."""
@@ -286,7 +301,15 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         prev_index = json.loads(prev_raw) if prev_raw else None
         t0 = time.perf_counter()
         bundled = fsb.is_bundle(target)
-        index, stats = (fsb.publish_bundle_set if bundled else fs.publish_set)(source, sink, target, prev_index, upload, log=log)
+        if bundled:
+            try:
+                index, stats = fsb.publish_bundle_set(source, sink, target, prev_index, upload, log=log)
+            except Exception as e:  # one regional set's failed upload must not cost the world sets their pointer move
+                log(f"[frames] {key}: bundle publish failed ({type(e).__name__}: {e}); the published bundle stays")
+                report[key] = {"error": f"{type(e).__name__}: {e}"[:300], "index": (entry or {}).get("index")}
+                continue
+        else:
+            index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log)
         if index is not None:
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
             latest.setdefault("sets", {})[key] = (fsb.latest_record if bundled else fs.latest_record)(index, entry, now, _writer())
