@@ -939,7 +939,9 @@ jobs:
           # +1 (2026-10-23, targeted_fill_stats on /admin/surf-forecast/status) -> 3317/211; 3317 - 6 = 3311.
           # ⬆ 3291→3311 on 2026-10-23 (rederive_floor.py, rm-gulf-fill-targeted): dev run 39994928838 read 3297 / 210 files; dev's map 3297;
           #   base 3297 (hosted read) + 20 new test(s) = 3317, files 211; floor 3317 - 6 = 3311. This PR must read 3317 passed.
-          MIN_FILES, MIN_PASSED = 211, 3311
+          # ⬆ 3311→3314 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 3317 / 211 files; dev's map 3317;
+          #   base 3317 (hosted read) + 3 new test(s) = 3320, files 211; floor 3320 - 6 = 3314. This PR must read 3320 passed.
+          MIN_FILES, MIN_PASSED = 211, 3314
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1537,7 +1539,9 @@ jobs:
           #   base 2873 (hosted read) + 9 new test(s) = 2882, files 176; floor 2882 - 6 = 2876. This PR must read 2882 passed.
           # ⬆ 2876→2885 on 2026-10-23 (rederive_floor.py, rm480): dev run 40005013863 read 2873 / 175 files; dev's map 2882;
           #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
-          MIN_FILES, MIN_PASSED = 177, 2885
+          # ⬆ 2885→2890 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 2891 / 177 files; dev's map 2891;
+          #   base 2891 (hosted read) + 5 new test(s) = 2896, files 177; floor 2896 - 6 = 2890. This PR must read 2896 passed.
+          MIN_FILES, MIN_PASSED = 177, 2890
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
