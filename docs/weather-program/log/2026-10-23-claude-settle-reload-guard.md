@@ -70,6 +70,9 @@ Offline, `scn_sibling_toggle.js` at z8 (-79.95, 26.5) on the owner window: 20 dr
   a wiring check.
 - The settle / paused-churn / settle-live-map suites: 128 pass unchanged. The whole frontend suite: 6,825 pass; 12 fail only in
   `netlifyIconStoredTailScope.test.js` (spawnSync timeouts under load; alone 12 of 12). ESLint ratchet passes.
+- Mutants: 11 of 11 killed (`scratchpad/mutants_guard.py`): the kill ignored; no budget; never reload with a covering frame (the first
+  version); no covering frame budgeted too; no quick reloads; no gap; no ceiling; one budget for every view; the reload not recorded;
+  the clamp branch unguarded; a global covering frame treated as regional.
 
 ## Not done
 - The live read after the merge (ONE short scenario, /api/health before and after): surf ON, ICON, a few pans at z8 off Florida, then
