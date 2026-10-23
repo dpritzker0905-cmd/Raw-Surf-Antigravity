@@ -123,13 +123,16 @@ jobs:
 
       # STATIC FORECAST FRAMES (step 2b, 2026-10-20; client ON since 2026-10-21): every stored product of each world set in
       # services/frame_set.SETS (2026-10-22: GFS waves, swell_1, swell_2, wind_waves; ICON waves, swell_1, wind_waves; EURO
-      # waves; all global_mid) as one gzipped binary frame (~56 KB) in the PUBLIC bucket `weather-frames`, each decoded and
+      # waves; GFS 10 m wind; all global_mid) as one gzipped binary frame (~56 KB) in the PUBLIC bucket `weather-frames`, each decoded and
       # checked node by node against its source
       # (2026-10-23, services/frame_set_bundle.py: GFS waves on every GFS marine pilot box, after the world sets, each set as ONE
       # immutable bundle per run with an offset table, so 19 boxes cost 19 uploads; off with FRAME_REGIONAL_BUNDLES=0)
       # before upload, plus an immutable run index and a no-cache v1/latest.json pointer written LAST; only changed frames
       # are uploaded; the current and previous index are kept and older objects deleted. Also writes the one-field PNG
-      # proof + manifest.json. Built ONLY from this runner's own product files: nothing is downloaded from weather-products.
+      # proof + manifest.json. Built ONLY from this runner's own product files: nothing is downloaded from weather-products,
+      # except ONE object for the GFS wind set (2026-10-22, services/frame_set_wind.py): the HRRR lane the serve box loads
+      # (wind_lane/index.json -> its ~4.5 MB cycle), applied to every wind frame as /grid applies it (D-017); the step then
+      # keeps v1/wind_lane.json (the lane pointer the client checks) naming that lane.
       # WHY THIS LANE: the GFS world products are pilot jobs (scheduler/forecast.py pilot_jobs; global_mid rides the GFS
       # Marine Pilot pass). This lane's disk held all 113 (run 39543806662); the core lane's only 60, 5 within 0-165 h
       # (run 39546548998). It must run in THIS lane only: two publishers' retention could delete each other's frames.

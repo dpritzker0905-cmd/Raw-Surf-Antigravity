@@ -10,7 +10,7 @@ import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColor
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 import TimelineStatus from './TimelineStatus';
-import { forecastReadout } from './forecastReadout';
+import { forecastReadout } from './forecastReadout'; import LayerDataCredit from './LayerDataCredit';
 import { marineWaveLegend } from './marineWavePalette';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
@@ -777,7 +777,7 @@ export var MapWeatherControls = ({
                 </div>
               </div>
             )}
-            <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
+            <div className={`text-[9px] ${textMuted} mb-0.5 flex justify-between`}><span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} /></div>
             <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
             <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
           </div>
@@ -831,7 +831,7 @@ export var MapWeatherControls = ({
                   </div>
                 )}
                 <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
-                  <span>{legendConfig[activeLayer].label}</span>
+                  <span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} />
                 </div>
                 <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
                 <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[9px] ${textMuted} mt-1`} />
@@ -938,8 +938,8 @@ export var MapWeatherControls = ({
                       <LegendTicks ticks={surfLegend.stops} className={`text-[8px] ${textMuted} mt-0.5`} />
                     </div>
                   )}
-                  <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>
-                    {legendConfig[activeLayer].label}
+                  <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
+                    <span>{legendConfig[activeLayer].label}</span><LayerDataCredit layer={activeLayer} />
                   </div>
                   <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS, clipPath: legendConfig[activeLayer].clipPath }} />
                   <LegendTicks showResolution ticks={legendConfig[activeLayer].stops} className={`text-[8px] ${textMuted} mt-0.5`} />
