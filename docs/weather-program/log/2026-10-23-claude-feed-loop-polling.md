@@ -88,6 +88,10 @@ every other poll does too).
 - `node scripts/check_eslint.js`: no rule over baseline. `loc_ratchet.py` / `check_file_size.py`: no new violation.
 - No live traffic: every backend call in the harness was answered locally or stubbed; no `/api/health` probe needed.
 
+## Ledger
+PR #470 opened (ledger seq 1693); the push / TOS finding (ledger seq 1694); the live read after the merge is owed
+(ledger seq 1695, commitment due 2026-10-29).
+
 ## Follow-ups (not done here)
 - TOS id keying (acknowledge by JWT id, status by path id): the reason the dialog re-appears in a fresh browser.
 - Every story INSERT anywhere makes every open /feed tab refetch after 2 s (the realtime handler): a herd per post.
