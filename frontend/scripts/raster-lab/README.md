@@ -24,5 +24,15 @@ node summarize.js <dir>/results-base.jsonl --md summary.md
 Env: `VPS` (desktop,phone), `LAYERS`, `MODELS` (GFS,EURO), `ZOOMS` (2,4,6,9), `STEPS` (10), `DWELL` (1000 ms after each fully
 drawn frame), `STEP_TIMEOUT`, `LONG_JUMP_H` (96), `RADAR_DIR` (-1: back through the observed frames), `CENTER`, `FLAGS` (JSON
 of window levers set before load, e.g. a kill switch), `PHONE_CPU` (4).
+Paired arms: `AB='name=url,name=url'` (alternating order per combo); `ARM_FLAGS='{"legacy":{"__RAW_DISABLE_X__":true}}'` adds
+levers to one arm only, so ONE build with and without a kill switch is the cleanest control (both arms may name the same url).
+Own frames (2026-10-23): when the page has an `own-raster-<layer>` custom layer (ownRasterLayer.js), frames are classified from
+`window.__RAW_OWN_RASTER__` (the shown frame's valid time against the nearest stored frame to the asked hour); `OWN_CDN=<base>`
+counts that CDN's responses with the raster hosts' requests and bytes.
+
+`probe_field_parity.js`: are two arms' DECODED fields identical? It toggles `LAYER` on `AB_A` and `AB_B` (with `FLAGS_A` /
+`FLAGS_B`), steps `HOURS` hours, and compares an FNV hash of every field the app publishes on `window.__DECODED_OM_TILES__` (after
+the water-temp land fill). Replay only. Run a positive control (a lever that really changes the field must show as different)
+beside every parity claim.
 
 Terms: record new RainViewer frames sparingly (100 requests/IP/min, personal/educational use); replay is free.

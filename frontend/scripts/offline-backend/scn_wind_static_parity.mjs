@@ -24,11 +24,14 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const [cdnDir, port, nBoxesArg, outFile] = process.argv.slice(2);
 if (!cdnDir || !port) { console.error('usage: scn_wind_static_parity.mjs <frames dir> <backend port> [boxes] [out.json]'); process.exit(2); }
+// THE ONE LIVE READ (2026-10-23, PR #468's commitment): API_BASE=<backend origin> points the /grid side at it (the port is then
+// ignored) and BOX_INDEXES=0,4 keeps the world box and one owner box; with FRAME_FROM/TO and OFFSETS=0 that is a handful of
+// requests. <frames dir> is a local mirror of the CDN files the client reads (latest.json, the index, the frame, wind_lane.json).
 const N_BOXES = +(nBoxesArg || 60);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const mapDir = path.resolve(here, '../../src/components/map');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wind-parity-'));
-const API = `http://127.0.0.1:${port}/api/weather`;
+const API = process.env.API_BASE ? `${process.env.API_BASE.replace(/\/+$/, '')}/api/weather` : `http://127.0.0.1:${port}/api/weather`;
 
 const manifest = await (await fetch(`${API}/products`)).json();
 const products = Array.isArray(manifest) ? manifest : (manifest.products || []);
@@ -64,6 +67,8 @@ src = sub(src, "from './staticFrameCodec'", "from './staticFrameCodec.mjs'");
 src = sub(src, "from './staticFrameCrop'", "from './staticFrameCrop.mjs'");
 src = sub(src, "from './backendWeatherServiceClientCoverage'", "from './coverage.mjs'");
 src = sub(src, "from './weatherTruthTracker'", "from './truth.mjs'");
+src = sub(src, "from '../../lib/apiClient'", "from './api.mjs'");   // the box-lane read (GET /api/weather/wind_lane) goes to the backend under test
+fs.writeFileSync(path.join(tmp, 'api.mjs'), `export const BACKEND_URL = ${JSON.stringify(API.replace(/\/api\/weather$/, ''))};\n`);
 fs.writeFileSync(path.join(tmp, 'windStaticFrames.mjs'), src);
 globalThis.fetch = ((orig) => async (url, opts) => {
   if (String(url).startsWith('file:///cdn/')) {
@@ -75,6 +80,8 @@ globalThis.fetch = ((orig) => async (url, opts) => {
 })(globalThis.fetch);
 globalThis.window = globalThis.window || {};   // the module's telemetry (window.__RAW_WIND_STATIC__) and kill switches
 const WS = await import(pathToFileURL(path.join(tmp, 'windStaticFrames.mjs')).href);
+// The box's lane constants, as the app reads them (LayerAccessResolver -> window.__WEATHER_CAPABILITIES__; windStaticFrames.boxLane).
+globalThis.window.__WEATHER_CAPABILITIES__ = await (await fetch(`${API}/capabilities`)).json();
 
 // WebGLWindUtils.encodeWindTexture's bytes (no GL): R = u, G = v over the grid's range, B = speed over min(max, 120), floored.
 function texBytes(vectors) {
@@ -107,6 +114,10 @@ for (let i = 0; i < N_BOXES; i++) {
   boxes.push({ west: w, south: s, east: w + spanX, north: Math.min(85, s + spanY), kind: 'random' });
 }
 
+if (process.env.BOX_INDEXES) {
+  const keep = new Set(process.env.BOX_INDEXES.split(',').map(Number));
+  boxes.splice(0, boxes.length, ...boxes.filter((_, i) => keep.has(i)));
+}
 const frames = index.frames.filter((f) => f.path);
 const stats = { comparisons: 0, nodes: 0, bad: 0, fieldBad: 0, refused: {}, refusedServedMid: 0, texBytes: 0, texDiff: 0, texMaxLsb: 0, maxErr: { speed: 0, direction: 0, uv: 0 }, worldServed: 0, cropServed: 0, laneTouched: 0, examples: [], missSeen: {} };
 const fieldsToCompare = ['product_id', 'served_valid_time', 'valid_time', 'frame_substituted', 'coverage_scope', 'requested_bbox', 'served_bbox', 'stale', 'model', 'region_id', 'is_estimated', 'model_run_time'];

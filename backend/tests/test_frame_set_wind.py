@@ -239,7 +239,9 @@ def test_capabilities_report_the_lane_the_box_blends_with_on_gfs_wind_rows_only(
     monkeypatch.delenv("WIND_HRRR_LANE", raising=False)
     rows = get_weather_capabilities()
     wind = [r for r in rows if r.get("model") == "GFS" and r.get("domain") == "wind"]
-    assert wind and all(r["wind_lane"] == {"enabled": True, "feather_km": 200.0, "taper_hours": 3} for r in wind)
+    assert wind and all({k: r["wind_lane"][k] for k in ("enabled", "feather_km", "taper_hours")}
+                        == {"enabled": True, "feather_km": 200.0, "taper_hours": 3} for r in wind)
+    assert all("key" in r["wind_lane"] for r in wind)                   # the lane in memory (wind_lane.box_state), null before one loads
     assert not any("wind_lane" in r for r in rows if r not in wind)
     monkeypatch.setenv("WIND_HRRR_FEATHER_KM", "350")                    # a box override shows, so the client can refuse
     assert {r["wind_lane"]["feather_km"] for r in get_weather_capabilities() if "wind_lane" in r} == {350.0}
