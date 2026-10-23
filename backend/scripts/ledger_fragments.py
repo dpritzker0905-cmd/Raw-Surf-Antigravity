@@ -288,8 +288,9 @@ def pending_on_ref(root: str, ref: str) -> list:
 def landing_time(root: str, ref: str):
     """When the fragment protocol landed on `ref` (its README's first commit there), or None if it has not."""
     out = git(root, "log", "--first-parent", "--diff-merges=first-parent", "--diff-filter=A", "--reverse",
-              "--format=%cI", ref, "--", SENTINEL_REL).split()
-    return out[0] if out else None
+              "--name-only", "--format=%x00%cI", ref, "--", SENTINEL_REL)
+    times = [tok[1:].strip() for tok in out.split("\n") if tok.startswith("\x00")]
+    return times[0] if times else None
 
 
 def _utc(s: str) -> datetime:
@@ -385,7 +386,10 @@ def append_fragment(root: str, fields: dict, name: str = None, base_ref: str = "
     ledger, others = _context(root, base_ref if base_known else None, name)
     last = str(json.loads(ledger[-1]).get("at", "")) if ledger else ""
     n = len(split_lines(existing)) + 1
-    _, errs = fold_entries(ledger, others + [(name, existing + line + "\n")], max(entry["acted_at"], last))
+    # Validated as a fold NOW would chain it. ⬇ 2026-10-23: the time was this line's own acted_at, so a late-recorded
+    # line (an older merge, #472's 14:12:37Z) was refused once the fragment held a newer line (14:21:39Z); and a
+    # future acted_at passed. A fold is never earlier than now, and an action is never after its fold.
+    _, errs = fold_entries(ledger, others + [(name, existing + line + "\n")], max(now or now_utc(), last))
     mine = [e for e in errs if e.startswith(f"ledger.d/{name}.jsonl")]
     if mine:
         raise LedgerError("refusing the line:\n  " + "\n  ".join(mine))
@@ -565,41 +569,71 @@ def _check_fold(root, head, base_ref, base_ledger, head_ledger, pending, deleted
 
 # ── fold-pr: the one command the lead runs ───────────────────────────────────────────────────────────────────────
 def fold_pr(repo: str, remote: str = "origin", base: str = "dev", dry_run: bool = False, replace: str = None,
-            open_pr: bool = True, co_authors=(), at: str = None, out=print) -> dict:
+            open_pr: bool = True, co_authors=(), at: str = None, out=print, record_actor: str = None,
+            gh=None) -> dict:
     """Fetch the base, fold it in a TEMPORARY worktree (the caller's checkout is untouched), commit with the
     `Ledger-Fold:` trailer, push `ledger-fold/<UTC stamp>` (or force-push `replace`), open the PR with the caller's
-    gh login (a GITHUB_TOKEN PR would trigger no CI), and remove the worktree."""
+    gh login (a GITHUB_TOKEN PR would trigger no CI), and remove the worktree. With `record_actor` (--record-merges)
+    it also writes a reconstructed `pr_merge` line, into a fragment on the fold branch, for every merge on the base
+    the folded ledger lacks: unattended auto-merges stay recorded (the next fold folds that fragment)."""
     git(repo, "fetch", remote, f"+refs/heads/{base}:refs/remotes/{remote}/{base}")
     base_ref = f"{remote}/{base}"
     base_sha = git(repo, "rev-parse", base_ref).strip()
+    branch = replace or f"{FOLD_BRANCH_PREFIX}{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     tmp = tempfile.mkdtemp(prefix="ledger-fold-")
     wt = os.path.join(tmp, "wt")
     git(repo, "worktree", "add", "--detach", wt, base_sha)
     try:
         s = fold(wt, base_ref, at=at)
-        if not s["folded"]:
-            out(f"nothing to fold: {base_ref} @ {base_sha[:12]} holds no fragment")
+        recorded = []
+        try:
+            from . import ledger_merges as LM
+        except ImportError:
+            import ledger_merges as LM
+        folded_lines = L.read_lines(os.path.join(wt, *LEDGER_REL.split("/")))
+        if record_actor:
+            recorded = LM.record_merges(wt, base_ref, folded_lines, record_actor, name=slug(branch), gh=gh, out=out)
+        elif s["folded"]:
+            # ⬇ 2026-10-23: the first fold (#478) ran before --record-merges existed. Landing, it moved the fold point
+            # past #467, #471 and #477, and the audit then FAILED all three on every PR. A fold must not move the
+            # fold point past a merge it leaves unledgered.
+            owed = LM.missing_merges(LM.git_merges(wt, base_ref, include_tip=True) or [], folded_lines)
+            if owed:
+                msg = (f"{len(owed)} merge(s) on {base_ref} have no pr_merge line "
+                       f"({', '.join(f'#{n}' for n, _ in owed)}): this fold would move the fold point past them and "
+                       f"the audit would FAIL them. Pass --record-merges --actor <you>")
+                if not dry_run:
+                    raise LedgerError(f"refusing the fold: {msg}")
+                out(f"WARNING: {msg}")
+        if not s["folded"] and not recorded:
+            out(f"nothing to fold or record: {base_ref} @ {base_sha[:12]} holds no fragment"
+                + (" and no unledgered merge" if record_actor else ""))
             return s
-        span = f"seq {s['first_seq']}-{s['last_seq']}"
+        span = f"seq {s['first_seq']}-{s['last_seq']}" if s["folded"] else "no fragments"
         rows = [f"  ledger.d/{n}.jsonl: {k} line(s) -> seq {a}-{a + k - 1}" for n, k, a in s["folded"]]
-        title = f"chore(ledger): fold {len(rows)} fragment(s) into ACTIONS.jsonl ({span})"
+        rec = f"record {len(recorded)} pr_merge line(s)" if recorded else ""
+        title = "chore(ledger): " + "; ".join(x for x in (
+            f"fold {len(rows)} fragment(s) into ACTIONS.jsonl ({span})" if rows else "", rec) if x)
         body = "\n".join([
             f"Folds every ledger fragment on `{base}` @ {base_sha[:12]} into `ACTIONS.jsonl`, in merge order (the "
             f"order each file was added to `{base}`'s first-parent history; line order within a file):", "",
-            *rows, "", f"STATE anchor -> `{s['head']}`. Fold time `at` = {s['at']}; each line keeps its `acted_at`.",
+            *(rows or ["  (none)"]), "",
+            f"STATE anchor -> `{s['head'] or 'unchanged'}`. Fold time `at` = {s['at']}; each line keeps its `acted_at`.",
             "Every folded line carries `\"fragment\": \"<name>:<line>\"`; every fragment line was content-matched "
             "against ACTIONS.jsonl before its file was removed. `check-pr` (Weather Program Ledger workflow) "
             "recomputes this fold from the base and fails on any difference. Made by `action_ledger.py fold-pr` "
-            "(D-0XX)."])
+            "(D-0XX).", *([""] + [f"Recorded reconstructed `pr_merge` lines in `ledger.d/{slug(branch)}.jsonl` for "
+                                  f"merges the ledger lacked: {', '.join(f'#{n}' for n in recorded)}. The next fold "
+                                  f"folds them."] if recorded else [])])
         out(title + "\n" + "\n".join(rows))
-        s.update(title=title, body=body, base_sha=base_sha)
+        s.update(title=title, body=body, base_sha=base_sha, recorded=recorded)
         if dry_run:
             out("dry run: nothing committed or pushed")
             return s
-        branch = replace or f"{FOLD_BRANCH_PREFIX}{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
         git(wt, "switch", "-q", "-C", branch)
         git(wt, "add", "-A", "--", "docs/weather-program")
-        trailers = [f"{FOLD_TRAILER} {len(rows)} fragments, {span}"] + [f"Co-Authored-By: {c}" for c in co_authors]
+        trailers = [f"{FOLD_TRAILER} {len(rows)} fragments, {span}" + (f"; {rec}" if rec else "")] + \
+            [f"Co-Authored-By: {c}" for c in co_authors]
         msg = os.path.join(tmp, "msg.txt")
         with open(msg, "w", encoding="utf-8", newline="\n") as f:
             f.write(title + "\n\n" + body + "\n\n" + "\n".join(trailers) + "\n")
