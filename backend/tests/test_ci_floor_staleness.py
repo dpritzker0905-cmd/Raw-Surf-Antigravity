@@ -479,7 +479,24 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3293, "chain": 2873, "estate": 2405}
+# ⬇ 2026-10-23 (the lead): ONE BLOCK PER LANE, A BLANK LINE BETWEEN LANES. With the three lanes on one line, any
+# two PRs that moved floors in DIFFERENT lanes conflicted here (#470 estate vs #467 chain, #474 guards vs #467 chain,
+# #475 estate). One key per line is NOT enough: git conflicts on changes to ADJACENT lines (measured in a throwaway
+# repo: adjacent keys CONFLICT; one blank line between them merges CLEAN; test_rederive_floor.py pins both). Each
+# lane's provenance is the ONE comment line directly above its key, REPLACED (never appended) by the PR that moves
+# it; the history lines above and below this block are frozen (git log keeps them). A same-lane collision still
+# conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
+# PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
+_FLOOR_SET_FROM = {
+    # guards: dev CI 39861554298's 3287 / 209 files + 6 (tests/test_coarse_gulf_fill_mid.py) = 3293 / 210; floor 3287.
+    "guards": 3293,
+
+    # chain: dev CI 39896720617's 2865 / 174 files + 8 (#467, tests/test_frame_set_bundle.py) = 2873 / 175; floor 2867.
+    "chain": 2873,
+
+    # estate: #472's hosted 2392 / 331 files (run 39964614711) + 13 (#475, tests/test_ledger_merges.py) = 2405; floor 2403.
+    "estate": 2405,
+}
 # Completeness sees squash merges: +13 estate tests in a new file (tests/test_ledger_merges.py) on #472's hosted 2392 /
 # 331 files (run 39964614711; #467 and #471 read the same 2392) = 2405 / 332; floor 2390 -> 2403, margin 2.
 # Per-PR ledger fragments (D-0XX): +49 estate tests in a new file (tests/test_ledger_fragments.py) on dev CI 39896720617's
