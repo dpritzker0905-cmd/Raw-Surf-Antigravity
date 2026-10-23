@@ -491,8 +491,8 @@ _FLOOR_SET_FROM = {
     # guards: dev CI 39896720617's 3293 / 210 files + 4 (#474, tests/test_wind_hrrr_lane.py) = 3297; floor 3291.
     "guards": 3297,
 
-    # chain: dev CI 39896720617's 2865 / 174 files + 8 (#467, tests/test_frame_set_bundle.py) = 2873 / 175; floor 2867.
-    "chain": 2873,
+    # chain: set from 2882 = max(dev run 39994928838 read 2873, dev's map 2873) + 9 (rm-pressure-raster-frames, 2026-10-23); floor 2876, margin 6.
+    "chain": 2882,
 
     # estate: set from 2431 = max(dev run 39994928838 read 2411, dev's map 2429) + 2 (claude/rederive-add-auto, 2026-10-23); floor 2429, margin 2.
     "estate": 2431,

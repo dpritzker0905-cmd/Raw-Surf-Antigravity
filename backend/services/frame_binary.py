@@ -47,6 +47,10 @@ frame, 5. Height's 1 mm u16 tops out at 65.5, and 10 m wind in knots goes past t
 u, v follow from speed and direction by uv_convention 0, as the wind normalizer computes them. The wind texture
 (WebGLWindUtils.encodeWindTexture) quantises u, v and speed into 8-bit bytes over the frame's range (0.3-0.5 kn a step).
 
+RASTER frames (2026-10-23, frame_set_raster.py: GFS mean-sea-level pressure from NOAA GRIB) carry ONE scalar field and are
+encoded from a numpy plane (encode_plane / decode_plane), not from product vectors:
+  6 pressure_hpa    u16  code 0 = no data, else round((hPa - 800) / 0.1) + 1 (descriptor offset 799.9)   error <= 0.05 hPa
+
 Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise, where the bounds are the
 OUTER CELL CENTRES (cell_bounds; what /grid serves). `encode_frame` refuses a product whose lat/lng are not that regular
 grid, and `parity` compares every decoded node with its source.
@@ -67,9 +71,9 @@ DESCRIPTOR = struct.Struct("<BBBBIdd")  # 24 bytes
 NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
-HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT = 0, 1, 2, 3, 4, 5
+HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
-               SPEED: "speed", LANE_WEIGHT: "lane_weight"}
+               SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -80,13 +84,14 @@ FIELD_SPECS = {
     DIR_CONFIDENCE: (1, 0, 0xFF, 1.0 / 254.0, 0.0),
     SPEED: (2, 1, 0, 0.01, -0.01),
     LANE_WEIGHT: (2, 1, NO_MISSING, 0.0001, 0.0),
+    PRESSURE_HPA: (2, 1, 0, 0.1, 799.9),      # raster frames (frame_set_raster.py): code 1 = 800.0 hPa, 0 = no data
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
 
 # What the decoded value may differ from the source by, per field (half a step, plus float slack).
 TOLERANCE = {HEIGHT: 0.0005 + 1e-9, DIRECTION: 0.005 + 1e-9, PERIOD: 0.005 + 1e-9, DIR_CONFIDENCE: 0.5 / 254 + 1e-9,
-             SPEED: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9}
+             SPEED: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9, PRESSURE_HPA: 0.05 + 1e-9}
 POSITION_TOL_DEG = 1e-6
 UV_TOL = 0.0012  # u, v rebuilt from the decoded height and direction: 1 mm height step plus 4-dp rounding
 # Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
@@ -228,6 +233,65 @@ def encode_frame(product, fields=DEFAULT_FIELDS):
         planes.append(_plane_bytes([field_code(fid, v) for v in vectors], nb, layout))
     assert len(head) == header_bytes
     return bytes(head) + b"".join(planes)
+
+
+
+def encode_plane(values, bounds, valid_time, model_run_time, fid):
+    """Raw frame bytes for ONE scalar field from a (rows, cols) float array, row 0 = SOUTH, column 0 = WEST, NaN = no data;
+    `bounds` = (west, south, east, north), the outer cell centres. The same layout encode_frame writes (header, one
+    descriptor, one plane), vectorised: a 720 x 361 raster encodes in milliseconds instead of a per-node loop."""
+    import numpy as np
+    arr = np.asarray(values, dtype=float)
+    rows, cols = arr.shape
+    nb, layout, missing, scale, offset = FIELD_SPECS[fid]
+    if nb != 2 or missing != 0:
+        raise ValueError(f"encode_plane handles u16 fields with code 0 = no data, not field {fid}")
+    ok = np.isfinite(arr)
+    codes = np.zeros(arr.shape, dtype=np.int64)
+    codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
+    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > 0xFFFF):
+        raise ValueError(f"field {fid}: values outside the u16 range of its quantisation")
+    header_bytes = HEADER_FIXED + DESCRIPTOR.size
+    head = bytearray(MAGIC)
+    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, 1 << fid, 0, 0, 1, 0, header_bytes)
+    head += struct.pack("<4d", *bounds)
+    head += struct.pack("<2d", _epoch(valid_time), _epoch(model_run_time))
+    head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
+    raw = codes.astype("<u2").tobytes()
+    plane = raw[0::2] + raw[1::2] if layout == 1 else raw
+    return bytes(head) + plane
+
+
+def decode_plane(data):
+    """(header dict, {field id: (rows, cols) float array, NaN = no data}) for a frame; vectorised twin of decode_frame."""
+    import numpy as np
+    if data[:2] == GZIP_MAGIC:
+        data = gzip.decompress(data)
+    if data[:4] != MAGIC:
+        raise ValueError("not a frame: bad magic")
+    enc, _tfm, cols, rows, _mask, _ro, _co, nfields, _uv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
+    if enc != ENCODING_VERSION:
+        raise ValueError(f"unsupported encoding_version {enc}")
+    head = {"cols": cols, "rows": rows, "bounds": struct.unpack_from("<4d", data, 24),
+            "valid_epoch": struct.unpack_from("<d", data, 56)[0], "run_epoch": struct.unpack_from("<d", data, 64)[0]}
+    out, pos, n = {}, header_bytes, cols * rows
+    for i in range(nfields):
+        fid, nb, layout, _rsv, missing, scale, offset = DESCRIPTOR.unpack_from(data, HEADER_FIXED + i * DESCRIPTOR.size)
+        plane = np.frombuffer(data, dtype=np.uint8, count=n * nb, offset=pos)
+        if len(plane) != n * nb:
+            raise ValueError(f"truncated frame: field {fid}")
+        pos += n * nb
+        if nb == 1:
+            codes = plane.astype(np.int64)
+        elif layout == 1:
+            codes = plane[:n].astype(np.int64) | (plane[n:].astype(np.int64) << 8)
+        else:
+            codes = plane.view("<u2").astype(np.int64)
+        vals = codes * scale + offset
+        if missing != NO_MISSING:
+            vals = np.where(codes == missing, np.nan, vals)
+        out[fid] = vals.reshape(rows, cols)
+    return head, out
 
 
 def gzip_frame(raw):
