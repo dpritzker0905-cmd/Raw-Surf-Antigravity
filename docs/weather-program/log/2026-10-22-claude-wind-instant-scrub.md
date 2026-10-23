@@ -1,6 +1,6 @@
 # 2026-10-22 (claude, wind instant scrub, a subagent of the lead): wind instant on toggle and scrub
 
-Written 2026-10-22T22:40Z. Branch `claude/wind-static-frames` from dev `6a03c442a` (merged dev `57632973b`). Design:
+Written 2026-10-22T22:40Z. Branch `claude/wind-static-frames` from dev `6a03c442a` (merged dev `57632973b`, then `efec1adfa`). Design:
 `docs/architecture/static-wind-frames.md`. Evidence: `evidence/wind-instant-scrub-2026-10-22.json`.
 
 ## Ask
@@ -34,5 +34,40 @@ Publisher: GFS wind global_mid frames with the lane applied, the lane pointer, `
 (world + mid crops), synchronous world base in every scrub path, instant press commit with idle pre-build, idle prefetch of the
 run while another layer is shown, series world pages skipped. Kills listed in the design doc.
 
-## Numbers
-(filled in below when the interleaved run lands)
+## Numbers (2026-10-23T02:40Z; full table in the design doc section 5, raw in the evidence file)
+
+Offline, owner window, live-like latency. Old = dev `d1dbeed8b`; new = this branch.
+
+- **Toggle Waves -> Wind** (z2, z3.9, z4.4, z6, z9):
+  - old: 3.3-6.9 s, and never within the window at z6; 2-5 backend calls;
+  - new: data in place in 1-168 ms, first pixel 104-228 ms, 0 backend calls.
+- **Steps:**
+  - old: 24 of 50 never reached the hour's 2-degree field; 8,259 thinned frames;
+  - new: 0 of 50 missed; drawn p50 27-44 ms and p95 70-112 ms; 0 backend calls at world and mid zooms (0.4 a step at z9, the sharpened overlay).
+- **Held keys** (12 presses 40 ms apart): old 0 of 60 reached their hour; new p50 23-41 ms, 4 of 60 missed the gap.
+- **Wrong labels:** 0 in every arm. **Thinned frames:** 0 on the new build.
+- **The z2 1.1 s outlier** from the first baseline is gone (mapped-vector reuse).
+- **Reviewed build** (+ /capabilities check), second run: toggle data 3-138 ms, drawn 128-200 ms, 0 backend calls; step drawn p50 38-61 ms.
+- **Mismatch arm:** lane-window hours go to `/grid` (4.6-8.3 s) and later hours stay static, with 0 wrong labels.
+- **Parity:**
+  - frames 0-20 (the whole lane window): 3.04M nodes, 0 bad;
+  - frames 21-109, every 4th: 10.75M nodes, 0 bad;
+  - texture within 1 LSB.
+- **Contract misses, stated plainly:**
+  - The toggle's first pixel (104-228 ms) is over the 100 ms bar. The data is there; the remainder is the engine's first draw after mount (PR C).
+  - Held-key p95 is 35-49 ms against 33 ms.
+
+**No served number changes**, so there is no SCOREBOARD row: the frames equal `/grid` node for node. The only backend change a user can see is
+an added `/capabilities` field (`wind_lane` on GFS wind rows).
+
+## Review (static-frames session, 2026-10-22)
+Five findings, all fixed in `e3a3831e5`:
+1. The pointer could move back to an older lane. The pilots run now re-reads L2, and the pointer never moves backwards.
+2. The runner env could differ from the box. Fixed with shared code constants, the runner env ignored, and `/capabilities` reporting the box's constants with a client equality check. The owner confirmed Render sets neither variable.
+3. `refresh` keeps the last lane. This residual is documented.
+4. `lane_weight` only on valid nodes.
+5. Naming.
+
+## Plan approved by the lead
+PR A (this), then PR B (CI-side rebuild of the lane-window frames after a new lane), then PR C (warm engine, first pixel).
+Changes to how particles behave go to the owner as a side-by-side A/B first.
