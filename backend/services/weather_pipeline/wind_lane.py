@@ -69,9 +69,15 @@ def taper_hours() -> int:
 
 
 def box_state() -> dict:
-    """What this process blends with, for /capabilities (the GFS wind rows' `wind_lane`): no I/O, no lane load. The static wind
-    frames record the same three in their index; the client refuses lane hours unless they match."""
-    return {"enabled": enabled(), "feather_km": feather_km(), "taper_hours": taper_hours()}
+    """What this process blends with RIGHT NOW, for /capabilities (the GFS wind rows' `wind_lane`) and GET /api/weather/wind_lane:
+    no I/O, no lane load. `key`/`cycle`/`horizon` name the lane in memory (null before one loads). The static wind frames record
+    the same in their index; the client serves a lane-window hour only when the box's key and constants equal the frames'
+    (2026-10-23: a box can hold an older lane than L2 names, and its pointer cannot tell)."""
+    lane = _state.get("lane")
+    return {"enabled": enabled(), "feather_km": feather_km(), "taper_hours": taper_hours(),
+            "key": getattr(lane, "key", None), "cycle": _iso(getattr(lane, "cycle", None)),
+            "horizon": _iso(getattr(lane, "horizon", None)), "source": SOURCE,
+            "refresh_error": (_state.get("error") or "").split(":", 1)[0] or None}
 
 
 def _grid():
@@ -198,14 +204,19 @@ def refresh():
     try:
         index = _l2_get(INDEX_KEY)
         if not index or not index.get("key"):
+            _state["error"] = "IndexUnreadable: no lane index in L2"
             return
         cur = _state["lane"]
         if cur is not None and cur.key == index["key"]:
+            _state["error"] = None
             return
         obj = _l2_get(index["key"])
-        if obj:
-            install(Lane(obj, key=index["key"]))
-            logger.info(f"[wind-lane] loaded HRRR cycle {obj.get('cycle')} ({len(obj.get('hours') or [])} hours)")
+        if not obj:
+            _state["error"] = f"CycleUnreadable: {index['key']}"
+            return
+        install(Lane(obj, key=index["key"]))
+        _state["error"] = None
+        logger.info(f"[wind-lane] loaded HRRR cycle {obj.get('cycle')} ({len(obj.get('hours') or [])} hours)")
     except Exception as e:
         _state["error"] = f"{type(e).__name__}: {e}"
         logger.warning(f"[wind-lane] refresh failed (serving the last lane, or GFS): {_state['error']}")
@@ -226,6 +237,40 @@ def current_lane() -> Optional[Lane]:
         if not is_test_environment():
             threading.Thread(target=refresh, name="wind-lane-refresh", daemon=True).start()
     return _state["lane"]
+
+
+def _ttl_s() -> float:
+    try:
+        return max(30.0, float(os.environ.get("WIND_HRRR_LANE_INDEX_TTL_S", "300")))
+    except ValueError:
+        return 300.0
+
+
+def start_keeper() -> bool:
+    """Re-read the lane index every TTL on a daemon thread, whatever the traffic (2026-10-23).
+
+    current_lane() refreshes only when a wind /grid or series request asks for the lane. Once the static wind frames (#468)
+    answered most wind requests, those asks became rare and the live box kept a 19 h old HRRR cycle for ~5 h after the core
+    lane published a new one (measured 2026-10-23 13:44Z: 733 of 15,919 nodes off vs the frames; one /grid later it had
+    loaded the new cycle and matched node for node). The keeper restores D-017's "re-read every 300 s": one small index read
+    a TTL, the 4.5 MB cycle object only when the key changes. Kill: the env var WIND_HRRR_LANE_KEEPER set to 0. Off in tests; started once."""
+    if _keeper["started"] or os.environ.get("WIND_HRRR_LANE_KEEPER", "1") == "0":
+        return False
+    from services._fetch_common import is_test_environment
+    if is_test_environment():
+        return False
+    _keeper["started"] = True
+
+    def loop():
+        while _keeper["started"]:          # cleared only by tests, to stop it
+            time.sleep(_ttl_s())
+            if _keeper["started"] and enabled():
+                refresh()
+    threading.Thread(target=loop, name="wind-lane-keeper", daemon=True).start()
+    return True
+
+
+_keeper = {"started": False}
 
 
 # ───────────────────────────── the one place the lane meets a served grid ─────────────────────────────

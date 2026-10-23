@@ -15,6 +15,7 @@ import ast
 import asyncio
 import copy
 import math
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -272,6 +273,55 @@ def test_series_frames_carry_the_lane(lane, monkeypatch):
     assert body["frames"] and all(fr["wind_lane"]["lane"] == "hrrr+gfs" for fr in body["frames"])
     killed = asyncio.run(_get("/api/weather/grid_series", {**params, "wind_lane": "gfs"})).json()
     assert killed["frames"] and all(fr["wind_lane"] is None for fr in killed["frames"])
+
+
+# ───────────────────────────── the box says which lane it holds, and keeps it fresh (2026-10-23) ─────────────────────────────
+def test_the_box_reports_the_lane_it_holds_on_a_cached_route(lane):
+    """Static wind frames carry a lane; the client serves a lane-window hour only when the BOX holds the same one (live
+    2026-10-23: the box kept a 19 h old cycle the pointer no longer named)."""
+    r = asyncio.run(_get("/api/weather/wind_lane", {}))
+    assert r.status_code == 200 and r.headers["cache-control"] == "public, max-age=60"
+    body = r.json()
+    assert body == WL.box_state() and body["key"] == lane.key and body["cycle"] == "2026-10-09T12:00:00Z"
+    assert (body["enabled"], body["feather_km"], body["taper_hours"]) == (True, 200.0, 3)
+    WL.install(None)
+    assert WL.box_state()["key"] is None and WL.box_state()["cycle"] is None      # before a lane loads
+
+
+def test_a_refresh_loads_a_new_cycle_and_says_what_failed(lane, monkeypatch):
+    new_key = "wind_lane/hrrr-2026100918.json"
+    store = {WL.INDEX_KEY: {"key": new_key}, new_key: lane_obj()}
+    monkeypatch.setattr(WL, "_l2_get", lambda key: store.get(key))
+    WL.refresh()
+    assert WL.current_lane().key == new_key and WL.box_state()["refresh_error"] is None
+    store[WL.INDEX_KEY] = None                                                     # L2 index unreadable: keep the lane, say so
+    WL.refresh()
+    assert WL.current_lane().key == new_key and WL.box_state()["refresh_error"] == "IndexUnreadable"
+    store[WL.INDEX_KEY] = {"key": "wind_lane/hrrr-2026100923.json"}                # index names a cycle that is not there
+    WL.refresh()
+    assert WL.current_lane().key == new_key and WL.box_state()["refresh_error"] == "CycleUnreadable"
+    WL._state["error"] = None
+
+
+def test_the_keeper_rereads_the_lane_with_no_wind_request_at_all(monkeypatch):
+    """current_lane() refreshes only when a wind request asks; the keeper re-reads on its own, every TTL."""
+    from services import _fetch_common
+    assert WL.start_keeper() is False                                              # never in a test environment
+    calls = []
+    monkeypatch.setattr(_fetch_common, "is_test_environment", lambda: False)
+    monkeypatch.setattr(WL, "_ttl_s", lambda: 0.01)
+    monkeypatch.setattr(WL, "refresh", lambda: calls.append(1))
+    monkeypatch.setenv("WIND_HRRR_LANE_KEEPER", "0")
+    assert WL.start_keeper() is False                                              # the kill
+    monkeypatch.delenv("WIND_HRRR_LANE_KEEPER")
+    try:
+        assert WL.start_keeper() is True and WL.start_keeper() is False            # once per process
+        deadline = time.monotonic() + 5
+        while len(calls) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert len(calls) >= 2
+    finally:
+        WL._keeper["started"] = False                                              # stops the thread
 
 
 # ───────────────────────────── no knock-on: the lane changes the map, never a served number ─────────────────────────────

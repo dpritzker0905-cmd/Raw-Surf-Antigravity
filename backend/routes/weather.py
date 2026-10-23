@@ -728,6 +728,18 @@ async def get_capabilities():
     from services.weather_pipeline.capabilities import get_weather_capabilities
     return get_weather_capabilities()
 
+@router.get("/wind_lane")
+async def get_wind_lane():
+    """
+    GET /api/weather/wind_lane
+    The HRRR lane this box blends into GFS wind RIGHT NOW (wind_lane.box_state: key, cycle, horizon, feather, taper; no I/O).
+    The static wind frames' client re-reads it with the lane pointer and serves a lane-window hour only when the box holds the
+    frames' own lane (2026-10-23). Cached 60 s at the edge and in the browser.
+    """
+    from services.weather_pipeline.wind_lane import box_state
+    return JSONResponse(box_state(), headers={"Cache-Control": "public, max-age=60"})
+
+
 @router.post("/client-diagnostics")
 async def post_client_diagnostics(report: ClientDiagnosticReport):
     """
