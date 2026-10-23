@@ -152,3 +152,19 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/publish_frame_images.py
+
+      # RASTER STATIC FRAMES (2026-10-23, free-GRIB raster phase 1, services/frame_set_raster.py): GFS mean-sea-level pressure
+      # (NOAA pgrb2.0p25 PRMSL by .idx byte range from AWS Open Data, every second point = 720 x 361 at 0.5 deg, f000-f336 every
+      # 3 h) as RSWF frames in the same public bucket, set GFS/weather/pressure/global_0p5. Its OWN step, after the frames step
+      # (one latest.json writer at a time), with its own budget (FRAME_RASTER_BUDGET_S, default 420 s) and timeout; it reads no
+      # stored product, so it does not wait on the ingest. A cycle latest.json already lists uploads nothing. The client half
+      # is dark (raster-instant session): publishing changes nothing a user sees. Off: repo variable FRAME_RASTER_PRESSURE=0.
+      - name: Publish raster static frames (pressure; client dark)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE != '0' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/publish_raster_frames.py

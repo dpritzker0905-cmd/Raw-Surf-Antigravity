@@ -11,6 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, CreditTransaction, RoleEnum
 from .schemas import (
     UpdatePricingRequest, PricingResponse,
@@ -70,9 +71,12 @@ async def get_photographer_pricing(
 async def update_photographer_pricing(
     photographer_id: str,
     data: UpdatePricingRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's SmugMug-style pricing settings"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
     
@@ -271,9 +275,12 @@ async def get_gallery_pricing(
 async def update_gallery_pricing(
     photographer_id: str,
     data: UpdateGalleryPricingRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's SmugMug-style gallery pricing tiers (all session types independent)"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
 
@@ -395,9 +402,12 @@ async def update_gallery_pricing(
 async def get_earnings_breakdown(
     photographer_id: str,
     days: int = Query(default=30, le=365),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get photographer's earnings breakdown by revenue stream for the Unified Earnings Dashboard"""
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from datetime import timedelta
     from sqlalchemy import text
     
@@ -468,12 +478,15 @@ async def get_earnings_breakdown(
 async def get_earnings_history(
     photographer_id: str,
     months: int = Query(default=12, le=24),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get photographer's earnings history by month for trend analysis.
     Returns monthly totals for the last N months.
     """
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from datetime import timedelta
     from sqlalchemy import text, extract
     

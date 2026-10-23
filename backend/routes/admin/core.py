@@ -9,6 +9,7 @@ import json
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from models import Profile, Post, GalleryItem, Story, PaymentTransaction, AdminLog, RoleEnum
 
 router = APIRouter()
@@ -623,7 +624,9 @@ async def revoke_user_admin(user_id: str, admin: Profile = Depends(get_current_a
 
 
 @router.api_route("/admin/bootstrap", methods=["GET", "POST"])
-async def bootstrap_first_admin(email: str, db: AsyncSession = Depends(get_db)):
+async def bootstrap_first_admin(
+    email: str, current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """
     Bootstrap the first admin user.
     SECURITY: Only enabled when ALLOW_ADMIN_BOOTSTRAP=true env var is set.
@@ -645,6 +648,9 @@ async def bootstrap_first_admin(email: str, db: AsyncSession = Depends(get_db)):
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found. Create an account first.")
+    # Only the signed-in account itself may be made the first admin (it used to be any email, with no login).
+    if user.id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     
     # Make them admin
     user.is_admin = True
@@ -659,7 +665,9 @@ async def bootstrap_first_admin(email: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/admin/setup/{email}")
-async def setup_admin_by_email(email: str, db: AsyncSession = Depends(get_db)):
+async def setup_admin_by_email(
+    email: str, current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """
     Direct admin setup by email — for initial configuration only.
 
@@ -692,6 +700,8 @@ async def setup_admin_by_email(email: str, db: AsyncSession = Depends(get_db)):
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found. Create an account first.")
+    if user.id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
 
     user.is_admin = True
     await db.commit()

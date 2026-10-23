@@ -376,6 +376,109 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   its published bundle, while the world sets publish. +2 tests (8 in the file; chain floor 174/2857, `_FLOOR_SET_FROM` 2863);
   the isolation test fails when the guard is narrowed.
 
+## 2026-10-23 14:10Z: raster static frames from free NOAA GRIB, phase 1: GFS mean-sea-level pressure (client dark)
+
+- **Why:** the owner wants free GRIB data for the raster layers (2026-10-22 21:35 EDT). The lead approved the publisher plan;
+  the raster-instant session (client) agreed the contract: set `GFS/weather/pressure/global_0p5`, 720 x 361 (south row first,
+  180W first, bounds = outer cell centres, no wrap column), f000-f336 every 3 h, field 6 `pressure_hpa` u16 scale 0.1 offset
+  799.9 (code 0 = no data), credit/license/source_url in the index, on-demand +-2 frames, no idle fill, no time interpolation.
+- **What:** `services/frame_set_raster.py` + `scripts/publish_raster_frames.py`, its own pilots step (budget
+  FRAME_RASTER_BUDGET_S 420 s, timeout 12 min, kill FRAME_RASTER_PRESSURE=0). `frame_binary` gains field 6 and a vectorised
+  plane codec (`encode_plane` / `decode_plane`); the existing generic decoder reads its bytes unchanged (pinned).
+- **Source change from the plan, measured:** NCEP's pgrb2.0p50 PRMSL differs from pgrb2.0p25 at shared points by up to 0.01
+  hPa (0.00% exactly equal at f000, 0.0048 at f120, 99.72% equal at f336; cycle 2026-10-23 00Z). The frames read 0p25 at every
+  second point instead: the same file the box's own GFS pressure product reads, so every node it samples equals the frame's
+  value (pinned with the fetcher's own nearest-index rule). ~0.9 MB of GRIB per step instead of ~0.3 MB.
+- **Finding: ecCodes is not thread-safe here.** Six threads decoding at once crashed its definitions parser (eccodes 2.50,
+  "fatal flex scanner internal error"). Downloads stay parallel; every decode takes `DECODE_LOCK`.
+- **Real-data run** (GFS 06Z 2026-10-23, eccodes + curl source standing in for pygrib, which has no Windows wheel; offline
+  sink): 113/113 frames in 34.6 s, 20.5 MB (~181 KB a frame), parity max 0.05 hPa, 0 missing nodes; against the source GRIB at
+  (40N 70W), (33.5S 151E), (64N 22W), (0, 0), (89.5N 179.5E), (90S 180W), (21N 158W): worst 0.047 hPa.
+- **Not here:** the cross-check against the box's stored 10-deg product cannot run in the publish step (it is a core-lane job,
+  not on the pilots disk); it holds by construction and is pinned in a test. Egress rule (lead, 2026-10-22): raster frames
+  never join the desktop whole-run idle fill by default.
+- **Tests:** tests/test_frame_set_raster.py (9, chain; floor 174/2859 -> 175/2868, `_FLOOR_SET_FROM` chain 2874). Seen failing
+  with the south-first row flip removed (3 tests).
+
+## 2026-10-23 14:50Z: the targeted 2-deg Gulf fill (dark), its before/after, and the root cause in EURO's ingest
+
+- **Correction first (mine):** #463, its DECISIONS draft and the `gulf_fill_mid_enabled` docstring said the 2-deg fill "has no
+  enclosed-sea job (EURO's global_mid Gulf is valid, ICON has no holes)". Never measured; FALSE. The lead counted the published
+  frames (valid 2026-10-25T00Z): EURO masks 870 of 10,168 GFS-sea nodes (Med 44/113, Gulf of Mexico 15/59, Baltic 26/45, Red Sea
+  14/25, ...), ICON 125. My 10-22 recommendation to flip MARINE_GULF_FILL_MID=0 would have blanked real sea. Corrected in the
+  code docstrings, the #463 test docstring, DECISIONS (the old draft: superseded) and LESSONS L-S23.
+- **The owner (09:56 EDT):** build the targeted fill dark, show the before/after, look into EURO's own values at ingest.
+- **Built:** `MARINE_GULF_FILL_MID_TARGETED` (default '0'; `_RATING_FLAGS`, flag-lane parity). On the 2-deg `global_mid` only, a masked
+  EURO/ICON cell takes the same-layer GFS `global_mid` value at the same node (all three share 181 x 83 with identical bounds), only
+  where that node is valid. `targeted_fill_vectors` is pure (serve path, tests and evidence run the same rule). The 10-deg tier is
+  unchanged; MARINE_GULF_FILL_MID=0 wins; /capabilities adds `gulf_fill_mid_mode`. **Client guard: kept.** The targeted fill still
+  substitutes GFS values at sea, and the box's GFS donor (written by both lanes) can be newer than what a publish saw, so a frame
+  could not prove it matches; the clean end is the root fix below (no donor, frames exact).
+- **Evidence (real data, valid 2026-10-23T00Z; side-session notes gulf-fill-targeted-evidence-2026-10-23/):** EURO today 2,465 ->
+  targeted 868 kept as sea, 1,716 no longer painted (352 south of 60S, 413 north of 60N), 119 sea cells today's reach misses;
+  ICON 1,708 -> 124, 1,597. Inland TX/MS/GA: EURO 13/4/3 -> 0/0/1 (32N 82W, which GFS's own 2-deg grid calls sea), ICON -> 0/0/0.
+- **Offline control (#462 store, real backend):** legacy world /grid paints 1,173 of 2,714 masked cells; targeted fills 0 (the
+  synthetic store gives GFS the same land mask), so /grid = stored there. The positive case is the real-data pack.
+- **Root cause, measured** (ECMWF open data, cycle 2026-10-23 00Z step 0, native 0.25 deg): at all 868 EURO-masked GFS-sea nodes
+  the native cell AT the node is land (swh, mwd, pp1d all missing), but 847 (97.6%) hold valid ECMWF sea cells inside their own
+  2-deg block (+-4 cells; median 22 of 81). `ecmwf_opendata_fetcher` already block-means the HEIGHT there
+  (ECMWF_WAVE_SCALAR_BLOCKMEAN, default on), but point-samples direction and period at the land centre, and the normalizer drops
+  a vector with no direction. Proposed follow-up: sample direction (circular, energy-weighted) and period from the same block
+  when the centre is land; EURO then carries its OWN values in ~847 of 868 cells and needs no GFS donor at 2 deg.
+- **Tests:** tests/test_coarse_gulf_fill_targeted.py (7, guards; floor 210/3287 -> 211/3294, `_FLOOR_SET_FROM` 3300). Seen failing
+  (3) when masked GFS nodes are allowed as donors.
+- **Review fixes (16:00Z; the lead's regression review + Reflection, "no flip until fixed"):**
+  - **Series cost (blocker), measured offline** (48-frame world /grid_series, #462 masked store, cold, measure_series.py): the
+    first cut loaded the FULL 15,023-vector GFS global_mid per frame: EURO CPU 8.9 s (legacy 3.3 s), 48 full loads, 33 L1
+    evictions, peak RSS 518 MB (legacy 405); ICON 8.1 s, 42 loads, 52 evictions. Now one COMPACT donor per GFS file (lattice + five
+    float32 planes, ~0.3 MB) read from the stored file without entering L1, keyed by filename AND run, in a bounded LRU
+    (MARINE_TARGETED_DONOR_CACHE 24) shared by EURO and ICON: EURO 4.7 s, ICON 3.1 s, 0 full loads, 0 evictions, RSS 401 / 489 MB.
+  - **Loud no-donor:** missing / unreadable donor -> grid as stored WITH `coarse_fill {mode targeted, donor: reason}`, WARNING once
+    per change, counted (`TARGETED_NO_FILL`). **Lattice guard:** resolution or origin drift between EURO/ICON/GFS mids ->
+    `donor: lattice_mismatch`, no fill, never a misaligned one.
+  - **Periods, stated:** filled cells carry the donor's period, GFS PERPW (a PEAK); ICON's own cells carry tm10 (energy period,
+    ~16% shorter, #412). Kept because dropping it would leave period=0.0 on a valid vector (0b5182436); the stamp says
+    `filled_period: GFS peak (PERPW), the donor's`.
+  - **ICON layers counted (valid 2026-10-25T00Z, published frames):** waves 125 of 3,788 masked filled, swell_1 22 of 3,822,
+    wind_waves 99 of 3,788; nearly all at the ice edges (>60N / <60S); inland TX/MS/GA 0 in every layer; isolated open-sea holes
+    (all 8 ICON neighbours valid, likely "no train here", not land): 11 / 9 / 11, of which the targeted rule fills 5 / 0 / 5.
+- **#476 second review (17:00Z; the lead's independent review at a17d0b94a + Reflection):** (1) the cold path no longer goes through
+  L1: `store_helpers.fetch_l2_to_disk` (factored out of `load_product_helper`, which calls it unchanged) puts the file on disk and the
+  donor is read as JSON, so nothing is parsed into L1 or evicted, and the unlocked drop race is gone with `_l1_drop`; (2) a donor
+  build that RAISES (corrupt JSON, OSError, a parse error) is stamped `donor: unreadable`, counted, logged once; (3) the donor LRU
+  default is 96 (two 48-frame pages, ~29 MB); (4) the manifest's `resolution` feeds the lattice guard (stored files carry none);
+  (5) an all-masked donor is `unreadable` (not "nothing to fill"), a manifest read failure is `manifest_unreadable` with its text;
+  (6) a disk file of another run is used (what the store serves) but never cached; a per-key build lock removes duplicate builds.
+  +8 tests (disk path never loads, cold path fetch-to-disk with L1 unchanged, refused read, stale run not cached, manifest resolution
+  guard, production lattice with resolution None and -180/180 apart, corrupt / empty donor, manifest error + warning re-arm, LRU
+  default). Each of the review's eight green mutations now fails a test. Guards floor 211/3310 (set-from 3316).
+
+## 2026-10-23 15:20Z: EURO's own wave values at land-centre nodes (ECMWF_WAVE_LAND_CENTRE_BLOCK, dark)
+
+- **Why:** the owner (10:43 EDT) queued "the EURO own-values fix (block-sampled direction/period) dark", after the targeted fill's
+  root-cause note (#476): EURO's height is block-meaned, its direction and period point-sampled at a land centre, so the normalizer
+  drops the node and /grid fills it from GFS.
+- **Built:** `ecmwf_opendata_fetcher.fill_land_centre` + the decode-loop hook: per valid time, native swh and the paired field
+  (mwd / pp1d / mwp) are held only until both arrived (either message order), the land-centre nodes are filled by
+  `energy_mean_direction_block` / `energy_mean_scalar_block` over the height's own block, and the arrays are dropped. Block
+  resolutions only. Registered in `_RATING_FLAGS` (ingest lanes). The test file caught a real bug on the way: a resolved slot was
+  re-run with a None array when the next message of the step arrived.
+- **Real cycle (offline):** 842 of 868 EURO-masked GFS-sea nodes valid with EURO's own values (97.0%; the earlier 847 used a 9x9
+  window, the fetcher's block is 8x8); all enclosed-sea cells recovered; vs the GFS donor: height median +0.05 m (p10 -0.16, p90
+  +0.34), direction median 10.5 deg (p90 47). 108 extra coastal nodes valid where GFS's mask says land/ice.
+- **Tests:** tests/test_ecmwf_land_centre_block.py (5, chain: the real decode loop over stub GRIB; flag off = height without a
+  direction; flag on = block direction/period in either message order; open sea byte-identical and all-land masked; the helper).
+  Two fail when the fill may overwrite sea-centre nodes. ECMWF/EURO suites 146 passed. Chain floor 174/2859 -> 175/2864.
+- **#480 review must-fixes (16:40Z):** the 842/868 figure already used the fetcher's own 8x8 NW-offset slice (the 847 was the
+  probe's 9x9). The new set by class against GFS's mask showed land-centred nodes validated up to the block's 1-deg edge (reach 4:
+  842 sea / 62 land / 46 ice); no sea-fraction or distance threshold separates the classes cleanly, so the rule now needs ECMWF sea
+  within `ECMWF_WAVE_LAND_CENTRE_REACH` cells (default 2): 575 / 30 / 15. Bounded memory (8x8 blocks of land-centre nodes only,
+  per valid time); pp1d only, mwp only for a block with no pp1d (counted); a node validates only with a direction AND a period;
+  native tiles untouched; provenance `landCentreBlockNodes` (normalizer). Consensus at ~600 nodes: median +0.004 m. Tests 9 (real
+  decode loop): either message order, the reach, mwp-only-when-no-pp1d, no period -> masked, open sea byte-identical, native tiles
+  untouched, the normalizer's count, the slice; two mutations (period requirement, reach) each fail a test. 199 ECMWF/EURO/normalizer
+  tests pass.
+
 ## 2026-10-23 17:00Z: regional bundles for the GFS swell trains too (swell_1, swell_2, wind_waves)
 
 - **Why:** the lead's live read of the owner's opening view (florida_east_coast, z9; side-session notes live-read-2026-10-23-1635Z-z9.json)

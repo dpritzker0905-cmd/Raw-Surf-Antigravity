@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import { MapPin, Clock, DollarSign, Check, Bell, Gift,
-  Sparkles, CheckCircle2
+  Sparkles, CheckCircle2, Radio, Zap
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';

@@ -10,7 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
-import { recordMarineEvent } from './marineForensics'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
+import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -145,8 +145,8 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   // Every commit (re-)encodes the mask WITHOUT the basemap-truth patch — the repaint hysteresis
   // must forget its "already painted" state or it SKIPS the re-apply and the freshly-encoded
   // NE-only mask leaks the heatmap over fine-grained land (live "leaking all over the place"
-  // report: hour scrubs/sharpens/toggles re-commit constantly). The layer's revision effect
-  // re-patches immediately after the commit; this line just lets it through.
+  // report: hour scrubs/sharpens/toggles re-commit constantly). The layer re-patches right after the commit; a commit that kept
+  // the very texture that was painted gets its record back below (keepMaskPatch, maskPatchKeep.js; kill __RAW_DISABLE_MASK_PATCH_KEEP__).
   this._regionalPatchState = null;
 
   // === NO-DOWNGRADE GUARD — kills the coarse⇄regional ping-pong "spin" at the single engine choke point every
@@ -301,7 +301,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   }
 
   const oldWaveData = this._waveData;
-  this._waveData = newWaveData;
+  this._waveData = newWaveData; keepMaskPatch(this, newWaveData);   // the still-painted mask keeps its paint record
 
   // COLD-ACTIVATION COARSE VEIL stamp (see resolveColdVeil): a COLD commit — nothing was resident
   // (fresh activation, or the first commit after a model-switch clear). The render pass decides
@@ -2501,7 +2501,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     // still skip; any pan escaping it repaints (throttled + tile-gated at the layer).
     if (curView) {
       const degraded = !!(applied && applied.degraded);
-      this._regionalPatchState = { gridKey, box: { ...curView }, degraded, z: _curZoom };
+      this._regionalPatchState = stampMaskPatch(tex, { gridKey, box: { ...curView }, degraded, z: _curZoom });   // the record rides the painted texture too
       // PATCH CARRY-FORWARD source (2026-07-06, "bays flicker on rapid zoom"): retain the painted
       // canvas so the NEXT mask rebuild (bounds change / geojson swap) transplants this truth box
       // synchronously instead of flashing NE-only until the async repatch (see maskSmoothing.js).

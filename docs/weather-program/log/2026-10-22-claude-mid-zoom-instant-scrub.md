@@ -113,3 +113,123 @@ mutants caught (the guard line, the layer wiring, the full-run count, the chain 
 ## No served number changes
 The guard and the layer decide WHICH served frame is drawn (the world frame of the same product, or a fresh upload of the same
 bytes); the build-ahead packs the same frames earlier. No SCOREBOARD row.
+
+## 2026-10-23 (18:45Z): regional z7-9 bundles, the client (the lead's brief after #465's live read)
+
+**Why.** The map opens at z9 over florida_east_coast and one load cost ~34 s of `/grid_series` box work (the lead's live read,
+16:33Z). Contract agreed with static-frames (#467 / #486 bundles); Decision 3 amendment: only boxes a tile FULLY covers.
+
+**Changed.**
+- `staticRegional.js` (new): tile pick (Step 3's smallest containing tile, tie -> /grid), the Step 3 window on the tile lattice
+  (`latticeWindow`, factored out of `staticFrameCrop.js`), bundle fetch + slice + sha12 on the gzip slice + inflate, the Step 3
+  JSON shape (`requested_bbox` = the snapped box), the `dynamicOnCovered` counter, telemetry `window.__RAW_STATIC_REGIONAL__`, an
+  opt-in decision trace. Layers: GFS waves, swell_1, swell_2, wind_waves.
+- `staticFrames.js`: both seams branch to the regional set for a box inside a pilot tile; the frame store keeps regional sets out.
+- `marineSeriesStatic.js` + two call lines in `marineGridSeries.js`: the bounded manifest wait at the opening, and whole-page fills
+  for small regional boxes (both measured as needed, see below). `backendWeatherServiceClient.js`: one line feeds the counter.
+- Instruments: `scn_regional_client_parity.mjs` (new, `LAYER`), `scn_zoom_scrub.js` (`noregional` arm, `marineAll` per layer over
+  the whole session, `REGTRACE=1`).
+
+**Found by measuring.** (1) At the harness's default centre (-79.5) the view crosses the tile's -79 edge: a partial cover, correctly
+not served; the live box is -81.65..-79.58 (centre -80.6, 28.1). (2) With the client on, only the `/grid` seam hit: every series page
+was decided at ~3 s, before the products manifest landed (trace: 11 picks `manifest_not_loaded`), and queued to `/grid_series`.
+Fixed with a bounded wait before the page dedup. (3) Then 0 backend asks, but day jumps took 170-220 ms: the windowed fill (sized for
+15k-vector world frames) left page 1 to the per-hour path, and the scrub prewarm decides pages 1-2 at ~3.6 s before a focus exists.
+Fixed with whole-page fills for small regional boxes (background pages too, <= 300 nodes a frame).
+
+**Measured** (offline; `evidence/regional-bundles-client-2026-10-23.json`): parity 0 bad / 0 meta on every layer, positive control
+fails as it must; z9 owner and desktop views: 0 marine backend asks per load (kill arm: 10-11 asks, 30-35 s), steps 26-45 ms vs
+27-47 ms, 0 mislabelled frames; the partial-cover view behaves exactly as the kill arm.
+
+**No served number changes.** The bundles are the stored tiles' bytes (parity at publish and here); which source answers changes,
+not the values. Ships ON with the kill switch. No SCOREBOARD row.
+
+**Owed.** ONE live read after the 19:45Z pilots publish lists the Florida sets: the opening view at z9 (0 `/grid_series` for the
+marine layers, `__RAW_STATIC_REGIONAL__.series` > 0, `dynamicOnCovered` 0), `/api/health` before and after.
+
+**Follow-up seen, not fixed here.** At the partial-cover centre (-79.5) both arms miss the Home step's exact frame (`exactMs` null),
+as earlier dev runs did: pre-existing, outside this change.
+
+## 2026-10-23 (20:00Z): #491 review fixes (the lead's 8 findings on b482566c)
+
+Every finding was checked in the code before fixing; all 8 held. Fixes and the test that fails without each (12 mutants, 12 caught):
+- **1:** failure cache with backoff, the real status, no re-pin from a cached failure;
+- **2:** an unservable or failed page is not claimed;
+- **3:** a 15 s fetch timeout;
+- **4:** the hour-0 mini is never held, and once latest.json is read a box inside a pilot box is picked from it before the manifest
+  (non-overlapping boxes, pinned to pilot_regions.py), so nothing waits;
+- **5:** static pages bounded by SERIES_MAX;
+- **6:** a box is claimed only if its snapped box is inside the data;
+- **7:** one run per page;
+- **8:** gzip errors caught, sha12 fails closed.
+
+**Finding 6 reproduced offline** on us_southeast_midatlantic. After one partial-cover ask, the server answers the same snapped key's
+full cover from a dynamic product. The previous rule would have served the bundle there; the new one refuses.
+
+**Measured** (owner z9, the live box), regional vs kill:
+- manifest 4 s late: first frame 0.5-1.1 s vs 1.6-2.4 s; 0 vs 4 series asks; 0 vs 19-22 s of backend time;
+- manifest on time: 1.3-1.4 s vs 1.4-1.8 s; 3 one-frame minis (0.4 s) vs 9 asks (30-31 s).
+- Before the pilot pick, a late manifest saved nothing, as the review predicted.
+
+Evidence: `evidence/regional-bundles-client-2026-10-23.json` (`review_fixes`).
+
+**Owed (unchanged):** one live read on the fixed head after the 19:45Z publish, with time to first frame and the request counts.
+
+## 2026-10-23 (20:45Z): #491 second round (Reflection's parameters via the lead, platform notes, the 19:44Z saturation)
+
+**Adopted:**
+- backoff 30 s -> 2 min -> 10 min -> 30 min with Retry-After;
+- 404/400 and sha12 mismatches are dead paths that re-pin once;
+- 1.5 s manifest wait;
+- fetch priority high (viewed page, /grid seam) and low (background);
+- an all-miss regional page returns to /grid_series;
+- no regional tile without crypto.subtle + DecompressionStream (nothing downloaded);
+- surf mode, ICON and EURO never claimed (two guards, the combined mutant caught).
+
+**Deviation:** the 8 s timeout is a floor; a bundle gets its size at 150 KB/s when that is longer (brazil_east ~2.5 MB would abort
+at a flat 8 s on a slow link).
+
+**Mutants:** 21 guards, 21 caught.
+
+**Measured on the merge target** (full dev tree ceeeaf361 + branch; owner z9):
+
+| | first frame | marine backend asks |
+|---|---|---|
+| manifest on time (regional) | 0.8-1.1 s | 0 |
+| manifest on time (kill) | 2.4-3.9 s | 7 (40-43 s) |
+| manifest 4 s late (regional) | 0.8-0.9 s | 0 |
+| manifest 4 s late (kill) | 1.7-6.4 s | 4-6 (39-59 s) |
+
+The on-time case lost its 3 one-frame minis: once latest.json is read every page is owned. Worst step 37-41 ms, 0 mislabelled.
+
+## 2026-10-23 (20:54Z): #491 live read (the owed commitment), split into valid counts and unmeasured timing
+
+**Setup.** The lead ran it from a signed-in browser with my read-only snippet. The private-beta gate keeps my harness off the hosted site. Dev site 2d7c062c (#491); health 0.46 s before, 0.63 s after; one scenario (the z9 Florida opening view, Waves on, four steps).
+
+**Valid (counts):**
+- **Waves:** one /grid_series, the hours=1 mini at 173 ms, and no full pages. The 16:33Z read had three waves pages at 5.1, 3.9 and 1.2 s.
+- **Regional client:** one bundle (323,940 B), 109 series frames, 108 slices, 4 hours outside the run, dynamicOnCovered 0.
+- **Other layers:** no swell, wind-wave or /grid marine asks in the ~35 s window. latest.json listed only the Florida waves set, and the swell layers asked nothing in that window.
+- **First frame source:** the series path, 11x13.
+
+**Not measured:**
+- first-frame time (5,664 ms) and step times (1-2 s): the automation window ran rAF at ~1 Hz;
+- the bundle download: served from the HTTP cache after an earlier click.
+
+Time to first frame stays on the offline arms (0.8-1.4 s vs 1.4-3.9 s without bundles) until a real-browser read.
+
+**Observation:** every tile pick in the trace was the pre-manifest pilot pick. The products manifest never reached the tile reader during the read, so without the review's pilot pick the bundle would not have served. Likely cause: in this flow nothing fetches the manifest. There was no marine /grid ask, and latest.json was already read, so no wait triggered it. That's not proven.
+
+Evidence: `evidence/regional-bundles-client-2026-10-23.json` (`live_read_491`).
+
+## 2026-10-23 (22:10Z): the regional client goes DARK by default (live parity failed)
+
+**What happened:** static-frames' live bundle-vs-/grid_series parity for florida_east_coast failed. The lattice differs, 465 of 585 sub-box nodes are bad, and 8 metadata fields mismatch (sha12 fine). Offline it passed.
+
+**Why dark:** the server may serve another product there, and #491 is live and ON. That makes the bundle a served-number change under D-001.
+
+**Change (one commit):** `regionalBundlesOn()` now needs `window.__RAW_ENABLE_REGIONAL_BUNDLES__ === true` (`REGIONAL_BUNDLES_DEFAULT_ON = false`); the kill still wins. Tests and offline tools opt in.
+
+**Checks:** Jest 5,738 pass (3 copy-only failures); ESLint exit 0; floor +1 test.
+
+**Owed:** flip back after static-frames names the served product and the live parity passes.
