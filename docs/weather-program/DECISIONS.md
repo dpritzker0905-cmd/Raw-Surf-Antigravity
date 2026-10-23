@@ -1626,3 +1626,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   /grid; their viewport crops (no fill below 350 deg) stay static; the GPU frame store takes no ICON/EURO set (it cannot tell world
   from crop at its door). Kill (the pre-fix behaviour): `window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true`. It lifts when the
   publisher mirrors the fill for world frames. No ICON/EURO frame had been published (the first post-#453 pilots run had not run).
+- **Update 2026-10-22 (the series gate lifts, #460):** since #456 the conform carries `is_valid` for every layer,
+  so seam B (the series lane, and #459's crop pages) takes all eight sets, not only the waves sets. The waves-only rule comes
+  back by itself whenever #456's fix is killed (`window.__RAW_DISABLE_CONFORM_IS_VALID__`) and on its own kill
+  (`window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__`). The GPU frame store stays waves-only until its packer handles the other
+  layers. Evidence: #456's lane parity on a real frame (swell_1 texels that differ between the /grid and series lanes 4,657 -> 0;
+  swell_2 and wind_waves 0); offline GFS swell_1 scrub on the shipped default, exact-correct frame p50 / p95 1,605 / 1,676 ms
+  (seam A only) -> 43 / 237 ms with 0 backend requests (the /grid path: 53 / 2,877 ms, 7 requests); the series lane now fills
+  the 1-h steps, and day jumps land in ~0.22 s instead of the ~1.6 s per-hour settle.

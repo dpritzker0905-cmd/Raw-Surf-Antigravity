@@ -134,7 +134,7 @@ test('a crop page has its own series key (viewports over 15 deg all share "globa
   expect(staticCropPageKey(base, { model: 'GFS', layer: 'waves', reqBox: VIEW, surf: false })).toBe(base);
 });
 
-test('every world set takes the crop rules (#453 eight sets + #459): per model and layer; a non-waves series page keeps its key', () => {
+test('every world set takes the crop rules (#453 eight sets + #459): per model and layer, on both seams', () => {
   const GLOBAL = { west: -180, south: -80, east: 180, north: 85 };
   setCachedManifest({ products: [
     ...MANIFEST.products,
@@ -151,10 +151,14 @@ test('every world set takes the crop rules (#453 eight sets + #459): per model a
   expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: { west: -135, south: 25, east: -105, north: 45 } })).toBe(false);
   // not one of the eight sets (EURO swells are global_coarse + serve-time Gulf fill): never, at any box
   expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: VIEW })).toBe(false);
-  // GFS swell_1: seam A crops it, but the series lane is waves-only, so its series page keeps the /grid_series key
+  // GFS swell_1: cropped on both seams since #456 (its series page gets its crop key); this gate's kill keeps the old key
   const base = 'GFS_swell_1_swell_global_p0@2026-10-20T00:00:00Z';
   expect(staticEligible({ model: 'GFS', layer: 'swell_1', bbox: VIEW })).toBe(true);
+  expect(staticCropPageKey(base, { model: 'GFS', layer: 'swell_1', reqBox: VIEW, surf: false }))
+    .toBe(`${base}|crop:-107.0000,8.0000,-53.0000,47.0000`);
+  window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__ = true;
   expect(staticCropPageKey(base, { model: 'GFS', layer: 'swell_1', reqBox: VIEW, surf: false })).toBe(base);
+  delete window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__;
   // the per-set kill reaches the crop too
   window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = [setKeyFor('ICON', 'waves')];
   expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: VIEW })).toBe(false);

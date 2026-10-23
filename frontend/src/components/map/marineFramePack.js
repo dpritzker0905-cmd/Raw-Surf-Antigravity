@@ -164,6 +164,8 @@ export function packStaticFrame(parsed, { layer = 'waves', ratingMode = false, w
   const vBits = validityBits(oceanArr);
   const isGlobal = !(bounds.east - bounds.west < 359.0);
   extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal);
+  // The post-extrapolation ocean mask: with the true mask (vBits) it is all the chl/bath textures derive from (marineFrameAux).
+  const oceanBitsPost = validityBits(oceanArr);
   if (w.__RAW_DISABLE_DIR_DILATION__ !== true) dilateDirectionField(uArr, vArr, cols, rows, isGlobal);
 
   // The encoder's pack loop.
@@ -216,5 +218,5 @@ export function packStaticFrame(parsed, { layer = 'waves', ratingMode = false, w
       out[i0 + 3] = out[iN + 3] = avgP;
     }
   }
-  return { bytes: out, cols, rows, bounds, isGlobal, validityHash: vHash, validityBits: vBits, signature: packSignature(w), trimmed };
+  return { bytes: out, cols, rows, bounds, isGlobal, validityHash: vHash, validityBits: vBits, oceanBitsPost, signature: packSignature(w), trimmed };
 }
