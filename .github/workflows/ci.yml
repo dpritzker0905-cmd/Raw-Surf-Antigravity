@@ -1519,7 +1519,10 @@ jobs:
           # ⬆ 174/2859 → 175/2867 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (regional static frame bundles):
           # tests/test_frame_set_bundle.py (8, a new file selector-verified into this lane: --lane chain 174 -> 175); dev b88b5ca32
           # hosted read 2865/174 (CI 39896720617) + 8 -> projected 2873/175; 2873 - 6 = 2867. This PR must read 175 files / 2873.
-          MIN_FILES, MIN_PASSED = 175, 2867
+          # ⬆ 175/2867 → 176/2876 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (EURO land-centre block sampling, dark):
+          # tests/test_ecmwf_land_centre_block.py (9, a new file selector-verified into this lane: --lane chain 175 -> 176); dev hosted
+          # read dev's hosted chain 2873/175 (set-from on dev 891c815b7) + 9 -> projected 2882/176; 2882 - 6 = 2876. This PR must read 176 files / 2882.
+          MIN_FILES, MIN_PASSED = 176, 2876
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
