@@ -401,3 +401,22 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   decode loop): either message order, the reach, mwp-only-when-no-pp1d, no period -> masked, open sea byte-identical, native tiles
   untouched, the normalizer's count, the slice; two mutations (period requirement, reach) each fail a test. 199 ECMWF/EURO/normalizer
   tests pass.
+
+## 2026-10-23 17:00Z: regional bundles for the GFS swell trains too (swell_1, swell_2, wind_waves)
+
+- **Why:** the lead's live read of the owner's opening view (florida_east_coast, z9; side-session notes live-read-2026-10-23-1635Z-z9.json)
+  measured ~34 s of /grid_series box work per map load: waves pages 5.1 / 3.9 / 1.2 s, and the swell_1 / swell_2 / wind_waves prefetch
+  pages 6.3 / 6.6 / 11.1 s. #467 bundles only waves.
+- **What:** `frame_set_bundle.REGIONAL_LAYERS` = waves, swell_1, swell_2, wind_waves on every GFS marine pilot box (76 sets, layer by
+  layer, waves first so the budget stagger drops trains first; a box without a layer's products builds nothing).
+  `FRAME_REGIONAL_BUNDLE_LAYERS` narrows the layers; `FRAME_REGIONAL_BUNDLES=0` kills all. Budget from the 10-22 brief: ~4x the waves
+  compute (~85 s) beside ~180 s of world sets, inside FRAME_PUBLISH_BUDGET_S 600. The client half stays dark until parity passes.
+- **Tests:** test_frame_set_bundle.py's set-list pin now covers the four layers and the selector (no new test: floor +0).
+
+- **Parity script (17:30Z):** `frontend/scripts/offline-backend/scn_regional_bundle_parity.mjs` checks every regional bundle frame
+  against the REAL /grid_series with the app's own codec: (A) the whole tile (same lattice, node by node, served time / run /
+  product id as instants), (B) a sub-box inside it (the client's full-cover rule), (C) a box poking outside the tile as the
+  positive control (must differ), plus the bundle and per-frame sha12. Offline on a store with the two flagship boxes x waves,
+  swell_1, wind_waves (#486's sets), 48 hourly asks each: 6 sets, 114 frames, 598,464 nodes, 0 bad, 0 meta, 6/6 controls differ,
+  PASS. One flipped byte in a bundle -> sha_bad 2, FAIL. (A first run counted 576 meta mismatches that were only `Z` vs `+00:00`
+  on model_run_time; times now compare as instants.) LIVE=1 is the one-box live-read mode for after the 19:45Z publish.
