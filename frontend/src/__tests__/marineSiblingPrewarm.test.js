@@ -121,6 +121,19 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     expect(layersFetched).toEqual(new Set(['swell_1', 'swell_2', 'wind_waves']));
   });
 
+  it('a sibling whose regional frame is already cached is not warmed again, even with its series page gone (as before)', async () => {
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
+    expect(await waitFor(() => pageCallsOf().length === 3, 400, 10)).toBe(true);
+    await flush();
+    _resetMarineSeriesForTest();               // the series pages are gone; the per-model-hour frames stay
+    _resetSiblingWarmForTest();
+    global.fetch.mockClear();
+    prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
+    await waitFor(() => false, 60, 10);
+    expect(seriesCalls()).toHaveLength(0);
+  });
+
   it('skips at a GLOBAL / zoomed-out viewport (series frames are regional)', async () => {
     window.__MARINE_SIBLING_PREWARM__ = true;
     prewarmSiblingMarineSeries('GFS', 0, { west: -180, south: -80, east: 180, north: 85 }, 'waves', undefined);
