@@ -10,15 +10,20 @@
  *     wheel timeStamps, the same time origin as performance.now(). The ask is what MapPage reports (noteWeatherAsk). The
  *     frame is the next animation frame after the matching drawn publish (marineDrawnFrame's subscribe hooks, marine and
  *     wind). An ask with no input in the last second (autoplay, a restored state) is not a press and is not counted.
- *     Outcomes: drawn (ms), superseded (a newer ask came first, as in a drag), timeout (nothing matched within 8 s).
+ *     Outcomes: drawn, superseded (a newer ask came first, as in a drag), timeout (nothing matched within 8 s). EVERY drawn
+ *     press lands in a histogram per family x kind (HIST_EDGES); the newest MAX_ROWS also keep their zoom, model and layer.
  *   - LONG ANIMATION FRAMES: count, frames >= 200 ms, total blocking time, and the worst few with their top scripts' file
  *     name, function and invoker (no query strings, no page URL).
  *   - INP from web-vitals onINP, with attribution (event type, target selector, load state). FID is no longer reported.
- * Sent as ONE small beacon (<= 8 KB) when the page is hidden (visibilitychange / pagehide) with navigator.sendBeacon (a
- * low-priority request), or fetch keepalive + priority 'low' where sendBeacon is missing. Where the browser has fetchLater,
- * the current batch is also armed with it (re-armed at most every 2 s) so it still goes if the page is destroyed without a
- * hide event. Nothing is sent unless an endpoint is configured (REACT_APP_RUM_URL or window.__RAW_RUM_URL__); the record
- * is always readable at window.__RAW_RUM__ for instruments.
+ *
+ * THE SINK is the existing, bounded, public POST /api/weather/client-diagnostics (MC-07: schema max-lengths, `details` <= 4096
+ * bytes as Python's json.dumps writes it, one sanitized log line, a rotated log): event_type 'instant_rum', everything in
+ * `details`. No new route. It is posted same-origin (Netlify proxies /api/* to the backend) once per page hide
+ * (visibilitychange hidden / pagehide) with navigator.sendBeacon, a low-priority request, or fetch keepalive + priority 'low'
+ * where sendBeacon is missing; an unchanged batch sends nothing. Where the browser has fetchLater, the current batch is also
+ * armed with it (re-armed at most every 2 s) so it still goes if the page is destroyed without a hide event. Development
+ * builds send nothing unless REACT_APP_RUM_URL or window.__RAW_RUM_URL__ names an endpoint; window.__RAW_RUM_URL__ = '' stops
+ * sending in a production build. The record is always readable at window.__RAW_RUM__ for instruments.
  *
  * Sampling: REACT_APP_RUM_SAMPLE (default 0.1) per page load; localStorage '__RAW_RUM__' = 'true' / 'false' forces it in
  * this browser. Kill: window.__RAW_DISABLE_RUM__ = true. No user id, no location, no page URL: a random id per page load.
@@ -30,12 +35,15 @@ const MARINE = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const FAMS = ['marine', 'wind'];
 const KINDS = ['step', 'layer', 'model'];
 const INPUTS = ['pointerdown', 'pointermove', 'keydown', 'wheel'];
+// Histogram upper edges (ms): the contract's lines (50 / 100 / 200 / 500) plus a frame, two frames and the slow tail.
+export const HIST_EDGES = [16, 33, 50, 100, 200, 500, 1000, 2000, 4000];
 const PRESS_WINDOW_MS = 1000;
 const TIMEOUT_MS = 8000;
-const MAX_ROWS = 150;
-const MAX_LOAF = 5;
-const MAX_BYTES = 8192;
+const MAX_ROWS = 50;
+const MAX_LOAF = 4;
+const MAX_DETAILS = 3900;   // under the route's 4096-byte bound as Python measures it (see pySize)
 const ARM_EVERY_MS = 2000;
+const SINK = '/api/weather/client-diagnostics';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -57,12 +65,30 @@ export function rumSampled(random = Math.random) {
   return random() < sampleRate();
 }
 
+/** Where a batch goes: the window override (even '' = nowhere), then the build's, then the sink in production builds. */
 export function rumEndpoint() {
-  return W().__RAW_RUM_URL__ || process.env.REACT_APP_RUM_URL || null;
+  const w = W().__RAW_RUM_URL__;
+  if (typeof w === 'string') return w || null;
+  if (process.env.REACT_APP_RUM_URL) return process.env.REACT_APP_RUM_URL;
+  return process.env.NODE_ENV === 'production' ? SINK : null;
+}
+
+/**
+ * The size the route's validator measures, as an upper bound: Python's json.dumps adds a space after every ',' and ':' and
+ * (ensure_ascii) writes each non-ASCII UTF-16 unit as a 6-byte \uXXXX escape.
+ */
+export function pySize(json) {
+  let n = json.length;
+  for (let i = 0; i < json.length; i++) {
+    const c = json.charCodeAt(i);
+    if (c === 44 || c === 58) n += 1;
+    else if (c > 127) n += 5;
+  }
+  return n;
 }
 
 function freshBatch() {
-  return { rows: [], lost: { superseded: 0, timeout: 0 }, loaf: { n: 0, over200: 0, blockMs: 0, worst: [] }, dirty: false };
+  return { rows: [], hist: {}, lost: { superseded: 0, timeout: 0 }, loaf: { n: 0, over200: 0, blockMs: 0, worst: [] }, dirty: false };
 }
 
 function zoomNow() {
@@ -86,10 +112,18 @@ function matches(p, d) {
   return d.layer === p.layer && (d.model || 'GFS') === p.model;
 }
 
+function binOf(ms) {
+  const i = HIST_EDGES.findIndex((edge) => ms <= edge);
+  return i < 0 ? HIST_EDGES.length : i;
+}
+
 function record(p, ms) {
   const B = S.batch;
-  if (B.rows.length >= MAX_ROWS) { B.lost.overflow = (B.lost.overflow || 0) + 1; return; }
+  const k = `${p.fam}.${p.kind}`;
+  const h = B.hist[k] || (B.hist[k] = new Array(HIST_EDGES.length + 1).fill(0));
+  h[binOf(ms)] += 1;
   B.rows.push([FAMS.indexOf(p.fam), KINDS.indexOf(p.kind), Math.round(ms), p.zoom, p.model, p.layer, INPUTS.indexOf(p.input)]);
+  if (B.rows.length > MAX_ROWS) B.rows.shift();   // the newest rows keep their detail; the histogram has them all
   B.dirty = true;
   arm();
 }
@@ -199,31 +233,33 @@ function payload(reason) {
   const B = S.batch;
   const nav = W().navigator || {};
   const conn = nav.connection || {};
-  const body = {
-    v: 1, build: BUILD_VERSION, pid: S.pid, why: reason, t: Math.round(now()),
+  const details = {
+    v: 1, build: BUILD_VERSION, why: reason, t: Math.round(now()),
     dev: { coarse: !!(W().matchMedia && W().matchMedia('(pointer: coarse)').matches), cores: nav.hardwareConcurrency || null,
       mem: nav.deviceMemory || null, net: conn.effectiveType || null, saveData: conn.saveData === true },
+    edges: HIST_EDGES, hist: B.hist,
     cols: ['fam', 'kind', 'ms', 'zoom', 'model', 'layer', 'input'], fams: FAMS, kinds: KINDS, inputs: INPUTS,
-    p2f: B.rows, lost: B.lost, loaf: B.loaf, inp: S.inp,
+    p2f: B.rows, lost: { ...B.lost }, loaf: { ...B.loaf, worst: B.loaf.worst.slice() }, inp: S.inp,
   };
-  let json = JSON.stringify(body);
-  while (json.length > MAX_BYTES && body.p2f.length) {   // keep the newest rows under the cap
-    body.p2f = body.p2f.slice(Math.ceil(body.p2f.length / 4));
-    body.lost.trimmed = B.rows.length - body.p2f.length;
-    json = JSON.stringify(body);
+  let size = pySize(JSON.stringify(details));
+  while (size > MAX_DETAILS && (details.p2f.length || details.loaf.worst.length)) {   // drop detail, oldest first; never the counts
+    if (details.p2f.length) details.p2f = details.p2f.slice(Math.ceil(details.p2f.length / 4));
+    else details.loaf.worst.pop();
+    details.lost.trimmed = B.rows.length - details.p2f.length;
+    size = pySize(JSON.stringify(details));
   }
-  return { body, json };
+  const report = { timestamp: new Date().toISOString(), event_type: 'instant_rum', correlationId: S.pid, details };
+  return { report, json: JSON.stringify(report), detailsBytes: size };
 }
 
 function sendBeacon(url, json) {
   const nav = W().navigator || {};
   try {
-    // text/plain is CORS-safelisted, so a cross-origin endpoint needs no preflight; the server parses the JSON body.
-    if (typeof nav.sendBeacon === 'function' && nav.sendBeacon(url, new Blob([json], { type: 'text/plain;charset=UTF-8' }))) return 'beacon';
+    // application/json: the route parses JSON only. Same-origin (the /api proxy), so no CORS preflight is involved.
+    if (typeof nav.sendBeacon === 'function' && nav.sendBeacon(url, new Blob([json], { type: 'application/json' }))) return 'beacon';
   } catch (e) { /* fall through */ }
   try {
-    W().fetch(url, { method: 'POST', body: json, keepalive: true, priority: 'low', credentials: 'omit',
-      headers: { 'Content-Type': 'text/plain;charset=UTF-8' } });
+    W().fetch(url, { method: 'POST', body: json, keepalive: true, priority: 'low', headers: { 'Content-Type': 'application/json' } });
     return 'fetch';
   } catch (e) { return null; }
 }
@@ -238,7 +274,7 @@ function arm() {
       if (S.armed) S.armed.abort();
       const ctrl = new AbortController();
       W().fetchLater(rumEndpoint(), { method: 'POST', body: payload('destroyed').json, signal: ctrl.signal,
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8' } });
+        headers: { 'Content-Type': 'application/json' } });
       S.armed = ctrl;
     } catch (e) { S.armed = null; /* quota exceeded or unsupported: the hide beacon still goes */ }
   }, ARM_EVERY_MS);
@@ -246,9 +282,8 @@ function arm() {
 
 /** Sends (or, with no endpoint, only publishes) the batch collected since the last flush, then starts a new one. */
 export function flushInstantTelemetry(reason = 'hidden') {
-  if (!S) return null;
-  if (!S.batch.dirty) return null;   // nothing new: no request
-  const { body, json } = payload(reason);
+  if (!S || !S.batch.dirty) return null;   // nothing new: no request
+  const { report, json, detailsBytes } = payload(reason);
   const url = rumEndpoint();
   if (S.armed) { try { S.armed.abort(); } catch (e) { /* ignore */ } S.armed = null; }
   if (S.armTimer) { clearTimeout(S.armTimer); S.armTimer = null; }
@@ -256,8 +291,8 @@ export function flushInstantTelemetry(reason = 'hidden') {
   S.sent += 1;
   S.batch = freshBatch();
   const R = W().__RAW_RUM__;
-  if (R) { R.last = body; R.lastVia = via; R.lastBytes = json.length; R.sent = S.sent; }
-  return { via, bytes: json.length, body };
+  if (R) { R.last = report; R.lastVia = via; R.lastBytes = detailsBytes; R.sent = S.sent; }
+  return { via, detailsBytes, report };
 }
 
 /**
@@ -282,7 +317,7 @@ export function installInstantTelemetry({ sampled = rumSampled(), loadVitals = (
     document.removeEventListener('visibilitychange', onHide, { capture: true });
     window.removeEventListener('pagehide', onPageHide, { capture: true });
   };
-  window.__RAW_RUM__ = { pid: S.pid, sampled: true, loaf, endpoint: !!rumEndpoint(), sent: 0, last: null,
+  window.__RAW_RUM__ = { pid: S.pid, sampled: true, loaf, endpoint: rumEndpoint(), sent: 0, last: null,
     pending: () => (S ? S.batch : null) };
   return true;
 }
