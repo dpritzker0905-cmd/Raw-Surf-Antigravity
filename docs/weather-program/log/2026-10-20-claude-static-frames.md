@@ -392,3 +392,12 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - **Tests:** tests/test_ecmwf_land_centre_block.py (5, chain: the real decode loop over stub GRIB; flag off = height without a
   direction; flag on = block direction/period in either message order; open sea byte-identical and all-land masked; the helper).
   Two fail when the fill may overwrite sea-centre nodes. ECMWF/EURO suites 146 passed. Chain floor 174/2859 -> 175/2864.
+- **#480 review must-fixes (16:40Z):** the 842/868 figure already used the fetcher's own 8x8 NW-offset slice (the 847 was the
+  probe's 9x9). The new set by class against GFS's mask showed land-centred nodes validated up to the block's 1-deg edge (reach 4:
+  842 sea / 62 land / 46 ice); no sea-fraction or distance threshold separates the classes cleanly, so the rule now needs ECMWF sea
+  within `ECMWF_WAVE_LAND_CENTRE_REACH` cells (default 2): 575 / 30 / 15. Bounded memory (8x8 blocks of land-centre nodes only,
+  per valid time); pp1d only, mwp only for a block with no pp1d (counted); a node validates only with a direction AND a period;
+  native tiles untouched; provenance `landCentreBlockNodes` (normalizer). Consensus at ~600 nodes: median +0.004 m. Tests 9 (real
+  decode loop): either message order, the reach, mwp-only-when-no-pp1d, no period -> masked, open sea byte-identical, native tiles
+  untouched, the normalizer's count, the slice; two mutations (period requirement, reach) each fail a test. 199 ECMWF/EURO/normalizer
+  tests pass.
