@@ -97,3 +97,35 @@ PR #470 opened (ledger seq 1696); the push / TOS finding (ledger seq 1697); the 
 - Every story INSERT anywhere makes every open /feed tab refetch after 2 s (the realtime handler): a herd per post.
 - Logout does not remove the browser's push subscription: a signed-out account's pushes still reach that device.
 - `surf-spots` is re-fetched in full every 30 s on /map (up to ~1 s per answer live) though spots rarely change.
+
+## Addendum 2026-10-23T13:53Z: push per account per device (the lead's scope extension)
+Ask: the lead, ~03:35Z (relayed to the owner): "on logout, remove this device's subscription for the account that's
+leaving ... Add an in-app way to turn push off if there isn't one (THREE THEMES + ACCESSIBILITY mandates). Tests for
+both." The owner, in this session at 09:37 EDT: "Continue in this session: build the Settings push switch (three
+themes, role=switch), add the Jest tests for logout and the switch, run the suites, then push to #470 and update the
+log, ledger and PR body."
+
+Change:
+- Backend `GET /api/push/status?endpoint=` (`routes/notifications/push.py`): whether the signed-in account has an
+  active row for this device; read-only, JWT identity only. +5 estate tests in `tests/test_audit_push_authority.py`;
+  estate floor 2341 -> 2346 (`_FLOOR_SET_FROM` 2348, on dev CI 39894535707's 2343). Delivery note: the surf-alert
+  scheduler sends web push to these rows (`scheduler/base.py`); the OneSignal path keys by account, but the web app
+  never logs into OneSignal (`useOneSignal` is unused), so it reaches no browser today.
+- Logout (`contexts/AuthContext.js`) reads the leaving account's token before clearing the session and calls
+  `forgetThisDeviceForAccount`: DELETE that account's (user, endpoint) row only. Its opt-in record stays, so signing
+  back in re-syncs. This closes the follow-up "Logout does not remove the browser's push subscription" above.
+- Off (`usePushNotifications.unsubscribe`) deletes only this account's row and keeps the browser subscription, which
+  other accounts on a shared browser may use (it used to unsubscribe the whole browser; no UI called it).
+- Settings > Notifications > "Push on this device" (`components/settings/PushDeviceRow.js`): the shared Radix switch
+  (role=switch, aria-checked, labelled + described, keyboard, focus ring), state from the backend, written in words;
+  disabled with a reason when unsupported / blocked / checking; a failed check says so and still allows On. Track
+  colours for >= 3:1 against the card: off = --muted-foreground (read back offline: light #737373 on #fff, dark
+  #a3a3a3 on #1f1f1f, beach #bfbfbf on #0d0d0d), on = --primary, cyan-700 in light (lime on white is ~1.5:1).
+- Tests: `PushDeviceRow.test.js` (11), `usePushNotifications.device.test.js` (8), `AuthContext.logoutPush.test.js` (2).
+  Mutation checks: dropping the logout call, unsubscribing the whole browser, and enabling the switch while blocked
+  each fail a test.
+
+Checks: whole Jest tree 501/502 suites (the one failure, `netlifyIconStoredTailScope`, a 5 s bash spawn under load,
+passes alone 12/12); ESLint ratchet and LOC ratchet pass; backend push + floor tests 61 passed; flake8 gate clean.
+Visual (offline build, Playwright, `/settings`): the row in light / dark / beach at 1280x800 and 390x844: 0 page
+errors, no horizontal scroll; on 127.0.0.1 push is unsupported, so the shots show the disabled state.
