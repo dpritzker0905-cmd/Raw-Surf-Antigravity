@@ -6,7 +6,7 @@ import { isTerminalNoCoverage } from './marineControllerCache';
 import { MARINE_PENDING_LEASE_MS, STRANDED_PENDING_RECORD_MS, evaluateStrandedPending, MARKER_WEDGE_LEASE_MS, evaluateMarkerWedge,
   recordMarineFreeze, CLAMP_CAP_REARM_MS, evaluateClampCapProbe } from './marineSettleWatchdogs';
 import { runSettleCheckLive, settleArmKey } from './marineSettleLiveMap';   // SETTLE_LIVE_MAP / SETTLE_ARM_ON_ACTIVATE
-import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
 import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
 import { frameServesSelectedHour } from './marineHourInstant';
@@ -118,7 +118,7 @@ export function isRetainedRegionalZoomedOut(eng, mapInstance) {
     // it here would loop the §2b recovery + blank-backstop refetching a global frame that never
     // commits (the fetch path returns the covering mid again). Only a NON-covering retained regional
     // (the gate hides it → blank) is display-equivalent to empty. Same lever as the gate/guard:
-    // __RAW_DOWNGRADE_COVER_FRAC__ (default 0.8).
+    // __RAW_DOWNGRADE_COVER_FRAC__ (default 0.6 since 2026-10-22: marineZoomThresholds.alignedCoverFrac).
     const vWest = b.getWest(), vEast0 = b.getEast(), vSouth = b.getSouth(), vNorth = b.getNorth();
     const vEast = (vEast0 < vWest) ? vEast0 + 360 : vEast0;
     let gWest = egb.west, gEast = egb.east;
@@ -127,7 +127,7 @@ export function isRetainedRegionalZoomedOut(eng, mapInstance) {
     const iy = Math.max(0, Math.min(egb.north, vNorth) - Math.max(egb.south, vSouth));
     const vpArea = Math.max(1e-9, (vEast - vWest) * (vNorth - vSouth));
     const frac = (ix * iy) / vpArea;
-    const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    const minFrac = alignedCoverFrac();
     return frac < minFrac;
   } catch (e) { return false; }
 }
