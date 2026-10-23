@@ -9,7 +9,7 @@ import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
-import TimelineStatus from './TimelineStatus';
+import TimelineStatus from './TimelineStatus'; import { RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
 import { forecastReadout } from './forecastReadout'; import LayerDataCredit from './LayerDataCredit';
 import { marineWaveLegend } from './marineWavePalette';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -585,7 +585,7 @@ export var MapWeatherControls = ({
           </div>
         )}
 
-        <TimelineStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} showTime={!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer)} showWind={!isRadar && activeModel === 'GFS' && (activeLayers || []).includes('wind')} windOn={!isRadar && (activeLayers || []).includes('wind')} />
+        <TimelineStatus model={activeModel} layer={activeLayer} hour={currentTimeOffset} theme={theme} showTime={(!isRadar && SURF_TOGGLE_LAYERS.includes(activeLayer)) || (RASTER_STATUS_LAYERS.has(activeLayer) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_DRAWN_READOUT__ === true))} radarMs={isRadar && radarFrames[radarFrameIndex] ? radarFrames[radarFrameIndex].time * 1000 : null} showWind={!isRadar && activeModel === 'GFS' && (activeLayers || []).includes('wind')} windOn={!isRadar && (activeLayers || []).includes('wind')} />
         {/* v3.8: Day tick labels beneath scrubber — classic slider only (the wheel's drum
             carries its own day ticks + labels). */}
         {!useWheel && !isRadar && maxForecastHours > 24 && (
