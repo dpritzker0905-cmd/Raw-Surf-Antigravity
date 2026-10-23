@@ -117,13 +117,16 @@ const PROBE = ({ readback }) => {
         P.ctx.push(c);
         try { return orig.apply(this, a); } finally {
           P.ctx.pop(); c.ms = now() - c.t;
+          if (name === 'setWaveData') c.maskMode = this._lastMaskEncodeMode || null;
+          if (name === 'refreshMaskWithBasemapWater') { c.reason = this._lastMaskRepatchReason || null; c.maskMode = this._lastMaskEncodeMode || null; c.deliv = this._maskDeliveredState ? { short: this._maskDeliveredState.deliveredShort, force: this._maskDeliveredState.forceRepaint } : null;
+            const mb = this._cachedMaskBounds; c.maskBounds = mb ? [mb.west, mb.south, mb.east, mb.north].map((x) => +(+x).toFixed(3)) : null; }
           if (name === '_captureCoarseBase') {
             const mask = this._coarseBaseData && this._coarseBaseData.u_oceanMaskTexture;
             c.maskReused = !!(mask && c.priorMasks.includes(mask));
             c.captured = this._coarseBaseData !== c.priorBase;
             delete c.priorMasks; delete c.priorBase;
           }
-          if (name !== 'render' || c.ms >= 4) P.calls.push(c);
+          if ((name !== 'render' && name !== 'refreshMaskWithBasemapWater') || c.ms >= 4) P.calls.push(c);
           else P.renderSmall = (P.renderSmall || 0) + 1;
           P.renderMs = (P.renderMs || 0) + (name === 'render' ? c.ms : 0);
         }
@@ -131,7 +134,14 @@ const PROBE = ({ readback }) => {
       w.__jk = true;
       eng[name] = w;
     };
-    wrap('setWaveData', function (a) { const g = a[0] && a[0].waveGrid ? a[0].waveGrid : a[0]; return { hour: g && g.hourOffset, cols: g && g.cols, store: !!(g && g.__fromFrameStore) }; });
+    wrap('setWaveData', function (a) { const g = a.find((x) => x && typeof x === 'object' && (Array.isArray(x.vectors) || x.bounds)) || null; /* (gl, waveGrid, ...) */ return { hour: g && g.hourOffset, cols: g && g.cols, rows: g && g.rows, store: !!(g && g.__fromFrameStore),
+      series: !!(g && g.__fromSeries), bounds: g && g.bounds ? [g.bounds.west, g.bounds.south, g.bounds.east, g.bounds.north].map((x) => +(+x).toFixed(3)) : null, lane: g && g.__commitLane || null }; });
+    wrap('refreshMaskWithBasemapWater', function () {
+      const r3 = (o) => (o ? [o.west, o.south, o.east, o.north].map((x) => +(+x).toFixed(4)) : null);
+      const rp = this._regionalPatchState; let view = null;
+      try { const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds(); view = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((x) => +x.toFixed(4)); } catch (e) { view = null; }
+      return { rpBefore: rp ? { gridKey: rp.gridKey, box: r3(rp.box), degraded: rp.degraded, z: rp.z } : null, view, forcedFor: this._maskDeliveredForcedFor || null };
+    });
     wrap('_captureCoarseBase', function (a) {
       const g = a[1]; const lru = this._coarseBaseLru ? [...this._coarseBaseLru.values()] : [];
       return { hour: g && g.hourOffset, cols: g && g.cols, rows: g && g.rows, bounds: g && g.bounds ? [g.bounds.west, g.bounds.south, g.bounds.east, g.bounds.north] : null,
@@ -254,10 +264,12 @@ async function session(arm) {
       steps.push({ kind: step, hourBefore, hourAfter, ...rec });
     }
     const store = await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; return t ? { shows: t.shows, commits: t.commits, gpu: t.gpu, crop: t.crop } : null; });
+    const phases = await page.evaluate(() => { const c = window.__RAW_GPU__ && window.__RAW_GPU__.cpuPhaseTiming; if (!c || !c.buckets) return null; const o = {};
+      for (const [k, b] of Object.entries(c.buckets)) if (b && b.calls) o[k] = { calls: b.calls, ms: Math.round(b.totalDurationMs), hist: b.histogram }; return o; });
     const counts = await page.evaluate(() => ({ counts: window.__JK__.counts, engines: window.__JK__.engines, renderSmall: window.__JK__.renderSmall || 0 }));
     const gpuMaskCache = await page.evaluate(() => (window.__RAW_GPU__ && window.__RAW_GPU__.coarseMaskCache) || null);
     const backend = {}; for (const q of log.requests) backend[q.path] = (backend[q.path] || 0) + 1;
-    return { arm: arm.name, flags: arm.flags, idle, steps, store, backend, counts, gpuMaskCache, errors: [...errors, ...log.errors.slice(0, 5)] };
+    return { arm: arm.name, flags: arm.flags, idle, steps, store, backend, counts, gpuMaskCache, phases, requests: log.requests.map((q) => ({ t: q.t, path: q.path, ms: q.ms, layer: q.q && q.q.layer, hours: q.q && q.q.hours, bbox: q.q && q.q.bbox })).slice(-300), errors: [...errors, ...log.errors.slice(0, 5)] };
   } finally { await browser.close(); }
 }
 

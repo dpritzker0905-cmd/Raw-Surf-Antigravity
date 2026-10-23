@@ -491,11 +491,11 @@ _FLOOR_SET_FROM = {
     # guards: dev CI 39896720617's 3293 / 210 files + 4 (#474, tests/test_wind_hrrr_lane.py) = 3297; floor 3291.
     "guards": 3297,
 
-    # chain: set from 2882 = max(dev run 39994928838 read 2873, dev's map 2873) + 9 (rm-euro-own-values, 2026-10-23); floor 2876, margin 6.
-    "chain": 2882,
+    # chain: set from 2891 = max(dev run 40005013863 read 2873, dev's map 2882) + 9 (rm480, 2026-10-23); floor 2885, margin 6.
+    "chain": 2891,
 
-    # estate: set from 2429 = max(dev run 39994928838 read 2411, dev's map 2411) + 18 (claude/floor-map-lanes, 2026-10-23); floor 2427, margin 2.
-    "estate": 2429,
+    # estate: set from 2431 = max(dev run 39994928838 read 2411, dev's map 2429) + 2 (claude/rederive-add-auto, 2026-10-23); floor 2429, margin 2.
+    "estate": 2431,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

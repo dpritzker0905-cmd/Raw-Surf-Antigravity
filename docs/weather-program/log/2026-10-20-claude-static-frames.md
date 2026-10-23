@@ -376,6 +376,30 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   its published bundle, while the world sets publish. +2 tests (8 in the file; chain floor 174/2857, `_FLOOR_SET_FROM` 2863);
   the isolation test fails when the guard is narrowed.
 
+## 2026-10-23 14:10Z: raster static frames from free NOAA GRIB, phase 1: GFS mean-sea-level pressure (client dark)
+
+- **Why:** the owner wants free GRIB data for the raster layers (2026-10-22 21:35 EDT). The lead approved the publisher plan;
+  the raster-instant session (client) agreed the contract: set `GFS/weather/pressure/global_0p5`, 720 x 361 (south row first,
+  180W first, bounds = outer cell centres, no wrap column), f000-f336 every 3 h, field 6 `pressure_hpa` u16 scale 0.1 offset
+  799.9 (code 0 = no data), credit/license/source_url in the index, on-demand +-2 frames, no idle fill, no time interpolation.
+- **What:** `services/frame_set_raster.py` + `scripts/publish_raster_frames.py`, its own pilots step (budget
+  FRAME_RASTER_BUDGET_S 420 s, timeout 12 min, kill FRAME_RASTER_PRESSURE=0). `frame_binary` gains field 6 and a vectorised
+  plane codec (`encode_plane` / `decode_plane`); the existing generic decoder reads its bytes unchanged (pinned).
+- **Source change from the plan, measured:** NCEP's pgrb2.0p50 PRMSL differs from pgrb2.0p25 at shared points by up to 0.01
+  hPa (0.00% exactly equal at f000, 0.0048 at f120, 99.72% equal at f336; cycle 2026-10-23 00Z). The frames read 0p25 at every
+  second point instead: the same file the box's own GFS pressure product reads, so every node it samples equals the frame's
+  value (pinned with the fetcher's own nearest-index rule). ~0.9 MB of GRIB per step instead of ~0.3 MB.
+- **Finding: ecCodes is not thread-safe here.** Six threads decoding at once crashed its definitions parser (eccodes 2.50,
+  "fatal flex scanner internal error"). Downloads stay parallel; every decode takes `DECODE_LOCK`.
+- **Real-data run** (GFS 06Z 2026-10-23, eccodes + curl source standing in for pygrib, which has no Windows wheel; offline
+  sink): 113/113 frames in 34.6 s, 20.5 MB (~181 KB a frame), parity max 0.05 hPa, 0 missing nodes; against the source GRIB at
+  (40N 70W), (33.5S 151E), (64N 22W), (0, 0), (89.5N 179.5E), (90S 180W), (21N 158W): worst 0.047 hPa.
+- **Not here:** the cross-check against the box's stored 10-deg product cannot run in the publish step (it is a core-lane job,
+  not on the pilots disk); it holds by construction and is pinned in a test. Egress rule (lead, 2026-10-22): raster frames
+  never join the desktop whole-run idle fill by default.
+- **Tests:** tests/test_frame_set_raster.py (9, chain; floor 174/2859 -> 175/2868, `_FLOOR_SET_FROM` chain 2874). Seen failing
+  with the south-first row flip removed (3 tests).
+
 ## 2026-10-23 15:20Z: EURO's own wave values at land-centre nodes (ECMWF_WAVE_LAND_CENTRE_BLOCK, dark)
 
 - **Why:** the owner (10:43 EDT) queued "the EURO own-values fix (block-sampled direction/period) dark", after the targeted fill's
