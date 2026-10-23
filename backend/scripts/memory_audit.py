@@ -528,6 +528,12 @@ def selftest() -> list:
                      f"the ledger); got {got}")
     if check_completeness(ents, [(5, "2026-09-29T10:30:00Z")]):
         fails.append("completeness: a fully ledgered history was flagged")
+    # The fold window (2026-10-23): a merge after the last fold point waits for fold-pr --record-merges (WARN).
+    got = check_completeness(ents, [(7, "2026-09-29T12:00:00Z"), (6, "2026-09-29T11:30:00Z")], "2026-09-29T11:00:00Z")
+    if [lv for lv, _ in got] != ["WARN", "WARN"] or "record-merges" not in got[1][1]:
+        fails.append(f"completeness: #6, merged after the last fold point, should WARN; got {got}")
+    if ledger_merges.parse_merges("", "s|2026-09-29T12:00:00Z|feat: x (#8)\n", "") != [(8, "2026-09-29T12:00:00Z")]:
+        fails.append("completeness: a squash subject '(#8)' was not read as a merge")
     st = ("**Updated 2026-09-29 19:00Z** (log...)")
     if not any(lv == "FAIL" for lv, _ in check_clock(st, "2026-09-29T18:54:00Z", {})):
         fails.append("clock: STATE dated 19:00Z but written 18:54Z was not caught (the L-P10 case)")

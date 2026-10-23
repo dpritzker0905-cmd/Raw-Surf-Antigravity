@@ -1982,7 +1982,11 @@ jobs:
           # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
           # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
           # This PR must read 2392 passed.
-          MIN_PASSED = 2390
+          # ⬆ 2390→2402 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (completeness sees squash merges; stacked on the
+          # fragments PR's projected 2392 / 331): one new estate file adds 12 executed tests (tests/test_ledger_merges.py):
+          # projected 2404 / 332 files; 2404 - 2 = 2402, margin 2. _FLOOR_SET_FROM["estate"] -> 2404.
+          # This PR must read 2404 passed.
+          MIN_PASSED = 2402
 
           try:
               root = ET.parse('estate.xml').getroot()

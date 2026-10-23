@@ -58,12 +58,13 @@ def parse_merges(merge_log: str, first_parent_log: str, head_sha: str) -> list:
     return sorted(((n, t) for n, t in found.items()), key=lambda x: (x[1], x[0]), reverse=True)
 
 
-def git_merges(root: str, ref: str = "HEAD"):
-    """The merges on `ref`'s history, newest first; None without the full history (a shallow clone, no git)."""
+def git_merges(root: str, ref: str = "HEAD", include_tip: bool = False):
+    """The merges on `ref`'s history, newest first; None without the full history (a shallow clone, no git). The tip
+    is left out unless `include_tip`: for the audit it is the merge being made, for record-merges a merge to record."""
     try:
         if F.git(root, "rev-parse", "--is-shallow-repository").strip() != "false":
             return None
-        head = F.git(root, "rev-parse", ref).strip()
+        head = "" if include_tip else F.git(root, "rev-parse", ref).strip()
         return parse_merges(F.git(root, "log", "--merges", "--format=%H|%cI|%s", ref),
                             F.git(root, "log", "--first-parent", "--no-merges", "--format=%H|%cI|%s", ref), head)
     except (F.LedgerError, OSError, subprocess.SubprocessError, ValueError):
@@ -148,7 +149,7 @@ def merge_fields(n: int, actor: str, gh=None, today: str = None) -> dict:
 def record_merges(root: str, base_ref: str, lines: list, actor: str, name: str = None, gh=None, out=print):
     """Append a reconstructed `pr_merge` line to fragment `name` for every merge on `base_ref` that `lines` (the
     ledger as it will be: folded, plus every fragment) does not have. Returns the PR numbers recorded."""
-    merges = git_merges(root, base_ref)
+    merges = git_merges(root, base_ref, include_tip=True)
     if merges is None:
         raise F.LedgerError(f"cannot read {base_ref}'s merges: fetch the full history (fetch-depth: 0)")
     done = []

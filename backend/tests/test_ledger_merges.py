@@ -43,8 +43,9 @@ class FakeGh:
             return json.dumps({"owner": {"login": "o"}, "name": "r"})
         if args[:2] == ["pr", "view"]:
             n = int(args[2])
-            if n in self.unmerged:
-                return json.dumps({"number": n, "state": "OPEN", "mergedAt": None, "mergeCommit": None})
+            if n in self.unmerged:   # every other field looks merged: only the state may refuse it
+                return json.dumps({"number": n, "state": "OPEN", "mergedAt": "2026-10-22T20:00:00Z",
+                                   "mergeCommit": {"oid": "c" * 40}, "headRefOid": "b" * 40})
             return json.dumps({"number": n, "title": f"feat: change {n}", "url": f"https://example.invalid/pull/{n}",
                                "state": "MERGED", "mergedAt": "2026-10-22T20:00:00Z", "mergedBy": {"login": "u"},
                                "mergeCommit": {"oid": f"{n:040d}"}, "headRefOid": "b" * 40})
@@ -76,6 +77,8 @@ def test_git_merges_sees_squash_merges_newest_first_without_head(repo):
     squash(repo, 6, "2026-10-21T01:00:00Z")
     squash(repo, 7, "2026-10-21T02:00:00Z")          # HEAD: the merge being made on a dev push
     assert LM.git_merges(repo.path, "HEAD") == [(6, "2026-10-21T01:00:00Z"), (5, "2026-10-21T00:00:00Z")]
+    # record-merges reads a base ref whose tip is a finished merge: #469, dev's tip on 2026-10-23, was missed without it.
+    assert LM.git_merges(repo.path, "HEAD", include_tip=True)[0] == (7, "2026-10-21T02:00:00Z")
 
 
 def test_the_last_fold_point_is_the_landing_then_each_fold(repo):
