@@ -375,3 +375,31 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   connections, never on a refusal; and a regional set whose bundle upload still fails is reported (`error`) and skipped, keeping
   its published bundle, while the world sets publish. +2 tests (8 in the file; chain floor 174/2857, `_FLOOR_SET_FROM` 2863);
   the isolation test fails when the guard is narrowed.
+
+## 2026-10-23 14:50Z: the targeted 2-deg Gulf fill (dark), its before/after, and the root cause in EURO's ingest
+
+- **Correction first (mine):** #463, its DECISIONS draft and the `gulf_fill_mid_enabled` docstring said the 2-deg fill "has no
+  enclosed-sea job (EURO's global_mid Gulf is valid, ICON has no holes)". Never measured; FALSE. The lead counted the published
+  frames (valid 2026-10-25T00Z): EURO masks 870 of 10,168 GFS-sea nodes (Med 44/113, Gulf of Mexico 15/59, Baltic 26/45, Red Sea
+  14/25, ...), ICON 125. My 10-22 recommendation to flip MARINE_GULF_FILL_MID=0 would have blanked real sea. Corrected in the
+  code docstrings, the #463 test docstring, DECISIONS (the old draft: superseded) and LESSONS L-S23.
+- **The owner (09:56 EDT):** build the targeted fill dark, show the before/after, look into EURO's own values at ingest.
+- **Built:** `MARINE_GULF_FILL_MID_TARGETED` (default '0'; `_RATING_FLAGS`, flag-lane parity). On the 2-deg `global_mid` only, a masked
+  EURO/ICON cell takes the same-layer GFS `global_mid` value at the same node (all three share 181 x 83 with identical bounds), only
+  where that node is valid. `targeted_fill_vectors` is pure (serve path, tests and evidence run the same rule). The 10-deg tier is
+  unchanged; MARINE_GULF_FILL_MID=0 wins; /capabilities adds `gulf_fill_mid_mode`. **Client guard: kept.** The targeted fill still
+  substitutes GFS values at sea, and the box's GFS donor (written by both lanes) can be newer than what a publish saw, so a frame
+  could not prove it matches; the clean end is the root fix below (no donor, frames exact).
+- **Evidence (real data, valid 2026-10-23T00Z; side-session notes gulf-fill-targeted-evidence-2026-10-23/):** EURO today 2,465 ->
+  targeted 868 kept as sea, 1,716 no longer painted (352 south of 60S, 413 north of 60N), 119 sea cells today's reach misses;
+  ICON 1,708 -> 124, 1,597. Inland TX/MS/GA: EURO 13/4/3 -> 0/0/1 (32N 82W, which GFS's own 2-deg grid calls sea), ICON -> 0/0/0.
+- **Offline control (#462 store, real backend):** legacy world /grid paints 1,173 of 2,714 masked cells; targeted fills 0 (the
+  synthetic store gives GFS the same land mask), so /grid = stored there. The positive case is the real-data pack.
+- **Root cause, measured** (ECMWF open data, cycle 2026-10-23 00Z step 0, native 0.25 deg): at all 868 EURO-masked GFS-sea nodes
+  the native cell AT the node is land (swh, mwd, pp1d all missing), but 847 (97.6%) hold valid ECMWF sea cells inside their own
+  2-deg block (+-4 cells; median 22 of 81). `ecmwf_opendata_fetcher` already block-means the HEIGHT there
+  (ECMWF_WAVE_SCALAR_BLOCKMEAN, default on), but point-samples direction and period at the land centre, and the normalizer drops
+  a vector with no direction. Proposed follow-up: sample direction (circular, energy-weighted) and period from the same block
+  when the centre is land; EURO then carries its OWN values in ~847 of 868 cells and needs no GFS donor at 2 deg.
+- **Tests:** tests/test_coarse_gulf_fill_targeted.py (7, guards; floor 210/3287 -> 211/3294, `_FLOOR_SET_FROM` 3300). Seen failing
+  (3) when masked GFS nodes are allowed as donors.

@@ -1347,3 +1347,14 @@ A stored estimate can be estimated again in a browser branch with different sour
 - Rule: when N writers share an ordered log, separate WRITING (one file each, no shared counter) from ORDERING (one writer, after
   the merge, from an order git already records). A reference to a line that has no number yet needs a name of its own
   (`@frag:<name>:N`), and the folded line keeps that name (`fragment`) so the reference still resolves after the file is gone.
+
+### 2026-10-23 — L-S23 · "Valid" for a masked field is a per-region count from the data, never a sentence
+- What happened: #463 and its DECISIONS draft said the 2-deg Gulf fill "has no enclosed-sea job (EURO's global_mid Gulf is
+  valid, ICON has no holes)". Nobody had counted. The lead counted on the published frames: EURO masks 870 of 10,168 GFS-sea
+  nodes, 44 of 113 in the Mediterranean and 15 of 59 in the Gulf of Mexico. Had the owner flipped the fill off on that sentence,
+  real sea would have gone blank. The evidence pack's own diff showed the problem too (2,465 painted cells include sea), but
+  it was read as "land painted" because the categories were land vs. not-land, never sea vs. not-sea.
+- Root cause of the mask, found by measuring the source: ECMWF's native cell at each such node is land, the height is block-
+  meaned but direction and period are point-sampled, and the normalizer drops a node with no direction.
+- Rule: before a claim that a masked field is (in)valid somewhere, count it per named region against an independent
+  reference mask (here GFS's), and put the table in the claim. An evidence pack categorises against sea AND land, not one.

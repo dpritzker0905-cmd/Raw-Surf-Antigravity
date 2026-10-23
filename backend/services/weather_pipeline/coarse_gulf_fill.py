@@ -50,6 +50,16 @@ the 8° reach was sized for 10° cells, and on the 2° world clip it reaches inl
 stamped, and narrowing the reach changes a served number, so it is the owner's call, not done here.
 
 Kill switch: MARINE_COARSE_GULF_FILL=0. Scope to the 10-deg tier only (DARK, owner's call): MARINE_GULF_FILL_MID=0.
+
+THE TARGETED 2-DEG FILL (2026-10-23, DARK; the owner's decision 09:56 EDT: "build the targeted fill dark (only fill EURO/ICON
+2-deg cells where GFS 2-deg is sea, stop painting land/ice), then show me the before/after before switching it on").
+MARINE_GULF_FILL_MID_TARGETED=1 replaces the 10-deg / 8-deg-reach fill ON THE 2-DEG global_mid ONLY with a node-for-node one: a
+masked EURO/ICON cell takes the SAME-LAYER GFS global_mid value at the SAME node (the three models share the 181 x 83 lattice),
+and only where that GFS node is valid, i.e. sea. Real enclosed sea that EURO's 2-deg grid masks stays filled; land and ice the
+8-deg reach painted stay masked. Measured on the published frames (valid 2026-10-25T00Z, the lead): EURO masks 870 of 10,168
+GFS-sea nodes (Gulf of Mexico 15/59, Caribbean 15/102, Mediterranean 44/113, Red Sea 14/25, Persian Gulf 6/12, Baltic 26/45,
+Black Sea 2/2, Hudson Bay 13/47, Gulf of California 8/20, Sea of Japan 16/52); ICON 125. The 10-deg coarse tier keeps today's
+fill unchanged. Provenance: coarse_fill.mode == "targeted", donor_region global_mid, donor_product.
 """
 import asyncio
 import copy
@@ -91,16 +101,31 @@ def _is_masked(v):
     return (not getattr(v, "is_valid", False)) or s is None
 
 
-def gulf_fill_mid_enabled():
-    """MARINE_GULF_FILL_MID (2026-10-22, DARK; the owner's call to flip): does the fill run on the 2-deg global_mid?
+def gulf_fill_mid_mode():
+    """How the fill treats the 2-deg global_mid world grid (EURO/ICON marine, served span >= 350 deg), read at call time:
 
-    The fill was built for the 10-deg coarse tier (module docstring). It reaches the 2-deg world grid only because the mid tier
-    has answered world requests since 2026-07-23 (MARINE_MID_RES_MAX_SPAN=400), where it has no enclosed-sea job (EURO's
-    global_mid Gulf is valid, ICON has no holes) and its 8-deg reach paints GFS 10-deg values onto coast, land and ice cells
-    under a EURO/ICON label (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689 masked cells, ICON 1,708 of 3,788).
-    '1' (default) = today's behaviour; '0' = the fill skips global_mid grids and keeps the 10-deg tier. /capabilities reports it
-    (EURO/ICON marine rows, `gulf_fill_mid`) so the client serves static world frames only when /grid equals them."""
-    return os.environ.get("MARINE_GULF_FILL_MID", "1") != "0"
+      "legacy"   (default) today's fill: masked cells within 8 deg of a GFS 10-deg ocean cell take its values. It paints coast,
+                 land and ice (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689 masked cells, ICON 1,708 of 3,788),
+                 and it also keeps the real enclosed sea EURO's 2-deg grid masks (Gulf, Med, Red Sea, Baltic; module docstring).
+      "targeted" MARINE_GULF_FILL_MID_TARGETED=1 (DARK, the owner's decision 2026-10-23): a masked cell takes the same-layer GFS
+                 2-deg value at the same node, only where that node is valid.
+      "off"      MARINE_GULF_FILL_MID=0 (DARK): the 2-deg world grid is served as stored.
+                 CORRECTED 2026-10-23: this docstring said the 2-deg fill "has no enclosed-sea job (EURO's global_mid Gulf is
+                 valid)". MEASURED FALSE (the lead, published frames valid 2026-10-25T00Z): EURO's 2-deg grid masks 870 GFS-sea
+                 nodes, 15 of 59 in the Gulf of Mexico and 44 of 113 in the Mediterranean, so "off" blanks real sea.
+    MARINE_GULF_FILL_MID=0 wins over the targeted flag. /capabilities reports the mode (EURO/ICON marine rows)."""
+    if os.environ.get("MARINE_GULF_FILL_MID", "1") == "0":
+        return "off"
+    if os.environ.get("MARINE_GULF_FILL_MID_TARGETED", "0") == "1":
+        return "targeted"
+    return "legacy"
+
+
+def gulf_fill_mid_enabled():
+    """Does any fill run on the 2-deg global_mid? (gulf_fill_mid_mode() != "off"; /capabilities `gulf_fill_mid`.) The client
+    serves a static ICON/EURO world frame only when this is False, because only then does /grid equal the stored product: the
+    targeted fill still substitutes GFS values (at sea), so it keeps the client's guard."""
+    return gulf_fill_mid_mode() != "off"
 
 
 def _is_mid_tier(product, grid):
@@ -144,11 +169,14 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         span = (b.east - b.west) if (b and b.east >= b.west) else ((b.east + 360.0 - b.west) if b else 0.0)
         if span < 350.0:
             return product
-        if not gulf_fill_mid_enabled() and _is_mid_tier(product, grid):
-            return product   # MARINE_GULF_FILL_MID=0: the 2-deg world grid is served as stored (gulf_fill_mid_enabled)
+        mid_mode = gulf_fill_mid_mode() if _is_mid_tier(product, grid) else None
+        if mid_mode == "off":
+            return product   # MARINE_GULF_FILL_MID=0: the 2-deg world grid is served as stored (gulf_fill_mid_mode)
         masked = [i for i, v in enumerate(grid.vectors) if _is_masked(v)]
         if not masked:
             return product
+        if mid_mode == "targeted":
+            return await _targeted_mid_fill(product, grid, store, model, layer_l, masked)
 
         # Load the SERVED GFS global-coarse waves product at this product's valid_time.
         vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
@@ -249,7 +277,62 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         return product
 
 
-def _load_gfs_coarse_waves(store, valid_time, layer="waves"):
+def _node_key(v):
+    """(lat, lng) rounded, with lng in [-180, 180]; the 181-column lattices carry both -180 and 180, kept apart."""
+    return round(float(v.lat), 3), round(float(v.lng), 3)
+
+
+def targeted_fill_vectors(vectors, donor_vectors):
+    """(new vector list, cells filled): every masked vector whose node has a VALID donor vector at the same node becomes a copy
+    carrying the donor's values (speed, direction, u, v, period) with is_valid True. The inputs are never written to. Pure, so
+    the serve path, the tests and the owner's evidence pack run the same rule."""
+    donors = {}
+    for g in donor_vectors or ():
+        if not _is_masked(g):
+            donors[_node_key(g)] = g
+    out, filled = list(vectors), 0
+    for i, v in enumerate(out):
+        if not _is_masked(v):
+            continue
+        g = donors.get(_node_key(v))
+        if g is None:
+            continue           # GFS masks this node too: land or ice, left masked
+        v = copy.copy(v)
+        v.speed = g.speed
+        for attr in ("direction", "u", "v", "period"):
+            if getattr(g, attr, None) is not None:
+                setattr(v, attr, getattr(g, attr))
+        v.is_valid = True
+        out[i] = v
+        filled += 1
+    return out, filled
+
+
+async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
+    """MARINE_GULF_FILL_MID_TARGETED=1 on the 2-deg global_mid: the same-layer GFS global_mid at the same valid time (within
+    3 h, as the coarse donor) is the donor, node for node. Returns `product` itself when there is no donor or nothing to fill."""
+    vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
+    gfs = await asyncio.to_thread(_load_gfs_coarse_waves, store, vt, layer_l, "global_mid")
+    if not gfs or not getattr(gfs, "grid", None) or not gfs.grid.vectors:
+        return product
+    vectors, filled = targeted_fill_vectors(grid.vectors, gfs.grid.vectors)
+    if not filled:
+        return product
+    product = copy.copy(product)
+    product.grid = copy.copy(grid)
+    product.grid.vectors = vectors
+    try:
+        product.coarse_fill = {"donor_model": "GFS", "layer": layer_l, "mode": "targeted", "donor_region": "global_mid",
+                               "donor_product": getattr(gfs, "product_id", None), "cells_filled": filled,
+                               "cells_masked": len(masked), "cells_total": len(grid.vectors)}
+    except Exception as e:
+        logger.error(f"[Coarse Fill] PROVENANCE LOST: targeted fill substituted {filled} {layer_l} cells into {model} from GFS "
+                     f"global_mid but could not stamp `coarse_fill` ({type(e).__name__}: {e}).")
+    logger.info(f"[Coarse Fill] {model} global_mid {layer_l}: targeted {filled} of {len(masked)} masked cells from GFS global_mid")
+    return product
+
+
+def _load_gfs_coarse_waves(store, valid_time, layer="waves", region_id="global_coarse"):
     """Find + load the GFS global-coarse marine product for `layer` nearest `valid_time`.
 
     ⚠️ `layer` is a PARAMETER, not a constant, since 2026-08-01: the donor must carry the SAME
@@ -280,7 +363,7 @@ def _load_gfs_coarse_waves(store, valid_time, layer="waves"):
         if (getattr(p, "model", "").upper() != "GFS" or getattr(p, "domain", "").lower() != "marine"
                 or getattr(p, "layer", "").lower() != layer):
             continue
-        if getattr(p, "region_id", None) != "global_coarse":
+        if getattr(p, "region_id", None) != region_id:
             continue
         pvt = _dt(getattr(p, "valid_time_start", None))
         if want is None or pvt is None:

@@ -89,6 +89,13 @@ _RATING_FLAGS = {
                                   "masked coast/land/ice cells within 8 deg of a GFS 10-deg ocean cell get GFS values; 0 = the fill keeps to "
                                   "the 10-deg coarse tier it was built for and the world grid is served as stored (static frames then match it)",
                              "Render env"),
+    # SERVED NUMBER, DARK (2026-10-23; the owner's decision 09:56 EDT: build it dark, show the before/after before switching on).
+    # tests/test_coarse_gulf_fill_targeted.py pins both values; /capabilities reports `gulf_fill_mid_mode`.
+    "MARINE_GULF_FILL_MID_TARGETED": ("0", "on the 2-deg global_mid world clip (EURO/ICON marine), fill a masked cell ONLY from the "
+                                           "same-layer GFS 2-deg value at the same node, and only where that GFS node is sea; 0 = "
+                                           "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "
+                                           "MARINE_GULF_FILL_MID=0 wins (no 2-deg fill); the 10-deg tier is unchanged either way",
+                                      "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
     "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
