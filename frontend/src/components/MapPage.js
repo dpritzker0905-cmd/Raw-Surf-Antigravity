@@ -32,6 +32,7 @@ import { useIPGeolocation } from '../hooks/useIPGeolocation';
 import { useMapState } from '../hooks/useMapState';
 import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
 import { useWeatherState } from '../hooks/useWeatherState';
+import { noteWeatherAsk } from './map/instantTelemetry';
 import { useSnappedCoordinates } from '../hooks/useSnappedCoordinates';
 import { useMapPhotographerState } from '../hooks/useMapPhotographerState';
 import { useMapInteractions } from '../hooks/useMapInteractions';
@@ -252,6 +253,11 @@ var MapPageContent = () => {
       };
     }
   }, [activeModel, activeLayers, timeOffsetHours, memoizedUserLocation, ipLocation, snappedCoordinates]);
+
+  // FIELD TELEMETRY (skills audit #3): what the map is asked to show, for press-to-frame on sampled pages (no-op otherwise).
+  useEffect(() => {
+    noteWeatherAsk({ model: activeModel, layers: activeLayers, hour: timeOffsetHours, playing: isPlayingTimeline });
+  }, [activeModel, activeLayers, timeOffsetHours, isPlayingTimeline]);
 
   const hasWeatherLayer = activeLayers.length > 0;
   const {

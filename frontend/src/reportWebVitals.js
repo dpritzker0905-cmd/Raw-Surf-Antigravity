@@ -1,19 +1,18 @@
 /**
  * Web Vitals -- Core performance metric reporting.
- * Measures LCP, FID, CLS, TTFB, and INP.
+ * Measures LCP, CLS, FCP, TTFB and INP. FID is gone (skills audit #3, 2026-10-23): INP replaced it as a Core Web Vital, and
+ * the field record (with attribution) is components/map/instantTelemetry.js.
  * Reports to console in dev, can be extended to analytics endpoint.
  *
  * Wired into index.js via: reportWebVitals(sendToAnalytics)
  */
 const reportWebVitals = (onPerfEntry) => {
   if (onPerfEntry && onPerfEntry instanceof Function) {
-    import('web-vitals').then(({ onCLS, onFID, onFCP, onLCP, onTTFB, onINP }) => {
+    import('web-vitals').then(({ onCLS, onFCP, onLCP, onTTFB, onINP }) => {
       onCLS(onPerfEntry);
-      onFID(onPerfEntry);
       onFCP(onPerfEntry);
       onLCP(onPerfEntry);
       onTTFB(onPerfEntry);
- // INP (Interaction to Next Paint) G newer metric replacing FID
       if (onINP) onINP(onPerfEntry);
     }).catch(() => {
  // web-vitals not installed -- silent fallback
