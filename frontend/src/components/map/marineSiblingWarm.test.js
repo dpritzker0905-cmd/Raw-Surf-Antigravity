@@ -10,7 +10,7 @@ jest.mock('./marineGridSeries', () => ({
 }));
 jest.mock('./marineSeriesLimiter', () => ({ _seriesLimiterState: jest.fn() }));
 jest.mock('./marineSeriesStatic', () => ({ staticOwnsWorldPage: jest.fn(() => false) }));
-jest.mock('./backendWeatherServiceClient', () => ({ getSurfModeFlag: () => window.__SURF_MODE__ === true }));
+jest.mock('./backendWeatherServiceClient', () => ({ getSurfModeFlag: () => global.__SURF_MODE__ === true }));
 
 import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm } from './marineGridSeries';
 import { _seriesLimiterState } from './marineSeriesLimiter';
