@@ -1333,3 +1333,17 @@ A stored estimate can be estimated again in a browser branch with different sour
   routes/weather.py: coarse_gulf_fill, wind_lane), and carries a POSITIVE CONTROL that is seen to fail (`serve_synthetic.py
   --land-mask 1` + `scn_static_parity.mjs` reads ICON/EURO world frames bad > 0; GUARD=1 reads 0). When the live product holds a
   population the fixture lacks, measure one live response's stamp (here `coarse_fill.cells_filled`) before trusting the fixture.
+
+
+### 2026-10-23 — L-P38 · A shared append-only file with a global sequence serialises every writer: give each writer its own file and one folder
+
+- Every PR appended to ACTIONS.jsonl and moved STATE's anchor, so any two open PRs claimed the same seq; the second to merge
+  conflicted and was re-chained by hand, then waited ~25 min for CI again (about 15 merges on 2026-10-22, most re-chained).
+  Auto-merge could never run unattended. Re-chaining also looked like tampering to a permission classifier ("stripping
+  ledger lines"), because from outside a re-chain and a rewrite are the same diff.
+- Fix (D-0XX): per-PR fragments (`ledger.d/<branch-slug>.jsonl`, no seq/prev/at) and one writer of the chain (the lead's
+  `fold-pr`), which folds in MERGE ORDER, verifies, content-matches every line and only then deletes the fragments. The guard
+  recomputes the fold from dev and requires equality, so a fold is checkable, not trusted.
+- Rule: when N writers share an ordered log, separate WRITING (one file each, no shared counter) from ORDERING (one writer, after
+  the merge, from an order git already records). A reference to a line that has no number yet needs a name of its own
+  (`@frag:<name>:N`), and the folded line keeps that name (`fragment`) so the reference still resolves after the file is gone.
