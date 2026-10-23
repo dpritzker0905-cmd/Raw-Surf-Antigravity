@@ -75,7 +75,7 @@ export function regionalFullPage(model, layer, reqBox, surf, maxCells = REGIONAL
   return cells <= maxCells;
 }
 
-export const MANIFEST_WAIT_MS = 3000;
+export const MANIFEST_WAIT_MS = 1500;
 /**
  * null when a series page can decide now (the usual case: nothing is awaited, the timing is unchanged), else a promise that
  * settles when the products manifest has loaded or MANIFEST_WAIT_MS has passed (then the page decides as before: a miss ->
@@ -122,8 +122,15 @@ export async function loadWorldPageFromStatic({ model, layer, reqBox, surf, hour
   const missing = await staticSeriesFrames({
     model, layer, bbox: reqBox, surf, hours: todo, anchorMs: anchor, focusHour: todo[0], signal,
     onFrames: (frames) => { for (const f of frames) commit(f.hour_offset, f); },
+    priority: background ? 'low' : 'high',  // the viewed page's bundle first; a background page's never ahead of it
   });
-  return missing !== null;                // null: no pinned index -> /grid_series, exactly as before
+  if (missing === null) return false;     // null: no pinned index or not servable -> /grid_series, exactly as before
+  // An ALL-MISS regional page (nothing held, nothing served: every hour outside the run) is the backend's: /grid_series runs.
+  if (have.size === 0 && missing.length === todo.length && isRegionalSetKey(staticSetKeyForBox({ model, layer, bbox: reqBox, surf }))) {
+    trace({ seam: 'B', l: layer, h0: hours[0], allMiss: true });
+    return false;
+  }
+  return true;
 }
 
 /**

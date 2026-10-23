@@ -2103,5 +2103,403 @@
    },
    "note": "wait capped at 3 s, manifest at 4 s: every page went to /grid_series (the lead predicted it)"
   }
+ },
+ "review_round_2": {
+  "what": "Reflection's parameters via the lead (backoff 30 s->2->10->30 min with Retry-After; 404/400/sha12 dead + re-pin; 8 s timeout scaled by size; 1.5 s manifest wait; fetch priority; all-miss page -> /grid_series), the platform capability gate, surf / ICON / EURO never claimed",
+  "build": "the full dev tree at ceeeaf361 + this branch (merge target)",
+  "mutants": [
+   {
+    "guard": "failure cache (backoff)",
+    "verdict": "CAUGHT",
+    "tests": "6 failed, 32 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "real status (always 404)",
+    "verdict": "CAUGHT",
+    "tests": "7 failed, 31 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "a failing bundle: one request, the page goes to /grid_series, the next page backs off, lat"
+    ]
+   },
+   {
+    "guard": "failed page still claimed",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no fetch timeout",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "hour-0 held for the manifest",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a failing bundle: one request, the page goes to /grid_series, the next page backs off, lat",
+     "the opening: the hour-0 mini goes at once; the page waits for the manifest, then is served"
+    ]
+   },
+   {
+    "guard": "static pages unbounded",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "static pages are bounded like /grid_series pages (SERIES_MAX, 48)"
+    ]
+   },
+   {
+    "guard": "pages mix runs",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a page holds frames of one run: a frame from another run index drops the earlier ones"
+    ]
+   },
+   {
+    "guard": "fractional edge (old cover rule)",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a box whose snapped box leaves the tile data (fractional data edge) is not claimed: its pa",
+     "the Step 3 window on a 0.25-deg tile lattice (snap 1 deg, data-extent clamp, clip_lattice,"
+    ]
+   },
+   {
+    "guard": "sha12 fails open",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "gzip error thrown",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no pre-manifest pilot pick",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a late manifest (the live read: ~4 s): once latest.json is read the page is served from th",
+     "at the map opening, before the products manifest has loaded (the z9 Florida trace, 2026-10"
+    ]
+   },
+   {
+    "guard": "Retry-After ignored",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "404 not dead",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "integrity does not re-pin",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no capability gate",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no fetch priority",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "all-miss page claimed",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "an ALL-MISS page (every hour outside the run) is the backend's: it asks /grid_series inste"
+    ]
+   },
+   {
+    "guard": "surf may read a bundle",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "the seams answer a fully covered box from the bundle, and nothing else \u203a the frame store n"
+    ]
+   },
+   {
+    "guard": "timeout not scaled",
+    "verdict": "CAUGHT",
+    "tests": "2 failed, 36 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche"
+    ]
+   },
+   {
+    "guard": "no concurrent dedup",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "a failed bundle: remembered with a backoff, its real status passed on, never decoded unche",
+     "the bundle: one fetch, the slice checked on its gzip bytes, then inflated \u203a a slice decode"
+    ]
+   },
+   {
+    "guard": "surf may be static (both guards)",
+    "verdict": "CAUGHT",
+    "tests": "3 failed, 35 passed, 38 total",
+    "failing": [
+     "surf mode and models without bundles (ICON, EURO) never read a bundle or wait: their exist",
+     "the seams answer a fully covered box from the bundle, and nothing else \u203a the frame store n"
+    ]
+   }
+  ],
+  "measure": {
+   "manifest_on_time": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 0
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 1062,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 41,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 2378,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 7,
+      "one_frame_minis": 4,
+      "backend_seconds": 40.3,
+      "worst_step_ms": 68,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 3946,
+      "first_frame": {
+       "cols": 181,
+       "rows": 82,
+       "series": false,
+       "store": false,
+       "pid": "gfs_marine_waves_global_mid_20261023T210000Z.json"
+      },
+      "marine_series_asks": 7,
+      "one_frame_minis": 4,
+      "backend_seconds": 43.1,
+      "worst_step_ms": 39,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 832,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 37,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     }
+    ]
+   },
+   "manifest_4s_late": {
+    "env": {
+     "VIEW": "owner",
+     "CENTER": [
+      -80.6,
+      28.1
+     ],
+     "LAT_PRODUCTS": 4000
+    },
+    "sessions": [
+     {
+      "arm": "cur",
+      "first_frame_ms": 945,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 41,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 1745,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 4,
+      "one_frame_minis": 1,
+      "backend_seconds": 38.9,
+      "worst_step_ms": 67,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "noregional",
+      "first_frame_ms": 6398,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 6,
+      "one_frame_minis": 3,
+      "backend_seconds": 58.9,
+      "worst_step_ms": 39,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": null
+     },
+     {
+      "arm": "cur",
+      "first_frame_ms": 789,
+      "first_frame": {
+       "cols": 13,
+       "rows": 9,
+       "series": true,
+       "store": false,
+       "pid": null
+      },
+      "marine_series_asks": 0,
+      "one_frame_minis": 0,
+      "backend_seconds": 0.0,
+      "worst_step_ms": 37,
+      "missed_steps": 0,
+      "mislabelled": 0,
+      "anchor_rolled": false,
+      "regional": {
+       "bundles": 1,
+       "bundleBytes": 120370,
+       "slices": 104,
+       "hits": 0,
+       "series": 105,
+       "misses": {
+        "no_frame_in_window": 8
+       },
+       "dynamicOnCovered": 0
+      }
+     }
+    ]
+   }
+  }
  }
 }
