@@ -1978,7 +1978,11 @@ jobs:
           # ⬆ 2338→2341 on 2026-10-22, IN THE SAME PR THAT CAUSES IT (static frames for more world sets): +3 tests in the
           # existing tests/test_publish_frame_sets.py on the 2340 read of dev CI 39732086620 @ eb3e4bcf: projected 2343,
           # no new file; 2343 - 2 = 2341, margin 2. _FLOOR_SET_FROM["estate"] -> 2343. This PR must read 2343 passed.
-          MIN_PASSED = 2341
+          # ⬆ 2341→2390 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (per-PR ledger fragments, D-0XX): one new estate file
+          # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
+          # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
+          # This PR must read 2392 passed.
+          MIN_PASSED = 2390
 
           try:
               root = ET.parse('estate.xml').getroot()

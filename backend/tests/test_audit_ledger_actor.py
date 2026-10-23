@@ -4,7 +4,9 @@ import pytest
 from scripts import action_ledger as ledger
 
 
-ARGS = ['append', '--kind', 'finding', '--target', 'fixture', '--why', 'fixture',
+# --direct: these exercise the ACTIONS.jsonl writer itself (the fold's, and legacy PRs'); `append` without it writes
+# the branch's fragment (D-0XX), covered by tests/test_ledger_fragments.py.
+ARGS = ['append', '--direct', '--kind', 'finding', '--target', 'fixture', '--why', 'fixture',
         '--authorized-by', 'fixture', '--evidence', 'fixture', '--outcome', 'fixture',
         '--verified', 'fixture readback', '--rollback', 'delete fixture']
 
