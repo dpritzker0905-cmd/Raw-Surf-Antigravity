@@ -604,7 +604,7 @@ def selftest() -> list:
         if errs or len(got) != 1 or "ledger.d/x.jsonl:1" not in got[0]:
             fails.append(f"fragments: an unfolded commitment was not listed by its fragment line: {got} {errs}")
         closed = frag + action_ledger.canonical({**base, "acted_at": "2026-09-29T02:00:00Z", "kind": "finding",
-                                                  "fulfills": "@frag:1"}) + "\n"
+                                                 "fulfills": "@frag:1"}) + "\n"
         vl, lab, errs = ledger_fragments.virtual_ledger(action_ledger.read_lines(pth), [("x", closed)],
                                                         "2026-09-29T07:00:00Z")
         if errs or any("x.jsonl:1" in m for _, m in check_commitments(vl, "2026-09-29T07:00:00Z", lab)):
