@@ -11,7 +11,7 @@
  * bulk-prefetched from the CDN: with an index pinned they are skipped. No index at all returns false, and
  * /grid_series runs exactly as before.
  */
-import { getPinnedIndex, hasPinnedIndex, setKeyFor, staticSeriesEligible, staticSeriesFrames } from './staticFrames';
+import { getPinnedIndex, hasPinnedIndex, staticSeriesEligible, staticSeriesFrames, staticSetKeyForBox } from './staticFrames';
 import { seriesAnchorTag } from './seriesAnchor';
 
 export const WINDOW_STEPS = 4;
@@ -42,7 +42,7 @@ export function nearestFirst(hours, focus) {
 
 /** The hour-0 mini load is redundant when the static page fill will fetch the viewed hour first. */
 export function staticOwnsWorldPage(model, layer, reqBox, surf) {
-  return staticSeriesEligible({ model, layer, bbox: reqBox, surf }) && hasPinnedIndex(setKeyFor(model, layer));
+  return staticSeriesEligible({ model, layer, bbox: reqBox, surf }) && hasPinnedIndex(staticSetKeyForBox({ model, layer, bbox: reqBox, surf }));
 }
 
 /**
@@ -55,7 +55,7 @@ export async function loadWorldPageFromStatic({ model, layer, reqBox, surf, hour
   const anchor = anchorMs();
   if (anchor === null || !hours || hours.length === 0) return false;
   if (background) {
-    const index = await getPinnedIndex(setKeyFor(model, layer)).catch(() => null);
+    const index = await getPinnedIndex(staticSetKeyForBox({ model, layer, bbox: reqBox, surf })).catch(() => null);
     return !!index;                       // windowed: no whole-page CDN prefetch; the viewed page fills on demand
   }
   const ordered = nearestFirst(hours, focusFor(model, layer, hours));

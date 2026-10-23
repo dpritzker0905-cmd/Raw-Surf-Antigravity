@@ -67,7 +67,12 @@ afterEach(() => {
 test('a viewport box the mid tier answers is eligible; a world box still is; a narrow or tile-sized one is not', () => {
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW })).toBe(true);
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
+  // A box inside a pilot tile is a REGIONAL box since 2026-10-23 (staticRegional.js): eligible for the tile's bundle, never a
+  // mid-zoom crop; with the regional kill it is not static at all.
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: { west: -84, south: 25, east: -80, north: 30 } })).toBe(true);
+  window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: { west: -84, south: 25, east: -80, north: 30 } })).toBe(false);
+  delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW, surf: true })).toBe(false);
   window.__RAW_DISABLE_STATIC_MID_CROP__ = true;
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW })).toBe(false);

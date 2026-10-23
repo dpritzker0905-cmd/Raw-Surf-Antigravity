@@ -112,6 +112,17 @@ export function midClipWindow(bboxStr, grid, model = 'GFS') {
   // filter_grid_to_bbox: clamp_and_normalize_bbox(parse_bbox(clip)), then clip_lattice from the data's first lat / lng
   const [west, south, east, north] = clampAndNormalize(...clip);
   if (west > east) return null;                                   // an antimeridian-crossing window: not mirrored
+  const win = latticeWindow(west, south, east, north, grid);
+  return win && { ...win, clip: clip.map((x) => x.toFixed(4)).join(',') };
+}
+
+/**
+ * route_helpers.clip_lattice on `grid` (row 0 = south, column 0 = west) for an already-normalised, non-crossing window, mapped
+ * onto the grid's own lattice: { c0, c1, r0, r1, cols, rows, bounds } or null when the window is not one contiguous block of
+ * existing cells. Shared by the mid tier's padded clip (midClipWindow) and the regional tile's snapped clip (staticRegional).
+ */
+export function latticeWindow(west, south, east, north, grid) {
+  if (!grid || !grid.bounds || !(grid.cols >= 2) || !(grid.rows >= 2) || west > east) return null;
   const b = grid.bounds;
   const dLat = (b.north - b.south) / (grid.rows - 1);
   const dLng = (b.east - b.west) / (grid.cols - 1);
@@ -142,7 +153,6 @@ export function midClipWindow(bboxStr, grid, model = 'GFS') {
   return {
     c0, c1, r0, r1, cols: lngs.length, rows: lats.length,
     bounds: { west: lngs[0], south: lats[0], east: lngs[lngs.length - 1], north: lats[lats.length - 1] },
-    clip: clip.map((x) => x.toFixed(4)).join(','),
   };
 }
 
