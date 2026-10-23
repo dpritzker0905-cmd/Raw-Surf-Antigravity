@@ -56,6 +56,7 @@ export const usePushNotifications = (userId, { checkServer = false } = {}) => {
   const [registration, setRegistration] = useState(null);
   const [error, setError] = useState(null);
   const [serverSubscribed, setServerSubscribed] = useState(null);   // null = unknown or not asked
+  const [serverStatusError, setServerStatusError] = useState(false);
 
   // Check if push notifications are supported
   useEffect(() => {
@@ -168,15 +169,17 @@ export const usePushNotifications = (userId, { checkServer = false } = {}) => {
   const refreshServerStatus = useCallback(async () => {
     if (!checkServer || !registration || !userId) return null;
     const endpoint = await getThisDeviceEndpoint(registration);
-    if (!endpoint) { setServerSubscribed(false); return false; }
+    if (!endpoint) { setServerSubscribed(false); setServerStatusError(false); return false; }
     try {
       const response = await apiClient.get(`/push/status?endpoint=${encodeURIComponent(endpoint)}`);
       const subscribed = !!(response.data && response.data.subscribed);
       setServerSubscribed(subscribed);
+      setServerStatusError(false);
       return subscribed;
     } catch (err) {
       logger.debug('[Push] Status check failed:', err);
       setServerSubscribed(null);
+      setServerStatusError(true);
       return null;
     }
   }, [checkServer, registration, userId]);
@@ -211,6 +214,7 @@ export const usePushNotifications = (userId, { checkServer = false } = {}) => {
     permission,
     error,
     serverSubscribed,
+    serverStatusError,
     subscribe,
     unsubscribe,
     refreshServerStatus
