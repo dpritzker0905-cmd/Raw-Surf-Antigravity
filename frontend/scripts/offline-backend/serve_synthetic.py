@@ -146,7 +146,9 @@ def wind_field(lat, lng, h):
         v_kn += sign * vt * dlng / r
     speed = math.hypot(u_kn, v_kn)
     direction = (math.degrees(math.atan2(-u_kn, -v_kn)) + 360.0) % 360.0   # FROM, as the normalizer writes it
-    return round(speed, 3), round(direction, 1), round(u_kn, 4), round(v_kn, 4)
+    # The normalizer's own rounding (normalizer.py): speed 4 dp, direction 2 dp, u / v from the UNROUNDED values at 4 dp (it was
+    # 3 dp / 0.1 deg here, which a static wind frame's parity gate rightly refuses: 2,174 of 15,023 nodes, 2026-10-22).
+    return round(speed, 4), round(direction, 2), round(u_kn, 4), round(v_kn, 4)
 
 
 def wind_provider_fields(model, estimated):
@@ -307,6 +309,77 @@ def synthetic_upstream_points(lats, lons, first, forecast_days, layer_keys=True)
     return out
 
 
+# REAL WIND (2026-10-22, the wind instant scrub): `--real-wind <dir>` replaces the synthetic GFS wind tiers (global_mid and
+# global_coarse) with a REAL NOAA GFS run built by the production fetcher + normalizer (<dir>/products: the product files and
+# manifest_entries.json), and `--real-wind-lane <file>` installs a real HRRR lane object (wind_lane.Lane) in the server, as the
+# box loads one from L2, so /grid blends HRRR into GFS wind exactly as live. With `--dynamic 1` the dynamic wind lane (the
+# close-zoom sharpen, Open-Meteo upstream in production) is answered from the SAME real run, bilinear in space and linear in time
+# onto the asked lattice: a lab stand-in for a finer product (it adds no detail), so fine overlays arrive as they do live.
+REAL_WIND = {}
+
+
+def real_wind_products(real_dir):
+    """[(filename, body, resolution)] for the real GFS wind tiers in `real_dir`/products."""
+    root = Path(real_dir) / "products"
+    entries = json.loads((root / "manifest_entries.json").read_text(encoding="utf-8"))
+    out = []
+    for e in entries:
+        if e.get("model") != "GFS" or e.get("domain") != "wind":
+            continue
+        body = json.loads((root / e["filename"]).read_text(encoding="utf-8"))
+        out.append((e["filename"], body, e.get("resolution")))
+    return out
+
+
+def load_real_wind_field(store_dir):
+    """The real global_mid run as numpy arrays (times, U, V on the 2-deg lattice), for the dynamic wind lane stand-in."""
+    import numpy as np
+    files = sorted(Path(store_dir).glob("gfs_wind_wind_global_mid_*.json"))
+    times, us, vs = [], [], []
+    lat0 = None
+    for f in files:
+        body = json.loads(f.read_text(encoding="utf-8"))
+        g = body["grid"]
+        cols, rows = g["cols"], g["rows"]
+        us.append(np.array([x["u"] for x in g["vectors"]], dtype=float).reshape(rows, cols))
+        vs.append(np.array([x["v"] for x in g["vectors"]], dtype=float).reshape(rows, cols))
+        lat0 = min(x["lat"] for x in g["vectors"][:cols])
+        times.append(datetime.strptime(body["valid_time"][:19], "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc).timestamp())
+    if files:
+        REAL_WIND.update(times=np.array(times), U=np.stack(us), V=np.stack(vs), lat0=float(lat0), lon0=-180.0, res=RES)
+
+
+def real_wind_points(lats, lons, first, forecast_days):
+    """Open-Meteo-shaped wind points (knots, FROM direction) sampled from the real run."""
+    import numpy as np
+    W = REAL_WIND
+    hours = max(24, int(forecast_days) * 24)
+    t = np.array([(first + timedelta(hours=h)).timestamp() for h in range(hours)])
+    k = np.clip(np.searchsorted(W["times"], t) - 1, 0, len(W["times"]) - 2)
+    ft = np.clip((t - W["times"][k]) / (W["times"][k + 1] - W["times"][k]), 0.0, 1.0)
+    lat = np.asarray(lats, dtype=float)
+    lon = ((np.asarray(lons, dtype=float) + 180.0) % 360.0) - 180.0
+    nr, nc = W["U"].shape[1], W["U"].shape[2]
+    fi = np.clip((lat - W["lat0"]) / W["res"], 0, nr - 1.000001)
+    fj = np.clip((lon - W["lon0"]) / W["res"], 0, nc - 1.000001)
+    i0, j0 = np.floor(fi).astype(int), np.floor(fj).astype(int)
+    di, dj = fi - i0, fj - j0
+
+    def sample(A):            # (frames, n): bilinear at every point for every frame
+        return (A[:, i0, j0] * (1 - di) * (1 - dj) + A[:, i0 + 1, j0] * di * (1 - dj)
+                + A[:, i0, j0 + 1] * (1 - di) * dj + A[:, i0 + 1, j0 + 1] * di * dj)
+    Us, Vs = sample(W["U"]), sample(W["V"])
+    u = Us[k] * (1 - ft[:, None]) + Us[k + 1] * ft[:, None]
+    v = Vs[k] * (1 - ft[:, None]) + Vs[k + 1] * ft[:, None]
+    spd = np.hypot(u, v)
+    drc = (np.degrees(np.arctan2(-u, -v)) + 360.0) % 360.0
+    times = [(first + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(hours)]
+    units = {"time": "iso8601", "wind_speed_10m": "kn", "wind_direction_10m": "degree"}
+    return [{"latitude": float(a), "longitude": float(b), "hourly_units": dict(units),
+             "hourly": {"time": times, "wind_speed_10m": [round(float(x), 2) for x in spd[:, n]],
+                        "wind_direction_10m": [round(float(x)) for x in drc[:, n]]}} for n, (a, b) in enumerate(zip(lats, lons))]
+
+
 def install_synthetic_upstream(first):
     """Route the dynamic lane's marine fetches (Open-Meteo for GFS / ICON, Copernicus for EURO) to synthetic_upstream_points.
     Wind and anything else keep failing fast on the blocked name lookup, as before."""
@@ -315,6 +388,10 @@ def install_synthetic_upstream(first):
     om_fetch = OpenMeteoProvider.fetch_grid
 
     async def om_fetch_grid(self, model, domain, layer, bbox, resolution=0.25, forecast_days=2, precomputed_coords=None, **kw):
+        if str(domain).lower() == "wind" and REAL_WIND and str(model).upper() == "GFS":
+            lats, lons = precomputed_coords or OpenMeteoProvider.generate_grid_coords(bbox, resolution)
+            wf = datetime.fromtimestamp(float(REAL_WIND["times"][0]), timezone.utc)
+            return real_wind_points(lats, lons, wf, min(int(forecast_days or 2), 16))
         if str(domain).lower() != "marine":
             return await om_fetch(self, model, domain, layer, bbox, resolution, forecast_days, precomputed_coords, **kw)
         lats, lons = precomputed_coords or OpenMeteoProvider.generate_grid_coords(bbox, resolution)
@@ -511,7 +588,7 @@ def real_frame_products(frames_dir):
 
 
 def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "ICON"), layers=("waves",), regions=(),
-                real_frames=None):
+                real_frames=None, real_wind=None):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     now = now or datetime.now(timezone.utc)
@@ -558,6 +635,17 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
             (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
             entries.append(manifest_entry(body, filename, res))
         real = {"index": index.get("path"), "run": index.get("run"), "frames": sum(1 for f in index["frames"] if f.get("path"))}
+    if real_wind:
+        # The real GFS wind run REPLACES the synthetic GFS wind world tiers (the other models stay synthetic).
+        drop = [e for e in entries if e["model"] == "GFS" and e["domain"] == "wind" and e["region_id"] in ("global_mid", "global_coarse")]
+        for e in drop:
+            entries.remove(e)
+            (directory / e["filename"]).unlink(missing_ok=True)
+        rw = real_wind_products(real_wind)
+        for filename, body, res in rw:
+            (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+            entries.append(manifest_entry(body, filename, res))
+        real = dict(real or {}, wind_products=len(rw))
     (directory / "store_meta.json").write_text(json.dumps({"first_valid": first.strftime("%Y-%m-%dT%H:%M:%SZ"),
                                                            "real_frames": real, "land_mask": LAND_MASK}), encoding="utf-8")
     (directory / "manifest.json").write_text(
@@ -605,6 +693,8 @@ def main():
     ap.add_argument("--real-frames", default="",
                     help="a local copy of the weather-frames bucket: GFS waves global_mid (and its coarse stand-in) become the real "
                          "published run (see REAL FRAMES above)")
+    ap.add_argument("--real-wind", default="", help="a real GFS wind run (<dir>/products; see REAL WIND above)")
+    ap.add_argument("--real-wind-lane", default="", help="a real HRRR wind lane object JSON, installed as the box's lane")
     ap.add_argument("--land-mask", choices=["0", "1"], default="0",
                     help="mark continent boxes as land (is_valid false, speed 0) in every marine product, as real stored products "
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
@@ -653,7 +743,7 @@ def main():
         meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(',')),
                            layers=tuple(x.strip() for x in args.layers.split(',') if x.strip()),
                            regions=regional_tiers(tuple(x.strip() for x in args.regions.split(',') if x.strip())),
-                           real_frames=args.real_frames or None)
+                           real_frames=args.real_frames or None, real_wind=args.real_wind or None)
     print(json.dumps({"store": meta, "thin_bounds": args.thin_bounds}), flush=True)
     if args.build_only:
         return
@@ -666,6 +756,13 @@ def main():
         first = datetime.strptime(json.loads((Path(args.dir) / "store_meta.json").read_text(encoding="utf-8"))["first_valid"],
                                   "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
         install_synthetic_upstream(first)
+    if args.real_wind_lane:
+        from services.weather_pipeline import wind_lane as _wl
+        _obj = json.loads(Path(args.real_wind_lane).read_text(encoding="utf-8"))
+        _wl.install(_wl.Lane(_obj, key="wind_lane/" + Path(args.real_wind_lane).name))
+        print(json.dumps({"wind_lane": {"cycle": _obj.get("cycle"), "horizon": _obj.get("horizon")}}), flush=True)
+    if args.dynamic == "1" and args.real_wind:
+        load_real_wind_field(args.dir)
     install_stale_window(app)
     if args.stale_seconds > 0:
         STALE.update({"seconds": args.stale_seconds, "scope": args.stale_scope, "model": args.stale_model or None,
