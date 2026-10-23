@@ -201,3 +201,23 @@ at a flat 8 s on a slow link).
 | manifest 4 s late (kill) | 1.7-6.4 s | 4-6 (39-59 s) |
 
 The on-time case lost its 3 one-frame minis: once latest.json is read every page is owned. Worst step 37-41 ms, 0 mislabelled.
+
+## 2026-10-23 (20:54Z): #491 live read (the owed commitment), split into valid counts and unmeasured timing
+
+**Setup.** The lead ran it from a signed-in browser with my read-only snippet. The private-beta gate keeps my harness off the hosted site. Dev site 2d7c062c (#491); health 0.46 s before, 0.63 s after; one scenario (the z9 Florida opening view, Waves on, four steps).
+
+**Valid (counts):**
+- **Waves:** one /grid_series, the hours=1 mini at 173 ms, and no full pages. The 16:33Z read had three waves pages at 5.1, 3.9 and 1.2 s.
+- **Regional client:** one bundle (323,940 B), 109 series frames, 108 slices, 4 hours outside the run, dynamicOnCovered 0.
+- **Other layers:** no swell, wind-wave or /grid marine asks in the ~35 s window. latest.json listed only the Florida waves set, and the swell layers asked nothing in that window.
+- **First frame source:** the series path, 11x13.
+
+**Not measured:**
+- first-frame time (5,664 ms) and step times (1-2 s): the automation window ran rAF at ~1 Hz;
+- the bundle download: served from the HTTP cache after an earlier click.
+
+Time to first frame stays on the offline arms (0.8-1.4 s vs 1.4-3.9 s without bundles) until a real-browser read.
+
+**Observation:** every tile pick in the trace was the pre-manifest pilot pick. The products manifest never reached the tile reader during the read, so without the review's pilot pick the bundle would not have served. Likely cause: in this flow nothing fetches the manifest. There was no marine /grid ask, and latest.json was already read, so no wait triggered it. That's not proven.
+
+Evidence: `evidence/regional-bundles-client-2026-10-23.json` (`live_read_491`).
