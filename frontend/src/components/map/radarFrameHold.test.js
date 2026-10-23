@@ -27,10 +27,16 @@ test('hard cut timing; kill restores the 250 ms cross-fade; an explicit fade lev
   expect(radarFrameTiming(180)).toEqual({ 'raster-opacity-transition': { duration: 250 }, 'raster-fade-duration': 180 });
 });
 
-test('first frame: shown as it loads (nothing to hold)', () => {
+test('first frame: shown as it loads (nothing to hold); the status pair says loading until its tiles are in', () => {
   const m = fakeMap({ a: { opacity: 0.8, loaded: false, tiles: 4 } });
-  expect(holdRadarFrame(m, 'a', 0.8)).toBeUndefined();
+  const times = { a: Date.UTC(2026, 9, 22, 21, 30) };
+  const release = holdRadarFrame(m, 'a', 0.8, (id) => times[id]);
   expect(m.frames.a.opacity).toBe(0.8);
+  expect(window.__RASTER_DRAWN__).toMatchObject({ layer: 'radar', shown: null, want: { url: 'a' } });
+  m.frames.a.loaded = true; m.fire('sourcedata');
+  expect(window.__RASTER_DRAWN__).toMatchObject({ shown: { url: 'a' }, want: { url: 'a' } });
+  expect(m.listeners('sourcedata')).toBe(0);
+  expect(typeof release).toBe('function');
 });
 
 test('next frame not loaded: the shown frame stays, then ONE swap when the new one is ready', () => {

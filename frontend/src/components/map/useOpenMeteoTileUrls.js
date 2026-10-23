@@ -29,7 +29,7 @@ import {
 import { validateModelAccess } from './LayerAccessResolver';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { useModelTransition, resolveVariable } from './useModelTransition';
-import { neighbourIndex, slotIndexOf, slotReady, retainedActiveSlot, planFlip } from './rasterFrameSwap';
+import { neighbourIndex, slotIndexOf, slotReady, retainedActiveSlot, planFlip } from './rasterFrameSwap'; import { useRasterDrawnPublisher } from './rasterDrawnFrame';
 
 // Global transition registry for deduplication (Request 1)
 let lastTransitionKey = null;
@@ -706,6 +706,7 @@ export function useOpenMeteoTileUrls({
     };
   }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, webglMarineFailed]);
 
+  useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, targetSlotsRef);   // the status line's shown/wanted pair
   // NOTE: Imperative opacity/fade override removed. All raster paint properties
   // (raster-opacity, raster-fade-duration) are controlled EXCLUSIVELY via
   // declarative JSX paint props in MapWebGL.js. Any imperative setPaintProperty
