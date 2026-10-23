@@ -29,6 +29,7 @@ import { buildWindVectors, frameMeta, gridJsonFromFrame, parseFrame, pickIndexFr
 import { cropGridJson, cropVectors, gridBboxParam, midClipWindow, parseBboxString } from './staticFrameCrop';
 import { clampViewportBbox, getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag } from './weatherTruthTracker';
+import { BACKEND_URL } from '../../lib/apiClient';
 
 export const WIND_SET_KEY = 'GFS/wind/wind/global_mid';
 export const LANE_POINTER_PATH = 'v1/wind_lane.json';
@@ -40,6 +41,8 @@ export const LANE_SETTLE_MS = 330000;    // the box re-reads the lane index ever
 const POINTER_TTL_MS = 120000;
 const POINTER_NEG_MS = 60000;
 const POINTER_NEG_MAX_MS = 900000;
+const BOX_MAX_AGE_MS = 300000;           // a box-lane read older than this confirms nothing (the box re-reads its lane every 300 s)
+export const BOX_LANE_PATH = '/api/weather/wind_lane';
 const BUILT_MAX = 10;                    // built grids kept (a step's idle pre-build fills ~6; each ~15k objects, ~1.5 MB)
 
 const W = () => (typeof window !== 'undefined' ? window : {});
@@ -65,7 +68,8 @@ const ms = (iso) => { const t = Date.parse(iso); return Number.isFinite(t) ? t :
 const iso = (t) => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // ── the pinned index, mirrored synchronously ─────────────────────────────────────────────────────────────────────────────────
-const _s = { index: null, indexAt: 0, pinLoad: null, ptr: null, ptrAt: 0, ptrLoad: null, ptrFails: 0, raw: new Map(), built: new Map() };
+const _s = { index: null, indexAt: 0, pinLoad: null, ptr: null, ptrAt: 0, ptrLoad: null, ptrFails: 0, raw: new Map(), built: new Map(),
+  box: null, boxAt: 0, boxLoad: null, boxFails: 0 };
 
 /** The pinned wind index (async; staticFrames' pin rules: one index per scrub session, re-pinned when idle). */
 export async function windIndex() {
@@ -88,8 +92,18 @@ export async function windIndex() {
 /** The pinned index right now, or null. Synchronous; no I/O. */
 export function windIndexSync() { return windStaticEnabled() ? _s.index : null; }
 
-// ── the box's lane: v1/wind_lane.json ────────────────────────────────────────────────────────────────────────────────────────
+// ── the box's lane: v1/wind_lane.json (what L2 names) + GET /api/weather/wind_lane (what the box holds) ─────────────────────────
+/**
+ * The lane pointer, re-read with the box's own lane (both on the same TTL; every caller of the pointer gets both). The pointer
+ * names the lane L2 holds; the box can hold an older one (2026-10-23: its lane refresh was lazy, and the box kept a 19 h old
+ * HRRR cycle for ~5 h), so a lane-window hour is served only when the BOX's lane equals the frames' (laneVerdict).
+ */
 export async function readLanePointer(force = false) {
+  const [ptr] = await Promise.all([readPointerOnly(force), readBoxLane(force)]);
+  return ptr;
+}
+
+async function readPointerOnly(force) {
   const base = staticFramesBase();
   if (!base) return null;
   const now = nowMs();
@@ -104,20 +118,39 @@ export async function readLanePointer(force = false) {
   return _s.ptrLoad;
 }
 
+/** GET /api/weather/wind_lane (wind_lane.box_state: no I/O on the box, cached 60 s); the last good read, or null. */
+export async function readBoxLane(force = false) {
+  const now = nowMs();
+  const ttl = _s.box ? POINTER_TTL_MS : Math.min(POINTER_NEG_MAX_MS, POINTER_NEG_MS * 2 ** Math.max(0, _s.boxFails - 1));
+  if (!force && _s.boxAt && now - _s.boxAt < ttl) return _s.box;
+  if (_s.boxLoad) return _s.boxLoad;
+  _s.boxLoad = fetch(`${BACKEND_URL}${BOX_LANE_PATH}`, { credentials: 'omit' })
+    .then((r) => { if (!r.ok) throw new Error(`http_${r.status}`); return r.json(); })
+    .then((j) => { _s.box = j && typeof j === 'object' && 'key' in j ? j : null; _s.boxAt = nowMs(); _s.boxFails = 0; tel().box = _s.box && { key: _s.box.key, at: _s.boxAt }; return _s.box; })
+    .catch(() => { _s.boxFails += 1; _s.boxAt = nowMs(); _s.box = null; return null; })   // unknown: lane hours ask /grid
+    .finally(() => { _s.boxLoad = null; });
+  return _s.boxLoad;
+}
+
 const laneBase = (lane) => ({ lane: 'gfs', feather_km: lane.feather_km, taper_hours: lane.taper_hours, hrrr_cycle: lane.cycle,
   hrrr_horizon: lane.horizon, source: lane.source });
 
 /**
- * The HRRR lane constants the serve box blends with, from /capabilities (the GFS wind rows' `wind_lane`: {enabled, feather_km,
- * taper_hours}; wind_lane.box_state; LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__), or null when
- * not loaded / an older server.
+ * The HRRR lane the serve box blends with (wind_lane.box_state: {enabled, feather_km, taper_hours, key, cycle, horizon, ...}):
+ * the last GET /api/weather/wind_lane read when it is under BOX_MAX_AGE_MS old, else /capabilities' GFS wind row `wind_lane`
+ * (LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__; read once per page, so its key is not trusted), or
+ * null when neither is known.
  */
 export function boxLane() {
+  if (_s.box && nowMs() - _s.boxAt < BOX_MAX_AGE_MS) return _s.box;
   try {
     const rows = W().__WEATHER_CAPABILITIES__;
     if (!Array.isArray(rows)) return null;
     const row = rows.find((r) => r && r.model === 'GFS' && r.domain === 'wind' && r.wind_lane && typeof r.wind_lane === 'object');
-    return row ? row.wind_lane : null;
+    if (!row) return null;
+    const constants = { ...row.wind_lane };   // constants only: its key is a page-load snapshot, never a confirmation
+    delete constants.key; delete constants.cycle; delete constants.horizon;
+    return constants;
   } catch (e) {
     return null;
   }
@@ -138,18 +171,22 @@ export function laneVerdict(index, frame, ptr, now = nowMs(), box = boxLane()) {
   const settled = Number.isFinite(ms(ptr.written_at)) && now - ms(ptr.written_at) >= LANE_SETTLE_MS;
   const same = !!(frames && frames.key === ptr.key && frames.feather_km === ptr.feather_km && frames.taper_hours === ptr.taper_hours);
   const inWindow = (lane) => !!lane && vt >= ms(lane.cycle) && vt <= ms(lane.horizon);
-  const touched = inWindow(ptr) || inWindow(frames) || !!(own && own.lane === 'hrrr+gfs');
+  const held = box && box.key ? box : null;           // the lane in the box's memory, when the box said which
+  const touched = inWindow(ptr) || inWindow(frames) || inWindow(held) || !!(own && own.lane === 'hrrr+gfs');
   // KILL for a box that failed to re-read its lane (it would keep an older one past the 330 s settle): every hour the lane can
   // touch asks /grid. window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ = true.
   if (touched && W().__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ === true) return { refuse: 'lane_hours_killed' };
-  // The frames were blended with wind_lane's code constants (recorded in the index); a lane hour is served only when /capabilities
-  // reports the box blending with the same ones. Unknown (not loaded yet, an older server) is not confirmed: /grid serves it.
-  const boxSame = !!(box && box.enabled === true && frames && box.feather_km === frames.feather_km && box.taper_hours === frames.taper_hours);
-  if (touched && !boxSame) return { refuse: box ? 'box_lane_differs' : 'box_lane_unconfirmed' };
-  if (same && settled && own) return { stamp: own };
-  if (touched) return { refuse: same ? 'lane_unsettled' : 'lane_mismatch' };
-  // GFS on both sides: /grid's stamp names the box's lane.
-  return { stamp: { ...laneBase(ptr), valid_time: iso(vt), reason: vt < ms(ptr.cycle) ? 'before_hrrr_cycle' : 'beyond_hrrr_horizon' } };
+  // A lane hour is served only when the box says it blends the frames' OWN lane (key) with the frames' constants. Unknown (no
+  // fresh box read, an older server) is not confirmed: /grid serves it.
+  const boxSame = !!(held && box.enabled === true && frames && held.key === frames.key && box.feather_km === frames.feather_km
+    && box.taper_hours === frames.taper_hours);
+  if (touched && !boxSame) return { refuse: held ? 'box_lane_differs' : 'box_lane_unconfirmed' };
+  if (touched) return same && settled && own ? { stamp: own } : { refuse: same ? 'lane_unsettled' : 'lane_mismatch' };
+  // GFS on both sides. The frame's own stamp names the frames' lane: /grid's, unless the box holds another one.
+  if (same && settled && own && (!held || held.key === frames.key)) return { stamp: own };
+  // GFS on both sides: /grid's stamp names the box's lane (the one it holds when it said, else the pointer's).
+  const named = held || ptr;
+  return { stamp: { ...laneBase(named), valid_time: iso(vt), reason: vt < ms(named.cycle) ? 'before_hrrr_cycle' : 'beyond_hrrr_horizon' } };
 }
 
 /** The lane stamp /grid puts on a CLIP of the frame: the nodes the lane touched inside the window decide it (wind_lane._blend). */
@@ -330,8 +367,10 @@ export function staticWindCovers(askIsos, model = 'GFS') {
 /** Test hook. */
 export function _resetWindStaticForTest() {
   _s.index = null; _s.indexAt = 0; _s.pinLoad = null; _s.ptr = null; _s.ptrAt = 0; _s.ptrLoad = null; _s.ptrFails = 0;
+  _s.box = null; _s.boxAt = 0; _s.boxLoad = null; _s.boxFails = 0;
   _s.raw.clear(); _s.built.clear();
   if (typeof window !== 'undefined') delete window.__RAW_WIND_STATIC__;
 }
 /** Test hook: install a lane pointer without I/O. */
 export function _setLanePointerForTest(ptr) { _s.ptr = ptr; _s.ptrAt = nowMs(); }
+export function _setBoxLaneForTest(box) { _s.box = box; _s.boxAt = box ? nowMs() : 0; }
