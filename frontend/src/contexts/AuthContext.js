@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback, use
 import apiClient from '../lib/apiClient';
 import { clearSessionRejected, wasSessionRejected } from '../lib/sessionRejection';
 import { forgetThisDeviceForAccount } from '../hooks/usePushNotifications';
+import { purgeUserScopedStorage } from '../lib/userScopedStorage';
 
 const AuthContext = createContext();
 
@@ -164,6 +165,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('isPersonaBarActive');
     localStorage.removeItem('activePersona');
     localStorage.removeItem('impersonation_session');
+    // A shared device: the next account must not inherit this one's cached feed, offline queue, favourites, searches.
+    purgeUserScopedStorage();
     document.documentElement.classList.add('no-god-mode');
   }, [impersonation, endImpersonation]);
 
