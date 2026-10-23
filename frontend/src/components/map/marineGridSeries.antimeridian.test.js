@@ -77,10 +77,12 @@ describe('the emitted request box', () => {
     await ensureMarineSeries('GFS', 'waves', REGIONAL_FL, 0, undefined, true);
 
     const [w, s, e, n] = bboxOf(urls[0]);
-    expect(w).toBeCloseTo(REGIONAL_FL.west - 0.5, 3);    // the 0.5° regional pad, still applied
-    expect(e).toBeCloseTo(REGIONAL_FL.east + 0.5, 3);
-    expect(s).toBeCloseTo(REGIONAL_FL.south - 0.5, 3);
-    expect(n).toBeCloseTo(REGIONAL_FL.north + 0.5, 3);
+    // the 0.5° regional pad, still applied, then snapped OUTWARD to 1° (marineSeriesPanGuard.snapRequestBox, 2026-10-23)
+    expect(w).toBe(Math.floor(REGIONAL_FL.west - 0.5));
+    expect(e).toBe(Math.ceil(REGIONAL_FL.east + 0.5));
+    expect(s).toBe(Math.floor(REGIONAL_FL.south - 0.5));
+    expect(n).toBe(Math.ceil(REGIONAL_FL.north + 0.5));
+    expect(e - w).toBeLessThan(15);
     expect([w, s, e, n]).not.toEqual([-180, -80, 180, 85]);
   });
 

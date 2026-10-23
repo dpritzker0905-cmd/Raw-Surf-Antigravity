@@ -28,6 +28,8 @@
 //   nocropshow  window.__RAW_DISABLE_FRAME_STORE_CROP__ = true (the store shows world-sized residents only, as before 2026-10-22)
 //   grid     window.__RAW_DISABLE_STATIC_FRAMES__ = true (no CDN at all: /grid + /grid_series only)
 //   noaheadrun  window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true (a new window's packs for the cursor +-24 only, as before pass 2)
+//   regional    window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true (the regional bundle client is DARK by default since 2026-10-23
+//            evening: opt in to measure it)
 //   noregional  window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (z7-9 boxes a pilot tile covers go to /grid + /grid_series, as before
 //            2026-10-23). Per session `marineAll` counts every marine /grid and /grid_series ask, per layer, over the WHOLE session (load, settle and
 //            steps) with the backend ms they took, and `regional` reads window.__RAW_STATIC_REGIONAL__ (hits, series frames, misses).
@@ -171,6 +173,7 @@ async function session(arm, zoom) {
     if (arm === 'nocropshow') window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
     if (arm === 'noaheadrun') window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
     if (arm === 'noregional') window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
+    if (arm === 'regional') window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;   // the client is dark by default since 2026-10-23
     if (regTrace) window.__RAW_STATIC_REGIONAL_TRACE__ = [];
   }, { arm, base: `http://127.0.0.1:${CDN_PORT}/`, regTrace: process.env.REGTRACE === '1' });
   await page.addInitScript(PROBE);

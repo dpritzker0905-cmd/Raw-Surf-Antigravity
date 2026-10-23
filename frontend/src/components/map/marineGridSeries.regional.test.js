@@ -78,6 +78,7 @@ beforeEach(() => {
   delete window.__RAW_DISABLE_STATIC_FRAMES__;
   window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
   window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;              // dark by default since 2026-10-23 evening: this suite opts in
   _resetStaticFramesForTest(); _resetMarineSeriesForTest();
   _setRegionalCodecForTest({ sha12: async (b) => sha12(b), gunzip: async (b) => Uint8Array.from(zlib.gunzipSync(Buffer.from(b))).buffer });
   setCachedManifest(MANIFEST);
@@ -86,7 +87,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
-  delete window.__RAW_STATIC_FRAMES_BASE__;
+  delete window.__RAW_STATIC_FRAMES_BASE__; delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
   if (killBefore === undefined) delete window.__RAW_DISABLE_STATIC_FRAMES__; else window.__RAW_DISABLE_STATIC_FRAMES__ = killBefore;
   _setRegionalCodecForTest();
   setCachedManifest(null);

@@ -307,3 +307,15 @@ predicted.
   - the cover is still checked on the set's own lattice (the snapped box inside the data).
   When the manifest is loaded, it decides. Kill switch: `__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__`.
 
+**DARK by default (2026-10-23 evening).** Static-frames' LIVE parity of the Florida waves bundle (run 20261023T120000Z) against the
+real `/grid_series` failed:
+- the whole-tile lattice differs (0 comparable);
+- 465 of 585 sub-box nodes are bad;
+- 8 metadata fields mismatch;
+- sha12 is fine. Offline it passed.
+
+So the live server may answer these boxes from another product than the tile, which makes the bundle a served-number change
+(D-001). The client now reads bundles only with `window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true`; the kill still wins.
+`REGIONAL_BUNDLES_DEFAULT_ON` flips back once static-frames names the served product and the live parity passes. The offline tools
+opt in (`scn_zoom_scrub.js` arm `regional`; the parity script sets the flag).
+
