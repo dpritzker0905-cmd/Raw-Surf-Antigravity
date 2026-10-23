@@ -479,10 +479,12 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
 # Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
 # PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
-_FLOOR_SET_FROM = {"guards": 3317, "chain": 2873, "estate": 2397}
+_FLOOR_SET_FROM = {"guards": 3317, "chain": 2873, "estate": 2411}
 # The targeted fill's stats on /admin/surf-forecast/status: +1 guards test -> 3317 / 211; floor 3310 -> 3311.
 # The targeted fill, second review: +8 guards tests in tests/test_coarse_gulf_fill_targeted.py -> 3316 / 211; floor 3302 -> 3310, margin 6.
 # the targeted 2-deg Gulf fill, dark: +11 guards tests in a new file (tests/test_coarse_gulf_fill_targeted.py (+1 real-store case in tests/test_coarse_fill_shared_vectors.py)) on dev's hosted guards 3297/210 (set-from on dev 891c815b7) = 3308 / 211; floor 3291 -> 3302, margin 6.
+# Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
+# in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.
 # The wind lane keeper + the box lane read: +4 guards tests in tests/test_wind_hrrr_lane.py on dev CI 39896720617's 3293 / 210 = 3297; floor 3291, margin 6.
 # Per-PR ledger fragments (D-0XX): +49 estate tests in a new file (tests/test_ledger_fragments.py) on dev CI 39896720617's
 # 2343 / 330 files = 2392 / 331; floor 2341 -> 2390, margin 2.

@@ -125,7 +125,8 @@ jobs:
       # services/frame_set.SETS (2026-10-22: GFS waves, swell_1, swell_2, wind_waves; ICON waves, swell_1, wind_waves; EURO
       # waves; GFS 10 m wind; all global_mid) as one gzipped binary frame (~56 KB) in the PUBLIC bucket `weather-frames`, each decoded and
       # checked node by node against its source
-      # (2026-10-23, services/frame_set_bundle.py: GFS waves on every GFS marine pilot box, after the world sets, each set as ONE
+      # (2026-10-23, services/frame_set_bundle.py: GFS waves, then swell_1, swell_2 and wind_waves, on every GFS marine pilot box,
+      # after the world sets, each set as ONE
       # immutable bundle per run with an offset table, so 19 boxes cost 19 uploads; off with FRAME_REGIONAL_BUNDLES=0)
       # before upload, plus an immutable run index and a no-cache v1/latest.json pointer written LAST; only changed frames
       # are uploaded; the current and previous index are kept and older objects deleted. Also writes the one-field PNG
