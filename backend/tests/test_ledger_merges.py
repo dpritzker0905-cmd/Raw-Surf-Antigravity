@@ -190,6 +190,25 @@ def test_fold_pr_record_merges_keeps_auto_merges_recorded_and_the_fold_exact(rep
     assert F.check_pr(repo.path, "origin/dev", "HEAD", head_ref=s["branch"])[0] == []
 
 
+def test_fold_pr_refuses_to_move_the_fold_point_past_merges_it_leaves_unledgered(repo, tmp_path):
+    """2026-10-23: the first fold (#478) ran without --record-merges and moved the fold point past #467, #471 and
+    #477; the audit then FAILed all three on every PR. Without --record-merges a fold now refuses (a dry run warns)."""
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "dev", str(remote)], check=True)
+    repo.git("remote", "add", "origin", str(remote))
+    merge(repo, "a", frag({"kind": "finding"}))
+    squash(repo, 8, "2026-10-22T14:00:00Z")
+    repo.write("other.txt", "head\n")
+    repo.commit("an unrelated HEAD", date="2026-10-22T16:00:00Z")
+    repo.git("push", "-q", "origin", "dev")
+    said = []
+    assert F.fold_pr(repo.path, dry_run=True, out=said.append)["folded"]
+    assert any("#8" in x and "--record-merges" in x for x in said)
+    with pytest.raises(F.LedgerError, match="--record-merges"):
+        F.fold_pr(repo.path, open_pr=False, out=said.append)
+    assert repo.git("ls-remote", "--heads", "origin", "ledger-fold/*") == ""
+
+
 def test_fold_pr_with_only_merges_to_record_still_opens_a_branch(repo, tmp_path):
     remote = tmp_path / "remote.git"
     subprocess.run(["git", "init", "-q", "--bare", "-b", "dev", str(remote)], check=True)

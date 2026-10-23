@@ -21,6 +21,7 @@
  */
 
 import { setGridPointRegUniform } from './gridPointRegistration';
+import { uniformLoc } from './glUniformCache';
 
 /**
  * @returns {{on: boolean, cols: number|null, rows: number|null}} what was actually set — the caller
@@ -58,9 +59,9 @@ export function resolveLandAwareFetch(waveGrid, win) {
 export function setLandAwareFetchUniforms(gl, prog, waveGrid, win) {
   const r = resolveLandAwareFetch(waveGrid, win);
   if (!gl || !prog) return r;
-  gl.uniform2f(gl.getUniformLocation(prog, 'u_waveTexel'),
+  gl.uniform2f(uniformLoc(gl, prog, 'u_waveTexel'),
     r.on ? 1 / r.cols : 0, r.on ? 1 / r.rows : 0);
-  gl.uniform1f(gl.getUniformLocation(prog, 'u_landAwareFetch'), r.on ? 1 : 0);
+  gl.uniform1f(uniformLoc(gl, prog, 'u_landAwareFetch'), r.on ? 1 : 0);
   // POINT REGISTRATION rides the same every-pass guarantee (both passes share ONE program): gridPointRegistration.js.
   setGridPointRegUniform(gl, prog, 'u_wave_reg', waveGrid, win);
   return r;

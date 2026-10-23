@@ -3,7 +3,7 @@
  */
 import { fillBlocker, planWind } from './windFramePrefetch';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
-import { WIND_SET_KEY } from './windStaticFrames';
+import { WIND_SET_KEY, _resetWindStaticForTest, _setBoxLaneForTest } from './windStaticFrames';
 
 // The device facts are pinned, never read off the machine running the test: deviceTier counts <= 4 cores as weak, and a CI runner
 // has 4 (the policy test once passed on a 16-core desktop and failed on the runner).
@@ -21,12 +21,17 @@ const NOW = Date.parse('2026-10-22T22:00:00Z');
 const settled = { ...LANE, written_at: '2026-10-22T19:00:00Z' };
 
 // /capabilities reports the box blending with the frames' constants (windStaticFrames.boxLane): lane hours may be served.
-beforeEach(() => { window.__WEATHER_CAPABILITIES__ = [{ model: 'GFS', domain: 'wind', layer: 'wind', wind_lane: { enabled: true, feather_km: 200, taper_hours: 3 } }]; });
-afterEach(() => { delete window.__WEATHER_CAPABILITIES__; });
+// The box holds the frames' lane (GET /api/weather/wind_lane, windStaticFrames.boxLane): lane hours may be served.
+beforeEach(() => {
+  window.__WEATHER_CAPABILITIES__ = [{ model: 'GFS', domain: 'wind', layer: 'wind', wind_lane: { enabled: true, feather_km: 200, taper_hours: 3 } }];
+  _setBoxLaneForTest({ enabled: true, feather_km: 200, taper_hours: 3, key: LANE.key, cycle: LANE.cycle, horizon: LANE.horizon, source: 's' });
+});
+afterEach(() => { delete window.__WEATHER_CAPABILITIES__; _resetWindStaticForTest(); });
 
 describe('the wind prefetch plan', () => {
   test('without the box\'s constants confirmed, only hours outside every lane window are fetched', () => {
     delete window.__WEATHER_CAPABILITIES__;
+    _setBoxLaneForTest(null);
     const plan = planWind(INDEX, settled, Date.parse(vt(12)), Infinity, NOW);
     expect(plan.map((p) => p.validTime).sort()).toEqual([vt(0), vt(3)]);              // before the lane's cycle: GFS on both sides
   });

@@ -157,8 +157,12 @@ def test_the_regional_sets_are_every_gfs_marine_pilot_box_after_the_world_sets(m
     from services.weather_pipeline import pilot_regions as pr
     boxes = {**pr.REGIONAL_CONFIGS, **pr.WORLDWIDE_COASTAL_REGIONS, **pr.GFS_MARINE_EXTRA_REGIONS,
              **pr.GFS_MARINE_STAGE_B_REGIONS}
-    assert [t["region_id"] for t in fsb.REGIONAL_SETS] == list(boxes)
-    assert all((t["model"], t["domain"], t["layer"], t["bundle"]) == ("GFS", "marine", "waves", True) for t in fsb.REGIONAL_SETS)
+    layers = ("waves", "swell_1", "swell_2", "wind_waves")                  # waves first: the stagger drops the trains first
+    assert [(t["layer"], t["region_id"]) for t in fsb.REGIONAL_SETS] == [(l, r) for l in layers for r in boxes]
+    assert all((t["model"], t["domain"], t["bundle"]) == ("GFS", "marine", True) for t in fsb.REGIONAL_SETS)
+    monkeypatch.setenv("FRAME_REGIONAL_BUNDLE_LAYERS", "waves")
+    assert [t["layer"] for t in fsb.selected_regional_sets()] == ["waves"] * len(boxes)
+    monkeypatch.delenv("FRAME_REGIONAL_BUNDLE_LAYERS")
     monkeypatch.delenv("FRAME_SETS")
     keys = [fs.set_key(t) for t in pub.selected_sets()]
     assert keys[:len(fs.SETS)] == [fs.set_key(t) for t in fs.SETS]           # world sets first, unchanged

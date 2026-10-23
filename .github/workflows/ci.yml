@@ -925,7 +925,10 @@ jobs:
           # ⬆ 209/3281 → 210/3287 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (MARINE_GULF_FILL_MID, dark): one new guards
           # file (tests/test_coarse_gulf_fill_mid.py, matched by tests/test_coarse_*.py) adds 6 tests to the 3287 / 209 read of dev
           # CI 39861554298 @ 57632973b: projected 3293 / 210; 3293 - 6 = 3287. _FLOOR_SET_FROM["guards"] -> 3293.
-          MIN_FILES, MIN_PASSED = 210, 3287
+          # ⬆ 210/3287 → 210/3291 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the box keeps its HRRR lane fresh, and says
+          # which it holds): +4 tests in tests/test_wind_hrrr_lane.py (an existing guards file) on dev CI 39896720617 @ b88b5ca32's
+          # 3293 / 210 = 3297 / 210 projected; 3297 - 6 = 3291. _FLOOR_SET_FROM["guards"] -> 3297.
+          MIN_FILES, MIN_PASSED = 210, 3291
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1985,13 +1988,14 @@ jobs:
           # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
           # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
           # This PR must read 2392 passed.
-          # ⬆ 2390→2403 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (completeness sees squash merges): one new estate
-          # file adds 13 executed tests (tests/test_ledger_merges.py) to the 2392 / 331 files #472 read on hosted CI
-          # (run 39964614711, merged as e7fc9efda): projected 2405 / 332 files; 2405 - 2 = 2403, margin 2.
-          # _FLOOR_SET_FROM["estate"] -> 2405. This PR must read 2405 passed.
-          # ⬆ 2403→2421 on 2026-10-23 (rederive_floor.py, claude/floor-map-lanes): dev run 39967681687 read 2392; dev's map 2405;
-          #   base 2405 (dev's map) + 18 new test(s) = 2423; floor 2423 - 2 = 2421. This PR must read 2423 passed.
-          MIN_PASSED = 2421
+          # ⬆ 2390→2395 on 2026-10-23 (#470, re-derived by the lead after #472 landed): +5 tests in the existing
+          # tests/test_audit_push_authority.py on #472's projected 2392 -> 2397; 2397 - 2 = 2395, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2397. This PR must read 2397 passed.
+          # ⬆ 2395→2409 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (completeness sees squash merges, re-derived after
+          # #470): one new estate file adds 14 executed tests (tests/test_ledger_merges.py) to the 2397 / 331 files #470
+          # read on hosted CI (run 39979894860): projected 2411 / 332 files; 2411 - 2 = 2409, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2411. This PR must read 2411 passed.
+          MIN_PASSED = 2409
 
           try:
               root = ET.parse('estate.xml').getroot()

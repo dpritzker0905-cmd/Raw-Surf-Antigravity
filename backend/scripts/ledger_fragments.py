@@ -586,13 +586,25 @@ def fold_pr(repo: str, remote: str = "origin", base: str = "dev", dry_run: bool 
     try:
         s = fold(wt, base_ref, at=at)
         recorded = []
+        try:
+            from . import ledger_merges as LM
+        except ImportError:
+            import ledger_merges as LM
+        folded_lines = L.read_lines(os.path.join(wt, *LEDGER_REL.split("/")))
         if record_actor:
-            try:
-                from . import ledger_merges as LM
-            except ImportError:
-                import ledger_merges as LM
-            recorded = LM.record_merges(wt, base_ref, L.read_lines(os.path.join(wt, *LEDGER_REL.split("/"))),
-                                        record_actor, name=slug(branch), gh=gh, out=out)
+            recorded = LM.record_merges(wt, base_ref, folded_lines, record_actor, name=slug(branch), gh=gh, out=out)
+        elif s["folded"]:
+            # ⬇ 2026-10-23: the first fold (#478) ran before --record-merges existed. Landing, it moved the fold point
+            # past #467, #471 and #477, and the audit then FAILED all three on every PR. A fold must not move the
+            # fold point past a merge it leaves unledgered.
+            owed = LM.missing_merges(LM.git_merges(wt, base_ref, include_tip=True) or [], folded_lines)
+            if owed:
+                msg = (f"{len(owed)} merge(s) on {base_ref} have no pr_merge line "
+                       f"({', '.join(f'#{n}' for n, _ in owed)}): this fold would move the fold point past them and "
+                       f"the audit would FAIL them. Pass --record-merges --actor <you>")
+                if not dry_run:
+                    raise LedgerError(f"refusing the fold: {msg}")
+                out(f"WARNING: {msg}")
         if not s["folded"] and not recorded:
             out(f"nothing to fold or record: {base_ref} @ {base_sha[:12]} holds no fragment"
                 + (" and no unledgered merge" if record_actor else ""))

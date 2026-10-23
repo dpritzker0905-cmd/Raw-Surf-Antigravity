@@ -272,7 +272,7 @@ def selected_sets(sets=None):
     sets, then the regional bundle sets (frame_set_bundle.REGIONAL_SETS, LAST so the budget stagger drops them first; off with
     FRAME_REGIONAL_BUNDLES=0)."""
     if sets is None:
-        sets = tuple(fs.SETS) + (fsb.REGIONAL_SETS if fsb.enabled() else ())
+        sets = tuple(fs.SETS) + (fsb.selected_regional_sets() if fsb.enabled() else ())
     want = [k.strip() for k in os.environ.get("FRAME_SETS", "").split(",") if k.strip()]
     return [t for t in sets if not want or fs.set_key(t) in want]
 
