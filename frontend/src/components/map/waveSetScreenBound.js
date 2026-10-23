@@ -24,6 +24,7 @@
  *   window.__RAW_DISABLE_PROPORTIONAL_WAVE_SETS__ = true   -> #397 exactly (per-period max, floor 3)
  *   window.__RAW_DISABLE_SCREEN_BOUNDED_WAVE_SETS__ = true -> no screen bound (k = 1; with both set, pre-#397 exactly)
  */
+import { uniformLoc } from './glUniformCache';
 export const WAVE_SET_MIN_IN_VIEW = 3;
 export const WAVE_SET_T_MAX = 20;                                      // s, longest period whose spacing/speed stay in order
 export const WAVE_SET_F_K = 800;                                       // spatialFreq = F_K / T^2 per world unit
@@ -47,8 +48,8 @@ export function minSetsInView() { return flag('__RAW_DISABLE_SCREEN_BOUNDED_WAVE
 export function proportionalSets() { return !flag('__RAW_DISABLE_PROPORTIONAL_WAVE_SETS__'); }
 /** Both wave-set uniforms for the draw program (read per draw, so a kill takes effect on the next frame). */
 export function applyWaveSetUniforms(gl, program) {
-  gl.uniform1f(gl.getUniformLocation(program, 'u_minSetsInView'), minSetsInView());
-  gl.uniform1f(gl.getUniformLocation(program, 'u_proportionalSets'), proportionalSets() ? 1 : 0);
+  gl.uniform1f(uniformLoc(gl, program, 'u_minSetsInView'), minSetsInView());
+  gl.uniform1f(uniformLoc(gl, program, 'u_proportionalSets'), proportionalSets() ? 1 : 0);
 }
 
 /** JS mirror of the GLSL, for tests and diagnostics. */

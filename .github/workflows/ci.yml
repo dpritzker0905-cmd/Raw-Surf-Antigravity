@@ -1991,7 +1991,10 @@ jobs:
           # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
           # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
           # This PR must read 2392 passed.
-          MIN_PASSED = 2390
+          # ⬆ 2390→2395 on 2026-10-23 (#470, re-derived by the lead after #472 landed): +5 tests in the existing
+          # tests/test_audit_push_authority.py on #472's projected 2392 -> 2397; 2397 - 2 = 2395, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2397. This PR must read 2397 passed.
+          MIN_PASSED = 2395
 
           try:
               root = ET.parse('estate.xml').getroot()

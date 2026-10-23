@@ -65,17 +65,28 @@ export function planWant({ active, cursor = 0, dir = 1, expanded = false, warm =
   const built = active.built || (() => true);
   const radius = slow ? WINDOW_SLOW : WINDOW;
   const seen = new Set();
-  const push = (key, validTime, ok, isWarm) => {
+  const push = (key, validTime, ok, isWarm, isFill) => {
     const id = `${key}@${validTime}`;
     if (!ok || seen.has(id)) return;
-    seen.add(id); plan.push(isWarm ? { key, validTime, warm: true } : { key, validTime });
+    seen.add(id); plan.push(isWarm ? { key, validTime, warm: true } : isFill ? { key, validTime, fill: true } : { key, validTime });
   };
   const order = nearestFirst(n, cursor, dir);
   const near = order.filter((i) => Math.abs(i - cursor) <= radius);
   for (const i of near) push(active.key, active.validTimes[i], built(active.validTimes[i]));
   for (const w of warm) push(w.key, w.validTime, w.built !== false && !!w.validTime, true);
-  if (expanded && full) for (const i of order) push(active.key, active.validTimes[i], built(active.validTimes[i]));
+  if (expanded && full) for (const i of order) push(active.key, active.validTimes[i], built(active.validTimes[i]), false, true);
   return plan;
+}
+
+/**
+ * FETCH PRIORITY per plan entry (2026-10-23, skills audit #1): the plan's first two entries (the cursor's frame and the one the
+ * wheel heads to next) ask 'high'; warm frames of other sets and the run fill ask 'low', so on a shared link they never take
+ * bandwidth equally from the frame on screen; the rest of the +-8 window keeps the browser's default. The worker fetch carries it
+ * (staticFrames.fetchFrameBytes; kill window.__RAW_DISABLE_FETCH_PRIORITY__ there).
+ */
+export function planPriority(p, i) {
+  if (i < 2) return 'high';
+  return p && (p.warm || p.fill) ? 'low' : undefined;
 }
 
 /** The intent gate: a set expands to its whole series once the wheel has moved EXPAND_AFTER_FRAMES frames from its origin. */
@@ -171,14 +182,14 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     }
   }
 
-  function start(p) {
+  function start(p, priority) {
     const e = store.entry(p.key, p.validTime);
     if (!e || !e.path || !store.markInflight(p.key, p.validTime)) return false;
     const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : { abort() {}, signal: undefined };
     const id = idOf(p.key, p.validTime);
     inflight.set(id, { key: p.key, validTime: p.validTime, ctrl });
     t.requests += 1;
-    Promise.resolve(fetchFrame(e.path, ctrl.signal)).then((got) => {
+    Promise.resolve(fetchFrame(e.path, ctrl.signal, priority)).then((got) => {
       if (!inflight.has(id)) return;              // aborted meanwhile
       inflight.delete(id);
       if (!got || got.error) {
@@ -210,13 +221,14 @@ export function createPrefetcher({ store, fetchFrame, decodeAndPack, onPacked = 
     if (!opened) return;
     if (coolUntil > now()) { wakeIn(coolUntil - now()); return; }
     let nextRetry = Infinity;
-    for (const p of plan) {
+    for (let i = 0; i < plan.length; i++) {
+      const p = plan[i];
       if (inflight.size >= capEff()) break;
       const e = store.entry(p.key, p.validTime);
       if (e && e.state === 'absent') {
         const r = retryAt.get(idOf(p.key, p.validTime)) || 0;
         if (r > now()) { t.backedOff += 1; nextRetry = Math.min(nextRetry, r); continue; }
-        start(p);
+        start(p, planPriority(p, i));
       }
     }
     if (nextRetry < Infinity && inflight.size < capEff()) wakeIn(nextRetry - now());
