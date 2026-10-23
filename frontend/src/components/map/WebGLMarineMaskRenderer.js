@@ -604,11 +604,13 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   // whenever the land geojson upgrades. Kill: window.__RAW_DISABLE_MASK_CANVAS_CACHE__ = true.
   const cacheOn = typeof window === 'undefined' || window.__RAW_DISABLE_MASK_CANVAS_CACHE__ !== true;
   const cacheKey = (bounds ? `${bounds.west}_${bounds.south}_${bounds.east}_${bounds.north}` : 'global') + `_${width}`;
+  const readOnly = !!(opts && opts.readOnly) && (typeof window === 'undefined' || window.__RAW_DISABLE_MASK_READONLY_CANVAS__ !== true);   // READ-ONLY (2026-10-23): a caller that never paints (the coarse-base capture) gets the cached canvas itself, no 4096x2048 copy
   if (cacheOn) {
     if (_maskCanvasCacheGeo !== geojson) { _maskCanvasCache.clear(); _maskCanvasCacheGeo = geojson; }
     const hit = _maskCanvasCache.get(cacheKey);
     if (hit) {
       _maskCanvasCache.delete(cacheKey); _maskCanvasCache.set(cacheKey, hit); // LRU touch
+      if (readOnly) return hit;
       const copy = document.createElement('canvas');
       copy.width = hit.width; copy.height = hit.height;
       copy.getContext('2d', { willReadFrequently: true }).drawImage(hit, 0, 0);
@@ -781,9 +783,8 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   // 100-250 ms polygon fill.
   if (cacheOn) {
     try {
-      const keep = document.createElement('canvas');
-      keep.width = canvas.width; keep.height = canvas.height;
-      keep.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
+      const keep = readOnly ? canvas : document.createElement('canvas');   // a read-only caller's canvas is never mutated: keep it as is
+      if (!readOnly) { keep.width = canvas.width; keep.height = canvas.height; keep.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0); }
       _maskCanvasCache.delete(cacheKey);
       _maskCanvasCache.set(cacheKey, keep);
       while (_maskCanvasCache.size > MASK_CANVAS_CACHE_MAX) {

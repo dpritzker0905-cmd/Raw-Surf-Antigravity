@@ -271,7 +271,9 @@ describe('wiring', () => {
     expect(app).toContain('id="esri-satellite-layer"');
     expect(app).toContain("layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}");
     expect(app).toContain("if (mapInstance.getLayer('webgl-wind-particles')) setOmSlotsBeforeId('webgl-wind-particles');");   // the slots sit just under the wind
-    expect(app).toContain("visibility: (!hideForTransition && activeLayers.includes(layerKey)) ? 'visible' : 'none'");
+    // omLayers = activeLayers minus a layer drawn from our own frames (useOwnRasterFrames.js, 2026-10-23): a slot is still hidden
+    // by visibility whenever its layer is not drawn through the .om path.
+    expect(app).toContain("visibility: (!hideForTransition && omLayers.includes(layerKey)) ? 'visible' : 'none'");
     for (const id of ['MASK_BUFFER', 'MASK_FILL', 'MASK_LINE', 'MASK_INLAND_WATERWAY', 'MASK_INLAND_WATER']) expect(mask).toMatch(new RegExp(`const ${id}\\s*= 'ocean-mask-`));
   });
 });

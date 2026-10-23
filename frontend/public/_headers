@@ -5,10 +5,14 @@
 /static/css/*
   Cache-Control: public, max-age=31536000, immutable
 
-# HTML files should never be cached (ensures new bundles are loaded)
+# HTML is revalidated on every load (ensures new bundles are loaded). no-cache, not no-store (skills audit #4, 2026-10-23):
+# no-store would keep the page out of the back/forward cache. (The no-store this rule used to ask for was never served: the
+# catch-all's no-cache won, and the deployed /index.html read `Cache-Control: no-cache`.)
 /index.html
-  Cache-Control: no-cache, no-store, must-revalidate
-
-/*
   Cache-Control: no-cache
+
+# The catch-all sets NO Cache-Control (skills audit #4, 2026-10-23). Its old `no-cache` overrode the immutable rules above on
+# Netlify: the deployed /static/js/main.*.js was served `Cache-Control: no-cache`, so every load revalidated every hashed chunk
+# (a 304 round trip each, serial for the lazy map chunk). Other files keep Netlify's default (public, max-age=0, must-revalidate).
+/*
   X-Content-Type-Options: nosniff

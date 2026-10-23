@@ -18,7 +18,7 @@ jest.mock('./staticFrames', () => ({
   getPinnedIndex: async (k) => mockSF.byKey[k] || null,
   staticEligible: ({ model }) => mockSF.eligible.includes(String(model).toUpperCase()),
   onStaticFrameParsed: (fn) => { mockSF.hooks.add(fn); return () => mockSF.hooks.delete(fn); },
-  loadFrameParsed: (key, frame, signal) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, resolve }); }),
+  loadFrameParsed: (key, frame, signal, opts) => new Promise((resolve) => { mockSF.loads.push({ key, frame, signal, opts, resolve }); }),
 }));
 import * as RT from './marineFrameStoreRuntime';
 
@@ -181,6 +181,23 @@ describe('a model click on a mid-zoom clip shows the new model\'s window with it
     calls.length = 0;
     expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 3, requestedValidTime: vt(1) })).toBe(false);
     expect(calls).toEqual([]);
+  });
+
+  it("crop builds ask 'high' for the frame a commit, a step or a click needs and 'low' for build-ahead (fetch priority)", async () => {
+    setup();
+    await parse(GFS, 1, PARSED); await parse(GFS, 2, PARSED);           // stored before the window: build-ahead re-reads them
+    RT.noteCommitted(CLIP('GFS', 0), { hour: 0, model: 'GFS', layer: 'waves' });
+    await flush();
+    const builds = () => mockSF.loads.filter((l) => !l.signal);           // the prefetcher's loads carry an AbortSignal; crop builds none
+    expect(builds()[0]).toMatchObject({ key: GFS, opts: { priority: 'high' } });
+    expect(builds()[0].frame.valid_time).toBe(vt(0));                     // the committed frame's own window pack
+    await landAll((l) => !l.signal && l.frame.valid_time === vt(0));
+    expect(builds().slice(1).length).toBeGreaterThan(0);
+    expect(builds().slice(1).every((l) => l.opts.priority === 'low')).toBe(true);   // build-ahead
+    const n = builds().length;
+    expect(RT.tryShowStoredFrame({ model: 'GFS', layer: 'waves', hourOffset: 21, requestedValidTime: vt(7) })).toBe(false);   // not built yet
+    const miss = builds().slice(n).find((l) => l.frame.valid_time === vt(7));
+    expect(miss).toMatchObject({ opts: { priority: 'high' } });
   });
 
   it('a wheel step (not a click) never crosses models on a clip', async () => {

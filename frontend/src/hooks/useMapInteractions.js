@@ -147,7 +147,9 @@ export function useMapInteractions({
   useEffect(() => {
     if (!isPhotographer) return;
     fetchActiveRequests();
-    const interval = setInterval(fetchActiveRequests, 30000);
+    const interval = setInterval(() => {
+      if (document.visibilityState !== 'hidden') fetchActiveRequests();
+    }, 30000);
     return () => clearInterval(interval);
   }, [isPhotographer, fetchActiveRequests]);
 
