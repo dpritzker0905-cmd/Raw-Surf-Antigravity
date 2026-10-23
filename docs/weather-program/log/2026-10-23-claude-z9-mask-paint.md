@@ -60,7 +60,7 @@ Client only. No served number changes. Each change is ON with a kill switch.
   re-cached texture repaints, a degraded record never earns the skip, a pan repaints), stash-trust cases in
   `maskTextureStash.test.js`, and the gate in `marineController.warmLanes.test.js`. The old warm-lane test now runs under the
   gate's kill switch.
-- Mutants: 13 of 13 killed (`scratchpad/mutants_z9.py`). They cover:
+- Mutants: 11 of 11 killed in this PR (`scratchpad/mutants_z9.py`; its 2 sibling-gate mutants left with the gate). They cover:
   - each kill switch ignored;
   - any texture handing back a record;
   - the bounds check skipped;
@@ -68,8 +68,7 @@ Client only. No served number changes. Each change is ON with a kill switch.
   - no keep in `setWaveData`;
   - the reset removed;
   - a degraded, a foreign or a smaller paint trusted;
-  - the stash never trusting;
-  - the hidden-layer warm back on the backend.
+  - the stash never trusting.
 
 ## Not done
 - The live read after the merge, at the same z9 view: `maskWaterPaint` calls during a 10-step scrub.
