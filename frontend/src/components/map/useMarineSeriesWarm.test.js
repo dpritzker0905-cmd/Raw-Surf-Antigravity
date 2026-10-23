@@ -24,20 +24,20 @@ describe('mounted viewport warm lifecycle', () => {
   it('initial model warm and settled warm share intent, and movement cancels it', () => {
     const h = renderHook(() => useMarineSeriesWarm(props)); const initial = signal();
     act(() => jest.advanceTimersByTime(600)); expect(signal()).toBe(initial);
-    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); });
+    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); jest.advanceTimersByTime(400); });
     expect(initial.aborted).toBe(true); expect(signal().aborted).toBe(false);
     expect(ensureMarineSeries.mock.calls.at(-1)[4]).toBe(signal()); h.unmount();
   });
   it('same viewport and scrub hour changes preserve the warm, cleanup cancels it', () => {
     const h = renderHook(() => useMarineSeriesWarm(props)); const initial = signal();
-    act(() => { props.timeOffsetRef.current = 144; handlers.moveend(); window.dispatchEvent(new Event('timeline_scrub_start')); });
+    act(() => { props.timeOffsetRef.current = 144; handlers.moveend(); jest.advanceTimersByTime(400); window.dispatchEvent(new Event('timeline_scrub_start')); });
     expect(signal()).toBe(initial); expect(initial.aborted).toBe(false);
     h.unmount(); expect(initial.aborted).toBe(true); expect(handlers.moveend).toBeUndefined();
   });
   it('regional movement retains an earlier global warm until effect cleanup', () => {
     bounds = { west: -180, east: 180, south: -80, north: 85 };
     const h = renderHook(() => useMarineSeriesWarm(props)); const initial = signal();
-    act(() => { bounds = { west: -81, east: -80, south: 20, north: 21 }; handlers.moveend(); });
+    act(() => { bounds = { west: -81, east: -80, south: 20, north: 21 }; handlers.moveend(); jest.advanceTimersByTime(400); });
     expect(initial.aborted).toBe(false); expect(signal()).not.toBe(initial);
     h.unmount(); expect(initial.aborted).toBe(true);
   });
@@ -48,12 +48,37 @@ describe('mounted viewport warm lifecycle', () => {
     h.rerender(props); act(() => jest.advanceTimersByTime(600));
     expect(initial.aborted).toBe(true); expect(signal().aborted).toBe(false); h.unmount();
   });
-  it('flag-off retains the legacy viewport lifetime and independent model warm', () => {
+  it("a pan's series waits until the map has been still 400 ms; a new move restarts the wait; the kill switch asks at once", () => {
+    const h = renderHook(() => useMarineSeriesWarm(props));
+    act(() => jest.advanceTimersByTime(600)); ensureMarineSeries.mockClear();
+    act(() => { handlers.moveend(); jest.advanceTimersByTime(300); handlers.movestart(); handlers.moveend(); jest.advanceTimersByTime(399); });
+    expect(ensureMarineSeries).not.toHaveBeenCalled();
+    act(() => jest.advanceTimersByTime(1));
+    expect(ensureMarineSeries).toHaveBeenCalledTimes(1);
+    window.__RAW_DISABLE_SERIES_PAN_DEBOUNCE__ = true;
+    act(() => handlers.moveend());
+    expect(ensureMarineSeries).toHaveBeenCalledTimes(2);
+    delete window.__RAW_DISABLE_SERIES_PAN_DEBOUNCE__;
+    h.unmount(); expect(handlers.movestart).toBeUndefined();
+  });
+  it('flag-off with the supersede killed retains the legacy viewport lifetime and independent model warm', () => {
     process.env.REACT_APP_MARINE_SERIES_WORK_BOUNDS = 'false';
+    window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__ = true;
     const h = renderHook(() => useMarineSeriesWarm(props)); const modelSignal = signal();
     act(() => jest.advanceTimersByTime(600)); const settled = signal();
-    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); });
-    expect(signal()).toBe(settled); expect(settled.aborted).toBe(false); expect(modelSignal).not.toBe(settled);
-    h.unmount(); expect(modelSignal.aborted).toBe(true); expect(settled.aborted).toBe(true);
+    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); jest.advanceTimersByTime(400); });
+    const same = signal() === settled, settledAborted = settled.aborted, distinct = modelSignal !== settled;   // booleans: an AbortSignal diff exhausts the heap
+    h.unmount(); delete window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__;
+    expect([same, settledAborted, distinct, modelSignal.aborted, settled.aborted]).toEqual([true, false, true, true, true]);
+  });
+  it('flag-off by DEFAULT: a pan to another snapped box supersedes the old box work (2026-10-23; production leaves the flag unset)', () => {
+    process.env.REACT_APP_MARINE_SERIES_WORK_BOUNDS = 'false';
+    const h = renderHook(() => useMarineSeriesWarm(props));
+    act(() => jest.advanceTimersByTime(600)); const settled = ensureMarineSeries.mock.calls.at(-1)[4];
+    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); jest.advanceTimersByTime(400); });
+    const next = ensureMarineSeries.mock.calls.at(-1)[4];
+    const r = [settled.aborted, next === settled, next.aborted];
+    h.unmount();
+    expect(r).toEqual([true, false, false]);
   });
 });
