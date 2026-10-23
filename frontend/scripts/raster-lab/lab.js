@@ -95,7 +95,9 @@ const SAMPLER = () => {
   const loadedOf = (m, sid) => { try { return m.isSourceLoaded(sid) === true; } catch (e) { return false; } };
   // What the GPU blends THIS frame, not the target paint value: a layer counts as lit when its evaluated raster-opacity
   // (mid-transition included) is above 0.02 and it is not hidden. Two lit layers of one raster = two hours on screen.
-  const evOp = (m, id) => { try { const l = m.style._layers[id]; if (!l || l.visibility === 'none' || (l.layout && l.layout.get && l.layout.get('visibility') === 'none')) return 0; const v = l.paint.get('raster-opacity'); return typeof v === 'number' ? v : 0; } catch (e) { return 0; } };
+  // A layer added this frame with target opacity 0 reads MapLibre's default (1) until its first evaluation, and is not drawn before
+  // it: target 0 with evaluated exactly 1 is that state, not a lit layer.
+  const evOp = (m, id) => { try { const l = m.style._layers[id]; if (!l || l.visibility === 'none' || (l.layout && l.layout.get && l.layout.get('visibility') === 'none')) return 0; const v = l.paint.get('raster-opacity'); if (v === 1 && m.getPaintProperty(id, 'raster-opacity') === 0) return 0; return typeof v === 'number' ? v : 0; } catch (e) { return 0; } };
   R.lit = (m) => {
     const ids = R.layer === 'radar' ? ((m.style && m.style._order) || []).filter((id) => id.startsWith('radar-frame-')) : [0, 1, 2].map((i) => `${R.layer}-slot-${i}-layer`);
     return ids.filter((id) => evOp(m, id) > 0.02).length;
