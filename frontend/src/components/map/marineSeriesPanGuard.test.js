@@ -30,8 +30,11 @@ describe('the helpers', () => {
 
   it('seriesIdentityBounds: two views inside one snapped box share an identity; a pan out of it does not; the kill uses the raw view', () => {
     const a = { west: -81.7, south: 27.8, east: -79.6, north: 28.8 };
-    const nudge = { west: -81.6, south: 27.85, east: -79.5, north: 28.85 };
+    const nudge = { west: -82.1, south: 27.6, east: -80.0, north: 28.6 };   // ANOTHER raw 0.5-deg key, the SAME snapped box (-83..-79 x 27..30)
     const far = { west: -80.4, south: 27.8, east: -78.3, north: 28.8 };
+    window.__RAW_DISABLE_SERIES_REQUEST_SNAP__ = true;                       // control: by the raw view the two differ
+    expect(marineSeriesViewportIdentity('GFS', 'waves', a)).not.toBe(marineSeriesViewportIdentity('GFS', 'waves', nudge));
+    delete window.__RAW_DISABLE_SERIES_REQUEST_SNAP__;
     expect(marineSeriesViewportIdentity('GFS', 'waves', a)).toBe(marineSeriesViewportIdentity('GFS', 'waves', nudge));
     expect(marineSeriesViewportIdentity('GFS', 'waves', a)).not.toBe(marineSeriesViewportIdentity('GFS', 'waves', far));
     window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__ = true;
@@ -72,12 +75,10 @@ describe('the helpers', () => {
 
   it('seriesFetchInit: background pages and minis at priority low; visible ones untouched; the kill', () => {
     const s = new AbortController().signal;
-    expect(seriesFetchInit(s, 'background')).toEqual({ signal: s, priority: 'low' });
-    expect(seriesFetchInit(s, 'mini')).toEqual({ signal: s, priority: 'low' });
-    expect(seriesFetchInit(s, 'visible')).toEqual({ signal: s });
-    expect(seriesFetchInit(s, 'visible-mini')).toEqual({ signal: s });
+    const read = (lane) => { const o = seriesFetchInit(s, lane); return [o.signal === s, o.priority || null]; };   // never diff an AbortSignal
+    expect(['background', 'mini', 'visible', 'visible-mini'].map(read)).toEqual([[true, 'low'], [true, 'low'], [true, null], [true, null]]);
     window.__RAW_DISABLE_SERIES_LOW_PRIORITY__ = true;
-    expect(seriesFetchInit(s, 'background')).toEqual({ signal: s });
+    expect(read('background')).toEqual([true, null]);
   });
 
   it('seriesPanSettleMs: 400 ms, 0 when killed', () => {
