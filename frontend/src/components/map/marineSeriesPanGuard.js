@@ -24,6 +24,8 @@
  *                         intent's identity is the snapped box (seriesIdentityBounds), so a pan inside it keeps its work.
  *   SERIES_PAN_DEBOUNCE   (useMarineSeriesWarm) the visible series waits until the map has been still SERIES_PAN_SETTLE_MS.
  *   SERIES_LOW_PRIORITY   seriesFetchInit: background pages and minis fetch at priority 'low' (Baseline since 2024; ignored elsewhere).
+ *   SETTLE_RELOAD_GUARD   settleSeriesReloadNeeded: the scrub-settle check stops force-reloading a page it already holds a covering
+ *                         frame of (found in the drain replay: one box re-asked 117 times).
  * Telemetry: window.__RAW_SERIES_PAN__ = { contained, containedInFlight, snapped, low }.
  */
 import { bboxContains, normalizeRequestBbox, padRegionalBbox } from './marineBboxGeometry';
@@ -94,4 +96,15 @@ export function seriesFetchInit(signal, lane) {
 /** How long the visible series waits after a moveend (0 = at once, the kill switch). */
 export function seriesPanSettleMs() {
   return off('SERIES_PAN_DEBOUNCE') ? 0 : SERIES_PAN_SETTLE_MS;
+}
+
+/**
+ * The scrub-settle clamp branch force-reloads the view's series page "so the next tick can sharpen". With a COVERING regional frame
+ * that is just not finer than the resident (regional_too_coarse on a model whose grid is that coarse), the reload asks the same
+ * product again and can never sharpen: offline at z8 on ICON surf it re-asked one box 117 times, one page right after another (the
+ * drain replay, 2026-10-23). Only reload when no covering regional frame exists; the capped fuller-tile /grid upgrade still runs.
+ * Kill: window.__RAW_DISABLE_SETTLE_RELOAD_GUARD__ = true (reload on every tick, as before).
+ */
+export function settleSeriesReloadNeeded(coveringRegionalFrame) {
+  return off('SETTLE_RELOAD_GUARD') || !coveringRegionalFrame;
 }
