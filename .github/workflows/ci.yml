@@ -1513,7 +1513,10 @@ jobs:
           # tests/test_frame_set_wind.py (7, a new file selector-verified into this lane: --lane chain 173 -> 174); dev 57632973b
           # hosted read 2855/173 (CI 39861554298) + 10 (7, then 3 from the publisher review) -> projected 2865/174; 2865 - 6 = 2859.
           # This PR must read 174 files / 2865.
-          MIN_FILES, MIN_PASSED = 174, 2859
+          # ⬆ 174/2859 → 175/2867 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (regional static frame bundles):
+          # tests/test_frame_set_bundle.py (8, a new file selector-verified into this lane: --lane chain 174 -> 175); dev b88b5ca32
+          # hosted read 2865/174 (CI 39896720617) + 8 -> projected 2873/175; 2873 - 6 = 2867. This PR must read 175 files / 2873.
+          MIN_FILES, MIN_PASSED = 175, 2867
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
