@@ -576,6 +576,11 @@ def fold_pr(repo: str, remote: str = "origin", base: str = "dev", dry_run: bool 
     gh login (a GITHUB_TOKEN PR would trigger no CI), and remove the worktree. With `record_actor` (--record-merges)
     it also writes a reconstructed `pr_merge` line, into a fragment on the fold branch, for every merge on the base
     the folded ledger lacks: unattended auto-merges stay recorded (the next fold folds that fragment)."""
+    # ⬇ The fold time is taken BEFORE the fetch (2026-10-23): every merge older than `at` is then in the base this fold
+    # reads, so it is folded or recorded here, and the audit's fold point is this `at` (ledger_merges.last_fold_point),
+    # not the fold PR's merge time. Before, #494 merged 21:30Z after fold #495 was opened and before it merged; it fell
+    # older than the fold point and every open PR's verify went red, needing another fold (and again #498 / #499).
+    at = at or now_utc()
     git(repo, "fetch", remote, f"+refs/heads/{base}:refs/remotes/{remote}/{base}")
     base_ref = f"{remote}/{base}"
     base_sha = git(repo, "rev-parse", base_ref).strip()

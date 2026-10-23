@@ -1383,3 +1383,16 @@ A stored estimate can be estimated again in a browser branch with different sour
   meaned but direction and period are point-sampled, and the normalizer drops a node with no direction.
 - Rule: before a claim that a masked field is (in)valid somewhere, count it per named region against an independent
   reference mask (here GFS's), and put the table in the claim. An evidence pack categorises against sea AND land, not one.
+
+
+### 2026-10-23 — L-P40 · A snapshot's cut-off is when it READ, not when it landed
+
+- The audit's fold point was the fold PR's MERGE time. `fold-pr --record-merges` records the merges that exist when it
+  reads dev, so a PR that merged between the fold PR's open and its merge (#494 at 21:30Z before fold #495; #498 at
+  22:03Z before fold #499) fell older than the fold point unrecorded: the audit FAILed it, every open PR's verify went
+  red, and the fix-up fold could race again.
+- Fix: the fold point is the fold's own `at`, taken before its fetch (so every older merge was in its base), less 5
+  minutes of clock slack, read from the folded lines in ACTIONS.jsonl, not from a squash commit's message, which a
+  repo setting can strip. On dev, #498 went from FAIL to WARN.
+- Rule: anything that "covers everything up to now" must carry its own "now" (the moment it read its input), and
+  everything downstream judges against that moment, never against when the snapshot happened to be merged or deployed.
