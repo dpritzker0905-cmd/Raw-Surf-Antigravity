@@ -375,7 +375,7 @@ async def update_gear_item(
 # ============ SEED DATA ENDPOINT ============
 
 @router.post("/gear-hub/seed")
-async def seed_gear_catalog(db: AsyncSession = Depends(get_db)):
+async def seed_gear_catalog(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Seed the gear catalog with sample items (for demo purposes)"""
     
     sample_items = [
