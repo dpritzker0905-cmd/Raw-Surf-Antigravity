@@ -1626,6 +1626,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   /grid; their viewport crops (no fill below 350 deg) stay static; the GPU frame store takes no ICON/EURO set (it cannot tell world
   from crop at its door). Kill (the pre-fix behaviour): `window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true`. It lifts when the
   publisher mirrors the fill for world frames. No ICON/EURO frame had been published (the first post-#453 pilots run had not run).
+  Measured live 2026-10-22 21:55Z (one world /grid each, health probed): EURO waves `coarse_fill.cells_filled` 2,465 of 4,689
+  masked cells, ICON 1,708 of 3,788. (The offline 1,757-of-2,066 figure above used an all-valid GFS donor; with a land-masked
+  synthetic donor the control store now reads 1,173 of 2,714, and its parity sees the gap: `scn_static_parity.mjs` over
+  `serve_synthetic.py --land-mask 1`, ICON/EURO world frames bad > 0, crops 0 bad. LESSONS L-S22.)
 - **Update 2026-10-22 (the series gate lifts, #460):** since #456 the conform carries `is_valid` for every layer,
   so seam B (the series lane, and #459's crop pages) takes all eight sets, not only the waves sets. The waves-only rule comes
   back by itself whenever #456's fix is killed (`window.__RAW_DISABLE_CONFORM_IS_VALID__`) and on its own kill

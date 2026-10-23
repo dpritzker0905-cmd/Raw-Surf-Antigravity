@@ -21,6 +21,9 @@ import zlib from 'zlib';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const [cdnDir, port, nBoxesArg, outFile] = process.argv.slice(2);
+// Which world set to crop (2026-10-22: every STATIC_SETS entry; default GFS waves). MODEL / LAYER env.
+const MODEL = (process.env.MODEL || 'GFS').toUpperCase();
+const LAYER = (process.env.LAYER || 'waves').toLowerCase();
 if (!cdnDir || !port) { console.error('usage: scn_static_crop_parity.mjs <bucket copy> <backend port> [boxes] [out.json]'); process.exit(2); }
 const N_BOXES = +(nBoxesArg || 300);
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -33,7 +36,7 @@ const manifest = await (await fetch(`${API}/products`)).json();
 const products = Array.isArray(manifest) ? manifest : (manifest.products || []);
 const tiles = []; const seen = new Set();
 for (const p of products) {
-  if (String(p.model).toUpperCase() !== 'GFS' || String(p.domain).toLowerCase() !== 'marine' || String(p.layer).toLowerCase() !== 'waves') continue;
+  if (String(p.model).toUpperCase() !== MODEL || String(p.domain).toLowerCase() !== 'marine' || String(p.layer).toLowerCase() !== LAYER) continue;
   if (p.region_id && !seen.has(p.region_id)) { seen.add(p.region_id); tiles.push({ id: p.region_id, bounds: p.coverage }); }
 }
 fs.writeFileSync(path.join(tmpDir, 'staticFrameCodec.mjs'), fs.readFileSync(path.join(mapDir, 'staticFrameCodec.js'), 'utf8'));
@@ -46,7 +49,7 @@ const C = await import(pathToFileURL(path.join(tmpDir, 'staticFrameCodec.mjs')).
 const X = await import(pathToFileURL(path.join(tmpDir, 'staticFrameCrop.mjs')).href);
 
 const latest = JSON.parse(fs.readFileSync(path.join(cdnDir, 'v1/latest.json'), 'utf8'));
-const entry = latest.sets['GFS/marine/waves/global_mid'];
+const entry = latest.sets[`${MODEL}/marine/${LAYER}/global_mid`];
 const index = JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8'));
 index.path = index.path || entry.index;
 const built = index.frames.filter((f) => f.path);
@@ -131,10 +134,10 @@ for (let i = 0; i < boxes.length; i++) {
     const askIso = new Date(askMs).toISOString();
     const param = seam === 'grid' ? X.gridBboxParam(b) : X.seriesBboxParam(b);
     totals.boxes++;
-    const rules = X.midCropRulesPass({ model: 'GFS', layer: 'waves', bboxStr: param });
+    const rules = X.midCropRulesPass({ model: MODEL, layer: LAYER, bboxStr: param });
     const url = seam === 'grid'
-      ? `${API}/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
-      : `${API}/grid_series?model=GFS&domain=marine&layer=waves&bbox=${param}&hours=${seriesHour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
+      ? `${API}/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
+      : `${API}/grid_series?model=${MODEL}&domain=marine&layer=${LAYER}&bbox=${param}&hours=${seriesHour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
     const res = await fetch(url);
     const body = await res.json();
     const theirs = seam === 'grid' ? body : (body.frames || [])[0];
@@ -145,7 +148,7 @@ for (let i = 0; i < boxes.length; i++) {
     if (!rules) { totals.refused++; if (mid) totals.refusedButMid++; continue; }
     totals.crop++;
     if (!mid) { totals.cropButNotMid++; rows.push({ i, seam, param, problem: 'rules said crop, backend did not serve the mid clip', got: theirs && theirs.product_id }); continue; }
-    const win = X.midClipWindow(param, index.grid, 'GFS');
+    const win = X.midClipWindow(param, index.grid, MODEL);
     if (!win) { totals.unmirrored++; rows.push({ i, seam, param, problem: 'no window' }); continue; }
     const vectors = vectorsOf(pick);
     const r = newR();
