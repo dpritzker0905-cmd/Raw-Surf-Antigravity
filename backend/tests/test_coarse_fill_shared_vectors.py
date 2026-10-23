@@ -294,3 +294,41 @@ def test_the_coarse_stamp_survives_a_second_identical_request(served):
     cached = _l1(EURO_COARSE)
     for lat, lng in _GULF:
         assert _cell(cached, lat, lng).is_valid is False, "the cached EURO coarse was filled in place"
+
+
+# -- THE TARGETED 2-DEG FILL (MARINE_GULF_FILL_MID_TARGETED, 2026-10-23) through the same real store and route ---------------
+
+GFS_MID = "gfs_marine_waves_global_mid_x.json"
+
+
+def test_the_targeted_world_serve_fills_from_gfs_mid_only_and_leaves_l1_untouched(served, monkeypatch):
+    """The targeted mode copies cells exactly as the legacy fill does (ea3aa78da, f11594114): the world serve gets the GFS 2-deg
+    value at the SAME node, only where that GFS node is sea; the 10-deg donor is present and must NOT be used; neither cached
+    product (EURO global_mid, GFS global_mid) changes."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    _publish(served, _euro("global_mid", EURO_MID, 2.0), EURO_MID, "EURO", "global_mid")
+    gfs_mid = _product("GFS", "global_mid", [
+        GridVector(lat=26.0, lng=-90.0, speed=1.3, u=1.3, v=0.0, direction=95.0, period=6.0),   # sea: fills (26, -90)
+        GridVector(lat=28.0, lng=-88.0, speed=0.0, is_valid=False),                              # land in GFS too: stays masked
+        GridVector(lat=0.0, lng=-180.0, speed=2.1, u=2.1, v=0.0, direction=90.0, period=9.0),
+        GridVector(lat=0.0, lng=178.0, speed=2.1, u=2.1, v=0.0, direction=90.0, period=9.0),
+    ], 2.0, GFS_MID)
+    _publish(served, gfs_mid, GFS_MID, "GFS", "global_mid")
+    _publish(served, _gfs_donor(), GFS_COARSE, "GFS", "global_coarse")    # the legacy donor, present but not the targeted one
+
+    world = _grid("-180,-80,180,85")
+
+    assert (world.grid.diagnostics or {}).get("mid_res_tier") is True, "not served by the mid tier"
+    fill = world.coarse_fill or {}
+    assert (fill.get("mode"), fill.get("donor_region"), fill.get("donor_product"), fill.get("cells_filled")) == \
+        ("targeted", "global_mid", GFS_MID, 1)
+    gulf = _cell(world, 26.0, -90.0)
+    assert gulf.is_valid is True and gulf.speed == pytest.approx(1.3) and gulf.direction == pytest.approx(95.0)
+    assert _cell(world, 28.0, -88.0).is_valid is False          # GFS masks it: no paint
+    assert _cell(world, 24.0, -90.0).is_valid is False          # no GFS 2-deg node there and no reach: no paint
+    cached = _l1(EURO_MID)
+    for lat, lng in _GULF:
+        c = _cell(cached, lat, lng)
+        assert c.is_valid is False and c.speed == 0.0, f"the targeted fill wrote into the cached EURO global_mid at ({lat}, {lng})"
+    assert cached.coarse_fill is None
+    assert _cell(_l1(GFS_MID), 26.0, -90.0).speed == pytest.approx(1.3)
