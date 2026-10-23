@@ -16,8 +16,12 @@
  *      load has been in flight or queued (visible or background) for SIBLING_QUIET_MS, the tab is visible and no scrub runs, and
  *      only after the visible layer's own page has landed (or SIBLING_PAGE_MAX_WAIT_MS has passed). Same pages as before, so a
  *      scrub after the toggle *      is on the series; they just never compete with what the user is looking at.
+ * SURF MODE: no sibling warm at all (2026-10-23). A surf page runs the rating chain per node: live (Render logs, 19:44Z) one
+ * session in surf mode on ICON at z7-9 kept the 1-CPU box at 100% for 10+ min, each 16-frame surf page 10-25 s of CPU, and the
+ * hidden layers' surf minis and pages came on top; static frames and bundles are swell only, so nothing static can answer them.
+ * Kill: window.__RAW_DISABLE_SIBLING_SURF_GATE__ = true (surf mode warms as swell does).
  * Kill: window.__RAW_DISABLE_SIBLING_IDLE_PAGES__ = true -> each sibling's mini and page at once, its frame cached after the page.
- * Telemetry: window.__RAW_SIBLING_WARM__ = { static, minis, miniFrames, pages, dropped, waitMs: [last 8] }.
+ * Telemetry: window.__RAW_SIBLING_WARM__ = { static, minis, miniFrames, pages, dropped, surfGated, waitMs: [last 8] }.
  */
 import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm } from './marineGridSeries';
 import { _seriesLimiterState } from './marineSeriesLimiter';
@@ -51,6 +55,12 @@ function note(field, value) {
   if (typeof window === 'undefined') return;
   const t = (window.__RAW_SIBLING_WARM__ = window.__RAW_SIBLING_WARM__ || { static: 0, minis: 0, miniFrames: 0, pages: 0, dropped: 0, waitMs: [] });
   if (field === 'waitMs') { t.waitMs.push(value); if (t.waitMs.length > 8) t.waitMs.shift(); } else t[field] = (t[field] || 0) + 1;
+}
+
+/** Surf mode holds every sibling warm (see the header). */
+export function siblingSurfGated() {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_SIBLING_SURF_GATE__ === true) return false;
+  try { return !!getSurfModeFlag(); } catch (e) { return false; }
 }
 
 /** A static source answers this sibling's page (marineSeriesStatic's own test, so every static seam counts): no /grid_series. */
@@ -89,7 +99,7 @@ function schedule(delay = _timing.poll) {
 
 function tick() {
   for (let i = _queue.length - 1; i >= 0; i--) {
-    if (aborted(_queue[i].signal)) { _queue.splice(i, 1); note('dropped'); }
+    if (aborted(_queue[i].signal) || siblingSurfGated()) { _queue.splice(i, 1); note('dropped'); }   // surf turned on: a surf page
   }
   while (!_running && _queue.length && isMarineSeriesPageWarm(_queue[0].model, _queue[0].layer, _queue[0].bounds, _queue[0].hourOffset)) {
     const done = _queue.shift();                                      // warmed meanwhile (the user showed that layer): no request
@@ -134,6 +144,7 @@ function warmNow({ model, layer, bounds, hourOffset, signal, cache }) {
  */
 export function warmSiblingLayer({ model, layer, bounds, hourOffset, signal, visibleLayer, frameReady, cache }) {
   if (aborted(signal) || !bounds) return;
+  if (siblingSurfGated()) { note('surfGated'); return; }
   const job = { model, layer, bounds, hourOffset, signal, visibleLayer, cache };
   if (!siblingIdlePagesOn()) { if (!frameReady) warmNow(job); return; }            // before 2026-10-23
   const pageWarm = isMarineSeriesPageWarm(model, layer, bounds, hourOffset);

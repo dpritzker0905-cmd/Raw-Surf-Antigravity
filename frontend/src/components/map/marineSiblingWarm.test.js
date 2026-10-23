@@ -10,7 +10,7 @@ jest.mock('./marineGridSeries', () => ({
 }));
 jest.mock('./marineSeriesLimiter', () => ({ _seriesLimiterState: jest.fn() }));
 jest.mock('./marineSeriesStatic', () => ({ staticOwnsWorldPage: jest.fn(() => false) }));
-jest.mock('./backendWeatherServiceClient', () => ({ getSurfModeFlag: () => false }));
+jest.mock('./backendWeatherServiceClient', () => ({ getSurfModeFlag: () => window.__SURF_MODE__ === true }));
 
 import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm } from './marineGridSeries';
 import { _seriesLimiterState } from './marineSeriesLimiter';
@@ -49,7 +49,41 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     delete window.isScrubbingTimeline;
     delete window.__RAW_DISABLE_SIBLING_IDLE_PAGES__;
   });
-  afterEach(() => { _resetSiblingWarmForTest(); jest.useRealTimers(); delete window.isScrubbingTimeline; delete window.__RAW_DISABLE_SIBLING_IDLE_PAGES__; });
+  afterEach(() => {
+    _resetSiblingWarmForTest(); jest.useRealTimers();
+    for (const k of ['isScrubbingTimeline', '__RAW_DISABLE_SIBLING_IDLE_PAGES__', '__SURF_MODE__', '__RAW_DISABLE_SIBLING_SURF_GATE__']) delete window[k];
+  });
+
+  it('surf mode: no sibling warm at all (a surf page is the rating chain per node), not even from a static source', async () => {
+    window.__SURF_MODE__ = true;
+    staticOwnsWorldPage.mockImplementation(() => true);
+    const cache = warm('swell_1');
+    warm('wind_waves');
+    await flush(); await settle(); await settle();
+    expect(ensureMarineSeriesHour0).not.toHaveBeenCalled();
+    expect(ensureMarineSeries).not.toHaveBeenCalled();
+    expect(cache).not.toHaveBeenCalled();
+    expect(window.__RAW_SIBLING_WARM__.surfGated).toBe(2);
+  });
+
+  it('surf mode turning on drops a page queued in swell mode before it starts', async () => {
+    warm('swell_1');
+    await flush();
+    expect(_siblingWarmState().queued).toEqual(['GFS_swell_1']);
+    window.__SURF_MODE__ = true;
+    await settle();
+    expect(ensureMarineSeries).not.toHaveBeenCalled();
+    expect(_siblingWarmState().queued).toEqual([]);
+  });
+
+  it('kill switch for the surf gate: surf mode warms as swell does', async () => {
+    window.__SURF_MODE__ = true;
+    window.__RAW_DISABLE_SIBLING_SURF_GATE__ = true;
+    warm('swell_1');
+    await flush(); await settle();
+    expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(1);
+    expect(pagesOf()).toEqual(['swell_1']);
+  });
 
   it('the mini goes now and caches the toggle frame; the 48-frame page waits for an idle tick', async () => {
     const cache = warm('swell_1');

@@ -64,6 +64,7 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
   });
   afterEach(() => {
     _resetSiblingWarmForTest();
+    delete window.__SURF_MODE__;
     delete window.__MARINE_SIBLING_PREWARM__;
     delete window.__USE_BACKEND_MARINE_SYSTEM__;
     delete window.__USE_BACKEND_WEATHER_SERVICE__;
@@ -133,6 +134,17 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
     await waitFor(() => false, 60, 10);
     expect(seriesCalls()).toHaveLength(0);
+  });
+
+  it('surf mode: no hidden-layer series request at all (live 2026-10-23: surf pages for hidden layers on a saturated box)', async () => {
+    window.__SURF_MODE__ = true;
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    global.fetch.mockClear();
+    prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
+    await waitFor(() => false, 40, 10);
+    expect(seriesCalls()).toHaveLength(0);
+    expect(getModelSafeMarine('GFS', 0, 'swell_1', bounds)).toBeNull();
+    delete window.__SURF_MODE__;
   });
 
   it('skips at a GLOBAL / zoomed-out viewport (series frames are regional)', async () => {
