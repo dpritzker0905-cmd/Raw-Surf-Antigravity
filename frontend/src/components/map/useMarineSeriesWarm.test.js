@@ -63,7 +63,6 @@ describe('mounted viewport warm lifecycle', () => {
     delete window.__RAW_DISABLE_SERIES_PAN_DEBOUNCE__;
     h.unmount(); expect(handlers.movestart).toBeUndefined();
   });
-  it('flag-off with the supersede killed retains the legacy viewport lifetime and independent model warm', () => {
   it('the sibling-layer warm follows the visible series (not only a /grid commit); its kill switch stops it', async () => {
     const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
     let h = renderHook(() => useMarineSeriesWarm(props));
@@ -79,7 +78,7 @@ describe('mounted viewport warm lifecycle', () => {
     expect(prewarmSiblingMarineSeries).not.toHaveBeenCalled();
     delete window.__RAW_DISABLE_SIBLING_WARM_ON_SERIES__; h.unmount();
   });
-  it('flag-off retains the legacy viewport lifetime and independent model warm', () => {
+  it('flag-off with the supersede killed retains the legacy viewport lifetime and independent model warm', () => {
     process.env.REACT_APP_MARINE_SERIES_WORK_BOUNDS = 'false';
     window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__ = true;
     const h = renderHook(() => useMarineSeriesWarm(props)); const modelSignal = signal();
