@@ -1,0 +1,38 @@
+# 2026-10-23 (claude, GPU-frames session): the zoom-9 scrub repainted the land mask on every step; hidden layers' series
+
+Written 2026-10-23. Branch `claude/z9-mask-paint` from dev `4082ba4bf`. Evidence: `evidence/z9-mask-paint-2026-10-23.json`.
+Client only. No served number changes. Each change is ON with a kill switch.
+
+## Ask (the lead, 2026-10-23, after the live read of dev 5460d13b at the map's opening view: z9, Florida east coast)
+- "10 ArrowRight steps, 600 ms apart. Two-rAF times: 21, 138, 192, 27, 33, 139, 34, 22, 132, 32 ms."
+- "`__RAW_GPU__.cpuPhaseTiming` points at the regional land mask ... maskWaterPaint: 8 calls, 853 ms."
+- "Next lever: cache or skip the clean water paint when the viewport and mask inputs haven't changed."
+- "After Waves was toggled, the client fetched 48-frame series for swell_1 (6.3 s), swell_2 (6.6 s) and wind_waves (11.1 s),
+  none of them shown ... gate it on a static source (frames or bundles) or on the user actually hovering or toggling."
+
+## Findings
+1. **`setWaveData` forgot the paint record on EVERY commit.** Line 150 nulls `_regionalPatchState` because "every commit
+   re-encodes the mask WITHOUT the basemap-truth patch", but the encoder REUSES the cached texture when the bounds and the land
+   GeoJSON match (`_lastMaskEncodeMode === 'reuse'`). In that case nothing is uploaded and the texture still holds its paint.
+   The refresh's own hysteresis could therefore never skip on a scrub. Offline at the live view, with the real Mapbox basemap,
+   the record was `null` before every one of the 7 paints, 5 of them on a REUSED mask with the same view, the same delivered
+   coverage and the same zoom.
+2. **Two mask boxes alternate at one view.** The `/grid` tile is north 30 (13 x 13) and the series frame is north 29 (13 x 9).
+   The one-slot stash declined each swap back on purpose (`carryWouldAddTruth`: the last paint was on the other box), so the
+   step rebuilt the mask and repainted it.
+3. **The hidden layers are `prewarmSiblingMarineSeries`** (marineController, default on since 2026-06-26). At any regional view
+   it fetches each other marine layer's current 48-frame series page.
+- Offline instrument gap, fixed: local builds had no `REACT_APP_MAPBOX_TOKEN`, so the basemap had no `water` layer and the
+  paint never ran. A local, gitignored `.env` (values never printed or committed) brings the real basemap.
+
+## Change
+- **`maskPatchKeep.js`.** A paint stamps its record on the texture it painted (`tex.__rsPatch`). After a commit, when the
+  bound mask is that very texture and the record names the current mask bounds, the record comes back, and the refresh's
+  hysteresis decides exactly as without the commit. A rebuilt texture carries no record and repaints.
+  Kill: `__RAW_DISABLE_MASK_PATCH_KEEP__`.
+- **`maskTextureStash.stashHoldsPatch`.** The stash serves a swap back when the stashed texture's own CLEAN paint, filed under
+  its bounds, contains the last painted box. It then holds that truth; the swap needs no rebuild, and the keep makes it need
+  no repaint. Kill: `__RAW_DISABLE_STASH_PATCH_TRUST__`.
+- **Sibling static-source gate (`marineController`).** A hidden layer is warmed only where `staticSeriesEligible` says a
+  static source serves it. A regional view has none until the z7-9 bundles ship, so switching to that layer fetches on demand.
+  Kill: `__RAW_DISABLE_SIBLING_STATIC_GATE__`.

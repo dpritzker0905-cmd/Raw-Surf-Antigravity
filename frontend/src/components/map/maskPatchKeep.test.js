@@ -76,6 +76,14 @@ describe('maskPatchKeep: the paint record survives a commit that kept the painte
     expect(f.gl.texImage2D).toHaveBeenCalledTimes(2);
   });
 
+  it('a painted texture that is no longer the engine\'s cached mask (the cache moved on) does not hand back its record', () => {
+    const f = fixture();
+    f.engine.refreshMaskWithBasemapWater(f.gl, f.map);                       // the old texture carries a record for these bounds
+    f.engine._cachedMaskTex = { owner: 'newer' };                             // but the cache now holds another texture
+    f.commit({ u_oceanMaskTexture: f.mask });
+    expect(f.engine._regionalPatchState).toBeNull();
+  });
+
   it('a painted texture filed under OTHER bounds (a stash swap that re-bounded it) is not trusted', () => {
     const f = fixture();
     f.engine.refreshMaskWithBasemapWater(f.gl, f.map);
