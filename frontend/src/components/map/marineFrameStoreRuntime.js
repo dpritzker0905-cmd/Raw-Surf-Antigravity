@@ -302,7 +302,7 @@ function warmPlan(info, layer, requestedValidTime) {
       out.push({ key: wi.key, validTime: v, built: !!(wi.byVt.get(v) || {}).path });
       const e = store().entry(wi.key, v);
       if (e && e.pack) auxInIdle(wi.key, v);        // already packed (the set was active before): its chl/bath in idle
-      if (CS.crop.window) CS.buildCrop(wi, v);            // a mid-zoom window is resident: its pack of this warm frame too
+      if (CS.crop.window) CS.buildCrop(wi, v, 'low');     // a mid-zoom window is resident: its pack of this warm frame too
     }
   }
   rt.lastWarm = out;
@@ -368,11 +368,11 @@ function ensureInit() {
   if (!rt.prefetcher) {
     rt.prefetcher = createPrefetcher({
       store: store(),
-      fetchFrame: async (path, signal) => {
+      fetchFrame: async (path, signal, priority) => {
         const info = [...rt.sets.values()].find((x) => x.byPath.has(path));   // the active set's or a warm set's frame
         const frame = info && info.byPath.get(path);
         if (!info || !frame) return { error: 'unknown_frame' };
-        const got = await loadFrameParsed(info.staticKey, frame, signal);
+        const got = await loadFrameParsed(info.staticKey, frame, signal, { priority });
         return got ? { buffer: { parsed: got.parsed }, raw: got.buffer || null, wire: got.wire } : { error: signal && signal.aborted ? 'aborted' : 'load_failed' };
       },
       decodeAndPack: ({ parsed }) => packStaticFrame(parsed),

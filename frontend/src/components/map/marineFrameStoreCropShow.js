@@ -52,15 +52,16 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     if (now) run(); else idleRun(run);
   }
 
-  // Build one window pack through #422's shared loader (the frame's bytes are usually in the HTTP cache already).
-  function buildCrop(info, validTime) {
+  // Build one window pack through #422's shared loader (the frame's bytes are usually in the HTTP cache already). `priority`:
+  // 'high' for the frame a step or a click needs now, 'low' for build-ahead and warm sets (staticFrames.fetchPriorityOf).
+  function buildCrop(info, validTime, priority) {
     const w = cropWindowFor(info);
     const frame = info.byVt.get(validTime);
     if (!w || !frame || !frame.path || crop.packs.has(info.key, validTime, w.key)) return null;
     const id = `${info.key}|${validTime}|${w.key}`;
     if (crop.building.has(id)) return null;
     crop.building.add(id);
-    return loadFrameParsed(info.staticKey, frame)
+    return loadFrameParsed(info.staticKey, frame, undefined, { priority })
       .then((got) => { if (got) cropFromParsed(info, validTime, got.parsed, true); })
       .catch(() => {})
       .finally(() => crop.building.delete(id));
@@ -82,7 +83,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     const q = (crop.queue = { setKey: info.key, winKey, list: cropAheadOrder(stored, (v) => idx.get(v), at).slice(0, ahead) });
     const next = () => {
       if (crop.queue !== q || !crop.window || crop.window.key !== winKey || !q.list.length) return;
-      const p = buildCrop(info, q.list.shift());
+      const p = buildCrop(info, q.list.shift(), 'low');
       crop.ahead += p ? 1 : 0;
       (p || Promise.resolve()).then(() => idleRun(next));
     };
@@ -133,7 +134,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     crop.window = { ...win, setKey: info.key };
     crop.pending = { setKey: info.key, validTime, winKey: win.key };
     if (crop.packs.get(info.key, validTime, win.key, packSignature())) resolveCropPending(info, validTime);
-    else buildCrop(info, validTime);
+    else buildCrop(info, validTime, 'high');
     if (fresh) { buildAhead(info, validTime); cropWarm(); }
     return true;
   }
@@ -143,7 +144,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   function cropWarm() {
     for (const w of rt.lastWarm) {
       const wi = [...rt.sets.values()].find((x) => x.key === w.key);
-      if (wi) buildCrop(wi, w.validTime);
+      if (wi) buildCrop(wi, w.validTime, 'low');
     }
   }
 
@@ -173,7 +174,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     const p = crop.packs.get(info.key, frame.valid_time, r.window.key, r.signature);
     if (!p) {
       rt.want = { args: { model, layer, hourOffset, requestedValidTime }, switching: false, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
-      buildCrop(info, frame.valid_time);
+      buildCrop(info, frame.valid_time, 'high');
       return miss('crop_not_ready');
     }
     const engine = rt.target.getEngine && rt.target.getEngine();
@@ -242,7 +243,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     const p = crop.packs.get(info.key, frame.valid_time, w.key, sig);
     if (!p) {
       rt.want = { args: { model, layer, hourOffset, requestedValidTime }, switching: true, setKey: info.key, validTime: frame.valid_time, at: Date.now() };
-      buildCrop(info, frame.valid_time);
+      buildCrop(info, frame.valid_time, 'high');
       return miss('crop_not_ready');
     }
     const engine = rt.target.getEngine && rt.target.getEngine();

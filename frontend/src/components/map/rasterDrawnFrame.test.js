@@ -92,3 +92,25 @@ describe('ForecastTimeStatus on a raster layer', () => {
     expect(screen.queryByRole('status')).toBeNull();
   });
 });
+
+describe('a layer drawn from our own frames (useOwnRasterFrames)', () => {
+  const { setEngaged, _resetOwnRasterFramesForTest } = require('./ownRasterFrames');
+  const { useRasterDrawnPublisher } = require('./rasterDrawnFrame');
+  function Pub({ layers }) { useRasterDrawnPublisher(layers, {}, {}, { current: {} }); return null; }
+  afterEach(() => _resetOwnRasterFramesForTest());
+  test('the .om publisher never clears its record; another layer\'s record it does', () => {
+    const end = (h) => ({ url: `f${h}`, dataMs: Date.UTC(2026, 9, 23, h), model: 'GFS', nearestMaxHours: 1 });
+    setEngaged('pressure', true);
+    publishRasterDrawn({ layer: 'pressure', shown: end(15), want: end(15) });
+    const { rerender } = render(<Pub layers={[]} />);
+    expect(getRasterDrawn().layer).toBe('pressure');
+    act(() => setEngaged('pressure', false));
+    rerender(<Pub layers={['waves']} />);
+    expect(getRasterDrawn()).toBeNull();
+  });
+  test('its 3-hourly frames read as the nearest stored forecast one hour off', () => {
+    const shown = { url: 'f15', dataMs: Date.UTC(2026, 9, 23, 15), model: 'GFS', nearestMaxHours: 1 };
+    const d = describeRasterFrame({ layer: 'pressure', shown, want: shown }, 'pressure', Date.UTC(2026, 9, 23, 16));
+    expect(d.state).toBe('nearest');
+  });
+});

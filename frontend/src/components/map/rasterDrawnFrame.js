@@ -16,6 +16,7 @@
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { MODEL_METADATA_CACHE } from './LayerRegistry';
+import { getEngaged } from './ownRasterFrames';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const PENDING_QUIET_MS = 300;
@@ -59,7 +60,8 @@ export function useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, t
   useEffect(() => {
     if (rasterReadoutKilled()) return;
     const layer = (activeLayers || []).find((k) => RASTER_STATUS_LAYERS.has(k) && k !== 'radar');
-    if (!layer) { if (current && current.layer !== 'radar') publishRasterDrawn(null); return; }
+    // A layer drawn from our own frames publishes its own pair (useOwnRasterFrames): never clear it from here.
+    if (!layer) { if (current && current.layer !== 'radar' && !getEngaged()[current.layer]) publishRasterDrawn(null); return; }
     const shownSlot = activeSlots ? activeSlots[layer] : undefined;
     const targetSlot = targetSlotsRef && targetSlotsRef.current ? targetSlotsRef.current[layer] : undefined;
     const shown = Number.isInteger(shownSlot) && shownSlot >= 0 ? omEnd(omTileUrls[`${layer}-slot-${shownSlot}`]) : null;
