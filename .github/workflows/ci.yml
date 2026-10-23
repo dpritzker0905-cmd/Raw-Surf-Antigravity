@@ -1532,7 +1532,9 @@ jobs:
           # read dev's hosted chain 2873/175 (set-from on dev 891c815b7) + 9 -> projected 2882/176; 2882 - 6 = 2876. This PR must read 176 files / 2882.
           # ⬆ 2867→2876 on 2026-10-23 (rederive_floor.py, rm-pressure-raster-frames): dev run 39994928838 read 2873 / 175 files; dev's map 2873;
           #   base 2873 (hosted read) + 9 new test(s) = 2882, files 176; floor 2882 - 6 = 2876. This PR must read 2882 passed.
-          MIN_FILES, MIN_PASSED = 176, 2876
+          # ⬆ 2876→2885 on 2026-10-23 (rederive_floor.py, rm480): dev run 40005013863 read 2873 / 175 files; dev's map 2882;
+          #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
+          MIN_FILES, MIN_PASSED = 177, 2885
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

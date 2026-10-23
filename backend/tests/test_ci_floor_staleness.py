@@ -491,8 +491,8 @@ _FLOOR_SET_FROM = {
     # guards: set from 3317 = max(dev run 39994928838 read 3297, dev's map 3297) + 20 (rm-gulf-fill-targeted, 2026-10-23); floor 3311, margin 6.
     "guards": 3317,
 
-    # chain: set from 2882 = max(dev run 39994928838 read 2873, dev's map 2873) + 9 (rm-pressure-raster-frames, 2026-10-23); floor 2876, margin 6.
-    "chain": 2882,
+    # chain: set from 2891 = max(dev run 40005013863 read 2873, dev's map 2882) + 9 (rm480, 2026-10-23); floor 2885, margin 6.
+    "chain": 2891,
 
     # estate: set from 2431 = max(dev run 39994928838 read 2411, dev's map 2429) + 2 (claude/rederive-add-auto, 2026-10-23); floor 2429, margin 2.
     "estate": 2431,
