@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { alignedCoverFrac } from './marineZoomThresholds';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -275,7 +276,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
             // z5-7, and nulling them here cleared the heatmap until the global recovery re-committed
             // the 10° coarse. Same lever + kill as the gate: __RAW_DOWNGRADE_COVER_FRAC__ /
             // __RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__.
-            const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+            const _coverFrac = alignedCoverFrac();   // the gate's own 0.6 (marineZoomThresholds)
             const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
             const _zoomedOutReject = _coverAlignOff
               ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)

@@ -26,3 +26,19 @@ if (typeof window !== 'undefined') {
 // coarse-global grid). The band top is MARINE_ZOOMED_OUT_MAX_ZOOM — coarse simply isn't the display
 // product above it.
 export const COARSE_CREST_BAND_MIN_ZOOM = 3.5;
+
+// THE SHARED REGIONAL-COVERAGE FRACTION (2026-10-22). A regional grid covering at least this share of the viewport is kept by the
+// no-downgrade guard (marineEngineDecisions) and SHOWN by the display gate (WebGLMarineCustomLayer): 0.6 since 2026-07-11 / 07-16.
+// Three readers still defaulted to the old 0.8: the render backstop's retained-regional test (useMarineScrubSettle), the fetcher's
+// regional clear (useMarineDataFetcherHelpers) and the wind-data conform that replicates the gate (useMarineWindData). In the
+// 0.6-0.8 band a wide view therefore kept AND showed a 0.25-deg tile while the backstop called it display-empty and re-drove a world
+// fetch every 6 s that the guard refused (the owner's "Render backstop: engine empty" lines). They read this instead.
+// Live lever unchanged: window.__RAW_DOWNGRADE_COVER_FRAC__. Kill: window.__RAW_DISABLE_COVER_FRAC_ALIGN__ = true (those three back to 0.8).
+export const DOWNGRADE_COVER_FRAC = 0.6;
+export const LEGACY_COVER_FRAC = 0.8;
+export function alignedCoverFrac(win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  const lever = Number(w.__RAW_DOWNGRADE_COVER_FRAC__);
+  if (lever) return lever;
+  return w.__RAW_DISABLE_COVER_FRAC_ALIGN__ === true ? LEGACY_COVER_FRAC : DOWNGRADE_COVER_FRAC;
+}

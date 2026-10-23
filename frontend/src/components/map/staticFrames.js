@@ -210,6 +210,9 @@ export const STATIC_SETS = [
   'GFS/marine/waves/global_mid', 'GFS/marine/swell_1/global_mid', 'GFS/marine/swell_2/global_mid',
   'GFS/marine/wind_waves/global_mid', 'ICON/marine/waves/global_mid', 'EURO/marine/waves/global_mid',
   'ICON/marine/swell_1/global_mid', 'ICON/marine/wind_waves/global_mid',
+  // GFS 10 m wind (2026-10-22, the wind instant scrub): read only by windStaticFrames.js. getPinnedIndexSync keeps it out of the
+  // marine frame store (waves sets only).
+  'GFS/wind/wind/global_mid',
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
