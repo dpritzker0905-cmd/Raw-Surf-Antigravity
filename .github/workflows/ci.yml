@@ -933,7 +933,8 @@ jobs:
           # read dev's hosted guards 3297/210 (set-from on dev 891c815b7) + 11 -> projected 3308/211; 3308 - 6 = 3302. This PR must read 211 files / 3308.
           # +8 (2026-10-23, the second review: the donor's read path, refusals, staleness, the production lattice) -> 3316/211;
           # 3316 - 6 = 3310. This PR must read 211 files / 3316.
-          MIN_FILES, MIN_PASSED = 211, 3310
+          # +1 (2026-10-23, targeted_fill_stats on /admin/surf-forecast/status) -> 3317/211; 3317 - 6 = 3311.
+          MIN_FILES, MIN_PASSED = 211, 3311
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

@@ -294,6 +294,7 @@ _DONOR_LOCK = threading.Lock()
 _DONOR_BUILDING = {}                       # key -> threading.Lock (one build per key at a time)
 TARGETED_NO_FILL = Counter()               # (model, layer, reason) -> frames served unfilled by the targeted mode
 _LAST_NO_FILL = {}                         # (model, layer) -> last reason logged (log once per change)
+DONOR_STATS = Counter()                    # hits, builds, build_ms, stale_uncached (targeted_fill_stats)
 
 
 def _donor_cache_size():
@@ -394,13 +395,17 @@ def _compact_donor(store, item):
         hit = _DONOR_LRU.get(key)
         if hit is not None:
             _DONOR_LRU.move_to_end(key)
+            DONOR_STATS["hits"] += 1
             return hit
         building = _DONOR_BUILDING.setdefault(key, threading.Lock())
     with building:                                   # one build per key; a waiter then finds it in the LRU
         with _DONOR_LOCK:
             hit = _DONOR_LRU.get(key)
             if hit is not None:
+                DONOR_STATS["hits"] += 1
                 return hit
+        import time as _time
+        t0 = _time.perf_counter()
         resolution = getattr(item, "resolution", None)
         cache_dir = getattr(store, "cache_dir", None)
         stale = False
@@ -423,6 +428,10 @@ def _compact_donor(store, item):
                                   resolution or getattr(prod, "resolution", None))
         if not donor.has_sea():
             raise ValueError(f"{filename}: the donor has no sea node")
+        with _DONOR_LOCK:
+            DONOR_STATS["builds"] += 1
+            DONOR_STATS["build_ms"] += int((_time.perf_counter() - t0) * 1000)
+            DONOR_STATS["stale_uncached"] += int(stale)
         if not stale:
             with _DONOR_LOCK:
                 _DONOR_LRU[key] = donor
@@ -432,6 +441,19 @@ def _compact_donor(store, item):
         with _DONOR_LOCK:
             _DONOR_BUILDING.pop(key, None)
         return donor
+
+
+def targeted_fill_stats():
+    """The targeted fill's process-local counters, for /admin/surf-forecast/status (the dark-deploy baseline and the flip watch):
+    the mode, frames served unfilled by reason, and the donor LRU's size, capacity, hits, builds and build time."""
+    with _DONOR_LOCK:
+        size, stats = len(_DONOR_LRU), dict(DONOR_STATS)
+    builds = stats.get("builds", 0)
+    return {"mode": gulf_fill_mid_mode(), "donor_lru": {"size": size, "capacity": _donor_cache_size(), "hits": stats.get("hits", 0),
+            "builds": builds, "build_ms_total": stats.get("build_ms", 0),
+            "build_ms_mean": round(stats.get("build_ms", 0) / builds, 1) if builds else None,
+            "stale_uncached": stats.get("stale_uncached", 0)},
+            "no_fill": {f"{m}/{layer}/{reason}": n for (m, layer, reason), n in sorted(TARGETED_NO_FILL.items())}}
 
 
 def _node_key(v):

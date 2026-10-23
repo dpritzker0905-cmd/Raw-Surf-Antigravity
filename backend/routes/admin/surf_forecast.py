@@ -393,7 +393,12 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     except Exception as e:
         blobs["grid_size_climatology"] = {"error": str(e)}
 
-    return {"flags": flags, "blobs": blobs, "now": datetime.now(timezone.utc).isoformat()}
+    try:   # the targeted 2-deg Gulf fill's counters (process-local; the dark-deploy baseline and the flip watch read them here)
+        from services.weather_pipeline.coarse_gulf_fill import targeted_fill_stats
+        gulf_fill = targeted_fill_stats()
+    except Exception as e:
+        gulf_fill = {"error": str(e)}
+    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "now": datetime.now(timezone.utc).isoformat()}
 
 
 @router.post("/admin/surf-forecast/size-reference")

@@ -88,6 +88,7 @@ def _flags(monkeypatch):
     gf._DONOR_LRU.clear()
     gf.TARGETED_NO_FILL.clear()
     gf._LAST_NO_FILL.clear()
+    gf.DONOR_STATS.clear()
 
 
 @pytest.mark.parametrize("model", ["EURO", "ICON"])
@@ -336,3 +337,16 @@ def test_an_unreadable_manifest_says_so_and_the_warning_rearms_after_a_good_fill
 def test_the_lru_default_holds_two_48_frame_pages(monkeypatch):
     monkeypatch.delenv("MARINE_TARGETED_DONOR_CACHE", raising=False)
     assert gf._donor_cache_size() >= 96
+
+
+def test_the_stats_report_hits_builds_and_no_fill_reasons(monkeypatch, tmp_path):
+    """/admin/surf-forecast/status reads targeted_fill_stats(): the baseline and flip-watch numbers."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    store = _DiskStore(tmp_path)
+    for _ in range(3):
+        _fill(_full_recipient({(26.0, -90.0)}), store)
+    _fill(_recipient(), _Store(mid_vt="2026-10-23T09:00:00Z"))               # no donor within 3 h
+    s = gf.targeted_fill_stats()
+    assert s["mode"] == "targeted" and s["donor_lru"]["builds"] == 1 and s["donor_lru"]["hits"] == 2
+    assert s["donor_lru"]["size"] == 1 and s["donor_lru"]["capacity"] >= 96 and s["donor_lru"]["build_ms_mean"] is not None
+    assert s["no_fill"] == {"EURO/waves/missing": 1}
