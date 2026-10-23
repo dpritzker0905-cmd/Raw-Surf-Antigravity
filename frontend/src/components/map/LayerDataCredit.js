@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useSyncExternalStore } from 'react';
+import { getEngaged, subscribeEngaged } from './ownRasterFrames';
 
 // The data credit beside a raster layer's legend (2026-10-22). The map's attribution control is off (MapWebGL
 // attributionControl={false}), so nothing on screen credited the raster layers' sources:
@@ -15,15 +16,19 @@ export const LAYER_CREDITS = {
 const SOURCES = {
   'open-meteo': { text: '© Open-Meteo · CC BY 4.0', href: 'https://open-meteo.com/en/licence#maps', label: 'Data source: Open-Meteo, licence CC BY 4.0 (opens in a new tab)' },
   rainviewer: { text: '© RainViewer', href: 'https://www.rainviewer.com/', label: 'Radar data source: RainViewer (opens in a new tab)' },
+  // A layer drawn from our own frames (ownRasterFrames.js, free NOAA GRIB): public domain, credited as a courtesy.
+  noaa: { text: 'NOAA GFS', href: 'https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast', label: 'Data source: NOAA NCEP Global Forecast System, public domain (opens in a new tab)' },
 };
 
-export function creditFor(layer) {
+export function creditFor(layer, engaged = getEngaged()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
+  if (engaged && engaged[layer]) return SOURCES.noaa;
   return SOURCES[LAYER_CREDITS[layer]] || null;
 }
 
 export default function LayerDataCredit({ layer }) {
-  const c = creditFor(layer);
+  const engaged = useSyncExternalStore(subscribeEngaged, getEngaged, getEngaged);
+  const c = creditFor(layer, engaged);
   if (!c) return null;
   return (
     <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} data-testid="layer-data-credit"

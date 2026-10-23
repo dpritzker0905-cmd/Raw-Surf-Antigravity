@@ -54,6 +54,7 @@ import { useSpotRatings, computeClusterRatings } from './useSpotRatings';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
+import { useOwnRasterFrames } from './useOwnRasterFrames';
 import { useMapObservability } from './useMapObservability';
 import { useMapDebugTools } from './useMapDebugTools';
 import { useWebGLGuardrail } from './useWebGLGuardrail';
@@ -244,8 +245,13 @@ const MapWebGL = ({
 
   const animFrameRef = useRef(null);
   
+  // Own raster frames (2026-10-23, DARK: window.__RAW_RASTER_OWN_FRAMES__): pressure drawn from our CDN frames (free NOAA GRIB);
+  // while engaged the layer is left out of the .om path below, so Open-Meteo is never asked for it (useOwnRasterFrames.js).
+  const ownPressure = useOwnRasterFrames({ mapInstance, layer: 'pressure', model: activeModel, active: (activeLayers || []).includes('pressure'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  const omLayers = useMemo(() => (ownPressure ? (activeLayers || []).filter((l) => l !== 'pressure') : activeLayers), [ownPressure, activeLayers]);
+
   // Temporal Preloader
-  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance, activeModel, theme });
+  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers: omLayers, mapInstance, activeModel, theme });
 
   // 7. Open-Meteo Tile Protocol and Sliding URL Ring Buffers
 
@@ -259,7 +265,7 @@ const MapWebGL = ({
   } = useOpenMeteoTileUrls({
     mapInstance,
     activeModel,
-    activeLayers,
+    activeLayers: omLayers,
     theme,
     timeOffsetHours,
     userTier,
@@ -834,7 +840,7 @@ const MapWebGL = ({
 
         // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer, unless failed
         const isExcludedMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey) && !webglMarineFailed;
-        const isVisualRaster = activeLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
+        const isVisualRaster = omLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
 
         return (
           <Source
@@ -856,7 +862,7 @@ const MapWebGL = ({
                 ? (marineBeforeId || omSlotsBeforeId)
                 : omSlotsBeforeId) || undefined}
               layout={{
-                visibility: (!hideForTransition && activeLayers.includes(layerKey)) ? 'visible' : 'none'
+                visibility: (!hideForTransition && omLayers.includes(layerKey)) ? 'visible' : 'none'
               }}
               paint={{
                 // Air Temp runs ~15% more transparent than Water Temp (user 2026-07-11: "hard to

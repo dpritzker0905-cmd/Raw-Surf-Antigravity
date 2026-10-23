@@ -200,6 +200,9 @@ export const STATIC_SETS = [
   // GFS 10 m wind (2026-10-22, the wind instant scrub): read only by windStaticFrames.js. getPinnedIndexSync keeps it out of the
   // marine frame store (waves sets only).
   'GFS/wind/wind/global_mid',
+  // GFS mean-sea-level pressure (2026-10-23, the raster layers' own frames from free NOAA GRIB): read only by ownRasterFrames.js,
+  // behind window.__RAW_RASTER_OWN_FRAMES__ (default off). Not a waves set, so the marine frame store never takes it.
+  'GFS/weather/pressure/global_0p5',
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or

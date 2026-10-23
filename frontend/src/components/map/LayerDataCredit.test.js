@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import LayerDataCredit, { creditFor, LAYER_CREDITS } from './LayerDataCredit';
 
 afterEach(() => { delete window.__RAW_DISABLE_LAYER_DATA_CREDIT__; });
@@ -32,4 +32,15 @@ test('nothing for an uncredited layer; the kill removes it', () => {
   window.__RAW_DISABLE_LAYER_DATA_CREDIT__ = true;
   const r = render(<LayerDataCredit layer="rain" />);
   expect(r.container.firstChild).toBeNull();
+});
+
+test('a layer drawn from our own frames credits NOAA GFS, and only while it is', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  setEngaged('pressure', true);
+  expect(creditFor('pressure').text).toBe('NOAA GFS');
+  expect(creditFor('rain').text).toBe('© Open-Meteo · CC BY 4.0');
+  const { getByTestId } = render(<LayerDataCredit layer="pressure" />);
+  expect(getByTestId('layer-data-credit').textContent).toBe('NOAA GFS');
+  act(() => setEngaged('pressure', false));
+  expect(getByTestId('layer-data-credit').textContent).toBe('© Open-Meteo · CC BY 4.0');
 });
