@@ -1661,3 +1661,16 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Recommendation (static-frames session):** flip, unless the A/B shows something the owner wants kept. At 2 deg the fill repairs
   nothing, it labels another model's 10-deg values as EURO/ICON (the provenance class this repo records as its recurring defect),
   and the flip makes ICON/EURO world views instant.
+
+
+### D-0XX (numbered at merge) · Per-PR ledger fragments, folded into ACTIONS.jsonl in merge order by one fold PR
+- **The owner, 2026-10-22 23:11 EDT (03:11Z on 10-23):** "Yes: build the per-PR ledger fragments (ledger.d/<pr>.jsonl folded
+  into ACTIONS.jsonl in merge order) so PRs stop colliding and auto-merge runs unattended. Keep the hash chain intact."
+- **What it is:** a PR records its ledger lines in `docs/weather-program/ledger.d/<branch-slug>.jsonl` (`action_ledger.py append`;
+  no seq/prev/at) and never edits ACTIONS.jsonl or the STATE anchor. The lead's `action_ledger.py fold-pr` appends every merged
+  fragment to ACTIONS.jsonl in merge order with the normal hash chain, moves the anchor and deletes the folded files, in one PR.
+  `check-pr` (Weather Program Ledger workflow) fails direct edits unless the PR is that fold (recomputed from dev, line for line)
+  or was opened before the fragments landed. Design approved by the lead 2026-10-23 (all nine points; check-pr advisory first,
+  then a step in an existing required ci.yml job once it has run clean for a few days).
+- **Reopen if:** a fold PR cannot keep pace with merges, or the guard blocks a correct PR.
+- **Rollback:** revert the PR; `append --direct` is the old writer and still works.
