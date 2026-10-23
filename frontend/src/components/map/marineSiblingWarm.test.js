@@ -16,7 +16,7 @@ import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm } f
 import { _seriesLimiterState } from './marineSeriesLimiter';
 import { staticOwnsWorldPage } from './marineSeriesStatic';
 import {
-  SIBLING_PAGE_MAX_WAIT_MS, SIBLING_PAGE_POLL_MS, _resetSiblingWarmForTest, _siblingWarmState, seriesLanesQuiet, siblingPageMayStart,
+  SIBLING_PAGE_MAX_WAIT_MS, SIBLING_PAGE_POLL_MS, SIBLING_QUIET_MS, _resetSiblingWarmForTest, _siblingWarmState, seriesLanesQuiet, siblingPageMayStart,
   warmSiblingLayer,
 } from './marineSiblingWarm';
 
@@ -32,6 +32,8 @@ function warm(layer, extra = {}) {
   return cache;
 }
 async function step(ms = SIBLING_PAGE_POLL_MS) { jest.advanceTimersByTime(ms); await flush(); }
+// One idle tick past the quiet window: the lanes must have stayed quiet SIBLING_QUIET_MS (ticked every SIBLING_PAGE_POLL_MS).
+async function settle() { for (let t = 0; t <= SIBLING_QUIET_MS + SIBLING_PAGE_POLL_MS; t += SIBLING_PAGE_POLL_MS) await step(); }
 
 describe('marineSiblingWarm: static first, else the mini now and the page in idle time, one layer at a time', () => {
   beforeEach(() => {
@@ -56,7 +58,7 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     expect(ensureMarineSeriesHour0.mock.calls[0][5]).toBe(true);           // the background lane
     expect(cache).toHaveBeenCalledTimes(1);                                  // the frame, from the 1-hour request
     expect(ensureMarineSeries).not.toHaveBeenCalled();                       // no page yet
-    await step();
+    await settle();
     expect(ensureMarineSeries).toHaveBeenCalledTimes(1);
     expect(ensureMarineSeries.mock.calls[0][5]).toBe(true);                  // the current page only
     expect(ensureMarineSeries.mock.calls[0][7]).toBe(true);                  // background
@@ -69,14 +71,14 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     ensureMarineSeries.mockImplementation(() => new Promise((r) => { finish = r; }));
     warm('swell_1'); warm('swell_2'); warm('wind_waves');
     await flush();
-    await step();
+    await settle();
     expect(pagesOf()).toEqual(['swell_1']);
     await step(); await step();
     expect(pagesOf()).toEqual(['swell_1']);                                  // still one in flight
-    finish(); await flush(); await step();
+    finish(); await flush(); await settle();
     expect(pagesOf()).toEqual(['swell_1', 'swell_2']);
-    finish(); await flush(); await step();
-    finish(); await flush(); await step();
+    finish(); await flush(); await settle();
+    finish(); await flush(); await settle();
     expect(pagesOf()).toEqual(['swell_1', 'swell_2', 'wind_waves']);
   });
 
@@ -90,7 +92,21 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
       expect(ensureMarineSeries).not.toHaveBeenCalled();
     }
     _seriesLimiterState.mockImplementation(() => ({ ...QUIET }));
+    await settle();
+    expect(pagesOf()).toEqual(['swell_1']);
+  });
+
+  it('the lanes must stay quiet SIBLING_QUIET_MS (the visible layer's adjacent pages queue ~1.5 s after its page): a blip restarts the wait', async () => {
+    warm('swell_1');
+    await flush();
+    await step(SIBLING_QUIET_MS - SIBLING_PAGE_POLL_MS);                    // quiet, but not long enough
+    expect(ensureMarineSeries).not.toHaveBeenCalled();
+    _seriesLimiterState.mockImplementation(() => ({ ...QUIET, queuedBackground: 1 }));   // the visible layer's next page queued
     await step();
+    _seriesLimiterState.mockImplementation(() => ({ ...QUIET }));
+    await step(SIBLING_QUIET_MS - SIBLING_PAGE_POLL_MS);
+    expect(ensureMarineSeries).not.toHaveBeenCalled();                       // the window restarted at the blip
+    await step(); await step();
     expect(pagesOf()).toEqual(['swell_1']);
   });
 
@@ -115,7 +131,7 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     await step(); await step();
     expect(ensureMarineSeries).not.toHaveBeenCalled();
     hidden.mockRestore();
-    await step();
+    await settle();
     expect(pagesOf()).toEqual(['swell_1']);
     expect(siblingPageMayStart({ model: 'GFS', visibleLayer: 'waves', bounds: BOUNDS, hourOffset: 0, queuedAt: Date.now() })).toBe(true);
   });
@@ -145,7 +161,7 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     expect(ensureMarineSeries).not.toHaveBeenCalled();
     expect(window.__RAW_SIBLING_WARM__.dropped).toBe(1);
     warm('swell_2', { frameReady: true });
-    await flush(); await step();
+    await flush(); await settle();
     expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(1);               // no second mini
     expect(pagesOf()).toEqual(['swell_2']);
   });
@@ -157,7 +173,7 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     await flush();
     expect(_siblingWarmState().queued).toEqual(['GFS_swell_1']);
     _seriesLimiterState.mockImplementation(() => ({ ...QUIET }));
-    await step();
+    await settle();
     expect(ensureMarineSeries).toHaveBeenCalledTimes(1);
     expect(ensureMarineSeries.mock.calls[0][2].west).toBe(-82);
     expect(ensureMarineSeries.mock.calls[0][3]).toBe(3);

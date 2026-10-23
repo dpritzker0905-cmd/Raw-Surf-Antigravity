@@ -16,7 +16,7 @@
 import { prewarmSiblingMarineSeries, getModelSafeMarine } from '../components/map/marineController';
 import { getPerModelHourCache } from '../components/map/marineControllerCache';
 import { _resetMarineSeriesForTest, ensureMarineSeries } from '../components/map/marineGridSeries';
-import { _resetSiblingWarmForTest } from '../components/map/marineSiblingWarm';
+import { _resetSiblingWarmForTest, _setSiblingWarmTimingForTest } from '../components/map/marineSiblingWarm';
 
 const bounds = { west: -81.7, south: 27.8, east: -79.6, north: 28.8 }; // regional, ~2.1° × 1.0°
 
@@ -53,6 +53,7 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
     _resetMarineSeriesForTest();
     _resetSiblingWarmForTest();
+    _setSiblingWarmTimingForTest({ poll: 40, quiet: 120 });   // the real 400 / 2000 ms are in marineSiblingWarm.test.js
     getPerModelHourCache().clear();
     delete window.__MARINE_SIBLING_PREWARM__;
     delete window.__MARINE_SERIES__;

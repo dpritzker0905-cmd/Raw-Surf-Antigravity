@@ -44,7 +44,7 @@ describe('the background warms go through the A15-11 lane', () => {
     expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(3);       // swell_1, swell_2, wind_waves: the toggle frames
     for (const call of ensureMarineSeriesHour0.mock.calls) expect(call[5]).toBe(true);   // background
     expect(ensureMarineSeries).not.toHaveBeenCalled();              // the 48-frame pages wait (marineSiblingWarm.js)
-    for (let i = 0; i < 3; i++) { jest.advanceTimersByTime(SIBLING_PAGE_POLL_MS); await flush(); }
+    for (let i = 0; i < 24; i++) { jest.advanceTimersByTime(SIBLING_PAGE_POLL_MS); await flush(); }   // 3 pages, each after a quiet window
     expect(ensureMarineSeries).toHaveBeenCalledTimes(3);
     for (const call of ensureMarineSeries.mock.calls) {
       expect(call[5]).toBe(true);                                   // current page only

@@ -12,10 +12,10 @@
  *      is on): warm it now through the static seam. Zero /grid_series.
  *   2. Otherwise its 1-hour mini goes now (the background lane: it starts after visible work, as before), and its frame is cached
  *      the moment the mini lands. The toggle is ready from a 1-hour request instead of a 48-frame page.
- *   3. Its 48-frame page waits in a queue and runs one layer at a time, only in idle time (requestIdleCallback), while no series
- *      load is in flight or queued (visible or background), the tab is visible and no scrub runs, and only after the visible
- *      layer's own page has landed (or SIBLING_PAGE_MAX_WAIT_MS has passed). Same pages as before, so a scrub after the toggle
- *      is on the series; they just never compete with what the user is looking at.
+ *   3. Its 48-frame page waits in a queue and runs one layer at a time, only in idle time (requestIdleCallback), once no series
+ *      load has been in flight or queued (visible or background) for SIBLING_QUIET_MS, the tab is visible and no scrub runs, and
+ *      only after the visible layer's own page has landed (or SIBLING_PAGE_MAX_WAIT_MS has passed). Same pages as before, so a
+ *      scrub after the toggle *      is on the series; they just never compete with what the user is looking at.
  * Kill: window.__RAW_DISABLE_SIBLING_IDLE_PAGES__ = true -> each sibling's mini and page at once, its frame cached after the page.
  * Telemetry: window.__RAW_SIBLING_WARM__ = { static, minis, miniFrames, pages, dropped, waitMs: [last 8] }.
  */
@@ -27,6 +27,9 @@ import { getSurfModeFlag } from './backendWeatherServiceClient';
 
 export const SIBLING_PAGE_POLL_MS = 400;        // re-check a closed gate this often
 export const SIBLING_PAGE_MAX_WAIT_MS = 8000;   // the visible page is 2.5-5 s cold; past this, a quiet lane is enough
+// The lanes must stay quiet this long first: the visible layer's adjacent pages are queued ~1.5 s AFTER its page lands
+// (marineGridSeries.scheduleIdlePrefetch), so a sibling page started in that gap would run ahead of the visible layer's own scrub.
+export const SIBLING_QUIET_MS = 2000;
 const IDLE_TIMEOUT_MS = 2500;
 
 const _queue = [];                // sibling pages: [{ model, layer, bounds, hourOffset, signal, visibleLayer, cache, queuedAt }]
@@ -35,6 +38,8 @@ const _awaitingPage = new Set();  // `${model}_${layer}`: its frame came from th
 let _running = false;
 let _timer = null;
 let _gen = 0;
+let _quietSince = null;           // when the series lanes were last seen going quiet (ticks are SIBLING_PAGE_POLL_MS apart)
+let _timing = { poll: SIBLING_PAGE_POLL_MS, quiet: SIBLING_QUIET_MS, maxWait: SIBLING_PAGE_MAX_WAIT_MS };
 
 export function siblingIdlePagesOn() {
   return !(typeof window !== 'undefined' && window.__RAW_DISABLE_SIBLING_IDLE_PAGES__ === true);
@@ -62,14 +67,16 @@ export function seriesLanesQuiet() {
 
 /** The gate for one queued sibling page. */
 export function siblingPageMayStart(entry, now = Date.now()) {
-  if (typeof window !== 'undefined' && window.isScrubbingTimeline) return false;
+  const scrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
+  if (scrubbing || !seriesLanesQuiet()) { _quietSince = null; return false; }
   if (typeof document !== 'undefined' && document.hidden) return false;
-  if (!seriesLanesQuiet()) return false;
+  if (_quietSince === null) _quietSince = now;
+  if (now - _quietSince < _timing.quiet) return false;
   return isMarineSeriesPageWarm(entry.model, entry.visibleLayer, entry.bounds, entry.hourOffset)
-    || now - entry.queuedAt >= SIBLING_PAGE_MAX_WAIT_MS;
+    || now - entry.queuedAt >= _timing.maxWait;
 }
 
-function schedule(delay = SIBLING_PAGE_POLL_MS) {
+function schedule(delay = _timing.poll) {
   if (_timer !== null || _queue.length === 0) return;
   const gen = _gen;
   const run = () => { if (gen !== _gen) return; _timer = null; tick(); };
@@ -151,10 +158,14 @@ export function _siblingWarmState() {
   return { queued: _queue.map((q) => `${q.model}_${q.layer}`), running: _running, inFlight: [..._inFlight], awaitingPage: [..._awaitingPage] };
 }
 
+/** Real-timer tests of the whole chain shrink the waits (the decisions are tested at the real values on fake timers). */
+export function _setSiblingWarmTimingForTest(t) { _timing = { ..._timing, ...t }; }
+
 export function _resetSiblingWarmForTest() {
   _gen += 1;
+  _timing = { poll: SIBLING_PAGE_POLL_MS, quiet: SIBLING_QUIET_MS, maxWait: SIBLING_PAGE_MAX_WAIT_MS };
   if (_timer !== null) clearTimeout(_timer);
-  _timer = null; _running = false;
+  _timer = null; _running = false; _quietSince = null;
   _queue.length = 0; _inFlight.clear(); _awaitingPage.clear();
   if (typeof window !== 'undefined') delete window.__RAW_SIBLING_WARM__;
 }

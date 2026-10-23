@@ -7,7 +7,7 @@
 import { prewarmSiblingMarineSeries, getModelSafeMarine } from './marineController';
 import { getPerModelHourCache } from './marineControllerCache';
 import { _resetMarineSeriesForTest, ensureMarineSeries } from './marineGridSeries';
-import { _resetSiblingWarmForTest } from './marineSiblingWarm';
+import { _resetSiblingWarmForTest, _setSiblingWarmTimingForTest } from './marineSiblingWarm';
 
 const bounds = { west: -81.65, south: 27.6, east: -79.58, north: 28.5 };   // the map's opening view (z9, Florida east coast)
 const layerOf = (url) => (String(url).match(/[?&]layer=([^&]+)/) || [])[1];
@@ -31,6 +31,7 @@ describe('the sibling warm on the real series chain', () => {
     window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);     // the historic 0,3,6 lattice (see marineSiblingPrewarm.test.js)
     _resetMarineSeriesForTest();
     _resetSiblingWarmForTest();
+    _setSiblingWarmTimingForTest({ poll: 40, quiet: 120 });   // the real 400 / 2000 ms are in marineSiblingWarm.test.js
     getPerModelHourCache().clear();
     window.__USE_BACKEND_MARINE_SYSTEM__ = true;
     window.__USE_BACKEND_WEATHER_SERVICE__ = true;
@@ -55,7 +56,7 @@ describe('the sibling warm on the real series chain', () => {
   it('nothing for a hidden layer while the visible page is on the box; then minis first, the pages one at a time', async () => {
     const visible = ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);     // the visible layer's page, in flight
     prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);                    // its /grid commit's sibling warm
-    await new Promise((r) => setTimeout(r, 1200));                                       // three poll ticks
+    await new Promise((r) => setTimeout(r, 1200));                                       // ~30 poll ticks, 10 quiet windows
     expect(log.filter((r) => r.layer !== 'waves')).toEqual([]);                          // not even a mini
     releaseVisible();
     await visible;
