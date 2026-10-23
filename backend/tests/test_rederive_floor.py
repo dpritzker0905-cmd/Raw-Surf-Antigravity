@@ -177,6 +177,66 @@ def test_cli_rederives_both_files_and_the_pair_keeps_the_lane_budget(checkout):
     assert checkout.joinpath(*R.CI_REL.split("/")).read_bytes() == first
 
 
+def _one_line(block_text):
+    """The map as it was before the block layout: one line, same values."""
+    i, j = R.map_block(block_text)
+    vals = R.parse_map(block_text)
+    return block_text[:i] + "_FLOOR_SET_FROM = {" + ", ".join(f'"{k}": {v}' for k, v in vals.items()) + "}" + \
+        block_text[j:]
+
+
+def test_add_auto_re_lays_an_old_one_line_prs_own_lane_change_into_the_block_layout(isolated_git, tmp_path,
+                                                                                      monkeypatch):
+    """The lead's case (2026-10-23): a PR that moved chain +9 tests / +1 file on the OLD one-line map conflicts with
+    dev's block layout. Take dev's side of both files, then `--add auto` reads the PR's own change (HEAD vs merge
+    base) and writes it into the chain block, keeping dev's other lanes."""
+    repo = tmp_path / "r"
+    os.makedirs(repo)
+
+    def git(*args):
+        r = subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+        return r
+
+    def put(rel, text):
+        p = repo.joinpath(*rel.split("/"))
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(text.encode())
+    vals = R.parse_map(MAP_TEXT)
+    files, passed = R.floor_values(CI_TEXT, "chain")
+    git("init", "-q", "-b", "dev")
+    put(R.MAP_REL, _one_line(MAP_TEXT))
+    put(R.CI_REL, CI_TEXT)
+    git("add", "-A")
+    git("commit", "-qm", "base: the old one-line map")
+    git("switch", "-qc", "pr")                                      # the PR: chain +9 tests, +1 file, old layout
+    put(R.MAP_REL, _one_line(MAP_TEXT).replace(f'"chain": {vals["chain"]}', f'"chain": {vals["chain"] + 9}'))
+    put(R.CI_REL, R.set_ci_floor(CI_TEXT, "chain", files + 1, passed + 9, ["# pr (rederive_floor.py, pr)", "#  x"], "pr"))
+    git("commit", "-qam", "pr: chain +9")
+    git("switch", "-q", "dev")                      # dev: the block layout, and chain +4, estate +5 meanwhile (so a delta
+    moved = R.set_map(MAP_TEXT, "estate", vals["estate"] + 5, "dev moved estate")      # read against dev itself, not
+    put(R.MAP_REL, R.set_map(moved, "chain", vals["chain"] + 4, "dev moved chain"))   # the merge base, reads 5, not 9)
+    git("commit", "-qam", "dev: block layout")
+    git("switch", "-q", "pr")
+    assert git("merge", "--no-edit", "dev").returncode != 0, "the old-map PR should conflict with the block layout"
+    git("checkout", "--theirs", "--", R.MAP_REL, R.CI_REL)
+    monkeypatch.setattr(R, "REPO", str(repo))
+    monkeypatch.setattr(S, "last_green_run", lambda branch, now=None: (7, "sha", "2026-10-23T00:00:00Z"))
+    monkeypatch.setattr(S, "observed", lambda run, lane: (files, vals["chain"]) if lane == "chain" else (None, 1))
+    assert R.own_delta("chain", "dev") == (9, 1)
+    assert R.main(["--lane", "chain", "--add", "auto", "--base", "dev"]) == 0
+    out = repo.joinpath(*R.MAP_REL.split("/")).read_text(encoding="utf-8")
+    # base = max(hosted read, dev's map chain + 4) = chain + 4; + the PR's own 9.
+    assert R.parse_map(out) == {**vals, "chain": vals["chain"] + 13, "estate": vals["estate"] + 5}
+    assert "\n" in out[R.map_block(out)[0]:R.map_block(out)[1]], "the map must stay in the block layout"
+    ci = str(repo.joinpath(*R.CI_REL.split("/")))
+    assert S.read_floors(ci)["chain"] == {"files": files + 1, "passed": vals["chain"] + 13 - 6}
+
+
+def test_a_bad_add_is_refused(checkout):
+    assert R.main(["--lane", "estate", "--add", "lots"]) == 1
+    assert R.main(["--lane", "chain", "--add", "3", "--add-files", "x"]) == 1
+
+
 def test_cli_dry_run_and_a_refused_read_write_nothing(checkout, monkeypatch):
     before = [checkout.joinpath(*r.split("/")).read_bytes() for r in (R.CI_REL, R.MAP_REL)]
     assert R.main(["--lane", "chain", "--add", "3", "--add-files", "1", "--dry-run"]) == 0
