@@ -135,7 +135,10 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     hidden.mockRestore();
     await settle();
     expect(pagesOf()).toEqual(['swell_1']);
-    expect(siblingPageMayStart({ model: 'GFS', visibleLayer: 'waves', bounds: BOUNDS, hourOffset: 0, queuedAt: Date.now() })).toBe(true);
+    // the page just run reset the quiet window: the gate opens again only SIBLING_QUIET_MS later
+    const probe = { model: 'GFS', visibleLayer: 'waves', bounds: BOUNDS, hourOffset: 0, queuedAt: Date.now() };
+    expect(siblingPageMayStart(probe)).toBe(false);
+    expect(siblingPageMayStart(probe, Date.now() + SIBLING_QUIET_MS)).toBe(true);
   });
 
   it('a static source owns the page: the whole warm now (seam B answers it), no mini, no queue', async () => {
