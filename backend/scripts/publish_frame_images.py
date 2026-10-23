@@ -270,6 +270,9 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
     started = clock()
+    # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
+    from services import frame_set_wind as fsw
+    wind_lane = fsw.load_publish_lane(log) if any(fsw.is_wind(t) for t in sets) else None
     for target in sets:
         key = fs.set_key(target)
         if clock() - started > budget:
@@ -280,7 +283,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         prev_raw = sink.read(entry["index"]) if entry and entry.get("index") else None
         prev_index = json.loads(prev_raw) if prev_raw else None
         t0 = time.perf_counter()
-        index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log)
+        index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane)
         if index is not None:
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
             latest.setdefault("sets", {})[key] = fs.latest_record(index, entry, now, _writer())
@@ -299,12 +302,38 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     if changed:
         latest.update(version=1, written_at=now, writer=_writer())
         sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
+    if wind_lane is not None:
+        _wind_lane_pointer(sink, wind_lane, log)
     for key, (target, keep) in keep_by_set.items():        # after the pointer moved, never before
         gone = fs.retention_deletes(sink.list(fs.set_prefix(target)), target, keep)
         if gone:
             sink.delete(gone)
         report[key]["deleted"] = len(gone)
     return report
+
+
+def _wind_lane_pointer(sink, wind_lane, log):
+    """Keep v1/wind_lane.json naming the lane L2 holds NOW (re-read here, at the end of the publish: the core lane may have
+    published a newer cycle since this run loaded its lane, and the pointer must name that one so the client refuses this run's
+    lane-window frames; frame_set_wind.write_lane_pointer also never moves it to an older cycle). Offline (LocalSink, the
+    harness) the pointer names the frames' own lane, written an hour ago: the box is taken to hold it."""
+    from services import frame_set_wind as fsw
+    if isinstance(sink, LocalSink):
+        ident = wind_lane.identity()
+        lane_index = {"key": ident["key"], "cycle": ident["cycle"], "horizon": ident["horizon"],
+                      "hours": len(getattr(wind_lane.lane, "hours", {}) or {})}
+        rec = fsw.pointer_record(lane_index, None, "offline-harness")
+        rec["written_at"] = datetime.fromtimestamp(time.time() - 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        sink.write(fsw.LANE_POINTER, json.dumps(rec, indent=1).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
+        return
+    from services.weather_pipeline import wind_lane as wl
+    try:
+        held = wl._l2_get(wl.INDEX_KEY)
+    except Exception as e:  # never fail the publish over the pointer: the core lane keeps it current
+        log(f"[wind-lane pointer] L2 index unreadable ({type(e).__name__}); pointer left as it is")
+        return
+    if held and held.get("key"):
+        fsw.write_lane_pointer(held, log)
 
 
 def main(argv=None):

@@ -374,6 +374,12 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_HOUR0_FIRST__', '__RAW_DISABLE_WIND_BASE_OVERLAY__', '__RAW_DISABLE_WIND_CLIP_KEEP_FINE__', '__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__', '__RAW_DISABLE_WIND_COMMIT_NOOP__',
       '__RAW_DISABLE_WIND_DELIVERY_QUEUE__', '__RAW_DISABLE_WIND_FINE_CONTAIN_GUARD__', '__RAW_DISABLE_WIND_HRRR_LANE__', '__RAW_DISABLE_WIND_OVERLAY_KEEP__', '__RAW_DISABLE_WIND_SERIES_SUPERSEDE__',
       '__RAW_DISABLE_WIND_TIER_MOSAIC__',
+      // static wind frames (windStaticFrames.js / windFramePrefetch.js / windStaticEngine.js, 2026-10-22): WHERE the same served grid comes from
+      // (CDN bytes, node-for-node equal to /grid) and WHEN it is fetched or built; no table, ramp, ground or rule reads any of them
+      '__RAW_DISABLE_WIND_STATIC_FRAMES__', '__RAW_DISABLE_WIND_STATIC_LANE_HOURS__', '__RAW_DISABLE_WIND_STATIC_CROP__', '__RAW_DISABLE_WIND_PREFETCH__',
+      '__RAW_DISABLE_WIND_INSTANT_STEP__', '__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__', '__RAW_DISABLE_WIND_STALE_COVERING__',
+      // and the static-frame kills shared with marine (staticFrames.js), which the wind seam also honours
+      '__RAW_DISABLE_STATIC_FRAMES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__', '__RAW_DISABLE_STATIC_MID_CROP__',
       // the final hour of a wheel drag is settled at scrub end (scrub audit 2026-10-18, T-02): WHEN a grid is fetched, never how it is drawn
       '__RAW_DISABLE_WIND_SCRUB_END_SETTLE__',
       // the layer's place in the map's stack, and the lines the map draws over it: the coastline, and the borders' ink (2026-10-12:
