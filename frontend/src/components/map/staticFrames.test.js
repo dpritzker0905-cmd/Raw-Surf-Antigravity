@@ -452,6 +452,39 @@ describe('fetch priority on frame fetches', () => {
     expect(json).toBeTruthy();
     expect(initOf('.bin').priority).toBe('high');
   });
+
+  it("the inline worker's own fetch carries the priority (its REAL source, run in a fake worker scope)", async () => {
+    let src = null;
+    const RealBlob = global.Blob;
+    const hadCreate = URL.createObjectURL;
+    const workerFetch = jest.fn(async () => ({ ok: true, status: 200, arrayBuffer: async () => new ArrayBuffer(8) }));
+    global.Blob = function CapturingBlob(parts, opts) { src = parts.join(''); return new RealBlob(parts, opts); };
+    URL.createObjectURL = () => 'blob:frames-worker';
+    global.Worker = class FakeWorker {
+      constructor() {
+        const scope = { postMessage: (data) => this.onmessage && this.onmessage({ data }) };
+        // eslint-disable-next-line no-new-func
+        new Function('self', 'fetch', 'performance', 'AbortController', src)(scope, workerFetch, performance, AbortController);
+        this.scope = scope;
+      }
+      postMessage(m) { this.scope.onmessage({ data: m }); }
+      terminate() {}
+    };
+    try {
+      global.fetch = jest.fn();                                              // the main-thread fallback must not run
+      expect((await fetchFrameBytes(BASE + 'w1.bin', undefined, 'high')).error).toBeUndefined();
+      expect((await fetchFrameBytes(BASE + 'w2.bin')).error).toBeUndefined();
+      expect(window.__RAW_STATIC_FRAMES__.worker).toBe('blob');
+      expect(workerFetch.mock.calls[0][1]).toMatchObject({ credentials: 'omit', priority: 'high' });
+      expect('priority' in workerFetch.mock.calls[1][1]).toBe(false);
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      global.Blob = RealBlob;
+      URL.createObjectURL = hadCreate;
+      delete global.Worker;
+      _resetStaticFramesForTest();
+    }
+  });
 });
 
 // BOOT WARM-UP (2026-10-23, skills audit #2): at MapPage mount the worker, latest.json, the index pin and the current hour's
