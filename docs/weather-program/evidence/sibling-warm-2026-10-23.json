@@ -43,6 +43,26 @@
    },
    "WATCH": 48000,
    "CDN": true
+  },
+  "A_surf": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 15000,
+    "surfMini": 1000,
+    "surfGrid": 1000
+   },
+   "WATCH": 120000,
+   "CDN": true,
+   "SURF": true,
+   "MODEL": "ICON",
+   "PAN_GAP": 1200
   }
  },
  "rows": [
@@ -2787,6 +2807,1063 @@
      47499
     ]
    ]
+  },
+  {
+   "build": "A_surf",
+   "case": "load",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 6861,
+   "modelMs": 13417,
+   "pans": [
+    null,
+    null
+   ],
+   "gridSeries": {
+    "total": 12,
+    "pages": 9,
+    "minis": 3,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 8,
+     "ICON:waves:mini": 2
+    },
+    "visiblePageBoxes": 1
+   },
+   "modelledSeriesCpuAskedMs": 138000,
+   "gridAsks": 3,
+   "warm": {
+    "static": 0,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": [],
+    "surfGated": 7
+   },
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     85,
+     30189
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     919,
+     3919
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     933,
+     3931
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     7013,
+     35115
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     7419,
+     11366
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     7622,
+     11556
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.75,24.25,-78.75,28.75",
+     15026,
+     18028
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     37544,
+     39484
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     37614,
+     53560
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54424,
+     84365
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54487,
+     84426
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     86816,
+     116762
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     86887,
+     116825
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     119817,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     119888,
+     null
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "load",
+   "arm": "dev",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_SURF_GATE__",
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 5168,
+   "modelMs": 10059,
+   "pans": [
+    null,
+    null
+   ],
+   "gridSeries": {
+    "total": 12,
+    "pages": 7,
+    "minis": 5,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 6,
+     "ICON:waves:mini": 2,
+     "ICON:swell_1:mini": 1,
+     "ICON:wind_waves:mini": 1
+    },
+    "visiblePageBoxes": 1
+   },
+   "modelledSeriesCpuAskedMs": 110000,
+   "gridAsks": 3,
+   "warm": null,
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     44,
+     31875
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     432,
+     3345
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     630,
+     3533
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5241,
+     35069
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     5636,
+     9568
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5862,
+     9787
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.75,24.25,-78.75,28.75",
+     10736,
+     13740
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     36774,
+     38717
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     36835,
+     52787
+    ],
+    [
+     "mini",
+     "ICON",
+     "swell_1",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54758,
+     56691
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54833,
+     70766
+    ],
+    [
+     "mini",
+     "ICON",
+     "wind_waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     72526,
+     74478
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     72593,
+     88546
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     90423,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     90489,
+     null
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "pans@20",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 4520,
+   "modelMs": 9193,
+   "pans": [
+    10695,
+    35644
+   ],
+   "gridSeries": {
+    "total": 25,
+    "pages": 7,
+    "minis": 18,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 6,
+     "ICON:waves:mini": 17
+    },
+    "visiblePageBoxes": 6
+   },
+   "modelledSeriesCpuAskedMs": 123000,
+   "gridAsks": 6,
+   "warm": {
+    "static": 0,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": [],
+    "surfGated": 67
+   },
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     41,
+     68863
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     375,
+     3259
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     641,
+     3526
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     4579,
+     78942
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     4966,
+     8891
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5189,
+     9119
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.75,24.25,-78.75,28.75",
+     9268,
+     13105
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.2192,25.4704,-78.0769,27.4294",
+     11015,
+     16487
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.2192,25.4704,-78.0769,27.4294",
+     11015,
+     84725
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.7796,25.3715,-77.6373,27.3313",
+     13719,
+     20698
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82,24,-76,30",
+     13803,
+     20837
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.6972,25.2232,-77.5549,27.1842",
+     14937,
+     22319
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.2853,25.0004,-77.1430,26.9633",
+     17416,
+     26026
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.9559,25.0745,-76.8135,27.0368",
+     18526,
+     27755
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.8732,24.9259,-76.7309,26.8894",
+     19869,
+     29520
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.5711,24.8762,-76.4288,26.8401",
+     21006,
+     30957
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.4613,24.7026,-76.3190,26.6679",
+     22340,
+     32813
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82,22,-74,28",
+     22427,
+     32937
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.1321,24.7768,-75.9898,26.7415",
+     23474,
+     34139
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.0493,24.6279,-75.9069,26.5938",
+     24997,
+     35811
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.7472,24.5781,-75.6049,26.5444",
+     26248,
+     36980
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.3077,24.4785,-75.1653,26.4456",
+     28594,
+     38962
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.2254,24.3292,-75.0830,26.2975",
+     29767,
+     39837
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.9233,24.2792,-74.7810,26.2479",
+     31229,
+     40789
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.8133,24.1045,-74.6710,26.0746",
+     32333,
+     41396
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.5143,24.1724,-74.3720,26.1420",
+     33839,
+     42095
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80,22,-72,28",
+     33872,
+     42110
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.7796,25.3715,-77.6373,27.3313",
+     49585,
+     98928
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.6972,25.2232,-77.5549,27.1842",
+     56022,
+     102693
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.2853,25.0004,-77.1430,26.9633",
+     94595,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-79.9559,25.0745,-76.8135,27.0368",
+     101036,
+     null
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "pans@20",
+   "arm": "dev",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_SURF_GATE__",
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 5283,
+   "modelMs": 11208,
+   "pans": [
+    12711,
+    38037
+   ],
+   "gridSeries": {
+    "total": 25,
+    "pages": 7,
+    "minis": 18,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 6,
+     "ICON:waves:mini": 17
+    },
+    "visiblePageBoxes": 6
+   },
+   "modelledSeriesCpuAskedMs": 123000,
+   "gridAsks": 5,
+   "warm": null,
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     40,
+     62223
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     372,
+     3251
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     631,
+     3513
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5361,
+     75485
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     5735,
+     9677
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5964,
+     9894
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.2196,25.4704,-78.0773,27.4294",
+     13035,
+     18716
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.2196,25.4704,-78.0773,27.4294",
+     13035,
+     83967
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.5,24.25,-78.5,28.75",
+     13118,
+     18840
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.7801,25.3714,-77.6377,27.3312",
+     15851,
+     22270
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.6973,25.2234,-77.5550,27.1845",
+     16847,
+     23573
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.3508,25.1039,-77.2085,27.0659",
+     20360,
+     29272
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82,22,-76,30",
+     20399,
+     29341
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.9559,25.0745,-76.8136,27.0368",
+     20784,
+     29881
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.8732,24.9259,-76.7309,26.8894",
+     22431,
+     31957
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.5716,24.8763,-76.4293,26.8402",
+     23310,
+     33161
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.4617,24.7031,-76.3193,26.6684",
+     24841,
+     35249
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.1317,24.7769,-75.9894,26.7416",
+     26059,
+     36792
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.0493,24.6278,-75.9069,26.5937",
+     27308,
+     38179
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.7475,24.5781,-75.6052,26.5444",
+     28486,
+     39244
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.3077,24.4785,-75.1654,26.4456",
+     30884,
+     41386
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80,22,-74,28",
+     30979,
+     41448
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.2253,24.3291,-75.0829,26.2974",
+     32047,
+     42151
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.9234,24.2792,-74.7811,26.2479",
+     33472,
+     42943
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.8133,24.1045,-74.6709,26.0746",
+     34596,
+     43454
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.4841,24.1793,-74.3418,26.1488",
+     35995,
+     43952
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.7801,25.3714,-77.6377,27.3312",
+     50368,
+     96582
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.6973,25.2234,-77.5550,27.1845",
+     58031,
+     100415
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.3508,25.1039,-77.2085,27.0659",
+     95380,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-79.9559,25.0745,-76.8136,27.0368",
+     100957,
+     null
+    ]
+   ]
   }
- ]
+ ],
+ "surf_replay": "The lead's 19:44Z pattern (Render logs: surf ON, ICON, z7-9 Florida, every small pan a new surf page; hidden-layer ICON surf minis and pages at 19:54 while the box sat at 100%), replayed offline on build A at c4f68d5eb (the surf gate in) over a GFS+ICON store: ZOOM 8 at (-79.95, 26.5), surf mode, the ICON chip, 'load' (no input, 120 s) and 'pans@20' (a drift of 30-120 px pans 1.2 s apart). Surf asks cost the box model 15 s per 16-frame page (pro rata), 1 s per mini, 1 s per /grid. Arms: cur; dev = the three new kill switches (surf gate, idle pages, series trigger) = today's dev sibling warm."
 }

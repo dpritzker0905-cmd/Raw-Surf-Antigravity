@@ -74,6 +74,27 @@ committed head 701e88bba, merged locally, never pushed.
   the GPU, because setWaveData spent 44-49 ms and the frame came ~130 ms later (the z9 land-mask water repaint). With #488 in: 30-58 ms,
   setWaveData 1-2 ms.
 
+## Surf mode (the lead, 2026-10-23 ~20:15Z, from Render logs)
+- "One live session saturated the 1-CPU box from 19:44Z: CPU at 100% for 10+ min, /api/health 11-25 s." Surf Rating ON, ICON and
+  EURO, panning around Florida at z7-9: every small pan sent a new 16-hour surf page for an unsnapped bbox (~20 boxes in 5 min, each
+  with an hours=1 mini first; a surf page costs 10-25 s of CPU, the rating chain per node), and at 19:54 the client also fetched
+  HIDDEN-layer surf pages (ICON swell_1, wind_waves: minis, then the full page). Static frames and bundles are GFS and swell only.
+- "Start with the surf-mode sibling gate. It's the cheapest cut."
+- Change: `siblingSurfGated()`: in surf mode no sibling warm at all (no mini, no page, not even a static one, every model); a page
+  queued in swell mode is dropped when surf turns on. Kill: `window.__RAW_DISABLE_SIBLING_SURF_GATE__ = true`.
+- Replay (offline, build A at c4f68d5eb over a GFS+ICON store, z8 (-79.95, 26.5), surf ON, the ICON chip; the box model at 15 s per
+  16-frame surf page, 1 s per surf mini; evidence rows `A_surf`):
+  - `load` (no input, 120 s): dev's warm (the three new kill switches) asked 2 hidden-layer surf minis (ICON swell_1, wind_waves) as
+    soon as the box had a gap; this PR asked 0 (`surfGated` 7). Hidden 48-frame surf pages had not started in either arm by 120 s
+    (the visible ICON surf pages kept the box busy; live they came ~10 min in).
+  - `pans@20` (a drift, 1.2 s apart), the same in both arms: 25 /grid_series, 7 surf pages for 6 distinct UNSNAPPED boxes and
+    18 surf minis (one per pan: the hour-0-first lane fires for every new page key), 123 s of modelled CPU asked in 120 s; the first
+    page took 74 s to come back. Hidden layers: none in either arm (the box never had a gap).
+  - So the gate removes the hidden-layer surf work, but what saturates the box is the VISIBLE layer's pan amplification: a new page
+    and a new 1-hour mini per pan. That is the next PR, after #491 lands (it lives in `loadSeriesPage`, next to #491's hunks):
+    snap the series REQUEST box, reuse a containing page, debounce until the map is idle, abort a superseded page, and give
+    background pages fetch priority 'low'. Measure with this replay (`CASES=pans@20 SURF=1 MODEL=ICON`).
+
 ## Tests
 - `marineSiblingWarm.test.js` (decisions, on fake timers at the real 400 / 2000 / 8000 ms), `marineSiblingWarm.chain.test.js` (the real
   series chain and limiter, fetch mocked: nothing for a hidden layer while the visible page is on the box, then minis first, pages one
@@ -81,14 +102,15 @@ committed head 701e88bba, merged locally, never pushed.
   `src/__tests__/marineSiblingPrewarm.test.js` (the contract: kept, plus the toggle frames from the minis before any sibling page, no
   ICON swell_2 request, and a sibling with a cached frame is not warmed again), `useMarineSeriesWarm.test.js` (the series trigger and
   its kill switch).
-- The whole frontend suite on the merged head: 6,761 passed; 2 failed only in `netlifyIconStoredTailScope.test.js` (spawnSync bash
+- The whole frontend suite on the head with the surf gate (c4f68d5eb): 6,766 passed, 1 failed (`netlifyIconStoredTailScope`, the same
+  spawnSync timeout under load). Before it (a94991ef0): 6,761 passed; 2 failed only in `netlifyIconStoredTailScope.test.js` (spawnSync bash
   timeouts while a build ran beside it; it passes alone, 12 of 12). The ESLint ratchet passes; no file over the LOC limits.
-- Mutants: 26 of 26 killed (`scratchpad/mutants_sib.py`): each kill switch ignored, no gate, a busy lane / a scrub / a hidden tab not
+- Mutants: 29 of 29 killed (`scratchpad/mutants_sib.py`): each kill switch ignored, no gate, a busy lane / a scrub / a hidden tab not
   holding a page, no quiet window, a blip not restarting it, the next page not waiting its own window, no wait for the visible page,
   waiting for it forever, pages overlapping, the mini frame not cached, the mini not awaited, no static-first, an aborted page kept,
   a dropped page never queued again, a ready frame earning a page, the newest view not replacing a queued page, a page warmed
   meanwhile requested anyway, the mini or the page not a background load, ICON warming swell_2, a cached frame ignored, a page never
-  warm, the series not triggering the warm.
+  warm, the series not triggering the warm, surf mode warming, the surf-gate kill ignored, a swell-queued page running in surf mode.
 
 ## Not done
 - The live read after the merge, at the same z9 view (ONE short scenario, /api/health before and after): after Waves, the order of

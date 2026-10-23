@@ -5,6 +5,10 @@
 //   load            Waves on, then WATCH ms with no input: every /grid and /grid_series ask (layer, page or mini, start, end).
 //   toggle@AT:LAYER Waves on, then AT ms later a click on LAYER's chip: the ms from the click to that layer on the GPU (the engine's
 //                   resident grid names it), and whether the switch was the orchestrator's instant cache-hit commit.
+//   pans@N          Waves on (and MODEL's chip), then N small pans PAN_GAP ms apart (a drift of 30-120 px offsets, 300 ms each): the
+//                   live 2026-10-23 19:44Z pattern (surf ON, ICON, z7-9 Florida: every pan a new surf page on the 1-CPU box).
+// SURF=1 starts in surf mode (window.__SURF_MODE__); surf asks cost COST_SURF_PAGE per 16-frame page (pro rata), COST_SURF_MINI,
+// COST_SURF_GRID (live: 10-25 s of CPU per 16-frame surf page, the rating chain per node).
 // THE BOX. The synthetic backend answers at once, so contention would be invisible. BOX=1 (default) puts every weather ask through
 // a 1-CPU processor-sharing model: a 48-frame page costs COST_PAGE ms of CPU (pro rata by hours), a 1-hour mini COST_MINI, a /grid
 // COST_GRID, and N asks in flight each progress at 1/N. Its per-layer CPU and its busy time are part of the record. These are
@@ -31,13 +35,19 @@ const ZOOM = +(process.env.ZOOM || 9);
 const [CLNG, CLAT] = (process.env.CENTER || '-80.62,28.05').split(',').map(Number);
 const VIEW = process.env.VIEW || 'owner';
 const BOX = process.env.BOX !== '0';
-const COST = { page: +(process.env.COST_PAGE || 4000), mini: +(process.env.COST_MINI || 300), grid: +(process.env.COST_GRID || 400) };
+const COST = { page: +(process.env.COST_PAGE || 4000), mini: +(process.env.COST_MINI || 300), grid: +(process.env.COST_GRID || 400),
+  surfPage: +(process.env.COST_SURF_PAGE || 15000), surfMini: +(process.env.COST_SURF_MINI || 1000), surfGrid: +(process.env.COST_SURF_GRID || 1000) };
+const SURF = process.env.SURF === '1';
+const MODEL = process.env.MODEL || 'GFS';
+const PAN_GAP = +(process.env.PAN_GAP || 1200);
 const LABEL = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves' };
 const ARMS = (process.env.ARMS || 'cur,before:__RAW_DISABLE_SIBLING_IDLE_PAGES__').split(',').map((a) => {
   const [name, flags] = a.split(':'); return { name, flags: flags ? flags.split('+') : [] };
 });
 const CASES = (process.env.CASES || 'load,toggle@3000:wind_waves,toggle@12000:wind_waves').split(',').map((c) => {
-  const m = c.match(/^toggle@(\d+):(\w+)$/); return m ? { kind: 'toggle', at: +m[1], layer: m[2], name: c } : { kind: 'load', name: c };
+  const m = c.match(/^toggle@(\d+):(\w+)$/); const p = c.match(/^pans@(\d+)$/);
+  if (p) return { kind: 'pans', n: +p[1], name: c };
+  return m ? { kind: 'toggle', at: +m[1], layer: m[2], name: c } : { kind: 'load', name: c };
 });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -77,12 +87,16 @@ function makeBox() {
 function classify(url) {
   const p = url.pathname.replace('/api/weather', '');
   const layer = url.searchParams.get('layer') || (p === '/grid' ? 'waves' : null);
+  const surf = url.searchParams.get('surf') === '1';
+  const model = url.searchParams.get('model') || 'GFS';
+  const bbox = url.searchParams.get('bbox');
   if (p === '/grid_series') {
     const hours = (url.searchParams.get('hours') || '').split(',').filter(Boolean).length;
-    return hours > 1 ? { kind: 'page', layer, hours, cost: COST.page * Math.min(1, hours / 48) } : { kind: 'mini', layer, hours, cost: COST.mini };
+    if (hours > 1) return { kind: 'page', layer, hours, surf, model, bbox, cost: surf ? COST.surfPage * Math.min(1, hours / 16) : COST.page * Math.min(1, hours / 48) };
+    return { kind: 'mini', layer, hours, surf, model, bbox, cost: surf ? COST.surfMini : COST.mini };
   }
-  if (p === '/grid' && url.searchParams.get('domain') !== 'wind') return { kind: 'grid', layer, hours: 1, cost: COST.grid };
-  return { kind: 'other', layer, hours: 0, cost: 0 };
+  if (p === '/grid' && url.searchParams.get('domain') !== 'wind') return { kind: 'grid', layer, hours: 1, surf, model, bbox, cost: surf ? COST.surfGrid : COST.grid };
+  return { kind: 'other', layer, hours: 0, surf, model, bbox, cost: 0 };
 }
 
 const PROBE = () => {
@@ -142,12 +156,13 @@ async function session(arm, kase) {
     },
   };
   const { browser, page } = await L.launch({ port: PORT, hooks, ...dims });
-  await page.addInitScript(({ base, flags }) => {
+  await page.addInitScript(({ base, flags, surf }) => {
     localStorage.removeItem('__RAW_STATIC_FRAMES__');
     if (base) window.__RAW_STATIC_FRAMES_BASE__ = base;
     localStorage.setItem('raw-surf-theme', 'dark');
     for (const f of flags) window[f] = true;
-  }, { base: CDN_DIR ? `http://127.0.0.1:${CDN_PORT}/` : null, flags: arm.flags });
+    if (surf) window.__SURF_MODE__ = true;
+  }, { base: CDN_DIR ? `http://127.0.0.1:${CDN_PORT}/` : null, flags: arm.flags, surf: SURF });
   await page.addInitScript(PROBE);
   const out = { arm: arm.name, flags: arm.flags, case: kase.name };
   try {
@@ -157,6 +172,22 @@ async function session(arm, kase) {
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid; return g && g.__componentLayer === 'waves'; }, null, { timeout: 60000 });
     out.firstWavesMs = Date.now() - tW;
+    if (MODEL !== 'GFS') {
+      await clickExact(page, MODEL);
+      await page.waitForFunction((m) => { const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid; return g && g.__sourceModel === m; }, MODEL, { timeout: 60000 }).catch(() => null);
+      out.modelMs = Date.now() - tW;
+    }
+    if (kase.kind === 'pans') {
+      await sleep(1500);
+      out.pansAt = Date.now() - tW;
+      for (let i = 0; i < kase.n; i++) {
+        // a drift along the coast (net east and north), each pan ~0.3-0.6 deg at z8: the live boxes moved a little each time
+        const off = [[110, 20], [40, 70], [120, -30], [30, 60]][i % 4];
+        await page.evaluate((o) => { const m = window.__MAP_INSTANCE__ || window.map; m.panBy(o, { duration: 300 }); }, off);
+        await sleep(PAN_GAP);
+      }
+      out.pansEnd = Date.now() - tW;
+    }
     if (kase.kind === 'toggle') {
       await sleep(Math.max(0, kase.at - (Date.now() - tW)));
       out.toggleAt = Date.now() - tW;
@@ -175,7 +206,8 @@ async function session(arm, kase) {
     await sleep(Math.max(0, WATCH - (Date.now() - tW)));
     out.warm = await page.evaluate(() => JSON.parse(JSON.stringify(window.__RAW_SIBLING_WARM__ || null)));
     out.regional = await page.evaluate(() => JSON.parse(JSON.stringify((window.__RAW_STATIC_REGIONAL__ || window.__RAW_STATIC_FRAMES__ || {}).regional || window.__RAW_STATIC_REGIONAL__ || null)));
-    out.asks = asks.filter((a) => a.kind !== 'other').map((a) => ({ kind: a.kind, layer: a.layer, hours: a.hours, t0: a.t0 - tW, t1: a.t1 == null ? null : a.t1 - tW }));
+    out.asks = asks.filter((a) => a.kind !== 'other').map((a) => ({ kind: a.kind, layer: a.layer, hours: a.hours, surf: a.surf, model: a.model, bbox: a.bbox,
+      cost: Math.round(a.cost), t0: a.t0 - tW, t1: a.t1 == null ? null : a.t1 - tW }));
     out.box = { busyMs: Math.round(box.st.busyMs), cpu: Object.fromEntries(Object.entries(box.st.cpu).map(([k, v]) => [k, Math.round(v)])) };
   } catch (e) {
     out.error = String(e && e.message || e).slice(0, 300);
@@ -191,7 +223,11 @@ function summary(s) {
   const firstHiddenPage = hidden.filter((a) => a.kind === 'page').map((a) => a.t0).sort((a, b) => a - b)[0];
   const lastWavesPage = Math.max(...wavesPages.map((a) => a.t1 || 0), 0);
   const hiddenCpu = Object.entries((s.box && s.box.cpu) || {}).filter(([k]) => !shown.has(k.split(':')[1]) && /^(page|mini)/.test(k)).reduce((x, [, v]) => x + v, 0);
+  const byLayer = {}; for (const a of ser) { const k = `${a.model}:${a.layer}:${a.kind}`; byLayer[k] = (byLayer[k] || 0) + 1; }
+  const visiblePageBoxes = new Set(ser.filter((a) => a.kind === 'page' && shown.has(a.layer)).map((a) => a.bbox)).size;
+  const seriesCpu = ser.reduce((x, a) => x + (a.cost || 0), 0);
   return {
+    byLayer, visiblePageBoxes, seriesCpuMs: Math.round(seriesCpu), gridAsks: (s.asks || []).filter((a) => a.kind === 'grid').length,
     series: ser.length, pages: ser.filter((a) => a.kind === 'page').length, minis: ser.filter((a) => a.kind === 'mini').length,
     hiddenPages: hidden.filter((a) => a.kind === 'page').length, hiddenMinis: hidden.filter((a) => a.kind === 'mini').length,
     hiddenCpuMs: Math.round(hiddenCpu), wavesPagesDoneMs: lastWavesPage, firstHiddenPageMs: firstHiddenPage == null ? null : firstHiddenPage,
@@ -210,9 +246,10 @@ function summary(s) {
         const t = s.toggle ? ` | toggle ${s.toggle.layer} at ${s.toggleAt} ms: ${s.toggle.ms} ms (instant commit ${s.toggle.instantCommit} at ${s.toggle.commitMs} ms, series ${s.toggle.series}, ${s.toggle.fpsBefore} fps before; setWaveData [at, ms, layer] ${JSON.stringify(s.toggle.setWaveData)})` : '';
         console.log(`== ${kase.name} / ${arm.name}${s.error ? ' ERROR ' + s.error : ''} | first Waves ${s.firstWavesMs} ms${t}`);
         console.log(`   /grid_series ${s.summary.series} (pages ${s.summary.pages}, minis ${s.summary.minis}); hidden layers: pages ${s.summary.hiddenPages}, minis ${s.summary.hiddenMinis}, box CPU ${s.summary.hiddenCpuMs} ms; waves pages done ${s.summary.wavesPagesDoneMs} ms, first hidden page ${s.summary.firstHiddenPageMs} ms; box busy ${s.box && s.box.busyMs} ms`);
+        console.log(`   by model:layer:kind ${JSON.stringify(s.summary.byLayer)} | visible page boxes ${s.summary.visiblePageBoxes} | series CPU asked ${s.summary.seriesCpuMs} ms | /grid ${s.summary.gridAsks}`);
         console.log(`   warm ${JSON.stringify(s.warm)}`);
       }
     }
   } finally { if (cdn) cdn.close(); }
-  if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ env: { ZOOM, CLNG, CLAT, VIEW, BOX, COST, WATCH, CDN: !!CDN_DIR }, results }, null, 1));
+  if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ env: { ZOOM, CLNG, CLAT, VIEW, BOX, COST, WATCH, CDN: !!CDN_DIR, SURF, MODEL, PAN_GAP }, results }, null, 1));
 })();
