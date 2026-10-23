@@ -17,6 +17,7 @@ import {
   BUNDLE_BACKOFF_MS, BUNDLE_DEAD_MS, BUNDLE_TIMEOUT_MS, PILOT_BOXES, _setRegionalCodecForTest, bundleTimeoutMs, insidePilotBox,
   isRegionalSetKey, noteBackendAnswer, regionalCapable,
   normalizeBundleIndex, pickRegionalTile, regionalClipWindow, regionalFrameBytes, regionalManifestPending, regionalSetKey,
+  REGIONAL_BUNDLES_DEFAULT_ON,
 } from './staticRegional';
 import {
   MANIFEST_WAIT_MS, REGIONAL_BACKGROUND_FILL_CELLS, REGIONAL_FULL_PAGE_CELLS, regionalFullPage, regionalSeriesWait, staticOwnsWorldPage,
@@ -91,13 +92,14 @@ beforeEach(() => {
   _setRegionalCodecForTest({ sha12: async (b) => sha12(b), gunzip: async (b) => Uint8Array.from(zlib.gunzipSync(Buffer.from(b))).buffer });
   window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
   window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;              // dark by default since 2026-10-23 evening: these tests opt in
   setCachedManifest(MANIFEST);
   jest.spyOn(Date, 'now').mockImplementation(() => Date.parse(VT));
   cdn();
 });
 afterEach(() => {
   window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
-  ['__RAW_STATIC_FRAMES_BASE__', '__RAW_DISABLE_REGIONAL_BUNDLES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__',
+  ['__RAW_STATIC_FRAMES_BASE__', '__RAW_DISABLE_REGIONAL_BUNDLES__', '__RAW_ENABLE_REGIONAL_BUNDLES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__',
     '__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__', '__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__'].forEach((k) => delete window[k]);
   _resetProductsManifestFetchForTest();
   jest.useRealTimers();
@@ -106,6 +108,20 @@ afterEach(() => {
   if (killBefore === undefined) delete window.__RAW_DISABLE_STATIC_FRAMES__; else window.__RAW_DISABLE_STATIC_FRAMES__ = killBefore;
   global.fetch = realFetch;
   jest.restoreAllMocks();
+});
+
+describe('dark by default (the live parity failed, 2026-10-23 evening)', () => {
+  it('without the opt-in no box is regional: no pick, no wait, the world / crop rules as before #491', () => {
+    delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
+    expect(REGIONAL_BUNDLES_DEFAULT_ON).toBe(false);
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();
+    expect(staticSetKeyForBox({ model: 'GFS', layer: 'waves', bbox: { west: -90, south: 20, east: -80, north: 30 } })).toBe('GFS/marine/waves/global_mid');
+    setCachedManifest(null);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: { west: -83, south: 26, east: -80, north: 28.5 } })).toBe(false);
+    window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;
+    window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;                                          // the kill wins over the opt-in
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();
+  });
 });
 
 describe('which box reads a regional bundle', () => {
