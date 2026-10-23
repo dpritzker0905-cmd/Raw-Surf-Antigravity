@@ -72,12 +72,26 @@ export function carryWouldAddTruth(lastPatched, entryBounds, bounds) {
     bounds, w, w / 2);
 }
 
+/**
+ * PATCH TRUST (2026-10-23): does the stashed texture already hold the truth the carry would transplant? It does when its own
+ * paint record (maskPatchKeep.js, `tex.__rsPatch`) is a CLEAN paint filed under the stashed bounds whose box contains the last
+ * painted box. Two boxes alternating at one view (z9 Florida offline: the /grid tile, north 30, and the series frame, north 29)
+ * then swap back with their paint instead of rebuilding and repainting (~150-200 ms each). Kill: __RAW_DISABLE_STASH_PATCH_TRUST__.
+ */
+export function stashHoldsPatch(entry, lastPatched) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_STASH_PATCH_TRUST__ === true) return false;
+  const r = entry && entry.tex && entry.tex.__rsPatch;
+  const b = lastPatched && lastPatched.box;
+  if (!r || r.degraded || !r.box || !b || r.gridKey !== boundsKey(entry.bounds)) return false;
+  return r.box.west <= b.west && r.box.east >= b.east && r.box.south <= b.south && r.box.north >= b.north;
+}
+
 /** The decision, pure: does stash entry `entry` serve a mask for (geojson, bounds)? */
 export function stashServes(entry, geojson, bounds, lastPatched) {
   if (!entry || !entry.tex || !entry.dims || !entry.bounds || !bounds || entry.geojson !== geojson) return false;
   const exact = sameBounds(entry.bounds, bounds) && entry.dims.w === maskCanvasWidthForSpan(span(bounds));
   if (!exact && !maskCoversWorldFrame(entry.bounds, entry.dims, bounds)) return false;
-  return !carryWouldAddTruth(lastPatched, entry.bounds, bounds);
+  return !carryWouldAddTruth(lastPatched, entry.bounds, bounds) || stashHoldsPatch(entry, lastPatched);
 }
 
 /** Take the stash out of the engine when it serves this rebuild; null otherwise (the stash stays). */

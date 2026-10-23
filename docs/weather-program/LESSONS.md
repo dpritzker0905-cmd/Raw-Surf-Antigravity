@@ -1347,3 +1347,27 @@ A stored estimate can be estimated again in a browser branch with different sour
 - Rule: when N writers share an ordered log, separate WRITING (one file each, no shared counter) from ORDERING (one writer, after
   the merge, from an order git already records). A reference to a line that has no number yet needs a name of its own
   (`@frag:<name>:N`), and the folded line keeps that name (`fragment`) so the reference still resolves after the file is gone.
+
+
+### 2026-10-23 — L-P39 · Git conflicts on ADJACENT lines: give each independent writer its own block, and re-derive a same-block collision
+
+- Once the ledger fragments ended the ACTIONS.jsonl collisions, the next hotspot was `_FLOOR_SET_FROM` in
+  `backend/tests/test_ci_floor_staleness.py`: `{"guards": ..., "chain": ..., "estate": ...}` on ONE line, so any two PRs
+  that moved floors in DIFFERENT lanes conflicted (#470 estate vs #467 chain, #474 guards vs #467 chain, #475 estate).
+- "One key per line" alone does not fix it. Measured in a throwaway repo: two branches that change ADJACENT lines conflict;
+  one blank line between them merges clean (`test_rederive_floor.py` pins both, on the real block). The map is now one
+  block per lane (its provenance comment line + its key) with a blank line between lanes, and a PR REPLACES its lane's
+  provenance line instead of appending history next to the map (appending at the same spot is a conflict of its own).
+- A same-lane collision still conflicts, and should: the right answer is neither side. Re-derive it. Take dev's side of
+  both files, then `python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]` (or `--add auto`
+  mid-conflict: the PR's own change, read as its HEAD minus its merge base with dev, which also works for a PR still on
+  the old one-line map). It works out:
+  - base = max(dev's last GREEN hosted read, dev's `_FLOOR_SET_FROM`), because the map can be ahead of the last
+    green run when a PR merged after it;
+  - set-from = base + N;
+  - floor = set-from - the lane's budget (guards/chain 6, estate 2);
+  - files = max(hosted, dev's MIN_FILES) + M.
+
+  It writes ci.yml and the map together, and the PR must then read set-from passed.
+- Rule: before calling two writers "independent", check what separates their edits in the file. If nothing does
+  (same line, or adjacent lines), they are one writer to git.
