@@ -8,10 +8,15 @@
  *
  * These tests exercise the REAL bridge end-to-end (grid_series fetch → series cache → frame →
  * _cacheMarineResult → getModelSafeMarine) — the piece that can't be timed on a hidden audit tab.
+ *
+ * 2026-10-23 (marineSiblingWarm.js): the toggle frame now comes from each sibling's 1-hour mini, and the sibling's 48-frame
+ * page waits until the visible layer's own page has landed, in idle time, one layer at a time (live z9 Florida: ~24 s of the
+ * box's ~34 s of series work for one map load was for layers not shown). Same requests as before; the pages only come later.
  */
 import { prewarmSiblingMarineSeries, getModelSafeMarine } from '../components/map/marineController';
 import { getPerModelHourCache } from '../components/map/marineControllerCache';
-import { _resetMarineSeriesForTest } from '../components/map/marineGridSeries';
+import { _resetMarineSeriesForTest, ensureMarineSeries } from '../components/map/marineGridSeries';
+import { _resetSiblingWarmForTest } from '../components/map/marineSiblingWarm';
 
 const bounds = { west: -81.7, south: 27.8, east: -79.6, north: 28.8 }; // regional, ~2.1° × 1.0°
 
@@ -27,15 +32,18 @@ function mockSeriesResponse() {
 }
 
 // Flush the prewarm's fire-and-forget promise chain (fetch is mocked-resolved; the series
-// concurrency gate serializes the 3rd sibling, so poll until the predicate holds).
-async function waitFor(pred, tries = 60) {
+// concurrency gate serializes the siblings, and their pages wait for idle ticks, so poll until the predicate holds).
+async function waitFor(pred, tries = 60, ms = 0) {
   for (let i = 0; i < tries; i++) {
     if (pred()) return true;
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, ms));
   }
   return pred();
 }
 const flush = () => waitFor(() => false, 4); // ~4 macrotasks, used for "nothing should happen" cases
+const seriesCalls = () => global.fetch.mock.calls.filter((c) => String(c[0]).includes('/grid_series'));
+const pageCallsOf = () => seriesCalls().filter((c) => /hours=\d+,/.test(String(c[0])));
+const miniCallsOf = () => seriesCalls().filter((c) => /hours=\d+(&|$)/.test(String(c[0])));
 
 describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm', () => {
   beforeEach(() => {
@@ -44,6 +52,7 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     // components/map/marineGridSeries.cadenceGrid.test.js. Also removes a wall-clock dependence.
     window.__MOCK_DATE_NOW__ = Date.UTC(2026, 8, 23, 3, 10, 0);
     _resetMarineSeriesForTest();
+    _resetSiblingWarmForTest();
     getPerModelHourCache().clear();
     delete window.__MARINE_SIBLING_PREWARM__;
     delete window.__MARINE_SERIES__;
@@ -53,6 +62,7 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
   });
   afterEach(() => {
+    _resetSiblingWarmForTest();
     delete window.__MARINE_SIBLING_PREWARM__;
     delete window.__USE_BACKEND_MARINE_SYSTEM__;
     delete window.__USE_BACKEND_WEATHER_SERVICE__;
@@ -69,6 +79,9 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
   });
 
   it('default (no flag) + regional: warms sibling SERIES and caches their REGIONAL frames so a toggle is an instant getModelSafeMarine hit', async () => {
+    // As in the app: the prewarm follows the VISIBLE layer's commit, whose own series page lands first.
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    global.fetch.mockClear();
     // no flag set — relies on the new 2026-06-26 default-on
     prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
 
@@ -77,6 +90,11 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
       getModelSafeMarine('GFS', 0, 'swell_2', bounds) &&
       getModelSafeMarine('GFS', 0, 'wind_waves', bounds));
     expect(ok).toBe(true);
+    // the toggle is ready from the three 1-hour minis, before any sibling 48-frame page was asked for
+    expect(miniCallsOf()).toHaveLength(3);
+    expect(pageCallsOf()).toHaveLength(0);
+    // the pages follow, one layer at a time, from the idle queue (SIBLING_PAGE_POLL_MS apart)
+    expect(await waitFor(() => pageCallsOf().length === 3, 400, 10)).toBe(true);
 
     // the ACTIVE layer is never prewarmed
     expect(getModelSafeMarine('GFS', 0, 'waves', bounds)).toBeNull();
@@ -92,9 +110,9 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     // refetch: the original 1-CPU contract) plus one 1-hour HOUR-0 mini (2026-07-18 lane: 36 KB,
     // storm-immune, gives sibling toggles an instant first frame). The guarded class is the
     // 48-frame page fan-out — minis are not that class.
-    const seriesCalls = global.fetch.mock.calls.filter((c) => String(c[0]).includes('/grid_series'));
-    const pageCalls = seriesCalls.filter((c) => /hours=\d+,/.test(String(c[0])));
-    const miniCalls = seriesCalls.filter((c) => /hours=\d+(&|$)/.test(String(c[0])));
+    await flush();
+    const pageCalls = pageCallsOf();
+    const miniCalls = miniCallsOf();
     expect(pageCalls).toHaveLength(3);
     expect(miniCalls).toHaveLength(3);
     const layersFetched = new Set(
@@ -137,6 +155,7 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
       getModelSafeMarine('ICON', 0, 'wind_waves', bounds));
     expect(ok).toBe(true);
     expect(getModelSafeMarine('ICON', 0, 'swell_2', bounds)).toBeNull(); // never warmed for ICON
+    expect(seriesCalls().filter((c) => /[?&]layer=swell_2(&|$)/.test(String(c[0])))).toHaveLength(0);
   });
 });
 
