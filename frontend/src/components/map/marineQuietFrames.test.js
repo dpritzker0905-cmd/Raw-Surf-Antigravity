@@ -43,8 +43,11 @@ describe('marineQuietFrames', () => {
   });
 
   it('the input clock is live from module load: a key before any seed was ever pending still holds the next frame', () => {
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));   // no quietFrame() call before this key
-    expect(seedConsumeAllowed(4)).toBe(false);
+    jest.isolateModules(() => {                                  // a FRESH module: nothing has asked it anything yet
+      const fresh = require('./marineQuietFrames');
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+      expect(fresh.seedConsumeAllowed(4)).toBe(false);
+    });
   });
 
   it('wiring: the render callback asks every frame, then consumes the seed only when seedConsumeAllowed says so', () => {

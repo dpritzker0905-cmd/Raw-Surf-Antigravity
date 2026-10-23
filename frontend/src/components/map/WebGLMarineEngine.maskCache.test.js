@@ -134,6 +134,12 @@ describe('marineCoarseMaskCache', () => {
     expect(eng._coarseMaskCache.size).toBe(0);
   });
 
+  it('a mask without canvas dims (the grid-mask fallback) is never remembered, even if a caller offers it', () => {
+    const eng = {};
+    rememberCoarseMask(GL, eng, 'A', { id: 'grid' }, null, del);
+    expect(eng._coarseMaskCache).toBeUndefined();
+  });
+
   it('the key names the bounds and the GeoJSON object', () => {
     const l1 = {}; const l2 = {};
     expect(coarseMaskKey(STATIC_BOX, l1)).toBe(coarseMaskKey({ ...STATIC_BOX }, l1));
