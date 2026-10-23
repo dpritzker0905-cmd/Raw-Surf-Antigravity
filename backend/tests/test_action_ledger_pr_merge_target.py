@@ -97,7 +97,7 @@ def test_cli_refusal_preserves_existing_bytes(monkeypatch, tmp_path):
     _append(p, 'finding', 'existing')
     before = p.read_bytes()
     monkeypatch.setattr(L, 'LEDGER', str(p))
-    args = ['append', '--actor', 'codex', '--kind', 'pr_merge', '--target', 'PR #219',
+    args = ['append', '--direct', '--actor', 'codex', '--kind', 'pr_merge', '--target', 'PR #219',
             '--why', 'fixture', '--authorized-by', 'fixture', '--evidence', 'fixture',
             '--outcome', 'fixture', '--verified', 'fixture readback', '--rollback', 'delete fixture']
     with pytest.raises(ValueError, match='pr_merge target'):
