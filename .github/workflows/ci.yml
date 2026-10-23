@@ -934,6 +934,8 @@ jobs:
           # +8 (2026-10-23, the second review: the donor's read path, refusals, staleness, the production lattice) -> 3316/211;
           # 3316 - 6 = 3310. This PR must read 211 files / 3316.
           # +1 (2026-10-23, targeted_fill_stats on /admin/surf-forecast/status) -> 3317/211; 3317 - 6 = 3311.
+          # ⬆ 3291→3311 on 2026-10-23 (rederive_floor.py, rm-gulf-fill-targeted): dev run 39994928838 read 3297 / 210 files; dev's map 3297;
+          #   base 3297 (hosted read) + 20 new test(s) = 3317, files 211; floor 3317 - 6 = 3311. This PR must read 3317 passed.
           MIN_FILES, MIN_PASSED = 211, 3311
           try:
               root = ET.parse('guards.xml').getroot()
@@ -2001,7 +2003,9 @@ jobs:
           # #470): one new estate file adds 14 executed tests (tests/test_ledger_merges.py) to the 2397 / 331 files #470
           # read on hosted CI (run 39979894860): projected 2411 / 332 files; 2411 - 2 = 2409, margin 2.
           # _FLOOR_SET_FROM["estate"] -> 2411. This PR must read 2411 passed.
-          MIN_PASSED = 2409
+          # ⬆ 2409→2427 on 2026-10-23 (rederive_floor.py, claude/floor-map-lanes): dev run 39994928838 read 2411; dev's map 2411;
+          #   base 2411 (hosted read) + 18 new test(s) = 2429; floor 2429 - 2 = 2427. This PR must read 2429 passed.
+          MIN_PASSED = 2427
 
           try:
               root = ET.parse('estate.xml').getroot()
