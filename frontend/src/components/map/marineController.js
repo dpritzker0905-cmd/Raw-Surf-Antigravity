@@ -45,6 +45,7 @@ import { extractMarineAtOffset } from './marineControllerExtractor';
 
 import { ensureMarineSeries, getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries';
 import { publishServeDiag } from './marineServeDiag';
+import { staticSeriesEligible } from './staticFrames';
 import { prewarmGlobalMarineGrid, _rewarmWashBaseIfStale, registerPrewarmDeps } from './marineGlobalPrewarm';
 
 // The GLOBAL-coarse prewarm and the coarse-bridge seed moved to marineGlobalPrewarm.js on 2026-08-11
@@ -112,6 +113,11 @@ export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLaye
       : ['waves', 'swell_1', 'swell_2', 'wind_waves'];
     for (const lyr of siblings) {
       if (lyr === activeLayer) continue;
+      // STATIC-SOURCE GATE (2026-10-23, the lead's live read of dev at the z9 opening view: after Waves, 48-frame /grid_series pages
+      // for swell_1, swell_2 and wind_waves took 6.3, 6.6 and 11.1 s of the 1-CPU box for layers nobody was viewing). A HIDDEN layer
+      // is warmed only where a static source serves it; a regional view has none until the z7-9 bundles ship, and the layer then
+      // fetches when it is switched on. Kill: window.__RAW_DISABLE_SIBLING_STATIC_GATE__ = true (warm from the backend, as before).
+      if (!(window.__RAW_DISABLE_SIBLING_STATIC_GATE__ === true || staticSeriesEligible({ model, layer: lyr, bbox: bounds }))) continue;
       const key = `${model}_${hourOffset}_${lyr}`;
       if (_siblingPrewarmInFlight.has(key)) continue;
       // Already warm REGIONAL client-side? Don't refetch the series.
