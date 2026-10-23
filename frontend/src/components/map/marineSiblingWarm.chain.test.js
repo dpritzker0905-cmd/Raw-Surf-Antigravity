@@ -37,6 +37,7 @@ describe('the sibling warm on the real series chain', () => {
     log = []; open = 0; maxSiblingPages = 0;
     const visibleGate = new Promise((r) => { releaseVisible = r; });
     global.fetch = jest.fn((url) => {
+      if (!String(url).includes('/grid_series')) return new Promise(() => {});        // only the series lane is under test
       const rec = { layer: layerOf(url), page: isPage(url) };
       log.push(rec);
       const sibling = rec.page && rec.layer !== 'waves';
@@ -75,7 +76,8 @@ describe('the sibling warm on the real series chain', () => {
     log.length = 0;
     prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
     expect(await waitFor(() => log.filter((r) => r.page).length === 3, 200, 5)).toBe(true);
-    // the pages were all asked for within the first ~half second (before: no idle wait)
-    expect(['swell_1', 'swell_2', 'wind_waves'].every((l) => getModelSafeMarine('GFS', 0, l, bounds))).toBe(true);
+    // all three pages were asked for within a second (before: no idle wait), and the frames came after them
+    expect(log.filter((r) => !r.page)).toHaveLength(3);
+    expect(await waitFor(() => ['swell_1', 'swell_2', 'wind_waves'].every((l) => getModelSafeMarine('GFS', 0, l, bounds)))).toBe(true);
   });
 });

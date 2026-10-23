@@ -16,7 +16,7 @@ jest.mock('./marineGridSeries', () => ({
 // Real backend clients with a never-settling fetch, as marineController.globalSeriesPrewarm.test.js does
 // (a hand-listed client mock breaks module-level imports).
 
-import { ensureMarineSeries, ensureMarineSeriesHour0, runBackgroundWarm } from './marineGridSeries';
+import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm, runBackgroundWarm } from './marineGridSeries';
 import { prewarmSiblingMarineSeries, prewarmZoomOutMarineGrid } from './marineController';
 import { SIBLING_PAGE_POLL_MS, _resetSiblingWarmForTest } from './marineSiblingWarm';
 
@@ -28,6 +28,8 @@ describe('the background warms go through the A15-11 lane', () => {
     jest.clearAllMocks();
     _resetSiblingWarmForTest();
     ensureMarineSeries.mockImplementation(() => Promise.resolve());
+    ensureMarineSeriesHour0.mockImplementation(() => Promise.resolve());
+    isMarineSeriesPageWarm.mockImplementation((model, layer) => layer === 'waves');   // CRA resets mocks before each test
     runBackgroundWarm.mockImplementation(() => Promise.resolve(undefined));  // record; never fetch
     global.fetch = jest.fn(() => new Promise(() => {}));
     window.__MARINE_SIBLING_PREWARM__ = true;
