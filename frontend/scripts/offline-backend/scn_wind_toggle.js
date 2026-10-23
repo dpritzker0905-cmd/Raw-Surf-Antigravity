@@ -44,7 +44,10 @@ const LAT_SERIES_FRAME = +(process.env.LAT_SERIES_FRAME || 0);
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 // Two builds in one run, alternated per session: an arm "old:<flags>" opens OLD_BASE, anything else AB_BASE (the default build).
 const OLD_BASE = process.env.OLD_BASE || null;
-const GESTURE = process.env.GESTURE !== '0';   // after the toggle: zoom +0.5, back, pan 200 px (the owner zoomed while it loaded)
+const GESTURE = process.env.GESTURE !== '0';
+// HELD KEY (the lead's contract: a drag or a held key needs <= 33 ms per step): after the steps, HOLD presses of ArrowRight HOLD_GAP
+// ms apart from hour 0, dispatched in the page; per press, the ms until the wind base holds that hour (null = not within the gap).
+const HOLD = +(process.env.HOLD || 12); const HOLD_GAP = +(process.env.HOLD_GAP || 40);   // after the toggle: zoom +0.5, back, pan 200 px (the owner zoomed while it loaded)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // [key, requested hour after it]: 1-h steps (two of every three land between stored 3-hourly frames), day steps, a 5-day
 // burst, back, Home.
@@ -104,7 +107,25 @@ const PROBE = () => {
     const base = e && e._windData && e._windData.windGrid; const fine = e && e._windFine && e._windFine.windGrid;
     return { base, fine };
   };
+  // FIRST PIXEL: the engine's render() runs only once its shader batch is linked (WebGLWindLayer polls it), so the first render
+  // whose base is the expected frame is when the correct wind is DRAWN, not just resident.
+  const patch = () => {
+    const e = window.__WIND_ENGINE__;
+    if (!e || e.__wtPatched || typeof e.render !== 'function') return;
+    const orig = e.render;
+    e.render = function (...a) {
+      const r = orig.apply(this, a);
+      const W = P.w;
+      if (W && W.armed && !W.done && W.tLast != null && W.drawn == null) {
+        const g = this._windData && this._windData.windGrid; const f = this._windFine && this._windFine.windGrid;
+        if (g && g.cols >= 150 && dataMs(g) === W.expectedMs && (!f || dataMs(f) === W.expectedMs)) W.drawn = performance.now() - W.tLast;
+      }
+      return r;
+    };
+    e.__wtPatched = true;
+  };
   const loop = (t) => {
+    patch();
     const W = P.w;
     if (W && W.armed && !W.done && W.tLast != null && t >= W.tLast) {
       const { base, fine } = P.snap(); const rel = t - W.tLast;
@@ -128,12 +149,27 @@ const PROBE = () => {
   requestAnimationFrame(loop);
   P.arm = (target, expectedMs, byClick) => {
     const { base, fine } = P.snap();
-    P.w = { armed: true, byClick: !!byClick, target, expectedMs, tLast: null, base: null, view: null, viewVia: null, fine: null, regress: 0,
+    P.w = { armed: true, byClick: !!byClick, target, expectedMs, tLast: null, base: null, view: null, viewVia: null, fine: null, drawn: null, regress: 0,
       mislabel: 0, thin: 0, frames: 0, dims: [], lastDims: null, commits: 0, lastBase: base, lastFine: fine, already: false };
     const bd = dataMs(base); const fd = dataMs(fine);
     P.w.already = !!(base && base.cols >= 150 && bd === expectedMs && (!fine || fd === expectedMs));
   };
   P.read = () => { const { lastBase, lastFine, ...w } = P.w; const { base, fine } = P.snap(); return { ...w, end: { base: desc(base), fine: desc(fine) } }; };
+  P.hold = async (n, gap, sel) => {
+    const el = document.querySelector(sel); if (!el) return { error: 'no wheel' };
+    el.focus();
+    const base = () => { const e = window.__WIND_ENGINE__; return e && e._windData && e._windData.windGrid; };
+    const h0 = (base() || {}).hourOffset || 0;
+    const out = []; let blank = 0;
+    for (let i = 0; i < n; i++) {
+      const target = h0 + i + 1; const t0 = performance.now(); let hit = null;
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', code: 'ArrowRight', bubbles: true, cancelable: true }));
+      await new Promise((r) => { const loop = (t) => { const g = base(); if (!g) blank += 1; if (hit === null && g && g.hourOffset === target) hit = t - t0;
+        if (performance.now() - t0 >= gap) r(); else requestAnimationFrame(loop); }; requestAnimationFrame(loop); });
+      out.push(hit == null ? null : Math.round(hit));
+    }
+    return { perPress: out, blank, startHour: h0 };
+  };
   P.counters = () => ({ sf: window.__RAW_STATIC_FRAMES__ ? { ...window.__RAW_STATIC_FRAMES__, fetchMs: undefined, inflateMs: undefined, buildMs: undefined } : null,
     wind: window.__RAW_WIND_STATIC__ ? JSON.parse(JSON.stringify(window.__RAW_WIND_STATIC__)) : null,
     series: window.__WIND_SERIES_DIAG__ ? { ...window.__WIND_SERIES_DIAG__ } : null,
@@ -223,6 +259,7 @@ async function session(arm, zoom) {
     const tg = await window0(t0, r0);
     const gridH0 = tg.q.filter((x) => x.path === '/grid' && x.q && x.q.domain === 'wind').length;
     out.toggle = { baseMs: tg.r.base == null ? null : Math.round(tg.r.base), viewMs: tg.r.view == null ? null : Math.round(tg.r.view), via: tg.r.viewVia,
+      drawnMs: tg.r.drawn == null ? null : Math.round(tg.r.drawn),
       fineMs: tg.r.fine == null ? null : Math.round(tg.r.fine), mislabel: tg.r.mislabel, thin: tg.r.thin, regress: tg.r.regress, commits: tg.r.commits,
       dims: tg.r.dims, reqs: tg.by, gridH0, logs: { ...counts }, end: tg.r.end,
       windowMs: Date.now() - t0 };
@@ -247,9 +284,19 @@ async function session(arm, zoom) {
       if (key === 'BURST') { for (let i = 0; i < 5; i++) { await page.keyboard.press('PageUp'); await sleep(60); } } else await page.keyboard.press(key);
       const st = await window0(ts, s0);
       out.steps.push({ key, target, baseMs: st.r.base == null ? null : Math.round(st.r.base), viewMs: st.r.view == null ? null : Math.round(st.r.view),
+        drawnMs: st.r.drawn == null ? null : (st.r.already ? 0 : Math.round(st.r.drawn)),
         via: st.r.viewVia, fineMs: st.r.fine == null ? null : Math.round(st.r.fine), already: st.r.already, mislabel: st.r.mislabel, thin: st.r.thin,
         regress: st.r.regress, commits: st.r.commits, dims: st.r.dims, reqs: st.by, logs: { ...counts }, end: st.r.end });
       await sleep(300);
+    }
+    if (HOLD > 0) {
+      await page.locator(WHEEL).filter({ visible: true }).first().focus();
+      await page.keyboard.press('Home'); await sleep(1500);
+      const h0 = log.requests.length;
+      out.hold = await page.evaluate(({ n, gap, sel }) => window.__WT__.hold(n, gap, sel), { n: HOLD, gap: HOLD_GAP, sel: WHEEL });
+      await sleep(1500);
+      const q = log.requests.slice(h0); const by = {}; for (const x of q) by[x.path] = (by[x.path] || 0) + 1;
+      out.hold.reqs = by;
     }
     counting = false;
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) out.anchorRolled = true;

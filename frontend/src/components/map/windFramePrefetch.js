@@ -127,7 +127,10 @@ export function startWindPrefetch() {
     replan();
   };
   rt.timer = setInterval(kick, 30000);        // the pin and the lane pointer move on their own clocks (re-checked, CDN only)
-  setTimeout(kick, Math.max(0, IDLE_START_MS - 1000));
+  // Pin the run early (one small index read), then open exactly at IDLE_START_MS: an open check that fires before the gate (it was
+  // 7 s against 8 s) waited for the 30 s re-check, so the run arrived only after the toggle (measured 2026-10-22: 140 ms vs 7 ms).
+  setTimeout(kick, Math.max(0, IDLE_START_MS - 2000));
+  setTimeout(kick, IDLE_START_MS);
   if (typeof document !== 'undefined') {
     rt.onVis = () => replan();
     document.addEventListener('visibilitychange', rt.onVis);
