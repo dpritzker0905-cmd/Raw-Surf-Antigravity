@@ -146,6 +146,18 @@ def test_record_merges_writes_only_the_missing_ones_oldest_first_and_once(repo):
                             out=said.append) == []
 
 
+def test_a_late_recorded_line_appends_after_a_newer_one_and_a_future_one_is_refused(repo):
+    """2026-10-23: recording #472's merge (acted 14:12:37Z) failed because the fragment already held the 14:21:39Z
+    pr_open line: append validated against the new line's own acted_at instead of now."""
+    repo.git("switch", "-q", "-c", "claude/x")
+    F.append_fragment(repo.path, {**BASE, "kind": "finding", "acted_at": "2026-10-22T14:21:39Z"}, base_ref="dev")
+    F.append_fragment(repo.path, {**BASE, "kind": "pr_merge", "target": "#472", "acted_at": "2026-10-22T14:12:37Z"},
+                      base_ref="dev")
+    assert len(F.split_lines(repo.read(f"{F.FRAG_DIR_REL}/claude--x.jsonl"))) == 2
+    with pytest.raises(F.LedgerError, match="acted_at"):
+        F.append_fragment(repo.path, {**BASE, "kind": "finding", "acted_at": "2099-01-01T00:00:00Z"}, base_ref="dev")
+
+
 def test_cli_record_merges_appends_to_the_branch_fragment(repo, monkeypatch):
     squash(repo, 5, "2026-10-21T00:00:00Z")
     repo.write("other.txt", "head\n")

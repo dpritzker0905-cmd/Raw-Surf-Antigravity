@@ -386,7 +386,10 @@ def append_fragment(root: str, fields: dict, name: str = None, base_ref: str = "
     ledger, others = _context(root, base_ref if base_known else None, name)
     last = str(json.loads(ledger[-1]).get("at", "")) if ledger else ""
     n = len(split_lines(existing)) + 1
-    _, errs = fold_entries(ledger, others + [(name, existing + line + "\n")], max(entry["acted_at"], last))
+    # Validated as a fold NOW would chain it. ⬇ 2026-10-23: the time was this line's own acted_at, so a late-recorded
+    # line (an older merge, #472's 14:12:37Z) was refused once the fragment held a newer line (14:21:39Z); and a
+    # future acted_at passed. A fold is never earlier than now, and an action is never after its fold.
+    _, errs = fold_entries(ledger, others + [(name, existing + line + "\n")], max(now or now_utc(), last))
     mine = [e for e in errs if e.startswith(f"ledger.d/{name}.jsonl")]
     if mine:
         raise LedgerError("refusing the line:\n  " + "\n  ".join(mine))
