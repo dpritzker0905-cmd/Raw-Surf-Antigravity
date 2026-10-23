@@ -75,7 +75,9 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     expect(pagesOf()).toEqual(['swell_1']);
     await step(); await step();
     expect(pagesOf()).toEqual(['swell_1']);                                  // still one in flight
-    finish(); await flush(); await settle();
+    finish(); await flush(); await step(SIBLING_QUIET_MS - SIBLING_PAGE_POLL_MS);
+    expect(pagesOf()).toEqual(['swell_1']);                                  // the next page waits its own quiet window
+    await settle();
     expect(pagesOf()).toEqual(['swell_1', 'swell_2']);
     finish(); await flush(); await settle();
     finish(); await flush(); await settle();

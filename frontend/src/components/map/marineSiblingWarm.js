@@ -106,7 +106,7 @@ function tick() {
     .then(() => ensureMarineSeries(entry.model, entry.layer, entry.bounds, entry.hourOffset, entry.signal, true /* current page */, false, true /* background */))
     .then(() => { if (!aborted(entry.signal)) { entry.cache(); _awaitingPage.delete(`${entry.model}_${entry.layer}`); } })
     .catch(() => { /* best effort: the toggle still works per layer */ })
-    .finally(() => { if (gen !== _gen) return; _running = false; schedule(); });
+    .finally(() => { if (gen !== _gen) return; _running = false; _quietSince = null; schedule(); });   // each page waits its own quiet window
 }
 
 function enqueuePage(entry) {
