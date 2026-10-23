@@ -464,7 +464,6 @@ describe('fetch priority on frame fetches', () => {
     global.Worker = class FakeWorker {
       constructor() {
         const scope = { postMessage: (data) => this.onmessage && this.onmessage({ data }) };
-        // eslint-disable-next-line no-new-func
         new Function('self', 'fetch', 'performance', 'AbortController', src)(scope, workerFetch, performance, AbortController);
         this.scope = scope;
       }
