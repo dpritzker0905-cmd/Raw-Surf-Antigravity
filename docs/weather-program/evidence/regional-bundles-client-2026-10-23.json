@@ -2501,5 +2501,443 @@
     ]
    }
   }
+ },
+ "live_read_491": {
+  "when": "2026-10-23T20:54Z",
+  "who": "the lead's signed-in browser (the private-beta gate), with live-read-491-regional-console.js",
+  "build": "dev site 2d7c062c (#491 merged)",
+  "health": {
+   "before_s": 0.46,
+   "after_s": 0.63
+  },
+  "scenario": "z9 Florida opening view, Waves off -> on, then ArrowRight x2, PageUp, Home",
+  "valid_counts": {
+   "deployed491": true,
+   "view": {
+    "z": 9,
+    "w": -81.15,
+    "s": 28.1,
+    "e": -80.08,
+    "n": 28.57
+   },
+   "request_box": "-81.65..-79.58 x 27.60..29.07 (inside florida_east_coast)",
+   "marine_backend_asks": {
+    "GFS/waves/grid_series": {
+     "n": 1,
+     "ms": 173,
+     "frames": [
+      1
+     ]
+    }
+   },
+   "note": "GFS/waves: ONE /grid_series, the hours=1 mini at 173 ms; 0 full pages (the 16:33Z read: three waves pages at 5.1, 3.9 and 1.2 s). No swell / wind-wave / /grid marine asks in the ~35 s window.",
+   "regional": {
+    "bundles": 1,
+    "bundleBytes": 323940,
+    "slices": 108,
+    "hits": 0,
+    "series": 109,
+    "misses": {
+     "no_frame_in_window": 4
+    },
+    "dynamicOnCovered": 0
+   },
+   "staticFrames": {
+    "hits": 3,
+    "series": 0,
+    "misses": {}
+   },
+   "first_frame_source": {
+    "cols": 11,
+    "rows": 13,
+    "series": true,
+    "store": false,
+    "pid": null,
+    "layer": "waves"
+   },
+   "picks": "every tile pick in the trace (t 28.9-31.4 s after load) is pilot:florida_east_coast (the pre-manifest pick)"
+  },
+  "not_measured": {
+   "firstFrameMs": 5664,
+   "step_two_raf_ms": [
+    1032,
+    1980,
+    1998,
+    1995
+   ],
+   "why": "the automation window ran requestAnimationFrame at ~0.6-1 Hz (an idle two-rAF took 1,725 ms, visible and focused, local CPU 15-25%): throttling, not the app",
+   "bundle_download": "served from the HTTP cache (0 bytes): an earlier accidental Waves click in the same profile (20:53:37Z) had fetched it"
+  },
+  "observation": "The products manifest was not in the tile reader for the whole read (every pick fell to the pilot pick). In this flow the first frame came from the series path and no marine /grid asked the manifest, and latest.json was already read, so nothing fetched it; consistent with the trace, not proven. Without the pilot pick (#491 review fix) no bundle would have served here.",
+  "time_to_first_frame": "stays on the offline arms until a real-browser read (the owner's own, or a visible window) confirms it",
+  "raw": {
+   "steps": [
+    {
+     "k": "ArrowRight",
+     "twoRafMs": 1032,
+     "v": "+1 hour"
+    },
+    {
+     "k": "ArrowRight",
+     "twoRafMs": 1980,
+     "v": "+2 hours"
+    },
+    {
+     "k": "PageUp",
+     "twoRafMs": 1998,
+     "v": "+26 hours"
+    },
+    {
+     "k": "Home",
+     "twoRafMs": 1995,
+     "v": "Now"
+    }
+   ],
+   "read": {
+    "armedAt": "2026-10-23T20:54:18.154Z",
+    "view": {
+     "z": 9,
+     "w": -81.15,
+     "s": 28.1,
+     "e": -80.08,
+     "n": 28.57
+    },
+    "firstFrameMs": 5664,
+    "firstFrame": {
+     "cols": 11,
+     "rows": 13,
+     "series": true,
+     "store": false,
+     "pid": null,
+     "layer": "waves"
+    },
+    "readAt": "2026-10-23T20:55:08.887Z",
+    "deployed491": true,
+    "marine": {
+     "GFS/waves/grid_series": {
+      "n": 1,
+      "ms": 173,
+      "frames": [
+       1
+      ]
+     }
+    },
+    "bundles": [
+     {
+      "path": "marine/waves/florida_east_coast/20261023T060000Z/bundle-288e6564cb35.bin",
+      "ms": 4,
+      "bytes": 0,
+      "encoded": 0
+     }
+    ],
+    "latestJsonReads": 0,
+    "regional": {
+     "bundles": 1,
+     "bundleBytes": 323940,
+     "slices": 108,
+     "hits": 0,
+     "series": 109,
+     "misses": {
+      "no_frame_in_window": 4
+     },
+     "dynamicOnCovered": 0
+    },
+    "staticFrames": {
+     "hits": 3,
+     "series": 0,
+     "misses": {}
+    },
+    "trace": [
+     {
+      "t": 28904,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28906,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28920,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28920,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 28921,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28921,
+      "seam": "B",
+      "l": "waves",
+      "h0": 0,
+      "background": true,
+      "full": true
+     },
+     {
+      "t": 28921,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28921,
+      "l": "waves",
+      "bboxStr": "-81.6503,27.5967,-79.5791,29.0682",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28925,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28926,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28927,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28928,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 28928,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 28928,
+      "seam": "B",
+      "l": "waves",
+      "h0": 144,
+      "background": true,
+      "full": true
+     },
+     {
+      "t": 29081,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29091,
+      "l": "waves",
+      "bboxStr": "-81.6503,27.5967,-79.5791,29.0682",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29093,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29094,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29094,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29097,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 17
+     },
+     {
+      "t": 29097,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29097,
+      "seam": "B",
+      "l": "waves",
+      "h0": 288,
+      "background": true,
+      "full": true
+     },
+     {
+      "t": 29097,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 29097,
+      "l": "waves",
+      "bboxStr": "-81.6503,27.5967,-79.5791,29.0682",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31362,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31362,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31362,
+      "l": "waves",
+      "bboxStr": "-81.6503,27.5967,-79.5791,29.0682",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31362,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31363,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31363,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 31363,
+      "l": "waves",
+      "bboxStr": "-81.650283496094,27.596726975239577,-79.57911650390679,29.06815018010836",
+      "pick": "pilot:florida_east_coast"
+     },
+     {
+      "t": 34313,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 34313,
+      "seam": "B",
+      "l": "waves",
+      "h0": 0,
+      "background": true,
+      "full": false
+     },
+     {
+      "t": 65094,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 65094,
+      "seam": "B",
+      "l": "waves",
+      "h0": 0,
+      "background": true,
+      "full": false
+     },
+     {
+      "t": 67132,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 67132,
+      "seam": "B",
+      "l": "waves",
+      "h0": 0,
+      "background": true,
+      "full": false
+     },
+     {
+      "t": 70106,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 70107,
+      "seam": "B",
+      "l": "waves",
+      "h0": 0,
+      "background": true,
+      "full": false
+     },
+     {
+      "t": 73088,
+      "seam": "B",
+      "l": "waves",
+      "background": true,
+      "anchor": true,
+      "hours": 48
+     },
+     {
+      "t": 73088,
+      "seam": "B",
+      "l": "waves",
+      "h0": 0,
+      "background": true,
+      "full": false
+     }
+    ]
+   },
+   "lead_notes": {
+    "build": "2d7c062c (dev--rawsurf service-worker BUILD_VERSION)",
+    "health": {
+     "before": "0.46 s",
+     "after": "0.63 s"
+    },
+    "timing_invalid": "rAF ran at ~0.6-1 Hz in the lead's automation window (idle two-rAF 1,725 ms while visible+focused; local CPU 15-25%): firstFrameMs and step two-rAF times are NOT valid measurements",
+    "bundle_cache": "the bundle came from the HTTP cache (bytes 0): an accidental earlier Waves click in the same profile fetched it at 20:53:37Z",
+    "view": "z9 -81.15..-80.08 x 28.10..28.57 (inside florida_east_coast); request bbox -81.65..-79.58 x 27.60..29.07"
+   }
+  }
  }
 }

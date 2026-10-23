@@ -10,6 +10,7 @@ request that reaches the handler.
 import datetime
 import enum
 import inspect
+import re
 import typing
 from unittest.mock import AsyncMock, MagicMock
 
@@ -100,6 +101,20 @@ NAMED_ACTOR = [
     ("POST", "/api/profiles/{profile_id}/pro-onboarding", "path", "profile_id"),
     ("POST", "/api/verification/pro-surfer/submit", "body", "user_id"),
     ("POST", "/api/verification/pro-photographer/submit", "body", "user_id"),
+    # Batch 4 (LA-SEC-03, 2026-10-18): credits, tiers, block, privacy, photographer money settings.
+    ("POST", "/api/subscriptions/grom-pay-with-credits/{parent_id}", "path", "parent_id"),
+    ("POST", "/api/subscriptions/grom-tier/{parent_id}", "path", "parent_id"),
+    ("POST", "/api/users/block", "body", "blocker_id"),
+    ("POST", "/api/users/unblock", "body", "blocker_id"),
+    ("PUT", "/api/friends/privacy/{user_id}", "path", "user_id"),
+    ("PUT", "/api/photographer/{photographer_id}/watermark-settings", "path", "photographer_id"),
+    ("PUT", "/api/photographer/{photographer_id}/pricing", "path", "photographer_id"),
+    ("PUT", "/api/photographer/{photographer_id}/gallery-pricing", "path", "photographer_id"),
+    ("POST", "/api/photo-subscriptions/plans", "query", "photographer_id"),
+    ("PATCH", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
+    ("DELETE", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
+    ("POST", "/api/gallery/migrate-titles", "query", "photographer_id"),
+    ("POST", "/api/gallery/clean-all-item-titles", "query", "photographer_id"),
     # Batch 5: reads that return one user's personal data are the user's own to read.
     ("GET", "/api/subscriptions/account-billing/{user_id}", "path", "user_id"),
     ("GET", "/api/compliance/violations/user/{user_id}", "path", "user_id"),
@@ -110,7 +125,7 @@ NAMED_ACTOR = [
     ("GET", "/api/photo-subscriptions/my-subscriptions/{user_id}", "path", "user_id"),
     ("GET", "/api/photo-subscriptions/my-subscribers/{photographer_id}", "path", "photographer_id"),
 ]
-LOGIN_ONLY = [("POST", "/api/notifications")]
+LOGIN_ONLY = [("POST", "/api/notifications"), ("POST", "/api/realtime/broadcast")]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY
 
 
@@ -152,8 +167,18 @@ def _dummy(annotation):
     return "x"
 
 
+def _field_value(field):
+    """A dummy for one required field; a string constrained to `^(a|b)$` gets its first alternative."""
+    for meta in field.metadata:
+        pattern = getattr(meta, "pattern", None)
+        match = re.match(r"^\^\(([^|)]+)", pattern or "")
+        if match:
+            return match.group(1)
+    return _dummy(field.annotation)
+
+
 def _minimal(model):
-    return {name: _dummy(f.annotation) for name, f in model.model_fields.items() if f.is_required()}
+    return {name: _field_value(f) for name, f in model.model_fields.items() if f.is_required()}
 
 
 def _request(method, path, actor=None, where=None, field=None):
@@ -181,7 +206,10 @@ def _request(method, path, actor=None, where=None, field=None):
 
 
 @pytest.fixture
-def stub_db():
+def stub_db(monkeypatch):
+    # /realtime/broadcast would call Supabase if these were set on the machine running the tests.
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
     result = MagicMock()
     result.scalar_one_or_none.return_value = None
     result.scalar.return_value = None

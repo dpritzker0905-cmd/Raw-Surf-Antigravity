@@ -71,9 +71,12 @@ async def get_photographer_pricing(
 async def update_photographer_pricing(
     photographer_id: str,
     data: UpdatePricingRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's SmugMug-style pricing settings"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
     
@@ -272,9 +275,12 @@ async def get_gallery_pricing(
 async def update_gallery_pricing(
     photographer_id: str,
     data: UpdateGalleryPricingRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's SmugMug-style gallery pricing tiers (all session types independent)"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
 

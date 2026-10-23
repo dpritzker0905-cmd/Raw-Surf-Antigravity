@@ -160,8 +160,13 @@ async def upgrade_subscription_tier(
 
 
 @router.post("/subscriptions/grom-tier/{parent_id}")
-async def update_grom_subscription(parent_id: str, data: GromSubscriptionRequest, db: AsyncSession = Depends(get_db)):
+async def update_grom_subscription(
+    parent_id: str, data: GromSubscriptionRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """Parent updates linked Grom's subscription tier"""
+    if parent_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     parent_result = await db.execute(select(Profile).where(Profile.id == parent_id))
     parent = parent_result.scalar_one_or_none()
     if not parent:

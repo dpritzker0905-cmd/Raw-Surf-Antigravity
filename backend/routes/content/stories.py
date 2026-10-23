@@ -10,6 +10,7 @@ import math
 from database import get_db
 from models import Follow, Profile, SurfSpot, Story, StoryView, RoleEnum
 from core.security import get_current_user_id
+from deps.admin_auth import get_current_admin
 from services.grom_media_policy import approval_status_for_grom_media, is_verified_guardian, normalize_controls
 from services.private_media import parse_private_media_ref
 
@@ -506,7 +507,7 @@ async def delete_story(
     return {"message": "Story deleted"}
 
 @router.post("/stories/cleanup-expired")
-async def cleanup_expired_stories(db: AsyncSession = Depends(get_db)):
+async def cleanup_expired_stories(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Mark expired stories as expired (called by scheduler)"""
     now = datetime.now(timezone.utc)
     
