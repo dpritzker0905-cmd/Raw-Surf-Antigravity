@@ -1991,7 +1991,11 @@ jobs:
           # ⬆ 2390→2395 on 2026-10-23 (#470, re-derived by the lead after #472 landed): +5 tests in the existing
           # tests/test_audit_push_authority.py on #472's projected 2392 -> 2397; 2397 - 2 = 2395, margin 2.
           # _FLOOR_SET_FROM["estate"] -> 2397. This PR must read 2397 passed.
-          MIN_PASSED = 2395
+          # ⬆ 2395→2409 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (completeness sees squash merges, re-derived after
+          # #470): one new estate file adds 14 executed tests (tests/test_ledger_merges.py) to the 2397 / 331 files #470
+          # read on hosted CI (run 39979894860): projected 2411 / 332 files; 2411 - 2 = 2409, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2411. This PR must read 2411 passed.
+          MIN_PASSED = 2409
 
           try:
               root = ET.parse('estate.xml').getroot()

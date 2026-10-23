@@ -52,6 +52,7 @@ from datetime import date, datetime, timedelta, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import action_ledger  # noqa: E402
 import ledger_fragments  # noqa: E402
+import ledger_merges  # noqa: E402
 
 ROOT = action_ledger.ROOT
 DOCS = os.path.join(ROOT, "docs", "weather-program")
@@ -251,9 +252,13 @@ def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = 
 
 
 # ── completeness, commitments, clock, seq references ─────────────────────────────────────────────────────────────
-def check_completeness(entries: list, merges: list) -> list:
+def check_completeness(entries: list, merges: list, pending_from: str = None) -> list:
     """`merges`: [(pr_number, commit_time_iso)] on this history, NEWEST FIRST, excluding HEAD itself. Every merge at
-    or after the ledger's first line needs a `pr_merge #N` line; the newest may be pending (WARN). PURE."""
+    or after the ledger's first line needs a `pr_merge #N` line; the newest may be pending (WARN). PURE.
+    ⬇ `pending_from` (2026-10-23, the lead's option A): the last FOLD POINT. Under unattended auto-merge a merge's line
+    is written by the next `fold-pr --record-merges`, so every merge at or after the last fold only WARNs; an older
+    one FAILs. (Merges now include squash subjects `(#N)`: before this the check read only `Merge pull request #N`
+    commits and had seen no merge since #380.)"""
     if not entries:
         return []
     genesis = entries[0]["at"]
@@ -262,9 +267,11 @@ def check_completeness(entries: list, merges: list) -> list:
     for i, (n, t) in enumerate(merges):
         if t < genesis or f"#{n}" in ledgered:
             continue
-        res.append(("WARN" if i == 0 else "FAIL",
+        after_fold = bool(pending_from) and t >= pending_from
+        res.append(("WARN" if i == 0 or after_fold else "FAIL",
                     f"PR #{n} (merged {t}) has no `pr_merge #{n}` ledger line"
-                    + (" yet: the next PR records it" if i == 0 else "")))
+                    + (f" yet: merged after the last fold ({pending_from}); the next `fold-pr --record-merges` "
+                       f"records it" if after_fold else " yet: the next PR records it" if i == 0 else "")))
     return res
 
 
@@ -425,20 +432,10 @@ def lines_written_at(rel_path: str, text: str):
 
 def git_merges():
     """[(pr_number, commit_time)] newest first, excluding HEAD itself (a dev push's HEAD is the merge being made);
-    None when git cannot see the history (not a repo, or a shallow clone)."""
-    if (_git("rev-parse", "--is-shallow-repository") or "").strip() != "false":
-        return None
-    headsha = (_git("rev-parse", "HEAD") or "").strip()
-    out = _git("log", "--merges", "--format=%H|%cI|%s", "HEAD")
-    if out is None:
-        return None
-    merges = []
-    for line in out.splitlines():
-        sha, t, subject = line.split("|", 2)
-        m = MERGE_RE.match(subject)
-        if m and sha != headsha:
-            merges.append((int(m.group(1)), _utc(t).strftime("%Y-%m-%dT%H:%M:%SZ")))
-    return merges
+    None when git cannot see the history (not a repo, or a shallow clone).
+    ⬇ 2026-10-23: `Merge pull request #N` commits AND first-parent squash subjects ending `(#N)` (ledger_merges);
+    the first form alone had seen no merge since #380, when dev began squash-merging."""
+    return ledger_merges.git_merges(ROOT, "HEAD")
 
 
 def written_at(rel_path: str) -> str:
@@ -474,6 +471,10 @@ def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = F
     except ledger_fragments.LedgerError as ex:
         res.append(("FAIL" if require_history else "WARN", f"ledger.d: cannot read the fragments' merge order ({ex})"))
     merges = git_merges()
+    try:
+        pending_from = ledger_merges.last_fold_point(ROOT, "HEAD")
+    except ledger_fragments.LedgerError:
+        pending_from = None
     if merges is None:
         # ⛔ In CI a blind check must FAIL, not warn: the first CI run of this check WARNed and passed because a
         # later `git fetch --depth=1` had re-shallowed the clone (2026-09-29).
@@ -481,7 +482,7 @@ def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = F
                     "cannot check ledger completeness: no full git history here "
                     "(fetch-depth: 0, and no later --depth fetch)"))
     else:
-        res += check_completeness(entries, merges)
+        res += check_completeness(entries, merges, pending_from)
     res += check_commitments(lines, now, labels)
     rel = os.path.relpath(docs_dir, ROOT).replace("\\", "/")
     blind = []
@@ -527,6 +528,12 @@ def selftest() -> list:
                      f"the ledger); got {got}")
     if check_completeness(ents, [(5, "2026-09-29T10:30:00Z")]):
         fails.append("completeness: a fully ledgered history was flagged")
+    # The fold window (2026-10-23): a merge after the last fold point waits for fold-pr --record-merges (WARN).
+    got = check_completeness(ents, [(7, "2026-09-29T12:00:00Z"), (6, "2026-09-29T11:30:00Z")], "2026-09-29T11:00:00Z")
+    if [lv for lv, _ in got] != ["WARN", "WARN"] or "record-merges" not in got[1][1]:
+        fails.append(f"completeness: #6, merged after the last fold point, should WARN; got {got}")
+    if ledger_merges.parse_merges("", "s|2026-09-29T12:00:00Z|feat: x (#8)\n", "") != [(8, "2026-09-29T12:00:00Z")]:
+        fails.append("completeness: a squash subject '(#8)' was not read as a merge")
     st = ("**Updated 2026-09-29 19:00Z** (log...)")
     if not any(lv == "FAIL" for lv, _ in check_clock(st, "2026-09-29T18:54:00Z", {})):
         fails.append("clock: STATE dated 19:00Z but written 18:54Z was not caught (the L-P10 case)")
