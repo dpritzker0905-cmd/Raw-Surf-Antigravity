@@ -1509,7 +1509,11 @@ jobs:
           # ⬆ 172/2837 → 173/2849 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (/products encoded once per manifest version):
           # tests/test_products_response.py (12, a new file selector-verified into this lane: --lane chain 172 -> 173);
           # 2843 + 12 = 2855 projected; 2855 - 6 = 2849. This PR must read 173 files / 2855.
-          MIN_FILES, MIN_PASSED = 173, 2849
+          # ⬆ 173/2849 → 174/2856 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (static GFS wind frames):
+          # tests/test_frame_set_wind.py (7, a new file selector-verified into this lane: --lane chain 173 -> 174); dev 57632973b
+          # hosted read 2855/173 (CI 39861554298) + 10 (7, then 3 from the publisher review) -> projected 2865/174; 2865 - 6 = 2859.
+          # This PR must read 174 files / 2865.
+          MIN_FILES, MIN_PASSED = 174, 2859
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1974,7 +1978,11 @@ jobs:
           # ⬆ 2338→2341 on 2026-10-22, IN THE SAME PR THAT CAUSES IT (static frames for more world sets): +3 tests in the
           # existing tests/test_publish_frame_sets.py on the 2340 read of dev CI 39732086620 @ eb3e4bcf: projected 2343,
           # no new file; 2343 - 2 = 2341, margin 2. _FLOOR_SET_FROM["estate"] -> 2343. This PR must read 2343 passed.
-          MIN_PASSED = 2341
+          # ⬆ 2341→2390 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (per-PR ledger fragments, D-0XX): one new estate file
+          # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
+          # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
+          # This PR must read 2392 passed.
+          MIN_PASSED = 2390
 
           try:
               root = ET.parse('estate.xml').getroot()
