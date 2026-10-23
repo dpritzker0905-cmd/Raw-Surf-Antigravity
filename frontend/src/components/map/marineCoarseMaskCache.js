@@ -83,6 +83,23 @@ export function rememberCoarseMask(gl, engine, key, tex, dims, del) {
   if (t) t.size = m.size;
 }
 
+/** The mask a capture can reuse ({ key, reuse }): the LRU set's of identical bounds (`shareSrc`), else a cached one. */
+export function coarseMaskReuse(engine, waveGrid, shareSrc) {
+  const key = coarseMaskCacheEnabled() && waveGrid && waveGrid.bounds ? coarseMaskKey(waveGrid.bounds, engine._landGeoJSON || null) : null;
+  const reuse = shareSrc ? { tex: shareSrc.u_oceanMaskTexture, dims: shareSrc.__maskCanvasDims } : (key ? findCachedCoarseMask(engine, key) : null);
+  return { key, reuse };
+}
+
+/** After the encode: a reused mask gains a holder; a fresh GeoJSON raster (canvas dims; never the grid-mask fallback) is remembered. */
+export function noteCoarseMaskUse(gl, engine, base, mask, del) {
+  if (!base || !base.u_waveTexture) return;
+  if (mask.reuse && base.u_oceanMaskTexture === mask.reuse.tex) {
+    base.u_oceanMaskTexture.__rsRefs = (base.u_oceanMaskTexture.__rsRefs || 1) + 1;
+    return;
+  }
+  if (mask.key && base.__maskCanvasDims) rememberCoarseMask(gl, engine, mask.key, base.u_oceanMaskTexture, base.__maskCanvasDims, del);
+}
+
 /** Teardown: let go of every cached hold (call AFTER the base sets were freed, so the last holder deletes). */
 export function releaseCoarseMaskCache(gl, engine, del) {
   const m = engine && engine._coarseMaskCache;

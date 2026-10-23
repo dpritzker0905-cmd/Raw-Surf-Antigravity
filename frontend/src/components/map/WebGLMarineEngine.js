@@ -10,9 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
-import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
-import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames';   // 2026-10-23 main-thread jank
-import { coarseMaskCacheEnabled, coarseMaskKey, findCachedCoarseMask, rememberCoarseMask, releaseCoarseMaskCache } from './marineCoarseMaskCache';
+import { recordMarineEvent } from './marineForensics'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -541,9 +539,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // first) so blend-both re-engages for the new model without waiting for an organic world commit.
   // A base already matching the seed's identity means an organic commit beat the seed here — the seed
   // is DISCARDED (the old gate left it pending forever, which then blocked every future staging) unless it is a 2-degree seed over a coarser base of that hour.
-  // QUIET SEED (2026-10-23): the seed's capture can cost a whole frame; it waits for a frame with no input in the last second and
-  // no zoom change (marineQuietFrames.js). Kill: __RAW_DISABLE_QUIET_SEED__.
-  if (seedConsumeAllowed(zoom) && this._pendingCoarseBaseGrid) {   // asked every frame: it tracks the zoom frame to frame
+  if (seedConsumeAllowed(zoom) && this._pendingCoarseBaseGrid) {   // QUIET SEED (marineQuietFrames.js, asked every frame; kill __RAW_DISABLE_QUIET_SEED__)
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
     const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, another HOUR (F-21, marineStaleHour.js) or a finer lattice of the same hour (rule 6)
@@ -2929,21 +2925,14 @@ WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
       }
     }
   }
-  // MASK CACHE (2026-10-23, marineCoarseMaskCache.js): no LRU set with these bounds -> a mask rasterized earlier for the same
-  // bounds + land GeoJSON, kept past its set. Kill: __RAW_DISABLE_COARSE_MASK_CACHE__.
-  const _maskKey = coarseMaskCacheEnabled() && waveGrid && waveGrid.bounds ? coarseMaskKey(waveGrid.bounds, this._landGeoJSON || null) : null;
-  const _reuse = _shareSrc ? { tex: _shareSrc.u_oceanMaskTexture, dims: _shareSrc.__maskCanvasDims } : (_maskKey ? findCachedCoarseMask(this, _maskKey) : null);
+  const _mask = coarseMaskReuse(this, waveGrid, _shareSrc);   // MASK CACHE (marineCoarseMaskCache.js): the LRU set's mask, else a cached one
   try {
     // Pass the land GeoJSON so the standalone encode renders a high-res MERCATOR ocean mask (the heatmap shader
     // samples mask_v in mercator; a grid mask would be read at the wrong latitude and hide the wash).
-    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, _reuse
-      ? { standalone: true, reuseMaskTex: _reuse.tex, reuseMaskDims: _reuse.dims }
+    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, _mask.reuse
+      ? { standalone: true, reuseMaskTex: _mask.reuse.tex, reuseMaskDims: _mask.reuse.dims }
       : { standalone: true });
-    if (base && base.u_waveTexture && _reuse && base.u_oceanMaskTexture === _reuse.tex) {
-      base.u_oceanMaskTexture.__rsRefs = (base.u_oceanMaskTexture.__rsRefs || 1) + 1;
-    } else if (base && base.u_waveTexture && _maskKey && base.__maskCanvasDims) {   // a fresh GeoJSON raster (never the grid-mask fallback)
-      rememberCoarseMask(gl, this, _maskKey, base.u_oceanMaskTexture, base.__maskCanvasDims, (g, t) => safeDeleteTexture(g, t, this));
-    }
+    noteCoarseMaskUse(gl, this, base, _mask, (g, t) => safeDeleteTexture(g, t, this));   // a reuse gains a holder; a fresh raster is remembered
   } catch (e) {
     console.warn('[WebGLMarineEngine] coarse-base encode failed:', e && e.message);
     base = null;
@@ -3013,8 +3002,7 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl, obj) {
     this._coarseBaseLru.clear();
   }
   this._coarseBaseData = null;
-  for (const b of seen) freeOne(b);
-  releaseCoarseMaskCache(gl, this, (g, t) => safeDeleteTexture(g, t, this));   // after the sets: the last holder deletes
+  for (const b of seen) freeOne(b); releaseCoarseMaskCache(gl, this, (g, t) => safeDeleteTexture(g, t, this));   // the cache's holds after the sets
 };
 
 // WIDE-VIEW OVERLAY COMPOSITING MODE (2026-07-15, live-proven continent crest land-bleed on
