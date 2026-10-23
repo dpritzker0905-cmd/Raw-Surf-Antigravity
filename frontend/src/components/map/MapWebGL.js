@@ -504,7 +504,8 @@ const MapWebGL = ({
         mapInstance.setPaintProperty(id, 'raster-opacity', opacity);
       }
       // Keep the frame on screen until the requested one has loaded (radarFrameHold.js).
-      return holdRadarFrame(mapInstance, [...want].find(([, v]) => v.opacity > 0)?.[0], curOp);
+      const frameMs = new globalThis.Map(radarFrames.map((f) => { const u = radarFrameUrl(f); return [u ? sid(u) : null, (f.time || 0) * 1000]; }));
+      return holdRadarFrame(mapInstance, [...want].find(([, v]) => v.opacity > 0)?.[0], curOp, (id) => frameMs.get(id));
     } catch (e) { /* style transition — next index change retries */ }
     return undefined;
   }, [mapInstance, radarFrames, radarFrameIndex, activeLayers]);

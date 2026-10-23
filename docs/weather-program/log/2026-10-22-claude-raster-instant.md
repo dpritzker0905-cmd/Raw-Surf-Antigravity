@@ -97,3 +97,23 @@ phone 390x844 dpr 3 with the CPU at 1/4:
 - STALE frames fall (the neighbour is ready more often) but are not 0: P2 makes every remaining hold say so in words.
 - Contract status: desktop tap steps meet it on pressure and fog (p95 56-60 ms) and at p50 everywhere; slow hours, phones and
   long jumps still wait for the hour's data (the free-GRIB frames plan, owner 2026-10-22 21:35 EDT "we want free grib data", replaces the source).
+
+## PR P2: honest raster status line (`claude/raster-honest-status`, stacked on P1)
+Client only; no served number, palette or legend change. Kill: `window.__RAW_DISABLE_RASTER_DRAWN_READOUT__ = true`.
+- `rasterDrawnFrame.js`: the URL hook publishes, per commit, the SHOWN slot's om:// URL and the TARGET slot's URL (the hour, model and
+  variable the app resolved, so the deliberate GFS stand-ins, e.g. water temp on ICON or past the 168/228 h cutovers, are never
+  "loading"); radar publishes its shown and asked frames (radarFrameHold).
+- ForecastTimeStatus speaks for raster layers with the marine readout's words: "Loading Thu 3 PM... still showing Thu 2 PM" (pending),
+  "Showing Thu 3 PM: the nearest stored forecast" (EURO's 3/6-hourly steps), radar in clock time. A pending line waits 300 ms (the
+  instant contract: no loading words under ~300 ms). Rasters never read the marine record (it would name the last marine layer).
+- The line is shown for the seven raster layers in all three layouts (TimelineStatus is rendered once by renderTimeline); theme
+  tones and role="status" aria-live="polite" are the marine line's.
+
+### Measured: P1 vs P2, paired (zoom 4, GFS, all 7 layers, desktop + phone)
+Stale frames still SILENT more than 350 ms after the key: desktop 117-1,242 per layer on P1 -> 0-4 on P2 (pressure and fog re-run
+after an instrument fix below: 0); phone 16-1,275 -> 2-38 (the line lands ~100-200 ms after its 300 ms quiet under the 4x CPU
+throttle). Timings unchanged (pressure desktop step p50 44 -> 55 ms, fog 52 -> 56 ms, toggles within noise).
+Instrument fix: the replay layer took the time axis from ANY latest.json it served, including the app's old preloader pings
+(`latest.json?time_step=...`), and a ping first recorded hours later held a newer run's manifest: the sampler then expected index
+106 where the app correctly showed 112 and scored a whole long jump stale. rr.js now keeps the first manifest per model and ignores
+query-string pings.
