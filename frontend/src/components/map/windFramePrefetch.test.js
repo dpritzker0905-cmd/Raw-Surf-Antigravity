@@ -2,7 +2,12 @@
  * The wind run's idle prefetch (2026-10-22): which frames, in which order, and on which devices (windFramePrefetch.js).
  */
 import { fillBlocker, planWind } from './windFramePrefetch';
+import { isHandheldDevice, isWeakDevice } from './deviceTier';
 import { WIND_SET_KEY } from './windStaticFrames';
+
+// The device facts are pinned, never read off the machine running the test: deviceTier counts <= 4 cores as weak, and a CI runner
+// has 4 (the policy test once passed on a 16-core desktop and failed on the runner).
+jest.mock('./deviceTier', () => ({ isHandheldDevice: jest.fn(() => false), isWeakDevice: jest.fn(() => false) }));
 
 const LANE = { key: 'wind_lane/hrrr-2026102218.json', cycle: '2026-10-22T18:00:00Z', horizon: '2026-10-24T18:00:00Z', feather_km: 200, taper_hours: 3, source: 's' };
 const vt = (h) => new Date(Date.parse('2026-10-22T12:00:00Z') + h * 3600000).toISOString().replace(/\.\d{3}Z$/, 'Z');
@@ -51,6 +56,11 @@ describe('the wind prefetch plan', () => {
     expect(fillBlocker({ connection: { effectiveType: '2g' } })).not.toBe(null);
     window.matchMedia = () => ({ matches: true });                                          // a coarse pointer (a phone)
     expect(fillBlocker({ connection: { effectiveType: '4g' } })).toBe('coarse_pointer');
+    window.matchMedia = () => ({ matches: false });
+    isWeakDevice.mockReturnValueOnce(true);                                                 // <= 4 cores: the marine store's lite tier
+    expect(fillBlocker({ connection: { effectiveType: '4g' } })).toBe('tier');
+    isHandheldDevice.mockReturnValueOnce(true);
+    expect(fillBlocker({ connection: { effectiveType: '4g' } })).toBe('tier');
     window.matchMedia = mm;
   });
 });
