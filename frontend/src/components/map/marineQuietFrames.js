@@ -5,7 +5,9 @@
  * the only place its GL context may be touched. The live trace (2026-10-23) caught one such consume at 139.9 ms inside a frame,
  * 2 s after a scrub step: on a real scrub the next key lands in that frame. The seed is best-effort by design (the zoom-out fetch
  * still commits the global), so it can wait for a frame with no input in the last QUIET_MS and no camera zoom change.
- * Input clock: capture-phase keydown / pointerdown / wheel / touchstart and pointermove with a button held, installed on first use.
+ * Input clock: capture-phase keydown / pointerdown / wheel / touchstart and pointermove with a button held, installed when this
+ * module loads (a lazy install missed the very key that preceded the first seed: measured offline, the seed landed 170-179 ms
+ * after it). The engine asks EVERY frame, before it looks for a seed, so a zoom in progress is seen frame to frame.
  * Kill: window.__RAW_DISABLE_QUIET_SEED__ = true (consume on the first frame again).
  */
 export const QUIET_MS = 1000;
@@ -43,6 +45,8 @@ export function seedConsumeAllowed(zoom) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_QUIET_SEED__ === true) return true;
   return quietFrame(zoom);
 }
+
+install();
 
 export function _resetQuietFramesForTest() { _lastInput = -Infinity; _lastZoom = null; }
 export function _noteInputForTest(t = nowMs()) { _lastInput = t; }

@@ -543,7 +543,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // is DISCARDED (the old gate left it pending forever, which then blocked every future staging) unless it is a 2-degree seed over a coarser base of that hour.
   // QUIET SEED (2026-10-23): the seed's capture can cost a whole frame; it waits for a frame with no input in the last second and
   // no zoom change (marineQuietFrames.js). Kill: __RAW_DISABLE_QUIET_SEED__.
-  if (this._pendingCoarseBaseGrid && seedConsumeAllowed(zoom)) {
+  if (seedConsumeAllowed(zoom) && this._pendingCoarseBaseGrid) {   // asked every frame: it tracks the zoom frame to frame
     const _seed = this._pendingCoarseBaseGrid;
     const _b = this._coarseBaseData;
     const _stale = coarseBaseStaleForSeed(_b, _seed);   // no base, ANOTHER model/layer, another HOUR (F-21, marineStaleHour.js) or a finer lattice of the same hour (rule 6)

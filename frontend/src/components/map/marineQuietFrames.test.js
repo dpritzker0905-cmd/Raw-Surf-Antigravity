@@ -42,8 +42,13 @@ describe('marineQuietFrames', () => {
     expect(seedConsumeAllowed(4)).toBe(true);
   });
 
-  it('wiring: the render callback consumes the seed only when seedConsumeAllowed says so', () => {
+  it('the input clock is live from module load: a key before any seed was ever pending still holds the next frame', () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));   // no quietFrame() call before this key
+    expect(seedConsumeAllowed(4)).toBe(false);
+  });
+
+  it('wiring: the render callback asks every frame, then consumes the seed only when seedConsumeAllowed says so', () => {
     const src = fs.readFileSync(path.join(__dirname, 'WebGLMarineEngine.js'), 'utf8');
-    expect(src).toMatch(/if \(this\._pendingCoarseBaseGrid && seedConsumeAllowed\(zoom\)\) \{/);
+    expect(src).toMatch(/if \(seedConsumeAllowed\(zoom\) && this\._pendingCoarseBaseGrid\) \{/);
   });
 });
