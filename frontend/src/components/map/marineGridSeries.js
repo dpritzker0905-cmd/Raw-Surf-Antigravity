@@ -584,11 +584,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   // (Probe run 2 lesson: do NOT suppress on _inFlight.has(pageKey) — a page already in flight for
   // 2.5-3.3 s cold is EXACTLY the window the mini exists to beat. The mini's own h0-key dedup
   // prevents duplicate minis; the page-warm check below prevents pointless ones.)
-  const _pk = pageKey(model, layer, bounds, page);
-  const _pc = _seriesCache.get(_pk);
-  if (!(_pc && _pc.frames && _pc.frames.size && Date.now() - _pc.ts < SERIES_TTL_MS)) {
-    loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
-  }
+  if (!isMarineSeriesPageWarm(model, layer, bounds, hourOffset)) loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
   await loadSeriesPage(model, layer, bounds, page, signal, force, background);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
@@ -602,6 +598,18 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
     if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || hasLiveFlight(k)) continue;
     scheduleIdlePrefetch(() => { loadSeriesPage(model, layer, bounds, adj, signal, false, true); }, signal); // a warm
   }
+}
+
+/** The page holding `hourOffset` is cached and fresh (the page itself, not its hour-0 mini). */
+export function isMarineSeriesPageWarm(model, layer, bounds, hourOffset = 0) {
+  const pc = bounds ? _seriesCache.get(pageKey(model, layer, bounds, marineSeriesPageForHour(hourOffset, model))) : null;
+  return !!(pc && pc.frames && pc.frames.size && Date.now() - pc.ts < SERIES_TTL_MS);
+}
+
+/** The hour-0 mini ALONE, awaitable (marineSiblingWarm.js: a sibling layer's toggle frame before its page). */
+export async function ensureMarineSeriesHour0(model, layer, bounds, hourOffset = 0, signal, background = true) {
+  if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
+  if (!isMarineSeriesPageWarm(model, layer, bounds, hourOffset)) await loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
 }
 
 /**

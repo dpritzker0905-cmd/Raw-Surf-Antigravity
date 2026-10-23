@@ -1,6 +1,8 @@
 import { renderHook, act } from '@testing-library/react';
 import { useMarineSeriesWarm } from './useMarineSeriesWarm';
 import { ensureMarineSeries, prewarmMarineSeries } from './marineGridSeries';
+import { prewarmSiblingMarineSeries } from './marineController';
+jest.mock('./marineController', () => ({ prewarmSiblingMarineSeries: jest.fn() }));
 jest.mock('./marineGridSeries', () => ({ ensureMarineSeries: jest.fn(), prewarmMarineSeries: jest.fn(),
   marineSeriesViewportIdentity: (model, layer, bounds) => `${model}_${layer}_${bounds.east-bounds.west > 60 ? 'global' : bounds.west}_p0_anchor` }));
 
@@ -62,6 +64,22 @@ describe('mounted viewport warm lifecycle', () => {
     h.unmount(); expect(handlers.movestart).toBeUndefined();
   });
   it('flag-off with the supersede killed retains the legacy viewport lifetime and independent model warm', () => {
+  it('the sibling-layer warm follows the visible series (not only a /grid commit); its kill switch stops it', async () => {
+    const flush = async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); };
+    let h = renderHook(() => useMarineSeriesWarm(props));
+    act(() => jest.advanceTimersByTime(600)); await flush();
+    expect(prewarmSiblingMarineSeries).toHaveBeenCalledTimes(1);
+    expect(prewarmSiblingMarineSeries.mock.calls[0].slice(0, 4)).toEqual(['GFS', 0, bounds, 'waves']);
+    expect(prewarmSiblingMarineSeries.mock.calls[0][4]).toBe(ensureMarineSeries.mock.calls.at(-1)[4]);   // the visible warm's signal
+    h.unmount(); jest.clearAllMocks();
+    window.__RAW_DISABLE_SIBLING_WARM_ON_SERIES__ = true;
+    h = renderHook(() => useMarineSeriesWarm(props));
+    act(() => jest.advanceTimersByTime(600)); await flush();
+    expect(ensureMarineSeries).toHaveBeenCalled();
+    expect(prewarmSiblingMarineSeries).not.toHaveBeenCalled();
+    delete window.__RAW_DISABLE_SIBLING_WARM_ON_SERIES__; h.unmount();
+  });
+  it('flag-off retains the legacy viewport lifetime and independent model warm', () => {
     process.env.REACT_APP_MARINE_SERIES_WORK_BOUNDS = 'false';
     window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__ = true;
     const h = renderHook(() => useMarineSeriesWarm(props)); const modelSignal = signal();

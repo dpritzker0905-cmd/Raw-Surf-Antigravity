@@ -14,7 +14,8 @@ import { buildVectors, parseFrame } from './staticFrameCodec';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import {
-  BUNDLE_BACKOFF_MS, BUNDLE_TIMEOUT_MS, PILOT_BOXES, _setRegionalCodecForTest, insidePilotBox, isRegionalSetKey, noteBackendAnswer,
+  BUNDLE_BACKOFF_MS, BUNDLE_DEAD_MS, BUNDLE_TIMEOUT_MS, PILOT_BOXES, _setRegionalCodecForTest, bundleTimeoutMs, insidePilotBox,
+  isRegionalSetKey, noteBackendAnswer, regionalCapable,
   normalizeBundleIndex, pickRegionalTile, regionalClipWindow, regionalFrameBytes, regionalManifestPending, regionalSetKey,
 } from './staticRegional';
 import {
@@ -51,18 +52,22 @@ const INDEX = {
   ],
 };
 
-let calls;
-// `bin`: how the bundle answers (default the bytes; a number = that HTTP status; 'throw' = a network / CORS error; 'hang' = never,
-// until the request is aborted).
+let calls; let prios;
+// `bin`: how the bundle answers (default the bytes; a number = that HTTP status; { status, retryAfter } = that status with a
+// Retry-After header; 'throw' = a network / CORS error; 'hang' = never, until the request is aborted).
 function cdn({ index = INDEX, bundle = BUNDLE, bin = null } = {}) {
-  calls = [];
+  calls = []; prios = [];
   global.fetch = jest.fn(async (url, opts = {}) => {
     calls.push(url);
+    if (url.endsWith('.bin')) prios.push(opts.priority || null);
     const ok = (body) => ({ ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(body)) });
     if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [KEY]: { index: index.path, bundle: index.bundle, run: 'r' } } });
     if (url === BASE + index.path) return ok(index);
     if (url === BASE + index.bundle.path) {
       if (typeof bin === 'number') return { ok: false, status: bin, arrayBuffer: async () => new ArrayBuffer(0) };
+      if (bin && typeof bin === 'object') {
+        return { ok: false, status: bin.status, headers: { get: (h) => (h === 'Retry-After' ? bin.retryAfter : null) }, arrayBuffer: async () => new ArrayBuffer(0) };
+      }
       if (bin === 'throw') throw new TypeError('Failed to fetch');
       if (bin === 'hang') {
         return new Promise((resolve, reject) => {
@@ -184,6 +189,72 @@ describe('a failed bundle: remembered with a backoff, its real status passed on,
     expect(window.__RAW_STATIC_REGIONAL__.misses).toMatchObject({ bundle_http_429: 2, bundle_backoff: 2 });
   });
 
+  it('a longer Retry-After wins over the 30 s step; a 404 is a dead path for 30 min; a bad sha12 too, as integrity', async () => {
+    cdn({ bin: { status: 429, retryAfter: '300' } });
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe(429);
+    Date.now.mockImplementation(() => Date.parse(VT) + 31000);
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe('backoff');                // 300 s, not 30 s
+    Date.now.mockImplementation(() => Date.parse(VT) + 301000);
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe(429);
+    expect(bins()).toBe(2);
+    _resetStaticFramesForTest();
+    Date.now.mockImplementation(() => Date.parse(VT));
+    cdn({ bin: 404 });
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe(404);
+    Date.now.mockImplementation(() => Date.parse(VT) + BUNDLE_DEAD_MS - 1);
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe('backoff');
+    expect(bins()).toBe(1);
+    _resetStaticFramesForTest();
+    Date.now.mockImplementation(() => Date.parse(VT));
+    cdn();
+    const bad = await regionalFrameBytes(BASE, { ...frame(), bundle: { ...frame().bundle, sha12: '000000000000' } });
+    expect(bad).toMatchObject({ error: 'sha12_mismatch', status: 'integrity' });
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe('backoff');                // the bundle is dropped, dead for the pin
+  });
+
+  it('seam A: a sha12 mismatch re-pins (forced latest.json re-read), as a 404 does', async () => {
+    const BOX = { west: -90, south: 20, east: -80, north: 30 };
+    const badIndex = JSON.parse(JSON.stringify(INDEX));
+    badIndex.frames[0].sha12 = '000000000000';
+    cdn({ index: badIndex });
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();
+    expect(latests()).toBe(2);
+    expect(bins()).toBe(1);
+  });
+
+  it('fetch priority: the /grid seam asks the bundle at high, a background series fill at low', async () => {
+    const BOX = { west: -90, south: 20, east: -80, north: 30 };
+    await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX });
+    expect(prios).toEqual(['high']);
+    _resetStaticFramesForTest();
+    cdn();
+    await staticSeriesFrames({ model: 'GFS', layer: 'waves', bbox: BOX, hours: [0], anchorMs: Date.parse(VT), onFrames: () => {}, priority: 'low' });
+    expect(prios).toEqual(['low']);
+  });
+
+  it('the timeout floor is 8 s; a large bundle gets its size at 150 KB/s', () => {
+    expect(bundleTimeoutMs(120370)).toBe(BUNDLE_TIMEOUT_MS);
+    expect(BUNDLE_TIMEOUT_MS).toBe(8000);
+    expect(bundleTimeoutMs(2500000)).toBe(16667);
+  });
+
+  it('a browser that cannot check or inflate slices picks no tile, waits for nothing and downloads nothing', () => {
+    _setRegionalCodecForTest();
+    const saved = global.DecompressionStream;
+    delete global.DecompressionStream;
+    try {
+      expect(regionalCapable()).toBe(false);
+      expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();
+      expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: { west: -90, south: 20, east: -80, north: 30 } })).toBe(false);
+      setCachedManifest(null);
+      expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: { west: -83, south: 26, east: -80, north: 28.5 } })).toBe(false);
+      expect(bins()).toBe(0);
+    } finally {
+      if (saved !== undefined) global.DecompressionStream = saved;
+    }
+  });
+
   it('a network / CORS error is status 0 and backs off too; concurrent asks share one request', async () => {
     cdn({ bin: 'throw' });
     const got = await Promise.all([regionalFrameBytes(BASE, frame()), regionalFrameBytes(BASE, frame()), regionalFrameBytes(BASE, frame())]);
@@ -292,6 +363,7 @@ describe('the seams answer a fully covered box from the bundle, and nothing else
 
   it('the frame store never takes a regional set (phase 1); the box resolves to its regional key', async () => {
     expect(staticSetKeyForBox({ model: 'GFS', layer: 'waves', bbox: BOX })).toBe(KEY);
+    expect(staticSetKeyForBox({ model: 'GFS', layer: 'waves', bbox: BOX, surf: true })).toBe('GFS/marine/waves/global_mid');   // surf: never
     expect(await getPinnedIndex(KEY)).not.toBeNull();
     expect(getPinnedIndexSync(KEY)).toBeNull();
   });

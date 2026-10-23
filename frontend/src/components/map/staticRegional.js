@@ -74,6 +74,7 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
   if (!regionalBundlesOn()) return null;
   const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
   if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return null;
+  if (!regionalCapable()) return trace({ l, bboxStr, pick: 'not_capable' });
   const req = parseBboxString(bboxStr);
   if (!req) return null;
   const [w, s, e, n] = req;
@@ -103,12 +104,20 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
  * pages queued to the backend, ~4 s before the manifest arrived). Boxes wider than any pilot tile never wait.
  */
 export function regionalManifestPending({ model, layer, bbox, surf }) {
-  if (surf || !bbox || !regionalBundlesOn()) return false;
+  if (surf || !bbox || !regionalBundlesOn() || !regionalCapable()) return false;
   const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
   if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return false;
   if (!insidePilotBox(bbox)) return false;              // only a box a pilot tile could cover waits
   if (_latestRead() && !pilotFallbackOff()) return false;   // latest.json is read: the pilot fallback decides now (pilotFallback)
   return getAvailableTilesFromManifest(m, 'marine', l).fallbackReason === 'manifest_not_loaded';
+}
+
+/** The browser can check and inflate bundle slices: crypto.subtle (secure contexts) and DecompressionStream('gzip') (Safari
+ *  16.4+). Without either no regional box is picked, so nothing is downloaded and every box keeps its existing path. */
+export function regionalCapable() {
+  const digest = !!_codec.sha12 || (typeof crypto !== 'undefined' && !!crypto && !!crypto.subtle);
+  const inflate = !!_codec.gunzip || typeof DecompressionStream !== 'undefined';
+  return digest && inflate;
 }
 
 // ── Before the products manifest has loaded (the live read: ~4 s into the opening) ─────────────────────────────────────────
@@ -188,23 +197,37 @@ export function regionalClipWindow(bboxStr, grid, model = 'GFS') {
 }
 
 // ── The bundle: one fetch per bundle path (raw bytes; never inflated whole), slices checked and inflated one by one ──────
-// Concurrent asks for one path share one fetch. A failed fetch (any HTTP status, a network or CORS error, the timeout) is
-// remembered per path with a backoff (BUNDLE_BACKOFF_MS doubling to BUNDLE_BACKOFF_MAX_MS): asks inside it get
-// { status: 'backoff' } at once, with no request and no stale mark, so a 429 or an outage costs one request per backoff, not one
-// per hour (and per latest.json re-read) of every page. Only the first real 404 / 400 reaches the caller as such (the index
-// moved on: re-pin).
-export const BUNDLE_TIMEOUT_MS = 15000;
-export const BUNDLE_BACKOFF_MS = 5000;
-export const BUNDLE_BACKOFF_MAX_MS = 120000;
-const _bundles = new Map();           // path -> Promise<{ buf } | { status, error }>
+// Concurrent asks for one path share one fetch (the path is content-addressed: one run of one box). A failed fetch is remembered
+// per path: a 429, a 5xx, a network or CORS error or the timeout backs off 30 s -> 2 min -> 10 min -> 30 min (BUNDLE_BACKOFF_STEPS_MS,
+// a longer Retry-After wins), and asks inside the backoff get { status: 'backoff' } at once, with no request and no stale mark;
+// a 404 / 400 or a slice whose sha12 does not match is a DEAD path for this pin (BUNDLE_DEAD_MS) and is passed on once as such
+// (status 404 / 400 / 'integrity'), which re-pins. So a 429 or an outage costs one request per backoff step, not one per hour (and
+// per latest.json re-read) of every page.
+export const BUNDLE_TIMEOUT_MS = 8000;                  // the floor; a large bundle gets its size at 150 KB/s (brazil_east ~2.5 MB)
+export const bundleTimeoutMs = (bytes) => Math.max(BUNDLE_TIMEOUT_MS, Math.ceil((Number(bytes) || 0) / 150));
+export const BUNDLE_BACKOFF_STEPS_MS = [30000, 120000, 600000, 1800000];
+export const BUNDLE_BACKOFF_MS = BUNDLE_BACKOFF_STEPS_MS[0];
+export const BUNDLE_DEAD_MS = 1800000;
+const _bundles = new Map();           // path -> Promise<{ buf } | { status, error, retryAfterMs }>
 const _failed = new Map();            // path -> { until, n, status }
 
-async function fetchBundle(url) {
+function retryAfterMs(res) {
+  const h = res && res.headers && typeof res.headers.get === 'function' ? res.headers.get('Retry-After') : null;
+  if (!h) return 0;
+  const secs = Number(h);
+  if (Number.isFinite(secs)) return Math.max(0, secs * 1000);
+  const at = Date.parse(h);
+  return Number.isFinite(at) ? Math.max(0, at - Date.now()) : 0;
+}
+
+async function fetchBundle(url, { bytes, priority } = {}) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), BUNDLE_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), bundleTimeoutMs(bytes));
   try {
-    const res = await fetch(url, { credentials: 'omit', signal: controller.signal });
-    if (!res.ok) return { status: res.status, error: `bundle_http_${res.status}` };
+    const opts = { credentials: 'omit', signal: controller.signal };
+    if (priority) opts.priority = priority;                 // fetch priority: ignored where unsupported
+    const res = await fetch(url, opts);
+    if (!res.ok) return { status: res.status, error: `bundle_http_${res.status}`, retryAfterMs: retryAfterMs(res) };
     const buf = await res.arrayBuffer();
     const r = regionalTelemetry();
     r.bundles += 1; r.bundleBytes += buf.byteLength;
@@ -216,22 +239,30 @@ async function fetchBundle(url) {
   }
 }
 
+/** A bundle whose bytes do not match its index (a slice's sha12): dropped, and dead for this pin. */
+function markBundleBad(path) {
+  _bundles.delete(path);
+  _failed.set(path, { n: BUNDLE_BACKOFF_STEPS_MS.length, status: 'integrity', until: Date.now() + BUNDLE_DEAD_MS });
+}
+
 /** Is this bundle path inside a failure backoff right now? (Synchronous.) */
 export function bundleBackingOff(path) {
   const f = _failed.get(path);
   return !!(f && Date.now() < f.until);
 }
 
-function bundleFor(base, path) {
+function bundleFor(base, path, opts) {
   const f = _failed.get(path);
   if (f && Date.now() < f.until) { noteRegionalMiss('bundle_backoff'); return Promise.resolve({ status: 'backoff', error: 'bundle_backoff' }); }
   let p = _bundles.get(path);
   if (p) { _bundles.delete(path); _bundles.set(path, p); return p; }
-  p = fetchBundle(base + path).then((got) => {
+  p = fetchBundle(base + path, opts).then((got) => {
     if (got.buf) { _failed.delete(path); return got; }
     noteRegionalMiss(got.error);
     const n = (f ? f.n : 0) + 1;
-    _failed.set(path, { n, status: got.status, until: Date.now() + Math.min(BUNDLE_BACKOFF_MAX_MS, BUNDLE_BACKOFF_MS * 2 ** (n - 1)) });
+    const dead = got.status === 404 || got.status === 400;
+    const step = BUNDLE_BACKOFF_STEPS_MS[Math.min(n, BUNDLE_BACKOFF_STEPS_MS.length) - 1];
+    _failed.set(path, { n, status: got.status, until: Date.now() + (dead ? BUNDLE_DEAD_MS : Math.max(step, got.retryAfterMs || 0)) });
     if (_bundles.get(path) === p) _bundles.delete(path);
     return got;
   });
@@ -259,14 +290,15 @@ async function gunzip(bytes) {
 /**
  * A bundle frame's inflated bytes, as fetchFrameBytes returns them ({ buffer, wire, fetchMs, inflateMs } or { error, status }).
  * `frame.bundle` = { path, offset, length, sha12 } (staticFrames.loadIndex sets it). Never throws. `status` is the HTTP status
- * (0 for a network / CORS error or the timeout, 'backoff' inside a failure backoff): only a real 404 / 400 re-pins.
+ * (0 for a network / CORS error or the timeout, 'backoff' inside a failure backoff, 'integrity' for a sha12 mismatch): a 404,
+ * 400 or 'integrity' re-pins, nothing else does. `priority` ('high' | 'low') applies to the bundle fetch it starts.
  */
-export async function regionalFrameBytes(base, frame, signal) {
+export async function regionalFrameBytes(base, frame, signal, priority) {
   const s = frame && frame.bundle;
   if (!s || !Number.isFinite(s.offset) || !Number.isFinite(s.length)) return { error: 'not_a_bundle_frame' };
   if (signal && signal.aborted) return { error: 'aborted' };
   const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-  const got = await bundleFor(base, s.path);
+  const got = await bundleFor(base, s.path, { bytes: s.bytes, priority });
   if (!got.buf) return { error: got.error || 'bundle_unavailable', status: got.status };
   const buf = got.buf;
   if (s.offset + s.length > buf.byteLength) { noteRegionalMiss('slice_out_of_range'); return { error: 'slice_out_of_range' }; }
@@ -275,7 +307,7 @@ export async function regionalFrameBytes(base, frame, signal) {
   try { sum = await sha12Of(slice); } catch (e) { sum = null; }
   // FAIL CLOSED: bytes whose sha12 cannot be checked are never decoded (the caller asks the backend).
   if (sum === null) { noteRegionalMiss('sha12_unavailable'); return { error: 'sha12_unavailable' }; }
-  if (sum !== s.sha12) { noteRegionalMiss('sha12_mismatch'); return { error: 'sha12_mismatch' }; }
+  if (sum !== s.sha12) { noteRegionalMiss('sha12_mismatch'); markBundleBad(s.path); return { error: 'sha12_mismatch', status: 'integrity' }; }
   const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
   let inflated = null;
   try { inflated = await gunzip(slice); } catch (e) { noteRegionalMiss('gunzip_error'); return { error: 'gunzip_error' }; }
@@ -289,7 +321,7 @@ export function normalizeBundleIndex(idx) {
   if (!idx || !idx.bundle || !idx.bundle.path || !Array.isArray(idx.frames)) return idx;
   for (const f of idx.frames) {
     if (f.offset === null || f.offset === undefined) { f.path = null; continue; }
-    f.bundle = { path: idx.bundle.path, offset: f.offset, length: f.length, sha12: f.sha12 };
+    f.bundle = { path: idx.bundle.path, bytes: idx.bundle.bytes, offset: f.offset, length: f.length, sha12: f.sha12 };
     f.path = `${idx.bundle.path}#${f.offset}`;
   }
   return idx;

@@ -8,6 +8,7 @@ import {
 } from './staticFrames';
 import { buildVectors, parseFrame } from './staticFrameCodec';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
+import { _setRegionalCodecForTest } from './staticRegional';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 
 const BASE = 'https://cdn.test/weather-frames/';
@@ -68,11 +69,17 @@ test('a viewport box the mid tier answers is eligible; a world box still is; a n
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW })).toBe(true);
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);
   // A box inside a pilot tile is a REGIONAL box since 2026-10-23 (staticRegional.js): eligible for the tile's bundle, never a
-  // mid-zoom crop; with the regional kill it is not static at all.
-  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: { west: -84, south: 25, east: -80, north: 30 } })).toBe(true);
+  // mid-zoom crop; with the regional kill, or in a browser that cannot check and inflate slices, it is not static at all.
+  const TILE_BOX = { west: -84, south: 25, east: -80, north: 30 };
+  _setRegionalCodecForTest({ sha12: async () => 'x', gunzip: async () => new ArrayBuffer(0) });   // a capable browser
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(true);
   window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
-  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: { west: -84, south: 25, east: -80, north: 30 } })).toBe(false);
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);
   delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
+  _setRegionalCodecForTest();
+  if (typeof DecompressionStream === 'undefined' || !(global.crypto && global.crypto.subtle)) {
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // this jsdom: not capable
+  }
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW, surf: true })).toBe(false);
   window.__RAW_DISABLE_STATIC_MID_CROP__ = true;
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW })).toBe(false);
