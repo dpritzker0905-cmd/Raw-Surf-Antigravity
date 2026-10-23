@@ -149,3 +149,28 @@ marine layers, `__RAW_STATIC_REGIONAL__.series` > 0, `dynamicOnCovered` 0), `/ap
 
 **Follow-up seen, not fixed here.** At the partial-cover centre (-79.5) both arms miss the Home step's exact frame (`exactMs` null),
 as earlier dev runs did: pre-existing, outside this change.
+
+## 2026-10-23 (20:00Z): #491 review fixes (the lead's 8 findings on b482566c)
+
+Every finding was checked in the code before fixing; all 8 held. Fixes and the test that fails without each (12 mutants, 12 caught):
+- **1:** failure cache with backoff, the real status, no re-pin from a cached failure;
+- **2:** an unservable or failed page is not claimed;
+- **3:** a 15 s fetch timeout;
+- **4:** the hour-0 mini is never held, and once latest.json is read a box inside a pilot box is picked from it before the manifest
+  (non-overlapping boxes, pinned to pilot_regions.py), so nothing waits;
+- **5:** static pages bounded by SERIES_MAX;
+- **6:** a box is claimed only if its snapped box is inside the data;
+- **7:** one run per page;
+- **8:** gzip errors caught, sha12 fails closed.
+
+**Finding 6 reproduced offline** on us_southeast_midatlantic. After one partial-cover ask, the server answers the same snapped key's
+full cover from a dynamic product. The previous rule would have served the bundle there; the new one refuses.
+
+**Measured** (owner z9, the live box), regional vs kill:
+- manifest 4 s late: first frame 0.5-1.1 s vs 1.6-2.4 s; 0 vs 4 series asks; 0 vs 19-22 s of backend time;
+- manifest on time: 1.3-1.4 s vs 1.4-1.8 s; 3 one-frame minis (0.4 s) vs 9 asks (30-31 s).
+- Before the pilot pick, a late manifest saved nothing, as the review predicted.
+
+Evidence: `evidence/regional-bundles-client-2026-10-23.json` (`review_fixes`).
+
+**Owed (unchanged):** one live read on the fixed head after the 19:45Z publish, with time to first frame and the request counts.

@@ -79,6 +79,7 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
   const [w, s, e, n] = req;
   if (!(w < e) || !(s < n) || w < -180 || e > 180) return trace({ l, bboxStr, pick: 'bad_box' });
   const { tiles, fallbackReason } = getAvailableTilesFromManifest(m, 'marine', l);
+  if (fallbackReason === 'manifest_not_loaded') return pilotFallback(m, l, bboxStr, { west: w, south: s, east: e, north: n });
   if (fallbackReason || !Array.isArray(tiles)) return trace({ l, bboxStr, pick: fallbackReason || 'no_tiles' });
   let best = null; let bestArea = Infinity; let tie = false;
   for (const tile of tiles) {
@@ -105,8 +106,47 @@ export function regionalManifestPending({ model, layer, bbox, surf }) {
   if (surf || !bbox || !regionalBundlesOn()) return false;
   const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
   if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return false;
-  if (lngSpan(bbox.west, bbox.east) > 40 || bbox.north - bbox.south > 40) return false;
+  if (!insidePilotBox(bbox)) return false;              // only a box a pilot tile could cover waits
+  if (_latestRead() && !pilotFallbackOff()) return false;   // latest.json is read: the pilot fallback decides now (pilotFallback)
   return getAvailableTilesFromManifest(m, 'marine', l).fallbackReason === 'manifest_not_loaded';
+}
+
+// ── Before the products manifest has loaded (the live read: ~4 s into the opening) ─────────────────────────────────────────
+// A box inside a pilot box can be served by that box's tile ONLY (the pilot boxes do not overlap: the backend's tests ban
+// interior overlap, and PILOT_BOXES is pinned to pilot_regions.py), and a set listed in latest.json was written from that
+// tile's stored products. So until the manifest lands, the tile is that pilot box when its set is listed; the cover is then
+// checked on the set's own lattice as always. Once the manifest has loaded it decides (a tile it does not list is no tile).
+// staticFrames registers the latest.json probes (no import cycle). Kill: window.__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ = true.
+let _listed = () => false;
+let _latestRead = () => false;
+export function setRegionalLatestProbes({ listed, read }) { _listed = listed; _latestRead = read; }
+const pilotFallbackOff = () => W().__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ === true;
+function pilotFallback(m, l, bboxStr, b) {
+  if (pilotFallbackOff()) return trace({ l, bboxStr, pick: 'manifest_not_loaded' });
+  const box = PILOT_BOXES.find(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n);
+  if (!box) return trace({ l, bboxStr, pick: 'manifest_not_loaded' });
+  const key = regionalSetKey(m, l, box[0]);
+  if (!_listed(key)) return trace({ l, bboxStr, pick: 'manifest_not_loaded_unlisted' });
+  trace({ l, bboxStr, pick: `pilot:${box[0]}` });
+  return { id: box[0], bounds: { west: box[1], south: box[2], east: box[3], north: box[4] }, key, provisional: true };
+}
+
+/**
+ * The 19 GFS marine pilot boxes (backend pilot_regions.py: REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS, GFS_MARINE_EXTRA_REGIONS,
+ * GFS_MARINE_STAGE_B_REGIONS; pinned to that file by staticRegional.test.js). A HINT only, for "could a tile cover this box"
+ * before the products manifest has loaded; which tile serves a box is always decided from the manifest (pickRegionalTile).
+ */
+export const PILOT_BOXES = [
+  ['florida_east_coast', -85, 24, -79, 31], ['us_west_coast_socal', -125, 30, -115, 38], ['hawaii', -161, 18, -154, 23],
+  ['iberia_west', -11, 36, -6, 44], ['uk_ireland', -11, 49, 1, 59], ['east_australia', 150, -38, 156, -25],
+  ['indonesia', 98, -11, 120, 2], ['brazil_east', -49, -27, -34, -3], ['south_africa', 17, -35, 28, -31],
+  ['mexico_centralamerica_pac', -106, 8, -84, 21], ['us_southeast_midatlantic', -82, 31, -74.4, 37.5],
+  ['azores', -29.8, 36, -24, 40.1], ['us_northeast', -76.1, 37.5, -69, 44.6], ['france_biscay', -6, 42.5, 1, 48.8],
+  ['canaries_madeira_morocco', -19, 26, -9, 34], ['caribbean_pr_dr', -71, 12, -61, 20], ['srilanka_maldives', 72, 2, 82, 10],
+  ['centralamerica_caribbean', -84, 3, -75, 11], ['us_pacific_northwest', -128, 38, -122, 49],
+];
+export function insidePilotBox(b) {
+  return !!b && PILOT_BOXES.some(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n);
 }
 
 /** Opt-in decision trace (diagnostics only): set window.__RAW_STATIC_REGIONAL_TRACE__ = [] and every tile pick is appended
@@ -136,32 +176,65 @@ export function regionalClipWindow(bboxStr, grid, model = 'GFS') {
   if (west > east || south > north) return null;
   const win = latticeWindow(west, south, east, north, grid);
   if (!win) return null;
-  const covers = win.bounds.west <= rw && win.bounds.east >= re && win.bounds.south <= rs && win.bounds.north >= rn;
-  return { ...win, covers, snapped: snapped.map((x) => x.toFixed(4)).join(',') };
+  // Covered: the request lies inside the served lattice (the server's partial_coverage test, margin 0) AND so does its SNAPPED
+  // box. The server's dynamic cache (grid_resolver Steps 1-2, ahead of the tile) is keyed on the snapped box; on a tile whose
+  // edge is not a whole degree a PARTIAL cover can snap to the same key as a full one, and its background sharpen would then
+  // answer the full one dynamically. With the snapped box inside the data no partial cover shares the key. On whole-degree
+  // tiles the two tests agree.
+  const e9 = 1e-9;
+  const snapInside = snapped[0] >= b.west - e9 && snapped[2] <= b.east + e9 && snapped[1] >= b.south - e9 && snapped[3] <= b.north + e9;
+  const covers = snapInside && win.bounds.west <= rw && win.bounds.east >= re && win.bounds.south <= rs && win.bounds.north >= rn;
+  return { ...win, covers, snapInside, snapped: snapped.map((x) => x.toFixed(4)).join(',') };
 }
 
 // ── The bundle: one fetch per bundle path (raw bytes; never inflated whole), slices checked and inflated one by one ──────
-const _bundles = new Map();           // path -> Promise<ArrayBuffer|null>
+// Concurrent asks for one path share one fetch. A failed fetch (any HTTP status, a network or CORS error, the timeout) is
+// remembered per path with a backoff (BUNDLE_BACKOFF_MS doubling to BUNDLE_BACKOFF_MAX_MS): asks inside it get
+// { status: 'backoff' } at once, with no request and no stale mark, so a 429 or an outage costs one request per backoff, not one
+// per hour (and per latest.json re-read) of every page. Only the first real 404 / 400 reaches the caller as such (the index
+// moved on: re-pin).
+export const BUNDLE_TIMEOUT_MS = 15000;
+export const BUNDLE_BACKOFF_MS = 5000;
+export const BUNDLE_BACKOFF_MAX_MS = 120000;
+const _bundles = new Map();           // path -> Promise<{ buf } | { status, error }>
+const _failed = new Map();            // path -> { until, n, status }
 
-async function fetchBundle(url, path) {
+async function fetchBundle(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BUNDLE_TIMEOUT_MS);
   try {
-    const res = await fetch(url, { credentials: 'omit' });
-    if (!res.ok) { noteRegionalMiss(`bundle_http_${res.status}`); return null; }
+    const res = await fetch(url, { credentials: 'omit', signal: controller.signal });
+    if (!res.ok) return { status: res.status, error: `bundle_http_${res.status}` };
     const buf = await res.arrayBuffer();
     const r = regionalTelemetry();
     r.bundles += 1; r.bundleBytes += buf.byteLength;
-    return buf;
+    return { buf };
   } catch (e) {
-    noteRegionalMiss('bundle_fetch_error');
-    _bundles.delete(path);
-    return null;
+    return { status: 0, error: controller.signal.aborted ? 'bundle_timeout' : 'bundle_fetch_error' };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
+/** Is this bundle path inside a failure backoff right now? (Synchronous.) */
+export function bundleBackingOff(path) {
+  const f = _failed.get(path);
+  return !!(f && Date.now() < f.until);
+}
+
 function bundleFor(base, path) {
+  const f = _failed.get(path);
+  if (f && Date.now() < f.until) { noteRegionalMiss('bundle_backoff'); return Promise.resolve({ status: 'backoff', error: 'bundle_backoff' }); }
   let p = _bundles.get(path);
   if (p) { _bundles.delete(path); _bundles.set(path, p); return p; }
-  p = fetchBundle(base + path, path).then((buf) => { if (!buf) _bundles.delete(path); return buf; });
+  p = fetchBundle(base + path).then((got) => {
+    if (got.buf) { _failed.delete(path); return got; }
+    noteRegionalMiss(got.error);
+    const n = (f ? f.n : 0) + 1;
+    _failed.set(path, { n, status: got.status, until: Date.now() + Math.min(BUNDLE_BACKOFF_MAX_MS, BUNDLE_BACKOFF_MS * 2 ** (n - 1)) });
+    if (_bundles.get(path) === p) _bundles.delete(path);
+    return got;
+  });
   _bundles.set(path, p);
   while (_bundles.size > BUNDLES_KEPT) _bundles.delete(_bundles.keys().next().value);
   return p;
@@ -185,23 +258,28 @@ async function gunzip(bytes) {
 
 /**
  * A bundle frame's inflated bytes, as fetchFrameBytes returns them ({ buffer, wire, fetchMs, inflateMs } or { error, status }).
- * `frame.bundle` = { path, offset, length, sha12 } (staticFrames.loadIndex sets it). Never throws.
+ * `frame.bundle` = { path, offset, length, sha12 } (staticFrames.loadIndex sets it). Never throws. `status` is the HTTP status
+ * (0 for a network / CORS error or the timeout, 'backoff' inside a failure backoff): only a real 404 / 400 re-pins.
  */
 export async function regionalFrameBytes(base, frame, signal) {
   const s = frame && frame.bundle;
   if (!s || !Number.isFinite(s.offset) || !Number.isFinite(s.length)) return { error: 'not_a_bundle_frame' };
   if (signal && signal.aborted) return { error: 'aborted' };
   const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-  const buf = await bundleFor(base, s.path);
-  if (!buf) return { error: 'bundle_unavailable', status: 404 };
+  const got = await bundleFor(base, s.path);
+  if (!got.buf) return { error: got.error || 'bundle_unavailable', status: got.status };
+  const buf = got.buf;
   if (s.offset + s.length > buf.byteLength) { noteRegionalMiss('slice_out_of_range'); return { error: 'slice_out_of_range' }; }
   const slice = new Uint8Array(buf, s.offset, s.length);
-  const sum = await sha12Of(slice);
-  if (sum !== null && sum !== s.sha12) { noteRegionalMiss('sha12_mismatch'); return { error: 'sha12_mismatch' }; }
-  if (sum === null) noteRegionalMiss('sha12_unchecked');
+  let sum = null;
+  try { sum = await sha12Of(slice); } catch (e) { sum = null; }
+  // FAIL CLOSED: bytes whose sha12 cannot be checked are never decoded (the caller asks the backend).
+  if (sum === null) { noteRegionalMiss('sha12_unavailable'); return { error: 'sha12_unavailable' }; }
+  if (sum !== s.sha12) { noteRegionalMiss('sha12_mismatch'); return { error: 'sha12_mismatch' }; }
   const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-  const inflated = await gunzip(slice);
-  if (!inflated) return { error: 'no_decompression_stream' };
+  let inflated = null;
+  try { inflated = await gunzip(slice); } catch (e) { noteRegionalMiss('gunzip_error'); return { error: 'gunzip_error' }; }
+  if (!inflated) { noteRegionalMiss('no_decompression_stream'); return { error: 'no_decompression_stream' }; }
   regionalTelemetry().slices += 1;
   return { buffer: inflated, wire: 0, fetchMs: t1 - t0, inflateMs: (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t1 };
 }
@@ -250,6 +328,7 @@ export function noteBackendAnswer({ model, layer, bboxStr, json }) {
 
 export function _resetRegionalForTest() {
   _bundles.clear();
+  _failed.clear();
   _stats = freshStats();
 }
 

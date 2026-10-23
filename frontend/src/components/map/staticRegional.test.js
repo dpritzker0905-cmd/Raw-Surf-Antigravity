@@ -4,6 +4,8 @@
  * fixture) in a bundle under a large test tile, so the slicing, decoding, Step 3 window and JSON shaping all run on real bytes.
  */
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import zlib from 'zlib';
 import {
   _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, staticEligible, staticSeriesFrames, staticSetKeyForBox, tryStaticWorldGrid,
@@ -12,8 +14,8 @@ import { buildVectors, parseFrame } from './staticFrameCodec';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import {
-  _setRegionalCodecForTest, isRegionalSetKey, noteBackendAnswer, normalizeBundleIndex, pickRegionalTile, regionalClipWindow,
-  regionalFrameBytes, regionalManifestPending, regionalSetKey,
+  BUNDLE_BACKOFF_MS, BUNDLE_TIMEOUT_MS, PILOT_BOXES, _setRegionalCodecForTest, insidePilotBox, isRegionalSetKey, noteBackendAnswer,
+  normalizeBundleIndex, pickRegionalTile, regionalClipWindow, regionalFrameBytes, regionalManifestPending, regionalSetKey,
 } from './staticRegional';
 import {
   MANIFEST_WAIT_MS, REGIONAL_BACKGROUND_FILL_CELLS, REGIONAL_FULL_PAGE_CELLS, regionalFullPage, regionalSeriesWait, staticOwnsWorldPage,
@@ -50,17 +52,30 @@ const INDEX = {
 };
 
 let calls;
-function cdn({ index = INDEX, bundle = BUNDLE } = {}) {
+// `bin`: how the bundle answers (default the bytes; a number = that HTTP status; 'throw' = a network / CORS error; 'hang' = never,
+// until the request is aborted).
+function cdn({ index = INDEX, bundle = BUNDLE, bin = null } = {}) {
   calls = [];
-  global.fetch = jest.fn(async (url) => {
+  global.fetch = jest.fn(async (url, opts = {}) => {
     calls.push(url);
     const ok = (body) => ({ ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(body)) });
     if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [KEY]: { index: index.path, bundle: index.bundle, run: 'r' } } });
     if (url === BASE + index.path) return ok(index);
-    if (url === BASE + index.bundle.path) return { ok: true, status: 200, arrayBuffer: async () => Uint8Array.from(bundle).buffer };
+    if (url === BASE + index.bundle.path) {
+      if (typeof bin === 'number') return { ok: false, status: bin, arrayBuffer: async () => new ArrayBuffer(0) };
+      if (bin === 'throw') throw new TypeError('Failed to fetch');
+      if (bin === 'hang') {
+        return new Promise((resolve, reject) => {
+          if (opts.signal) opts.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+        });
+      }
+      return { ok: true, status: 200, arrayBuffer: async () => Uint8Array.from(bundle).buffer };
+    }
     return { ok: false, status: 400, json: async () => ({}) };
   });
 }
+const bins = () => calls.filter((u) => u.endsWith('.bin')).length;
+const latests = () => calls.filter((u) => u.endsWith('latest.json')).length;
 
 const realFetch = global.fetch;
 let killBefore;
@@ -78,7 +93,7 @@ beforeEach(() => {
 afterEach(() => {
   window.localStorage.removeItem('__RAW_STATIC_FRAMES__');
   ['__RAW_STATIC_FRAMES_BASE__', '__RAW_DISABLE_REGIONAL_BUNDLES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__',
-    '__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__'].forEach((k) => delete window[k]);
+    '__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__', '__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__'].forEach((k) => delete window[k]);
   _resetProductsManifestFetchForTest();
   jest.useRealTimers();
   _setRegionalCodecForTest();
@@ -126,6 +141,18 @@ describe('the Step 3 window on a 0.25-deg tile lattice (snap 1 deg, data-extent 
     expect(w.bounds.east).toBe(-79);
     expect(w.covers).toBe(false);
   });
+  it('a tile whose data edge is not a whole degree: a box whose SNAPPED box leaves the data is not covered', () => {
+    // us_southeast_midatlantic: coverage east -74.4, the last 0.25-deg node -74.5. The server's dynamic cache is keyed on the
+    // snapped box, so a full cover snapping past the data shares its key with partial covers (whose sharpen fills it).
+    const SE_GRID = { bounds: { west: -82, south: 31, east: -74.5, north: 37.5 }, cols: 31, rows: 27 };
+    const inside = regionalClipWindow('-78.2,33.1,-75.3,35.8', SE_GRID, 'GFS');           // snaps to -79,33,-75,36: inside the data
+    expect([inside.covers, inside.snapInside]).toEqual([true, true]);
+    const nearEdge = regionalClipWindow('-76.5,33.1,-74.6,35.8', SE_GRID, 'GFS');         // inside the data, snaps east to -74
+    expect(nearEdge.bounds.east).toBe(-74.5);
+    expect([nearEdge.covers, nearEdge.snapInside]).toEqual([false, false]);
+    const pastData = regionalClipWindow('-76.5,33.1,-74.45,35.8', SE_GRID, 'GFS');        // inside the coverage, past the last node
+    expect(pastData.covers).toBe(false);
+  });
 });
 
 describe('the bundle: one fetch, the slice checked on its gzip bytes, then inflated', () => {
@@ -140,6 +167,82 @@ describe('the bundle: one fetch, the slice checked on its gzip bytes, then infla
     expect(bad.error).toBe('sha12_mismatch');
     expect(calls.filter((u) => u.endsWith('.bin'))).toHaveLength(1);
     expect(window.__RAW_STATIC_REGIONAL__).toMatchObject({ bundles: 1, slices: 1, misses: { sha12_mismatch: 1 } });
+  });
+});
+
+describe('a failed bundle: remembered with a backoff, its real status passed on, never decoded unchecked', () => {
+  const frame = () => normalizeBundleIndex(JSON.parse(JSON.stringify(INDEX))).frames[0];
+  it('a 429: one request, then the backoff answers at once (no request), then one retry after it', async () => {
+    cdn({ bin: 429 });
+    expect(await regionalFrameBytes(BASE, frame())).toMatchObject({ status: 429, error: 'bundle_http_429' });
+    expect(await regionalFrameBytes(BASE, frame())).toMatchObject({ status: 'backoff', error: 'bundle_backoff' });
+    expect(bins()).toBe(1);
+    Date.now.mockImplementation(() => Date.parse(VT) + BUNDLE_BACKOFF_MS + 1);
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe(429);
+    expect(bins()).toBe(2);
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe('backoff');                // the backoff doubled
+    expect(window.__RAW_STATIC_REGIONAL__.misses).toMatchObject({ bundle_http_429: 2, bundle_backoff: 2 });
+  });
+
+  it('a network / CORS error is status 0 and backs off too; concurrent asks share one request', async () => {
+    cdn({ bin: 'throw' });
+    const got = await Promise.all([regionalFrameBytes(BASE, frame()), regionalFrameBytes(BASE, frame()), regionalFrameBytes(BASE, frame())]);
+    expect(got.map((g) => g.status)).toEqual([0, 0, 0]);
+    expect(bins()).toBe(1);
+    expect((await regionalFrameBytes(BASE, frame())).status).toBe('backoff');
+    cdn();
+    const ok = await Promise.all([regionalFrameBytes(BASE, { ...frame(), bundle: { ...frame().bundle, path: 'v1/other.bin' } })]);
+    expect(ok[0].error).toBeTruthy();                                                        // another path is its own fetch
+  });
+
+  it('a bundle that never answers is aborted after BUNDLE_TIMEOUT_MS (status 0, bundle_timeout)', async () => {
+    jest.useFakeTimers();
+    cdn({ bin: 'hang' });
+    let got = null;
+    regionalFrameBytes(BASE, frame()).then((g) => { got = g; });
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    jest.advanceTimersByTime(BUNDLE_TIMEOUT_MS - 1);
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+    expect(got).toBeNull();
+    jest.advanceTimersByTime(1);
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    expect(got).toMatchObject({ status: 0, error: 'bundle_timeout' });
+  });
+
+  it('a truncated bundle, a gzip error and a missing digest are refused (fail closed), never thrown', async () => {
+    cdn({ bundle: BUNDLE.subarray(0, 10) });
+    expect((await regionalFrameBytes(BASE, frame())).error).toBe('slice_out_of_range');
+    _resetStaticFramesForTest();
+    cdn();
+    _setRegionalCodecForTest({ sha12: async (b) => sha12(b), gunzip: async () => { throw new TypeError('incorrect header check'); } });
+    expect((await regionalFrameBytes(BASE, frame())).error).toBe('gunzip_error');
+    _setRegionalCodecForTest({ sha12: async () => null, gunzip: async (b) => Uint8Array.from(zlib.gunzipSync(Buffer.from(b))).buffer });
+    expect((await regionalFrameBytes(BASE, frame())).error).toBe('sha12_unavailable');
+  });
+
+  it('seam A: a 429 does not mark the pin stale (no forced latest.json re-read); a real 404 does, once', async () => {
+    const BOX = { west: -90, south: 20, east: -80, north: 30 };
+    cdn({ bin: 429 });
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();
+    expect([latests(), bins()]).toEqual([1, 1]);
+    _resetStaticFramesForTest();
+    cdn({ bin: 404 });
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();   // re-pins
+    expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: BOX })).toBeNull();   // backoff
+    expect([latests(), bins()]).toEqual([2, 1]);
+  });
+
+  it('seam B: a page whose bundle fails serves nothing and is NOT claimed (null: the caller asks /grid_series)', async () => {
+    const BOX = { west: -90, south: 20, east: -80, north: 30 };
+    cdn({ bin: 503 });
+    const frames = [];
+    expect(await staticSeriesFrames({ model: 'GFS', layer: 'waves', bbox: BOX, hours: [0, 1, 2], anchorMs: Date.parse(VT), onFrames: (f) => frames.push(...f) })).toBeNull();
+    expect(frames).toHaveLength(0);
+    expect(await staticSeriesFrames({ model: 'GFS', layer: 'waves', bbox: BOX, hours: [0, 1, 2], anchorMs: Date.parse(VT), onFrames: (f) => frames.push(...f) })).toBeNull();
+    expect(bins()).toBe(1);                                                                  // the second page: the backoff, no request
+    expect(window.__RAW_STATIC_REGIONAL__.misses).toMatchObject({ page_failed: 1, page_not_servable: 1 });
   });
 });
 
@@ -183,6 +286,7 @@ describe('the seams answer a fully covered box from the bundle, and nothing else
     expect(missing).toEqual([6]);
     expect(frames).toHaveLength(1);
     expect([frames[0].cols, frames[0].rows, frames[0].bounds]).toEqual([6, 6, { west: -90, south: 20, east: -80, north: 30 }]);
+    expect(frames[0].static_index).toBe(INDEX.path);                                         // the run the page holds
     expect(calls.filter((u) => u.endsWith('.bin'))).toHaveLength(1);
   });
 
@@ -201,26 +305,52 @@ describe('the seams answer a fully covered box from the bundle, and nothing else
 });
 
 describe('at the map opening, before the products manifest has loaded (the z9 Florida trace, 2026-10-23)', () => {
-  const BOX = { west: -90, south: 20, east: -80, north: 30 };
+  const FBOX = { west: -83, south: 26, east: -80, north: 28.5 };                 // the owner's z9 series box, inside florida_east_coast
+  const BOX = { west: -90, south: 20, east: -80, north: 30 };                    // inside test_big, in no pilot box
   const WORLD = { west: -180, south: -80, east: 180, north: 85 };
-  it('a box a pilot tile could answer waits for the manifest, then picks its tile; other boxes and the kill never wait', async () => {
+  it('only a box inside a pilot box waits for the manifest, then picks its tile; other boxes and the kill never wait', async () => {
     setCachedManifest(null);
     _resetProductsManifestFetchForTest();
-    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();     // what every early page saw
-    expect(regionalManifestPending({ model: 'GFS', layer: 'swell_1', bbox: BOX })).toBe(true);
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-83,26,-80,28.5' })).toBeNull();   // what every early page saw
+    expect(regionalManifestPending({ model: 'GFS', layer: 'swell_1', bbox: FBOX })).toBe(true);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: BOX })).toBe(false);           // no pilot box: never waits
     expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(false);
-    expect(regionalManifestPending({ model: 'ICON', layer: 'waves', bbox: BOX })).toBe(false);
-    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: BOX, surf: true })).toBe(false);
+    expect(regionalManifestPending({ model: 'ICON', layer: 'waves', bbox: FBOX })).toBe(false);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: FBOX, surf: true })).toBe(false);
     window.__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__ = true;
-    expect(regionalSeriesWait('GFS', 'waves', BOX, false)).toBeNull();
+    expect(regionalSeriesWait('GFS', 'waves', FBOX, false)).toBeNull();
     delete window.__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__;
     const cdnFetch = global.fetch;
     global.fetch = jest.fn(async (url) => (String(url).includes('/products') ? { ok: true, status: 200, json: async () => MANIFEST } : cdnFetch(url)));
-    const wait = regionalSeriesWait('GFS', 'waves', BOX, false);
+    const wait = regionalSeriesWait('GFS', 'waves', FBOX, false);
     expect(wait).not.toBeNull();
     await expect(wait).resolves.toBe(true);
-    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toMatchObject({ id: 'test_big' });
-    expect(regionalSeriesWait('GFS', 'waves', BOX, false)).toBeNull();                                  // loaded: nothing awaited
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-83,26,-80,28.5' })).toMatchObject({ id: 'florida_east_coast' });
+    expect(regionalSeriesWait('GFS', 'waves', FBOX, false)).toBeNull();                                // loaded: nothing awaited
+  });
+
+  it('once latest.json lists a pilot box set, a box inside it is picked from that box before the manifest (no wait)', async () => {
+    const FL_KEY = regionalSetKey('GFS', 'waves', 'florida_east_coast');
+    calls = [];
+    global.fetch = jest.fn(async (url) => {
+      calls.push(url);
+      if (url === BASE + 'v1/latest.json') return { ok: true, status: 200, json: async () => ({ version: 1, sets: { [FL_KEY]: { index: 'v1/fl.json', run: 'r' } } }) };
+      return { ok: false, status: 404, json: async () => ({}) };
+    });
+    setCachedManifest(null);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: FBOX })).toBe(true);        // nothing read yet: it waits
+    expect(await getPinnedIndex('GFS/marine/waves/global_mid')).toBeNull();                            // reads latest.json
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-83,26,-80,28.5' }))
+      .toMatchObject({ id: 'florida_east_coast', key: FL_KEY, provisional: true });
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: FBOX })).toBe(false);       // decides now
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_1', bboxStr: '-83,26,-80,28.5' })).toBeNull();   // that set is not listed
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-84,30,-78,32' })).toBeNull();        // not inside one box
+    window.__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ = true;
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-83,26,-80,28.5' })).toBeNull();
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: FBOX })).toBe(true);
+    delete window.__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__;
+    setCachedManifest({ products: MANIFEST.products.filter((p) => p.region_id !== 'florida_east_coast') });   // the manifest decides
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-83,26,-80,28.5' })).toMatchObject({ id: 'test_big' });
   });
 
   it('a manifest that never arrives costs at most MANIFEST_WAIT_MS, then the page decides as before', async () => {
@@ -229,7 +359,7 @@ describe('at the map opening, before the products manifest has loaded (the z9 Fl
     jest.useFakeTimers();
     global.fetch = jest.fn(() => new Promise(() => {}));
     let done = false;
-    regionalSeriesWait('GFS', 'waves', BOX, false).then(() => { done = true; });
+    regionalSeriesWait('GFS', 'waves', FBOX, false).then(() => { done = true; });
     await Promise.resolve();
     jest.advanceTimersByTime(MANIFEST_WAIT_MS - 1);
     await Promise.resolve();
@@ -239,12 +369,26 @@ describe('at the map opening, before the products manifest has loaded (the z9 Fl
     expect(done).toBe(true);
   });
 
-  it('the hour-0 mini stands down once latest.json lists the regional set (its index is pinned by the page fill)', async () => {
-    expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(false);                               // latest.json not read yet
-    expect(await getPinnedIndex('GFS/marine/waves/global_mid')).toBeNull();                            // reads latest.json, pins nothing
+  it('the pilot boxes are the backend pilot_regions.py boxes (the hint never drifts from the tiles)', () => {
+    const py = fs.readFileSync(path.join(__dirname, '../../../../backend/services/weather_pipeline/pilot_regions.py'), 'utf8');
+    const re = /"(\w+)":\s*\{\s*"west":\s*(-?[\d.]+),\s*"south":\s*(-?[\d.]+),\s*"east":\s*(-?[\d.]+),\s*"north":\s*(-?[\d.]+)/g;
+    const fromPy = [...py.matchAll(re)].map((m) => [m[1], +m[2], +m[3], +m[4], +m[5]]);
+    const sort = (a) => [...a].sort((x, y) => x[0].localeCompare(y[0]));
+    expect(sort(PILOT_BOXES)).toEqual(sort(fromPy));
+    expect(insidePilotBox(FBOX)).toBe(true);
+    expect(insidePilotBox(BOX)).toBe(false);
+  });
+
+  it('the hour-0 mini stands down only while the PINNED index can serve the page (never held for the manifest)', async () => {
+    expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(false);                               // nothing pinned yet
+    expect(await getPinnedIndex(KEY)).not.toBeNull();
     expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(true);
     expect(getPinnedIndexSync(KEY)).toBeNull();
     window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
+    expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(false);
+    delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
+    cdn({ bin: 429 });                                                                                 // the bundle backs off
+    await regionalFrameBytes(BASE, normalizeBundleIndex(JSON.parse(JSON.stringify(INDEX))).frames[0]);
     expect(staticOwnsWorldPage('GFS', 'waves', BOX, false)).toBe(false);
   });
 });

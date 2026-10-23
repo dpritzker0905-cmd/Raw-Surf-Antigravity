@@ -214,7 +214,8 @@ the one Step 3 picks (smallest containing tile; an exact tie goes to `/grid`). A
   synchronously, and at the opening every page (the viewed one, the scrub prewarm's, the hour-0 mini) was decided at ~3 s, ~1.5 s
   before the manifest landed, so all of them queued to `/grid_series` (decision trace: 11 picks `manifest_not_loaded`). A page whose
   box a regional bundle could answer now waits for the manifest, bounded at 3 s, BEFORE the page dedup, so waiters resume one by one
-  (`regionalSeriesWait`; kill `__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__`). The hour-0 mini stands down once `latest.json` lists the set.
+  (`regionalSeriesWait`; kill `__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__`). Superseded by the review fixes below: the hour-0 mini is
+  never held, and once `latest.json` is read the tile is picked from the pilot boxes, so nothing waits.
 - *Day jumps.* The static series fill is windowed (+-4 steps) because a world frame is ~15k vectors. A regional frame at the owner's
   z9 is 13 x 9, sliced from a bundle already in memory, so a small regional page fills every hour (viewed page <= 1,200 nodes a
   frame, any background page <= 300; `regionalFullPage`, kill `__RAW_DISABLE_REGIONAL_FULL_PAGE__`). Windowed, a jump to +172 h went
@@ -240,3 +241,38 @@ no session across :30):
 
 **Not yet:** the frame store does not take regional sets (`getPinnedIndexSync` keeps them out); boxes outside the pilot boxes stay
 on the dynamic lane (section 6).
+
+**Review fixes (2026-10-23 evening; the lead's review of `b482566c`, 8 findings, each verified in the code first):**
+
+| finding | fix | test that fails without it |
+|---|---|---|
+| 1. failures never cached; every failure reported as 404 -> stale pin -> forced `latest.json` per hour | failure cache per bundle path with backoff (5 s doubling to 120 s); the real status passed on (0 for network / CORS / timeout, `backoff` inside it); only a real 404 / 400 re-pins | 429 backoff, CORS, 404-vs-429 stale mark, page backoff |
+| 2. a page that served nothing still claimed the page | cover checked once on the set's lattice before the loop; a bundle failure before the first frame returns null (the page asks `/grid_series`); background pages and the hour-0 mini need a pinned, servable page (`regionalPageServableSync`) | failed page not claimed (unit + loader) |
+| 3. no fetch timeout | 15 s abort on the bundle fetch | the timeout test |
+| 4. the manifest wait delayed the first frame and gave no saving with a late manifest | the hour-0 mini is never held; only boxes inside a pilot box wait; and once `latest.json` is read a box inside a pilot box is picked from that box (the pilot boxes do not overlap: backend-test-banned; `PILOT_BOXES` pinned to `pilot_regions.py`; the set listed = written from that tile), so nothing waits | hour-0 not held, late manifest served, pilot pick |
+| 5. static pages escaped `SERIES_MAX` | the same eviction on static commits | 60 pages -> <= 48 |
+| 6. dynamic cache keyed on the snapped box, ahead of the tile | a box is claimed only if its SNAPPED box also lies inside the data: no partial cover shares its key | fractional-edge window + loader test; parity below |
+| 7. a re-pin mid-fill mixed runs on a page | one index per fill; frames carry `static_index`; a frame of another run clears the page | run-mixing test |
+| 8. gzip error unhandled; sha12 failed open without `crypto.subtle` | errors caught at the loader; no digest = refused (fail closed) | gzip / missing-digest test |
+
+Mutants: 12 guards removed one at a time, 12 caught (`evidence: review_fixes.mutants`).
+
+*Finding 6 reproduced offline* (`scn_regional_client_parity.mjs SAMEKEY=1`, us_southeast_midatlantic: coverage east -74.4, last node
+-74.5; north 37.5). A full-cover box snapping past the data is first served from the tile (`regional`). After ONE partial-cover ask
+under the same snapped key, the server serves it from a dynamic product (`viewport_gfs_marine_waves_..._-77.00_33.00_-74.00_36.00`).
+The previous rule would have answered from the bundle; the new rule refuses such boxes. Parity on Florida + that tile: 283 asks,
+0 bad, 0 metadata mismatches, 0 false claims.
+
+*Measured after the fixes* (owner view, z9 Florida, the live box; `LAT_PRODUCTS` delays the products manifest as the live read saw it):
+
+| | regional (ships) | kill switch |
+|---|---|---|
+| manifest 4 s late: first frame | **0.5-1.1 s** | 1.6-2.4 s |
+| manifest 4 s late: marine `/grid_series` asks, backend time | **0, 0 s** | 4, 18.6-21.7 s |
+| manifest on time: first frame | 1.3-1.4 s | 1.4-1.8 s |
+| manifest on time: asks, backend time | 3 one-frame minis, 0.4 s | 9, 30-31 s |
+| worst step to the exact frame / mislabelled | 38-50 ms / 0 | 40-52 ms / 0 |
+
+Before the pilot pick the late-manifest case served nothing (every page waited 3 s and then asked `/grid_series`), as the review
+predicted.
+

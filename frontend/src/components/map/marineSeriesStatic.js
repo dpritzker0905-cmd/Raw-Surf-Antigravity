@@ -15,7 +15,8 @@
  * it, bounded (regionalSeriesWait), so the map's opening pages are not sent to /grid_series only because they were early.
  */
 import {
-  getPinnedIndex, hasPinnedIndex, isSetListed, staticFramesBase, staticFramesEnabled, staticSeriesEligible, staticSeriesFrames, staticSetKeyForBox,
+  getPinnedIndex, hasPinnedIndex, regionalPageServableSync, staticFramesBase, staticFramesEnabled, staticSeriesEligible, staticSeriesFrames,
+  staticSetKeyForBox,
 } from './staticFrames';
 import { seriesAnchorTag } from './seriesAnchor';
 import { isRegionalSetKey, regionalManifestPending, trace } from './staticRegional';
@@ -47,12 +48,13 @@ export function nearestFirst(hours, focus) {
   return [...hours].sort((a, b) => (Math.abs(a - focus) - Math.abs(b - focus)) || (b - a));
 }
 
-/** The hour-0 mini load is redundant when the static page fill will fetch the viewed hour first. A regional set counts once
- *  latest.json lists it (its index is pinned by the page fill itself). */
+/** The hour-0 mini load is redundant when the static page fill will fetch the viewed hour first: true = this page will not ask
+ *  /grid_series. A regional page needs its index PINNED, the cover to hold on its lattice and its bundle out of any failure
+ *  backoff (regionalPageServableSync); until then the mini goes (it is the first-paint lane and is never held back). */
 export function staticOwnsWorldPage(model, layer, reqBox, surf) {
   if (!staticSeriesEligible({ model, layer, bbox: reqBox, surf })) return false;
   const key = staticSetKeyForBox({ model, layer, bbox: reqBox, surf });
-  return hasPinnedIndex(key) || (isRegionalSetKey(key) && isSetListed(key));
+  return isRegionalSetKey(key) ? regionalPageServableSync({ model, layer, bbox: reqBox, surf }) : hasPinnedIndex(key);
 }
 
 /**
@@ -107,8 +109,10 @@ export async function loadWorldPageFromStatic({ model, layer, reqBox, surf, hour
     !background || viewed ? REGIONAL_FULL_PAGE_CELLS : REGIONAL_BACKGROUND_FILL_CELLS);
   trace({ seam: 'B', l: layer, h0: hours[0], background: !!background, full });
   if (background && !full) {
-    const index = await getPinnedIndex(staticSetKeyForBox({ model, layer, bbox: reqBox, surf })).catch(() => null);
-    return !!index;                       // windowed: no whole-page CDN prefetch; the viewed page fills on demand
+    const key = staticSetKeyForBox({ model, layer, bbox: reqBox, surf });
+    const index = await getPinnedIndex(key).catch(() => null);
+    // windowed: no whole-page CDN prefetch; the viewed page fills on demand. A regional page is claimed only if it can be served.
+    return !!index && (!isRegionalSetKey(key) || regionalPageServableSync({ model, layer, bbox: reqBox, surf }));
   }
   const ordered = nearestFirst(hours, focusFor(model, layer, hours));
   keepOnly(new Set(full ? ordered : ordered.slice(0, 2 * KEEP_STEPS + 1)));
@@ -126,9 +130,11 @@ export async function loadWorldPageFromStatic({ model, layer, reqBox, surf, hour
  * Run the windowed fill of one world page as that page's flight (marineGridSeries keeps the flight in its in-flight map).
  * Frames are committed to the page's series entry as they land; `marine_series_revalidated` fires once at the first frame
  * and once at the end (not per frame: the scrub settle and #426's listener re-run on every event).
- * deps: { seriesCache, frameToMarineData, finish(flight) }.
+ * deps: { seriesCache, frameToMarineData, finish(flight), evict(key) }: `evict` runs when the flight adds a page entry, so static
+ * pages are bounded like /grid_series pages (SERIES_MAX). A page holds frames of ONE run: a frame from another run index
+ * (`static_index`) drops the page's earlier frames first.
  */
-export function runStaticPageFlight(key, ctx, { seriesCache, frameToMarineData, finish }) {
+export function runStaticPageFlight(key, ctx, { seriesCache, frameToMarineData, finish, evict }) {
   let committed = 0;
   const revalidated = () => {
     if (typeof window !== 'undefined') { try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ } }
@@ -141,9 +147,11 @@ export function runStaticPageFlight(key, ctx, { seriesCache, frameToMarineData, 
       entry = { ts: Date.now(), frames: new Map(), hours: [], bounds: f.bounds, model: ctx.model, layer: ctx.layer,
         page: ctx.page, surf: ctx.surf, coarsePreview: false, revalCount: 0, staticFrames: true };
     }
+    if (f.static_index && entry.staticIndex && f.static_index !== entry.staticIndex) entry.frames.clear();   // a new run
+    if (f.static_index) entry.staticIndex = f.static_index;
     entry.frames.set(h, frameToMarineData(f, ctx.model, ctx.layer));
     entry.hours = Array.from(entry.frames.keys()).sort((a, b) => a - b);
-    if (fresh) seriesCache.set(key, entry);
+    if (fresh) { seriesCache.set(key, entry); if (typeof evict === 'function') evict(key); }
     committed += 1;
     if (committed === 1) revalidated();
   };

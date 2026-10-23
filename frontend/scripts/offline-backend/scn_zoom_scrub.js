@@ -19,7 +19,8 @@
 // Env: ZOOMS (2,3,4,5,7,9), CENTER (lng,lat; -79.5,28.6 = the Florida east coast, where z9 sits on a regional tile),
 // VIEW (desktop = 1280 x 800; owner = 844 x 390 at dpr 2, whose z3.5-4.4 boxes are the owner's 27 x 20 / 29 x 20 / 31 x 21
 // clips; phone = 390 x 844 at dpr 3, the mobile layout), ARMS (cur: the build's defaults; others below), ROUNDS (1),
-// SETTLE (8000), WIN (8000), CDN_PORT (4191), CDN_LAT (ms per static object), LAT_SERIES / LAT_GRID (ms per backend response).
+// SETTLE (8000), WIN (8000), CDN_PORT (4191), CDN_LAT (ms per static object), LAT_SERIES / LAT_GRID / LAT_PRODUCTS (ms per backend
+// response; LAT_PRODUCTS=4000 stands for the live read's late products manifest).
 // Arms (all on ONE build; kill switches read per call):
 //   cur      the build as it ships
 //   nocrop   window.__RAW_DISABLE_STATIC_MID_CROP__ = true (static frames serve world boxes only, as before 2026-10-22)
@@ -46,7 +47,7 @@ const ZOOMS = (process.env.ZOOMS || '2,3,4,5,7,9').split(',').map(Number);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
 const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, owner: { width: 844, height: 390, dpr: 2 }, phone: { width: 390, height: 844, dpr: 3 } };
-const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
+const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const LAT_PRODUCTS = +(process.env.LAT_PRODUCTS || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
 if (!CDN_DIR) throw Error('CDN_DIR=<a local copy of the weather-frames bucket> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -154,7 +155,8 @@ async function session(arm, zoom) {
   const v = VIEWS[VIEW];
   const reqLog = [];
   const { browser, page, log } = await L.launch({ port: PORT, width: v.width, height: v.height, dpr: v.dpr, hashTextureUploads: true, hooks: { beforeWeather: async (url) => {
-    const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); },
+    const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID
+      : url.pathname.endsWith('/products') ? LAT_PRODUCTS : 0; if (d) await sleep(d); },
   afterWeather: REQLOG ? async (url, resp) => {
     if (!/\/grid(_series)?$/.test(url.pathname)) return;
     let body = null; try { body = JSON.parse((await resp.body()).toString('utf8')); } catch (e) { /* not json */ }
@@ -175,8 +177,12 @@ async function session(arm, zoom) {
   const steps = [];
   try {
     await L.openMap(page); await L.jump(page, CLNG, CLAT, zoom);
+    const tClick = Date.now();
     await clickExact(page, 'Waves');
-    await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
+    await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000, polling: 16 });
+    // firstFrame: ms from the Waves click to the first wave grid in the engine (the owner's "time to first frame"), and its source.
+    const firstFrameMs = Date.now() - tClick;
+    const firstFrame = await page.evaluate(() => { const x = window.__ZS__.snap(); delete x.grid; return x; });
     await sleep(SETTLE);
     const before = await page.evaluate(() => window.__ZS__.counters());
     const anchor = Math.round(Date.now() / 3600000) * 3600000;
@@ -215,7 +221,8 @@ async function session(arm, zoom) {
       const k = `${q.q.layer}${q.path}`;
       const w = (marineAll[k] = marineAll[k] || { n: 0, ms: 0 }); w.n += 1; w.ms += q.ms || 0;
     }
-    return { arm, zoom, view: VIEW, vp, steps, before, after, backendRequests: byPath, marineAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
+    return { arm, zoom, view: VIEW, vp, firstFrameMs, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
+      steps, before, after, backendRequests: byPath, marineAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
   } finally { await browser.close(); }
 }
 
@@ -225,7 +232,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
 (async () => {
   await new Promise((r) => cdn.listen(CDN_PORT, '127.0.0.1', r));
   const sessions = [];
-  const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, SETTLE, ZOOMS, CENTER: [CLNG, CLAT], VIEW, LAT_SERIES, LAT_GRID, CDN_LAT, startedUtc: new Date().toISOString() }, sessions };
+  const out = { env: { PORT, CDN_PORT, ROUNDS, WIN, SETTLE, ZOOMS, CENTER: [CLNG, CLAT], VIEW, LAT_SERIES, LAT_GRID, LAT_PRODUCTS, CDN_LAT, startedUtc: new Date().toISOString() }, sessions };
   const ARMS = (process.env.ARMS || 'cur').split(',');
   try {
     for (let i = 0; i < ROUNDS; i++) {
@@ -233,7 +240,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         for (const arm of (i % 2 === 0 ? ARMS : [...ARMS].reverse())) {
           const s = await session(arm, zoom);
           sessions.push(s);
-          console.log(`z${zoom} ${arm} vp=${JSON.stringify(s.vp)}`, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.via, x.mislabel, x.end.cols + 'x' + x.end.rows])),
+          console.log(`z${zoom} ${arm} first=${s.firstFrameMs}ms vp=${JSON.stringify(s.vp)}`, JSON.stringify(s.steps.map((x) => [x.target, x.exactMs, x.via, x.mislabel, x.end.cols + 'x' + x.end.rows])),
             'reqs', JSON.stringify(s.backendRequests), 'store', JSON.stringify(s.after.store && { shows: s.after.store.shows, misses: s.after.store.misses, crop: s.after.store.crop }),
             'sf', JSON.stringify(s.after.sf && { hits: s.after.sf.hits, series: s.after.sf.seriesFrames, crops: s.after.sf.crops, misses: s.after.sf.misses }),
             'marineAll', JSON.stringify(s.marineAll), 'regional', JSON.stringify(s.after.regional));
@@ -254,7 +261,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
           grid_per_step: +(grids / Math.max(1, steps)).toFixed(2), series_per_step: +(series / Math.max(1, steps)).toFixed(2),
           via: st.reduce((a, x) => { a[x.via || 'none'] = (a[x.via || 'none'] || 0) + 1; return a; }, {}),
           resident_dims: [...new Set(st.map((x) => `${x.end.cols}x${x.end.rows}`))],
-          marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
+          first_frame_ms: ss.map((s) => s.firstFrameMs), marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
           store_shows: ss.map((s) => s.after.store && s.after.store.shows), store_misses: ss.map((s) => s.after.store && s.after.store.misses) };
       }
     }

@@ -382,11 +382,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       // strictly improves regional hits (the served tile is ≥ the requested viewport).
       _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, surf: surfFlavor, coarsePreview: isCoarsePreview, revalCount });
       _failRetries.delete(key); // §4.3(b): a successful page resets its failure budget
-      // Bound memory.
-      if (_seriesCache.size > SERIES_MAX) {
-        const oldest = _seriesCache.keys().next().value;
-        if (oldest !== undefined && oldest !== key) _seriesCache.delete(oldest);
-      }
+      boundSeriesCache(key);   // Bound memory.
       // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
       // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
       if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
@@ -429,9 +425,17 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   await p;
 }
 
-// Seam B of the static frames (dark; marineSeriesStatic.runStaticPageFlight): the windowed fill runs as this page's flight.
+// Bound memory: the oldest page goes once the cache holds more than SERIES_MAX (/grid_series pages and static pages alike).
+function boundSeriesCache(key) {
+  if (_seriesCache.size <= SERIES_MAX) return;
+  const oldest = _seriesCache.keys().next().value;
+  if (oldest !== undefined && oldest !== key) _seriesCache.delete(oldest);
+}
+
+// Seam B of the static frames (marineSeriesStatic.runStaticPageFlight): the fill runs as this page's flight.
 function loadSeriesPageStatic(key, ctx) {
-  const flight = runStaticPageFlight(key, ctx, { seriesCache: _seriesCache, frameToMarineData, finish: (f) => finishFlight(key, f) });
+  const flight = runStaticPageFlight(key, ctx, { seriesCache: _seriesCache, frameToMarineData, finish: (f) => finishFlight(key, f),
+    evict: boundSeriesCache });
   _inFlight.set(key, flight);
   return flight;
 }
@@ -453,9 +457,9 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   if (marineSeriesCallerAborted(signal)) return;
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isMarineSeriesEnabled() || !bounds) return;
-  // Static frames (dark): the page fill fetches the viewed hour first, so the mini would only load the box.
-  const box0 = normalizeRequestBbox(padRegionalBbox(bounds)); const wait0 = regionalSeriesWait(model, layer, box0, getSurfModeFlag());
-  if ((wait0 === null || await wait0) && staticOwnsWorldPage(model, layer, box0, getSurfModeFlag())) return;
+  // Static frames: the page fill fetches the viewed hour first, so the mini would only load the box. Never held for the
+  // manifest: this is the first-paint lane (a regional page that cannot be served yet lets it go; regionalPageServableSync).
+  if (staticOwnsWorldPage(model, layer, normalizeRequestBbox(padRegionalBbox(bounds)), getSurfModeFlag())) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);

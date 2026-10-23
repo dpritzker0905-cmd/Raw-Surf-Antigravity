@@ -181,8 +181,49 @@ for (let i = 0; i < boxes.length; i++) {
     if (r.bad || r.meta.length) rows.push({ i, seam, param, bad: r.bad, meta: r.meta.slice(0, 4) });
   }
 }
+// SAMEKEY=1 (the lead's review, 2026-10-23): on a tile whose data edge is not a whole degree, a PARTIAL cover and a full one can
+// snap to ONE key of the server's dynamic cache (grid_resolver Steps 1-2, ahead of the tile). Per such pair: ask /grid for the
+// partial box (regional_partial: the server sharpens it into a dynamic product under that key), wait SAMEKEY_WAIT ms, then ask
+// for the full box. Recorded: what the backend served the full box from, what the client's PREVIOUS rule (request inside the
+// served lattice) would have done, and what the client does now (the snapped box must lie inside the data too).
+const sameKey = [];
+if (process.env.SAMEKEY === '1') {
+  const wait = +(process.env.SAMEKEY_WAIT || 8000);
+  for (const t of regTiles) {
+    const set = sets[R.regionalSetKey('GFS', LAYER, t.id)];
+    const g = set.index.grid.bounds;
+    const whole = (v) => Math.abs(v - Math.round(v)) < 1e-9;
+    const pairs = [];
+    if (!whole(g.east)) {                         // east data edge between whole degrees: snaps past it from inside
+      const e = Math.ceil(g.east);
+      pairs.push({ edge: 'east', full: [e - 2.5, g.south + 2.1, g.east - 0.1, g.south + 4.8], partial: [e - 2.5, g.south + 2.1, g.east + 0.05, g.south + 4.8] });
+    }
+    if (!whole(g.north)) {
+      const n = Math.ceil(g.north);
+      pairs.push({ edge: 'north', full: [g.west + 2.1, n - 2.5, g.west + 4.8, g.north - 0.1], partial: [g.west + 2.1, n - 2.5, g.west + 4.8, g.north + 0.05] });
+    }
+    for (const pr of pairs) {
+      const built = set.index.frames.find((f) => f.path);
+      const askIso = new Date(Date.parse(built.valid_time)).toISOString();
+      const ask = async (b) => (await fetch(`${API}/grid?model=GFS&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${b.map((x) => +x.toFixed(4)).join(',')}`)).json();
+      const fullStr = pr.full.map((x) => +x.toFixed(4)).join(',');
+      const winNow = R.regionalClipWindow(fullStr, set.index.grid, 'GFS');
+      const before = await ask(pr.full);
+      const part = await ask(pr.partial);
+      await new Promise((r) => setTimeout(r, wait));
+      const after = await ask(pr.full);
+      const pick = (j) => ({ scope: j.coverage_scope, dynamic: !!j.is_dynamic_viewport_product, product: j.product_id, partial: !!j.partial_coverage });
+      const oldRule = !!winNow && winNow.bounds.west <= pr.full[0] && winNow.bounds.east >= pr.full[2] && winNow.bounds.south <= pr.full[1] && winNow.bounds.north >= pr.full[3];
+      sameKey.push({ tile: t.id, edge: pr.edge, full: fullStr, snapped: winNow && winNow.snapped, data_extent: g,
+        backend_full_first: pick(before), backend_partial: pick(part), backend_full_after_partial: pick(after),
+        previous_rule_claims: oldRule, client_claims_now: !!(winNow && winNow.covers),
+        unsafe_before: oldRule && !!after.is_dynamic_viewport_product, safe_now: !(winNow && winNow.covers) || !after.is_dynamic_viewport_product });
+    }
+  }
+}
+
 const report = {
-  layer: LAYER, sets: Object.keys(sets), boxes_x_seams: totals.boxes, claimed: totals.claimed, refused: totals.refused,
+  layer: LAYER, same_key: sameKey, sets: Object.keys(sets), boxes_x_seams: totals.boxes, claimed: totals.claimed, refused: totals.refused,
   refused_but_backend_full_regional: totals.refusedButFullRegional, claimed_but_backend_not_full_regional: totals.claimedButNot, sha12_bad: shaBad,
   grid: { nodes: totals.grid.nodes, bad: totals.grid.bad, meta_mismatches: totals.grid.meta.length, max_abs_err: totals.grid.maxErr },
   series: { nodes: totals.series.nodes, bad: totals.series.bad, meta_mismatches: totals.series.meta.length, max_abs_err: totals.series.maxErr },
@@ -191,4 +232,5 @@ const report = {
 console.log(JSON.stringify(report, null, 1));
 if (outFile) fs.writeFileSync(outFile, JSON.stringify({ report, rows }, null, 1));
 fs.rmSync(tmpDir, { recursive: true, force: true });
-process.exitCode = (totals.grid.bad || totals.series.bad || totals.grid.meta.length || totals.series.meta.length || totals.claimedButNot || shaBad) ? 1 : 0;
+process.exitCode = (totals.grid.bad || totals.series.bad || totals.grid.meta.length || totals.series.meta.length || totals.claimedButNot || shaBad
+  || sameKey.some((x) => !x.safe_now)) ? 1 : 0;

@@ -32,7 +32,7 @@ import {
 import { buildTruthTag } from './weatherTruthTracker';
 // MID-ZOOM CROPS (2026-10-22): a viewport box the resolver answers from global_mid is served as a crop of the same frame.
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
-import { _resetRegionalForTest, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
+import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, setRegionalLatestProbes, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -355,8 +355,11 @@ function sharedParsedLoad(key, frame, priority) {
   const controller = new AbortController();
   const promise = (async () => {
     const t = telemetry();
-    const got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal)
-      : await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
+    let got;
+    try {
+      got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal)
+        : await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
+    } catch (e) { got = { error: 'fetch_error' }; }                      // never an unhandled rejection
     if (got.error) {
       if (got.status === 404 || got.status === 400) markPinStale(key); // retention removed it: re-pin next time
       noteMiss(got.error === 'aborted' ? 'aborted' : (got.status ? `http_${got.status}` : 'fetch_error'));
@@ -523,11 +526,30 @@ export function staticSetKeyForBox({ model, layer, bbox, surf }) {
 
 /** The set is listed in the latest.json already read (synchronous; false before the first read). */
 export const isSetListed = (key) => !!(_state.latest && _state.latest.sets && _state.latest.sets[key] && _state.latest.sets[key].index);
+setRegionalLatestProbes({ listed: isSetListed, read: () => !!_state.latest });   // the pre-manifest tile pick (staticRegional)
 
 /** The pinned regional index and this ask's frame and Step 3 window, or null with the miss recorded (the caller asks /grid). */
 async function regionalPick({ tile, model, askMs, bboxStr }) {
   const index = await getPinnedIndex(tile.key).catch(() => null);
   if (!index) { noteRegionalMiss('no_index'); return null; }
+  return regionalPickFrom(index, { model, askMs, bboxStr });
+}
+
+/** A regional PAGE is served from `index` only when the cover holds on its lattice and its bundle is not in a failure backoff. */
+function regionalPageServable(index, model, bbox) {
+  const win = regionalClipWindow(seriesBboxParam(bbox), index && index.grid, model);
+  return !!(win && win.covers) && !(index.bundle && bundleBackingOff(index.bundle.path));
+}
+
+/** Synchronous: the PINNED index serves this box's regional page (false when nothing is pinned yet). No I/O. */
+export function regionalPageServableSync({ model, layer, bbox, surf }) {
+  const tile = regionalTileFor({ model, layer, bbox, surf, param: seriesBboxParam });
+  const pin = tile && _state.pins.get(tile.key);
+  return !!(pin && !pin.stale && staticSetEnabled(tile.key) && regionalPageServable(pin.index, model, bbox));
+}
+
+/** This ask's frame and Step 3 window in `index`, or null with the miss recorded. */
+function regionalPickFrom(index, { model, askMs, bboxStr }) {
   const frame = pickIndexFrame(index, askMs);
   if (!frame) { noteRegionalMiss('no_frame_in_window'); return null; }
   if (!frame.path) { noteRegionalMiss('unbuilt_frame'); return null; }
@@ -671,6 +693,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
       telemetry().seriesFrames += 1;
       let sf = seriesFrameFromFrame(index, frame, vectors, { hourOffset: h, askIso: new Date(askMs).toISOString() });
       if (win) { sf = cropSeriesFrame(sf, win, cropVectors(vectors, (frame.grid || index.grid).cols, win)); telemetry().crops = (telemetry().crops || 0) + 1; }
+      sf.static_index = index.path;                       // the page keeps frames of one run (marineSeriesStatic commit)
       onFrames([sf]);
     }
   };
@@ -680,23 +703,35 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
 
 /** Seam B for a regional page: Step 3's clipped tile per hour from the bundle (one CDN request for the whole run). Null when the
  *  set has no index (the caller asks /grid_series); otherwise the hours it could not fill (partial covers, unbuilt hours). */
+// null = this page is NOT served from the bundle (the caller asks /grid_series): no index, the cover does not hold on the tile
+// lattice (a box past the last data node: us_southeast_midatlantic, us_northeast, france_biscay), or the bundle failed (fetch,
+// sha12, decode) before a frame was served. ONE index for the whole fill, so a page never mixes two runs. Hours the run cannot
+// serve (outside its window, unbuilt) are returned for the per-hour path.
 async function staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames }) {
   const index = await getPinnedIndex(tile.key).catch(() => null);
   if (!index) { noteRegionalMiss('no_index'); return null; }
+  if (!regionalPageServable(index, model, bbox)) { noteRegionalMiss('page_not_servable'); return null; }
   const bboxStr = seriesBboxParam(bbox);
   const focus = Number.isFinite(focusHour) ? focusHour : hours[0];
   const order = [...hours].sort((a, b) => (Math.abs(a - focus) - Math.abs(b - focus)) || (b - a));
   const missing = [];
+  let served = 0;
   for (const h of order) {
     if (signal && signal.aborted) break;
     const askMs = anchorMs + h * 3600000;
-    const p = await regionalPick({ tile, model, askMs, bboxStr });
+    const p = regionalPickFrom(index, { model, askMs, bboxStr });
     if (!p) { missing.push(h); continue; }
     const vectors = await loadFrameVectors(tile.key, p.frame, signal);
-    if (!vectors) { missing.push(h); continue; }
+    if (!vectors) {
+      if (served === 0 && !(signal && signal.aborted)) { noteRegionalMiss('page_failed'); return null; }
+      missing.push(h); continue;
+    }
+    served += 1;
     regionalTelemetry().series += 1;
     const sf = seriesFrameFromFrame(p.index, p.frame, vectors, { hourOffset: h, askIso: new Date(askMs).toISOString() });
-    onFrames([cropSeriesFrame(sf, { ...p.win, clip: p.win.snapped }, cropVectors(vectors, p.grid.cols, p.win))]);
+    const out = cropSeriesFrame(sf, { ...p.win, clip: p.win.snapped }, cropVectors(vectors, p.grid.cols, p.win));
+    out.static_index = index.path;
+    onFrames([out]);
   }
   return missing.sort((a, b) => a - b);
 }
