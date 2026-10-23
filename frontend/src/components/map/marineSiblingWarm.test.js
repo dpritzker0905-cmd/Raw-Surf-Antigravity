@@ -124,11 +124,11 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
     warm('swell_1');
     await flush();
     window.isScrubbingTimeline = true;
-    await step(); await step();
+    await settle(); await settle();                                          // longer than any quiet window
     expect(ensureMarineSeries).not.toHaveBeenCalled();
     delete window.isScrubbingTimeline;
     const hidden = jest.spyOn(document, 'hidden', 'get').mockReturnValue(true);
-    await step(); await step();
+    await settle(); await settle();
     expect(ensureMarineSeries).not.toHaveBeenCalled();
     hidden.mockRestore();
     await settle();
