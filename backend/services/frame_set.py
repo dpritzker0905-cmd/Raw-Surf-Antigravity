@@ -299,7 +299,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         "coverage_authoritative": stats["coverage_authoritative"],
         "selection": "nearest valid_time within 3 h over EVERY entry; authoritative before estimated; earlier on a tie "
                      "(grid_resolver -> mid_res_tier.pick_mid_item); an entry with path null -> /grid",
-        "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fields_for(target, wind)},
+        # a wind index always lists lane_weight's tolerance: some of its frames carry the plane
+        "quantisation": {fb.FIELD_NAMES[k]: {"tolerance": fb.TOLERANCE[k]} for k in fields_for(target, lane_touched=wind)},
         "parity_max_abs_err": {k: round(v, 6) for k, v in max_err.items()},
         "common_meta": common,
         "frames": frames,

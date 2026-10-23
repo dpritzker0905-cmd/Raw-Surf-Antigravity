@@ -302,10 +302,14 @@ def test_only_the_grid_route_calls_the_lane():
     # kept GFS wind page (2026-10-20, GRID_SERIES_MEMO_RUN_KEYS); it must never apply the lane itself (asserted below).
     # The static wind frames' publisher (2026-10-22, services/frame_set_wind.py) applies the lane too, to build the CDN frames that
     # stand in for /grid's own GFS wind response; it writes frames to the public frames bucket and never a product back (asserted
-    # below: no store write in it).
+    # below: no store write in it). /capabilities (services/weather_pipeline/capabilities.py, 2026-10-22) only READS box_state(),
+    # the blend's constants, so the client can refuse static frames blended with others; it never applies the lane (asserted below).
     assert sorted(callers) == ["routes/weather.py", "server.py", "services/frame_set_wind.py",
+                               "services/weather_pipeline/capabilities.py",
                                "services/weather_pipeline/series_memo_keys.py",
                                "services/weather_pipeline/wind_lane_ingest.py"], callers
+    caps = ast.parse((BACKEND / "services/weather_pipeline/capabilities.py").read_text(encoding="utf-8"))
+    assert not [n for n in ast.walk(caps) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "apply_wind_lane"]
     fsw_tree = ast.parse((BACKEND / "services/frame_set_wind.py").read_text(encoding="utf-8"))
     assert not [n for n in ast.walk(fsw_tree) if isinstance(n, ast.Attribute)
                 and n.attr in ("save_product", "_upload_to_supabase", "write_product", "store_product")]

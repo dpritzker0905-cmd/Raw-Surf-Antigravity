@@ -15,7 +15,17 @@ const INDEX = {
 const NOW = Date.parse('2026-10-22T22:00:00Z');
 const settled = { ...LANE, written_at: '2026-10-22T19:00:00Z' };
 
+// /capabilities reports the box blending with the frames' constants (windStaticFrames.boxLane): lane hours may be served.
+beforeEach(() => { window.__WEATHER_CAPABILITIES__ = [{ model: 'GFS', domain: 'wind', layer: 'wind', wind_lane: { enabled: true, feather_km: 200, taper_hours: 3 } }]; });
+afterEach(() => { delete window.__WEATHER_CAPABILITIES__; });
+
 describe('the wind prefetch plan', () => {
+  test('without the box\'s constants confirmed, only hours outside every lane window are fetched', () => {
+    delete window.__WEATHER_CAPABILITIES__;
+    const plan = planWind(INDEX, settled, Date.parse(vt(12)), Infinity, NOW);
+    expect(plan.map((p) => p.validTime).sort()).toEqual([vt(0), vt(3)]);              // before the lane's cycle: GFS on both sides
+  });
+
   test('nearest the cursor first, every built frame of the run, never an unbuilt one', () => {
     const plan = planWind(INDEX, settled, Date.parse(vt(12)), Infinity, NOW);
     expect(plan[0]).toEqual({ key: WIND_SET_KEY, validTime: vt(12), path: 'v1/f/12.bin' });

@@ -19,8 +19,15 @@ blend node by node (frame_binary.parity, wind tolerances), and the frame carries
     path; only the stamps move).
 THE CLIENT CHECK. The box re-reads the lane index every 300 s, the core lane publishes a new HRRR cycle ~4 times a day and this
 set is republished by the pilots lane, so the frames' lane and the box's can differ for hours. `write_lane_pointer` keeps a tiny
-no-cache `v1/wind_lane.json` in the frames bucket naming the lane L2 holds; the client serves a frame inside either lane's window
-only when that pointer names the frames' own lane (frontend windStaticFrames.js), and /grid otherwise.
+no-cache `v1/wind_lane.json` in the frames bucket naming the lane L2 held when it was written (read from L2 right before the
+write, and never an older cycle than the pointer already names); the client serves a frame inside either lane's window only when
+that pointer names the frames' own lane AND /capabilities reports the box blending with the frames' feather and taper (frontend
+windStaticFrames.js), and /grid otherwise.
+THE CONSTANTS. The blend's feather and taper are wind_lane's code defaults on both sides: the box leaves them unset (owner,
+2026-10-22) and this publisher ignores its runner's env (pin_code_defaults), so a runner variable can never make a frame differ
+from /grid; the box reports its own on /capabilities.
+RESIDUAL. wind_lane.refresh keeps its last lane on an L2 error or timeout, so the pointer can name a lane the box has not loaded
+yet; the 330 s settle covers a normal re-read, the kill `__RAW_DISABLE_WIND_STATIC_LANE_HOURS__` a box stuck on an older lane.
 """
 from __future__ import annotations
 
@@ -56,11 +63,25 @@ class PublishLane:
                 "feather_km": self.feather_km, "taper_hours": self.taper_hours, "source": self.source}
 
 
+LANE_ENV_OVERRIDES = ("WIND_HRRR_FEATHER_KM", "WIND_HRRR_TAPER_HOURS")
+
+
+def pin_code_defaults(log=print):
+    """Make this process blend with wind_lane's CODE defaults (the values the box uses: Render leaves them unset), whatever the
+    runner's env says. Returns the names it removed."""
+    gone = [k for k in LANE_ENV_OVERRIDES if k in os.environ]
+    for k in gone:
+        log(f"[frames] wind: ignoring the runner's {k}; frames blend with wind_lane's code default (as the box does)")
+        os.environ.pop(k, None)
+    return gone
+
+
 def load_publish_lane(log=print):
     """The lane the serve box loads, or None (no lane published, no credentials, the lane switched off, or unreadable: the frames
     then carry the GFS field and an index `wind_lane` of null, and the client serves only frames outside the box's lane window).
     Offline: FRAME_WIND_LANE_FILE = a lane object JSON (FRAME_WIND_LANE_KEY names it; default its cycle key)."""
     from services.weather_pipeline import wind_lane as wl
+    pin_code_defaults(log)
     if not wl.enabled():
         log("[frames] wind: WIND_HRRR_LANE=0, frames carry the GFS field (as /grid does)")
         return None
@@ -112,7 +133,7 @@ def lane_applied(product_dict, plane):
     if found is not None:
         idx, w, _hu, _hv, use = found
         for k, i in enumerate(idx):
-            if bool(use[k]):
+            if bool(use[k]) and out.grid.vectors[int(i)].is_valid:   # _blend leaves invalid nodes alone
                 vectors[int(i)]["_lane_w"] = float(w[k])
                 touched += 1
     served["grid"] = dict(served["grid"], vectors=vectors)
@@ -140,9 +161,25 @@ def pointer_record(lane_index, previous=None, writer="local"):
             "written_at": previous.get("written_at") if same else now, "checked_at": now, "writer": writer}
 
 
+def _cycle_s(rec):
+    from services.weather_pipeline import wind_lane as wl
+    try:
+        return wl._grid().utc((rec or {}).get("cycle")).timestamp()
+    except Exception:
+        return None
+
+
+def moves_backwards(previous, lane_index):
+    """True when writing `lane_index` would point at an OLDER HRRR cycle than the pointer already names (a publish that loaded
+    its lane before the core lane moved on). The pointer never moves backwards in lane time."""
+    old, new = _cycle_s(previous), _cycle_s(lane_index)
+    return old is not None and (new is None or new < old)
+
+
 def write_lane_pointer(lane_index, log=print):
-    """Keep the frames bucket's `v1/wind_lane.json` naming the lane L2 holds. Never raises (a missing pointer only makes the
-    client ask /grid for the hours inside the lane window). Needs SUPABASE_URL + a service key; a no-op without them."""
+    """Keep the frames bucket's `v1/wind_lane.json` naming `lane_index` (the caller reads it from L2 right before), unless the
+    pointer already names a newer cycle. Never raises (a missing pointer only makes the client ask /grid for the hours inside
+    the lane window). Needs SUPABASE_URL + a service key; a no-op without them."""
     if not lane_index or not lane_index.get("key"):
         return None
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
@@ -162,6 +199,9 @@ def write_lane_pointer(lane_index, log=print):
                 prev = None
         if prev and prev.get("key") == lane_index.get("key"):
             return prev                    # unchanged: keep written_at (the client's settle clock)
+        if moves_backwards(prev, lane_index):
+            log(f"[wind-lane pointer] kept {prev.get('key')}: {lane_index.get('key')} is an older cycle")
+            return prev
         writer = f"gh-run-{os.environ['GITHUB_RUN_ID']}" if os.environ.get("GITHUB_RUN_ID") else "local"
         rec = pointer_record(lane_index, prev, writer)
         put = requests.post(url, headers=dict(auth, **{"Content-Type": "application/json", "x-upsert": "true",

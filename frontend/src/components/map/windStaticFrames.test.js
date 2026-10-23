@@ -6,7 +6,7 @@
  */
 import zlib from 'zlib';
 import {
-  WIND_SET_KEY, LANE_SETTLE_MS, _resetWindStaticForTest, keepRaw, laneVerdict, staticWindGridSync, tryStaticWindGrid,
+  WIND_SET_KEY, LANE_SETTLE_MS, _resetWindStaticForTest, boxLane, keepRaw, laneVerdict, staticWindGridSync, tryStaticWindGrid,
   windBoxKind, windIndex, readLanePointer, windStaticEnabled, windViewportNeedsGrid,
 } from './windStaticFrames';
 import { _resetStaticFramesForTest, STATIC_SETS } from './staticFrames';
@@ -40,6 +40,8 @@ const WIND_MANIFEST = { products: [
 ] };
 const WORLD = { west: -180, south: -80, east: 180, north: 85 };
 const NOW = Date.parse('2026-10-22T22:00:00Z');
+// /capabilities' GFS wind row as the box reports it (wind_lane.box_state): the frames' own constants.
+const BOX = { enabled: true, feather_km: 200, taper_hours: 3 };
 
 let pointer;
 function cdn() {
@@ -65,6 +67,7 @@ beforeEach(() => {
   setCachedManifest(WIND_MANIFEST);
   jest.spyOn(Date, 'now').mockImplementation(() => NOW);
   pointer = { ...LANE, written_at: '2026-10-22T20:00:00Z' };                // the box re-read it long ago (settled)
+  window.__WEATHER_CAPABILITIES__ = [{ model: 'GFS', domain: 'wind', layer: 'wind', wind_lane: BOX }];
   cdn();
 });
 afterEach(() => {
@@ -73,6 +76,7 @@ afterEach(() => {
   delete window.__RAW_DISABLE_WIND_STATIC_FRAMES__;
   delete window.__RAW_DISABLE_STATIC_FRAMES_SETS__;
   window.__RAW_DISABLE_STATIC_FRAMES__ = killBefore;
+  delete window.__WEATHER_CAPABILITIES__;
   global.fetch = realFetch;
   jest.restoreAllMocks();
 });
@@ -137,6 +141,27 @@ describe('static GFS wind frames', () => {
     expect(laneVerdict(INDEX, FRAME, { ...LANE, written_at: '2026-10-22T20:00:00Z' }, now)).toEqual({ refuse: 'lane_hours_killed' });
     expect(laneVerdict(INDEX, INDEX.frames[1], other, now).stamp.reason).toBe('beyond_hrrr_horizon');   // later hours stay static
     delete window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__;
+  });
+
+  test('lane hours need /capabilities to report the box blending with the frames\' constants', () => {
+    const now = NOW;
+    const ptr = { ...LANE, written_at: '2026-10-22T20:00:00Z' };
+    const caps = (lane) => [{ model: 'GFS', domain: 'marine', layer: 'waves' }, { model: 'GFS', domain: 'wind', layer: 'wind', ...(lane ? { wind_lane: lane } : {}) }];
+    try {
+      expect(boxLane()).toEqual(BOX);                                                             // the suite's matching box
+      window.__WEATHER_CAPABILITIES__ = caps({ enabled: true, feather_km: 350, taper_hours: 3 });  // a Render override
+      expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ refuse: 'box_lane_differs' });
+      expect(laneVerdict(INDEX, INDEX.frames[1], ptr, now).stamp.reason).toBe('beyond_hrrr_horizon'); // GFS hours stay static
+      window.__WEATHER_CAPABILITIES__ = caps(null);                                                 // an older server
+      expect(boxLane()).toBe(null);
+      expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ refuse: 'box_lane_unconfirmed' });
+      delete window.__WEATHER_CAPABILITIES__;                                                       // not loaded yet
+      expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ refuse: 'box_lane_unconfirmed' });
+      window.__WEATHER_CAPABILITIES__ = caps({ enabled: false, feather_km: 200, taper_hours: 3 });  // WIND_HRRR_LANE=0 on the box
+      expect(laneVerdict(INDEX, INDEX.frames[1], ptr, now)).toEqual({ refuse: 'box_lane_off' });
+    } finally {
+      window.__WEATHER_CAPABILITIES__ = caps(BOX);   // afterEach removes it
+    }
   });
 
   test('a mismatched lane, a missing pointer and an unbuilt hour all leave the hour to /grid', async () => {

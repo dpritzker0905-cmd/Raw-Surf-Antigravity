@@ -313,18 +313,27 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
 
 
 def _wind_lane_pointer(sink, wind_lane, log):
-    """Keep v1/wind_lane.json naming the lane L2 holds (the client's lane check; frame_set_wind.write_lane_pointer). Offline
-    (LocalSink, the harness) the pointer names the frames' own lane, written an hour ago: the box is taken to hold it."""
+    """Keep v1/wind_lane.json naming the lane L2 holds NOW (re-read here, at the end of the publish: the core lane may have
+    published a newer cycle since this run loaded its lane, and the pointer must name that one so the client refuses this run's
+    lane-window frames; frame_set_wind.write_lane_pointer also never moves it to an older cycle). Offline (LocalSink, the
+    harness) the pointer names the frames' own lane, written an hour ago: the box is taken to hold it."""
     from services import frame_set_wind as fsw
-    ident = wind_lane.identity()
-    lane_index = {"key": ident["key"], "cycle": ident["cycle"], "horizon": ident["horizon"],
-                  "hours": len(getattr(wind_lane.lane, "hours", {}) or {})}
     if isinstance(sink, LocalSink):
+        ident = wind_lane.identity()
+        lane_index = {"key": ident["key"], "cycle": ident["cycle"], "horizon": ident["horizon"],
+                      "hours": len(getattr(wind_lane.lane, "hours", {}) or {})}
         rec = fsw.pointer_record(lane_index, None, "offline-harness")
         rec["written_at"] = datetime.fromtimestamp(time.time() - 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         sink.write(fsw.LANE_POINTER, json.dumps(rec, indent=1).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
         return
-    fsw.write_lane_pointer(lane_index, log)
+    from services.weather_pipeline import wind_lane as wl
+    try:
+        held = wl._l2_get(wl.INDEX_KEY)
+    except Exception as e:  # never fail the publish over the pointer: the core lane keeps it current
+        log(f"[wind-lane pointer] L2 index unreadable ({type(e).__name__}); pointer left as it is")
+        return
+    if held and held.get("key"):
+        fsw.write_lane_pointer(held, log)
 
 
 def main(argv=None):

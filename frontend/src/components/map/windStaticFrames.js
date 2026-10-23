@@ -108,11 +108,29 @@ const laneBase = (lane) => ({ lane: 'gfs', feather_km: lane.feather_km, taper_ho
   hrrr_horizon: lane.horizon, source: lane.source });
 
 /**
- * May this frame be served, and with which world lane stamp? Returns { stamp } or { refuse: reason }. Pure given its inputs:
- * `index` (its `wind_lane` = the frames' lane), `frame`, `ptr` (the box's lane, v1/wind_lane.json), `now`.
+ * The HRRR lane constants the serve box blends with, from /capabilities (the GFS wind rows' `wind_lane`: {enabled, feather_km,
+ * taper_hours}; wind_lane.box_state; LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__), or null when
+ * not loaded / an older server.
  */
-export function laneVerdict(index, frame, ptr, now = nowMs()) {
+export function boxLane() {
+  try {
+    const rows = W().__WEATHER_CAPABILITIES__;
+    if (!Array.isArray(rows)) return null;
+    const row = rows.find((r) => r && r.model === 'GFS' && r.domain === 'wind' && r.wind_lane && typeof r.wind_lane === 'object');
+    return row ? row.wind_lane : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * May this frame be served, and with which world lane stamp? Returns { stamp } or { refuse: reason }. Pure given its inputs:
+ * `index` (its `wind_lane` = the frames' lane), `frame`, `ptr` (the box's lane, v1/wind_lane.json), `now`, `box` (boxLane()).
+ */
+export function laneVerdict(index, frame, ptr, now = nowMs(), box = boxLane()) {
   if (!ptr || !ptr.key) return { refuse: 'no_lane_pointer' };
+  // A box serving with the lane switched off (WIND_HRRR_LANE=0) stamps every hour differently: /grid serves them all.
+  if (box && box.enabled === false) return { refuse: 'box_lane_off' };
   const meta = frameMeta(index, frame);
   const own = meta.wind_lane || null;
   const vt = ms(frame.valid_time);
@@ -124,6 +142,10 @@ export function laneVerdict(index, frame, ptr, now = nowMs()) {
   // KILL for a box that failed to re-read its lane (it would keep an older one past the 330 s settle): every hour the lane can
   // touch asks /grid. window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ = true.
   if (touched && W().__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ === true) return { refuse: 'lane_hours_killed' };
+  // The frames were blended with wind_lane's code constants (recorded in the index); a lane hour is served only when /capabilities
+  // reports the box blending with the same ones. Unknown (not loaded yet, an older server) is not confirmed: /grid serves it.
+  const boxSame = !!(box && box.enabled === true && frames && box.feather_km === frames.feather_km && box.taper_hours === frames.taper_hours);
+  if (touched && !boxSame) return { refuse: box ? 'box_lane_differs' : 'box_lane_unconfirmed' };
   if (same && settled && own) return { stamp: own };
   if (touched) return { refuse: same ? 'lane_unsettled' : 'lane_mismatch' };
   // GFS on both sides: /grid's stamp names the box's lane.

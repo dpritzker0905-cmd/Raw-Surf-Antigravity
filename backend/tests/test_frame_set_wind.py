@@ -205,3 +205,41 @@ def test_the_lane_pointer_keeps_written_at_while_the_lane_is_the_same():
     assert same["written_at"] == "2026-10-22T19:00:00Z" and same["feather_km"] == 200.0 and same["taper_hours"] == 3
     moved = fsw.pointer_record(dict(idx, key="wind_lane/hrrr-2026102300.json"), first)
     assert moved["written_at"] != "2026-10-22T19:00:00Z" and moved["key"].endswith("2026102300.json")
+
+
+def test_the_lane_pointer_never_moves_backwards_and_the_publish_points_at_what_l2_holds_now(monkeypatch):
+    # Review 2026-10-22: a pilots run that loaded lane L must not re-point the pointer at L after the core lane moved it to L'.
+    newer = {"key": "wind_lane/hrrr-2026102300.json", "cycle": "2026-10-23T00:00:00Z"}
+    older = {"key": "wind_lane/hrrr-2026102218.json", "cycle": "2026-10-22T18:00:00Z"}
+    assert fsw.moves_backwards(newer, older) and not fsw.moves_backwards(older, newer)
+    assert not fsw.moves_backwards(None, older) and fsw.moves_backwards(newer, {"key": "x"})       # no cycle: never over a known one
+    seen = []
+    monkeypatch.setattr(WL, "_l2_get", lambda key: dict(newer) if key == WL.INDEX_KEY else None)
+    monkeypatch.setattr(fsw, "write_lane_pointer", lambda idx, log=print: seen.append(idx))
+    run_lane = fsw.PublishLane(WL.Lane(lane_obj(), key=older["key"]), older["key"])          # what this run blended with
+    pub._wind_lane_pointer(object(), run_lane, lambda *_: None)                             # a remote sink
+    assert [s["key"] for s in seen] == [newer["key"]]                                      # L2's lane now, never the run's
+
+
+def test_the_publisher_blends_with_the_code_defaults_whatever_the_runner_env_says(tmp_path, monkeypatch):
+    monkeypatch.setenv("WIND_HRRR_FEATHER_KM", "350")
+    monkeypatch.setenv("WIND_HRRR_TAPER_HOURS", "6")
+    path = tmp_path / "lane.json"
+    path.write_text(json.dumps(lane_obj()))
+    monkeypatch.setenv("FRAME_WIND_LANE_FILE", str(path))
+    lane = fsw.load_publish_lane(log=lambda *_: None)
+    ident = lane.identity()
+    assert (ident["feather_km"], ident["taper_hours"]) == (WL.FEATHER_KM_DEFAULT, WL.TAPER_HOURS_DEFAULT)
+    assert (WL.feather_km(), WL.taper_hours()) == (WL.FEATHER_KM_DEFAULT, WL.TAPER_HOURS_DEFAULT)   # the blend reads them too
+
+
+def test_capabilities_report_the_lane_the_box_blends_with_on_gfs_wind_rows_only(monkeypatch):
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+    monkeypatch.delenv("WIND_HRRR_FEATHER_KM", raising=False)
+    monkeypatch.delenv("WIND_HRRR_LANE", raising=False)
+    rows = get_weather_capabilities()
+    wind = [r for r in rows if r.get("model") == "GFS" and r.get("domain") == "wind"]
+    assert wind and all(r["wind_lane"] == {"enabled": True, "feather_km": 200.0, "taper_hours": 3} for r in wind)
+    assert not any("wind_lane" in r for r in rows if r not in wind)
+    monkeypatch.setenv("WIND_HRRR_FEATHER_KM", "350")                    # a box override shows, so the client can refuse
+    assert {r["wind_lane"]["feather_km"] for r in get_weather_capabilities() if "wind_lane" in r} == {350.0}

@@ -47,18 +47,31 @@ def enabled() -> bool:
     return os.environ.get(FLAG, "1") != "0"
 
 
+# The blend's two constants. The serve box reads them from its env with these defaults (unset on Render, owner 2026-10-22); the
+# static wind frames publisher (frame_set_wind.pin_code_defaults) always uses these values, never its runner's env, and
+# /capabilities reports the box's own (box_state), so the client serves lane hours only when the two agree.
+FEATHER_KM_DEFAULT = 200.0
+TAPER_HOURS_DEFAULT = 3
+
+
 def feather_km() -> float:
     try:
-        return max(0.0, float(os.environ.get("WIND_HRRR_FEATHER_KM", "200")))
+        return max(0.0, float(os.environ.get("WIND_HRRR_FEATHER_KM", str(FEATHER_KM_DEFAULT))))
     except ValueError:
-        return 200.0
+        return FEATHER_KM_DEFAULT
 
 
 def taper_hours() -> int:
     try:
-        return max(0, int(os.environ.get("WIND_HRRR_TAPER_HOURS", "3")))
+        return max(0, int(os.environ.get("WIND_HRRR_TAPER_HOURS", str(TAPER_HOURS_DEFAULT))))
     except ValueError:
-        return 3
+        return TAPER_HOURS_DEFAULT
+
+
+def box_state() -> dict:
+    """What this process blends with, for /capabilities (the GFS wind rows' `wind_lane`): no I/O, no lane load. The static wind
+    frames record the same three in their index; the client refuses lane hours unless they match."""
+    return {"enabled": enabled(), "feather_km": feather_km(), "taper_hours": taper_hours()}
 
 
 def _grid():
