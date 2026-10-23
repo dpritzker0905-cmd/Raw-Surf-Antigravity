@@ -497,3 +497,30 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   swell_1, wind_waves (#486's sets), 48 hourly asks each: 6 sets, 114 frames, 598,464 nodes, 0 bad, 0 meta, 6/6 controls differ,
   PASS. One flipped byte in a bundle -> sha_bad 2, FAIL. (A first run counted 576 meta mismatches that were only `Z` vs `+00:00`
   on model_run_time; times now compare as instants.) LIVE=1 is the one-box live-read mode for after the 19:45Z publish.
+
+## 2026-10-23 23:25Z: MARINE_REGIONAL_TILE_FIRST: the stored tile is the one z7-9 source inside a GFS pilot box (dark)
+
+- **Why:** the live regional-bundle parity read (21:5xZ) failed for florida_east_coast. The owner, 2026-10-23 18:13 EDT: "Yes: make
+  the stored NOAA GFS tile the single zoom 7-9 source inside the pilot boxes (server dark flag + client bundles), retire the
+  Open-Meteo lane there, and flip both together after live parity passes."
+- **Cause, from the code** (a read-only map of grid_resolver): Steps 1-2 look up the dynamic cache (Open-Meteo `ncep_gfswave025`,
+  keyed on the 1-deg snapped box) BEFORE Step 3's stored tile; Root-A (MARINE_DYNCACHE_PREFER_FINE_REGIONAL) drops a dynamic hit
+  only when it is > 1.25x coarser, which a 0.25-deg dynamic product never is. The GFS/ICON series live lane
+  (GFS_ICON_SERIES_FASTPATH) skips resolve_grid altogether. A cold cache already served the tile.
+- **What:** `regional_tile_first.py` decides with the client's rule line for line (staticRegional.js pickRegionalTile +
+  regionalClipWindow): GFS marine waves/swell_1/swell_2/wind_waves, not surf; the smallest regional manifest tile containing the
+  request (nearest valid time per region; an exact area tie -> none); the snapped box inside the tile's data extent; the served
+  window covering the request at margin 0. Then Steps 1-2 are skipped and Step 3 serves the tile unchanged; the live series lane is
+  skipped for a box inside a pilot box. Anything short of a full cover, and any decision error, keeps today's path.
+  While dark: a sampled (0.05), capped (30 an hour) log of the dynamic answer vs the covering tile at the same nodes; counters on
+  /admin/surf-forecast/status.
+- **Offline A/B, the real resolver** (serve_synthetic, flagship regions, waves/swell_1/wind_waves, `--dynamic 1`, the series live
+  lane ON as production appears to run; scn_regional_bundle_parity with lattice logging, 12 hours): flag OFF: the series answered
+  on the live lane's own lattice (whole tile 13x15, sub-box 11x13, product_id none): 0 comparable whole-tile nodes, 192 meta
+  mismatches, FAIL (the live read's shape). Flag ON: every frame the stored tile (25x29, product_id the tile's): 52,200 nodes, 0 bad,
+  0 meta, controls differ, PASS. Evidence: side-session notes regional-tile-first-2026-10-23/.
+- **Cost, offline** (48-hour page, z9 box -81.65,27.60,-79.58,29.07, warm, 3 runs): tile 0.64-0.73 s and 1.32 MB (the snapped 1-deg
+  window, 13x13) against the synthetic live lane's 0.23-0.27 s and 0.43 MB (the raw box, 9x6) - which skips the real Open-Meteo
+  fetch (4-11 s a page in the lead's live capture). With the client's bundles on, a covered box asks the server for neither.
+- **Tests:** tests/test_regional_tile_first.py (13, chain; floor 2885 -> 2898, set-from 2904). Seen failing under twelve mutations.
+- **Not here:** the live parity read with the flag on (one, health-gated) and the flip, both with the client's default, by the owner.
