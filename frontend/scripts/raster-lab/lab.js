@@ -42,6 +42,8 @@ const RADAR_DIR = +(process.env.RADAR_DIR || -1);
 // AB='name=url,name=url': paired arms per combo, run back to back in alternating order (one browser each); a row's `arm` names it.
 const ARMS = process.env.AB ? process.env.AB.split(',').map((x) => { const [name, url] = x.split('='); return { name, url }; })
   : [{ name: TAG, url: L.BASE }];
+// ARM_FLAGS='{"legacy":{"__RAW_DISABLE_X__":true}}': extra window levers for one arm only (same build, kill switch as the control).
+const ARM_FLAGS = process.env.ARM_FLAGS ? JSON.parse(process.env.ARM_FLAGS) : {};
 // BACK=1: after the long jump, one jump back to hour 0 (a revisit: what a block cache serves). RELOAD=1: then reload the page
 // in the same browser (Cache Storage survives) and toggle the layer on again (Open-Meteo layers only).
 const BACK = process.env.BACK === '1';
@@ -144,6 +146,23 @@ const SAMPLER = () => {
     }
     return out;
   };
+  // OWN FRAMES (ownRasterLayer.js, 2026-10-23): the custom layer draws the frame the app last cut to (window.__RAW_OWN_RASTER__.shown).
+  // Correct = the shown frame's valid time is the nearest stored frame (within 3 h) to the asked hour; stale = another frame; blank =
+  // nothing shown or no frame wanted. One custom layer, so lit is 1 and nothing fades.
+  R.sampleOwn = (m) => {
+    const t = window.__RAW_OWN_RASTER__ || {};
+    const sh = t.shown; const wt = t.want; const vms = (t.pin && t.pin.validMs) || [];
+    const W = R.want; let exp = null;
+    if (W && vms.length) {
+      const ask = Date.now() + W.hour * 3600000; let best = null; let bd = Infinity;
+      for (const v of vms) { const d = Math.abs(v - ask); if (d <= 3 * 3600000 && d < bd) { bd = d; best = v; } }
+      exp = best;
+    }
+    const drawing = !!(sh && wt && wt.path);
+    const id = drawing ? 'own:' + sh.validMs : null;
+    const cls = !drawing ? 'b' : (exp !== null && sh.validMs === exp ? 'o' : 's');
+    return { cls, vis: 0, n: 1, ld: drawing ? 1 : 0, rl: 0, id, exp: exp === null ? null : 'own:' + exp, fading: 0 };
+  };
   R.sampleRadar = (m) => {
     const order = (m.style && m.style._order) || [];
     let cur = null;
@@ -161,7 +180,7 @@ const SAMPLER = () => {
       const m = window.__MAP_INSTANCE__ || window.map;
       if (m && m.style) {
         let s;
-        try { s = R.layer === 'radar' ? R.sampleRadar(m) : R.sampleOM(m); } catch (e) { s = { cls: 'x', err: String(e).slice(0, 80) }; }
+        try { s = R.layer === 'radar' ? R.sampleRadar(m) : (m.getLayer(`own-raster-${R.layer}`) ? R.sampleOwn(m) : R.sampleOM(m)); } catch (e) { s = { cls: 'x', err: String(e).slice(0, 80) }; }
         const w = R.wheel();
         R.last = s;
         R.frames.push([Math.round(t * 10) / 10, s.cls, s.vis, s.n, s.ld, s.rl, s.id, s.exp || null, w ? Number(w.getAttribute('aria-valuenow')) : null, prevT == null ? 0 : Math.round(t - prevT), R.wv, R.lit(m), s.fading || 0, s.dbg || null, R.admitted()]);
@@ -232,14 +251,23 @@ function rle(arr) {
 // The app's own tile counters (openMeteoProtocol TILE_TRUTH): decodes vs decoded-tile cache hits.
 const TRUTH = () => { const t = window.__TILE_TRUTH__; return t ? [t.protocolCalls, t.cacheHits] : [0, 0]; };
 
-async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE) {
+async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, armFlags = {}) {
   const vp = VP[vpName];
   const { browser, page, log } = await L.launch({ port: PORT, width: vp.width, height: vp.height, dpr: vp.dpr, contextOptions: vp.contextOptions });
   const res = { tag: TAG, vp: vpName, layer, model, zoom, at: new Date().toISOString() };
   try {
     await rr.install(page);
+    // OWN_CDN=http://127.0.0.1:4196/ (own_frames_fixture.js --serve): count our own frame CDN's responses with the raster hosts'.
+    if (process.env.OWN_CDN) {
+      page.on('requestfinished', async (req) => {
+        const url = req.url();
+        if (!url.startsWith(process.env.OWN_CDN)) return;
+        let bytes = 0; try { bytes = (await req.sizes()).responseBodySize; } catch (e) { /* gone */ }
+        rr.log.push({ t: Date.now(), host: 'own-cdn', url, range: null, bytes, hit: true, ms: 0 });
+      });
+    }
     await page.addInitScript(DATE_SHIM, offset);
-    await page.addInitScript((flags) => { for (const [k, v] of Object.entries(flags)) window[k] = v; }, FLAGS);
+    await page.addInitScript((flags) => { for (const [k, v] of Object.entries(flags)) window[k] = v; }, { ...FLAGS, ...armFlags });
     if (process.env.DUMP) await page.addInitScript(() => { window.__RL_DBG__ = true; });
     await page.addInitScript(SAMPLER);
     if (vpName === 'phone' && PHONE_CPU > 1) {
@@ -370,7 +398,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE) {
           for (const arm of arms) {
             const offset = meta.tRec - Date.now();   // re-pinned per session: every session starts at the recording's clock
             const t0 = Date.now();
-            const r = await runCombo(rr, offset, vp, layer, model, zoom, arm.url);
+            const r = await runCombo(rr, offset, vp, layer, model, zoom, arm.url, ARM_FLAGS[arm.name] || {});
             r.arm = arm.name; r.wallMs = Date.now() - t0;
             fs.appendFileSync(outFile, JSON.stringify(r) + '\n');
             const tg = r.actions && r.actions[0];
