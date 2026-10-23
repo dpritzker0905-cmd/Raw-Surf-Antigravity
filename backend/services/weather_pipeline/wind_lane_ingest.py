@@ -7,6 +7,8 @@ and publishes it to L2:
   wind_lane/hrrr-<cycle YYYYMMDDHH>.json    the cycle (~3-5 MB: 49 hourly fields, 0.25 deg, int16 knots)
   wind_lane/index.json                       written LAST: {"key", "cycle", "horizon", ...} -- the serve box loads
                                              whatever the index names, so a half-uploaded cycle is never served
+  weather-frames v1/wind_lane.json           then (2026-10-22): the public, no-cache pointer naming that lane, which the
+                                             browser's static wind frames are checked against (frame_set_wind.py)
 
 It keeps the previous cycle (the index's `previous_key`) and deletes the one before it.
 
@@ -67,6 +69,7 @@ async def ingest_hrrr_wind_lane(store, fetch=None, read_index=None) -> dict:
     prev = (read_index or (lambda: _l2_get(INDEX_KEY)))() or {}
     if prev.get("key") == key and int(prev.get("hours", 0)) >= len(lane_obj["hours"]):
         logger.info(f"[HRRR Wind Lane] cycle {lane_obj['cycle']} already published ({prev.get('hours')} hours)")
+        _pointer(prev)
         return {"status": "unchanged", "key": key}
     data = json.dumps(lane_obj, separators=(",", ":")).encode("utf-8")
     store._upload_to_supabase(key, data, strict=True)
@@ -81,4 +84,17 @@ async def ingest_hrrr_wind_lane(store, fetch=None, read_index=None) -> dict:
             logger.warning(f"[HRRR Wind Lane] could not delete {stale}: {e}")
     logger.info(f"[HRRR Wind Lane] published {key}: {len(lane_obj['hours'])} hours to {lane_obj['horizon']}, "
                 f"{len(data)} bytes, {lane_obj.get('steps_failed', 0)} failed steps")
+    _pointer(index)
     return {"status": "published", "key": key, "index": index}
+
+
+def _pointer(lane_index):
+    """The frames bucket's public lane pointer (static wind frames are served only where it names their lane). Never raises;
+    off with WIND_LANE_POINTER=0."""
+    if os.environ.get("WIND_LANE_POINTER", "1") == "0":
+        return
+    try:
+        from services.frame_set_wind import write_lane_pointer
+        write_lane_pointer(lane_index, log=logger.info)
+    except Exception as e:  # pragma: no cover - the lane itself is published; the pointer only gates the CDN frames
+        logger.warning(f"[HRRR Wind Lane] pointer not written: {type(e).__name__}: {e}")

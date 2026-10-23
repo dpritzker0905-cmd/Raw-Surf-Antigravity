@@ -10,6 +10,8 @@ import { isTerminalNoCoverage } from './marineControllerCache';
 import { shouldResettleWindAfterDrag } from './windScrubEndSettle';
 import { createLatestOnlyGate } from './latestOnlyGate';
 import { windGridCovers } from './windCoverage';
+// Static wind frames (2026-10-22): the hour's world field from CDN bytes already here, before the series or any fetch.
+import { staticWindBase, instantWindStep, useWindStaticPrefetch, staleCoveringUpgrade as staleCoveringFor } from './windStaticEngine';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -112,7 +114,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             if (baseFirstOn && span < 350.0 && windWorldBaseRef.current !== bfKey && getBackendWindFlag()) {
               windWorldBaseRef.current = bfKey; // one probe per model|hour, hit or miss
               const world = getModelSafeWind(bfModel, data.hourOffset || 0,
-                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 });
+                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 }) || staticWindBase(bfModel, data.hourOffset || 0);
               const wSpan = world && world.bounds
                 ? (world.bounds.west > world.bounds.east
                   ? (world.bounds.east + 360.0) - world.bounds.west : world.bounds.east - world.bounds.west)
@@ -175,7 +177,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             if (baseFirstOn && windWorldBaseRef.current !== bfKey && getBackendWindFlag()) {
               windWorldBaseRef.current = bfKey;
               const world = getModelSafeWind(bfModel, data.hourOffset || 0,
-                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 });
+                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 }) || staticWindBase(bfModel, data.hourOffset || 0);
               const wSpan = world && world.bounds
                 ? (world.bounds.west > world.bounds.east
                   ? (world.bounds.east + 360.0) - world.bounds.west : world.bounds.east - world.bounds.west)
@@ -379,6 +381,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       // the "wind reloads slowly after toggling around / scrubbing marine" delay on warm toggles.
       try {
         let warm = getBackendWindFlag() ? getModelSafeWind(activeModel, timeOffsetRef.current, bounds) : null;
+        if (!warm || !(warm.vectors?.length > 0)) warm = staticWindBase(activeModel, timeOffsetRef.current) || warm;
         if (!warm || !(warm.vectors?.length > 0)) {
           const sf = getWindSeriesFrame(activeModel, bounds, timeOffsetRef.current);
           if (sf && sf.vectors?.length > 0) warm = sf;
@@ -735,6 +738,8 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     return () => { try { controller.abort(); } catch (e) { /* ignore */ } };
   }, [activeModel, mapInstance, isWindActive]);
 
+  useWindStaticPrefetch({ mapInstance, isWindActive, activeModel, timeOffsetHours });   // the wind run, fetched in idle time
+
   // T-02 (scrub audit 2026-10-18): the drag path below is cache-only, and the wheel DEDUPS its release commit when the final
   // hour was already committed mid-drag, so no new timeOffsetHours arrives and the settle path never ran for that hour: the
   // particles stayed on the pre-drag hour until a pan. Remember an in-drag MISS; at scrub end, re-run this effect once for it.
@@ -776,7 +781,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           north: Math.min(85, b.getNorth())
         };
         if (getBackendWindFlag()) {
-          targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds);
+          targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds) || staticWindBase(activeModel, timeOffsetHours);
         } else {
           const cache = getWindHourlyCache();
           if (cache?.results?.length && cache.model === activeModel) {
@@ -804,6 +809,10 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       return;
     }
 
+    // INSTANT STEP (2026-10-22): a grid already here (cache, static frame) is committed on the press (windStaticEngine.js).
+    if (getBackendWindFlag() && instantWindStep({ mapInstance, model: activeModel, hour: timeOffsetHours, getModelSafeWind,
+      commit: (g) => { windRevision.current += 1; commitWindData(g); lastCommittedWindRef.current = { bounds: g.bounds || null, stale: !!g.stale }; },
+      backfill: (g) => backfillScrubWorldBase(g, timeOffsetHours) }) === 'done') return undefined;
     const t = setTimeout(async () => {
       let cacheMiss = false;
       let targetData = null;
@@ -1038,48 +1047,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             // covering fine overlay is resident. Safe-zero/empty fallbacks stay held (they carry
             // __failureReason / renderable:false / <4 vectors). World-span stale never upgrades
             // (the global manifest lane owns that). Kill: __RAW_DISABLE_WIND_STALE_COVERING__.
-            const staleCoveringUpgrade = (() => {
-              try {
-                if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_STALE_COVERING__ === true) return false;
-                if (!data || data.stale !== true || data.renderable === false) return false;
-                if (data.__failureReason) return false;
-                if (!Array.isArray(data.vectors) || data.vectors.length < 4) return false;
-                const db = data.bounds;
-                if (!db) return false;
-                const dSpan = db.east >= db.west ? db.east - db.west : (db.east + 360.0) - db.west;
-                if (dSpan >= 350.0) return false;
-                const eps = 0.05;
-                const vpS = Math.max(-85, bounds.south), vpN = Math.min(85, bounds.north);
-                const covers = db.west <= bounds.west + eps && db.east >= bounds.east - eps
-                  && db.south <= vpS + eps && db.north >= vpN - eps;
-                if (!covers) return false;
-                const f = typeof window !== 'undefined' ? window.__WIND_FINE_OVERLAY__ : null;
-                const fineCovers = !!(f && f.active && f.bounds
-                  && f.bounds.west <= bounds.west + eps && f.bounds.east >= bounds.east - eps
-                  && f.bounds.south <= vpS + eps && f.bounds.north >= vpN - eps);
-                if (fineCovers) return false;
-                // RESOLUTION GUARD (2026-07-20 regression study #1, refined same day): a stale
-                // coarse covering product must never REPLACE a finer resident box over the
-                // viewport centre — that trade erased a live tropical system (the 0.5-deg box
-                // resolved its rotation; the 2-deg replacement cannot). BUT the guard only
-                // holds while the sharp box still covers MOST of the view (>= 70% area):
-                // below that, the un-covered remainder is depleted 10-deg base ("animations
-                // missing for the top part of the low") and coverage outranks sharpness.
-                if (f && f.active && f.bounds && f.cols > 0) {
-                  const fCell = (f.bounds.east - f.bounds.west) / Math.max(1, f.cols - 1);
-                  const dCell = (db.east - db.west) / Math.max(1, (data.cols || 2) - 1);
-                  const cx = (bounds.west + bounds.east) / 2, cy = (vpS + vpN) / 2;
-                  const centerInFine = f.bounds.west <= cx && f.bounds.east >= cx
-                    && f.bounds.south <= cy && f.bounds.north >= cy;
-                  const ovW = Math.max(0, Math.min(f.bounds.east, bounds.east) - Math.max(f.bounds.west, bounds.west));
-                  const ovH = Math.max(0, Math.min(f.bounds.north, vpN) - Math.max(f.bounds.south, vpS));
-                  const vpArea = Math.max(1e-6, (bounds.east - bounds.west) * (vpN - vpS));
-                  const fineCoverFrac = (ovW * ovH) / vpArea;
-                  if (centerInFine && dCell > fCell * 1.5 && fineCoverFrac >= 0.7) return false;
-                }
-                return true;
-              } catch (e) { return false; }
-            })();
+            const staleCoveringUpgrade = staleCoveringFor(data, bounds);   // rule + rationale: windStaticEngine.js
             if (isRenderableWindData(data) || staleCoveringUpgrade || (_holdDisabled && data && data.vectors?.length > 0)) {
               console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors${staleCoveringUpgrade && !isRenderableWindData(data) ? ' (STALE-COVERING upgrade — covering beats holding)' : ''}`);
               windRevision.current += 1;
