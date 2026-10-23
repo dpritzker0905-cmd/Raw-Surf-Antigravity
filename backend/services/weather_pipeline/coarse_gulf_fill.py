@@ -63,8 +63,11 @@ fill unchanged. Provenance: coarse_fill.mode == "targeted", donor_region global_
 """
 import asyncio
 import copy
+import json
 import logging
 import os
+import threading
+from collections import OrderedDict, Counter
 
 logger = logging.getLogger(__name__)
 
@@ -277,54 +280,257 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         return product
 
 
+# ── THE TARGETED DONOR: compact, bounded, shared (2026-10-23 regression review) ─────────────────────────────────────────────
+# The first cut loaded the FULL 15,023-vector GFS global_mid product as the donor of EVERY EURO/ICON frame (the legacy donor is
+# the 629-vector global_coarse). Measured offline on a 48-frame world /grid_series page (#462 masked store, measure_series.py):
+# EURO 48 full GFS loads, 33 L1 evictions, CPU 8.9 s vs 3.3 s legacy, peak RSS +110 MB; ICON 42 / 52. On the 1-CPU box, with
+# L1 bounded at ~8 full mid products (PRODUCT_CACHE_VECTOR_BUDGET 120k, the 2026-07-05 OOM root), that churn is the cost.
+# Now each GFS file becomes ONE compact donor: its lattice plus five float32 planes (speed, direction, u, v, period; NaN = not sea),
+# ~0.3 MB, built from the stored file WITHOUT passing through L1 (a file not yet on disk is fetched once by load_product and its
+# L1 entry dropped again), kept in a small LRU shared by EURO and ICON frames at the same valid time, and never written to.
+_DONOR_LRU = OrderedDict()                 # (GFS filename, run identity) -> _CompactDonor (a newer run rewrites the same filename)
+_DONOR_LOCK = threading.Lock()
+TARGETED_NO_FILL = Counter()               # (model, layer, reason) -> frames served unfilled by the targeted mode
+_LAST_NO_FILL = {}                         # (model, layer) -> last reason logged (log once per change)
+
+
+def _donor_cache_size():
+    try:
+        return max(1, int(os.environ.get("MARINE_TARGETED_DONOR_CACHE", "24")))
+    except ValueError:
+        return 24
+
+
+class _CompactDonor:
+    """One GFS global_mid layer at one valid time, reduced to what the targeted fill reads. Immutable once built."""
+    __slots__ = ("filename", "west", "south", "dlon", "dlat", "cols", "rows", "resolution", "planes")
+
+    def __init__(self, filename, vectors, cols, rows, resolution):
+        import numpy as np
+        lats = [float(v["lat"]) for v in vectors]
+        lngs = [float(v["lng"]) for v in vectors]
+        self.filename, self.resolution = filename, (float(resolution) if resolution else None)
+        self.west, self.south = min(lngs), min(lats)
+        # Spacing from the product's resolution (the lattice step), never from the extent: a sparse or clipped product has
+        # extent / (cols - 1) != its step. Fallback for a resolution-less product: its own extent over its own cols/rows.
+        self.dlon = self.dlat = self.resolution or ((max(lngs) - self.west) / (int(cols) - 1) if cols and int(cols) > 1 else 1.0)
+        self.cols = int(round((max(lngs) - self.west) / self.dlon)) + 1
+        self.rows = int(round((max(lats) - self.south) / self.dlat)) + 1
+        self.planes = {k: np.full(self.cols * self.rows, np.nan, dtype=np.float32) for k in ("speed", "direction", "u", "v", "period")}
+        for v, la, lo in zip(vectors, lats, lngs):
+            i = self.index(la, lo)
+            if i is None or v.get("is_valid", True) is False or v.get("speed") is None:
+                continue
+            for k, plane in self.planes.items():
+                x = v.get(k)
+                if x is not None:
+                    plane[i] = float(x)
+
+    def aligned(self, lat, lng):
+        """Is (lat, lng) a node of this lattice's spacing and origin (inside its extent or not)?"""
+        fc, fr = (lng - self.west) / self.dlon, (lat - self.south) / self.dlat
+        return abs(fc - round(fc)) <= 1e-3 and abs(fr - round(fr)) <= 1e-3
+
+    def index(self, lat, lng):
+        """The flat index of (lat, lng) on this lattice, or None when it is not a node inside the extent (no snapping)."""
+        if not self.aligned(lat, lng):
+            return None
+        c, r = int(round((lng - self.west) / self.dlon)), int(round((lat - self.south) / self.dlat))
+        if not (0 <= c < self.cols and 0 <= r < self.rows):
+            return None
+        return r * self.cols + c
+
+    def sea_at(self, lat, lng):
+        """(speed, direction, u, v, period) at an exact node where GFS is sea, else None."""
+        i = self.index(float(lat), float(lng))
+        if i is None:
+            return None
+        s = self.planes["speed"][i]
+        if s != s:
+            return None
+        return tuple(None if x != x else float(x) for x in (self.planes[k][i] for k in ("speed", "direction", "u", "v", "period")))
+
+
+def _vector_dicts(product):
+    return [v.model_dump() if hasattr(v, "model_dump") else dict(vars(v)) for v in product.grid.vectors]
+
+
+def _run_identity(item):
+    return tuple(str(getattr(item, k, None) or "") for k in ("model_run_time", "run_time", "ingested_at"))
+
+
+def _same_run(item, data):
+    """Does a stored JSON carry the run the manifest item names? (Unknown on either side counts as the same.)"""
+    for k in ("model_run_time", "run_time"):
+        a, b = getattr(item, k, None), data.get(k)
+        if a and b and _iso_s(a) != _iso_s(b):
+            return False
+    return True
+
+
+def _iso_s(t):
+    s = t.isoformat() if hasattr(t, "isoformat") else str(t)
+    return s.replace("+00:00", "Z")[:19]
+
+
+def _compact_donor(store, item):
+    """The compact donor of one GFS manifest item (LRU by filename AND run). Reads the stored JSON directly when the store keeps
+    the item's run on disk, so the full product never enters L1; otherwise (no file, or a file of another run) it loads through
+    the store, exactly as the legacy donor does, and drops that L1 entry again. None when unreadable."""
+    filename = item.filename
+    key = (filename, _run_identity(item))
+    with _DONOR_LOCK:
+        hit = _DONOR_LRU.get(key)
+        if hit is not None:
+            _DONOR_LRU.move_to_end(key)
+            return hit
+    donor = None
+    path = getattr(store, "cache_dir", None)
+    path = (path / filename) if path is not None else None
+    data = None
+    if path is not None and path.exists():
+        with open(path, "r") as fh:
+            data = json.load(fh)
+        if not _same_run(item, data):
+            data = None
+    if data is not None:
+        g = data.get("grid") or {}
+        if g.get("vectors"):
+            donor = _CompactDonor(filename, g["vectors"], g.get("cols"), g.get("rows"), data.get("resolution"))
+    else:
+        cache = _l1_cache()
+        resident = cache is not None and filename in cache
+        p = store.load_product(filename)
+        if not resident and cache is not None:
+            _l1_drop(filename)
+        if p is not None and getattr(p, "grid", None) and p.grid.vectors:
+            donor = _CompactDonor(filename, _vector_dicts(p), p.grid.cols, p.grid.rows, getattr(p, "resolution", None))
+    if donor is not None:
+        with _DONOR_LOCK:
+            _DONOR_LRU[key] = donor
+            _DONOR_LRU.move_to_end(key)
+            while len(_DONOR_LRU) > _donor_cache_size():
+                _DONOR_LRU.popitem(last=False)
+    return donor
+
+
+def _l1_cache():
+    try:
+        from services.weather_pipeline.store import ProductStore
+        return ProductStore._product_cache
+    except Exception:
+        return None
+
+
+def _l1_drop(filename):
+    try:
+        from services.weather_pipeline.store import ProductStore
+        with ProductStore._product_cache_lock:
+            ProductStore._product_cache.pop(filename, None)
+            ProductStore._product_cache_vectors.pop(filename, None)
+    except Exception:
+        pass
+
+
 def _node_key(v):
     """(lat, lng) rounded, with lng in [-180, 180]; the 181-column lattices carry both -180 and 180, kept apart."""
     return round(float(v.lat), 3), round(float(v.lng), 3)
 
 
-def targeted_fill_vectors(vectors, donor_vectors):
-    """(new vector list, cells filled): every masked vector whose node has a VALID donor vector at the same node becomes a copy
-    carrying the donor's values (speed, direction, u, v, period) with is_valid True. The inputs are never written to. Pure, so
-    the serve path, the tests and the owner's evidence pack run the same rule."""
-    donors = {}
-    for g in donor_vectors or ():
-        if not _is_masked(g):
-            donors[_node_key(g)] = g
+class _VectorDonor:
+    """A donor built from vectors (the owner's evidence pack and older callers): same `sea_at` contract as _CompactDonor."""
+
+    def __init__(self, donor_vectors):
+        self._d = {_node_key(g): g for g in donor_vectors or () if not _is_masked(g)}
+
+    def sea_at(self, lat, lng):
+        g = self._d.get((round(float(lat), 3), round(float(lng), 3)))
+        if g is None:
+            return None
+        return (g.speed, getattr(g, "direction", None), getattr(g, "u", None), getattr(g, "v", None), getattr(g, "period", None))
+
+
+def targeted_fill_vectors(vectors, donor):
+    """(new vector list, cells filled): every masked vector at whose node the donor is sea becomes a copy carrying the donor's
+    values (speed, direction, u, v, period) with is_valid True. `donor` is a _CompactDonor or a list of vectors. The inputs are
+    never written to. Pure, so the serve path, the tests and the owner's evidence pack run the same rule."""
+    if not hasattr(donor, "sea_at"):
+        donor = _VectorDonor(donor)
     out, filled = list(vectors), 0
     for i, v in enumerate(out):
         if not _is_masked(v):
             continue
-        g = donors.get(_node_key(v))
-        if g is None:
-            continue           # GFS masks this node too: land or ice, left masked
+        sea = donor.sea_at(v.lat, v.lng)
+        if sea is None:
+            continue           # GFS masks this node too (land or ice), or it is not a donor node: left masked
         v = copy.copy(v)
-        v.speed = g.speed
-        for attr in ("direction", "u", "v", "period"):
-            if getattr(g, attr, None) is not None:
-                setattr(v, attr, getattr(g, attr))
+        v.speed = sea[0]
+        for attr, x in zip(("direction", "u", "v", "period"), sea[1:]):
+            if x is not None:
+                setattr(v, attr, x)
         v.is_valid = True
         out[i] = v
         filled += 1
     return out, filled
 
 
-async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
-    """MARINE_GULF_FILL_MID_TARGETED=1 on the 2-deg global_mid: the same-layer GFS global_mid at the same valid time (within
-    3 h, as the coarse donor) is the donor, node for node. Returns `product` itself when there is no donor or nothing to fill."""
-    vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
-    gfs = await asyncio.to_thread(_load_gfs_coarse_waves, store, vt, layer_l, "global_mid")
-    if not gfs or not getattr(gfs, "grid", None) or not gfs.grid.vectors:
+def _lattice_mismatch(product, grid, donor, masked):
+    """Why the recipient cannot be matched node for node with the donor, or None. Exact-node matching assumes EURO_MID_RES ==
+    ICON_MID_RES == GFS_MID_RES and one origin; on any drift the fill is skipped, never misaligned."""
+    res = getattr(product, "resolution", None)
+    if res is not None and donor.resolution is not None and abs(float(res) - float(donor.resolution)) > 1e-6:
+        return f"resolution {res} vs GFS {donor.resolution}"
+    off = sum(1 for i in masked if not donor.aligned(float(grid.vectors[i].lat), float(grid.vectors[i].lng)))
+    if off:
+        return f"{off} of {len(masked)} masked nodes are not GFS global_mid lattice nodes"
+    return None
+
+
+def _no_fill(product, model, layer_l, reason, detail, masked, total):
+    """Serve the grid as stored, but SAY why (the 2026-10-23 review: a silent missing donor blanks real sea for that frame).
+    The product container is copied for the stamp; the grid and its vectors are the caller's, untouched."""
+    TARGETED_NO_FILL[(model, layer_l, reason)] += 1
+    if _LAST_NO_FILL.get((model, layer_l)) != reason:
+        _LAST_NO_FILL[(model, layer_l)] = reason
+        logger.warning(f"[Coarse Fill] {model} global_mid {layer_l}: targeted fill skipped ({reason}: {detail}); "
+                       f"{masked} masked cells served masked (count {TARGETED_NO_FILL[(model, layer_l, reason)]})")
+    out = copy.copy(product)
+    try:
+        out.coarse_fill = {"donor_model": "GFS", "layer": layer_l, "mode": "targeted", "donor_region": "global_mid",
+                           "donor": reason, "detail": detail, "cells_filled": 0, "cells_masked": masked, "cells_total": total}
+    except Exception as e:
+        logger.error(f"[Coarse Fill] could not stamp the targeted no-fill on {model} ({type(e).__name__}: {e})")
         return product
-    vectors, filled = targeted_fill_vectors(grid.vectors, gfs.grid.vectors)
+    return out
+
+
+async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
+    """MARINE_GULF_FILL_MID_TARGETED=1 on the 2-deg global_mid: the same-layer GFS global_mid at the same valid time (within 3 h,
+    as the coarse donor) is the donor, node for node, through the compact LRU donor. A missing or unreadable donor, or a lattice
+    mismatch, serves the grid as stored WITH a stamp and a log line (_no_fill)."""
+    vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
+    item = _find_gfs_item(store, vt, layer_l, "global_mid")
+    if item is None:
+        return _no_fill(product, model, layer_l, "missing", "no same-layer GFS global_mid within 3 h", len(masked), len(grid.vectors))
+    donor = await asyncio.to_thread(_compact_donor, store, item)
+    if donor is None:
+        return _no_fill(product, model, layer_l, "unreadable", item.filename, len(masked), len(grid.vectors))
+    why = _lattice_mismatch(product, grid, donor, masked)
+    if why:
+        return _no_fill(product, model, layer_l, "lattice_mismatch", why, len(masked), len(grid.vectors))
+    _LAST_NO_FILL.pop((model, layer_l), None)
+    vectors, filled = targeted_fill_vectors(grid.vectors, donor)
     if not filled:
         return product
     product = copy.copy(product)
     product.grid = copy.copy(grid)
     product.grid.vectors = vectors
     try:
+        # filled_period: the donor's period travels with its height (dropping it would leave period=0.0 on a valid vector, the
+        # 0b5182436 class). GFS's is the PEAK period (PERPW); ICON's own cells carry tm10, an energy period ~16% shorter (#412).
         product.coarse_fill = {"donor_model": "GFS", "layer": layer_l, "mode": "targeted", "donor_region": "global_mid",
-                               "donor_product": getattr(gfs, "product_id", None), "cells_filled": filled,
-                               "cells_masked": len(masked), "cells_total": len(grid.vectors)}
+                               "donor_product": item.filename, "filled_period": "GFS peak (PERPW), the donor's",
+                               "cells_filled": filled, "cells_masked": len(masked), "cells_total": len(grid.vectors)}
     except Exception as e:
         logger.error(f"[Coarse Fill] PROVENANCE LOST: targeted fill substituted {filled} {layer_l} cells into {model} from GFS "
                      f"global_mid but could not stamp `coarse_fill` ({type(e).__name__}: {e}).")
@@ -332,8 +538,8 @@ async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
     return product
 
 
-def _load_gfs_coarse_waves(store, valid_time, layer="waves", region_id="global_coarse"):
-    """Find + load the GFS global-coarse marine product for `layer` nearest `valid_time`.
+def _find_gfs_item(store, valid_time, layer="waves", region_id="global_coarse"):
+    """The manifest item of the GFS marine product for `layer` and `region_id` nearest `valid_time` (within 3 h), or None. No load.
 
     ⚠️ `layer` is a PARAMETER, not a constant, since 2026-08-01: the donor must carry the SAME
     quantity as the recipient. It defaults to `waves` so the pre-existing call shape is
@@ -377,4 +583,11 @@ def _load_gfs_coarse_waves(store, valid_time, layer="waves", region_id="global_c
     # Match tolerance: within 3h (coarse products are 3-hourly); else no honest donor for this frame.
     if want is not None and bestdiff is not None and bestdiff > 3 * 3600 + 60:
         return None
-    return store.load_product(best.filename)
+    return best
+
+
+def _load_gfs_coarse_waves(store, valid_time, layer="waves", region_id="global_coarse"):
+    """Find + load the GFS marine product for `layer` (global_coarse by default) nearest `valid_time` (_find_gfs_item)."""
+    best = _find_gfs_item(store, valid_time, layer, region_id)
+    return store.load_product(best.filename) if best is not None else None
+

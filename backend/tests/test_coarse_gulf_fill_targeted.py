@@ -83,8 +83,11 @@ def _by_node(product):
 
 @pytest.fixture(autouse=True)
 def _flags(monkeypatch):
-    for k in ("MARINE_GULF_FILL_MID", "MARINE_GULF_FILL_MID_TARGETED", "MARINE_COARSE_GULF_FILL"):
+    for k in ("MARINE_GULF_FILL_MID", "MARINE_GULF_FILL_MID_TARGETED", "MARINE_COARSE_GULF_FILL", "MARINE_TARGETED_DONOR_CACHE"):
         monkeypatch.delenv(k, raising=False)
+    gf._DONOR_LRU.clear()
+    gf.TARGETED_NO_FILL.clear()
+    gf._LAST_NO_FILL.clear()
 
 
 @pytest.mark.parametrize("model", ["EURO", "ICON"])
@@ -99,8 +102,8 @@ def test_targeted_fills_only_where_the_gfs_2deg_node_is_sea_with_its_own_values(
     assert not cells[COAST_NEAR].is_valid                      # no reach: a sea node next door does not fill it
     assert cells[OPEN_SEA].speed == 1.5
     assert out.coarse_fill == {"donor_model": "GFS", "layer": "waves", "mode": "targeted", "donor_region": "global_mid",
-                               "donor_product": "gfs_marine_waves_global_mid.json", "cells_filled": 1, "cells_masked": 3,
-                               "cells_total": 4}
+                               "donor_product": "gfs_marine_waves_global_mid.json", "filled_period": "GFS peak (PERPW), the donor's",
+                               "cells_filled": 1, "cells_masked": 3, "cells_total": 4}
     assert all(not v.is_valid for v in src.grid.vectors[:3])   # the input (possibly the cache's) is never written to
 
 
@@ -123,11 +126,21 @@ def test_the_10deg_tier_keeps_today_s_fill_under_the_targeted_flag(monkeypatch):
     assert out.coarse_fill["cells_filled"] == 3 and "mode" not in out.coarse_fill   # every masked cell, from the 10-deg donor
 
 
-def test_fill_off_wins_over_targeted_and_a_missing_donor_serves_the_grid_as_stored(monkeypatch):
+def test_fill_off_wins_over_targeted_and_a_missing_donor_is_stamped_logged_and_counted(monkeypatch, caplog):
+    """The 2026-10-23 review: a silent missing donor blanks real sea for that frame. Now it is served as stored WITH a stamp,
+    a WARNING once per change, and a count."""
     monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
     stale = _Store(mid_vt="2026-10-23T09:00:00Z")              # GFS 2-deg 9 h away: no honest donor
     src = _recipient()
-    assert _fill(src, stale) is src
+    with caplog.at_level("WARNING"):
+        a, b = _fill(src, stale), _fill(src, stale)
+    for out in (a, b):
+        assert out is not src and out.grid is src.grid      # stamped on a copy; the grid (maybe the cache's) is untouched
+        assert (out.coarse_fill["mode"], out.coarse_fill["donor"], out.coarse_fill["cells_filled"]) == ("targeted", "missing", 0)
+        assert sum(1 for v in out.grid.vectors if not v.is_valid) == 3
+    assert src.coarse_fill is None
+    assert sum("targeted fill skipped (missing" in r.message for r in caplog.records) == 1     # logged once per change
+    assert gf.TARGETED_NO_FILL[("EURO", "waves", "missing")] == 2
     monkeypatch.setenv("MARINE_GULF_FILL_MID", "0")
     assert _fill(src) is src and gf.gulf_fill_mid_mode() == "off"
 
@@ -141,3 +154,50 @@ def test_capabilities_report_the_mode(monkeypatch):
     monkeypatch.setenv("MARINE_GULF_FILL_MID", "0")
     assert all((r["gulf_fill_mid"], r["gulf_fill_mid_mode"]) == (False, "off") for r in rows())
     assert all("gulf_fill_mid_mode" not in r for r in get_weather_capabilities() if r.get("model") == "GFS")
+
+
+def test_a_recipient_off_the_gfs_lattice_is_never_misaligned(monkeypatch):
+    """Exact-node matching assumes EURO_MID_RES == ICON_MID_RES == GFS_MID_RES and one origin. A recipient on another lattice is
+    served as stored with a lattice_mismatch stamp, never filled from the nearest GFS node."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    vecs = [_vec((25.0, -89.0), 0, False), _vec((0.0, 1.0), 1.5)]          # odd nodes: a 1-deg or shifted lattice
+    src = _product("EURO", "global_mid", "waves", vecs, 181, "euro_waves_shifted.json")
+    out = _fill(src)
+    assert out.coarse_fill["donor"] == "lattice_mismatch" and out.coarse_fill["cells_filled"] == 0
+    assert not out.grid.vectors[0].is_valid
+
+
+class _CountingStore(_Store):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.loads = []
+
+    def load_product(self, filename):
+        self.loads.append(filename)
+        return super().load_product(filename)
+
+
+def test_one_compact_donor_per_gfs_file_is_shared_by_euro_and_icon_and_the_lru_is_bounded(monkeypatch):
+    """The review's blocker: the first cut loaded the full GFS 2-deg product for EVERY frame. Now one compact donor per GFS file,
+    shared across models and frames, in a bounded LRU."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    store = _CountingStore()
+    for model in ("EURO", "ICON", "EURO", "ICON"):
+        out = _fill(_recipient(model), store)
+        assert out.coarse_fill["cells_filled"] == 1
+    assert store.loads == ["gfs_marine_waves_global_mid.json"]             # built once, then served from the LRU
+    monkeypatch.setenv("MARINE_TARGETED_DONOR_CACHE", "1")
+    _fill(_recipient(layer="swell_1"), store)                                # a second GFS file evicts the first (size 1)
+    assert len(gf._DONOR_LRU) == 1 and next(iter(gf._DONOR_LRU))[0] == "gfs_marine_swell_1_global_mid.json"
+
+
+def test_a_newer_gfs_run_under_the_same_filename_is_a_new_donor(monkeypatch):
+    """GFS filenames are keyed by valid time: a newer run rewrites the same name. The LRU keys by the manifest's run too."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    store = _CountingStore()
+    assert _by_node(_fill(_recipient(), store))[SEA_GULF].speed == 1.25
+    item = next(i for i in store.items if i.filename == "gfs_marine_waves_global_mid.json")
+    item.run_time = "2026-10-23T06:00:00Z"
+    newer = store.products["gfs_marine_waves_global_mid.json"]
+    newer.grid.vectors[0] = _vec(SEA_GULF, 2.5, direction=111.0, period=7.5)
+    assert _by_node(_fill(_recipient(), store))[SEA_GULF].speed == 2.5 and len(store.loads) == 2

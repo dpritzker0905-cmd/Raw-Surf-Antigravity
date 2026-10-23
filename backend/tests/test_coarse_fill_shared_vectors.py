@@ -306,6 +306,8 @@ def test_the_targeted_world_serve_fills_from_gfs_mid_only_and_leaves_l1_untouche
     value at the SAME node, only where that GFS node is sea; the 10-deg donor is present and must NOT be used; neither cached
     product (EURO global_mid, GFS global_mid) changes."""
     monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    from services.weather_pipeline import coarse_gulf_fill as _gf
+    _gf._DONOR_LRU.clear()
     _publish(served, _euro("global_mid", EURO_MID, 2.0), EURO_MID, "EURO", "global_mid")
     gfs_mid = _product("GFS", "global_mid", [
         GridVector(lat=26.0, lng=-90.0, speed=1.3, u=1.3, v=0.0, direction=95.0, period=6.0),   # sea: fills (26, -90)
@@ -331,4 +333,8 @@ def test_the_targeted_world_serve_fills_from_gfs_mid_only_and_leaves_l1_untouche
         c = _cell(cached, lat, lng)
         assert c.is_valid is False and c.speed == 0.0, f"the targeted fill wrote into the cached EURO global_mid at ({lat}, {lng})"
     assert cached.coarse_fill is None
-    assert _cell(_l1(GFS_MID), 26.0, -90.0).speed == pytest.approx(1.3)
+    # The donor is read from the stored file into a compact array: the full GFS 2-deg product never enters L1 (the review's
+    # series-cost blocker), and a second identical request answers identically (L-F9).
+    assert GFS_MID not in ProductStore._product_cache
+    again = _grid("-180,-80,180,85")
+    assert again.coarse_fill == world.coarse_fill and _cell(again, 26.0, -90.0).speed == pytest.approx(1.3)
