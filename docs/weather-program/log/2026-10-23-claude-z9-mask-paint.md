@@ -36,3 +36,40 @@ Client only. No served number changes. Each change is ON with a kill switch.
 - **Sibling static-source gate (`marineController`).** A hidden layer is warmed only where `staticSeriesEligible` says a
   static source serves it. A regional view has none until the z7-9 bundles ship, so switching to that layer fetches on demand.
   Kill: `__RAW_DISABLE_SIBLING_STATIC_GATE__`.
+
+## Results (offline, the live view, the real basemap; evidence file `runs`)
+- **Water paints during the 11 steps.** These counts do not depend on machine load.
+  - Before: 6 per session.
+  - With the keep only: 2 per session, the box-alternation rebuilds.
+  - With the keep and the stash trust: **0**. Both alternations became `stash_swap`s with no paint.
+- **Frames over 50 ms within 500 ms of a key**, on a quiet machine:
+  - killed arms: 6 and 7 per session (125-254 ms);
+  - keep only: 2 per session;
+  - all three on: **0** (session ab2 #1).
+  - Sessions ab2 #3-4 and a re-run pair ran while another session loaded this machine (idle frames 111-165 of ~360 per 6 s).
+    Their frame times are not timings; their paint and request counts agree with the quiet runs.
+- **`/grid_series` after Waves.** Killed: 10-11 requests, 6 of them the hidden layers' (swell_1, swell_2, wind_waves: their
+  hour-1 page plus their 48-frame page). On: 4, waves only.
+- Live this was ~24 s of the box's ~34 s of series work for one map load (the lead's read).
+
+## Tests
+- New: `maskPatchKeep.test.js` (the real refresh on a fake engine: a reuse commit skips, the kill repaints, a rebuilt or
+  re-cached texture repaints, a degraded record never earns the skip, a pan repaints), stash-trust cases in
+  `maskTextureStash.test.js`, and the gate in `marineController.warmLanes.test.js`. The old warm-lane test now runs under the
+  gate's kill switch.
+- Mutants: 13 of 13 killed (`scratchpad/mutants_z9.py`). They cover:
+  - each kill switch ignored;
+  - any texture handing back a record;
+  - the bounds check skipped;
+  - no stamp;
+  - no keep in `setWaveData`;
+  - the reset removed;
+  - a degraded, a foreign or a smaller paint trusted;
+  - the stash never trusting;
+  - the hidden-layer warm back on the backend.
+
+## Not done
+- The live read after the merge, at the same z9 view: `maskWaterPaint` calls during a 10-step scrub, and `/grid_series` only
+  for waves after the Waves toggle.
+- A switch to a hidden layer at a regional view now fetches on demand. It becomes instant again once a static regional source
+  (the z7-9 bundles) is eligible.
