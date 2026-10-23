@@ -276,3 +276,18 @@ The previous rule would have answered from the bundle; the new rule refuses such
 Before the pilot pick the late-manifest case served nothing (every page waited 3 s and then asked `/grid_series`), as the review
 predicted.
 
+**Second round (2026-10-23 late; Reflection's parameters via the lead, platform notes, the 19:44Z saturation):**
+- Backoff 30 s -> 2 min -> 10 min -> 30 min per bundle path, a longer `Retry-After` wins; a 404 / 400 or a sha12 mismatch is a
+  dead path for the pin (30 min) and re-pins once (status `integrity` for the mismatch, which also drops the cached bytes).
+- Fetch timeout 8 s, or the bundle's size at 150 KB/s when that is longer (a flat 8 s would abort brazil_east's ~2.5 MB on a slow
+  link and send every page to `/grid_series`). Fetch priority `high` for the viewed page and the `/grid` seam, `low` for
+  background pages (ignored where unsupported).
+- Manifest wait 1.5 s (only before `latest.json` is read; the pilot pick decides after).
+- An all-miss regional page (nothing held, nothing served) returns to `/grid_series`.
+- A browser without `crypto.subtle` or `DecompressionStream('gzip')` (Safari < 16.4, insecure contexts) picks no regional tile:
+  nothing is downloaded and every box keeps its existing path.
+- Surf mode and models without bundles (ICON, EURO) never read a bundle or wait (two guards: `staticEligible` and
+  `regionalTileFor`; a mutant removing both is caught). The 19:44Z saturation (surf rating on, ICON + EURO, unsnapped pans) is
+  outside this client; its pan debounce / surf sibling gate went to the GPU-frames session.
+- Mutants: 21 guards, 21 caught.
+

@@ -14,7 +14,7 @@ import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 
 jest.mock('../../lib/apiClient', () => ({ API_BASE: 'https://api.test/api' }));
 jest.mock('./backendWeatherServiceClient', () => ({
-  getSurfModeFlag: () => false, fetchProductsManifest: (...a) => global.__manifestFetch(...a),
+  getSurfModeFlag: () => global.__surf === true, fetchProductsManifest: (...a) => global.__manifestFetch(...a),
 }));
 jest.mock('./weatherTruthTracker', () => ({ buildTruthTag: () => null, recordTruthStage: () => {} }));
 jest.mock('./seriesAnchor', () => ({
@@ -92,6 +92,31 @@ afterEach(() => {
   setCachedManifest(null);
   global.fetch = realFetch;
   delete global.__manifestFetch;
+  delete global.__surf;
+});
+
+test('an ALL-MISS page (every hour outside the run) is the backend\'s: it asks /grid_series instead of claiming nothing', async () => {
+  await getPinnedIndex(KEY);
+  await ensureMarineSeries('GFS', 'waves', VIEW, 200, undefined, true);   // page 1: the run's one frame is at hour 0
+  await flush();
+  expect(pageAsks()).toHaveLength(1);
+  expect(window.__RAW_STATIC_REGIONAL__.series).toBe(0);
+});
+
+test('surf mode and models without bundles (ICON, EURO) never read a bundle or wait: their existing path', async () => {
+  global.__surf = true;
+  await getPinnedIndex(KEY);
+  setCachedManifest(null);
+  global.__manifestFetch = jest.fn(() => new Promise(() => {}));
+  await ensureMarineSeries('GFS', 'waves', VIEW, 0, undefined, true);    // surf: rating grids are a server transform
+  await flush();
+  expect(pageAsks().filter((u) => u.includes('surf=1'))).toHaveLength(1);
+  delete global.__surf;
+  for (const model of ['ICON', 'EURO']) await ensureMarineSeries(model, 'waves', VIEW, 0, undefined, true);
+  await flush();
+  expect(pageAsks().filter((u) => /model=(ICON|EURO)/.test(u))).toHaveLength(2);
+  expect(calls.filter((u) => u.endsWith('.bin'))).toHaveLength(0);
+  expect(global.__manifestFetch).not.toHaveBeenCalled();
 });
 
 test('the opening: the hour-0 mini goes at once; the page waits for the manifest, then is served from the bundle (no page ask)', async () => {

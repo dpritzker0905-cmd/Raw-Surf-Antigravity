@@ -174,3 +174,30 @@ full cover from a dynamic product. The previous rule would have served the bundl
 Evidence: `evidence/regional-bundles-client-2026-10-23.json` (`review_fixes`).
 
 **Owed (unchanged):** one live read on the fixed head after the 19:45Z publish, with time to first frame and the request counts.
+
+## 2026-10-23 (20:45Z): #491 second round (Reflection's parameters via the lead, platform notes, the 19:44Z saturation)
+
+**Adopted:**
+- backoff 30 s -> 2 min -> 10 min -> 30 min with Retry-After;
+- 404/400 and sha12 mismatches are dead paths that re-pin once;
+- 1.5 s manifest wait;
+- fetch priority high (viewed page, /grid seam) and low (background);
+- an all-miss regional page returns to /grid_series;
+- no regional tile without crypto.subtle + DecompressionStream (nothing downloaded);
+- surf mode, ICON and EURO never claimed (two guards, the combined mutant caught).
+
+**Deviation:** the 8 s timeout is a floor; a bundle gets its size at 150 KB/s when that is longer (brazil_east ~2.5 MB would abort
+at a flat 8 s on a slow link).
+
+**Mutants:** 21 guards, 21 caught.
+
+**Measured on the merge target** (full dev tree ceeeaf361 + branch; owner z9):
+
+| | first frame | marine backend asks |
+|---|---|---|
+| manifest on time (regional) | 0.8-1.1 s | 0 |
+| manifest on time (kill) | 2.4-3.9 s | 7 (40-43 s) |
+| manifest 4 s late (regional) | 0.8-0.9 s | 0 |
+| manifest 4 s late (kill) | 1.7-6.4 s | 4-6 (39-59 s) |
+
+The on-time case lost its 3 one-frame minis: once latest.json is read every page is owned. Worst step 37-41 ms, 0 mislabelled.

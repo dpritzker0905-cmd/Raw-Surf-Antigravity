@@ -357,11 +357,11 @@ function sharedParsedLoad(key, frame, priority) {
     const t = telemetry();
     let got;
     try {
-      got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal)
+      got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal, priority)
         : await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
     } catch (e) { got = { error: 'fetch_error' }; }                      // never an unhandled rejection
     if (got.error) {
-      if (got.status === 404 || got.status === 400) markPinStale(key); // retention removed it: re-pin next time
+      if (got.status === 404 || got.status === 400 || got.status === 'integrity') markPinStale(key); // gone or wrong: re-pin
       noteMiss(got.error === 'aborted' ? 'aborted' : (got.status ? `http_${got.status}` : 'fetch_error'));
       if (got.error !== 'aborted') t.errors += 1;
       return null;
@@ -668,10 +668,10 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
  * hours it could not fill (the caller leaves those to the per-hour path), or null when the page is not eligible or
  * the index is missing (the caller then uses /grid_series as before).
  */
-export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anchorMs, focusHour, signal, onFrames }) {
+export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anchorMs, focusHour, signal, onFrames, priority }) {
   if (!staticSeriesEligible({ model, layer, bbox, surf })) return null;
   const tile = regionalTileFor({ model, layer, bbox, surf, param: seriesBboxParam });
-  if (tile) return staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames });
+  if (tile) return staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames, priority });
   const key = setKeyFor(model, layer);
   const index = await getPinnedIndex(key).catch(() => null);
   if (!index) { noteMiss('no_index'); return null; }
@@ -707,7 +707,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
 // lattice (a box past the last data node: us_southeast_midatlantic, us_northeast, france_biscay), or the bundle failed (fetch,
 // sha12, decode) before a frame was served. ONE index for the whole fill, so a page never mixes two runs. Hours the run cannot
 // serve (outside its window, unbuilt) are returned for the per-hour path.
-async function staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames }) {
+async function staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames, priority }) {
   const index = await getPinnedIndex(tile.key).catch(() => null);
   if (!index) { noteRegionalMiss('no_index'); return null; }
   if (!regionalPageServable(index, model, bbox)) { noteRegionalMiss('page_not_servable'); return null; }
@@ -721,7 +721,7 @@ async function staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, 
     const askMs = anchorMs + h * 3600000;
     const p = regionalPickFrom(index, { model, askMs, bboxStr });
     if (!p) { missing.push(h); continue; }
-    const vectors = await loadFrameVectors(tile.key, p.frame, signal);
+    const vectors = await loadFrameVectors(tile.key, p.frame, signal, { priority });
     if (!vectors) {
       if (served === 0 && !(signal && signal.aborted)) { noteRegionalMiss('page_failed'); return null; }
       missing.push(h); continue;
