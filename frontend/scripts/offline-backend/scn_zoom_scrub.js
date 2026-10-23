@@ -26,6 +26,7 @@
 //   nostore  window.__RAW_DISABLE_FRAME_STORE__ = true
 //   nocropshow  window.__RAW_DISABLE_FRAME_STORE_CROP__ = true (the store shows world-sized residents only, as before 2026-10-22)
 //   grid     window.__RAW_DISABLE_STATIC_FRAMES__ = true (no CDN at all: /grid + /grid_series only)
+//   noaheadrun  window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true (a new window's packs for the cursor +-24 only, as before pass 2)
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -90,6 +91,7 @@ const PROBE = () => {
   // The resident's data time: its stored product id (the per-hour path, a frame-store show), else the served time it carries,
   // else for a series frame anchor + its hour (series pages ask the cadence-aligned product times).
   const dataMs = (s, W) => (s.pid ? stampMs(s.pid) : (s.served ? Date.parse(s.served) : (s.series && s.hour != null ? W.anchor + s.hour * 3600000 : null)));
+  P.dataIso = (s, W) => { const m = dataMs(s, W); return m == null ? null : new Date(m).toISOString(); };
   const exactNow = (s, W) => dataMs(s, W) === W.expectedMs && s.layer === 'waves' && s.model === 'GFS' && s.stride === 0;
   const loop = (t) => {
     const W = P.w;
@@ -100,7 +102,7 @@ const PROBE = () => {
       if (W.exact == null && ok) { W.exact = W.already ? 0 : rel; W.via = s.store ? 'store' : (s.series ? 'series' : 'grid'); W.pid = s.pid; }
       else if (W.exact != null && !ok) W.regress += 1;
       const dm = dataMs(s, W);
-      if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') W.mislabel += 1;
+      if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') { W.mislabel += 1; if (!W.mid) W.mid = { rel: Math.round(rel), pid: s.pid, served: s.served, store: s.store, series: s.series, dataIso: P.dataIso(s, W) }; }
       const dims = `${s.cols}x${s.rows}`;
       if (dims !== W.lastDims) { W.dims.push(`${dims}@${Math.round(rel)}`); W.lastDims = dims; }
       if (s.grid !== W.lastGrid) { W.commits += 1; W.lastGrid = s.grid; }
@@ -131,10 +133,28 @@ async function clickExact(page, text) {
   await loc.evaluate((el) => el.click());
 }
 
+// REQLOG=1: what answered each weather request (the tier behind a resident: product, scope, lattice, dynamic or stored).
+const REQLOG = process.env.REQLOG === '1';
+function describeWeather(url, body) {
+  const pick = (d) => { const g = (d && d.grid) || {}; return { product: d && d.product_id, scope: d && d.coverage_scope, dyn: !!(d && d.is_dynamic_viewport_product),
+    served: d && d.served_bbox, cols: g.cols, rows: g.rows }; };
+  const q = Object.fromEntries(url.searchParams.entries());
+  const out = { path: url.pathname.replace('/api/weather', ''), bbox: q.bbox || null, vt: q.valid_time || null };
+  if (Array.isArray(body && body.frames)) { out.frames = body.frames.length; Object.assign(out, pick(body.frames.find((f) => f && f.grid) || body.frames[0])); }
+  else if (body && body.grid) Object.assign(out, pick(body));
+  return out;
+}
+
 async function session(arm, zoom) {
   const v = VIEWS[VIEW];
+  const reqLog = [];
   const { browser, page, log } = await L.launch({ port: PORT, width: v.width, height: v.height, dpr: v.dpr, hashTextureUploads: true, hooks: { beforeWeather: async (url) => {
-    const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); } } });
+    const d = url.pathname.endsWith('/grid_series') ? LAT_SERIES : url.pathname.endsWith('/grid') ? LAT_GRID : 0; if (d) await sleep(d); },
+  afterWeather: REQLOG ? async (url, resp) => {
+    if (!/\/grid(_series)?$/.test(url.pathname)) return;
+    let body = null; try { body = JSON.parse((await resp.body()).toString('utf8')); } catch (e) { /* not json */ }
+    reqLog.push({ t: Date.now() - log.t0, ...describeWeather(url, body) });
+  } : undefined } });
   await page.addInitScript(({ arm, base }) => {
     localStorage.removeItem('__RAW_STATIC_FRAMES__');
     window.__RAW_STATIC_FRAMES_BASE__ = base;
@@ -142,6 +162,7 @@ async function session(arm, zoom) {
     if (arm === 'nocrop') window.__RAW_DISABLE_STATIC_MID_CROP__ = true;
     if (arm === 'nostore') window.__RAW_DISABLE_FRAME_STORE__ = true;
     if (arm === 'nocropshow') window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
+    if (arm === 'noaheadrun') window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
   }, { arm, base: `http://127.0.0.1:${CDN_PORT}/` });
   await page.addInitScript(PROBE);
   const steps = [];
@@ -162,7 +183,7 @@ async function session(arm, zoom) {
     const reqs0 = log.requests.length;
     for (const [key, target] of STEPS) {
       await page.evaluate(({ t, e, a }) => window.__ZS__.arm(t, e, a), { t: target, e: expected[target], a: anchor });
-      const r0 = log.requests.length;
+      const r0 = log.requests.length; const q0 = reqLog.length;
       const wheel = page.locator(WHEEL).filter({ visible: true }).first(); await wheel.focus();
       if (key === 'BURST') { for (let i = 0; i < 5; i++) { await page.keyboard.press('PageUp'); await sleep(60); } } else await page.keyboard.press(key);
       const t0 = Date.now(); let r;
@@ -173,13 +194,15 @@ async function session(arm, zoom) {
       const q = log.requests.slice(r0); const by = {}; for (const x of q) by[x.path] = (by[x.path] || 0) + 1;
       steps.push({ key, target, exactMs: r.exact == null ? null : Math.round(r.exact), labelMs: r.label == null ? null : Math.round(r.label),
         via: r.via, already: r.already, regress: r.regress, mislabel: r.mislabel, commits: r.commits, dims: r.dims, reqs: by,
-        end: { h: r.end.hour, cols: r.end.cols, rows: r.end.rows, span: r.end.span, stride: r.end.stride, store: r.end.store, series: r.end.series } });
+        ...(REQLOG ? { reqDetail: reqLog.slice(q0) } : {}),
+        end: { h: r.end.hour, cols: r.end.cols, rows: r.end.rows, span: r.end.span, stride: r.end.stride, store: r.end.store, series: r.end.series, pid: r.end.pid, served: r.end.served },
+        mid: r.mid || null });
       await sleep(400);
     }
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) steps.forEach((x) => { x.anchorRolled = true; });
     const after = await page.evaluate(() => window.__ZS__.counters());
     const byPath = {}; for (const q of log.requests.slice(reqs0)) byPath[q.path] = (byPath[q.path] || 0) + 1;
-    return { arm, zoom, view: VIEW, vp, steps, before, after, backendRequests: byPath, errors: log.errors.slice(0, 5) };
+    return { arm, zoom, view: VIEW, vp, steps, before, after, backendRequests: byPath, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
   } finally { await browser.close(); }
 }
 
