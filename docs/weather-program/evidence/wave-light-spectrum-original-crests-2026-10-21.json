@@ -1,0 +1,53 @@
+{
+ "what": "D-041 made the ORIGINAL light crests (deep navy -> amber-gold -> crimson red, white foam) light's default again; #431 (spectrum) keeps them by default. The original crests over live light (v2 at 16 m) and over the re-solved spectrum, at the opacity the engine gives a crest core per zoom.",
+ "model": {
+  "tool": "frontend/scripts/wind-color/crest-over-wash.mjs --crest v1",
+  "note": "weakest APCA |Lc| over swell lighting 0/0.5/1 and whitecap off/on, wash at world opacity",
+  "table": "crest v1: weakest APCA |Lc| of a crest core on the wash under it (world wash opacity; lighting 0/0.5/1; whitecap off/on)\n\nzoom 2.2 (crest core opacity 0.27 0.30 0.33 0.36 0.41 0.47 0.54 0.63 0.69 0.69 0.69)\n  height          0.3   0.8  1.25   1.5     2   2.5     3     4     6     9    13\n  live light (v2 @ 16 m)    24.0  22.9  20.4  17.5   9.6   0.0   0.0   0.0   0.0   0.0   0.0   min 0.0\n  spectrum (#431)           22.2  20.6  17.3  14.2   0.0   0.0   0.0   0.0   0.0   0.0   0.0   min 0.0\n\nzoom 4.6 (crest core opacity 0.33 0.36 0.40 0.43 0.50 0.58 0.65 0.76 0.84 0.84 0.84)\n  height          0.3   0.8  1.25   1.5     2   2.5     3     4     6     9    13\n  live light (v2 @ 16 m)    29.3  28.0  25.0  21.4  11.9   0.0   0.0   0.0   0.0   0.0   0.0   min 0.0\n  spectrum (#431)           27.1  25.1  21.2  17.4   0.0   0.0   0.0   0.0   0.0   0.0   0.0   min 0.0\n\nzoom 9 (crest core opacity 0.61 0.66 0.74 0.79 0.85 0.85 0.85 0.85 0.85 0.85 0.85)\n  height          0.3   0.8  1.25   1.5     2   2.5     3     4     6     9    13\n  live light (v2 @ 16 m)    52.2  50.0  44.8  38.4  19.6   0.0   0.0   7.3   0.0   0.0   0.0   min 0.0\n  spectrum (#431)           48.5  45.0  38.1  31.1  11.0   0.0   0.0   0.0   0.0   0.0   0.0   min 0.0\n"
+ },
+ "engine": {
+  "note": "production build of the merged #431 (dev 83c1c4c0c + #431), offline synthetic backend, open sea at 12N 125W (about 2 m), 12 paired frames per zoom (exact crest-free wash under each), crest_contrast.py p99 over sea pixels",
+  "reads": {
+   "z22/live light (v2)": {
+    "p99_lc": 22.1,
+    "p99_normal": 19.3,
+    "share_lc_ge15": 0.0418,
+    "null_half_vs_half_lc": 0.7
+   },
+   "z22/spectrum (#431)": {
+    "p99_lc": 17.5,
+    "p99_normal": 16.7,
+    "share_lc_ge15": 0.0189,
+    "null_half_vs_half_lc": 0.3
+   },
+   "z46/live light (v2)": {
+    "p99_lc": 14.7,
+    "p99_normal": 9.4,
+    "share_lc_ge15": 0.0088,
+    "null_half_vs_half_lc": 0.5
+   },
+   "z46/spectrum (#431)": {
+    "p99_lc": 11.5,
+    "p99_normal": 8.5,
+    "share_lc_ge15": 0.0016,
+    "null_half_vs_half_lc": 0.6
+   },
+   "z90/live light (v2)": {
+    "p99_lc": 28.5,
+    "p99_normal": 20.6,
+    "share_lc_ge15": 0.1106,
+    "null_half_vs_half_lc": 5.3
+   },
+   "z90/spectrum (#431)": {
+    "p99_lc": 22.2,
+    "p99_normal": 18.7,
+    "share_lc_ge15": 0.0806,
+    "null_half_vs_half_lc": 3.3
+   }
+  }
+ },
+ "solver": {
+  "tool": "spectrum-apart.mjs --crest-lc N --crest-zoom 9 (original crest core at close-zoom opacity at least N APCA |Lc| off the wash at every height), with the re-solve's other rules, wide lightness and hue windows",
+  "result": "infeasible at N = 20 and 30 (no colour at 2.5 m), 15 and 12 (none at 2.5 m), 10 (no path at 4 m): no light wash that darkens with height keeps the original crests visible at every height; amber (about 3 m) and crimson (6 m up) are mid-lightness and a falling wash passes through them"
+ }
+}

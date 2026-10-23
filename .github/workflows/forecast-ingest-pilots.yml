@@ -73,6 +73,9 @@ jobs:
           CONSENSUS_INGEST: '1'         # ARMED by the owner's merge of the arming PR (D-009; declared '0' by #164). '1' builds the equal GFS/EURO/ICON mean as the SHADOW model CONSENSUS in the pilots lane (consensus_ingest.py) and adds the `raw_surf:CONSENSUS` lane to the skill ledger that forecast-ingest.yml and precompute.yml run. Serves nothing either way. ARM ALL THREE TOGETHER: forecast-ingest-pilots.yml, forecast-ingest.yml, precompute.yml.
           SAMPLER_SCALAR_HEIGHT: '1'    # FLIPPED 2026-10-17 on the owner's word, GFS first (SAMPLER_SCALAR_HEIGHT_MODELS; evidence: ledger 1345, gate YES; declared dark at default 2026-09-30): '1' interpolates a MARINE height as the scalar it is (the corners' weighted mean) instead of sqrt(u^2+v^2) of their vector mean, which shrinks it wherever the corners' directions diverge (islands, headlands: NDBC 51202 served 0.98 m, scalar 1.45, same-model cell 1.44, buoy 2.0; 11% of rated spots read > 5% low). Direction keeps the vector mean; wind is untouched. See sampler.scalar_marine_height_enabled. Moves served heights on every surface: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
           SAMPLER_SCALAR_HEIGHT_MODELS: 'GFS'  # DECLARED AT DEFAULT (2026-10-17, dark): which models SAMPLER_SCALAR_HEIGHT applies to once it is flipped (comma list; '*' = every model; empty = none). GFS first: its scalar lane is the only one graded; ICON and EURO join only after their own shadow lanes are read. No effect while SAMPLER_SCALAR_HEIGHT is '0'. Same value in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env.
+          COPERNICUS_PEAK_PERIOD: '0'   # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches CMEMS VTPK (spectral PEAK period, what surf_transform/period_quality are written for) as the total wave_period instead of VTM10 (energy period, kept as wave_period_tm10). services/cmems_period_map.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
+          ICON_PEAK_PERIOD: '0'         # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and serves a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml AND precompute.yml together (not a Render flag).
+          ICON_PEAK_PERIOD_SHARPNESS: '2'  # DECLARED AT DEFAULT (2026-10-20): blend exponent for ICON_PEAK_PERIOD (w ~ (H^2 Tp)^p). Inert while ICON_PEAK_PERIOD is '0'. Same value in all three lanes.
           REGRID_NATIVE_CELL: '1'       # FLIPPED by the owner's merge of the flip PR (D-010; declared '0' by #171, made coast-safe by #173: real GRIB run 36626767710 on its final code lost 0 total-height values). '1' makes every 0.25-deg regional wave tile (GFS, ICON and EURO) read its EXACT native cell; at '0' each node is the 2x2 block NORTH-WEST of it (half = max(1, round(0.25/0.25/2)) = 1), a mean placed half a cell (~14 km) south-east of its water, found by same_model_parity_probe (node = Open-Meteo's NW 2x2 to 1 cm on 72% of rows). Coarser tiers are untouched. Moves served heights and directions on every regional tile: flip ONLY on the owner's word, and in BOTH fetch lanes together (forecast-ingest.yml, forecast-ingest-pilots.yml), never one, or the same coast is regridded two ways by cycle. See services/_fetch_native_cell.py.
           GFS_MARINE_STAGE_B: '1'       # FLIPPED by the owner (2026-09-29: 'flip the Stage B PNW box'; D-011; declared '0' by #177). '1' adds the F-08 Stage B GFS-only box us_pacific_northwest (38-49N, 128-122W: NorCal, Oregon, Washington, 23 spots) to the GFS marine pass. Measured first: the 2-deg tier those spots use today reads +0.097 m vs the same model (46244 Humboldt +0.50 m). Flip in BOTH fetch lanes together.
           ECMWF_PERIOD_BANDS: '0'           # DECLARED AT DEFAULT (2026-08-02, audit v5 F8). This lane shares `scripts/ingest_forecast_ci.py` with forecast-ingest.yml and REACHES the ECMWF fetcher (via euro_marine_coarse_ingestion -> ecmwf_wave_service, and marine_mid_res_ingestion for the 0.25 deg regional tiles), so it must carry the same value. Flipped in the core lane only, the global coarse EURO field would carry period bands while every regional tile did not — THE SAME COAST WOULD DECOMPOSE ITS SEA DIFFERENTLY BY ZOOM LEVEL. ⚠️ Verified by import-graph walk, not assumed: precompute.yml reaches NO ecmwf module (57 files walked) and correctly does NOT declare this; this lane reaches it (81 files walked) and does.
@@ -117,3 +120,32 @@ jobs:
           # free ECMWF wave stream, no CMEMS). No-commit kill: set EURO_MARINE_PILOT_INGEST=0.
           EURO_MARINE_PILOT_INGEST: ${{ vars.EURO_MARINE_PILOT_INGEST || '1' }}
         run: python scripts/ingest_forecast_ci.py
+
+      # STATIC FORECAST FRAMES (step 2b, 2026-10-20; client ON since 2026-10-21): every stored product of each world set in
+      # services/frame_set.SETS (2026-10-22: GFS waves, swell_1, swell_2, wind_waves; ICON waves, swell_1, wind_waves; EURO
+      # waves; GFS 10 m wind; all global_mid) as one gzipped binary frame (~56 KB) in the PUBLIC bucket `weather-frames`, each decoded and
+      # checked node by node against its source
+      # before upload, plus an immutable run index and a no-cache v1/latest.json pointer written LAST; only changed frames
+      # are uploaded; the current and previous index are kept and older objects deleted. Also writes the one-field PNG
+      # proof + manifest.json. Built ONLY from this runner's own product files: nothing is downloaded from weather-products,
+      # except ONE object for the GFS wind set (2026-10-22, services/frame_set_wind.py): the HRRR lane the serve box loads
+      # (wind_lane/index.json -> its ~4.5 MB cycle), applied to every wind frame as /grid applies it (D-017); the step then
+      # keeps v1/wind_lane.json (the lane pointer the client checks) naming that lane.
+      # WHY THIS LANE: the GFS world products are pilot jobs (scheduler/forecast.py pilot_jobs; global_mid rides the GFS
+      # Marine Pilot pass). This lane's disk held all 113 (run 39543806662); the core lane's only 60, 5 within 0-165 h
+      # (run 39546548998). It must run in THIS lane only: two publishers' retention could delete each other's frames.
+      # A set below FRAME_MIN_COVERAGE (0.9) of its AUTHORITATIVE entries publishes nothing (the ICON/EURO estimated tails
+      # are baked by the core lane: listed unbuilt, /grid serves them). Past FRAME_PUBLISH_BUDGET_S (default 600 s) no
+      # further set starts this run (it keeps its published index); FRAME_SETS (comma list of set keys) narrows a run. The
+      # client reads it by default (kill: window.__RAW_DISABLE_STATIC_FRAMES__; per set: __RAW_DISABLE_STATIC_FRAMES_SETS__).
+      # Can never fail the ingest cycle (continue-on-error).
+      # ON: repository variable FRAME_IMAGES_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
+      - name: Publish static forecast frames (dark)
+        if: ${{ success() && vars.FRAME_IMAGES_PUBLISH == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/publish_frame_images.py

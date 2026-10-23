@@ -1315,3 +1315,35 @@ A stored estimate can be estimated again in a browser branch with different sour
 - A "first scheduled run" watch must include the storage and cost criteria, not only "no errors": the lane published correctly and quietly filled the bucket. The commitment that named "storage growth bounded" caught it on
   the first read, which is the reason to name the criteria before enabling.
 - A logged count can be right and still describe the wrong thing: the gauge's own text said "listing capped at 100: there may be more". When a gauge states its blind spot, that sentence is the first thing to test.
+
+
+### 2026-10-22 — L-S22 · A parity fixture is only as good as the population it holds: seed masked cells, and compare with what the route SERVES
+
+- #453 shipped eight static world sets on an offline parity of 27.5 M nodes, 0 bad, over a synthetic store with NO masked cells.
+  /grid runs `coarse_gulf_fill` on EURO/ICON grids of served span >= 350 deg (every world request) and rewrites masked cells with
+  GFS coarse values. Over an all-ocean store that step is a no-op, so the parity could not see it. Live, one world /grid read
+  2026-10-22 21:55Z: EURO 2,465 of 4,689 masked cells rewritten, ICON 1,708 of 3,788. Caught on review before any ICON/EURO frame
+  was published; guard #461.
+- Second trap, same day: the first synthetic land mask also masked the 10-deg GFS donor over whole continents, so no masked 2-deg
+  cell had a donor within the fill's bucket reach and the fill still did nothing; my first offline number (1,757 of 2,066) had come
+  from an all-valid donor. A fixture must reproduce the PRODUCTION shape of every input a transform reads (here: coarse cells valid
+  wherever they hold ocean), not just the input under test.
+- Rule: a parity that claims "static == /grid" runs over a store that carries the cells every serve-time step touches (masked
+  cells, enclosed seas, estimated tails), compares against the route's full output (resolve_grid, then every post-resolve step in
+  routes/weather.py: coarse_gulf_fill, wind_lane), and carries a POSITIVE CONTROL that is seen to fail (`serve_synthetic.py
+  --land-mask 1` + `scn_static_parity.mjs` reads ICON/EURO world frames bad > 0; GUARD=1 reads 0). When the live product holds a
+  population the fixture lacks, measure one live response's stamp (here `coarse_fill.cells_filled`) before trusting the fixture.
+
+
+### 2026-10-23 — L-P38 · A shared append-only file with a global sequence serialises every writer: give each writer its own file and one folder
+
+- Every PR appended to ACTIONS.jsonl and moved STATE's anchor, so any two open PRs claimed the same seq; the second to merge
+  conflicted and was re-chained by hand, then waited ~25 min for CI again (about 15 merges on 2026-10-22, most re-chained).
+  Auto-merge could never run unattended. Re-chaining also looked like tampering to a permission classifier ("stripping
+  ledger lines"), because from outside a re-chain and a rewrite are the same diff.
+- Fix (D-0XX): per-PR fragments (`ledger.d/<branch-slug>.jsonl`, no seq/prev/at) and one writer of the chain (the lead's
+  `fold-pr`), which folds in MERGE ORDER, verifies, content-matches every line and only then deletes the fragments. The guard
+  recomputes the fold from dev and requires equality, so a fold is checkable, not trusted.
+- Rule: when N writers share an ordered log, separate WRITING (one file each, no shared counter) from ORDERING (one writer, after
+  the merge, from an order git already records). A reference to a line that has no number yet needs a name of its own
+  (`@frag:<name>:N`), and the folded line keeps that name (`fragment`) so the reference still resolves after the file is gone.

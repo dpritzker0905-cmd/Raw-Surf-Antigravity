@@ -13,7 +13,7 @@ on:
   #   skips is reported MISSING, not passing, and blocks the branch permanently. `loc-check.yml`
   #   HAS such a filter and is therefore NOT required — see its header.
   push:
-    branches: [dev, main]
+    branches: [dev, main, codex/reconcile-euro-dev-20261019]
   pull_request:
     branches: [dev, main]
 
@@ -917,7 +917,15 @@ jobs:
           # 207 files / 3136.
           # Marine contributor health: +54 guards from dev3136 ->3190; same207files and margin6.
           # Final PR378 review: +28 malformed-cycle/identity health controls; 3190 ->3218, margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 207, 3212
+          # W-4 series page memo (test_series_page_memo.py, new guards file): +37 guards. Hosted run 39259510389 read
+          # 3248 / 208 with the first 30 (= 3218 + 30, the projection); 3218 + 37 = 3255 projected; margin 6.
+          # ⬆ 208/3249 → 209/3281 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (GRID_SERIES_MEMO_RUN_KEYS, dark):
+          # tests/test_series_memo_run_keys.py (32, a new file selector-verified into this lane: --lane guards 208 -> 209);
+          # the first hosted run read 3285 with 30 of them (= 3255 + 30); +2 after review -> 3287 projected; 3287 - 6 = 3281.
+          # ⬆ 209/3281 → 210/3287 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (MARINE_GULF_FILL_MID, dark): one new guards
+          # file (tests/test_coarse_gulf_fill_mid.py, matched by tests/test_coarse_*.py) adds 6 tests to the 3287 / 209 read of dev
+          # CI 39861554298 @ 57632973b: projected 3293 / 210; 3293 - 6 = 3287. _FLOOR_SET_FROM["guards"] -> 3293.
+          MIN_FILES, MIN_PASSED = 210, 3287
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1488,7 +1496,24 @@ jobs:
           # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
           # Dark coherent marine trends: +20 chain controls from dev2701 ->2721; same166files and margin6.
           # Final PR378 review: +12 empty-identity/UTC-overflow refusal controls; 2721 ->2733, margin6 unchanged.
-          MIN_FILES, MIN_PASSED = 166, 2727
+          # ⬆ 169/2803 → 170/2817 on 2026-10-19, IN THE SAME COMMIT THAT CAUSES IT (the GFS/EURO/ICON model-spread data
+          # collector, dark): tests/test_model_spread.py (14, a new file selector-verified into this lane: --lane chain 169 -> 170);
+          # the floor-staleness projection 2809 + 14 -> projected 2823/170; 2823 - 6 = 2817. This PR must read 170 files / 2823.
+          # ⬆ 170/2817 → 171/2820 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (CMEMS source labels: MFWAM, not ECMWF):
+          # tests/test_cmems_source_labels.py (3, a new file selector-verified into this lane: --lane chain 170 -> 171);
+          # dev 11d19ef0 hosted read 2823/170 (CI 39364732468) + 3 -> projected 2826/171; 2826 - 6 = 2820. This PR must read 171 files / 2826.
+          # ⬆ 171/2820 → 172/2836 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (COPERNICUS_PEAK_PERIOD + ICON_PEAK_PERIOD, dark):
+          # tests/test_peak_period_flags.py (16, a new file selector-verified into this lane: --lane chain 171 -> 172), re-derived after
+          # #407: its hosted read 2826/171 (CI 39379941948) + 16 -> projected 2842/172; 2842 - 6 = 2836. This PR must read 172 files / 2842.
+          # +1 (2026-10-20, review fix in #412: the flag-on CMEMS window guard in test_peak_period_flags.py) -> 2843/172; 2843 - 6 = 2837.
+          # ⬆ 172/2837 → 173/2849 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (/products encoded once per manifest version):
+          # tests/test_products_response.py (12, a new file selector-verified into this lane: --lane chain 172 -> 173);
+          # 2843 + 12 = 2855 projected; 2855 - 6 = 2849. This PR must read 173 files / 2855.
+          # ⬆ 173/2849 → 174/2856 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (static GFS wind frames):
+          # tests/test_frame_set_wind.py (7, a new file selector-verified into this lane: --lane chain 173 -> 174); dev 57632973b
+          # hosted read 2855/173 (CI 39861554298) + 10 (7, then 3 from the publisher review) -> projected 2865/174; 2865 - 6 = 2859.
+          # This PR must read 174 files / 2865.
+          MIN_FILES, MIN_PASSED = 174, 2859
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1931,12 +1956,37 @@ jobs:
           # secret), STACKED on the default-deny guard PR: one new estate file adds 15 executed tests
           # (tests/test_ws_admin_events_internal_token.py) to that PR's projected 2280: 2295; 2295 - 2 = 2293.
           # _FLOOR_SET_FROM["estate"] -> 2295. Re-read from the hosted run of whichever PR merges second.
-          # ⬆ 2293→2367 on 2026-10-18, IN THE SAME PR THAT CAUSES IT (route-identity batch 4, stacked on the
-          # admin events socket PR): the existing binding file adds 41 executed tests (13 named-actor routes x 3,
-          # plus 1 login-only route x 2), tests/test_admin_only_write_routes.py adds 29 (7 admin-only routes x 3,
-          # 2 bootstrap routes x 4) and tests/test_grom_credit_link.py adds 4, to that PR's projected 2295: 2369;
-          # 2369 - 2 = 2367. _FLOOR_SET_FROM["estate"] -> 2369. Re-read from the hosted run of whichever PR merges last.
-          MIN_PASSED = 2367
+          # ⬆ 2298→2303 on 2026-10-19, owed by #398 (e2e_backend_ready --same-backend added estate tests and did not move
+          # the floor): hosted dev CI 39331532690 @ 88e762fe observed 2305 passed; 2305 - 2 = 2303, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2305. Carried in #389 because its floor-staleness check caught it.
+          # ⬆ 2303→2310 on 2026-10-19, IN THE SAME PR THAT CAUSES IT (one-field frame-image proof): one new estate file
+          # adds 7 executed tests (tests/test_frame_image.py) to the 2305 read of dev CI 39331532690: projected 2312;
+          # 2312 - 2 = 2310, margin 2. _FLOOR_SET_FROM["estate"] -> 2312. This PR must read 2312 passed.
+          # ⬆ 2310→2315 on 2026-10-21, IN THE SAME PR THAT CAUSES IT (Logfire setup never stops boot): one new estate
+          # file adds 5 executed tests (tests/test_logfire_setup.py) to the 2312 read of dev CI 39594047204 (744775c86):
+          # projected 2317; 2317 - 2 = 2315, margin 2. _FLOOR_SET_FROM["estate"] -> 2317. This PR must read 2317 passed.
+          # ⬆ 2310→2330 on 2026-10-20, IN THE SAME PR THAT CAUSES IT (static forecast frames, step 2b, dark): two new estate
+          # files add 20 executed tests (tests/test_frame_binary.py 10, tests/test_publish_frame_sets.py 10) to the 2312 read
+          # of dev CI 39474436878 @ da40c3c5 (327 files): projected 2332 / 329 files; 2332 - 2 = 2330, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2332. This PR must read 2332 passed.
+          # ⬆ 2330→2333 in the same PR after its review fixes: +3 tests in tests/test_publish_frame_sets.py (23 in the two
+          # files) on the 2312 read of dev CI 39594047204 @ 744775c8 (327 files): projected 2335 / 329 files; margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2335. This PR must read 2335 passed.
+          # ⬆ 2315→2338 when #422 stacks on #432 (Logfire, +5): #422's two estate files carry 23 tests on top of #432's
+          # projected 2317: 2340 / 330 files; 2340 - 2 = 2338, margin 2. _FLOOR_SET_FROM["estate"] -> 2340.
+          # This PR must read 2340 passed.
+          # ⬆ 2338→2341 on 2026-10-22, IN THE SAME PR THAT CAUSES IT (static frames for more world sets): +3 tests in the
+          # existing tests/test_publish_frame_sets.py on the 2340 read of dev CI 39732086620 @ eb3e4bcf: projected 2343,
+          # no new file; 2343 - 2 = 2341, margin 2. _FLOOR_SET_FROM["estate"] -> 2343. This PR must read 2343 passed.
+          # ⬆ 2341→2390 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (per-PR ledger fragments, D-0XX): one new estate file
+          # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
+          # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
+          # This PR must read 2392 passed.
+          # ⬆ 2390→2464 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (LA-SEC-03 batch 4, 23 routes bound): +74 executed tests
+          # (two new estate files, tests/test_admin_only_write_routes.py 29 and tests/test_grom_credit_link.py 4, plus 41 more
+          # in tests/test_actor_route_binding.py) on dev's 2392 (hosted 2343 at f21abf34d + #472's 49): projected 2466 / 333 files;
+          # 2466 - 2 = 2464, margin 2. _FLOOR_SET_FROM["estate"] -> 2466. This PR must read 2466 passed.
+          MIN_PASSED = 2464
 
           try:
               root = ET.parse('estate.xml').getroot()
@@ -2032,4 +2082,10 @@ jobs:
         working-directory: backend
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/ci_floor_staleness.py
+        run: |
+          if [ "$GITHUB_REF_NAME" = "codex/reconcile-euro-dev-20261019" ]; then
+            # Explicit comparison to this integration branch's dev base; never an implicit fallback.
+            python scripts/ci_floor_staleness.py --branch dev
+          else
+            python scripts/ci_floor_staleness.py
+          fi

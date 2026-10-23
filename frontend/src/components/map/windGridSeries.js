@@ -23,7 +23,9 @@ import { buildTruthTag } from './weatherTruthTracker';
 // only diverges on a boundary, and this one's boundary is the antimeridian.
 import { normalizeRequestBbox } from './marineBboxGeometry';
 import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
-import { windLaneParam, windLaneTag } from './windLane';
+import { windLaneParam, windLaneTag, windLaneDisabled } from './windLane';
+import { getSharedValidTime } from './backendWeatherServiceClient';
+import { readLanePointer, staticWindCovers, windIndex, windStaticEnabled } from './windStaticFrames';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -222,6 +224,7 @@ function frameToWindData(frame, model) {
     stale: false,
     source: model || 'GFS',
     hourOffset: frame.hour_offset,
+    valid_time: frame.valid_time || null,
     provider: frame.provider || 'backend-weather-service',
     nonzeroCount,
     renderable,
@@ -232,8 +235,31 @@ function frameToWindData(frame, model) {
   };
 }
 
+// STATIC FRAMES OWN THE WORLD PAGES (2026-10-22, the wind instant scrub): a wide view's page asks the WORLD box, which the CDN's
+// static wind frames answer hour by hour at full resolution (windStaticFrames.js; the page itself is a thinned 46 x 21 world built
+// by the box in ~10-25 s). When every hour of the page can be served statically right now (pinned run, lane check passed), the
+// page is not asked for: the scrub paths read the static frame first. Kill: window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__.
+export async function staticOwnsWindPage(model, bounds, page) {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__ === true) return false;
+    if (!windStaticEnabled() || windLaneDisabled() || String(model || 'GFS').toUpperCase() !== 'GFS') return false;
+    if (viewportKey(bounds) !== 'global') return false;
+    await Promise.all([windIndex(), readLanePointer(false)]);
+    const asks = buildPageHours(page).map((h) => getSharedValidTime(h, 'wind', 'GFS', { readOnly: true }));
+    const owned = staticWindCovers(asks, model);
+    if (owned && typeof window !== 'undefined') {
+      const dg = (window.__WIND_SERIES_DIAG__ = window.__WIND_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
+      dg.staticSkips = (dg.staticSkips || 0) + 1;
+    }
+    return owned;
+  } catch (e) {
+    return false;
+  }
+}
+
 async function loadSeriesPage(model, bounds, page, signal) {
   if (!isWindSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
+  if (await staticOwnsWindPage(model, bounds, page)) return;
   // A view that has already been superseded asks for nothing: addEventListener('abort') below never
   // fires for a signal that is aborted before it is attached, so without this the fetch went out.
   if (callerAborted(signal)) return;
@@ -324,6 +350,7 @@ async function loadSeriesPage(model, bounds, page, signal) {
 async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isWindSeriesEnabled() || !bounds) return;
+  if (await staticOwnsWindPage(model, bounds, windSeriesPageForHour(hourOffset))) return;
   if (callerAborted(signal)) return;
   const page = windSeriesPageForHour(hourOffset);
   const h0key = `${pageKey(model, bounds, page)}_h0`;

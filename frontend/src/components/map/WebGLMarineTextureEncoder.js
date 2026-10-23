@@ -2,6 +2,7 @@ import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } 
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { applyPatchCarry } from './maskSmoothing';
 import { maskCoversWorldFrame } from './maskCoverReuse';
+import { takeMaskStash, stashResidentMask, installStashedMask, releaseSwappedMask } from './maskTextureStash';
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
 import {
   getEncoderScratchBuffers,
@@ -11,6 +12,7 @@ import {
   FloatArrayConstructor,
 } from './WebGLMarineFieldMath';
 import { getMarineGeoData } from './WebGLMarineGeoData';
+import { marineWaveHeightScale } from './marineWavePalette'; // the height byte's metres per upload (marineHeightEncoding.js)
 import {
   createShader,
   createProgram,
@@ -308,6 +310,8 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     ? window.__RAW_CONF_FADE_STRENGTH__ : 0.75;
   let confScaledCells = 0;
   let confMin = 1.0;
+  // THE HEIGHT BYTE: 16 m for the light/beach V2 wash (ROUNDED: worst and mean colour error under dev's /10 floor, wave-quant.mjs), else 10 and floored as ever; rating grids stay 10. marineHeightEncoding.js.
+  const hScale = waveGrid.ratingMode ? 10 : marineWaveHeightScale(typeof window !== 'undefined' ? window.__WEBGL_MARINE_THEME__ : undefined);
 
   for (let i = 0; i < N; i++) {
     const u = uArr[i];
@@ -334,12 +338,12 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       nu = 0.5;
       nv = 0.5;
     }
-    const hEnc = Math.max(0.0, Math.min(1.0, height / 10.0));
+    const hEnc = Math.max(0.0, Math.min(1.0, height / hScale));
     const periodEnc = periodVal > 0 ? Math.max(0.0, Math.min(1.0, periodVal / 20.0)) : 0.0;
 
     dataWave[i * 4 + 0] = Math.floor(nu * 255);
     dataWave[i * 4 + 1] = Math.floor(nv * 255);
-    dataWave[i * 4 + 2] = Math.floor(hEnc * 255);
+    dataWave[i * 4 + 2] = hScale > 10 ? Math.round(hEnc * 255) : Math.floor(hEnc * 255);
     dataWave[i * 4 + 3] = Math.floor(periodEnc * 255);
   }
 
@@ -423,7 +427,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         nv = Math.max(0.0, Math.min(1.0, sv * 0.5 + 0.5));
       }
 
-      const avgH = Math.floor((dataWave[idx0 + 2] + dataWave[idxN + 2]) * 0.5);
+      const avgH = (hScale > 10 ? Math.round : Math.floor)((dataWave[idx0 + 2] + dataWave[idxN + 2]) * 0.5);   // 16 m rounds here too (/10 floors, unchanged)
       const avgP = Math.floor((dataWave[idx0 + 3] + dataWave[idxN + 3]) * 0.5);
 
       dataWave[idx0 + 0] = dataWave[idxN + 0] = Math.floor(nu * 255);
@@ -665,7 +669,10 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
             window.__RAW_MASK_RETAIN_UPGRADE_REBUILD__ = (window.__RAW_MASK_RETAIN_UPGRADE_REBUILD__ || 0) + 1;
           }
         }
-        if (engine && engine._cachedMaskTex) {
+        // MASK STASH (maskTextureStash.js): a rebuild for bounds the one-slot stash holds swaps that texture back in, and the
+        // outgoing resident takes the slot instead of being deleted. Kill: window.__RAW_DISABLE_MASK_STASH__ = true.
+        const _stashed = takeMaskStash(engine, effectiveGeoJSON, bounds);
+        if (engine && engine._cachedMaskTex && !stashResidentMask(gl, engine, landGeoJSON)) {
           gl.deleteTexture(engine._cachedMaskTex);
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {
             window.__RAW_GPU__.textureCount--;
@@ -678,7 +685,8 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           engine._cachedMaskTex = null;
           engine._cachedMaskTexDims = null;
         }
-        try {
+        if (_stashed) maskTex = installStashedMask(engine, _stashed);
+        else try {
           const maskCanvas = renderMaskToCanvas(effectiveGeoJSON, bounds);
           // PATCH CARRY-FORWARD (2026-07-06, "bays flicker on rapid zoom"): a rebuild paints
           // NE-only truth and the basemap-water repatch is async (throttled + tile-gated —
@@ -766,6 +774,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       } catch (e) { /* best-effort cleanup */ }
     }
     if (engine && !standalone) {
+      releaseSwappedMask(gl, engine); // a texture swapped in from the mask stash belongs to no allocation list
       engine._residentWaveTex = null;
       engine._residentChlTex = null;
       engine._residentBathTex = null;
@@ -783,6 +792,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     // §0e: present ONLY on rating grids (anim-phys on) — the heatmap binds this for band
     // colors while u_waveTexture stays honest for draw/advect.
     u_waveScoreTexture: scoreTex,
+    u_heightScale: hScale,   // the metres u_waveTexture's 255 means (the score texture is always /10)
     bounds
   };
 }

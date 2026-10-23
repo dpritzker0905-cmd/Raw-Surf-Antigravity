@@ -14,6 +14,7 @@ import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
+import { publishMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
@@ -22,6 +23,8 @@ import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
 import { marineGridRejection } from './marineGridValidation';
+import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
+import { layerUploadIsStale } from './marineZoomOutRelease';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -92,6 +95,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   // High-zoom land-mask refinement state: which mask resolution the engine currently reflects
   // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
   const maskResRef = useRef('standard');
+  // GPU-resident frames: the store reaches this engine, GL context and map through refs read at call time.
+  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => registerFrameStoreTarget(null); }, []);
   const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
@@ -153,7 +158,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
     const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_geo_${geojsonSig}_thm_${themeSig}`;
-    const alreadyResident = !!engine._waveData;
+    // A frame-store show wrote the engine directly, so the last upload below no longer describes it: nothing is a duplicate of it.
+    const alreadyResident = !!engine._waveData && !layerUploadIsStale(engine);
 
     const requestedHour = timeOffsetHoursRef.current;
     const renderedDataHour = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid?.hourOffset !== undefined ? grid.grid.hourOffset : null);
@@ -282,6 +288,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // A renderable frame just committed — end any switch-hold window (the new target's data has landed,
     // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
     noteMarineRenderableCommit();
+    publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: what is on screen
+    noteCommitted(grid, { hour: timeOffsetHoursRef.current, model: gridModel, layer: activeMarineLayer }); // which stored frame is resident
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 

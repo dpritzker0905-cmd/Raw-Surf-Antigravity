@@ -18,8 +18,9 @@ import {
   hasCacheForModel
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
-import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { getSurfModeFlag, getSharedValidTime } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
+import { modelDisplayName } from './modelDisplayName';
 import { sampleDecodedOmValue } from './decodedOmSampler';
 import { usePointRating } from './usePointRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
@@ -29,6 +30,8 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { getBackendPrecipitationFlag } from './backendPrecipitationServiceClient';
 import { getBackendPressureFlag } from './backendPressureServiceClient';
 import { useExactPointFetch } from '../../hooks/useExactPointFetch';
+import { useMarineDrawnFrame } from './marineDrawnFrame';
+import { reconcileStaleBadge, latticeNearestMaxHours } from './drawnFrameReadout';
 
 
 export const MapForecastOverlay = ({
@@ -593,15 +596,17 @@ export const MapForecastOverlay = ({
   }
 
   // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (publishRenderParity in marineRenderParity.js, called from WebGLMarineLayer.js) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
-  const heatmapStatus = useMemo(() => {
-    return computeHeatmapStatus({ activeModel, activeLayer, renderMarineData });
-  }, [renderMarineData, activeModel, activeLayer, timeOffsetHours]);
+  const drawnFrame = useMarineDrawnFrame(); // T-05: re-decide the stale badge the frame the engine uploads, not a render late
+  const heatmapStatus = useMemo(() => reconcileStaleBadge(computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }),
+    { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours)), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
+  [renderMarineData, activeModel, activeLayer, timeOffsetHours, drawnFrame]);
 
   if (cards.length === 0 && !isLoading) {
     cards.push({ icon: MapPin, label: 'Data', value: 'No data', color: 'text-gray-400' });
   }
 
-  const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
+  // The picker's word ('EURO'), not 'ECMWF': EURO's swells are Copernicus MFWAM (modelDisplayName.js).
+  const modelLabel = modelDisplayName(activeModel);
 
   // v163: Context-aware label — shows spot name, long-press coords, or time
   const forecastTimeLabel = (() => {

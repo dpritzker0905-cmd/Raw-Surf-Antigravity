@@ -47,18 +47,31 @@ def enabled() -> bool:
     return os.environ.get(FLAG, "1") != "0"
 
 
+# The blend's two constants. The serve box reads them from its env with these defaults (unset on Render, owner 2026-10-22); the
+# static wind frames publisher (frame_set_wind.pin_code_defaults) always uses these values, never its runner's env, and
+# /capabilities reports the box's own (box_state), so the client serves lane hours only when the two agree.
+FEATHER_KM_DEFAULT = 200.0
+TAPER_HOURS_DEFAULT = 3
+
+
 def feather_km() -> float:
     try:
-        return max(0.0, float(os.environ.get("WIND_HRRR_FEATHER_KM", "200")))
+        return max(0.0, float(os.environ.get("WIND_HRRR_FEATHER_KM", str(FEATHER_KM_DEFAULT))))
     except ValueError:
-        return 200.0
+        return FEATHER_KM_DEFAULT
 
 
 def taper_hours() -> int:
     try:
-        return max(0, int(os.environ.get("WIND_HRRR_TAPER_HOURS", "3")))
+        return max(0, int(os.environ.get("WIND_HRRR_TAPER_HOURS", str(TAPER_HOURS_DEFAULT))))
     except ValueError:
-        return 3
+        return TAPER_HOURS_DEFAULT
+
+
+def box_state() -> dict:
+    """What this process blends with, for /capabilities (the GFS wind rows' `wind_lane`): no I/O, no lane load. The static wind
+    frames record the same three in their index; the client refuses lane hours unless they match."""
+    return {"enabled": enabled(), "feather_km": feather_km(), "taper_hours": taper_hours()}
 
 
 def _grid():
@@ -270,23 +283,35 @@ def apply_wind_lane(product, model, domain, layer, lane=None):
         return product
 
 
-def _blend(product, grid, lane, valid, w_t, base):
-    import copy
+def lane_use(vectors, lane, valid, w_t):
+    """Which nodes the lane blends at `valid` and how much: (idx, w, hu, hv, use) over the nodes near HRRR's lattice, or None
+    when no node is near it. ONE function for the served blend (_blend) and the static wind frames' publisher
+    (services/frame_set_wind.py), so the frames can never mark other nodes than /grid blends."""
     import numpy as np
     hg = _grid()
-    vectors = grid.vectors
     lats = np.fromiter((v.lat for v in vectors), dtype=float, count=len(vectors))
     lngs = np.fromiter((v.lng for v in vectors), dtype=float, count=len(vectors))
     lngs = ((lngs + 180.0) % 360.0) - 180.0
     near = ((lats >= lane.lat0 - lane.res) & (lats <= lane.lat0 + lane.nlat * lane.res)
             & (lngs >= lane.lon0 - lane.res) & (lngs <= lane.lon0 + lane.nlon * lane.res))
     idx = np.nonzero(near)[0]
-    info = {**base, "valid_time": _iso(valid), "time_weight": round(w_t, 4)}
     if idx.size == 0:
-        return _stamped(product, {**info, "reason": "outside_hrrr_domain"})
+        return None
     w = hg.space_weight_np(lats[idx], lngs[idx], feather_km()) * w_t
     hu, hv = lane.sample(lats[idx], lngs[idx], lane.hour_index(valid))
     use = (w > 0.0) & np.isfinite(hu) & np.isfinite(hv)
+    return idx, w, hu, hv, use
+
+
+def _blend(product, grid, lane, valid, w_t, base):
+    import copy
+    import numpy as np
+    vectors = grid.vectors
+    info = {**base, "valid_time": _iso(valid), "time_weight": round(w_t, 4)}
+    found = lane_use(vectors, lane, valid, w_t)
+    if found is None:
+        return _stamped(product, {**info, "reason": "outside_hrrr_domain"})
+    idx, w, hu, hv, use = found
     if not use.any():
         return _stamped(product, {**info, "reason": "outside_hrrr_domain"})
     out_vectors = list(vectors)

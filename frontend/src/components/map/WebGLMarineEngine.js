@@ -8,11 +8,11 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
-import { forecastStateIdentityEnabled } from './forecastStateIdentity';
-import { readMarineSurfMode } from './marineSurfMode';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
+import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
-import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
+import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
 import './haloDebugOverlay'; // installs window.__HALO_DEBUG__ (toggleable coastal land-bleed overlay; Ctrl+Alt+H)
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask/overlay .b (opt-in SDF coast)
@@ -29,12 +29,12 @@ import {
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
 import { renderMaskToCanvas, overlayBasemapWaterOnMask, prepareBasemapWaterOverlay, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
-import { measureMarineMaskPaint } from './marineMaskRefreshAttribution';
+import { measureMarineMaskPaint } from './marineMaskRefreshAttribution'; import { blendHeightAlpha } from './marineCalmWashHold'; // dark-only calm fade
 import { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason }
   from './marineOverlayMode';
 export { computeMidCarveReplace, computeMidZoomOverlayEngage, MIDZOOM_OVERLAY_CARVE_MIN_Z, overlayTelemetryReason };
 import { setLandAwareFetchUniforms } from './marineLandAwareFetch';
-import { setGridPointRegUniform } from './gridPointRegistration';
+import { setGridPointRegUniform } from './gridPointRegistration'; import { setWaveHeightScale } from './marineHeightEncoding'; // per-upload height byte
 import { populateCrestDiagnostics, marineForensicFrameEvidence } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
@@ -42,9 +42,8 @@ import {
   reseedParticleStateInPlace,
   shouldCarryParticlesOnGridSwap,
   initEngine,
-  disposeEngine
+  disposeEngine, pollPrograms
 } from './WebGLMarineEngineInit';
-
 
 // ── THE PURE DECISION LAYER MOVED OUT (2026-07-29) ───────────────────────────────────────────────
 // This file was 3,845 lines against the repo's 800-line limit. Its first 663 lines were pure,
@@ -126,6 +125,7 @@ WebGLMarineEngine.prototype.init = function(gl) {
   initEngine(this, gl);
   if (!this._initialized) throw new Error('WebGL Marine initialization failed');
 };
+WebGLMarineEngine.prototype.pollPrograms = function(gl) { return pollPrograms(this, gl); };   // async shader batch: WebGLMarineEngineInit.js
 
 WebGLMarineEngine.prototype.reinitParticles = function(gl) {
   reinitParticles(this, gl);
@@ -483,13 +483,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     window.__RAW_GPU__.drawCallsPerFrame = 0;
     window.__RAW_GPU__.particlePassExecuted = false;
   }
-  if (!this._initialized || !this._waveData || !matrix || !matrix.length) {
+  if (!this._initialized || this._programBatch || !this._waveData || !matrix || !matrix.length) {   // _programBatch: shaders still compiling
     if (this._renderLogged === undefined) {
       this._renderLogged = 0;
     }
     this._renderLogged++;
     if (this._renderLogged === 1 || this._renderLogged % 180 === 0) {
-      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "_waveData:", !!this._waveData, "matrix:", !!matrix);
+      console.log("[WebGLMarineEngine] render returned early! _initialized:", this._initialized, "programsPending:", !!this._programBatch, "_waveData:", !!this._waveData, "matrix:", !!matrix);
     }
     return;
   }
@@ -604,7 +604,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     themeVal = 2.0;
   }
 
-  const webglState = captureWebGLState(gl);
+  // MapLibre's state shadow (WebGLStateIsolation.readShadowedState), set per frame by WebGLMarineCustomLayer.
+  const webglState = captureWebGLState(gl, this._mapGLContext);
   try {
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.DEPTH_TEST);
@@ -1634,7 +1635,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           frameOff: (waveGrid && waveGrid.frame_substituted) ? (waveGrid.frame_offset_hours || 0) : 0,
         };
         recordMarineEvent('snap', _snap);
-        console.log('[FORENSIC-SNAP]', JSON.stringify(_snap));
+        var _snapStr = JSON.stringify(_snap); // console only on CHANGE: PostHog rrweb serializes every line (owner log 10-19: 15+ identical)
+        if (_snapStr !== this._lastSnapStr || window.__RAW_FORENSIC_SNAP_EVERY__ === true) { this._lastSnapStr = _snapStr; console.log('[FORENSIC-SNAP]', _snapStr); }
       }
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
@@ -1671,7 +1673,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // 1.4m crossover: below it the faint regional lets the coarse wash bleed through (lifts the nearshore where
     // surf is small); above it the regional dominates (real swell still reads as the precise regional tile).
     const _haHi = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_HEIGHT_HI__ === 'number') ? window.__RAW_BLEND_HEIGHT_HI__ : 1.4;
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), blendEngaged ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), blendHeightAlpha(blendEngaged, themeVal, surfModeVal));
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), _haLo);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
     // Crisp mask edge for coarse residents (the heatmap pass's own halo — see the damp block).
@@ -1851,7 +1853,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // identical rating-on/off. Whenever the encoder packed a score texture the heatmap MUST
     // use it (the main texture is honest heights then). The feature kill switch lives at the
     // ENCODER (__RAW_DISABLE_ANIM_PHYS__ → no score texture, score back in the shared channel).
-    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0);
+    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, this._waveData.u_waveScoreTexture ? null : this._waveData);
     bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
@@ -2013,6 +2015,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         }
       }
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityBase'), densityBase);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityCut'), crestDensityCut(themeVal, z));   // big-surf thinning by theme and zoom
 
       // Ribbon-endpoint land fade (2026-07-04): crest quads dissolve toward a land end instead of
       // overhanging barrier islands (Venice/Lido). Kill: window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
@@ -2051,7 +2054,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // CREST RING-FILL (2026-07-16): coarse-base fallback pair on units 5/6 (fallback-bound below
       // so the samplers are always complete; resolveCrestRingFill forces enabled=false when no
       // complete base is held, so the fallback binds are never read).
-      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseWaveTexture'), 5);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseWaveTexture'), 5); setWaveHeightScale(gl, this.drawProgram, this._waveData, _rfBase || this._waveData);
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseMaskTexture'), 6);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
@@ -2119,7 +2122,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_farzoomSizeFloor'), _fzFloor);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth); applyWaveSetUniforms(gl, this.drawProgram);
 
       // v5.3: viewport and DPR uniforms for pixel-space quad expansion
       var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
@@ -2209,7 +2212,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
       // CREST RING-FILL — must match the DRAW pass exactly (same _ringFill decision, same base
       // set; advect units 4/5 since this pass only uses 0-3). Fallback-bound below.
-      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseWaveTexture'), 4);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseWaveTexture'), 4); setWaveHeightScale(gl, this.advectProgram, this._waveData, _rfBase || this._waveData);
       gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseMaskTexture'), 5);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
@@ -2252,14 +2255,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       unbindTexture(gl, this.particleStateB);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0); this._advAttached = true;
       gl.viewport(0, 0, this.particleRes, this.particleRes);
 
       const readTex = this.particleStateA;
       const writeTex = this.particleStateB;
       console.assert(readTex !== writeTex, "Assertion failed: readTex === writeTex inside WebGL advection loop!");
 
-      const fboStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      const fboStatus = cachedFramebufferStatus(gl, this, this.advFBO, writeTex, this.particleRes, this.particleRes);   // a GPU sync each frame otherwise (advFboSync.js)
       let fboStatusStr = 'UNKNOWN';
       if (fboStatus === gl.FRAMEBUFFER_COMPLETE) fboStatusStr = 'FRAMEBUFFER_COMPLETE';
       else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) fboStatusStr = 'INCOMPLETE_ATTACHMENT';
@@ -2278,7 +2281,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (fboStatus !== gl.FRAMEBUFFER_COMPLETE) {
         console.warn('[WebGLMarine] Framebuffer incomplete: ' + fboStatusStr + '. Falling back to Heatmap only.');
         this._fboSupported = false;
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
       } else {
         bindTexture(gl, this.particleStateA, 0);
@@ -2309,7 +2312,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
         }
 
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
 
         var tmp = this.particleStateA;
         this.particleStateA = this.particleStateB;
@@ -2318,10 +2321,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
   } finally {
     if (gl && !gl.isContextLost() && webglState) {
-      if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
+      if (this.advFBO && advTeardownNeeded(this) && gl.isFramebuffer(this.advFBO)) {   // only when left attached (advFboSync.js)
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+          gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
         } catch (e) { /* teardown detach: a lost or already-torn context is the expected failure, nothing to recover */ }
       }
       restoreWebGLState(gl, webglState);
@@ -3117,7 +3120,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlaySDFEnabled'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), baseOpacity);
 
-  bindTexture(gl, base.u_waveTexture, 0);
+  bindTexture(gl, base.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, base);
   bindTexture(gl, base.u_chlorophyllTexture, 1);
   bindTexture(gl, base.u_bathymetryTexture, 2);
   bindTexture(gl, base.u_oceanMaskTexture, 3);

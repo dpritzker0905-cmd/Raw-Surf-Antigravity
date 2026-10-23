@@ -2,7 +2,7 @@
 coarse_gulf_fill.py — SERVE-TIME enclosed-sea fill for the 10° global_coarse marine tier.
 
 THE ROOT FIX (2026-07-23) for the persistent USER report "EURO marine shows WRONG COLORS zooming
-out". The 10° `global_coarse` `waves` product for EURO (ECMWF-WAM / CMEMS) STRUCTURALLY MASKS the
+out". The 10° `global_coarse` `waves` product for EURO (ECMWF-WAM or CMEMS MFWAM) STRUCTURALLY MASKS the
 Gulf of Mexico + other enclosed seas (Med, Black Sea, Sea of Japan, Gulf of California): those cells
 serve `is_valid=False` and the frontend inflates the holes from distant open-ocean cells = the wrong
 colors. GFS's coarse `waves` carries a VALID Gulf (its land-sea mask includes it, and the normalizer
@@ -49,7 +49,7 @@ Georgia among them), unstamped. ⚠️ Those inland cells are filled on the worl
 the 8° reach was sized for 10° cells, and on the 2° world clip it reaches inland. That response is
 stamped, and narrowing the reach changes a served number, so it is the owner's call, not done here.
 
-Kill switch: MARINE_COARSE_GULF_FILL=0.
+Kill switch: MARINE_COARSE_GULF_FILL=0. Scope to the 10-deg tier only (DARK, owner's call): MARINE_GULF_FILL_MID=0.
 """
 import asyncio
 import copy
@@ -91,6 +91,31 @@ def _is_masked(v):
     return (not getattr(v, "is_valid", False)) or s is None
 
 
+def gulf_fill_mid_enabled():
+    """MARINE_GULF_FILL_MID (2026-10-22, DARK; the owner's call to flip): does the fill run on the 2-deg global_mid?
+
+    The fill was built for the 10-deg coarse tier (module docstring). It reaches the 2-deg world grid only because the mid tier
+    has answered world requests since 2026-07-23 (MARINE_MID_RES_MAX_SPAN=400), where it has no enclosed-sea job (EURO's
+    global_mid Gulf is valid, ICON has no holes) and its 8-deg reach paints GFS 10-deg values onto coast, land and ice cells
+    under a EURO/ICON label (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689 masked cells, ICON 1,708 of 3,788).
+    '1' (default) = today's behaviour; '0' = the fill skips global_mid grids and keeps the 10-deg tier. /capabilities reports it
+    (EURO/ICON marine rows, `gulf_fill_mid`) so the client serves static world frames only when /grid equals them."""
+    return os.environ.get("MARINE_GULF_FILL_MID", "1") != "0"
+
+
+def _is_mid_tier(product, grid):
+    """The 2-deg global_mid (the mid tier's world clip), told apart from the 10-deg coarse tier."""
+    if getattr(product, "region_id", None) == "global_mid":
+        return True
+    try:
+        cols = int(getattr(grid, "cols", 0) or 0)
+        b = grid.bounds
+        span = (b.east - b.west) if b.east >= b.west else (b.east + 360.0 - b.west)
+        return cols > 1 and span / (cols - 1) < 5.0
+    except Exception:
+        return False
+
+
 async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain, layer):
     """If `product` is a EURO/ICON 10° global-coarse marine `waves` grid with masked enclosed-sea
     cells, fill them from the SERVED GFS global-coarse `waves` product (valid Gulf). Returns a NEW
@@ -119,6 +144,8 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         span = (b.east - b.west) if (b and b.east >= b.west) else ((b.east + 360.0 - b.west) if b else 0.0)
         if span < 350.0:
             return product
+        if not gulf_fill_mid_enabled() and _is_mid_tier(product, grid):
+            return product   # MARINE_GULF_FILL_MID=0: the 2-deg world grid is served as stored (gulf_fill_mid_enabled)
         masked = [i for i, v in enumerate(grid.vectors) if _is_masked(v)]
         if not masked:
             return product

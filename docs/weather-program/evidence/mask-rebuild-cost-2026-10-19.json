@@ -1,0 +1,1780 @@
+{
+ "what": "scn_mask_cost.js over serve_synthetic.py --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves --regions florida_east_coast,us_southeast_midatlantic --dynamic 1 --thin-bounds 1; before = PR388 head 899a1563, after = + maskTextureStash (world pin); synthetic data, offline, headless system Chrome 1280x800",
+ "runs": {
+  "before-desktop3": [
+   {
+    "action": "GFS Swell",
+    "uploads": 1,
+    "uploadMs": [
+     27.6
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 3,
+    "longtaskMax": 72,
+    "longtaskTotal": 180
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     12.4
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 2,
+    "longtaskMax": 73,
+    "longtaskTotal": 138
+   },
+   {
+    "action": "EURO",
+    "uploads": 1,
+    "uploadMs": [
+     22
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "EURO Swell",
+    "uploads": 1,
+    "uploadMs": [
+     81.2
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,80"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 2,
+    "longtaskMax": 93,
+    "longtaskTotal": 146
+   },
+   {
+    "action": "GFS",
+    "uploads": 1,
+    "uploadMs": [
+     12.4
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 66,
+    "longtaskTotal": 66
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     9
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "zoom 5",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 4,
+    "longtaskMax": 160,
+    "longtaskTotal": 418
+   },
+   {
+    "action": "zoom 7",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 4,
+    "longtaskMax": 160,
+    "longtaskTotal": 413
+   },
+   {
+    "action": "pan",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 3,
+    "longtaskMax": 145,
+    "longtaskTotal": 282
+   },
+   {
+    "action": "z7 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     18.7
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 125,
+    "longtaskTotal": 125
+   },
+   {
+    "action": "z7 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "z7 Swell again",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "z7 Waves again",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 15,
+    "longtaskMax": 180,
+    "longtaskTotal": 1598
+   },
+   {
+    "action": "z7 Wind Waves",
+    "uploads": 1,
+    "uploadMs": [
+     18
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "z7 Waves 3",
+    "uploads": 1,
+    "uploadMs": [
+     102.8
+    ],
+    "modes": [
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 102.8,
+    "longtasks": 3,
+    "longtaskMax": 433,
+    "longtaskTotal": 570
+   },
+   {
+    "action": "zoom 9",
+    "uploads": 3,
+    "uploadMs": [
+     0.6,
+     1.3,
+     77.1
+    ],
+    "modes": [
+     "reuse",
+     null,
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30",
+     "-104,6,-56,46",
+     "-82,25,-78,28"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 77.1,
+    "longtasks": 4,
+    "longtaskMax": 516,
+    "longtaskTotal": 1199
+   },
+   {
+    "action": "z9 Swell",
+    "uploads": 3,
+    "uploadMs": [
+     288.1,
+     45,
+     77.2
+    ],
+    "modes": [
+     "rebuild",
+     "rebuild",
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,25,-78,28",
+     "-82,24,-79,29"
+    ],
+    "rebuilds": 3,
+    "maskBuiltEvents": 3,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 288.1,
+    "longtasks": 5,
+    "longtaskMax": 455,
+    "longtaskTotal": 1319
+   },
+   {
+    "action": "z9 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 5,
+    "longtaskMax": 104,
+    "longtaskTotal": 444
+   },
+   {
+    "action": "zoom 4",
+    "uploads": 3,
+    "uploadMs": [
+     343.6,
+     0.7,
+     5.7
+    ],
+    "modes": [
+     "rebuild",
+     null,
+     "retain_patched_src_not_ready"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,24,-79,29",
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 343.6,
+    "longtasks": 2,
+    "longtaskMax": 370,
+    "longtaskTotal": 421
+   },
+   {
+    "action": "z4 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     143.4
+    ],
+    "modes": [
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 143.4,
+    "longtasks": 3,
+    "longtaskMax": 172,
+    "longtaskTotal": 301
+   },
+   {
+    "action": "zoom 7 back",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 84,
+    "longtaskTotal": 84
+   }
+  ],
+  "after-desktop3": [
+   {
+    "action": "GFS Swell",
+    "uploads": 1,
+    "uploadMs": [
+     31.7
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 61,
+    "longtaskTotal": 61
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     16.8
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 90,
+    "longtaskTotal": 90
+   },
+   {
+    "action": "EURO",
+    "uploads": 1,
+    "uploadMs": [
+     20.9
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "EURO Swell",
+    "uploads": 1,
+    "uploadMs": [
+     96.3
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,80"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 108,
+    "longtaskTotal": 108
+   },
+   {
+    "action": "GFS",
+    "uploads": 1,
+    "uploadMs": [
+     14.6
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 66,
+    "longtaskTotal": 66
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     14.9
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 53,
+    "longtaskTotal": 53
+   },
+   {
+    "action": "zoom 5",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 6,
+    "longtaskMax": 158,
+    "longtaskTotal": 513
+   },
+   {
+    "action": "zoom 7",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 10,
+    "longtaskMax": 147,
+    "longtaskTotal": 1012
+   },
+   {
+    "action": "pan",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 4,
+    "longtaskMax": 157,
+    "longtaskTotal": 471
+   },
+   {
+    "action": "z7 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     12.1
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "z7 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "z7 Swell again",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 1,
+    "longtaskMax": 61,
+    "longtaskTotal": 61
+   },
+   {
+    "action": "z7 Waves again",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 4,
+    "longtaskMax": 179,
+    "longtaskTotal": 441
+   },
+   {
+    "action": "z7 Wind Waves",
+    "uploads": 1,
+    "uploadMs": [
+     30.9
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 8,
+    "longtaskMax": 79,
+    "longtaskTotal": 522
+   },
+   {
+    "action": "z7 Waves 3",
+    "uploads": 1,
+    "uploadMs": [
+     78.5
+    ],
+    "modes": [
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 78.5,
+    "longtasks": 2,
+    "longtaskMax": 342,
+    "longtaskTotal": 398
+   },
+   {
+    "action": "zoom 9",
+    "uploads": 3,
+    "uploadMs": [
+     1.1,
+     0.9,
+     65.5
+    ],
+    "modes": [
+     "reuse",
+     null,
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30",
+     "-104,6,-56,46",
+     "-82,25,-78,28"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 65.5,
+    "longtasks": 3,
+    "longtaskMax": 341,
+    "longtaskTotal": 834
+   },
+   {
+    "action": "z9 Swell",
+    "uploads": 3,
+    "uploadMs": [
+     257.4,
+     1.1,
+     71.1
+    ],
+    "modes": [
+     "rebuild",
+     "stash_swap",
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,25,-78,28",
+     "-82,24,-79,29"
+    ],
+    "rebuilds": 2,
+    "maskBuiltEvents": 2,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 257.4,
+    "longtasks": 4,
+    "longtaskMax": 305,
+    "longtaskTotal": 1022
+   },
+   {
+    "action": "z9 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "zoom 4",
+    "uploads": 3,
+    "uploadMs": [
+     23.9,
+     0.8,
+     6.6
+    ],
+    "modes": [
+     "stash_swap",
+     null,
+     "retain_patched_src_not_ready"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,24,-79,29",
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 0,
+    "longtasks": 0,
+    "longtaskMax": 0,
+    "longtaskTotal": 0
+   },
+   {
+    "action": "z4 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     77.5
+    ],
+    "modes": [
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 77.5,
+    "longtasks": 2,
+    "longtaskMax": 159,
+    "longtaskTotal": 252
+   },
+   {
+    "action": "zoom 7 back",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 9,
+    "longtaskMax": 175,
+    "longtaskTotal": 989
+   }
+  ],
+  "before-cpu4c": [
+   {
+    "action": "GFS Swell",
+    "uploads": 1,
+    "uploadMs": [
+     59.3
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 189,
+    "longtaskMax": 384,
+    "longtaskTotal": 12897
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     80.7
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 130,
+    "longtaskMax": 390,
+    "longtaskTotal": 9258
+   },
+   {
+    "action": "EURO",
+    "uploads": 1,
+    "uploadMs": [
+     79.2
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 131,
+    "longtaskMax": 323,
+    "longtaskTotal": 8628
+   },
+   {
+    "action": "EURO Swell",
+    "uploads": 1,
+    "uploadMs": [
+     499.6
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,80"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 118,
+    "longtaskMax": 620,
+    "longtaskTotal": 7806
+   },
+   {
+    "action": "GFS",
+    "uploads": 1,
+    "uploadMs": [
+     53
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 139,
+    "longtaskMax": 335,
+    "longtaskTotal": 9619
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     76.2
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 114,
+    "longtaskMax": 346,
+    "longtaskTotal": 8196
+   },
+   {
+    "action": "zoom 5",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 164,
+    "longtaskMax": 869,
+    "longtaskTotal": 11366
+   },
+   {
+    "action": "zoom 7",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 170,
+    "longtaskMax": 647,
+    "longtaskTotal": 12299
+   },
+   {
+    "action": "pan",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 157,
+    "longtaskMax": 799,
+    "longtaskTotal": 11148
+   },
+   {
+    "action": "z7 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     28.9
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 131,
+    "longtaskMax": 228,
+    "longtaskTotal": 8729
+   },
+   {
+    "action": "z7 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 201,
+    "longtaskMax": 375,
+    "longtaskTotal": 15930
+   },
+   {
+    "action": "z7 Swell again",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 176,
+    "longtaskMax": 268,
+    "longtaskTotal": 11065
+   },
+   {
+    "action": "z7 Waves again",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 170,
+    "longtaskMax": 331,
+    "longtaskTotal": 10200
+   },
+   {
+    "action": "z7 Wind Waves",
+    "uploads": 1,
+    "uploadMs": [
+     129
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 147,
+    "longtaskMax": 294,
+    "longtaskTotal": 9133
+   },
+   {
+    "action": "z7 Waves 3",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 155,
+    "longtaskMax": 339,
+    "longtaskTotal": 9223
+   },
+   {
+    "action": "zoom 9",
+    "uploads": 4,
+    "uploadMs": [
+     24.3,
+     378.4,
+     295.5,
+     314
+    ],
+    "modes": [
+     "retain_patched_src_not_ready",
+     "rebuild_upgrade_over_retain",
+     "rebuild",
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-104,6,-56,46",
+     "-84,23,-76,29",
+     "-82,25,-78,28"
+    ],
+    "rebuilds": 3,
+    "maskBuiltEvents": 3,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 378.4,
+    "longtasks": 169,
+    "longtaskMax": 2079,
+    "longtaskTotal": 15551
+   },
+   {
+    "action": "z9 Swell",
+    "uploads": 3,
+    "uploadMs": [
+     1520.6,
+     210.6,
+     367.3
+    ],
+    "modes": [
+     "rebuild",
+     "rebuild",
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,25,-78,28",
+     "-82,24,-79,29"
+    ],
+    "rebuilds": 3,
+    "maskBuiltEvents": 3,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 1520.6,
+    "longtasks": 187,
+    "longtaskMax": 2097,
+    "longtaskTotal": 19068
+   },
+   {
+    "action": "z9 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 234,
+    "longtaskMax": 328,
+    "longtaskTotal": 14414
+   },
+   {
+    "action": "zoom 4",
+    "uploads": 3,
+    "uploadMs": [
+     1469.6,
+     5,
+     486.9
+    ],
+    "modes": [
+     "rebuild",
+     null,
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,24,-79,29",
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 2,
+    "maskBuiltEvents": 2,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 1469.6,
+    "longtasks": 53,
+    "longtaskMax": 1644,
+    "longtaskTotal": 5804
+   },
+   {
+    "action": "z4 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     15.4
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 47,
+    "longtaskMax": 193,
+    "longtaskTotal": 3087
+   },
+   {
+    "action": "zoom 7 back",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 111,
+    "longtaskMax": 452,
+    "longtaskTotal": 7322
+   }
+  ],
+  "after-cpu4c": [
+   {
+    "action": "GFS Swell",
+    "uploads": 1,
+    "uploadMs": [
+     56.4
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 78,
+    "longtaskMax": 310,
+    "longtaskTotal": 5220
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     91.1
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 69,
+    "longtaskMax": 415,
+    "longtaskTotal": 4544
+   },
+   {
+    "action": "EURO",
+    "uploads": 1,
+    "uploadMs": [
+     55.9
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 69,
+    "longtaskMax": 317,
+    "longtaskTotal": 4688
+   },
+   {
+    "action": "EURO Swell",
+    "uploads": 1,
+    "uploadMs": [
+     388
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,80"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 43,
+    "longtaskMax": 476,
+    "longtaskTotal": 2960
+   },
+   {
+    "action": "GFS",
+    "uploads": 1,
+    "uploadMs": [
+     54.2
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 37,
+    "longtaskMax": 316,
+    "longtaskTotal": 2752
+   },
+   {
+    "action": "GFS Waves",
+    "uploads": 1,
+    "uploadMs": [
+     58.5
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 20,
+    "longtaskMax": 232,
+    "longtaskTotal": 1683
+   },
+   {
+    "action": "zoom 5",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 116,
+    "longtaskMax": 364,
+    "longtaskTotal": 7948
+   },
+   {
+    "action": "zoom 7",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 55,
+    "longtaskMax": 583,
+    "longtaskTotal": 3751
+   },
+   {
+    "action": "pan",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 83,
+    "longtaskMax": 614,
+    "longtaskTotal": 5585
+   },
+   {
+    "action": "z7 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     46.2
+    ],
+    "modes": [
+     "reuse"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 63,
+    "longtaskMax": 261,
+    "longtaskTotal": 3973
+   },
+   {
+    "action": "z7 Waves",
+    "uploads": 1,
+    "uploadMs": [
+     409.1
+    ],
+    "modes": [
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 409.1,
+    "longtasks": 49,
+    "longtaskMax": 1646,
+    "longtaskTotal": 4604
+   },
+   {
+    "action": "z7 Swell again",
+    "uploads": 1,
+    "uploadMs": [
+     39.5
+    ],
+    "modes": [
+     "stash_swap"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 0,
+    "longtasks": 70,
+    "longtaskMax": 1023,
+    "longtaskTotal": 5304
+   },
+   {
+    "action": "z7 Waves again",
+    "uploads": 1,
+    "uploadMs": [
+     4.5
+    ],
+    "modes": [
+     "stash_swap"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 0,
+    "longtasks": 41,
+    "longtaskMax": 964,
+    "longtaskTotal": 3386
+   },
+   {
+    "action": "z7 Wind Waves",
+    "uploads": 1,
+    "uploadMs": [
+     103.1
+    ],
+    "modes": [
+     "stash_swap"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 0,
+    "longtasks": 28,
+    "longtaskMax": 468,
+    "longtaskTotal": 2200
+   },
+   {
+    "action": "z7 Waves 3",
+    "uploads": 1,
+    "uploadMs": [
+     3.7
+    ],
+    "modes": [
+     "stash_swap"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 0,
+    "longtasks": 44,
+    "longtaskMax": 893,
+    "longtaskTotal": 3807
+   },
+   {
+    "action": "zoom 9",
+    "uploads": 3,
+    "uploadMs": [
+     5.1,
+     7.4,
+     309.2
+    ],
+    "modes": [
+     "reuse",
+     null,
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-81,24,-73,30",
+     "-104,6,-56,46",
+     "-82,25,-78,28"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 309.2,
+    "longtasks": 100,
+    "longtaskMax": 2016,
+    "longtaskTotal": 10783
+   },
+   {
+    "action": "z9 Swell",
+    "uploads": 3,
+    "uploadMs": [
+     1203.4,
+     5.7,
+     311.9
+    ],
+    "modes": [
+     "rebuild",
+     "stash_swap",
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,25,-78,28",
+     "-82,24,-79,29"
+    ],
+    "rebuilds": 2,
+    "maskBuiltEvents": 2,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 1203.4,
+    "longtasks": 92,
+    "longtaskMax": 1558,
+    "longtaskTotal": 10193
+   },
+   {
+    "action": "z9 Waves",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 118,
+    "longtaskMax": 326,
+    "longtaskTotal": 7274
+   },
+   {
+    "action": "zoom 4",
+    "uploads": 3,
+    "uploadMs": [
+     60.9,
+     2.8,
+     24.8
+    ],
+    "modes": [
+     "stash_swap",
+     null,
+     "retain_patched_src_not_ready"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84",
+     "-82,24,-79,29",
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 1,
+    "rebuildMsMax": 0,
+    "longtasks": 28,
+    "longtaskMax": 205,
+    "longtaskTotal": 1950
+   },
+   {
+    "action": "z4 Swell",
+    "uploads": 1,
+    "uploadMs": [
+     447.4
+    ],
+    "modes": [
+     "rebuild"
+    ],
+    "dims": [
+     "4096x2048"
+    ],
+    "bounds": [
+     "-180,-80,180,84"
+    ],
+    "rebuilds": 1,
+    "maskBuiltEvents": 1,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 447.4,
+    "longtasks": 30,
+    "longtaskMax": 554,
+    "longtaskTotal": 2904
+   },
+   {
+    "action": "zoom 7 back",
+    "uploads": 0,
+    "uploadMs": [],
+    "modes": [],
+    "dims": [],
+    "bounds": [],
+    "rebuilds": 0,
+    "maskBuiltEvents": 0,
+    "stashSwapEvents": 0,
+    "rebuildMsMax": 0,
+    "longtasks": 72,
+    "longtaskMax": 606,
+    "longtaskTotal": 4772
+   }
+  ]
+ }
+}

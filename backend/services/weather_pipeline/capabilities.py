@@ -208,7 +208,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "ECMWF WAM 0.25 degree global wave model. Serves waves layer via Copernicus Marine regional ingestion. Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
+        "source_docs_note": "Two direct wave models. Global coarse/mid/pilot tiers: ECMWF's own wave model (ECWAM, 0.25 degree, ECMWF Open Data wave stream swh/mwp/pp1d/mwd) when available, else CMEMS. Regional/island tiers and the native point: Copernicus Marine CMEMS global waves (GLOBAL_ANALYSISFORECAST_WAV_001_027) = Meteo-France MFWAM at 1/12 degree, driven by ECMWF IFS winds; NOT ECMWF's own wave model (label corrected 2026-10-20). Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
         "fallback_sources": [
             {
                 "provider": "open-meteo",
@@ -239,7 +239,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "ECMWF WAM 0.25 degree global wave model. Serves swell_1 layer via Copernicus Marine regional ingestion. Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
+        "source_docs_note": "Copernicus Marine CMEMS global waves (GLOBAL_ANALYSISFORECAST_WAV_001_027) = Meteo-France MFWAM at 1/12 degree, driven by ECMWF IFS winds; NOT ECMWF's own wave model (label corrected 2026-10-20). Serves the swell_1 layer (the free ECMWF wave stream has no swell partitions). Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
         "fallback_sources": [
             {
                 "provider": "open-meteo",
@@ -270,7 +270,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "ECMWF WAM 0.25 degree global wave model. Serves swell_2 layer via Copernicus Marine regional ingestion. Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
+        "source_docs_note": "Copernicus Marine CMEMS global waves (GLOBAL_ANALYSISFORECAST_WAV_001_027) = Meteo-France MFWAM at 1/12 degree, driven by ECMWF IFS winds; NOT ECMWF's own wave model (label corrected 2026-10-20). Serves the swell_2 layer (the free ECMWF wave stream has no swell partitions). Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
         "fallback_sources": [
             {
                 "provider": "open-meteo",
@@ -301,7 +301,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "ECMWF WAM 0.25 degree global wave model. Serves wind_waves layer via Copernicus Marine regional ingestion. Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
+        "source_docs_note": "Copernicus Marine CMEMS global waves (GLOBAL_ANALYSISFORECAST_WAV_001_027) = Meteo-France MFWAM at 1/12 degree, driven by ECMWF IFS winds; NOT ECMWF's own wave model (label corrected 2026-10-20). Serves the wind_waves layer (the free ECMWF wave stream has no swell partitions). Fallback/direct point source is Open-Meteo ecmwf_wam025 API.",
         "fallback_sources": [
             {
                 "provider": "open-meteo",
@@ -618,8 +618,12 @@ for _row in WEATHER_CAPABILITIES:
         "source_dataset": _row["source_dataset"],
         "usage": "native_partitions_dynamic_viewports_or_waves_fallback",
     }]
+    # Model identity named 2026-10-20 (owner: the CMEMS labels were wrong; guard
+    # tests/test_cmems_source_labels.py): CMEMS global waves is Meteo-France MFWAM, not ECMWF's model.
     _row["source_docs_note"] = (
-        "Native CMEMS partition grids use Copernicus. Legacy scalar provenance fields "
+        "Native CMEMS partition grids use Copernicus Marine (GLOBAL_ANALYSISFORECAST_WAV_001_027 = "
+        "Meteo-France MFWAM at 1/12 degree, driven by ECMWF IFS winds; NOT ECMWF's own wave model). "
+        "Legacy scalar provenance fields "
         "describe the default source only; effective provenance comes from the served "
         "product. Estimated/fallback grids must be read with their estimate_basis."
     )
@@ -632,9 +636,11 @@ for _row in WEATHER_CAPABILITIES:
             "usage": "prepared_regional_pilots_and_preferred_global_waves",
         })
         _row["source_docs_note"] = (
-            "Native prepared waves grids prefer ECMWF WAM; upstream_provider distinguishes "
+            "Native prepared waves grids prefer ECMWF's own wave model (ECWAM, 0.25 degree, "
+            "ECMWF Open Data wave stream; dataset label ecmwf_wam025); upstream_provider distinguishes "
             "ECMWF direct from Open-Meteo despite the legacy provider dispatch key. "
-            "Copernicus serves dynamic viewports and native fallback grids. Geography, "
+            "Copernicus Marine (Meteo-France MFWAM, driven by ECMWF IFS winds; NOT ECMWF's own "
+            "wave model) serves dynamic viewports and native fallback grids. Geography, "
             "available products and forecast horizon determine the path. Legacy scalar "
             "fields describe the default source, not a request guarantee; the product "
             "response and estimate_basis are authoritative."
@@ -691,8 +697,26 @@ for _row in WEATHER_CAPABILITIES:
 
 
 def get_weather_capabilities() -> List[Dict[str, Any]]:
-    """Returns the backend-owned capabilities matrix for weather, marine, and wind models."""
-    return WEATHER_CAPABILITIES
+    """Returns the backend-owned capabilities matrix for weather, marine, and wind models.
+
+    EURO / ICON marine rows also carry `gulf_fill_mid` (2026-10-22), read at call time: whether /grid's serve-time Gulf fill
+    rewrites their 2-deg world grid (coarse_gulf_fill.gulf_fill_mid_enabled, MARINE_GULF_FILL_MID). The client serves a static
+    world frame of these sets only when it is False, because only then does /grid equal the stored product.
+
+    GFS wind rows carry `wind_lane` (2026-10-22): {enabled, feather_km, taper_hours} of the HRRR lane /grid blends in
+    (wind_lane.box_state, no I/O). The client serves a static wind frame inside the lane's window only when these equal the
+    frames' recorded ones."""
+    from services.weather_pipeline.coarse_gulf_fill import gulf_fill_mid_enabled
+    from services.weather_pipeline.wind_lane import box_state
+    mid, lane = gulf_fill_mid_enabled(), box_state()
+
+    def row_for(row):
+        if row.get("domain") == "marine" and row.get("model") in ("EURO", "ICON"):
+            return dict(row, gulf_fill_mid=mid)
+        if row.get("domain") == "wind" and row.get("model") == "GFS":
+            return dict(row, wind_lane=dict(lane))
+        return row
+    return [row_for(row) for row in WEATHER_CAPABILITIES]
 
 def validate_capabilities_contract(capabilities: List[Dict[str, Any]]) -> None:
     """Validates the exact shape and semantic contract of capabilities."""

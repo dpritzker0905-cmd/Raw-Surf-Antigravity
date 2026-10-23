@@ -12,6 +12,7 @@
  * `WebGLMarineMaskRenderer` re-exports every symbol here, so importers are unchanged.
  */
 import { makeMaskProjector } from './marineMaskProjection';
+import { stampVerdict } from './maskFastPaths';
 
 // ── SHELTERED-WATER CLASSIFIER ──────────────────────────────────────────────────────────────────
 // Pure grid core (exported for tests): given a binary water grid, mark water pixels that cannot
@@ -443,7 +444,7 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const prevSmooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(ds, 0, 0, canvas.width, canvas.height);
+  stampVerdict(ctx, ds, sheltered, dsW, dsH, canvas.width, canvas.height);   // = drawImage(ds, 0, 0, W, H): maskFastPaths.js
   ctx.imageSmoothingEnabled = prevSmooth;
   // Stash the verdict canvas (sheltered = gray, open = transparent) for crisp deep-zoom canvases.
   if (doStash) stashBasinVerdict({ bounds: { ...bounds }, mPerPx: Math.round(mPerPx), ds, dsW, dsH, count });

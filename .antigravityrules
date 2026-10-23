@@ -232,6 +232,16 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
   (`Ledger head: seq N, sha256 H`); CI (`weather-program-ledger.yml`) runs `action_ledger.py selftest` and `verify`
   and, on a pull request, requires the base branch's ledger to be a byte-exact prefix. Editing, deleting,
   reordering or truncating history fails CI. There is no "fix the ledger" — there is only a new correction line.
+* **A PR records its lines in its own FRAGMENT, and only the fold writes the ledger** (owner, 2026-10-22 23:11 EDT:
+  "Yes: build the per-PR ledger fragments (ledger.d/<pr>.jsonl folded into ACTIONS.jsonl in merge order) so PRs stop
+  colliding and auto-merge runs unattended. Keep the hash chain intact."; DECISIONS D-0XX). `action_ledger.py append`
+  writes `docs/weather-program/ledger.d/<branch-slug>.jsonl`: every field above, no `seq`/`prev`/`at`. A PR never
+  edits ACTIONS.jsonl or moves the STATE anchor, and never edits or deletes a merged fragment. The lead's
+  `action_ledger.py fold-pr` appends every merged fragment to ACTIONS.jsonl in MERGE ORDER with the normal chain,
+  verifies it, moves the anchor, checks every fragment line is now in the ledger and only then deletes the folded
+  files, in one PR. `check-pr` in the ledger workflow fails a PR that writes the ledger directly unless it is that
+  fold (recomputed from dev, line for line) or was opened before the fragments landed. Until folded, cite a line as
+  `ledger.d/<name>.jsonl:N` and reference it as `@frag:N` or `@frag:<name>:N`, never by a guessed seq.
 * **Authorization before irreversible or outward-facing actions.** Merge only the PRs the owner names, only with
   every check green and the hosted test counts matching the projection. Never flip a served number without the
   owner's word (D-001). When the next step is genuinely the owner's call, ask once, with a recommendation.

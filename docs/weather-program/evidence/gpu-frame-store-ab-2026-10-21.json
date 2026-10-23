@@ -1,0 +1,1621 @@
+{
+ "what": "GPU-resident frames phase 2 (wired) offline A/Bs, final round (with big-jump preemption and the deferred show). One production build per round; arms interleaved. Synthetic stores (serve_synthetic.py) with frames published by publish_frame_images.py; a local CDN adds 340 ms per object (the live Cloudflare hit, lead session curl -D 2026-10-21). AMD 890M, Windows 11, headless Chrome.",
+ "scrub": {
+  "instrument": "frontend/scripts/offline-backend/scn_static_frames.js ARMS=static,store,eager ROUNDS=2 CDN_LAT=340; metric: ms from the key press to the EXACT-CORRECT frame on the GPU (the product /grid serves for that time, full resolution)",
+  "arms": {
+   "static": "#422 as merged, frame store killed (window.__RAW_DISABLE_FRAME_STORE__)",
+   "store": "static frames + frame store (intent-gated prefetch, the default)",
+   "eager": "store + window.__RAW_FRAME_PREFETCH_EAGER__ (whole series from the first draw)"
+  },
+  "summary": {
+   "static": {
+    "sessions": 2,
+    "steps": 20,
+    "exact_missed": 0,
+    "exact_ms_p50": 41,
+    "exact_ms_p95": 603,
+    "exact_ms_max": 638,
+    "backend_requests": {},
+    "by_step": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exact_ms": [
+       638,
+       603
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exact_ms": [
+       586,
+       573
+      ]
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exact_ms": [
+       570,
+       574
+      ]
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exact_ms": [
+       593,
+       584
+      ]
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exact_ms": [
+       595,
+       579
+      ]
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exact_ms": [
+       41,
+       35
+      ]
+     }
+    ]
+   },
+   "store": {
+    "sessions": 2,
+    "steps": 20,
+    "exact_missed": 0,
+    "exact_ms_p50": 3,
+    "exact_ms_p95": 424,
+    "exact_ms_max": 430,
+    "backend_requests": {},
+    "by_step": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exact_ms": [
+       14,
+       4
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exact_ms": [
+       1,
+       8
+      ]
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exact_ms": [
+       91,
+       74
+      ]
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exact_ms": [
+       424,
+       430
+      ]
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exact_ms": [
+       3,
+       5
+      ]
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exact_ms": [
+       14,
+       3
+      ]
+     }
+    ]
+   },
+   "eager": {
+    "sessions": 2,
+    "steps": 20,
+    "exact_missed": 0,
+    "exact_ms_p50": 1,
+    "exact_ms_p95": 12,
+    "exact_ms_max": 16,
+    "backend_requests": {},
+    "by_step": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exact_ms": [
+       1,
+       10
+      ]
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exact_ms": [
+       8,
+       5
+      ]
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exact_ms": [
+       1,
+       6
+      ]
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exact_ms": [
+       16,
+       5
+      ]
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exact_ms": [
+       4,
+       10
+      ]
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exact_ms": [
+       0,
+       0
+      ]
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exact_ms": [
+       12,
+       3
+      ]
+     }
+    ]
+   }
+  },
+  "sessions": [
+   {
+    "arm": "static",
+    "steps": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exactMs": 638,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exactMs": 586,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exactMs": 570,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exactMs": 593,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exactMs": 595,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exactMs": 41,
+      "already": false,
+      "regress": 0
+     }
+    ],
+    "backendRequests": {},
+    "cdn": {
+     "requests": 5,
+     "bytes": 44713
+    },
+    "frameStore": {
+     "shows": {
+      "n": 0,
+      "misses": {},
+      "lastMs": null
+     },
+     "commits": {},
+     "prefetch": {
+      "requests": 0,
+      "landed": 0,
+      "aborted": 0,
+      "preempted": 0,
+      "errors": 0,
+      "bytes": 0,
+      "packFail": 0,
+      "stale": 0,
+      "inflight": 0,
+      "cap": 6,
+      "opened": false,
+      "planned": 0
+     },
+     "gpu": null,
+     "cpuMB": 0,
+     "gpuMB": 0,
+     "tier": "desktop"
+    }
+   },
+   {
+    "arm": "store",
+    "steps": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exactMs": 14,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exactMs": 1,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exactMs": 91,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exactMs": 424,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exactMs": 3,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exactMs": 14,
+      "already": false,
+      "regress": 0
+     }
+    ],
+    "backendRequests": {},
+    "cdn": {
+     "requests": 82,
+     "bytes": 734092
+    },
+    "frameStore": {
+     "shows": {
+      "n": 10,
+      "misses": {
+       "not_ready": 5
+      },
+      "lastMs": 0.2,
+      "deferred": 1
+     },
+     "commits": {
+      "not_packed_inflight": 2,
+      "resident_late": 2,
+      "resident": 8
+     },
+     "prefetch": {
+      "requests": 96,
+      "landed": 84,
+      "aborted": 0,
+      "preempted": 6,
+      "errors": 0,
+      "bytes": 751688,
+      "packFail": 0,
+      "stale": 0,
+      "inflight": 6,
+      "cap": 6,
+      "opened": true,
+      "planned": 115
+     },
+     "gpu": {
+      "allocs": 1,
+      "reuses": 1,
+      "evictions": 0,
+      "uploads": 84,
+      "copies": 10,
+      "errors": 0,
+      "arrays": 1,
+      "sets": 1,
+      "spare": 0,
+      "allocatedMB": 7.34
+     },
+     "cpuMB": 13.25,
+     "gpuMB": 4.81,
+     "tier": "desktop"
+    }
+   },
+   {
+    "arm": "eager",
+    "steps": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exactMs": 1,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exactMs": 8,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exactMs": 1,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exactMs": 16,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exactMs": 4,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exactMs": 12,
+      "already": false,
+      "regress": 0
+     }
+    ],
+    "backendRequests": {},
+    "cdn": {
+     "requests": 5,
+     "bytes": 44713
+    },
+    "frameStore": {
+     "shows": {
+      "n": 14,
+      "misses": {},
+      "lastMs": 0.2
+     },
+     "commits": {
+      "not_packed_inflight": 1,
+      "resident_late": 1,
+      "resident": 10
+     },
+     "prefetch": {
+      "requests": 115,
+      "landed": 115,
+      "aborted": 0,
+      "preempted": 0,
+      "errors": 0,
+      "bytes": 1030820,
+      "packFail": 0,
+      "stale": 0,
+      "inflight": 0,
+      "cap": 6,
+      "opened": true,
+      "planned": 115
+     },
+     "gpu": {
+      "allocs": 1,
+      "reuses": 1,
+      "evictions": 0,
+      "uploads": 115,
+      "copies": 14,
+      "errors": 0,
+      "arrays": 1,
+      "sets": 1,
+      "spare": 0,
+      "allocatedMB": 7.34
+     },
+     "cpuMB": 18.14,
+     "gpuMB": 6.59,
+     "tier": "desktop"
+    }
+   },
+   {
+    "arm": "eager",
+    "steps": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exactMs": 10,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exactMs": 5,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exactMs": 6,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exactMs": 5,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exactMs": 10,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exactMs": 3,
+      "already": false,
+      "regress": 0
+     }
+    ],
+    "backendRequests": {},
+    "cdn": {
+     "requests": 5,
+     "bytes": 44713
+    },
+    "frameStore": {
+     "shows": {
+      "n": 14,
+      "misses": {},
+      "lastMs": 0.3
+     },
+     "commits": {
+      "not_packed_inflight": 1,
+      "resident_late": 1,
+      "resident": 10
+     },
+     "prefetch": {
+      "requests": 115,
+      "landed": 115,
+      "aborted": 0,
+      "preempted": 0,
+      "errors": 0,
+      "bytes": 1030820,
+      "packFail": 0,
+      "stale": 0,
+      "inflight": 0,
+      "cap": 6,
+      "opened": true,
+      "planned": 115
+     },
+     "gpu": {
+      "allocs": 1,
+      "reuses": 1,
+      "evictions": 0,
+      "uploads": 115,
+      "copies": 14,
+      "errors": 0,
+      "arrays": 1,
+      "sets": 1,
+      "spare": 0,
+      "allocatedMB": 7.34
+     },
+     "cpuMB": 18.14,
+     "gpuMB": 6.59,
+     "tier": "desktop"
+    }
+   },
+   {
+    "arm": "store",
+    "steps": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exactMs": 4,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exactMs": 8,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exactMs": 74,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exactMs": 430,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exactMs": 5,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exactMs": 3,
+      "already": false,
+      "regress": 0
+     }
+    ],
+    "backendRequests": {},
+    "cdn": {
+     "requests": 84,
+     "bytes": 752055
+    },
+    "frameStore": {
+     "shows": {
+      "n": 10,
+      "misses": {
+       "not_ready": 5
+      },
+      "lastMs": 0.2,
+      "deferred": 1
+     },
+     "commits": {
+      "not_packed_inflight": 2,
+      "resident_late": 2,
+      "resident": 8
+     },
+     "prefetch": {
+      "requests": 98,
+      "landed": 86,
+      "aborted": 0,
+      "preempted": 6,
+      "errors": 0,
+      "bytes": 769651,
+      "packFail": 0,
+      "stale": 0,
+      "inflight": 6,
+      "cap": 6,
+      "opened": true,
+      "planned": 115
+     },
+     "gpu": {
+      "allocs": 1,
+      "reuses": 1,
+      "evictions": 0,
+      "uploads": 86,
+      "copies": 10,
+      "errors": 0,
+      "arrays": 1,
+      "sets": 1,
+      "spare": 0,
+      "allocatedMB": 7.34
+     },
+     "cpuMB": 13.57,
+     "gpuMB": 4.93,
+     "tier": "desktop"
+    }
+   },
+   {
+    "arm": "static",
+    "steps": [
+     {
+      "key": "ArrowRight",
+      "target": 1,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 2,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 3,
+      "exactMs": 603,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowRight",
+      "target": 4,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 28,
+      "exactMs": 573,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageUp",
+      "target": 52,
+      "exactMs": 574,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "BURST",
+      "target": 172,
+      "exactMs": 584,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "PageDown",
+      "target": 148,
+      "exactMs": 579,
+      "already": false,
+      "regress": 0
+     },
+     {
+      "key": "ArrowLeft",
+      "target": 147,
+      "exactMs": 0,
+      "already": true,
+      "regress": 0
+     },
+     {
+      "key": "Home",
+      "target": 0,
+      "exactMs": 35,
+      "already": false,
+      "regress": 0
+     }
+    ],
+    "backendRequests": {},
+    "cdn": {
+     "requests": 5,
+     "bytes": 44713
+    },
+    "frameStore": {
+     "shows": {
+      "n": 0,
+      "misses": {},
+      "lastMs": null
+     },
+     "commits": {},
+     "prefetch": {
+      "requests": 0,
+      "landed": 0,
+      "aborted": 0,
+      "preempted": 0,
+      "errors": 0,
+      "bytes": 0,
+      "packFail": 0,
+      "stale": 0,
+      "inflight": 0,
+      "cap": 6,
+      "opened": false,
+      "planned": 0
+     },
+     "gpu": null,
+     "cpuMB": 0,
+     "gpuMB": 0,
+     "tier": "desktop"
+    }
+   }
+  ]
+ },
+ "erratic": {
+  "instrument": "frontend/scripts/visual-lab/lab.js FLOWS=erratic LAB_STATIC=<cdn> LAB_CDN_LAT=340, runs kill/store/store/kill (kill = LAB_KILLS=__RAW_DISABLE_FRAME_STORE__); metric: marineMs = input to the first frame with the correct marine field. Static frames cover GFS waves at world zoom only (slice 1), so only the GFS-waves scrub steps (+5h, +45h, +131h, +12h) can change; the model/layer/zoom steps are the null control.",
+  "runs": {
+   "1_kill": [
+    {
+     "label": "+5h",
+     "marineMs": 586,
+     "marineSilent": 6,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+45h",
+     "marineMs": 602,
+     "marineSilent": 1,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+131h",
+     "marineMs": 555,
+     "marineSilent": 1,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "EURO",
+     "marineMs": 981,
+     "marineSilent": 1,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Wind Waves",
+     "marineMs": 1227,
+     "marineSilent": 1,
+     "requests": {
+      "series": 5,
+      "grid": 1
+     }
+    },
+    {
+     "label": "+153h",
+     "marineMs": null,
+     "marineSilent": 6,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "ICON",
+     "marineMs": 1186,
+     "marineSilent": 2,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Swell 2",
+     "marineMs": 1346,
+     "marineSilent": 0,
+     "requests": {
+      "series": 2,
+      "grid": 2
+     }
+    },
+    {
+     "label": "+165h",
+     "marineMs": 2387,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 2
+     }
+    },
+    {
+     "label": "zoom 8",
+     "marineMs": 11,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "pan",
+     "marineMs": 11,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 1
+     }
+    },
+    {
+     "label": "zoom out 3",
+     "marineMs": 4,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Waves",
+     "marineMs": 3329,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 1
+     }
+    },
+    {
+     "label": "GFS",
+     "marineMs": 795,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+12h",
+     "marineMs": 506,
+     "marineSilent": 2,
+     "requests": {
+      "series": 3,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Swell",
+     "marineMs": 2453,
+     "marineSilent": 1,
+     "requests": {
+      "series": 0,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Waves again",
+     "marineMs": 11,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    }
+   ],
+   "2_store": [
+    {
+     "label": "+5h",
+     "marineMs": 15,
+     "marineSilent": 4,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+45h",
+     "marineMs": 158,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+131h",
+     "marineMs": 67,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "EURO",
+     "marineMs": 1039,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Wind Waves",
+     "marineMs": 1292,
+     "marineSilent": 1,
+     "requests": {
+      "series": 5,
+      "grid": 1
+     }
+    },
+    {
+     "label": "+153h",
+     "marineMs": null,
+     "marineSilent": 5,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "ICON",
+     "marineMs": 1283,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Swell 2",
+     "marineMs": 1565,
+     "marineSilent": 1,
+     "requests": {
+      "series": 2,
+      "grid": 2
+     }
+    },
+    {
+     "label": "+165h",
+     "marineMs": 1598,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 2
+     }
+    },
+    {
+     "label": "zoom 8",
+     "marineMs": 4,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 1
+     }
+    },
+    {
+     "label": "pan",
+     "marineMs": 12,
+     "marineSilent": 0,
+     "requests": {
+      "series": 5,
+      "grid": 2
+     }
+    },
+    {
+     "label": "zoom out 3",
+     "marineMs": 11,
+     "marineSilent": 0,
+     "requests": {
+      "series": 4,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Waves",
+     "marineMs": 2806,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 1
+     }
+    },
+    {
+     "label": "GFS",
+     "marineMs": 820,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+12h",
+     "marineMs": 2,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Swell",
+     "marineMs": 3007,
+     "marineSilent": 1,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Waves again",
+     "marineMs": 5,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 0
+     }
+    }
+   ],
+   "3_store": [
+    {
+     "label": "+5h",
+     "marineMs": 1,
+     "marineSilent": 2,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+45h",
+     "marineMs": 224,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+131h",
+     "marineMs": 54,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "EURO",
+     "marineMs": 1033,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Wind Waves",
+     "marineMs": 1390,
+     "marineSilent": 1,
+     "requests": {
+      "series": 5,
+      "grid": 1
+     }
+    },
+    {
+     "label": "+153h",
+     "marineMs": 5,
+     "marineSilent": 12,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "ICON",
+     "marineMs": 1270,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Swell 2",
+     "marineMs": 2339,
+     "marineSilent": 0,
+     "requests": {
+      "series": 2,
+      "grid": 2
+     }
+    },
+    {
+     "label": "+165h",
+     "marineMs": 1933,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 2
+     }
+    },
+    {
+     "label": "zoom 8",
+     "marineMs": 13,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "pan",
+     "marineMs": 12,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 1
+     }
+    },
+    {
+     "label": "zoom out 3",
+     "marineMs": 6,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Waves",
+     "marineMs": 4289,
+     "marineSilent": 0,
+     "requests": {
+      "series": 4,
+      "grid": 1
+     }
+    },
+    {
+     "label": "GFS",
+     "marineMs": 819,
+     "marineSilent": 0,
+     "requests": {
+      "series": 2,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+12h",
+     "marineMs": 3,
+     "marineSilent": 2,
+     "requests": {
+      "series": 1,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Swell",
+     "marineMs": 1911,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Waves again",
+     "marineMs": 15,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    }
+   ],
+   "4_kill": [
+    {
+     "label": "+5h",
+     "marineMs": 599,
+     "marineSilent": 2,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+45h",
+     "marineMs": 588,
+     "marineSilent": 3,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+131h",
+     "marineMs": 597,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "EURO",
+     "marineMs": 998,
+     "marineSilent": 1,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Wind Waves",
+     "marineMs": 760,
+     "marineSilent": 0,
+     "requests": {
+      "series": 5,
+      "grid": 1
+     }
+    },
+    {
+     "label": "+153h",
+     "marineMs": 5,
+     "marineSilent": 7,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "ICON",
+     "marineMs": 2107,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Swell 2",
+     "marineMs": 1693,
+     "marineSilent": 0,
+     "requests": {
+      "series": 2,
+      "grid": 2
+     }
+    },
+    {
+     "label": "+165h",
+     "marineMs": 2380,
+     "marineSilent": 0,
+     "requests": {
+      "series": 1,
+      "grid": 2
+     }
+    },
+    {
+     "label": "zoom 8",
+     "marineMs": 4,
+     "marineSilent": 0,
+     "requests": {
+      "series": 2,
+      "grid": 2
+     }
+    },
+    {
+     "label": "pan",
+     "marineMs": 16,
+     "marineSilent": 0,
+     "requests": {
+      "series": 6,
+      "grid": 2
+     }
+    },
+    {
+     "label": "zoom out 3",
+     "marineMs": 15,
+     "marineSilent": 0,
+     "requests": {
+      "series": 3,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Waves",
+     "marineMs": 1244,
+     "marineSilent": 0,
+     "requests": {
+      "series": 4,
+      "grid": 1
+     }
+    },
+    {
+     "label": "GFS",
+     "marineMs": 801,
+     "marineSilent": 0,
+     "requests": {
+      "series": 2,
+      "grid": 0
+     }
+    },
+    {
+     "label": "+12h",
+     "marineMs": 586,
+     "marineSilent": 2,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    },
+    {
+     "label": "Swell",
+     "marineMs": 2503,
+     "marineSilent": 1,
+     "requests": {
+      "series": 1,
+      "grid": 1
+     }
+    },
+    {
+     "label": "Waves again",
+     "marineMs": 20,
+     "marineSilent": 0,
+     "requests": {
+      "series": 0,
+      "grid": 0
+     }
+    }
+   ]
+  }
+ },
+ "caveats": [
+  "backend CPU seconds from the scenario are unreliable on this machine (WMI queries cancelled); backend_requests = 0 /grid and 0 /grid_series in every arm during the timed scrub",
+  "label_ms reads null on store-shown steps (a GPU-side layer copy is invisible to the scenario upload spy); exact_ms is the authority",
+  "synthetic frames gzip to ~9 KB vs ~56 KB real; per-object latency dominates at 340 ms",
+  "earlier rounds of this session (before preemption and the deferred show) are summarised in the log: they found the stale-resident, conform-identity, slot-contention and late-frame problems fixed here"
+ ]
+}

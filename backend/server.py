@@ -482,8 +482,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from services.logfire_setup import configure_logfire
+configure_logfire(app)
+
 # GZip Compression — compress responses > 500 bytes (60-80% reduction for JSON)
-app.add_middleware(GZipMiddleware, minimum_size=500)
+# GZIP_COMPRESSLEVEL (W-4, 2026-10-19): Starlette's default 9 costs ~5x level 1 for ~1.3x the bytes on the one
+# 1-CPU box, and it runs on the event loop. Default stays 9 (unchanged); the owner may lower it (1-9).
+from services.weather_pipeline.config_env import env_int as _env_int  # noqa: E402  (a bad value warns, never crashes boot)
+app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=_env_int("GZIP_COMPRESSLEVEL", 9, lo=1, hi=9))
 
 # CORS Configuration
 app.add_middleware(

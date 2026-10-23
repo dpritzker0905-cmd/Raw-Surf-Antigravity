@@ -10,6 +10,7 @@ provider caches it for 5 min); every subsequent hour re-slices that same cached 
 Additive: nothing here changes the existing /grid path.
 """
 import asyncio
+import contextvars
 import logging
 import os
 import time
@@ -20,6 +21,7 @@ from services.weather_pipeline.reval_queue import SeriesFrame, series_frame_scop
 from services.weather_pipeline.series_source_policy import (
     has_stored_series_coverage, live_lane_cannot_beat_stored, recover_missing_hours)
 
+from services.weather_pipeline import series_memo_keys as _memo_keys   # what a memoised build reports (dark)
 from services.weather_pipeline.series_vector_budget import (
     decimate_vectors,
     node_extent_bounds,
@@ -36,6 +38,11 @@ logger = logging.getLogger(__name__)
 
 MAX_FRAMES = 48
 CONCURRENCY = 4
+
+# W-4 (2026-10-19): what the per-hour loop learned about each served frame that the response does NOT carry
+# (`stale` = an SWR sharpen is pending; `cache_hit` = preview tier). series_page_memo.py sets a list here so
+# it can refuse to replay a page a later request would have built differently. Unset => nothing recorded.
+SERIES_FRAME_SINK = contextvars.ContextVar("series_frame_sink", default=None)
 
 
 # ── BUILD-TIME BOUND (2026-08-10, the Render OOM root) ────────────────────────────────────────
@@ -236,7 +243,7 @@ def _resolve_series_anchor(base_time, server_now):
 
 async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str,
                             bbox: str, hours: str, request=None, surf: bool = False,
-                            base_time: str = None) -> dict:
+                            base_time: str = None, resolved_anchor=None) -> dict:
     """Public entry point: build the series, then BOUND it (audit v7 §3).
 
     A thin wrapper, deliberately. This module has THREE assembly points -- the EURO fast path, the
@@ -252,7 +259,9 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     the budget is: a disclosure applied at one of three assembly points is a disclosure that ran
     nowhere.
     """
-    anchor, anchor_source = _resolve_series_anchor(base_time, datetime.now(timezone.utc))
+    # resolved_anchor: (anchor, source) already resolved by a caller that keyed on it (series_page_memo), so an
+    # hour rollover between keying and building cannot file one hour's page under the other's key. None = resolve here.
+    anchor, anchor_source = resolved_anchor or _resolve_series_anchor(base_time, datetime.now(timezone.utc))
     resp = await _build_grid_series_impl(
         resolve_grid, viewport_service, model, domain, layer, bbox, hours,
         request=request, surf=surf, base_anchor=anchor,
@@ -383,6 +392,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
         live_series = False
     prefer_stored = live_series and await has_stored_series_coverage(viewport_service, model, domain, layer, bbox, hour_list, base)
     if live_series and not prefer_stored:
+        _memo_keys.note_build("live_attempted")    # the page then depends on upstream state: never a durable memo page
         try:
             fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
@@ -525,6 +535,10 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     for h, product in results:
         if not product or not getattr(product, "grid", None) or not product.grid.vectors:
             continue
+        _sink = SERIES_FRAME_SINK.get()
+        if _sink is not None:
+            _sink.append((bool(getattr(product, "stale", False)), str(getattr(product, "cache_hit", None) or "")))
+        _memo_keys.note_frame(product)
         g = product.grid
         b = {"west": g.bounds.west, "south": g.bounds.south, "east": g.bounds.east, "north": g.bounds.north} if g.bounds else None
         if shared_bounds is None and b:

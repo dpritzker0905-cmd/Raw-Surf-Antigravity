@@ -60,21 +60,17 @@ point_resolution_service = PointResolutionService(
 
 
 @router.get("/products")
-async def get_products():
+async def get_products(request: Request = None, fields: Optional[str] = Query(None, pattern="^compact$")):
     """
     GET /api/weather/products
     Returns the current manifest registry listing available prepared weather products.
 
-    A15-16 (audit 15.0): this public, unauthenticated response also carried the server's absolute
-    cache path and a listing of every file in it (2,717 names, measured 2026-09-25), re-read from
-    disk on each call. Nothing read either field over HTTP; the diagnostics scripts use the store
-    directly. Both are gone.
+    Encoded once per manifest version, off the event loop, with an ETag (`?fields=compact`: only the fields the
+    client reads). Kill: PRODUCTS_RESPONSE_CACHE=0. A15-16 (no cache path or file listing) and the rest:
+    services/weather_pipeline/products_response.py.
     """
-    manifest = await asyncio.to_thread(store.get_manifest)
-    return {
-        "last_manifest_update": manifest.last_manifest_update,
-        "products": manifest.products,
-    }
+    from services.weather_pipeline.products_response import serve_products
+    return await serve_products(store, request, compact=fields == "compact")   # called directly, `fields` is the Query
 
 
 @router.get("/grid_series")
@@ -94,14 +90,14 @@ async def get_grid_series(
     Returns a TIME-SERIES of viewport grids in ONE response so the client can scrub
     hours instantly (client-side frame selection) instead of one fetch per hour.
 
-    Reuses /grid's per-hour builder and shared upstream cache. If a series fails,
-    the client falls back to per-hour /grid requests. The dark response envelope
-    shares admission across both HTTP routes and owns canceled per-hour work.
+    Reuses /grid's per-hour builder and shared upstream cache; on failure the client falls back to per-hour /grid.
+    The dark response envelope shares admission across both HTTP routes and owns canceled per-hour work.
     """
     from services.weather_pipeline.grid_series_helper import build_grid_series
-    # Same /grid resolver, including the EURO multi-hour viewport fast path. The helper
-    # validates/discloses base_time and stops per-hour builds after client disconnect.
-    # Qualified response bounds include queueing, building, encoding and compression.
+    # Same /grid resolver. Dark W-4 page memo (snapped bbox, shared builds, off-loop encode): series_page_memo.py.
+    if os.environ.get("GRID_SERIES_PAGE_MEMO", "0") == "1":
+        from services.weather_pipeline.series_page_memo import serve_memo_series
+        return await serve_memo_series(get_grid, viewport_service, store, model, domain, layer, bbox, hours, request=request, surf=surf, base_time=base_time)
     if os.environ.get("GRID_SERIES_RESPONSE_BOUNDS", "0") == "1" and os.environ.get("GRID_RESPONSE_BOUNDS", "0") != "1":
         from services.weather_pipeline.series_response import serve_series
         return await serve_series(lambda: build_grid_series(

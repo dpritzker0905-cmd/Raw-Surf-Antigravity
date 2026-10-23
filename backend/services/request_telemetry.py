@@ -63,6 +63,44 @@ def record(method: str, template: str, status: int, elapsed_ms: float) -> None:
         entry["buckets"][-1] += 1
 
 
+# STAGES (W-4, 2026-10-19): a route's total time cannot say WHERE it went. A handler may name a stage
+# ("grid_series.build", ".encode", ".gzip", one per memo outcome) and account its duration here, into
+# the same bucket histogram. Bounded like the routes: at most MAX_STAGES names, overflow folds into
+# "(other)". Event loop or worker thread: a lost increment under a race costs one count, never a crash.
+MAX_STAGES = 32
+_stages: Dict[str, dict] = {}
+
+
+def record_stage(name: str, elapsed_ms: float) -> None:
+    if os.environ.get("REQUEST_TELEMETRY", "1") == "0":
+        return
+    entry = _stages.get(name)
+    if entry is None:
+        if len(_stages) >= MAX_STAGES:
+            name = "(other)"
+        entry = _stages.setdefault(name, _new_entry())
+    entry["n"] += 1
+    entry["sum_ms"] += elapsed_ms
+    if elapsed_ms > entry["max_ms"]:
+        entry["max_ms"] = elapsed_ms
+    for i, bound in enumerate(BUCKET_BOUNDS_MS):
+        if elapsed_ms <= bound:
+            entry["buckets"][i] += 1
+            break
+    else:
+        entry["buckets"][-1] += 1
+
+
+def _stage_rows() -> List[dict]:
+    rows = []
+    for name, entry in sorted(_stages.items()):
+        p50, _ = _percentile_ms(entry, 0.50)
+        p95, _ = _percentile_ms(entry, 0.95)
+        rows.append({"stage": name, "n": entry["n"], "avg_ms": round(entry["sum_ms"] / entry["n"], 1),
+                     "p50_ms": p50, "p95_ms": p95, "max_ms": math.ceil(entry["max_ms"] * 10) / 10})
+    return rows
+
+
 def _percentile_ms(entry: dict, q: float):
     """(value_ms, is_overflow). Value is an UPPER BOUND on the true percentile, never a sample.
 
@@ -141,6 +179,8 @@ def snapshot(top: int = 30) -> dict:
                   **({"over_%dms" % BUCKET_BOUNDS_MS[-1]: total["buckets"][-1]}
                      if total["buckets"][-1] else {})},
         "top_routes": rows,
+        # Absent until a handler records a stage, so the payload is unchanged while no flag uses it.
+        **({"stages": _stage_rows()} if _stages else {}),
         "note": ("percentiles are bucket UPPER BOUNDS, capped at the observed max (read high, "
                  "never low, never above max_ms), rounded UP to tenths of a millisecond. "
                  "Latency counts include all statuses; errors are reported separately. "
