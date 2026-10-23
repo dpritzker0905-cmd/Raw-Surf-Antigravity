@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 import apiClient from '../../lib/apiClient';
 import ReviewModal from '../ReviewModal';

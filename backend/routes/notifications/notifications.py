@@ -151,7 +151,8 @@ class RealtimeBroadcastRequest(BaseModel):
 
 @router.post("/realtime/broadcast")
 async def broadcast_realtime_event(
-    data: RealtimeBroadcastRequest
+    data: RealtimeBroadcastRequest,
+    _caller_id: str = Depends(get_current_user_id),
 ):
     """Broadcast an event via Supabase Realtime for social sync.
     Used for instant updates like reaction changes on posts.

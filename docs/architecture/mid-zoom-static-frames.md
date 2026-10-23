@@ -291,3 +291,19 @@ predicted.
   outside this client; its pan debounce / surf sibling gate went to the GPU-frames session.
 - Mutants: 21 guards, 21 caught.
 
+**Live read of #491** (2026-10-23 20:54Z; the lead's signed-in browser, dev site 2d7c062c, health 0.46 -> 0.63 s; evidence
+`live_read_491`):
+- **Valid counts.** At the z9 Florida opening view, GFS waves made one /grid_series (the hours=1 mini, 173 ms) and no full pages;
+  the 16:33Z read had three pages at 5.1 / 3.9 / 1.2 s.
+- **The bundle.** One bundle, 109 series frames, `dynamicOnCovered` 0.
+- **Every tile pick was the pre-manifest pilot pick.** The products manifest never reached the tile reader during the read.
+- **Not measured.** First-frame and step times (the automation window throttled rAF to ~1 Hz) and the bundle download (HTTP cache).
+  Time to first frame stays on the offline arms until a real-browser read.
+- **The pre-manifest pilot pick is the STANDING path, not a stopgap.** In the opening flow nothing may fetch the products manifest,
+  and live, every pick came from the pilot pick. Do not remove it or gate it behind the manifest. It is guarded four ways:
+  - the pilot boxes do not overlap (a backend test bans interior overlap);
+  - `PILOT_BOXES` is pinned to `pilot_regions.py` by a test;
+  - it picks only a set that `latest.json` lists, i.e. one written from that tile's stored products;
+  - the cover is still checked on the set's own lattice (the snapped box inside the data).
+  When the manifest is loaded, it decides. Kill switch: `__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__`.
+

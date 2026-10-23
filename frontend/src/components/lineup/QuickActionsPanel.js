@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Ban, CheckCircle, Loader2, Lock, Unlock, UserMinus, Waves } from 'lucide-react';
 import { Button } from '../ui/button';
 
 const QuickActionsPanel = ({ 

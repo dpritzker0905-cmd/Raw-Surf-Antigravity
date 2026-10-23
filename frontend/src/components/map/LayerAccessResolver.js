@@ -6,6 +6,8 @@
  * NO OTHER FILE may enforce permissions.
  */
 
+import { BACKEND_URL } from '../../lib/apiClient';
+
 // Define access rules per subscription tier
 var TIER_ACCESS = {
   guest: {
@@ -28,17 +30,9 @@ var TIER_ACCESS = {
 
 // Start capabilities fetch immediately on module load
 if (typeof window !== 'undefined') {
-  const getBackendUrl = () => {
-    if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
-    if (window.localStorage.getItem('__BACKEND_URL__')) return window.localStorage.getItem('__BACKEND_URL__');
-    // No hardcoded localhost→:8000 branch (removed 2026-07-02): it outranked REACT_APP_BACKEND_URL and
-    // pointed capabilities at a dead local backend whenever the localStorage override was absent — the
-    // third instance of the dead-:8000 trap (see .env.local note). Local-backend dev opts in via
-    // localStorage.setItem('__BACKEND_URL__','http://127.0.0.1:8000'), same as every other API path.
-    return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'https://raw-surf-antigravity.onrender.com';
-  };
-
-  fetch(`${getBackendUrl()}/api/weather/capabilities`)
+  // The app's one backend-URL resolution (a `typeof process` guard here was false in a browser, so this
+  // fetch always went to the production origin whatever REACT_APP_BACKEND_URL said).
+  fetch(`${BACKEND_URL}/api/weather/capabilities`)
     .then(res => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();

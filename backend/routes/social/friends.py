@@ -4,7 +4,7 @@ Friend finder, privacy settings, map visibility
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
@@ -284,9 +284,12 @@ async def get_privacy_settings(
 async def update_privacy_settings(
     user_id: str,
     settings_data: UpdatePrivacySettings,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update user's privacy settings"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(PrivacySetting).where(PrivacySetting.user_id == user_id)
     )
