@@ -114,6 +114,8 @@ async def send_message(
             raise HTTPException(status_code=403, detail="Grom Zone messaging is disabled by your parent.")
         elif perm_check["reason"] == "messaging_disabled":
             raise HTTPException(status_code=403, detail="Messaging is disabled by your parent.")
+        elif perm_check["reason"] == "view_only":
+            raise HTTPException(status_code=403, detail="This account is in view-only mode set by a parent or guardian.")
         raise HTTPException(status_code=403, detail="Messaging not allowed.")
     
     sender_result = await db.execute(select(Profile).where(Profile.id == sender_id))
