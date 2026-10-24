@@ -488,13 +488,13 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3317 = max(dev run 39994928838 read 3297, dev's map 3297) + 20 (rm-gulf-fill-targeted, 2026-10-23); floor 3311, margin 6.
-    "guards": 3317,
+    # guards: set from 3320 = max(dev run 40024668374 read 3317, dev's map 3317) + 3 (claude/euro-own-values-wire, 2026-10-23); floor 3314, margin 6.
+    "guards": 3320,
 
-    # chain: set from 2891 = max(dev run 40005013863 read 2873, dev's map 2882) + 9 (rm480, 2026-10-23); floor 2885, margin 6.
-    "chain": 2891,
+    # chain: set from 2896 = max(dev run 40024668374 read 2891, dev's map 2891) + 5 (claude/euro-own-values-wire, 2026-10-23); floor 2890, margin 6.
+    "chain": 2896,
 
-    # estate: set from 2573 = max(dev run 40043880457 read 2530, dev's map 2556) + 17 (claude/frame-parity-tolerance, 2026-10-24); floor 2571, margin 2.
+    # estate: set from 2573 = max(dev run 40045304524 read 2556, dev's map 2556) + 17 (claude/frame-parity-tolerance, 2026-10-24); floor 2571, margin 2.
     "estate": 2573,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
