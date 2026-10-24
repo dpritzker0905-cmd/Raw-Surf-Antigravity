@@ -25,6 +25,7 @@ import { publishRenderParity, republishRenderParityAfterUpload } from './marineR
 import { marineGridRejection } from './marineGridValidation';
 import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
 import { layerUploadIsStale } from './marineZoomOutRelease';
+import { loadWaveLakes } from './waveLakes';   // lakes a wave model carries (waveLakes.js)
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -447,6 +448,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   useEffect(() => {
     let activeFetch = true;
     landGeoJSONFailedRef.current = false;
+    // The lake outlines (~95 KB) load beside the land; when they land, the current data re-uploads once so a carried lake shows.
+    const lakesLoad = loadWaveLakes();
+    if (lakesLoad) lakesLoad.then((a) => {
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (a && activeFetch && gl && dataRef.current?.vectors?.length && safeUploadRef.current) safeUploadRef.current('wave_lakes_ready', gl, dataRef.current, landGeoJSONRef.current);
+    });
 
     getSharedLandGeoJSON()
       .then(geojson => {

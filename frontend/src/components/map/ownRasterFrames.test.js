@@ -1,5 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
+  combinedFrames, combinedFrameAt, setKey,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -52,7 +53,7 @@ test('toField: Float32 values, missing nodes as MISSING, the frame times in ms',
 
 describe('levers (phase 1 is dark)', () => {
   test('off by default', () => expect(ownFramesOn('pressure')).toBe(false));
-  test('on with the window lever or this browser\'s choice', () => {
+  test("on with the window lever or this browser's choice", () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(true);
     delete window.__RAW_RASTER_OWN_FRAMES__;
@@ -66,13 +67,19 @@ describe('levers (phase 1 is dark)', () => {
     delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
     expect(ownFramesOn('rain')).toBe(false);
   });
-  test('GFS only: with EURO or ICON selected the .om path draws that model', () => {
+  test('per model: each has its own set; a model whose set is killed stays on the .om path', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
-    expect(ownFramesOn('pressure', 'GFS')).toBe(true);
-    expect(ownFramesOn('pressure', 'EURO')).toBe(false);
+    for (const m of ['GFS', 'EURO', 'ICON', 'euro']) expect(ownFramesOn('pressure', m)).toBe(true);
+    staticSetEnabled.mockImplementation((key) => key !== 'ICON/weather/pressure/global_0p5');
     expect(ownFramesOn('pressure', 'ICON')).toBe(false);
+    expect(ownFramesOn('pressure', 'HRRR')).toBe(false);
   });
-  test('the set key matches the publisher contract', () => expect(OWN_RASTER_SETS.pressure.key).toBe('GFS/weather/pressure/global_0p5'));
+  test('the set keys match the publisher contract', () => {
+    expect(setKey('pressure', 'GFS')).toBe('GFS/weather/pressure/global_0p5');
+    expect(setKey('pressure', 'EURO')).toBe('EURO/weather/pressure/global_0p5');
+    expect(setKey('pressure', 'ICON')).toBe('ICON/weather/pressure/global_0p5');
+    expect(OWN_RASTER_SETS.pressure.fallback).toBe('GFS');
+  });
 });
 
 describe('frames of the index', () => {
@@ -119,5 +126,29 @@ describe('the remembered index (prewarm: a toggle draws after one frame round tr
     expect(await ownIndex('pressure')).toBe(idx);
     expect(lastIndex('pressure')).toBe(idx);
     expect(getPinnedIndex).toHaveBeenCalledWith('GFS/weather/pressure/global_0p5');
+  });
+});
+
+
+describe("past a model's range: the GFS stand-in, labelled (the wave layers' extension policy)", () => {
+  const vt = (h) => new Date(Date.UTC(2026, 9, 24, 0) + h * 3600000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const euro = { frames: [0, 3, 6, 150, 156, 240].map((h) => ({ valid_time: vt(h), path: `e${h}` })) };
+  const gfs = { frames: [0, 3, 237, 240, 243, 246, 336].map((h) => ({ valid_time: vt(h), path: `g${h}` })) };
+  const at = (h) => Date.UTC(2026, 9, 24, 0) + h * 3600000;
+  test("the model's own frames, then GFS frames past its last one, flagged estimated", () => {
+    const c = combinedFrames('pressure', 'EURO', euro, gfs);
+    expect(c.map((f) => f.path)).toEqual(['e0', 'e3', 'e6', 'e150', 'e156', 'e240', 'g243', 'g246', 'g336']);
+    expect(c[0]).toMatchObject({ model: 'EURO', estimated: null, setKey: 'EURO/weather/pressure/global_0p5' });
+    expect(c[6]).toMatchObject({ model: 'GFS', estimated: 'gfs_estimated_fallback', setKey: 'GFS/weather/pressure/global_0p5' });
+    expect(euro.frames[0].model).toBeUndefined();                       // the index is never mutated
+    expect(combinedFrames('pressure', 'GFS', gfs, gfs).every((f) => !f.estimated)).toBe(true);
+    expect(combinedFrames('pressure', 'EURO', euro, null)).toHaveLength(6);
+  });
+  test("inside the range the model's own frame always wins; past it, the stand-in; a gap inside the range stays a gap", () => {
+    const c = combinedFrames('pressure', 'EURO', euro, gfs);
+    expect(combinedFrameAt(c, at(239)).path).toBe('e240');            // own, within 3 h
+    expect(combinedFrameAt(c, at(244)).path).toBe('g243');            // past 240 h: GFS
+    expect(combinedFrameAt(c, at(300))).toBeNull();                   // nothing within 3 h either side
+    expect(combinedFrameAt(c, at(60))).toBeNull();                    // inside EURO's range, no frame within 3 h: no stand-in
   });
 });

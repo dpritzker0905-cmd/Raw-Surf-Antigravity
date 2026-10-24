@@ -206,6 +206,7 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         # cache's own objects (module docstring), so nothing below writes to either.
         vectors = list(grid.vectors)
         filled = 0
+        filled_idx = []
         for i in masked:
             v = vectors[i]
             best, bestd = None, _MAX_FILL_DIST_DEG
@@ -231,6 +232,7 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
             v.is_valid = True
             vectors[i] = v
             filled += 1
+            filled_idx.append(i)
 
         if filled:
             # Rebind on copies of the product and grid containers too: the caller's product (and its
@@ -260,9 +262,9 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
             # The route still must not break over a best-effort stamp, so the catch stays — but it
             # is now LOUD. A provenance write that fails is a defect, not a no-op.
             try:
-                product.coarse_fill = {"donor_model": "GFS", "layer": layer_l,
-                                       "cells_filled": filled, "cells_masked": len(masked),
-                                       "cells_total": len(grid.vectors)}
+                product.coarse_fill = _with_filled_idx({"donor_model": "GFS", "layer": layer_l,
+                                                        "cells_filled": filled, "cells_masked": len(masked),
+                                                        "cells_total": len(grid.vectors)}, filled_idx)
             except Exception as e:
                 logger.error(
                     f"[Coarse Fill] PROVENANCE LOST: substituted {filled} {layer_l} cells into "
@@ -456,6 +458,57 @@ def targeted_fill_stats():
             "no_fill": {f"{m}/{layer}/{reason}": n for (m, layer, reason), n in sorted(TARGETED_NO_FILL.items())}}
 
 
+# ── PER-NODE PROVENANCE (2026-10-23, DARK: MARINE_FILL_PROVENANCE_NODES, default '0') ──────────────────────────────────────────
+# The product-level stamp says HOW MANY cells came from GFS; a client that wants to draw a non-colour cue on the substituted
+# cells (hatch / outline, tooltip "GFS substitute, not EURO/ICON; peak period") needs WHICH. With the flag on, `coarse_fill`
+# carries `filled_idx`: indices into THIS response's `grid.vectors`, sorted. Indices, not coordinates (~5 bytes a cell against
+# ~16): the fill runs last on the /grid route, on the grid as served, so they are final there; a /grid_series frame that the
+# series then decimates re-points them through the nodes' coordinates (remap_filled_idx), and a cell the stride dropped falls
+# out. Bounded: at most MARINE_FILL_PROVENANCE_MAX (default 4096) indices, then `filled_idx_truncated: true` (the legacy fill's
+# 2-deg world peak was 2,465 cells, live 2026-10-22). Off = the stamp is byte-identical to before.
+
+
+def fill_provenance_nodes_enabled():
+    return os.environ.get("MARINE_FILL_PROVENANCE_NODES", "0") == "1"
+
+
+def _provenance_cap():
+    try:
+        return max(1, int(os.environ.get("MARINE_FILL_PROVENANCE_MAX", "4096")))
+    except ValueError:
+        return 4096
+
+
+def _with_filled_idx(stamp, idx):
+    """`stamp` plus the sorted, bounded `filled_idx` when MARINE_FILL_PROVENANCE_NODES=1; `stamp` unchanged otherwise."""
+    if not fill_provenance_nodes_enabled():
+        return stamp
+    idx, cap = sorted(int(i) for i in idx), _provenance_cap()
+    stamp["filled_idx"] = idx[:cap]
+    if len(idx) > cap:
+        stamp["filled_idx_truncated"] = True
+    return stamp
+
+
+def _node(v):
+    return (round(float(v.lat), 4), round(float(v.lng), 4))
+
+
+def remap_filled_idx(stamp, old_vectors, new_vectors, mode="stride"):
+    """A copy of `stamp` whose `filled_idx` points into `new_vectors` (a decimated `old_vectors`) at the same nodes, by coordinate.
+    Nodes the decimation dropped fall out. `mode` 'max' (block-maximum thinning, opt-in) can carry a substituted neighbour's value
+    on a kept native cell, so the copy then says `filled_idx_pooling: "max"`: the indices name the kept substituted NODES, not every
+    kept value that came from one. Returns `stamp` itself when it has no `filled_idx`."""
+    if not isinstance(stamp, dict) or "filled_idx" not in stamp:
+        return stamp
+    keys = {_node(old_vectors[i]) for i in stamp["filled_idx"] if 0 <= i < len(old_vectors)}
+    out = dict(stamp)
+    out["filled_idx"] = [j for j, v in enumerate(new_vectors) if _node(v) in keys]
+    if mode == "max":
+        out["filled_idx_pooling"] = "max"
+    return out
+
+
 def _node_key(v):
     """(lat, lng) rounded, with lng in [-180, 180]; the 181-column lattices carry both -180 and 180, kept apart."""
     return round(float(v.lat), 3), round(float(v.lng), 3)
@@ -557,9 +610,11 @@ async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
     try:
         # filled_period: the donor's period travels with its height (dropping it would leave period=0.0 on a valid vector, the
         # 0b5182436 class). GFS's is the PEAK period (PERPW); ICON's own cells carry tm10, an energy period ~16% shorter (#412).
-        product.coarse_fill = {"donor_model": "GFS", "layer": layer_l, "mode": "targeted", "donor_region": "global_mid",
-                               "donor_product": item.filename, "filled_period": "GFS peak (PERPW), the donor's",
-                               "cells_filled": filled, "cells_masked": len(masked), "cells_total": len(grid.vectors)}
+        product.coarse_fill = _with_filled_idx(
+            {"donor_model": "GFS", "layer": layer_l, "mode": "targeted", "donor_region": "global_mid",
+             "donor_product": item.filename, "filled_period": "GFS peak (PERPW), the donor's",
+             "cells_filled": filled, "cells_masked": len(masked), "cells_total": len(grid.vectors)},
+            [i for i in masked if vectors[i] is not grid.vectors[i]])   # targeted_fill_vectors copies exactly the cells it fills
     except Exception as e:
         logger.error(f"[Coarse Fill] PROVENANCE LOST: targeted fill substituted {filled} {layer_l} cells into {model} from GFS "
                      f"global_mid but could not stamp `coarse_fill` ({type(e).__name__}: {e}).")
