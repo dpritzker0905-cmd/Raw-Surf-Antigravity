@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ensureMarineSeries, prewarmMarineSeries, marineSeriesViewportIdentity } from './marineGridSeries';
-import { createMarineViewportIntent, marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
+import { createMarineViewportIntent, marineSeriesSupersedeOn, marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 import { seriesPanSettleMs } from './marineSeriesPanGuard';
 import { prewarmSiblingMarineSeries } from './marineController';
 
@@ -67,7 +67,12 @@ export function useMarineSeriesWarm({ mapInstance, activeModel, activeMarineLaye
     const controller = new AbortController();
     try {
       const bounds = boundsOf(mapInstance);
-      const signal = marineSeriesWorkBoundsEnabled() && intentRef.current
+      // It shares the viewport intent whenever supersede is on (#501's default), not only under the build flag: with its own controller
+      // it kept warming the FIRST view's pages after a pan, on the box while the user scrubbed the new view (offline z8 ICON surf: three
+      // old-box pages during six day steps, each step's /grid 0.6-2.7 s). Kill: __RAW_DISABLE_MODEL_WARM_SUPERSEDE__.
+      const share = marineSeriesWorkBoundsEnabled()
+        || (marineSeriesSupersedeOn() && !(typeof window !== 'undefined' && window.__RAW_DISABLE_MODEL_WARM_SUPERSEDE__ === true));
+      const signal = share && intentRef.current
         ? intentRef.current.signalFor(marineSeriesViewportIdentity(activeModelRef.current, activeMarineLayerRef.current, bounds))
         : controller.signal;
       prewarmMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, signal);

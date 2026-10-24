@@ -146,6 +146,8 @@ const PROBE = () => {
       const g = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
       if (S.prevT != null && t - S.prevT > 50) S.long++;
       S.prevT = t;
+      const hh = g ? g.hourOffset : null;
+      if (S.hours && (S.hours.length === 0 || S.hours[S.hours.length - 1][1] !== hh) && S.hours.length < 40) S.hours.push([Math.round(t - S.t0), hh, !!(g && g.__fromSeries)]);
       if (target != null && target !== S.before && g && Math.abs((g.hourOffset ?? -99) - target) <= 1.5) { S.ms = t - S.t0; S.target = target; S.hour = g.hourOffset; S.series = !!g.__fromSeries; }
     }
     requestAnimationFrame(stepLoop);
@@ -181,7 +183,7 @@ async function session(arm, kase) {
       rec.t1 = Date.now();
     },
   };
-  const { browser, page } = await L.launch({ port: PORT, hooks, ...dims });
+  const { browser, page, log } = await L.launch({ port: PORT, hooks, ...dims });
   await page.addInitScript(({ base, flags, surf }) => {
     localStorage.removeItem('__RAW_STATIC_FRAMES__');
     if (base) window.__RAW_STATIC_FRAMES_BASE__ = base;
@@ -264,22 +266,32 @@ async function session(arm, kase) {
       await wheel.focus(); await page.keyboard.press('Home'); await sleep(STEP_GAP);
       for (let i = 0; i < STEPS; i++) {
         await page.evaluate((sel) => { const w = [...document.querySelectorAll(sel)].find((x) => x.offsetParent !== null);
-          window.__SB__.step = { t0: null, ms: null, long: 0, before: w ? Number(w.getAttribute('aria-valuenow')) : null }; }, WHEEL);
+          window.__SB__.step = { t0: null, ms: null, long: 0, before: w ? Number(w.getAttribute('aria-valuenow')) : null, wall: Date.now(), hours: [] }; }, WHEEL);
         await page.keyboard.press('PageUp');
         await sleep(STEP_GAP);
         const st = await page.evaluate((sel) => {
           const w = [...document.querySelectorAll(sel)].find((x) => x.offsetParent !== null);
           const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
-          return { ...window.__SB__.step, wheelNow: w ? Number(w.getAttribute('aria-valuenow')) : null,
-            engineHour: g ? g.hourOffset : null, dataHour: d ? d.hourOffset : null };
+          const S = window.__SB__.step; const F = window.__RAW_FORENSIC__;
+          const ev = F && F.events ? F.events.filter((e) => e.t >= S.wall).slice(0, 60).map((e) => {
+            const o = { dt: e.t - S.wall, type: e.type };
+            for (const k of ['source', 'reason', 'hour', 'requestedHour', 'renderedHour', 'model', 'layer', 'decision', 'why', 'kind', 'cols', 'rows', 'sig']) if (e[k] !== undefined) o[k] = e[k];
+            return o; }) : null;
+          return { ...S, wheelNow: w ? Number(w.getAttribute('aria-valuenow')) : null,
+            engineHour: g ? g.hourOffset : null, dataHour: d ? d.hourOffset : null, ev, sharpen: window.__MARINE_SHARPEN_DIAG__ || null };
         }, WHEEL);
-        out.steps.push({ target: st.target ?? null, ms: st.ms == null ? null : Math.round(st.ms), long: st.long, series: st.series ?? null,
-          before: st.before, wheelNow: st.wheelNow, engineHour: st.engineHour, dataHour: st.dataHour, keySeen: st.t0 != null });
+        out.steps.push({ wallSinceWaves: st.wall - tW, target: st.target ?? null, ms: st.ms == null ? null : Math.round(st.ms), long: st.long, series: st.series ?? null,
+          before: st.before, wheelNow: st.wheelNow, engineHour: st.engineHour, dataHour: st.dataHour, keySeen: st.t0 != null,
+          hours: st.hours, ev: st.ev, sharpen: st.sharpen });
       }
     }
     if (out.__stopDiag) { out.__stopDiag(); delete out.__stopDiag; }
     out.asks = asks.filter((a) => a.kind !== 'other').map((a) => ({ kind: a.kind, layer: a.layer, hours: a.hours, surf: a.surf, model: a.model, bbox: a.bbox,
       cost: Math.round(a.cost), t0: a.t0 - tW, t1: a.t1 == null ? null : a.t1 - tW }));
+    // the harness's own record: when each weather ask STARTED and how long until its response was ready (box model + synthetic build)
+    out.req = (log.requests || []).filter((q) => /grid/.test(q.path || '')).map((q) => ({ t: q.t - (tW - log.t0), ms: q.ms, path: q.path,
+      hours: q.q && q.q.hours ? String(q.q.hours).split(',').length : null, h0: q.q && q.q.hours ? Number(String(q.q.hours).split(',')[0]) : null,
+      model: q.q && q.q.model, bbox: q.q && q.q.bbox }));
     out.box = { busyMs: Math.round(box.st.busyMs), cpu: Object.fromEntries(Object.entries(box.st.cpu).map(([k, v]) => [k, Math.round(v)])) };
   } catch (e) {
     out.error = String(e && e.message || e).slice(0, 300);

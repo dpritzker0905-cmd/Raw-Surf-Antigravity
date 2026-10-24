@@ -88,6 +88,25 @@ describe('mounted viewport warm lifecycle', () => {
     h.unmount(); delete window.__RAW_DISABLE_SERIES_PAN_SUPERSEDE__;
     expect([same, settledAborted, distinct, modelSignal.aborted, settled.aborted]).toEqual([true, false, true, true, true]);
   });
+  it('flag-off by DEFAULT: the MODEL-SWITCH warm shares the intent, so a pan to another box supersedes it too; its kill keeps it apart', () => {
+    process.env.REACT_APP_MARINE_SERIES_WORK_BOUNDS = 'false';
+    const h = renderHook(() => useMarineSeriesWarm(props));
+    const modelSignal = prewarmMarineSeries.mock.calls[0][3];                 // the model-switch warm on mount
+    act(() => jest.advanceTimersByTime(600));
+    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); jest.advanceTimersByTime(400); });
+    const shared = [modelSignal.aborted];
+    h.unmount();
+    jest.clearAllMocks();
+    window.__RAW_DISABLE_MODEL_WARM_SUPERSEDE__ = true;
+    bounds = { west: -81, east: -80, south: 20, north: 21 };
+    const h2 = renderHook(() => useMarineSeriesWarm(props));
+    const apart = prewarmMarineSeries.mock.calls[0][3];
+    act(() => jest.advanceTimersByTime(600));
+    act(() => { bounds = { ...bounds, west: -71, east: -70 }; handlers.moveend(); jest.advanceTimersByTime(400); });
+    const kept = [apart.aborted];
+    h2.unmount(); delete window.__RAW_DISABLE_MODEL_WARM_SUPERSEDE__;
+    expect([shared[0], kept[0]]).toEqual([true, false]);   // booleans: an AbortSignal diff exhausts the heap
+  });
   it('flag-off by DEFAULT: a pan to another snapped box supersedes the old box work (2026-10-23; production leaves the flag unset)', () => {
     process.env.REACT_APP_MARINE_SERIES_WORK_BOUNDS = 'false';
     const h = renderHook(() => useMarineSeriesWarm(props));
