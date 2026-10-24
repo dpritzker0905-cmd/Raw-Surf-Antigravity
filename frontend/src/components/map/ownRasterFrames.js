@@ -241,6 +241,19 @@ export function setEngaged(layer, on) {
 export const getEngaged = () => _engaged;
 export function subscribeEngaged(fn) { _engagedSubs.add(fn); return () => _engagedSubs.delete(fn); }
 
+// ── the frame on screen, per layer (the isobar layer follows the colour field's cut exactly) ─────────────────────────────
+// `shown` fires INSIDE MapLibre's render, the moment the field cuts (subscribers may only flip layer visibility there); `want`
+// fires when a step picks its frame (before the cut), so the next frame's isobars can be prepared in a hidden buffer.
+const _shown = {}; const _want = {};
+const _shownSubs = new Set();
+const _emit = (kind, layer, path) => { for (const fn of _shownSubs) { try { fn(kind, layer, path || null); } catch (e) { /* a subscriber's own */ } } };
+export function emitOwnShown(layer, path) { _shown[layer] = path || null; _emit('shown', layer, path); }
+export function emitOwnWant(layer, path) { _want[layer] = path || null; _emit('want', layer, path); }
+export const getOwnShown = (layer) => _shown[layer] || null;
+export const getOwnWant = (layer) => _want[layer] || null;
+/** fn(kind: 'shown' | 'want', layer, path) */
+export function onOwnShown(fn) { _shownSubs.add(fn); return () => _shownSubs.delete(fn); }
+
 /** Record one scrub step for the hit-rate-vs-velocity read: was the wanted frame already decoded when asked? */
 export function noteStep(path, hit, at = Date.now()) {
   const s = tel().steps;
@@ -253,6 +266,9 @@ export function _resetOwnRasterFramesForTest() {
   _inflight.clear();
   _pump.layer = null; _pump.wanted = []; _pump.onField = null;
   _engaged = Object.freeze({});
+  for (const k of Object.keys(_shown)) delete _shown[k];
+  for (const k of Object.keys(_want)) delete _want[k];
+  _shownSubs.clear();
   for (const k of Object.keys(_lastIndex)) delete _lastIndex[k];
   const w = W();
   delete w.__RAW_OWN_RASTER__;
