@@ -19,6 +19,7 @@ from database import get_db
 from models import Profile, Review, LiveSession, XPTransaction, Badge, LiveSessionParticipant
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from services.ai_moderation import moderate_review_content
+from services.xp import grant_xp
 
 # Import badge check function
 from routes.career_hub.gamification import check_badge_milestones
@@ -104,19 +105,11 @@ def is_photographer_role(role):
     return role_str in ['Photographer', 'Approved Pro', 'Hobbyist', 'Grom Parent']
 
 
-async def award_xp(db: AsyncSession, user_id: str, amount: int, reason: str, reference_type: str = None, reference_id: str = None, auto_commit: bool = True):
-    """Award XP to a user and check for badge awards.
-    Set auto_commit=False when caller manages its own transaction."""
-    # Create XP transaction
-    xp_tx = XPTransaction(
-        user_id=user_id,
-        amount=amount,
-        reason=reason,
-        reference_type=reference_type,
-        reference_id=reference_id
-    )
-    db.add(xp_tx)
-    
+async def award_xp(db: AsyncSession, user_id: str, reason: str, reference_type: str = None, reference_id: str = None, auto_commit: bool = True):
+    """Grant the XP the server's rule table assigns to `reason` (services/xp.py) and check for badge awards.
+    The amount is never the caller's to choose. Set auto_commit=False when caller manages its own transaction."""
+    await grant_xp(db, user_id, reason, reference_type=reference_type, reference_id=reference_id)
+
     # ============ BADGE AWARD TRIGGERS ============
     # Auto-check badges after XP is awarded
     await check_badge_milestones(user_id, db)
@@ -260,7 +253,7 @@ async def create_review(
     
     # Award XP in same transaction (atomic with review creation)
     await award_xp(
-        db, reviewer_id, 10, 'review_given',
+        db, reviewer_id, 'review_given',
         reference_type='review', reference_id=review.id,
         auto_commit=False
     )

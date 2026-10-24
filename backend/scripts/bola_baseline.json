@@ -1,5 +1,5 @@
 {
- "count": 181,
+ "count": 179,
  "note": "sha256(file::function)[:16] of each known offender; see check_bola_routes.py",
  "hashes": [
   "005d9693ebcc9533",
@@ -69,7 +69,6 @@
   "7262e56440285679",
   "744b4e0cacfb925c",
   "750ef1080c8e1fc9",
-  "7790dc26735e2cfb",
   "780e17f0acb13589",
   "78544baa2bece8ac",
   "7917d6a805c3a980",
@@ -143,7 +142,6 @@
   "cf99a48db03109d2",
   "cfb5620fa85def84",
   "d13e13d7867c12f9",
-  "d31528766577d212",
   "d38383b38abf0703",
   "d4b97a373490e060",
   "d91167ddc954c8ca",
