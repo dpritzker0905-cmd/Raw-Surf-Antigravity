@@ -6,6 +6,7 @@ import json
 import asyncio
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, Follow, Notification
 
 # Import OneSignal service for push notifications
@@ -17,7 +18,14 @@ except ImportError:
 router = APIRouter()
 
 @router.post("/follow/{user_id}")
-async def follow_user(user_id: str, follower_id: str, db: AsyncSession = Depends(get_db)):
+async def follow_user(
+    user_id: str,
+    follower_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if follower_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     if user_id == follower_id:
         raise HTTPException(status_code=400, detail="Cannot follow yourself")
     
@@ -70,7 +78,14 @@ async def follow_user(user_id: str, follower_id: str, db: AsyncSession = Depends
     return {"message": f"Now following {user.full_name}"}
 
 @router.delete("/follow/{user_id}")
-async def unfollow_user(user_id: str, follower_id: str, db: AsyncSession = Depends(get_db)):
+async def unfollow_user(
+    user_id: str,
+    follower_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if follower_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(Follow).where(
             Follow.follower_id == follower_id,
