@@ -163,7 +163,9 @@ jobs:
             // + staticRegional.test.js (+1 suite / +16 tests): hosted 515/6753 at b482566c (run 40005823797). The review's guards add
             // marineGridSeries.regional.test.js (8) and 14 staticRegional tests (+1 suite / +22 tests).
             // Regional client dark by default (2026-10-23 evening, the live parity failed): +1 test.
-            const MIN_SUITES = 516, MIN_TESTS = 6776;
+            // Frame store regional show (2026-10-24): marineFrameStoreRegional.test.js, +1 suite / +39 tests (27 real-frame encoder parity
+            // cases, 2 identity, 10 runtime). Raised by exactly its own count from the floor above; confirm against the hosted receipt.
+            const MIN_SUITES = 517, MIN_TESTS = 6815;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1550,7 +1552,9 @@ jobs:
           #   base 2918 (hosted read) + 6 new test(s) = 2924, files 179; floor 2924 - 6 = 2918. This PR must read 2924 passed.
           # ⬆ 2918→2926 on 2026-10-24 (rederive_floor.py, lead-fix-515): dev run 40078270428 read 2924 / 179 files; dev's map 2924;
           #   base 2924 (hosted read) + 8 new test(s) and 0 new file(s) = 2932, files 179; floor 2932 - 6 = 2926. This PR must read 2932 passed.
-          MIN_FILES, MIN_PASSED = 179, 2926
+          # ⬆ 2926→2927 on 2026-10-24 (rederive_floor.py, claude/raster-pressure-publishers): dev run 40091748867 read 2932 / 179 files; dev's map 2932;
+          #   base 2932 (hosted read) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
+          MIN_FILES, MIN_PASSED = 179, 2927
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2046,7 +2050,11 @@ jobs:
           #   base 2687 (hosted read) + 29 new test(s) = 2716; floor 2716 - 2 = 2714. This PR must read 2716 passed.
           # ⬆ 2714→2720 on 2026-10-24 (rederive_floor.py, lead-fix-522): dev run 40085884605 read 2716; dev's map 2716;
           #   base 2716 (hosted read) + 6 new test(s) = 2722; floor 2722 - 2 = 2720. This PR must read 2722 passed.
-          MIN_PASSED = 2720
+          # ⬆ 2720→2727 on 2026-10-24 (rederive_floor.py, claude/frame-error-report): dev run 40086759509 read 2716; dev's map 2722;
+          #   base 2722 (dev's map) + 7 new test(s) = 2729; floor 2729 - 2 = 2727. This PR must read 2729 passed.
+          # ⬆ 2727→2738 on 2026-10-24 (rederive_floor.py, claude/raster-pressure-publishers): dev run 40091748867 read 2729; dev's map 2729;
+          #   base 2729 (hosted read) + 11 new test(s) = 2740; floor 2740 - 2 = 2738. This PR must read 2740 passed.
+          MIN_PASSED = 2738
 
           try:
               root = ET.parse('estate.xml').getroot()
