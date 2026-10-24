@@ -4,6 +4,8 @@ Source: Natural Earth lakes (public domain), ne_50m_lakes.json and ne_10m_lakes.
 https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson/<res>/physical/ne_<res>_lakes.json (the same repository the app
 already reads its 10 m land from). Only the CANDIDATE lakes below are kept: those ECMWF's wave model carries and #497 confirms
 (EURO's own values on the Great Lakes, Winnipeg and Victoria; the Caspian and the Black Sea are already water in ne_50m_land).
+Taihu and Lagoa Mirim (2026-10-24) carry valid EURO inland nodes (static-frames' trace of #497's nodes; the owner: "lakes should
+show as lakes", lit only where EURO has valid nodes). The lower Amazon at Santarem is a river, not a lake, and stays out.
 Lakes near an ocean (Ladoga, Nicaragua, ...) are left out on purpose: a 2-deg node there can be valid from SEA cells, so its value
 would paint ocean waves into the lake.
 
@@ -24,8 +26,11 @@ CANDIDATES = {   # id -> the Natural Earth names (10 m and 50 m spell some diffe
     'ontario': ('Lake Ontario', 'L. Ontario'),
     'winnipeg': ('Lake Winnipeg',),
     'victoria': ('Lake Victoria',),
+    'taihu': ('Tai Hu',),                 # 2026-10-24: valid EURO inland nodes (static-frames' #497 trace); owner: lit where EURO has nodes
+    'mirim': ('Lagoa Mirim',),            # in ne_10m only: its g50 is the 10 m outline simplified at TOL50
 }
 TOL10 = 0.01      # ~1 km: finer than a z9 mask texel over the lakes, ~10x fewer vertices than the 10 m source
+TOL50 = 0.03      # a lake NE publishes only at 10 m gets its 50 m outline from the 10 m one at ~3 km
 ROUND = 4
 
 
@@ -137,8 +142,11 @@ def main(src, out):
     for lid, names in CANDIDATES.items():
         p50 = pick(f50, names)
         p10 = pick(f10, names)
-        if p50 is None or p10 is None:
-            raise SystemExit(f'{lid}: not found in both sources ({names})')
+        if p10 is None:
+            raise SystemExit(f'{lid}: not found in ne_10m_lakes ({names})')
+        if p50 is None:
+            p50 = [simplify_ring(r, TOL50) for r in p10]
+            print(f'{lid}: not in ne_50m_lakes, g50 = the 10 m outline simplified at {TOL50} deg')
         g10 = [rnd(simplify_ring(r, TOL10)) for r in p10]
         xs = [p[0] for p in p10[0]]; ys = [p[1] for p in p10[0]]
         lakes.append({'id': lid, 'name': names[0], 'bbox': [round(min(xs), 3), round(min(ys), 3), round(max(xs), 3), round(max(ys), 3)],

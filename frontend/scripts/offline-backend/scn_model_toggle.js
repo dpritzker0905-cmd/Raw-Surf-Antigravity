@@ -18,10 +18,11 @@
 // MID ZOOM (2026-10-22, #458 on #459): ZOOM (3.2 = the world view), CENTER (lng,lat; -80,24), VIEW (desktop = 1280 x 800; owner =
 // 844 x 390 at dpr 2), MIN_COLS (the exact frame's least width: 150 for a world frame; 10 for a mid-zoom clip). Run the backend with
 // --dynamic 1 so a zoomed-in view commits its own clip.
-// KNOWN INSTRUMENT LIMIT (2026-10-23, not verified): the exact-frame check compares the drawn product id with the one /grid serves
-// for the WORLD box at that hour. A zoomed-in click (ZOOM >= ~7) is answered with the viewport box's own product, so those clicks
-// can read MISSED in every arm. Read ZOOM >= 7 timings with that in mind; the reqlog (REQLOG=1) and the engine's mask modes are
-// not affected.
+// EXACT FRAME AT Z7+ (2026-10-24, measured): the check is model + layer + the product's valid-time stamp + stride 0 + a width window.
+// The old floor (`cols >= MIN_COLS`) read a z8 viewport clip as "not full resolution": EURO's 2-deg lattice on a 6-deg box is 6
+// columns, so every GFS->EURO click at z8 read MISSED in both arms while the drawn product was already the right EURO hour (debug
+// run: pid euro_marine_waves_global_mid_<hour>, bounds -92,42,-82,48). At ZOOM >= 7 the window is now a clip: 2 <= cols <= CLIP_MAX
+// (default 80), so a stale 181-column world grid is NOT accepted as exact there. Below z7 the floor is unchanged (MIN_COLS).
 // WAVE LAKES (2026-10-23, waveLakes.js): PLAN (comma list of models / WHEEL:<key>, e.g. EURO,GFS,EURO,GFS) replaces the default
 // plan; an arm ending -nolakes sets __RAW_DISABLE_WAVE_LAKES__ (the build before lakes). Per click: litLake (drawn frames where a
 // non-lake model's data sat under a mask with lakes cut in; must be 0), the CPU phases (maskBaseCanvas, maskWaterPaint, maskUpload,
@@ -44,6 +45,7 @@ const ZOOM = +(process.env.ZOOM || 3.2);
 const [CLNG, CLAT] = (process.env.CENTER || '-80,24').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
 const MIN_COLS = +(process.env.MIN_COLS || 150);
+const CLIP = ZOOM >= 7; const CLIP_MAX = +(process.env.CLIP_MAX || 80);
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -70,7 +72,7 @@ const cdn = http.createServer((req, res) => {
 });
 
 // ---- the in-page probe ----
-const PROBE = ({ bytesCheck, minCols }) => {
+const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
   const P = (window.__MT__ = { w: null, pairs: [], reads: new Map(), lit: 0, lakeTex: new WeakSet() });
   const PH = ['maskBaseCanvas', 'maskWaterPaint', 'maskUpload', 'waveDataUpdate', 'regionalMaskRefresh'];
   const phases = () => { const b = window.__RAW_GPU__ && window.__RAW_GPU__.cpuPhaseTiming && window.__RAW_GPU__.cpuPhaseTiming.buckets;
@@ -89,7 +91,7 @@ const PROBE = ({ bytesCheck, minCols }) => {
       pid: (g && g.__fromFrameStore && g.__servedProductId) || (window.__WEBGL_MARINE_UPLOAD_DIAG__ && window.__WEBGL_MARINE_UPLOAD_DIAG__.servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null),
       status };
   };
-  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && s.cols >= minCols;
+  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && (clip ? (s.cols >= 2 && s.cols <= clipMax) : s.cols >= minCols);
   const fnv = (u8) => { let h = 2166136261; for (let i = 0; i < u8.length; i++) h = Math.imul(h ^ u8[i], 16777619); return (h >>> 0).toString(16); };
   function readTex(tex) {
     const eng = window.__MARINE_ENGINE__; const m = window.__MAP_INSTANCE__ || window.map;
@@ -182,7 +184,7 @@ async function session(arm, round) {
     if (killToggle) window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true;
     if (phone) window.__RAW_FRAME_STORE_TIER__ = 'handheld';
   }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone, noLakes });
-  await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS });
+  await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS, clip: CLIP, clipMax: CLIP_MAX });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e && e.message || e).slice(0, 200)));
   const clicks = []; const cdn0 = { ...cdnLog };
