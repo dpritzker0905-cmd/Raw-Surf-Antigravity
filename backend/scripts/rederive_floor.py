@@ -157,20 +157,43 @@ def base_text(rel: str, base_ref: str) -> str:
     return r.stdout.decode("utf-8")
 
 
+NOTE_TESTS_RE = re.compile(r"\+ (\d+) new test\(s\)")
+NOTE_FILES_RE = re.compile(r"\b(\d+) new file\(s\)")
+
+
+def note_delta(ci_text: str, lane: str, branch: str):
+    """(tests, files or None) from the note THIS branch's earlier run wrote above the lane's assignment, else None. A
+    note before 2026-10-24 records only the tests, so its files come back None. PURE."""
+    m = _floor_match(ci_text, lane)
+    before = ci_text[:ci_text.rfind("\n", 0, m.start()) + 1].split("\n")[:-1]
+    if len(before) < 2 or f"({MARK}, {branch})" not in before[-2]:
+        return None
+    t, f = NOTE_TESTS_RE.search(before[-1]), NOTE_FILES_RE.search(before[-1])
+    return (int(t.group(1)), int(f.group(1)) if f else None) if t else None
+
+
 def own_delta(lane: str, base_ref: str, head: str = "HEAD"):
-    """(tests, files) THIS branch added to the lane: its own map and ci.yml at `head` minus at its merge base with
-    `base_ref`. During a conflicted `git merge origin/dev`, HEAD is still the branch's own tip, so this reads the PR's
-    change even after `git checkout --theirs` put dev's files in the working tree. Works on the old one-line map too:
-    the lead's case of an old-map PR conflicting with the block layout (2026-10-23)."""
+    """(tests, files) THIS branch added to the lane. During a conflicted `git merge origin/dev`, HEAD is still the
+    branch's own tip, so this reads the PR's change even after `git checkout --theirs` put dev's files in the working
+    tree; it works on the old one-line map too (the lead's case, 2026-10-23).
+    ⬇ 2026-10-24: FIRST the branch's own note (`+ N new test(s)`, tagged with the branch), when its earlier run wrote
+    one; only without a note, HEAD minus the merge base. The difference alone read +43 for #513's +17: that branch's
+    map value had been set by this helper from a NEWER dev than its merge base, so the difference also counted 26 tests
+    other PRs had merged in between."""
     mb = subprocess.run(["git", "merge-base", head, base_ref], cwd=REPO, capture_output=True, text=True)
     if mb.returncode != 0 or not mb.stdout.strip():
         raise Refusal(f"no merge base between {head} and {base_ref}: {mb.stderr.strip()}")
     base = mb.stdout.strip()
-    tests = parse_map(base_text(MAP_REL, head))[lane] - parse_map(base_text(MAP_REL, base))[lane]
+    branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", head], cwd=REPO, capture_output=True,
+                            text=True).stdout.strip()
+    head_ci = base_text(CI_REL, head)
+    noted = note_delta(head_ci, lane, branch) if branch and branch != "HEAD" else None
     files = 0
     if S.LANES[lane]["has_files_floor"]:
-        files = floor_values(base_text(CI_REL, head), lane)[0] - floor_values(base_text(CI_REL, base), lane)[0]
-    return tests, files
+        files = floor_values(head_ci, lane)[0] - floor_values(base_text(CI_REL, base), lane)[0]
+    if noted:
+        return noted[0], (noted[1] if noted[1] is not None else files)
+    return parse_map(base_text(MAP_REL, head))[lane] - parse_map(base_text(MAP_REL, base))[lane], files
 
 
 def main(argv=None) -> int:
@@ -212,7 +235,8 @@ def main(argv=None) -> int:
         files_txt = f" / {hosted_files} files" if hosted_files is not None else ""
         note = [f"# ⬆ {floor_dev}→{d['floor']} on {today} ({MARK}, {branch}): dev run {run} read {hosted_passed}{files_txt}; "
                 f"dev's map {map_dev};",
-                f"#   base {d['base']} ({d['base_from']}) + {args.add} new test(s) = {d['set_from']}"
+                f"#   base {d['base']} ({d['base_from']}) + {args.add} new test(s)"
+                + (f" and {args.add_files} new file(s)" if d["files"] is not None else "") + f" = {d['set_from']}"
                 + (f", files {d['files']}" if d["files"] is not None else "")
                 + f"; floor {d['set_from']} - {d['budget']} = {d['floor']}. This PR must read {d['set_from']} passed."]
         new_ci = set_ci_floor(ci, args.lane, d["files"], d["floor"], note, branch)
