@@ -20,6 +20,7 @@ from models import (
 from utils.credits import deduct_credits, add_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
+from .split_lock import enforce_paid_shares
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -150,6 +151,10 @@ async def update_crew_hub_splits(
     if booking.creator_id != data.captain_id:
         raise HTTPException(status_code=403, detail="Only the session captain can update splits")
     
+    # Paid members keep the share they paid; nobody is set below what they already paid
+    members = {str(p.participant_id): p for p in booking.participants or []}
+    enforce_paid_shares(members, [sp for sp in data.splits if sp.participant_id in members])
+
     # Validate total equals booking price
     total_splits = sum(s.share_amount for s in data.splits) + data.captain_share
     if abs(total_splits - booking.total_price) > 0.01:
@@ -429,11 +434,12 @@ async def captain_cover_remaining(
 @router.post("/bookings/{booking_id}/crew-hub/handle-expiry")
 async def handle_payment_window_expiry(
     booking_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Handle payment window expiry
-    Called by scheduler when payment window expires
+    Called when the payment window expires, by the session captain or a crew member (no scheduler calls it).
     Options: Cancel with refund OR notify captain to cover
     """
     # Get booking
@@ -445,6 +451,11 @@ async def handle_payment_window_expiry(
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+
+    # It confirms the booking or notifies the captain, so only the people on the booking may trigger it.
+    if booking.creator_id != current_user_id and not any(
+            str(p.participant_id) == current_user_id for p in booking.participants or []):
+        raise HTTPException(status_code=403, detail="Only the session captain or a crew member can do this")
     
     if booking.payment_window_expired:
         return {"message": "Expiry already handled"}

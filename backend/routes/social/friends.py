@@ -47,9 +47,12 @@ class UpdateGPSLocation(BaseModel):
 async def send_friend_request(
     request_data: SendFriendRequest,
     requester_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Send a friend request"""
+    if requester_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     if requester_id == request_data.addressee_id:
         raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
     
@@ -340,9 +343,12 @@ async def update_privacy_settings(
 async def update_gps_location(
     user_id: str,
     location: UpdateGPSLocation,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update user's GPS location for friend finder"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(PrivacySetting).where(PrivacySetting.user_id == user_id)
     )

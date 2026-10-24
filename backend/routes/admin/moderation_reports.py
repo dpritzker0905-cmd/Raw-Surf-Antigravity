@@ -18,6 +18,7 @@ import logging
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from models import Profile, Dispute, UserReport, PayoutHold, AuditLog
 
 router = APIRouter()
@@ -258,8 +259,14 @@ async def auto_create_payout_hold_for_dispute(db: AsyncSession, dispute: Dispute
 # ============ USER-FACING ENDPOINTS ============
 
 @router.post("/reports/submit")
-async def submit_user_report(data: CreateReportRequest, db: AsyncSession = Depends(get_db)):
-    """User-facing endpoint to submit a report (no admin required)."""
+async def submit_user_report(
+    data: CreateReportRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """User-facing endpoint to submit a report (no admin required, but the reporter is the caller)."""
+    if data.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == data.reporter_id))
     reporter = result.scalar_one_or_none()
     if not reporter:
@@ -289,8 +296,14 @@ async def submit_user_report(data: CreateReportRequest, db: AsyncSession = Depen
 
 
 @router.post("/disputes/submit")
-async def submit_user_dispute(data: CreateDisputeRequest, db: AsyncSession = Depends(get_db)):
-    """User-facing endpoint to submit a dispute (no admin required)."""
+async def submit_user_dispute(
+    data: CreateDisputeRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """User-facing endpoint to submit a dispute (no admin required, but the complainant is the caller)."""
+    if data.complainant_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == data.complainant_id))
     complainant = result.scalar_one_or_none()
     if not complainant:
