@@ -38,3 +38,19 @@ ecCodes' own `codes_grib_find_nearest` on the raw message: worst 0.019 degC and 
 ## Not in this PR
 The client (STATIC_SETS + an `ownRasterFrames` entry per layer, a LUT from the temperature scale and the satellite/cloud scale,
 the owner's side-by-side) comes once these frames are published; both stay dark until the owner's word.
+
+## Review by static-frames (local_0d052585), answered
+- f000 carries the instantaneous TCDC (`TCDC:entire atmosphere:anl`, seen in the 18Z f000 .idx); an hour with only the 0-N h
+  mean is left UNBUILT (path null), never substituted: pinned by a test on a fixture .idx without the instantaneous line.
+- Pressure byte identity covers the whole index: the index path, every frame path and the index JSON equal what dev's
+  publisher builds on the same fixture (pinned: `...-1a58a2171302.json`), on top of the frame sha256 pin.
+- Edges: cloud -0.5..100.5 is clamped into 0..100 (GRIB packing noise), only clearly outside values are no data; temperature's
+  -95/+65 edges are never reached (this run: -44.6..+44.1 degC). Kelvin: -273.15 in float64 before quantising. One module-level
+  DECODE_LOCK for every set. Tolerances in the house form, half a step + 1e-9 (temperature 0.025 at its 0.05 step, cloud 0.5).
+- Each set runs as its own step: its own FRAME_RASTER_BUDGET_S (420 s) and a 30-minute timeout; latest.json is re-read before
+  each write. Retention prunes each set's own prefix (current + previous run), as pressure's does.
+- Bytes per run: pressure ~20.5 MB, temperature 25.5 MB, cloud 12.4 MB (with retention, at most two runs of each in the bucket).
+- SOURCE vs what users see today: the temperature and satellite (cloud) layers draw Open-Meteo .om data, not a /grid product,
+  so a NOAA frame is a DIFFERENT source: a served-number change. Publishing changes nothing a user sees (no client reads these
+  sets yet); the client stays dark until the owner's word, and its PR carries the measured row (frame vs today's .om values
+  at a handful of points and hours, from recorded responses, no new live load).

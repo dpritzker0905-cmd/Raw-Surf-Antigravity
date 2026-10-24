@@ -267,3 +267,33 @@ def test_the_script_runs_one_set_and_skips_a_set_that_is_off(tmp_path, capsys):
     assert "temperature: off (FRAME_RASTER_TEMPERATURE); skipped" in capsys.readouterr().out
     with pytest.raises(SystemExit):
         script.main(["--set", "rain"])
+
+
+def test_pressure_index_and_paths_are_identical_to_the_first_publisher():
+    frames, _uploads, stats = fsr.build_set(_Source(), CYCLE, log=lambda *_: None)
+    index = fsr.make_index(CYCLE, frames, stats)
+    assert index["path"] == "v1/gfs/weather/pressure/global_0p5/index/20261023T060000Z-1a58a2171302.json"
+    assert index["common_meta"]["source_dataset"] == "gfs.pgrb2.0p25 PRMSL, every second point"
+    assert all(f["path"].startswith("v1/gfs/weather/pressure/global_0p5/20261023T060000Z/") for f in index["frames"])
+
+
+class _OnlyMeanSource(_Source):
+    """An hour whose .idx carries only the 0-N hour MEAN of TCDC (no instantaneous message): never substituted."""
+
+    def __init__(self, only_mean_at):
+        super().__init__()
+        self.only_mean_at = only_mean_at
+
+    def fetch(self, cycle, f):
+        idx = IDX if f != self.only_mean_at else IDX.replace("3:2500:d=2026102318:TCDC:entire atmosphere:3 hour fcst:\n", "")
+        if fsr.select_message(fsr.idx_rows(idx), fsr.SPECS["cloud_cover"]["idx"]) is None:
+            raise RuntimeError("idx has no TCDC:entire atmosphere message")
+        return np.full((721, 1440), 42.0)
+
+
+def test_an_hour_with_only_the_tcdc_mean_is_left_unbuilt_never_substituted(tmp_path):
+    report, _sink = _publish(tmp_path / "m", source=_OnlyMeanSource(only_mean_at=6), spec=fsr.SPECS["cloud_cover"])
+    assert report["status"] == "published" and report["failed"] == 1
+    index = json.loads((tmp_path / "m" / _latest(tmp_path / "m")["sets"]["GFS/weather/cloud_cover/global_0p5"]["index"]).read_text())
+    hour6 = [f for f in index["frames"] if f["source"]["forecast_hour"] == 6][0]
+    assert hour6["path"] is None and hour6["unbuilt"] == "failed"
