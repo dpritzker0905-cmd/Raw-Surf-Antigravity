@@ -527,3 +527,15 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   call: 12 of the 34 lake nodes have under 10% sea in their block.
 - **Not served:** the flag stays '0' everywhere; the reach is inert while it does. Tests: guards +3 (test_flag_lane_parity), chain
   +5 (the reach's env fallback); floors guards 3311 -> 3314, chain 2885 -> 2890 (rederive_floor.py).
+
+## 2026-10-24 00:40Z: item 4a, explicit-empty regional sets (no served number changes)
+
+- **Why:** the 20:31Z pilots publish listed GFS/marine/swell_2/us_west_coast_socal with 0 entries. Storage holds no SoCal swell_2
+  product at all: `scheduler.ingest_gfs_marine_pilot._layers_for` drops it on purpose, a June 6H.2 pilot scoping choice
+  (c2816a0f5: "Swell 2 is not requested for SoCal ... GFS swell_2 only florida"), pinned by
+  test_gfs_marine_pilot_multi_bbox::test_socal_still_omits_swell_2; no science reason (item 4b, a dark ingest, follows).
+- **What:** any regional (bundle) set the manifest lists no product for is written to latest.json as `{"empty": true, "reason":
+  "no stored product for this layer in this box"}`, the client's "no tile, don't wait" answer. Guards: only when the manifest
+  carries that model/domain/layer elsewhere; never over a published index; an unchanged empty keeps its written_at; a set that
+  gains products gets its real record. The deployed client already treats an entry without `index` as unlisted.
+- **Tests:** tests/test_frame_set_bundle.py +4 (chain; floor 2890 -> 2894, set-from 2900). Seen failing under five mutations.

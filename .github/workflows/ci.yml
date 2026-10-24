@@ -1542,7 +1542,9 @@ jobs:
           #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
           # ⬆ 2885→2890 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 2891 / 177 files; dev's map 2891;
           #   base 2891 (hosted read) + 5 new test(s) = 2896, files 177; floor 2896 - 6 = 2890. This PR must read 2896 passed.
-          MIN_FILES, MIN_PASSED = 177, 2890
+          # ⬆ 2890→2894 on 2026-10-24 (rederive_floor.py, claude/regional-explicit-empty): dev run 40043880457 read 2896 / 177 files; dev's map 2896;
+          #   base 2896 (hosted read) + 4 new test(s) = 2900, files 177; floor 2900 - 6 = 2894. This PR must read 2900 passed.
+          MIN_FILES, MIN_PASSED = 177, 2894
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
