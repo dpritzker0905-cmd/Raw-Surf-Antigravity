@@ -20,6 +20,7 @@ from .schemas import (
     ALLOWED_REACTIONS,
     SUPABASE_URL,
     SUPABASE_SERVICE_KEY,
+    enforce_grom_sender_controls,
     get_or_create_conversation,
 )
 
@@ -226,6 +227,13 @@ async def upload_voice_note(
         conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id,
     )
     
+    # PARENTAL CONTROLS (audit F-09): a Grom's guardian switches apply to voice notes too.
+    await enforce_grom_sender_controls(
+        sender_id,
+        conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id,
+        db,
+    )
+
     # Read file content
     file_content = await file.read()
     file_ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename and '.' in file.filename else 'webm'
@@ -323,6 +331,8 @@ async def upload_message_media(
     if not conversation_id and recipient_id:
         # BLOCKS (audit F-09): checked BEFORE the conversation row is created.
         await assert_not_blocked(db, sender_id, recipient_id)
+        # PARENTAL CONTROLS (audit F-09): checked BEFORE the conversation row is created.
+        await enforce_grom_sender_controls(sender_id, recipient_id, db)
         conversation, _ = await get_or_create_conversation(sender_id, recipient_id, db)
         conversation_id = conversation.id
     else:
@@ -340,6 +350,13 @@ async def upload_message_media(
             conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id,
         )
     
+        # PARENTAL CONTROLS (audit F-09): a Grom's guardian switches apply to media too.
+        await enforce_grom_sender_controls(
+            sender_id,
+            conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id,
+            db,
+        )
+
     # Determine media type from file or override
     content_type = file.content_type or ""
     if message_type_override == 'ephemeral_video':

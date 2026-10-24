@@ -84,7 +84,8 @@ const cdn = http.createServer((req, res) => {
 const PROBE = () => {
   const P = (window.__ZS__ = { w: null });
   window.addEventListener('keydown', (e) => { if (P.w) P.w.tLast = e.timeStamp; }, true);
-  const stampMs = (pid) => { const m = /_(\d{8}T\d{6}Z)\.json$/.exec(pid || ''); return m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : null; };
+  // a dynamic viewport product id carries its box after the stamp: ..._20261024T120000Z_-77.00_33.00_-74.00_36.00.json
+  const stampMs = (pid) => { const m = /_(\d{8}T\d{6}Z)(?:_[-\d.]+)*\.json$/.exec(pid || ''); return m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : null; };
   P.snap = () => {
     const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
     const up = d && d.u_waveTexture && window.__TEX__ && window.__TEX__.uploads.get(d.u_waveTexture);
@@ -110,7 +111,14 @@ const PROBE = () => {
       if (W.exact == null && ok) { W.exact = W.already ? 0 : rel; W.via = s.store ? 'store' : (s.series ? 'series' : 'grid'); W.pid = s.pid; }
       else if (W.exact != null && !ok) W.regress += 1;
       const dm = dataMs(s, W);
-      if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') { W.mislabel += 1; if (!W.mid) W.mid = { rel: Math.round(rel), pid: s.pid, served: s.served, store: s.store, series: s.series, dataIso: P.dataIso(s, W) }; }
+      if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') {
+        W.mislabel += 1;
+        // Does the status line SAY the field is not yet this hour (loading / nearest / estimated)? A mislabel with no such word is the
+        // silent kind (matrix class 1); read per frame, the line's text is the only honesty the user has.
+        const st = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160);
+        if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(st)) W.mislabelSilent = (W.mislabelSilent || 0) + 1;
+        if (!W.mid) W.mid = { rel: Math.round(rel), pid: s.pid, served: s.served, store: s.store, series: s.series, dataIso: P.dataIso(s, W), status: st };
+      }
       const dims = `${s.cols}x${s.rows}`;
       if (dims !== W.lastDims) { W.dims.push(`${dims}@${Math.round(rel)}`); W.lastDims = dims; }
       if (s.grid !== W.lastGrid) { W.commits += 1; W.lastGrid = s.grid; }
@@ -155,6 +163,28 @@ function describeWeather(url, body) {
   return out;
 }
 
+
+// The box a z7+ ask is made for (2026-10-24): the expected product must come from the SAME box the app asks, not the world box. A z8
+// viewport product is stamped with the exact asked time (14:00Z) while the stored world product for that hour is the nearest stored
+// frame (15:00Z), so no z8 frame could ever equal a world expectation. Taken from the app's own last /grid ask (its snapped box), else
+// the map's bounds snapped out to whole degrees. Below z7 the world box, as before.
+async function expectedBox(page, log, zoomedIn) {
+  if (!zoomedIn) return '-180,-80,180,85';
+  const g = [...log.requests].reverse().find((q) => q.path === '/grid' && q.q && q.q.bbox);
+  if (g) return g.q.bbox;
+  const b = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const x = m.getBounds(); return [x.getWest(), x.getSouth(), x.getEast(), x.getNorth()]; });
+  return [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])].join(',');
+}
+
+// Hour 0 of the APP (2026-10-24): the resident grid's own asked valid time minus its hour offset. The old rounded clock disagreed with the
+// app's anchor by an hour whenever the run fell in the second half of an hour, which made a correct frame read as a mislabel (the Biscay
+// north-edge cell, 1,821 'silent' frames). Falls back to the rounded clock when the grid carries neither field.
+async function appAnchor(page) {
+  const a = await page.evaluate(() => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
+    const t = g && Date.parse(g.valid_time || g.validTime || ''); return g && Number.isFinite(t) && Number.isFinite(g.hourOffset) ? t - g.hourOffset * 3600000 : null; });
+  return a != null ? a : Math.round(Date.now() / 3600000) * 3600000;
+}
+
 async function session(arm, zoom) {
   const v = VIEWS[VIEW];
   const reqLog = [];
@@ -190,12 +220,20 @@ async function session(arm, zoom) {
     const firstFrameMs = Date.now() - tClick;
     const firstFrame = await page.evaluate(() => { const x = window.__ZS__.snap(); delete x.grid; return x; });
     await sleep(SETTLE);
+    // IDLE TWO-rAF (the live-read rule, 2026-10-24): the time two consecutive animation frames take with nothing happening, 30 samples.
+    // Step timings are only a claim when the median reads 40 ms or less; otherwise the box (or this headless window) is too loaded.
+    const idleTwoRaf = await page.evaluate(() => new Promise((resolve) => {
+      const out = []; const one = () => { const t0 = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => { out.push(performance.now() - t0); if (out.length < 30) setTimeout(one, 30); else { out.sort((a, b) => a - b); resolve({ median: +out[15].toFixed(1), p95: +out[28].toFixed(1) }); } })); };
+      one();
+    }));
+    idleTwoRaf.valid = idleTwoRaf.median <= 40;
     const before = await page.evaluate(() => window.__ZS__.counters());
-    const anchor = Math.round(Date.now() / 3600000) * 3600000;
+    const anchor = await appAnchor(page);
+    const EXPBOX = await expectedBox(page, log, zoom >= 7);
     const expected = {};
     for (const [, target] of STEPS) {
       const ask = new Date(anchor + target * 3600000).toISOString();
-      const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=-180,-80,180,85`)).json();
+      const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=${EXPBOX}`)).json();
       expected[target] = j.product_id;
     }
     const vp = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds(); return { z: +m.getZoom().toFixed(2), w: +b.getWest().toFixed(2), s: +b.getSouth().toFixed(2), e: +b.getEast().toFixed(2), n: +b.getNorth().toFixed(2) }; });
@@ -212,13 +250,13 @@ async function session(arm, zoom) {
       await page.evaluate(() => { window.__ZS__.w.done = true; });
       const q = log.requests.slice(r0); const by = {}; for (const x of q) by[x.path] = (by[x.path] || 0) + 1;
       steps.push({ key, target, exactMs: r.exact == null ? null : Math.round(r.exact), labelMs: r.label == null ? null : Math.round(r.label),
-        via: r.via, already: r.already, regress: r.regress, mislabel: r.mislabel, commits: r.commits, dims: r.dims, reqs: by,
+        via: r.via, already: r.already, regress: r.regress, mislabel: r.mislabel, mislabelSilent: r.mislabelSilent || 0, commits: r.commits, dims: r.dims, reqs: by,
         ...(REQLOG ? { reqDetail: reqLog.slice(q0) } : {}),
         end: { h: r.end.hour, cols: r.end.cols, rows: r.end.rows, span: r.end.span, stride: r.end.stride, store: r.end.store, series: r.end.series, pid: r.end.pid, served: r.end.served },
         mid: r.mid || null });
       await sleep(400);
     }
-    if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) steps.forEach((x) => { x.anchorRolled = true; });
+    if ((await appAnchor(page)) !== anchor) steps.forEach((x) => { x.anchorRolled = true; });   // the app's own hour 0 moved during the run
     const after = await page.evaluate(() => window.__ZS__.counters());
     const byPath = {}; for (const q of log.requests.slice(reqs0)) byPath[q.path] = (byPath[q.path] || 0) + 1;
     const marineAll = {};
@@ -227,7 +265,7 @@ async function session(arm, zoom) {
       const k = `${q.q.layer}${q.path}`;
       const w = (marineAll[k] = marineAll[k] || { n: 0, ms: 0 }); w.n += 1; w.ms += q.ms || 0;
     }
-    return { arm, zoom, view: VIEW, vp, firstFrameMs, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
+    return { arm, zoom, view: VIEW, vp, firstFrameMs, idleTwoRaf, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
       steps, before, after, backendRequests: byPath, marineAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
   } finally { await browser.close(); }
 }
@@ -263,11 +301,11 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         const steps = st.length;
         const grids = st.reduce((a, x) => a + (x.reqs['/grid'] || 0), 0); const series = st.reduce((a, x) => a + (x.reqs['/grid_series'] || 0), 0);
         summary[`${arm}@z${zoom}`] = { steps, exact_missed: ex.filter((x) => x == null).length, exact_ms_p50: median(ex), exact_ms_p95: pct(ex, 0.95),
-          label_ms_p50: median(st.map((x) => x.labelMs)), mislabel_frames: st.reduce((a, x) => a + x.mislabel, 0),
+          label_ms_p50: median(st.map((x) => x.labelMs)), mislabel_frames: st.reduce((a, x) => a + x.mislabel, 0), mislabel_silent_frames: st.reduce((a, x) => a + (x.mislabelSilent || 0), 0),
           grid_per_step: +(grids / Math.max(1, steps)).toFixed(2), series_per_step: +(series / Math.max(1, steps)).toFixed(2),
           via: st.reduce((a, x) => { a[x.via || 'none'] = (a[x.via || 'none'] || 0) + 1; return a; }, {}),
           resident_dims: [...new Set(st.map((x) => `${x.end.cols}x${x.end.rows}`))],
-          first_frame_ms: ss.map((s) => s.firstFrameMs), marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
+          first_frame_ms: ss.map((s) => s.firstFrameMs), idle_two_raf: ss.map((s) => s.idleTwoRaf), marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
           store_shows: ss.map((s) => s.after.store && s.after.store.shows), store_misses: ss.map((s) => s.after.store && s.after.store.misses) };
       }
     }

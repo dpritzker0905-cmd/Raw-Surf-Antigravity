@@ -13,6 +13,7 @@ from database import get_db
 from models import Profile, Post, PostLike, Comment, PostReaction
 from core.security import get_optional_user_id, get_user_id_from_jwt_or_query
 from services.blocks import assert_not_blocked, assert_visible_to, excluded_user_ids, not_in_ids
+from services.parental_controls import assert_grom_may, assert_profile_may
 from .schemas import CommentCreate, CommentUpdate, CommentResponse, ReactionCreate, ReactionData, VALID_REACTIONS
 from pydantic import BaseModel, ConfigDict
 from models import CommentReaction
@@ -24,6 +25,7 @@ logger = logging.getLogger(__name__)
 @router.post("/posts/{post_id}/like")
 async def toggle_like_post(post_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Toggle like on a post - if already liked, unlike it; if not liked, like it"""
+    await assert_grom_may(db, user_id, "react")  # view-only Groms cannot react (audit F-09)
     # Get the post
     result = await db.execute(select(Post).where(Post.id == post_id))
     post = result.scalar_one_or_none()
@@ -189,7 +191,13 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
     content_val = data.content.strip() if data.content else ""
     if not content_val and not data.media_url:
         raise HTTPException(status_code=400, detail="Comment cannot be completely empty. Provide text or a media attachment.")
-        
+
+    # PARENTAL CONTROLS (audit F-09): a Grom whose guardian turned commenting off (or set view-only) cannot comment.
+    assert_profile_may(user, "comment")
+    # COMMENT LOCK (audit F-09): the post's owner closed comments; the owner may still comment on their own post.
+    if post.comments_disabled and post.author_id != user_id:
+        raise HTTPException(status_code=403, detail="Comments are turned off for this post.")
+
     # If this is a reply, verify parent comment exists
     if data.parent_id:
         parent_result = await db.execute(select(Comment).where(Comment.id == data.parent_id))
@@ -488,6 +496,7 @@ async def toggle_comment_reaction(
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle a reaction on a comment - like/unlike"""
+    await assert_grom_may(db, user_id, "react")  # view-only Groms cannot react (audit F-09)
     from models import CommentReaction, Comment
     
     # Validate emoji
@@ -584,6 +593,7 @@ async def get_comment_reactions(
 @router.post("/posts/{post_id}/reactions")
 async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Toggle a reaction on a post - one reaction per user. If same emoji, remove it. If different, replace it."""
+    await assert_grom_may(db, user_id, "react")  # view-only Groms cannot react (audit F-09)
     # Validate emoji
     if data.emoji not in VALID_REACTIONS:
         raise HTTPException(status_code=400, detail=f"Invalid reaction. Use one of: {VALID_REACTIONS}")
