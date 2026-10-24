@@ -582,4 +582,8 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   "no stored product for this layer in this box"}`, the client's "no tile, don't wait" answer. Guards: only when the manifest
   carries that model/domain/layer elsewhere; never over a published index; an unchanged empty keeps its written_at; a set that
   gains products gets its real record. The deployed client already treats an entry without `index` as unlisted.
-- **Tests:** tests/test_frame_set_bundle.py +4 (chain; floor 2890 -> 2894, set-from 2900). Seen failing under five mutations.
+- **Tests:** tests/test_frame_set_bundle.py +6 (chain; set-from 2924 on #502's dev). Seen failing under five mutations.
+- **Correction (02:40Z, CI):** the first cut set `changed` for an empty alone, so a run that published nothing still wrote
+  latest.json (test_publish_frame_sets::test_a_stale_disk_copy_is_never_mixed_into_a_newer_run, estate lane, which I had not
+  run locally). Empties are now staged and written only with the next real pointer move; two of my own mutations had
+  survived the first test set (churn, world sets) and now fail.

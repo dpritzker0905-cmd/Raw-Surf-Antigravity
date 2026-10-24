@@ -244,8 +244,28 @@ def test_a_regional_set_with_no_stored_product_is_written_as_explicit_empty_and_
     assert _latest(out)["sets"][KEY]["index"]                                    # the real set is untouched
     first = rec["written_at"]
     monkeypatch.setattr(pub, "datetime", type("D", (), {"now": staticmethod(lambda tz=None: __import__("datetime").datetime(2030, 1, 1, tzinfo=tz))}))
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)                       # a NEW Florida run: latest.json is rewritten
     _publish(store, out)
-    assert _latest(out)["sets"][EMPTY_KEY]["written_at"] == first               # unchanged: no churn
+    assert _latest(out)["sets"][KEY]["written_at"].startswith("2030")              # the real pointer moved this run...
+    assert _latest(out)["sets"][EMPTY_KEY]["written_at"] == first               # ...and the unchanged empty kept its stamp
+
+
+def test_a_run_that_publishes_nothing_writes_no_empty_records(tmp_path, monkeypatch):
+    """Empties ride the next real pointer move: a run with nothing to publish leaves latest.json as it was (here: absent)."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store, skip=tuple(range(len(VALIDS))))                            # nothing on disk: Florida publishes nothing
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{EMPTY_KEY}")
+    report, _ = _publish(store, out)
+    assert not (out / fs.LATEST).exists() and report[EMPTY_KEY]["empty"] is True
+
+
+def test_a_world_set_is_never_written_as_empty(tmp_path, monkeypatch):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    world = next(t for t in fs.SETS if t["model"] == "GFS" and t["layer"] == "waves" and t["region_id"] == "global_mid")
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{fs.set_key(world)}")
+    _publish(store, out)
+    assert _latest(out)["sets"][KEY]["index"] and fs.set_key(world) not in _latest(out)["sets"]
 
 
 def test_no_empty_record_when_the_manifest_lacks_the_layer_everywhere(tmp_path, monkeypatch):

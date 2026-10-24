@@ -289,6 +289,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
+    pending_empty = {}   # explicit-empty records (frame_set_bundle.empty_record), applied only when latest.json is written anyway
     started = clock()
     # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
     from services import frame_set_wind as fsw
@@ -333,15 +334,16 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                 if rec is None:
                     log(f"[frames] {key}: the manifest lists no product, but a published index exists; it stays")
                 elif rec is not entry:
-                    latest.setdefault("sets", {})[key] = rec
-                    changed = True
-                    log(f"[frames] {key}: no stored product for this layer in this box; written as explicit empty")
+                    pending_empty[key] = rec    # written WITH the next real pointer move: a run that publishes nothing writes nothing
                 stats["empty"] = rec is not None
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
         report[key] = stats
     if changed:
+        for key, rec in pending_empty.items():
+            latest.setdefault("sets", {})[key] = rec
+            log(f"[frames] {key}: no stored product for this layer in this box; written as explicit empty")
         latest.update(version=1, written_at=now, writer=_writer())
         sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
     if wind_lane is not None:
