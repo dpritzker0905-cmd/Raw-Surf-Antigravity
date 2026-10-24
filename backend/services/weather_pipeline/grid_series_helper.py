@@ -388,8 +388,10 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # The fetch is SHIELDED (a timeout still warms the provider's 5-min cache), so await only a short
     # first-paint budget and let the client's reval pick up the warmed cache. Revert: ..._WAIT_SEC=30.
     # T-01 (audit 14.1): skip the live lane when stored cycle-identified products cover every hour exactly.
+    from services.weather_pipeline.regional_tile_first import skips_live_series
     live_series = (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
             and viewport_service is not None
+            and not skips_live_series(model, domain, layer, surf, bbox)   # MARINE_REGIONAL_TILE_FIRST: the tile, not Open-Meteo
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
