@@ -133,7 +133,7 @@ def test_radians_are_accepted_and_nan_cells_are_left_out():
 class _IconSource:
     def __init__(self):
         self.clat, self.clon = _cloud(300000, seed=9)
-        self.grid = srcs.box_assignment(self.clat, self.clon)
+        self.pick = srcs.nearest_pick(self.clat, self.clon, srcs.box_assignment(self.clat, self.clon)[0])
 
     def complete_cycle(self, now):
         return CYCLE
@@ -142,7 +142,7 @@ class _IconSource:
         return f"https://opendata.dwd.de/weather/nwp/icon/grib/00/pmsl/x_{f:03d}_PMSL.grib2.bz2"
 
     def fetch(self, cycle, f):
-        return srcs.box_mean(1010.0 + 15 * np.sin(np.radians(self.clat) * 3 + f * 0.01), *self.grid)
+        return srcs.nearest_plane(1010.0 + 15 * np.sin(np.radians(self.clat) * 3 + f * 0.01), self.pick)
 
 
 def test_the_icon_set_publishes_lattice_planes_with_dwd_credit(tmp_path, monkeypatch):
@@ -154,3 +154,29 @@ def test_the_icon_set_publishes_lattice_planes_with_dwd_credit(tmp_path, monkeyp
     index = json.loads((tmp_path / json.loads((tmp_path / fs.LATEST).read_text())["sets"]["ICON/weather/pressure/global_0p5"]["index"]).read_text())
     assert "Deutscher Wetterdienst" in index["credit"] and index["common_meta"]["upstream_provider"] == "dwd"
     assert index["parity_max_abs_err"]["pressure_hpa"] <= fb.TOLERANCE[fb.PRESSURE_HPA]
+
+
+
+def test_nearest_pick_takes_the_cell_nearest_each_node_and_one_point_per_pole():
+    clat, clon = _cloud(200000, seed=11)
+    node, _ = srcs.box_assignment(clat, clon)
+    pick = srcs.nearest_pick(clat, clon, node)
+    r, c = 200, 300                                                       # a node with cells
+    cand = np.nonzero(node == r * 720 + c)[0]
+    nl, no = np.radians(-90 + 0.5 * r), np.radians(-180 + 0.5 * c)
+    dots = np.cos(np.radians(clat[cand])) * np.cos(nl) * np.cos(np.radians(clon[cand]) - no) + np.sin(np.radians(clat[cand])) * np.sin(nl)
+    assert pick[r * 720 + c] == cand[np.argmax(dots)]
+    assert len(set(pick[:720])) == 1 and len(set(pick[-720:])) == 1     # each pole row: one cell
+    assert clat[pick[0]] == clat.min() and clat[pick[-1]] == clat.max()   # the cells nearest each pole
+    plane = srcs.nearest_plane(1010.0 + 0.1 * clat, pick)
+    assert plane.shape == (361, 720) and np.isfinite(plane).all()
+    assert plane[r, c] == 1010.0 + 0.1 * clat[pick[r * 720 + c]]       # a point sample: the cell's own value
+
+
+def test_a_sharp_peak_survives_nearest_but_the_box_mean_flattens_it():
+    clat, clon = _cloud(1500000, seed=5)                               # ~ICON's density (0.17 degrees apart)
+    node, counts = srcs.box_assignment(clat, clon)
+    peak = 1000.0 + 40.0 * np.exp(-((clat - 45.0) ** 2 + ((clon - 90.0) * np.cos(np.radians(45.0))) ** 2) / 0.15)   # a high a few cells wide
+    near = srcs.nearest_plane(peak, srcs.nearest_pick(clat, clon, node))
+    box = srcs.box_mean(peak, node, counts)
+    assert near.max() > box.max() + 1.0

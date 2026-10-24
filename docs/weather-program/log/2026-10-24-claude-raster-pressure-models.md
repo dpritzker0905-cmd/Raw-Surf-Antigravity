@@ -41,3 +41,20 @@ H/L, owner clips, then all three flip together on his word (Open-Meteo pressure 
 - Step timeouts: temperature, cloud and EURO back to 12 minutes (each built a real cycle in about a minute); ICON keeps 30
   (61 bz2 files of ~4 MB from DWD; 227 s locally) with a 900 s budget.
 - Floors: chain +1 (2933), estate +9 (2731: the new sources file's 7 + the 2 tolerance cases).
+
+## Review by static-frames (#534): ICON regrid -> nearest native cell
+EURO approved as is. For ICON the reviewer recommended the native cell nearest each node instead of the box mean (GFS's and
+EURO's frames are point samples, as is the box's own dwd_icon_pressure_fetcher; a box mean smooths lows and highs, so H/L would
+differ between models for method reasons), to decide on evidence: box mean vs nearest at the 10 lowest and 10 highest nodes.
+Measured on ICON 2026-10-24 00Z (`icon_method_check.py`, |lat| <= 80):
+| hour | all nodes |box - nearest| median / p95 / p99 / max | 10 lowest: nearest - box | 10 highest: nearest - box |
+|---|---|---|---|---|
+| f000 | (see run) | within 0.08 hPa | mean +0.08, max 0.19 hPa |
+| f048 | 0.036 / 0.270 / 0.664 / 5.75 hPa | mean -0.04, max 0.11 hPa | mean +1.16, max 2.76 hPa (the Mongolian high, terrain-reduced) |
+Against ICON's own extreme within 0.3 degrees of each node (f048 highs): nearest within 0.99 hPa, box mean within 2.76. The deep
+lows agree either way; the box mean flattens the terrain highs by more than 1 hPa. SWITCHED to the nearest cell (`nearest_pick`:
+`box_assignment` + one lexsort by node and 3D dot product, numpy only; empty polar boxes filled along the row; each pole row = the
+cell nearest the pole). `box_mean` stays for comparison. Tests: the pick is the max-dot cell of its box; a peak a few cells wide
+survives nearest but not the box mean. Estate floor +11 (2 more tests).
+Real publish with the nearest cell (ICON 2026-10-24 00Z, offline): 61 / 61 frames, 11.9 MB, parity 0.05 hPa; ICON vs GFS medians
+unchanged (0.5 hPa at f000, 1.2 at 63 h, 3.2 at 168 h).

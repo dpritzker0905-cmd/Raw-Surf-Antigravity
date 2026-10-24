@@ -116,11 +116,13 @@ class EcmwfOpenDataSource:
 # ── ICON: DWD open data, icosahedral -> the 0.5-degree lattice ──────────────────────────────────────────────────────────
 # ICON global (R3B7, 2,949,120 cells, ~13 km) carries no lat/lon in its data GRIB: the time-invariant CLAT/CLON of the same
 # run give each cell's centre. REGRID (the lead: "regrid once at publish with precomputed weights"): every native cell is
-# assigned ONCE to the 0.5-degree box centred on the lattice node it rounds to (r = round((lat + 90) / 0.5), c = round((lon +
-# 180) / 0.5) mod 720), and a node's value is the MEAN of its box's cells (~15-20 at the equator): a box average, computed per
-# hour with one bincount. Boxes near the poles hold no cell (their area shrinks with cos(lat)): those nodes take the periodic
-# linear interpolation along their latitude row; each pole row is one point, so all its columns take the mean of its cells.
-# The error against the native grid is measured and stated in the PR (log), not assumed.
+# assigned ONCE to the 0.5-degree box centred on the lattice node it rounds to (box_assignment), and each node takes the cell
+# NEAREST its centre among its box's (~15-20 at the equator; nearest_pick: one lexsort by node and 3D dot product). A point
+# sample, as GFS's and EURO's every-second-point frames are and as the box's own dwd_icon_pressure_fetcher is (static-frames'
+# review of #534: a box MEAN flattened terrain-reduced highs by up to 2.76 hPa against the nearest cell, 1.16 on average over
+# the 10 highest nodes, f048 2026-10-24 00Z; deep lows agreed within 0.11). Boxes near the poles hold no cell: those nodes take
+# the periodic linear interpolation along their row; each pole row is one point (the cell nearest the pole). box_mean stays for
+# comparison only.
 DWD_BASE = "https://opendata.dwd.de/weather/nwp/icon/grib"
 ICON_SINGLE = "icon_global_icosahedral_single-level"
 ICON_INVAR = "icon_global_icosahedral_time-invariant"
@@ -166,6 +168,51 @@ def box_mean(values, node, counts):
         xs = x[good]
         plane[r] = np.interp(x, np.concatenate([xs - cols, xs, xs + cols]), np.tile(row[good], 3))
     return plane
+
+
+def nearest_pick(clat, clon, node):
+    """For every lattice node, the index of the native cell NEAREST its centre among the cells assigned to its box (-1 = an
+    empty box): the largest 3D unit-vector dot product, chosen per node with one lexsort. A point sample, as the GFS and EURO
+    frames and the box's own dwd_icon_pressure_fetcher are (static-frames' review of #534)."""
+    import numpy as np
+    clat = np.asarray(clat, dtype=float)
+    clon = np.asarray(clon, dtype=float)
+    if np.nanmax(np.abs(clat)) <= np.pi + 0.01:
+        clat, clon = np.degrees(clat), np.degrees(clon)
+    rows, cols = LATTICE
+    r, c = node // cols, node % cols
+    la, lo = np.radians(clat), np.radians(clon)
+    nla, nlo = np.radians(-90.0 + 0.5 * r), np.radians(-180.0 + 0.5 * c)
+    dot = np.cos(la) * np.cos(nla) * np.cos(lo - nlo) + np.sin(la) * np.sin(nla)
+    order = np.lexsort((-dot, node))
+    first = order[np.r_[True, node[order][1:] != node[order][:-1]]]
+    pick = np.full(rows * cols, -1, dtype=np.int64)
+    pick[node[first]] = first
+    # a pole row is ONE point: every column takes the cell nearest the pole itself
+    for pole, sign in ((0, -1.0), (rows - 1, 1.0)):
+        cells = np.nonzero(r == pole)[0]
+        if not cells.size:                                  # no cell within a quarter degree: the one nearest the pole anyway
+            cells = np.arange(clat.size)
+        pick[pole * cols:(pole + 1) * cols] = cells[np.argmax(sign * clat[cells])]
+    return pick
+
+
+def nearest_plane(values, pick):
+    """(361, 720) frame-order plane from native values by the nearest-cell pick; empty boxes (near the poles) take the periodic
+    linear interpolation along their row, as box_mean does."""
+    import numpy as np
+    rows, cols = LATTICE
+    v = np.asarray(values, dtype=float)
+    out = np.where(pick >= 0, v[np.clip(pick, 0, None)], np.nan).reshape(rows, cols)
+    x = np.arange(cols)
+    for r in range(1, rows - 1):
+        row = out[r]
+        good = np.isfinite(row)
+        if good.all() or not good.any():
+            continue
+        xs = x[good]
+        out[r] = np.interp(x, np.concatenate([xs - cols, xs, xs + cols]), np.tile(row[good], 3))
+    return out
 
 
 class IconOpenDataSource:
@@ -215,18 +262,19 @@ class IconOpenDataSource:
         return values
 
     def grid(self, cycle):
-        """(node, counts) for this run's grid, built once per publish (the weights)."""
+        """The nearest-cell pick per lattice node for this run's grid, built once per publish (the weights)."""
         if cycle not in self._grid:
             clat = self._decode_bz2(self._invar(cycle, "CLAT"))
             clon = self._decode_bz2(self._invar(cycle, "CLON"))
             if clat.shape != clon.shape:
                 raise RuntimeError(f"CLAT {clat.shape} and CLON {clon.shape} differ")
-            self._grid[cycle] = box_assignment(clat, clon)
+            node, _counts = box_assignment(clat, clon)
+            self._grid[cycle] = (nearest_pick(clat, clon, node), clat.size)
         return self._grid[cycle]
 
     def fetch(self, cycle, f):
         """(361, 720) frame-order plane in the frame's unit (spec['frame_plane'] tells build_set it is already on the lattice)."""
-        node, counts = self.grid(cycle)
+        pick, ncells = self.grid(cycle)
         last = None
         for token in self.spec["idx"][1]:
             try:
@@ -236,9 +284,9 @@ class IconOpenDataSource:
                 last = e
         else:
             raise last or RuntimeError("no ICON file")
-        if values.shape != node.shape:
-            raise RuntimeError(f"field has {values.size} cells, the grid {node.size}")
-        return box_mean(self.spec["convert"](values), node, counts)
+        if values.size != ncells:
+            raise RuntimeError(f"field has {values.size} cells, the grid {ncells}")
+        return nearest_plane(self.spec["convert"](values), pick)
 
 
 SOURCES = {"ecmwf": EcmwfOpenDataSource, "icon": IconOpenDataSource}
