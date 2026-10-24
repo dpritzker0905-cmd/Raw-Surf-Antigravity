@@ -491,8 +491,8 @@ _FLOOR_SET_FROM = {
     # guards: set from 3320 = max(dev run 40024668374 read 3317, dev's map 3317) + 3 (claude/euro-own-values-wire, 2026-10-23); floor 3314, margin 6.
     "guards": 3320,
 
-    # chain: set from 2909 = max(dev run 40041246053 read 2891, dev's map 2896) + 13 (claude/regional-tile-first, 2026-10-24); floor 2903, margin 6.
-    "chain": 2909,
+    # chain: set from 2918 = max(dev run 40045304524 read 2896, dev's map 2909) + 9 (claude/fill-provenance-nodes, 2026-10-24); floor 2912, margin 6.
+    "chain": 2918,
 
     # estate: set from 2573 = max(dev run 40045304524 read 2556, dev's map 2556) + 17 (claude/frame-parity-tolerance, 2026-10-24); floor 2571, margin 2.
     "estate": 2573,
