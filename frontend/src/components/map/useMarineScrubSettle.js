@@ -1,5 +1,5 @@
 import { useRef, useCallback, useEffect } from 'react';
-import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries'; import { settleSeriesReloadNeeded } from './marineSeriesPanGuard';
+import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries'; import { settleSeriesReloadNeeded } from './marineSettleReloadGuard';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { isTerminalNoCoverage } from './marineControllerCache';
 // The backstop's watchdogs live in marineSettleWatchdogs.js (800-LOC cap); re-exported for existing importers.
@@ -253,7 +253,7 @@ export function runScrubSettleCheck(ctx) {
         // engine stayed on the stale non-covering grid — the regional_too_small clamp (2026-07-01).
         setMarineData(stampSeriesCommit(frame, marineRevision, 'series_sharpen'));
         recordSettleCommitSig(lastCommittedSigRef, frame, layer);
-      } else if (settleSeriesReloadNeeded(!!(frame && fw < 340 && frameCovers))) {   // not with a covering frame (marineSeriesPanGuard.js)
+      } else if (settleSeriesReloadNeeded(!!(frame && fw < 340 && frameCovers), { model, layer, hour: currentHour, vb: clampVb })) {   // budgeted with a covering frame (marineSettleReloadGuard.js)
         // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
         // tick sharpens. FORCE past the TTL dedup (#8 root, 2026-07-01): after a pan beyond the warmed
         // tiles the cache holds only NON-covering frames for earlier viewports, and the normal TTL dedup
