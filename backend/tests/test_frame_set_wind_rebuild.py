@@ -43,8 +43,10 @@ def _published(tmp_path):
     return store, out, index, lane_a, lane_b
 
 
-def _rebuild(store, out, lane, fetched=None):
+def _rebuild(store, out, lane, fetched=None, sinks=None):
     sink = pub.LocalSink(out)
+    if sinks is not None:
+        sinks.append(sink)                # the sink the rebuild wrote through (its order and deletions)
 
     def fetch(name):
         if fetched is not None:
@@ -60,8 +62,8 @@ def _frames(index):
 def test_a_new_lane_rebuilds_only_the_window_frames_and_the_pointer_names_them(tmp_path):
     store, out, index_a, lane_a, lane_b = _published(tmp_path)
     latest_before = (out / fs.LATEST).read_bytes()
-    fetched = []
-    report = _rebuild(store, out, lane_b, fetched)
+    fetched, used = [], []
+    report = _rebuild(store, out, lane_b, fetched, used)
     assert report["status"] == "published", report
     assert sorted(fetched) == sorted(f"gfs_wind_wind_global_mid_{vt.replace('-', '').replace(':', '')}.json" for vt in (IN_A, IN_B))
     sink = pub.LocalSink(out)
@@ -81,6 +83,8 @@ def test_a_new_lane_rebuilds_only_the_window_frames_and_the_pointer_names_them(t
     assert ptr["key"] == LANE_B_KEY and ptr["frames"]["index"] == report["index"] and ptr["frames"]["run"] == index_a["run"]
     assert ptr["frames"]["lane"] == LANE_B_KEY
     assert (out / fs.LATEST).read_bytes() == latest_before                # latest.json is the pilots lane's alone
+    assert used[0].deleted == [] and fs.LATEST not in used[0].order      # and it deletes nothing (no second retention)
+    assert used[0].order[-1] == fsw.LANE_POINTER                          # frames, then the index, then the pointer, last
     assert fswr.pointer_keep_paths(sink) == fs.referenced_paths(index_b)  # the pilots' retention keeps every object it names
 
 
