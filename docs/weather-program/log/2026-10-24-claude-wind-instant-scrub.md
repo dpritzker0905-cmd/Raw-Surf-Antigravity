@@ -84,9 +84,20 @@ No served number changes: every served hour still equals `/grid`. This only make
   re-stamped per caller (kill `__RAW_DISABLE_WIND_GRID_RESPONSE_CACHE__`).
   - z6 Florida: identical asks 2x, 2x -> none (repeat max 2 -> 1); /grid 9 -> 7.
   - Norway: unchanged (the stale re-ask above, which the cache rightly leaves alone).
-- **GFS A/B (old = dev + PR B, new = + diet):** mislabel 0 / 0 in every cell.
-  - Step p95 (drawn): z2 77 -> 116, z3.9 63 -> 65, z6 107 -> 77, Fiji 78 -> 63, Norway 112 -> 74 ms.
-  - Single sessions on a loaded machine: the z2 rise is one step, not a trend.
+- **The A/B (old = dev + PR B, new = + diet; one session per arm; the clean rerun `diet2-*`).**
+  - An earlier pass is VOID for its mislabel and toggle-view numbers: its in-page watcher read a Node-only `MODEL` and threw. Fixed (`window.__WT_MODEL__`)
+    and every cell re-run from a frozen copy of the harness.
+  - **GFS** (z2, z3.9, z6 Florida, Fiji z5, Norway z5): mislabel 0, thin 0 and valid == served on every drawn frame in both arms.
+    - Norway: repeat max 3 -> 1, /grid 12 -> 10.
+    - z6: repeat max 2 -> 1, /grid 11 -> 10.
+    - Tail page 33 -> 32 hours (the offline run's age, above).
+    - Toggle data 4-137 ms and first draw 133-210 ms in both arms; step p95 82-117 ms in both.
+  - **ICON and EURO** (z3.9, z6, Norway): mislabel 0 in both arms. The thinned 46 x 21 series frames are the same in both arms: these models have no static
+    wind frames, which is pre-existing.
+    - The first pass ran `new` second against the same box and read step p95 6.6-9.4 s for `new`.
+    - Re-run with `new` FIRST: `old` is the slow one (6.7-7.0 s). The second arm waits on the box's background builds from the first. That is ORDER, not the diet.
+    - In that run, ICON z3.9 /grid 8 -> 5 and repeat 2 -> 1; EURO z3.9 /grid 10 -> 5 and repeat 2 -> 1.
+  - Lesson for the harness: on /grid-bound models a one-round A/B is order-confounded; use ROUNDS >= 2 (it alternates the order), or a fresh backend per arm.
 - **Harness.**
   - `MODEL=` (ICON/EURO arms).
   - Timed duplicates in `repeat`.
