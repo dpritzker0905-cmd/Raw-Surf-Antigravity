@@ -196,14 +196,23 @@ def test_a_lane_holding_most_of_the_set_off_disk_publishes_nothing(tmp_path):
 
 def test_the_publisher_runs_only_in_the_pilots_lane_after_its_ingest():
     """The GFS world products are pilot jobs; the step must run in forecast-ingest-pilots.yml after the ingest step, and
-    nowhere else (two publishers' retention could delete each other's frames)."""
+    nowhere else (two publishers' retention could delete each other's frames). The ONE exception (2026-10-24, PR B): the core
+    lane's `--wind-lane-rebuild`, which deletes nothing and never writes latest.json (tests/test_frame_set_wind_rebuild.py),
+    after the core ingest that publishes the HRRR lane."""
     wf = Path(__file__).resolve().parents[2] / ".github" / "workflows"
     pilots = (wf / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     assert pilots.index("scripts/ingest_forecast_ci.py") < pilots.index("scripts/publish_frame_images.py")
     assert "vars.FRAME_IMAGES_PUBLISH == '1'" in pilots
-    others = [f.name for f in wf.glob("*.yml") if f.name != "forecast-ingest-pilots.yml"
-              and "publish_frame_images.py" in f.read_text(encoding="utf-8")]
-    assert others == []
+    others = {}
+    for f in wf.glob("*.yml"):
+        if f.name == "forecast-ingest-pilots.yml":
+            continue
+        runs = [ln.strip() for ln in f.read_text(encoding="utf-8").splitlines() if "publish_frame_images.py" in ln and "run:" in ln]
+        if runs:
+            others[f.name] = runs
+    assert others == {"forecast-ingest.yml": ["run: python scripts/publish_frame_images.py --wind-lane-rebuild"]}
+    core = (wf / "forecast-ingest.yml").read_text(encoding="utf-8")
+    assert core.index("scripts/ingest_forecast_ci.py") < core.index("scripts/publish_frame_images.py --wind-lane-rebuild")
 
 
 def test_retention_deletes_nothing_when_the_previous_index_cannot_be_read(tmp_path):

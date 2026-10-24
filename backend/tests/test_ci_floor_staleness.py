@@ -491,10 +491,10 @@ _FLOOR_SET_FROM = {
     # guards: set from 3320 = max(dev run 40024668374 read 3317, dev's map 3317) + 3 (claude/euro-own-values-wire, 2026-10-23); floor 3314, margin 6.
     "guards": 3320,
 
-    # chain: set from 2933 = max(dev run 40086759509 read 2932, dev's map 2932) + 1 (claude/raster-pressure-publishers, 2026-10-24); floor 2927, margin 6.
+    # chain: set from 2933 = max(dev run 40089348783 read 2932, dev's map 2932) + 1 (claude/raster-pressure-publishers, 2026-10-24); floor 2927, margin 6.
     "chain": 2933,
 
-    # estate: set from 2731 = max(dev run 40088836755 read 2722, dev's map 2722) + 9 (claude/raster-pressure-publishers, 2026-10-24); floor 2729, margin 2.
+    # estate: set from 2731 = max(dev run 40089348783 read 2722, dev's map 2722) + 9 (claude/raster-pressure-publishers, 2026-10-24); floor 2729, margin 2.
     "estate": 2731,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
