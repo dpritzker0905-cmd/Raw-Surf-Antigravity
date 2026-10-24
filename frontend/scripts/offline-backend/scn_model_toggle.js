@@ -22,7 +22,7 @@
 // The old floor (`cols >= MIN_COLS`) read a z8 viewport clip as "not full resolution": EURO's 2-deg lattice on a 6-deg box is 6
 // columns, so every GFS->EURO click at z8 read MISSED in both arms while the drawn product was already the right EURO hour (debug
 // run: pid euro_marine_waves_global_mid_<hour>, bounds -92,42,-82,48). At ZOOM >= 7 the window is now a clip: 2 <= cols <= CLIP_MAX
-// (default 80), so a stale 181-column world grid is NOT accepted as exact there. Below z7 the floor is unchanged (MIN_COLS).
+// (was 80; unbounded now that the expectation is derived from the viewport box the app asks: a stale world grid still fails on its stamp or model). Below z7 the floor is unchanged (MIN_COLS).
 // SILENT WRONG-MODEL FRAMES (2026-10-24): each such frame (the field is the old model, the status line has no loading text) is
 // classed by the model chip the user sees pressed (aria-pressed): chip = NEW model -> silentChipNew (a MISLABEL), chip = OLD ->
 // silentChipOld (click-to-render latency), neither -> silentChipOther. Per click and in the summary.
@@ -48,7 +48,7 @@ const ZOOM = +(process.env.ZOOM || 3.2);
 const [CLNG, CLAT] = (process.env.CENTER || '-80,24').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
 const MIN_COLS = +(process.env.MIN_COLS || 150);
-const CLIP = ZOOM >= 7; const CLIP_MAX = +(process.env.CLIP_MAX || 80);
+const CLIP = ZOOM >= 7; const CLIP_MAX = +(process.env.CLIP_MAX || 100000);   // z7+: any grid at least 2 columns wide (the expected product comes from the app's viewport box, so a stale grid fails on its stamp)
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
