@@ -223,8 +223,20 @@ async def resolve_grid(
     product = None
     _dropped_dyn_cache = None   # root-A guard: a coarse dynamic hit set aside for a finer regional
 
+    # MARINE_REGIONAL_TILE_FIRST (regional_tile_first.py, dark; the owner 2026-10-23 18:13 EDT): inside a GFS pilot box a viewport
+    # the stored tile FULLY covers (the client's staticRegional rule) is served from that tile: Steps 1-2 (the dynamic cache) are
+    # skipped and Step 3 serves it unchanged. Partial covers, other models/layers and surf keep today's path.
+    from services.weather_pipeline import regional_tile_first as _tf
+    _tile_first_item = None
+    if bbox and req_w is not None and _tf.tile_first_enabled():
+        _tile_first_item = await asyncio.to_thread(_tf.decide, store, model, domain, layer, surf, bbox,
+                                                   authoritative_candidates, estimated_candidates)
+        if _tile_first_item is not None:
+            matching_manifest_item, use_manifest_product, manifest_preview_item = _tile_first_item, True, None
+            regional_span_lng = _tf._span(_tile_first_item.coverage)
+
     # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
-    if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
+    if bbox and _tile_first_item is None and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
         # background_tasks: a stale (>30 min) hit refreshes through reval_queue like every other site, so
         # a series frame starts nothing and the viewed hour's /grid keeps its slot (2026-10-09).
         product = await viewport_service.get_cached_dynamic_product(
@@ -268,6 +280,11 @@ async def resolve_grid(
                 )
                 _dropped_dyn_cache = product
                 product = None
+        # While MARINE_REGIONAL_TILE_FIRST is dark: a sampled, capped log of this dynamic answer vs the covering tile (cheap no-op
+        # unless the box is a tile-first candidate and the sample says yes).
+        if product is not None and _tf.eligible(model, domain, layer, surf, bbox):
+            await asyncio.to_thread(_tf.maybe_log_diff, store, model, domain, layer, surf, bbox,
+                                    authoritative_candidates, estimated_candidates, product)
 
     # Step 3: Durable manifest full coverage
     if not product:
