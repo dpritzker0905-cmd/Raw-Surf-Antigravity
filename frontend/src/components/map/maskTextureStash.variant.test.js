@@ -69,6 +69,16 @@ describe('the variant slot', () => {
     expect(e._maskStash2).toMatchObject({ geojson: LAKES, bounds: MICH });
     expect(stashServesAny(e, LAKES, MICH)).toBe(true);
   });
+  it('a handheld never allocates either slot: with a lake mask in play the outgoing mask is simply freed', () => {
+    const spy = jest.spyOn(window.navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile');
+    try {
+      const gl = fakeGL(); const e = {};
+      const modes = [commit(gl, e, PLAIN, WORLD), commit(gl, e, LAKES, WORLD), commit(gl, e, LAKES, MICH), commit(gl, e, PLAIN, WORLD)];
+      expect(modes).toEqual(['build', 'build', 'build', 'build']);                  // no swap is ever served
+      expect(e._maskStash == null && e._maskStash2 == null).toBe(true);
+      expect(gl.deleted).toHaveLength(3);                                           // each outgoing resident was deleted
+    } finally { spy.mockRestore(); }
+  });
   it('both slots are owned (the engine never frees them) and teardown frees both', () => {
     const gl = fakeGL(); const e = {};
     commit(gl, e, PLAIN, WORLD); commit(gl, e, LAKES, WORLD); commit(gl, e, LAKES, MICH);
