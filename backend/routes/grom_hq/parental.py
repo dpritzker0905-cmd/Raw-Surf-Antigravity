@@ -343,8 +343,15 @@ async def update_parental_controls(
         raise HTTPException(status_code=403, detail="Not authorized to update this Grom's controls")
     
     # Validate controls
-    valid_keys = ["can_post", "can_stream", "can_message", "can_comment", "view_only", "can_call", "approved_callers"]
+    # `can_message_grom_channel` is the "Grom Zone Chat" switch on the guardian screen; the messaging gate
+    # (`check_grom_messaging_permission`) already reads it, but this list dropped it, so the toggle reported
+    # "Controls updated" and changed nothing (audit F-09).
+    valid_keys = ["can_post", "can_stream", "can_message", "can_message_grom_channel", "can_comment", "view_only",
+                  "can_call", "approved_callers"]
     filtered_controls = {k: v for k, v in controls.items() if k in valid_keys}
+    # Keys this route does not own (spending limits and media ceilings have their own routes; the screen echoes the
+    # whole object back) are not stored here. Name them in the reply instead of dropping them silently.
+    ignored_keys = sorted(k for k in controls if k not in valid_keys)
     
     # Merge with existing controls
     existing_controls = grom.parental_controls or {}
@@ -356,7 +363,9 @@ async def update_parental_controls(
     
     return {
         "success": True,
-        "parental_controls": grom.parental_controls
+        "parental_controls": grom.parental_controls,
+        "saved_keys": sorted(filtered_controls),
+        "ignored_keys": ignored_keys,
     }
 
 

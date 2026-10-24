@@ -12,8 +12,10 @@ from datetime import datetime, timedelta
 from database import get_db
 from models import Profile, Post, PostLike, Comment, PostReaction, PostCollaboration, SurfSpot, RoleEnum, Follow
 from core.security import get_current_user_id, get_optional_user_id
+from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
 from services.grom_media_policy import approval_status_for_grom_post, is_verified_guardian, normalize_controls
 from services.private_media import parse_private_media_ref
+from services.parental_controls import assert_profile_may
 from .schemas import (
     PostCreate, PostResponse, CommentResponse, ReactionData, CollaboratorData, SpotData
 )
@@ -41,6 +43,8 @@ async def create_post(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    # PARENTAL CONTROLS (audit F-09): a view-only Grom cannot create posts (can_post keeps its approval-pipeline job).
+    assert_profile_may(profile, "post")
         
     visibility = data.visibility
     guardian_approval_status = None
@@ -202,6 +206,10 @@ async def get_feed(
     
     # Build query with optional cursor for pagination
     query = select(Post).where(Post.media_url.isnot(None))
+
+    # BLOCKS (audit F-09): posts by anyone on either side of a block with the viewer never reach the feed.
+    # One indexed lookup for the viewer, then a NOT IN in SQL (no per-post query).
+    query = query.where(not_in_ids(Post.author_id, await excluded_user_ids(db, user_id)))
     
     # If cursor provided, only fetch posts older than the cursor timestamp
     if cursor:
@@ -441,6 +449,7 @@ async def get_posts_by_spot(
     spot_id: str,
     limit: int = Query(default=50, le=100),
     viewer_id: Optional[str] = Query(None),
+    auth_viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -453,6 +462,8 @@ async def get_posts_by_spot(
         select(Post)
         .where(Post.spot_id == spot_id)  # Only posts tagged to this spot
         .where(Post.media_url.isnot(None))
+        # BLOCKS (audit F-09): keyed on the TOKEN identity - the viewer_id query param is not an identity.
+        .where(not_in_ids(Post.author_id, await excluded_user_ids(db, auth_viewer_id)))
         .options(
             selectinload(Post.author),
             selectinload(Post.spot)
@@ -539,6 +550,9 @@ async def get_single_post(
     
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+
+    # BLOCKS (audit F-09): a viewer the author blocked sees "not found", exactly as for a missing post.
+    await assert_visible_to(db, post.author_id, viewer_id, "Post not found")
 
     if post.author and post.author.role == RoleEnum.GROM:
         is_publicly_approved = post.visibility == 'public' and post.guardian_approval_status == 'approved'

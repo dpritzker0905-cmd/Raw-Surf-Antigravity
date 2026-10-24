@@ -174,3 +174,134 @@ def test_the_kill_switch_and_the_other_sets_records(tmp_path, monkeypatch):
     monkeypatch.setenv("FRAME_RASTER_PRESSURE", "0")
     monkeypatch.setattr(fsr, "GfsPrmslSource", lambda: pytest.fail("the kill switch must not fetch"))
     assert script.main(["--out-dir", str(tmp_path / "killed")]) == 0 and not (tmp_path / "killed").exists()
+
+
+# ── raster phase 2 (2026-10-23): GFS 2 m temperature and total cloud cover, the same contract ──────────────────────────
+IDX = """1:0:d=2026102318:PRMSL:mean sea level:3 hour fcst:
+2:1000:d=2026102318:TMP:2 m above ground:3 hour fcst:
+3:2500:d=2026102318:TCDC:entire atmosphere:3 hour fcst:
+4:3100:d=2026102318:TCDC:entire atmosphere:0-3 hour ave fcst:
+5:3900:d=2026102318:APCP:surface:0-3 hour acc fcst:
+"""
+
+
+def test_the_idx_selector_takes_the_instantaneous_message_never_a_mean_or_an_accumulation():
+    rows = fsr.idx_rows(IDX)
+    assert fsr.select_message(rows, ("TCDC", "entire atmosphere")) == (2500, 3099)        # not the 0-3 h mean at 3100
+    assert fsr.select_message(rows, ("PRMSL", "mean sea level")) == (0, 999)
+    assert fsr.select_message(rows, ("TMP", "2 m above ground")) == (1000, 2499)
+    assert fsr.select_message(rows, ("APCP", "surface")) is None                          # only an accumulation exists
+    anl = fsr.idx_rows("1:0:d=2026102318:TCDC:entire atmosphere:anl:\n2:900:d=2026102318:HGT:surface:anl:\n")
+    assert fsr.select_message(anl, ("TCDC", "entire atmosphere")) == (0, 899)
+
+
+def test_pressure_frames_are_byte_identical_to_the_first_publisher():
+    import hashlib
+    raw, _gz, _check = fsr.build_frame(fsr.to_frame_plane(_field(12)), CYCLE, CYCLE)
+    assert hashlib.sha256(raw).hexdigest() == "986fe4ebd9954615f51104d2ed228020a184ceea87a1ba6a1bbdea46c92c0618"
+
+
+def test_the_new_sets_are_off_unless_switched_on_and_pressure_stays_on(monkeypatch):
+    assert fsr.enabled() and fsr.enabled("pressure")
+    assert not fsr.enabled("temperature") and not fsr.enabled("cloud_cover")
+    monkeypatch.setenv("FRAME_RASTER_TEMPERATURE", "1")
+    monkeypatch.setenv("FRAME_RASTER_CLOUD", "1")
+    assert fsr.enabled("temperature") and fsr.enabled("cloud_cover")
+    with pytest.raises(ValueError):
+        fsr.spec_for("rain")
+
+
+class _KelvinSource(_Source):
+    def fetch(self, cycle, f):
+        self.fetched.append(f)
+        return fsr.SPECS["temperature"]["convert"]((_field(f) - 1010.0) * 0.8 + 288.15)   # 268-308 K, as degC
+
+
+class _CloudSource(_Source):
+    def fetch(self, cycle, f):
+        self.fetched.append(f)
+        a = np.clip((_field(f) - 990.0) * 2.5, 0.0, 100.0)
+        a[0, :8] = [100.0000001, -0.0000002, 37.4, 37.6, 0.0, 100.0, 50.5, 101.0]   # GRIB float noise; 101 = impossible
+        return a
+
+
+def test_temperature_set_publishes_degC_frames_under_its_own_key(tmp_path):
+    report, _sink = _publish(tmp_path / "t", source=_KelvinSource(), spec=fsr.SPECS["temperature"])
+    assert report["status"] == "published" and report["built"] == len(fsr.F_HOURS)
+    key = "GFS/weather/temperature/global_0p5"
+    rec = _latest(tmp_path / "t")["sets"][key]
+    index = json.loads((tmp_path / "t" / rec["index"]).read_text())
+    assert index["set"] == key and index["layer"] == "temperature" and index["common_meta"]["value_unit"] == "degC"
+    assert index["quantisation"] == {"temp_c": {"tolerance": fb.TOLERANCE[fb.TEMP_C]}}
+    f = index["frames"][4]
+    assert f["path"].startswith("v1/gfs/weather/temperature/global_0p5/")
+    _head, fields = fb.decode_plane((tmp_path / "t" / f["path"]).read_bytes())
+    want = fsr.to_frame_plane(_KelvinSource().fetch(CYCLE, 12), fsr.SPECS["temperature"]["valid"])
+    assert np.nanmax(np.abs(fields[fb.TEMP_C] - want)) <= fb.TOLERANCE[fb.TEMP_C] == 0.025 + 1e-9
+    assert fsr.KEY not in _latest(tmp_path / "t")["sets"]                                   # pressure's record untouched
+
+
+def test_cloud_set_is_u8_percent_clipping_grib_noise_and_dropping_impossible_values(tmp_path):
+    sp = fsr.SPECS["cloud_cover"]
+    plane = fsr.to_frame_plane(_CloudSource().fetch(CYCLE, 0), sp["valid"], sp["clip"])
+    raw, _gz, check = fsr.build_frame(plane, CYCLE, CYCLE, sp["field"])
+    assert check["bad"] == 0 and check["max_abs_err"] <= 0.5
+    _head, fields = fb.decode_plane(raw)
+    got = fields[fb.CLOUD_PCT]
+    assert np.nanmin(got) >= 0.0 and np.nanmax(got) <= 100.0
+    assert len(raw) == 72 + 24 + 720 * 361                                                   # one byte per node
+    # the noisy row (GRIB row 0 = 90N, every second point -> frame row 360, columns from 180W): 101 % is no data
+    row = fsr.to_frame_plane(_CloudSource().fetch(CYCLE, 0), sp["valid"], sp["clip"])[360]
+    src = _CloudSource().fetch(CYCLE, 0)[0, ::2]
+    src = np.concatenate([src[360:], src[:360]])
+    for c in range(len(src)):
+        if src[c] > 100.5:
+            assert np.isnan(row[c])
+    report, _sink = _publish(tmp_path / "c", source=_CloudSource(), spec=sp)
+    assert report["status"] == "published"
+    assert "GFS/weather/cloud_cover/global_0p5" in _latest(tmp_path / "c")["sets"]
+
+
+def test_the_script_runs_one_set_and_skips_a_set_that_is_off(tmp_path, capsys):
+    assert script.main(["--set", "temperature", "--out-dir", str(tmp_path)]) == 0
+    assert "temperature: off (FRAME_RASTER_TEMPERATURE); skipped" in capsys.readouterr().out
+    with pytest.raises(SystemExit):
+        script.main(["--set", "rain"])
+
+
+def test_pressure_index_and_paths_are_identical_to_the_first_publisher():
+    frames, _uploads, stats = fsr.build_set(_Source(), CYCLE, log=lambda *_: None)
+    index = fsr.make_index(CYCLE, frames, stats)
+    assert index["path"] == "v1/gfs/weather/pressure/global_0p5/index/20261023T060000Z-1a58a2171302.json"
+    assert index["common_meta"]["source_dataset"] == "gfs.pgrb2.0p25 PRMSL, every second point"
+    assert all(f["path"].startswith("v1/gfs/weather/pressure/global_0p5/20261023T060000Z/") for f in index["frames"])
+
+
+class _OnlyMeanSource(_Source):
+    """An hour whose .idx carries only the 0-N hour MEAN of TCDC (no instantaneous message): never substituted."""
+
+    def __init__(self, only_mean_at):
+        super().__init__()
+        self.only_mean_at = only_mean_at
+
+    def fetch(self, cycle, f):
+        idx = IDX if f != self.only_mean_at else IDX.replace("3:2500:d=2026102318:TCDC:entire atmosphere:3 hour fcst:\n", "")
+        if fsr.select_message(fsr.idx_rows(idx), fsr.SPECS["cloud_cover"]["idx"]) is None:
+            raise RuntimeError("idx has no TCDC:entire atmosphere message")
+        return np.full((721, 1440), 42.0)
+
+
+def test_an_hour_with_only_the_tcdc_mean_is_left_unbuilt_never_substituted(tmp_path):
+    report, _sink = _publish(tmp_path / "m", source=_OnlyMeanSource(only_mean_at=6), spec=fsr.SPECS["cloud_cover"])
+    assert report["status"] == "published" and report["failed"] == 1
+    index = json.loads((tmp_path / "m" / _latest(tmp_path / "m")["sets"]["GFS/weather/cloud_cover/global_0p5"]["index"]).read_text())
+    hour6 = [f for f in index["frames"] if f["source"]["forecast_hour"] == 6][0]
+    assert hour6["path"] is None and hour6["unbuilt"] == "failed"
+
+
+def test_real_f003_idx_lines_pick_the_instantaneous_tcdc_not_the_mean():
+    """The two TCDC lines exactly as NOAA's GFS 18Z 2026-10-23 pgrb2.0p25.f003.idx carries them (read 2026-10-23; static-frames'
+    review): the instantaneous message (636) ends where the 0-3 h mean (637) starts."""
+    real = ("636:447842631:d=2026102318:TCDC:entire atmosphere:3 hour fcst:\n"
+            "637:448681869:d=2026102318:TCDC:entire atmosphere:0-3 hour ave fcst:\n")
+    assert fsr.select_message(fsr.idx_rows(real), ("TCDC", "entire atmosphere")) == (447842631, 448681868)

@@ -29,15 +29,18 @@ const ON = process.env.OWN !== '0';
     // only weather layer the probe turns on.
     page.on('request', (r) => { const u = r.url(); try { if (new URL(u).hostname.includes('open-meteo') || new URL(u).hostname.includes('openmeteo')) om.push(u); } catch (e) { /* data: */ } });
     if (!LIVE) await page.addInitScript((off) => { const RD = Date; function D(...a) { if (!(this instanceof D)) return new RD(RD.now() + off).toString(); return a.length ? new RD(...a) : new RD(RD.now() + off); } D.prototype = RD.prototype; D.now = () => RD.now() + off; D.parse = RD.parse; D.UTC = RD.UTC; window.Date = D; }, meta ? meta.tRec - Date.now() : 0);
-    await page.addInitScript(({ theme, on, cdn }) => {
+    await page.addInitScript(({ theme, on, cdn, isoOff, extra }) => {
       localStorage.setItem('raw-surf-theme', theme);
       if (on) { window.__RAW_RASTER_OWN_FRAMES__ = true; window.__RAW_STATIC_FRAMES_BASE__ = cdn; }
-    }, { theme, on: ON, cdn: process.env.OWN_CDN });
+      if (isoOff) window.__RAW_DISABLE_RASTER_ISOBARS__ = true;   // ISO_OFF=1: the same frame without isobars (a contrast read's base)
+      Object.assign(window, extra);                                 // EXTRA_FLAGS='{"__RAW_X__":true}': any other window levers
+    }, { theme, on: ON, cdn: process.env.OWN_CDN, isoOff: process.env.ISO_OFF === '1', extra: JSON.parse(process.env.EXTRA_FLAGS || '{}') });
     const errors = [];
     page.on('pageerror', (e) => errors.push(String(e).slice(0, 200)));
     await page.goto((process.env.AB_BASE || L.BASE) + '/map', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!window.__MAP_INSTANCE__, null, { timeout: 90000 });
     await sleep(2500);
+    if (process.env.MODEL) await page.evaluate((m) => window.setActiveModel && window.setActiveModel(m), process.env.MODEL);   // GFS | EURO | ICON
     await L.jump(page, VIEW[0], VIEW[1], VIEW[2]);
     await sleep(1500);
     const t0 = Date.now();
@@ -49,7 +52,7 @@ const ON = process.env.OWN !== '0';
       await sleep(25);
     }
     await sleep(+(process.env.SETTLE_MS || 1500));
-    await page.screenshot({ path: path.join(OUT, `own-${ON ? 'on' : 'off'}-${theme}.png`) });
+    await page.screenshot({ path: path.join(OUT, `own-${process.env.MODEL || 'GFS'}-${ON ? 'on' : 'off'}${process.env.ISO_OFF === '1' ? '-noiso' : ''}${process.env.TAG ? '-' + process.env.TAG : ''}-${theme}.png`) });
     const credit = await page.evaluate(() => [...document.querySelectorAll('[data-testid="layer-data-credit"]')].map((a) => a.textContent));
     const steps = [];
     for (const h of (ON ? HOURS : [])) {

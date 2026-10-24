@@ -289,6 +289,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
+    pending_empty = {}   # explicit-empty records (frame_set_bundle.empty_record), applied only when latest.json is written anyway
     started = clock()
     # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
     from services import frame_set_wind as fsw
@@ -322,13 +323,30 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
             # pinned to. The first publish has nothing to delete anyway.
             if entry and entry.get("index") and prev_index is not None:
                 keep_by_set[key] = (target, fs.referenced_paths(index) | fs.referenced_paths(prev_index))
+                if fsw.is_wind(target):          # and the lane-window rebuild the lane pointer names (frame_set_wind_rebuild)
+                    from services import frame_set_wind_rebuild as fswr
+                    keep_by_set[key] = (target, keep_by_set[key][1] | fswr.pointer_keep_paths(sink))
             elif entry and entry.get("index"):
                 log(f"[frames] {key}: previous index {entry['index']} unreadable; retention skipped this run")
+        # EXPLICIT EMPTY (frame_set_bundle.empty_record): a regional set the manifest lists NO product for, while the manifest does
+        # carry that model/domain/layer elsewhere, is written as {"empty": true}; never over a published index.
+        if index is None and bundled and stats.get("entries") == 0:
+            products = (source.manifest() or {}).get("products") or []
+            if fsb.layer_present(products, target):
+                rec = fsb.empty_record(entry, now, _writer())
+                if rec is None:
+                    log(f"[frames] {key}: the manifest lists no product, but a published index exists; it stays")
+                elif rec is not entry:
+                    pending_empty[key] = rec    # written WITH the next real pointer move: a run that publishes nothing writes nothing
+                stats["empty"] = rec is not None
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
         report[key] = stats
     if changed:
+        for key, rec in pending_empty.items():
+            latest.setdefault("sets", {})[key] = rec
+            log(f"[frames] {key}: no stored product for this layer in this box; written as explicit empty")
         latest.update(version=1, written_at=now, writer=_writer())
         sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
     if wind_lane is not None:
@@ -365,11 +383,38 @@ def _wind_lane_pointer(sink, wind_lane, log):
         fsw.write_lane_pointer(held, log)
 
 
+def _wind_lane_rebuild(source, sink, log=print):
+    """--wind-lane-rebuild: the lane L2 holds now, the published wind set rebuilt for it where it can change. Offline (LocalSink)
+    the products come from --store-dir and the pointer is first moved to the lane, as the core lane's ingest does."""
+    from services import frame_set_wind as fsw
+    from services import frame_set_wind_rebuild as fswr
+    lane = fsw.load_publish_lane(log)
+    fetch = fswr.l2_product_fetch
+    if isinstance(sink, LocalSink):
+        fetch = source.product_bytes
+        if lane is not None:
+            ident = lane.identity()
+            rec = fsw.pointer_record({"key": ident["key"], "cycle": ident["cycle"], "horizon": ident["horizon"],
+                                      "hours": len(getattr(lane.lane, "hours", {}) or {})}, None, "offline-harness")
+            rec["written_at"] = datetime.fromtimestamp(time.time() - 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            sink.write(fsw.LANE_POINTER, json.dumps(rec, indent=1).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
+    report = fswr.rebuild_for_lane(sink, lane, _uploader(sink), fetch=fetch, log=log)
+    print(json.dumps({"wind_lane_rebuild": report}))
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write("### Wind lane-window frames\n```\n" + json.dumps(report, indent=1) + "\n```\n")
+    return 1 if report.get("status") in ("error", "not_published") else 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--store-dir", help="offline: a ProductStore dir (manifest.json + products) instead of the runner's")
     ap.add_argument("--out-dir", help="offline: write the public objects here (required with --store-dir)")
     ap.add_argument("--only", choices=("frames", "png"), help="run one half only (default: both)")
+    ap.add_argument("--wind-lane-rebuild", action="store_true",
+                    help="the core lane, after a new HRRR lane: rebuild only the lane-window GFS wind frames and name them in "
+                         "the lane pointer (frame_set_wind_rebuild.py); latest.json is not written")
     args = ap.parse_args(argv)
     if bool(args.store_dir) != bool(args.out_dir):
         ap.error("--store-dir and --out-dir go together")
@@ -379,6 +424,8 @@ def main(argv=None):
         from services.weather_pipeline.store import ProductStore
         source, sink = LocalCache(ProductStore().cache_dir), SupabaseSink()
     sink.ensure_bucket()
+    if args.wind_lane_rebuild:
+        return _wind_lane_rebuild(source, sink)
     status = 0
     if args.only in (None, "frames"):
         report = publish_frame_sets(source, sink)
