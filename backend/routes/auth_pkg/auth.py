@@ -11,10 +11,8 @@ import logging
 from database import get_db
 from models import Profile, RoleEnum
 from core.security import create_access_token, get_current_user_id, get_user_id_from_jwt_or_query
-from core.rate_limiter import (
-    env_positive_int, failure_throttle_check, failure_throttle_clear, failure_throttle_record,
-    rate_limit_check,
-)
+from core.login_throttle import LoginThrottle
+from core.rate_limiter import rate_limit_check
 from models import Notification
 
 router = APIRouter()
@@ -385,10 +383,17 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-def login_account_limits():
-    """(wrong guesses allowed against ONE account, window in seconds) before it is paused, from any address."""
-    return (env_positive_int("LOGIN_ACCOUNT_MAX_FAILURES", 10),
-            env_positive_int("LOGIN_ACCOUNT_WINDOW_SECONDS", 900))
+def _login_refusal(profile, retry_after: int = 0) -> HTTPException:
+    """The refusal an ordinary wrong guess earns for THIS account, so a throttled caller sees nothing different
+    (status and body) from an unthrottled one; only Retry-After says to slow down."""
+    if not profile:
+        status, detail = 404, "Profile not found"
+    elif not profile.password_hash:
+        status, detail = 401, "No password is set on this account. Use 'Forgot password' to create one."
+    else:
+        status, detail = 401, "Invalid password"
+    return HTTPException(status_code=status, detail=detail,
+                         headers={"Retry-After": str(retry_after)} if retry_after else None)
 
 
 @router.post("/auth/login")
@@ -397,11 +402,8 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
     login_id = normalize_email(data.email)
     username_id = login_id.lstrip('@')
-    # Per-account throttle on top of the per-address one: rotating addresses must not buy unlimited guesses at one
-    # account. Only FAILED guesses count, and a correct password clears the count, so a legitimate user who mistypes
-    # a few times is unaffected.
-    account_key = f"login_fail:{username_id}"
-    failure_throttle_check(account_key, *login_account_limits())
+    # Layered guess throttles (core/login_throttle.py): they slow the GUESSER's address, never the account's owner.
+    throttle = LoginThrottle(request, username_id)
     result = await db.execute(
         select(Profile).where(
             (func.lower(Profile.email) == login_id) | 
@@ -409,30 +411,33 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         )
     )
     profile = result.scalar_one_or_none()
-    
+
+    blocked_for = throttle.blocked_for()
+    if blocked_for:
+        # Backed off: refused like an ordinary wrong guess, without checking the password or counting the attempt.
+        raise _login_refusal(profile, blocked_for)
+
     if not profile:
-        failure_throttle_record(account_key)
-        raise HTTPException(status_code=404, detail="Profile not found")
+        retry_after = throttle.record_failure()
+        await throttle.delay_if_over_ceiling()
+        raise _login_refusal(profile, retry_after)
     
     # A password sign-in needs a stored password to check. Accounts without one (legacy and seeded
     # rows) used to be let in on any password; they now create one through forgot-password, the same
     # path change-password already points them to.
     if not profile.password_hash:
-        raise HTTPException(
-            status_code=401,
-            detail="No password is set on this account. Use 'Forgot password' to create one.",
-        )
+        raise _login_refusal(profile)
     try:
         password_valid = verify_password(data.password, profile.password_hash)
     except Exception:
         logger.exception("Password verification failed for profile %s", profile.id)
-        failure_throttle_record(account_key)
-        raise HTTPException(status_code=401, detail="Invalid password")
+        password_valid = False
 
     if not password_valid:
-        failure_throttle_record(account_key)
-        raise HTTPException(status_code=401, detail="Invalid password")
-    failure_throttle_clear(account_key)
+        retry_after = throttle.record_failure()
+        await throttle.delay_if_over_ceiling()
+        raise _login_refusal(profile, retry_after)
+    throttle.record_success()
     
     # Check if suspended
     if profile.is_suspended:

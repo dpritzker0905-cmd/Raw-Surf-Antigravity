@@ -14,6 +14,7 @@ Usage in routes:
 """
 
 import ipaddress
+import math
 import os
 import time
 import logging
@@ -152,6 +153,54 @@ def failure_throttle_clear(key: str) -> None:
     _request_log.pop(key, None)
 
 
+def failure_count(key: str, window_seconds: int) -> int:
+    """Failures recorded for `key` inside the window (expired ones are dropped on the way)."""
+    history = _request_log.get(key)
+    if not history:
+        return 0
+    cutoff = time.monotonic() - window_seconds
+    while history and history[0] < cutoff:
+        history.popleft()
+    return len(history)
+
+
+# --- Exponential backoff per key ---------------------------------------------------------------------------------
+# key -> [failures, last_failure, blocked_until] (monotonic seconds). A key is free for its first `limit - 1`
+# failures; the `limit`-th failure starts a block of `base` seconds and every further failure doubles it up to `cap`.
+# While a key is blocked its callers are turned away WITHOUT counting, so a patient owner is never pushed further out
+# by someone hammering the same key. The count is forgotten `reset_after` seconds after the later of the last
+# failure and the end of the block.
+_backoff: Dict[str, list] = {}
+
+
+def backoff_remaining(key: str) -> int:
+    """Whole seconds `key` is still blocked for (0 when it is not)."""
+    state = _backoff.get(key)
+    if not state:
+        return 0
+    left = state[2] - time.monotonic()
+    return max(1, math.ceil(left)) if left > 0 else 0
+
+
+def backoff_record_failure(key: str, limit: int, base: int, cap: int, reset_after: int) -> int:
+    """Count one failure on `key`; returns the seconds it is now blocked for (0 when it is not)."""
+    now = time.monotonic()
+    state = _backoff.get(key)
+    if state is None or now - max(state[1], state[2]) > reset_after:
+        state = _backoff[key] = [0, now, 0.0]
+    state[0] += 1
+    state[1] = now
+    if state[0] < limit:
+        return 0
+    delay = min(cap, base * 2 ** min(state[0] - limit, 30))
+    state[2] = now + delay
+    return math.ceil(delay)
+
+
+def backoff_clear(key: str) -> None:
+    _backoff.pop(key, None)
+
+
 def cleanup_old_entries() -> int:
     """
     Periodically purge stale entries to prevent unbounded memory growth.
@@ -162,4 +211,7 @@ def cleanup_old_entries() -> int:
     stale = [k for k, v in _request_log.items() if not v or v[-1] < cutoff]
     for k in stale:
         del _request_log[k]
-    return len(stale)
+    gone = [k for k, st in _backoff.items() if max(st[1], st[2]) < cutoff]
+    for k in gone:
+        del _backoff[k]
+    return len(stale) + len(gone)

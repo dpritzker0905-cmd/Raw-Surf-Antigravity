@@ -6,6 +6,9 @@ appends the address it saw on the RIGHT). Rotating that value gave 30 wrong-pass
 
 Everything here goes through the real routers over an ephemeral SQLite file; nothing leaves the process.
 """
+import logging
+import types
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -15,7 +18,7 @@ from sqlalchemy.orm import sessionmaker
 from starlette.requests import Request
 
 import database
-from core import rate_limiter
+from core import login_throttle, rate_limiter
 from database import Base
 from models import PlatformSettings, Profile, RoleEnum
 from routes.admin import analytics_settings
@@ -34,9 +37,11 @@ def fake_request(forwarded=None, peer='198.51.100.77'):
 @pytest.fixture(autouse=True)
 def clean_state(monkeypatch):
     rate_limiter._request_log.clear()
+    rate_limiter._backoff.clear()
     monkeypatch.delenv('RATE_LIMIT_TRUSTED_PROXY_HOPS', raising=False)
     yield
     rate_limiter._request_log.clear()
+    rate_limiter._backoff.clear()
 
 
 # ---- the address the limiter keys on ---------------------------------------------------------------------------
@@ -70,13 +75,12 @@ def test_a_request_with_no_peer_at_all_is_still_keyed():
     assert rate_limiter._get_client_ip(fake_request(None, peer=None)) == 'unknown'
 
 
-def test_the_account_limits_come_from_the_environment_and_survive_a_typo(monkeypatch):
-    assert auth_module.login_account_limits() == (10, 900)
-    monkeypatch.setenv('LOGIN_ACCOUNT_MAX_FAILURES', '3')
-    monkeypatch.setenv('LOGIN_ACCOUNT_WINDOW_SECONDS', 'soon')
-    assert auth_module.login_account_limits() == (3, 900)
-    monkeypatch.setenv('LOGIN_ACCOUNT_MAX_FAILURES', '0')
-    assert auth_module.login_account_limits()[0] == 10
+def test_the_login_limits_come_from_the_environment_and_survive_a_typo(monkeypatch):
+    assert login_throttle.limits() == {'pair': 5, 'source': 30, 'ceiling': 100}
+    monkeypatch.setenv('LOGIN_PAIR_MAX_FAILURES', '3')
+    monkeypatch.setenv('LOGIN_SOURCE_MAX_FAILURES', 'lots')
+    monkeypatch.setenv('LOGIN_ACCOUNT_CEILING_PER_HOUR', '0')
+    assert login_throttle.limits() == {'pair': 3, 'source': 30, 'ceiling': 100}
 
 
 def test_a_bad_hops_setting_does_not_disable_the_limiter(monkeypatch):
@@ -144,31 +148,187 @@ def test_the_same_real_address_is_limited_and_a_different_one_is_not(client):
     assert attempt(client, 'alice@example.com', PASSWORD, '203.0.113.10').status_code == 200
 
 
-def test_repeated_failures_against_one_account_stop_even_when_every_address_is_new(client):
-    limit = auth_module.login_account_limits()[0]
-    for i in range(limit):
-        assert attempt(client, 'alice@example.com', BAD, f'203.0.113.{i + 1}').status_code == 401
-    fresh_address = '198.51.100.200'
-    blocked = attempt(client, 'alice@example.com', PASSWORD, fresh_address)
-    assert blocked.status_code == 429 and 'Retry-After' in blocked.headers  # paused even for the right password
-    # another account from the same fresh address is unaffected
-    assert attempt(client, 'bob@example.com', PASSWORD, fresh_address).status_code == 200
+# ---- the layered guess throttles (core/login_throttle.py) -------------------------------------------------------
+# These isolate the throttle from the 5-requests-a-minute address limiter and the bcrypt cost, and run on a fake
+# clock so backoff and expiry are exact.
+
+class FakeClock:
+    def __init__(self):
+        self.now = 10_000.0
+
+    def monotonic(self):
+        return self.now
+
+    def advance(self, seconds):
+        self.now += seconds
 
 
-def test_a_successful_login_clears_the_account_count(client):
-    limit = auth_module.login_account_limits()[0]
-    for i in range(limit - 1):
-        assert attempt(client, 'alice@example.com', BAD, f'203.0.113.{i + 1}').status_code == 401
-    assert attempt(client, 'alice@example.com', PASSWORD, '198.51.100.1').status_code == 200
-    for i in range(limit - 1):  # a fresh budget: these would trip the throttle if the count had survived
-        assert attempt(client, 'alice@example.com', BAD, f'192.0.2.{i + 1}').status_code == 401
+@pytest.fixture
+def clock(monkeypatch):
+    fake = FakeClock()
+    monkeypatch.setattr(rate_limiter, 'time', types.SimpleNamespace(monotonic=fake.monotonic))
+    return fake
 
 
-def test_guesses_at_an_account_that_does_not_exist_are_throttled_too(client):
-    limit = auth_module.login_account_limits()[0]
-    for i in range(limit):
-        assert attempt(client, 'ghost@example.com', BAD, f'203.0.113.{i + 1}').status_code == 404
-    assert attempt(client, 'ghost@example.com', BAD, '198.51.100.9').status_code == 429
+@pytest.fixture
+def throttle_only(monkeypatch):
+    monkeypatch.setattr(auth_module, 'rate_limit_check', lambda *a, **k: None)
+    monkeypatch.setattr(auth_module, 'verify_password', lambda plain, hashed: plain == PASSWORD)
+    delays = []
+
+    async def record_sleep(seconds):
+        delays.append(seconds)
+
+    monkeypatch.setattr(login_throttle, '_sleep', record_sleep)
+    return delays
+
+
+GUESSER = '203.0.113.9'
+OWNER = '198.51.100.7'
+
+
+def source(i):
+    return f'203.0.{i // 250}.{i % 250 + 1}'
+
+
+def spoofed(real, i):
+    return f'10.9.8.{i % 250}, {real}'
+
+
+def retry_after(response):
+    return response.headers.get('Retry-After')
+
+
+def test_a_guesser_is_backed_off_while_the_owner_elsewhere_still_signs_in(client, throttle_only, clock):
+    results = [attempt(client, 'alice@example.com', BAD, spoofed(GUESSER, i)) for i in range(5)]
+    assert statuses(results) == [401] * 5
+    assert [retry_after(r) for r in results] == [None, None, None, None, '15']  # the 5th wrong guess starts it
+    # the guesser is now turned away, even with the right password and a fresh spoofed prefix
+    blocked = attempt(client, 'alice@example.com', PASSWORD, spoofed(GUESSER, 77))
+    assert blocked.status_code == 401 and retry_after(blocked) is not None
+    # ... but the owner at another address is untouched, and so is the guesser's address on another account
+    assert attempt(client, 'alice@example.com', PASSWORD, OWNER).status_code == 200
+    assert attempt(client, 'bob@example.com', PASSWORD, GUESSER).status_code == 200
+
+
+def test_the_backoff_doubles_up_to_the_cap(client, throttle_only, clock):
+    waits = []
+    for _ in range(12):  # the owner of the guess waits out each backoff before trying again
+        response = attempt(client, 'alice@example.com', BAD, GUESSER)
+        if retry_after(response):
+            waits.append(int(retry_after(response)))
+            clock.advance(int(retry_after(response)) + 1)
+    assert waits == [15, 30, 60, 120, 240, 480, 900, 900]  # 480 doubles to 960 and is held at the 15 minute cap
+
+
+def test_attempts_made_while_backed_off_do_not_extend_it(client, throttle_only, clock):
+    for _ in range(5):
+        attempt(client, 'alice@example.com', BAD, GUESSER)
+    for _ in range(20):
+        assert retry_after(attempt(client, 'alice@example.com', BAD, GUESSER)) is not None
+    clock.advance(16)
+    assert retry_after(attempt(client, 'alice@example.com', BAD, GUESSER)) == '30'  # the 6th counted failure, not the 26th
+
+
+def test_a_throttled_wrong_guess_looks_like_an_ordinary_one(client, throttle_only, clock):
+    ordinary = attempt(client, 'alice@example.com', BAD, OWNER)
+    for _ in range(5):
+        attempt(client, 'alice@example.com', BAD, GUESSER)
+    blocked = attempt(client, 'alice@example.com', BAD, GUESSER)
+    assert (blocked.status_code, blocked.json()) == (ordinary.status_code, ordinary.json())
+    assert retry_after(ordinary) is None and retry_after(blocked) is not None
+    # the same holds for an account that does not exist: nothing new is revealed by being throttled
+    ghost_ordinary = attempt(client, 'ghost@example.com', BAD, OWNER)
+    for _ in range(5):
+        attempt(client, 'ghost@example.com', BAD, GUESSER)
+    ghost_blocked = attempt(client, 'ghost@example.com', BAD, GUESSER)
+    assert (ghost_blocked.status_code, ghost_blocked.json()) == (ghost_ordinary.status_code, ghost_ordinary.json())
+    assert retry_after(ghost_blocked) is not None
+
+
+def test_a_pair_counter_expires(client, throttle_only, clock):
+    for _ in range(5):
+        attempt(client, 'alice@example.com', BAD, GUESSER)
+    clock.advance(login_throttle.PAIR_RESET_SECONDS + 16)  # past the block and the reset window
+    results = [attempt(client, 'alice@example.com', BAD, GUESSER) for _ in range(5)]
+    assert [retry_after(r) for r in results] == [None, None, None, None, '15']  # a fresh five, not a sixth
+
+
+def test_a_successful_login_clears_only_that_account_and_source_pair(client, throttle_only, clock):
+    for _ in range(3):
+        attempt(client, 'alice@example.com', BAD, GUESSER)
+        attempt(client, 'bob@example.com', BAD, GUESSER)
+    assert attempt(client, 'alice@example.com', PASSWORD, GUESSER).status_code == 200
+    alice = [attempt(client, 'alice@example.com', BAD, GUESSER) for _ in range(4)]
+    assert [retry_after(r) for r in alice] == [None] * 4  # alice's pair started again from zero
+    bob = [attempt(client, 'bob@example.com', BAD, GUESSER) for _ in range(2)]
+    assert [retry_after(r) for r in bob] == [None, '15']  # bob's three earlier failures were kept
+
+
+def test_credential_stuffing_from_one_address_trips_across_accounts(client, throttle_only, clock):
+    results = [attempt(client, f'ghost{i}@example.com', BAD, spoofed(GUESSER, i)) for i in range(30)]
+    assert set(statuses(results)) == {404}
+    assert [retry_after(r) for r in results[:29]] == [None] * 29
+    assert retry_after(results[29]) == '30'  # the 30th wrong login from one address
+    # every account is now unreachable from that address, real ones with the right password included ...
+    blocked = attempt(client, 'alice@example.com', PASSWORD, GUESSER)
+    assert blocked.status_code == 401 and retry_after(blocked) is not None
+    # ... while the same account is reachable from anywhere else
+    assert attempt(client, 'alice@example.com', PASSWORD, OWNER).status_code == 200
+
+
+def test_a_success_does_not_clear_the_addresss_stuffing_count(client, throttle_only, clock):
+    for i in range(29):
+        attempt(client, f'ghost{i}@example.com', BAD, GUESSER)
+    assert attempt(client, 'alice@example.com', PASSWORD, GUESSER).status_code == 200
+    thirtieth = attempt(client, 'ghost29@example.com', BAD, GUESSER)
+    assert retry_after(thirtieth) == '30'  # the address still has 29 on its record
+
+
+def test_the_stuffing_count_is_forgotten_after_ten_quiet_minutes(client, throttle_only, clock):
+    for i in range(30):
+        attempt(client, f'ghost{i}@example.com', BAD, GUESSER)
+    clock.advance(login_throttle.SOURCE_RESET_SECONDS + 31)
+    assert attempt(client, 'alice@example.com', PASSWORD, GUESSER).status_code == 200
+
+
+def test_the_account_ceiling_delays_failures_but_never_refuses_a_correct_password(client, throttle_only, clock, caplog):
+    delays = throttle_only
+    with caplog.at_level(logging.WARNING, logger='core.login_throttle'):
+        for i in range(99):
+            attempt(client, 'alice@example.com', BAD, source(i))
+        assert delays == []  # a generous ceiling: nothing yet
+        attempt(client, 'alice@example.com', BAD, source(99))
+        assert delays == [login_throttle.CEILING_EXTRA_DELAY_SECONDS]
+    assert any('ceiling' in r.getMessage() for r in caplog.records)
+    # still not a lock: the owner's correct password goes straight through, with no extra wait
+    assert attempt(client, 'alice@example.com', PASSWORD, source(500)).status_code == 200
+    assert delays == [login_throttle.CEILING_EXTRA_DELAY_SECONDS]
+    # and the response to a wrong guess is the ordinary one
+    response = attempt(client, 'alice@example.com', BAD, source(501))
+    assert (response.status_code, response.json()['detail']) == (401, 'Invalid password')
+    assert retry_after(response) is None
+
+
+def test_the_account_ceiling_count_expires(client, throttle_only, clock):
+    delays = throttle_only
+    for i in range(100):
+        attempt(client, 'alice@example.com', BAD, source(i))
+    assert len(delays) == 1
+    clock.advance(login_throttle.CEILING_WINDOW_SECONDS + 1)
+    attempt(client, 'alice@example.com', BAD, source(900))
+    assert len(delays) == 1
+
+
+def test_a_private_source_is_never_address_throttled(client, throttle_only, clock):
+    # development / internal callers (the same exemption the request limiter has): no backoff on loopback
+    results = [attempt(client, 'alice@example.com', BAD, '127.0.0.1') for _ in range(8)]
+    assert [retry_after(r) for r in results] == [None] * 8
+
+
+def test_guesses_at_an_account_that_does_not_exist_back_off_too(client, throttle_only, clock):
+    results = [attempt(client, 'ghost@example.com', BAD, GUESSER) for _ in range(5)]
+    assert statuses(results) == [404] * 5 and retry_after(results[4]) == '15'
 
 
 def forgot(client, forwarded, email='nobody@example.com'):
