@@ -39,6 +39,17 @@ export const PRESSURE_LUT = { min: 870, step: 0.1, n: 2200 };   // 870-1090 hPa 
 // 2026-10-24). Every breakpoint is a multiple of 0.5, so a 0.5 deg C step is exact at every boundary (pinned by a test);
 // below -80 clamps to the first colour and above 50 to the last, as the library does.
 export const TEMPERATURE_LUT = { min: -80, step: 0.5, n: 261 };
+// Cloud cover: the tile library's own 'cloud_cover' breakpoint scale (0..90 % every 10, straight alpha), with a light and a dark
+// colour set. Every breakpoint is a multiple of 10, so a 10 % step is exact at each boundary (pinned by a test).
+export const CLOUD_LUT = { min: 0, step: 10, n: 10 };
+
+/** The colours the .om path uses for a theme: a scale with light / dark variants resolves as the tile library does
+ *  (resolveColorScale), with `dark` = the URL's dark=true, which useOpenMeteoTileUrls sets for the dark AND beach themes. */
+export function scaleForTheme(scale, theme) {
+  const c = scale && scale.colors;
+  if (!c || Array.isArray(c) || !c.dark || !c.light) return scale;
+  return { ...scale, colors: (theme === 'dark' || theme === 'beach') ? c.dark : c.light };
+}
 
 /** RGBA8 (straight alpha) LUT: entry k = the colour of value min + k * step. */
 export function buildStepLut(scale, { min, step, n } = PRESSURE_LUT) {
@@ -54,6 +65,7 @@ export function buildStepLut(scale, { min, step, n } = PRESSURE_LUT) {
 // MapWebGL's pressure slot ramp ('raster-opacity' interpolate linear over zoom; pinned by ownRasterLayer.test.js).
 export const PRESSURE_OPACITY_STOPS = [[2, 0.35], [5, 0.42], [8, 0.48], [12, 0.55]];
 export const TEMPERATURE_OPACITY_STOPS = [[2, 0.38], [5, 0.44], [8, 0.49], [12, 0.53]];
+export const SATELLITE_OPACITY_STOPS = [[2, 0.55], [5, 0.60], [8, 0.65], [12, 0.70]];
 // The no-data test: ownRasterFrames.MISSING (-9999) is below it, every real value of every layer above (pinned by a test).
 export const NO_DATA_BELOW_GLSL = '-9000.0';
 export function opacityAtZoom(stops, z) {

@@ -252,10 +252,13 @@ const MapWebGL = ({
   usePressureIsobars({ mapInstance, engaged: ownPressure, theme, beforeId: omSlotsBeforeId });   // isobars + H/L over it (same lever)
   // Air temperature (2026-10-24, dark, GFS only: with EURO or ICON picked it stays on the .om path for that model).
   const ownTemperature = useOwnRasterFrames({ mapInstance, layer: 'temperature', model: activeModel, active: (activeLayers || []).includes('temperature'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  // Cloud cover, the 'satellite' layer (2026-10-24, dark, GFS only, as air temperature).
+  const ownSatellite = useOwnRasterFrames({ mapInstance, layer: 'satellite', model: activeModel, active: (activeLayers || []).includes('satellite'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
   const omLayers = useMemo(() => {
-    if (!ownPressure && !ownTemperature) return activeLayers;
-    return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature));
-  }, [ownPressure, ownTemperature, activeLayers]);
+    if (!ownPressure && !ownTemperature && !ownSatellite) return activeLayers;
+    return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature)
+      && !(l === 'satellite' && ownSatellite));
+  }, [ownPressure, ownTemperature, ownSatellite, activeLayers]);
 
   // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers: omLayers, mapInstance, activeModel, theme });
