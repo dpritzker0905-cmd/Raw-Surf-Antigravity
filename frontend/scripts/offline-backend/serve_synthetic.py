@@ -508,18 +508,26 @@ def install_stale_window(app):
     from services.weather_pipeline import grid_resolver
     original = grid_resolver.resolve_grid
 
+    memo = {}   # --stale-fast: one resolve per request while the window is on (production serves its SWR preview from cache)
+
     async def resolve_grid(store, viewport_service, **kw):
         t_in = time.time()
-        product = await original(store, viewport_service, **kw)
         request = kw.get("request")
         path = getattr(getattr(request, "url", None), "path", "") or ""
         if not path.endswith("/weather/grid") or not stale_window_matches(kw.get("model"), kw.get("domain"), kw.get("layer"),
                                                                           kw.get("bbox")):
-            return product
+            return await original(store, viewport_service, **kw)
         if STALE["arm_on_first"]:
             arm_stale_window(STALE["seconds"], STALE["scope"], STALE["model"], STALE["layer"], STALE["stride"], now=t_in)
-        cols = getattr(getattr(product, "grid", None), "cols", None)
         stale = STALE["until"] is not None and t_in < STALE["until"]
+        key = tuple(str(kw.get(k)) for k in ("model", "domain", "layer", "valid_time", "bbox", "surf"))
+        if stale and STALE.get("fast") and key in memo:
+            product = memo[key]
+        else:
+            product = await original(store, viewport_service, **kw)
+            if stale and STALE.get("fast"):
+                memo[key] = product
+        cols = getattr(getattr(product, "grid", None), "cols", None)
         served = coarsen_stale(product, STALE["stride"]) if stale else None
         STALE["log"].append({"t_in_ms": round(t_in * 1000), "t_out_ms": round(time.time() * 1000), "stale": served is not None,
                              "valid_time": kw.get("valid_time"), "bbox": kw.get("bbox"), "fresh_cols": cols,
@@ -716,6 +724,9 @@ def main():
     ap.add_argument("--stale-model", default="", help="only this model (default every model)")
     ap.add_argument("--stale-layer", default="", help="only this layer (default every layer)")
     ap.add_argument("--stale-stride", type=int, default=3, help="the stale grid keeps every Nth latitude and longitude")
+    ap.add_argument("--stale-fast", choices=["0", "1"], default="0",
+                    help="1 = a repeat of the same /grid inside the window is answered from the first resolve (fast, as production's "
+                         "cached SWR preview is); 0 = every stale answer re-runs the resolver (seconds each on a loaded machine)")
     ap.add_argument("--real-frames", default="",
                     help="a local copy of the weather-frames bucket: GFS waves global_mid (and its coarse stand-in) become the real "
                          "published run (see REAL FRAMES above)")
@@ -796,7 +807,8 @@ def main():
     if args.stale_seconds > 0:
         STALE.update({"seconds": args.stale_seconds, "scope": args.stale_scope, "model": args.stale_model or None,
                       "layer": args.stale_layer or None, "stride": max(2, args.stale_stride), "arm_on_first": True})
-    import uvicorn                                           # noqa: E402
+    STALE["fast"] = args.stale_fast == "1"
+    import uvicorn                                          # noqa: E402
     uvicorn.run(app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
 
 

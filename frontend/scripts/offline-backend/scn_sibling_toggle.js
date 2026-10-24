@@ -149,6 +149,16 @@ const PROBE = () => {
       const hh = g ? g.hourOffset : null;
       if (S.hours && (S.hours.length === 0 || S.hours[S.hours.length - 1][1] !== hh) && S.hours.length < 40) S.hours.push([Math.round(t - S.t0), hh, !!(g && g.__fromSeries)]);
       if (target != null && target !== S.before && g && Math.abs((g.hourOffset ?? -99) - target) <= 1.5) { S.ms = t - S.t0; S.target = target; S.hour = g.hourOffset; S.series = !!g.__fromSeries; }
+      else if (target != null && target !== S.before) {
+        // the label already says `target` and the field still draws another hour: admitted by a visible status line, or silent
+        // (the house rule, scn_layer_matrix.js: Verifying | does not match | Loading | pending | nearest | estimated)
+        const status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ');
+        const admitted = /Verifying|does not match|Loading|pending|nearest|estimated/i.test(status);
+        if (admitted) { S.staleAdm = (S.staleAdm || 0) + 1; if (S.admAt == null) S.admAt = Math.round(t - S.t0); } else S.staleSilent = (S.staleSilent || 0) + 1;
+        S.texts = S.texts || [];
+        const st = status.slice(0, 120);
+        if (S.texts.length < 4 && !S.texts.some((x) => x[1] === st)) S.texts.push([Math.round(t - S.t0), st]);
+      }
     }
     requestAnimationFrame(stepLoop);
   };
@@ -192,6 +202,9 @@ async function session(arm, kase) {
     if (surf) window.__SURF_MODE__ = true;
   }, { base: CDN_DIR ? `http://127.0.0.1:${CDN_PORT}/` : null, flags: arm.flags, surf: SURF });
   await page.addInitScript(PROBE);
+  // STEPS: the marine fetcher's own console lines (which dispatch released or superseded which, the commits it skipped), per step.
+  const clog = [];
+  if (STEPS) page.on('console', (m) => { const s = m.text(); if (/^\[(Abort-Gate|Release|Marine|Series|Settle|Scrub)/.test(s) || /stale|superseded|skipped/i.test(s)) clog.push({ t: Date.now(), s: s.slice(0, 200) }); });
   const out = { arm: arm.name, flags: arm.flags, case: kase.name };
   try {
     await L.openMap(page); await L.jump(page, CLNG, CLAT, ZOOM);
@@ -266,7 +279,8 @@ async function session(arm, kase) {
       await wheel.focus(); await page.keyboard.press('Home'); await sleep(STEP_GAP);
       for (let i = 0; i < STEPS; i++) {
         await page.evaluate((sel) => { const w = [...document.querySelectorAll(sel)].find((x) => x.offsetParent !== null);
-          window.__SB__.step = { t0: null, ms: null, long: 0, before: w ? Number(w.getAttribute('aria-valuenow')) : null, wall: Date.now(), hours: [] }; }, WHEEL);
+          window.__SB__.step = { t0: null, ms: null, long: 0, before: w ? Number(w.getAttribute('aria-valuenow')) : null, wall: Date.now(), hours: [],
+            pan0: { ...(window.__RAW_SERIES_PAN__ || {}) }, h00: (window.__MARINE_SERIES_DIAG__ || {}).h0Loads || 0 }; }, WHEEL);
         await page.keyboard.press('PageUp');
         await sleep(STEP_GAP);
         const st = await page.evaluate((sel) => {
@@ -275,14 +289,23 @@ async function session(arm, kase) {
           const S = window.__SB__.step; const F = window.__RAW_FORENSIC__;
           const ev = F && F.events ? F.events.filter((e) => e.t >= S.wall).slice(0, 60).map((e) => {
             const o = { dt: e.t - S.wall, type: e.type };
-            for (const k of ['source', 'reason', 'hour', 'requestedHour', 'renderedHour', 'model', 'layer', 'decision', 'why', 'kind', 'cols', 'rows', 'sig']) if (e[k] !== undefined) o[k] = e[k];
+            for (const k of ['source', 'reason', 'hour', 'requestedHour', 'renderedHour', 'model', 'layer', 'decision', 'why', 'kind', 'cols', 'rows', 'sig', 'target', 'ageMs', 'panMoved', 'src', 'rule']) if (e[k] !== undefined) o[k] = e[k];
             return o; }) : null;
-          return { ...S, wheelNow: w ? Number(w.getAttribute('aria-valuenow')) : null,
+          // #501's containment answers during the step (contained / containedInFlight) and the hour-0 minis that landed
+          const pan1 = window.__RAW_SERIES_PAN__ || {}; const panD = {};
+          for (const k of Object.keys(pan1)) if ((pan1[k] || 0) - (S.pan0[k] || 0)) panD[k] = (pan1[k] || 0) - (S.pan0[k] || 0);
+          panD.h0Loads = ((window.__MARINE_SERIES_DIAG__ || {}).h0Loads || 0) - S.h00;
+          // the fetcher's pipeline events since the key (stale_async_response_rejected, data_committed, duplicate_commit_skipped, ...)
+          const pipe = (((window.__MARINE_PIPELINE_TRUTH__ || {}).lastEvents) || []).filter((e) => Date.parse(e.timestamp) >= S.wall)
+            .map((e) => ({ dt: Date.parse(e.timestamp) - S.wall, ev: e.event, hour: e.hour, model: e.model }));
+          return { ...S, panD, pipe, wheelNow: w ? Number(w.getAttribute('aria-valuenow')) : null,
             engineHour: g ? g.hourOffset : null, dataHour: d ? d.hourOffset : null, ev, sharpen: window.__MARINE_SHARPEN_DIAG__ || null };
         }, WHEEL);
         out.steps.push({ wallSinceWaves: st.wall - tW, target: st.target ?? null, ms: st.ms == null ? null : Math.round(st.ms), long: st.long, series: st.series ?? null,
           before: st.before, wheelNow: st.wheelNow, engineHour: st.engineHour, dataHour: st.dataHour, keySeen: st.t0 != null,
-          hours: st.hours, ev: st.ev, sharpen: st.sharpen });
+          hours: st.hours, ev: st.ev, sharpen: st.sharpen, staleAdmitted: st.staleAdm || 0, staleSilent: st.staleSilent || 0, admittedAtMs: st.admAt ?? null,
+          statusTexts: st.texts || [], panD: st.panD, pipe: st.pipe,
+          console: clog.filter((c) => c.t >= st.wall && c.t < st.wall + STEP_GAP).slice(0, 40).map((c) => ({ dt: c.t - st.wall, s: c.s })) });
       }
     }
     if (out.__stopDiag) { out.__stopDiag(); delete out.__stopDiag; }
@@ -291,7 +314,7 @@ async function session(arm, kase) {
     // the harness's own record: when each weather ask STARTED and how long until its response was ready (box model + synthetic build)
     out.req = (log.requests || []).filter((q) => /grid/.test(q.path || '')).map((q) => ({ t: q.t - (tW - log.t0), ms: q.ms, path: q.path,
       hours: q.q && q.q.hours ? String(q.q.hours).split(',').length : null, h0: q.q && q.q.hours ? Number(String(q.q.hours).split(',')[0]) : null,
-      model: q.q && q.q.model, bbox: q.q && q.q.bbox }));
+      model: q.q && q.q.model, bbox: q.q && q.q.bbox, vt: q.q && q.q.valid_time }));
     out.box = { busyMs: Math.round(box.st.busyMs), cpu: Object.fromEntries(Object.entries(box.st.cpu).map(([k, v]) => [k, Math.round(v)])) };
   } catch (e) {
     out.error = String(e && e.message || e).slice(0, 300);
