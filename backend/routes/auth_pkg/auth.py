@@ -5,13 +5,16 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, timezone
 from passlib.context import CryptContext
+import os
 import uuid
 import logging
 
 from database import get_db
 from models import Profile, RoleEnum
 from core.security import create_access_token, get_current_user_id, get_user_id_from_jwt_or_query
-from core.rate_limiter import rate_limit_check
+from core.rate_limiter import (
+    failure_throttle_check, failure_throttle_clear, failure_throttle_record, rate_limit_check,
+)
 from models import Notification
 
 router = APIRouter()
@@ -357,12 +360,22 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+# Wrong guesses allowed against ONE account before it is paused, whatever address they come from.
+LOGIN_ACCOUNT_MAX_FAILURES = int(os.environ.get("LOGIN_ACCOUNT_MAX_FAILURES", "10"))
+LOGIN_ACCOUNT_WINDOW_SECONDS = int(os.environ.get("LOGIN_ACCOUNT_WINDOW_SECONDS", "900"))
+
+
 @router.post("/auth/login")
 async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     # Rate limit: max 5 login attempts per minute per IP (brute-force protection)
     rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
     login_id = normalize_email(data.email)
     username_id = login_id.lstrip('@')
+    # Per-account throttle on top of the per-address one: rotating addresses must not buy unlimited guesses at one
+    # account. Only FAILED guesses count, and a correct password clears the count, so a legitimate user who mistypes
+    # a few times is unaffected.
+    account_key = f"login_fail:{username_id}"
+    failure_throttle_check(account_key, LOGIN_ACCOUNT_MAX_FAILURES, LOGIN_ACCOUNT_WINDOW_SECONDS)
     result = await db.execute(
         select(Profile).where(
             (func.lower(Profile.email) == login_id) | 
@@ -372,6 +385,7 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     profile = result.scalar_one_or_none()
     
     if not profile:
+        failure_throttle_record(account_key)
         raise HTTPException(status_code=404, detail="Profile not found")
     
     # A password sign-in needs a stored password to check. Accounts without one (legacy and seeded
@@ -386,10 +400,13 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         password_valid = verify_password(data.password, profile.password_hash)
     except Exception:
         logger.exception("Password verification failed for profile %s", profile.id)
+        failure_throttle_record(account_key)
         raise HTTPException(status_code=401, detail="Invalid password")
 
     if not password_valid:
+        failure_throttle_record(account_key)
         raise HTTPException(status_code=401, detail="Invalid password")
+    failure_throttle_clear(account_key)
     
     # Check if suspended
     if profile.is_suspended:

@@ -13,6 +13,8 @@ Usage in routes:
         ...
 """
 
+import ipaddress
+import os
 import time
 import logging
 from collections import defaultdict, deque
@@ -28,15 +30,41 @@ _request_log: Dict[str, Deque[float]] = defaultdict(deque)
 _TRUSTED_PREFIXES = ("127.", "10.", "172.16.", "192.168.")
 
 
+def _trusted_proxy_hops() -> int:
+    """How many reverse proxies in front of us append to X-Forwarded-For (env, default 1 = Render's edge).
+
+    0 means no proxy is trusted: the header is ignored and the socket peer is the client.
+    """
+    try:
+        return max(0, int(os.environ.get("RATE_LIMIT_TRUSTED_PROXY_HOPS", "1")))
+    except ValueError:
+        return 1
+
+
 def _get_client_ip(request: Request) -> str:
-    """Extract real client IP, respecting common proxy headers."""
-    # Render / Cloudflare / Nginx pass the real IP in X-Forwarded-For
+    """The address a trusted proxy saw connect, never a value the client chose.
+
+    Every proxy APPENDS the address it received the request from, so the left of X-Forwarded-For is whatever the
+    client sent (rotating it reset a login limiter 30 times in a row, 2026-10-18 audit F-10/A1) and the right-most
+    entries are the trustworthy ones. With N trusted proxies the real client is the Nth entry from the right.
+    Falls back to the socket peer when the header is absent, has fewer entries than there are trusted proxies, or
+    the chosen entry is not an IP address.
+    """
+    peer = request.client.host if request.client else "unknown"
+    hops = _trusted_proxy_hops()
     forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        # Format: "client, proxy1, proxy2" — take leftmost (original client)
-        return forwarded.split(",")[0].strip()
-    # Direct connection fallback
-    return request.client.host if request.client else "unknown"
+    if hops and forwarded:
+        parts = [p.strip() for p in forwarded.split(",") if p.strip()]
+        if len(parts) >= hops:
+            candidate = parts[-hops]
+            try:
+                return str(ipaddress.ip_address(candidate))
+            except ValueError:
+                logger.warning("[rate_limiter] ignoring non-IP forwarded entry; keying on the socket peer")
+    return peer
+
+
+get_client_ip = _get_client_ip
 
 
 def rate_limit_check(
@@ -82,6 +110,37 @@ def rate_limit_check(
         )
 
     history.append(now)
+
+
+# --- Failure throttles: count only the attempts that failed -----------------------------------------------------
+# A request limiter cannot protect an account (the attacker rotates addresses) or a gate that legitimate clients
+# re-check on every page load. These count FAILURES per caller-chosen key, so a correct login or a valid code costs
+# nothing and a wrong guess is what runs the budget down.
+
+def failure_throttle_check(key: str, max_failures: int, window_seconds: int) -> None:
+    """Raise 429 when `key` already has `max_failures` recorded failures inside the window."""
+    now = time.monotonic()
+    history = _request_log.get(key)
+    if not history:
+        return
+    while history and history[0] < now - window_seconds:
+        history.popleft()
+    if len(history) >= max_failures:
+        retry_after = max(1, int(window_seconds - (now - history[0])))
+        logger.warning("[rate_limiter] failure throttle tripped on %s", key.split(":", 1)[0])
+        raise HTTPException(
+            status_code=429,
+            detail=f"Too many failed attempts. Try again in {retry_after} seconds.",
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
+def failure_throttle_record(key: str) -> None:
+    _request_log[key].append(time.monotonic())
+
+
+def failure_throttle_clear(key: str) -> None:
+    _request_log.pop(key, None)
 
 
 def cleanup_old_entries() -> int:
