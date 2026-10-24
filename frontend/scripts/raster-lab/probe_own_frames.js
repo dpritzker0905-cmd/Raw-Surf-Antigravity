@@ -38,6 +38,7 @@ const ON = process.env.OWN !== '0';
     await page.goto((process.env.AB_BASE || L.BASE) + '/map', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!window.__MAP_INSTANCE__, null, { timeout: 90000 });
     await sleep(2500);
+    if (process.env.MODEL) await page.evaluate((m) => window.setActiveModel && window.setActiveModel(m), process.env.MODEL);   // GFS | EURO | ICON
     await L.jump(page, VIEW[0], VIEW[1], VIEW[2]);
     await sleep(1500);
     const t0 = Date.now();
@@ -49,7 +50,7 @@ const ON = process.env.OWN !== '0';
       await sleep(25);
     }
     await sleep(+(process.env.SETTLE_MS || 1500));
-    await page.screenshot({ path: path.join(OUT, `own-${ON ? 'on' : 'off'}-${theme}.png`) });
+    await page.screenshot({ path: path.join(OUT, `own-${process.env.MODEL || 'GFS'}-${ON ? 'on' : 'off'}-${theme}.png`) });
     const credit = await page.evaluate(() => [...document.querySelectorAll('[data-testid="layer-data-credit"]')].map((a) => a.textContent));
     const steps = [];
     for (const h of (ON ? HOURS : [])) {

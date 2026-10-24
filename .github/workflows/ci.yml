@@ -1546,7 +1546,9 @@ jobs:
           #   base 2896 (dev's map) + 13 new test(s) = 2909, files 178; floor 2909 - 6 = 2903. This PR must read 2909 passed.
           # ⬆ 2903→2912 on 2026-10-24 (rederive_floor.py, claude/fill-provenance-nodes): dev run 40045304524 read 2896 / 177 files; dev's map 2909;
           #   base 2909 (dev's map) + 9 new test(s) = 2918, files 179; floor 2918 - 6 = 2912. This PR must read 2918 passed.
-          MIN_FILES, MIN_PASSED = 179, 2912
+          # ⬆ 2912→2918 on 2026-10-24 (rederive_floor.py, claude/regional-explicit-empty): dev run 40051472495 read 2918 / 179 files; dev's map 2918;
+          #   base 2918 (hosted read) + 6 new test(s) = 2924, files 179; floor 2924 - 6 = 2918. This PR must read 2924 passed.
+          MIN_FILES, MIN_PASSED = 179, 2918
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2036,9 +2038,11 @@ jobs:
           #   base 2556 (hosted read) + 17 new test(s) = 2573; floor 2573 - 2 = 2571. This PR must read 2573 passed.
           # ⬆ 2571→2683 on 2026-10-24 (rederive_floor.py, claude/beautiful-cerf-d9f949): dev run 40051472495 read 2573; dev's map 2573;
           #   base 2573 (hosted read) + 112 new test(s) = 2685; floor 2685 - 2 = 2683. This PR must read 2685 passed.
-          # ⬆ 2683→2689 on 2026-10-24 (rederive_floor.py, claude/wind-lane-rebuild): dev run 40064519384 read 2685; dev's map 2685;
-          #   base 2685 (hosted read) + 6 new test(s) = 2691; floor 2691 - 2 = 2689. This PR must read 2691 passed.
-          MIN_PASSED = 2689
+          # ⬆ 2683→2685 on 2026-10-24 (rederive_floor.py, claude/rederive-auto-note): dev run 40064519384 read 2685; dev's map 2685;
+          #   base 2685 (hosted read) + 2 new test(s) = 2687; floor 2687 - 2 = 2685. This PR must read 2687 passed.
+          # ⬆ 2685→2691 on 2026-10-24 (rederive_floor.py, lead-fix-522): dev run 40078270428 read 2687; dev's map 2687;
+          #   base 2687 (hosted read) + 6 new test(s) = 2693; floor 2693 - 2 = 2691. This PR must read 2693 passed.
+          MIN_PASSED = 2691
 
           try:
               root = ET.parse('estate.xml').getroot()

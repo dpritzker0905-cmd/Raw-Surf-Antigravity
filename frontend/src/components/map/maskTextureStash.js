@@ -20,6 +20,15 @@
 // The trailing basemap-water refresh runs after a swap exactly as after a rebuild (its grid key changed).
 // Cost: one extra mask texture held (up to 32 MB of GPU memory), counted in __RAW_GPU__.
 // Kill: window.__RAW_DISABLE_MASK_STASH__ = true (every rebuild deletes the outgoing mask, as before).
+//
+// VARIANT SLOT (2026-10-23, waveLakes.js). Once a mask with carried lakes cut in is in play, one model's mask and another's
+// differ for the SAME bounds (EURO cuts the Great Lakes, GFS does not), so a zoomed-in EURO <-> GFS toggle cycles THREE masks
+// (offline z8 Lake Michigan: the plain world mask for GFS, EURO's world series page with lakes, EURO's viewport with lakes) through
+// two places (the resident and the stash), and every toggle rebuilt one (setWaveData 250-375 ms vs 5-15 ms without lakes). So a
+// second slot, `engine._maskStash2`, takes what the first slot would have evicted (and a resident the WORLD PIN refuses), and the
+// toggle is a reference swap again. It is used only while a lake mask is in play (one is resident or held), so a session that
+// never sees a carried lake holds exactly what it held before. Cost: one more mask texture (up to 32 MB of GPU memory, desktop
+// only: the stash is off on handhelds). Kill: window.__RAW_DISABLE_MASK_STASH_VARIANT__ = true (one slot, as before).
 import { maskCanvasWidthForSpan, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { maskCoversWorldFrame } from './maskCoverReuse';
 import { computePatchCarryRects } from './maskSmoothing';
@@ -39,6 +48,12 @@ export function maskStashEnabled() {
   return !isHandheldDevice() || (typeof window !== 'undefined' && window.__RAW_MASK_STASH_HANDHELD__ === true);
 }
 
+const hasLakes = (geo) => !!(geo && Array.isArray(geo.__waveLakes) && geo.__waveLakes.length);
+function variantSlotOn(engine) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_STASH_VARIANT__ === true) return false;
+  return !!engine._maskStash2 || hasLakes(engine._cachedMaskGeoJSON) || !!(engine._maskStash && hasLakes(engine._maskStash.geojson));
+}
+
 function bump(name) {
   if (typeof window !== 'undefined') window[name] = (window[name] || 0) + 1;
 }
@@ -55,7 +70,7 @@ function evict(gl, entry) {
 
 /** True when `tex` is the stashed mask: the engine's texture cleanup must not delete it (WebGLWindUtils.safeDeleteTexture). */
 export function isStashedMaskTex(engine, tex) {
-  return !!(engine && engine._maskStash && tex && engine._maskStash.tex === tex);
+  return !!(engine && tex && ((engine._maskStash && engine._maskStash.tex === tex) || (engine._maskStash2 && engine._maskStash2.tex === tex)));
 }
 
 /**
@@ -94,13 +109,21 @@ export function stashServes(entry, geojson, bounds, lastPatched) {
   return !carryWouldAddTruth(lastPatched, entry.bounds, bounds) || stashHoldsPatch(entry, lastPatched);
 }
 
-/** Take the stash out of the engine when it serves this rebuild; null otherwise (the stash stays). */
+/** Take the stash entry (either slot) that serves this rebuild out of the engine; null otherwise (both stay). */
 export function takeMaskStash(engine, geojson, bounds) {
   if (!engine || !maskStashEnabled()) return null;
   const entry = engine._maskStash;
-  if (!stashServes(entry, geojson, bounds, engine._lastPatchedMask)) return null;
-  engine._maskStash = null;
-  return entry;
+  if (stashServes(entry, geojson, bounds, engine._lastPatchedMask)) { engine._maskStash = null; return entry; }
+  const alt = engine._maskStash2;
+  if (alt && stashServes(alt, geojson, bounds, engine._lastPatchedMask)) { engine._maskStash2 = null; bump('__RAW_MASK_STASH_VARIANT_HIT__'); return alt; }
+  return null;
+}
+
+/** Would takeMaskStash serve (geojson, bounds) from either slot? Pure. */
+export function stashServesAny(engine, geojson, bounds) {
+  if (!engine || !maskStashEnabled()) return false;
+  return stashServes(engine._maskStash, geojson, bounds, engine._lastPatchedMask)
+    || stashServes(engine._maskStash2, geojson, bounds, engine._lastPatchedMask);
 }
 
 /**
@@ -113,17 +136,33 @@ export function takeMaskStash(engine, geojson, bounds) {
  */
 export function stashResidentMask(gl, engine, worldGeoJSON) {
   if (!engine || !engine._cachedMaskTex || !engine._cachedMaskTexDims || !engine._cachedMaskBounds) return false;
-  if (!maskStashEnabled()) { evict(gl, engine._maskStash); engine._maskStash = null; return false; }
+  if (!maskStashEnabled()) {
+    evict(gl, engine._maskStash); evict(gl, engine._maskStash2); engine._maskStash = null; engine._maskStash2 = null; return false;
+  }
   const rp = engine._regionalPatchState;
   if (rp && rp.degraded && rp.gridKey === boundsKey(engine._cachedMaskBounds)) return false;
   const held = engine._maskStash;
-  if (held && span(held.bounds) >= WORLD_SPAN_DEG && held.geojson === worldGeoJSON && worldGeoJSON
-      && span(engine._cachedMaskBounds) < WORLD_SPAN_DEG) return false;
-  evict(gl, engine._maskStash);
-  engine._maskStash = {
+  const variant = variantSlotOn(engine);
+  if (!variant && engine._maskStash2) { evict(gl, engine._maskStash2); engine._maskStash2 = null; }   // the slot was killed
+  const resident = {
     tex: engine._cachedMaskTex, dims: engine._cachedMaskTexDims, bounds: engine._cachedMaskBounds,
     geojson: engine._cachedMaskGeoJSON, hasSDF: !!engine._cachedMaskHasSDF,
   };
+  if (held && span(held.bounds) >= WORLD_SPAN_DEG && held.geojson === worldGeoJSON && worldGeoJSON
+      && span(engine._cachedMaskBounds) < WORLD_SPAN_DEG) {
+    if (!variant) return false;
+    evict(gl, engine._maskStash2);                  // WORLD PIN keeps the world mask; the variant slot keeps the regional one
+    engine._maskStash2 = resident;
+  } else if (variant) {
+    if (held) {                                     // the first slot's entry moves down instead of being freed
+      evict(gl, engine._maskStash2);
+      engine._maskStash2 = held;
+    }                                               // (slot 1 empty: the rebuild took it; slot 2 keeps what it holds)
+    engine._maskStash = resident;
+  } else {
+    evict(gl, engine._maskStash);
+    engine._maskStash = resident;
+  }
   engine._cachedMaskTex = null;
   engine._cachedMaskTexDims = null;
   return true;
@@ -158,6 +197,7 @@ export function releaseSwappedMask(gl, engine) {
 /** Engine teardown: free the stashed texture. */
 export function freeMaskStash(gl, engine) {
   if (!engine) return;
-  if (gl) evict(gl, engine._maskStash);
+  if (gl) { evict(gl, engine._maskStash); evict(gl, engine._maskStash2); }
   engine._maskStash = null;
+  engine._maskStash2 = null;
 }
