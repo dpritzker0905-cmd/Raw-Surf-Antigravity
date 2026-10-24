@@ -548,6 +548,82 @@ def install_stale_window(app):
 # direction and period 2 dp, confidence 4 dp, u = -h sin d and v = -h cos d at 4 dp for uv convention 0). The 10-deg
 # global_coarse is every 5th node of the same field (a lab stand-in, not production's block mean; diagnostics say so).
 # Models and layers other than GFS waves stay synthetic.
+def _real_vectors(dec, stride=1, north_cap=None):
+    """The client codec's node values (staticFrameCodec.buildVectors) for a decoded RSWF frame, every `stride`-th node."""
+    cols, rows = dec["cols"], dec["rows"]
+    west, south, east, north = dec["bounds"]
+    sign = 1.0 if dec["uv_convention"] == 1 else -1.0
+    H, D, P, C = (dec["fields"].get(k) for k in (0, 1, 2, 3))
+    r2, r4 = (lambda x: round(x + 0.0, 2)), (lambda x: round(x + 0.0, 4))
+    vectors = []
+    for r in range(0, rows, stride):
+        lat = round(south + r * (north - south) / (rows - 1), 6)
+        if north_cap is not None and lat > north_cap:
+            continue
+        for c in range(0, cols, stride):
+            i = r * cols + c
+            lng = round(west + c * (east - west) / (cols - 1), 6)
+            h = H[i]
+            d = r2(D[i]) if D and D[i] is not None else 0.0
+            p = r2(P[i]) if P and P[i] is not None else None
+            q = r4(C[i]) if C and C[i] is not None else None
+            if h is None:
+                vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": d, "u": 0.0, "v": 0.0, "period": p,
+                                "is_valid": False, "dir_confidence": q})
+                continue
+            s = r4(h)
+            rad = math.radians(d)
+            vectors.append({"lat": lat, "lng": lng, "speed": s, "direction": d, "u": r4(sign * s * math.sin(rad)),
+                            "v": r4(sign * s * math.cos(rad)), "period": p, "is_valid": True, "dir_confidence": q})
+    return vectors
+
+
+def real_regional_products(frames_dir, region_ids):
+    """[(region_id, filename, body, resolution)] for every GFS waves REGIONAL set in `frames_dir`'s latest.json whose bundle is on disk
+    and whose region is in `region_ids` (2026-10-24, the regional z7-9 instant scrub): each frame is the REAL stored tile, sliced from
+    the published bundle (a gzip member, byte for byte the per-frame object) and written as the product the resolver's Step 3 clips,
+    so a bundle frame cropped in the browser can be compared node by node with the resolver's own tile clip."""
+    sys.path.insert(0, str(BACKEND))
+    from services.frame_binary import decode_frame
+    root = Path(frames_dir)
+    latest = json.loads((root / "v1" / "latest.json").read_text(encoding="utf-8"))
+    out = []
+    for key, entry in sorted(latest.get("sets", {}).items()):
+        parts = key.split("/")
+        if len(parts) != 4 or parts[:3] != ["GFS", "marine", "waves"] or parts[3].startswith("global_") or parts[3] not in region_ids:
+            continue
+        if not entry.get("bundle") or not (root / entry["bundle"]["path"]).exists() or not (root / entry["index"]).exists():
+            continue
+        index = json.loads((root / entry["index"]).read_text(encoding="utf-8"))
+        bundle = (root / entry["bundle"]["path"]).read_bytes()
+        common = index.get("common_meta") or {}
+        cov = index["grid"]["bounds"]
+        for fr in index["frames"]:
+            if fr.get("offset") is None:
+                continue
+            dec = decode_frame(bundle[fr["offset"]:fr["offset"] + fr["length"]])
+            meta = {**common, **(fr.get("meta") or {})}
+            vectors = _real_vectors(dec)
+            lats = sorted({v["lat"] for v in vectors}); lngs = sorted({v["lng"] for v in vectors})
+            filename = meta["product_id"]
+            body = {
+                "model": "GFS", "domain": "marine", "layer": "waves", "run_time": meta.get("run_time"),
+                "model_run_time": meta.get("model_run_time"), "model_run_time_status": meta.get("model_run_time_status") or "known",
+                "ingested_at": meta.get("ingested_at"), "valid_time": fr["valid_time"],
+                "is_forecast_authoritative": bool(meta.get("is_forecast_authoritative", True)), "is_estimated": bool(fr.get("is_estimated")),
+                "estimate_basis": meta.get("estimate_basis"), "coverage": dict(cov),
+                "grid": {"bounds": {"west": lngs[0], "south": lats[0], "east": lngs[-1], "north": lats[-1]}, "cols": len(lngs),
+                         "rows": len(lats), "vectors": vectors, "diagnostics": {"source": "stored"}},
+                "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft", "product_id": filename,
+                "source_variables": meta.get("source_variables") or ["wave_height"], "freshness_sec": meta.get("freshness_sec") or 3600,
+                "region_id": parts[3], "resolution": None, "coverage_mode": "regional_tile",
+                "provider": meta.get("provider") or "open-meteo", "upstream_provider": meta.get("upstream_provider") or "noaa",
+                "source_dataset": meta.get("source_dataset") or "ncep_gfswave025",
+            }
+            out.append((parts[3], filename, body, REGIONAL_RES))
+    return out
+
+
 def real_frame_products(frames_dir):
     """[(filename, body, resolution)] for the GFS waves global_mid run in `frames_dir` and its derived global_coarse."""
     sys.path.insert(0, str(BACKEND))
@@ -661,6 +737,17 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
             (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
             entries.append(manifest_entry(body, filename, res))
         real = {"index": index.get("path"), "run": index.get("run"), "frames": sum(1 for f in index["frames"] if f.get("path"))}
+        # The REAL stored tiles of the regional sets the copy carries a bundle for (only regions the store was asked for: --regions).
+        asked = {r[0] for r in regions}
+        reg = real_regional_products(real_frames, asked)
+        for rid in sorted({r[0] for r in reg}):
+            for e in [e for e in entries if e["model"] == "GFS" and e["layer"] == "waves" and e["region_id"] == rid]:
+                entries.remove(e)
+                (directory / e["filename"]).unlink(missing_ok=True)
+        for rid, filename, body, res in reg:
+            (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+            entries.append(manifest_entry(body, filename, res))
+        real["regional"] = sorted({r[0] for r in reg})
     if real_wind:
         # The real GFS wind run REPLACES the synthetic GFS wind world tiers (the other models stay synthetic).
         drop = [e for e in entries if e["model"] == "GFS" and e["domain"] == "wind" and e["region_id"] in ("global_mid", "global_coarse")]

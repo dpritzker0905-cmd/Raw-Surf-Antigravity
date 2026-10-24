@@ -319,3 +319,49 @@ So the live server may answer these boxes from another product than the tile, wh
 `REGIONAL_BUNDLES_DEFAULT_ON` flips back once static-frames names the served product and the live parity passes. The offline tools
 opt in (`scn_zoom_scrub.js` arm `regional`; the parity script sets the flag).
 
+## 9. The frame store takes a pilot tile resident (2026-10-24, z7-9 instant scrub)
+
+Sections 6 and 8 left one piece: "the frame store does not take regional sets yet". With the bundles a z7-9 step still went through
+the normal path (the debounce, the series cache, the commit): 36-56 ms p50 offline, **2.4-3.8 s per far step at z7 without the
+bundles**, and whatever the 1-CPU box takes live. The crop show of section 5 is generalised, not rebuilt: a tile is another lattice.
+Kill: `window.__RAW_DISABLE_FRAME_STORE_REGIONAL__ = true` (read per call). It rides the bundles' own gate (`regionalBundlesOn`, DARK
+until the live parity passes): a regional set is pinned only while that gate is open.
+- **Resident.** `noteCommitted` asks the pinned GFS waves tile indexes (`staticFrames.getPinnedRegionalIndexSync`) whether the
+  committed grid is a frame of one: by its STORED PRODUCT ID (`gfs_marine_waves_<region>_<t>.json`), then `frameWindowOf` on the tile
+  lattice. A series commit carries no id on the conformed grid (the conform's explicit field list dropped `__servedProductId`; the first
+  offline run showed 0 regional shows for exactly that reason), so `useMarineWindData` now carries it as `__storedProductId`, a name
+  nothing else reads. A dynamic viewport product, a global_mid clip, a rating grid, another model or layer never matches: that is
+  the "fail closed where a dynamic-cache product could answer first" rule, by identity, not by geometry (a dynamic 0.25-deg product
+  can be an exact sub-window of the tile lattice).
+- **Show.** `showStored` asks `regionalResident` first (the engine must still hold that clip: size, trimmed bounds, model, layer).
+  The next frame's window is `packWindow` on the window of the tile frame's planes, uploaded with `texSubImage2D`, exactly as section
+  5. A regional window shows only its own tile's frames and a world window never takes a tile's (`cropWindowFor`).
+- **Packs.** The whole run's window packs are built in idle time from the bundle already in memory (the page needed it): CPU, no request
+  (`buildAhead`, `info.regional`: every built frame is a candidate; the same desktop / phone policy). Nothing enters the store's
+  sets: a tile frame is never a full-frame pack, a GPU layer or a `rt.sets` entry (`noteForeignCommit` picks lattices from `rt.sets`).
+- **Parity.** `packWindow` vs the real encoder on REAL tile frames (florida_east_coast, us_west_coast_socal, uk_ireland; 9 windows, both
+  static lanes, three themes): 0 differing bytes (`marineFrameStoreRegional.test.js`, 27 cases). The resolver's own tile clip vs the
+  bundle on the real store (`scn_regional_client_parity.mjs`, four tiles, `serve_synthetic.py --real-frames` now also writes the REAL
+  tile from each regional bundle in the copy): 74 of 432 box x seam asks claimed, 39,062 nodes, 0 bad, 0 metadata mismatches, max
+  error 0, 0 false claims, every sha12 good.
+- **Measured** (`scn_zoom_scrub.js`, desktop 1280 x 800, the real run, 2 sessions per arm, 10 steps each, no session across :30;
+  evidence `evidence/regional-store-show-2026-10-24.json`). `noregional` = bundles killed (before #491); `regionalnostore` = bundles on,
+  this PR's show killed (dev afe40e6fc); `regional` = this PR.
+
+  | zoom, tile | arm | steps never correct | correct frame p50 / p95 / max (ms) | marine asks per step | mislabelled |
+  |---|---|---|---|---|---|
+  | z9, florida_east_coast | noregional | 0 | 36 / 55 / 55 | 0.05 | 0 |
+  | | regionalnostore | 0 | 35 / 67 / 82 | 0.05 | 0 |
+  | | **regional** | 0 | **1 / 16 / 16** | 0.10 | 0 |
+  | z7, us_west_coast_socal | noregional | 0 | 56 / 2,352 / 3,795 | 0.90 | 0 |
+  | | regionalnostore | 0 | 46 / 208 / 218 | 0.25 | 0 |
+  | | **regional** | 0 | **3 / 16 / 116** | 0.05 | 0 |
+
+  The p50 includes the steps whose frame is the same 3-hourly frame as the last (0 ms in every arm); the far steps (day jumps, the
+  5-day burst, back, Home) are where the arms differ. The brief's baseline (z9: 8 of 10 steps never correct within 8 s; z7 p95 1,646
+  ms) is gone since #491 / #508 etc.; the figure that remains is the 35-80 ms normal path, which the store takes to 1-16 ms.
+- **Caveats.** Offline: the backend answers in tens of ms, so the live win is larger wherever the box is busy. A first run for z9 was
+  discarded: its `noregional` session straddled the :30 anchor roll (section 7D). The z7 `regional` outlier (116 ms, the day-back step) was
+  still a store show with no recorded miss (`crop_not_ready` 0 in every session): a main-thread stall, not isolated. Phones keep the +-8 / +-24 build-ahead. The regional resident inherits the bundles'
+  precondition (the server serves the tile where the bundle does: #508 tile-first, DARK); it flips with them, not before.
+
