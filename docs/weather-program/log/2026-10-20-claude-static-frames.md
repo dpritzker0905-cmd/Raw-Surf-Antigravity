@@ -571,3 +571,19 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   0.8 KB / 38 KB. Coordinates would cost 2.5x. So: flip it only after the own-values and targeted flips, not before.
 - **Tests:** tests/test_fill_provenance_nodes.py (9, chain; floor 2885 -> 2894, set-from 2900). Seen failing under eight mutations.
   Off, every stamp and every series frame is byte-identical (pinned for both fills and for series frames).
+
+## 2026-10-24 00:40Z: item 4a, explicit-empty regional sets (no served number changes)
+
+- **Why:** the 20:31Z pilots publish listed GFS/marine/swell_2/us_west_coast_socal with 0 entries. Storage holds no SoCal swell_2
+  product at all: `scheduler.ingest_gfs_marine_pilot._layers_for` drops it on purpose, a June 6H.2 pilot scoping choice
+  (c2816a0f5: "Swell 2 is not requested for SoCal ... GFS swell_2 only florida"), pinned by
+  test_gfs_marine_pilot_multi_bbox::test_socal_still_omits_swell_2; no science reason (item 4b, a dark ingest, follows).
+- **What:** any regional (bundle) set the manifest lists no product for is written to latest.json as `{"empty": true, "reason":
+  "no stored product for this layer in this box"}`, the client's "no tile, don't wait" answer. Guards: only when the manifest
+  carries that model/domain/layer elsewhere; never over a published index; an unchanged empty keeps its written_at; a set that
+  gains products gets its real record. The deployed client already treats an entry without `index` as unlisted.
+- **Tests:** tests/test_frame_set_bundle.py +6 (chain; set-from 2924 on #502's dev). Seen failing under five mutations.
+- **Correction (02:40Z, CI):** the first cut set `changed` for an empty alone, so a run that published nothing still wrote
+  latest.json (test_publish_frame_sets::test_a_stale_disk_copy_is_never_mixed_into_a_newer_run, estate lane, which I had not
+  run locally). Empties are now staged and written only with the next real pointer move; two of my own mutations had
+  survived the first test set (churn, world sets) and now fail.
