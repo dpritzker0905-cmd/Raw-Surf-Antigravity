@@ -32,11 +32,19 @@ art." Valid EURO inland nodes per static-frames' trace of #497's nodes: Taihu (3
    1 of 18, so the field reaches the shoreline and does not spill onto land. The basemap-water overlay, inland-water guard and
    wetland passes are still not exercised with a real basemap (no Mapbox token offline).
 
+3. **RETRACTED: the "silent old-model frame per GFS->EURO click" (2026-10-23 log, finding 2) was a probe artifact, not a mislabel.**
+   The probe refreshed the status line text only every third animation frame, so the first frame after a click read the stale
+   pre-click status. First run with the model chip classified (`aria-pressed` on the GFS / EURO / ICON buttons), 4 rounds, 24 clicks
+   (12 GFS->EURO): 8 silent frames, all with the chip already on the NEW model and a stale status. Second run with the status read on
+   EVERY frame inside a click window: **0 silent wrong-model frames in 24 clicks** (12 GFS->EURO), 593 admitted ones (the status says
+   "Loading EURO Waves... still showing GFS Waves"). The chip and the loading line update together; no fix is needed and no fix PR
+   will be opened. The instrument now reads the chip and the status per frame (`silentChipNew/Old/Other` in the summary).
+
 ## Measured (offline, lakes build, Lake Michigan)
 `side-session-notes/.../live-read-wave-lakes-console.js` run as pasted: 0 lit-lake frames of 1699; z8 gfs vs euro: lake 1/1, inside
 16/18, outside 1/18; z5 euro vs gfs: lake 15/15, inside 285/308, outside 21/364 (5.8%), land 0/6.
 
 ## Not done / owed
-- The chip `aria-pressed` probe (the silent old-model frame per GFS->EURO click): next, separate PR if it is a mislabel.
+- (Done: the chip `aria-pressed` probe found no mislabel; see correction 3.) The #514 explicit-empty client read is its own PR.
 - Cells 3, 5, 8, 10, 12 of the verification matrix (offline store built and published: `GFS/EURO/ICON` waves + six regional sets with
   `MARINE_REGIONAL_TILE_FIRST=1` on the server; the runs are queued after the items above).
