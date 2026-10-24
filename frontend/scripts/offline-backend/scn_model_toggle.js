@@ -18,6 +18,10 @@
 // MID ZOOM (2026-10-22, #458 on #459): ZOOM (3.2 = the world view), CENTER (lng,lat; -80,24), VIEW (desktop = 1280 x 800; owner =
 // 844 x 390 at dpr 2), MIN_COLS (the exact frame's least width: 150 for a world frame; 10 for a mid-zoom clip). Run the backend with
 // --dynamic 1 so a zoomed-in view commits its own clip.
+// KNOWN INSTRUMENT LIMIT (2026-10-23, not verified): the exact-frame check compares the drawn product id with the one /grid serves
+// for the WORLD box at that hour. A zoomed-in click (ZOOM >= ~7) is answered with the viewport box's own product, so those clicks
+// can read MISSED in every arm. Read ZOOM >= 7 timings with that in mind; the reqlog (REQLOG=1) and the engine's mask modes are
+// not affected.
 // WAVE LAKES (2026-10-23, waveLakes.js): PLAN (comma list of models / WHEEL:<key>, e.g. EURO,GFS,EURO,GFS) replaces the default
 // plan; an arm ending -nolakes sets __RAW_DISABLE_WAVE_LAKES__ (the build before lakes). Per click: litLake (drawn frames where a
 // non-lake model's data sat under a mask with lakes cut in; must be 0), the CPU phases (maskBaseCanvas, maskWaterPaint, maskUpload,

@@ -18,6 +18,10 @@ download Natural Earth lake outlines to build a small lakes file for the wave-la
 ne_50m_lakes.json (0.9 MB), public domain, from cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson (the same source the app
 already uses for its 10m land outlines)." Answer: "Yes, download both (Recommended)". Only the trimmed 95 KB asset is committed.
 
+Owner decision on lakes (relayed in the lead's digest of 2026-10-24T01:40Z; the owner, 17:47 EDT): "actually yes, lakes should show
+as lakes. Do what is best to be state of the art." Keep every ECMWF lake node, no sea-fraction gate; the client allow-list is data-
+and model-driven (EURO only, lake water lit only where EURO has a valid node). This PR is that rule.
+
 ## What was built
 `waveLakes.js` (allow-list, memoised land variant, sheltered-water release), `waveLakesShow.js` (frame-store show guard),
 `maskTextureStash.js` second "variant" slot, encoder/shelter/layer wiring, `public/wave_lakes.json` built by
@@ -59,7 +63,13 @@ already uses for its 10m land outlines)." Answer: "Yes, download both (Recommend
 - Screenshots in three themes (dark, light, beach) at world, Lake Michigan and Lake Victoria: the field fills the lake clipped to
   the shoreline (Green Bay, Victoria's bays) and nothing is added on land.
 - #497's real lake nodes: all 34 carry superior/michigan/huron/erie/winnipeg/victoria (Ontario via its own 5 inland nodes), the
-  Caspian and Black Sea nodes carry none (already water); Taihu, Lagoa Mirim and the Amazon at Santarem stay dark (owner call).
+  Caspian and Black Sea nodes carry none (already water); Taihu and Lagoa Mirim (valid EURO inland nodes per static-frames) and the Amazon at Santarem are NOT in the 7-lake asset; the owner's
+  rule is data-driven ("lit only where EURO has valid nodes"), so adding Taihu and Lagoa Mirim is a one-line asset rebuild that
+  is asked of the lead (the lower Amazon is a river, not a lake).
+
+## Instrument limit
+`scn_model_toggle.js` compares the drawn product id with the one `/grid` serves for the WORLD box; at z7+ a click is answered with
+the viewport box's own product, so its toggle-to-frame can read MISSED in every arm (not verified; noted in the harness header).
 
 ## Not verified / owed
 - The 10 m lake outlines (`g10`) are exercised in unit tests only: the offline harness has no 10 m land (the CDN fetch is not
