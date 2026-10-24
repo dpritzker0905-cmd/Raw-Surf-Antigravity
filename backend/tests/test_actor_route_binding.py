@@ -115,7 +115,7 @@ NAMED_ACTOR = [
     ("DELETE", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
     ("POST", "/api/gallery/migrate-titles", "query", "photographer_id"),
     ("POST", "/api/gallery/clean-all-item-titles", "query", "photographer_id"),
-    # Batch 5 (LA-SEC-03, 2026-10-23): notifications, reports and disputes, social, reviews, photographer tools.
+    # Batch 6 (LA-SEC-03, 2026-10-23): notifications, reports and disputes, social, reviews, photographer tools.
     ("POST", "/api/notifications/{user_id}/read-all", "path", "user_id"),
     ("POST", "/api/notifications/photographer-alerts", "body", "user_id"),
     ("DELETE", "/api/notifications/photographer-alerts/{photographer_id}", "query", "user_id"),
@@ -141,6 +141,15 @@ NAMED_ACTOR = [
     ("PATCH", "/api/photographer/{photographer_id}/participant/{participant_id}/notes", "path", "photographer_id"),
     ("POST", "/api/photographer/{photographer_id}/go-live", "path", "photographer_id"),
     ("POST", "/api/photographer/{photographer_id}/end-session", "path", "photographer_id"),
+    # Batch 5: reads that return one user's personal data are the user's own to read.
+    ("GET", "/api/subscriptions/account-billing/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/violations/user/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/tos-status/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/acceptance-history/{user_id}", "path", "user_id"),
+    ("GET", "/api/photographer/{photographer_id}/earnings-breakdown", "path", "photographer_id"),
+    ("GET", "/api/photographer/{photographer_id}/earnings-history", "path", "photographer_id"),
+    ("GET", "/api/photo-subscriptions/my-subscriptions/{user_id}", "path", "user_id"),
+    ("GET", "/api/photo-subscriptions/my-subscribers/{photographer_id}", "path", "photographer_id"),
 ]
 # Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
 # tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.
@@ -290,6 +299,7 @@ def test_identity_comes_from_the_token(method, path):
 def test_owner_passes_the_binding(stub_db, method, path, where, field):
     url, params, body = _request(method, path, actor="caller", where=where, field=field)
     response = _call(method, url, params, body, subject="caller")
-    detail = response.json().get("detail") if response.headers.get("content-type", "").startswith("application/json") else None
+    payload = response.json() if response.headers.get("content-type", "").startswith("application/json") else None
+    detail = payload.get("detail") if isinstance(payload, dict) else None
     assert response.status_code not in (401, 422), (response.status_code, detail)
     assert detail != DENIED

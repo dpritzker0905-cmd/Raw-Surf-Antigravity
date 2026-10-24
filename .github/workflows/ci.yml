@@ -940,7 +940,9 @@ jobs:
           # +1 (2026-10-23, targeted_fill_stats on /admin/surf-forecast/status) -> 3317/211; 3317 - 6 = 3311.
           # ⬆ 3291→3311 on 2026-10-23 (rederive_floor.py, rm-gulf-fill-targeted): dev run 39994928838 read 3297 / 210 files; dev's map 3297;
           #   base 3297 (hosted read) + 20 new test(s) = 3317, files 211; floor 3317 - 6 = 3311. This PR must read 3317 passed.
-          MIN_FILES, MIN_PASSED = 211, 3311
+          # ⬆ 3311→3314 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 3317 / 211 files; dev's map 3317;
+          #   base 3317 (hosted read) + 3 new test(s) = 3320, files 211; floor 3320 - 6 = 3314. This PR must read 3320 passed.
+          MIN_FILES, MIN_PASSED = 211, 3314
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1538,7 +1540,9 @@ jobs:
           #   base 2873 (hosted read) + 9 new test(s) = 2882, files 176; floor 2882 - 6 = 2876. This PR must read 2882 passed.
           # ⬆ 2876→2885 on 2026-10-23 (rederive_floor.py, rm480): dev run 40005013863 read 2873 / 175 files; dev's map 2882;
           #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
-          MIN_FILES, MIN_PASSED = 177, 2885
+          # ⬆ 2885→2890 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 2891 / 177 files; dev's map 2891;
+          #   base 2891 (hosted read) + 5 new test(s) = 2896, files 177; floor 2896 - 6 = 2890. This PR must read 2896 passed.
+          MIN_FILES, MIN_PASSED = 177, 2890
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2022,7 +2026,11 @@ jobs:
           #   base 2431 (hosted read) + 74 new test(s) = 2505; floor 2505 - 2 = 2503. This PR must read 2505 passed.
           # ⬆ 2503→2504 on 2026-10-23 (rederive_floor.py, claude/fold-point-race): dev run 40034067551 read 2505; dev's map 2505;
           #   base 2505 (hosted read) + 1 new test(s) = 2506; floor 2506 - 2 = 2504. This PR must read 2506 passed.
-          MIN_PASSED = 2504
+          # ⬆ 2528→2554 on 2026-10-23 (rederive_floor.py, HEAD): dev run 40039022786 read 2506; dev's map 2530;
+          #   base 2530 (dev's map) + 26 new test(s) = 2556; floor 2556 - 2 = 2554. This PR must read 2556 passed.
+          # ⬆ 2554→2554 on 2026-10-24 (rederive_floor.py, claude/beautiful-cerf-d9f949): dev run 40043880457 read 2530; dev's map 2556;
+          #   base 2556 (dev's map) + 0 new test(s) = 2556; floor 2556 - 2 = 2554. This PR must read 2556 passed.
+          MIN_PASSED = 2554
 
           try:
               root = ET.parse('estate.xml').getroot()
