@@ -4,7 +4,7 @@ Password Reset Routes
 - Reset password with token
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, select
 from pydantic import BaseModel, EmailStr
@@ -18,6 +18,7 @@ import logging
 logger = logging.getLogger(__name__)
 import logging
 
+from core.rate_limiter import rate_limit_check
 from database import get_db
 from models import Profile, PasswordResetToken
 
@@ -157,11 +158,14 @@ class VerifyTokenRequest(BaseModel):
 
 
 @router.post("/auth/forgot-password")
-async def request_password_reset(data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+async def request_password_reset(request: Request, data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
     """
     Request a password reset. Generates a token that expires in 1 hour.
     Sends email with reset link via Resend.
     """
+    # Each accepted request can send an email, so an unthrottled caller could mail-bomb any address. 10 per 15 min
+    # per address is far above what a person who mistyped their email needs.
+    rate_limit_check(request, max_requests=10, window_seconds=900, key_prefix="forgot_pw:")
     response = password_reset_response()
 
     try:
