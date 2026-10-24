@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, act } from '@testing-library/react';
-import { omEnd, describeRasterFrame, publishRasterDrawn, getRasterDrawn, _resetRasterDrawnForTest, PENDING_QUIET_MS } from './rasterDrawnFrame';
+import { omEnd, describeRasterFrame, publishRasterDrawn, getRasterDrawn, clearRasterDrawn, _resetRasterDrawnForTest, PENDING_QUIET_MS } from './rasterDrawnFrame';
 import ForecastTimeStatus from './ForecastTimeStatus';
 
 const hourly = Array.from({ length: 30 }, (_, i) => new Date(Date.UTC(2026, 9, 22, 12 + i)).toISOString());
@@ -98,15 +98,29 @@ describe('a layer drawn from our own frames (useOwnRasterFrames)', () => {
   const { useRasterDrawnPublisher } = require('./rasterDrawnFrame');
   function Pub({ layers }) { useRasterDrawnPublisher(layers, {}, {}, { current: {} }); return null; }
   afterEach(() => _resetOwnRasterFramesForTest());
-  test("the .om publisher never clears its record; another layer's record it does", () => {
+  test("each publisher clears only its own layer's record (2026-10-24: one record per layer)", () => {
     const end = (h) => ({ url: `f${h}`, dataMs: Date.UTC(2026, 9, 23, h), model: 'GFS', nearestMaxHours: 1 });
     setEngaged('pressure', true);
     publishRasterDrawn({ layer: 'pressure', shown: end(15), want: end(15) });
     const { rerender } = render(<Pub layers={[]} />);
-    expect(getRasterDrawn().layer).toBe('pressure');
-    act(() => setEngaged('pressure', false));
-    rerender(<Pub layers={['waves']} />);
+    expect(getRasterDrawn('pressure').layer).toBe('pressure');
+    rerender(<Pub layers={['rain']} />);                       // .om rain beside our pressure: both records stand
+    expect(getRasterDrawn('rain').layer).toBe('rain');
+    expect(getRasterDrawn('pressure').shown.url).toBe('f15');
+    rerender(<Pub layers={['waves']} />);                      // rain off: the .om publisher clears rain, never pressure
+    expect(getRasterDrawn('rain')).toBeNull();
+    expect(getRasterDrawn('pressure').shown.url).toBe('f15');
+    act(() => clearRasterDrawn('pressure'));                   // the own-frames hook clears its own when it stops drawing
+    expect(getRasterDrawn('pressure')).toBeNull();
     expect(getRasterDrawn()).toBeNull();
+  });
+  test('two layers from our own frames keep apart records; each status line reads its own layer', () => {
+    const at = (h) => ({ url: `p${h}`, dataMs: Date.UTC(2026, 9, 23, h), model: 'GFS', nearestMaxHours: 1 });
+    publishRasterDrawn({ layer: 'pressure', shown: at(15), want: at(15) });
+    publishRasterDrawn({ layer: 'temperature', shown: at(12), want: at(15) });
+    expect(getRasterDrawn().layer).toBe('temperature');      // the latest of any layer
+    expect(describeRasterFrame(getRasterDrawn('pressure'), 'pressure', Date.UTC(2026, 9, 23, 15))).toBeNull();
+    expect(describeRasterFrame(getRasterDrawn('temperature'), 'temperature', Date.UTC(2026, 9, 23, 15)).state).toBe('pending');
   });
   test('its 3-hourly frames read as the nearest stored forecast one hour off', () => {
     const shown = { url: 'f15', dataMs: Date.UTC(2026, 9, 23, 15), model: 'GFS', nearestMaxHours: 1 };

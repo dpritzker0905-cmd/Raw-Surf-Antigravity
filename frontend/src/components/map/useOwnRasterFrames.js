@@ -1,6 +1,7 @@
 /**
  * useOwnRasterFrames.js — wires one raster layer to our own static frames (ownRasterFrames.js) and its custom GL layer
- * (ownRasterLayer.js). Phase 1 (2026-10-23): GFS pressure, DARK behind window.__RAW_RASTER_OWN_FRAMES__.
+ * (ownRasterLayer.js). Phase 1 (2026-10-23): GFS pressure, DARK behind window.__RAW_RASTER_OWN_FRAMES__; 2026-10-24: per-model
+ * pressure and GFS air temperature (one hook per layer; the store keeps a window, an LRU and a status record per layer).
  *
  * Returns `engaged`: true while this layer is drawn from our frames. MapWebGL then leaves the layer out of the .om path
  * entirely (no Open-Meteo request for it). Engagement is decided synchronously from the levers, so .om never starts in
@@ -11,19 +12,32 @@
  */
 import { useEffect, useRef, useState } from 'react';
 import { CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
-import { createOwnRasterLayer, buildStepLut, PRESSURE_LUT } from './ownRasterLayer';
-import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import {
-  combinedFrameAt, combinedFrames, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex, planWindow, setEngaged, setWanted, tel, windowRadius,
+  createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
+} from './ownRasterLayer';
+import { clearRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
+import {
+  combinedFrameAt, combinedFrames, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex, planWindow, setEngaged, setWanted, telSet,
+  windowRadius,
 } from './ownRasterFrames';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
 
 // The colour scale the .om path draws for each layer, theme applied (the same object openMeteoProtocol hands the library).
+// Air temperature has no app override: the .om path draws the tile library's own 'temperature' scale (not theme-varied), read
+// from the settings openMeteoProtocol registered (window.__OM_PROTOCOL_SETTINGS__), else from the library itself (step 3).
+const LIB_SCALE = { temperature: 'temperature' };
+const registeredScale = (name) => {
+  const s = typeof window !== 'undefined' ? window.__OM_PROTOCOL_SETTINGS__ : null;
+  return (s && s.colorScales && s.colorScales[name]) || null;
+};
 const SCALES = {
   pressure: (theme) => { applyThemePressureScale(theme); return CUSTOM_COLOR_SCALES.pressure_msl; },
+  temperature: () => registeredScale(LIB_SCALE.temperature),
 };
-const LUTS = { pressure: PRESSURE_LUT };
+const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT };
+// Each layer's .om slot ramp ('raster-opacity' over zoom in MapWebGL; pinned by ownRasterLayer.test.js).
+const OPACITY = { pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS };
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
 
@@ -99,8 +113,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   };
   useEffect(() => () => {
     ref.current.shownRec = null; ref.current.wantRec = null;
-    const cur = getRasterDrawn();
-    if (cur && cur.layer === layer) publishRasterDrawn(null);
+    clearRasterDrawn(layer);
   }, [layer, drawing]);
 
   // 2. The GL layer: added below the wind particles (the .om slots' anchor), re-added after a style reload.
@@ -111,9 +124,12 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const add = () => {
       try {
         if (mapInstance.getLayer(id)) return;
-        st.layerObj = createOwnRasterLayer({ id, lutMap: LUTS[layer], onFail: (why) => { noteMiss(`gl_${why}`); setFailed(true); } });
+        st.layerObj = createOwnRasterLayer({
+          id, lutMap: LUTS[layer], opacityStops: OPACITY[layer], shaderIsobars: layer === 'pressure',
+          onFail: (why) => { noteMiss(`gl_${why}`); setFailed(true); },
+        });
         st.layerObj.onShown((path, field) => {
-          tel().shown = { path, at: Date.now(), validMs: field ? field.validMs : null };
+          telSet(layer, 'shown', { path, at: Date.now(), validMs: field ? field.validMs : null });
           // Called from MapLibre's render: publish after it (subscribers re-render React).
           const e = st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
@@ -138,9 +154,22 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   // 3. The palette, per theme (a step LUT of the .om path's own scale).
   useEffect(() => {
     const L = ref.current.layerObj;
-    if (!engaged || !L || !SCALES[layer]) return;
-    L.setLut(buildStepLut(SCALES[layer](theme), LUTS[layer]), LUTS[layer]);
-    L.setIsobarColor(ISO_INK[theme] || ISO_INK.dark);
+    if (!engaged || !L || !SCALES[layer]) return undefined;
+    let alive = true;
+    const apply = (scale) => {
+      if (!alive || ref.current.layerObj !== L) return;
+      if (!scale || !Array.isArray(scale.breakpoints)) { noteMiss('no_scale'); return; }   // no LUT: the layer draws nothing
+      L.setLut(buildStepLut(scale, LUTS[layer]), LUTS[layer]);
+    };
+    const scale = SCALES[layer](theme);
+    if (scale || !LIB_SCALE[layer]) apply(scale);
+    else {
+      import('@openmeteo/weather-map-layer')
+        .then((m) => apply(m.defaultOmProtocolSettings && m.defaultOmProtocolSettings.colorScales[LIB_SCALE[layer]]))
+        .catch(() => apply(null));
+    }
+    if (layer === 'pressure') L.setIsobarColor(ISO_INK[theme] || ISO_INK.dark);
+    return () => { alive = false; };
   }, [engaged, layer, theme, gen]);
 
   // 4. Each step: the frame for the asked time, the window around it, the hard cut when it is resident.
@@ -159,7 +188,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       L.want(null);
       st.wantRec = null; publish();
       noteMiss('no_frame');
-      tel().want = { validMs, path: null, at: Date.now() };
+      telSet(layer, 'want', { validMs, path: null, at: Date.now() });
       setWanted(layer, [], null);
       return;
     }
@@ -175,7 +204,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     for (const w of win) { const got = getField(w.path); if (got) L.offerField(w.path, got); }
     noteStep(f.path, L.isResident(f.path) || !!getField(f.path));
     L.want(f.path);
-    tel().want = { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() };
+    telSet(layer, 'want', { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() });
     setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); });
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
