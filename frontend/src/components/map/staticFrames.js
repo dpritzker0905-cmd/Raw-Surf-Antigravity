@@ -533,7 +533,16 @@ export function staticSetKeyForBox({ model, layer, bbox, surf }) {
 
 /** The set is listed in the latest.json already read (synchronous; false before the first read). */
 export const isSetListed = (key) => !!(_state.latest && _state.latest.sets && _state.latest.sets[key] && _state.latest.sets[key].index);
-setRegionalLatestProbes({ listed: isSetListed, read: () => !!_state.latest });   // the pre-manifest tile pick (staticRegional)
+/**
+ * The set is written as an explicit EMPTY in the latest.json already read (#514): {"empty": true, "reason", "written_at", "writer"}, no
+ * `index`, no bundle: the box has no stored product for this layer (GFS swell_2 us_west_coast_socal today), so there is no tile to wait
+ * for. Keyed on `empty === true`, never on the reason text; an `index` always wins (a set that gained products is a normal record).
+ */
+export const isSetEmpty = (key) => {
+  const s = _state.latest && _state.latest.sets && _state.latest.sets[key];
+  return !!(s && s.empty === true && !s.index);
+};
+setRegionalLatestProbes({ listed: isSetListed, read: () => !!_state.latest, empty: isSetEmpty });   // the pre-manifest tile pick (staticRegional)
 
 /** The pinned regional index and this ask's frame and Step 3 window, or null with the miss recorded (the caller asks /grid). */
 async function regionalPick({ tile, model, askMs, bboxStr }) {
