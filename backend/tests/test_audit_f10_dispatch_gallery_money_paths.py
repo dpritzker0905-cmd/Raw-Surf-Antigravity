@@ -8,6 +8,7 @@
 
 Both run here through the real routers, real JWTs and an ephemeral SQLite file; nothing leaves the process.
 """
+import inspect
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -18,6 +19,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 import database
+import websocket_manager
 from core.security import create_access_token
 from database import Base
 from models import (
@@ -177,6 +179,31 @@ def test_a_two_item_bulk_purchase_records_purchases_and_moves_the_money(client):
     pro_tx = ledger[('pro', 'bulk_gallery_sale')]
     assert pro_tx.balance_before == 5.0 and pro_tx.balance_after == pytest.approx(29.0)
     assert {i.id: i.purchase_count for i in rows(client, GalleryItem)}['g1'] == 1
+
+
+def test_each_photographer_gets_one_earnings_push_with_the_real_signature(client, monkeypatch):
+    pushes = []
+
+    async def record(*args, **kwargs):
+        # bind against the real function so a wrong argument shape fails here, not only in production
+        inspect.signature(websocket_manager.broadcast_earnings_update).bind(*args, **kwargs)
+        pushes.append((args, kwargs))
+
+    monkeypatch.setattr(sales, 'broadcast_earnings_update', record)
+    assert bulk(client, 'captain', ['g1', 'g2']).status_code == 200
+    assert len(pushes) == 1
+    (user_id, update_type, amount, details), _ = pushes[0]
+    assert (user_id, update_type, amount) == ('pro', 'bulk_sale', pytest.approx(24.0))
+    assert details == {'item_count': 2, 'buyer_name': 'Cap Tain'}
+
+
+def test_a_failed_earnings_push_does_not_undo_a_paid_purchase(client, monkeypatch):
+    async def explode(*args, **kwargs):
+        raise RuntimeError('websocket hub down')
+
+    monkeypatch.setattr(sales, 'broadcast_earnings_update', explode)
+    assert bulk(client, 'captain', ['g1', 'g2']).status_code == 200
+    assert len(rows(client, GalleryPurchase)) == 2
 
 
 def test_three_items_get_the_volume_discount(client):
