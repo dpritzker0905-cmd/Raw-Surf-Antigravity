@@ -89,15 +89,53 @@ FIELD_SPECS = {
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
 
-# What the decoded value may differ from the source by, per field (half a step, plus float slack).
-TOLERANCE = {HEIGHT: 0.0005 + 1e-9, DIRECTION: 0.005 + 1e-9, PERIOD: 0.005 + 1e-9, DIR_CONFIDENCE: 0.5 / 254 + 1e-9,
-             SPEED: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9, PRESSURE_HPA: 0.05 + 1e-9}
+FLOAT_SLACK = 1e-9
+
+
+def _half_step(fid):
+    """Half of a field's encoding step, plus float slack: the most round(value / step) can move a value. PURE."""
+    return FIELD_SPECS[fid][3] / 2.0 + FLOAT_SLACK
+
+
+# What the decoded value may differ from the source by, per field: each is HALF ITS OWN ENCODING STEP (FIELD_SPECS
+# scale), never a guess (test_frame_parity_tolerance.py pins every one to its step). The one exception is the HRRR lane
+# weight, a whole step: max(1, round(w * 10000)) lifts a touched node's code to at least 1.
+TOLERANCE = {
+    HEIGHT: _half_step(HEIGHT),                  # 1 mm step       -> 0.0005 m
+    DIRECTION: _half_step(DIRECTION),            # 0.01 deg step   -> 0.005 deg
+    PERIOD: _half_step(PERIOD),                  # 0.01 s step     -> 0.005 s
+    DIR_CONFIDENCE: _half_step(DIR_CONFIDENCE),  # 1/254 step      -> 0.0019685 (measured max 0.0019685 over 400k nodes)
+    SPEED: _half_step(SPEED),                    # 0.01 kn step    -> 0.005 kn
+    LANE_WEIGHT: FIELD_SPECS[LANE_WEIGHT][3] + FLOAT_SLACK,
+    PRESSURE_HPA: _half_step(PRESSURE_HPA),      # 0.1 hPa step    -> 0.05 hPa
+}
 POSITION_TOL_DEG = 1e-6
-UV_TOL = 0.0012  # u, v rebuilt from the decoded height and direction: 1 mm height step plus 4-dp rounding
+# Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
+# UNROUNDED height and direction (normalizer.py: speed 4 dp, direction 2 dp, u and v 4 dp). Per node the error is at most
+#   height     half the 1 mm step + the stored speed's 4-dp rounding     0.0005 + 0.00005
+#   rounding   the rebuilt and the stored u/v, 4 dp each                  2 * 0.00005
+#   direction  half the 0.01-deg step turns (u, v) by that angle          h * radians(0.005)
+# ⬇ 2026-10-23: this was a FIXED 0.0012, which dropped the height term. Measured with the real codec over 400,000 nodes
+#   (heights 0-20 m, the normalizer's rounding): the error crosses 0.0012 at 10-12 m seas and stays under this bound at
+#   every height. The pilots publish of run 40019869501 refused 5 ICON world frames on it (uv 0.0012-0.0016, one node
+#   each, big seas), which went unpublished; their dir_confidence (0.001967) was inside its own tolerance.
+MARINE_UV_TOL_BASE = 0.0005 + 0.00005 + 2 * 0.00005 + 1e-6
+MARINE_UV_TOL_PER_M = math.radians(0.005) + FLOAT_SLACK
+# The old fixed tolerance stays as a FLOOR: this change only stops wrongful refusals. Below about 6 m the derived bound is
+# tighter than 0.0012, and a stored product whose u/v come from somewhere this budget does not model (a blend) would
+# start being refused; only refused frames log their u/v error, so that cannot be measured from a publish log today.
+MARINE_UV_TOL_FLOOR = 0.0012
 # Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
 # UNROUNDED speed and direction (and rounded to 4 dp): 0.005 kn + 0.005 deg of the speed + both 4-dp roundings, with slack.
 WIND_UV_TOL_BASE = 0.006
 WIND_UV_TOL_PER_KN = 0.0001
+
+
+def uv_tolerance(mag, magnitude):
+    """How far u, v rebuilt from one decoded node may differ from the stored u, v: marine by height, wind by speed. PURE."""
+    if mag == HEIGHT:
+        return max(MARINE_UV_TOL_FLOOR, MARINE_UV_TOL_BASE + MARINE_UV_TOL_PER_M * abs(magnitude))
+    return WIND_UV_TOL_BASE + WIND_UV_TOL_PER_KN * abs(magnitude)
 
 
 def magnitude_field(field_ids):
@@ -341,7 +379,8 @@ def parity(product, decoded):
 
     Returns {nodes, bad, missing_mismatch, max_abs_err: {field: err}, uv_max_err}. A node is bad when validity differs,
     a field differs by more than its TOLERANCE, or u/v rebuilt from the decoded height and direction (the client does
-    the same) differ from the stored u/v by more than UV_TOL. Positions were checked by encode_frame (check_regular).
+    the same) differ from the stored u/v by more than uv_tolerance (marine: by height; wind: by speed). Positions were
+    checked by encode_frame (check_regular).
     """
     cols, rows, vectors, _bounds = _grid_of(product)
     if (decoded["cols"], decoded["rows"]) != (cols, rows):
@@ -390,7 +429,7 @@ def parity(product, decoded):
             sign = 1.0 if decoded.get("uv_convention") == 1 else -1.0
             u, v = round(sign * f[mag][i] * math.sin(rad), 4), round(sign * f[mag][i] * math.cos(rad), 4)
             su, sv = _finite(vec.get("u")) or 0.0, _finite(vec.get("v")) or 0.0
-            tol = UV_TOL if mag == HEIGHT else WIND_UV_TOL_BASE + WIND_UV_TOL_PER_KN * abs(f[mag][i])
+            tol = uv_tolerance(mag, f[mag][i])
             if su or sv:  # stored 0/0 means "derive from direction", which the renderer does the same way
                 e = max(abs(u - su), abs(v - sv))
                 uv_err = max(uv_err, e)

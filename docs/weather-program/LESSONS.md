@@ -1396,3 +1396,17 @@ A stored estimate can be estimated again in a browser branch with different sour
   repo setting can strip. On dev, #498 went from FAIL to WARN.
 - Rule: anything that "covers everything up to now" must carry its own "now" (the moment it read its input), and
   everything downstream judges against that moment, never against when the snapshot happened to be merged or deployed.
+
+
+### 2026-10-23 — L-S24 · Read which check refused before tuning a tolerance; a rebuilt quantity's error scales with its inputs
+
+- The pilots publish (run 40019869501) refused 5 ICON world frames. The visible near-miss in the log was dir_confidence
+  0.001967, so the brief was to tune that tolerance. But 0.001967 is inside its own (half of its 1/254 step, 0.0019685),
+  and four of the five frames read 0.0 there. All five failed the u/v rebuild instead: 0.0012-0.0016 against a FIXED 0.0012.
+- The stored u/v come from the unrounded height and direction; the frame rebuilds them from the 0.01-deg direction, so the
+  error carries h * radians(0.005): measured with the real codec over 400,000 nodes, it crosses 0.0012 at 10-12 m seas.
+  Wind's u/v tolerance already scaled with speed; marine's did not.
+- Rule: before changing a tolerance, find the check that actually failed (the field whose error exceeds ITS tolerance,
+  not the largest-looking number). Derive every tolerance from the encoding's steps, and when a check compares a quantity
+  rebuilt from quantised inputs, carry each input's error through the formula (here, a term that grows with height).
+  Loosen only what the measurement says; keep the old value as a floor until accepted frames' errors can be measured too.
