@@ -22,7 +22,7 @@
 // The old floor (`cols >= MIN_COLS`) read a z8 viewport clip as "not full resolution": EURO's 2-deg lattice on a 6-deg box is 6
 // columns, so every GFS->EURO click at z8 read MISSED in both arms while the drawn product was already the right EURO hour (debug
 // run: pid euro_marine_waves_global_mid_<hour>, bounds -92,42,-82,48). At ZOOM >= 7 the window is now a clip: 2 <= cols <= CLIP_MAX
-// (default 80), so a stale 181-column world grid is NOT accepted as exact there. Below z7 the floor is unchanged (MIN_COLS).
+// (was 80; unbounded now that the expectation is derived from the viewport box the app asks: a stale world grid still fails on its stamp or model). Below z7 the floor is unchanged (MIN_COLS).
 // SILENT WRONG-MODEL FRAMES (2026-10-24): each such frame (the field is the old model, the status line has no loading text) is
 // classed by the model chip the user sees pressed (aria-pressed): chip = NEW model -> silentChipNew (a MISLABEL), chip = OLD ->
 // silentChipOld (click-to-render latency), neither -> silentChipOther. Per click and in the summary.
@@ -48,7 +48,7 @@ const ZOOM = +(process.env.ZOOM || 3.2);
 const [CLNG, CLAT] = (process.env.CENTER || '-80,24').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
 const MIN_COLS = +(process.env.MIN_COLS || 150);
-const CLIP = ZOOM >= 7; const CLIP_MAX = +(process.env.CLIP_MAX || 80);
+const CLIP = ZOOM >= 7; const CLIP_MAX = +(process.env.CLIP_MAX || 100000);   // z7+: any grid at least 2 columns wide (the expected product comes from the app's viewport box, so a stale grid fails on its stamp)
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -84,7 +84,8 @@ const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
   window.addEventListener('pointerup', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
   window.addEventListener('click', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
   window.addEventListener('keydown', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
-  const stampMs = (pid) => { const m = /_(\d{8}T\d{6}Z)\.json$/.exec(pid || ''); return m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : null; };
+  // a dynamic viewport product id carries its box after the stamp: ..._20261024T120000Z_-77.00_33.00_-74.00_36.00.json
+  const stampMs = (pid) => { const m = /_(\d{8}T\d{6}Z)(?:_[-\d.]+)*\.json$/.exec(pid || ''); return m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : null; };
   let fc = 0; let status = '';
   const snap = () => {
     // The status line is read every frame inside a click window (every 3rd frame otherwise): a stale status faked 'silent' frames.
@@ -92,6 +93,7 @@ const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
     const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
     return { g, d, model: g ? g.__sourceModel : null, layer: g ? g.__componentLayer : null, cols: g ? g.cols : null, stride: g ? (g.__decimatedStride || 0) : null,
       store: !!(g && g.__fromFrameStore), series: !!(g && g.__fromSeries), hour: g ? g.hourOffset : null,
+      served: g ? (g.served_valid_time || g.valid_time || null) : null,
       pid: (g && g.__fromFrameStore && g.__servedProductId) || (window.__WEBGL_MARINE_UPLOAD_DIAG__ && window.__WEBGL_MARINE_UPLOAD_DIAG__.servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null),
       status };
   };
@@ -103,7 +105,8 @@ const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
     const b = [...document.querySelectorAll('button[aria-pressed="true"]')].filter((x) => x.offsetParent !== null && chipNames.includes(x.textContent.trim()));
     chipCache = b.length ? b[0].textContent.trim() : null; chipAt = now; return chipCache;
   };
-  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && (clip ? (s.cols >= 2 && s.cols <= clipMax) : s.cols >= minCols);
+  const dataMsOf = (s) => { const t = stampMs(s.pid); return t != null ? t : (s.served ? Date.parse(s.served) : null); };   // a series-page frame has no product id
+  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && dataMsOf(s) === W.expectedMs && s.stride === 0 && (clip ? (s.cols >= 2 && s.cols <= clipMax) : s.cols >= minCols);
   const fnv = (u8) => { let h = 2166136261; for (let i = 0; i < u8.length; i++) h = Math.imul(h ^ u8[i], 16777619); return (h >>> 0).toString(16); };
   function readTex(tex) {
     const eng = window.__MARINE_ENGINE__; const m = window.__MAP_INSTANCE__ || window.map;
@@ -189,6 +192,19 @@ async function clickExact(page, text) {
   if (!(await clicked.jsonValue())) throw Error(`no ${text} control`);
 }
 
+
+// The box a z7+ ask is made for (2026-10-24): the expected product must come from the SAME box the app asks, not the world box. A z8
+// viewport product is stamped with the exact asked time (14:00Z) while the stored world product for that hour is the nearest stored
+// frame (15:00Z), so no z8 frame could ever equal a world expectation. Taken from the app's own last /grid ask (its snapped box), else
+// the map's bounds snapped out to whole degrees. Below z7 the world box, as before.
+async function expectedBox(page, log, zoomedIn) {
+  if (!zoomedIn) return '-180,-80,180,85';
+  const g = [...log.requests].reverse().find((q) => q.path === '/grid' && q.q && q.q.bbox);
+  if (g) return g.q.bbox;
+  const b = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const x = m.getBounds(); return [x.getWest(), x.getSouth(), x.getEast(), x.getNorth()]; });
+  return [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])].join(',');
+}
+
 async function session(arm, round) {
   const phone = arm.endsWith('-handheld');
   const theme = arm.endsWith('-light') ? 'light' : arm.endsWith('-beach') ? 'beach' : 'dark';
@@ -216,7 +232,7 @@ async function session(arm, round) {
       const k = `${model}@${hour}`;
       if (expected[k] === undefined) {
         const ask = new Date(anchor + hour * 3600000).toISOString();
-        const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=${model}&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=-180,-80,180,85`)).json();
+        const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=${model}&domain=marine&layer=waves&valid_time=${encodeURIComponent(ask)}&bbox=${EXPBOX}`)).json();
         expected[k] = j.product_id || null;
       }
       return expected[k];
@@ -232,6 +248,7 @@ async function session(arm, round) {
       }
     };
     let model = 'GFS'; let warmMs = await settle();
+    const EXPBOX = await expectedBox(page, log, CLIP);
     for (const step of PLAN) {
       const hour = await wheelNow();
       if (step[0] === 'WHEEL') {
