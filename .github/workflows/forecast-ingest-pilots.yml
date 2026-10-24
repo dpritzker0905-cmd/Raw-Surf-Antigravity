@@ -118,6 +118,7 @@ jobs:
           # ICON marine 0.25° regional pilot (2026-07-13, round-12 §2a-i — ICON close-zoom fix).
           # No-commit kill via repo Actions variable: set ICON_MARINE_PILOT_INGEST=0.
           ICON_MARINE_PILOT_INGEST: ${{ vars.ICON_MARINE_PILOT_INGEST || '1' }}
+          GFS_MARINE_SOCAL_SWELL2: ${{ vars.GFS_MARINE_SOCAL_SWELL2 || '0' }}  # DARK (2026-10-24): store GFS swell_2 for us_west_coast_socal like every other pilot box (the June pilot left it out). Changes what SoCal swell_2 serves at z7-9: the owner's word (D-001).
           # EURO marine 0.25° regional pilot (2026-07-13 — the EURO rating-band resolution fix,
           # free ECMWF wave stream, no CMEMS). No-commit kill: set EURO_MARINE_PILOT_INGEST=0.
           EURO_MARINE_PILOT_INGEST: ${{ vars.EURO_MARINE_PILOT_INGEST || '1' }}

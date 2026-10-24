@@ -101,9 +101,12 @@ class WeatherPipelineScheduler:
             gfs_mid_forecast_days, gfs_mid_resolution, save_gfs_marine_global_mid)
 
         def _layers_for(region_id: str) -> list:
-            # Swell 2 is not requested for SoCal
-            return ["waves", "swell_1", "wind_waves"] if region_id == "us_west_coast_socal" \
-                else ["waves", "swell_1", "swell_2", "wind_waves"]
+            # SoCal swell_2 was left out by the June 6H.2 pilot (c2816a0f5: "GFS swell_2 only florida"), a scoping choice, not
+            # science; the multi-bbox pass downloads the whole globe, so it costs only sampling + saves. DARK opt-in (2026-10-24):
+            # GFS_MARINE_SOCAL_SWELL2=1 (repo variable, forecast-ingest-pilots.yml) stores it like every other pilot box.
+            if region_id == "us_west_coast_socal" and os.environ.get("GFS_MARINE_SOCAL_SWELL2", "0") != "1":
+                return ["waves", "swell_1", "wind_waves"]
+            return ["waves", "swell_1", "swell_2", "wind_waves"]
 
         # ══ MULTI-BBOX single-download-pass: ALL regions for ONE region's download cost ══
         # THE ROTATION WAS RATIONING REDUNDANCY. NOAA's byte-range selects a GRIB *message*, not a
