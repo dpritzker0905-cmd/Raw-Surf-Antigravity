@@ -44,3 +44,16 @@ test('a layer drawn from our own frames credits NOAA GFS, and only while it is',
   act(() => setEngaged('pressure', false));
   expect(getByTestId('layer-data-credit').textContent).toBe('© Open-Meteo · CC BY 4.0');
 });
+
+
+test('per-model pressure: the credit names the model of the frame on screen', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  setEngaged('pressure', 'EURO');
+  expect(creditFor('pressure').text).toBe('EURO (ECMWF) · CC BY 4.0');
+  setEngaged('pressure', 'ICON');
+  expect(creditFor('pressure').text).toBe('ICON (Deutscher Wetterdienst)');
+  setEngaged('pressure', 'GFS');
+  expect(creditFor('pressure').text).toBe('NOAA GFS');
+  setEngaged('pressure', false);
+  expect(creditFor('pressure').text).toBe('© Open-Meteo · CC BY 4.0');
+});
