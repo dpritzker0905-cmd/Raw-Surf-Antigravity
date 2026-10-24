@@ -71,10 +71,14 @@ LAYER_STREAM = {"wind": "oper", "pressure": "oper", "waves": "wave"}
 # the reductions GFS and ICON use: direction = energy_mean_direction_block (E = H^2 circular mean), period = energy_mean_scalar_block
 # of pp1d (PEAK) ONLY; mwp (a MEAN) only when the WHOLE block has no pp1d, counted, never mixed (#412: no constant converts them).
 # A node is validated only when its direction AND a period exist (never period=0.0 on a valid vector, 0b5182436), and only when an
-# ECMWF sea cell lies within ECMWF_WAVE_LAND_CENTRE_REACH native cells (Chebyshev, default 2 = 0.5 deg) of the centre, so the rule
-# reaches the coast, not the block's 1-deg edge inland. Measured on cycle 2026-10-23 00Z step 0 against the published EURO / GFS
+# ECMWF sea cell lies within ECMWF_WAVE_LAND_CENTRE_REACH native cells (Chebyshev) of the centre. DEFAULT 4 = THE WHOLE BLOCK
+# (2026-10-23, the lead + Reflection: still within-cell regridding, every value is ECMWF's own sea inside the node's own 2-deg
+# cell; the shipped 2 recovered 575 of 868 EURO-masked GFS-sea nodes, 4 recovers 842). Measured on cycle 2026-10-23 00Z step 0 against the published EURO / GFS
 # frames, the newly valid nodes by reach (GFS-sea / GFS-land / ice-polar): 1 cell 345 / 23 / 7, 2 cells 575 / 30 / 15, 4 cells (the
-# whole block) 842 / 62 / 46 ("GFS-land" includes enclosed sea GFS's coarser mask drops, e.g. 8 Black Sea nodes). Memory stays
+# whole block) 842 / 62 / 46 ("GFS-land" includes enclosed sea GFS's coarser mask drops, e.g. 8 Black Sea nodes). The 62 at
+# reach 4, by 2-deg distance to the nearest GFS-sea node: 18 adjacent (coast), 10 two nodes out, 34 further, and every one of
+# those 34 lies on a lake ECMWF's wave model carries (Great Lakes 14, Caspian 9, Black Sea 5, Lakes Winnipeg and Victoria 6):
+# none where ECMWF has no water, which holds by construction (a node needs an ECMWF sea cell within the reach). Memory stays
 # bounded: only the 8x8 blocks of land-centre nodes whose block has any finite cell are held, per valid time, until resolved.
 # Block resolutions only: the 0.25-deg native pilot tiles are untouched. It changes served EURO numbers (D-001: dark, owner flips).
 
@@ -86,9 +90,9 @@ def land_centre_block_enabled():
 def land_centre_reach():
     """How near the centre (native cells, Chebyshev) an ECMWF sea cell must be for a land-centre node to be validated."""
     try:
-        return max(1, int(os.environ.get("ECMWF_WAVE_LAND_CENTRE_REACH", "2")))
+        return max(1, int(os.environ.get("ECMWF_WAVE_LAND_CENTRE_REACH", "4")))
     except ValueError:
-        return 2
+        return 4
 
 
 def block_slice(a, r, c, half):

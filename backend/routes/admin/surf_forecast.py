@@ -91,6 +91,14 @@ _RATING_FLAGS = {
                              "Render env"),
     # SERVED NUMBER, DARK (2026-10-23; the owner's decision 09:56 EDT: build it dark, show the before/after before switching on).
     # tests/test_coarse_gulf_fill_targeted.py pins both values; /capabilities reports `gulf_fill_mid_mode`.
+    # The single zoom 7-9 source inside a GFS pilot box (2026-10-23, dark; the owner 18:13 EDT: "make the stored NOAA GFS tile the single
+    # zoom 7-9 source inside the pilot boxes ... flip both together after live parity passes"). Flip WITH the client's
+    # __RAW_ENABLE_REGIONAL_BUNDLES__ default, never alone.
+    "MARINE_REGIONAL_TILE_FIRST": ("0", "GFS marine waves/swell_1/swell_2/wind_waves: a viewport a stored pilot tile FULLY covers (the "
+                                        "client's rule: smallest containing tile, snapped box inside the data, margin-0 cover) is served "
+                                        "from that tile, never the dynamic Open-Meteo cache or the live series lane; 0 = today's path. "
+                                        "While '0', MARINE_TILE_FIRST_DIFF_SAMPLE (0.05) / _MAX_PER_HOUR (30) log tile vs dynamic",
+                                   "Render env (together with the client's regional bundle default)"),
     "MARINE_GULF_FILL_MID_TARGETED": ("0", "on the 2-deg global_mid world clip (EURO/ICON marine), fill a masked cell ONLY from the "
                                            "same-layer GFS 2-deg value at the same node, and only where that GFS node is sea; 0 = "
                                            "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "
@@ -294,8 +302,15 @@ _RATING_FLAGS = {
     "ECMWF_WAVE_LAND_CENTRE_BLOCK": ("0", "EURO wave nodes (2 deg, 10 deg) whose own native cell is land take direction and period from "
                                          "the block the height already uses (E-weighted circular mean / E-weighted mean), so they "
                                          "carry ECMWF's own sea values instead of being dropped and filled from GFS (only within "
-                                         "ECMWF_WAVE_LAND_CENTRE_REACH native cells of ECMWF sea, default 2); 0 = point samples",
-                                     "forecast-ingest-pilots.yml AND forecast-ingest.yml env (both lanes together)"),
+                                         "ECMWF_WAVE_LAND_CENTRE_REACH native cells of ECMWF sea, default 4 = the whole block); 0 = point samples",
+                                     "repo variable ECMWF_WAVE_LAND_CENTRE_BLOCK, read by forecast-ingest-pilots.yml AND "
+                                     "forecast-ingest.yml env (one variable, both lanes together)"),
+    # The reach of the rule above (2026-10-23): native 0.25-deg cells (Chebyshev) from the land centre to the nearest ECMWF sea cell.
+    # 4 = the whole 8x8 block (within-cell regridding); inert while ECMWF_WAVE_LAND_CENTRE_BLOCK is '0'.
+    "ECMWF_WAVE_LAND_CENTRE_REACH": ("4", "How near the land centre (native 0.25-deg cells) an ECMWF sea cell must be for ECMWF_WAVE_LAND_CENTRE_BLOCK to validate the node: 4 = the whole 2-deg block, 2 = 0.5 deg (575 vs 842 of 868 "
+                                         "EURO-masked GFS-sea nodes, cycle 2026-10-23 00Z)",
+                                     "repo variable ECMWF_WAVE_LAND_CENTRE_REACH, read by forecast-ingest-pilots.yml AND "
+                                     "forecast-ingest.yml env (one variable, both lanes together)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this
@@ -401,12 +416,17 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     except Exception as e:
         blobs["grid_size_climatology"] = {"error": str(e)}
 
+    try:   # MARINE_REGIONAL_TILE_FIRST's decisions and its dark-period diff counters (process-local)
+        from services.weather_pipeline.regional_tile_first import tile_first_stats
+        tile_first = tile_first_stats()
+    except Exception as e:
+        tile_first = {"error": str(e)}
     try:   # the targeted 2-deg Gulf fill's counters (process-local; the dark-deploy baseline and the flip watch read them here)
         from services.weather_pipeline.coarse_gulf_fill import targeted_fill_stats
         gulf_fill = targeted_fill_stats()
     except Exception as e:
         gulf_fill = {"error": str(e)}
-    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "now": datetime.now(timezone.utc).isoformat()}
+    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "regional_tile_first": tile_first, "now": datetime.now(timezone.utc).isoformat()}
 
 
 @router.post("/admin/surf-forecast/size-reference")
