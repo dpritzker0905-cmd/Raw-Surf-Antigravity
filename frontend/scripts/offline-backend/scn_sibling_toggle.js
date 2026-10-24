@@ -223,7 +223,11 @@ async function session(arm, kase) {
             return { sharpen: window.__MARINE_SHARPEN_DIAG__ || null, mism: window.__MARINE_GRIDMISMATCH_COUNT__ || 0,
               res: g ? { cols: g.cols, rows: g.rows, b: g.bounds, model: g.__sourceModel, series: !!g.__fromSeries, surf: !!g.ratingMode } : null,
               view: b ? [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => +v.toFixed(2)) : null, z: m ? +m.getZoom().toFixed(2) : null,
-              pan: window.__RAW_SERIES_PAN__ || null };
+              pan: window.__RAW_SERIES_PAN__ || null,
+              // the render backstop: re-drives fired, no-progress caps engaged, slow probes, terminal holds (useMarineScrubSettle)
+              backstop: { fired: window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0, giveup: window.__MARINE_CLAMP_GIVEUP_COUNT__ || 0,
+                probes: window.__MARINE_CLAMP_CAP_PROBE_COUNT__ || 0, terminal: window.__MARINE_CLAMP_TERMINAL_COUNT__ || 0,
+                settleHeld: window.__RAW_SETTLE_RELOAD_HELD__ || 0 } };
           });
           out.diag.push({ t: Date.now() - tW, ...d });
         } catch (e) { /* page busy */ }

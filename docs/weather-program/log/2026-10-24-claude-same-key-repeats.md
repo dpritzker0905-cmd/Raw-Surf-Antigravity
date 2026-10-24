@@ -49,7 +49,33 @@ land mask and wave lakes, built viewport products removed before each run (cold)
   `__RAW_SIBLING_WARM__.askedOnce`.
 
 ## Measured (one build, the control arm sets the three kill switches = dev)
-RESULTS_TABLE
+Build dev 111f0726c + this change. The stale window with `--stale-fast 1` (new, see Harness): production answers its SWR preview
+from cache, so a stale re-ask returns in well under a second; without it every stale answer re-ran the resolver (p50 2.4 s on this
+machine) and the ladder never left its fast rung in either arm.
+
+| Scenario (stale 150 s, fast) | Arm | Asks | /grid | /grid_series | Repeat | Most asks of one key | SWR restarts at #1 |
+|---|---|---|---|---|---|---|---|
+| swell, GFS <-> EURO, run a | dev | 95 | 63 | 32 | 4.13 | 36 | 23 |
+| | fix | **66** | 40 | 26 | 2.54 | **18** | 4 |
+| swell, GFS <-> EURO, run b | dev | 107 | 73 | 34 | 4.65 | 42 | 34 |
+| | fix | **70** | 38 | 32 | 2.59 | **17** | 4 |
+| | fix + cap 1 (`__RAW_MARINE_SWR_MAX_RETRIES__` = 1) | 49 | 25 | 24 | 1.96 | 10 | 4 |
+| surf, GFS <-> EURO | dev | 83 | 60 | 23 | 3.61 | 33 | 22 |
+| | fix | **54** | 33 | 21 | 2.35 | **15** | 3 |
+| swell, ICON <-> GFS | dev | 95 | 69 | 26 | 3.39 | 30 | 13 |
+| | fix | **62** | 44 | 18 | 3.26 | **15** | 3 |
+
+- Asks down 30-35% in every scenario; the worst key halved (36 / 42 / 33 / 30 -> 18 / 17 / 15 / 15). Its remaining asks are the
+  ladder by design: 10 at the 1.5 s rung, then 3, 6, 12 s (the EURO key in run a: #2-#10 at ~2 s, #11 at 3 s, #12 at 6 s, #13 at
+  12 s; back on the key later it asks once at once and climbs on).
+- The most asks of one visible page: 7-8 (dev) -> 4 (fix). ICON pair: minis 12 -> 6.
+- Slow stale answers (no `--stale-fast`): 75 / 76 (dev) vs 73 / 70 (fix), restarts 24 / 28 -> 6 / 5. No stale window: 46 vs 42 asks,
+  /grid_series 33 -> 26.
+- The siblings: this store does not reproduce the mid-zoom run's unusable sibling frames (the most asks of one sibling mini is 2 in
+  every arm here), so SIBLING_ASK_ONCE's effect rests on that log's timeline above and on the unit tests.
+- Every session, both arms: 1-6 frames where the drawn model is the previous one and no status line shows yet, 0-16 ms after a
+  model click (one frame each: the chip moves a frame before the status line). Not this change; it goes to the verify matrix
+  (cell 3, mislabel on every frame). 0 lit lakes.
 
 ## Not done here, for the lead
 - "Bound any retry to one": the SWR ladder's shape is the 2026-10-21 ruling (#441: never stops; 10 asks at 1.5 s first, a typical
