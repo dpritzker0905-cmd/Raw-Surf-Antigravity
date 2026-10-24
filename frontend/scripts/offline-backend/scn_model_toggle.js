@@ -205,6 +205,15 @@ async function expectedBox(page, log, zoomedIn) {
   return [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])].join(',');
 }
 
+// Hour 0 of the APP (2026-10-24): the resident grid's own asked valid time minus its hour offset. The old rounded clock disagreed with the
+// app's anchor by an hour whenever the run fell in the second half of an hour, which made a correct frame read as a mislabel (the Biscay
+// north-edge cell, 1,821 'silent' frames). Falls back to the rounded clock when the grid carries neither field.
+async function appAnchor(page) {
+  const a = await page.evaluate(() => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
+    const t = g && Date.parse(g.valid_time || g.validTime || ''); return g && Number.isFinite(t) && Number.isFinite(g.hourOffset) ? t - g.hourOffset * 3600000 : null; });
+  return a != null ? a : Math.round(Date.now() / 3600000) * 3600000;
+}
+
 async function session(arm, round) {
   const phone = arm.endsWith('-handheld');
   const theme = arm.endsWith('-light') ? 'light' : arm.endsWith('-beach') ? 'beach' : 'dark';
@@ -227,7 +236,7 @@ async function session(arm, round) {
     await L.openMap(page); await L.jump(page, CLNG, CLAT, phone && ZOOM === 3.2 ? 1.6 : ZOOM);
     await clickExact(page, 'Waves');
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
-    const anchor = Math.round(Date.now() / 3600000) * 3600000; const expected = {};
+    const anchor = await appAnchor(page); const expected = {};
     const expect = async (model, hour) => {
       const k = `${model}@${hour}`;
       if (expected[k] === undefined) {

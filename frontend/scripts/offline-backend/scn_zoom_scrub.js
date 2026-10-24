@@ -176,6 +176,15 @@ async function expectedBox(page, log, zoomedIn) {
   return [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])].join(',');
 }
 
+// Hour 0 of the APP (2026-10-24): the resident grid's own asked valid time minus its hour offset. The old rounded clock disagreed with the
+// app's anchor by an hour whenever the run fell in the second half of an hour, which made a correct frame read as a mislabel (the Biscay
+// north-edge cell, 1,821 'silent' frames). Falls back to the rounded clock when the grid carries neither field.
+async function appAnchor(page) {
+  const a = await page.evaluate(() => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
+    const t = g && Date.parse(g.valid_time || g.validTime || ''); return g && Number.isFinite(t) && Number.isFinite(g.hourOffset) ? t - g.hourOffset * 3600000 : null; });
+  return a != null ? a : Math.round(Date.now() / 3600000) * 3600000;
+}
+
 async function session(arm, zoom) {
   const v = VIEWS[VIEW];
   const reqLog = [];
@@ -211,8 +220,15 @@ async function session(arm, zoom) {
     const firstFrameMs = Date.now() - tClick;
     const firstFrame = await page.evaluate(() => { const x = window.__ZS__.snap(); delete x.grid; return x; });
     await sleep(SETTLE);
+    // IDLE TWO-rAF (the live-read rule, 2026-10-24): the time two consecutive animation frames take with nothing happening, 30 samples.
+    // Step timings are only a claim when the median reads 40 ms or less; otherwise the box (or this headless window) is too loaded.
+    const idleTwoRaf = await page.evaluate(() => new Promise((resolve) => {
+      const out = []; const one = () => { const t0 = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => { out.push(performance.now() - t0); if (out.length < 30) setTimeout(one, 30); else { out.sort((a, b) => a - b); resolve({ median: +out[15].toFixed(1), p95: +out[28].toFixed(1) }); } })); };
+      one();
+    }));
+    idleTwoRaf.valid = idleTwoRaf.median <= 40;
     const before = await page.evaluate(() => window.__ZS__.counters());
-    const anchor = Math.round(Date.now() / 3600000) * 3600000;
+    const anchor = await appAnchor(page);
     const EXPBOX = await expectedBox(page, log, zoom >= 7);
     const expected = {};
     for (const [, target] of STEPS) {
@@ -240,7 +256,7 @@ async function session(arm, zoom) {
         mid: r.mid || null });
       await sleep(400);
     }
-    if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) steps.forEach((x) => { x.anchorRolled = true; });
+    if ((await appAnchor(page)) !== anchor) steps.forEach((x) => { x.anchorRolled = true; });   // the app's own hour 0 moved during the run
     const after = await page.evaluate(() => window.__ZS__.counters());
     const byPath = {}; for (const q of log.requests.slice(reqs0)) byPath[q.path] = (byPath[q.path] || 0) + 1;
     const marineAll = {};
@@ -249,7 +265,7 @@ async function session(arm, zoom) {
       const k = `${q.q.layer}${q.path}`;
       const w = (marineAll[k] = marineAll[k] || { n: 0, ms: 0 }); w.n += 1; w.ms += q.ms || 0;
     }
-    return { arm, zoom, view: VIEW, vp, firstFrameMs, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
+    return { arm, zoom, view: VIEW, vp, firstFrameMs, idleTwoRaf, firstFrame: { cols: firstFrame.cols, rows: firstFrame.rows, series: firstFrame.series, store: firstFrame.store, pid: firstFrame.pid },
       steps, before, after, backendRequests: byPath, marineAll, errors: log.errors.slice(0, 5), ...(REQLOG ? { reqLog } : {}) };
   } finally { await browser.close(); }
 }
@@ -289,7 +305,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
           grid_per_step: +(grids / Math.max(1, steps)).toFixed(2), series_per_step: +(series / Math.max(1, steps)).toFixed(2),
           via: st.reduce((a, x) => { a[x.via || 'none'] = (a[x.via || 'none'] || 0) + 1; return a; }, {}),
           resident_dims: [...new Set(st.map((x) => `${x.end.cols}x${x.end.rows}`))],
-          first_frame_ms: ss.map((s) => s.firstFrameMs), marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
+          first_frame_ms: ss.map((s) => s.firstFrameMs), idle_two_raf: ss.map((s) => s.idleTwoRaf), marine_session: ss.map((s) => s.marineAll), regional: ss.map((s) => s.after.regional),
           store_shows: ss.map((s) => s.after.store && s.after.store.shows), store_misses: ss.map((s) => s.after.store && s.after.store.misses) };
       }
     }
