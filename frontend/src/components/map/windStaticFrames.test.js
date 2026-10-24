@@ -49,11 +49,13 @@ const HELD = { ...BOX, key: LANE.key, cycle: LANE.cycle, horizon: LANE.horizon, 
 
 let pointer;
 let box;
+const extraJson = {};                                                      // more CDN JSON objects a test serves (path -> body)
 function cdn() {
   global.fetch = jest.fn(async (url) => {
     const ok = (body) => ({ ok: true, status: 200, json: async () => body });
     if (url === BASE + 'v1/latest.json') return ok({ version: 1, sets: { [WIND_SET_KEY]: { index: INDEX.path, run: INDEX.run } } });
     if (url === BASE + INDEX.path) return ok(INDEX);
+    if (url.startsWith(BASE) && extraJson[url.slice(BASE.length)]) return ok(extraJson[url.slice(BASE.length)]);
     if (url === BASE + 'v1/wind_lane.json') return pointer ? ok(pointer) : { ok: false, status: 400, json: async () => ({}) };
     if (url === 'https://backend.test/api/weather/wind_lane') return box ? ok(box) : { ok: false, status: 503, json: async () => ({}) };
     if (url === BASE + FRAME.path) return { ok: true, status: 200, arrayBuffer: async () => rawBuffer() };
@@ -179,6 +181,33 @@ describe('static GFS wind frames', () => {
       expect(laneVerdict(INDEX, INDEX.frames[1], ptr, now)).toEqual({ refuse: 'box_lane_off' });
     } finally {
       window.__WEATHER_CAPABILITIES__ = caps(BOX);   // afterEach removes it
+    }
+  });
+
+  test('the pointer\'s lane-window rebuild of the SAME run replaces the published index; another run or the kill keeps it', async () => {
+    const NEW = { ...LANE, key: 'wind_lane/hrrr-2026102221.json', cycle: '2026-10-22T21:00:00Z', horizon: '2026-10-24T21:00:00Z' };
+    const REBUILT = { ...INDEX, path: 'v1/gfs/wind/wind/global_mid/index/r-rebuilt.json', wind_lane: NEW };
+    extraJson[REBUILT.path] = REBUILT;
+    const point = (run) => ({ ...NEW, written_at: '2026-10-22T20:00:00Z', frames: { index: REBUILT.path, run, lane: NEW.key } });
+    try {
+      pointer = point(INDEX.run);
+      _resetWindStaticForTest(); await readLanePointer(true);
+      expect((await windIndex()).path).toBe(REBUILT.path);                 // the frames now carry the pointer's (the box's) lane
+      _setBoxLaneForTest({ ...HELD, key: NEW.key, cycle: NEW.cycle, horizon: NEW.horizon });
+      expect(laneVerdict(REBUILT, REBUILT.frames[0], pointer).stamp).toBeTruthy();                // served for the new lane
+      window.__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__ = true;                // the kill: the published index only
+      _resetWindStaticForTest(); await readLanePointer(true);
+      expect((await windIndex()).path).toBe(INDEX.path);
+      delete window.__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__;
+      pointer = point('2026-10-22T06:00:00Z');                              // a rebuild of ANOTHER run: never mixed in
+      _resetWindStaticForTest(); await readLanePointer(true);
+      expect((await windIndex()).path).toBe(INDEX.path);
+      pointer = { ...point(INDEX.run), key: LANE.key };                     // frames.lane is not the pointer's lane
+      _resetWindStaticForTest(); await readLanePointer(true);
+      expect((await windIndex()).path).toBe(INDEX.path);
+    } finally {
+      delete window.__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__;
+      delete extraJson[REBUILT.path];
     }
   });
 
