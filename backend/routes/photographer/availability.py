@@ -12,6 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, Booking, PhotographerAvailability, RoleEnum
 )
@@ -142,9 +143,12 @@ async def get_photographer_bookings_calendar(
 async def update_availability_windows(
     photographer_id: str,
     data: AvailabilityWindowUpdate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's weekly availability windows"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
     
@@ -192,9 +196,12 @@ async def update_availability_windows(
 async def block_date(
     photographer_id: str,
     data: BlockDateRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Block a specific date - surfers cannot book this day"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
     
@@ -239,9 +246,12 @@ async def block_date(
 async def unblock_date(
     photographer_id: str,
     data: BlockDateRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Unblock a specific date"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
     
@@ -359,9 +369,12 @@ async def get_photographer_availability(
 async def create_availability(
     photographer_id: str,
     data: CreateAvailabilityRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Create availability slots for photographer"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Verify photographer
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = result.scalar_one_or_none()
@@ -417,9 +430,12 @@ async def create_availability(
 async def delete_availability(
     photographer_id: str,
     availability_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a specific availability slot"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(PhotographerAvailability).where(
             PhotographerAvailability.id == availability_id,

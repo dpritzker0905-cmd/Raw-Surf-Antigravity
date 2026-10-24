@@ -109,6 +109,12 @@ _RATING_FLAGS = {
                                            "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "
                                            "MARINE_GULF_FILL_MID=0 wins (no 2-deg fill); the 10-deg tier is unchanged either way",
                                       "Render env"),
+    # Per-node provenance of that fill (2026-10-23, dark): WHICH cells came from GFS, so a client can mark them (series frames too).
+    "MARINE_FILL_PROVENANCE_NODES": ("0", "add filled_idx (indices into the response's own grid.vectors, at most "
+                                          "MARINE_FILL_PROVENANCE_MAX, default 4096) to the Gulf fill's coarse_fill stamp, and carry "
+                                          "the stamp on /grid_series frames (re-pointed when a frame is decimated); 0 = the stamp "
+                                          "and every frame as before. Metadata only: no served value changes",
+                                     "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
     "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
