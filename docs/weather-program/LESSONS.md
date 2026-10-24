@@ -1371,6 +1371,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   It writes ci.yml and the map together, and the PR must then read set-from passed.
 - Rule: before calling two writers "independent", check what separates their edits in the file. If nothing does
   (same line, or adjacent lines), they are one writer to git.
+- ⬆ Correction, 2026-10-24: "`--add auto` ... read as its HEAD minus its merge base" was wrong for any branch whose
+  floor the helper had already set. The helper bases its value on dev's map, which can be NEWER than the branch's
+  merge base, so the difference also counts other PRs' tests (#513 read +43 for its own +17). `--add auto` now reads
+  the branch's own tagged note (`+ N new test(s)`, and `M new file(s)` from 2026-10-24); the difference is only the
+  fallback for a branch the helper never ran on. A value derived from a later read is not a delta against the base.
 
 
 ### 2026-10-23 — L-S23 · "Valid" for a masked field is a per-region count from the data, never a sentence

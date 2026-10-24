@@ -1,3 +1,7 @@
+import json
+import os
+import re
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
@@ -53,11 +57,16 @@ async def get_unread_notification_count(user_id: str, db: AsyncSession = Depends
     return {"unread_count": count}
 
 @router.post("/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: str, db: AsyncSession = Depends(get_db)):
+async def mark_notification_read(
+    notification_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(Notification).where(Notification.id == notification_id))
     notification = result.scalar_one_or_none()
-    
-    if not notification:
+
+    # Someone else's notification answers exactly like a missing one: no probing of other users' ids.
+    if not notification or notification.user_id != current_user_id:
         raise HTTPException(status_code=404, detail="Notification not found")
     
     notification.is_read = True
@@ -66,7 +75,13 @@ async def mark_notification_read(notification_id: str, db: AsyncSession = Depend
     return {"message": "Notification marked as read"}
 
 @router.post("/notifications/{user_id}/read-all")
-async def mark_all_notifications_read(user_id: str, db: AsyncSession = Depends(get_db)):
+async def mark_all_notifications_read(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     await db.execute(
         update(Notification)
         .where(Notification.user_id == user_id)
@@ -149,6 +164,28 @@ class RealtimeBroadcastRequest(BaseModel):
     payload: dict
 
 
+# The broadcast goes out with the SERVICE-ROLE key, so the server, not the caller, decides what may be sent.
+# The only caller is hooks/feed/useFeedReactionActions.js: channel `post:<post id>`, event `reaction_update`.
+# Anything else (a private per-user channel, another event name, free-form keys) is refused.
+BROADCAST_CHANNEL_RE = re.compile(r"^post:([A-Za-z0-9_-]{1,64})$")
+BROADCAST_EVENTS = frozenset({"reaction_update"})
+BROADCAST_PAYLOAD_KEYS = frozenset({"post_id", "user_name", "emoji", "action"})
+BROADCAST_MAX_PAYLOAD_BYTES = 2048
+
+
+def _validate_broadcast(data: "RealtimeBroadcastRequest") -> None:
+    """Raise 400 unless this is a public post-reaction update; the payload is a fixed small shape."""
+    match = BROADCAST_CHANNEL_RE.match(data.channel or "")
+    if not match or data.event not in BROADCAST_EVENTS:
+        raise HTTPException(status_code=400, detail="Channel or event not allowed")
+    if set(data.payload) - BROADCAST_PAYLOAD_KEYS:
+        raise HTTPException(status_code=400, detail="Payload field not allowed")
+    if "post_id" in data.payload and data.payload["post_id"] != match.group(1):
+        raise HTTPException(status_code=400, detail="Payload does not match channel")
+    if len(json.dumps(data.payload, default=str)) > BROADCAST_MAX_PAYLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Payload too large")
+
+
 @router.post("/realtime/broadcast")
 async def broadcast_realtime_event(
     data: RealtimeBroadcastRequest,
@@ -157,8 +194,8 @@ async def broadcast_realtime_event(
     """Broadcast an event via Supabase Realtime for social sync.
     Used for instant updates like reaction changes on posts.
     """
+    _validate_broadcast(data)
     import httpx
-    import os
     
     supabase_url = os.environ.get('SUPABASE_URL')
     supabase_key = os.environ.get('SUPABASE_SERVICE_KEY')
@@ -247,9 +284,12 @@ async def get_photographer_alert_subscriptions(
 @router.post("/notifications/photographer-alerts")
 async def subscribe_photographer_alert(
     request: PhotographerAlertRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Subscribe to photographer availability alerts"""
+    if request.user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from models import PhotographerAlertSubscription, Profile
     import uuid
     
@@ -295,9 +335,12 @@ async def unsubscribe_photographer_alert(
     photographer_id: str,
     user_id: str,
     alert_type: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Unsubscribe from photographer availability alerts"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from models import PhotographerAlertSubscription
     
     result = await db.execute(

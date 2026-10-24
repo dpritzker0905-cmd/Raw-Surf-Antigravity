@@ -76,6 +76,31 @@ LAND_BOXES = ((-125.0, 25.0, -70.0, 60.0), (-75.0, -50.0, -40.0, 5.0), (-10.0, 0
               (115.0, -35.0, 150.0, -20.0))
 
 
+# WAVE LAKES (2026-10-23, `--wave-lakes 1`; the client's waveLakes.js): #497 makes EURO (ECMWF WAM) carry its own values on the
+# Great Lakes, Winnipeg and Victoria while GFS and ICON have none there. With the flag, a node whose cell touches one of these lake
+# boxes is LAND (is_valid false) for every model but EURO, and VALID for EURO; Victoria's region (outside the Africa box) is land too.
+WAVE_LAKES = False
+WAVE_LAKE_BOXES = ((-92.2, 46.4, -84.3, 49.0), (-88.1, 41.6, -84.7, 46.1), (-84.8, 43.0, -79.7, 46.4), (-83.5, 41.4, -78.8, 42.9),
+                   (-79.9, 43.2, -76.0, 44.3), (-99.3, 50.3, -96.2, 53.9), (31.5, -3.1, 34.9, 0.5))
+WAVE_LAKE_LAND = ((28.0, -12.0, 42.0, 0.0),)   # East Africa around Victoria (the Africa land box stops at the equator)
+
+
+def on_wave_lake(lat, lng, res):
+    h = res / 2.0
+    return WAVE_LAKES and any(lng + h >= w and lng - h <= e and lat + h >= s and lat - h <= n for (w, s, e, n) in WAVE_LAKE_BOXES)
+
+
+def lake_land(lat, lng, res, model):
+    """None: the wave-lakes fixture has no say; True / False: this node is land / water under it."""
+    if not WAVE_LAKES:
+        return None
+    if on_wave_lake(lat, lng, res):
+        return model != "EURO"
+    if any(w <= lng <= e and s <= lat <= n for (w, s, e, n) in WAVE_LAKE_LAND):
+        return True
+    return None
+
+
 def is_land(lat, lng, res=2.0):
     # A coarse (10-deg) cell is valid wherever it holds any ocean, so only deep-interior land is masked there; that is what makes the
     # live Gulf fill rewrite thousands of coastal 2-deg land cells (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689
@@ -245,7 +270,8 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
             hs, direction, period = layer_field(layer, hs, direction, period, lat, lng, h)
             hs = round(max(0.1, hs * scale), 3)
             rad = math.radians(direction)
-            if is_land(lat, lng, res):
+            ll = lake_land(lat, lng, res, model)
+            if ll is True or (ll is None and is_land(lat, lng, res)):
                 vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": 0.0, "u": 0.0, "v": 0.0, "period": None,
                                 "is_valid": False})
                 continue
@@ -522,6 +548,82 @@ def install_stale_window(app):
 # direction and period 2 dp, confidence 4 dp, u = -h sin d and v = -h cos d at 4 dp for uv convention 0). The 10-deg
 # global_coarse is every 5th node of the same field (a lab stand-in, not production's block mean; diagnostics say so).
 # Models and layers other than GFS waves stay synthetic.
+def _real_vectors(dec, stride=1, north_cap=None):
+    """The client codec's node values (staticFrameCodec.buildVectors) for a decoded RSWF frame, every `stride`-th node."""
+    cols, rows = dec["cols"], dec["rows"]
+    west, south, east, north = dec["bounds"]
+    sign = 1.0 if dec["uv_convention"] == 1 else -1.0
+    H, D, P, C = (dec["fields"].get(k) for k in (0, 1, 2, 3))
+    r2, r4 = (lambda x: round(x + 0.0, 2)), (lambda x: round(x + 0.0, 4))
+    vectors = []
+    for r in range(0, rows, stride):
+        lat = round(south + r * (north - south) / (rows - 1), 6)
+        if north_cap is not None and lat > north_cap:
+            continue
+        for c in range(0, cols, stride):
+            i = r * cols + c
+            lng = round(west + c * (east - west) / (cols - 1), 6)
+            h = H[i]
+            d = r2(D[i]) if D and D[i] is not None else 0.0
+            p = r2(P[i]) if P and P[i] is not None else None
+            q = r4(C[i]) if C and C[i] is not None else None
+            if h is None:
+                vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": d, "u": 0.0, "v": 0.0, "period": p,
+                                "is_valid": False, "dir_confidence": q})
+                continue
+            s = r4(h)
+            rad = math.radians(d)
+            vectors.append({"lat": lat, "lng": lng, "speed": s, "direction": d, "u": r4(sign * s * math.sin(rad)),
+                            "v": r4(sign * s * math.cos(rad)), "period": p, "is_valid": True, "dir_confidence": q})
+    return vectors
+
+
+def real_regional_products(frames_dir, region_ids):
+    """[(region_id, filename, body, resolution)] for every GFS waves REGIONAL set in `frames_dir`'s latest.json whose bundle is on disk
+    and whose region is in `region_ids` (2026-10-24, the regional z7-9 instant scrub): each frame is the REAL stored tile, sliced from
+    the published bundle (a gzip member, byte for byte the per-frame object) and written as the product the resolver's Step 3 clips,
+    so a bundle frame cropped in the browser can be compared node by node with the resolver's own tile clip."""
+    sys.path.insert(0, str(BACKEND))
+    from services.frame_binary import decode_frame
+    root = Path(frames_dir)
+    latest = json.loads((root / "v1" / "latest.json").read_text(encoding="utf-8"))
+    out = []
+    for key, entry in sorted(latest.get("sets", {}).items()):
+        parts = key.split("/")
+        if len(parts) != 4 or parts[:3] != ["GFS", "marine", "waves"] or parts[3].startswith("global_") or parts[3] not in region_ids:
+            continue
+        if not entry.get("bundle") or not (root / entry["bundle"]["path"]).exists() or not (root / entry["index"]).exists():
+            continue
+        index = json.loads((root / entry["index"]).read_text(encoding="utf-8"))
+        bundle = (root / entry["bundle"]["path"]).read_bytes()
+        common = index.get("common_meta") or {}
+        cov = index["grid"]["bounds"]
+        for fr in index["frames"]:
+            if fr.get("offset") is None:
+                continue
+            dec = decode_frame(bundle[fr["offset"]:fr["offset"] + fr["length"]])
+            meta = {**common, **(fr.get("meta") or {})}
+            vectors = _real_vectors(dec)
+            lats = sorted({v["lat"] for v in vectors}); lngs = sorted({v["lng"] for v in vectors})
+            filename = meta["product_id"]
+            body = {
+                "model": "GFS", "domain": "marine", "layer": "waves", "run_time": meta.get("run_time"),
+                "model_run_time": meta.get("model_run_time"), "model_run_time_status": meta.get("model_run_time_status") or "known",
+                "ingested_at": meta.get("ingested_at"), "valid_time": fr["valid_time"],
+                "is_forecast_authoritative": bool(meta.get("is_forecast_authoritative", True)), "is_estimated": bool(fr.get("is_estimated")),
+                "estimate_basis": meta.get("estimate_basis"), "coverage": dict(cov),
+                "grid": {"bounds": {"west": lngs[0], "south": lats[0], "east": lngs[-1], "north": lats[-1]}, "cols": len(lngs),
+                         "rows": len(lats), "vectors": vectors, "diagnostics": {"source": "stored"}},
+                "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft", "product_id": filename,
+                "source_variables": meta.get("source_variables") or ["wave_height"], "freshness_sec": meta.get("freshness_sec") or 3600,
+                "region_id": parts[3], "resolution": None, "coverage_mode": "regional_tile",
+                "provider": meta.get("provider") or "open-meteo", "upstream_provider": meta.get("upstream_provider") or "noaa",
+                "source_dataset": meta.get("source_dataset") or "ncep_gfswave025",
+            }
+            out.append((parts[3], filename, body, REGIONAL_RES))
+    return out
+
+
 def real_frame_products(frames_dir):
     """[(filename, body, resolution)] for the GFS waves global_mid run in `frames_dir` and its derived global_coarse."""
     sys.path.insert(0, str(BACKEND))
@@ -635,6 +737,17 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
             (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
             entries.append(manifest_entry(body, filename, res))
         real = {"index": index.get("path"), "run": index.get("run"), "frames": sum(1 for f in index["frames"] if f.get("path"))}
+        # The REAL stored tiles of the regional sets the copy carries a bundle for (only regions the store was asked for: --regions).
+        asked = {r[0] for r in regions}
+        reg = real_regional_products(real_frames, asked)
+        for rid in sorted({r[0] for r in reg}):
+            for e in [e for e in entries if e["model"] == "GFS" and e["layer"] == "waves" and e["region_id"] == rid]:
+                entries.remove(e)
+                (directory / e["filename"]).unlink(missing_ok=True)
+        for rid, filename, body, res in reg:
+            (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+            entries.append(manifest_entry(body, filename, res))
+        real["regional"] = sorted({r[0] for r in reg})
     if real_wind:
         # The real GFS wind run REPLACES the synthetic GFS wind world tiers (the other models stay synthetic).
         drop = [e for e in entries if e["model"] == "GFS" and e["domain"] == "wind" and e["region_id"] in ("global_mid", "global_coarse")]
@@ -698,11 +811,14 @@ def main():
     ap.add_argument("--land-mask", choices=["0", "1"], default="0",
                     help="mark continent boxes as land (is_valid false, speed 0) in every marine product, as real stored products "
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
+    ap.add_argument("--wave-lakes", choices=["0", "1"], default="0",
+                    help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES
     VORTEX_PEAK = args.vortex_peak
     LAND_MASK = args.land_mask == "1"
+    WAVE_LAKES = args.wave_lakes == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL

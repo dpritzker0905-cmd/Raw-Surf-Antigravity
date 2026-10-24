@@ -18,7 +18,7 @@
  *     request, the smallest (select_best_candidate: largest intersection, then smallest coverage area); an exact tie -> /grid.
  *   - GFS waves, swell_1, swell_2 and wind_waves: the four layers the publisher bundles (#486; the swell trains were most of the
  *     opening view's /grid_series time). A box with no stored tile or no published set of a layer (SoCal swell_2) is a miss ->
- *     /grid. The frame store does not take regional sets yet: getPinnedIndexSync keeps them out.
+ *     /grid. The frame store's regional show (marineFrameStoreRegional.js) reads the pinned GFS waves ones; its world sets do not.
  * Kill: window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (every regional box asks /grid as before). The per-set kill
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__ with the regional key) and the global static-frames kill also apply.
  * Telemetry: window.__RAW_STATIC_REGIONAL__ (also window.__RAW_STATIC_FRAMES__.regional) = { bundles, bundleBytes, slices, hits, series,
@@ -88,7 +88,10 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
   if (!(w < e) || !(s < n) || w < -180 || e > 180) return trace({ l, bboxStr, pick: 'bad_box' });
   const { tiles, fallbackReason } = getAvailableTilesFromManifest(m, 'marine', l);
   if (fallbackReason === 'manifest_not_loaded') return pilotFallback(m, l, bboxStr, { west: w, south: s, east: e, north: n });
-  if (fallbackReason || !Array.isArray(tiles)) return trace({ l, bboxStr, pick: fallbackReason || 'no_tiles' });
+  if (fallbackReason || !Array.isArray(tiles)) {
+    // A manifest that lists no tile for this layer at all is what an explicit-empty set looks like once it has loaded: say 'empty'.
+    return trace({ l, bboxStr, pick: emptySetFor(m, l, { west: w, south: s, east: e, north: n }) ? 'empty' : (fallbackReason || 'no_tiles') });
+  }
   let best = null; let bestArea = Infinity; let tie = false;
   for (const tile of tiles) {
     const c = tile && tile.bounds;
@@ -100,6 +103,7 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
     else if (area < bestArea) { best = tile; bestArea = area; tie = false; }
   }
   if (best && !tie) { trace({ l, bboxStr, pick: best.id }); return { id: best.id, bounds: { ...best.bounds }, key: regionalSetKey(m, l, best.id) }; }
+  if (!tie && emptySetFor(m, l, { west: w, south: s, east: e, north: n })) return trace({ l, bboxStr, pick: 'empty' });
   return trace({ l, bboxStr, pick: tie ? 'tie' : 'outside' });
 }
 
@@ -115,6 +119,7 @@ export function regionalManifestPending({ model, layer, bbox, surf }) {
   const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
   if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return false;
   if (!insidePilotBox(bbox)) return false;              // only a box a pilot tile could cover waits
+  if (emptySetFor(m, l, bbox)) return false;             // its set is an explicit empty in the latest.json read (#514): no tile to wait for
   if (_latestRead() && !pilotFallbackOff()) return false;   // latest.json is read: the pilot fallback decides now (pilotFallback)
   return getAvailableTilesFromManifest(m, 'marine', l).fallbackReason === 'manifest_not_loaded';
 }
@@ -135,13 +140,18 @@ export function regionalCapable() {
 // staticFrames registers the latest.json probes (no import cycle). Kill: window.__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ = true.
 let _listed = () => false;
 let _latestRead = () => false;
-export function setRegionalLatestProbes({ listed, read }) { _listed = listed; _latestRead = read; }
+let _empty = () => false;
+export function setRegionalLatestProbes({ listed, read, empty }) { _listed = listed; _latestRead = read; if (empty) _empty = empty; }
+// The pilot box (id) holding this box, or null; and whether its set for (model, layer) is an explicit empty in the latest.json read.
+const pilotBoxFor = (b) => PILOT_BOXES.find(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n) || null;
+const emptySetFor = (m, l, b) => { const box = pilotBoxFor(b); return !!box && _empty(regionalSetKey(m, l, box[0])); };
 const pilotFallbackOff = () => W().__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ === true;
 function pilotFallback(m, l, bboxStr, b) {
   if (pilotFallbackOff()) return trace({ l, bboxStr, pick: 'manifest_not_loaded' });
   const box = PILOT_BOXES.find(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n);
   if (!box) return trace({ l, bboxStr, pick: 'manifest_not_loaded' });
   const key = regionalSetKey(m, l, box[0]);
+  if (_empty(key)) return trace({ l, bboxStr, pick: 'empty', key });             // an explicit empty (#514): no tile exists, nothing to wait for
   if (!_listed(key)) return trace({ l, bboxStr, pick: 'manifest_not_loaded_unlisted' });
   trace({ l, bboxStr, pick: `pilot:${box[0]}` });
   return { id: box[0], bounds: { west: box[1], south: box[2], east: box[3], north: box[4] }, key, provisional: true };

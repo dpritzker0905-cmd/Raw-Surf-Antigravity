@@ -30,6 +30,8 @@
 //   noaheadrun  window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true (a new window's packs for the cursor +-24 only, as before pass 2)
 //   regional    window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true (the regional bundle client is DARK by default since 2026-10-23
 //            evening: opt in to measure it)
+//   regionalnostore  the same, with window.__RAW_DISABLE_FRAME_STORE_REGIONAL__ = true (the frame store takes no tile resident: the
+//            2026-10-23 behaviour; `regional` adds the store's regional show, 2026-10-24)
 //   noregional  window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (z7-9 boxes a pilot tile covers go to /grid + /grid_series, as before
 //            2026-10-23). Per session `marineAll` counts every marine /grid and /grid_series ask, per layer, over the WHOLE session (load, settle and
 //            steps) with the backend ms they took, and `regional` reads window.__RAW_STATIC_REGIONAL__ (hits, series frames, misses).
@@ -127,7 +129,7 @@ const PROBE = () => {
     const sf = window.__RAW_STATIC_FRAMES__; const fsx = window.__RAW_FRAME_STORE__;
     return { sf: sf ? { hits: sf.hits, seriesFrames: sf.seriesFrames, crops: sf.crops || 0, misses: { ...sf.misses }, fetches: sf.fetches, bytes: sf.bytes } : null,
       store: fsx ? { shows: fsx.shows && fsx.shows.n, misses: fsx.shows ? { ...fsx.shows.misses } : null, deferred: fsx.shows && fsx.shows.deferred,
-        lastMs: fsx.shows && fsx.shows.lastMs, resident: fsx.resident ? { cols: fsx.resident.cols, rows: fsx.resident.rows, window: fsx.resident.window || null } : null,
+        lastMs: fsx.shows && fsx.shows.lastMs, regionalShows: fsx.shows && fsx.shows.regional, resident: fsx.resident ? { cols: fsx.resident.cols, rows: fsx.resident.rows, window: fsx.resident.window || null } : null,
         commits: { ...(fsx.commits || {}) }, crop: fsx.crop ? { window: fsx.crop.window && fsx.crop.window.key, packs: fsx.crop.packs, built: fsx.crop.built, shows: fsx.crop.shows } : null } : null,
       regional: window.__RAW_STATIC_REGIONAL__ ? JSON.parse(JSON.stringify(window.__RAW_STATIC_REGIONAL__)) : null,
       regionalTrace: Array.isArray(window.__RAW_STATIC_REGIONAL_TRACE__) ? window.__RAW_STATIC_REGIONAL_TRACE__.slice() : undefined,
@@ -173,7 +175,8 @@ async function session(arm, zoom) {
     if (arm === 'nocropshow') window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
     if (arm === 'noaheadrun') window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
     if (arm === 'noregional') window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
-    if (arm === 'regional') window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;   // the client is dark by default since 2026-10-23
+    if (arm === 'regional' || arm === 'regionalnostore') window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;   // the client is dark by default since 2026-10-23
+    if (arm === 'regionalnostore') window.__RAW_DISABLE_FRAME_STORE_REGIONAL__ = true;   // bundles on, the store's regional show killed (2026-10-24)
     if (regTrace) window.__RAW_STATIC_REGIONAL_TRACE__ = [];
   }, { arm, base: `http://127.0.0.1:${CDN_PORT}/`, regTrace: process.env.REGTRACE === '1' });
   await page.addInitScript(PROBE);
