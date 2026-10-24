@@ -15,6 +15,7 @@ from core.security import get_current_user_id, get_optional_user_id
 from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
 from services.grom_media_policy import approval_status_for_grom_post, is_verified_guardian, normalize_controls
 from services.private_media import parse_private_media_ref
+from services.parental_controls import assert_profile_may
 from .schemas import (
     PostCreate, PostResponse, CommentResponse, ReactionData, CollaboratorData, SpotData
 )
@@ -42,6 +43,8 @@ async def create_post(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    # PARENTAL CONTROLS (audit F-09): a view-only Grom cannot create posts (can_post keeps its approval-pipeline job).
+    assert_profile_may(profile, "post")
         
     visibility = data.visibility
     guardian_approval_status = None

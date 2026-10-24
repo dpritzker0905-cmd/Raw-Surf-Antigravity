@@ -15,6 +15,9 @@ import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
+// The permission switches on the Controls tab, and the value the server enforces when one was never stored.
+const TOGGLE_KEYS = ['can_post', 'can_stream', 'can_message', 'can_message_grom_channel', 'can_comment', 'view_only'];
+const CONTROL_DEFAULTS = { can_message_grom_channel: true, can_comment: true };
 
 /**
  * GromManage - Activity monitoring and spending controls for a specific Grom
@@ -85,11 +88,18 @@ export const GromManage = () => {
   const saveControls = async () => {
     setSaving(true);
     try {
-      await apiClient.post(
+      const res = await apiClient.post(
         `/grom-hq/update-parental-controls/${gromId}?parent_id=${user.id}`,
         controls
       );
-      toast.success('Controls updated');
+      // Show what the server actually stored, and name any switch it did not save.
+      if (res?.data?.parental_controls) setControls(res.data.parental_controls);
+      const notSaved = (res?.data?.ignored_keys || []).filter((k) => TOGGLE_KEYS.includes(k));
+      if (notSaved.length) {
+        toast.warning(`These controls were not saved: ${notSaved.join(', ')}`);
+      } else {
+        toast.success('Controls updated');
+      }
     } catch (error) {
       toast.error('Failed to update controls');
     } finally {
@@ -115,10 +125,14 @@ export const GromManage = () => {
     }
   };
 
+  // A switch the server has never stored reads as its server-side default (the messaging gate treats a missing
+  // Grom Zone switch as allowed, and a missing comment switch as allowed), so the screen shows what is enforced.
+  const controlOn = (key) => controls[key] ?? CONTROL_DEFAULTS[key] ?? false;
+
   const toggleControl = (key) => {
     setControls(prev => ({
       ...prev,
-      [key]: !prev[key]
+      [key]: !(prev[key] ?? CONTROL_DEFAULTS[key] ?? false)
     }));
   };
 
@@ -419,15 +433,19 @@ export const GromManage = () => {
                     <p className={`text-xs ${textSecondary}`}>{control.desc}</p>
                   </div>
                   <button
+                    type="button"
+                    role="switch"
+                    aria-checked={controlOn(control.key)}
+                    aria-label={`${control.label}: ${control.desc}`}
                     onClick={() => toggleControl(control.key)}
                     className={`w-12 h-6 rounded-full transition-colors ${
-                      controls[control.key] 
-                        ? 'bg-cyan-500' 
+                      controlOn(control.key)
+                        ? 'bg-cyan-500'
                         : isLight ? 'bg-gray-300' : 'bg-zinc-600'
                     }`}
                   >
                     <div className={`w-5 h-5 rounded-full bg-white shadow-md transform transition-transform ${
-                      controls[control.key] ? 'translate-x-6' : 'translate-x-0.5'
+                      controlOn(control.key) ? 'translate-x-6' : 'translate-x-0.5'
                     }`} />
                   </button>
                 </div>
