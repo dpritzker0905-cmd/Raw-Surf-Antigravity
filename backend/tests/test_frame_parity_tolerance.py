@@ -80,7 +80,7 @@ def test_a_value_on_the_rounding_edge_passes_and_a_step_or_twice_the_bound_off_f
 
 # ── marine u/v: the height term ────────────────────────────────────────────────────────────────────────────────────
 def test_the_marine_uv_tolerance_grows_with_height_and_keeps_the_old_floor():
-    assert fb.uv_tolerance(fb.HEIGHT, 0.0) == fb.MARINE_UV_TOL_FLOOR == 0.0012
+    assert fb.uv_tolerance(fb.HEIGHT, 0.0) == fb.MARINE_UV_TOL_FLOOR == 0.0012 + fb.FLOAT_SLACK
     tols = [fb.uv_tolerance(fb.HEIGHT, h) for h in (0, 5, 8, 10, 12, 15, 20)]
     assert tols == sorted(tols) and tols[-1] > 0.0012
     assert fb.uv_tolerance(fb.HEIGHT, 15.0) == pytest.approx(fb.MARINE_UV_TOL_BASE + 15.0 * math.radians(0.005), abs=1e-7)
@@ -103,6 +103,32 @@ def test_the_old_fixed_tolerance_refuses_that_big_sea(monkeypatch):
     monkeypatch.setattr(fb, "MARINE_UV_TOL_PER_M", 0.0)
     monkeypatch.setattr(fb, "MARINE_UV_TOL_BASE", 0.0)
     assert _check(_product(_node(0.0, 0.0, **BIG_SEA)))["bad"] == 1
+
+
+def test_a_refusal_names_the_check_that_failed():
+    """Run 40019869501 printed only max errors: dir_confidence 0.001967 (inside its tolerance) looked like the cause;
+    a None-vs-value mismatch printed no number at all. The report now says which check failed, for each bad node."""
+    first = _node(0.0, 0.0, **BIG_SEA)
+    first["u"] = round(first["u"] + 0.01, 4)
+    uv = _check(_product(first))
+    assert uv["bad"] == 1 and uv["why"][0]["node"] == 0 and uv["why"][0]["fails"][0].startswith("uv: err")
+
+    def none_vs_value(dec):
+        dec["fields"][fb.DIR_CONFIDENCE][1] = 0.5
+    missing = _node(0.0, 1.0, conf=None)
+    p = _product(_node(0.0, 0.0))
+    p["grid"]["vectors"][1] = missing
+    got = _check(p, none_vs_value)
+    assert got["bad"] == 1 and got["why"][0]["fails"] == ["dir_confidence: source None, frame 0.5"]
+    assert "why" not in _check(_product(_node(0.0, 0.0)))
+
+
+def test_the_explanations_are_capped():
+    def all_wrong(dec):
+        for i in range(4):
+            dec["fields"][fb.PERIOD][i] += 1.0
+    got = _check(_product(_node(0.0, 0.0)), all_wrong)
+    assert got["bad"] == 4 and len(got["why"]) == fb.WHY_MAX
 
 
 def test_a_uv_off_by_twice_its_bound_still_fails_at_any_height():

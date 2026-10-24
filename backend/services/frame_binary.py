@@ -124,7 +124,10 @@ MARINE_UV_TOL_PER_M = math.radians(0.005) + FLOAT_SLACK
 # The old fixed tolerance stays as a FLOOR: this change only stops wrongful refusals. Below about 6 m the derived bound is
 # tighter than 0.0012, and a stored product whose u/v come from somewhere this budget does not model (a blend) would
 # start being refused; only refused frames log their u/v error, so that cannot be measured from a publish log today.
-MARINE_UV_TOL_FLOOR = 0.0012
+MARINE_UV_TOL_FLOOR = 0.0012 + FLOAT_SLACK   # with float slack, like every tolerance: a 4-dp difference of exactly
+#                                             0.0012 can be 0.0012000000000000001 in binary (run 40019869501's first
+#                                             refused ICON frame printed uv_max_err 0.0012)
+WHY_MAX = 3   # parity() names the failing check for this many bad nodes
 # Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
 # UNROUNDED speed and direction (and rounded to 4 dp): 0.005 kn + 0.005 deg of the speed + both 4-dp roundings, with slack.
 WIND_UV_TOL_BASE = 0.006
@@ -391,16 +394,27 @@ def parity(product, decoded):
     bad = missing_mismatch = 0
     errs = {FIELD_NAMES[k]: 0.0 for k in f}
     uv_err = 0.0
+    why = []   # ⬇ 2026-10-23: WHICH check failed, for the first WHY_MAX bad nodes. A refusal used to print only the
+    #            frame's max errors, and run 40019869501's showed dir_confidence 0.001967 (inside its tolerance) while
+    #            the u/v check had refused the node; a None-vs-value mismatch printed no number at all.
+
+    def explain(i, vec, fails):
+        if len(why) < WHY_MAX:
+            why.append({"node": i, "lat": vec.get("lat"), "lng": vec.get("lng"), "height": _finite(vec.get("speed")),
+                        "fails": fails})
+
     for i, vec in enumerate(vectors):
-        node_bad = False
+        fails = []
         valid = _valid(vec)
         got_h = f[mag][i] if mag in f else None
         if valid != (got_h is not None):
             missing_mismatch += 1
             bad += 1
+            explain(i, vec, [f"validity: source {'data' if valid else 'no data'}, frame "
+                             f"{'data' if got_h is not None else 'no data'}"])
             continue
         for fid, values in f.items():
-            got = values[i]
+            got, name = values[i], FIELD_NAMES[fid]
             if fid in (HEIGHT, SPEED):
                 want = float(vec["speed"]) if valid else None
             elif fid == LANE_WEIGHT:
@@ -410,20 +424,22 @@ def parity(product, decoded):
                 if got is not None and want is not None:
                     d = abs(got - want) % 360.0
                     err = min(d, 360.0 - d)
-                    errs[FIELD_NAMES[fid]] = max(errs[FIELD_NAMES[fid]], err)
-                    node_bad |= err > TOLERANCE[fid]
+                    errs[name] = max(errs[name], err)
+                    if err > TOLERANCE[fid]:
+                        fails.append(f"{name}: err {err:.7f} > {TOLERANCE[fid]:.7f}")
                     continue
             elif fid == PERIOD:
                 want = _finite(vec.get("period"))
             else:
                 want = _finite(vec.get("dir_confidence"))
             if (want is None) != (got is None):
-                node_bad = True
+                fails.append(f"{name}: source {want!r}, frame {got!r}")
                 continue
             if want is not None:
                 err = abs(got - want)
-                errs[FIELD_NAMES[fid]] = max(errs[FIELD_NAMES[fid]], err)
-                node_bad |= err > TOLERANCE[fid]
+                errs[name] = max(errs[name], err)
+                if err > TOLERANCE[fid]:
+                    fails.append(f"{name}: err {err:.7f} > {TOLERANCE[fid]:.7f}")
         if valid and mag in f and DIRECTION in f:
             rad = math.radians(f[DIRECTION][i])
             sign = 1.0 if decoded.get("uv_convention") == 1 else -1.0
@@ -433,7 +449,13 @@ def parity(product, decoded):
             if su or sv:  # stored 0/0 means "derive from direction", which the renderer does the same way
                 e = max(abs(u - su), abs(v - sv))
                 uv_err = max(uv_err, e)
-                node_bad |= e > tol
-        bad += node_bad
-    return {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
-            "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}
+                if e > tol:
+                    fails.append(f"uv: err {e:.7f} > {tol:.7f} at {FIELD_NAMES[mag]} {f[mag][i]}")
+        if fails:
+            bad += 1
+            explain(i, vec, fails)
+    out = {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
+           "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}
+    if why:
+        out["why"] = why
+    return out
