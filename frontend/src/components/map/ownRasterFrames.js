@@ -56,11 +56,16 @@ export function tel() {
 }
 export function noteMiss(reason) { const t = tel(); t.misses[reason] = (t.misses[reason] || 0) + 1; }
 
+// The last index pinned per layer: a toggle draws from it at once (one frame round trip) while ownIndex refreshes it.
+const _lastIndex = {};
+export const lastIndex = (layer) => _lastIndex[layer] || null;
+
 /** The pinned index for a layer's set (async; null when none is published or the path is off). */
 export async function ownIndex(layer) {
   if (!ownFramesOn(layer)) return null;
   try {
     const idx = await getPinnedIndex(OWN_RASTER_SETS[layer].key);
+    if (idx) _lastIndex[layer] = idx;
     if (idx) tel().pin = { layer, index: idx.path || null, run: idx.run || null, frames: idx.frames.length, validMs: framesOf(idx).map((f) => Date.parse(f.valid_time)) };
     return idx || null;
   } catch (e) { return null; }
@@ -127,7 +132,7 @@ function keep(path, field) {
 
 /** Load (fetch + inflate + parse + field) one frame; null on any failure. Shared per path; never aborted once started (a
  *  started frame is at most a window away, and the pump below bounds how many start). */
-export function loadField(layer, frame) {
+export function loadField(layer, frame, priority) {
   if (!frame || !frame.path) return Promise.resolve(null);
   const have = getField(frame.path);
   if (have) return Promise.resolve(have);
@@ -138,7 +143,8 @@ export function loadField(layer, frame) {
     p = (async () => {
       const t = tel();
       t.loads += 1;
-      const got = await loadFrameParsed(set.key, frame);
+      // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
+      const got = await loadFrameParsed(set.key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); return null; }
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const field = toField(got.parsed, set.field);
@@ -169,14 +175,14 @@ export function setWanted(layer, frames, onField) {
 
 function pump() {
   const { layer, wanted } = _pump;
-  for (const f of wanted) {
-    if (_inflight.size >= MAX_IN_FLIGHT) break;
-    if (_fields.has(f.path) || _inflight.has(f.path)) continue;
-    loadField(layer, f).then((field) => {
+  wanted.forEach((f, i) => {
+    if (_inflight.size >= MAX_IN_FLIGHT) return;
+    if (_fields.has(f.path) || _inflight.has(f.path)) return;
+    loadField(layer, f, i === 0 ? 'high' : 'low').then((field) => {
       if (field && _pump.onField && _pump.wanted.some((w) => w.path === f.path)) _pump.onField(f.path, field);
       pump();
     });
-  }
+  });
 }
 
 // ── which layers are drawn from our frames right now (the legend credit reads it) ──────────────────────────────────
@@ -202,6 +208,7 @@ export function _resetOwnRasterFramesForTest() {
   _inflight.clear();
   _pump.layer = null; _pump.wanted = []; _pump.onField = null;
   _engaged = Object.freeze({});
+  for (const k of Object.keys(_lastIndex)) delete _lastIndex[k];
   const w = W();
   delete w.__RAW_OWN_RASTER__;
 }
