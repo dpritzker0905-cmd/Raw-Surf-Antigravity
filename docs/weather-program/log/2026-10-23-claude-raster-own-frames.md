@@ -67,3 +67,30 @@ Under 1 dE00 (invisible) on 94-98% of pixels; the residue sits on palette step e
 `own_frames_fixture.js` (synthetic set to the contract + a CDN stand-in with CORS and immutable headers, `--serve`, `--lat`),
 `own_frames_shift.js`, `probe_own_frames.js` (toggle, steps, credit, Open-Meteo request count, screenshots per theme; `LIVE=1`,
 `NOLAYER=1` control), `compare_shots.py` (CIEDE2000, `--null`). The lab's own-frames classifier and `OWN_CDN` counting are in #477.
+
+## Own frames: the index pinned at idle (`claude/raster-own-index-pin`, after #481)
+Still DARK (only with `__RAW_RASTER_OWN_FRAMES__`). Kill: `window.__RAW_DISABLE_RASTER_OWN_PREWARM__ = true`.
+- WHY: #481's toggle waits on three sequential round trips (latest.json, the run index, the frame).
+- WHAT: with the lever on and the layer off, `useOwnRasterFrames` pins the index once the map is idle (requestIdleCallback):
+  latest.json + the index (52 KB for the GFS pressure run), NO frames (raster frames never join an idle fill). A toggle then
+  draws from the remembered index at once while `ownIndex` refreshes it in the background (a new run is taken on the next step).
+- MEASURED (dark, the shifted real 06Z set behind the 150 ms CDN stand-in, two builds alternated, 4 toggles each):
+  toggle to the first drawn frame 596 / 611 / 639 / 642 ms without -> 295 / 331 / 342 / 374 ms with (median ~620 -> ~336 ms).
+  What is left is the frame's own round trip, its decode and the upload.
+- With #479 on dev, the window's loads carry a fetch priority: 'high' for the frame the step wants, 'low' for the rest.
+
+## Side-by-side clip for the owner (`clip_own_vs_om.js` + `compose_clip.py`)
+The SAME scripted scrub in both arms (pressure on at zoom 3.2, ArrowRight every 300 ms for 24 hours, a 4 s hold), each arm in its
+own browser, CDP screencast frames laid side by side on one clock in dark, light and beach. Real data: the .om arm replays
+Open-Meteo's live files at their recorded latencies (one warm-up pass recorded 140 live reads, 7.5 MB); ours reads #473's real
+GFS 06Z frames at 150 ms. 4 s after the last key the .om arm still said "Loading Sat 11 AM... still showing Fri 12 PM"; ours
+showed Sat 11 AM. Open-Meteo requests in the scrub: .om 142-160 (7.3-8.1 MB), ours 0. Clips handed to the lead for the owner.
+
+## Live reads owed by #469, #471, #477 (deployed dev bundle)
+Bundle read-back first: the kill-switch names of all three are in the deployed chunks (6506.c2f3ce11 for #469/#471/#464, 3923.c46e6e3c
+for #477). ONE live run (`live_read_raster.js`, 15:26-15:27Z, /api/health 200 in 1.48 s before and 1.97 s after): pressure on,
+6 one-hour steps, water temp on; no page errors. Steps 57-82 ms with 0 mixed frames. Its toggle reading (58 ms) was an INSTRUMENT
+FALSE POSITIVE: the sampler counted the transparent placeholder slot as drawn. Fixed (a lit slot needs a data URL) and re-read with
+the same deployed bundle against the OFFLINE backend (real Open-Meteo, no load on the box): pressure toggle 3.0 s, steps
+58-76 ms, 0 mixed, 3-5 stale frames per step (~60 ms, under the 300 ms quiet period, so no words), water temp toggle 3.9 s.
+Against the 2026-10-22 baseline (one-hour steps p50 0.95-1.7 s on desktop) the deployed swap holds.

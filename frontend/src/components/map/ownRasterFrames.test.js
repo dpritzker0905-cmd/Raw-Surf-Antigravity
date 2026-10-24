@@ -1,8 +1,8 @@
 import {
-  planWindow, toField, ownFramesOn, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
+  planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
-import { loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
+import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
 jest.mock('./staticFrames', () => ({
   getPinnedIndex: jest.fn(),
@@ -97,6 +97,7 @@ describe('the window pump', () => {
     const got = [];
     setWanted('pressure', ['a', 'b', 'c', 'd'].map((p) => ({ path: p })), (p) => got.push(p));
     expect(loadFrameParsed.mock.calls.map((c) => c[1].path)).toEqual(['a', 'b', 'c']);
+    expect(loadFrameParsed.mock.calls.map((c) => c[3] && c[3].priority)).toEqual(['high', 'low', 'low']);   // the wanted frame first
     setWanted('pressure', ['e', 'a'].map((p) => ({ path: p })), (p) => got.push(p));   // the scrub moved on: d is gone
     resolvers.a(); await new Promise((r) => setTimeout(r, 0));
     expect(loadFrameParsed.mock.calls.map((c) => c[1].path)).toEqual(['a', 'b', 'c', 'e']);
@@ -105,5 +106,18 @@ describe('the window pump', () => {
     resolvers.b(); resolvers.c(); resolvers.e(); await new Promise((r) => setTimeout(r, 0));
     expect(got).toEqual(['a', 'e']);                    // b and c landed (kept in the LRU) but are no longer wanted
     expect(loadFrameParsed.mock.calls.map((c) => c[1].path)).not.toContain('d');
+  });
+});
+
+describe('the remembered index (prewarm: a toggle draws after one frame round trip)', () => {
+  test('ownIndex remembers what it pinned; nothing while the lever is off', async () => {
+    const idx = { path: 'i.json', frames: [{ valid_time: '2026-10-23T06:00:00Z', path: 'f0' }] };
+    getPinnedIndex.mockResolvedValue(idx);
+    expect(await ownIndex('pressure')).toBeNull();          // lever off
+    expect(lastIndex('pressure')).toBeNull();
+    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    expect(await ownIndex('pressure')).toBe(idx);
+    expect(lastIndex('pressure')).toBe(idx);
+    expect(getPinnedIndex).toHaveBeenCalledWith('GFS/weather/pressure/global_0p5');
   });
 });
