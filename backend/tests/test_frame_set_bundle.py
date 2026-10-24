@@ -226,3 +226,78 @@ def test_a_failed_bundle_upload_does_not_stop_the_world_sets(tmp_path, monkeypat
     assert "HTTP 429" in report[KEY]["error"] and report[KEY]["index"] is None
     assert report[world_key]["built"] == 10 and sink.order[-1] == fs.LATEST
     assert set(_latest(out)["sets"]) == {world_key}                              # the world pointer moved; no regional record
+
+
+# ── explicit empty (2026-10-23, the lead's item 4) ─────────────────────────────────────────────────────────────────────────────
+EMPTY_TARGET = next(t for t in fsb.REGIONAL_SETS if t["region_id"] == "us_west_coast_socal" and t["layer"] == "waves")
+EMPTY_KEY = fs.set_key(EMPTY_TARGET)
+
+
+def test_a_regional_set_with_no_stored_product_is_written_as_explicit_empty_and_does_not_churn(tmp_path, monkeypatch):
+    """The manifest carries GFS marine waves (Florida) but none for SoCal: SoCal's set is {"empty": true}, Florida's is real."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{EMPTY_KEY}")
+    report, _ = _publish(store, out)
+    rec = _latest(out)["sets"][EMPTY_KEY]
+    assert rec["empty"] is True and rec["reason"] == fsb.EMPTY_REASON and "index" not in rec and report[EMPTY_KEY]["empty"] is True
+    assert _latest(out)["sets"][KEY]["index"]                                    # the real set is untouched
+    first = rec["written_at"]
+    monkeypatch.setattr(pub, "datetime", type("D", (), {"now": staticmethod(lambda tz=None: __import__("datetime").datetime(2030, 1, 1, tzinfo=tz))}))
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)                       # a NEW Florida run: latest.json is rewritten
+    _publish(store, out)
+    assert _latest(out)["sets"][KEY]["written_at"].startswith("2030")              # the real pointer moved this run...
+    assert _latest(out)["sets"][EMPTY_KEY]["written_at"] == first               # ...and the unchanged empty kept its stamp
+
+
+def test_a_run_that_publishes_nothing_writes_no_empty_records(tmp_path, monkeypatch):
+    """Empties ride the next real pointer move: a run with nothing to publish leaves latest.json as it was (here: absent)."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store, skip=tuple(range(len(VALIDS))))                            # nothing on disk: Florida publishes nothing
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{EMPTY_KEY}")
+    report, _ = _publish(store, out)
+    assert not (out / fs.LATEST).exists() and report[EMPTY_KEY]["empty"] is True
+
+
+def test_a_world_set_is_never_written_as_empty(tmp_path, monkeypatch):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    world = next(t for t in fs.SETS if t["model"] == "GFS" and t["layer"] == "waves" and t["region_id"] == "global_mid")
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{fs.set_key(world)}")
+    _publish(store, out)
+    assert _latest(out)["sets"][KEY]["index"] and fs.set_key(world) not in _latest(out)["sets"]
+
+
+def test_no_empty_record_when_the_manifest_lacks_the_layer_everywhere(tmp_path, monkeypatch):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    swell2 = next(t for t in fsb.REGIONAL_SETS if t["region_id"] == "us_west_coast_socal" and t["layer"] == "swell_2")
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{fs.set_key(swell2)}")
+    _publish(store, out)
+    assert fs.set_key(swell2) not in _latest(out)["sets"]                       # no GFS swell_2 anywhere: maybe a broken read
+
+
+def test_a_published_index_is_never_downgraded_to_empty(tmp_path, monkeypatch):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    _publish(store, out)
+    published = _latest(out)["sets"][KEY]
+    manifest = json.loads((store / "manifest.json").read_text())
+    other = [dict(p, region_id="hawaii") for p in manifest["products"]]           # the layer still exists elsewhere
+    (store / "manifest.json").write_text(json.dumps({"products": other}))
+    report, _ = _publish(store, out)
+    assert _latest(out)["sets"][KEY] == published and report[KEY].get("empty") is False
+
+
+def test_an_empty_set_that_gains_products_gets_its_real_record(tmp_path, monkeypatch):
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    monkeypatch.setenv("FRAME_SETS", f"{KEY},{EMPTY_KEY}")
+    _publish(store, out)
+    assert _latest(out)["sets"][EMPTY_KEY]["empty"] is True
+    manifest = json.loads((store / "manifest.json").read_text())
+    socal = [dict(p, region_id="us_west_coast_socal") for p in manifest["products"]]
+    (store / "manifest.json").write_text(json.dumps({"products": manifest["products"] + socal}))
+    _publish(store, out)
+    rec = _latest(out)["sets"][EMPTY_KEY]
+    assert rec.get("index") and rec.get("bundle") and "empty" not in rec
