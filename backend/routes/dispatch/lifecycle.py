@@ -30,6 +30,7 @@ from utils.parental_alerts import check_and_send_spending_alert
 from core.security import get_current_user_id
 
 from services.onesignal_service import onesignal_service
+from services.xp import grant_xp
 
 from .schemas import (
     CreateDispatchRequest, AcceptDispatchRequest, UpdateGPSLocation,
@@ -613,29 +614,31 @@ async def mark_arrived(
     )
     photographer = photographer_result.scalar_one_or_none()
     
+    final_xp = 0
     if photographer:
-        base_xp = 50
-        hot_streak_multiplier = 2.0 if (photographer.on_demand_streak or 0) >= 3 else 1.0
-        final_xp = int(base_xp * hot_streak_multiplier)
-        photographer.xp_total = (photographer.xp_total or 0) + final_xp
-        
-        today = now.date()
-        if photographer.on_demand_updated_at:
-            last_date = photographer.on_demand_updated_at.date()
-            if last_date.year == today.year and last_date.month == today.month:
-                photographer.on_demand_streak = (photographer.on_demand_streak or 0) + 1
+        # The server decides the amount (services/xp.py); a replayed arrival grants nothing and does not
+        # advance the streak a second time.
+        final_xp = await grant_xp(db, photographer.id, "on_demand_connect", reference_type="dispatch",
+                                  reference_id=dispatch_id, streak=photographer.on_demand_streak or 0)
+        if final_xp > 0:
+            today = now.date()
+            if photographer.on_demand_updated_at:
+                last_date = photographer.on_demand_updated_at.date()
+                if last_date.year == today.year and last_date.month == today.month:
+                    photographer.on_demand_streak = (photographer.on_demand_streak or 0) + 1
+                else:
+                    photographer.on_demand_streak = 1
             else:
                 photographer.on_demand_streak = 1
-        else:
-            photographer.on_demand_streak = 1
-        photographer.on_demand_updated_at = now
+            photographer.on_demand_updated_at = now
     
     # Surfer gets "First Responder" badge (if first On-Demand)
     surfer_result = await db.execute(
         select(Profile).where(Profile.id == dispatch.requester_id)
     )
     surfer = surfer_result.scalar_one_or_none()
-    
+    surfer_xp = 0
+
     if surfer:
         badges = []
         if surfer.badges:
@@ -648,8 +651,9 @@ async def mark_arrived(
             badges.append('first_responder')
             surfer.badges = json.dumps(badges)
         
-        surfer.xp_total = (surfer.xp_total or 0) + 25
-    
+        surfer_xp = await grant_xp(db, surfer.id, "on_demand_requested", reference_type="dispatch",
+                                   reference_id=dispatch_id)
+
     await db.commit()
     
     return {
@@ -658,9 +662,9 @@ async def mark_arrived(
         "booking_id": booking.id,
         "message": "Arrived! Session started. Enjoy your surf!",
         "gamification": {
-            "photographer_xp_awarded": final_xp if photographer else 0,
+            "photographer_xp_awarded": final_xp,
             "photographer_streak": photographer.on_demand_streak if photographer else 0,
-            "surfer_xp_awarded": 25 if surfer else 0,
+            "surfer_xp_awarded": surfer_xp,
             "surfer_badge": "first_responder" if surfer and 'first_responder' not in (badges[:-1] if badges else []) else None
         }
     }

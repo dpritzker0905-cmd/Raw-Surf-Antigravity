@@ -259,28 +259,5 @@ async def get_photographer_stats(
     )
 
 
-@router.post("/photographer/{photographer_id}/award-xp")
-async def award_xp(
-    photographer_id: str,
-    xp_amount: int = 10,
-    reason: str = "activity",
-    db: AsyncSession = Depends(get_db)
-):
-    """Award XP to photographer (called internally after successful actions)"""
-    result = await db.execute(select(Profile).where(Profile.id == photographer_id))
-    profile = result.scalar_one_or_none()
-    if not profile:
-        raise HTTPException(status_code=404, detail="Photographer not found")
-    
-    multiplier = 2.0 if (profile.on_demand_streak or 0) >= 3 else 1.0
-    final_xp = int(xp_amount * multiplier)
-    profile.xp_total = (profile.xp_total or 0) + final_xp
-    await db.commit()
-    
-    return {
-        "success": True,
-        "xp_awarded": final_xp,
-        "multiplier": multiplier,
-        "new_total": profile.xp_total,
-        "reason": reason
-    }
+# There is no "award XP" route: XP is granted only by the server action that earned it (services/xp.py).
+# This one took an amount from the caller and had no caller of its own (removed 2026-10-24).

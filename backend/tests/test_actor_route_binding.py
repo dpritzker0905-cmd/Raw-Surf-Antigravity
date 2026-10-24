@@ -56,7 +56,6 @@ TOKEN_IDENTITY = [
     ("POST", "/api/promo-codes/validate"),
     ("POST", "/api/support/tickets"),
     ("PATCH", "/api/bookings/{booking_id}"),
-    ("POST", "/api/gamification/award-xp"),
     ("POST", "/api/impact/instant-shakas/{shaka_id}/view"),
     ("POST", "/api/ads/impression"),
     ("POST", "/api/ads/click"),
@@ -150,6 +149,8 @@ NAMED_ACTOR = [
     ("GET", "/api/photographer/{photographer_id}/earnings-history", "path", "photographer_id"),
     ("GET", "/api/photo-subscriptions/my-subscriptions/{user_id}", "path", "user_id"),
     ("GET", "/api/photo-subscriptions/my-subscribers/{photographer_id}", "path", "photographer_id"),
+    # XP (2026-10-24): badges are computed from the caller's own ledger.
+    ("POST", "/api/gamification/check-badges/{user_id}", "path", "user_id"),
 ]
 # Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
 # tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.
