@@ -494,7 +494,7 @@ _FLOOR_SET_FROM = {
     # chain: set from 2909 = max(dev run 40041246053 read 2891, dev's map 2896) + 13 (claude/regional-tile-first, 2026-10-24); floor 2903, margin 6.
     "chain": 2909,
 
-    # estate: set from 2665 = max(dev run 40045304524 read 2556, dev's map 2556) + 109 (claude/beautiful-cerf-d9f949, 2026-10-24); floor 2663, margin 2.
+    # estate: set from 2665 = max(dev run 40046480252 read 2556, dev's map 2556) + 109 (claude/beautiful-cerf-d9f949, 2026-10-24); floor 2663, margin 2.
     "estate": 2665,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
