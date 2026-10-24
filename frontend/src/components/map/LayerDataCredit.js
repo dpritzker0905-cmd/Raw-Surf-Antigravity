@@ -18,11 +18,15 @@ const SOURCES = {
   rainviewer: { text: '© RainViewer', href: 'https://www.rainviewer.com/', label: 'Radar data source: RainViewer (opens in a new tab)' },
   // A layer drawn from our own frames (ownRasterFrames.js, free NOAA GRIB): public domain, credited as a courtesy.
   noaa: { text: 'NOAA GFS', href: 'https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast', label: 'Data source: NOAA NCEP Global Forecast System, public domain (opens in a new tab)' },
+  // Per-model pressure (2026-10-24): ECMWF open data is CC BY 4.0 (attribution required); DWD asks for "Deutscher Wetterdienst".
+  ecmwf: { text: 'EURO (ECMWF) · CC BY 4.0', href: 'https://www.ecmwf.int/en/forecasts/datasets/open-data', label: 'Data source: ECMWF open data, licence CC BY 4.0 (opens in a new tab)' },
+  dwd: { text: 'ICON (Deutscher Wetterdienst)', href: 'https://opendata.dwd.de/', label: 'Data source: Deutscher Wetterdienst, ICON model (opens in a new tab)' },
 };
+const OWN_SOURCE = { GFS: 'noaa', EURO: 'ecmwf', ICON: 'dwd' };
 
 export function creditFor(layer, engaged = getEngaged()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
-  if (engaged && engaged[layer]) return SOURCES.noaa;
+  if (engaged && engaged[layer]) return SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
   return SOURCES[LAYER_CREDITS[layer]] || null;
 }
 
