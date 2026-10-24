@@ -1544,7 +1544,9 @@ jobs:
           #   base 2891 (hosted read) + 5 new test(s) = 2896, files 177; floor 2896 - 6 = 2890. This PR must read 2896 passed.
           # ⬆ 2890→2903 on 2026-10-24 (rederive_floor.py, claude/regional-tile-first): dev run 40041246053 read 2891 / 177 files; dev's map 2896;
           #   base 2896 (dev's map) + 13 new test(s) = 2909, files 178; floor 2909 - 6 = 2903. This PR must read 2909 passed.
-          MIN_FILES, MIN_PASSED = 178, 2903
+          # ⬆ 2903→2912 on 2026-10-24 (rederive_floor.py, claude/fill-provenance-nodes): dev run 40045304524 read 2896 / 177 files; dev's map 2909;
+          #   base 2909 (dev's map) + 9 new test(s) = 2918, files 179; floor 2918 - 6 = 2912. This PR must read 2918 passed.
+          MIN_FILES, MIN_PASSED = 179, 2912
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2030,9 +2032,13 @@ jobs:
           #   base 2505 (hosted read) + 1 new test(s) = 2506; floor 2506 - 2 = 2504. This PR must read 2506 passed.
           # ⬆ 2528→2554 on 2026-10-23 (rederive_floor.py, HEAD): dev run 40039022786 read 2506; dev's map 2530;
           #   base 2530 (dev's map) + 26 new test(s) = 2556; floor 2556 - 2 = 2554. This PR must read 2556 passed.
-          # ⬆ 2554→2583 on 2026-10-24 (rederive_floor.py, claude/blocks-enforced-f09): dev run 40046480252 read 2556; dev's map 2556;
-          #   base 2556 (hosted read) + 29 new test(s) = 2585; floor 2585 - 2 = 2583. This PR must read 2585 passed.
-          MIN_PASSED = 2583
+          # ⬆ 2554→2571 on 2026-10-24 (rederive_floor.py, claude/frame-parity-tolerance): dev run 40045304524 read 2556; dev's map 2556;
+          #   base 2556 (hosted read) + 17 new test(s) = 2573; floor 2573 - 2 = 2571. This PR must read 2573 passed.
+          # ⬆ 2571→2683 on 2026-10-24 (rederive_floor.py, claude/beautiful-cerf-d9f949): dev run 40051472495 read 2573; dev's map 2573;
+          #   base 2573 (hosted read) + 112 new test(s) = 2685; floor 2685 - 2 = 2683. This PR must read 2685 passed.
+          # ⬆ 2683→2712 on 2026-10-24 (rederive_floor.py, claude/blocks-enforced-f09): dev run 40064519384 read 2685; dev's map 2685;
+          #   base 2685 (hosted read) + 29 new test(s) = 2714; floor 2714 - 2 = 2712. This PR must read 2714 passed.
+          MIN_PASSED = 2712
 
           try:
               root = ET.parse('estate.xml').getroot()

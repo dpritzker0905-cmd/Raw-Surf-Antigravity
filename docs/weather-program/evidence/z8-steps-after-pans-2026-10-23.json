@@ -1,0 +1,8735 @@
+{
+ "what": "Day steps at z8 after a pan session, offline (scn_sibling_toggle.js STEPS: Home then 6 PageUp, +24 h each, 4 s apart; ms from the key to the selected hour on the GPU, null = not within 4 s; per step the forensic ring slice and the engine-hour timeline; 'requests' = the harness's own start time and response time of every /grid and /grid_series). z8 (-79.95, 26.5) on the owner window, 20 drifting pans 3 s apart; the 1-CPU box modelled (surf at 1/5 of live cost). Builds: dev 3804154b3 (#501 + #505) for STEPINV rows; 73a9b2421 (+ the model-switch warm sharing the viewport intent; arms fix / kill) for MODEL_WARM_SUPERSEDE rows.",
+ "rows": [
+  {
+   "run": "NO_PANS_AND_DRAINED",
+   "case": "load",
+   "arm": "dev",
+   "flags": [],
+   "firstWavesMs": 2715,
+   "pansEndMs": null,
+   "drainedAtMs": 128632,
+   "steps": [
+    {
+     "target": 24,
+     "ms": 29,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       13,
+       0,
+       false
+      ],
+      [
+       29,
+       24,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 120,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 120,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 0,
+      "vb": {
+       "w": -81.02,
+       "s": 26.02,
+       "e": -78.88,
+       "n": 26.98
+      },
+      "willSharpen": false,
+      "ts": 1792800787303
+     }
+    },
+    {
+     "target": 48,
+     "ms": 43,
+     "long": 0,
+     "series": true,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       -7,
+       24,
+       true
+      ],
+      [
+       43,
+       48,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 59,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 816,
+       "type": "snap",
+       "hour": 48,
+       "model": "ICON"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 48,
+      "vb": {
+       "w": -81.02,
+       "s": 26.02,
+       "e": -78.88,
+       "n": 26.98
+      },
+      "willSharpen": false,
+      "ts": 1792800808821
+     }
+    },
+    {
+     "target": 72,
+     "ms": 39,
+     "long": 0,
+     "series": true,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       48,
+       true
+      ],
+      [
+       39,
+       72,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 36,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 48,
+      "vb": {
+       "w": -81.02,
+       "s": 26.02,
+       "e": -78.88,
+       "n": 26.98
+      },
+      "willSharpen": false,
+      "ts": 1792800808821
+     }
+    },
+    {
+     "target": 96,
+     "ms": 42,
+     "long": 0,
+     "series": true,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       9,
+       72,
+       true
+      ],
+      [
+       42,
+       96,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 47,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 96,
+      "vb": {
+       "w": -81.02,
+       "s": 26.02,
+       "e": -78.88,
+       "n": 26.98
+      },
+      "willSharpen": false,
+      "ts": 1792800817822
+     }
+    },
+    {
+     "target": null,
+     "ms": null,
+     "long": 0,
+     "series": null,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       -2,
+       96,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1846,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 3690,
+       "type": "snap",
+       "hour": 96,
+       "model": "ICON"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -81.02,
+       "s": 26.02,
+       "e": -78.88,
+       "n": 26.98
+      },
+      "willSharpen": false,
+      "ts": 1792800822547
+     }
+    },
+    {
+     "target": 144,
+     "ms": 36,
+     "long": 0,
+     "series": true,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       2,
+       96,
+       true
+      ],
+      [
+       36,
+       144,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 31,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -81.02,
+       "s": 26.02,
+       "e": -78.88,
+       "n": 26.98
+      },
+      "willSharpen": false,
+      "ts": 1792800822547
+     }
+    }
+   ],
+   "requests": null,
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     49,
+     3935
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     357,
+     764
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     2785,
+     6464
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     3175,
+     3775
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     7032,
+     7233
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     11027,
+     11235
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     14994,
+     15205
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     18736,
+     19076
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     18806,
+     21947
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     28720,
+     31728
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     39719,
+     42731
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     54706,
+     60646
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     54775,
+     60724
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     67185,
+     70200
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     73575,
+     76590
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     81265,
+     84273
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     87743,
+     88078
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     87816,
+     90960
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     91775,
+     91981
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     95799,
+     96003
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     97081,
+     97283
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     100004,
+     103217
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     101897,
+     102298
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     113525,
+     113729
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     134564,
+     134767
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     137026,
+     140443
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     137026,
+     137462
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     137372,
+     137803
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     146028,
+     149392
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     146029,
+     146436
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     149080,
+     149439
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     154402,
+     154617
+    ]
+   ]
+  },
+  {
+   "run": "NO_PANS_AND_DRAINED",
+   "case": "pans@20",
+   "arm": "dev",
+   "flags": [],
+   "firstWavesMs": 8252,
+   "pansEndMs": 76884,
+   "drainedAtMs": 252597,
+   "steps": [
+    {
+     "target": 24,
+     "ms": 69,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       3,
+       0,
+       false
+      ],
+      [
+       69,
+       24,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 183,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 183,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801095980
+     }
+    },
+    {
+     "target": 48,
+     "ms": 57,
+     "long": 0,
+     "series": true,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       6,
+       24,
+       true
+      ],
+      [
+       57,
+       48,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 55,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 2497,
+       "type": "snap",
+       "hour": 48,
+       "model": "ICON"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801095980
+     }
+    },
+    {
+     "target": 72,
+     "ms": 35,
+     "long": 0,
+     "series": true,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       1,
+       48,
+       true
+      ],
+      [
+       35,
+       72,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 41,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801101981
+     }
+    },
+    {
+     "target": 96,
+     "ms": 50,
+     "long": 0,
+     "series": true,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       -1,
+       72,
+       true
+      ],
+      [
+       50,
+       96,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 47,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801101981
+     }
+    },
+    {
+     "target": 120,
+     "ms": 43,
+     "long": 0,
+     "series": true,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       9,
+       96,
+       true
+      ],
+      [
+       43,
+       120,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 48,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 120,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801109405
+     }
+    },
+    {
+     "target": 144,
+     "ms": 55,
+     "long": 0,
+     "series": true,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       120,
+       true
+      ],
+      [
+       55,
+       144,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 74,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 1322,
+       "type": "snap",
+       "hour": 144,
+       "model": "ICON"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801116304
+     }
+    }
+   ],
+   "requests": null,
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     79,
+     3289
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     544,
+     950
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     8325,
+     11528
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     8711,
+     9111
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     16314,
+     16519
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     16590,
+     19594
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     23087,
+     23297
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     26072,
+     30200
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     28154,
+     32287
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     28154,
+     28761
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     34880,
+     35090
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     40231,
+     43438
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,28",
+     41336,
+     41743
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     46479,
+     49695
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,28",
+     47471,
+     47876
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     56419,
+     59426
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     62531,
+     62745
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     65715,
+     68747
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     68694,
+     68919
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     69246,
+     72252
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     81472,
+     84479
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     84688,
+     87690
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     87721,
+     90729
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     92643,
+     95700
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     95598,
+     98655
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     101251,
+     104260
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     110010,
+     110236
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     113002,
+     116014
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     119910,
+     125857
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     119971,
+     125921
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     134495,
+     137495
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     140799,
+     143816
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     147401,
+     150415
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     154023,
+     159954
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     154096,
+     160038
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     164482,
+     164697
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     167184,
+     167392
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     168397,
+     168607
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     170696,
+     173915
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     173102,
+     173525
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     180847,
+     181060
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     189994,
+     192996
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     199888,
+     200100
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     206035,
+     209044
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     217209,
+     220218
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     222534,
+     222737
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     228360,
+     231374
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     237486,
+     240486
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     253563,
+     256568
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     257590,
+     257802
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     259995,
+     260196
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     261185,
+     264199
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     265998,
+     266213
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     273355,
+     276562
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     273421,
+     273830
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     280256,
+     null
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     280323,
+     280723
+    ]
+   ]
+  },
+  {
+   "run": "SOON_AFTER_PANS_A",
+   "case": "pans@20",
+   "arm": "dev",
+   "flags": [],
+   "firstWavesMs": 2299,
+   "pansEndMs": 66011,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "target": 24,
+     "ms": 61,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       28,
+       0,
+       false
+      ],
+      [
+       61,
+       24,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 190,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 190,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 2379,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 2641,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 2641,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801365101
+     }
+    },
+    {
+     "target": 48,
+     "ms": 3133,
+     "long": 6,
+     "series": false,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       13,
+       24,
+       false
+      ],
+      [
+       3133,
+       48,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 3148,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801365101
+     }
+    },
+    {
+     "target": 72,
+     "ms": 1362,
+     "long": 0,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       10,
+       48,
+       false
+      ],
+      [
+       1362,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1362,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 2772,
+       "type": "commit_short_circuit",
+       "hour": 72
+      },
+      {
+       "dt": 3917,
+       "type": "commit_short_circuit",
+       "hour": 72
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801374750
+     }
+    },
+    {
+     "target": null,
+     "ms": null,
+     "long": 4,
+     "series": null,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       4,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 918,
+       "type": "snap",
+       "hour": 72,
+       "model": "ICON"
+      },
+      {
+       "dt": 2795,
+       "type": "inflight_skip"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801377706
+     }
+    },
+    {
+     "target": 120,
+     "ms": 3296,
+     "long": 2,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       -8,
+       72,
+       false
+      ],
+      [
+       3296,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 3298,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801377706
+     }
+    },
+    {
+     "target": null,
+     "ms": null,
+     "long": 3,
+     "series": null,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       17,
+       120,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801377706
+     }
+    }
+   ],
+   "requests": null,
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     51,
+     4376
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     345,
+     767
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     2370,
+     6829
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     2815,
+     3414
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     6196,
+     6673
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     6448,
+     9682
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     10590,
+     10802
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     11464,
+     16557
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     12453,
+     12916
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     12722,
+     17937
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     17411,
+     20678
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     21758,
+     25320
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     24266,
+     24728
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     24547,
+     27976
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     28179,
+     31182
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     34344,
+     40229
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     34467,
+     40352
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     42533,
+     48009
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     43072,
+     48551
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     51563,
+     51938
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     51597,
+     54773
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     54878,
+     57881
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     58078,
+     61260
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     60903,
+     64090
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     65297,
+     68297
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     69924,
+     72929
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     73990,
+     76998
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     77778,
+     80788
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     81126,
+     84546
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     81127,
+     81539
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83354,
+     83759
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     85522,
+     85731
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87403,
+     87616
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     89913,
+     90246
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     89981,
+     93327
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91460,
+     91863
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     94088,
+     97304
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95497,
+     95904
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99555,
+     99765
+    ]
+   ]
+  },
+  {
+   "run": "SOON_AFTER_PANS_A",
+   "case": "pans@20",
+   "arm": "dev",
+   "flags": [],
+   "firstWavesMs": 6002,
+   "pansEndMs": 71866,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "target": 24,
+     "ms": 43,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       9,
+       0,
+       false
+      ],
+      [
+       43,
+       24,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 118,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 119,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 1767,
+       "type": "snap",
+       "hour": 24,
+       "model": "ICON"
+      },
+      {
+       "dt": 3667,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 3667,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801476650
+     }
+    },
+    {
+     "target": 48,
+     "ms": 1736,
+     "long": 0,
+     "series": false,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       1,
+       24,
+       false
+      ],
+      [
+       1736,
+       48,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1748,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801476650
+     }
+    },
+    {
+     "target": 72,
+     "ms": 3692,
+     "long": 0,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       48,
+       false
+      ],
+      [
+       3692,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 3693,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801476650
+     }
+    },
+    {
+     "target": 96,
+     "ms": 1656,
+     "long": 0,
+     "series": false,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       72,
+       false
+      ],
+      [
+       1656,
+       96,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1658,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 2285,
+       "type": "commit_short_circuit",
+       "hour": 96
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801489828
+     }
+    },
+    {
+     "target": 120,
+     "ms": 1846,
+     "long": 0,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       11,
+       96,
+       false
+      ],
+      [
+       1846,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 175,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 519,
+       "type": "snap",
+       "hour": 96,
+       "model": "ICON"
+      },
+      {
+       "dt": 800,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 1846,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801492424
+     }
+    },
+    {
+     "target": 144,
+     "ms": 1585,
+     "long": 0,
+     "series": false,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       0,
+       120,
+       false
+      ],
+      [
+       1585,
+       144,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1591,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3317,
+       "type": "commit_short_circuit",
+       "hour": 144
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801498974
+     }
+    }
+   ],
+   "requests": null,
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     69,
+     3278
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     514,
+     921
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     6062,
+     9281
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     6441,
+     6862
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     12170,
+     12470
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     12292,
+     15383
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     18282,
+     18491
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     18565,
+     21573
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     21650,
+     24669
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     27593,
+     31135
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     30127,
+     30611
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     30388,
+     33807
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     34668,
+     37677
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     38262,
+     41494
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     41041,
+     44267
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     46141,
+     49528
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     48772,
+     52151
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     57508,
+     57710
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     59190,
+     62840
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     61542,
+     65194
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     67225,
+     70964
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     69505,
+     73238
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     77628,
+     77838
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     80296,
+     86649
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     80362,
+     86705
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     80362,
+     80957
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83317,
+     83927
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87368,
+     87584
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91424,
+     91631
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     93462,
+     93793
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     93545,
+     96883
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95475,
+     95877
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99539,
+     99749
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     102619,
+     102962
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     102687,
+     null
+    ]
+   ]
+  },
+  {
+   "run": "SOON_AFTER_PANS_B",
+   "case": "pans@20",
+   "arm": "dev",
+   "flags": [],
+   "firstWavesMs": 2403,
+   "pansEndMs": 65827,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79113,
+     "target": 24,
+     "ms": 59,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       8,
+       0,
+       false
+      ],
+      [
+       59,
+       23,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 159,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 160,
+       "type": "commit",
+       "hour": 23,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 1452,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 1453,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801935405
+     }
+    },
+    {
+     "wallSinceWaves": 83171,
+     "target": 48,
+     "ms": 809,
+     "long": 0,
+     "series": false,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       -8,
+       24,
+       false
+      ],
+      [
+       809,
+       48,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 180,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 825,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 48,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801938906
+     }
+    },
+    {
+     "wallSinceWaves": 87213,
+     "target": 72,
+     "ms": 819,
+     "long": 1,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       2,
+       48,
+       false
+      ],
+      [
+       819,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 414,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 819,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3030,
+       "type": "commit_short_circuit",
+       "hour": 72
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801945903
+     }
+    },
+    {
+     "wallSinceWaves": 91249,
+     "target": 96,
+     "ms": 2870,
+     "long": 1,
+     "series": false,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       1,
+       72,
+       false
+      ],
+      [
+       2870,
+       96,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 932,
+       "type": "snap",
+       "hour": 72,
+       "model": "ICON"
+      },
+      {
+       "dt": 2883,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801945903
+     }
+    },
+    {
+     "wallSinceWaves": 95293,
+     "target": 120,
+     "ms": 2168,
+     "long": 0,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       0,
+       96,
+       false
+      ],
+      [
+       2168,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 2179,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 2268,
+       "type": "commit_short_circuit",
+       "hour": 120
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801953223
+     }
+    },
+    {
+     "wallSinceWaves": 99377,
+     "target": 144,
+     "ms": 836,
+     "long": 0,
+     "series": false,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       1,
+       120,
+       false
+      ],
+      [
+       836,
+       144,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 175,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 854,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 885,
+       "type": "commit_short_circuit",
+       "hour": 144
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792801955923
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 408,
+     "ms": 1157,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 2869,
+     "ms": 1067,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 52,
+     "ms": 5531,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 6064,
+     "ms": 552,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82.5,24.25,-78.5,28.75"
+    },
+    {
+     "t": 2475,
+     "ms": 5401,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 6359,
+     "ms": 4377,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 10760,
+     "ms": 1194,
+     "path": "/grid_series",
+     "hours": 1,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-180.0000,-80.0000,180.0000,85.0000"
+    },
+    {
+     "t": 12344,
+     "ms": 708,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,24,-76,30"
+    },
+    {
+     "t": 12300,
+     "ms": 7747,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 47,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 12364,
+     "ms": 7966,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 24036,
+     "ms": 682,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,30"
+    },
+    {
+     "t": 20063,
+     "ms": 5812,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 21496,
+     "ms": 6059,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 25888,
+     "ms": 9342,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,25.0000,-76.0000,28.0000"
+    },
+    {
+     "t": 27740,
+     "ms": 7824,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 35248,
+     "ms": 7620,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 35578,
+     "ms": 7759,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 42879,
+     "ms": 8601,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 43352,
+     "ms": 8976,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 51581,
+     "ms": 916,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 51540,
+     "ms": 7486,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 52434,
+     "ms": 7690,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 59044,
+     "ms": 6439,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 60505,
+     "ms": 6196,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 65499,
+     "ms": 4993,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 70508,
+     "ms": 4831,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 95,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 75368,
+     "ms": 4225,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 143,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 79746,
+     "ms": 722,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 83246,
+     "ms": 723,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 79656,
+     "ms": 7856,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 191,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 79746,
+     "ms": 8228,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 87388,
+     "ms": 620,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 91431,
+     "ms": 2671,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 95485,
+     "ms": 1957,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 87557,
+     "ms": 9902,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 47,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 97502,
+     "ms": 1776,
+     "path": "/grid_series",
+     "hours": 1,
+     "h0": 47,
+     "model": "ICON",
+     "bbox": "-180.0000,-80.0000,180.0000,85.0000"
+    },
+    {
+     "t": 99460,
+     "ms": 742,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     52,
+     4240
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     408,
+     813
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     2475,
+     6920
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     2869,
+     3467
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     6064,
+     6531
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     6359,
+     9674
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     10760,
+     10970
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     12300,
+     18465
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     12345,
+     12927
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     12364,
+     18510
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     20063,
+     24856
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     21496,
+     26665
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     24036,
+     24638
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     25888,
+     30821
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     27740,
+     32285
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     35248,
+     40932
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     35578,
+     41260
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     42880,
+     48412
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     43352,
+     48894
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     51540,
+     57068
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     51581,
+     51977
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     52434,
+     57748
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     59044,
+     63591
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     60505,
+     65060
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     65499,
+     68505
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     70508,
+     73520
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     75368,
+     78376
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     79656,
+     85995
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     79746,
+     86081
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     79746,
+     80354
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83246,
+     83854
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87388,
+     87628
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     87557,
+     90600
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91431,
+     91633
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95485,
+     95699
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     97503,
+     97857
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     97564,
+     102181
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     99458,
+     null
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99460,
+     100068
+    ]
+   ]
+  },
+  {
+   "run": "MODEL_WARM_SUPERSEDE_SURF",
+   "case": "pans@20",
+   "arm": "fix",
+   "flags": [],
+   "firstWavesMs": 2404,
+   "pansEndMs": 66024,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79087,
+     "target": 24,
+     "ms": 28,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       11,
+       0,
+       false
+      ],
+      [
+       28,
+       23,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 89,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 89,
+       "type": "commit",
+       "hour": 23,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3610,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 3610,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3923,
+       "type": "commit_short_circuit",
+       "hour": 24
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 6,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802750615
+     }
+    },
+    {
+     "wallSinceWaves": 83114,
+     "target": 48,
+     "ms": 2091,
+     "long": 0,
+     "series": false,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       24,
+       false
+      ],
+      [
+       2091,
+       48,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 2085,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 6,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802750615
+     }
+    },
+    {
+     "wallSinceWaves": 87139,
+     "target": 72,
+     "ms": 2386,
+     "long": 0,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       0,
+       48,
+       false
+      ],
+      [
+       2386,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1843,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 2377,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802756588
+     }
+    },
+    {
+     "wallSinceWaves": 91166,
+     "target": 96,
+     "ms": 1029,
+     "long": 0,
+     "series": false,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       11,
+       72,
+       false
+      ],
+      [
+       1029,
+       96,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 803,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 1024,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 1116,
+       "type": "snap",
+       "hour": 96,
+       "model": "ICON"
+      },
+      {
+       "dt": 3641,
+       "type": "commit_short_circuit",
+       "hour": 96
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802762412
+     }
+    },
+    {
+     "wallSinceWaves": 95194,
+     "target": 120,
+     "ms": 3156,
+     "long": 0,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       3,
+       96,
+       false
+      ],
+      [
+       3156,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 3156,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802762412
+     }
+    },
+    {
+     "wallSinceWaves": 99224,
+     "target": 144,
+     "ms": 3214,
+     "long": 0,
+     "series": false,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       11,
+       120,
+       false
+      ],
+      [
+       3214,
+       144,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 3212,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802762412
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 448,
+     "ms": 1206,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 2837,
+     "ms": 1174,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 6192,
+     "ms": 2119,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82.5,24.25,-78.5,28.75"
+    },
+    {
+     "t": 9049,
+     "ms": 3124,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82.25,24,-78.25,28.5"
+    },
+    {
+     "t": 2454,
+     "ms": 10322,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 52,
+     "ms": 14049,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 12637,
+     "ms": 3706,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,24,-76,30"
+    },
+    {
+     "t": 6335,
+     "ms": 12954,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 18737,
+     "ms": 5094,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,24,-76,30"
+    },
+    {
+     "t": 24227,
+     "ms": 5493,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,30"
+    },
+    {
+     "t": 12636,
+     "ms": 17613,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 30627,
+     "ms": 6146,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,28"
+    },
+    {
+     "t": 19313,
+     "ms": 20489,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 38825,
+     "ms": 1713,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,28"
+    },
+    {
+     "t": 42490,
+     "path": "/api/weather/grid",
+     "hours": null,
+     "h0": null
+    },
+    {
+     "t": 30564,
+     "ms": 12729,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 43569,
+     "ms": 1555,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-74,28"
+    },
+    {
+     "t": 46642,
+     "ms": 2522,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-74,28"
+    },
+    {
+     "t": 51551,
+     "ms": 7230,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 39814,
+     "ms": 19562,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,25.0000,-76.0000,28.0000"
+    },
+    {
+     "t": 43482,
+     "ms": 16779,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 59388,
+     "ms": 11245,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 60278,
+     "ms": 13859,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 70644,
+     "ms": 7929,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 80812,
+     "ms": 1839,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 74158,
+     "ms": 8768,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 83282,
+     "ms": 1906,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 78588,
+     "ms": 10316,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 87308,
+     "ms": 2198,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 82938,
+     "ms": 8955,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 91335,
+     "ms": 845,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 95362,
+     "ms": 2971,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 99395,
+     "ms": 3026,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     52,
+     4275
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     448,
+     857
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     2454,
+     6885
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     2837,
+     3442
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     6192,
+     6713
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     6335,
+     9890
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.25,24,-78.25,28.5",
+     9049,
+     9450
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     12636,
+     15843
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     12637,
+     13044
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     18737,
+     18940
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     19313,
+     22315
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     24227,
+     24429
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     30564,
+     33769
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,28",
+     30627,
+     31032
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,28",
+     38825,
+     39039
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     39814,
+     43019
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-74,28",
+     42490,
+     42894
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     43482,
+     46744
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-74,28",
+     43569,
+     43965
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-74,28",
+     46642,
+     46899
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     51551,
+     51761
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     59389,
+     64513
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     60278,
+     65401
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     70644,
+     73649
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     74158,
+     77168
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     78588,
+     81802
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     80812,
+     81223
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     82939,
+     86155
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83282,
+     83683
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87308,
+     87521
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     88983,
+     92405
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91335,
+     91733
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     91972,
+     95196
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95362,
+     95573
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99395,
+     99595
+    ]
+   ]
+  },
+  {
+   "run": "MODEL_WARM_SUPERSEDE_SURF",
+   "case": "pans@20",
+   "arm": "kill",
+   "flags": [
+    "__RAW_DISABLE_MODEL_WARM_SUPERSEDE__"
+   ],
+   "firstWavesMs": 4315,
+   "pansEndMs": 70568,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79057,
+     "target": 24,
+     "ms": 38,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 23,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       0,
+       false
+      ],
+      [
+       38,
+       23,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 133,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 134,
+       "type": "commit",
+       "hour": 23,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 6,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802855759
+     }
+    },
+    {
+     "wallSinceWaves": 83097,
+     "target": 48,
+     "ms": 2558,
+     "long": 0,
+     "series": false,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       23,
+       true
+      ],
+      [
+       2558,
+       48,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1564,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 2597,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 2598,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3504,
+       "type": "commit_short_circuit",
+       "hour": 48
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 48,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802865086
+     }
+    },
+    {
+     "wallSinceWaves": 87120,
+     "target": 72,
+     "ms": 3223,
+     "long": 0,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       3,
+       48,
+       false
+      ],
+      [
+       3223,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 3218,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 48,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802865086
+     }
+    },
+    {
+     "wallSinceWaves": 91158,
+     "target": 96,
+     "ms": 3222,
+     "long": 0,
+     "series": false,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       2,
+       72,
+       false
+      ],
+      [
+       3222,
+       96,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 2827,
+       "type": "snap",
+       "hour": 72,
+       "model": "ICON"
+      },
+      {
+       "dt": 3220,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 48,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802865086
+     }
+    },
+    {
+     "wallSinceWaves": 95192,
+     "target": 120,
+     "ms": 3275,
+     "long": 0,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       5,
+       96,
+       false
+      ],
+      [
+       3275,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 2281,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 3274,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802875960
+     }
+    },
+    {
+     "wallSinceWaves": 99227,
+     "target": 144,
+     "ms": 1158,
+     "long": 0,
+     "series": false,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       7,
+       120,
+       false
+      ],
+      [
+       1158,
+       144,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1119,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 1154,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3770,
+       "type": "commit_short_circuit",
+       "hour": 144
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802881483
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 386,
+     "ms": 2784,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 4798,
+     "ms": 3807,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 10697,
+     "ms": 2658,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82.5,24.25,-78.5,28.75"
+    },
+    {
+     "t": 55,
+     "ms": 14961,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 4399,
+     "ms": 13878,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 16982,
+     "ms": 5719,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,24,-76,30"
+    },
+    {
+     "t": 10976,
+     "ms": 14969,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 18306,
+     "ms": 10064,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 28456,
+     "ms": 2208,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,30"
+    },
+    {
+     "t": 26017,
+     "ms": 8997,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 28390,
+     "ms": 12652,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 35052,
+     "ms": 12015,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 41117,
+     "ms": 15560,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 56138,
+     "ms": 987,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 47120,
+     "ms": 10208,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 56690,
+     "ms": 9734,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 57430,
+     "ms": 11285,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 66434,
+     "ms": 8408,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 68725,
+     "ms": 8475,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 74855,
+     "ms": 9727,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 83259,
+     "ms": 2379,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 77209,
+     "ms": 9312,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 87302,
+     "ms": 3023,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 91324,
+     "ms": 3046,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 84591,
+     "ms": 12807,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 95356,
+     "ms": 3094,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 86539,
+     "ms": 13730,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 47,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 99397,
+     "ms": 972,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     55,
+     3276
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     386,
+     790
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     4399,
+     7621
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     4798,
+     5199
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     10697,
+     10902
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     10976,
+     13979
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     16982,
+     17183
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     18306,
+     21321
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     26017,
+     29863
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     28390,
+     32230
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     28456,
+     29064
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     35052,
+     38062
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     41117,
+     44127
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     47120,
+     50125
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     56138,
+     56347
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     56690,
+     61954
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     57430,
+     62703
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     66434,
+     70151
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     68725,
+     72438
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     74855,
+     78512
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     77209,
+     80872
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83259,
+     83462
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     84591,
+     88858
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     86540,
+     90798
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87302,
+     87900
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91325,
+     91530
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95356,
+     95562
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     97477,
+     101025
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99397,
+     99794
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     100349,
+     null
+    ]
+   ]
+  },
+  {
+   "run": "MODEL_WARM_SUPERSEDE_SURF",
+   "case": "pans@20",
+   "arm": "fix",
+   "flags": [],
+   "firstWavesMs": 3035,
+   "pansEndMs": 67611,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79067,
+     "target": 24,
+     "ms": 43,
+     "long": 0,
+     "series": true,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 23,
+     "keySeen": true,
+     "hours": [
+      [
+       10,
+       0,
+       false
+      ],
+      [
+       43,
+       23,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 138,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 139,
+       "type": "commit",
+       "hour": 23,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802965199
+     }
+    },
+    {
+     "wallSinceWaves": 83112,
+     "target": null,
+     "ms": null,
+     "long": 0,
+     "series": null,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 23,
+     "keySeen": true,
+     "hours": [
+      [
+       0,
+       23,
+       true
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802965199
+     }
+    },
+    {
+     "wallSinceWaves": 87181,
+     "target": null,
+     "ms": null,
+     "long": 3,
+     "series": null,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 23,
+     "keySeen": true,
+     "hours": [
+      [
+       17,
+       23,
+       true
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802965199
+     }
+    },
+    {
+     "wallSinceWaves": 91230,
+     "target": null,
+     "ms": null,
+     "long": 1,
+     "series": null,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 23,
+     "keySeen": true,
+     "hours": [
+      [
+       19,
+       23,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1715,
+       "type": "snap",
+       "hour": 23,
+       "model": "ICON"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 4,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802965199
+     }
+    },
+    {
+     "wallSinceWaves": 95269,
+     "target": null,
+     "ms": null,
+     "long": 1,
+     "series": null,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 23,
+     "keySeen": true,
+     "hours": [
+      [
+       7,
+       23,
+       true
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1168,
+       "type": "inflight_skip"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802984674
+     }
+    },
+    {
+     "wallSinceWaves": 99314,
+     "target": 144,
+     "ms": 2014,
+     "long": 1,
+     "series": false,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       12,
+       23,
+       true
+      ],
+      [
+       2014,
+       144,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 630,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 2121,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 2122,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792802988181
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 322,
+     "ms": 1992,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 3480,
+     "ms": 2235,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 46,
+     "ms": 8404,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 7784,
+     "ms": 1438,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82.5,24.25,-78.5,28.75"
+    },
+    {
+     "t": 3090,
+     "ms": 7128,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 8071,
+     "ms": 5713,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 13917,
+     "ms": 1940,
+     "path": "/grid_series",
+     "hours": 1,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-180.0000,-80.0000,180.0000,85.0000"
+    },
+    {
+     "t": 13989,
+     "ms": 1953,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,24,-76,30"
+    },
+    {
+     "t": 13989,
+     "ms": 5518,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 17363,
+     "ms": 5784,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 23165,
+     "ms": 1865,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 25852,
+     "ms": 1270,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,30"
+    },
+    {
+     "t": 23238,
+     "ms": 5748,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 26330,
+     "ms": 9537,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,25.0000,-76.0000,28.0000"
+    },
+    {
+     "t": 29070,
+     "ms": 7355,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 35876,
+     "ms": 10385,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 36432,
+     "ms": 10108,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 53149,
+     "ms": 1322,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 46270,
+     "ms": 9534,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 46547,
+     "ms": 9530,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 55816,
+     "ms": 9925,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 56090,
+     "ms": 10381,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 65757,
+     "ms": 9743,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 66482,
+     "ms": 10397,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 83295,
+     "ms": 4969,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 87371,
+     "ms": 3397,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 76893,
+     "ms": 19209,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-180.0000,-80.0000,180.0000,85.0000"
+    },
+    {
+     "t": 91423,
+     "ms": 4916,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 95442,
+     "ms": 3265,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 96365,
+     "ms": 3450,
+     "path": "/grid_series",
+     "hours": 1,
+     "h0": 47,
+     "model": "ICON",
+     "bbox": "-180.0000,-80.0000,180.0000,85.0000"
+    },
+    {
+     "t": 99491,
+     "ms": 1832,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     46,
+     3431
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     322,
+     730
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     3090,
+     6461
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     3480,
+     3880
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     7784,
+     7992
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     8071,
+     11084
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     13917,
+     14388
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     13989,
+     14529
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     13989,
+     17334
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     17363,
+     20371
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     23165,
+     23500
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     23238,
+     26816
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     25852,
+     26253
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     26330,
+     30088
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     29070,
+     32580
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     35876,
+     41330
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     36432,
+     41890
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     46270,
+     52007
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     46547,
+     52289
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     53149,
+     53362
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     55816,
+     61549
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     56090,
+     61830
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     65757,
+     71034
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     66482,
+     71765
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     76894,
+     79902
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83295,
+     83501
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87371,
+     87581
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91423,
+     91638
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95442,
+     95644
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     96365,
+     96701
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     96438,
+     99651
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99491,
+     99774
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     99948,
+     102962
+    ]
+   ]
+  },
+  {
+   "run": "MODEL_WARM_SUPERSEDE_SURF",
+   "case": "pans@20",
+   "arm": "kill",
+   "flags": [
+    "__RAW_DISABLE_MODEL_WARM_SUPERSEDE__"
+   ],
+   "firstWavesMs": 5808,
+   "pansEndMs": 70124,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79065,
+     "target": 24,
+     "ms": 1691,
+     "long": 0,
+     "series": false,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 24,
+     "keySeen": true,
+     "hours": [
+      [
+       7,
+       0,
+       false
+      ],
+      [
+       1691,
+       24,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1433,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 1562,
+       "type": "snap",
+       "hour": 0,
+       "model": "ICON"
+      },
+      {
+       "dt": 1609,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 1694,
+       "type": "commit",
+       "hour": 24,
+       "model": "ICON",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": true,
+      "frameCovers": true,
+      "fw": 6,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803083467
+     }
+    },
+    {
+     "wallSinceWaves": 83109,
+     "target": 48,
+     "ms": 1611,
+     "long": 0,
+     "series": false,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 48,
+     "keySeen": true,
+     "hours": [
+      [
+       10,
+       24,
+       false
+      ],
+      [
+       1611,
+       48,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1617,
+       "type": "commit",
+       "hour": 48,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3866,
+       "type": "commit_short_circuit",
+       "hour": 48
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 48,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803089767
+     }
+    },
+    {
+     "wallSinceWaves": 87153,
+     "target": 72,
+     "ms": 2179,
+     "long": 0,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       10,
+       48,
+       false
+      ],
+      [
+       2179,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 2175,
+       "type": "commit",
+       "hour": 72,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3088,
+       "type": "commit_short_circuit",
+       "hour": 72
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803093032
+     }
+    },
+    {
+     "wallSinceWaves": 91176,
+     "target": 96,
+     "ms": 1393,
+     "long": 0,
+     "series": false,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 96,
+     "keySeen": true,
+     "hours": [
+      [
+       9,
+       72,
+       false
+      ],
+      [
+       1393,
+       96,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 173,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 348,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 1388,
+       "type": "commit",
+       "hour": 96,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3800,
+       "type": "commit_short_circuit",
+       "hour": 96
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 96,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803097766
+     }
+    },
+    {
+     "wallSinceWaves": 95202,
+     "target": 120,
+     "ms": 1823,
+     "long": 0,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       4,
+       96,
+       false
+      ],
+      [
+       1823,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 441,
+       "type": "snap",
+       "hour": 96,
+       "model": "ICON"
+      },
+      {
+       "dt": 1817,
+       "type": "commit",
+       "hour": 120,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 3506,
+       "type": "commit_short_circuit",
+       "hour": 120
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 120,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803101500
+     }
+    },
+    {
+     "wallSinceWaves": 99217,
+     "target": 144,
+     "ms": 759,
+     "long": 0,
+     "series": false,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 144,
+     "keySeen": true,
+     "hours": [
+      [
+       8,
+       120,
+       false
+      ],
+      [
+       759,
+       144,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 606,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 755,
+       "type": "commit",
+       "hour": 144,
+       "model": "ICON",
+       "layer": "waves"
+      },
+      {
+       "dt": 1756,
+       "type": "commit_short_circuit",
+       "hour": 144
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803103766
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 2070,
+     "ms": 2895,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 6269,
+     "ms": 1946,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-180,-80,180,85"
+    },
+    {
+     "t": 103,
+     "ms": 8378,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 10265,
+     "ms": 1086,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82.5,24.25,-78.5,28.75"
+    },
+    {
+     "t": 5880,
+     "ms": 5803,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 10551,
+     "ms": 5886,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 16448,
+     "ms": 1432,
+     "path": "/grid_series",
+     "hours": 1,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-180.0000,-80.0000,180.0000,85.0000"
+    },
+    {
+     "t": 16458,
+     "ms": 1544,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,24,-76,30"
+    },
+    {
+     "t": 16527,
+     "ms": 5922,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 19855,
+     "ms": 5743,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 28334,
+     "ms": 977,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-82,22,-74,30"
+    },
+    {
+     "t": 25677,
+     "ms": 13775,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 25611,
+     "ms": 14299,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": 47,
+     "model": "ICON",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 39938,
+     "ms": 16075,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 39471,
+     "ms": 16565,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,25.0000,-76.0000,28.0000"
+    },
+    {
+     "t": 55712,
+     "ms": 701,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 56030,
+     "ms": 12630,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 56045,
+     "ms": 12844,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 68680,
+     "ms": 11734,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 68902,
+     "ms": 11697,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-80.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 79238,
+     "ms": 1503,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 83289,
+     "ms": 1413,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 87325,
+     "ms": 1992,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 80424,
+     "ms": 9727,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-79.0000,24.0000,-75.0000,27.0000"
+    },
+    {
+     "t": 80610,
+     "ms": 10572,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 91289,
+     "ms": 1261,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 95376,
+     "ms": 1634,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    },
+    {
+     "t": 90173,
+     "ms": 8461,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 91218,
+     "ms": 8533,
+     "path": "/grid_series",
+     "hours": 16,
+     "h0": -1,
+     "model": "ICON",
+     "bbox": "-78.0000,24.0000,-74.0000,27.0000"
+    },
+    {
+     "t": 99384,
+     "ms": 581,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "ICON",
+     "bbox": "-80,22,-72,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     103,
+     3318
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     2070,
+     2477
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     5880,
+     9095
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-180,-80,180,85",
+     6269,
+     6666
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     10265,
+     10478
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     10551,
+     13570
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     16448,
+     17008
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,24,-76,30",
+     16458,
+     17024
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     16527,
+     19855
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     19855,
+     22861
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     25611,
+     31761
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     25677,
+     31825
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-82,22,-74,30",
+     28334,
+     28934
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     39471,
+     45019
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     39938,
+     45480
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     55712,
+     55924
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     56030,
+     62033
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     56045,
+     62049
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     68680,
+     74472
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     68902,
+     74691
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     79238,
+     79438
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-79.0000,24.0000,-75.0000,27.0000",
+     80424,
+     86455
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     80610,
+     86634
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     83289,
+     83885
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     87325,
+     87534
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     90173,
+     95352
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     91218,
+     96584
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     91289,
+     91892
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     95376,
+     95772
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     98647,
+     null
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     "-80,22,-72,28",
+     99384,
+     99803
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     "-78.0000,24.0000,-74.0000,27.0000",
+     99757,
+     null
+    ]
+   ]
+  },
+  {
+   "run": "MODEL_WARM_SUPERSEDE_SWELL",
+   "case": "pans@20",
+   "arm": "fix",
+   "flags": [],
+   "firstWavesMs": 822,
+   "pansEndMs": 62822,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79111,
+     "target": null,
+     "ms": null,
+     "long": 1,
+     "series": null,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       7,
+       0,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803232876
+     }
+    },
+    {
+     "wallSinceWaves": 83167,
+     "target": null,
+     "ms": null,
+     "long": 4,
+     "series": null,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       -11,
+       0,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 0,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803232876
+     }
+    },
+    {
+     "wallSinceWaves": 87208,
+     "target": null,
+     "ms": null,
+     "long": 0,
+     "series": null,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       2,
+       0,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1139,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 3729,
+       "type": "snap",
+       "hour": 0,
+       "model": "GFS"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803246284
+     }
+    },
+    {
+     "wallSinceWaves": 91247,
+     "target": null,
+     "ms": null,
+     "long": 1,
+     "series": null,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       -1,
+       0,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803246284
+     }
+    },
+    {
+     "wallSinceWaves": 95294,
+     "target": null,
+     "ms": null,
+     "long": 0,
+     "series": null,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       9,
+       0,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803246284
+     }
+    },
+    {
+     "wallSinceWaves": 99326,
+     "target": null,
+     "ms": null,
+     "long": 0,
+     "series": null,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       6,
+       0,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1376,
+       "type": "inflight_skip"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 144,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803258638
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 2026,
+     "ms": 1187,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82.75,24.25,-78.75,28.75"
+    },
+    {
+     "t": 5764,
+     "ms": 1562,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82.25,24,-78.25,28.5"
+    },
+    {
+     "t": 9133,
+     "ms": 1680,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82,24,-76,29"
+    },
+    {
+     "t": 12334,
+     "ms": 2887,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82,24,-76,29"
+    },
+    {
+     "t": 26,
+     "ms": 17422,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 3002,
+     "ms": 18902,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 20806,
+     "ms": 1472,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82,23,-75,29"
+    },
+    {
+     "t": 23926,
+     "ms": 1597,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-81,23,-75,28"
+    },
+    {
+     "t": 27054,
+     "ms": 1632,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-81,23,-75,28"
+    },
+    {
+     "t": 33040,
+     "ms": 2391,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-81,23,-74,28"
+    },
+    {
+     "t": 9395,
+     "ms": 26187,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 35753,
+     "ms": 2095,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-81,23,-74,28"
+    },
+    {
+     "t": 21943,
+     "ms": 27966,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 48381,
+     "ms": 1843,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-80,23,-73,28"
+    },
+    {
+     "t": 51750,
+     "ms": 1709,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-80,23,-73,28"
+    },
+    {
+     "t": 35673,
+     "ms": 25671,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 49924,
+     "ms": 24937,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-80.0000,25.0000,-76.0000,28.0000"
+    },
+    {
+     "t": 79320,
+     "ms": 5123,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 83354,
+     "ms": 3895,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 61353,
+     "ms": 26919,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 87389,
+     "ms": 1713,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 90627,
+     "ms": 2619,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 91426,
+     "ms": 2745,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 95463,
+     "ms": 4658,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 74870,
+     "ms": 25740,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-80.0000,24.0000,-76.0000,27.0000"
+    },
+    {
+     "t": 99525,
+     "ms": 2493,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     26,
+     5924
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82.75,24.25,-78.75,28.75",
+     2026,
+     2832
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     3002,
+     8845
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82.25,24,-78.25,28.5",
+     5764,
+     6624
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82,24,-76,29",
+     9133,
+     9681
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     9395,
+     13941
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82,24,-76,29",
+     12334,
+     13138
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82,23,-75,29",
+     20806,
+     21220
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     21944,
+     26361
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-81,23,-75,28",
+     23926,
+     24731
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-81,23,-75,28",
+     27054,
+     27468
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-81,23,-74,28",
+     33040,
+     33441
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     35673,
+     40085
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-81,23,-74,28",
+     35753,
+     36557
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-80,23,-73,28",
+     48381,
+     48782
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     49924,
+     54341
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-80,23,-73,28",
+     51750,
+     52550
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     61353,
+     65354
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     74870,
+     78875
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     79320,
+     79726
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     83354,
+     83767
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     87389,
+     87794
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     88283,
+     93093
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     90627,
+     91435
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     91426,
+     92229
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     95463,
+     95877
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     99525,
+     99926
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,24.0000,-75.0000,27.0000",
+     100623,
+     null
+    ]
+   ]
+  },
+  {
+   "run": "MODEL_WARM_SUPERSEDE_SWELL",
+   "case": "pans@20",
+   "arm": "kill",
+   "flags": [
+    "__RAW_DISABLE_MODEL_WARM_SUPERSEDE__"
+   ],
+   "firstWavesMs": 6583,
+   "pansEndMs": 68692,
+   "drainedAtMs": null,
+   "steps": [
+    {
+     "wallSinceWaves": 79386,
+     "target": null,
+     "ms": null,
+     "long": 6,
+     "series": null,
+     "before": 0,
+     "wheelNow": 24,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       0,
+       0,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1942,
+       "type": "snap",
+       "hour": 0,
+       "model": "GFS"
+      },
+      {
+       "dt": 3368,
+       "type": "inflight_skip"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803354818
+     }
+    },
+    {
+     "wallSinceWaves": 83467,
+     "target": null,
+     "ms": null,
+     "long": 0,
+     "series": null,
+     "before": 24,
+     "wheelNow": 48,
+     "engineHour": 0,
+     "keySeen": true,
+     "hours": [
+      [
+       -4,
+       0,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 24,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803354818
+     }
+    },
+    {
+     "wallSinceWaves": 87519,
+     "target": 72,
+     "ms": 2046,
+     "long": 0,
+     "series": false,
+     "before": 48,
+     "wheelNow": 72,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       10,
+       0,
+       false
+      ],
+      [
+       2046,
+       72,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 1794,
+       "type": "inflight_skip"
+      },
+      {
+       "dt": 2153,
+       "type": "mask_rebuild"
+      },
+      {
+       "dt": 2154,
+       "type": "commit",
+       "hour": 72,
+       "model": "GFS",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803361377
+     }
+    },
+    {
+     "wallSinceWaves": 91569,
+     "target": null,
+     "ms": null,
+     "long": 5,
+     "series": null,
+     "before": 72,
+     "wheelNow": 96,
+     "engineHour": 72,
+     "keySeen": true,
+     "hours": [
+      [
+       18,
+       72,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803361377
+     }
+    },
+    {
+     "wallSinceWaves": 95601,
+     "target": 120,
+     "ms": 3928,
+     "long": 1,
+     "series": false,
+     "before": 96,
+     "wheelNow": 120,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       -9,
+       72,
+       false
+      ],
+      [
+       3928,
+       120,
+       false
+      ]
+     ],
+     "ev": [
+      {
+       "dt": 730,
+       "type": "snap",
+       "hour": 72,
+       "model": "GFS"
+      },
+      {
+       "dt": 3923,
+       "type": "commit",
+       "hour": 120,
+       "model": "GFS",
+       "layer": "waves"
+      }
+     ],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803361377
+     }
+    },
+    {
+     "wallSinceWaves": 99644,
+     "target": null,
+     "ms": null,
+     "long": 2,
+     "series": null,
+     "before": 120,
+     "wheelNow": 144,
+     "engineHour": 120,
+     "keySeen": true,
+     "hours": [
+      [
+       2,
+       120,
+       false
+      ]
+     ],
+     "ev": [],
+     "sharpen": {
+      "kind": "regional_too_coarse",
+      "frameFound": false,
+      "frameCovers": false,
+      "fw": 999,
+      "hour": 72,
+      "vb": {
+       "w": -76.9,
+       "s": 24.53,
+       "e": -74.76,
+       "n": 25.5
+      },
+      "willSharpen": false,
+      "ts": 1792803361377
+     }
+    }
+   ],
+   "requests": [
+    {
+     "t": 8397,
+     "ms": 1859,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82.5,24.25,-78.5,28.75"
+    },
+    {
+     "t": 15088,
+     "ms": 3872,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82,24,-76,29"
+    },
+    {
+     "t": 160,
+     "ms": 26416,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 26792,
+     "ms": 3224,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-82,23,-75,29"
+    },
+    {
+     "t": 8397,
+     "ms": 27542,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-82.0000,25.0000,-78.0000,28.0000"
+    },
+    {
+     "t": 39205,
+     "ms": 3999,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-81,23,-74,28"
+    },
+    {
+     "t": 26775,
+     "ms": 28662,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 54512,
+     "ms": 3243,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-80,23,-73,28"
+    },
+    {
+     "t": 36049,
+     "ms": 27835,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-81.0000,25.0000,-77.0000,28.0000"
+    },
+    {
+     "t": 55485,
+     "ms": 27158,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-81.0000,25.0000,-77.0000,27.0000"
+    },
+    {
+     "t": 79589,
+     "ms": 4207,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 83665,
+     "ms": 5160,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 63906,
+     "ms": 25336,
+     "path": "/grid_series",
+     "hours": 48,
+     "h0": -1,
+     "model": "GFS",
+     "bbox": "-80.0000,25.0000,-76.0000,28.0000"
+    },
+    {
+     "t": 87699,
+     "ms": 1834,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 91749,
+     "ms": 4868,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    },
+    {
+     "t": 95776,
+     "ms": 3735,
+     "path": "/grid",
+     "hours": null,
+     "h0": null,
+     "model": "GFS",
+     "bbox": "-79,22,-73,28"
+    }
+   ],
+   "asks": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     160,
+     4170
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-82.0000,25.0000,-78.0000,28.0000",
+     8397,
+     12799
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82.5,24.25,-78.5,28.75",
+     8397,
+     9197
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82,24,-76,29",
+     15088,
+     15502
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     26775,
+     31183
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-82,23,-75,29",
+     26792,
+     27604
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-81.0000,25.0000,-77.0000,28.0000",
+     36049,
+     40461
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-81,23,-74,28",
+     39205,
+     40010
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-80,23,-73,28",
+     54512,
+     54915
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-81.0000,25.0000,-77.0000,27.0000",
+     55485,
+     59495
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,25.0000,-76.0000,28.0000",
+     63906,
+     67916
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     79589,
+     79989
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     82676,
+     87095
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     83665,
+     84466
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     87699,
+     88105
+    ],
+    [
+     "page",
+     "GFS",
+     "waves",
+     48,
+     "-80.0000,24.0000,-76.0000,27.0000",
+     89252,
+     93668
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     91749,
+     92549
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     95776,
+     96185
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     "-79,22,-73,28",
+     99840,
+     100254
+    ]
+   ]
+  }
+ ],
+ "env": {
+  "NO_PANS_AND_DRAINED": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 3000,
+    "surfMini": 200,
+    "surfGrid": 200
+   },
+   "WATCH": 40000,
+   "CDN": true,
+   "SURF": true,
+   "MODEL": "ICON",
+   "PAN_GAP": 3000,
+   "DRAIN": 15000,
+   "WATCH_MAX": 400000,
+   "STEPS": 6,
+   "STEP_GAP": 4000
+  },
+  "SOON_AFTER_PANS_A": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 3000,
+    "surfMini": 200,
+    "surfGrid": 200
+   },
+   "WATCH": 75000,
+   "CDN": true,
+   "SURF": true,
+   "MODEL": "ICON",
+   "PAN_GAP": 3000,
+   "DRAIN": 0,
+   "WATCH_MAX": 900000,
+   "STEPS": 6,
+   "STEP_GAP": 4000
+  },
+  "SOON_AFTER_PANS_B": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 3000,
+    "surfMini": 200,
+    "surfGrid": 200
+   },
+   "WATCH": 75000,
+   "CDN": true,
+   "SURF": true,
+   "MODEL": "ICON",
+   "PAN_GAP": 3000,
+   "DRAIN": 0,
+   "WATCH_MAX": 900000,
+   "STEPS": 6,
+   "STEP_GAP": 4000
+  },
+  "MODEL_WARM_SUPERSEDE_SURF": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 3000,
+    "surfMini": 200,
+    "surfGrid": 200
+   },
+   "WATCH": 75000,
+   "CDN": true,
+   "SURF": true,
+   "MODEL": "ICON",
+   "PAN_GAP": 3000,
+   "DRAIN": 0,
+   "WATCH_MAX": 900000,
+   "STEPS": 6,
+   "STEP_GAP": 4000
+  },
+  "MODEL_WARM_SUPERSEDE_SWELL": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 15000,
+    "surfMini": 1000,
+    "surfGrid": 1000
+   },
+   "WATCH": 75000,
+   "CDN": true,
+   "SURF": false,
+   "MODEL": "GFS",
+   "PAN_GAP": 3000,
+   "DRAIN": 0,
+   "WATCH_MAX": 900000,
+   "STEPS": 6,
+   "STEP_GAP": 4000
+  }
+ }
+}

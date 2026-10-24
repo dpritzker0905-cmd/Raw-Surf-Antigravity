@@ -60,9 +60,12 @@ async def get_on_demand_settings(
 async def save_on_demand_settings(
     photographer_id: str,
     data: OnDemandSettingsRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Save photographer's On-Demand settings"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     profile = result.scalar_one_or_none()
     if not profile:

@@ -12,6 +12,7 @@ import json
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from models import (
     Profile, Dispute, DisputeMessage, UserReport, PayoutHold, AuditLog,
     CreditTransaction, Booking, LiveSession, RoleEnum
@@ -499,9 +500,12 @@ async def get_reports(
 @router.post("/admin/reports")
 async def create_report(
     data: CreateReportRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new user report (can be called by users or admins)"""
+    """Create a new user report (can be called by users or admins; the reporter is always the caller)"""
+    if data.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     report = UserReport(
         reporter_id=data.reporter_id,
         report_type=data.report_type,

@@ -10,6 +10,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, LiveSessionParticipant
 from .schemas import UpdateParticipantNotesRequest
 
@@ -86,9 +87,12 @@ async def update_participant_notes(
     photographer_id: str,
     participant_id: str,
     data: UpdateParticipantNotesRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update photographer's notes for a session participant (for identification)"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(LiveSessionParticipant)
         .where(LiveSessionParticipant.id == participant_id)
