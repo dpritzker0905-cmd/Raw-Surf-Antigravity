@@ -5,7 +5,7 @@
  * commit whose mask has carried lakes cut in, an EURO -> GFS switch served from the store would draw GFS bytes under lit lakes:
  * GFS has no lake data there, so the lake shows the encoder's extrapolation or height 0, a mislabelled "fake calm" (a defect).
  * So the resident mask becomes the plain-land mask IN THE SAME SHOW:
- *   - `lakeShowPlan(engine, model)`: 'keep' (the resident mask has no lakes, or the model carries lakes), 'swap' (the mask stash
+ *   - `lakeShowPlan(engine, model)`: 'keep' (the resident mask has no lakes, or the model carries lakes), 'swap' (either stash slot
  *     holds the plain-land mask for the resident's bounds: a reference swap, no raster), or 'decline' (no ready plain-land
  *     texture: the show declines and the normal commit path draws, its encoder choosing the plain mask);
  *   - `applyLakeSwap(gl, engine)`: does the planned swap (the stash takes the lake mask, so switching back is a swap too) and points
@@ -13,7 +13,7 @@
  * Kill: window.__RAW_DISABLE_WAVE_LAKES__ = true (no lake is ever cut, so every plan is 'keep').
  */
 import { LAKE_MODELS, maskLakes, waveLakesOn } from './waveLakes';
-import { installStashedMask, stashResidentMask, stashServes, maskStashEnabled } from './maskTextureStash';
+import { installStashedMask, stashResidentMask, stashServesAny, takeMaskStash, maskStashEnabled } from './maskTextureStash';
 import { keepMaskPatch } from './maskPatchKeep';
 
 const boundsKey = (b) => (b ? `${b.west}_${b.south}_${b.east}_${b.north}` : '');
@@ -26,7 +26,7 @@ export function lakeShowPlan(engine, model) {
   // A degraded basemap paint on the lake mask cannot be stashed (maskTextureStash): the normal path rebuilds instead.
   const rp = engine._regionalPatchState;
   if (rp && rp.degraded && rp.gridKey === boundsKey(engine._cachedMaskBounds)) return 'decline';
-  return stashServes(engine._maskStash, geo.__base, engine._cachedMaskBounds, engine._lastPatchedMask) ? 'swap' : 'decline';
+  return stashServesAny(engine, geo.__base, engine._cachedMaskBounds) ? 'swap' : 'decline';
 }
 
 function bumpSwaps() {
@@ -37,9 +37,10 @@ function bumpSwaps() {
 
 /** The reference swap planned by lakeShowPlan ('swap'). Returns true when the drawn frame now samples the plain-land mask. */
 export function applyLakeSwap(gl, engine) {
-  const entry = engine && engine._maskStash;
-  if (!gl || !entry || !entry.tex) return false;
-  engine._maskStash = null;
+  const geo = engine && engine._cachedMaskGeoJSON;
+  if (!gl || !geo || !geo.__base) return false;
+  const entry = takeMaskStash(engine, geo.__base, engine._cachedMaskBounds);   // either slot (the stash's variant slot)
+  if (!entry || !entry.tex) return false;
   const out = { tex: engine._cachedMaskTex, dims: engine._cachedMaskTexDims };
   if (out.tex && !stashResidentMask(gl, engine, null)) {
     // Not expected (lakeShowPlan declines the one refusal case); free it with the encoder's accounting rather than strand it.

@@ -112,6 +112,16 @@ describe('the swap', () => {
     expect(stashServes(eng._maskStash, LAKE_GEO, WORLD, null)).toBe(true);                              // EURO again: the encoder swaps back
     expect(window.__RAW_WAVE_LAKES__.showSwaps).toBe(1);
   });
+  it('the plain mask in the stash\'s variant slot serves the swap too', () => {
+    const eng = lakeEngine(); const { gl } = fakeGL();
+    const plain = eng._maskStash;
+    eng._maskStash2 = plain; eng._maskStash = { tex: { id: 'other' }, dims: { w: 2048, h: 1024 }, bounds: { west: -90, south: 40, east: -80, north: 45 }, geojson: LAND, hasSDF: false };
+    expect(lakeShowPlan(eng, 'GFS')).toBe('swap');
+    expect(applyLakeSwap(gl, eng)).toBe(true);
+    expect(eng._waveData.u_oceanMaskTexture).toBe(plain.tex);
+    expect(eng._maskStash2 && eng._maskStash2.tex.id).toBe('other');                         // the slot-1 entry moved down
+    expect(eng._maskStash.tex.id).toBe('lake');                                              // the lake mask is held for EURO
+  });
   it('the swapped-in mask brings back its own clean paint record; none -> null', () => {
     const eng = lakeEngine(); const { gl } = fakeGL();
     const rec = { gridKey: maskGridKey(WORLD), box: { ...WORLD }, degraded: false };
