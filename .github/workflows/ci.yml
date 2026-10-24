@@ -1546,7 +1546,9 @@ jobs:
           #   base 2896 (dev's map) + 13 new test(s) = 2909, files 178; floor 2909 - 6 = 2903. This PR must read 2909 passed.
           # ⬆ 2903→2912 on 2026-10-24 (rederive_floor.py, claude/fill-provenance-nodes): dev run 40045304524 read 2896 / 177 files; dev's map 2909;
           #   base 2909 (dev's map) + 9 new test(s) = 2918, files 179; floor 2918 - 6 = 2912. This PR must read 2918 passed.
-          MIN_FILES, MIN_PASSED = 179, 2912
+          # ⬆ 2912→2918 on 2026-10-24 (rederive_floor.py, claude/regional-explicit-empty): dev run 40051472495 read 2918 / 179 files; dev's map 2918;
+          #   base 2918 (hosted read) + 6 new test(s) = 2924, files 179; floor 2924 - 6 = 2918. This PR must read 2924 passed.
+          MIN_FILES, MIN_PASSED = 179, 2918
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
