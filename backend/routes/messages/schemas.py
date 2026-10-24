@@ -79,6 +79,10 @@ async def check_grom_messaging_permission(user_id: str, db: AsyncSession, is_gro
     
     # Check parental controls for messaging permissions
     parental_controls = user.parental_controls or {}
+
+    # View-only is the guardian's master switch: no messages in any channel (audit F-09).
+    if parental_controls.get('view_only'):
+        return {"allowed": False, "reason": "view_only", "is_grom": True, "can_message_adults": False, "can_message_groms": False}
     
     # Separate permissions for regular messaging and Grom channel
     can_message_adults = parental_controls.get('can_message', True)  # Regular channels (adults)
@@ -137,6 +141,29 @@ async def check_grom_to_grom_only(sender_id: str, recipient_id: str, db: AsyncSe
     
     # Both are non-Groms - normal messaging
     return {"allowed": True, "reason": None, "use_grom_channel": False}
+
+
+async def enforce_grom_sender_controls(sender_id: str, other_id: str, db: AsyncSession) -> None:
+    """Sender-side parental gate for the message-creating routes that never went through `send_message`
+    (voice notes, media uploads): when the SENDER is a Grom, its guardian's link / approval / `can_message` /
+    Grom-Zone / `view_only` switches apply. A no-op for every other sender, so adults and parents are unchanged.
+    The Grom-to-Grom and adult-recipient policy of `send_message` is deliberately not repeated here: this only
+    carries the guardian's switches to the routes that skipped them (audit F-09)."""
+    sender = (await db.execute(select(Profile).where(Profile.id == sender_id))).scalar_one_or_none()
+    if sender is None or sender.role != RoleEnum.GROM:
+        return
+    channel = await check_grom_to_grom_only(sender_id, other_id, db)
+    perm = await check_grom_messaging_permission(sender_id, db, channel.get("use_grom_channel", False))
+    if perm["allowed"]:
+        return
+    detail = {
+        "not_linked": "Messaging is locked. Parent link required.",
+        "not_approved": "Messaging is locked. Waiting for parent approval.",
+        "grom_channel_disabled": "Grom Zone messaging is disabled by your parent.",
+        "messaging_disabled": "Messaging is disabled by your parent.",
+        "view_only": "This account is in view-only mode set by a parent or guardian.",
+    }.get(perm["reason"], "Messaging not allowed.")
+    raise HTTPException(status_code=403, detail=detail)
 
 class SendMessageRequest(BaseModel):
     recipient_id: str
