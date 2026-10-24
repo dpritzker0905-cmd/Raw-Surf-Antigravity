@@ -171,3 +171,29 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/publish_raster_frames.py
+
+      # RASTER PHASE 2 (2026-10-23, the same contract, services/frame_set_raster.py SPECS): GFS 2 m temperature (TMP, K -> degC,
+      # field 7 temp_c) and total cloud cover (TCDC entire atmosphere, the INSTANTANEOUS message, never the 0-N h mean; field 8
+      # cloud_pct), each as its own step with its own budget (FRAME_RASTER_BUDGET_S, 420 s) and a 30-minute timeout, after pressure (one latest.json writer at a time). OFF until
+      # switched on: repo variables FRAME_RASTER_TEMPERATURE=1 / FRAME_RASTER_CLOUD=1 (the client is dark either way).
+      - name: Publish raster static frames (temperature; off unless FRAME_RASTER_TEMPERATURE=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE == '1' }}
+        continue-on-error: true
+        timeout-minutes: 30
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_TEMPERATURE: ${{ vars.FRAME_RASTER_TEMPERATURE }}
+        run: python scripts/publish_raster_frames.py --set temperature
+
+      - name: Publish raster static frames (cloud cover; off unless FRAME_RASTER_CLOUD=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD == '1' }}
+        continue-on-error: true
+        timeout-minutes: 30
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD: ${{ vars.FRAME_RASTER_CLOUD }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover

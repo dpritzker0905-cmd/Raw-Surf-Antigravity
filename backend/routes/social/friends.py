@@ -13,6 +13,7 @@ from typing import Optional, List
 from datetime import datetime, timezone
 
 from database import get_db
+from services.blocks import assert_not_blocked
 from models import (
     Profile, Friend, FriendshipStatusEnum, PrivacySetting
 )
@@ -55,6 +56,9 @@ async def send_friend_request(
         raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     if requester_id == request_data.addressee_id:
         raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
+
+    # BLOCKS (audit F-09): a block in either direction refuses the request.
+    await assert_not_blocked(db, requester_id, request_data.addressee_id)
     
     # Check if request already exists
     result = await db.execute(

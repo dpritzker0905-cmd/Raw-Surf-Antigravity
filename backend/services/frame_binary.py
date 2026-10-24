@@ -50,6 +50,8 @@ u, v follow from speed and direction by uv_convention 0, as the wind normalizer 
 RASTER frames (2026-10-23, frame_set_raster.py: GFS mean-sea-level pressure from NOAA GRIB) carry ONE scalar field and are
 encoded from a numpy plane (encode_plane / decode_plane), not from product vectors:
   6 pressure_hpa    u16  code 0 = no data, else round((hPa - 800) / 0.1) + 1 (descriptor offset 799.9)   error <= 0.05 hPa
+  7 temp_c          u16  code 0 = no data, else round((degC + 100) / 0.05) + 1 (offset -100.05)          error <= 0.025 degC
+  8 cloud_pct       u8   code 0 = no data, else round(%) + 1 (offset -1), 0-100 %                        error <= 0.5 %
 
 Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise, where the bounds are the
 OUTER CELL CENTRES (cell_bounds; what /grid serves). `encode_frame` refuses a product whose lat/lng are not that regular
@@ -72,8 +74,10 @@ NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
+TEMP_C, CLOUD_PCT = 7, 8
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
-               SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa"}
+               SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
+               CLOUD_PCT: "cloud_pct"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -85,6 +89,8 @@ FIELD_SPECS = {
     SPEED: (2, 1, 0, 0.01, -0.01),
     LANE_WEIGHT: (2, 1, NO_MISSING, 0.0001, 0.0),
     PRESSURE_HPA: (2, 1, 0, 0.1, 799.9),      # raster frames (frame_set_raster.py): code 1 = 800.0 hPa, 0 = no data
+    TEMP_C: (2, 1, 0, 0.05, -100.05),         # raster: code 1 = -100.00 degC, 0 = no data (0.05: 17% smaller than 0.01)
+    CLOUD_PCT: (1, 0, 0, 1.0, -1.0),          # raster: code 1 = 0 %, 101 = 100 %, 0 = no data
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -108,6 +114,8 @@ TOLERANCE = {
     SPEED: _half_step(SPEED),                    # 0.01 kn step    -> 0.005 kn
     LANE_WEIGHT: FIELD_SPECS[LANE_WEIGHT][3] + FLOAT_SLACK,
     PRESSURE_HPA: _half_step(PRESSURE_HPA),      # 0.1 hPa step    -> 0.05 hPa
+    TEMP_C: _half_step(TEMP_C),                  # 0.05 degC step  -> 0.025 degC
+    CLOUD_PCT: _half_step(CLOUD_PCT),            # 1 % step        -> 0.5 %
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
@@ -285,21 +293,22 @@ def encode_plane(values, bounds, valid_time, model_run_time, fid):
     arr = np.asarray(values, dtype=float)
     rows, cols = arr.shape
     nb, layout, missing, scale, offset = FIELD_SPECS[fid]
-    if nb != 2 or missing != 0:
-        raise ValueError(f"encode_plane handles u16 fields with code 0 = no data, not field {fid}")
+    if nb not in (1, 2) or missing != 0:
+        raise ValueError(f"encode_plane handles u8/u16 fields with code 0 = no data, not field {fid}")
+    top = 0xFF if nb == 1 else 0xFFFF
     ok = np.isfinite(arr)
     codes = np.zeros(arr.shape, dtype=np.int64)
     codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
-    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > 0xFFFF):
-        raise ValueError(f"field {fid}: values outside the u16 range of its quantisation")
+    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > top):
+        raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
     header_bytes = HEADER_FIXED + DESCRIPTOR.size
     head = bytearray(MAGIC)
     head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, 1 << fid, 0, 0, 1, 0, header_bytes)
     head += struct.pack("<4d", *bounds)
     head += struct.pack("<2d", _epoch(valid_time), _epoch(model_run_time))
     head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
-    raw = codes.astype("<u2").tobytes()
-    plane = raw[0::2] + raw[1::2] if layout == 1 else raw
+    raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
+    plane = raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw
     return bytes(head) + plane
 
 

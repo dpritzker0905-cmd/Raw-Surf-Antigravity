@@ -8,6 +8,7 @@ import asyncio
 from database import get_db
 from core.security import get_current_user_id
 from models import Profile, Follow, Notification
+from services.blocks import assert_not_blocked
 
 # Import OneSignal service for push notifications
 try:
@@ -38,6 +39,9 @@ async def follow_user(
     follower = follower_result.scalar_one_or_none()
     if not follower:
         raise HTTPException(status_code=404, detail="Follower not found")
+
+    # BLOCKS (audit F-09): a block in either direction refuses the follow (unblock first to follow).
+    await assert_not_blocked(db, follower_id, user_id)
     
     existing = await db.execute(
         select(Follow).where(
