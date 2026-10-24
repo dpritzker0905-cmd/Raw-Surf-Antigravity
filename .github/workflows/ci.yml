@@ -165,7 +165,10 @@ jobs:
             // Regional client dark by default (2026-10-23 evening, the live parity failed): +1 test.
             // Frame store regional show (2026-10-24): marineFrameStoreRegional.test.js, +1 suite / +39 tests (27 real-frame encoder parity
             // cases, 2 identity, 10 runtime). Raised by exactly its own count from the floor above; confirm against the hosted receipt.
-            const MIN_SUITES = 517, MIN_TESTS = 6815;
+            // Explicit-empty regional sets, the client read (2026-10-24, #530): regionalLatestSets.test.js (+1 suite / +3 tests) and
+            // staticRegional.test.js (+5 tests). Raised by exactly its own count (+1 / +8) from the floor above; dev's hosted receipt at
+            // 7db3bc8db was suites 533/533, tests 6887/6887, so this floor still has headroom: confirm against this PR's hosted receipt.
+            const MIN_SUITES = 518, MIN_TESTS = 6823;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
