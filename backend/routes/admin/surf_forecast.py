@@ -99,6 +99,11 @@ _RATING_FLAGS = {
                                         "from that tile, never the dynamic Open-Meteo cache or the live series lane; 0 = today's path. "
                                         "While '0', MARINE_TILE_FIRST_DIFF_SAMPLE (0.05) / _MAX_PER_HOUR (30) log tile vs dynamic",
                                    "Render env (together with the client's regional bundle default)"),
+    # SoCal's GFS swell_2 (2026-10-24, dark): the June 6H.2 pilot left it out of the pilot ingest (scoping, not science).
+    "GFS_MARINE_SOCAL_SWELL2": ("0", "store GFS swell_2 for the us_west_coast_socal pilot box like every other pilot box (sampling + "
+                                     "~113 saves a run in the whole-globe multi-bbox pass); 0 = SoCal keeps waves/swell_1/wind_waves only "
+                                     "and its z7-9 swell_2 comes from the dynamic / global tiers",
+                                "repo variable GFS_MARINE_SOCAL_SWELL2, read by forecast-ingest-pilots.yml env"),
     "MARINE_GULF_FILL_MID_TARGETED": ("0", "on the 2-deg global_mid world clip (EURO/ICON marine), fill a masked cell ONLY from the "
                                            "same-layer GFS 2-deg value at the same node, and only where that GFS node is sea; 0 = "
                                            "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "

@@ -587,3 +587,18 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   latest.json (test_publish_frame_sets::test_a_stale_disk_copy_is_never_mixed_into_a_newer_run, estate lane, which I had not
   run locally). Empties are now staged and written only with the next real pointer move; two of my own mutations had
   survived the first test set (churn, world sets) and now fail.
+
+## 2026-10-24 03:30Z: item 4b, GFS_MARINE_SOCAL_SWELL2 - SoCal stores GFS swell_2 like every other pilot box (dark)
+
+- **Why:** see 00:40Z: the June 6H.2 pilot left swell_2 out of us_west_coast_socal (scoping, not science); every other GFS pilot
+  box stores all four layers and the multi-bbox pass downloads the whole globe either way.
+- **What:** `scheduler.ingest_gfs_marine_pilot._layers_for` stores SoCal swell_2 when GFS_MARINE_SOCAL_SWELL2=1 (repo variable,
+  forecast-ingest-pilots.yml; the pilot ingest runs only in that lane); registered in _RATING_FLAGS. Off = as today.
+- **Evidence for the owner** (GFS-Wave cycle 2026-10-23 18Z, NOAA 0.25-deg GRIB "SWELL:2 in sequence" = what the tile would
+  carry, f000/f012/f024/f048; side-session notes socal-swell2-2026-10-24/): swell_2 valid at **786 of the box's 786 sea nodes**
+  (785 at f048) - full coverage. At 8 SoCal points x 4 hours: tile vs the dynamic lane (Open-Meteo ncep_gfswave025, the same
+  NOAA model) |d| p50/p90/max **0.01 / 0.01 / 0.01 m**; tile vs the 2-deg world frame (the global tier) **0.04 / 0.10 / 0.24 m**
+  (e.g. 32.75N 117.5W f048: tile 0.35, world 0.59). So the flip changes the SOURCE (a stored tile, no live upstream fetch, the
+  same lattice as the bundles) far more than the number, except where z7-9 falls back to the 2-deg tier.
+- **Cost:** sampling in the existing whole-globe pass + ~113 product saves a run (SoCal's other layers store 117-120).
+- **Tests:** the pinned omission is now the flag-off control; +1 flag-on test (chain; set-from 2919). Two mutations fail.

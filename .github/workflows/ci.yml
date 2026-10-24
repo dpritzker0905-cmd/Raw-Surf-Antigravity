@@ -1550,7 +1550,9 @@ jobs:
           #   base 2918 (hosted read) + 6 new test(s) = 2924, files 179; floor 2924 - 6 = 2918. This PR must read 2924 passed.
           # ⬆ 2918→2926 on 2026-10-24 (rederive_floor.py, lead-fix-515): dev run 40078270428 read 2924 / 179 files; dev's map 2924;
           #   base 2924 (hosted read) + 8 new test(s) and 0 new file(s) = 2932, files 179; floor 2932 - 6 = 2926. This PR must read 2932 passed.
-          MIN_FILES, MIN_PASSED = 179, 2926
+          # ⬆ 2926→2927 on 2026-10-24 (rederive_floor.py, claude/socal-swell2-dark): dev run 40083546115 read 2924 / 179 files; dev's map 2932;
+          #   base 2932 (dev's map) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
+          MIN_FILES, MIN_PASSED = 179, 2927
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
