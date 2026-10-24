@@ -70,6 +70,15 @@ def test_a_request_with_no_peer_at_all_is_still_keyed():
     assert rate_limiter._get_client_ip(fake_request(None, peer=None)) == 'unknown'
 
 
+def test_the_account_limits_come_from_the_environment_and_survive_a_typo(monkeypatch):
+    assert auth_module.login_account_limits() == (10, 900)
+    monkeypatch.setenv('LOGIN_ACCOUNT_MAX_FAILURES', '3')
+    monkeypatch.setenv('LOGIN_ACCOUNT_WINDOW_SECONDS', 'soon')
+    assert auth_module.login_account_limits() == (3, 900)
+    monkeypatch.setenv('LOGIN_ACCOUNT_MAX_FAILURES', '0')
+    assert auth_module.login_account_limits()[0] == 10
+
+
 def test_a_bad_hops_setting_does_not_disable_the_limiter(monkeypatch):
     monkeypatch.setenv('RATE_LIMIT_TRUSTED_PROXY_HOPS', 'lots')
     assert rate_limiter._get_client_ip(fake_request('1.1.1.1, 203.0.113.9')) == '203.0.113.9'
@@ -136,7 +145,7 @@ def test_the_same_real_address_is_limited_and_a_different_one_is_not(client):
 
 
 def test_repeated_failures_against_one_account_stop_even_when_every_address_is_new(client):
-    limit = auth_module.LOGIN_ACCOUNT_MAX_FAILURES
+    limit = auth_module.login_account_limits()[0]
     for i in range(limit):
         assert attempt(client, 'alice@example.com', BAD, f'203.0.113.{i + 1}').status_code == 401
     fresh_address = '198.51.100.200'
@@ -147,7 +156,7 @@ def test_repeated_failures_against_one_account_stop_even_when_every_address_is_n
 
 
 def test_a_successful_login_clears_the_account_count(client):
-    limit = auth_module.LOGIN_ACCOUNT_MAX_FAILURES
+    limit = auth_module.login_account_limits()[0]
     for i in range(limit - 1):
         assert attempt(client, 'alice@example.com', BAD, f'203.0.113.{i + 1}').status_code == 401
     assert attempt(client, 'alice@example.com', PASSWORD, '198.51.100.1').status_code == 200
@@ -156,7 +165,7 @@ def test_a_successful_login_clears_the_account_count(client):
 
 
 def test_guesses_at_an_account_that_does_not_exist_are_throttled_too(client):
-    limit = auth_module.LOGIN_ACCOUNT_MAX_FAILURES
+    limit = auth_module.login_account_limits()[0]
     for i in range(limit):
         assert attempt(client, 'ghost@example.com', BAD, f'203.0.113.{i + 1}').status_code == 404
     assert attempt(client, 'ghost@example.com', BAD, '198.51.100.9').status_code == 429

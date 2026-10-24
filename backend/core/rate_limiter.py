@@ -30,6 +30,15 @@ _request_log: Dict[str, Deque[float]] = defaultdict(deque)
 _TRUSTED_PREFIXES = ("127.", "10.", "172.16.", "192.168.")
 
 
+def env_positive_int(name: str, default: int) -> int:
+    """A positive int from the environment, read at CALL time; a typo or a value below 1 gives the default."""
+    try:
+        value = int(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return default
+    return value if value >= 1 else default
+
+
 def _trusted_proxy_hops() -> int:
     """How many reverse proxies in front of us append to X-Forwarded-For (env, default 1 = Render's edge).
 

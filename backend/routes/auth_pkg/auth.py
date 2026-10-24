@@ -5,7 +5,6 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime, timezone
 from passlib.context import CryptContext
-import os
 import uuid
 import logging
 
@@ -13,7 +12,8 @@ from database import get_db
 from models import Profile, RoleEnum
 from core.security import create_access_token, get_current_user_id, get_user_id_from_jwt_or_query
 from core.rate_limiter import (
-    failure_throttle_check, failure_throttle_clear, failure_throttle_record, rate_limit_check,
+    env_positive_int, failure_throttle_check, failure_throttle_clear, failure_throttle_record,
+    rate_limit_check,
 )
 from models import Notification
 
@@ -385,9 +385,10 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-# Wrong guesses allowed against ONE account before it is paused, whatever address they come from.
-LOGIN_ACCOUNT_MAX_FAILURES = int(os.environ.get("LOGIN_ACCOUNT_MAX_FAILURES", "10"))
-LOGIN_ACCOUNT_WINDOW_SECONDS = int(os.environ.get("LOGIN_ACCOUNT_WINDOW_SECONDS", "900"))
+def login_account_limits():
+    """(wrong guesses allowed against ONE account, window in seconds) before it is paused, from any address."""
+    return (env_positive_int("LOGIN_ACCOUNT_MAX_FAILURES", 10),
+            env_positive_int("LOGIN_ACCOUNT_WINDOW_SECONDS", 900))
 
 
 @router.post("/auth/login")
@@ -400,7 +401,7 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     # account. Only FAILED guesses count, and a correct password clears the count, so a legitimate user who mistypes
     # a few times is unaffected.
     account_key = f"login_fail:{username_id}"
-    failure_throttle_check(account_key, LOGIN_ACCOUNT_MAX_FAILURES, LOGIN_ACCOUNT_WINDOW_SECONDS)
+    failure_throttle_check(account_key, *login_account_limits())
     result = await db.execute(
         select(Profile).where(
             (func.lower(Profile.email) == login_id) | 
