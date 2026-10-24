@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from database import get_db
+from core.security import get_current_user_id
 from models import NotificationPreferences, Profile
 
 router = APIRouter()
@@ -112,9 +113,12 @@ async def get_notification_preferences(user_id: str, db: AsyncSession = Depends(
 async def update_notification_preferences(
     user_id: str, 
     data: NotificationPreferencesUpdate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update user's notification preferences"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Verify user exists
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     if not user_result.scalar_one_or_none():

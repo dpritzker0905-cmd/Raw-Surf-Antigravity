@@ -18,6 +18,16 @@
 // MID ZOOM (2026-10-22, #458 on #459): ZOOM (3.2 = the world view), CENTER (lng,lat; -80,24), VIEW (desktop = 1280 x 800; owner =
 // 844 x 390 at dpr 2), MIN_COLS (the exact frame's least width: 150 for a world frame; 10 for a mid-zoom clip). Run the backend with
 // --dynamic 1 so a zoomed-in view commits its own clip.
+// EXACT FRAME AT Z7+ (2026-10-24, measured): the check is model + layer + the product's valid-time stamp + stride 0 + a width window.
+// The old floor (`cols >= MIN_COLS`) read a z8 viewport clip as "not full resolution": EURO's 2-deg lattice on a 6-deg box is 6
+// columns, so every GFS->EURO click at z8 read MISSED in both arms while the drawn product was already the right EURO hour (debug
+// run: pid euro_marine_waves_global_mid_<hour>, bounds -92,42,-82,48). At ZOOM >= 7 the window is now a clip: 2 <= cols <= CLIP_MAX
+// (default 80), so a stale 181-column world grid is NOT accepted as exact there. Below z7 the floor is unchanged (MIN_COLS).
+// WAVE LAKES (2026-10-23, waveLakes.js): PLAN (comma list of models / WHEEL:<key>, e.g. EURO,GFS,EURO,GFS) replaces the default
+// plan; an arm ending -nolakes sets __RAW_DISABLE_WAVE_LAKES__ (the build before lakes). Per click: litLake (drawn frames where a
+// non-lake model's data sat under a mask with lakes cut in; must be 0), the CPU phases (maskBaseCanvas, maskWaterPaint, maskUpload,
+// waveDataUpdate = setWaveData with its mask encode, regionalMaskRefresh: calls and ms) between the click and the exact frame, i.e.
+// ON the toggle's critical path, and the engine's mask encode mode at the exact frame. Per session: litLake total.
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -35,11 +45,12 @@ const ZOOM = +(process.env.ZOOM || 3.2);
 const [CLNG, CLAT] = (process.env.CENTER || '-80,24').split(',').map(Number);
 const VIEW = process.env.VIEW || 'desktop';
 const MIN_COLS = +(process.env.MIN_COLS || 150);
+const CLIP = ZOOM >= 7; const CLIP_MAX = +(process.env.CLIP_MAX || 80);
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // Clicks at the opening hour, then after a day's step, then far out (EURO turns 6-hourly past 144 h).
-const PLAN = [['ICON'], ['EURO'], ['GFS'], ['WHEEL', 'PageUp'], ['EURO'], ['ICON'], ['GFS'], ['WHEEL', 'PageUp'], ['WHEEL', 'PageUp'],
+const PLAN = process.env.PLAN ? process.env.PLAN.split(',').map((x) => (x.startsWith('WHEEL:') ? ['WHEEL', x.slice(6)] : [x])) : [['ICON'], ['EURO'], ['GFS'], ['WHEEL', 'PageUp'], ['EURO'], ['ICON'], ['GFS'], ['WHEEL', 'PageUp'], ['WHEEL', 'PageUp'],
   ['WHEEL', 'PageUp'], ['WHEEL', 'PageUp'], ['WHEEL', 'PageUp'], ['WHEEL', 'PageUp'], ['ICON'], ['GFS'], ['EURO'], ['GFS']];
 
 const cdnLog = { requests: 0, bytes: 0, frames: 0 };
@@ -61,8 +72,12 @@ const cdn = http.createServer((req, res) => {
 });
 
 // ---- the in-page probe ----
-const PROBE = ({ bytesCheck, minCols }) => {
-  const P = (window.__MT__ = { w: null, pairs: [], reads: new Map() });
+const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
+  const P = (window.__MT__ = { w: null, pairs: [], reads: new Map(), lit: 0, lakeTex: new WeakSet() });
+  const PH = ['maskBaseCanvas', 'maskWaterPaint', 'maskUpload', 'waveDataUpdate', 'regionalMaskRefresh'];
+  const phases = () => { const b = window.__RAW_GPU__ && window.__RAW_GPU__.cpuPhaseTiming && window.__RAW_GPU__.cpuPhaseTiming.buckets;
+    return Object.fromEntries(PH.map((k) => [k, b && b[k] ? { calls: b[k].calls, ms: b[k].totalDurationMs } : { calls: 0, ms: 0 }])); };
+  const phaseDelta = (a, b) => Object.fromEntries(PH.map((k) => [k, { calls: b[k].calls - a[k].calls, ms: +(b[k].ms - a[k].ms).toFixed(1) }]));
   window.addEventListener('pointerup', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
   window.addEventListener('click', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
   window.addEventListener('keydown', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
@@ -76,7 +91,7 @@ const PROBE = ({ bytesCheck, minCols }) => {
       pid: (g && g.__fromFrameStore && g.__servedProductId) || (window.__WEBGL_MARINE_UPLOAD_DIAG__ && window.__WEBGL_MARINE_UPLOAD_DIAG__.servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null),
       status };
   };
-  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && s.cols >= minCols;
+  const exactNow = (s, W) => s.model === W.model && s.layer === 'waves' && stampMs(s.pid) === W.expectedMs && s.stride === 0 && (clip ? (s.cols >= 2 && s.cols <= clipMax) : s.cols >= minCols);
   const fnv = (u8) => { let h = 2166136261; for (let i = 0; i < u8.length; i++) h = Math.imul(h ^ u8[i], 16777619); return (h >>> 0).toString(16); };
   function readTex(tex) {
     const eng = window.__MARINE_ENGINE__; const m = window.__MAP_INSTANCE__ || window.map;
@@ -100,17 +115,28 @@ const PROBE = ({ bytesCheck, minCols }) => {
     const W = P.w;
     const op = window.__RAW_GPU__ && window.__RAW_GPU__.opacity;
     const drew = op && op.n !== lastN; if (op) lastN = op.n;
+    const eng = window.__MARINE_ENGINE__;
+    if (eng && eng._cachedMaskTex && eng._cachedMaskGeoJSON && (eng._cachedMaskGeoJSON.__waveLakes || []).length) P.lakeTex.add(eng._cachedMaskTex);
+    const dd = eng && eng._waveData; const gm = dd && dd.waveGrid ? (dd.waveGrid.__sourceModel || 'GFS') : null;
+    const litNow = !!(drew && gm && gm !== 'EURO' && dd.u_oceanMaskTexture && P.lakeTex.has(dd.u_oceanMaskTexture));
+    if (litNow) P.lit += 1;
     if (W && !W.done && W.t0 != null && t >= W.t0) {
       const s = snap(); const ok = exactNow(s, W);
+      if (W.ph0 == null) W.ph0 = phases();
+      if (litNow) W.litLake += 1;
       if (drew) {
         W.frames += 1;
         const admitted = /Loading|Verifying|does not match|pending|nearest|estimated/i.test(s.status);
-        if (s.model && s.model !== W.model) admitted ? W.wrongAdmitted++ : W.wrongSilent++;
+        if (s.model && s.model !== W.model) {
+          if (admitted) W.wrongAdmitted++;
+          else { W.wrongSilent++; if (W.silentAt.length < 6) W.silentAt.push({ dt: Math.round(t - W.t0), model: s.model, store: s.store, series: s.series, cols: s.cols, status: s.status.slice(0, 120) }); }
+        }
         if (s.model === W.model && /Loading .*still showing/i.test(s.status)) W.labelLag += 1;
         if (W.exact == null && !ok) W.framesToExact += 1;
         if (op.mult < 0.999) W.dimmed += 1;
       }
-      if (W.exact == null && ok) { W.exact = t - W.t0; W.viaStore = s.store; W.pid = s.pid; W.statusAtExact = s.status; }
+      if (W.exact == null && ok) { W.exact = t - W.t0; W.viaStore = s.store; W.pid = s.pid; W.statusAtExact = s.status; W.maskPhases = phaseDelta(W.ph0, phases());
+        W.maskMode = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._lastMaskEncodeMode; }
       else if (W.exact != null && !ok) { W.regress += 1; const k = `${s.model}:${s.cols}`; W.regressAs[k] = (W.regressAs[k] || 0) + 1; }
     }
     if (bytesCheck) {
@@ -127,8 +153,8 @@ const PROBE = ({ bytesCheck, minCols }) => {
   };
   requestAnimationFrame(loop);
   P.arm = (model, expected) => { P.w = { model, expectedMs: stampMs(expected), t0: null, exact: null, viaStore: null, pid: null, regress: 0, frames: 0,
-    framesToExact: 0, wrongSilent: 0, wrongAdmitted: 0, labelLag: 0, dimmed: 0, statusAtExact: null, regressAs: {} }; };
-  P.read = () => ({ ...P.w });
+    framesToExact: 0, wrongSilent: 0, wrongAdmitted: 0, labelLag: 0, dimmed: 0, statusAtExact: null, regressAs: {}, litLake: 0, ph0: null, maskPhases: null, silentAt: [] }; };
+  P.read = () => ({ ...P.w, ph0: undefined });
 };
 
 // A visible button with exactly this text; on the phone layout a control may sit in a collapsed sheet, so fall back to the
@@ -148,15 +174,17 @@ async function session(arm, round) {
   const phone = arm.endsWith('-handheld');
   const theme = arm.endsWith('-light') ? 'light' : arm.endsWith('-beach') ? 'beach' : 'dark';
   const killToggle = arm.startsWith('off');
+  const noLakes = arm.includes('-nolakes');
   const dims = phone ? { width: 390, height: 844, dpr: 2 } : VIEW === 'owner' ? { width: 844, height: 390, dpr: 2 } : {};
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: false, ...dims });
-  await page.addInitScript(({ base, theme, killToggle, phone }) => {
+  await page.addInitScript(({ base, theme, killToggle, phone, noLakes }) => {
+    if (noLakes) window.__RAW_DISABLE_WAVE_LAKES__ = true;
     localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base;
     localStorage.setItem('raw-surf-theme', theme);
     if (killToggle) window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true;
     if (phone) window.__RAW_FRAME_STORE_TIER__ = 'handheld';
-  }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone });
-  await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS });
+  }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone, noLakes });
+  await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS, clip: CLIP, clipMax: CLIP_MAX });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e && e.message || e).slice(0, 200)));
   const clicks = []; const cdn0 = { ...cdnLog };
@@ -218,14 +246,19 @@ async function session(arm, round) {
       await page.keyboard.press('ArrowLeft'); await sleep(1200);
       clicks.push({ from: model, to: target, hour, warmMs, ms: r.exact == null ? null : Math.round(r.exact), viaStore: r.viaStore, framesToExact: r.framesToExact,
         frames: r.frames, wrongSilent: r.wrongSilent, wrongAdmitted: r.wrongAdmitted, labelLag: r.labelLag, dimmed: r.dimmed, regress: r.regress, regressAs: r.regressAs,
-        statusAtExact: r.statusAtExact, ring, ringAll, nextStepMs: s.exact == null ? null : Math.round(s.exact), nextViaStore: s.viaStore });
+        statusAtExact: r.statusAtExact, litLake: r.litLake, maskPhases: r.maskPhases, maskMode: r.maskMode, silentAt: r.silentAt, ring, ringAll, nextStepMs: s.exact == null ? null : Math.round(s.exact), nextViaStore: s.viaStore });
       model = target; warmMs = await settle();
     }
     const req = log.requests; const byPath = {}; for (const q of req) byPath[q.path] = (byPath[q.path] || 0) + 1;
+    // REQLOG=1: every weather ask with its model, layer, hours, box and ms, and the clicks' wall-clock marks, so asks can be grouped
+    // by model / layer / mini vs page / repeated box (the 2026-10-23 z8 question: 130-386 /grid_series asks in 12 clicks).
+    const reqlog = process.env.REQLOG === '1' ? req.filter((q) => q.path === '/grid_series' || q.path === '/grid').map((q) => ({
+      t: Math.round(q.t), ms: q.ms, path: q.path, q: q.q, status: q.status })) : undefined;
     const tail = await page.evaluate(() => { const t = window.__RAW_FRAME_STORE__; const P = window.__MT__;
       return { store: t ? { tier: t.tier, shows: t.shows, switches: t.switches, aux: t.aux, prefetch: t.prefetch, gpu: t.gpu, crop: t.crop,
-        sets: (t.sets || []).map((s) => ({ key: s.key, frames: s.frames, packed: s.packed, resident: s.resident, absent: s.absent })) } : null, pairs: P.pairs }; });
-    return { arm, round, theme, phone, clicks, backendRequests: byPath, cdn: { requests: cdnLog.requests - cdn0.requests, frames: cdnLog.frames - cdn0.frames, bytes: cdnLog.bytes - cdn0.bytes },
+        sets: (t.sets || []).map((s) => ({ key: s.key, frames: s.frames, packed: s.packed, resident: s.resident, absent: s.absent })) } : null, pairs: P.pairs,
+        litLake: P.lit, waveLakes: window.__RAW_WAVE_LAKES__ || null }; });
+    return { arm, round, theme, phone, clicks, backendRequests: byPath, reqlog, cdn: { requests: cdnLog.requests - cdn0.requests, frames: cdnLog.frames - cdn0.frames, bytes: cdnLog.bytes - cdn0.bytes },
       errors: [...errors, ...log.errors.slice(0, 5)], ...tail };
   } finally { await browser.close(); }
 }
@@ -246,7 +279,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         console.log(arm, 'switch ms p50/p95/max', pct(ms, 0.5), pct(ms, 0.95), ms.some((x) => x == null) ? 'MISSED' : Math.max(...ms),
           'viaStore', s.clicks.filter((x) => x.viaStore).length + '/' + s.clicks.length, 'wrongSilent', s.clicks.reduce((a, x) => a + x.wrongSilent, 0),
           'labelLag', s.clicks.reduce((a, x) => a + x.labelLag, 0), 'next p95', pct(s.clicks.map((x) => x.nextStepMs), 0.95),
-          'pairs', (s.pairs || []).filter((p) => p.wave && p.chl && p.bath).length + '/' + (s.pairs || []).length, 'errors', (s.errors || []).length,
+          'litLake', s.litLake, 'pairs', (s.pairs || []).filter((p) => p.wave && p.chl && p.bath).length + '/' + (s.pairs || []).length, 'errors', (s.errors || []).length,
           s.error ? 'SESSION ERROR ' + s.error.slice(0, 200) : '');
         if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
       }
@@ -260,7 +293,8 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         next_step_ms_p95: pct(cl.map((x) => x.nextStepMs), 0.95), next_step_via_store: cl.filter((x) => x.nextViaStore).length,
         pairs: ss.flatMap((s) => s.pairs || []).length, pairs_all_equal: ss.flatMap((s) => s.pairs || []).filter((p) => p.wave && p.chl && p.bath).length,
         backend_requests: ss.reduce((acc, s) => { for (const [k, v] of Object.entries(s.backendRequests || {})) acc[k] = (acc[k] || 0) + v; return acc; }, {}),
-        cdn_frames: ss.map((s) => s.cdn && s.cdn.frames), errors: ss.flatMap((s) => s.errors || []).slice(0, 5), session_errors: ss.filter((s) => s.error).length };
+        cdn_frames: ss.map((s) => s.cdn && s.cdn.frames), lit_lake_frames: ss.reduce((a, s) => a + (s.litLake || 0), 0),
+        mask_ms_on_click_path_max: Math.max(0, ...cl.map((x) => (x.maskPhases ? ['maskBaseCanvas', 'maskWaterPaint', 'maskUpload'].reduce((a, k) => a + ((x.maskPhases[k] || {}).ms || 0), 0) : 0))), errors: ss.flatMap((s) => s.errors || []).slice(0, 5), session_errors: ss.filter((s) => s.error).length };
     }
     console.log(JSON.stringify(out.summary, null, 1));
   } finally {

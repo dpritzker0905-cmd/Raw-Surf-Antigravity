@@ -120,6 +120,24 @@ jobs:
           WAVES_ANIM_SWELL_MIN_FRAC: ${{ vars.WAVES_ANIM_SWELL_MIN_FRAC || '0.35' }}
         run: python scripts/ingest_forecast_ci.py
 
+      # STATIC WIND FRAMES, THE HRRR LANE'S WINDOW (2026-10-23, the wind instant scrub's PR B): right after the ingest above
+      # publishes a new HRRR lane (wind_lane_ingest), rebuild only the GFS wind frames inside the old or the new lane's window
+      # (~18 of 113: one L2 product download each, the new lane applied, the parity gate) and name the new index in the public
+      # lane pointer (weather-frames v1/wind_lane.json `frames`). Frames outside both windows keep their bytes. latest.json is
+      # never written here: the pilots lane owns it. A no-op when the published index already carries the lane. Without it the
+      # client sends the new lane's window (the next ~48 h) to /grid until the pilots lane republishes (~40% of the day).
+      # Never fails the cycle. Off: repository variable WIND_LANE_FRAMES_REBUILD = '0'.
+      - name: Rebuild the lane-window static wind frames
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WIND_LANE_FRAMES_REBUILD: ${{ vars.WIND_LANE_FRAMES_REBUILD || '1' }}
+        run: python scripts/publish_frame_images.py --wind-lane-rebuild
+
       # MODEL SPREAD DATA (2026-10-19, dark, data only): per-node GFS/EURO/ICON mean/min/max/spread/cv of the world
       # (global_mid) wave field at GFS leads 0, 24, 48 ... h, for each frame whose three member runs are new, written to
       # the PRIVATE weather-products bucket under model_spread/global_mid/ (gzip JSON + index.json; never the manifest).
