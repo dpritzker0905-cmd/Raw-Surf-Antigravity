@@ -150,3 +150,18 @@ node. Repaired by `claude/wind-box-lane` (log `2026-10-23-claude-wind-instant-sc
 - a keeper thread re-reads the lane index every 300 s, whatever the traffic;
 - the box reports the lane it holds (`GET /api/weather/wind_lane`, /capabilities `wind_lane.key`), and the client serves a
   lane-window hour only when that key equals the frames'. The pointer stays as the early warning for a new lane.
+
+## 8. The lane-window rebuild (2026-10-24, PR B: closes section 6's "lane match rate")
+
+Right after the core lane publishes a new HRRR lane, `publish_frame_images.py --wind-lane-rebuild` (a core-lane step after the
+ingest; `services/frame_set_wind_rebuild.py`) rebuilds the published wind set for it:
+- frames outside both the old and the new window keep their bytes, renamed to the new lane (`restamp`, the stamp `/grid` gives);
+- frames inside either window are rebuilt from their stored product (one L2 download each) through `frame_set.publish_set`:
+  the parity gate applies, and a newer run's product is refused;
+- the new index is named in the lane pointer, `frames: {index, run, lane}`. `latest.json` is never written (the pilots lane
+  owns it); the pilots' retention keeps whatever the pointer names.
+
+The client (`windIndex`) uses the pointer's rebuild only for the run `latest.json` names, and only when it carries the pointer's
+lane. The lane-window hours are static again within one core-lane step of a new lane (offline: 18 rebuilt, 95 carried, 0.93 MB;
+0 bad over 840,444 nodes against a box holding the new lane). Kills: repository variable `WIND_LANE_FRAMES_REBUILD = '0'`;
+client `window.__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__ = true`.

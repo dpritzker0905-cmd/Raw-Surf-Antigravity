@@ -148,6 +148,41 @@ def fields_for(target, lane_touched=False):
     return fb.DEFAULT_FIELDS
 
 
+def note_parity(stats, check):
+    """Fold one checked frame's parity report into the set's stats: the max error per field and of u/v, the marine u/v
+    error per height band, and both per world-frame region. PURE but for `stats`."""
+    errs = stats["parity_max_abs_err"]
+    for k, v in (check.get("max_abs_err") or {}).items():
+        errs[k] = max(errs.get(k, 0.0), v)
+    if check.get("uv_max_err") is not None:
+        errs["uv"] = max(errs.get("uv", 0.0), check["uv_max_err"])
+    bands = stats["uv_max_err_by_height_m"]
+    for k, v in (check.get("uv_by_height_m") or {}).items():
+        bands[k] = max(bands.get(k, 0.0), v)
+    stats["uv_max_err_by_height_m"] = dict(sorted(bands.items(), key=lambda kv: int(kv[0].split("-")[0])))
+    # ⬇ 2026-10-24 (the lead, the worldwide verify matrix): the same per world-frame region (fb.frame_regions), with the
+    # frames, nodes and bad nodes behind each maximum, so a matrix row can cite e.g. "antimeridian: 0 bad of N nodes".
+    by_region = stats.setdefault("parity_by_region", {})
+    for name, r in (check.get("by_region") or {}).items():
+        acc = by_region.setdefault(name, {"frames": 0, "nodes": 0, "bad": 0, "max_abs_err": {}})
+        acc["frames"] += 1
+        acc["nodes"] += r["nodes"]
+        acc["bad"] += r["bad"]
+        for k, v in r["max_abs_err"].items():
+            acc["max_abs_err"][k] = max(acc["max_abs_err"].get(k, 0.0), v)
+        if r.get("uv_max_err") is not None:
+            acc["max_abs_err"]["uv"] = max(acc["max_abs_err"].get("uv", 0.0), r["uv_max_err"])
+    stats["parity_by_region"] = {k: by_region[k] for k in fb.REGIONS if k in by_region}
+
+
+def parity_line(check):
+    """One frame's max errors, compact, for the publish log: 'height_m 0.0005 ... uv 0.0011'. PURE."""
+    parts = [f"{k} {v:g}" for k, v in (check.get("max_abs_err") or {}).items()]
+    if check.get("uv_max_err") is not None:
+        parts.append(f"uv {check['uv_max_err']:g}")
+    return " ".join(parts)
+
+
 def build_frame(product, entry, fields=fb.DEFAULT_FIELDS):
     """(raw frame bytes, parity report) for one product; raises ValueError when it cannot be encoded."""
     raw = fb.encode_frame(product, fields)
@@ -196,7 +231,11 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         prev_frames[(f["valid_time"], bool(f.get("is_estimated")))] = f
     stats = {"entries": 0, "built": 0, "carried": 0, "unchanged": 0, "uploaded": 0, "not_local": 0, "stale_local": 0,
              "refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0, "coverage_authoritative": 0.0,
-             "coverage_refused": False}
+             "coverage_refused": False,
+             # ⬇ 2026-10-24 (the lead): every CHECKED frame's errors, refused or built, so the publish report shows how
+             # close accepted frames run to each tolerance (before, only refusals printed u/v): per field plus u/v, and
+             # the marine u/v error per height band, the reading that says whether u/v can be tightened below 6 m.
+             "parity_max_abs_err": {}, "uv_max_err_by_height_m": {}, "parity_by_region": {}}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
     entries = select_entries(source.manifest().get("products"), target)
     stats["entries"] = len(entries)
@@ -237,11 +276,13 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             log(f"[frames] {entry['filename']}: refused ({e})")
             unbuilt(vt, est, ident, "refused")
             continue
+        note_parity(stats, check)
         if check["bad"]:
             stats["parity_bad"] += check["bad"]
             log(f"[frames] {entry['filename']}: parity refused, nothing uploaded: {check}")
             unbuilt(vt, est, ident, "refused")
             continue
+        log(f"[frames] {entry['filename']}: parity ok: {parity_line(check)}")
         for k, v in check["max_abs_err"].items():
             max_err[k] = max(max_err.get(k, 0.0), v)
         stats["built"] += 1

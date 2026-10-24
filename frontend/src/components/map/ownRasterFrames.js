@@ -24,27 +24,41 @@ import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 
 export const PRESSURE_FIELD = 6;
+// PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
+// "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
+// last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
 export const OWN_RASTER_SETS = {
-  pressure: { key: 'GFS/weather/pressure/global_0p5', model: 'GFS', field: PRESSURE_FIELD, unit: 'hPa' },
+  pressure: {
+    models: { GFS: 'GFS/weather/pressure/global_0p5', EURO: 'EURO/weather/pressure/global_0p5', ICON: 'ICON/weather/pressure/global_0p5' },
+    fallback: 'GFS', field: PRESSURE_FIELD, unit: 'hPa',
+  },
 };
+// Who the frames come from, for the legend credit and the status line.
+export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON' };
+const up = (m) => String(m || 'GFS').toUpperCase();
+/** The set key for a layer and model, or null when that model has no own set. */
+export function setKey(layer, model = 'GFS') {
+  const set = OWN_RASTER_SETS[layer];
+  return (set && set.models[up(model)]) || null;
+}
 export const MISSING = -9999;     // what a no-data node becomes in the uploaded field (every real value is positive)
 const LRU_MAX = 6;                // the desktop window (4) plus the last two shown
 const STEPS_KEPT = 400;
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 
-/** Is the own-frames path on for this layer and model? Synchronous, no I/O. A set is one model's: with another model selected the
- *  .om path draws that model as before (never GFS frames under a EURO or ICON label). */
+/** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
+ *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
 export function ownFramesOn(layer, model = 'GFS') {
-  const set = OWN_RASTER_SETS[layer];
-  if (!set || String(model || 'GFS').toUpperCase() !== set.model) return false;
+  const key = setKey(layer, model);
+  if (!key) return false;
   const w = W();
   if (w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true) return false;
   let on = w.__RAW_RASTER_OWN_FRAMES__ === true;
   if (!on) {
     try { on = !!w.localStorage && w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') === 'true'; } catch (e) { on = false; }
   }
-  return on && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(set.key);
+  return on && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
 }
 
 export function tel() {
@@ -56,19 +70,47 @@ export function tel() {
 }
 export function noteMiss(reason) { const t = tel(); t.misses[reason] = (t.misses[reason] || 0) + 1; }
 
-// The last index pinned per layer: a toggle draws from it at once (one frame round trip) while ownIndex refreshes it.
+// The last index pinned per layer and model: a toggle draws from it at once (one frame round trip) while ownIndex refreshes it.
 const _lastIndex = {};
-export const lastIndex = (layer) => _lastIndex[layer] || null;
+export const lastIndex = (layer, model = 'GFS') => _lastIndex[`${layer}/${up(model)}`] || null;
 
-/** The pinned index for a layer's set (async; null when none is published or the path is off). */
-export async function ownIndex(layer) {
-  if (!ownFramesOn(layer)) return null;
+/** The pinned index for a layer's set of one model (async; null when none is published or the path is off). */
+export async function ownIndex(layer, model = 'GFS') {
+  if (!ownFramesOn(layer, model)) return null;
   try {
-    const idx = await getPinnedIndex(OWN_RASTER_SETS[layer].key);
-    if (idx) _lastIndex[layer] = idx;
-    if (idx) tel().pin = { layer, index: idx.path || null, run: idx.run || null, frames: idx.frames.length, validMs: framesOf(idx).map((f) => Date.parse(f.valid_time)) };
+    const idx = await getPinnedIndex(setKey(layer, model));
+    if (idx) _lastIndex[`${layer}/${up(model)}`] = idx;
+    if (idx) tel().pin = { layer, model: up(model), index: idx.path || null, run: idx.run || null, frames: idx.frames.length, validMs: framesOf(idx).map((f) => Date.parse(f.valid_time)) };
     return idx || null;
   } catch (e) { return null; }
+}
+
+/**
+ * The frames a scrub walks for one model: its own, then (when it has a fallback and the fallback's index is given) the
+ * fallback's frames past its last one, flagged `estimated` (the basis the status line names). Each entry is a shallow copy
+ * carrying the set key it loads from (`setKey`) and the model it shows (`model`); the indexes are never mutated.
+ */
+export function combinedFrames(layer, model, index, fallbackIndex) {
+  const m = up(model);
+  const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: m, estimated: null }));
+  const fb = OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].fallback;
+  if (!fallbackIndex || !fb || fb === m || !own.length) return own;
+  const last = Date.parse(own[own.length - 1].valid_time);
+  const tail = framesOf(fallbackIndex).filter((f) => Date.parse(f.valid_time) > last)
+    .map((f) => ({ ...f, setKey: setKey(layer, fb), model: fb, estimated: 'gfs_estimated_fallback' }));
+  return own.concat(tail);
+}
+
+/** The entry to show for an asked time in a combined list: the nearest within 3 h of the model's own, else (past its range)
+ *  of the stand-in tail. pickIndexFrame's rule on each part, so own frames always win inside the model's range. */
+export function combinedFrameAt(frames, validMs) {
+  const own = frames.filter((f) => !f.estimated);
+  const f = pickIndexFrame({ frames: own }, validMs);
+  if (f && f.path) return f;
+  const lastOwn = own.length ? Date.parse(own[own.length - 1].valid_time) : -Infinity;
+  if (validMs <= lastOwn) return null;
+  const g = pickIndexFrame({ frames: frames.filter((x) => x.estimated) }, validMs);
+  return g && g.path ? g : null;
 }
 
 /** The index's frames that have a file, in valid-time order (the window walks these). */
@@ -138,13 +180,14 @@ export function loadField(layer, frame, priority) {
   if (have) return Promise.resolve(have);
   const set = OWN_RASTER_SETS[layer];
   if (!set) return Promise.resolve(null);
+  const key = frame.setKey || setKey(layer, 'GFS');
   let p = _inflight.get(frame.path);
   if (!p) {
     p = (async () => {
       const t = tel();
       t.loads += 1;
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
-      const got = await loadFrameParsed(set.key, frame, undefined, priority ? { priority } : undefined);
+      const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); return null; }
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const field = toField(got.parsed, set.field);
@@ -188,9 +231,11 @@ function pump() {
 // ── which layers are drawn from our frames right now (the legend credit reads it) ──────────────────────────────────
 let _engaged = Object.freeze({});
 const _engagedSubs = new Set();
+/** `on`: false, or the model of the frame on screen ('GFS' | 'EURO' | 'ICON'; `true` reads as GFS). */
 export function setEngaged(layer, on) {
-  if (!!_engaged[layer] === !!on) return;
-  _engaged = Object.freeze({ ..._engaged, [layer]: !!on });
+  const v = on === true ? 'GFS' : (on || false);
+  if ((_engaged[layer] || false) === v) return;
+  _engaged = Object.freeze({ ..._engaged, [layer]: v });
   for (const fn of _engagedSubs) { try { fn(); } catch (e) { /* a subscriber's error is its own */ } }
 }
 export const getEngaged = () => _engaged;

@@ -13,6 +13,7 @@ import httpx
 import logging
 from models import Conversation, Message, MessageReaction, Notification, Profile
 from core.security import get_current_user_id, get_user_id_from_jwt_or_query
+from services.blocks import assert_not_blocked
 from services.private_media import delivery_url_for_media, upload_private_media
 
 from .schemas import (
@@ -60,6 +61,11 @@ async def add_reaction(message_id: str, data: ReactionRequest,
     conv = message.conversation
     if user_id not in [conv.participant_one_id, conv.participant_two_id]:
         raise HTTPException(status_code=403, detail="Not a participant in this conversation")
+    # BLOCKS (audit F-09): no reactions across a block.
+    await assert_not_blocked(
+        db, user_id,
+        conv.participant_two_id if conv.participant_one_id == user_id else conv.participant_one_id,
+    )
     
     # Check for existing reaction
     result = await db.execute(
@@ -215,6 +221,12 @@ async def upload_voice_note(
     
     if sender_id not in [conversation.participant_one_id, conversation.participant_two_id]:
         raise HTTPException(status_code=403, detail="Not a participant in this conversation")
+    # BLOCKS (audit F-09): no voice notes across a block.
+    await assert_not_blocked(
+        db, sender_id,
+        conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id,
+    )
+    
     # PARENTAL CONTROLS (audit F-09): a Grom's guardian switches apply to voice notes too.
     await enforce_grom_sender_controls(
         sender_id,
@@ -317,6 +329,8 @@ async def upload_message_media(
     
     # If starting a new chat via media upload, create the conversation first
     if not conversation_id and recipient_id:
+        # BLOCKS (audit F-09): checked BEFORE the conversation row is created.
+        await assert_not_blocked(db, sender_id, recipient_id)
         # PARENTAL CONTROLS (audit F-09): checked BEFORE the conversation row is created.
         await enforce_grom_sender_controls(sender_id, recipient_id, db)
         conversation, _ = await get_or_create_conversation(sender_id, recipient_id, db)
@@ -330,6 +344,12 @@ async def upload_message_media(
             raise HTTPException(status_code=404, detail="Conversation not found")
         if sender_id not in [conversation.participant_one_id, conversation.participant_two_id]:
             raise HTTPException(status_code=403, detail="Not a participant in this conversation")
+        # BLOCKS (audit F-09): no media across a block.
+        await assert_not_blocked(
+            db, sender_id,
+            conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id,
+        )
+    
         # PARENTAL CONTROLS (audit F-09): a Grom's guardian switches apply to media too.
         await enforce_grom_sender_controls(
             sender_id,

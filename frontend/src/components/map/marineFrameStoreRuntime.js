@@ -55,6 +55,7 @@ import { auxForPack } from './marineFrameAux';
 import { publishMarineDrawn } from './marineDrawnFrame';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
 import { createCropShow } from './marineFrameStoreCropShow';   // the crop show (2026-10-22)
+import { lakeShowPlan, applyLakeSwap } from './waveLakesShow';   // a lake model's mask under a non-lake frame (2026-10-23)
 
 const DEPTH = 128;     // layers per array: every set's frame count fits (GFS/ICON 113, EURO 81 over the locked 14 days)
 // Cells whose validity may differ between the shown frame and the resident's chl/bath (measured: at most 36 within a real run,
@@ -354,7 +355,7 @@ function packInto(info, validTime, parsed, buffer) {
 function onParsed({ key, frame, parsed, buffer }) {
   if (!frameStoreOn() || !frame || !frame.valid_time) return;
   const index = getPinnedIndexSync(key);
-  if (!index) return;
+  if (!index) { CS.regionalParsed(key, frame, parsed); return; }     // a pilot tile's frame (z7-9): its window pack only (not a store set)
   const info = setFor(key, index);
   CS.cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
   const e = store().entry(info.key, frame.valid_time);
@@ -404,6 +405,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   rt.resident = null; rt.pendingResident = null; rt.want = null;   // a normal commit supersedes a deferred show
   const why = (r) => { rt.commits[r] = (rt.commits[r] || 0) + 1; };
   if (!frameStoreOn() || !grid) return;
+  if (CS.noteRegionalCommitted(grid, model || grid.__sourceModel, layer || grid.__componentLayer)) { publishTelemetry(); return why('resident_crop_regional'); }   // a pilot tile's window (z7-9)
   const key = setKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
   const index = getPinnedIndexSync(key);
   if (!index) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index'); }
@@ -521,6 +523,8 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
   try {
     if (!frameStoreOn()) return false;
     if (!rt.target) return miss('no_target');
+    const regional = CS.regionalResident(model, layer);          // the engine holds a clip of a pilot tile's frame (z7-9): its window of the next frame
+    if (regional) return CS.showRegional(regional, { model, layer, hourOffset, requestedValidTime }, t0);
     // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
     // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
     if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
@@ -531,6 +535,9 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     if (!frame) return miss('no_frame_in_window');
     if (!frame.path) return miss('unbuilt_frame');
     const info = setFor(key, index);
+    const lakePlan = lakeShowPlan(rt.target.getEngine && rt.target.getEngine(), model);   // waveLakesShow.js
+    if (lakePlan === 'decline') return miss('lake_mask');
+    if (lakePlan === 'swap' && (CS.cropResidentFor(info) || (switching && CS.cropResidentOther(info)))) return miss('lake_mask_crop');
     if (CS.cropResidentFor(info)) return CS.showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     if (switching && CS.cropResidentOther(info)) return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     const e = store().lookup(info.key, frame.valid_time);
@@ -568,6 +575,7 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     if (!ok) dropDeadPool();                       // a lost context: never trust the array again; the CPU bytes below are exact
     if (!ok && e.packed) ok = uploadBytesTo2D(gl, tex, e.packed, e.pack.cols, e.pack.rows);
     if (!ok) { if (aux) rt.resident = null; return miss('copy_failed'); }   // chl/bath already moved: no resident is known
+    if (lakePlan === 'swap') applyLakeSwap(gl, engine);   // same show, before the draw: never GFS bytes under a lake cut
     const meta = frameMeta(index, frame);
     const ask = requestedValidTime;
     const crossModel = (wg.__sourceModel || 'GFS') !== model;

@@ -292,6 +292,7 @@ export function safeDeleteTexture(gl, tex, engine) {
     }
     // The stashed land mask (maskTextureStash.js) is still owned: an old frame that bound it must not free it.
     if (engine._maskStash && tex === engine._maskStash.tex) return;
+    if (engine._maskStash2 && tex === engine._maskStash2.tex) return;   // the lake-variant slot (maskTextureStash.js)
   }
   gl.deleteTexture(tex);
   // Account for it HERE, once, for every caller. Guarded so a texture this module never saw

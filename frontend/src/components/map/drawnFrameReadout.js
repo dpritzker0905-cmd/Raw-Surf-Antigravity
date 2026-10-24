@@ -19,7 +19,7 @@ const NEAREST_MAX_HOURS = 3;
  *  6-hourly (3 h). One rule for the marine line, the wind line and the point card's badge (review 2026-10-19). */
 export function latticeNearestMaxHours(model, hour) { return model === 'EURO' && hour > 144 ? 3 : 1; }
 
-const ESTIMATE_WORDS = {
+export const ESTIMATE_WORDS = {
   icon_swell_2_gfs_euro_blend: 'blended from GFS and EURO',
   icon_persistence_gfs_blend: 'beyond ICON’s native range',
   icon_trend_extrapolation: 'beyond ICON’s native range',

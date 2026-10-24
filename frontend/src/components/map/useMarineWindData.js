@@ -156,6 +156,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       source_dataset: marineData?.source_dataset || marineData?.grid?.source_dataset || null,
       estimate_basis: marineData?.estimate_basis || marineData?.grid?.estimate_basis || null,
       productId: marineData.grid.productId || marineData.productId || null,
+      // The STORED product a series frame came from (marineSeriesFrame: __servedProductId), carried under its own name for the frame
+      // store's regional show (marineFrameStoreRegional.findRegionalFrame); nothing else reads it (2026-10-24).
+      __storedProductId: marineData.grid.__servedProductId || marineData.served_product_id || null,
       is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,
       coverage_scope: marineData.grid.coverage_scope || null,
       // Rating-mode flag (2026-07-12): this conform is an EXPLICIT field list — the known
