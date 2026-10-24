@@ -33,3 +33,21 @@ DARK with the field (only while `__RAW_RASTER_OWN_FRAMES__` draws pressure). Kil
 - Cell 7: no polar artefact in the field; labels and markers are screen-sized (symbol layers), so Mercator stretch never
   enlarges them; "L 971" drawn in the Southern Ocean.
 - Frames without lines are the worker's catch-up while the scrub outruns it (mostly the first, cold calls); never a stale line.
+
+## CI repair (#531 was red on lint-and-build, run 40089784554) and the dark ink
+- encodingDebris.guard flagged the bare `'=='` operator string in the H/L colour expressions: now
+  `['match', ['get', 'kind'], 'H', high, low]` (no guard change).
+- CRA's Jest (CommonJS) cannot parse `import.meta`, so every suite importing isobarStore failed (usePressureIsobars.test,
+  spotGeofenceZoomFloor.test through MapWebGL): the worker's constructor moved to `isobarWorkerFactory.js`, loaded by a dynamic
+  import() only when a Worker exists; Jest never requires it, and the browser keeps the module worker. All three frontend trees
+  run before the push (`src/components/map src/tests src/__tests__`).
+- ISOBAR CONTRAST per theme (the lead: the dark three-model still read faint). APCA |Lc| of each drawn line pixel against the
+  field under it (two screenshots of the same instant, with and without isobars; `apca_lines.py`; GFS, North Atlantic z3.2):
+  | theme / ink | line pixels | |Lc| p25 | median | p90 |
+  |---|---|---|---|---|
+  | dark V1 (0.55 alpha) | 21,048 | 12.6 | 20.7 | 33.2 |
+  | light | 21,655 | 15.5 | 25.5 | 45.2 |
+  | beach | 21,128 | 13.6 | 22.0 | 35.2 |
+  | dark V2 (0.85 alpha, 1.15x width) | 23,979 | 17.5 | 30.2 | 57.0 |
+  Dark was the lowest; DARK INK V2 (dark only, its own change) now reads above light. Kill:
+  `window.__RAW_DISABLE_ISOBAR_DARK_INK_V2__ = true` (V1; its read reproduces the first measurement exactly).

@@ -68,3 +68,18 @@ test('the kill switch draws nothing; labels use a font the basemap already serve
   expect(m2.layers['own-raster-pressure-isobar-label-a'].layout['text-font']).toEqual(['Noto Sans Regular']);
   expect(m2.layers['own-raster-pressure-centre-a'].layout['text-field']).toEqual(['get', 'label']);
 });
+
+test('dark draws the denser V2 ink; its kill switch restores V1; light is untouched', () => {
+  const m = fakeMap();
+  renderHook(() => usePressureIsobars({ mapInstance: m, engaged: true, theme: 'dark' }));
+  expect(m.layers['own-raster-pressure-isobar-line-a'].paint['line-color']).toBe('rgba(248,250,252,0.85)');
+  expect(m.layers['own-raster-pressure-isobar-line-a'].paint['line-width']).toEqual(['case', ['get', 'major'], 1.6 * 1.15, 0.8 * 1.15]);
+  window.__RAW_DISABLE_ISOBAR_DARK_INK_V2__ = true;
+  const m1 = fakeMap();
+  renderHook(() => usePressureIsobars({ mapInstance: m1, engaged: true, theme: 'dark' }));
+  expect(m1.layers['own-raster-pressure-isobar-line-a'].paint['line-color']).toBe('rgba(241,245,249,0.55)');
+  delete window.__RAW_DISABLE_ISOBAR_DARK_INK_V2__;
+  const ml = fakeMap();
+  renderHook(() => usePressureIsobars({ mapInstance: ml, engaged: true, theme: 'light' }));
+  expect(ml.layers['own-raster-pressure-isobar-line-a'].paint['line-color']).toBe('rgba(15,23,42,0.50)');
+});

@@ -14,7 +14,7 @@ const _cache = new Map();       // path -> { lines, centres }
 const _pending = new Map();     // path -> Promise
 const _waiters = new Map();     // worker message id -> resolve
 const _subs = new Set();
-let _worker = null; let _workerBroken = false; let _seq = 0;
+let _workerP = null; let _worker = null; let _seq = 0;
 
 function tel() {
   const w = W();
@@ -23,18 +23,23 @@ function tel() {
   return t;
 }
 
+// The worker, created once: a dynamic import of isobarWorkerFactory (its module-URL constructor never reaches Jest: no Worker there).
+// Resolves to null when there is no Worker or it fails: requests then compute after the current task instead.
 function worker() {
-  if (_worker || _workerBroken) return _worker;
-  try {
-    if (typeof Worker === 'undefined') throw new Error('no Worker');
-    _worker = new Worker(new URL('./isobarWorker.js', import.meta.url));
-    _worker.onmessage = (e) => { const r = _waiters.get(e.data.id); if (r) { _waiters.delete(e.data.id); r(e.data); } };
-    _worker.onerror = () => { _workerBroken = true; _worker = null; for (const r of _waiters.values()) r({ error: 'worker error' }); _waiters.clear(); };
-    tel().worker = 'module';
-  } catch (e) {
-    _workerBroken = true; _worker = null; tel().worker = 'none';
-  }
-  return _worker;
+  if (_workerP) return _workerP;
+  if (typeof Worker === 'undefined') { tel().worker = 'none'; _workerP = Promise.resolve(null); return _workerP; }
+  _workerP = import('./isobarWorkerFactory').then((m) => {
+    const w = m.createIsobarWorker();
+    w.onmessage = (e) => { const r = _waiters.get(e.data.id); if (r) { _waiters.delete(e.data.id); r(e.data); } };
+    w.onerror = () => {
+      _worker = null; _workerP = Promise.resolve(null); tel().worker = 'failed';
+      for (const r of _waiters.values()) r({ error: 'worker error' });
+      _waiters.clear();
+    };
+    _worker = w; tel().worker = 'module';
+    return w;
+  }).catch(() => { tel().worker = 'none'; return null; });
+  return _workerP;
 }
 
 /** The cached products for a frame path, or null (no I/O, no compute). */
@@ -59,8 +64,7 @@ export function requestIsobars(path, field, opts) {
   const have = getIsobars(path);
   if (have) { tel().cached += 1; return Promise.resolve(have); }
   if (_pending.has(path)) return _pending.get(path);
-  const w = worker();
-  const p = new Promise((resolve) => {
+  const p = worker().then((w) => new Promise((resolve) => {
     if (w) {
       const id = ++_seq;
       _waiters.set(id, resolve);
@@ -74,7 +78,7 @@ export function requestIsobars(path, field, opts) {
         try { resolve({ ...isobarProducts(field, opts), ms: Date.now() - t0 }); } catch (e) { resolve({ error: String(e) }); }
       }, 0);
     }
-  }).then((r) => {
+  })).then((r) => {
     _pending.delete(path);
     if (!r || r.error) { tel().errors += 1; return null; }
     const t = tel(); t.computed += 1; t.ms.push(r.ms); if (t.ms.length > 50) t.ms.shift();
@@ -89,6 +93,6 @@ export function requestIsobars(path, field, opts) {
 export function _resetIsobarStoreForTest() {
   _cache.clear(); _pending.clear(); _waiters.clear(); _subs.clear();
   if (_worker) { try { _worker.terminate(); } catch (e) { /* gone */ } }
-  _worker = null; _workerBroken = false; _seq = 0;
+  _worker = null; _workerP = null; _seq = 0;
   delete W().__RAW_ISOBARS__;
 }

@@ -25,9 +25,22 @@ const ids = (b) => ({
 // Ink per theme: dark lines on light ground, light lines on dark; labels haloed in the ground colour so they read on any wash.
 const INK = {
   dark: { line: 'rgba(241,245,249,0.55)', text: '#f1f5f9', halo: 'rgba(2,6,23,0.85)', high: '#fca5a5', low: '#93c5fd' },
+  // DARK INK V2 (2026-10-24, the lead: the dark three-model still read faint): measured APCA |Lc| of the drawn lines against the
+  // field under them, median / p90, dark 20.7 / 33.2 vs light 25.5 / 45.2 and beach 22.0 / 35.2 (apca_lines.py). Dark only: a
+  // denser, slightly wider line. Kill: window.__RAW_DISABLE_ISOBAR_DARK_INK_V2__ = true (the V1 ink above).
+  darkV2: { line: 'rgba(248,250,252,0.85)', text: '#f8fafc', halo: 'rgba(2,6,23,0.90)', high: '#fca5a5', low: '#93c5fd', width: 1.15 },
   light: { line: 'rgba(15,23,42,0.50)', text: '#0f172a', halo: 'rgba(255,255,255,0.90)', high: '#b91c1c', low: '#1d4ed8' },
   beach: { line: 'rgba(68,48,30,0.55)', text: '#3f2a17', halo: 'rgba(255,248,235,0.90)', high: '#9a3412', low: '#1e3a8a' },
 };
+
+const inkFor = (theme) => {
+  if (theme === 'dark' || !INK[theme]) {
+    const v1 = typeof window !== 'undefined' && window.__RAW_DISABLE_ISOBAR_DARK_INK_V2__ === true;
+    return v1 ? INK.dark : INK.darkV2;
+  }
+  return INK[theme];
+};
+const lineWidth = (ink) => ['case', ['get', 'major'], 1.6 * (ink.width || 1), 0.8 * (ink.width || 1)];
 
 /** A font stack the basemap already serves (its glyphs are the only ones loaded). */
 function baseFont(map) {
@@ -47,7 +60,7 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
   useEffect(() => {
     if (!on || !mapInstance) return undefined;
     const S = st.current;
-    const ink = INK[theme] || INK.dark;
+    const ink = inkFor(theme);
     const setVis = (b, v) => {
       const i = ids(b);
       for (const id of [i.line, i.label, i.mark]) { try { if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, 'visibility', v ? 'visible' : 'none'); } catch (e) { /* gone */ } }
@@ -79,7 +92,7 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
           mapInstance.addSource(i.lines, { type: 'geojson', data: EMPTY });
           mapInstance.addSource(i.centres, { type: 'geojson', data: EMPTY });
           mapInstance.addLayer({ id: i.line, type: 'line', source: i.lines, layout: { visibility: 'none', 'line-join': 'round' },
-            paint: { 'line-color': ink.line, 'line-width': ['case', ['get', 'major'], 1.6, 0.8] } }, before);
+            paint: { 'line-color': ink.line, 'line-width': lineWidth(ink) } }, before);
           if (font) {
             mapInstance.addLayer({ id: i.label, type: 'symbol', source: i.lines,
               layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 320, 'text-field': ['to-string', ['get', 'hpa']],
@@ -88,7 +101,7 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
             mapInstance.addLayer({ id: i.mark, type: 'symbol', source: i.centres,
               layout: { visibility: 'none', 'text-field': ['get', 'label'], 'text-font': font, 'text-size': 15, 'text-line-height': 1.0,
                 'text-allow-overlap': false, 'text-padding': 6 },
-              paint: { 'text-color': ['case', ['==', ['get', 'kind'], 'H'], ink.high, ink.low], 'text-halo-color': ink.halo, 'text-halo-width': 1.8 } }, before);
+              paint: { 'text-color': ['match', ['get', 'kind'], 'H', ink.high, ink.low], 'text-halo-color': ink.halo, 'text-halo-width': 1.8 } }, before);
           }
           S.bufs[b] = { want: null, loaded: null };
         }
@@ -157,14 +170,14 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
   // Theme: repaint the ink without rebuilding the buffers.
   useEffect(() => {
     if (!on || !mapInstance) return;
-    const ink = INK[theme] || INK.dark;
+    const ink = inkFor(theme);
     for (const b of BUFS) {
       const i = ids(b);
       try {
-        if (mapInstance.getLayer(i.line)) mapInstance.setPaintProperty(i.line, 'line-color', ink.line);
+        if (mapInstance.getLayer(i.line)) { mapInstance.setPaintProperty(i.line, 'line-color', ink.line); mapInstance.setPaintProperty(i.line, 'line-width', lineWidth(ink)); }
         if (mapInstance.getLayer(i.label)) { mapInstance.setPaintProperty(i.label, 'text-color', ink.text); mapInstance.setPaintProperty(i.label, 'text-halo-color', ink.halo); }
         if (mapInstance.getLayer(i.mark)) {
-          mapInstance.setPaintProperty(i.mark, 'text-color', ['case', ['==', ['get', 'kind'], 'H'], ink.high, ink.low]);
+          mapInstance.setPaintProperty(i.mark, 'text-color', ['match', ['get', 'kind'], 'H', ink.high, ink.low]);
           mapInstance.setPaintProperty(i.mark, 'text-halo-color', ink.halo);
         }
       } catch (e) { /* style mid-load */ }
