@@ -18,7 +18,7 @@
  *     request, the smallest (select_best_candidate: largest intersection, then smallest coverage area); an exact tie -> /grid.
  *   - GFS waves, swell_1, swell_2 and wind_waves: the four layers the publisher bundles (#486; the swell trains were most of the
  *     opening view's /grid_series time). A box with no stored tile or no published set of a layer (SoCal swell_2) is a miss ->
- *     /grid. The frame store does not take regional sets yet: getPinnedIndexSync keeps them out.
+ *     /grid. The frame store's regional show (marineFrameStoreRegional.js) reads the pinned GFS waves ones; its world sets do not.
  * Kill: window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (every regional box asks /grid as before). The per-set kill
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__ with the regional key) and the global static-frames kill also apply.
  * Telemetry: window.__RAW_STATIC_REGIONAL__ (also window.__RAW_STATIC_FRAMES__.regional) = { bundles, bundleBytes, slices, hits, series,

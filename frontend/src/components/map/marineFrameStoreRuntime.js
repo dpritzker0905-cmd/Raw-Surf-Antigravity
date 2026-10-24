@@ -354,7 +354,7 @@ function packInto(info, validTime, parsed, buffer) {
 function onParsed({ key, frame, parsed, buffer }) {
   if (!frameStoreOn() || !frame || !frame.valid_time) return;
   const index = getPinnedIndexSync(key);
-  if (!index) return;
+  if (!index) { CS.regionalParsed(key, frame, parsed); return; }     // a pilot tile's frame (z7-9): its window pack only (not a store set)
   const info = setFor(key, index);
   CS.cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
   const e = store().entry(info.key, frame.valid_time);
@@ -404,6 +404,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   rt.resident = null; rt.pendingResident = null; rt.want = null;   // a normal commit supersedes a deferred show
   const why = (r) => { rt.commits[r] = (rt.commits[r] || 0) + 1; };
   if (!frameStoreOn() || !grid) return;
+  if (CS.noteRegionalCommitted(grid, model || grid.__sourceModel, layer || grid.__componentLayer)) { publishTelemetry(); return why('resident_crop_regional'); }   // a pilot tile's window (z7-9)
   const key = setKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
   const index = getPinnedIndexSync(key);
   if (!index) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index'); }
@@ -521,6 +522,8 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
   try {
     if (!frameStoreOn()) return false;
     if (!rt.target) return miss('no_target');
+    const regional = CS.regionalResident(model, layer);          // the engine holds a clip of a pilot tile's frame (z7-9): its window of the next frame
+    if (regional) return CS.showRegional(regional, { model, layer, hourOffset, requestedValidTime }, t0);
     // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
     // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
     if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
