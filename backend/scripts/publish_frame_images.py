@@ -324,6 +324,19 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                 keep_by_set[key] = (target, fs.referenced_paths(index) | fs.referenced_paths(prev_index))
             elif entry and entry.get("index"):
                 log(f"[frames] {key}: previous index {entry['index']} unreadable; retention skipped this run")
+        # EXPLICIT EMPTY (frame_set_bundle.empty_record): a regional set the manifest lists NO product for, while the manifest does
+        # carry that model/domain/layer elsewhere, is written as {"empty": true}; never over a published index.
+        if index is None and bundled and stats.get("entries") == 0:
+            products = (source.manifest() or {}).get("products") or []
+            if fsb.layer_present(products, target):
+                rec = fsb.empty_record(entry, now, _writer())
+                if rec is None:
+                    log(f"[frames] {key}: the manifest lists no product, but a published index exists; it stays")
+                elif rec is not entry:
+                    latest.setdefault("sets", {})[key] = rec
+                    changed = True
+                    log(f"[frames] {key}: no stored product for this layer in this box; written as explicit empty")
+                stats["empty"] = rec is not None
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
