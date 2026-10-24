@@ -27,6 +27,7 @@ from models import (
 from utils.credits import deduct_credits, add_credits
 from core.security import get_current_user_id
 
+from .split_lock import enforce_paid_shares, locked_share
 from .crud import (
     CreateBookingWithStripeRequest,
     check_time_slot_conflict,
@@ -410,7 +411,10 @@ async def get_crew_status(booking_id: str, db: AsyncSession = Depends(get_db)):
             "avatar_url": profile.avatar_url if profile else None,
             "payment_status": p.payment_status or "Pending",
             "amount_paid": p.amount_paid or 0,
-            "share_amount": p.share_amount or (booking.total_price / max(booking.max_participants, 1)),
+            # a member who has paid shows the share they are locked at (the editor refuses to change it)
+            "share_amount": (locked_share(p) if locked_share(p) is not None
+                             else p.share_amount or (booking.total_price / max(booking.max_participants, 1))),
+            "share_locked": locked_share(p) is not None,
             "joined_at": p.joined_at.isoformat() if p.joined_at else None
         })
     
@@ -524,6 +528,8 @@ async def update_payment_splits(
     # member out would keep a stale share and push the real total away from the booking price.
     if seen != set(members):
         raise HTTPException(status_code=400, detail="Splits must name each crew member of this booking once")
+
+    enforce_paid_shares(members, data.splits)
 
     total_splits = sum(s.share_amount for s in data.splits)
     if abs(total_splits - booking.total_price) > 0.01:

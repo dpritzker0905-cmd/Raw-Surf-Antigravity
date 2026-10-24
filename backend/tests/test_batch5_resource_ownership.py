@@ -149,7 +149,7 @@ def _splits(**amounts):
 
 async def test_only_the_captain_can_change_splits(world):
     before = await world.snapshot()
-    body = _splits(captain=50.0, crew=150.0, crew2=100.0)
+    body = _splits(captain=100.0, crew=150.0, crew2=50.0)  # the captain has paid 100: that share stays
     for who in ("crew", "outsider"):
         r = await world.client.post("/api/bookings/booking/update-splits", headers=_token(who), json=body)
         assert r.status_code == 403, who
@@ -158,7 +158,7 @@ async def test_only_the_captain_can_change_splits(world):
     ok = await world.client.post("/api/bookings/booking/update-splits", headers=_token("captain"), json=body)
     assert ok.status_code == 200
     shares = {pid: amt for pid, amt, _s in (await world.snapshot())[1]}
-    assert shares == {"captain": 50.0, "crew": 150.0, "crew2": 100.0}
+    assert shares == {"captain": 100.0, "crew": 150.0, "crew2": 50.0}
     assert math.isclose(sum(shares.values()), 300.0)
 
 
@@ -188,6 +188,59 @@ async def test_a_nan_or_duplicate_split_cannot_slip_past_the_total_check(world):
     r = await world.client.post("/api/bookings/booking/update-splits", headers=_token("captain"), json=dup)
     assert r.status_code == 400
     assert await world.snapshot() == before
+
+
+# ---------------------------------------------------------------- paid shares are locked
+
+async def test_a_member_who_has_paid_keeps_their_share(world):
+    before = await world.snapshot()
+    # the captain (Paid, share 100) cannot be re-priced, even with the total kept at 300
+    r = await world.client.post("/api/bookings/booking/update-splits", headers=_token("captain"),
+                                json=_splits(captain=50.0, crew=150.0, crew2=100.0))
+    assert r.status_code == 400 and "already paid" in r.json()["detail"]
+    assert await world.snapshot() == before
+
+    # re-sending the paid share unchanged while the unpaid members are re-divided is fine
+    ok = await world.client.post("/api/bookings/booking/update-splits", headers=_token("captain"),
+                                 json=_splits(captain=100.0, crew=60.0, crew2=140.0))
+    assert ok.status_code == 200
+    assert {pid: a for pid, a, _s in (await world.snapshot())[1]} == {"captain": 100.0, "crew": 60.0, "crew2": 140.0}
+
+
+async def test_a_share_cannot_be_set_below_what_was_already_paid(world):
+    async with world.maker() as db:
+        crew = (await db.execute(select(BookingParticipant).where(BookingParticipant.participant_id == "crew"))).scalar_one()
+        crew.paid_amount = 80.0  # a part-payment: still Pending, but 80 is in
+        await db.commit()
+    before = await world.snapshot()
+    r = await world.client.post("/api/bookings/booking/update-splits", headers=_token("captain"),
+                                json=_splits(captain=100.0, crew=50.0, crew2=150.0))
+    assert r.status_code == 400 and "already paid" in r.json()["detail"]
+    assert await world.snapshot() == before
+
+
+async def test_crew_hub_editor_locks_paid_shares_too(world):
+    async with world.maker() as db:
+        crew2 = (await db.execute(select(BookingParticipant).where(BookingParticipant.participant_id == "crew2"))).scalar_one()
+        crew2.payment_status = "Paid"
+        crew2.paid_amount = 100.0
+        await db.commit()
+    before = await world.snapshot()
+
+    def body(crew2_share):
+        return {"captain_id": "captain", "captain_share": 100.0,
+                "splits": [{"participant_id": "crew", "share_amount": 200.0 - crew2_share, "share_percentage": 0.0},
+                           {"participant_id": "crew2", "share_amount": crew2_share, "share_percentage": 0.0}]}
+
+    # crew2 paid 100; the captain tries to move 50 of it onto crew (total kept at 300)
+    r = await world.client.post("/api/bookings/booking/crew-hub/update-splits", headers=_token("captain"),
+                                json=body(50.0))
+    assert r.status_code == 400 and "already paid" in r.json()["detail"]
+    assert await world.snapshot() == before
+
+    ok = await world.client.post("/api/bookings/booking/crew-hub/update-splits", headers=_token("captain"),
+                                 json=body(100.0))
+    assert ok.status_code == 200, ok.text
 
 
 # ---------------------------------------------------------------- participant selfie

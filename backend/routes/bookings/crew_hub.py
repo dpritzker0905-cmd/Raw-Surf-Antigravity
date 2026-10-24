@@ -20,6 +20,7 @@ from models import (
 from utils.credits import deduct_credits, add_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
+from .split_lock import enforce_paid_shares
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -150,6 +151,10 @@ async def update_crew_hub_splits(
     if booking.creator_id != data.captain_id:
         raise HTTPException(status_code=403, detail="Only the session captain can update splits")
     
+    # Paid members keep the share they paid; nobody is set below what they already paid
+    members = {str(p.participant_id): p for p in booking.participants or []}
+    enforce_paid_shares(members, [sp for sp in data.splits if sp.participant_id in members])
+
     # Validate total equals booking price
     total_splits = sum(s.share_amount for s in data.splits) + data.captain_share
     if abs(total_splits - booking.total_price) > 0.01:
