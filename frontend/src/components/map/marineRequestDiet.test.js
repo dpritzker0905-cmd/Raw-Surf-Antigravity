@@ -340,10 +340,10 @@ describe('SWR_KEY_LADDER (pure): a same-ask re-drive waits for the scheduled re-
 
   test('wiring: the fetcher asks with its viewport hash and the named timer BEFORE a new ask clears the pending re-ask', () => {
     const src = fs.readFileSync(path.join(__dirname, 'useMarineDataFetcherCore.js'), 'utf8');
-    const hold = src.indexOf('swrReaskScheduledFor({ source, key: viewportHash, timerKey: swrTimerRef.askKey, timerPending: !!swrTimerRef.current })');
+    const m = src.match(/\n\s+if \(swrReaskScheduledFor\(\{ source, key: viewportHash, timerKey: swrTimerRef\.askKey, timerPending: !!swrTimerRef\.current \}\)\) \{\n\s+noteRequestDiet\('swr_key_hold', \{ source \}\);[^\n]*return; \}/);
+    expect(m).not.toBeNull();
     const clear = src.indexOf("if (source !== 'swr_revalidation') {");
-    expect(hold).toBeGreaterThan(0);
-    expect(clear).toBeGreaterThan(hold);
+    expect(clear).toBeGreaterThan(m.index);
     const helpers = fs.readFileSync(path.join(__dirname, 'useMarineDataFetcherHelpers.js'), 'utf8');
     expect(helpers).toMatch(/\}, getViewportHash\(\)\);\s+\/\/ the ask this answer is for/);
   });
