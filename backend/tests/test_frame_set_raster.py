@@ -297,3 +297,11 @@ def test_an_hour_with_only_the_tcdc_mean_is_left_unbuilt_never_substituted(tmp_p
     index = json.loads((tmp_path / "m" / _latest(tmp_path / "m")["sets"]["GFS/weather/cloud_cover/global_0p5"]["index"]).read_text())
     hour6 = [f for f in index["frames"] if f["source"]["forecast_hour"] == 6][0]
     assert hour6["path"] is None and hour6["unbuilt"] == "failed"
+
+
+def test_real_f003_idx_lines_pick_the_instantaneous_tcdc_not_the_mean():
+    """The two TCDC lines exactly as NOAA's GFS 18Z 2026-10-23 pgrb2.0p25.f003.idx carries them (read 2026-10-23; static-frames'
+    review): the instantaneous message (636) ends where the 0-3 h mean (637) starts."""
+    real = ("636:447842631:d=2026102318:TCDC:entire atmosphere:3 hour fcst:\n"
+            "637:448681869:d=2026102318:TCDC:entire atmosphere:0-3 hour ave fcst:\n")
+    assert fsr.select_message(fsr.idx_rows(real), ("TCDC", "entire atmosphere")) == (447842631, 448681868)

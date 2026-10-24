@@ -61,6 +61,8 @@ SPECS = {
         "target": TARGET, "field": fb.PRESSURE_HPA, "idx": ("PRMSL", "mean sea level"), "convert": lambda a: a / 100.0,
         "valid": VALID_HPA, "clip": None, "env": "FRAME_RASTER_PRESSURE", "default_on": True,
         "value_kind": "pressure_msl", "value_unit": "hPa", "source_dataset": "gfs.pgrb2.0p25 PRMSL, every second point",
+        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
     },
     "temperature": {
         "target": {"model": "GFS", "domain": "weather", "layer": "temperature", "region_id": "global_0p5"},
@@ -68,6 +70,8 @@ SPECS = {
         "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE", "default_on": False,
         "value_kind": "temperature_2m", "value_unit": "degC",
         "source_dataset": "gfs.pgrb2.0p25 TMP 2 m above ground, every second point",
+        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
     },
     "cloud_cover": {
         "target": {"model": "GFS", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p5"},
@@ -75,8 +79,51 @@ SPECS = {
         "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD", "default_on": False,
         "value_kind": "cloud_cover", "value_unit": "%",
         "source_dataset": "gfs.pgrb2.0p25 TCDC entire atmosphere (instantaneous, not the 0-N h mean), every second point",
+        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
+    },
+    # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
+    # after "We want each models pressure showing"). EURO = ECMWF IFS open data (CC BY 4.0, attribution required): msl at
+    # 0.25 deg (lon from 180W), every second point onto the SAME 0.5-degree lattice as GFS, so one client path draws all.
+    # Its native steps: 3-hourly to 144 h, then 6-hourly to 240 h (00/12Z runs; 06/18Z stop at 144 h, so only 00/12Z
+    # cycles are published). Past 240 h the client follows the wave layers' labelled extension policy.
+    "pressure_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "pressure", "region_id": "global_0p5"},
+        "field": fb.PRESSURE_HPA, "idx": ("msl", "sfc"), "convert": lambda a: a / 100.0,
+        "valid": VALID_HPA, "clip": None, "env": "FRAME_RASTER_PRESSURE_EURO", "default_on": False,
+        "value_kind": "pressure_msl", "value_unit": "hPa",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 msl, every second point",
+        "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (regridded to 0.5 deg, quantised to 0.1 hPa)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
+    # ICON = DWD ICON global pmsl (the same files the box's dwd_icon_pressure_fetcher reads), icosahedral cells box-averaged
+    # onto the lattice (frame_set_raster_sources: the method and its measured error). 00/12Z runs reach 180 h (06/18Z: 120 h).
+    "pressure_icon": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "pressure", "region_id": "global_0p5"},
+        "field": fb.PRESSURE_HPA, "idx": ("pmsl", ("PMSL", "MSL")), "convert": lambda a: a / 100.0,
+        "valid": VALID_HPA, "clip": None, "env": "FRAME_RASTER_PRESSURE_ICON", "default_on": False, "frame_plane": True,
+        "value_kind": "pressure_msl", "value_unit": "hPa",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) pmsl, box mean onto 0.5 deg",
+        "hours": tuple(range(0, 181, 3)), "source": "icon", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (box-averaged to 0.5 deg, quantised to 0.1 hPa)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
 }
+
+
+def make_source(spec, session=None):
+    """The source object a spec names: 'gfs' (NOAA AWS byte ranges, below), 'ecmwf' (frame_set_raster_sources)."""
+    kind = spec.get("source", "gfs")
+    if kind == "gfs":
+        return GfsGribSource(spec, session)
+    try:
+        from services import frame_set_raster_sources as srcs
+    except ImportError:  # pragma: no cover
+        import frame_set_raster_sources as srcs
+    return srcs.SOURCES[kind](spec, session)
 
 
 def spec_for(layer="pressure"):
@@ -216,7 +263,8 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
     not started before `deadline`, is listed unbuilt (path None + reason)."""
     sp = spec or SPECS["pressure"]
     prefix = fs.set_prefix(sp["target"])
-    stats = {"entries": len(F_HOURS), "built": 0, "failed": 0, "refused": 0, "skipped_budget": 0, "bytes": 0,
+    hours = sp.get("hours", F_HOURS)
+    stats = {"entries": len(hours), "built": 0, "failed": 0, "refused": 0, "skipped_budget": 0, "bytes": 0,
              "parity_max_abs_err": 0.0, "missing_nodes": 0}
     run_stamp = fs.stamp(iso(cycle))
 
@@ -227,7 +275,13 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
         if deadline is not None and clock() > deadline:
             return dict(entry, path=None, unbuilt="skipped_budget"), None
         try:
-            plane = to_frame_plane(source.fetch(cycle, f), sp["valid"], sp["clip"])
+            got = source.fetch(cycle, f)
+            if sp.get("frame_plane"):                      # already on the lattice (ICON's regrid): range checks only
+                import numpy as np
+                got = np.where((got >= sp["valid"][0]) & (got <= sp["valid"][1]), got, np.nan)
+                plane = np.clip(got, *sp["clip"]) if sp["clip"] else got
+            else:
+                plane = to_frame_plane(got, sp["valid"], sp["clip"])
             raw, gz, check = build_frame(plane, valid, cycle, sp["field"])
         except Exception as e:
             log(f"[raster] f{f:03d}: {type(e).__name__}: {e}")
@@ -241,7 +295,7 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
                     meta={"forecast_hour": f}, _check=check), (path, gz, fs.FRAME_TYPE, fs.IMMUTABLE)
 
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
-        results = list(pool.map(one, F_HOURS))
+        results = list(pool.map(one, hours))
     frames, uploads = [], []
     for frame, job in results:
         check = frame.pop("_check", None)
@@ -271,10 +325,10 @@ def make_index(cycle, frames, stats, spec=None):
         "selection": "the frame whose valid_time equals the hour; none within 3 h -> no frame (no time interpolation)",
         "quantisation": {fname: {"tolerance": fb.TOLERANCE[sp["field"]]}},
         "parity_max_abs_err": {fname: stats["parity_max_abs_err"]},
-        "common_meta": {"model": "GFS", "layer": sp["target"]["layer"], "value_kind": sp["value_kind"],
+        "common_meta": {"model": sp["target"]["model"], "layer": sp["target"]["layer"], "value_kind": sp["value_kind"],
                         "value_unit": sp["value_unit"], "model_run_time": iso(cycle), "source_dataset": sp["source_dataset"],
-                        "upstream_provider": "noaa"},
-        "credit": CREDIT, "license": LICENSE, "source_url": SOURCE_URL,
+                        "upstream_provider": sp.get("upstream_provider", "noaa")},
+        "credit": sp.get("credit", CREDIT), "license": sp.get("license", LICENSE), "source_url": sp.get("source_url", SOURCE_URL),
         "frames": frames,
     }
     body = json.dumps(index, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -301,9 +355,10 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
         return {"status": "unchanged", "run": iso(cycle), "index": entry.get("index")}
     frames, uploads, stats = build_set(source, cycle, log=log, deadline=started + budget, clock=clock, spec=sp)
     stats["seconds_build"] = round(clock() - started, 1)
-    coverage = stats["built"] / len(F_HOURS)
+    hours = sp.get("hours", F_HOURS)
+    coverage = stats["built"] / len(hours)
     if coverage < floor:
-        log(f"[raster] {key}: only {stats['built']}/{len(F_HOURS)} hours built (< {floor}); nothing uploaded")
+        log(f"[raster] {key}: only {stats['built']}/{len(hours)} hours built (< {floor}); nothing uploaded")
         return {"status": "coverage_refused", "run": iso(cycle), **stats}
     index = make_index(cycle, frames, stats, sp)
     uploader(uploads)
