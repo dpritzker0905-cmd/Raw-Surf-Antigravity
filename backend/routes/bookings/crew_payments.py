@@ -268,12 +268,16 @@ class UpdateParticipantSelfieRequest(BaseModel):
 async def update_participant_selfie(
     booking_id: str,
     data: UpdateParticipantSelfieRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update a booking participant's selfie for photographer identification.
     This helps photographers identify surfers in their photos.
+    A participant sets their OWN selfie; the (booking, participant) lookup below then refuses non-members.
     """
+    if data.participant_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Find participant record
     result = await db.execute(
         select(BookingParticipant)

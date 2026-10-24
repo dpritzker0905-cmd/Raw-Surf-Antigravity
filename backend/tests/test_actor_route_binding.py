@@ -115,8 +115,44 @@ NAMED_ACTOR = [
     ("DELETE", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
     ("POST", "/api/gallery/migrate-titles", "query", "photographer_id"),
     ("POST", "/api/gallery/clean-all-item-titles", "query", "photographer_id"),
+    # Batch 5 (LA-SEC-03, 2026-10-23): notifications, reports and disputes, social, reviews, photographer tools.
+    ("POST", "/api/notifications/{user_id}/read-all", "path", "user_id"),
+    ("POST", "/api/notifications/photographer-alerts", "body", "user_id"),
+    ("DELETE", "/api/notifications/photographer-alerts/{photographer_id}", "query", "user_id"),
+    ("PUT", "/api/notifications/preferences/{user_id}", "path", "user_id"),
+    ("PATCH", "/api/bookings/{booking_id}/participant-selfie", "body", "participant_id"),
+    ("POST", "/api/admin/reports", "body", "reporter_id"),
+    ("POST", "/api/reports/submit", "body", "reporter_id"),
+    ("POST", "/api/disputes/submit", "body", "complainant_id"),
+    ("POST", "/api/content/flag", "body", "reporter_id"),
+    ("POST", "/api/posts/{post_id}/report", "body", "reporter_id"),
+    ("POST", "/api/follow/{user_id}", "query", "follower_id"),
+    ("DELETE", "/api/follow/{user_id}", "query", "follower_id"),
+    ("POST", "/api/friends/request", "query", "requester_id"),
+    ("POST", "/api/friends/location/{user_id}", "path", "user_id"),
+    ("POST", "/api/reviews", "query", "reviewer_id"),
+    ("PUT", "/api/photographer/{photographer_id}/availability-windows", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/block-date", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/unblock-date", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/availability", "path", "photographer_id"),
+    ("DELETE", "/api/photographer/{photographer_id}/availability/{availability_id}", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/on-demand-toggle", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/on-demand-settings", "path", "photographer_id"),
+    ("PATCH", "/api/photographer/{photographer_id}/participant/{participant_id}/notes", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/go-live", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/end-session", "path", "photographer_id"),
 ]
-LOGIN_ONLY = [("POST", "/api/notifications"), ("POST", "/api/realtime/broadcast")]
+# Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
+# tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.
+LOGIN_ONLY = [
+    ("POST", "/api/notifications"),
+    ("POST", "/api/realtime/broadcast"),
+    ("POST", "/api/notifications/{notification_id}/read"),
+    ("POST", "/api/bookings/{booking_id}/nudge"),
+    ("POST", "/api/bookings/{booking_id}/nudge-all"),
+    ("POST", "/api/bookings/{booking_id}/update-splits"),
+    ("POST", "/api/bookings/{booking_id}/crew-hub/handle-expiry"),
+]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY
 
 

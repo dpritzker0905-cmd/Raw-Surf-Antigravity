@@ -429,11 +429,12 @@ async def captain_cover_remaining(
 @router.post("/bookings/{booking_id}/crew-hub/handle-expiry")
 async def handle_payment_window_expiry(
     booking_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Handle payment window expiry
-    Called by scheduler when payment window expires
+    Called when the payment window expires, by the session captain or a crew member (no scheduler calls it).
     Options: Cancel with refund OR notify captain to cover
     """
     # Get booking
@@ -445,6 +446,11 @@ async def handle_payment_window_expiry(
     
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
+
+    # It confirms the booking or notifies the captain, so only the people on the booking may trigger it.
+    if booking.creator_id != current_user_id and not any(
+            str(p.participant_id) == current_user_id for p in booking.participants or []):
+        raise HTTPException(status_code=403, detail="Only the session captain or a crew member can do this")
     
     if booking.payment_window_expired:
         return {"message": "Expiry already handled"}

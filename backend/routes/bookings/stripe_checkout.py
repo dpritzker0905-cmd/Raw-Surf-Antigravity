@@ -13,6 +13,7 @@ from typing import List
 from datetime import datetime, timezone, timedelta
 import json
 import logging
+import math
 import os
 import stripe
 import stripe_mcp_server
@@ -47,6 +48,10 @@ class UpdateSplitRequest(BaseModel):
 
 class UpdateSplitsRequest(BaseModel):
     splits: List[UpdateSplitRequest]
+
+
+class NudgeRequest(BaseModel):
+    participant_id: str
 
 
 # ═══ STRIPE CHECKOUT ROUTES ════════════════════════════════════════════════
@@ -417,32 +422,55 @@ async def get_crew_status(booking_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+def _require_captain(booking, current_user_id: str) -> None:
+    """Crew money tools belong to the session captain (the booking's creator) and nobody else."""
+    if booking.creator_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Only the session captain can do this")
+
+
+def _payment_reminder(user_id: str, booking, amount_due: float) -> Notification:
+    return Notification(
+        user_id=user_id, type="payment_reminder", title="Payment Reminder",
+        body=f"Your crew payment for the session at {booking.location} is pending. Please complete payment to confirm your spot!",
+        data=json.dumps({"booking_id": booking.id, "amount_due": amount_due})
+    )
+
+
 @router.post("/bookings/{booking_id}/nudge")
-async def nudge_crew_member(booking_id: str, participant_id: str, db: AsyncSession = Depends(get_db)):
-    """Send payment reminder to a specific crew member"""
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+async def nudge_crew_member(
+    booking_id: str,
+    data: NudgeRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send payment reminder to a specific crew member (captain only, and only to a member of this booking)"""
+    result = await db.execute(
+        select(Booking).where(Booking.id == booking_id)
+        .options(selectinload(Booking.participants))
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    profile_result = await db.execute(select(Profile).where(Profile.id == participant_id))
-    profile = profile_result.scalar_one_or_none()
-    if not profile:
+    _require_captain(booking, current_user_id)
+
+    member = next((p for p in booking.participants or [] if str(p.participant_id) == data.participant_id), None)
+    if member is None:
         raise HTTPException(status_code=404, detail="Crew member not found")
-    
-    notification = Notification(
-        user_id=participant_id, type="payment_reminder", title="Payment Reminder",
-        message=f"Your crew payment for the session at {booking.location} is pending. Please complete payment to confirm your spot!",
-        data={"booking_id": booking_id, "amount_due": booking.total_price / max(booking.max_participants, 1)}
-    )
-    db.add(notification)
+
+    db.add(_payment_reminder(
+        data.participant_id, booking,
+        member.share_amount or (booking.total_price / max(booking.max_participants, 1))))
     await db.commit()
     return {"success": True, "message": "Reminder sent"}
 
 
 @router.post("/bookings/{booking_id}/nudge-all")
-async def nudge_all_pending(booking_id: str, db: AsyncSession = Depends(get_db)):
-    """Send payment reminders to all pending crew members"""
+async def nudge_all_pending(
+    booking_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send payment reminders to all pending crew members (captain only)"""
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
         .options(selectinload(Booking.participants))
@@ -450,25 +478,28 @@ async def nudge_all_pending(booking_id: str, db: AsyncSession = Depends(get_db))
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+    _require_captain(booking, current_user_id)
+
     pending_count = 0
     for p in booking.participants or []:
         if p.payment_status != "Paid":
-            notification = Notification(
-                user_id=str(p.participant_id), type="payment_reminder", title="Payment Reminder",
-                message=f"Your crew payment for the session at {booking.location} is pending. Please complete payment to confirm your spot!",
-                data={"booking_id": booking_id, "amount_due": p.share_amount or (booking.total_price / max(booking.max_participants, 1))}
-            )
-            db.add(notification)
+            db.add(_payment_reminder(
+                str(p.participant_id), booking,
+                p.share_amount or (booking.total_price / max(booking.max_participants, 1))))
             pending_count += 1
-    
+
     await db.commit()
     return {"success": True, "reminders_sent": pending_count}
 
 
 @router.post("/bookings/{booking_id}/update-splits")
-async def update_payment_splits(booking_id: str, data: UpdateSplitsRequest, db: AsyncSession = Depends(get_db)):
-    """Update custom payment split amounts for crew members"""
+async def update_payment_splits(
+    booking_id: str,
+    data: UpdateSplitsRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update custom payment split amounts for crew members (captain only; the total is preserved)"""
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
         .options(selectinload(Booking.participants))
@@ -476,19 +507,33 @@ async def update_payment_splits(booking_id: str, data: UpdateSplitsRequest, db: 
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+    _require_captain(booking, current_user_id)
+
+    # Every figure must be a real, non-negative amount for a distinct member of THIS booking. A NaN would
+    # sail through the total check below (abs(nan - x) > 0.01 is False) and a stranger's id would be ignored
+    # while its amount still counted toward the total.
+    members = {str(p.participant_id): p for p in booking.participants or []}
+    seen = set()
+    for split in data.splits:
+        if not math.isfinite(split.share_amount) or split.share_amount < 0:
+            raise HTTPException(status_code=400, detail="Split amounts must be non-negative numbers")
+        if split.participant_id not in members or split.participant_id in seen:
+            raise HTTPException(status_code=400, detail="Splits must name each crew member of this booking once")
+        seen.add(split.participant_id)
+    # The new shares replace the old ones as a set, so together they are the whole booking price. Leaving a
+    # member out would keep a stale share and push the real total away from the booking price.
+    if seen != set(members):
+        raise HTTPException(status_code=400, detail="Splits must name each crew member of this booking once")
+
     total_splits = sum(s.share_amount for s in data.splits)
     if abs(total_splits - booking.total_price) > 0.01:
         raise HTTPException(
             status_code=400,
             detail=f"Split total (${total_splits:.2f}) must equal booking price (${booking.total_price:.2f})"
         )
-    
+
     for split in data.splits:
-        for p in booking.participants or []:
-            if str(p.participant_id) == split.participant_id:
-                p.share_amount = split.share_amount
-                break
-    
+        members[split.participant_id].share_amount = split.share_amount
+
     await db.commit()
     return {"success": True, "message": "Payment splits updated"}
