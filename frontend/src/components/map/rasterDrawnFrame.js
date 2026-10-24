@@ -26,42 +26,20 @@ export const RASTER_NAMES = { rain: 'Precip', radar: 'Radar', satellite: 'Satell
   water_temp: 'Water Temp', fog: 'Fog' };
 export const rasterReadoutKilled = () => W().__RAW_DISABLE_RASTER_DRAWN_READOUT__ === true;
 
-// PER LAYER (2026-10-24): one record per layer, each written only by the layer's own publisher (the .om pairs, radar, or a layer
-// drawn from our own frames). With one shared record, two raster layers on at once (pressure from our frames + rain from .om,
-// or pressure + air temperature both from our frames) overwrote each other, and the line under the timeline went blank for
-// whichever layer it describes. `current` stays as the latest record of any layer (getRasterDrawn() with no layer).
 let current = null;
-let byLayer = Object.freeze({});
 const listeners = new Set();
 const sameEnd = (a, b) => (a && b ? a.url === b.url && a.dataMs === b.dataMs : a === b);
-const notify = () => listeners.forEach((fn) => { try { fn(); } catch (e) { /* never break a commit */ } });
-/** Publish { layer, shown, want } (each { url, dataMs, model, nearestMaxHours }) for its layer; null clears the latest record
- *  (and its layer's entry). A layer that stops drawing calls clearRasterDrawn(layer). */
+/** Publish { layer, shown, want } (each { url, dataMs, model, nearestMaxHours }), or null when no raster layer draws. */
 export function publishRasterDrawn(rec) {
-  if (!rec) { if (current) clearRasterDrawn(current.layer); return; }
-  const had = byLayer[rec.layer];
-  if (had && sameEnd(rec.shown, had.shown) && sameEnd(rec.want, had.want)) return;
-  current = { ...rec, ts: Date.now() };
-  byLayer = Object.freeze({ ...byLayer, [rec.layer]: current });
+  if (rec === current || (rec && current && rec.layer === current.layer && sameEnd(rec.shown, current.shown) && sameEnd(rec.want, current.want))) return;
+  current = rec ? { ...rec, ts: Date.now() } : null;
   W().__RASTER_DRAWN__ = current;
-  notify();
+  listeners.forEach((fn) => { try { fn(); } catch (e) { /* never break a commit */ } });
 }
-/** Drop one layer's record (it no longer draws). */
-export function clearRasterDrawn(layer) {
-  if (!byLayer[layer] && !(current && current.layer === layer)) return;
-  const next = { ...byLayer }; delete next[layer];
-  byLayer = Object.freeze(next);
-  if (current && current.layer === layer) { current = null; W().__RASTER_DRAWN__ = null; }
-  notify();
-}
-/** The latest record of any layer, or (with a layer) that layer's record. */
-export function getRasterDrawn(layer) { return layer === undefined ? current : (byLayer[layer] || null); }
+export function getRasterDrawn() { return current; }
 export function subscribeRasterDrawn(fn) { listeners.add(fn); return () => listeners.delete(fn); }
-export function useRasterDrawnFrame(layer) {
-  const get = () => getRasterDrawn(layer);
-  return useSyncExternalStore(subscribeRasterDrawn, get, get);
-}
-export function _resetRasterDrawnForTest() { current = null; byLayer = Object.freeze({}); omLast = null; listeners.clear(); }
+export function useRasterDrawnFrame() { return useSyncExternalStore(subscribeRasterDrawn, getRasterDrawn, getRasterDrawn); }
+export function _resetRasterDrawnForTest() { current = null; listeners.clear(); }
 
 const modelOfFolder = (f) => (/gfs/.test(f) ? 'GFS' : /ecmwf|ifs/.test(f) ? 'EURO' : /dwd|icon/.test(f) ? 'ICON' : f);
 /** One end of the pair for an om:// slot URL: its data instant on the model's own axis, and half the axis gap there. */
@@ -78,17 +56,13 @@ export function omEnd(url, cache = MODEL_METADATA_CACHE) {
   return { url, dataMs, model: modelOfFolder(m[1]), nearestMaxHours: Math.floor(gapH / 2) };
 }
 
-let omLast = null;              // the .om layer this publisher wrote last
 /** Hook for useOpenMeteoTileUrls: publish the first active raster layer's shown and target slots after every commit. */
 export function useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, targetSlotsRef) {
   useEffect(() => {
     if (rasterReadoutKilled()) return;
     const layer = (activeLayers || []).find((k) => RASTER_STATUS_LAYERS.has(k) && k !== 'radar');
-    // This publisher owns only the .om layer it last wrote: a layer drawn from our own frames publishes its own record
-    // (useOwnRasterFrames) and radar its own (radarFrameHold), so neither is ever cleared from here.
-    if (omLast && omLast !== layer && !getEngaged()[omLast]) clearRasterDrawn(omLast);
-    omLast = layer || null;
-    if (!layer) return;
+    // A layer drawn from our own frames publishes its own pair (useOwnRasterFrames): never clear it from here.
+    if (!layer) { if (current && current.layer !== 'radar' && !getEngaged()[current.layer]) publishRasterDrawn(null); return; }
     const shownSlot = activeSlots ? activeSlots[layer] : undefined;
     const targetSlot = targetSlotsRef && targetSlotsRef.current ? targetSlotsRef.current[layer] : undefined;
     const shown = Number.isInteger(shownSlot) && shownSlot >= 0 ? omEnd(omTileUrls[`${layer}-slot-${shownSlot}`]) : null;

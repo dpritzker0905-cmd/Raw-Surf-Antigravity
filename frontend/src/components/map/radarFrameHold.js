@@ -11,7 +11,7 @@
  * Telemetry: window.__RAW_RADAR_FRAME_HOLD__.
  */
 import { sourceReady } from './rasterFrameSwap';
-import { publishRasterDrawn, clearRasterDrawn } from './rasterDrawnFrame';
+import { publishRasterDrawn, getRasterDrawn } from './rasterDrawnFrame';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const radarHoldOn = () => W().__RAW_DISABLE_RADAR_FRAME_HOLD__ !== true;
@@ -32,7 +32,8 @@ export function radarFrameTiming(fadeMs) {
 
 export function forgetShownRadarFrame() {
   shown = null;
-  clearRasterDrawn('radar');
+  const cur = getRasterDrawn();
+  if (cur && cur.layer === 'radar') publishRasterDrawn(null);
 }
 
 // The status line's pair for radar (rasterDrawnFrame): the frame on screen and the frame asked for, by their times.

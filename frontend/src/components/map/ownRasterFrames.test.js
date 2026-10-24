@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, NO_DATA_BELOW, leverCovers, loadField, telSet,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, NO_DATA_BELOW, leverCovers,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -153,9 +153,7 @@ describe("past a model's range: the GFS stand-in, labelled (the wave layers' ext
   });
 });
 
-describe('air temperature and two layers at once (2026-10-24)', () => {
-  const parsedOf = (key, v) => ({ cols: 1, rows: 1, bounds: {}, validEpoch: 0, runEpoch: 0,
-    fields: /temperature/.test(key) ? { 7: new Float64Array([v]) } : { 6: new Float64Array([v]) } });
+describe('air temperature (2026-10-24)', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__; });
 
   test('the temperature set is GFS only: with EURO or ICON picked the layer stays on the .om path', () => {
@@ -195,38 +193,5 @@ describe('air temperature and two layers at once (2026-10-24)', () => {
     expect(f.min).toBeCloseTo(-41.5, 5);
     expect(MISSING).toBeLessThan(NO_DATA_BELOW);
     expect(NO_DATA_BELOW).toBeLessThan(-273.15);
-  });
-
-  test("two windows, a cap per layer: pressure's look-ahead never holds back temperature's shown frame, nor drops its landing", async () => {
-    const resolvers = {};
-    loadFrameParsed.mockImplementation((key, frame) => new Promise((r) => { resolvers[frame.path] = () => r({ parsed: parsedOf(key, 1), wire: 1 }); }));
-    const got = [];
-    setWanted('pressure', [{ path: 'p1' }, { path: 'p2' }, { path: 'p3' }, { path: 'p4' }], (p) => got.push(p));
-    setWanted('temperature', [{ path: 't1' }, { path: 't2' }], (p) => got.push(p));
-    // pressure alone fills its own three; temperature's shown frame (high) starts at once beside them
-    expect(loadFrameParsed.mock.calls.map((c) => c[1].path)).toEqual(['p1', 'p2', 'p3', 't1', 't2']);
-    expect(loadFrameParsed.mock.calls.map((c) => c[3] && c[3].priority)).toEqual(['high', 'low', 'low', 'high', 'low']);
-    setWanted('temperature', [{ path: 't1' }, { path: 't2' }], (p) => got.push(p));   // temperature steps again
-    resolvers.p1(); resolvers.t1(); await new Promise((r) => setTimeout(r, 0));
-    expect(got.sort()).toEqual(['p1', 't1']);                                       // pressure's landing was not dropped
-    expect(getField('t1').values[0]).toBe(1);
-  });
-
-  test('each layer keeps its own LRU of six decoded fields', async () => {
-    loadFrameParsed.mockImplementation((key) => Promise.resolve({ parsed: parsedOf(key, 2), wire: 1 }));
-    for (let i = 0; i < 7; i++) await loadField('pressure', { path: `p${i}` });
-    for (let i = 0; i < 6; i++) await loadField('temperature', { path: `t${i}` });
-    expect(getField('p0')).toBeNull();                       // pressure's seventh evicted its own oldest
-    for (let i = 1; i < 7; i++) expect(getField(`p${i}`)).not.toBeNull();
-    for (let i = 0; i < 6; i++) expect(getField(`t${i}`)).not.toBeNull();   // temperature never evicted pressure, nor the reverse
-  });
-
-  test('telemetry keeps shown / want / pin per layer, each stamped with its layer', () => {
-    telSet('pressure', 'want', { path: 'p1' });
-    telSet('temperature', 'want', { path: 't1' });
-    const t = window.__RAW_OWN_RASTER__;
-    expect(t.byLayer.pressure.want).toEqual({ path: 'p1', layer: 'pressure' });
-    expect(t.byLayer.temperature.want).toEqual({ path: 't1', layer: 'temperature' });
-    expect(t.want.layer).toBe('temperature');                // the top-level slot: the latest of any layer
   });
 });

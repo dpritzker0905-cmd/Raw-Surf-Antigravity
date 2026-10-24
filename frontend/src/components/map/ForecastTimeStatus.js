@@ -19,7 +19,7 @@ import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING
 // record; a pending line appears only after PENDING_QUIET_MS. `radarMs` = the radar frame asked for.
 export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs }) {
   const drawn = useMarineDrawnFrame();
-  const rasterRec = useRasterDrawnFrame(layer);   // that layer's own record (rasterDrawnFrame keeps one per layer)
+  const rasterRec = useRasterDrawnFrame();
   const isRaster = RASTER_STATUS_LAYERS.has(layer);
   const rasterReadout = isRaster ? describeRasterFrame(rasterRec, layer, layer === 'radar' ? radarMs : Date.now() + hour * 3600000) : null;
   const rasterPendingKey = rasterReadout && rasterReadout.state === 'pending' ? rasterReadout.text : null;

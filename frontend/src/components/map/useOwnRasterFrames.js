@@ -1,7 +1,7 @@
 /**
  * useOwnRasterFrames.js — wires one raster layer to our own static frames (ownRasterFrames.js) and its custom GL layer
  * (ownRasterLayer.js). Phase 1 (2026-10-23): GFS pressure, DARK behind window.__RAW_RASTER_OWN_FRAMES__; 2026-10-24: per-model
- * pressure and GFS air temperature (one hook per layer; the store keeps a window, an LRU and a status record per layer).
+ * pressure and GFS air temperature (one hook per layer; the app shows one weather layer at a time, useWeatherState.toggleLayer).
  *
  * Returns `engaged`: true while this layer is drawn from our frames. MapWebGL then leaves the layer out of the .om path
  * entirely (no Open-Meteo request for it). Engagement is decided synchronously from the levers, so .om never starts in
@@ -15,11 +15,11 @@ import { CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
 } from './ownRasterLayer';
-import { clearRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
+import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
 import {
   combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
-  planWindow, setEngaged, setWanted, telSet, windowRadius,
+  planWindow, setEngaged, setWanted, tel, windowRadius,
 } from './ownRasterFrames';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
@@ -114,7 +114,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   };
   useEffect(() => () => {
     ref.current.shownRec = null; ref.current.wantRec = null;
-    clearRasterDrawn(layer);
+    const cur = getRasterDrawn();
+    if (cur && cur.layer === layer) publishRasterDrawn(null);
   }, [layer, drawing]);
 
   // 2. The GL layer: added below the wind particles (the .om slots' anchor), re-added after a style reload.
@@ -130,7 +131,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           onFail: (why) => { noteMiss(`gl_${why}`); setFailed(true); },
         });
         st.layerObj.onShown((path, field) => {
-          telSet(layer, 'shown', { path, at: Date.now(), validMs: field ? field.validMs : null });
+          tel().shown = { path, at: Date.now(), validMs: field ? field.validMs : null };
           // Called from MapLibre's render: publish after it (subscribers re-render React).
           const e = st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
@@ -192,7 +193,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       emitOwnWant(layer, null);
       st.wantRec = null; publish();
       noteMiss('no_frame');
-      telSet(layer, 'want', { validMs, path: null, at: Date.now() });
+      tel().want = { validMs, path: null, at: Date.now() };
       setWanted(layer, [], null);
       return;
     }
@@ -211,7 +212,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     noteStep(f.path, L.isResident(f.path) || !!getField(f.path));
     L.want(f.path);
     emitOwnWant(layer, f.path);
-    telSet(layer, 'want', { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() });
+    tel().want = { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() };
     setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); });
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 

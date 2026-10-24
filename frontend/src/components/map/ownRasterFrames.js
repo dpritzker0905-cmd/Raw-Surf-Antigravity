@@ -49,11 +49,11 @@ export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
   return (set && set.models[up(model)]) || null;
 }
-// What a no-data node becomes in the uploaded field: far below every real value of every layer (temperatures are negative, so
-// the shader's no-data test is `< NO_DATA_BELOW`, never `< 0`).
+// What a no-data node becomes in the uploaded field: far below every real value of every layer (air temperatures are negative,
+// so the shader's no-data test is `< NO_DATA_BELOW`, never `< 0`).
 export const MISSING = -9999;
 export const NO_DATA_BELOW = -9000;
-const LRU_MAX = 6;                // PER LAYER: the desktop window (4) plus the last two shown
+const LRU_MAX = 6;                // the desktop window (4) plus the last two shown
 const STEPS_KEPT = 400;
 
 const W = () => (typeof window !== 'undefined' ? window : {});
@@ -84,19 +84,9 @@ export function leverCovers(lever, layer) {
 export function tel() {
   const w = W();
   if (!w.__RAW_OWN_RASTER__) {
-    w.__RAW_OWN_RASTER__ = { loads: 0, loadErrors: 0, bytes: 0, decodeMs: [], misses: {}, steps: [], shown: null, want: null, pin: null, byLayer: {} };
+    w.__RAW_OWN_RASTER__ = { loads: 0, loadErrors: 0, bytes: 0, decodeMs: [], misses: {}, steps: [], shown: null, want: null, pin: null };
   }
   return w.__RAW_OWN_RASTER__;
-}
-/** Record one of shown / want / pin: per layer (byLayer[layer]) and as the latest of any layer (the top-level slot the probes
- *  read). Each record carries its layer. */
-export function telSet(layer, key, rec) {
-  const t = tel();
-  const r = rec ? { ...rec, layer } : rec;
-  if (!t.byLayer) t.byLayer = {};
-  if (!t.byLayer[layer]) t.byLayer[layer] = { shown: null, want: null, pin: null };
-  t.byLayer[layer][key] = r;
-  t[key] = r;
 }
 export function noteMiss(reason) { const t = tel(); t.misses[reason] = (t.misses[reason] || 0) + 1; }
 
@@ -110,7 +100,7 @@ export async function ownIndex(layer, model = 'GFS') {
   try {
     const idx = await getPinnedIndex(setKey(layer, model));
     if (idx) _lastIndex[`${layer}/${up(model)}`] = idx;
-    if (idx) telSet(layer, 'pin', { model: up(model), index: idx.path || null, run: idx.run || null, frames: idx.frames.length, validMs: framesOf(idx).map((f) => Date.parse(f.valid_time)) });
+    if (idx) tel().pin = { layer, model: up(model), index: idx.path || null, run: idx.run || null, frames: idx.frames.length, validMs: framesOf(idx).map((f) => Date.parse(f.valid_time)) };
     return idx || null;
   } catch (e) { return null; }
 }
@@ -186,29 +176,20 @@ export function toField(parsed, fieldId) {
   };
 }
 
-// ── decoded fields: one load per path, shared; an LRU over the window, PER LAYER ────────────────────────────────────
-// Per layer (2026-10-24): with pressure and air temperature both on, one shared LRU of 6 held less than the two windows (4 + 4)
-// and each layer's steps evicted the other's frames. Paths are unique across sets (they name the set), so a lookup by path
-// alone stays unambiguous.
-const _fieldsBy = new Map();      // layer -> Map(path -> field), insertion order = LRU order
-const _inflight = new Map();      // path -> promise
-const _inflightLayer = new Map(); // path -> layer (the per-layer in-flight cap)
+// ── decoded fields: one load per path, shared; an LRU over the window ────────────────────────────────────────────
+const _fields = new Map();
+const _inflight = new Map();
 
 /** The decoded field for a frame path, if held (no I/O; refreshes its LRU place). */
 export function getField(path) {
-  for (const m of _fieldsBy.values()) {
-    const f = m.get(path);
-    if (f) { m.delete(path); m.set(path, f); return f; }
-  }
-  return null;
+  const f = _fields.get(path);
+  if (f) { _fields.delete(path); _fields.set(path, f); }
+  return f || null;
 }
-const hasField = (path) => { for (const m of _fieldsBy.values()) if (m.has(path)) return true; return false; };
 
-function keep(layer, path, field) {
-  let m = _fieldsBy.get(layer);
-  if (!m) { m = new Map(); _fieldsBy.set(layer, m); }
-  m.set(path, field);
-  while (m.size > LRU_MAX) m.delete(m.keys().next().value);
+function keep(path, field) {
+  _fields.set(path, field);
+  while (_fields.size > LRU_MAX) _fields.delete(_fields.keys().next().value);
 }
 
 /** Load (fetch + inflate + parse + field) one frame; null on any failure. Shared per path; never aborted once started (a
@@ -235,45 +216,36 @@ export function loadField(layer, frame, priority) {
       t.bytes += got.wire || 0;
       t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
       if (t.decodeMs.length > 50) t.decodeMs.shift();
-      keep(layer, frame.path, field);
+      keep(frame.path, field);
       return field;
-    })().finally(() => { _inflight.delete(frame.path); _inflightLayer.delete(frame.path); });
+    })().finally(() => _inflight.delete(frame.path));
     _inflight.set(frame.path, p);
-    _inflightLayer.set(frame.path, layer);
   }
   return p;
 }
 
 // ── the window pump: at most MAX_IN_FLIGHT loads, started in the wanted order; a frame that left the window is never started ──
-// One window per layer (2026-10-24): a single shared window let the last layer to step replace the other's, so a frame landing
-// for pressure was dropped while temperature stepped. The in-flight cap is PER LAYER too: with one shared cap, one layer's
-// low-priority look-ahead could hold another layer's on-screen frame back; per layer, each layer loads exactly as it does alone
-// (the measured single-layer timing), and two layers on at once ask for at most 2 x 3 frames (HTTP/2 to one CDN host).
-export const MAX_IN_FLIGHT = 3;   // per layer
-const _pumps = new Map();         // layer -> { wanted, onField }
-const inFlight = (layer) => { let n = 0; for (const l of _inflightLayer.values()) if (l === layer) n += 1; return n; };
+export const MAX_IN_FLIGHT = 3;
+const _pump = { layer: null, wanted: [], onField: null };
 
-/** Replace one layer's wanted window (frames in priority order). onField(path, field) fires for each wanted frame as it lands.
- *  An empty list (or no onField) ends that layer's window. */
+/** Replace the wanted window (frames in priority order). onField(path, field) fires for each wanted frame as it lands. */
 export function setWanted(layer, frames, onField) {
-  const wanted = (frames || []).filter((f) => f && f.path);
-  if (!wanted.length && !onField) _pumps.delete(layer);
-  else _pumps.set(layer, { wanted, onField: onField || null });
+  _pump.layer = layer;
+  _pump.wanted = (frames || []).filter((f) => f && f.path);
+  _pump.onField = onField || null;
   pump();
 }
 
 function pump() {
-  for (const [layer, p] of _pumps) {
-    p.wanted.forEach((f, i) => {
-      if (inFlight(layer) >= MAX_IN_FLIGHT) return;
-      if (hasField(f.path) || _inflight.has(f.path)) return;
-      loadField(layer, f, i === 0 ? 'high' : 'low').then((field) => {
-        const now = _pumps.get(layer);
-        if (field && now && now.onField && now.wanted.some((w) => w.path === f.path)) now.onField(f.path, field);
-        pump();
-      });
+  const { layer, wanted } = _pump;
+  wanted.forEach((f, i) => {
+    if (_inflight.size >= MAX_IN_FLIGHT) return;
+    if (_fields.has(f.path) || _inflight.has(f.path)) return;
+    loadField(layer, f, i === 0 ? 'high' : 'low').then((field) => {
+      if (field && _pump.onField && _pump.wanted.some((w) => w.path === f.path)) _pump.onField(f.path, field);
+      pump();
     });
-  }
+  });
 }
 
 // ── which layers are drawn from our frames right now (the legend credit reads it) ──────────────────────────────────
@@ -310,10 +282,9 @@ export function noteStep(path, hit, at = Date.now()) {
 }
 
 export function _resetOwnRasterFramesForTest() {
-  _fieldsBy.clear();
+  _fields.clear();
   _inflight.clear();
-  _inflightLayer.clear();
-  _pumps.clear();
+  _pump.layer = null; _pump.wanted = []; _pump.onField = null;
   _engaged = Object.freeze({});
   for (const k of Object.keys(_shown)) delete _shown[k];
   for (const k of Object.keys(_want)) delete _want[k];
