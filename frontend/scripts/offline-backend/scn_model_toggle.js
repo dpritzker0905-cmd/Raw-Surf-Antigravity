@@ -87,7 +87,8 @@ const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
   const stampMs = (pid) => { const m = /_(\d{8}T\d{6}Z)\.json$/.exec(pid || ''); return m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : null; };
   let fc = 0; let status = '';
   const snap = () => {
-    if ((fc++ % 3) === 0) status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 200);
+    // The status line is read every frame inside a click window (every 3rd frame otherwise): a stale status faked 'silent' frames.
+    if ((fc++ % 3) === 0 || (P.w && P.w.t0 != null && !P.w.done)) status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 200);
     const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
     return { g, d, model: g ? g.__sourceModel : null, layer: g ? g.__componentLayer : null, cols: g ? g.cols : null, stride: g ? (g.__decimatedStride || 0) : null,
       store: !!(g && g.__fromFrameStore), series: !!(g && g.__fromSeries), hour: g ? g.hourOffset : null,
