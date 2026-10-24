@@ -170,3 +170,59 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python scripts/publish_raster_frames.py
+
+      # RASTER PHASE 2 (2026-10-23, the same contract, services/frame_set_raster.py SPECS): GFS 2 m temperature (TMP, K -> degC,
+      # field 7 temp_c) and total cloud cover (TCDC entire atmosphere, the INSTANTANEOUS message, never the 0-N h mean; field 8
+      # cloud_pct), each as its own step with its own budget (FRAME_RASTER_BUDGET_S, 420 s) and a 12-minute timeout (each ran in about a minute on a real cycle), after pressure (one latest.json writer at a time). OFF until
+      # switched on: repo variables FRAME_RASTER_TEMPERATURE=1 / FRAME_RASTER_CLOUD=1 (the client is dark either way).
+      - name: Publish raster static frames (temperature; off unless FRAME_RASTER_TEMPERATURE=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_TEMPERATURE: ${{ vars.FRAME_RASTER_TEMPERATURE }}
+        run: python scripts/publish_raster_frames.py --set temperature
+
+      - name: Publish raster static frames (cloud cover; off unless FRAME_RASTER_CLOUD=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD: ${{ vars.FRAME_RASTER_CLOUD }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover
+
+      # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
+      # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the
+      # same stream the box's ecmwf_opendata_fetcher reads, 00/12Z cycles (0-240 h; 3-hourly to 144 h, then 6-hourly), onto
+      # the GFS set's 0.5-degree lattice. OFF until switched on: repo variable FRAME_RASTER_PRESSURE_EURO=1 (client dark).
+      - name: Publish raster static frames (EURO pressure; off unless FRAME_RASTER_PRESSURE_EURO=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE_EURO == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRESSURE_EURO: ${{ vars.FRAME_RASTER_PRESSURE_EURO }}
+        run: python scripts/publish_raster_frames.py --set pressure_euro
+
+      # ICON = DWD ICON global pmsl (icosahedral R3B7, attribution "Deutscher Wetterdienst"), the same files the box's
+      # dwd_icon_pressure_fetcher reads, 00/12Z runs (0-180 h, every 3 h), box-averaged onto the lattice once per run
+      # (frame_set_raster_sources: method + measured error). OFF until switched on: repo variable FRAME_RASTER_PRESSURE_ICON=1.
+      - name: Publish raster static frames (ICON pressure; off unless FRAME_RASTER_PRESSURE_ICON=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE_ICON == '1' }}
+        continue-on-error: true
+        timeout-minutes: 30
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRESSURE_ICON: ${{ vars.FRAME_RASTER_PRESSURE_ICON }}
+          FRAME_RASTER_BUDGET_S: "900"
+        run: python scripts/publish_raster_frames.py --set pressure_icon
