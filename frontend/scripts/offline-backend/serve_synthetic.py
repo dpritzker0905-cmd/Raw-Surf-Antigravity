@@ -76,6 +76,31 @@ LAND_BOXES = ((-125.0, 25.0, -70.0, 60.0), (-75.0, -50.0, -40.0, 5.0), (-10.0, 0
               (115.0, -35.0, 150.0, -20.0))
 
 
+# WAVE LAKES (2026-10-23, `--wave-lakes 1`; the client's waveLakes.js): #497 makes EURO (ECMWF WAM) carry its own values on the
+# Great Lakes, Winnipeg and Victoria while GFS and ICON have none there. With the flag, a node whose cell touches one of these lake
+# boxes is LAND (is_valid false) for every model but EURO, and VALID for EURO; Victoria's region (outside the Africa box) is land too.
+WAVE_LAKES = False
+WAVE_LAKE_BOXES = ((-92.2, 46.4, -84.3, 49.0), (-88.1, 41.6, -84.7, 46.1), (-84.8, 43.0, -79.7, 46.4), (-83.5, 41.4, -78.8, 42.9),
+                   (-79.9, 43.2, -76.0, 44.3), (-99.3, 50.3, -96.2, 53.9), (31.5, -3.1, 34.9, 0.5))
+WAVE_LAKE_LAND = ((28.0, -12.0, 42.0, 0.0),)   # East Africa around Victoria (the Africa land box stops at the equator)
+
+
+def on_wave_lake(lat, lng, res):
+    h = res / 2.0
+    return WAVE_LAKES and any(lng + h >= w and lng - h <= e and lat + h >= s and lat - h <= n for (w, s, e, n) in WAVE_LAKE_BOXES)
+
+
+def lake_land(lat, lng, res, model):
+    """None: the wave-lakes fixture has no say; True / False: this node is land / water under it."""
+    if not WAVE_LAKES:
+        return None
+    if on_wave_lake(lat, lng, res):
+        return model != "EURO"
+    if any(w <= lng <= e and s <= lat <= n for (w, s, e, n) in WAVE_LAKE_LAND):
+        return True
+    return None
+
+
 def is_land(lat, lng, res=2.0):
     # A coarse (10-deg) cell is valid wherever it holds any ocean, so only deep-interior land is masked there; that is what makes the
     # live Gulf fill rewrite thousands of coastal 2-deg land cells (live 2026-10-22, world /grid coarse_fill: EURO 2,465 of 4,689
@@ -245,7 +270,8 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
             hs, direction, period = layer_field(layer, hs, direction, period, lat, lng, h)
             hs = round(max(0.1, hs * scale), 3)
             rad = math.radians(direction)
-            if is_land(lat, lng, res):
+            ll = lake_land(lat, lng, res, model)
+            if ll is True or (ll is None and is_land(lat, lng, res)):
                 vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": 0.0, "u": 0.0, "v": 0.0, "period": None,
                                 "is_valid": False})
                 continue
@@ -698,11 +724,14 @@ def main():
     ap.add_argument("--land-mask", choices=["0", "1"], default="0",
                     help="mark continent boxes as land (is_valid false, speed 0) in every marine product, as real stored products "
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
+    ap.add_argument("--wave-lakes", choices=["0", "1"], default="0",
+                    help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES
     VORTEX_PEAK = args.vortex_peak
     LAND_MASK = args.land_mask == "1"
+    WAVE_LAKES = args.wave_lakes == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL
