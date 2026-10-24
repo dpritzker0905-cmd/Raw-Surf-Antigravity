@@ -9,6 +9,7 @@ import json
 from models import Conversation, Message, MessageReaction, Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from core.security import get_current_user_id
+from services.blocks import assert_not_blocked
 from services.private_media import delivery_url_for_media, parse_private_media_ref
 
 from .schemas import (
@@ -125,9 +126,12 @@ async def send_message(
     recipient = recipient_result.scalar_one_or_none()
     if not recipient:
         raise HTTPException(status_code=404, detail="Recipient not found")
-    
+
+    # BLOCKS (audit F-09): neither side of a block can message the other.
+    await assert_not_blocked(db, sender_id, data.recipient_id)
+
     conversation, is_new = await get_or_create_conversation(sender_id, data.recipient_id, db)
-    
+
     # Validate reply_to_id if provided
     reply_to_message = None
     if data.reply_to_id:
