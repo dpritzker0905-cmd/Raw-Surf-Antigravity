@@ -1542,9 +1542,13 @@ jobs:
           #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
           # ⬆ 2885→2890 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 2891 / 177 files; dev's map 2891;
           #   base 2891 (hosted read) + 5 new test(s) = 2896, files 177; floor 2896 - 6 = 2890. This PR must read 2896 passed.
-          # ⬆ 2890→2894 on 2026-10-24 (rederive_floor.py, claude/regional-explicit-empty): dev run 40043880457 read 2896 / 177 files; dev's map 2896;
-          #   base 2896 (hosted read) + 4 new test(s) = 2900, files 177; floor 2900 - 6 = 2894. This PR must read 2900 passed.
-          MIN_FILES, MIN_PASSED = 177, 2894
+          # ⬆ 2890→2903 on 2026-10-24 (rederive_floor.py, claude/regional-tile-first): dev run 40041246053 read 2891 / 177 files; dev's map 2896;
+          #   base 2896 (dev's map) + 13 new test(s) = 2909, files 178; floor 2909 - 6 = 2903. This PR must read 2909 passed.
+          # ⬆ 2903→2912 on 2026-10-24 (rederive_floor.py, claude/fill-provenance-nodes): dev run 40045304524 read 2896 / 177 files; dev's map 2909;
+          #   base 2909 (dev's map) + 9 new test(s) = 2918, files 179; floor 2918 - 6 = 2912. This PR must read 2918 passed.
+          # ⬆ 2912→2916 on 2026-10-24 (rederive_floor.py, claude/regional-explicit-empty): dev run 40051472495 read 2918 / 179 files; dev's map 2918;
+          #   base 2918 (hosted read) + 4 new test(s) = 2922, files 179; floor 2922 - 6 = 2916. This PR must read 2922 passed.
+          MIN_FILES, MIN_PASSED = 179, 2916
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2030,7 +2034,9 @@ jobs:
           #   base 2505 (hosted read) + 1 new test(s) = 2506; floor 2506 - 2 = 2504. This PR must read 2506 passed.
           # ⬆ 2528→2554 on 2026-10-23 (rederive_floor.py, HEAD): dev run 40039022786 read 2506; dev's map 2530;
           #   base 2530 (dev's map) + 26 new test(s) = 2556; floor 2556 - 2 = 2554. This PR must read 2556 passed.
-          MIN_PASSED = 2554
+          # ⬆ 2554→2571 on 2026-10-24 (rederive_floor.py, claude/frame-parity-tolerance): dev run 40045304524 read 2556; dev's map 2556;
+          #   base 2556 (hosted read) + 17 new test(s) = 2573; floor 2573 - 2 = 2571. This PR must read 2573 passed.
+          MIN_PASSED = 2571
 
           try:
               root = ET.parse('estate.xml').getroot()

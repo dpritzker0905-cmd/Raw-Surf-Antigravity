@@ -528,6 +528,50 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
 - **Not served:** the flag stays '0' everywhere; the reach is inert while it does. Tests: guards +3 (test_flag_lane_parity), chain
   +5 (the reach's env fallback); floors guards 3311 -> 3314, chain 2885 -> 2890 (rederive_floor.py).
 
+## 2026-10-23 23:25Z: MARINE_REGIONAL_TILE_FIRST: the stored tile is the one z7-9 source inside a GFS pilot box (dark)
+
+- **Why:** the live regional-bundle parity read (21:5xZ) failed for florida_east_coast. The owner, 2026-10-23 18:13 EDT: "Yes: make
+  the stored NOAA GFS tile the single zoom 7-9 source inside the pilot boxes (server dark flag + client bundles), retire the
+  Open-Meteo lane there, and flip both together after live parity passes."
+- **Cause, from the code** (a read-only map of grid_resolver): Steps 1-2 look up the dynamic cache (Open-Meteo `ncep_gfswave025`,
+  keyed on the 1-deg snapped box) BEFORE Step 3's stored tile; Root-A (MARINE_DYNCACHE_PREFER_FINE_REGIONAL) drops a dynamic hit
+  only when it is > 1.25x coarser, which a 0.25-deg dynamic product never is. The GFS/ICON series live lane
+  (GFS_ICON_SERIES_FASTPATH) skips resolve_grid altogether. A cold cache already served the tile.
+- **What:** `regional_tile_first.py` decides with the client's rule line for line (staticRegional.js pickRegionalTile +
+  regionalClipWindow): GFS marine waves/swell_1/swell_2/wind_waves, not surf; the smallest regional manifest tile containing the
+  request (nearest valid time per region; an exact area tie -> none); the snapped box inside the tile's data extent; the served
+  window covering the request at margin 0. Then Steps 1-2 are skipped and Step 3 serves the tile unchanged; the live series lane is
+  skipped for a box inside a pilot box. Anything short of a full cover, and any decision error, keeps today's path.
+  While dark: a sampled (0.05), capped (30 an hour) log of the dynamic answer vs the covering tile at the same nodes; counters on
+  /admin/surf-forecast/status.
+- **Offline A/B, the real resolver** (serve_synthetic, flagship regions, waves/swell_1/wind_waves, `--dynamic 1`, the series live
+  lane ON as production appears to run; scn_regional_bundle_parity with lattice logging, 12 hours): flag OFF: the series answered
+  on the live lane's own lattice (whole tile 13x15, sub-box 11x13, product_id none): 0 comparable whole-tile nodes, 192 meta
+  mismatches, FAIL (the live read's shape). Flag ON: every frame the stored tile (25x29, product_id the tile's): 52,200 nodes, 0 bad,
+  0 meta, controls differ, PASS. Evidence: side-session notes regional-tile-first-2026-10-23/.
+- **Cost, offline** (48-hour page, z9 box -81.65,27.60,-79.58,29.07, warm, 3 runs): tile 0.64-0.73 s and 1.32 MB (the snapped 1-deg
+  window, 13x13) against the synthetic live lane's 0.23-0.27 s and 0.43 MB (the raw box, 9x6) - which skips the real Open-Meteo
+  fetch (4-11 s a page in the lead's live capture). With the client's bundles on, a covered box asks the server for neither.
+- **Tests:** tests/test_regional_tile_first.py (13, chain; floor 2885 -> 2898, set-from 2904). Seen failing under twelve mutations.
+- **Not here:** the live parity read with the flag on (one, health-gated) and the flip, both with the client's default, by the owner.
+
+## 2026-10-23 22:20Z: item 2, per-node provenance of the Gulf fill (dark, metadata only)
+
+- **Why:** the owner's state-of-the-art plan marks a substituted cell with a non-colour cue (hatch / outline + "GFS substitute, not
+  EURO/ICON; peak period"). `coarse_fill` said HOW MANY cells came from GFS, never WHICH, and `/grid_series` frames dropped the
+  stamp entirely (only /grid and the static frames carried it), so no client could draw it.
+- **What (MARINE_FILL_PROVENANCE_NODES, default '0', Render env):** `coarse_fill.filled_idx` = sorted indices into the response's own
+  `grid.vectors`, bounded by MARINE_FILL_PROVENANCE_MAX (default 4096, then `filled_idx_truncated`). Indices rather than the
+  coordinates the lead's brief left open: the fill runs last on the /grid route, on the grid as served, so the indices are final
+  there; a series frame that is then decimated has them re-pointed at the same nodes by coordinate (`remap_filled_idx`), and a
+  dropped node falls out. Opt-in max-pool thinning can carry a substituted neighbour's value on a kept native cell, so the stamp
+  then says `filled_idx_pooling: "max"` instead of claiming exactness. Series frames now carry `coarse_fill` with the flag on.
+- **Cost, measured** (JSON, before gzip, 2-deg world lattice of 15,023 nodes): 2,465 filled cells (today's legacy EURO peak) =
+  13.0 KB a frame, 608 KB a 48-frame page; 868 = 4.6 KB / 215 KB; ~150 (the expected residual after own-values + targeted) =
+  0.8 KB / 38 KB. Coordinates would cost 2.5x. So: flip it only after the own-values and targeted flips, not before.
+- **Tests:** tests/test_fill_provenance_nodes.py (9, chain; floor 2885 -> 2894, set-from 2900). Seen failing under eight mutations.
+  Off, every stamp and every series frame is byte-identical (pinned for both fills and for series frames).
+
 ## 2026-10-24 00:40Z: item 4a, explicit-empty regional sets (no served number changes)
 
 - **Why:** the 20:31Z pilots publish listed GFS/marine/swell_2/us_west_coast_socal with 0 entries. Storage holds no SoCal swell_2

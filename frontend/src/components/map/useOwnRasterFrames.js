@@ -14,7 +14,7 @@ import { CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
 import { createOwnRasterLayer, buildStepLut, PRESSURE_LUT } from './ownRasterLayer';
 import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import {
-  framesOf, frameAt, getField, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex, planWindow, setEngaged, setWanted, tel, windowRadius,
+  framesOf, frameAt, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex, planWindow, setEngaged, setWanted, tel, windowRadius,
 } from './ownRasterFrames';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
@@ -40,14 +40,37 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   const drawing = engaged && !!index;
   useEffect(() => { setEngaged(layer, drawing); return () => setEngaged(layer, false); }, [layer, drawing]);
 
-  // 1. The pinned index for this engagement.
+  // 0. PREWARM (the toggle's latest.json + index round trips, before the toggle): with the lever on and the layer off, pin the
+  // index once the map is idle. Two small JSON reads per map load, NO frames (raster frames never join an idle fill).
+  // Kill: window.__RAW_DISABLE_RASTER_OWN_PREWARM__ = true.
+  const leverOn = ownFramesOn(layer, model);
+  useEffect(() => {
+    if (!leverOn || active || lastIndex(layer) || !mapInstance) return undefined;
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_PREWARM__ === true) return undefined;
+    let done = false; let idleId = null;
+    const go = () => { if (!done) { done = true; ownIndex(layer).catch(() => {}); } };
+    const onIdle = () => {
+      if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') idleId = window.requestIdleCallback(go, { timeout: 4000 });
+      else setTimeout(go, 0);
+    };
+    mapInstance.once('idle', onIdle);
+    return () => {
+      done = true;
+      try { mapInstance.off('idle', onIdle); } catch (e) { /* map gone */ }
+      if (idleId !== null && typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(idleId);
+    };
+  }, [leverOn, active, layer, mapInstance]);
+
+  // 1. The pinned index for this engagement: the remembered one at once (prewarm or an earlier toggle), refreshed in the
+  // background (a new run is taken on the next step, as staticFrames' pin rules allow).
   useEffect(() => {
     if (!wanted) { setIndex(null); return undefined; }
     let alive = true;
+    const memo = lastIndex(layer);
+    if (memo && framesOf(memo).length) setIndex(memo);
     ownIndex(layer).then((idx) => {
       if (!alive) return;
-      if (idx && framesOf(idx).length) setIndex(idx);
-      else { noteMiss('no_index'); setFailed(true); }
+      if (idx && framesOf(idx).length) { if (idx !== memo) setIndex(idx); } else if (!memo) { noteMiss('no_index'); setFailed(true); }
     });
     return () => { alive = false; };
   }, [wanted, layer]);
