@@ -35,7 +35,9 @@ const ARMS = (process.env.ARMS || 'lakes,nolakes').split(',');
 const SHOT_THEMES = (process.env.SHOT_THEMES || 'light,beach').split(',').filter(Boolean);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const VIEWS = { world: [-90, 45, 3.2], michigan: [-86.9, 44.0, 7], erie: [-81.2, 42.2, 9], winnipeg: [-97.9, 52.2, 7],
-  victoria: [33.0, -1.0, 7], salton: [-115.8, 33.3, 8], caspian: [50.5, 42.0, 7], nicaragua: [-85.4, 11.6, 8], okeechobee: [-80.8, 26.95, 9] };
+  michigan8: [-87.0, 44.0, 8], victoria: [33.0, -1.0, 7], salton: [-115.8, 33.3, 8], caspian: [50.5, 42.0, 7], nicaragua: [-85.4, 11.6, 8], okeechobee: [-80.8, 26.95, 9] };
+// VIEWS=michigan8,salton,... restricts the views (all by default); SHOT_VIEWS the views of the light/beach screenshot sessions.
+const ONLY = process.env.VIEWS ? process.env.VIEWS.split(',') : null;
 const CONTROL_NAMES = ['Salton Sea', 'Lake Okeechobee', 'Lago de Nicaragua', 'Lake Ladoga'];
 
 // ── geography ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -110,6 +112,12 @@ async function session(theme, model, arm, views, saveShots) {
     await page.waitForFunction((m) => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid; return g && (g.__sourceModel || 'GFS') === m; }, model, { timeout: 90000 });
     for (const v of views) {
       await L.jump(page, ...VIEWS[v]); await sleep(SETTLE);
+      // At z7+ each view needs its OWN dynamic viewport product (several seconds on the offline box): wait until the engine's grid is this
+      // model's and its bounds cover the view centre, then settle a little (a screenshot before it reads "no field" in BOTH arms).
+      await page.waitForFunction((m) => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid; const map = window.__MAP_INSTANCE__ || window.map;
+        if (!g || !g.bounds || (g.__sourceModel || 'GFS') !== m) return false; const c = map.getCenter(); const b = g.bounds;
+        return c.lng >= b.west && c.lng <= b.east && c.lat >= b.south && c.lat <= b.north; }, model, { timeout: 60000 }).catch(() => {});
+      await sleep(2500);
       const on = await shot(page);
       const pts = await samples(page, on.box);
       const cls = pts.map(([, , lng, lat]) => classify(lng, lat));
@@ -121,7 +129,7 @@ async function session(theme, model, arm, views, saveShots) {
         fs.writeFileSync(path.join(OUT, `${theme}-${model}-${arm}-${v}.png`), on.buf);
         fs.writeFileSync(path.join(OUT, `${theme}-bare-${v}.png`), bare[v].buf);
       }
-      if (v === 'michigan') {
+      if (v === 'michigan' || v === 'michigan8') {
         const p0 = await paints(page);
         const wheel = page.locator('[role="slider"][aria-label*="Forecast timeline"]').filter({ visible: true }).first();
         await wheel.focus();
@@ -144,7 +152,7 @@ async function session(theme, model, arm, views, saveShots) {
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const out = { at: new Date().toISOString(), stride: STRIDE, diff: DIFF, sessions: [] };
-  const all = Object.keys(VIEWS);
+  const all = Object.keys(VIEWS).filter((v) => !ONLY || ONLY.includes(v));
   for (const theme of THEMES) for (const model of MODELS) for (const arm of ARMS) {
     const r = await session(theme, model, arm, all, true);
     out.sessions.push(r);
