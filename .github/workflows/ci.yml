@@ -163,7 +163,9 @@ jobs:
             // + staticRegional.test.js (+1 suite / +16 tests): hosted 515/6753 at b482566c (run 40005823797). The review's guards add
             // marineGridSeries.regional.test.js (8) and 14 staticRegional tests (+1 suite / +22 tests).
             // Regional client dark by default (2026-10-23 evening, the live parity failed): +1 test.
-            const MIN_SUITES = 516, MIN_TESTS = 6776;
+            // Frame store regional show (2026-10-24): marineFrameStoreRegional.test.js, +1 suite / +39 tests (27 real-frame encoder parity
+            // cases, 2 identity, 10 runtime). Raised by exactly its own count from the floor above; confirm against the hosted receipt.
+            const MIN_SUITES = 517, MIN_TESTS = 6815;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

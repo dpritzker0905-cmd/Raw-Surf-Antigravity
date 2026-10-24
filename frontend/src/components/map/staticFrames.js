@@ -354,6 +354,10 @@ export function getPinnedIndexSync(key) {
   return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
 }
 
+// The frame store's regional crop show (2026-10-24): the pinned REGIONAL waves index of a set key (null unless pinned, fresh, enabled; so only while the bundles' gate is open), and the pinned regional keys of a model x layer. No I/O.
+export const getPinnedRegionalIndexSync = (key) => { const pin = _state.pins.get(key); return isRegionalSetKey(key) && key.split('/')[2] === 'waves' && pin && !pin.stale && staticSetEnabled(key) ? pin.index : null; };
+export const pinnedRegionalKeys = (model, layer) => [..._state.pins.keys()].filter((k) => isRegionalSetKey(k) && k.startsWith(`${model}/marine/${layer}/`));
+
 function sharedParsedLoad(key, frame, priority) {
   const controller = new AbortController();
   const promise = (async () => {
