@@ -497,3 +497,60 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   swell_1, wind_waves (#486's sets), 48 hourly asks each: 6 sets, 114 frames, 598,464 nodes, 0 bad, 0 meta, 6/6 controls differ,
   PASS. One flipped byte in a bundle -> sha_bad 2, FAIL. (A first run counted 576 meta mismatches that were only `Z` vs `+00:00`
   on model_run_time; times now compare as instants.) LIVE=1 is the one-box live-read mode for after the 19:45Z publish.
+
+## 2026-10-23 21:40Z: EURO own values, item 1 of the lead's order: the flags reach the lanes; reach = the whole block (dark)
+
+- **Why:** the owner asked for the state-of-the-art way to show correct coastal and enclosed-sea data per model. The lead's lever
+  matrix with Reflection (high effort) set the order: native frames, then own-values aggregation at the full-block reach, then
+  same-model rim extrapolation, then a labelled cross-model fallback (opt-in), then retire the legacy fill. Item 1: #480's
+  `ECMWF_WAVE_LAND_CENTRE_BLOCK` was read only by the fetcher, so a flip needed a workflow edit first.
+- **What:** both ECMWF-reaching lanes (forecast-ingest.yml: the 10-deg EURO; forecast-ingest-pilots.yml: the 2-deg global_mid)
+  read `${{ vars.ECMWF_WAVE_LAND_CENTRE_BLOCK || '0' }}` and `${{ vars.ECMWF_WAVE_LAND_CENTRE_REACH || '4' }}`: ONE repo variable
+  per flag, so one `gh variable set` moves both zooms together (a one-lane flip would serve EURO's own values at one zoom and GFS
+  substitutes at the other). precompute.yml reaches no ecmwf module and stays out (LANE_EXCEPTIONS). The reach default moves
+  2 -> 4 native cells, the whole 2-deg block (still within-cell regridding: every value is ECMWF sea inside the node's own cell).
+  `ECMWF_WAVE_LAND_CENTRE_REACH` is now in `_RATING_FLAGS` too, so an operator finds it.
+- **Guard:** test_flag_lane_parity could not see the repo-variable form at all (its collector read literal `'value'` only), so a
+  lane declaring one was invisible to every drift test. It now collects the form as its default and pins: a flag reads a
+  variable of its OWN name; both ECMWF lanes read the same variable with the same default, equal to the fetcher's code default
+  and the registry's; precompute does not declare it. Seen failing under six mutations (pilots default 2, another variable name,
+  the core line removed, a literal '1', the fetcher default 2, the fetcher's parse fallback 2).
+- **Measured at reach 4** (cycle 2026-10-23 00Z step 0 vs the published EURO and GFS frames; scratchpad euro_reach_effect.py and
+  euro_land_breakdown.py): 950 newly valid = 842 GFS-sea + 62 GFS-land + 46 ice-polar (reach 2: 575 + 30 + 15). Enclosed seas
+  recover in full: Gulf 16/16, Caribbean 15, Mediterranean 44, Red Sea 14, Baltic 26, Sea of Japan 16, Gulf of California 8.
+  EURO's own height minus the GFS donor at the GFS-sea nodes: p10/p50/p90 -0.16 / +0.05 / +0.34 m; the equal-weight consensus
+  moves at 895 nodes by p10/p50/p90 -0.079 / +0.003 / +0.089 m.
+  **The 62 GFS-land nodes**, by 2-deg distance to the nearest GFS-sea node: 18 adjacent (coast GFS draws one node out), 10 two
+  nodes out, 34 further, and every one of the 34 is on a lake ECMWF's wave model carries: Great Lakes 14, Caspian 9, Black Sea 5,
+  Lakes Winnipeg and Victoria 6. None where ECMWF has no water (by construction: a node needs an ECMWF sea cell within the reach).
+  Inland TX/MS 0; GA 1 (32N 82W, which GFS's own 2-deg grid calls sea). Whether the map should show lake waves is the owner's
+  call: 12 of the 34 lake nodes have under 10% sea in their block.
+- **Not served:** the flag stays '0' everywhere; the reach is inert while it does. Tests: guards +3 (test_flag_lane_parity), chain
+  +5 (the reach's env fallback); floors guards 3311 -> 3314, chain 2885 -> 2890 (rederive_floor.py).
+
+## 2026-10-23 23:25Z: MARINE_REGIONAL_TILE_FIRST: the stored tile is the one z7-9 source inside a GFS pilot box (dark)
+
+- **Why:** the live regional-bundle parity read (21:5xZ) failed for florida_east_coast. The owner, 2026-10-23 18:13 EDT: "Yes: make
+  the stored NOAA GFS tile the single zoom 7-9 source inside the pilot boxes (server dark flag + client bundles), retire the
+  Open-Meteo lane there, and flip both together after live parity passes."
+- **Cause, from the code** (a read-only map of grid_resolver): Steps 1-2 look up the dynamic cache (Open-Meteo `ncep_gfswave025`,
+  keyed on the 1-deg snapped box) BEFORE Step 3's stored tile; Root-A (MARINE_DYNCACHE_PREFER_FINE_REGIONAL) drops a dynamic hit
+  only when it is > 1.25x coarser, which a 0.25-deg dynamic product never is. The GFS/ICON series live lane
+  (GFS_ICON_SERIES_FASTPATH) skips resolve_grid altogether. A cold cache already served the tile.
+- **What:** `regional_tile_first.py` decides with the client's rule line for line (staticRegional.js pickRegionalTile +
+  regionalClipWindow): GFS marine waves/swell_1/swell_2/wind_waves, not surf; the smallest regional manifest tile containing the
+  request (nearest valid time per region; an exact area tie -> none); the snapped box inside the tile's data extent; the served
+  window covering the request at margin 0. Then Steps 1-2 are skipped and Step 3 serves the tile unchanged; the live series lane is
+  skipped for a box inside a pilot box. Anything short of a full cover, and any decision error, keeps today's path.
+  While dark: a sampled (0.05), capped (30 an hour) log of the dynamic answer vs the covering tile at the same nodes; counters on
+  /admin/surf-forecast/status.
+- **Offline A/B, the real resolver** (serve_synthetic, flagship regions, waves/swell_1/wind_waves, `--dynamic 1`, the series live
+  lane ON as production appears to run; scn_regional_bundle_parity with lattice logging, 12 hours): flag OFF: the series answered
+  on the live lane's own lattice (whole tile 13x15, sub-box 11x13, product_id none): 0 comparable whole-tile nodes, 192 meta
+  mismatches, FAIL (the live read's shape). Flag ON: every frame the stored tile (25x29, product_id the tile's): 52,200 nodes, 0 bad,
+  0 meta, controls differ, PASS. Evidence: side-session notes regional-tile-first-2026-10-23/.
+- **Cost, offline** (48-hour page, z9 box -81.65,27.60,-79.58,29.07, warm, 3 runs): tile 0.64-0.73 s and 1.32 MB (the snapped 1-deg
+  window, 13x13) against the synthetic live lane's 0.23-0.27 s and 0.43 MB (the raw box, 9x6) - which skips the real Open-Meteo
+  fetch (4-11 s a page in the lead's live capture). With the client's bundles on, a covered box asks the server for neither.
+- **Tests:** tests/test_regional_tile_first.py (13, chain; floor 2885 -> 2898, set-from 2904). Seen failing under twelve mutations.
+- **Not here:** the live parity read with the flag on (one, health-gated) and the flip, both with the client's default, by the owner.

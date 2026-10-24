@@ -115,6 +115,15 @@ NAMED_ACTOR = [
     ("DELETE", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
     ("POST", "/api/gallery/migrate-titles", "query", "photographer_id"),
     ("POST", "/api/gallery/clean-all-item-titles", "query", "photographer_id"),
+    # Batch 5: reads that return one user's personal data are the user's own to read.
+    ("GET", "/api/subscriptions/account-billing/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/violations/user/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/tos-status/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/acceptance-history/{user_id}", "path", "user_id"),
+    ("GET", "/api/photographer/{photographer_id}/earnings-breakdown", "path", "photographer_id"),
+    ("GET", "/api/photographer/{photographer_id}/earnings-history", "path", "photographer_id"),
+    ("GET", "/api/photo-subscriptions/my-subscriptions/{user_id}", "path", "user_id"),
+    ("GET", "/api/photo-subscriptions/my-subscribers/{photographer_id}", "path", "photographer_id"),
 ]
 LOGIN_ONLY = [("POST", "/api/notifications"), ("POST", "/api/realtime/broadcast")]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY
@@ -254,6 +263,7 @@ def test_identity_comes_from_the_token(method, path):
 def test_owner_passes_the_binding(stub_db, method, path, where, field):
     url, params, body = _request(method, path, actor="caller", where=where, field=field)
     response = _call(method, url, params, body, subject="caller")
-    detail = response.json().get("detail") if response.headers.get("content-type", "").startswith("application/json") else None
+    payload = response.json() if response.headers.get("content-type", "").startswith("application/json") else None
+    detail = payload.get("detail") if isinstance(payload, dict) else None
     assert response.status_code not in (401, 422), (response.status_code, detail)
     assert detail != DENIED
