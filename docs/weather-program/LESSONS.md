@@ -1450,3 +1450,17 @@ A stored estimate can be estimated again in a browser branch with different sour
   Fixes: #492 (no sibling warm in surf mode), #501 (snap, reuse, supersede, debounce, low priority), #505 (reload budget).
 - Rule: every client request that a gesture can repeat is snapped, reused, superseded and bounded; replay the owner's real
   gesture pattern (mode, model, zoom, pan count) to the point the client stops asking, with the box's cost modelled.
+
+
+### 2026-10-23 — L-S25 · Read which check refused before tuning a tolerance; a rebuilt quantity's error scales with its inputs
+
+- The pilots publish (run 40019869501) refused 5 ICON world frames. The visible near-miss in the log was dir_confidence
+  0.001967, so the brief was to tune that tolerance. But 0.001967 is inside its own (half of its 1/254 step, 0.0019685),
+  and four of the five frames read 0.0 there. All five failed the u/v rebuild instead: 0.0012-0.0016 against a FIXED 0.0012.
+- The stored u/v come from the unrounded height and direction; the frame rebuilds them from the 0.01-deg direction, so the
+  error carries h * radians(0.005): measured with the real codec over 400,000 nodes, it crosses 0.0012 at 10-12 m seas.
+  Wind's u/v tolerance already scaled with speed; marine's did not.
+- Rule: before changing a tolerance, find the check that actually failed (the field whose error exceeds ITS tolerance,
+  not the largest-looking number). Derive every tolerance from the encoding's steps, and when a check compares a quantity
+  rebuilt from quantised inputs, carry each input's error through the formula (here, a term that grows with height).
+  Loosen only what the measurement says; keep the old value as a floor until accepted frames' errors can be measured too.

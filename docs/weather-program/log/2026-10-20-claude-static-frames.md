@@ -554,3 +554,20 @@ parity gate, client eligibility and its own kill, ON once its parity is proven; 
   fetch (4-11 s a page in the lead's live capture). With the client's bundles on, a covered box asks the server for neither.
 - **Tests:** tests/test_regional_tile_first.py (13, chain; floor 2885 -> 2898, set-from 2904). Seen failing under twelve mutations.
 - **Not here:** the live parity read with the flag on (one, health-gated) and the flip, both with the client's default, by the owner.
+
+## 2026-10-23 22:20Z: item 2, per-node provenance of the Gulf fill (dark, metadata only)
+
+- **Why:** the owner's state-of-the-art plan marks a substituted cell with a non-colour cue (hatch / outline + "GFS substitute, not
+  EURO/ICON; peak period"). `coarse_fill` said HOW MANY cells came from GFS, never WHICH, and `/grid_series` frames dropped the
+  stamp entirely (only /grid and the static frames carried it), so no client could draw it.
+- **What (MARINE_FILL_PROVENANCE_NODES, default '0', Render env):** `coarse_fill.filled_idx` = sorted indices into the response's own
+  `grid.vectors`, bounded by MARINE_FILL_PROVENANCE_MAX (default 4096, then `filled_idx_truncated`). Indices rather than the
+  coordinates the lead's brief left open: the fill runs last on the /grid route, on the grid as served, so the indices are final
+  there; a series frame that is then decimated has them re-pointed at the same nodes by coordinate (`remap_filled_idx`), and a
+  dropped node falls out. Opt-in max-pool thinning can carry a substituted neighbour's value on a kept native cell, so the stamp
+  then says `filled_idx_pooling: "max"` instead of claiming exactness. Series frames now carry `coarse_fill` with the flag on.
+- **Cost, measured** (JSON, before gzip, 2-deg world lattice of 15,023 nodes): 2,465 filled cells (today's legacy EURO peak) =
+  13.0 KB a frame, 608 KB a 48-frame page; 868 = 4.6 KB / 215 KB; ~150 (the expected residual after own-values + targeted) =
+  0.8 KB / 38 KB. Coordinates would cost 2.5x. So: flip it only after the own-values and targeted flips, not before.
+- **Tests:** tests/test_fill_provenance_nodes.py (9, chain; floor 2885 -> 2894, set-from 2900). Seen failing under eight mutations.
+  Off, every stamp and every series frame is byte-identical (pinned for both fills and for series frames).
