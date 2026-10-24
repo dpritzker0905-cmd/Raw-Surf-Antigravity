@@ -69,13 +69,39 @@ const iso = (t) => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // ── the pinned index, mirrored synchronously ─────────────────────────────────────────────────────────────────────────────────
 const _s = { index: null, indexAt: 0, pinLoad: null, ptr: null, ptrAt: 0, ptrLoad: null, ptrFails: 0, raw: new Map(), built: new Map(),
-  box: null, boxAt: 0, boxLoad: null, boxFails: 0 };
+  box: null, boxAt: 0, boxLoad: null, boxFails: 0, rebuilt: null };
 
-/** The pinned wind index (async; staticFrames' pin rules: one index per scrub session, re-pinned when idle). */
+/**
+ * The lane-window rebuild the lane pointer names (`frames`: {index, run, lane}; backend frame_set_wind_rebuild.py, written by
+ * the core lane right after a new HRRR lane), when it is the SAME run as the published index and carries the pointer's lane
+ * where the published index does not. Else null. The rebuilt index is immutable: fetched once per path.
+ * Kill: window.__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__ = true (the published index only; lane hours then wait for the pilots).
+ */
+async function rebuiltIndexFor(idx) {
+  const ptr = _s.ptr; const f = ptr && ptr.frames;
+  if (!idx || !f || !f.index || f.lane !== ptr.key || f.run !== idx.run) return null;
+  if ((idx.wind_lane || {}).key === ptr.key || W().__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__ === true) return null;
+  if (_s.rebuilt && _s.rebuilt.path === f.index) return _s.rebuilt;
+  try {
+    const r = await fetch(staticFramesBase() + f.index, { credentials: 'omit' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !Array.isArray(j.frames) || j.run !== idx.run || (j.wind_lane || {}).key !== ptr.key) return null;
+    j.path = j.path || f.index;
+    _s.rebuilt = j;
+    return j;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** The pinned wind index (async; staticFrames' pin rules: one index per scrub session, re-pinned when idle), or the pointer's
+ * lane-window rebuild of that same run (rebuiltIndexFor). */
 export async function windIndex() {
   if (!windStaticEnabled()) return null;
   try {
-    const idx = await getPinnedIndex(WIND_SET_KEY);
+    let idx = await getPinnedIndex(WIND_SET_KEY);
+    idx = (await rebuiltIndexFor(idx)) || idx;
     if (idx && idx !== _s.index) {
       _s.index = idx;
       _s.indexAt = nowMs();
@@ -367,7 +393,7 @@ export function staticWindCovers(askIsos, model = 'GFS') {
 /** Test hook. */
 export function _resetWindStaticForTest() {
   _s.index = null; _s.indexAt = 0; _s.pinLoad = null; _s.ptr = null; _s.ptrAt = 0; _s.ptrLoad = null; _s.ptrFails = 0;
-  _s.box = null; _s.boxAt = 0; _s.boxLoad = null; _s.boxFails = 0;
+  _s.box = null; _s.boxAt = 0; _s.boxLoad = null; _s.boxFails = 0; _s.rebuilt = null;
   _s.raw.clear(); _s.built.clear();
   if (typeof window !== 'undefined') delete window.__RAW_WIND_STATIC__;
 }

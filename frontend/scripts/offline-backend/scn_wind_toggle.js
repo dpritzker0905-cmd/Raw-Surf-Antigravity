@@ -241,6 +241,9 @@ async function session(arm, zoom) {
     const expected = await expectedFor(anchor, [0]);
     out.vp = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds(); return { z: +m.getZoom().toFixed(2), w: +b.getWest().toFixed(2), s: +b.getSouth().toFixed(2), e: +b.getEast().toFixed(2), n: +b.getNorth().toFixed(2) }; });
     out.beforeToggle = await page.evaluate(() => window.__WT__.counters());
+    // SNIPPET=<console snippet .js>: the live-read console snippet runs as a person would paste it (before the toggle) and its
+    // __LIVE_READ_WIND__() result lands in out.snippet: proves the snippet against a known run before a signed-in live read.
+    if (process.env.SNIPPET) await page.evaluate(fs.readFileSync(process.env.SNIPPET, 'utf8'));
     const cdn0 = JSON.parse(JSON.stringify(cdnLog));
     // THE TOGGLE: Waves -> Wind (layers are exclusive), at hour 0.
     const window0 = async (t0, r0) => {
@@ -301,6 +304,7 @@ async function session(arm, zoom) {
     counting = false;
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) out.anchorRolled = true;
     out.after = await page.evaluate(() => window.__WT__.counters());
+    if (process.env.SNIPPET) out.snippet = await page.evaluate(() => (window.__LIVE_READ_WIND__ ? window.__LIVE_READ_WIND__() : null));
     out.cdn = { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes, beforeToggleBytes: cdn0.bytes - cdnStart,
       beforeToggleRequests: cdn0.requests - cdnStartN };
     out.errors = log.errors.slice(0, 5);
