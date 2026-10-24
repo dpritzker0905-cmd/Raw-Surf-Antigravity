@@ -48,3 +48,57 @@ Measured offline. The new lane was the real 10-22 18Z cycle relabelled to 21Z, s
 - Control with the kill (the published index, old lane): the 108 lane-window asks were refused (`box_lane_differs`) and went to `/grid`.
 
 No served number changes: every served hour still equals `/grid`. This only makes the lane-window hours static again sooner.
+
+## The +1 h -> 03Z question (the lead's live read, 00:33Z): settled, no bug
+- **What the code does.** "Now" is `getSeriesAnchorMs()`, now rounded to the nearest hour: 01Z at 00:33Z, not 00Z. Each wheel hour asks anchor + h, and
+  `getSharedValidTime` picks the nearest stored GFS wind product within 3 h, on a 3-hourly lattice.
+- **Offline check.** The real `getSharedValidTime` at a mock 2026-10-24T00:33Z with 3-hourly products reproduces the live drawn list exactly:
+  - Now: 01Z -> 00Z;
+  - +1: 02Z -> 03Z;
+  - +2: 03Z -> 03Z;
+  - +3: 04Z -> 03Z;
+  - +27: 10-25 04Z -> 03Z;
+  - +28: 05Z -> 06Z.
+- **Conclusion.** The frame drawn is at most 1.5 h from the selected hour, and `/grid` gets the same time from the same function.
+- **The honest-readout gap.** `WindTimeStatus.windReadout` compares the drawn frame with the SNAPPED time, so it says nothing about this 1-1.5 h. The lead
+  sends the owner an A/B: (A) a "showing the 03:00 frame" line, (B) a labelled speed+direction interpolation. Both default off.
+
+## Worldwide matrix, wind cells 1, 2, 6, 7 (offline, dev + PR B, real GFS 10-22 12Z + HRRR 18Z, owner window)
+- **Mislabel 0 in every cell** (valid == served on every drawn frame, all 181 x 83, 0 thin), lane box == pin, misses {} and laneRefused 0.
+  - Outside the US the values are pure GFS. The world frame's stamp says hrrr+gfs only because the world grid includes CONUS.
+- **Cell 6 (Fiji, z5).** No crops at the antimeridian, by design. /grid 0.
+- **Amplification.**
+  - Every cell asked the world tail page (hours 288-384) for its few uncovered hours.
+  - Cell 7 (Norway 70N and the Southern Ocean at z5) re-asked the toggle hour's close-zoom box up to 3x.
+  - Re-run with timings: +9.9 s, +15.0 s, +21.5 s, the same key each time. Not a high-latitude snap.
+  - The box answers `stale: true, staleReason: swr_revalidation_pending` while it builds the sharpened product for a NEW box (offline ~30 s for
+    the whole run of that box). The client's stale re-ask (#441) asks again on its bounded schedule. After the build the same ask is fresh (21 x 7).
+- **Instant.** Toggle first draw 191-276 ms in every cell: PR C.
+- **Cell 14** (a new run or HRRR cycle mid-session): owed, offline.
+
+## The wind pan diet (branch claude/wind-pan-diet)
+- **(a) The tail page asks only the hours static frames cannot serve** (`windGridSeries.staticUncoveredHours`; kill `__RAW_DISABLE_WIND_SERIES_TRIM__`).
+  - Offline the page went 33 -> 31 hours. The offline run is ~47 h older than the anchor, so its frames end before page 2.
+  - Live, the run is ~6-18 h old at the anchor and the page's first ~11-15 frames are static, so about a third to a half of the page's box work goes.
+- **(b) The same wind /grid ask is answered once.** A completed, non-stale answer is kept 2 min under its full URL (16 entries), and the hour label is
+  re-stamped per caller (kill `__RAW_DISABLE_WIND_GRID_RESPONSE_CACHE__`).
+  - z6 Florida: identical asks 2x, 2x -> none (repeat max 2 -> 1); /grid 9 -> 7.
+  - Norway: unchanged (the stale re-ask above, which the cache rightly leaves alone).
+- **The A/B (old = dev + PR B, new = + diet; one session per arm; the clean rerun `diet2-*`).**
+  - An earlier pass is VOID for its mislabel and toggle-view numbers: its in-page watcher read a Node-only `MODEL` and threw. Fixed (`window.__WT_MODEL__`)
+    and every cell re-run from a frozen copy of the harness.
+  - **GFS** (z2, z3.9, z6 Florida, Fiji z5, Norway z5): mislabel 0, thin 0 and valid == served on every drawn frame in both arms.
+    - Norway: repeat max 3 -> 1, /grid 12 -> 10.
+    - z6: repeat max 2 -> 1, /grid 11 -> 10.
+    - Tail page 33 -> 32 hours (the offline run's age, above).
+    - Toggle data 4-137 ms and first draw 133-210 ms in both arms; step p95 82-117 ms in both.
+  - **ICON and EURO** (z3.9, z6, Norway): mislabel 0 in both arms. The thinned 46 x 21 series frames are the same in both arms: these models have no static
+    wind frames, which is pre-existing.
+    - The first pass ran `new` second against the same box and read step p95 6.6-9.4 s for `new`.
+    - Re-run with `new` FIRST: `old` is the slow one (6.7-7.0 s). The second arm waits on the box's background builds from the first. That is ORDER, not the diet.
+    - In that run, ICON z3.9 /grid 8 -> 5 and repeat 2 -> 1; EURO z3.9 /grid 10 -> 5 and repeat 2 -> 1.
+  - Lesson for the harness: on /grid-bound models a one-round A/B is order-confounded; use ROUNDS >= 2 (it alternates the order), or a fresh backend per arm.
+- **Harness.**
+  - `MODEL=` (ICON/EURO arms).
+  - Timed duplicates in `repeat`.
+  - `EXPECT_STORE` plus serve_synthetic's `GET /__harness/identity`: a scenario now refuses a backend it did not start. That followed a port-4198 collision with another session; I stopped before any cell measured it.
