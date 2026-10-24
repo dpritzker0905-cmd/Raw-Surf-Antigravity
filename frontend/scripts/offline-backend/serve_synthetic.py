@@ -796,6 +796,14 @@ def main():
     if args.stale_seconds > 0:
         STALE.update({"seconds": args.stale_seconds, "scope": args.stale_scope, "model": args.stale_model or None,
                       "layer": args.stale_layer or None, "stride": max(2, args.stale_stride), "arm_on_first": True})
+    # WHO IS ANSWERING (2026-10-24, the lead's rule after a port collision): two sessions on one machine can each start an offline
+    # backend, and a scenario pointed at a port another session already holds measures THAT backend's store. GET /__harness/identity
+    # names this process's store, port, pid and a per-start nonce; scenarios check it before their first cell (EXPECT_STORE).
+    import secrets                                           # noqa: E402
+    identity = {"store": str(Path(args.dir).resolve()), "port": args.port, "pid": os.getpid(), "nonce": secrets.token_hex(8),
+                "models": args.models, "layers": args.layers}
+    app.add_api_route("/__harness/identity", lambda: identity, methods=["GET"])
+    print(json.dumps({"harness_identity": identity}), flush=True)
     import uvicorn                                           # noqa: E402
     uvicorn.run(app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
 
