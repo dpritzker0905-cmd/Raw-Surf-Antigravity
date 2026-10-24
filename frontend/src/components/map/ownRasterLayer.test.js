@@ -221,3 +221,10 @@ describe('air temperature (2026-10-24): the library scale, its slot ramp, below-
     } finally { delete window.__RAW_OWN_RASTER_ISOBARS__; }
   });
 });
+
+test('the antimeridian wrap uses integer columns (a float mod drew a violet stripe at 180, matrix cell 6)', () => {
+  const { FS } = require('./ownRasterLayer');
+  expect(FS).toMatch(/c0 = int\(x0\) % n; if \(c0 < 0\) c0 \+= n;/);
+  expect(FS).toMatch(/c1 = c0 \+ 1; if \(c1 >= n\) c1 = 0;/);
+  expect(FS).not.toMatch(/int\(mod\(x0 \+ 1\.0, u_size\.x\)\)/);
+});

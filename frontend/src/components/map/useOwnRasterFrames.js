@@ -16,9 +16,10 @@ import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
 } from './ownRasterLayer';
 import { clearRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
+import { requestIsobars } from './isobarStore';
 import {
-  combinedFrameAt, combinedFrames, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex, planWindow, setEngaged, setWanted, telSet,
-  windowRadius,
+  combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
+  planWindow, setEngaged, setWanted, telSet, windowRadius,
 } from './ownRasterFrames';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
@@ -134,6 +135,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           const e = st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1 };
+          emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
           Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); });
         });
         const before = beforeId && mapInstance.getLayer(beforeId) ? beforeId : undefined;
@@ -148,6 +150,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       try { if (mapInstance.getLayer(id)) mapInstance.removeLayer(id); } catch (e) { /* style gone */ }
       st.layerObj = null;
       setWanted(layer, [], null);
+      emitOwnShown(layer, null);
     };
   }, [engaged, mapInstance, layer, beforeId]);
 
@@ -186,6 +189,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const f = combinedFrameAt(frames, validMs);
     if (!f) {
       L.want(null);
+      emitOwnWant(layer, null);
       st.wantRec = null; publish();
       noteMiss('no_frame');
       telSet(layer, 'want', { validMs, path: null, at: Date.now() });
@@ -201,11 +205,14 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     if (st.shownRec) st.shownRec = { ...st.shownRec, nearestMaxHours: st.shownRec.url === f.path ? st.nearestMaxHours : st.shownRec.nearestMaxHours };
     publish();
     const win = planWindow(cur, frames.length, st.dir, windowRadius()).map((i) => frames[i]);
-    for (const w of win) { const got = getField(w.path); if (got) L.offerField(w.path, got); }
+    // Isobars (pressure): asked of the worker as a frame lands, never computed in this step (isobarStore caches per path).
+    const iso = layer === 'pressure' ? requestIsobars : null;
+    for (const w of win) { const got = getField(w.path); if (got) { L.offerField(w.path, got); if (iso) iso(w.path, got); } }
     noteStep(f.path, L.isResident(f.path) || !!getField(f.path));
     L.want(f.path);
+    emitOwnWant(layer, f.path);
     telSet(layer, 'want', { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() });
-    setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); });
+    setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); });
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
   return engaged;

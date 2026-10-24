@@ -101,8 +101,12 @@ void main() {
   float fy = clamp((lat - u_grid.y) / u_grid.w, 0.0, u_size.y - 1.0);
   int c0; int c1; float tx;
   if (u_size.z > 0.5) {
+    // INTEGER wrap (2026-10-24, matrix cell 6 at Fiji): float mod(720.0, 720.0) can round to 720, and a texelFetch past the last
+    // column reads 0 -> a violet one-cell stripe on the antimeridian. Integer modulo is exact.
     float x0 = floor(fx); tx = fx - x0;
-    c0 = int(mod(x0, u_size.x)); c1 = int(mod(x0 + 1.0, u_size.x));
+    int n = int(u_size.x);
+    c0 = int(x0) % n; if (c0 < 0) c0 += n;
+    c1 = c0 + 1; if (c1 >= n) c1 = 0;
   } else {
     if (fx < 0.0 || fx > u_size.x - 1.0) discard;
     float x0 = min(floor(fx), u_size.x - 2.0); tx = fx - x0;
