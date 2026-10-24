@@ -1,0 +1,411 @@
+{
+ "what": "wave-carrying lakes (waveLakes.js): offline measurements",
+ "date": "2026-10-23",
+ "offline_only": true,
+ "base": "client built on dev 6cad17d7d (toggle runs z4, z8, z4b, z8c) and rebased f6433615a (reqlog run)",
+ "pairwise_lakes_vs_nolakes_pixels_differing_by_sum_abs_rgb_gt_36": {
+  "dark EURO caspian": {
+   "sea": {
+    "differs": 0.656,
+    "n": 37306
+   },
+   "land": {
+    "differs": 0.005,
+    "n": 16694
+   }
+  },
+  "dark EURO erie": {
+   "land": {
+    "differs": 0.003,
+    "n": 7119
+   },
+   "lake": {
+    "differs": 0.765,
+    "n": 46881
+   }
+  },
+  "dark EURO michigan": {
+   "land": {
+    "differs": 0.001,
+    "n": 40027
+   },
+   "lake": {
+    "differs": 0.778,
+    "n": 13973
+   }
+  },
+  "dark EURO nicaragua": {
+   "land": {
+    "differs": 0,
+    "n": 37671
+   },
+   "sea": {
+    "differs": 0.214,
+    "n": 10850
+   },
+   "control": {
+    "differs": 0,
+    "n": 5479
+   }
+  },
+  "dark EURO okeechobee": {
+   "land": {
+    "differs": 0.012,
+    "n": 46203
+   },
+   "sea": {
+    "differs": 0,
+    "n": 2448
+   },
+   "control": {
+    "differs": 0,
+    "n": 5349
+   }
+  },
+  "dark EURO salton": {
+   "land": {
+    "differs": 0,
+    "n": 52646
+   },
+   "control": {
+    "differs": 0,
+    "n": 806
+   },
+   "sea": {
+    "differs": 0.58,
+    "n": 548
+   }
+  },
+  "dark EURO victoria": {
+   "land": {
+    "differs": 0.002,
+    "n": 42712
+   },
+   "lake": {
+    "differs": 0.815,
+    "n": 11288
+   }
+  },
+  "dark EURO winnipeg": {
+   "land": {
+    "differs": 0.002,
+    "n": 45072
+   },
+   "lake": {
+    "differs": 0.759,
+    "n": 8928
+   }
+  },
+  "dark EURO world": {
+   "land": {
+    "differs": 0.001,
+    "n": 29883
+   },
+   "sea": {
+    "differs": 0.079,
+    "n": 23630
+   },
+   "lake": {
+    "differs": 0.86,
+    "n": 484
+   },
+   "control": {
+    "differs": 0,
+    "n": 3
+   }
+  },
+  "dark GFS caspian": {
+   "sea": {
+    "differs": 0.809,
+    "n": 37306
+   },
+   "land": {
+    "differs": 0.006,
+    "n": 16694
+   }
+  },
+  "dark GFS erie": {
+   "land": {
+    "differs": 0,
+    "n": 7119
+   },
+   "lake": {
+    "differs": 0.001,
+    "n": 46881
+   }
+  },
+  "dark GFS michigan": {
+   "land": {
+    "differs": 0,
+    "n": 40027
+   },
+   "lake": {
+    "differs": 0,
+    "n": 13973
+   }
+  },
+  "dark GFS nicaragua": {
+   "land": {
+    "differs": 0,
+    "n": 37671
+   },
+   "sea": {
+    "differs": 0,
+    "n": 10850
+   },
+   "control": {
+    "differs": 0,
+    "n": 5479
+   }
+  },
+  "dark GFS okeechobee": {
+   "land": {
+    "differs": 0,
+    "n": 46203
+   },
+   "sea": {
+    "differs": 0,
+    "n": 2448
+   },
+   "control": {
+    "differs": 0,
+    "n": 5349
+   }
+  },
+  "dark GFS salton": {
+   "land": {
+    "differs": 0,
+    "n": 52646
+   },
+   "control": {
+    "differs": 0,
+    "n": 806
+   },
+   "sea": {
+    "differs": 0.584,
+    "n": 548
+   }
+  },
+  "dark GFS victoria": {
+   "land": {
+    "differs": 0.001,
+    "n": 42712
+   },
+   "lake": {
+    "differs": 0,
+    "n": 11288
+   }
+  },
+  "dark GFS winnipeg": {
+   "land": {
+    "differs": 0.001,
+    "n": 45072
+   },
+   "lake": {
+    "differs": 0,
+    "n": 8928
+   }
+  },
+  "dark GFS world": {
+   "land": {
+    "differs": 0,
+    "n": 29883
+   },
+   "sea": {
+    "differs": 0,
+    "n": 23630
+   },
+   "lake": {
+    "differs": 0,
+    "n": 484
+   },
+   "control": {
+    "differs": 0,
+    "n": 3
+   }
+  }
+ },
+ "note": "sea differs by crest animation between two sessions (the noise floor: GFS Caspian 0.809, Gulf of California 0.58-0.65 where the code cannot matter); read lake/control/land only",
+ "toggle_z4_before_slot": {
+  "on": {
+   "switch_ms_p50": 99,
+   "switch_ms_p95": 1995,
+   "missed": 0,
+   "via_store": 6,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 5
+  },
+  "on-nolakes": {
+   "switch_ms_p50": 10,
+   "switch_ms_p95": 1120,
+   "missed": 0,
+   "via_store": 6,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 5
+  }
+ },
+ "toggle_z4b_before_slot": {
+  "on": {
+   "switch_ms_p50": 9,
+   "switch_ms_p95": 1044,
+   "missed": 0,
+   "via_store": 6,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 2
+  },
+  "on-nolakes": {
+   "switch_ms_p50": 16,
+   "switch_ms_p95": 974,
+   "missed": 0,
+   "via_store": 6,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 4
+  }
+ },
+ "toggle_z4_with_variant_slot": {
+  "on": {
+   "switch_ms_p50": 9,
+   "switch_ms_p95": 1273,
+   "missed": 0,
+   "via_store": 6,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 2
+  },
+  "on-nolakes": {
+   "switch_ms_p50": 9,
+   "switch_ms_p95": 1298,
+   "missed": 0,
+   "via_store": 6,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 4
+  }
+ },
+ "toggle_z8_before_slot": {
+  "on": {
+   "switch_ms_p50": 454,
+   "switch_ms_p95": 3008,
+   "missed": 7,
+   "via_store": 0,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 6
+  },
+  "on-nolakes": {
+   "switch_ms_p50": 425,
+   "switch_ms_p95": 2072,
+   "missed": 5,
+   "via_store": 0,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 6
+  }
+ },
+ "toggle_z8_with_variant_slot": {
+  "on": {
+   "switch_ms_p50": 439,
+   "switch_ms_p95": 3755,
+   "missed": 6,
+   "via_store": 0,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 4
+  },
+  "on-nolakes": {
+   "switch_ms_p50": 2529,
+   "switch_ms_p95": 3056,
+   "missed": 10,
+   "via_store": 0,
+   "clicks": 12,
+   "lit_lake_frames": 0,
+   "mask_ms_on_click_path_max": 0,
+   "wrong_silent_frames": 4
+  }
+ },
+ "z8_setWaveData_ms_before_slot": {
+  "on": [
+   "stash_swap:12ms",
+   "rebuild:375ms",
+   "rebuild:263ms",
+   "rebuild:251ms",
+   "rebuild:375ms"
+  ],
+  "on-nolakes": [
+   "stash_swap:8ms",
+   "reuse:5ms",
+   "stash_swap:2ms",
+   "reuse:26ms",
+   "stash_swap:15ms",
+   "stash_swap:14ms",
+   "stash_swap:5ms"
+  ]
+ },
+ "z8_setWaveData_ms_with_variant_slot": {
+  "on": [
+   "rebuild:492ms",
+   "stash_swap:14ms",
+   "stash_swap:10ms",
+   "stash_swap:7ms",
+   "stash_swap:16ms",
+   "rebuild:330ms"
+  ],
+  "on-nolakes": [
+   "stash_swap:15ms",
+   "stash_swap:18ms"
+  ]
+ },
+ "z8_ask_log_rebased_dev": {
+  "asks": 225,
+  "backendRequests": {
+   "/capabilities": 1,
+   "/products": 1,
+   "/grid": 103,
+   "/wind_lane": 2,
+   "/grid_series": 122
+  },
+  "byKind": {
+   "/grid GFS/waves hours=-": 61,
+   "/grid_series GFS/waves hours=page": 4,
+   "/grid_series GFS/swell_1 hours=-1": 13,
+   "/grid_series GFS/swell_2 hours=-1": 13,
+   "/grid_series GFS/wind_waves hours=-1": 12,
+   "/grid EURO/waves hours=-": 42,
+   "/grid_series EURO/waves hours=-1": 2,
+   "/grid_series EURO/waves hours=page": 12,
+   "/grid_series EURO/swell_1 hours=-1": 2,
+   "/grid_series EURO/swell_2 hours=-1": 2,
+   "/grid_series EURO/wind_waves hours=-1": 2,
+   "/grid_series GFS/swell_1 hours=page": 5,
+   "/grid_series GFS/swell_2 hours=page": 4,
+   "/grid_series GFS/wind_waves hours=page": 3,
+   "/grid_series GFS/swell_1 hours=2": 1,
+   "/grid_series GFS/wind_waves hours=2": 1,
+   "/grid_series GFS/swell_1 hours=23": 12,
+   "/grid_series GFS/swell_2 hours=23": 11,
+   "/grid_series GFS/wind_waves hours=23": 12,
+   "/grid_series EURO/swell_1 hours=23": 2,
+   "/grid_series EURO/swell_2 hours=23": 2,
+   "/grid_series EURO/wind_waves hours=23": 2,
+   "/grid_series EURO/swell_1 hours=page": 1,
+   "/grid_series EURO/swell_2 hours=page": 1,
+   "/grid_series EURO/wind_waves hours=page": 1,
+   "/grid_series GFS/swell_2 hours=26": 1,
+   "/grid_series GFS/wind_waves hours=26": 1
+  },
+  "distinct": 42
+ }
+}
