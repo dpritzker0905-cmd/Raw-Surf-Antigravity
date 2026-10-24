@@ -10,6 +10,7 @@ over 400,000 nodes, it crosses 0.0012 at 10-12 m seas. These tests pin: every fi
 at the very edge of rounding passes, and one off by a whole step or by twice the bound fails; a 15 m sea on the direction
 rounding edge passes the u/v check (the old fixed tolerance refuses it: the control); the old 0.0012 stays a floor.
 """
+import json
 import math
 import os
 import sys
@@ -151,12 +152,77 @@ def test_parity_reports_the_worst_uv_error_per_height_band():
 def test_a_sets_stats_fold_every_checked_frame():
     from services import frame_set as fs
     stats = {"parity_max_abs_err": {}, "uv_max_err_by_height_m": {}}
-    fs.note_parity(stats, {"max_abs_err": {"height_m": 0.0004}, "uv_max_err": 0.0009, "uv_by_height_m": {"0-2": 0.0009}})
+    pole = {"nodes": 6, "bad": 0, "max_abs_err": {"height_m": 0.0003}, "uv_max_err": 0.0007}
+    fs.note_parity(stats, {"max_abs_err": {"height_m": 0.0004}, "uv_max_err": 0.0009, "uv_by_height_m": {"0-2": 0.0009},
+                           "by_region": {"elsewhere": {"nodes": 8, "bad": 0, "max_abs_err": {"height_m": 0.0004},
+                                                       "uv_max_err": 0.0009}, "polar_north": pole}})
     fs.note_parity(stats, {"max_abs_err": {"height_m": 0.0005}, "uv_max_err": 0.0013,
-                           "uv_by_height_m": {"0-2": 0.0006, "14-16": 0.0013}})
+                           "uv_by_height_m": {"0-2": 0.0006, "14-16": 0.0013},
+                           "by_region": {"polar_north": dict(pole, bad=1, uv_max_err=0.0013)}})
     assert stats == {"parity_max_abs_err": {"height_m": 0.0005, "uv": 0.0013},
-                     "uv_max_err_by_height_m": {"0-2": 0.0009, "14-16": 0.0013}}
+                     "uv_max_err_by_height_m": {"0-2": 0.0009, "14-16": 0.0013},
+                     "parity_by_region": {   # in fb.REGIONS order, each with the frames and nodes behind its maxima
+                         "polar_north": {"frames": 2, "nodes": 12, "bad": 1, "max_abs_err": {"height_m": 0.0003, "uv": 0.0013}},
+                         "elsewhere": {"frames": 1, "nodes": 8, "bad": 0, "max_abs_err": {"height_m": 0.0004, "uv": 0.0009}}}}
+    assert list(stats["parity_by_region"]) == ["polar_north", "elsewhere"]
     assert fs.parity_line({"max_abs_err": {"height_m": 0.0005}, "uv_max_err": 0.0011}) == "height_m 0.0005 uv 0.0011"
+
+
+# ── per world-frame region (2026-10-24, the lead: "report the max error per field per REGION of the world frame") ───
+def test_the_regions_are_the_antimeridian_band_and_the_polar_caps():
+    R = fb.frame_regions
+    assert R(-17.0, 179.5) == R(-17.0, -179.5) == R(-17.0, 190.0) == ("antimeridian",)   # Fiji, either convention
+    assert R(-17.0, 350.0) == ("elsewhere",)                                             # 10 W, written 0..360
+    assert R(-17.0, 170.0) == ("antimeridian",) and R(-17.0, 169.9) == ("elsewhere",)    # the band edge is inside
+    assert R(70.0, 6.0) == ("polar_north",) and R(-62.0, 0.0) == ("polar_south",)        # Norway; the Southern Ocean
+    assert R(60.0, 0.0) == ("polar_north",) and R(59.9, 0.0) == ("elsewhere",)           # the cap edge is inside
+    assert R(66.0, -170.0) == ("antimeridian", "polar_north")                            # the Bering Strait: both
+    assert R(28.1, -80.6) == ("elsewhere",) and R(None, 3) == ("elsewhere",)
+    assert set(fb.REGIONS) == {"antimeridian", "polar_north", "polar_south", "elsewhere"}
+
+
+def _world_3x3(first_at, **first):
+    """A regular 3 x 3 grid over lat -62/4/70 and lng 0/89.75/179.5: every region has nodes, and the antimeridian column
+    crosses both caps. The node at `first_at` (row, col) takes `first`; the rest are ordinary 1.5 m seas."""
+    lats, lngs = (-62.0, 4.0, 70.0), (0.0, 89.75, 179.5)
+    nodes = [_node(lats[r], lngs[c], **(first if (r, c) == first_at else {})) for r in range(3) for c in range(3)]
+    return {"grid": {"cols": 3, "rows": 3, "vectors": nodes}, "valid_time": "2026-10-23T00:00:00Z"}
+
+
+def test_parity_reports_each_region_on_its_own():
+    """A 15 m sea at the antimeridian (lat 4) carries the frame's worst u/v; a node off by a whole period step in the north
+    cap, and one the frame drops in the south cap, are those regions' bad nodes. Each region reports its own nodes, bad
+    nodes and maxima."""
+    def two_bad(dec):
+        dec["fields"][fb.PERIOD][6] += 1.0       # row 2 (70 N), col 0 (0 E): a value off by 100 steps
+        dec["fields"][fb.HEIGHT][1] = None       # row 0 (62 S), col 1 (89.75 E): data in the source, none in the frame
+    got = _check(_world_3x3((1, 2), **BIG_SEA), two_bad)
+    reg = got["by_region"]
+    assert list(reg) == list(fb.REGIONS), reg
+    assert got["bad"] == 2 and got["missing_mismatch"] == 1
+    assert {k: r["nodes"] for k, r in reg.items()} == {"antimeridian": 3, "polar_north": 3, "polar_south": 3, "elsewhere": 2}
+    assert {k: r["bad"] for k, r in reg.items()} == {"antimeridian": 0, "polar_north": 1, "polar_south": 1, "elsewhere": 0}
+    assert reg["antimeridian"]["uv_max_err"] == got["uv_max_err"] > 0.0012                # the big sea is only there
+    assert max(reg[k]["uv_max_err"] for k in ("polar_north", "polar_south", "elsewhere")) < got["uv_max_err"]
+    assert reg["polar_north"]["max_abs_err"]["period_s"] == got["max_abs_err"]["period_s"] >= 1.0
+    assert all(reg[k]["max_abs_err"]["period_s"] < 0.01 for k in ("antimeridian", "polar_south", "elsewhere"))
+    assert set(reg["elsewhere"]["max_abs_err"]) == set(got["max_abs_err"])                 # every field, in every region
+
+
+def test_a_real_publish_reports_each_world_region(tmp_path):
+    """The publish-test store's world grid (lat -60..60 by 40, lng -180..180 by 72): 8 antimeridian nodes (both edge
+    columns), 6 per polar row, 8 elsewhere, in every one of the ten frames."""
+    from tests.test_publish_frame_sets import TARGET, TEN, _write_store, pub
+    from services import frame_set as fs
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store, valids=TEN)
+    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None)[fs.set_key(TARGET)]
+    reg = report["parity_by_region"]
+    assert list(reg) == list(fb.REGIONS), reg
+    assert {k: (r["frames"], r["nodes"], r["bad"]) for k, r in reg.items()} == {
+        "antimeridian": (10, 80, 0), "polar_north": (10, 60, 0), "polar_south": (10, 60, 0), "elsewhere": (10, 80, 0)}
+    assert all({"height_m", "direction_deg", "period_s", "dir_confidence", "uv"} <= set(r["max_abs_err"]) for r in reg.values())
+    json.dumps(report)   # the report is printed as JSON (stdout and the step summary)
 
 
 def test_a_real_publish_reports_every_frame_not_only_refusals(tmp_path):

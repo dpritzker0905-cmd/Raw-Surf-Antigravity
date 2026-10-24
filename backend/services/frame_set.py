@@ -149,8 +149,8 @@ def fields_for(target, lane_touched=False):
 
 
 def note_parity(stats, check):
-    """Fold one checked frame's parity report into the set's stats: the max error per field and of u/v, and the marine
-    u/v error per height band. PURE but for `stats`."""
+    """Fold one checked frame's parity report into the set's stats: the max error per field and of u/v, the marine u/v
+    error per height band, and both per world-frame region. PURE but for `stats`."""
     errs = stats["parity_max_abs_err"]
     for k, v in (check.get("max_abs_err") or {}).items():
         errs[k] = max(errs.get(k, 0.0), v)
@@ -160,6 +160,19 @@ def note_parity(stats, check):
     for k, v in (check.get("uv_by_height_m") or {}).items():
         bands[k] = max(bands.get(k, 0.0), v)
     stats["uv_max_err_by_height_m"] = dict(sorted(bands.items(), key=lambda kv: int(kv[0].split("-")[0])))
+    # ⬇ 2026-10-24 (the lead, the worldwide verify matrix): the same per world-frame region (fb.frame_regions), with the
+    # frames, nodes and bad nodes behind each maximum, so a matrix row can cite e.g. "antimeridian: 0 bad of N nodes".
+    by_region = stats.setdefault("parity_by_region", {})
+    for name, r in (check.get("by_region") or {}).items():
+        acc = by_region.setdefault(name, {"frames": 0, "nodes": 0, "bad": 0, "max_abs_err": {}})
+        acc["frames"] += 1
+        acc["nodes"] += r["nodes"]
+        acc["bad"] += r["bad"]
+        for k, v in r["max_abs_err"].items():
+            acc["max_abs_err"][k] = max(acc["max_abs_err"].get(k, 0.0), v)
+        if r.get("uv_max_err") is not None:
+            acc["max_abs_err"]["uv"] = max(acc["max_abs_err"].get("uv", 0.0), r["uv_max_err"])
+    stats["parity_by_region"] = {k: by_region[k] for k in fb.REGIONS if k in by_region}
 
 
 def parity_line(check):
@@ -222,7 +235,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
              # ⬇ 2026-10-24 (the lead): every CHECKED frame's errors, refused or built, so the publish report shows how
              # close accepted frames run to each tolerance (before, only refusals printed u/v): per field plus u/v, and
              # the marine u/v error per height band, the reading that says whether u/v can be tightened below 6 m.
-             "parity_max_abs_err": {}, "uv_max_err_by_height_m": {}}
+             "parity_max_abs_err": {}, "uv_max_err_by_height_m": {}, "parity_by_region": {}}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
     entries = select_entries(source.manifest().get("products"), target)
     stats["entries"] = len(entries)
