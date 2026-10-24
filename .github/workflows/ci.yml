@@ -2034,7 +2034,9 @@ jobs:
           #   base 2530 (dev's map) + 26 new test(s) = 2556; floor 2556 - 2 = 2554. This PR must read 2556 passed.
           # ⬆ 2554→2571 on 2026-10-24 (rederive_floor.py, claude/frame-parity-tolerance): dev run 40045304524 read 2556; dev's map 2556;
           #   base 2556 (hosted read) + 17 new test(s) = 2573; floor 2573 - 2 = 2571. This PR must read 2573 passed.
-          MIN_PASSED = 2571
+          # ⬆ 2571→2593 on 2026-10-24 (rederive_floor.py, claude/parental-controls-enforced-f09): dev run 40051472495 read 2573; dev's map 2573;
+          #   base 2573 (hosted read) + 22 new test(s) = 2595; floor 2595 - 2 = 2593. This PR must read 2595 passed.
+          MIN_PASSED = 2593
 
           try:
               root = ET.parse('estate.xml').getroot()
