@@ -137,3 +137,52 @@ def test_a_uv_off_by_twice_its_bound_still_fails_at_any_height():
         off = 2 * fb.uv_tolerance(fb.HEIGHT, h)
         first["u"] = round(first["u"] + off, 4)
         assert _check(_product(first))["bad"] == 1, f"a u/v off by {off} at {h} m passed"
+
+
+# ── every frame reports its errors (2026-10-24, the lead: "Every frame should log the max error per field") ─────────
+def test_parity_reports_the_worst_uv_error_per_height_band():
+    got = _check(_product(_node(0.0, 0.0, **BIG_SEA)))                 # one 15 m node; three at 1.5 m
+    bands = got["uv_by_height_m"]
+    assert list(bands) == ["0-2", "14-16"], bands
+    assert bands["14-16"] == got["uv_max_err"] > 0.0012 and bands["0-2"] < bands["14-16"]
+    assert fb.uv_band(0.0) == "0-2" and fb.uv_band(2.0) == "2-4" and fb.uv_band(15.9) == "14-16"
+
+
+def test_a_sets_stats_fold_every_checked_frame():
+    from services import frame_set as fs
+    stats = {"parity_max_abs_err": {}, "uv_max_err_by_height_m": {}}
+    fs.note_parity(stats, {"max_abs_err": {"height_m": 0.0004}, "uv_max_err": 0.0009, "uv_by_height_m": {"0-2": 0.0009}})
+    fs.note_parity(stats, {"max_abs_err": {"height_m": 0.0005}, "uv_max_err": 0.0013,
+                           "uv_by_height_m": {"0-2": 0.0006, "14-16": 0.0013}})
+    assert stats == {"parity_max_abs_err": {"height_m": 0.0005, "uv": 0.0013},
+                     "uv_max_err_by_height_m": {"0-2": 0.0009, "14-16": 0.0013}}
+    assert fs.parity_line({"max_abs_err": {"height_m": 0.0005}, "uv_max_err": 0.0011}) == "height_m 0.0005 uv 0.0011"
+
+
+def test_a_real_publish_reports_every_frame_not_only_refusals(tmp_path):
+    from tests.test_publish_frame_sets import TARGET, TEN, _write_store, pub
+    from services import frame_set as fs
+    store, out, said = tmp_path / "store", tmp_path / "out", []
+    _write_store(store, valids=TEN)
+    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=said.append)[fs.set_key(TARGET)]
+    assert report["built"] == len(TEN) and report["parity_bad"] == 0
+    assert sum(1 for line in said if ": parity ok: " in line and " uv " in line) == len(TEN)
+    assert {"height_m", "direction_deg", "period_s", "dir_confidence", "uv"} <= set(report["parity_max_abs_err"])
+    assert report["uv_max_err_by_height_m"] and all(k.count("-") == 1 for k in report["uv_max_err_by_height_m"])
+
+
+def test_a_refused_frame_still_counts_in_the_sets_error_report(tmp_path, monkeypatch):
+    from tests.test_publish_frame_sets import TARGET, TEN, _write_store, pub
+    from services import frame_set as fs
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store, valids=TEN)
+    real = fb.parity
+
+    def one_refused(product, decoded):
+        r = real(product, decoded)
+        return dict(r, bad=1, uv_max_err=0.0099, uv_by_height_m={"14-16": 0.0099}) \
+            if product["valid_time"] == TEN[1] else r
+    monkeypatch.setattr(fb, "parity", one_refused)
+    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None)[fs.set_key(TARGET)]
+    assert report["parity_bad"] == 1
+    assert report["parity_max_abs_err"]["uv"] == 0.0099 and report["uv_max_err_by_height_m"]["14-16"] == 0.0099

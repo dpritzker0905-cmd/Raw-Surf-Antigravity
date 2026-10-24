@@ -128,6 +128,13 @@ MARINE_UV_TOL_FLOOR = 0.0012 + FLOAT_SLACK   # with float slack, like every tole
 #                                             0.0012 can be 0.0012000000000000001 in binary (run 40019869501's first
 #                                             refused ICON frame printed uv_max_err 0.0012)
 WHY_MAX = 3   # parity() names the failing check for this many bad nodes
+UV_BAND_M = 2  # parity() reports the worst marine u/v error per height band this wide (the publish report sums them up)
+
+
+def uv_band(height):
+    """The height band key a marine node's u/v error is reported under: '0-2', '2-4', ... PURE."""
+    lo = int(max(0.0, height) // UV_BAND_M) * UV_BAND_M
+    return f"{lo}-{lo + UV_BAND_M}"
 # Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
 # UNROUNDED speed and direction (and rounded to 4 dp): 0.005 kn + 0.005 deg of the speed + both 4-dp roundings, with slack.
 WIND_UV_TOL_BASE = 0.006
@@ -394,6 +401,8 @@ def parity(product, decoded):
     bad = missing_mismatch = 0
     errs = {FIELD_NAMES[k]: 0.0 for k in f}
     uv_err = 0.0
+    uv_bands = {}   # ⬇ 2026-10-24 (the lead): the worst marine u/v error per height band, for EVERY frame, so whether the
+    #                 tolerance can be tightened below 6 m can be read from real products (only refusals logged u/v)
     why = []   # ⬇ 2026-10-23: WHICH check failed, for the first WHY_MAX bad nodes. A refusal used to print only the
     #            frame's max errors, and run 40019869501's showed dir_confidence 0.001967 (inside its tolerance) while
     #            the u/v check had refused the node; a None-vs-value mismatch printed no number at all.
@@ -449,6 +458,9 @@ def parity(product, decoded):
             if su or sv:  # stored 0/0 means "derive from direction", which the renderer does the same way
                 e = max(abs(u - su), abs(v - sv))
                 uv_err = max(uv_err, e)
+                if mag == HEIGHT:
+                    band = uv_band(f[mag][i])
+                    uv_bands[band] = max(uv_bands.get(band, 0.0), e)
                 if e > tol:
                     fails.append(f"uv: err {e:.7f} > {tol:.7f} at {FIELD_NAMES[mag]} {f[mag][i]}")
         if fails:
@@ -456,6 +468,8 @@ def parity(product, decoded):
             explain(i, vec, fails)
     out = {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
            "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}
+    if uv_bands:
+        out["uv_by_height_m"] = {k: round(v, 6) for k, v in sorted(uv_bands.items(), key=lambda kv: int(kv[0].split("-")[0]))}
     if why:
         out["why"] = why
     return out
