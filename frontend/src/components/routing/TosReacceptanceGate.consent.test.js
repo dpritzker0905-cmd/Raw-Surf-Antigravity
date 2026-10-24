@@ -9,7 +9,9 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 
 jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
-jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: 'u1' } }) }));
+// `user_id` is the legacy identifier a login response carries next to the profile id; the server keys on the id.
+let mockUser = { id: 'u1' };
+jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: mockUser }) }));
 jest.mock('../../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 
@@ -19,6 +21,7 @@ import TosReacceptanceGate from './TosReacceptanceGate';
 const posts = () => apiClient.post.mock.calls.filter(([url]) => url === '/compliance/acknowledge-tos');
 
 beforeEach(() => {
+  mockUser = { id: 'u1' };
   localStorage.clear();
   localStorage.setItem('raw-surf-user', JSON.stringify({ id: 'u1', access_token: 'test-only' }));
   apiClient.get.mockImplementation((url) => Promise.resolve({
@@ -50,4 +53,18 @@ it('records acceptance once after the tick and the click', async () => {
   fireEvent.click(screen.getByTestId('tos-gate-accept-button'));
   await waitFor(() => expect(posts()).toHaveLength(1));
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+});
+
+it('asks about the profile id the server stored, never the legacy user_id', async () => {
+  mockUser = { id: 'u1', user_id: 'legacy-9' };
+  render(<TosReacceptanceGate><p>app</p></TosReacceptanceGate>);
+  await screen.findByRole('dialog');
+  const asked = apiClient.get.mock.calls.map(([url]) => url).filter((url) => url.startsWith('/compliance/tos-status/'));
+  expect(asked).toHaveLength(1);
+  expect(asked[0]).toContain('/compliance/tos-status/u1?');
+  expect(asked[0]).not.toContain('legacy-9');
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByTestId('tos-gate-accept-button'));
+  await waitFor(() => expect(posts()).toHaveLength(1));
+  expect(posts()[0][2]).toEqual({ params: { user_id: 'u1' } });
 });

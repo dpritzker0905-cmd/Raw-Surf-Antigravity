@@ -302,8 +302,15 @@ _RATING_FLAGS = {
     "ECMWF_WAVE_LAND_CENTRE_BLOCK": ("0", "EURO wave nodes (2 deg, 10 deg) whose own native cell is land take direction and period from "
                                          "the block the height already uses (E-weighted circular mean / E-weighted mean), so they "
                                          "carry ECMWF's own sea values instead of being dropped and filled from GFS (only within "
-                                         "ECMWF_WAVE_LAND_CENTRE_REACH native cells of ECMWF sea, default 2); 0 = point samples",
-                                     "forecast-ingest-pilots.yml AND forecast-ingest.yml env (both lanes together)"),
+                                         "ECMWF_WAVE_LAND_CENTRE_REACH native cells of ECMWF sea, default 4 = the whole block); 0 = point samples",
+                                     "repo variable ECMWF_WAVE_LAND_CENTRE_BLOCK, read by forecast-ingest-pilots.yml AND "
+                                     "forecast-ingest.yml env (one variable, both lanes together)"),
+    # The reach of the rule above (2026-10-23): native 0.25-deg cells (Chebyshev) from the land centre to the nearest ECMWF sea cell.
+    # 4 = the whole 8x8 block (within-cell regridding); inert while ECMWF_WAVE_LAND_CENTRE_BLOCK is '0'.
+    "ECMWF_WAVE_LAND_CENTRE_REACH": ("4", "How near the land centre (native 0.25-deg cells) an ECMWF sea cell must be for ECMWF_WAVE_LAND_CENTRE_BLOCK to validate the node: 4 = the whole 2-deg block, 2 = 0.5 deg (575 vs 842 of 868 "
+                                         "EURO-masked GFS-sea nodes, cycle 2026-10-23 00Z)",
+                                     "repo variable ECMWF_WAVE_LAND_CENTRE_REACH, read by forecast-ingest-pilots.yml AND "
+                                     "forecast-ingest.yml env (one variable, both lanes together)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this
