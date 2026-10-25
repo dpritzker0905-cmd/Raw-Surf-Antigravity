@@ -15,7 +15,9 @@ the frames they name; everything else under the set's prefix is deleted.
 SOURCE RULE (egress): frames are built only from product files already on the ingest runner's disk (the products
 the ingest step just wrote). Nothing here downloads a product. A frame whose source identity (filename, model run,
 run time, ingested_at) matches the previous index is carried over without reading anything; a changed product that
-is not on disk is listed with `path: null`, and the client falls back to /grid for that hour. The GFS world products
+is not on disk is listed with `path: null`, and the client falls back to /grid for that hour (the one exception, dark:
+publish_frame_images.TailDownloads may hand this module the ICON/EURO estimated tails from storage; they pass the same run
+check and parity gate). The GFS world products
 are written by the PILOTS lane (scheduler/forecast.py pilot_jobs), so the step runs in forecast-ingest-pilots.yml; a
 lane whose disk holds less than FRAME_MIN_COVERAGE of a set's AUTHORITATIVE entries publishes nothing for it.
 
@@ -43,7 +45,9 @@ MIN_COVERAGE_DEFAULT = 0.9   # a set publishes a new index only when this share 
 
 # The WORLD tier (global_mid, 2 deg): every set the pilots lane writes natively (forecast-ingest-pilots.yml; storage reads
 # 2026-10-22: GFS 4 layers x 113 frames; ICON 3 layers x 57 native (0-168 h); EURO waves x 65 native). The ICON/EURO
-# estimated 14-day tails are baked by the CORE lane, so in this lane they are listed unbuilt and fall back to /grid.
+# estimated 14-day tails are baked by the CORE lane, so in this lane they are listed unbuilt and fall back to /grid (measured
+# 2026-10-24: ICON waves' tail IS on this disk, 114 of 117 built; ICON swell_1 61, wind_waves 60, EURO waves 69 are not), unless
+# FRAME_TAIL_DOWNLOAD=1 (publish_frame_images.TailDownloads, dark) fetches those tails from storage first.
 # Not here yet: EURO swell layers (global_coarse only, where /grid applies coarse_gulf_fill at serve time) and ICON
 # swell_2 (a client-side GFS/EURO blend, iconSwell2Blend.js). Order = publish order (a run over its time budget stops
 # starting sets, so the most-used set comes first).

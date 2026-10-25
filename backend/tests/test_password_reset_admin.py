@@ -17,6 +17,17 @@ import uuid
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
+
+def _token_or_skip(response):
+    """forgot-password no longer returns the reset token (audit 2026-10-24 T-04): it is delivered by email only, so
+    a black-box HTTP test cannot obtain it. The delivery and the consumption of a token are covered offline in
+    test_reset_credentials_never_logged.py."""
+    token = response.json().get("_dev_token")
+    if not token:
+        pytest.skip("reset token is delivered by email only; not obtainable over HTTP")
+    return token
+
+
 class TestForgotPassword:
     """Tests for POST /api/auth/forgot-password endpoint"""
     
@@ -36,29 +47,21 @@ class TestForgotPassword:
         assert signup_response.status_code == 200, f"Setup failed: {signup_response.text}"
         self.user_id = signup_response.json().get("id")
     
-    def test_forgot_password_returns_success_and_dev_token(self):
-        """FORGOT PASSWORD: POST /api/auth/forgot-password - returns success message and dev token"""
+    def test_forgot_password_returns_success_and_no_credentials(self):
+        """FORGOT PASSWORD: POST /api/auth/forgot-password - generic success; the token is only ever emailed"""
         response = requests.post(f"{BASE_URL}/api/auth/forgot-password", json={
             "email": self.test_email
         })
-        
+
         assert response.status_code == 200
         data = response.json()
-        
-        # Verify success message
+
         assert data.get("success") == True
         assert "message" in data
         assert "reset link" in data["message"].lower() or "email" in data["message"].lower()
-        
-        # Verify dev token is returned (for testing purposes)
-        assert "_dev_token" in data, "Dev token should be included for testing"
-        assert isinstance(data["_dev_token"], str)
-        assert len(data["_dev_token"]) > 0
-        
-        # Store token for further tests
-        self.reset_token = data["_dev_token"]
-        print(f"PASS: Forgot password returns success and dev token for {self.test_email}")
-    
+        assert not [k for k in data if k.startswith("_dev")], f"credential fields in the response: {sorted(data)}"
+        print(f"PASS: Forgot password returns the generic success only for {self.test_email}")
+
     def test_forgot_password_prevents_email_enumeration(self):
         """Forgot password returns same message for non-existent email (security)"""
         fake_email = f"nonexistent_{uuid.uuid4().hex[:8]}@fake.com"
@@ -79,13 +82,13 @@ class TestForgotPassword:
         response1 = requests.post(f"{BASE_URL}/api/auth/forgot-password", json={
             "email": self.test_email
         })
-        token1 = response1.json().get("_dev_token")
+        token1 = _token_or_skip(response1)
         
         # Request second token - should invalidate first
         response2 = requests.post(f"{BASE_URL}/api/auth/forgot-password", json={
             "email": self.test_email
         })
-        token2 = response2.json().get("_dev_token")
+        token2 = _token_or_skip(response2)
         
         # First token should now be invalid (used=True)
         verify_response = requests.post(f"{BASE_URL}/api/auth/verify-reset-token", json={
@@ -125,7 +128,7 @@ class TestVerifyResetToken:
             "email": self.test_email
         })
         assert reset_response.status_code == 200
-        self.reset_token = reset_response.json().get("_dev_token")
+        self.reset_token = _token_or_skip(reset_response)
     
     def test_verify_token_validates_valid_token(self):
         """VERIFY TOKEN: POST /api/auth/verify-reset-token - validates token"""
@@ -200,7 +203,7 @@ class TestResetPassword:
             "email": self.test_email
         })
         assert reset_response.status_code == 200
-        self.reset_token = reset_response.json().get("_dev_token")
+        self.reset_token = _token_or_skip(reset_response)
     
     def test_reset_password_with_valid_token(self):
         """RESET PASSWORD: POST /api/auth/reset-password - resets password with valid token"""
@@ -410,7 +413,7 @@ class TestCompletePasswordResetFlow:
         })
         assert forgot_response.status_code == 200
         assert forgot_response.json().get("success") == True
-        reset_token = forgot_response.json().get("_dev_token")
+        reset_token = _token_or_skip(forgot_response)
         assert reset_token, "Reset token should be returned"
         print("Step 2 PASS: Password reset requested, token received")
         

@@ -224,6 +224,8 @@ export const STATIC_SETS = [
   // Per-model pressure (2026-10-24): EURO from ECMWF open data, ICON from DWD (frame_set_raster_sources). Raster sets: the marine
   // frame store never takes them (not waves).
   'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
+  // GFS 2 m air temperature (2026-10-24, #515's set): read only by ownRasterFrames.js, behind the same lever (default off).
+  'GFS/weather/temperature/global_0p5',
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or

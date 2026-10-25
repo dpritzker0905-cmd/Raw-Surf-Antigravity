@@ -26,6 +26,7 @@
 // SILENT WRONG-MODEL FRAMES (2026-10-24): each such frame (the field is the old model, the status line has no loading text) is
 // classed by the model chip the user sees pressed (aria-pressed): chip = NEW model -> silentChipNew (a MISLABEL), chip = OLD ->
 // silentChipOld (click-to-render latency), neither -> silentChipOther. Per click and in the summary.
+// ARMS: `on` (default build), `on-regional` (the regional bundle client opted in), `on-nolakes` (the lakes kill), `off` (the model-toggle kill).
 // WAVE LAKES (2026-10-23, waveLakes.js): PLAN (comma list of models / WHEEL:<key>, e.g. EURO,GFS,EURO,GFS) replaces the default
 // plan; an arm ending -nolakes sets __RAW_DISABLE_WAVE_LAKES__ (the build before lakes). Per click: litLake (drawn frames where a
 // non-lake model's data sat under a mask with lakes cut in; must be 0), the CPU phases (maskBaseCanvas, maskWaterPaint, maskUpload,
@@ -219,18 +220,20 @@ async function session(arm, round) {
   const theme = arm.endsWith('-light') ? 'light' : arm.endsWith('-beach') ? 'beach' : 'dark';
   const killToggle = arm.startsWith('off');
   const noLakes = arm.includes('-nolakes');
+  const regional = arm.includes('-regional');            // the regional bundle client (dark by default) opted in
   const dims = phone ? { width: 390, height: 844, dpr: 2 } : VIEW === 'owner' ? { width: 844, height: 390, dpr: 2 } : {};
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: false, ...dims });
   // SURF=1: surf mode from the start; FLAGS=<comma list>: window flags set true (kill switches for a control arm on the same build)
-  await page.addInitScript(({ base, theme, killToggle, phone, noLakes, surf, flags }) => {
+  await page.addInitScript(({ base, theme, killToggle, phone, noLakes, regional, surf, flags }) => {
     if (noLakes) window.__RAW_DISABLE_WAVE_LAKES__ = true;
+    if (regional) window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;
     if (surf) window.__SURF_MODE__ = true;
     for (const f of flags) window[f] = true;
     localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base;
     localStorage.setItem('raw-surf-theme', theme);
     if (killToggle) window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true;
     if (phone) window.__RAW_FRAME_STORE_TIER__ = 'handheld';
-  }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone, noLakes, surf: process.env.SURF === '1',
+  }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone, noLakes, regional, surf: process.env.SURF === '1',
     flags: (process.env.FLAGS || '').split(',').filter(Boolean) });
   await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS, clip: CLIP, clipMax: CLIP_MAX });
   const errors = [];
