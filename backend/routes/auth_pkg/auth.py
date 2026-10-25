@@ -382,46 +382,12 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/auth/login")
-async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
-    # Rate limit: max 5 login attempts per minute per IP (brute-force protection)
-    rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
-    login_id = normalize_email(data.email)
-    username_id = login_id.lstrip('@')
-    result = await db.execute(
-        select(Profile).where(
-            (func.lower(Profile.email) == login_id) | 
-            (func.lower(Profile.username) == username_id)
-        )
-    )
-    profile = result.scalar_one_or_none()
-    
-    if not profile:
-        raise HTTPException(status_code=404, detail="Profile not found")
-    
-    # A password sign-in needs a stored password to check. Accounts without one (legacy and seeded
-    # rows) used to be let in on any password; they now create one through forgot-password, the same
-    # path change-password already points them to.
-    if not profile.password_hash:
-        raise HTTPException(
-            status_code=401,
-            detail="No password is set on this account. Use 'Forgot password' to create one.",
-        )
-    try:
-        password_valid = verify_password(data.password, profile.password_hash)
-    except Exception:
-        logger.exception("Password verification failed for profile %s", profile.id)
-        raise HTTPException(status_code=401, detail="Invalid password")
+def session_payload(profile: Profile, token: str) -> dict:
+    """The sign-in response: the profile as a flat dict plus the signed token.
 
-    if not password_valid:
-        raise HTTPException(status_code=401, detail="Invalid password")
-    
-    # Check if suspended
-    if profile.is_suspended:
-        raise HTTPException(status_code=403, detail="Account suspended")
-
-    token = create_access_token({"sub": profile.id, "role": profile.role.value})
-
+    The frontend stores the whole object in localStorage; the token is in the access_token field. Shared by the
+    password login and the second-factor login so both return exactly the same shape.
+    """
     profile_data = ProfileResponse(
         id=profile.id,
         user_id=profile.user_id,
@@ -460,10 +426,55 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         parent_link_approved=profile.parent_link_approved,
         parental_controls=profile.parental_controls
     )
-
-    # Return profile data + signed token as a flat dict
-    # Frontend stores the whole object in localStorage; token is in access_token field
     return {**profile_data.model_dump(), "access_token": token, "token_type": "bearer"}
+
+
+@router.post("/auth/login")
+async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
+    # Rate limit: max 5 login attempts per minute per IP (brute-force protection)
+    rate_limit_check(request, max_requests=5, window_seconds=60, key_prefix="login:")
+    login_id = normalize_email(data.email)
+    username_id = login_id.lstrip('@')
+    result = await db.execute(
+        select(Profile).where(
+            (func.lower(Profile.email) == login_id) | 
+            (func.lower(Profile.username) == username_id)
+        )
+    )
+    profile = result.scalar_one_or_none()
+    
+    if not profile:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    
+    # A password sign-in needs a stored password to check. Accounts without one (legacy and seeded
+    # rows) used to be let in on any password; they now create one through forgot-password, the same
+    # path change-password already points them to.
+    if not profile.password_hash:
+        raise HTTPException(
+            status_code=401,
+            detail="No password is set on this account. Use 'Forgot password' to create one.",
+        )
+    try:
+        password_valid = verify_password(data.password, profile.password_hash)
+    except Exception:
+        logger.exception("Password verification failed for profile %s", profile.id)
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    if not password_valid:
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    # Check if suspended
+    if profile.is_suspended:
+        raise HTTPException(status_code=403, detail="Account suspended")
+
+    # A second factor is owed (or must be set up) before any session token exists: see routes/auth_pkg/mfa.py.
+    from routes.auth_pkg.mfa import mfa_login_gate
+    gated = await mfa_login_gate(db, profile)
+    if gated is not None:
+        return gated
+
+    token = create_access_token({"sub": profile.id, "role": profile.role.value})
+    return session_payload(profile, token)
 
 
 
