@@ -499,7 +499,10 @@ export function staticEligible({ model, layer, bbox, surf }) {
     // when the session opens on EURO/ICON: start that read (once per TTL, no wait, only when it could help) so the next ask is served.
     if (!_state.latest && filledWorldPossible(model, layer)) readLatest(false).catch(() => {});
     const filled = filledWorldSetKey(model, layer, _state.latest);
-    return !!filled && staticSetEnabled(filled);
+    const ok = !!filled && staticSetEnabled(filled);
+    // Telemetry (window.__RAW_STATIC_FRAMES__.filledWorld): the last guarded world decision, so a declined filled set says why.
+    telemetry().filledWorld = { model, layer, possible: filledWorldPossible(model, layer), latestRead: !!_state.latest, key: filled, ok };
+    return ok;
   }
   return isMidCropBox({ model, layer, bbox });
 }

@@ -23,12 +23,6 @@ export function serveTimeFillAtWorld(model, layer) {
 }
 
 /**
- * Does the server still run the Gulf fill on this model's 2-deg world grid? /capabilities says so on its EURO/ICON marine rows
- * (`gulf_fill_mid`, from MARINE_GULF_FILL_MID; LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__). Only an
- * explicit `false` lifts the guard: not loaded yet, an older server without the field, or an unreadable matrix all keep it,
- * because then /grid may differ from the stored frame. Read per call, so a matrix that loads later takes effect at once.
- */
-/**
  * THE FILLED WORLD SET (2026-10-24, backend services/frame_set_fill.py). While the box runs the TARGETED fill (D-050), the
  * publisher also writes `<model>/marine/<layer>/global_mid_filled`: the same stored products with /grid's own targeted fill
  * applied (same code, same-layer GFS 2-deg donor), stamped `fill_mode: 'targeted'` on its latest.json record. A world box of a
@@ -65,6 +59,12 @@ function serverFillModeOf(model) {
   }
 }
 
+/**
+ * Does the server still run the Gulf fill on this model's 2-deg world grid? /capabilities says so on its EURO/ICON marine rows
+ * (`gulf_fill_mid`, from MARINE_GULF_FILL_MID; LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__). Only an
+ * explicit `false` lifts the guard: not loaded yet, an older server without the field, or an unreadable matrix all keep it,
+ * because then /grid may differ from the stored frame. Read per call, so a matrix that loads later takes effect at once.
+ */
 function serverFillsWorldMid(model) {
   try {
     const rows = typeof window !== 'undefined' ? window.__WEATHER_CAPABILITIES__ : null;

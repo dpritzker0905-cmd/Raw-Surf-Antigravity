@@ -85,3 +85,40 @@ donor run as /grid, mode stamped in the index), so the client's world-frame guar
   (D-001 n/a). It serves nothing until both switches agree.
 - **Live read owed after the first publish.** One world /grid per model against its filled frame at the same valid time,
   health-gated.
+
+## Readiness evidence (2026-10-25, for the lead: parity at 3 valid times, fill mode vs /capabilities, EURO toggle before/after)
+
+- **World frame vs /grid at 3 valid times per model.** From the end-to-end run above (`scn_static_parity.mjs`, the app's codec
+  against the backend's world /grid). Valid 10-25 00Z and 10-25 15Z cover 30,046 nodes each; 10-26 06Z covers 45,069. All 0 bad,
+  0 meta, for EURO waves and ICON waves, swell_1 and wind_waves `global_mid_filled`.
+- **Fill mode, matched.** Offline backend with MARINE_GULF_FILL_MID_TARGETED=1:
+  - `/capabilities` reports `gulf_fill_mid_mode: "targeted"` on every EURO and ICON marine row.
+  - The publisher's latest.json records for all four filled sets say `fill_mode: "targeted"` (27 frames each, horizon 72 h).
+- **EURO toggle before/after, offline.**
+  - Setup: one build (#555); arm "filled" vs arm "killed" (`window.__RAW_DISABLE_STATIC_FILLED_WORLD__`, today's path).
+    `scn_model_toggle.js` at world zoom (ZOOM 1.2, 1280 x 800), CDN_LAT 340 ms, 2 rounds per arm.
+    Plan: EURO, GFS, EURO, GFS, ICON, EURO, GFS, EURO.
+  - ⚠️ The first two attempts were INVALID and are discarded. Port 3100 was held by another process, so serve_spa never bound and
+    the harness drove someone else's build: identical arms. The first attempt was also at zoom 3.2, a ~98-deg mid-zoom crop,
+    which reads the plain set by design. The valid run used port 3177 (AB_BASE), and the runner aborts on EADDRINUSE.
+  - New telemetry `window.__RAW_STATIC_FRAMES__.filledWorld` (the last guarded world decision) confirms each arm:
+    - filled: `{possible: true, latestRead: true, key: "EURO/marine/waves/global_mid_filled", ok: true}`;
+    - killed: `{possible: false, ok: false}`.
+
+    | per session | filled | killed (today) |
+    |---|---|---|
+    | backend /grid asks | **0** | 2 |
+    | backend /grid_series asks | **1** | 7 |
+    | CDN frames fetched | 45 | 27 |
+    | ms to the exact EURO frame (8 clicks) | median 475, max 1,389 (first click, cold filled index) | median 449, max 907 |
+    | silent wrong-model frames / missed clicks | 0 / 0 | 0 / 0 |
+
+  - **What this does and does not show.** The filled set takes EURO's world views off the box (no /grid, 1 series page instead of
+    7). Offline, the click time does not move: the local backend answers a world /grid in about 270 ms, and the floor is the
+    click's 350 ms coalescing window plus the draw.
+  - The first EURO click is slower cold, about 1.3 s against 0.9 s: three serial CDN reads (index, then frames) at a simulated
+    340 ms each, against a local backend.
+  - The live gain is the box's ~1 s world /grid. That is not measurable offline without a backend-latency arm, which this
+    scenario lacks.
+  - The lever for an INSTANT EURO toggle is the frame store, which still takes no EURO/ICON frames (`getPinnedIndexSync`):
+    with the filled set it can for world views. That is a follow-up for the instant-scrub owner, not done here.
