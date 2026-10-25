@@ -9,6 +9,7 @@ import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
 import apiClient from '../lib/apiClient';
 import AskMyParentPanel from './grom/AskMyParentPanel';
+import GuardianLevelBadge from './grom/GuardianLevelBadge';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 
@@ -17,7 +18,7 @@ import { getFullUrl } from '../utils/media';
  * GromLimitedFeed - Shows a limited preview feed for unlinked Groms
  * Displays up to 3 posts from other Groms only, with a CTA to complete parent linking
  */
-const GromLimitedFeed = () => {
+const GromLimitedFeed = ({ gromStatus }) => {
   const { _user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -70,6 +71,7 @@ const GromLimitedFeed = () => {
         <Card className={`${cardBg} ${borderColor} border`}>
           <CardContent className="p-4">
             <AskMyParentPanel onLinked={() => window.location.reload()} />
+            <GuardianLevelBadge level={gromStatus?.guardian_level || 'L0'} unlocked={gromStatus?.unlocked} className="mt-4" />
           </CardContent>
         </Card>
       </div>

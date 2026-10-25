@@ -29,6 +29,7 @@ import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { PurchaseRequestsPanel } from './grom/PurchaseRequestsPanel';
 import LinkMyChildPanel from './grom/LinkMyChildPanel';
+import GuardianLevelBadge from './grom/GuardianLevelBadge';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 /**
@@ -560,6 +561,7 @@ export const GromHQ = () => {
                           <Trophy className="w-3 h-3 inline" /> {grom.achievements_count || 0} badges
                         </span>
                       </div>
+                      <GuardianLevelBadge level={grom.guardian_level} unlocked={grom.unlocked} className="mt-2" />
                     </div>
                     <div className="flex items-center gap-2">
                       <Button aria-label="Unlink" 

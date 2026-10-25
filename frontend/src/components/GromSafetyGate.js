@@ -9,6 +9,7 @@ import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { ROLES } from '../constants/roles';
 import AskMyParentPanel from './grom/AskMyParentPanel';
+import GuardianLevelBadge from './grom/GuardianLevelBadge';
 
 
 // Create context to share Grom status across components
@@ -121,7 +122,7 @@ export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
 /**
  * SafetyGateUI - The blocking UI shown to unlinked Groms
  */
-const SafetyGateUI = ({ onRefresh }) => {
+const SafetyGateUI = ({ gromStatus, onRefresh }) => {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
@@ -153,6 +154,7 @@ const SafetyGateUI = ({ onRefresh }) => {
 
             {/* Two-sided link: the child gets a one-time code or answers an invite */}
             <AskMyParentPanel onLinked={onRefresh} />
+            <GuardianLevelBadge level={gromStatus?.guardian_level || 'L0'} unlocked={gromStatus?.unlocked} className="mt-4" />
           </CardContent>
         </Card>
 
