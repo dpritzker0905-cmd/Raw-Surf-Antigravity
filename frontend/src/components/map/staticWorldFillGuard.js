@@ -38,6 +38,24 @@ export function filledWorldSetKey(model, layer, latest) {
   return rec && rec.index && !rec.empty && rec.fill_mode === 'targeted' ? key : null;
 }
 
+/**
+ * PRELOAD (2026-10-25, the lead: the cold first EURO click made two SERIAL CDN reads, the filled index and then its frame; offline
+ * 1.3 s vs 0.9 s for today's /grid path). Once latest.json is read, start loading the WAVES index of each servable filled world set
+ * (EURO, ICON), so a model switch finds it in memory and waits for the frame only. `load(path)` is staticFrames' cached index
+ * loader (no pin: the scrub's pin rules are untouched); `enabled(key)` is its per-set kill. Returns the keys started. One index
+ * read per set per run (the loader caches by content-addressed path). Kill: window.__RAW_DISABLE_FILLED_INDEX_PRELOAD__ = true.
+ */
+export function preloadFilledIndexes(latest, load, enabled = () => true) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_FILLED_INDEX_PRELOAD__ === true) return [];
+  const started = [];
+  for (const m of ['EURO', 'ICON']) {
+    const key = filledWorldSetKey(m, 'waves', latest);
+    if (!key || !enabled(key)) continue;
+    try { Promise.resolve(load(latest.sets[key].index)).catch(() => {}); started.push(key); } catch (e) { /* never break a read */ }
+  }
+  return started;
+}
+
 /** Could a filled world set serve this guarded model x layer right now (not killed, the server in the targeted mode)? It does not
  *  look at latest.json: staticFrames uses it to decide whether that read is worth starting. */
 export function filledWorldPossible(model, layer) {

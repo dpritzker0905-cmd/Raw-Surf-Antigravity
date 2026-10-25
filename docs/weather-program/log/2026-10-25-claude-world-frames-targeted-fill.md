@@ -122,3 +122,30 @@ donor run as /grid, mode stamped in the index), so the client's world-frame guar
     scenario lacks.
   - The lever for an INSTANT EURO toggle is the frame store, which still takes no EURO/ICON frames (`getPinnedIndexSync`):
     with the filled set it can for world views. That is a follow-up for the instant-scrub owner, not done here.
+
+## Follow-up: preload the filled index (the cold first click), 2026-10-25 midday
+
+- **Why** (the lead, after #555 merged as 264d57e05): the cold first EURO click on the filled set made two SERIAL CDN reads,
+  the index and then the frame. Offline it took 1.3-1.4 s against 0.85-0.9 s for today's /grid path.
+- **What** (client only, ON, kill `window.__RAW_DISABLE_FILLED_INDEX_PRELOAD__`): `staticWorldFillGuard.preloadFilledIndexes`.
+  - **When:** once latest.json is read, and again after the boot prewarm pins its own set (by then /capabilities has likely
+    loaded).
+  - **What it loads:** the WAVES index of each servable filled world set (EURO, ICON), through staticFrames' cached index loader.
+    A model switch then waits for the frame only.
+  - **What it leaves alone:** no pin, no frame download. It never runs for a set the server and the record disagree on, or
+    for a killed set.
+- **Measured** (offline, same setup as #555's evidence; my own build at port 3178, AB_BASE; world zoom 1.2, CDN_LAT 340 ms; 2
+  rounds per arm):
+
+  | first EURO click (cold) | #555 filled, no preload | preload | today's /grid path |
+  |---|---|---|---|
+  | run 1 | 1,302 ms | **868 ms** | 831-854 ms |
+  | run 2 | 1,389 ms | **842 ms** | 907-993 ms |
+
+  - Later EURO clicks: median 439-441 ms in every arm (the 350 ms coalescing floor).
+  - Silent wrong-model frames: 0.
+  - The preload arm also drops #555's one remaining /grid_series ask: the backend gets 0 /grid and 0 /grid_series asks for EURO
+    world views, against 2 + 7 for today's path.
+- **Tests.** `staticWorldFilled.test.js` gained 2 tests: the preload rides the latest.json read and the first ask fetches only
+  the frame; there is no preload in another mode, with the preload kill, or with the filled set's own kill. 3 of 3 mutants
+  caught. The map and tests trees: 411 suites, 5,929 passed. The ESLint ratchet passes.

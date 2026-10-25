@@ -5,7 +5,7 @@
  * plain set; the first EURO world ask starts the latest.json read so the next one can be served; the kill restores /grid.
  */
 import {
-  _resetStaticFramesForTest, staticEligible, staticSetKeyForBox, tryStaticWorldGrid,
+  _resetStaticFramesForTest, getPinnedIndex, staticEligible, staticSetKeyForBox, tryStaticWorldGrid,
 } from './staticFrames';
 import { filledWorldSetKey } from './staticWorldFillGuard';
 import { goldenBuffer } from './staticFrameGolden.fixture';
@@ -95,7 +95,7 @@ describe('filled EURO/ICON world sets', () => {
     const calls = cdn(SETS);
     expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(false);              // nothing read yet: /grid ...
     await flush();
-    expect(calls).toEqual([BASE + 'v1/latest.json']);                                                // ... and the read has started
+    expect(calls).toEqual([BASE + 'v1/latest.json', BASE + 'v1/idx/filled.json']);                  // ... the read started (index preloaded)
     expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(true);
     expect(staticSetKeyForBox({ model: 'EURO', layer: 'waves', bbox: WORLD })).toBe(FILLED);
     const json = await tryStaticWorldGrid({ model: 'EURO', layer: 'waves', validTimeStr: VT, clampedBbox: WORLD });
@@ -103,6 +103,46 @@ describe('filled EURO/ICON world sets', () => {
     expect(json.product_id).toBe('p_filled');
     expect(calls).toContain(BASE + 'v1/idx/filled.json');
     expect(calls).not.toContain(BASE + 'v1/idx/plain.json');
+  });
+
+  test('the latest.json read preloads the filled index (no pin), so the first EURO world ask fetches only the frame', async () => {
+    window.__WEATHER_CAPABILITIES__ = caps('targeted');
+    const calls = cdn(SETS);
+    staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD });        // nothing here reads latest.json for GFS
+    staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD });       // the guarded ask starts the read
+    await flush(); await flush();
+    expect(calls).toEqual([BASE + 'v1/latest.json', BASE + 'v1/idx/filled.json']);   // the index rides the latest.json read
+    const before = calls.length;
+    const json = await tryStaticWorldGrid({ model: 'EURO', layer: 'waves', validTimeStr: VT, clampedBbox: WORLD });
+    expect(json && json.product_id).toBe('p_filled');
+    expect(calls.slice(before).filter((u) => u.endsWith('.json'))).toEqual([]);     // no second index read: only the frame
+    expect(calls.filter((u) => u.endsWith('idx/filled.json'))).toHaveLength(1);
+  });
+
+  test('no preload while the server is in another mode, or with the preload kill', async () => {
+    window.__WEATHER_CAPABILITIES__ = caps('legacy');
+    let calls = cdn(SETS);
+    await getPinnedIndex('GFS/marine/waves/global_mid').catch(() => null);  // a latest.json read for any reason
+    await flush();
+    expect(calls.filter((u) => u.includes('idx/filled'))).toEqual([]);
+    _resetStaticFramesForTest();
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
+    window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+    window.__WEATHER_CAPABILITIES__ = caps('targeted');
+    window.__RAW_DISABLE_FILLED_INDEX_PRELOAD__ = true;
+    calls = cdn(SETS);
+    await getPinnedIndex('GFS/marine/waves/global_mid').catch(() => null);
+    await flush();
+    expect(calls.filter((u) => u.includes('idx/filled'))).toEqual([]);
+    delete window.__RAW_DISABLE_FILLED_INDEX_PRELOAD__;
+    _resetStaticFramesForTest();                                            // the filled set's own kill: no preload either
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
+    window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+    window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = [FILLED];
+    calls = cdn(SETS);
+    await getPinnedIndex('GFS/marine/waves/global_mid').catch(() => null);
+    await flush();
+    expect(calls.filter((u) => u.includes('idx/filled'))).toEqual([]);
   });
 
   test('crops keep the plain set; another mode, a per-set kill or the global kill keep world boxes on /grid', async () => {
