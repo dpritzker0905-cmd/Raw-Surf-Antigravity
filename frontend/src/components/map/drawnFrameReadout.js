@@ -54,17 +54,28 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
   }
   const est = estimateWords(drawn);
   // Compare by INSTANT when both are known (the #267 rule, marineHourInstant.js: the label names the request, the valid time
-  // names the data): requested.instantMs = what a fetch for the selected hour asks for now (getSharedValidTime), drawn.dataMs =
-  // the frame's served valid time. Else fall back to the hour labels.
-  const byInstant = Number.isFinite(requested.instantMs) && Number.isFinite(drawn.dataMs);
-  const dh = byInstant ? Math.round((drawn.dataMs - requested.instantMs) / 3600000)
+  // names the data): drawn.dataMs = the frame's served valid time, against the SELECTION's own instant, requested.labelMs (the
+  // series anchor + the hour: the clock the app asks on) when the caller passes it, else requested.instantMs (getSharedValidTime:
+  // the ask already snapped to the nearest stored product). Else fall back to the hour labels.
+  // LABEL INSTANT (2026-10-24, the verify matrix's step-to-h2 frame): against the SNAPPED ask, a nearest-stored stand-in reads as
+  // exact whenever the ask was snapped to it (a 3-hourly stored frame under the hour between, or a series frame from the next
+  // hour), so it was drawn with no words; the documented nearest rule labels it. The selection is also WORDED from that same
+  // instant (it was floor(now) + hour while the app asks on round(now) + hour: one hour apart for half of every hour).
+  // Kill: window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ = true (compare with the snapped ask, word the hour from now).
+  const labelOn = Number.isFinite(requested.labelMs) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ === true);
+  const selectedMs = labelOn ? requested.labelMs : requested.instantMs;
+  const byInstant = Number.isFinite(selectedMs) && Number.isFinite(drawn.dataMs);
+  const dh = byInstant ? Math.round((drawn.dataMs - selectedMs) / 3600000)
     : (Number.isFinite(drawn.hour) && Number.isFinite(requested.hour) ? drawn.hour - requested.hour : 0);
-  const drawnLabel = byInstant ? formatInstant(drawn.dataMs) : formatForecastHour(drawn.hour, nowMs);
+  const drawnLabel = byInstant ? formatInstant(drawn.dataMs)
+    : (labelOn && Number.isFinite(drawn.hour) && Number.isFinite(requested.hour)   // one clock in one sentence
+      ? formatInstant(requested.labelMs + (drawn.hour - requested.hour) * 3600000) : formatForecastHour(drawn.hour, nowMs));
   if (dh !== 0) {
     if (Math.abs(dh) <= (Number.isFinite(requested.nearestMaxHours) ? requested.nearestMaxHours : NEAREST_MAX_HOURS)) {   // caller may pass its lattice's half-step
       return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest stored forecast${est ? ` (${est})` : ''}` };
     }
-    return { state: 'pending', text: `Loading ${formatForecastHour(requested.hour, nowMs)}… still showing ${drawnLabel}` };
+    const selectedLabel = labelOn ? formatInstant(requested.labelMs) : formatForecastHour(requested.hour, nowMs);
+    return { state: 'pending', text: `Loading ${selectedLabel}… still showing ${drawnLabel}` };
   }
   if (est) return { state: 'estimated', text: `Estimated forecast: ${est}` };
   return null;

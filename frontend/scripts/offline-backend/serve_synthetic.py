@@ -38,6 +38,10 @@ TIERS = (("global_mid", WORLD, RES, "gfs_marine_waves_global_mid_"),
 # backend/services/weather_pipeline/pilot_regions.py, read from there so the fixture cannot drift from the ingest). Without them
 # every frame here carried world bounds and the client's land mask was always REUSED, which hid the per-switch 4096 x 2048 mask
 # rebuilds the owner's console showed (`--regions florida_east_coast,us_southeast_midatlantic`, or `flagship` / `all`).
+# `all` = EVERY GFS pilot box (2026-10-24): the 14 of REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS plus GFS_MARINE_EXTRA_REGIONS and
+# GFS_MARINE_STAGE_B_REGIONS (canaries_madeira_morocco, caribbean_pr_dr, centralamerica_caribbean, srilanka_maldives,
+# us_pacific_northwest) = 19, the same 19 the client's rule fixture (src/tests/fixtures/regional_rule_boxes.json) holds. It knew 14,
+# so a "19-box" parity run silently covered 14 (the 2026-10-24 tile-first parity patched this locally to cover all 19).
 REGIONAL_RES = 0.25
 
 
@@ -46,8 +50,9 @@ def regional_tiers(region_ids):
     if not region_ids:
         return ()
     sys.path.insert(0, str(BACKEND))
-    from services.weather_pipeline.pilot_regions import REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS
-    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_EXTRA_REGIONS, GFS_MARINE_STAGE_B_REGIONS, REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS)
+    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS, **GFS_MARINE_STAGE_B_REGIONS}
     if region_ids == ("all",):
         region_ids = tuple(known)
     elif region_ids == ("flagship",):
@@ -93,8 +98,19 @@ def on_wave_lake(lat, lng, res):
     return WAVE_LAKES and any(lng + h >= w and lng - h <= e and lat + h >= s and lat - h <= n for (w, s, e, n) in WAVE_LAKE_BOXES)
 
 
+# ENCLOSED SEAS (2026-10-24, `--enclosed-seas 1`; the targeted Gulf fill, D-050, and its baked world frames, frame_set_fill.py):
+# EURO's and ICON's own 2-deg grids mask sea that GFS's grid keeps (live: EURO 870 GFS-sea nodes, Gulf 15/59, Med 44/113; ICON
+# 125). The land mask alone masks the SAME nodes in every model, so the targeted fill (GFS sea only) has nothing to do offline.
+# With the flag, these open-water boxes are masked in EURO and ICON 2-deg products only (the 10-deg tier and GFS keep them).
+ENCLOSED_SEAS = False
+ENCLOSED_SEA_BOXES = ((-88.0, 9.0, -76.0, 22.0), (131.0, 33.0, 142.0, 52.0), (-20.0, -30.0, -12.0, -22.0))
+
+
 def lake_land(lat, lng, res, model):
     """None: the wave-lakes fixture has no say; True / False: this node is land / water under it."""
+    if ENCLOSED_SEAS and model in ("EURO", "ICON") and res < 5.0 and any(
+            w <= lng <= e and s <= lat <= n for (w, s, e, n) in ENCLOSED_SEA_BOXES):
+        return True                   # the enclosed-seas fixture: masked by EURO / ICON, sea for GFS (and wins over the lakes)
     if not WAVE_LAKES:
         return None
     if on_wave_lake(lat, lng, res):
@@ -827,12 +843,15 @@ def main():
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
     ap.add_argument("--wave-lakes", choices=["0", "1"], default="0",
                     help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
+    ap.add_argument("--enclosed-seas", choices=["0", "1"], default="0",
+                    help="EURO and ICON 2-deg products mask open-water boxes GFS keeps (ENCLOSED SEAS above): the targeted fill's work")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS
     VORTEX_PEAK = args.vortex_peak
     LAND_MASK = args.land_mask == "1"
     WAVE_LAKES = args.wave_lakes == "1"
+    ENCLOSED_SEAS = args.enclosed_seas == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL

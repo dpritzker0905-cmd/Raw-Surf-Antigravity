@@ -296,8 +296,10 @@ def test_the_world_sets_are_the_pilots_lane_ones():
     assert keys[0] == "GFS/marine/waves/global_mid"                      # the most-used set publishes first
     assert set(keys) == {f"{m}/marine/{l}/global_mid" for m, l in (
         ("GFS", "waves"), ("GFS", "swell_1"), ("GFS", "swell_2"), ("GFS", "wind_waves"),
-        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))} | {"GFS/wind/wind/global_mid"}
-    assert keys[-1] == "GFS/wind/wind/global_mid"                         # wind last: the stagger drops it first
+        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))} | {"GFS/wind/wind/global_mid"} | {
+        f"{m}/marine/{l}/global_mid_filled" for m, l in (("ICON", "waves"), ("EURO", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"))}
+    # wind, then the filled world sets (frame_set_fill, 2026-10-24) last: the stagger drops them first
+    assert keys.index("GFS/wind/wind/global_mid") == len(keys) - 5 and all(k.endswith("_filled") for k in keys[-4:])
     assert "EURO/marine/swell_1/global_mid" not in keys and "ICON/marine/swell_2/global_mid" not in keys
 
 
