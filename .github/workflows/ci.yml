@@ -1554,7 +1554,9 @@ jobs:
           #   base 2924 (hosted read) + 8 new test(s) and 0 new file(s) = 2932, files 179; floor 2932 - 6 = 2926. This PR must read 2932 passed.
           # ⬆ 2926→2927 on 2026-10-24 (rederive_floor.py, claude/raster-pressure-publishers): dev run 40091748867 read 2932 / 179 files; dev's map 2932;
           #   base 2932 (hosted read) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
-          MIN_FILES, MIN_PASSED = 179, 2927
+          # ⬆ 2927→2949 on 2026-10-25 (rederive_floor.py, claude/lucid-spence-be3ff0): dev run 40139317894 read 2933 / 179 files; dev's map 2933;
+          #   base 2933 (hosted read) + 22 new test(s) and 1 new file(s) = 2955, files 180; floor 2955 - 6 = 2949. This PR must read 2955 passed.
+          MIN_FILES, MIN_PASSED = 180, 2949
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
