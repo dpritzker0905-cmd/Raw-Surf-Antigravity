@@ -1556,7 +1556,7 @@ jobs:
           #   base 2932 (hosted read) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
           # ⬆ 2927→2949 on 2026-10-25 (rederive_floor.py, claude/lucid-spence-be3ff0): dev run 40139317894 read 2933 / 179 files; dev's map 2933;
           #   base 2933 (hosted read) + 22 new test(s) and 1 new file(s) = 2955, files 180; floor 2955 - 6 = 2949. This PR must read 2955 passed.
-          # ⬆ 2949→2961 on 2026-10-25 (rederive_floor.py, claude/world-frames-targeted-fill): dev run 40171438269 read 2955 / 180 files; dev's map 2955;
+          # ⬆ 2949→2961 on 2026-10-25 (rederive_floor.py, claude/world-frames-targeted-fill): dev run 40178049431 read 2955 / 180 files; dev's map 2955;
           #   base 2955 (hosted read) + 12 new test(s) and 1 new file(s) = 2967, files 181; floor 2967 - 6 = 2961. This PR must read 2967 passed.
           MIN_FILES, MIN_PASSED = 181, 2961
           try:
@@ -2064,7 +2064,9 @@ jobs:
           #   base 2762 (dev's map) + 35 new test(s) = 2797; floor 2797 - 2 = 2795. This PR must read 2797 passed.
           # ⬆ 2795→2809 on 2026-10-25 (rederive_floor.py, fix/forgot-password-dev-token): dev run 40139317894 read 2797; dev's map 2797;
           #   base 2797 (hosted read) + 14 new test(s) = 2811; floor 2811 - 2 = 2809. This PR must read 2811 passed.
-          MIN_PASSED = 2809
+          # ⬆ 2809→2850 on 2026-10-25 (rederive_floor.py, fix/audit-10-18-backend-defects): dev run 40171438269 read 2811; dev's map 2811;
+          #   base 2811 (hosted read) + 41 new test(s) = 2852; floor 2852 - 2 = 2850. This PR must read 2852 passed.
+          MIN_PASSED = 2850
 
           try:
               root = ET.parse('estate.xml').getroot()

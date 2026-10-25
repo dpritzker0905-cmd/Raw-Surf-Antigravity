@@ -367,7 +367,7 @@ async def bulk_purchase_items(
         existing = await db.execute(
             select(GalleryPurchase)
             .where(
-                GalleryPurchase.item_id == item.id,
+                GalleryPurchase.gallery_item_id == item.id,
                 GalleryPurchase.buyer_id == data.buyer_id
             )
         )
@@ -426,7 +426,8 @@ async def bulk_purchase_items(
     # Atomic transaction
     try:
         # Deduct buyer credits
-        buyer.credit_balance = (buyer.credit_balance or 0) - final_total
+        buyer_balance_before = buyer.credit_balance or 0
+        buyer.credit_balance = buyer_balance_before - final_total
         
         # Create purchases and credit photographers
         purchases = []
@@ -444,13 +445,12 @@ async def bulk_purchase_items(
             # Create purchase record
             purchase = GalleryPurchase(
                 id=str(uuid.uuid4()),
-                item_id=item.id,
+                gallery_item_id=item.id,
                 buyer_id=data.buyer_id,
                 photographer_id=photographer_id,
-                price_paid=price,
+                amount_paid=price,
+                payment_method='credits',
                 quality_tier=tier,
-                platform_fee=price * 0.2,
-                photographer_earnings=photographer_share,
                 purchased_at=datetime.now(timezone.utc)
             )
             db.add(purchase)
@@ -465,6 +465,7 @@ async def bulk_purchase_items(
             item.purchase_count = (item.purchase_count or 0) + 1
         
         # Credit photographers
+        earnings_events = []  # pushed only after the commit: a failed push must not undo a paid purchase
         for photographer_id, earnings in photographer_earnings.items():
             photographer = await db.execute(
                 select(Profile).where(Profile.id == photographer_id)
@@ -472,12 +473,14 @@ async def bulk_purchase_items(
             photographer = photographer.scalar_one_or_none()
             
             if photographer:
-                photographer.credit_balance = (photographer.credit_balance or 0) + earnings
+                photographer_balance_before = photographer.credit_balance or 0
+                photographer.credit_balance = photographer_balance_before + earnings
                 
                 # Create credit transaction
                 credit_tx = CreditTransaction(
                     user_id=photographer_id,
                     amount=earnings,
+                    balance_before=photographer_balance_before,
                     transaction_type='bulk_gallery_sale',
                     description=f"Bulk sale: {len([p for p in purchases if p.photographer_id == photographer_id])} items",
                     reference_type='bulk_purchase',
@@ -485,22 +488,21 @@ async def bulk_purchase_items(
                     balance_after=photographer.credit_balance
                 )
                 db.add(credit_tx)
-                
-                # Broadcast earnings update
-                await broadcast_earnings_update(
+
+                earnings_events.append((
                     photographer_id,
+                    earnings,
                     {
-                        "type": "bulk_sale",
-                        "amount": earnings,
                         "item_count": len([p for p in purchases if p.photographer_id == photographer_id]),
                         "buyer_name": buyer.full_name or buyer.username
                     }
-                )
+                ))
         
         # Create buyer credit transaction
         buyer_tx = CreditTransaction(
             user_id=data.buyer_id,
             amount=-final_total,
+            balance_before=buyer_balance_before,
             transaction_type='bulk_purchase',
             description=f"Bulk purchase: {len(items)} items ({discount_rate * 100:.0f}% discount)",
             reference_type='bulk_purchase',
@@ -510,7 +512,13 @@ async def bulk_purchase_items(
         db.add(buyer_tx)
         
         await db.commit()
-        
+
+        for photographer_id, earnings, details in earnings_events:
+            try:
+                await broadcast_earnings_update(photographer_id, "bulk_sale", earnings, details)
+            except Exception:
+                gallery_logger.exception("bulk-purchase earnings push failed for %s", photographer_id)
+
         return {
             "success": True,
             "purchase_count": len(purchases),
@@ -521,9 +529,9 @@ async def bulk_purchase_items(
             "new_balance": buyer.credit_balance,
             "purchases": [
                 {
-                    "item_id": p.item_id,
+                    "item_id": p.gallery_item_id,
                     "tier": p.quality_tier,
-                    "price": p.price_paid
+                    "price": p.amount_paid
                 }
                 for p in purchases
             ]

@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, NO_DATA_BELOW, leverCovers,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -193,5 +193,20 @@ describe('air temperature (2026-10-24)', () => {
     expect(f.min).toBeCloseTo(-41.5, 5);
     expect(MISSING).toBeLessThan(NO_DATA_BELOW);
     expect(NO_DATA_BELOW).toBeLessThan(-273.15);
+  });
+});
+
+describe('cloud cover, the satellite layer (2026-10-24)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; });
+  test('the cloud set is GFS only, field 8; its own kill', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = 'satellite';
+    expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p5');
+    expect(OWN_RASTER_SETS.satellite.field).toBe(CLOUD_FIELD);
+    expect(CLOUD_FIELD).toBe(8);
+    expect(ownFramesOn('satellite', 'GFS')).toBe(true);
+    expect(ownFramesOn('satellite', 'EURO')).toBe(false);
+    expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+    window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
 });

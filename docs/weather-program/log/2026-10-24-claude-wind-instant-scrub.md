@@ -102,3 +102,57 @@ No served number changes: every served hour still equals `/grid`. This only make
   - `MODEL=` (ICON/EURO arms).
   - Timed duplicates in `repeat`.
   - `EXPECT_STORE` plus serve_synthetic's `GET /__harness/identity`: a scenario now refuses a backend it did not start. That followed a port-4198 collision with another session; I stopped before any cell measured it.
+
+## PR C: the wind toggle's first draw (branch claude/wind-toggle-first-draw)
+
+The lead approved the a-d plan (2026-10-24). Instruments: `scn_wind_toggle.js` with `PROFILE=1` + `profile_toggle.mjs` (CPU profile
+through the build's source maps), and `TRACE=1` (hops after the click, no profiler). Offline only: real GFS 10-22 12Z + HRRR 18Z,
+owner window, store-real on 4196 (identity-checked).
+
+- **Where the toggle's time goes (profile, z3.9, under profiler overhead).** The CPU work runs back to back up to the first wind render
+  (~144 ms profiled):
+  - `useSimulationField` 4-40 ms;
+  - the static world frame build 56-84 ms, which includes the truth tag hashing ~15k vectors (12 ms);
+  - the series `staticUncoveredHours` check 88-96 ms;
+  - the crop build 96-108 ms;
+  - `applyWindUpdate` 112-124 ms.
+- **The idle is after the first draw, not before it (the lead's d).**
+  - `TRACE=1` shows ONE long task from the click: 87-141 ms, React's synchronous flush of the click.
+  - `setWindData` falls inside it, at 70-118 ms.
+  - The first rAF comes as it ends, and the wind renders 12-25 ms into that same frame.
+  - There is no effect-plus-rAF hop to remove. The lever is what that one task does before `setWindData`.
+- **(a) shipped.**
+  - The static wind frame's truth tag takes the frame's sha256 (+ crop window) as its data hash (`seedJsDataHash`).
+  - Profile: the 16 ms hash is gone.
+  - Every scrub step builds a static frame, so it pays off per step too.
+  - The HUD compares within a traceId chain (product_id, dataHash, bounds); traceId derives from the hash, so the compare is unchanged.
+  - Kill: `__RAW_DISABLE_WIND_FRAME_HASH_SEED__`.
+- **(c) attempted, dropped, measured.**
+  - The first marine-resample rewrite read `v[k][p]` with string keys. The browser profile showed it ~3x SLOWER than the legacy
+    closures: 40 ms vs 13-15 ms, because V8 inlines `v.waves.u` as a named load.
+  - A named-load rewrite was bit-identical but only 15% faster (Jest bench: 40.9 -> 34.9 ms). Not worth the code.
+  - The sim-field lever is not re-resampling unchanged marine data on a wind change (a memo), or deferring the build past the first
+    draw (owner A/B). Both are to measure separately.
+- **(b) left out.** The toggle's `getStyle` is `useLayerTruthDiff` (2.4 ms profiled), which also feeds `rasterVisible`. `windLayerBeforeId`
+  runs only on mount.
+- **Harness.**
+  - `TRACE=1`, `PLANT_MS` (the mislabel detector's positive control), and the click marker on pointerdown OR click.
+  - A refusal when the init scripts did not run to the end.
+  - One A/B pass is VOID: my `TRACE` edit read `trace` in the init script without passing it. The ReferenceError skipped the
+    static-frames base, so every session measured /grid (4-7 s, 0 CDN requests). Re-run from a frozen copy.
+- **The A/B: (a) only (pc2) vs base (#537 head), 3 rounds alternating, z2/z3.9/z6, 18 sessions, all via static frames.**
+  - Mislabel 0 on every drawn frame in both arms.
+  - The machine was loaded (both arms slower than the earlier quiet pass): toggle first draw p50 249 vs 223 ms, p95 361 vs 306 ms;
+    the click's long task p50 159 vs 190 ms; step p50 56 vs 63 ms, p95 165 vs 170 ms.
+  - Run-to-run spread (quiet pass ~146 ms, this pass ~230 ms, same builds) is larger than the change, so NO first-draw claim:
+    the cut is proven by the profile (the 16 ms hash is gone per toggle and per step), not by the end-to-end timing.
+  - The earlier quiet pass (a + the slower first (c) cut): first draw p50 146 vs 146 ms; step p95 54 vs 75 ms.
+- **Positive control (`PLANT_MS=10800000`, one z3.9 session on pc2).** `drawnMs` null and 154 mislabel frames: the detector fires on
+  this build. With the true expected time it reads 0.
+- **Jest.** Full trees (map, tests, engine): 408 suites; the one failure was `windDarkRules.test.js`'s orthogonal-kill list, which now
+  lists `__RAW_DISABLE_WIND_FRAME_HASH_SEED__`.
+- **Themes.** No rendered value changes (the hash is diagnostic; the drawn field is the same object), so light, dark and beach draw
+  identically by construction; no per-theme run.
+- **What first draw needs next (not PR C).** The click's one long task does ~70 ms before `setWindData`; the levers in it are the
+  sim-field rebuild on a wind change (memo on the unchanged marine grid, or deferral as an owner A/B) and the crop build ahead of
+  the world draw (an owner A/B: coarse then sharp).

@@ -38,6 +38,18 @@ ENVIRONMENTS = [
 LONG_RUN = re.compile(r'[A-Za-z0-9_-]{40,}')  # a reset token (token_urlsafe(48)) is 64 of these
 
 
+@pytest.fixture(autouse=True)
+def fresh_rate_limits():
+    """Every test client shares one address, and forgot-password is rate limited per address: start each test with
+    empty counters so the limit (tested in test_rate_limiter_forwarded_for.py) cannot leak between tests."""
+    from core import rate_limiter
+    rate_limiter._request_log.clear()
+    rate_limiter._backoff.clear()
+    yield
+    rate_limiter._request_log.clear()
+    rate_limiter._backoff.clear()
+
+
 @pytest.fixture
 def env(monkeypatch):
     for name in ('ENVIRONMENT', 'ENV', 'NODE_ENV', 'IS_PROD', 'TESTING'):
