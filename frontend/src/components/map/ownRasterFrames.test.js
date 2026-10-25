@@ -200,7 +200,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; });
   test('the cloud set is GFS only, field 8; its own kill', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'satellite';
-    expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p5');
+    expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p25');
     expect(OWN_RASTER_SETS.satellite.field).toBe(CLOUD_FIELD);
     expect(CLOUD_FIELD).toBe(8);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
