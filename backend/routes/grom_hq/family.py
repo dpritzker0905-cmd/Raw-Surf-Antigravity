@@ -10,6 +10,7 @@ import json
 from models import GalleryItem, PhotoTag, Post, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from core.security import get_user_id_from_jwt_or_query
+from services.guardian_levels import is_confirmed_guardian
 
 router = APIRouter()
 
@@ -47,7 +48,7 @@ async def get_family_activity_feed(
     if grom_id:
         grom_result = await db.execute(
             select(Profile)
-            .where(Profile.id == grom_id, Profile.parent_id == parent_id)
+            .where(Profile.id == grom_id, Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True))
         )
         groms = [grom_result.scalar_one_or_none()]
         if not groms[0]:
@@ -55,7 +56,8 @@ async def get_family_activity_feed(
     else:
         groms_result = await db.execute(
             select(Profile)
-            .where(Profile.parent_id == parent_id, Profile.role == RoleEnum.GROM)
+            .where(Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True),
+                   Profile.role == RoleEnum.GROM)
         )
         groms = groms_result.scalars().all()
     
@@ -237,7 +239,7 @@ async def check_call_permission(
             return {"allowed": False, "reason": "Calling is disabled by your parent"}
         
         # Groms can call their linked parent
-        if target_id == caller.parent_id:
+        if is_confirmed_guardian(caller, target_id):
             return {"allowed": True, "reason": "Calling linked parent"}
         
         # Groms can call other Groms
@@ -256,7 +258,7 @@ async def check_call_permission(
             return {"allowed": False, "reason": "This user has calling disabled"}
         
         # Their linked parent can always call
-        if caller_id == target.parent_id:
+        if is_confirmed_guardian(target, caller_id):
             return {"allowed": True, "reason": "Parent calling linked Grom"}
         
         # Other Groms can call

@@ -8,6 +8,7 @@ import json
 from models import Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from core.security import get_user_id_from_jwt_or_query
+from services.guardian_levels import has_confirmed_link, is_confirmed_guardian
 
 from .family import PurchaseRequestBody
 router = APIRouter()
@@ -43,7 +44,7 @@ async def submit_purchase_request(
     if grom.role != RoleEnum.GROM:
         raise HTTPException(status_code=400, detail="Only Grom accounts can submit purchase requests")
 
-    if not grom.parent_id:
+    if not has_confirmed_link(grom):
         raise HTTPException(status_code=400, detail="No parent linked. Ask your parent to link your account first.")
 
     # Check monthly spending limit
@@ -239,6 +240,10 @@ async def approve_purchase_request(
         raise HTTPException(status_code=400, detail="This request was already denied")
 
     grom_id = req_data.get("grom_id")
+    # The approver must still be this child's confirmed guardian (an unlinked parent's old requests mean nothing).
+    request_grom = (await db.execute(select(Profile).where(Profile.id == grom_id))).scalar_one_or_none()
+    if not is_confirmed_guardian(request_grom, parent_id):
+        raise HTTPException(status_code=403, detail="This child is not linked to your account")
 
     # Update request status
     req_data["status"] = "approved"
@@ -326,6 +331,9 @@ async def deny_purchase_request(
         return {"success": True, "message": "Already processed", "already_processed": True}
 
     grom_id = req_data.get("grom_id")
+    request_grom = (await db.execute(select(Profile).where(Profile.id == grom_id))).scalar_one_or_none()
+    if not is_confirmed_guardian(request_grom, parent_id):
+        raise HTTPException(status_code=403, detail="This child is not linked to your account")
 
     # Update request status
     req_data["status"] = "denied"

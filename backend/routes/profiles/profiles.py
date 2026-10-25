@@ -92,7 +92,9 @@ class ProfileUpdate(BaseModel):
     stance: Optional[str] = None
     home_break: Optional[str] = None
     surf_mode: Optional[str] = None  # casual, competitive, pro
-    is_grom_parent: Optional[bool] = None  # toggle Grom Parent privileges for surfers
+    # Retired (audit F-01): parent status comes from a confirmed link with a child, never from a self-set flag.
+    # The field is still parsed so update_profile can answer a stale client with a clear 403.
+    is_grom_parent: Optional[bool] = None
     # Surfer identification fields (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
@@ -467,7 +469,12 @@ async def update_profile(
         raise HTTPException(status_code=404, detail="Profile not found")
     
     update_data = data.model_dump(exclude_unset=True)
-    
+    if 'is_grom_parent' in update_data:
+        raise HTTPException(
+            status_code=403,
+            detail="Parent status can't be set on a profile. It starts when a child confirms the link with you.",
+        )
+
     # Handle base64 avatar - store directly in DB as data URL 
     # (Render's ephemeral filesystem is wiped on every deploy, so we cannot use disk storage)
     if 'avatar_url' in update_data and update_data['avatar_url']:
