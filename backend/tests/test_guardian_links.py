@@ -246,6 +246,11 @@ def test_the_database_never_holds_a_usable_code(env):
 
 
 def test_a_child_account_cannot_be_the_guardian(env):
+    # no birthdate on the account: only the Grom role says it is a child (the stated-age rule cannot catch it)
+    conn = sqlite3.connect(env.db_path)
+    conn.execute("update profiles set birthdate=NULL where id='minor_adult'")
+    conn.commit()
+    conn.close()
     code = get_code(env, 'teen')
     assert redeem(env, 'minor_adult', code).status_code == 403
     assert link_state(env, 'teen')[0] is None
@@ -327,15 +332,14 @@ def test_an_invite_expires_after_48_hours(env):
 
 def test_an_adult_cannot_flood_children_with_invites(env):
     conn = sqlite3.connect(env.db_path)
-    for i in range(guardian_links.MAX_OPEN_INVITES_PER_GUARDIAN):
+    for i in range(5):
         conn.execute("insert into profiles (id,user_id,email,username,role,full_name,credit_balance,withdrawable_credits,"
                      "gear_only_credits,total_credits_given,is_grom_parent,password_hash) values (?,?,?,?,'GROM','x',0,0,0,0,0,'x')",
                      (f'c{i}', f'c{i}', f'c{i}@e.invalid', f'c{i}'))
     conn.commit()
     conn.close()
-    codes = [invite(env, 'shop', f'c{i}').status_code for i in range(guardian_links.MAX_OPEN_INVITES_PER_GUARDIAN)]
-    assert codes == [200] * guardian_links.MAX_OPEN_INVITES_PER_GUARDIAN
-    assert invite(env, 'shop', 'teen').status_code == 429
+    assert [invite(env, 'shop', f'c{i}').status_code for i in range(5)] == [200] * 5
+    assert invite(env, 'shop', 'teen').status_code == 429      # the cap is five open invites
 
 
 def test_an_invite_to_a_non_child_is_refused(env):
