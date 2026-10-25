@@ -12,6 +12,7 @@ from database import get_db
 from core.security import get_current_user_id, get_optional_user_id
 from deps.admin_auth import get_current_admin
 from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
+from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 from models import Profile, RoleEnum
 from models import Booking, BookingParticipant, Gallery, GalleryItem, LiveSession, Post
 
@@ -492,9 +493,18 @@ async def update_profile(
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
     
+    grom_standing = None
+    if update_data.get('is_private') is False:
+        # GUARDIAN LEVEL: a child's profile goes public only at the public-profile level for their age band.
+        grom_standing = await assert_level_allows(db, profile, 'public_profile')
+
     for field, value in update_data.items():
         setattr(profile, field, value)
-    
+    if grom_standing is not None:
+        await notify_guardian_of_teen_activity(
+            db, profile, grom_standing, "Your 16-17 year old made their profile public",
+            f"{profile.full_name or 'Your child'} switched their profile to public.")
+
     await db.commit()
     await db.refresh(profile)
     return profile_to_response(profile)

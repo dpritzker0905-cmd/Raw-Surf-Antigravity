@@ -9,6 +9,7 @@ from models import Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from core.security import get_user_id_from_jwt_or_query
 from services.guardian_levels import has_confirmed_link, is_confirmed_guardian
+from services.guardian_policy import assert_level_allows
 
 from .family import PurchaseRequestBody
 router = APIRouter()
@@ -46,6 +47,9 @@ async def submit_purchase_request(
 
     if not has_confirmed_link(grom):
         raise HTTPException(status_code=400, detail="No parent linked. Ask your parent to link your account first.")
+
+    # GUARDIAN LEVEL: money is a floor on top of the approval below (13-15 and under: a verified guardian).
+    await assert_level_allows(db, grom, 'money')
 
     # Check monthly spending limit
     from utils.parental_alerts import check_monthly_limit_exceeded

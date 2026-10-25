@@ -2079,7 +2079,9 @@ jobs:
           #   base 2932 (dev's map) + 50 new test(s) = 2982; floor 2982 - 2 = 2980. This PR must read 2982 passed.
           # ⬆ 2980→3031 on 2026-10-25 (rederive_floor.py, guardian/pr1-links-and-levels): dev run 40223456888 read 2982; dev's map 2982;
           #   base 2982 (hosted read) + 51 new test(s) = 3033; floor 3033 - 2 = 3031. This PR must read 3033 passed.
-          MIN_PASSED = 3031
+          # ⬆ 3031→3104 on 2026-10-25 (rederive_floor.py, guardian/pr2-level-gates): dev run 40230182184 read 3033; dev's map 3033;
+          #   base 3033 (hosted read) + 73 new test(s) = 3106; floor 3106 - 2 = 3104. This PR must read 3106 passed.
+          MIN_PASSED = 3104
 
           try:
               root = ET.parse('estate.xml').getroot()
