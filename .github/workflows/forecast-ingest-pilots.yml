@@ -159,6 +159,11 @@ jobs:
           # bytes in the step summary (__tail_downloads__). Off: /grid serves those hours, as before. No served number moves.
           FRAME_TAIL_DOWNLOAD: ${{ vars.FRAME_TAIL_DOWNLOAD || '0' }}
           FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '240' }}
+          # The EURO/ICON world sets with the targeted Gulf fill baked in (services/frame_set_fill.py) publish only while the mode
+          # read from these two is 'targeted', the way the box reads them. Keep them EQUAL to the Render env (the box's mode): the
+          # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
+          MARINE_GULF_FILL_MID: ${{ vars.MARINE_GULF_FILL_MID || '1' }}
+          MARINE_GULF_FILL_MID_TARGETED: ${{ vars.MARINE_GULF_FILL_MID_TARGETED || '0' }}
         run: python scripts/publish_frame_images.py
 
       # RASTER STATIC FRAMES (2026-10-23, free-GRIB raster phase 1, services/frame_set_raster.py): GFS mean-sea-level pressure
