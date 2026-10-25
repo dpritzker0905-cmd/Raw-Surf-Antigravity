@@ -14,7 +14,7 @@ import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
-import { publishMarineDrawn } from './marineDrawnFrame';
+import { engineHoldsGrid, publishMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
@@ -289,7 +289,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // A renderable frame just committed — end any switch-hold window (the new target's data has landed,
     // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
     noteMarineRenderableCommit();
-    publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: what is on screen
+    if (engineHoldsGrid(engine, grid)) publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: only what the engine TOOK
     noteCommitted(grid, { hour: timeOffsetHoursRef.current, model: gridModel, layer: activeMarineLayer }); // which stored frame is resident
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);

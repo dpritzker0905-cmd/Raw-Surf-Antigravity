@@ -38,6 +38,10 @@ TIERS = (("global_mid", WORLD, RES, "gfs_marine_waves_global_mid_"),
 # backend/services/weather_pipeline/pilot_regions.py, read from there so the fixture cannot drift from the ingest). Without them
 # every frame here carried world bounds and the client's land mask was always REUSED, which hid the per-switch 4096 x 2048 mask
 # rebuilds the owner's console showed (`--regions florida_east_coast,us_southeast_midatlantic`, or `flagship` / `all`).
+# `all` = EVERY GFS pilot box (2026-10-24): the 14 of REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS plus GFS_MARINE_EXTRA_REGIONS and
+# GFS_MARINE_STAGE_B_REGIONS (canaries_madeira_morocco, caribbean_pr_dr, centralamerica_caribbean, srilanka_maldives,
+# us_pacific_northwest) = 19, the same 19 the client's rule fixture (src/tests/fixtures/regional_rule_boxes.json) holds. It knew 14,
+# so a "19-box" parity run silently covered 14 (the 2026-10-24 tile-first parity patched this locally to cover all 19).
 REGIONAL_RES = 0.25
 
 
@@ -46,8 +50,9 @@ def regional_tiers(region_ids):
     if not region_ids:
         return ()
     sys.path.insert(0, str(BACKEND))
-    from services.weather_pipeline.pilot_regions import REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS
-    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_EXTRA_REGIONS, GFS_MARINE_STAGE_B_REGIONS, REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS)
+    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS, **GFS_MARINE_STAGE_B_REGIONS}
     if region_ids == ("all",):
         region_ids = tuple(known)
     elif region_ids == ("flagship",):
