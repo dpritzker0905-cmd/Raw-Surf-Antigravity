@@ -8,6 +8,7 @@ import { createStaleHourTracker } from './marineStaleHour';
 import { staleWorldDimMult } from './marineStaleHourLayer';
 import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
 import { BATCH } from './WebGLProgramBatch';
+import { syncDrawnToEngine } from './marineDrawnFrame';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -391,6 +392,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           activeLayersRef ? activeLayersRef.current : null, activeModelRef ? activeModelRef.current : 'GFS');
         if (!engine._initialized || !engine._waveData) stampSkip(_stamp, SKIP.ENGINE_NO_DATA);
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
+        // DRAWN TRUTH: a swap inside the engine this frame (the stash's self-heal accept, the zoom-out bridge) is what the status line
+        // must describe; one identity compare per frame (marineDrawnFrame.syncDrawnToEngine).
+        syncDrawnToEngine(engine, { hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null, model: activeModelRef ? activeModelRef.current : null });
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();
