@@ -1,4 +1,5 @@
-import React, { useRef, useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import { useDeferredSimField } from './useDeferredSimField';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
@@ -317,17 +318,9 @@ const MapWebGL = ({
     () => (surfMode ? computeClusterRatings(spotClusters, spotRatings, supercluster) : {}),
     [surfMode, spotClusters, spotRatings, supercluster]
   );
-  // FCE: Field Composition Engine — Single Source of Truth
-  // BUILT IN A DEFERRED RENDER (2026-10-25, the wind toggle's click task): nothing the map DRAWS reads this field by default
-  // (RenderPlanDispatcher's wind upload needs __ALLOW_FCE_WIND_UPLOAD__, its marine upload __ALLOW_FCE_MARINE_UPLOAD__; the HUD
-  // and debug tools read it), yet its rebuild ran inside the click's urgent render: 58 ms at z2 on a Waves -> Wind toggle, where
-  // the active marine layer flips and the whole field is rebuilt on the wind grid. All its inputs go through ONE deferred value,
-  // so the urgent render keeps the previous inputs (the memo holds) and React rebuilds the field in a background render after
-  // the wind commits. Kill: window.__RAW_DISABLE_SIM_FIELD_DEFER__ = true (read per render: the urgent inputs, as before).
-  const simInputs = useMemo(() => ({ windData, marineData, activeModel, timeOffsetHours, activeMarineLayer }),
-    [windData, marineData, activeModel, timeOffsetHours, activeMarineLayer]);
-  const deferredSimInputs = useDeferredValue(simInputs);
-  const simIn = (typeof window !== 'undefined' && window.__RAW_DISABLE_SIM_FIELD_DEFER__ === true) ? simInputs : deferredSimInputs;
+  // FCE: Field Composition Engine — Single Source of Truth. Built from DEFERRED inputs (useDeferredSimField.js: nothing drawn
+  // reads it by default, so it rebuilds after the wind commits; kill __RAW_DISABLE_SIM_FIELD_DEFER__).
+  const simIn = useDeferredSimField({ windData, marineData, activeModel, timeOffsetHours, activeMarineLayer });
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
     windData: simIn.windData,
     marineData: simIn.marineData,

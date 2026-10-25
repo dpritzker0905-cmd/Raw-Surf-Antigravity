@@ -49,6 +49,7 @@ const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const OLD_BASE = process.env.OLD_BASE || null;
 const GESTURE = process.env.GESTURE !== '0';
 const QUICK_STEP_MS = process.env.QUICK_STEP_MS == null ? -1 : +process.env.QUICK_STEP_MS;   // see the toggle block in session()
+let _profileSeq = 0;
 // HELD KEY (the lead's contract: a drag or a held key needs <= 33 ms per step): after the steps, HOLD presses of ArrowRight HOLD_GAP
 // ms apart from hour 0, dispatched in the page; per press, the ms until the wind base holds that hour (null = not within the gap).
 const HOLD = +(process.env.HOLD || 12); const HOLD_GAP = +(process.env.HOLD_GAP || 40);   // after the toggle: zoom +0.5, back, pan 200 px (the owner zoomed while it loaded)
@@ -357,7 +358,9 @@ async function session(arm, zoom) {
     const tg = await window0(t0, r0);
     if (cdp) {
       const { profile } = await cdp.send('Profiler.stop');
-      const f = `${process.env.OUT || 'wind'}.toggle-${arm}-z${zoom}.cpuprofile`;
+      // one file per session (2026-10-25: p95 vs p50 sessions are compared, so a later round must not overwrite an earlier one)
+      _profileSeq += 1;
+      const f = `${process.env.OUT || 'wind'}.toggle-${arm}-z${zoom}-s${_profileSeq}.cpuprofile`;
       fs.writeFileSync(f, JSON.stringify(profile));
       out.profile = f;
     }
