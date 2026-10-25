@@ -50,3 +50,15 @@ Full timeline and options: `ICON-estimated-tail-not-framed-2026-10-24.md` in the
 - The core lane publishes its own tail sets: own set keys and retention scope, behind a repo variable, off by default.
 - Coordinated with static-frames, who owns the publisher.
 - Built after the 13:00-16:00Z switch-on window, in its own PR (this branch, `claude/core-tail-frames`).
+
+## Correction 2026-10-25: the core-lane tail sets are NOT being built
+#548 (`2e25321a4`, static-frames slice 2, all DARK) built the other option the same day, and it is simpler.
+- `FRAME_TAIL_DOWNLOAD=1`: the pilots publisher downloads the core lane's ICON/EURO tails into the SAME world sets and
+  filled sets, under the one `latest.json` writer. No second pointer, no client change.
+- `FAR_EDGE_HOLD_PREFER_MID`: past the stored tail, hold the 2-deg frame rather than the 10-deg one, so the Gulf targeted
+  fill runs.
+
+The owner's 2026-10-25 report ("ICON ... Saturday 13th day on the Sunday 14th day with holes in Gulf data") is #548's
+flips (owner's word) plus the label. ICON's stored tail ends at anchor run + 336 h (11-06T18Z), about 11 h short of
+now + 336 h, so those hours are a hold that must say so (served_valid_time, #444 dark). Timeline note updated (same path
+as above).
