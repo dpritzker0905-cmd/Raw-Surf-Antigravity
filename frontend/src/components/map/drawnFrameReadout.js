@@ -40,6 +40,7 @@ export function formatInstant(ms) {
 
 function estimateWords(drawn) {
   if (!drawn || !drawn.estimated) return '';
+  if (drawn.blendText) return drawn.blendText;   // wind clip B: "interpolated between Sat 12 AM and Sat 3 AM"
   return ESTIMATE_WORDS[drawn.basisType] || 'estimated';
 }
 

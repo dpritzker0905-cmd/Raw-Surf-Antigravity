@@ -29,6 +29,7 @@ import { buildWindVectors, frameMeta, gridJsonFromFrame, parseFrame, pickIndexFr
 import { cropGridJson, cropVectors, gridBboxParam, midClipWindow, parseBboxString } from './staticFrameCrop';
 import { clampViewportBbox, getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag, seedJsDataHash } from './weatherTruthTracker';
+import { blendBracket, blendWindJson, windTimeBlendOn } from './windTimeBlend';
 import { BACKEND_URL } from '../../lib/apiClient';
 
 export const WIND_SET_KEY = 'GFS/wind/wind/global_mid';
@@ -344,16 +345,43 @@ function pick(index, askIso, bbox, model) {
   return { kind, frame, stamp: v.stamp };
 }
 
+// OWNER A/B CLIP B (windTimeBlend.js; opt-in __RAW_WIND_TIME_BLEND__): the two bracketing frames for the selected instant, built
+// like any other (same box, same lane check), blended and labelled. `raw(frame)` returns the frame's bytes or null. Null on any
+// gap: the caller then serves the nearest frame exactly as before.
+const _blends = new Map();
+function blendFrom(index, selectedMs, bbox, model, raw0, raw1, br) {
+  const p0 = pick(index, br.f0.valid_time, bbox, model); const p1 = pick(index, br.f1.valid_time, bbox, model);
+  if (p0.refuse || p1.refuse || !raw0 || !raw1) return null;
+  const key = `${p0.frame.path}|${p1.frame.path}|${p0.kind === 'crop' ? gridBboxParam(bbox) : 'world'}|${selectedMs}`;
+  if (_blends.has(key)) return _blends.get(key);
+  const j0 = build(index, p0.frame, raw0, p0.stamp, { askIso: br.f0.valid_time, bbox, kind: p0.kind });
+  const j1 = build(index, p1.frame, raw1, p1.stamp, { askIso: br.f1.valid_time, bbox, kind: p1.kind });
+  const json = blendWindJson(j0, j1, br, selectedMs);
+  if (json) {
+    try { json.truthTag = buildTruthTag(json, 'staticFrameBlend'); } catch (e) { json.truthTag = null; }
+    _blends.set(key, json); while (_blends.size > 8) _blends.delete(_blends.keys().next().value);
+    tel().blends = (tel().blends || 0) + 1;
+  }
+  return json;
+}
+
 /**
  * Seam A: the /grid JSON for a wind request from the pinned static frame, or null (the caller fetches /grid). Async: it may pin
- * the index, read the lane pointer and fetch the frame (CDN only).
+ * the index, read the lane pointer and fetch the frame (CDN only). `selectedMs` (the unsnapped selected instant) is read only
+ * with the clip-B blend switched on.
  */
-export async function tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal }) {
+export async function tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal, selectedMs }) {
   if (!windStaticEnabled()) return null;
   if (!windBoxKind(model, clampedBbox)) return null;
   try {
     const [index] = await Promise.all([windIndex(), readLanePointer(false)]);
     if (!index) return miss('no_index');
+    const br = windTimeBlendOn() ? blendBracket(index.frames, selectedMs) : null;
+    if (br) {
+      const [r0, r1] = await Promise.all([loadRaw(br.f0, signal), loadRaw(br.f1, signal)]);
+      const bj = blendFrom(index, selectedMs, clampedBbox, model, r0, r1, br);
+      if (bj) return bj;
+    }
     const p = pick(index, validTimeStr, clampedBbox, model);
     if (p.refuse) return miss(p.refuse);
     const buffer = await loadRaw(p.frame, signal);
@@ -370,9 +398,14 @@ export async function tryStaticWindGrid({ model, validTimeStr, clampedBbox, sign
  * The same, SYNCHRONOUSLY, from bytes already here (the idle prefetch or an earlier load), or null. No I/O: what the scrub drag
  * path and the warm commits call on every step.
  */
-export function staticWindGridSync({ model, validTimeStr, clampedBbox }) {
+export function staticWindGridSync({ model, validTimeStr, clampedBbox, selectedMs }) {
   if (!windStaticEnabled() || !_s.index) return null;
   try {
+    const br = windTimeBlendOn() ? blendBracket(_s.index.frames, selectedMs) : null;
+    if (br) {
+      const bj = blendFrom(_s.index, selectedMs, clampedBbox, model, _s.raw.get(br.f0.path), _s.raw.get(br.f1.path), br);
+      if (bj) return bj;
+    }
     const p = pick(_s.index, validTimeStr, clampedBbox, model);
     if (p.refuse) return null;
     const buffer = _s.raw.get(p.frame.path);

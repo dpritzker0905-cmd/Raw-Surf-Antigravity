@@ -1,16 +1,30 @@
 import React from 'react';
 import { useWindDrawnFrame } from './marineDrawnFrame';
 import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
-import { getSharedValidTime } from './backendWeatherServiceClient';
+import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 
 // W-1 for WIND (2026-10-19, visual lab on dev 697ad069: wind off-lattice hours held the nearest frame with no words): what
 // the wind engine DREW against the hour the user SELECTED, published at WebGLWindLayer's handoff (marineDrawnFrame.js
 // publishWindDrawn). Compares by instant (#267). HRRR drawn under a GFS selection is the wind lane by design (D-017,
 // WindLaneStatus names it), not a pending switch. Kill: window.__RAW_DISABLE_WIND_DRAWN_READOUT__ = true.
+// NEAREST WORDS (2026-10-24, owner A/B clip A; OPT-IN, default off): getSharedValidTime already snaps the selected hour to the
+// nearest stored product (3-hourly, within 1.5 h), so the drawn frame always equals it and the line stays silent while the map
+// shows 3 AM under a 2 AM selection. With window.__RAW_WIND_NEAREST_WORDS__ = true the line compares against the selected
+// instant BEFORE the snap (the series anchor + hour), so it says "Showing Sat 3 AM: the nearest stored forecast".
+// Clip B (windTimeBlend.js) needs the same unsnapped compare: a blended field is valid AT the selected instant, so against the
+// snapped instant it would read as "nearest" instead of "Estimated forecast: interpolated between ...".
+export function windNearestWordsOn() {
+  return typeof window !== 'undefined' && (window.__RAW_WIND_NEAREST_WORDS__ === true || window.__RAW_WIND_TIME_BLEND__ === true);
+}
+
 export function windReadout({ model, hour }, drawn) {
   if (!drawn || (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DRAWN_READOUT__ === true)) return null;
   let instantMs = null;
-  try { instantMs = Date.parse(getSharedValidTime(hour, 'wind', model, { readOnly: true })); } catch (e) { instantMs = null; }
+  try {
+    instantMs = windNearestWordsOn() && Number.isFinite(hour)
+      ? getSeriesAnchorMs() + hour * 3600000
+      : Date.parse(getSharedValidTime(hour, 'wind', model, { readOnly: true }));
+  } catch (e) { instantMs = null; }
   const laneModel = drawn.model === 'HRRR' && model === 'GFS' ? 'HRRR' : model;
   // Half the stored wind lattice step: 3-hourly series frames are never more than 1 h from the selection (EURO's 6-hourly
   // tail past 144 h: 3 h). Further away is a fetch still owed, so it reads "Loading", never "nearest" (lab run B2, 2026-10-19).
