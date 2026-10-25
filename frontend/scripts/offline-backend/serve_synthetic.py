@@ -61,7 +61,10 @@ def regional_tiers(region_ids):
     for rid in region_ids:
         if rid not in known:
             raise SystemExit("unknown region %r (pilot_regions has %s)" % (rid, ", ".join(sorted(known))))
-        cfg = known[rid]
+        # GFS_PILOT_WHOLE_DEGREE_BOUNDS=1 (dark, 2026-10-25): the tile as the GFS pass then stores it, padded to whole degrees on
+        # its fractional edges (pilot_regions.whole_degree_regions), so the offline store matches the flagged ingest.
+        from services.weather_pipeline.pilot_regions import whole_degree_regions
+        cfg = whole_degree_regions({rid: known[rid]})[rid]
         bounds = {k: float(cfg[k]) for k in ("west", "south", "east", "north")}
         out.append((rid, bounds, float(cfg.get("resolution", REGIONAL_RES)), "_%s_" % rid))
     return tuple(out)
