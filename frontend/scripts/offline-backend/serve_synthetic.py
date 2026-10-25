@@ -90,8 +90,19 @@ def on_wave_lake(lat, lng, res):
     return WAVE_LAKES and any(lng + h >= w and lng - h <= e and lat + h >= s and lat - h <= n for (w, s, e, n) in WAVE_LAKE_BOXES)
 
 
+# ENCLOSED SEAS (2026-10-24, `--enclosed-seas 1`; the targeted Gulf fill, D-050, and its baked world frames, frame_set_fill.py):
+# EURO's and ICON's own 2-deg grids mask sea that GFS's grid keeps (live: EURO 870 GFS-sea nodes, Gulf 15/59, Med 44/113; ICON
+# 125). The land mask alone masks the SAME nodes in every model, so the targeted fill (GFS sea only) has nothing to do offline.
+# With the flag, these open-water boxes are masked in EURO and ICON 2-deg products only (the 10-deg tier and GFS keep them).
+ENCLOSED_SEAS = False
+ENCLOSED_SEA_BOXES = ((-88.0, 9.0, -76.0, 22.0), (131.0, 33.0, 142.0, 52.0), (-20.0, -30.0, -12.0, -22.0))
+
+
 def lake_land(lat, lng, res, model):
     """None: the wave-lakes fixture has no say; True / False: this node is land / water under it."""
+    if ENCLOSED_SEAS and model in ("EURO", "ICON") and res < 5.0 and any(
+            w <= lng <= e and s <= lat <= n for (w, s, e, n) in ENCLOSED_SEA_BOXES):
+        return True                   # the enclosed-seas fixture: masked by EURO / ICON, sea for GFS (and wins over the lakes)
     if not WAVE_LAKES:
         return None
     if on_wave_lake(lat, lng, res):
@@ -813,12 +824,15 @@ def main():
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
     ap.add_argument("--wave-lakes", choices=["0", "1"], default="0",
                     help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
+    ap.add_argument("--enclosed-seas", choices=["0", "1"], default="0",
+                    help="EURO and ICON 2-deg products mask open-water boxes GFS keeps (ENCLOSED SEAS above): the targeted fill's work")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS
     VORTEX_PEAK = args.vortex_peak
     LAND_MASK = args.land_mask == "1"
     WAVE_LAKES = args.wave_lakes == "1"
+    ENCLOSED_SEAS = args.enclosed_seas == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL

@@ -28,6 +28,43 @@ export function serveTimeFillAtWorld(model, layer) {
  * explicit `false` lifts the guard: not loaded yet, an older server without the field, or an unreadable matrix all keep it,
  * because then /grid may differ from the stored frame. Read per call, so a matrix that loads later takes effect at once.
  */
+/**
+ * THE FILLED WORLD SET (2026-10-24, backend services/frame_set_fill.py). While the box runs the TARGETED fill (D-050), the
+ * publisher also writes `<model>/marine/<layer>/global_mid_filled`: the same stored products with /grid's own targeted fill
+ * applied (same code, same-layer GFS 2-deg donor), stamped `fill_mode: 'targeted'` on its latest.json record. A world box of a
+ * guarded set reads THAT set instead of asking /grid, only while /capabilities reports `gulf_fill_mid_mode: 'targeted'` for the
+ * model AND the record says the same; anything else (legacy mode, an older server, a retired record, no latest.json yet) returns
+ * null and the world box asks /grid as before. Crops never read it: /grid does not fill a viewport crop.
+ * Kill (back to /grid for these world boxes): window.__RAW_DISABLE_STATIC_FILLED_WORLD__ = true.
+ */
+export function filledWorldSetKey(model, layer, latest) {
+  if (!filledWorldPossible(model, layer)) return null;
+  const key = `${String(model).toUpperCase()}/marine/${String(layer || 'waves').toLowerCase()}/global_mid_filled`;
+  const rec = latest && latest.sets && latest.sets[key];
+  return rec && rec.index && !rec.empty && rec.fill_mode === 'targeted' ? key : null;
+}
+
+/** Could a filled world set serve this guarded model x layer right now (not killed, the server in the targeted mode)? It does not
+ *  look at latest.json: staticFrames uses it to decide whether that read is worth starting. */
+export function filledWorldPossible(model, layer) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_STATIC_FILLED_WORLD__ === true) return false;
+  const m = String(model || 'GFS').toUpperCase();
+  return serveTimeFillAtWorld(m, layer) && serverFillModeOf(m) === 'targeted';
+}
+
+/** The 2-deg world fill mode /capabilities reports for this model (`gulf_fill_mid_mode`), or null when unknown. Per call. */
+function serverFillModeOf(model) {
+  try {
+    const rows = typeof window !== 'undefined' ? window.__WEATHER_CAPABILITIES__ : null;
+    if (!Array.isArray(rows)) return null;
+    const row = rows.find((r) => r && String(r.domain).toLowerCase() === 'marine' && String(r.model).toUpperCase() === model
+      && typeof r.gulf_fill_mid_mode === 'string');
+    return row ? row.gulf_fill_mid_mode : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 function serverFillsWorldMid(model) {
   try {
     const rows = typeof window !== 'undefined' ? window.__WEATHER_CAPABILITIES__ : null;

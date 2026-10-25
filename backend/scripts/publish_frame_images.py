@@ -339,6 +339,12 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                 elif rec is not entry:
                     pending_empty[key] = rec    # written WITH the next real pointer move: a run that publishes nothing writes nothing
                 stats["empty"] = rec is not None
+        # A FILLED world set (frame_set_fill) outside the targeted mode: its record is retired (no index, no fill_mode), written with
+        # the next real pointer move like the explicit empties, so no client pairs an old filled index with a box in another mode.
+        if index is None and stats.get("skipped_fill_mode"):
+            rec = fs.fill_mode_off_record(entry, stats["fill_mode"], now, _writer())
+            if rec is not None:
+                pending_empty[key] = rec
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
@@ -346,7 +352,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     if changed:
         for key, rec in pending_empty.items():
             latest.setdefault("sets", {})[key] = rec
-            log(f"[frames] {key}: no stored product for this layer in this box; written as explicit empty")
+            log(f"[frames] {key}: written as explicit empty ({rec.get('reason') or 'no stored product for this layer in this box'})")
         latest.update(version=1, written_at=now, writer=_writer())
         sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
     if wind_lane is not None:
