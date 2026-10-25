@@ -355,3 +355,13 @@ async def test_crew_pay_that_loses_the_claim_credits_the_photographer_nothing(wo
     assert r.status_code == 200 and r.json()["booking_status"] != "Confirmed"
     after = await world.snap()
     assert after.earnings == [] and after.status == "PendingPayment"
+
+
+@pytest.mark.parametrize("status", ["Pending", "PendingPayment", "Pending Payment"])
+async def test_every_spelling_of_awaiting_payment_can_be_paid_into_and_confirmed(world, status):
+    """The card-checkout flow spells it 'Pending Payment' (tests/test_pay08_crew_pay.py pays into one)."""
+    await world.update_booking(status=status)
+    await pay(world, "crew1")
+    r = await pay(world, "crew2")
+    assert r.status_code == 200 and r.json()["booking_status"] == "Confirmed"
+    assert (await world.snap()).earnings == [240.0]

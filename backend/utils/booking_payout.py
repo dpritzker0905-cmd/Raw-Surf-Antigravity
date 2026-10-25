@@ -27,7 +27,9 @@ logger = logging.getLogger(__name__)
 
 PHOTOGRAPHER_PERCENT = 80
 # A booking that is still waiting for money. Anything else (Confirmed, Completed, Cancelled, ...) is not claimable.
-CLAIMABLE_STATUSES = ("Pending", "PendingPayment")
+# "Pending Payment" (with a space) is the spelling the card-checkout flow uses (stripe_checkout.payment-success
+# accepts both); tests/test_pay08_crew_pay.py pays into one.
+CLAIMABLE_STATUSES = ("Pending", "PendingPayment", "Pending Payment")
 
 
 class PayoutError(Exception):
