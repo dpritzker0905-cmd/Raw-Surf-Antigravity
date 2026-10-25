@@ -51,3 +51,35 @@ shader does; .om is ncep_gfs013 cloud_cover read with `omfiles`). Units: points 
 Flat points should not differ like that from resolution alone. The likely cause (not concluded, n = 8): Open-Meteo's ncep_gfs013
 cloud_cover comes from GFS's 13 km flux files, a different and possibly time-averaged field, while ours is the 0p25 instantaneous
 message. Before any flip, a wider read (more points and hours) should establish whether the two fields differ by definition.
+
+## The definition experiment (2026-10-25 ~01:50Z, one live read)
+The lead's design and source: NCEP's product inventories. The GFS sflux file, which Open-Meteo's ncep_gfs013 is built from,
+carries TCDC entire atmosphere only as an hourly backward mean ("0-1 hour ave"). pgrb2.0p25 carries both the instant and an
+interval mean.
+
+Setup: GFS 2026-10-24 18Z, 11 points, 8 as before plus three marine stratocumulus decks (Peru, Namibia, California).
+Requests: 10 to NODD and 343 small .om range requests. Script and JSON: shared notes `raster-resolution-2026-10-24/cloud_abc.*`.
+- (a) POSITIVE CONTROL: our 0p25 interval mean ("0-3 hour ave" at f003, "6-9 hour ave" at f009) against the mean of .om's three
+  hourly values over the same window.
+- (b) AS SHIPPED: our instant at f003 / f006 / f009 against .om at the same hour.
+- (c) NULL CONTROL: the deck points.
+
+Results, in points of percentage:
+
+| comparison | mean abs. difference | worst | n |
+|---|---|---|---|
+| (a) interval mean vs .om window mean, all points | 1.5 | 24.2 | 22 |
+| (a) the same, non-deck points | 2.0 | 24.2 | 16 |
+| (b) instant vs .om same hour, all points | 7.0 | 53.7 | 33 |
+| (b) the same, non-deck points | 8.0 | 53.7 | 24 |
+| (c) decks, interval mean (a) | 0.2 | 0.3 | 6 |
+| (c) decks, instant (b) | 4.4 | 21.2 | 9 |
+
+- On the SAME definition our frames match .om to about 1.5 points. The flat-site gaps reported above (Sahara 6 vs 38 %, Fiji
+  37 vs 91 %) are the definition (instant vs hourly mean), not an error. The worst row of (a) is Denver at f003 (85 vs 61), at
+  the edge of the Rockies: resolution, as with temperature.
+- The null control held for the interval means. It did not fully hold for the instants: the Namibia point sits at the deck edge
+  (5-27 % hour to hour), so the decks are not perfectly stationary at this scale.
+- Not decided here (the lead's recommendation, to test): keep the INSTANT for the satellite layer, because it shows the cloud at
+  the labelled valid time, as a satellite image would; name it so in the legend and credit; and judge skill against
+  observations (a satellite cloud product), not against .om.
