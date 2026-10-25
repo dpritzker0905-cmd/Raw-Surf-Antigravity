@@ -35,7 +35,7 @@ import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, 
 import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
-import { filledWorldPossible, filledWorldSetKey, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
+import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -358,12 +358,16 @@ export function onStaticFrameParsed(fn) {
  *  nothing (a whole run is ~6.3 MB). No I/O. */
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
-  const [model, , layer] = String(key || '').split('/');
+  const [model, , layer, tier] = String(key || '').split('/');
   if (isRegionalSetKey(key)) return null;            // regional bundles (phase 1): the GPU frame store keeps to world sets
-  // EURO / ICON: the store cannot tell a world view (where /grid's serve-time Gulf fill makes the served grid differ from the
-  // stored frame; serveTimeFillAtWorld) from a crop at this door, so it takes none of their frames for now.
-  return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
+  if (!pin || pin.stale || !staticSetEnabled(key) || layer !== 'waves') return null;
+  // EURO / ICON: a plain set never (/grid's serve-time Gulf fill makes a world grid differ from its stored frame; serveTimeFillAtWorld);
+  // their FILLED world set only while the server, the record and the index agree on the mode (staticWorldFillGuard.filledStoreAccepts).
+  if (tier === 'global_mid_filled') return filledStoreAccepts(model, layer, key, pin.index, _state.latest) ? pin.index : null;
+  return !serveTimeFillAtWorld(model, layer) ? pin.index : null;
 }
+/** The world set the GPU frame store reads: a guarded EURO/ICON set's filled world set while it is servable, else the plain set. */
+export const storeSetKeyFor = (model, layer) => (filledStoreOn() && filledWorldSetKey(model, layer, _state.latest)) || setKeyFor(model, layer);
 
 // The frame store's regional crop show (2026-10-24): the pinned REGIONAL waves index of a set key (null unless pinned, fresh, enabled; so only while the bundles' gate is open), and the pinned regional keys of a model x layer. No I/O.
 export const getPinnedRegionalIndexSync = (key) => { const pin = _state.pins.get(key); return isRegionalSetKey(key) && key.split('/')[2] === 'waves' && pin && !pin.stale && staticSetEnabled(key) ? pin.index : null; };
