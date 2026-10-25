@@ -23,10 +23,21 @@ const SOURCES = {
   dwd: { text: 'ICON (Deutscher Wetterdienst)', href: 'https://opendata.dwd.de/', label: 'Data source: Deutscher Wetterdienst, ICON model (opens in a new tab)' },
 };
 const OWN_SOURCE = { GFS: 'noaa', EURO: 'ecmwf', ICON: 'dwd' };
+// What a layer drawn from our own frames IS, where a reader could take it for something else (2026-10-25). Our cloud cover
+// (the satellite layer) is GFS's INSTANTANEOUS field at the valid time. Open-Meteo's, on the .om path, is an hourly backward
+// mean, and the two differ by definition: 7.0 points of percentage on average, 1.5 on the same definition (the a/b/c read,
+// log 2026-10-24-claude-raster-cloud-cover). The note rides on the credit, which every layout of the legend shows.
+const OWN_NOTE = {
+  satellite: { text: ' · instantaneous', label: 'Cloud cover at the valid time, instantaneous (not an hourly mean).' },
+};
 
 export function creditFor(layer, engaged = getEngaged()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
-  if (engaged && engaged[layer]) return SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
+  if (engaged && engaged[layer]) {
+    const s = SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
+    const n = OWN_NOTE[layer];
+    return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
+  }
   return SOURCES[LAYER_CREDITS[layer]] || null;
 }
 
@@ -35,7 +46,7 @@ export default function LayerDataCredit({ layer }) {
   const c = creditFor(layer, engaged);
   if (!c) return null;
   return (
-    <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} data-testid="layer-data-credit"
+    <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} title={c.title} data-testid="layer-data-credit"
       className="ml-2 shrink-0 normal-case tracking-normal font-normal underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-cyan-500 rounded-sm">
       {c.text}
     </a>
