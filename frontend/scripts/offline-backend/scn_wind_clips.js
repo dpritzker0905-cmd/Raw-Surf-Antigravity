@@ -83,7 +83,10 @@ async function session(arm) {
     const read = () => page.evaluate(() => {
       const el = document.querySelector('[data-testid="wind-time-status"]');
       const d = window.__WIND_DRAWN__ || null;
-      return { line: el ? el.textContent : null, state: el ? el.getAttribute('data-drawn-state') : null,
+      // the timeline's time chip (forecastReadout): the leaf text that reads "Live" or "Sun 11 AM"
+      const chip = Array.from(document.querySelectorAll('div,span')).find((e) => e.children.length === 0
+        && /^(Live|[A-Z][a-z]{2} \d{1,2} (AM|PM))$/.test((e.textContent || '').trim()));
+      return { label: chip ? chip.textContent.trim() : null, line: el ? el.textContent : null, state: el ? el.getAttribute('data-drawn-state') : null,
         drawnHour: d && d.hour, drawnMs: d && d.dataMs, estimated: d && d.estimated, blend: d && d.blendText,
         selected: window.__RAW_SELECTED_WIND__ || null, blends: (window.__RAW_WIND_STATIC__ || {}).blends || 0 };
     });
@@ -106,7 +109,8 @@ function html(sessions) {
   const [off, on] = ['off', 'on'].map((a) => sessions.find((s) => s.arm === a));
   const rows = off.steps.map((s, i) => {
     const o = on.steps[i] || {};
-    const cell = (x) => (x && x.line ? x.line.replace(/&/g, '&amp;').replace(/</g, '&lt;') : '<i>(no line)</i>');
+    const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    const cell = (x) => `<b>${esc((x && x.label) || '?')}</b> · ${x && x.line ? esc(x.line) : '<i>(no line)</i>'}`;
     return `<tr><td>+${s.hour} h</td><td>${cell(s)}</td><td>${cell(o)}</td></tr>`;
   }).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -124,7 +128,7 @@ table{border-collapse:collapse;width:100%;margin-top:12px}td,th{border-top:1px s
 <button id="play" type="button">Play both from the start</button>
 <div class="grid"><figure style="margin:0"><video id="a" src="${off.video}" muted playsinline controls></video><figcaption>Off (today)</figcaption></figure>
 <figure style="margin:0"><video id="b" src="${on.video}" muted playsinline controls></video><figcaption>On: ${WHAT}</figcaption></figure></div>
-<table><thead><tr><th scope="col">Step</th><th scope="col">Off: status line</th><th scope="col">On: status line</th></tr></thead><tbody>${rows}</tbody></table>
+<table><thead><tr><th scope="col">Step</th><th scope="col">Off: time label · status line</th><th scope="col">On: time label · status line</th></tr></thead><tbody>${rows}</tbody></table>
 <script>document.getElementById('play').onclick=()=>{for(const id of ['a','b']){const v=document.getElementById(id);v.currentTime=0;v.play();}};</script>
 </body></html>`;
 }
@@ -141,7 +145,7 @@ table{border-collapse:collapse;width:100%;margin-top:12px}td,th{border-top:1px s
     for (const arm of ['off', 'on']) {
       const s = await session(arm);
       sessions.push(s);
-      console.log(arm, JSON.stringify(s.steps.map((x) => [x.hour, x.state, x.line])));
+      console.log(arm, JSON.stringify(s.steps.map((x) => [x.hour, x.label, x.state, x.line])));
     }
     fs.writeFileSync(path.join(OUT_DIR, 'clips.json'), JSON.stringify({ clip: CLIP, flag: FLAG, sessions }, null, 1));
     fs.writeFileSync(path.join(OUT_DIR, 'clips.html'), html(sessions));
