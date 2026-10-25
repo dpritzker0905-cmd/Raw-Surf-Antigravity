@@ -235,6 +235,28 @@ async def test_two_simultaneous_correct_answers_make_one_session(h, clock):
     assert sorted(r.status_code for r in results) == [200, 401]
 
 
+async def test_two_different_valid_factors_at_once_make_one_session(h, clock):
+    user = await enrol(h, clock)
+    token = await challenge(h)
+    results = await asyncio.gather(answer(h, token, current_code(user, clock)), answer(h, token, user.codes[0]))
+    assert sorted(r.status_code for r in results) == [200, 401]
+
+
+async def test_the_same_authenticator_code_on_two_challenges_at_once_makes_one_session(h, clock):
+    user = await enrol(h, clock)
+    first, second = await challenge(h), await challenge(h)
+    code = current_code(user, clock)
+    results = await asyncio.gather(answer(h, first, code), answer(h, second, code))
+    assert sorted(r.status_code for r in results) == [200, 401]
+
+
+async def test_the_same_recovery_code_on_two_challenges_at_once_makes_one_session(h, clock):
+    user = await enrol(h, clock)
+    first, second = await challenge(h), await challenge(h)
+    results = await asyncio.gather(answer(h, first, user.codes[0]), answer(h, second, user.codes[0]))
+    assert sorted(r.status_code for r in results) == [200, 401]
+
+
 async def test_unknown_and_garbage_challenges_are_refused(h):
     for token in ("x" * 43, "short-but-valid-length-token-value-1234567890"):
         assert (await answer(h, token, "123456")).status_code == 401
