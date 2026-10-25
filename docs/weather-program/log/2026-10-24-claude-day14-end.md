@@ -88,3 +88,23 @@ prefer-mid ignored, the resolution floor removed: each kills tests).
 - Still open, not in scope: while DRAGGING, a world series page with missing tail hours keeps the old view
   (`marineSeriesStatic.js:122-133`, `useMarineOrchestratorScrubCache.js:138-141`); Step 3.7's preview labels a held tail
   frame authoritative at narrow boxes past the tail.
+
+## Flip and read-back, 2026-10-25 (#548 merged 06:23Z)
+
+Owner, 2026-10-25: "Yes, set GFS_WORLD_FULL_HORIZON=1 now, log the flip, and do the now+336 h read-back after the next
+ingests." Set 18:09:17Z (`gh variable list`), ledger `claude--day14-flip.jsonl:1`. The core run already in progress
+(40213217992, started 16:45Z) kept 14 d.
+
+| reading | GFS world frame indices (CDN) | /grid GFS world at now + 336 h | health |
+|---|---|---|---|
+| before, 18:13Z | run 06Z, 113-119 entries, last lead **336 h** (2026-11-08T06Z) | ask 2026-11-08T18Z: open-meteo `viewport_...` **19 x 9 = 171** vectors | healthy / healthy |
+| after, 22:10Z | run 12Z, **129 / 129 built** in all four layers, last lead **384 h** (2026-11-10T12Z) | ask 2026-11-08T22Z: `global_mid` **181 x 83 = 15,023** vectors, native (`is_estimated` false), served 21Z; waves and swell_1 | healthy / healthy |
+
+The runs that carried it: core 40224293278 (19:04Z, success) logged `GFS_WORLD_FULL_HORIZON: 1` and a GFS-Wave world fetch
+of 129 steps to 2026-11-10T12Z, `truncated=no`, 393 s; pilots 40231621851 (20:37Z, success) the same 129 steps in the
+flagship pass, which stayed ONE pass (3 regions: the flagship boxes + global_mid; its log names the group by its 14 d key),
+523 s. Decoded CDN frames, valid ocean nodes at f000 / f336 / f384: waves 67.7% / 67.7% / 67.7%, swell_1 62.9% / 62.7% /
+62.9%: full fields to the end. Ledger `claude--day14-flip.jsonl:2`. **PASS for GFS.**
+
+Still owed from commitment 1944: ICON / EURO past their run + 336 h ceilings serve the 10-deg coarse hold until
+`FAR_EDGE_HOLD_PREFER_MID` (Render) is flipped; `FRAME_TAIL_DOWNLOAD` not flipped.
