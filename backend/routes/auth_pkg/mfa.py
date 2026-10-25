@@ -38,7 +38,7 @@ UNAVAILABLE = "Two-step verification is not available right now."
 warn_if_unconfigured()
 
 
-# â”€â”€ Caller identity (accepts the enrol-only token that ordinary routes refuse) â”€
+# ── Caller identity (accepts the enrol-only token that ordinary routes refuse) ─
 
 @dataclass
 class MfaCaller:
@@ -101,7 +101,7 @@ async def _check_current_factor(db: AsyncSession, profile: Profile, code: str) -
     return method
 
 
-# â”€â”€ Sign-in gate (called by POST /auth/login after the password is accepted) â”€â”€â”€
+# ── Sign-in gate (called by POST /auth/login after the password is accepted) ───
 
 async def mfa_login_gate(db: AsyncSession, profile: Profile) -> Optional[dict]:
     """
@@ -134,7 +134,7 @@ async def mfa_login_gate(db: AsyncSession, profile: Profile) -> Optional[dict]:
     return None
 
 
-# â”€â”€ Second step of sign-in â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Second step of sign-in ────────────────────────────────────────────────────
 
 class MfaLoginRequest(BaseModel):
     challenge_token: str = Field(min_length=10, max_length=200)
@@ -186,7 +186,7 @@ async def login_mfa(request: Request, data: MfaLoginRequest, db: AsyncSession = 
     return payload
 
 
-# â”€â”€ Management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Management ────────────────────────────────────────────────────────────────
 
 class PasswordBody(BaseModel):
     password: Optional[str] = Field(default=None, max_length=256)

@@ -105,7 +105,7 @@ async def get_factor_state(db: AsyncSession, user_id: str) -> FactorState:
     return FactorState(totp=has_totp, passkeys=0, recovery_remaining=int(remaining or 0))
 
 
-# â”€â”€ Login challenges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Login challenges ──────────────────────────────────────────────────────────
 
 async def create_login_challenge(db: AsyncSession, user_id: str) -> str:
     """A fresh single-use challenge for a user who has just proved their password. Only its hash is stored."""
@@ -154,7 +154,7 @@ async def consume_challenge(db: AsyncSession, token: str) -> bool:
     return result.rowcount == 1
 
 
-# â”€â”€ Checking a second factor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Checking a second factor ──────────────────────────────────────────────────
 
 def looks_like_totp(code: str) -> bool:
     compact = "".join((code or "").split())
@@ -218,7 +218,7 @@ async def _check_recovery(db: AsyncSession, user_id: str, code: str) -> bool:
     return spent.rowcount == 1
 
 
-# â”€â”€ Enrolment, recovery codes, removal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Enrolment, recovery codes, removal ────────────────────────────────────────
 
 async def start_totp_enrolment(db: AsyncSession, user_id: str) -> str:
     """Create (or replace an unfinished) pending secret. Returns the plain secret ONCE, for the QR / manual entry."""
