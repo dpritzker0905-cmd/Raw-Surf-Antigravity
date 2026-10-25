@@ -10,19 +10,34 @@ import { useSyncExternalStore } from 'react';
 import { formatInstant } from './drawnFrameReadout';
 
 let current = null;
+let publishedGrid = null;   // the grid object the record describes (syncDrawnToEngine compares the engine's resident with it)
 const listeners = new Set();
 
-/** Called by WebGLMarineLayer after engine.setWaveData succeeded for `grid`. */
+// DRAWN TRUTH (2026-10-24; the verify matrix's step-to-h2 frame: a stored frame drawn under the selected hour with no status
+// line). Two gaps let the record describe something other than the screen:
+//  - SERVED TIME: the useMarineWindData conform drops served_valid_time (#444 keeps it dark there: the commit rules read it), and a
+//    /grid valid_time only echoes the ask, so a /grid frame had NO data instant and the status line compared hour LABELS: a
+//    nearest-stored stand-in labelled with the selected hour read as exact. The conform now also carries the served time under a
+//    readout-only name (__readoutServedTime) that only this record reads. Kill: window.__RAW_DISABLE_DRAWN_SERVED_TIME__ = true.
+//  - ENGINE TRUTH: WebGLMarineLayer published every grid it handed to setWaveData, including one the engine REFUSED (the
+//    no-downgrade stash, the null-encode guard) while the old resident stayed on screen; and the engine's own swaps (the stash's
+//    self-heal accept, the zoom-out bridge) published nothing, so the line kept saying "Loading" over the selected hour. The record
+//    now follows what the engine HOLDS. Kill: window.__RAW_DISABLE_DRAWN_ENGINE_TRUTH__ = true.
+const killed = (name) => typeof window !== 'undefined' && window[`__RAW_DISABLE_${name}__`] === true;
+
+/** Called by WebGLMarineLayer after engine.setWaveData took `grid` (and by the frame store's shows). */
 export function publishMarineDrawn(grid, fallback = {}) {
   if (!grid) return;
+  publishedGrid = grid;
   const basis = grid.estimate_basis || null;
+  const served = grid.served_valid_time || (killed('DRAWN_SERVED_TIME') ? '' : grid.__readoutServedTime) || '';
   current = {
     hour: Number.isFinite(grid.hourOffset) ? grid.hourOffset : (Number.isFinite(fallback.hour) ? fallback.hour : null),
     layer: grid.__componentLayer || fallback.layer || null,
     model: grid.__sourceModel || fallback.model || null,
-    validTime: grid.served_valid_time || grid.valid_time || null,
-    // The DATA instant: served_valid_time is the truth; a /grid valid_time only echoes the request (C-12), a series frame's is its own.
-    dataMs: Date.parse(grid.served_valid_time || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
+    validTime: served || grid.valid_time || null,
+    // The DATA instant: the served time is the truth; a /grid valid_time only echoes the request (C-12), a series frame's is its own.
+    dataMs: Date.parse(served || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
     estimated: !!(grid.is_estimated || grid.isEstimated),
     basisType: basis && basis.type ? basis.type : null,
     provider: grid.__gridProvider || grid.provider || null,
@@ -35,6 +50,19 @@ export function publishMarineDrawn(grid, fallback = {}) {
 
 export function getMarineDrawn() { return current; }
 
+/** Did the engine take `grid`? (false when setWaveData stashed it as a refused downgrade or dropped it as a degenerate encode) */
+export function engineHoldsGrid(engine, grid) {
+  if (killed('DRAWN_ENGINE_TRUTH')) return true;
+  return !!(engine && engine._waveData && engine._waveData.waveGrid === grid);
+}
+
+/** Per rendered frame: publish what the engine HOLDS when it is not what the record describes (a swap inside the engine). */
+export function syncDrawnToEngine(engine, fallback = {}) {
+  if (killed('DRAWN_ENGINE_TRUTH')) return;
+  const g = engine && engine._waveData && engine._waveData.waveGrid;
+  if (g && g !== publishedGrid) publishMarineDrawn(g, fallback);
+}
+
 export function subscribeMarineDrawn(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
@@ -45,7 +73,7 @@ export function useMarineDrawnFrame() {
   return useSyncExternalStore(subscribeMarineDrawn, getMarineDrawn, getMarineDrawn);
 }
 
-export function _resetMarineDrawnForTest() { current = null; listeners.clear(); windCurrent = null; windListeners.clear(); }
+export function _resetMarineDrawnForTest() { current = null; publishedGrid = null; listeners.clear(); windCurrent = null; windListeners.clear(); }
 
 // ---- WIND: what the wind engine drew, published at the layer's handoff (WebGLWindLayer) ----
 let windCurrent = null;

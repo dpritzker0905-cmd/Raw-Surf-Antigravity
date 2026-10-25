@@ -57,3 +57,23 @@ test('per-model pressure: the credit names the model of the frame on screen', ()
   setEngaged('pressure', false);
   expect(creditFor('pressure').text).toBe('© Open-Meteo · CC BY 4.0');
 });
+
+test('our cloud cover says it is the instant at the valid time (Open-Meteo\'s is an hourly mean), only while it is drawn', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  setEngaged('satellite', 'GFS');
+  const c = creditFor('satellite');
+  expect(c.text).toBe('NOAA GFS · instantaneous');
+  expect(c.title).toBe('Cloud cover at the valid time, instantaneous (not an hourly mean).');
+  expect(c.label).toMatch(/^Cloud cover at the valid time, instantaneous \(not an hourly mean\)\. Data source: NOAA/);
+  const { getByTestId } = render(<LayerDataCredit layer="satellite" />);
+  const a = getByTestId('layer-data-credit');
+  expect(a.textContent).toBe('NOAA GFS · instantaneous');
+  expect(a.getAttribute('title')).toBe(c.title);
+  expect(a.getAttribute('aria-label')).toBe(c.label);
+  setEngaged('pressure', 'GFS');
+  expect(creditFor('pressure').text).toBe('NOAA GFS');        // other own layers carry no note
+  expect(creditFor('pressure').title).toBeUndefined();
+  act(() => { setEngaged('satellite', false); setEngaged('pressure', false); });
+  expect(creditFor('satellite').text).toBe('© Open-Meteo · CC BY 4.0');   // the .om path: its own credit, unchanged
+  expect(getByTestId('layer-data-credit').getAttribute('title')).toBeNull();
+});
