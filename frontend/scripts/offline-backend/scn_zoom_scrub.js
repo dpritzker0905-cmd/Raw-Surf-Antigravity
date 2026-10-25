@@ -28,8 +28,8 @@
 //   nocropshow  window.__RAW_DISABLE_FRAME_STORE_CROP__ = true (the store shows world-sized residents only, as before 2026-10-22)
 //   grid     window.__RAW_DISABLE_STATIC_FRAMES__ = true (no CDN at all: /grid + /grid_series only)
 //   noaheadrun  window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true (a new window's packs for the cursor +-24 only, as before pass 2)
-//   regional    window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true (the regional bundle client is DARK by default since 2026-10-23
-//            evening: opt in to measure it)
+//   regional    window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true (a no-op since the 2026-10-24 default-on PR: `cur` IS this arm now;
+//            kept so older runs and notes still reproduce)
 //   regionalnostore  the same, with window.__RAW_DISABLE_FRAME_STORE_REGIONAL__ = true (the frame store takes no tile resident: the
 //            2026-10-23 behaviour; `regional` adds the store's regional show, 2026-10-24)
 //   noregional  window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true (z7-9 boxes a pilot tile covers go to /grid + /grid_series, as before
@@ -205,7 +205,7 @@ async function session(arm, zoom) {
     if (arm === 'nocropshow') window.__RAW_DISABLE_FRAME_STORE_CROP__ = true;
     if (arm === 'noaheadrun') window.__RAW_DISABLE_CROP_AHEAD_RUN__ = true;
     if (arm === 'noregional') window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
-    if (arm === 'regional' || arm === 'regionalnostore') window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;   // the client is dark by default since 2026-10-23
+    if (arm === 'regional' || arm === 'regionalnostore') window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;   // a no-op: the client is on by default (2026-10-24)
     if (arm === 'regionalnostore') window.__RAW_DISABLE_FRAME_STORE_REGIONAL__ = true;   // bundles on, the store's regional show killed (2026-10-24)
     if (regTrace) window.__RAW_STATIC_REGIONAL_TRACE__ = [];
   }, { arm, base: `http://127.0.0.1:${CDN_PORT}/`, regTrace: process.env.REGTRACE === '1' });

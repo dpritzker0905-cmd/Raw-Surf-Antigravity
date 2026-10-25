@@ -315,9 +315,13 @@ real `/grid_series` failed:
 - sha12 is fine. Offline it passed.
 
 So the live server may answer these boxes from another product than the tile, which makes the bundle a served-number change
-(D-001). The client now reads bundles only with `window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true`; the kill still wins.
-`REGIONAL_BUNDLES_DEFAULT_ON` flips back once static-frames names the served product and the live parity passes. The offline tools
-opt in (`scn_zoom_scrub.js` arm `regional`; the parity script sets the flag).
+(D-001). The client read bundles only with `window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true` from then on; the kill still won.
+
+**2026-10-24: back ON by default.** With the server's `MARINE_REGIONAL_TILE_FIRST=1` (#508) the server answers a pilot-tile box from
+the same tile the bundle holds, so the bundle is no longer a served-number change. `REGIONAL_BUNDLES_DEFAULT_ON = true`; the opt-in
+flag is a no-op (kept so old harness runs and saved URLs do not break); `window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true` is the kill
+and always wins (both arms pinned in `staticRegional.test.js`). Merge order: server flag on, static-frames' live read passes, then
+this change. Without the server flag the client and server can disagree on edge boxes (the parity script lists them).
 
 ## 9. The frame store takes a pilot tile resident (2026-10-24, z7-9 instant scrub)
 
