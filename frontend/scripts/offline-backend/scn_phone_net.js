@@ -100,7 +100,8 @@ async function session() {
   } } : {};
   const dims = phone ? { width: 390, height: 844, dpr: 3, contextOptions: { isMobile: true, hasTouch: true, userAgent: PHONE_UA } } : { width: 844, height: 390, dpr: 2 };
   const { browser, page, log } = await L.launch({ port: PORT, hooks, ...dims });
-  await page.addInitScript(({ base, arm }) => { localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base; if (arm === 'regional') window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true; }, { base: `http://127.0.0.1:${CDN_PORT}/`, arm: ARM });
+  // The bundle client is the build's default since #552: only the kill is an arm.
+  await page.addInitScript(({ base, arm }) => { localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base; if (arm === 'noregional') window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true; }, { base: `http://127.0.0.1:${CDN_PORT}/`, arm: ARM });
   await page.addInitScript(PROBE);
   const out = { mode: MODE, arm: ARM, view: phone ? 'phone 390x844 dpr3 touch' : 'owner 844x390 dpr2', center: [CLNG, CLAT], zoom: ZOOM, rtt: MODE === 'net' ? RTT : 0, loss: MODE === 'net' ? LOSS : 0 };
   try {
