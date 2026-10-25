@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
-  Shield, Users, DollarSign, Clock, Trophy, Plus,
+  Shield, Users, DollarSign, Clock, Trophy,
   Settings, ChevronRight, CheckCircle, XCircle,
   ShoppingBag, Activity, Bell, UserPlus,
   CreditCard, ShieldCheck, ShieldAlert, ArrowRight, Loader2, Unlink,
@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 import logger from '../utils/logger';
 import { getFullUrl } from '../utils/media';
 import { PurchaseRequestsPanel } from './grom/PurchaseRequestsPanel';
+import LinkMyChildPanel from './grom/LinkMyChildPanel';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 /**
@@ -520,13 +521,9 @@ export const GromHQ = () => {
                   <UserPlus className="w-8 h-8 text-gray-500" />
                 </div>
                 <h3 className={`font-semibold mb-1 ${textPrimary}`}>No Linked Groms</h3>
-                <p className={`text-sm mb-4 ${textSecondary}`}>
-                  Invite your child to link their Grom account
-                </p>
-                <Button aria-label="Add" className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Send Invite
-                </Button>
+                <div className="text-left mt-4">
+                  <LinkMyChildPanel onLinked={fetchGromData} />
+                </div>
               </div>
             ) : (
               linkedGroms.map((grom) => (
