@@ -1561,7 +1561,9 @@ jobs:
           #   base 2932 (hosted read) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
           # ⬆ 2927→2949 on 2026-10-25 (rederive_floor.py, claude/lucid-spence-be3ff0): dev run 40139317894 read 2933 / 179 files; dev's map 2933;
           #   base 2933 (hosted read) + 22 new test(s) and 1 new file(s) = 2955, files 180; floor 2955 - 6 = 2949. This PR must read 2955 passed.
-          MIN_FILES, MIN_PASSED = 180, 2949
+          # ⬆ 2949→2961 on 2026-10-25 (rederive_floor.py, claude/world-frames-targeted-fill): dev run 40205627126 read 2955 / 180 files; dev's map 2955;
+          #   base 2955 (hosted read) + 12 new test(s) and 1 new file(s) = 2967, files 181; floor 2967 - 6 = 2961. This PR must read 2967 passed.
+          MIN_FILES, MIN_PASSED = 181, 2961
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
