@@ -32,6 +32,7 @@ import os
 from datetime import datetime, timezone
 
 from services import frame_binary as fb
+from services import frame_set_fill as fsf
 from services import frame_set_wind as fsw
 
 LATEST = "v1/latest.json"
@@ -58,6 +59,10 @@ SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_m
     # WIND (2026-10-22, the wind instant scrub): GFS 10 m wind, 2 deg, written by the same pilots lane. Each frame is the stored
     # product with the HRRR lane applied as /grid serves it (frame_set_wind.py). Last: the stagger drops it first.
     dict(fsw.WIND_TARGET),
+) + (
+    # EURO / ICON world frames with the TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): key
+    # <model>/marine/<layer>/global_mid_filled, published only while the targeted mode is on. Last: new, and the stagger drops it first.
+    *(dict(t) for t in fsf.FILLED_SETS),
 )
 
 # Product fields the client needs to rebuild the /grid response (backendWeatherServiceClient + mapNormalizedGridToWebGL).
@@ -71,12 +76,17 @@ PRODUCT_META = (
 DIAGNOSTICS_KEPT = ("gridMode", "animChannel", "mid_res_tier")
 
 
+def _region_segment(target):
+    """region_id, plus `_<variant>` for a variant set (frame_set_fill: global_mid_filled)."""
+    return target["region_id"] + (f"_{target['variant']}" if target.get("variant") else "")
+
+
 def set_key(target):
-    return "/".join(target[k] for k in ("model", "domain", "layer", "region_id"))
+    return "/".join([target["model"], target["domain"], target["layer"], _region_segment(target)])
 
 
 def set_prefix(target):
-    return "v1/" + "/".join(target[k].lower() for k in ("model", "domain", "layer", "region_id"))
+    return "v1/" + "/".join(x.lower() for x in (target["model"], target["domain"], target["layer"], _region_segment(target)))
 
 
 def stamp(ts):
@@ -99,8 +109,9 @@ def select_entries(products, target):
     """The set's manifest entries, one per (valid time, estimated?) — the first in manifest order, as the resolver's
     `min` keeps the first of equal time differences. Sorted by valid time."""
     seen, out = set(), []
+    match = {k: v for k, v in target.items() if k != "variant"}   # a variant set reads the same products as its base set
     for p in products or []:
-        if any(p.get(k) != v for k, v in target.items()) or not p.get("filename"):
+        if any(p.get(k) != v for k, v in match.items()) or not p.get("filename"):
             continue
         vt = iso(p.get("valid_time_start") or p.get("valid_time"))
         if not vt:
@@ -223,6 +234,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     lane key is part of each frame's source identity.
     """
     wind = fsw.is_wind(target)
+    filled = fsf.is_filled(target)
     lane_key = (wind_lane.key if wind_lane is not None else None) if wind else None
     prefix = set_prefix(target)
     floor = min_coverage() if coverage_floor is None else coverage_floor
@@ -241,8 +253,18 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
              # the marine u/v error per height band, the reading that says whether u/v can be tightened below 6 m.
              "parity_max_abs_err": {}, "uv_max_err_by_height_m": {}, "parity_by_region": {}}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
-    entries = select_entries(source.manifest().get("products"), target)
+    if filled:
+        # Only the targeted mode is baked (frame_set_fill): in any other mode this set publishes nothing, and the caller retires
+        # its latest.json record (fill_mode_off_record) so no client pairs an old filled index with a box in another mode.
+        stats.update(fill_mode=fsf.publish_mode(), fill_donor_missing=0, fill_refused=0, cells_filled=0)
+        if stats["fill_mode"] != "targeted":
+            stats["skipped_fill_mode"] = True
+            log(f"[frames] {set_key(target)}: fill mode {stats['fill_mode']!r} is not 'targeted'; nothing baked")
+            return None, stats
+    products = source.manifest().get("products")
+    entries = select_entries(products, target)
     stats["entries"] = len(entries)
+    fill_store = fsf._ManifestStore(products) if filled else None
 
     def unbuilt(vt, est, ident, reason):
         stats[reason] += 1
@@ -253,6 +275,10 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         ident = source_identity(entry)
         if wind:
             ident["wind_lane"] = lane_key      # a new HRRR lane rebuilds the frame (its bytes change only where HRRR blends)
+        donor = None
+        if filled:                             # a new GFS donor run rebuilds the frame (its bytes change only at filled nodes)
+            donor = fsf.donor_entry(products, vt, target["layer"], store=fill_store)
+            ident["fill_donor"] = fsf.donor_identity(donor)
         prev = prev_frames.get((vt, est))
         if prev and prev.get("path") and prev.get("source") == ident:
             frames.append(prev)
@@ -266,6 +292,18 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         if iso(product.get("model_run_time")) != ident["model_run_time"] or iso(product.get("run_time")) != ident["run_time"]:
             unbuilt(vt, est, ident, "stale_local")   # the disk copy is not the run the manifest names: never mix runs
             continue
+        if filled:
+            if donor is None:
+                log(f"[frames] {entry['filename']}: no same-layer GFS global_mid within 3 h; /grid serves this hour")
+                unbuilt(vt, est, ident, "fill_donor_missing")
+                continue
+            try:
+                product, n_filled = fsf.apply_fill(product, donor, source.product_bytes(donor["filename"]), target["layer"])
+            except ValueError as e:            # never publish a frame /grid would not serve: this hour goes to /grid
+                log(f"[frames] {entry['filename']}: fill refused ({e})")
+                unbuilt(vt, est, ident, "fill_refused")
+                continue
+            stats["cells_filled"] += n_filled
         lane_stamp, touched = None, 0
         if wind:
             try:
@@ -352,6 +390,9 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     }
     if wind:
         index["wind_lane"] = wind_lane.identity() if wind_lane is not None else None
+    if filled:
+        index["fill"] = {"mode": "targeted", "code": "coarse_gulf_fill.targeted_fill_vectors", "donor_region": "global_mid",
+                         "applies_to": "world boxes only (served span >= 350 deg); crops read the unfilled global_mid set"}
     body = json.dumps(index, sort_keys=True, separators=(",", ":")).encode("utf-8")
     index["path"] = f"{prefix}/index/{stamp(index['run'])}-{fb.sha256_hex(body)[:12]}.json"
     return index, stats
@@ -379,6 +420,20 @@ def retention_deletes(existing_paths, target, keep):
 
 
 def latest_record(index, previous_entry, written_at, writer):
-    return {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "coverage": index.get("coverage"),
-            "frames": sum(1 for f in index["frames"] if f.get("path")), "entries": len(index["frames"]),
-            "previous_index": (previous_entry or {}).get("index"), "written_at": written_at, "writer": writer}
+    rec = {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "coverage": index.get("coverage"),
+           "frames": sum(1 for f in index["frames"] if f.get("path")), "entries": len(index["frames"]),
+           "previous_index": (previous_entry or {}).get("index"), "written_at": written_at, "writer": writer}
+    if index.get("fill"):                  # the client serves a filled set only while /capabilities reports this mode
+        rec["fill_mode"] = index["fill"]["mode"]
+    return rec
+
+
+def fill_mode_off_record(previous_entry, mode, written_at, writer):
+    """The latest.json record of a filled set whose mode is no longer 'targeted' (frame_set_fill): no index and no fill_mode, so no
+    client serves an old filled index against a box in another mode. None when there is nothing to retire (no record, or one
+    already retired for this mode)."""
+    if not previous_entry or (previous_entry.get("empty") and previous_entry.get("fill_mode_off") == mode):
+        return None
+    return {"empty": True, "reason": f"fill mode {mode}: no filled frames", "fill_mode_off": mode,
+            "previous_index": previous_entry.get("index") or previous_entry.get("previous_index"),
+            "written_at": written_at, "writer": writer}
