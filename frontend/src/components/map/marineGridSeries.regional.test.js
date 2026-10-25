@@ -94,6 +94,8 @@ afterEach(() => {
   global.fetch = realFetch;
   delete global.__manifestFetch;
   delete global.__surf;
+  delete window.__RAW_SERIES_RETRY_DISABLED__;
+  _resetMarineSeriesForTest();      // deferred retries / prefetches of this test must not fire inside the next one
 });
 
 test('an ALL-MISS page (every hour outside the run) is the backend\'s: it asks /grid_series instead of claiming nothing', async () => {
@@ -105,6 +107,11 @@ test('an ALL-MISS page (every hour outside the run) is the backend\'s: it asks /
 });
 
 test('surf mode and models without bundles (ICON, EURO) never read a bundle or wait: their existing path', async () => {
+  // The mock backend answers 500, so every page here schedules the page-failure retry (marineGridSeries.scheduleFailRetry): a REAL
+  // timer, >= 1200 ms, that re-reads the surf flag when it fires. This test deletes the flag mid-way, so a retry landing after that
+  // (any event-loop stall of 1.2 s: a full-tree Jest run on a loaded box) was a plain GFS page -> a bundle read -> a false red. The
+  // retry is not what is under test; the kill the app ships for it (#4.3b) takes it out of the picture, deterministically.
+  window.__RAW_SERIES_RETRY_DISABLED__ = true;
   global.__surf = true;
   await getPinnedIndex(KEY);
   setCachedManifest(null);
