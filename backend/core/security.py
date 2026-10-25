@@ -125,22 +125,32 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 
 # ── Token Verification ────────────────────────────────────────────────────────
-def verify_token(token: str) -> dict:
+def verify_token(token: str, allow_scopes: tuple = ()) -> dict:
     """
     Verify a JWT token and return its decoded payload.
 
+    A token carrying a `scp` (scope) claim is a LIMITED token, e.g. the enrol-only token an account receives when
+    its role requires two-factor and it has none yet. Such a token is refused here unless the caller names its
+    scope in `allow_scopes`; only the MFA routes do, so every other route and the WebSockets reject it.
+
     Raises:
-        HTTPException 401 if token is invalid, expired, or tampered.
+        HTTPException 401 if token is invalid, expired, tampered, or limited to a scope the caller did not allow.
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload
     except JWTError as e:
         logger.error(f"Token verification failed: {e}")
         raise HTTPException(
             status_code=401,
             detail="Invalid or expired session. Please log in again.",
         )
+    scope = payload.get("scp")
+    if scope is not None and scope not in allow_scopes:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid or expired session. Please log in again.",
+        )
+    return payload
 
 
 # ── FastAPI Dependency ────────────────────────────────────────────────────────

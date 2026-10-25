@@ -24,6 +24,7 @@ import { ForgotPassword, ResetPassword } from './components/PasswordReset';
 const Feed                        = React.lazy(() => import('./components/Feed').then(m => ({ default: m.Feed })));
 const Profile                     = React.lazy(() => import('./components/Profile').then(m => ({ default: m.Profile })));
 const Settings                    = React.lazy(() => import('./components/Settings').then(m => ({ default: m.Settings })));
+const SecuritySettings            = React.lazy(() => import('./components/security/SecuritySettings').then(m => ({ default: m.SecuritySettings })));
 const MessagesPage                = React.lazy(() => import('./components/MessagesPage').then(m => ({ default: m.MessagesPage })));
 const MapPage                     = React.lazy(() => import('./components/MapPage').then(m => ({ default: m.MapPage })));
 const GalleryPage                 = React.lazy(() => import('./components/GalleryPage').then(m => ({ default: m.GalleryPage })));
@@ -160,6 +161,7 @@ function App() {
             <Route path="/profile/:userId" element={<ProtectedRoute><AppLayout><Lazy><Profile /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/post/:postId" element={<ProtectedRoute><AppLayout><Lazy><SinglePost /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute><AppLayout><Lazy><Settings /></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/settings/security" element={<ProtectedRoute><AppLayout><Lazy><SecuritySettings /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/theme" element={<ProtectedRoute><AppLayout><Lazy><ThemePage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/photographer/on-demand-settings" element={<ProtectedRoute><AppLayout><Lazy><OnDemandSettingsPage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/credits" element={<ProtectedRoute><AppLayout><Lazy><Credits /></Lazy></AppLayout></ProtectedRoute>} />

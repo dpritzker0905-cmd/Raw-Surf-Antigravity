@@ -36,12 +36,11 @@ export const REGIONAL_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 const BUNDLES_KEPT = 6;                 // bundles held in memory (the current and previous run of a few boxes; each 0.03-0.9 MB)
 
 const W = () => (typeof window !== 'undefined' ? window : {});
-// DARK until the LIVE parity passes (2026-10-23 evening): static-frames' live bundle-vs-/grid_series parity FAILED for
-// florida_east_coast (the whole-tile lattice differs; 465 of 585 sub-box nodes), so the server may answer these boxes from another
-// product than the tile, which would make the bundle a served-number change (D-001: dark). Opt in per browser with
-// window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true; the kill (__RAW_DISABLE_REGIONAL_BUNDLES__) still wins. Flip
-// REGIONAL_BUNDLES_DEFAULT_ON once the served product is named and the live parity passes.
-export const REGIONAL_BUNDLES_DEFAULT_ON = false;
+// ON BY DEFAULT (2026-10-24, owner-approved flip; ready-not-merged until the server-side MARINE_REGIONAL_TILE_FIRST=1 is live and
+// static-frames' live read passes). The server answers a pilot-tile box from the SAME tile the bundle holds once tile-first is on
+// (#508), so the bundle is no longer a served-number change. Kill: window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true. The old opt-in
+// (__RAW_ENABLE_REGIONAL_BUNDLES__) is now a no-op kept so harnesses and saved URLs do not break.
+export const REGIONAL_BUNDLES_DEFAULT_ON = true;
 export const regionalBundlesOn = () => W().__RAW_DISABLE_REGIONAL_BUNDLES__ !== true
   && (REGIONAL_BUNDLES_DEFAULT_ON || W().__RAW_ENABLE_REGIONAL_BUNDLES__ === true);
 

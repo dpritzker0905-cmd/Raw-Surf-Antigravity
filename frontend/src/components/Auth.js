@@ -11,6 +11,7 @@ import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
 import { wasSessionRejected } from '../lib/sessionRejection';
 import logger from '../utils/logger';
+import { MfaChallengeStep, MfaSetupStep } from './security/MfaSignInSteps';
 
 const ROLE_CONFIG = {
   surfer: {
@@ -59,6 +60,7 @@ export const Auth = () => {
   const redirectPath = searchParams.get('redirect');
   
   const [loading, setLoading] = useState(false);
+  const [mfaStep, setMfaStep] = useState(null); // the second-factor / required-setup screen after a password sign-in
   const [showPassword, setShowPassword] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
   const [tosAccepted, setTosAccepted] = useState(false);
@@ -99,6 +101,7 @@ export const Auth = () => {
   }, [showTosModal]);
 
   const handleTabChange = (newTab) => {
+    setMfaStep(null);
     if (newTab === 'login') {
       setSearchParams({ tab: 'login' });
     } else {
@@ -117,6 +120,28 @@ export const Auth = () => {
     setSelectedRole(null);
   };
 
+  // After a finished sign-in (password alone, or password + second factor): leave /auth for the right screen.
+  const finishSignIn = (userData) => {
+    toast.success('Welcome back!');
+    // Reset the history stack BEFORE navigating so the browser back button doesn't return to /auth.
+    window.history.replaceState(null, '', window.location.pathname);
+    if (redirectPath) {
+      navigate(redirectPath, { replace: true });
+      return;
+    }
+    // Groms with linked & approved parents get auto-access (no subscription needed)
+    const isLinkedGrom = userData.role === ROLES.GROM && userData.parent_id && userData.parent_link_approved;
+    if (!userData.subscription_tier && ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(userData.role) && !isLinkedGrom) {
+      navigate('/surfer-subscription', { replace: true });
+    } else if (!userData.subscription_tier && userData.role === ROLES.PHOTOGRAPHER) {
+      navigate('/photographer-subscription', { replace: true });
+    } else if (userData.role === ROLES.APPROVED_PRO && !userData.portfolio_url) {
+      navigate('/pro-onboarding', { replace: true });
+    } else {
+      navigate('/feed', { replace: true });
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -124,33 +149,12 @@ export const Auth = () => {
     try {
       if (isLogin) {
         const userData = await login(formData.email, formData.password);
-        toast.success('Welcome back!');
-        
-        // IMPORTANT: After login, we need to properly reset the history stack
-        // so that the browser back button doesn't go back to /auth
-        // This must happen BEFORE any navigation
-        window.history.replaceState(null, '', window.location.pathname);
-        
-        // Check for redirect path from protected route
-        if (redirectPath) {
-          // Use replace to prevent back button going to /auth
-          navigate(redirectPath, { replace: true });
+        // No session yet: the account owes a second factor, or its role must set one up first.
+        if (userData.mfa_required || userData.mfa_setup_required) {
+          setMfaStep(userData);
           return;
         }
-        
-        // Check routing based on user state
-        // Groms with linked & approved parents get auto-access (no subscription needed)
-        const isLinkedGrom = userData.role === ROLES.GROM && userData.parent_id && userData.parent_link_approved;
-        
-        if (!userData.subscription_tier && ['Grom', 'Surfer', 'Comp Surfer', 'Pro'].includes(userData.role) && !isLinkedGrom) {
-          navigate('/surfer-subscription', { replace: true });
-        } else if (!userData.subscription_tier && userData.role === ROLES.PHOTOGRAPHER) {
-          navigate('/photographer-subscription', { replace: true });
-        } else if (userData.role === ROLES.APPROVED_PRO && !userData.portfolio_url) {
-          navigate('/pro-onboarding', { replace: true });
-        } else {
-          navigate('/feed', { replace: true });
-        }
+        finishSignIn(userData);
       } else {
         if (!selectedRole) {
           toast.error('Please select a profile type');
@@ -298,8 +302,15 @@ export const Auth = () => {
         </div>
 
         <div className="px-6 pb-6">
+          {/* Second step of sign-in (two-step verification), shown instead of the form */}
+          {isLogin && mfaStep?.mfa_required && (
+            <MfaChallengeStep challenge={mfaStep} onSuccess={finishSignIn} onBack={() => setMfaStep(null)} />
+          )}
+          {isLogin && mfaStep?.mfa_setup_required && (
+            <MfaSetupStep setupToken={mfaStep.setup_token} onSuccess={finishSignIn} onBack={() => setMfaStep(null)} />
+          )}
           {/* Login Form */}
-          {isLogin && (
+          {isLogin && !mfaStep && (
             <form onSubmit={handleSubmit} className="space-y-4 mt-6">
               <label htmlFor="login-email" className="sr-only">Email address</label>
               <Input

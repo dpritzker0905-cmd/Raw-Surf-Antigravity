@@ -165,7 +165,12 @@ jobs:
             // Regional client dark by default (2026-10-23 evening, the live parity failed): +1 test.
             // Frame store regional show (2026-10-24): marineFrameStoreRegional.test.js, +1 suite / +39 tests (27 real-frame encoder parity
             // cases, 2 identity, 10 runtime). Raised by exactly its own count from the floor above; confirm against the hosted receipt.
-            const MIN_SUITES = 517, MIN_TESTS = 6815;
+            // Regional bundles ON by default (2026-10-24): staticRegional.test.js's one dark-by-default test becomes default / kill /
+            // kill-beats-opt-in (+2 tests, +0 suites; staticFrames.crop.test.js keeps its count). Raised by exactly that; confirm
+            // against the hosted receipt.
+            // Load-dependent regional tests (2026-10-25): marineFrameStoreRegional.test.js's chained 'ends it' test becomes three, +2 tests / +0
+            // suites. Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 517, MIN_TESTS = 6819;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1556,7 +1561,11 @@ jobs:
           #   base 2932 (hosted read) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
           # ⬆ 2927→2949 on 2026-10-25 (rederive_floor.py, claude/lucid-spence-be3ff0): dev run 40139317894 read 2933 / 179 files; dev's map 2933;
           #   base 2933 (hosted read) + 22 new test(s) and 1 new file(s) = 2955, files 180; floor 2955 - 6 = 2949. This PR must read 2955 passed.
-          MIN_FILES, MIN_PASSED = 180, 2949
+          # ⬆ 2949→2961 on 2026-10-25 (rederive_floor.py, claude/world-frames-targeted-fill): dev run 40205627126 read 2955 / 180 files; dev's map 2955;
+          #   base 2955 (hosted read) + 12 new test(s) and 1 new file(s) = 2967, files 181; floor 2967 - 6 = 2961. This PR must read 2967 passed.
+          # ⬆ 2961→2966 on 2026-10-25 (rederive_floor.py, claude/pilot-whole-degree-edges): dev run 40207735443 read 2955 / 180 files; dev's map 2967;
+          #   base 2967 (dev's map) + 5 new test(s) and 1 new file(s) = 2972, files 182; floor 2972 - 6 = 2966. This PR must read 2972 passed.
+          MIN_FILES, MIN_PASSED = 182, 2966
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2064,9 +2073,11 @@ jobs:
           #   base 2797 (hosted read) + 14 new test(s) = 2811; floor 2811 - 2 = 2809. This PR must read 2811 passed.
           # ⬆ 2809→2850 on 2026-10-25 (rederive_floor.py, fix/audit-10-18-backend-defects): dev run 40171438269 read 2811; dev's map 2811;
           #   base 2811 (hosted read) + 41 new test(s) = 2852; floor 2852 - 2 = 2850. This PR must read 2852 passed.
-          # ⬆ 2850→2877 on 2026-10-25 (rederive_floor.py, claude/funded-basis-payout): dev run 40184588931 read 2852; dev's map 2852;
-          #   base 2852 (hosted read) + 27 new test(s) = 2879; floor 2879 - 2 = 2877. This PR must read 2879 passed.
-          MIN_PASSED = 2877
+          # ⬆ 2850→2930 on 2026-10-25 (rederive_floor.py, claude/mfa-totp): dev run 40184588931 read 2852; dev's map 2852;
+          #   base 2852 (hosted read) + 80 new test(s) = 2932; floor 2932 - 2 = 2930. This PR must read 2932 passed.
+          # ⬆ 2930→2960 on 2026-10-25 (rederive_floor.py, claude/funded-basis-payout): dev run 40217523017 read 2852; dev's map 2932;
+          #   base 2932 (dev's map) + 30 new test(s) = 2962; floor 2962 - 2 = 2960. This PR must read 2962 passed.
+          MIN_PASSED = 2960
 
           try:
               root = ET.parse('estate.xml').getroot()
