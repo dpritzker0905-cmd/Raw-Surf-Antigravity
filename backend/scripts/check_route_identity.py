@@ -71,6 +71,8 @@ PUBLIC_WRITES = {
     ("POST", "/api/auth/verify-reset-token"): "checks the emailed reset token in the body",
     ("POST", "/api/site-access/verify"): "pre-login access-code check",
     ("POST", "/api/webhook/stripe"): "authorised by the Stripe signature; fails closed without STRIPE_WEBHOOK_SECRET",
+    ("POST", "/api/email/webhook"):
+        "authorised by the provider (Svix) signature; fails closed (503) without EMAIL_WEBHOOK_SECRET",
     ("POST", "/api/internal/events/broadcast"):
         "server-to-server: authorised by the X-Internal-Token shared secret; closed while INTERNAL_BROADCAST_TOKEN is unset",
 }
