@@ -26,7 +26,7 @@ from core.mfa_secrets import (
     MfaKeyError, decrypt_secret, encrypt_secret, generate_recovery_codes, hash_recovery_code,
     new_opaque_token, recovery_code_matches, token_digest,
 )
-from models import MfaChallenge, MfaRecoveryCode, Notification, UserMfa
+from models import MfaChallenge, MfaRecoveryCode, Notification, UserMfa, WebauthnCredential
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,10 @@ async def get_factor_state(db: AsyncSession, user_id: str) -> FactorState:
         select(func.count()).select_from(MfaRecoveryCode)
         .where(MfaRecoveryCode.user_id == user_id, MfaRecoveryCode.used_at.is_(None))
     )).scalar_one()
-    return FactorState(totp=has_totp, passkeys=0, recovery_remaining=int(remaining or 0))
+    passkeys = (await db.execute(
+        select(func.count()).select_from(WebauthnCredential).where(WebauthnCredential.user_id == user_id)
+    )).scalar_one()
+    return FactorState(totp=has_totp, passkeys=int(passkeys or 0), recovery_remaining=int(remaining or 0))
 
 
 # ── Login challenges ──────────────────────────────────────────────────────────
@@ -141,6 +144,15 @@ async def reserve_challenge_attempt(db: AsyncSession, token: str) -> Optional[Tu
         select(MfaChallenge.user_id, MfaChallenge.attempts).where(MfaChallenge.token_hash == digest)
     )).one()
     return row.user_id, int(row.attempts)
+
+
+async def peek_challenge(db: AsyncSession, token: str) -> Optional[str]:
+    """The user a LIVE challenge belongs to (no attempt spent), or None."""
+    return (await db.execute(
+        select(MfaChallenge.user_id).where(
+            MfaChallenge.token_hash == token_digest(token), MfaChallenge.consumed_at.is_(None),
+            MfaChallenge.expires_at > utcnow(), MfaChallenge.attempts < CHALLENGE_MAX_ATTEMPTS)
+    )).scalar_one_or_none()
 
 
 async def consume_challenge(db: AsyncSession, token: str) -> bool:
@@ -252,9 +264,17 @@ async def finish_totp_enrolment(db: AsyncSession, user_id: str, code: str) -> Op
     if won.rowcount != 1:
         await db.rollback()
         raise AlreadyEnrolled()
-    codes = await _replace_recovery_codes(db, user_id)
+    # The first factor of any kind creates the recovery codes; adding a second factor keeps the ones already saved.
+    codes = await _ensure_recovery_codes(db, user_id)
     await db.commit()
     return codes
+
+
+async def _ensure_recovery_codes(db: AsyncSession, user_id: str) -> List[str]:
+    existing = (await db.execute(
+        select(func.count()).select_from(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user_id)
+    )).scalar_one()
+    return [] if existing else await _replace_recovery_codes(db, user_id)
 
 
 async def _replace_recovery_codes(db: AsyncSession, user_id: str) -> List[str]:
@@ -271,19 +291,17 @@ async def regenerate_recovery_codes(db: AsyncSession, user_id: str) -> List[str]
     return codes
 
 
-async def ensure_recovery_codes(db: AsyncSession, user_id: str) -> Optional[List[str]]:
-    """Codes for a user who has none yet (the first factor of any kind creates them); None if they already exist."""
-    existing = (await db.execute(
-        select(func.count()).select_from(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user_id)
-    )).scalar_one()
-    if existing:
-        return None
-    return await regenerate_recovery_codes(db, user_id)
+async def ensure_recovery_codes(db: AsyncSession, user_id: str) -> List[str]:
+    """Codes for a user who has none yet (the first factor of any kind creates them); [] if they already exist."""
+    codes = await _ensure_recovery_codes(db, user_id)
+    await db.commit()
+    return codes
 
 
 async def remove_all_factors(db: AsyncSession, user_id: str) -> None:
     await db.execute(_delete(MfaRecoveryCode).where(MfaRecoveryCode.user_id == user_id))
     await db.execute(_delete(MfaChallenge).where(MfaChallenge.user_id == user_id))
+    await db.execute(_delete(WebauthnCredential).where(WebauthnCredential.user_id == user_id))
     await db.execute(_delete(UserMfa).where(UserMfa.user_id == user_id))
     await db.commit()
 
