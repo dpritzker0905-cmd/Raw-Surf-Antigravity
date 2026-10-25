@@ -183,6 +183,7 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         
         parent_id = None
         guardian_code = None
+        signup_named_guardian = None
         parent_link_approved = True  # Default to approved for non-Groms
         birthdate_parsed = None
         parental_controls = None
@@ -200,49 +201,21 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
             if not data.parent_email and not data.parent_username:
                 raise HTTPException(status_code=400, detail="Parent/Guardian email or username required for Grom accounts")
             
-            # Generate guardian code (6-digit alphanumeric)
-            guardian_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-            
-            # Try to find existing parent by email or username
-            parent = None
+            # A child naming an adult links NOTHING (audit F-01): no `parent_id` is written and the permanent
+            # per-child code is retired. After the profile exists the child gets a one-time code
+            # (services/guardian_links.offer_code_at_signup) and the named adult, if they have an account, is told.
+            # Exact match only: the old substring match on names could hand a stranger a child's code.
             if data.parent_email:
                 parent_result = await db.execute(select(Profile).where(Profile.email == data.parent_email))
-                parent = parent_result.scalar_one_or_none()
+                signup_named_guardian = parent_result.scalar_one_or_none()
             elif data.parent_username:
-                # Search by full_name or email prefix
                 parent_result = await db.execute(
-                    select(Profile).where(
-                        (Profile.full_name.ilike(f"%{data.parent_username}%")) |
-                        (Profile.email.ilike(f"{data.parent_username}%"))
-                    )
+                    select(Profile).where(func.lower(Profile.username) == data.parent_username.lower().strip().lstrip('@'))
                 )
-                parent = parent_result.scalars().first()
-            
-            if parent:
-                # Scenario B: Existing parent - link but require approval
-                parent_id = parent.id
-                parent_link_approved = False  # Requires parent approval
-                
-                # Send in-app notification to parent
-                from models import Notification
-                import json
-                notification = Notification(
-                    user_id=parent.id,
-                    type='grom_link_request',
-                    title='New Grom Account Created',
-                    body=f'A new Grom account was created with your email. Use Guardian Code: {guardian_code} to link and approve.',
-                    data=json.dumps({
-                        'grom_email': data.email,
-                        'guardian_code': guardian_code,
-                        'alert_type': 'grom_link_request'
-                    })
-                )
-                db.add(notification)
-            else:
-                # Scenario A: New parent - send email invitation
-                parent_link_approved = False  # Requires parent to register and approve
-                # Email invitation would be sent here (not implemented - requires email service)
-            
+                signup_named_guardian = parent_result.scalar_one_or_none()
+            parent_link_approved = False  # unconfirmed until the child's code is redeemed / invite confirmed
+            # An emailed invitation to an adult with no account is the email service's job (not built here).
+
             # Set default parental controls based on age
             if birthdate_parsed:
                 today = date.today()
@@ -330,7 +303,10 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         
         db.add(profile)
         await db.flush()  # Get profile.id before creating verification request
-        
+        if role_enum == RoleEnum.GROM:
+            from services.guardian_links import offer_code_at_signup
+            await offer_code_at_signup(db, profile, signup_named_guardian)
+
         # ============ AUTO-CREATE VERIFICATION REQUEST FOR PRO ROLES ============
         # When someone signs up as APPROVED_PRO, auto-create a pending verification request
         if role_enum == RoleEnum.APPROVED_PRO:

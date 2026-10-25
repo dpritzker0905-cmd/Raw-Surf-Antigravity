@@ -50,9 +50,10 @@ def _parent(role, is_grom_parent=False):
     return SimpleNamespace(id="caller", role=role, is_grom_parent=is_grom_parent, credit_balance=100)
 
 
-def _grom(parent_id):
-    return SimpleNamespace(id="g1", role=RoleEnum.GROM, parent_id=parent_id, full_name="G", subscription_tier="free",
-                           is_ad_supported=True)
+def _grom(parent_id, approved=True):
+    # a link is confirmed only with parent_link_approved (guardian program: a bare parent_id is a claim)
+    return SimpleNamespace(id="g1", role=RoleEnum.GROM, parent_id=parent_id, parent_link_approved=approved,
+                           full_name="G", subscription_tier="free", is_ad_supported=True)
 
 
 @pytest.mark.parametrize("role", [RoleEnum.HOBBYIST, RoleEnum.GROM_PARENT])
@@ -61,6 +62,15 @@ def test_unlinked_grom_is_refused_and_no_credits_move(pay, role):
     response, db = pay(parent, _grom("someone-else"))
     assert response.status_code == 403
     assert response.json().get("detail") == "Grom is not linked to this parent"
+    assert parent.credit_balance == 100
+    assert db.commit.await_count == 0
+
+
+@pytest.mark.parametrize("role", [RoleEnum.HOBBYIST, RoleEnum.GROM_PARENT])
+def test_an_unconfirmed_claim_cannot_spend_credits(pay, role):
+    parent = _parent(role)
+    response, db = pay(parent, _grom("caller", approved=False))
+    assert response.status_code == 403
     assert parent.credit_balance == 100
     assert db.commit.await_count == 0
 
