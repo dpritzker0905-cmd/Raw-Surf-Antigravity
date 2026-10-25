@@ -11,7 +11,7 @@ import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
 import { wasSessionRejected } from '../lib/sessionRejection';
 import logger from '../utils/logger';
-import { MfaChallengeStep, MfaSetupStep } from './security/MfaSignInSteps';
+import { MfaChallengeStep, MfaSetupStep, PasskeySignInButton } from './security/MfaSignInSteps';
 
 const ROLE_CONFIG = {
   surfer: {
@@ -307,7 +307,7 @@ export const Auth = () => {
             <MfaChallengeStep challenge={mfaStep} onSuccess={finishSignIn} onBack={() => setMfaStep(null)} />
           )}
           {isLogin && mfaStep?.mfa_setup_required && (
-            <MfaSetupStep setupToken={mfaStep.setup_token} onSuccess={finishSignIn} onBack={() => setMfaStep(null)} />
+            <MfaSetupStep setupToken={mfaStep.setup_token} methods={mfaStep.methods} onSuccess={finishSignIn} onBack={() => setMfaStep(null)} />
           )}
           {/* Login Form */}
           {isLogin && !mfaStep && (
@@ -363,6 +363,7 @@ export const Auth = () => {
               >
                 Forgot your password?
               </button>
+              <PasskeySignInButton onSuccess={finishSignIn} />
             </form>
           )}
 

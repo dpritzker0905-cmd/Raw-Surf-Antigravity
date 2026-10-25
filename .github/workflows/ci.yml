@@ -2075,9 +2075,11 @@ jobs:
           #   base 2811 (hosted read) + 41 new test(s) = 2852; floor 2852 - 2 = 2850. This PR must read 2852 passed.
           # ⬆ 2850→2930 on 2026-10-25 (rederive_floor.py, claude/mfa-totp): dev run 40184588931 read 2852; dev's map 2852;
           #   base 2852 (hosted read) + 80 new test(s) = 2932; floor 2932 - 2 = 2930. This PR must read 2932 passed.
-          # ⬆ 2930→2972 on 2026-10-25 (rederive_floor.py, claude/credit-debit-guards): dev run 40219219571 read 2932; dev's map 2932;
-          #   base 2932 (hosted read) + 42 new test(s) = 2974; floor 2974 - 2 = 2972. This PR must read 2974 passed.
-          MIN_PASSED = 2972
+          # ⬆ 2930→2980 on 2026-10-25 (rederive_floor.py, claude/mfa-passkeys-rechain): dev run 40217523017 read 2852; dev's map 2932;
+          #   base 2932 (dev's map) + 50 new test(s) = 2982; floor 2982 - 2 = 2980. This PR must read 2982 passed.
+          # ⬆ 2980→3022 on 2026-10-25 (rederive_floor.py, claude/credit-debit-guards): dev run 40223456888 read 2982; dev's map 2982;
+          #   base 2982 (hosted read) + 42 new test(s) = 3024; floor 3024 - 2 = 3022. This PR must read 3024 passed.
+          MIN_PASSED = 3022
 
           try:
               root = ET.parse('estate.xml').getroot()

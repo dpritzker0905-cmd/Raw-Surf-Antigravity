@@ -20,6 +20,7 @@ from core.mfa_policy import profile_requires_mfa
 from core.mfa_secrets import MfaKeyError, mfa_configured, warn_if_unconfigured
 from core.rate_limiter import rate_limit_check
 from core.security import create_access_token, verify_token
+from core.webauthn_config import passkeys_available
 from core import totp as totp_core
 from database import get_db
 from models import Profile
@@ -129,7 +130,7 @@ async def mfa_login_gate(db: AsyncSession, profile: Profile) -> Optional[dict]:
             "mfa_setup_required": True,
             "setup_token": setup_token,
             "expires_in": int(SETUP_TOKEN_TTL.total_seconds()),
-            "methods": ["totp"],
+            "methods": ["totp", "passkey"] if passkeys_available() else ["totp"],
         }
     return None
 
@@ -142,6 +143,26 @@ class MfaLoginRequest(BaseModel):
 
 
 EXPIRED = "Sign-in expired. Please start again."
+
+
+async def reject_attempt(db: AsyncSession, challenge_token: str, attempts_used: int, what: str) -> None:
+    """A wrong second factor (code or passkey): tell the person how many tries remain; the last miss kills the challenge."""
+    remaining = svc.CHALLENGE_MAX_ATTEMPTS - attempts_used
+    if remaining <= 0:
+        await svc.consume_challenge(db, challenge_token)
+        raise HTTPException(status_code=401, detail=EXPIRED)
+    raise HTTPException(status_code=401, detail=f"{what} {remaining} {'attempt' if remaining == 1 else 'attempts'} left.")
+
+
+async def finish_second_step(db: AsyncSession, challenge_token: str, user_id: str, method: str) -> dict:
+    """The factor verified: spend the challenge (exactly one caller wins it) and issue the session."""
+    if not await svc.consume_challenge(db, challenge_token):
+        raise HTTPException(status_code=401, detail=EXPIRED)  # a concurrent request won this challenge
+    profile = await _profile(db, user_id)
+    token = create_access_token({"sub": profile.id, "role": profile.role.value, "amr": ["pwd", method]})
+    payload = session_payload(profile, token)
+    payload["mfa_method"] = "passkey" if method == "webauthn" else method
+    return payload
 
 
 @router.post("/auth/login/mfa")
@@ -163,21 +184,11 @@ async def login_mfa(request: Request, data: MfaLoginRequest, db: AsyncSession = 
         raise HTTPException(status_code=503, detail=UNAVAILABLE)
 
     if method is None:
-        remaining = svc.CHALLENGE_MAX_ATTEMPTS - attempts_used
-        if remaining <= 0:
-            await svc.consume_challenge(db, data.challenge_token)  # the last miss kills the challenge
-            raise HTTPException(status_code=401, detail=EXPIRED)
-        raise HTTPException(status_code=401, detail=f"Incorrect code. {remaining} "
-                            f"{'attempt' if remaining == 1 else 'attempts'} left.")
+        await reject_attempt(db, data.challenge_token, attempts_used, "Incorrect code.")
 
-    if not await svc.consume_challenge(db, data.challenge_token):
-        raise HTTPException(status_code=401, detail=EXPIRED)  # a concurrent request won this challenge
-
-    profile = await _profile(db, user_id)
-    token = create_access_token({"sub": profile.id, "role": profile.role.value, "amr": ["pwd", method]})
-    payload = session_payload(profile, token)
-    payload["mfa_method"] = method
+    payload = await finish_second_step(db, data.challenge_token, user_id, method)
     if method == "recovery":
+        profile = await _profile(db, user_id)
         state = await svc.get_factor_state(db, profile.id)
         payload["recovery_codes_remaining"] = state.recovery_remaining
         await svc.notify_security_event(
@@ -216,6 +227,7 @@ async def mfa_status(request: Request, caller: MfaCaller = Depends(mfa_caller), 
         "passkeys": state.passkeys,
         "recovery_codes_remaining": state.recovery_remaining,
         "enrolment_available": mfa_configured(),
+        "passkeys_available": mfa_configured() and passkeys_available(),
         "required": profile_requires_mfa(profile),
         "setup_only": caller.setup_only,
     }
