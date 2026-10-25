@@ -2064,7 +2064,9 @@ jobs:
           #   base 2797 (hosted read) + 14 new test(s) = 2811; floor 2811 - 2 = 2809. This PR must read 2811 passed.
           # ⬆ 2809→2850 on 2026-10-25 (rederive_floor.py, fix/audit-10-18-backend-defects): dev run 40171438269 read 2811; dev's map 2811;
           #   base 2811 (hosted read) + 41 new test(s) = 2852; floor 2852 - 2 = 2850. This PR must read 2852 passed.
-          MIN_PASSED = 2850
+          # ⬆ 2850→2877 on 2026-10-25 (rederive_floor.py, claude/funded-basis-payout): dev run 40184588931 read 2852; dev's map 2852;
+          #   base 2852 (hosted read) + 27 new test(s) = 2879; floor 2879 - 2 = 2877. This PR must read 2879 passed.
+          MIN_PASSED = 2877
 
           try:
               root = ET.parse('estate.xml').getroot()
