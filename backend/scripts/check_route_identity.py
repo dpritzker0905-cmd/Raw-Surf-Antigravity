@@ -74,6 +74,10 @@ PUBLIC_WRITES = {
     ("POST", "/api/auth/reset-password"): "authorised by the emailed reset token in the body",
     ("POST", "/api/auth/verify-reset-token"): "checks the emailed reset token in the body",
     ("POST", "/api/auth/login/mfa"): "second step of sign-in: authorised by the single-use challenge from a correct password",
+    ("POST", "/api/auth/login/passkey/options"): "starts a passkey sign-in: the caller has no token yet; issues only a random challenge",
+    ("POST", "/api/auth/login/passkey/verify"): "passkey sign-in: authorised by a signed assertion over a single-use challenge",
+    ("POST", "/api/auth/login/mfa/passkey/options"): "passkey as the second step: needs the live single-use sign-in challenge",
+    ("POST", "/api/auth/login/mfa/passkey/verify"): "passkey as the second step: a signed assertion plus the live single-use sign-in challenge",
     ("POST", "/api/site-access/verify"): "pre-login access-code check",
     ("POST", "/api/webhook/stripe"): "authorised by the Stripe signature; fails closed without STRIPE_WEBHOOK_SECRET",
     ("POST", "/api/email/webhook"):

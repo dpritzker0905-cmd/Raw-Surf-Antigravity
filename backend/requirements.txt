@@ -25,6 +25,9 @@ Mako==1.3.3
 livekit-api==0.7.1
 psutil==5.9.8
 cryptography==42.0.5
+# Passkeys (WebAuthn). 2.2.0 is the newest py_webauthn that installs next to the pinned cryptography above: 2.3.0 and
+# later (and 3.x) require a newer cryptography. Raise both together, never one alone.
+webauthn==2.2.0
 httptools==0.6.1
 uvloop==0.19.0
 wsproto==1.2.0
