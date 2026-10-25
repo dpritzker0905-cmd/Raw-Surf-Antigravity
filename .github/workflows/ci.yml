@@ -2064,7 +2064,9 @@ jobs:
           #   base 2797 (hosted read) + 14 new test(s) = 2811; floor 2811 - 2 = 2809. This PR must read 2811 passed.
           # ⬆ 2809→2850 on 2026-10-25 (rederive_floor.py, fix/audit-10-18-backend-defects): dev run 40171438269 read 2811; dev's map 2811;
           #   base 2811 (hosted read) + 41 new test(s) = 2852; floor 2852 - 2 = 2850. This PR must read 2852 passed.
-          MIN_PASSED = 2850
+          # ⬆ 2850→2901 on 2026-10-25 (rederive_floor.py, guardian/pr1-links-and-levels): dev run 40178049431 read 2852; dev's map 2852;
+          #   base 2852 (hosted read) + 51 new test(s) = 2903; floor 2903 - 2 = 2901. This PR must read 2903 passed.
+          MIN_PASSED = 2901
 
           try:
               root = ET.parse('estate.xml').getroot()
