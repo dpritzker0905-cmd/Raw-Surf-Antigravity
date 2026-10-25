@@ -35,7 +35,7 @@ import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, 
 import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
-import { filledWorldPossible, filledWorldSetKey, serveTimeFillAtWorld } from './staticWorldFillGuard';
+import { filledWorldPossible, filledWorldSetKey, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -262,7 +262,7 @@ async function readLatest(force) {
   if (!force && _state.latestAt && now - _state.latestAt < ttl) return _state.latest;
   if (_state.latestLoad) return _state.latestLoad;
   _state.latestLoad = loadJson(base + LATEST_PATH, true)
-    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); _state.latestFails = 0; return j; })
+    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); _state.latestFails = 0; preloadFilledIndexes(j, loadIndex, staticSetEnabled); return j; })
     .catch(() => { _state.latestAt = Date.now(); _state.latestFails += 1; return _state.latest; })
     .finally(() => { _state.latestLoad = null; });
   return _state.latestLoad;
@@ -767,6 +767,7 @@ export function prewarmStaticFrames({ model = 'GFS', layer = 'waves' } = {}) {
   const idle = (fn) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 0));
   _prewarm = getPinnedIndex(key).then((index) => {
     rec.indexMs = ms();
+    preloadFilledIndexes(_state.latest, loadIndex, staticSetEnabled);   // again once /capabilities has likely loaded (the guard reads it)
     if (!index) { rec.skipped = 'no_index'; return null; }
     const base = window.__MOCK_DATE_NOW__ || Date.now();
     const frame = pickIndexFrame(index, Math.round(base / 3600000) * 3600000);   // the app's hour 0 (getSeriesAnchorMs)
