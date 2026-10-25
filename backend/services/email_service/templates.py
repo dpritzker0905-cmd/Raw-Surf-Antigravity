@@ -22,7 +22,7 @@ from . import config
 INVITE_EXPIRY_HOURS = 48
 
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{16,200}$")
-_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f  ]+")
+_CONTROL_RE = re.compile("[\x00-\x1f\x7f\u2028\u2029]+")
 
 
 class TemplateError(ValueError):
@@ -193,26 +193,79 @@ def _dispute_opened(p: dict) -> _Body:
     )
 
 
-TEMPLATES: Dict[str, Tuple[Tuple[str, ...], Callable[[dict], _Body]]] = {
-    "guardian_invite": (("child_display_name", "token"), _guardian_invite),
-    "guardian_confirmed": (("child_display_name",), _guardian_confirmed),
-    "login_new_device": (("device", "when", "token"), _login_new_device),
-    "account_lockout_notice": (("locked_until",), _account_lockout_notice),
-    "dispute_opened": (("reference",), _dispute_opened),
+def _password_reset(p: dict) -> _Body:
+    return _Body(
+        subject="Reset your Raw Surf password",
+        heading="Reset your password",
+        paragraphs=(
+            "We received a request to reset the password for your Raw Surf account.",
+            "This link works once and expires soon.",
+        ),
+        cta_label="Choose a new password",
+        cta_url=build_link("/reset-password", p["token"]),
+        footnote="If you did not ask for this, ignore this email. Your password stays the same.",
+    )
+
+
+MAX_DIGEST_ITEMS = 20
+
+
+def _notice_digest(p: dict) -> _Body:
+    items = p["items"]
+    if not isinstance(items, (list, tuple)) or not items:
+        raise TemplateError("bad_param")
+    lines = tuple(clean(i.get("summary") if isinstance(i, dict) else i, 160) for i in items[:MAX_DIGEST_ITEMS])
+    count = len(lines)
+    return _Body(
+        subject=f"{count} updates on Raw Surf",
+        heading=f"{count} updates on your account",
+        paragraphs=lines,
+        cta_label="Open Raw Surf",
+        cta_url=build_link("/notifications"),
+        footnote="We combine routine notices into one email. Security emails are always sent on their own.",
+    )
+
+
+SECURITY = "security"  # never delayed by the daily budget; sent on their own
+LOW = "low"            # routine notices: held to a share of the daily budget and merged into a digest
+
+
+@dataclass(frozen=True)
+class TemplateSpec:
+    required: Tuple[str, ...]
+    builder: Callable[[dict], _Body]
+    priority: str = SECURITY
+    summary: Optional[Callable[[dict], str]] = None  # one line for a digest; only LOW templates have one
+
+
+TEMPLATES: Dict[str, TemplateSpec] = {
+    "guardian_invite": TemplateSpec(("child_display_name", "token"), _guardian_invite),
+    "guardian_confirmed": TemplateSpec(("child_display_name",), _guardian_confirmed),
+    "login_new_device": TemplateSpec(("device", "when", "token"), _login_new_device),
+    "account_lockout_notice": TemplateSpec(("locked_until",), _account_lockout_notice),
+    "password_reset": TemplateSpec(("token",), _password_reset),
+    "dispute_opened": TemplateSpec(
+        ("reference",), _dispute_opened, priority=LOW,
+        summary=lambda p: f"A dispute (reference {clean(p['reference'], 40)}) was opened on your account."),
+    "notice_digest": TemplateSpec(("items",), _notice_digest, priority=LOW),
 }
 
 
+def priority_of(template: str) -> str:
+    spec = TEMPLATES.get(template)
+    return spec.priority if spec else SECURITY
+
+
 def render(template: str, params: Optional[dict] = None) -> RenderedEmail:
-    entry = TEMPLATES.get(template)
-    if entry is None:
+    spec = TEMPLATES.get(template)
+    if spec is None:
         raise TemplateError("unknown_template")
-    required, builder = entry
     params = params or {}
-    missing = [name for name in required if params.get(name) in (None, "")]
+    missing = [name for name in spec.required if params.get(name) in (None, "")]
     if missing:
         raise TemplateError("missing_param:" + ",".join(missing))
     try:
-        return _layout(builder(params))
+        return _layout(spec.builder(params))
     except (TypeError, ValueError) as exc:
         if isinstance(exc, TemplateError):
             raise

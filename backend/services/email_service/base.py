@@ -13,7 +13,8 @@ def normalize_address(address: str) -> str:
 
 def is_valid_address(address: str) -> bool:
     """Deliberately strict: one plain mailbox, no display name, no list, no control characters."""
-    return bool(address) and len(address) <= 254 and bool(_ADDRESS_RE.match(address))
+    # fullmatch, not match + "$": `$` also matches before a trailing "\n", which would let a newline through.
+    return bool(address) and len(address) <= 254 and bool(_ADDRESS_RE.fullmatch(address))
 
 
 def address_hash(address: str) -> str:

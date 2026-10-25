@@ -2,11 +2,14 @@
 
   EMAIL_PROVIDER      resend | console | (unset or anything else = disabled)
   EMAIL_API_KEY       provider credential (Render env only)
-  EMAIL_FROM          sender, e.g. "Raw Surf <no-reply@mail.example.com>"
+  EMAIL_FROM          sender, e.g. "Raw Surf <no-reply@notify.raw.surf>" (a SUBDOMAIN, never the apex)
+  REPLY_TO            optional Reply-To mailbox (a human-read inbox); unset = no Reply-To header
   FRONTEND_URL        base of every emailed link
   EMAIL_WEBHOOK_SECRET  bounce/complaint webhook signing secret; the webhook is closed while unset
-  EMAIL_RATE_PER_RECIPIENT_PER_HOUR   default 5
-  EMAIL_RATE_GLOBAL_PER_HOUR          default 200
+  EMAIL_DAILY_CAP     sends per UTC day the budget guard plans around; default 100 (Resend free plan)
+  EMAIL_DIGEST_WINDOW_MINUTES         how long low-priority notices wait to be merged; default 30
+  EMAIL_RATE_PER_RECIPIENT_PER_HOUR   default 5 (counted per priority class)
+  EMAIL_RATE_GLOBAL_PER_HOUR          default 200 (counted per priority class)
   EMAIL_MAX_ATTEMPTS                  default 3
   EMAIL_CONSOLE_DIR   console provider only: also write each rendered message to this folder (dev)
 """
@@ -31,6 +34,18 @@ def api_key() -> str:
 
 def email_from() -> str:
     return (os.environ.get("EMAIL_FROM") or "").strip()
+
+
+def reply_to() -> str:
+    return (os.environ.get("REPLY_TO") or "").strip()
+
+
+def daily_cap() -> int:
+    return _int_env("EMAIL_DAILY_CAP", 100, hi=10_000_000)
+
+
+def digest_window_minutes() -> int:
+    return _int_env("EMAIL_DIGEST_WINDOW_MINUTES", 30, lo=0, hi=1440)
 
 
 def frontend_url() -> str:

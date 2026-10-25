@@ -32,6 +32,8 @@ class EmailOutbox(Base):
     recipient_hash = Column(String(64), nullable=False, index=True)
     recipient_address = Column(String(320), nullable=True)   # cleared at a terminal state
     payload = Column(JSON(none_as_null=True), nullable=True)                   # template params; cleared at a terminal state
+    priority = Column(String(12), nullable=False, default="security")  # security | low (see templates.py)
+    not_before = Column(DateTime(timezone=True), nullable=True)  # a queued row is not sent before this
     status = Column(String(16), nullable=False, default="queued")  # queued | sent | failed | suppressed
     attempts = Column(Integer, nullable=False, default=0)
     idempotency_key = Column(String(200), nullable=False, unique=True)

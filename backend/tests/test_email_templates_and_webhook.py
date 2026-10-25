@@ -31,6 +31,9 @@ SAMPLE = {
     "login_new_device": {"device": "Firefox on Windows", "when": "24 Oct 2026, 19:40 UTC", "token": TOKEN},
     "account_lockout_notice": {"locked_until": "24 Oct 2026, 20:10 UTC"},
     "dispute_opened": {"reference": "D-1042"},
+    "password_reset": {"token": TOKEN},
+    "notice_digest": {"items": [{"summary": "A dispute (reference D-1) was opened on your account."},
+                                {"summary": "A dispute (reference D-2) was opened on your account."}]},
 }
 
 
@@ -127,6 +130,21 @@ def test_missing_and_unknown_inputs_are_template_errors():
         render("guardian_invite", {"child_display_name": "Kai"})
     with pytest.raises(TemplateError, match="bad_param"):
         render("guardian_invite", {**SAMPLE["guardian_invite"], "expires_hours": "soon"})
+
+
+def test_password_reset_uses_the_existing_reset_link_shape():
+    out = render("password_reset", SAMPLE["password_reset"])
+    assert f"{BASE}/reset-password?token={TOKEN}" in out.text and "works once" in out.text
+
+
+def test_the_digest_lists_every_item_escaped_and_is_capped():
+    out = render("notice_digest", {"items": [{"summary": "<b>one</b>"}, "two"]})
+    assert out.subject == "2 updates on Raw Surf" and "&lt;b&gt;one&lt;/b&gt;" in out.html and "<b>" not in out.html
+    big = render("notice_digest", {"items": [{"summary": f"item {n}"} for n in range(50)]})
+    assert big.text.count("item ") == templates.MAX_DIGEST_ITEMS
+    for bad in ({"items": []}, {"items": "nope"}):
+        with pytest.raises(TemplateError):
+            render("notice_digest", bad)
 
 
 def test_the_expiry_constant_matches_the_policy():

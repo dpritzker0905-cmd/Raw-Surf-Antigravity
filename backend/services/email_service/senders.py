@@ -58,10 +58,12 @@ class ResendSender(EmailSender):
 
     name = "resend"
 
-    def __init__(self, api_key: str, sender: str, transport: Optional[httpx.AsyncBaseTransport] = None) -> None:
+    def __init__(self, api_key: str, sender: str, transport: Optional[httpx.AsyncBaseTransport] = None,
+                 reply_to: str = "") -> None:
         self._api_key = api_key
         self._from = sender
         self._transport = transport
+        self._reply_to = reply_to
 
     async def send(self, message: EmailMessage, idempotency_key: str) -> SendResult:
         body = {
@@ -71,6 +73,8 @@ class ResendSender(EmailSender):
             "html": message.html,
             "text": message.text,
         }
+        if self._reply_to:
+            body["reply_to"] = self._reply_to
         headers = {
             "Authorization": f"Bearer {self._api_key}",
             "Content-Type": "application/json",
@@ -105,6 +109,6 @@ def build_sender(transport: Optional[httpx.AsyncBaseTransport] = None) -> EmailS
     if which == "resend":
         key, sender = config.api_key(), config.email_from()
         if key and sender:
-            return ResendSender(key, sender, transport=transport)
+            return ResendSender(key, sender, transport=transport, reply_to=config.reply_to())
         logger.warning("[email] EMAIL_PROVIDER=resend but EMAIL_API_KEY or EMAIL_FROM is unset: email disabled")
     return DisabledSender()

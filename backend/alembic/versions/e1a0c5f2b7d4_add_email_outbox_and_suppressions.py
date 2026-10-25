@@ -27,6 +27,8 @@ def upgrade() -> None:
         sa.Column('recipient_hash', sa.String(length=64), nullable=False),
         sa.Column('recipient_address', sa.String(length=320), nullable=True),
         sa.Column('payload', sa.JSON(), nullable=True),
+        sa.Column('priority', sa.String(length=12), nullable=False),
+        sa.Column('not_before', sa.DateTime(timezone=True), nullable=True),
         sa.Column('status', sa.String(length=16), nullable=False),
         sa.Column('attempts', sa.Integer(), nullable=False),
         sa.Column('idempotency_key', sa.String(length=200), nullable=False),
