@@ -272,9 +272,10 @@ async def hub_post(world, payload, who="captain"):
     hub([("crew1", 100.0), ("crew2", 100.0), ("ghost", 0.0)]),            # unknown id
     hub([("crew1", 100.0), ("crew1", 100.0), ("crew2", 0.0)]),            # duplicate
     hub([("crew1", 250.0), ("crew2", -50.0)]),                            # offsetting negative
-    hub([("crew1", 150.0)]),                                              # crew2 missing: stale share would remain
-    hub([("crew1", 100.0), ("crew2", 100.0)], captain_share=-0.0 + 50.0), # total 250 != 300
-    hub([("crew1", 100.0), ("crew2", 100.0)], captain_share=-100.0),      # negative captain share (total 100)
+    hub([("crew1", 200.0)]),                                              # crew2 missing, total still 300: only the
+                                                                          # every-member rule can refuse this
+    hub([("crew1", 100.0), ("crew2", 100.0)], captain_share=50.0),        # total 250 != 300
+    hub([("crew1", 250.0), ("crew2", 150.0)], captain_share=-100.0),      # negative captain share, total still 300
 ])
 async def test_crew_hub_splits_refuse_bad_shapes_and_change_nothing(world, payload):
     before = await world.snap()
@@ -286,13 +287,26 @@ async def test_crew_hub_splits_refuse_bad_shapes_and_change_nothing(world, paylo
 async def test_crew_hub_splits_refuse_nan_and_infinity(world):
     before = await world.snap()
     for raw in ("NaN", "Infinity", "-Infinity"):
-        text = ('{"captain_id": "captain", "captain_share": 100.0, "splits": [{"participant_id": "crew1", '
-                '"share_amount": %s, "share_percentage": 0.0}, {"participant_id": "crew2", "share_amount": 100.0, '
-                '"share_percentage": 0.0}]}' % raw)
-        r = await world.client.post("/api/bookings/bk/crew-hub/update-splits", content=text,
-                                    headers={**_token("captain"), "content-type": "application/json"})
-        assert r.status_code >= 400
+        for where in ("share", "captain"):
+            share, captain = (raw, "100.0") if where == "share" else ("100.0", raw)
+            text = ('{"captain_id": "captain", "captain_share": %s, "splits": [{"participant_id": "crew1", '
+                    '"share_amount": %s, "share_percentage": 0.0}, {"participant_id": "crew2", "share_amount": 100.0, '
+                    '"share_percentage": 0.0}]}' % (captain, share))
+            r = await world.client.post("/api/bookings/bk/crew-hub/update-splits", content=text,
+                                        headers={**_token("captain"), "content-type": "application/json"})
+            # a clean 400 from the shape rules, not a 500 from rounding a NaN further down
+            assert r.status_code == 400, (raw, where, r.status_code)
     assert (await world.snap()).__dict__ == before.__dict__
+
+
+async def test_a_negative_share_is_refused_by_the_shape_rule_itself():
+    """The paid-floor already refuses a negative for a real member; the shape rule must too (defence in depth)."""
+    booking = SimpleNamespace(status="Pending", total_price=100.0)
+    members = {"a": 1, "b": 2}
+    splits = [SimpleNamespace(participant_id="a", share_amount=150.0), SimpleNamespace(participant_id="b", share_amount=-50.0)]
+    with pytest.raises(Exception) as err:
+        check_splits(booking, members, splits, required=set(members))
+    assert err.value.status_code == 400
 
 
 @pytest.mark.parametrize("status", ["Confirmed", "Cancelled", "Completed"])
