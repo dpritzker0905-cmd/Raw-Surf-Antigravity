@@ -220,16 +220,25 @@ describe('the runtime shows the tile window of the stepped-to frame', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('a re-pinned run, a killed set or a world frame the engine took ends it', async () => {
+  // Three scenarios, three tests: each one pays a full commit0 + settle (the resident's window pack is real encoding work, ~0.7 s on a
+  // quiet box), and chained in ONE test they took ~2.4 s against Jest's 5 s limit, so a loaded full-tree run timed it out
+  // (2026-10-25). One scenario per test keeps every assertion and gives each its own budget.
+  it('a re-pinned run ends it: the packs are of the old run', async () => {
     const first = setup();
     commit0(); await settle();
     expect(step(1)).toBe(true);
     mockSF.regional = { [KEY]: { ...mockSF.regional[KEY], path: 'v1/idx/fl2.json', run: 'r2' } };   // re-pinned: the packs are of the old run
     expect(step(2)).toBe(false);
     expect(first.calls).toHaveLength(1);
+  });
+
+  it('a set killed after the pin ends it', async () => {
     setup(); commit0(); await settle();
     mockSF.regional = {};                                              // the set was killed after the pin
     expect(step(1)).toBe(false);
+  });
+
+  it('a world frame the engine took ends it', async () => {
     const third = setup(); commit0(); await settle();
     Object.assign(third.eng, { _texWidth: 181, _texHeight: 81 });
     expect(step(1)).toBe(false);                                       // the engine no longer holds the clip (zoom-out)
