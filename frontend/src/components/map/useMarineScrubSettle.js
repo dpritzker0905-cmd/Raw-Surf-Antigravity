@@ -4,7 +4,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { isTerminalNoCoverage } from './marineControllerCache';
 // The backstop's watchdogs live in marineSettleWatchdogs.js (800-LOC cap); re-exported for existing importers.
 import { MARINE_PENDING_LEASE_MS, STRANDED_PENDING_RECORD_MS, evaluateStrandedPending, MARKER_WEDGE_LEASE_MS, evaluateMarkerWedge,
-  recordMarineFreeze, CLAMP_CAP_REARM_MS, evaluateClampCapProbe } from './marineSettleWatchdogs';
+  recordMarineFreeze, CLAMP_CAP_REARM_MS, evaluateClampCapProbe, clampMadeProgress } from './marineSettleWatchdogs';
 import { runSettleCheckLive, settleArmKey } from './marineSettleLiveMap';   // SETTLE_LIVE_MAP / SETTLE_ARM_ON_ACTIVATE
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
@@ -519,6 +519,7 @@ export function useMarineScrubSettle({
     let lastCapProbe = 0;  // when the no-progress cap engaged / last slow probe fired
     let clampProbesFired = 0;      // §7h.3: slow probes fired for THIS clamp signature
     let clampTerminalWarned = false;
+    const clampSeen = { episode: null, seen: null };   // the residents this clamp episode has held (marineSettleWatchdogs.clampMadeProgress)
     const id = setInterval(() => {
       // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
       // interval is created once and never churns (preserving the blank streak across re-renders).
@@ -528,7 +529,7 @@ export function useMarineScrubSettle({
       const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
       // Also re-drive when a non-covering grid (coarse-global OR too-small regional) is held while
       // zoomed IN — zoom-in/out fires no scrub-end, so without this the clamp would never sharpen.
-      const { clamp, kind } = detectClamp(mapInstance);
+      const { clamp, kind, vb: clampVb } = detectClamp(mapInstance);
 
       // ── Stranded-pending watchdog: the wedge the user hit near FL (data present, grid covers, froze after
       //    ~1min, only Waves off→on recovered). __MARINE_FETCH_PENDING__ stuck non-null while isFetching is
@@ -636,7 +637,7 @@ export function useMarineScrubSettle({
       // predicate marineFallbackSuppressesEmptyRedrive above for the full story).
       const marineFallbackActive = typeof window !== 'undefined' && marineFallbackSuppressesEmptyRedrive(window);
       const needsRefetch = ((!(eng && eng._waveData) && !marineFallbackActive) || clamp || retainedRegionalZoomedOut) && !window.__MARINE_FETCH_PENDING__ && govIdle;
-      if (!needsRefetch) { blankStreak = 0; clampNoProgress = 0; clampSig = null; return; }
+      if (!needsRefetch) { blankStreak = 0; clampNoProgress = 0; clampSig = null; clampSeen.episode = null; return; }
       blankStreak++;
       if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
       if (Date.now() - lastBackstop < 6000) return;  // min gap so each refetch can complete
@@ -667,7 +668,12 @@ export function useMarineScrubSettle({
         const sig = gb
           ? `${kind}|${gb.west.toFixed(1)},${gb.south.toFixed(1)},${gb.east.toFixed(1)},${gb.north.toFixed(1)}`
           : kind;
-        if (sig === clampSig) {   // held engine grid unchanged since last re-drive → no progress (either mode)
+        // No progress: the held engine grid is unchanged since the last re-drive, or is one this episode held before (two residents
+        // taking turns; marineSettleWatchdogs.clampMadeProgress). The episode is the view: model, layer, hour, viewport at 0.5 deg.
+        const r5 = (v) => (Math.round(Number(v) * 2) / 2).toFixed(1);
+        const episode = `${activeModelRef.current}|${activeMarineLayerRef.current || 'waves'}|${timeOffsetRef.current}|`
+          + (clampVb ? [clampVb.west, clampVb.south, clampVb.east, clampVb.north].map(r5).join(',') : '');
+        if (!clampMadeProgress(clampSeen, { sig, lastSig: clampSig, episode }, typeof window !== 'undefined' ? window : null)) {
           clampNoProgress++;
         } else {
           clampSig = sig;
