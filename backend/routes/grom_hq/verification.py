@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
 from models import Profile
 from utils.grom_parent import is_grom_parent_eligible
-from core.security import get_user_id_from_jwt_or_query
+from core.security import dev_identity_allowed, get_user_id_from_jwt_or_query
+from services import guardian_links
+from services.guardian_levels import is_confirmed_guardian
 
 from .schemas import AgeVerificationRequest, UnlinkRequest
 router = APIRouter()
@@ -186,12 +188,13 @@ async def demo_verify_age(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Demo/test endpoint to bypass Stripe Identity for age verification.
-    SECURITY: Only enabled when ALLOW_GROM_DEMO_VERIFY=true env var is set.
-    Never set this in production — this endpoint is intentionally disabled by default.
+    Demo/test endpoint to bypass Stripe Identity for age verification (it grants L2 with no real check).
+    SECURITY: unreachable unless BOTH are true: ALLOW_GROM_DEMO_VERIFY=true AND the process positively asserts it
+    is local/test (`dev_identity_allowed`, which fails closed: any deployment marker such as RENDER, or an unset
+    environment, means "production"). Setting the env var on a deployed box does nothing.
     """
     import os
-    if os.getenv("ALLOW_GROM_DEMO_VERIFY", "false").lower() != "true":
+    if os.getenv("ALLOW_GROM_DEMO_VERIFY", "false").lower() != "true" or not dev_identity_allowed():
         raise HTTPException(status_code=404, detail="Not found")
 
     if user_id != parent_id:
@@ -262,15 +265,12 @@ async def unlink_grom_secure(
     if not grom:
         raise HTTPException(status_code=404, detail="Grom not found")
     
-    if grom.parent_id != parent_id:
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="This Grom is not linked to your account")
-    
+
     # Unlink the grom - this will lock them out until re-linked
-    grom.parent_id = None
-    grom.parent_link_approved = False
-    
-    await db.commit()
-    
+    await guardian_links.unlink(db, grom)
+
     return {
         "success": True,
         "message": f"Successfully unlinked {grom.full_name}. They will need to be linked to a parent again to access the app."
@@ -291,7 +291,7 @@ async def can_grom_unlink(
     if user_id != grom_id:
         grom_result = await db.execute(select(Profile).where(Profile.id == grom_id))
         grom = grom_result.scalar_one_or_none()
-        if not grom or grom.parent_id != user_id:
+        if not is_confirmed_guardian(grom, user_id):
             raise HTTPException(status_code=403, detail="Not authorized to check unlink capability")
 
     return {

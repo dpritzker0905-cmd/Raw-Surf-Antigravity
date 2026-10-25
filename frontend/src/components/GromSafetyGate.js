@@ -4,13 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import GromLimitedFeed from './GromLimitedFeed';
 import logger from '../utils/logger';
-import { Shield, Lock, Clock, Copy, CheckCircle, ShieldAlert, UserPlus } from 'lucide-react';
+import { Shield, Lock, Clock, ShieldAlert } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
-import { Badge } from './ui/badge';
-import { toast } from 'sonner';
 import { ROLES } from '../constants/roles';
-import { getFullUrl } from '../utils/media';
+import AskMyParentPanel from './grom/AskMyParentPanel';
 
 
 // Create context to share Grom status across components
@@ -123,18 +121,7 @@ export const GromSafetyGate = ({ children, allowLimitedFeed = false }) => {
 /**
  * SafetyGateUI - The blocking UI shown to unlinked Groms
  */
-const SafetyGateUI = ({ gromStatus, onRefresh }) => {
-  const [codeCopied, setCodeCopied] = useState(false);
-
-  const copyGuardianCode = () => {
-    if (gromStatus?.guardian_code) {
-      navigator.clipboard.writeText(gromStatus.guardian_code);
-      setCodeCopied(true);
-      toast.success('Guardian code copied!');
-      setTimeout(() => setCodeCopied(false), 3000);
-    }
-  };
-
+const SafetyGateUI = ({ onRefresh }) => {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6">
@@ -157,61 +144,15 @@ const SafetyGateUI = ({ gromStatus, onRefresh }) => {
                 <Clock className="w-6 h-6 text-yellow-400" />
               </div>
               <div>
-                <p className="text-white font-semibold">Pending Guardian Approval</p>
+                <p className="text-white font-semibold">Link with a parent or guardian</p>
                 <p className="text-sm text-gray-400">
-                  {gromStatus?.is_linked 
-                    ? "Waiting for your parent to approve the link"
-                    : "Share your Guardian Code with your parent"}
+                  Get a one-time code for your parent, or answer an invite from them
                 </p>
               </div>
             </div>
 
-            {/* Guardian Code */}
-            {gromStatus?.guardian_code && (
-              <div className="bg-zinc-800 rounded-xl p-4 mb-4">
-                <p className="text-xs text-gray-400 mb-2 text-center">Your Guardian Code</p>
-                <div className="flex items-center justify-center gap-3">
-                  <div className="text-3xl font-mono font-bold text-cyan-400 tracking-wider">
-                    {gromStatus.guardian_code}
-                  </div>
-                  <Button aria-label="Check Circle" 
-                    size="sm" 
-                    variant="outline"
-                    className="border-cyan-500/50 text-cyan-400"
-                    onClick={copyGuardianCode}
-                  >
-                    {codeCopied ? <CheckCircle className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  Give this code to your parent so they can link your account
-                </p>
-              </div>
-            )}
-
-            {/* Parent Info (if linked but not approved) */}
-            {gromStatus?.is_linked && gromStatus?.parent_info && (
-              <div className="flex items-center gap-3 p-3 bg-zinc-800 rounded-lg">
-                <div className="w-10 h-10 rounded-full bg-cyan-500/20 flex items-center justify-center">
-                  {gromStatus.parent_info.avatar_url ? (
-                    <img loading="lazy" decoding="async" 
-                    src={getFullUrl(gromStatus.parent_info.avatar_url)} 
-                      alt="" 
-                      className="w-10 h-10 rounded-full"
-                    />
-                  ) : (
-                    <UserPlus className="w-5 h-5 text-cyan-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-white font-medium">{gromStatus.parent_info.full_name}</p>
-                  <p className="text-xs text-gray-400">Pending approval...</p>
-                </div>
-                <Badge className="ml-auto bg-yellow-500/20 text-yellow-400 border-0">
-                  PENDING
-                </Badge>
-              </div>
-            )}
+            {/* Two-sided link: the child gets a one-time code or answers an invite */}
+            <AskMyParentPanel onLinked={onRefresh} />
           </CardContent>
         </Card>
 

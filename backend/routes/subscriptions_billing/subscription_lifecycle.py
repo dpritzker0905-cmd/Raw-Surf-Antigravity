@@ -66,7 +66,8 @@ async def get_account_billing_status(
     current_tier = tier_map.get(user.subscription_tier, "tier_1")
     linked_groms = []
     if user.role.value == "Grom Parent":
-        groms_result = await db.execute(select(Profile).where(Profile.parent_id == user_id))
+        groms_result = await db.execute(select(Profile).where(
+            Profile.parent_id == user_id, Profile.parent_link_approved.is_(True)))
         for grom in groms_result.scalars().all():
             grom_tier = tier_map.get(grom.subscription_tier, "tier_1")
             linked_groms.append({"id": grom.id, "full_name": grom.full_name,
@@ -173,7 +174,8 @@ async def update_grom_subscription(
         raise HTTPException(status_code=404, detail="Parent not found")
     if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can manage Grom subscriptions")
-    grom_result = await db.execute(select(Profile).where(Profile.id == data.grom_id, Profile.parent_id == parent_id))
+    grom_result = await db.execute(select(Profile).where(
+        Profile.id == data.grom_id, Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True)))
     grom = grom_result.scalar_one_or_none()
     if not grom:
         raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
