@@ -59,6 +59,10 @@ ENFORCING = frozenset({
     # routes/uploads/identity.py: each takes the token's subject (tests/test_upl01_upload_identity.py).
     ("routes.uploads.identity", "uploader_id"),
     ("routes.uploads.identity", "photographer_uploader_id"),
+    # routes/auth_pkg/mfa.py: take the token's subject; also accept the enrol-only token that every other route refuses
+    # (tests/test_mfa_login.py).
+    ("routes.auth_pkg.mfa", "mfa_caller"),
+    ("routes.auth_pkg.mfa", "full_session_caller"),
 })
 
 # Write routes that are public BY DESIGN. Every entry needs a reason; the test refuses an entry that no longer
@@ -69,6 +73,7 @@ PUBLIC_WRITES = {
     ("POST", "/api/auth/forgot-password"): "password reset request: the caller cannot sign in",
     ("POST", "/api/auth/reset-password"): "authorised by the emailed reset token in the body",
     ("POST", "/api/auth/verify-reset-token"): "checks the emailed reset token in the body",
+    ("POST", "/api/auth/login/mfa"): "second step of sign-in: authorised by the single-use challenge from a correct password",
     ("POST", "/api/site-access/verify"): "pre-login access-code check",
     ("POST", "/api/webhook/stripe"): "authorised by the Stripe signature; fails closed without STRIPE_WEBHOOK_SECRET",
     ("POST", "/api/email/webhook"):

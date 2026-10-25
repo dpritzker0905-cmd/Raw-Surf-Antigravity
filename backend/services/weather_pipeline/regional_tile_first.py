@@ -229,12 +229,11 @@ def tile_first_stats():
 # ── the GFS/ICON live series lane (GFS_ICON_SERIES_FASTPATH) ─────────────────────────────────────────────────────────────────
 def inside_pilot_box(bbox):
     """True when `bbox` lies inside one of the GFS marine pilot boxes (every group, whatever the ingest gates say: the client's
-    PILOT_BOXES list, pinned to pilot_regions.py)."""
-    from services.weather_pipeline.pilot_regions import (
-        GFS_MARINE_EXTRA_REGIONS, GFS_MARINE_STAGE_B_REGIONS, REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS,
-    )
+    PILOT_BOXES list, pinned to pilot_regions.py), with GFS_PILOT_WHOLE_DEGREE_BOUNDS=1 the boxes as the GFS pass then stores them
+    (padded to whole degrees, pilot_regions.whole_degree_regions), so a box in the padded band also skips the live lane."""
+    from services.weather_pipeline.pilot_regions import all_gfs_pilot_boxes, whole_degree_regions
     w, s, e, n = parse_bbox(bbox)
-    for c in {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS, **GFS_MARINE_STAGE_B_REGIONS}.values():
+    for c in whole_degree_regions(all_gfs_pilot_boxes()).values():
         if c["west"] <= w and e <= c["east"] and c["south"] <= s and n <= c["north"]:
             return True
     return False
