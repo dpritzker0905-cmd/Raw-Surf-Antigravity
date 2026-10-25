@@ -1,0 +1,242 @@
+[
+  {
+    "file": "1-light-320-ready.png",
+    "bytes": 181899,
+    "sha256": "08f436e15943bac61c0a1ad60ee748250b0c1bc28f1bbea6708a31df529cda8d"
+  },
+  {
+    "file": "10-light-360-missing.png",
+    "bytes": 39304,
+    "sha256": "f4b7ef61bb1ef4c74cd2da8a60826530d6d0b4c5c054b33705a034c50ae50f34"
+  },
+  {
+    "file": "11-light-360-denied.png",
+    "bytes": 11335,
+    "sha256": "2efe5a4702ddc35ed53d7558735fbaae4dbb9300d0f1126f5a37e1d211d5744b"
+  },
+  {
+    "file": "12-light-360-not-found.png",
+    "bytes": 11196,
+    "sha256": "d75b47e1d02ae0e69de1adaba2d5c11de81d48a8b5dc84f80d46f37f1f561778"
+  },
+  {
+    "file": "13-light-360-malformed-list.png",
+    "bytes": 11181,
+    "sha256": "05c2d67fb43b134c1c379e61d00e105f34015fc92281d9d184eb4b565015fd26"
+  },
+  {
+    "file": "14-light-360-malformed-roster.png",
+    "bytes": 11181,
+    "sha256": "05c2d67fb43b134c1c379e61d00e105f34015fc92281d9d184eb4b565015fd26"
+  },
+  {
+    "file": "15-light-360-malformed-items.png",
+    "bytes": 11181,
+    "sha256": "05c2d67fb43b134c1c379e61d00e105f34015fc92281d9d184eb4b565015fd26"
+  },
+  {
+    "file": "16-light-360-retry.png",
+    "bytes": 189971,
+    "sha256": "fa046b20600ca718f7c4397f8ef27e27972ba757e4682052c38bfdc360f7e95d"
+  },
+  {
+    "file": "17-light-360-multiple.png",
+    "bytes": 192227,
+    "sha256": "321adc2d5c9e905f6b33aec56af2d1b1a10d6dc2517e9b6881887f70b2b6be98"
+  },
+  {
+    "file": "18-light-360-empty.png",
+    "bytes": 169185,
+    "sha256": "f7662908a7323cbbfbbdd993d268846c9502ad9334a9e8c52e4989a400b6e424"
+  },
+  {
+    "file": "19-light-360-old.png",
+    "bytes": 106672,
+    "sha256": "c0b98df99e9f734f83ce57dc95e32f27c048971aff4423e1de3596699a0c8c59"
+  },
+  {
+    "file": "2-light-844-ready.png",
+    "bytes": 206646,
+    "sha256": "121ea9e715f453383e908c7e245a0497c91e2279e259f1642f83e46858ec6e21"
+  },
+  {
+    "file": "20-light-360-long-title.png",
+    "bytes": 194549,
+    "sha256": "3e1b11d2f7bbea9187956c5267bcb5cafa4c8cc1a978efb9018047e98ba9c0e9"
+  },
+  {
+    "file": "21-light-360-slow.png",
+    "bytes": 188514,
+    "sha256": "191409936442178bb93dbd104521816010d7f152559d1525ec6e77ecf72164e8"
+  },
+  {
+    "file": "22-light-360-action-error.png",
+    "bytes": 190815,
+    "sha256": "1dcecb6645de30cbe768bdb84d97de05feced6b9864e8e850812312a031546b7"
+  },
+  {
+    "file": "23-dark-360-missing.png",
+    "bytes": 38361,
+    "sha256": "49f7f494ae85bfd144fb8cb5b300dac6a8125f5d50bff79f954ecb0c4afc1de3"
+  },
+  {
+    "file": "24-dark-360-denied.png",
+    "bytes": 11029,
+    "sha256": "998f2bb4cc0251f20643ba679ba0b3d1a80293fe7f38c7341787770129170852"
+  },
+  {
+    "file": "25-dark-360-not-found.png",
+    "bytes": 10933,
+    "sha256": "1b924b78d059496dae3eefaa9fdf28e609c5f102b3f9ef54831dcdf390f66c7d"
+  },
+  {
+    "file": "26-dark-360-malformed-list.png",
+    "bytes": 10903,
+    "sha256": "237db383d1403df4c706bb49944688517032f9bd308da95345e507da473dc40a"
+  },
+  {
+    "file": "27-dark-360-malformed-roster.png",
+    "bytes": 10903,
+    "sha256": "237db383d1403df4c706bb49944688517032f9bd308da95345e507da473dc40a"
+  },
+  {
+    "file": "28-dark-360-malformed-items.png",
+    "bytes": 10903,
+    "sha256": "237db383d1403df4c706bb49944688517032f9bd308da95345e507da473dc40a"
+  },
+  {
+    "file": "29-dark-360-retry.png",
+    "bytes": 174464,
+    "sha256": "6bd6b0a4fd4b7b3b37c2b8f8c3c11e1cadfc47b680f59a5c502fbca82c21ea56"
+  },
+  {
+    "file": "3-light-1440-ready.png",
+    "bytes": 258947,
+    "sha256": "745dbb9cc417053e1345ea0eeb6b8d210337181359dd41f6a4d856c1b318e614"
+  },
+  {
+    "file": "30-dark-360-multiple.png",
+    "bytes": 178357,
+    "sha256": "5dd6ff599dc5bea8abdd8bba9b1289014d0f9671e35d6637976c5c4e1c810c5e"
+  },
+  {
+    "file": "31-dark-360-empty.png",
+    "bytes": 154663,
+    "sha256": "634f08b3fe90ee3b76d1d1a379201b1ae0797010c5636da9772945961f3a41ef"
+  },
+  {
+    "file": "32-dark-360-old.png",
+    "bytes": 104652,
+    "sha256": "6b67cb6b04de64bb3409d107a363c1a782c47be4430159124ba4c11c1f32ee15"
+  },
+  {
+    "file": "33-dark-360-long-title.png",
+    "bytes": 181810,
+    "sha256": "d34c8bdf9d5094c696abe5abd17e9fc0c21a292478bfbc022979c48768b7faa8"
+  },
+  {
+    "file": "34-dark-360-slow.png",
+    "bytes": 175315,
+    "sha256": "b6d5b857a7c7017c781c91899fbff2566fd73f281c8bbf7f0b50ade7b62d70a3"
+  },
+  {
+    "file": "35-dark-360-action-error.png",
+    "bytes": 176446,
+    "sha256": "e5643cbc41f444fb5ca2f0fec8db4301975db5f76e5836ce88f9b7a1c4a4d8f1"
+  },
+  {
+    "file": "36-beach-360-missing.png",
+    "bytes": 38059,
+    "sha256": "5081bda413110bdd5bef91d853b72757f676ee17c665afa3fda55e98232ccf09"
+  },
+  {
+    "file": "37-beach-360-denied.png",
+    "bytes": 10800,
+    "sha256": "4583186014170479b45c8bf74e68144ad208cc3e7f9004024cf097eec9b0f608"
+  },
+  {
+    "file": "38-beach-360-not-found.png",
+    "bytes": 10659,
+    "sha256": "db3d096d1ffa113fac6ff4bff46f17dae76e2030a124b5c2c651095da8667338"
+  },
+  {
+    "file": "39-beach-360-malformed-list.png",
+    "bytes": 10692,
+    "sha256": "3695186e08205982ff730ea3563e55482853a22eb90d181544663d6fc96b0eac"
+  },
+  {
+    "file": "4-dark-320-ready.png",
+    "bytes": 168910,
+    "sha256": "5afaadc2582e7d01dd06d3391cec5bd99137d91410a1d5fad1807f1b62030ddb"
+  },
+  {
+    "file": "40-beach-360-malformed-roster.png",
+    "bytes": 10692,
+    "sha256": "3695186e08205982ff730ea3563e55482853a22eb90d181544663d6fc96b0eac"
+  },
+  {
+    "file": "41-beach-360-malformed-items.png",
+    "bytes": 10692,
+    "sha256": "3695186e08205982ff730ea3563e55482853a22eb90d181544663d6fc96b0eac"
+  },
+  {
+    "file": "42-beach-360-retry.png",
+    "bytes": 172467,
+    "sha256": "f2db15d46ec6130c73d563fc0e73860d81db820e7c38831467eafbbf0c7bdfdf"
+  },
+  {
+    "file": "43-beach-360-multiple.png",
+    "bytes": 176276,
+    "sha256": "65d6605d96a2b8beaaa6684ef8fc2b1791ebc5acc324bd0c27c73156274075b9"
+  },
+  {
+    "file": "44-beach-360-empty.png",
+    "bytes": 153086,
+    "sha256": "c34e482efb15e5d2e05a90a1efc8ff8668c8ab6085c627f98fcae59824ffb9e4"
+  },
+  {
+    "file": "45-beach-360-old.png",
+    "bytes": 104428,
+    "sha256": "2727eef11df5009d86aee3ec16f7ab71c2b46cdda7dbbf5bb7b5e09a0a14e04c"
+  },
+  {
+    "file": "46-beach-360-long-title.png",
+    "bytes": 179818,
+    "sha256": "5a54e0b4d2e003bb10f5cdf27739cd8bd33fa017576c7e1ba3b49b541f1c9984"
+  },
+  {
+    "file": "47-beach-360-slow.png",
+    "bytes": 173019,
+    "sha256": "024052afe55afe33a570dfb3c3eb384541b905b4bb1a94f335ea2b208335c23e"
+  },
+  {
+    "file": "48-beach-360-action-error.png",
+    "bytes": 174257,
+    "sha256": "29773edeaefb7723b264e766eab1668c61c88bbee06a582f9cf897ae0de8d6e3"
+  },
+  {
+    "file": "5-dark-844-ready.png",
+    "bytes": 178108,
+    "sha256": "e4b57e5b1357b06b8862cf210984c230cc6c36ecf13900941eb95d47402269f5"
+  },
+  {
+    "file": "6-dark-1440-ready.png",
+    "bytes": 217961,
+    "sha256": "70d416fe3da9f0bcbc50d2ed0b1ba0563bb1429439f001cc3a1ddcb2de368332"
+  },
+  {
+    "file": "7-beach-320-ready.png",
+    "bytes": 166974,
+    "sha256": "23e282b48fbc8efa2cd93028de5fbaf2d94f1d2ef7129b9c85b6c547463b8f40"
+  },
+  {
+    "file": "8-beach-844-ready.png",
+    "bytes": 173590,
+    "sha256": "b2da97577d7fc810227ff59271a8d7050885222fe052c7bfe4d9ec3198a6682b"
+  },
+  {
+    "file": "9-beach-1440-ready.png",
+    "bytes": 209775,
+    "sha256": "42de63b3f7e15fdf5c7ec2b2f62ac995fddd684c93a6cd4de6551e59a742eba2"
+  }
+]

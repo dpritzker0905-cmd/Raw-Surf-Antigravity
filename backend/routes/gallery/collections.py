@@ -17,6 +17,8 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_optional_user_id
+from .ownership import verified_viewer
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -105,9 +107,11 @@ async def create_gallery(
 async def get_gallery(
     gallery_id: str,
     viewer_id: Optional[str] = None,
+    token_user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get a single gallery with items"""
+    viewer_id = verified_viewer(viewer_id, token_user_id)  # a query claim alone is anonymous
     
     result = await db.execute(
         select(Gallery)
@@ -433,9 +437,11 @@ async def delete_gallery(
 async def get_gallery_items(
     gallery_id: str,
     viewer_id: Optional[str] = None,
+    token_user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all items in a gallery"""
+    viewer_id = verified_viewer(viewer_id, token_user_id)  # a query claim alone is anonymous
     # Verify gallery exists
     result = await db.execute(select(Gallery).where(Gallery.id == gallery_id))
     gallery = result.scalar_one_or_none()

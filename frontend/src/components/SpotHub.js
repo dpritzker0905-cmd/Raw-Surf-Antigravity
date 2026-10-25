@@ -404,6 +404,14 @@ const SpotHub = () => {
       />
 
       {/* Current Conditions Card */}
+      {spotDetails?.forecast_status === 'unavailable' && (
+        <section role="status" aria-label="Forecast unavailable" className={`mx-3 mb-3 p-3 rounded-xl border ${cardBg}`}>
+          <p className={`text-sm font-medium ${textPrimary}`}>Forecast temporarily unavailable</p>
+          <p className={`text-xs mt-1 ${textSecondary}`}>Spot details are still available.</p>
+          <Button size="sm" variant="outline" className="mt-2" onClick={fetchAllSpotData}>Retry forecast</Button>
+        </section>
+      )}
+
       {currentConditions && (
         <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg}`}>
           <div className="flex items-center justify-between mb-2">

@@ -110,7 +110,7 @@ const useSpotHubActions = ({
     setIsWithinProximity(false);
     try {
       // Fetch spot details with forecast
-      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}&model=${activeModel}`, config);
+      const detailsResponse = await apiClient.get(`/explore/spot-details/${spotId}?subscription_tier=${userTier}&model=${activeModel}&allow_partial_forecast=true`, config);
       if (!isCurrent()) return;
       const data = detailsResponse.data;
       // The current endpoint's missing-spot contract is HTTP 200 with this exact error.

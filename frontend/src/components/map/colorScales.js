@@ -1,3 +1,5 @@
+import { hasMarineWavePalette, sampleMarineWavePalette } from './marineWavePalette';
+
 /**
  * Color scales and dynamic HSL palette configurations for map rendering.
  */
@@ -283,6 +285,7 @@ export function applyThemePressureScale(theme) {
 }
 
 export function getThemedWaveColorJS(h, theme, surfMode = false) {
+  if (!surfMode && hasMarineWavePalette(theme)) return sampleMarineWavePalette(h, theme);
   // JS mirror of the HEATMAP_FS color ramp (keep in sync with WebGLMarineShaders.js). surfMode rescales the
   // height->color mapping to the nearshore surf range (~0-4 m / 0-13 ft) so the coastal band differentiates,
   // matching getSurfT() in the shader.

@@ -1,0 +1,328 @@
+{
+ "what": "W-4 after the review fixes: HTTP A/B (flag off :4130 / on :4131, gzip 4) and an abort probe (client drops a cold 48-frame world page after 0.5 s, then asks /grid for another layer; server CPU in the 4 s after, flag off :4120 / on :4121). Synthetic store, deployed pins, owner's PC; psutil CPU of the server process tree.",
+ "http_ab": {
+  "base_time": "2026-10-19T15:00:00Z",
+  "gzip_level": "4",
+  "rows": [
+   {
+    "case": "GFS/waves",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 4500.1,
+     "wire_bytes": 728952,
+     "raw_bytes": 7344442,
+     "cpu_ms": 4296.9,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 1946.6,
+     "wire_bytes": 728952,
+     "raw_bytes": 7344442,
+     "cpu_ms": 1812.5,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 2702.8,
+     "wire_bytes": 854124,
+     "raw_bytes": 7344442,
+     "cpu_ms": 2640.6,
+     "server_timing": "build;dur=2273.2, encode;dur=278.9, gzip;dur=64.3, memo;desc=miss;dur=2661.0",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 42.0,
+     "wire_bytes": 854124,
+     "raw_bytes": 7344442,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=2.0",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 37.9,
+     "wire_bytes": 854124,
+     "raw_bytes": 7344442,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.0",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 0.0
+   },
+   {
+    "case": "ICON/swell_1",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 3736.5,
+     "wire_bytes": 711924,
+     "raw_bytes": 7364842,
+     "cpu_ms": 3656.2,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 1397.6,
+     "wire_bytes": 711924,
+     "raw_bytes": 7364842,
+     "cpu_ms": 1343.8,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 2800.3,
+     "wire_bytes": 837374,
+     "raw_bytes": 7364842,
+     "cpu_ms": 2796.9,
+     "server_timing": "build;dur=2456.7, encode;dur=254.7, gzip;dur=50.3, memo;desc=miss;dur=2764.4",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 36.7,
+     "wire_bytes": 837374,
+     "raw_bytes": 7364842,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=1.2",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 55.4,
+     "wire_bytes": 837374,
+     "raw_bytes": 7364842,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=0.9",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.6,
+    "on_jitter_cpu_pct_of_cold": 0.6
+   },
+   {
+    "case": "EURO/waves",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 4149.8,
+     "wire_bytes": 727988,
+     "raw_bytes": 7344833,
+     "cpu_ms": 4046.9,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 1421.6,
+     "wire_bytes": 727988,
+     "raw_bytes": 7344833,
+     "cpu_ms": 1375.0,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 3091.3,
+     "wire_bytes": 858155,
+     "raw_bytes": 7344833,
+     "cpu_ms": 3031.2,
+     "server_timing": "build;dur=2704.0, encode;dur=301.6, gzip;dur=45.4, memo;desc=miss;dur=3054.5",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 36.6,
+     "wire_bytes": 858155,
+     "raw_bytes": 7344833,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=0.7",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 50.4,
+     "wire_bytes": 858155,
+     "raw_bytes": 7344833,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=0.8",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 0.5
+   },
+   {
+    "case": "GFS/wind_waves",
+    "bbox": "-125.3,25.2,-113.6,35.6",
+    "snapped": "-126.0000,25.0000,-113.0000,36.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 7758.5,
+     "wire_bytes": 35400,
+     "raw_bytes": 1205810,
+     "cpu_ms": 7421.9,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 7244.4,
+     "wire_bytes": 35400,
+     "raw_bytes": 1205810,
+     "cpu_ms": 7015.6,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 7667.6,
+     "wire_bytes": 59894,
+     "raw_bytes": 1205810,
+     "cpu_ms": 7390.6,
+     "server_timing": "build;dur=7588.9, encode;dur=43.5, gzip;dur=7.4, memo;desc=miss;dur=7645.5",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 20.8,
+     "wire_bytes": 59894,
+     "raw_bytes": 1205810,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=0.9",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 24.5,
+     "wire_bytes": 59894,
+     "raw_bytes": 1205810,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=1.0",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.2,
+    "on_jitter_cpu_pct_of_cold": 0.0
+   },
+   {
+    "case": "EURO/swell_2",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 1402.4,
+     "wire_bytes": 106818,
+     "raw_bytes": 4747422,
+     "cpu_ms": 1406.2,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 756.0,
+     "wire_bytes": 106818,
+     "raw_bytes": 4747422,
+     "cpu_ms": 703.1,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 428.2,
+     "wire_bytes": 124341,
+     "raw_bytes": 4747422,
+     "cpu_ms": 406.2,
+     "server_timing": "build;dur=231.1, encode;dur=139.3, gzip;dur=17.0, memo;desc=miss;dur=389.3",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 23.2,
+     "wire_bytes": 124341,
+     "raw_bytes": 4747422,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=1.2",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 39.8,
+     "wire_bytes": 124341,
+     "raw_bytes": 4747422,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.2",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 3.8
+   }
+  ]
+ },
+ "abort_probe": {
+  "base_time": "2026-10-19T15:00:00Z",
+  "rows": [
+   {
+    "case": "GFS swell_1->wind_waves",
+    "off": {
+     "grid_status": "200",
+     "grid_wall_ms": 467.5,
+     "cpu_4s_after_abort_ms": 3093.8
+    },
+    "on": {
+     "grid_status": "200",
+     "grid_wall_ms": 394.9,
+     "cpu_4s_after_abort_ms": 343.8
+    }
+   },
+   {
+    "case": "ICON waves->swell_1",
+    "off": {
+     "grid_status": "200",
+     "grid_wall_ms": 525.4,
+     "cpu_4s_after_abort_ms": 2687.5
+    },
+    "on": {
+     "grid_status": "200",
+     "grid_wall_ms": 621.5,
+     "cpu_4s_after_abort_ms": 593.8
+    }
+   },
+   {
+    "case": "EURO waves->swell_2",
+    "off": {
+     "grid_status": "200",
+     "grid_wall_ms": 173.7,
+     "cpu_4s_after_abort_ms": 171.9
+    },
+    "on": {
+     "grid_status": "200",
+     "grid_wall_ms": 160.2,
+     "cpu_4s_after_abort_ms": 265.6
+    }
+   }
+  ]
+ }
+}

@@ -291,3 +291,56 @@ def test_actual_report_summary_preserves_scientific_verdict(available, label, tm
     script = _first_run(summary_step).rstrip().splitlines()[1:-1]  # Existing Python heredoc.
     exec(compile("\n".join(script), "workflow summary", "exec"), {})
     assert f"**{label}**" in capsys.readouterr().out
+
+
+# ── the surf-zone gate step (nearshore_gate.py): after the runner, before the summary, one failure report ───────
+
+GATE_VARS = {"NEARSHORE_GATE", "NEARSHORE_GATE_MAE_RED", "NEARSHORE_GATE_GRACE", "NEARSHORE_GATE_MIN_STATIONS",
+             "NEARSHORE_GATE_RATIO_RED_LOW", "NEARSHORE_GATE_RATIO_WARN_LOW", "NEARSHORE_GATE_RATIO_WARN_HIGH",
+             "NEARSHORE_GATE_RATIO_RED_HIGH"}
+
+
+def _step(text, prefix):
+    """The validate job's step whose name starts with `prefix`, from its '- name:' line to the next step."""
+    validate = _job(text, "validate")
+    match = re.search(rf"^      - name: {re.escape(prefix)}.*?(?=^      - |\Z)", validate, re.M | re.S)
+    assert match, f"missing step: {prefix}"
+    return match.group(0)
+
+
+def test_the_gate_step_runs_in_the_validate_job_after_the_runner_and_before_the_summary():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    names = re.findall(r"^      - name: (.+)$", _job(text, "validate"), re.M)
+    at = names.index("Run the nearshore outcome loop")
+    assert names[at + 1].startswith("Surf-zone gate") and names[at + 2] == "Summary"
+    assert "nearshore_gate_ci" not in _job(text, "eligibility"), "the gate belongs to the gated job, not to eligibility"
+    step = _step(text, "Surf-zone gate")
+    assert "working-directory: backend" in step
+    assert "python3 scripts/nearshore_gate_ci.py --report nearshore_report.json" in step
+
+
+def test_the_gate_step_has_no_condition_so_an_INFRA_or_REFUSED_run_is_not_reported_twice():
+    """The runner step exits 1 (REFUSED) or 2 (INFRA) and fails the job; a step with no `if:` runs only on success(),
+    so the gate speaks only about a report the runner called GRADED. A failure()/always() here would print a second
+    verdict on a run that already failed."""
+    text = WORKFLOW.read_text(encoding="utf-8")
+    step = _step(text, "Surf-zone gate")
+    assert not re.search(r"^        if:", step, re.M) and "always()" not in step and "failure()" not in step
+    assert "if: always()" in _step(text, "Summary"), "control: the steps that must always run say so explicitly"
+
+
+def test_the_gate_step_wires_every_gate_variable_from_repo_variables_and_nothing_else():
+    wired = dict(re.findall(r"^          (NEARSHORE_GATE\w*): (.+)$", _step(WORKFLOW.read_text(encoding="utf-8"), "Surf-zone gate"), re.M))
+    assert wired == {name: "${{ vars.%s }}" % name for name in GATE_VARS}
+
+
+def test_the_header_names_the_gate_and_its_kill_switch():
+    header = WORKFLOW.read_text(encoding="utf-8").split("\nname: ", 1)[0]
+    assert "SURF-ZONE GATE" in header and "NEARSHORE_GATE=0" in header and "NEARSHORE_GATE_GRACE" in header
+
+
+def test_the_gate_leaves_permissions_concurrency_and_arming_alone():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "\npermissions:\n  contents: read\n  actions: read " in text
+    assert "\nconcurrency:\n  group: nearshore-validation\n  cancel-in-progress: true\n" in text
+    assert _scalar(_job(text, "validate"), "if", 4) == "needs.eligibility.outputs.eligible == 'true'"

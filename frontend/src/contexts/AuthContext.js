@@ -1,6 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../lib/apiClient';
 import { clearSessionRejected, wasSessionRejected } from '../lib/sessionRejection';
+import { forgetThisDeviceForAccount } from '../hooks/usePushNotifications';
+import { purgeUserScopedStorage } from '../lib/userScopedStorage';
 
 const AuthContext = createContext();
 
@@ -146,6 +148,11 @@ export const AuthProvider = ({ children }) => {
   }, [impersonation, originalUser]);
 
   const logout = useCallback(() => {
+    // The leaving account's push stops on this device (a shared browser keeps its endpoint for the next account).
+    // Its token is read now: the stored session is cleared below, before the async request goes out.
+    let leavingToken = null;
+    try { leavingToken = JSON.parse(localStorage.getItem('raw-surf-user') || 'null')?.access_token || null; } catch (e) { /* malformed */ }
+    if (leavingToken) forgetThisDeviceForAccount(leavingToken);
     if (impersonation) {
       endImpersonation();
     }
@@ -158,6 +165,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('isPersonaBarActive');
     localStorage.removeItem('activePersona');
     localStorage.removeItem('impersonation_session');
+    // A shared device: the next account must not inherit this one's cached feed, offline queue, favourites, searches.
+    purgeUserScopedStorage();
     document.documentElement.classList.add('no-god-mode');
   }, [impersonation, endImpersonation]);
 

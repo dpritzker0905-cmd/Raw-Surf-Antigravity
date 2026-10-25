@@ -1,6 +1,7 @@
 """Gamification API endpoints for badges and XP"""
 
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -94,12 +95,12 @@ async def get_user_gamification_stats(
 
 @router.post("/gamification/award-xp")
 async def award_xp(
-    user_id: str,
     amount: int,
     reason: str,
     reference_type: Optional[str] = None,
     reference_id: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Award XP to a user for an action"""
     import uuid

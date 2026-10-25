@@ -3,6 +3,7 @@
  * standard WebGL utilities for the GPU Wind engine.
  */
 import { setGridPointRegUniform } from './gridPointRegistration';
+import { windInk } from './windInk';
 
 export function createShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -289,6 +290,9 @@ export function safeDeleteTexture(gl, tex, engine) {
       console.warn('[WebGLState] Safeguarded particle state texture from accidental deletion!');
       return;
     }
+    // The stashed land mask (maskTextureStash.js) is still owned: an old frame that bound it must not free it.
+    if (engine._maskStash && tex === engine._maskStash.tex) return;
+    if (engine._maskStash2 && tex === engine._maskStash2.tex) return;   // the lake-variant slot (maskTextureStash.js)
   }
   gl.deleteTexture(tex);
   // Account for it HERE, once, for every caller. Guarded so a texture this module never saw
@@ -556,12 +560,17 @@ export function windLayerBeforeId(layers, theme, win = (typeof window !== 'undef
 export var WIND_COASTLINE = { id: 'wind-coastline', themes: ['light', 'beach', 'dark'],
   color: { light: 'rgb(45, 58, 72)', beach: 'rgb(45, 58, 72)', dark: 'rgb(200, 214, 228)' }, opacity: { light: 0.42, beach: 0.28, dark: 0.45 },
   width: ['interpolate', ['linear'], ['zoom'], 3, 0.4, 6, 0.7, 9, 1.1, 12, 1.4] };
+/** Does this theme draw the coastline stroke at all (its kill, its themes lever)? Cheap: the layer asks on every style event. */
+export function windCoastlineWanted(theme, win = (typeof window !== 'undefined' ? window : null)) {
+  const w = win || {};
+  if (w.__RAW_DISABLE_WIND_COASTLINE__ === true) return false;
+  const themes = typeof w.__RAW_WIND_COASTLINE_THEMES__ === 'string' ? w.__RAW_WIND_COASTLINE_THEMES__.split(',') : WIND_COASTLINE.themes;
+  return themes.includes(theme);
+}
 /** The coastline line-layer spec for this style + theme, or null (theme off, kill, or no 'water' fill to trace). */
 export function windCoastlineLayer(layers, theme, visible, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
-  if (w.__RAW_DISABLE_WIND_COASTLINE__ === true || !Array.isArray(layers)) return null;
-  const themes = typeof w.__RAW_WIND_COASTLINE_THEMES__ === 'string' ? w.__RAW_WIND_COASTLINE_THEMES__.split(',') : WIND_COASTLINE.themes;
-  if (!themes.includes(theme)) return null;
+  if (!windCoastlineWanted(theme, w) || !Array.isArray(layers)) return null;
   const water = layers.find((l) => l && l.id === 'water' && l.type === 'fill' && l.source && l['source-layer']);
   if (!water) return null;
   const op = w.__RAW_WIND_COASTLINE_OPACITY__;
@@ -573,7 +582,9 @@ export function windCoastlineLayer(layers, theme, visible, win = (typeof window 
 /** { on, opacity, singleCasing } for this theme (off whenever the neutral-body v2 theme is on: it owns the premul path). */
 export function v2SpeedPremul(v2, theme, win = (typeof window !== 'undefined' ? window : null)) {
   const w = win || {};
-  if (!v2 || v2.theme || w.__RAW_DISABLE_WIND_SPEED_PREMUL__ === true) return { on: false, opacity: 0, singleCasing: false };
+  const ink = windInk(theme, v2, w);   // windInk.js: glow runs dark's path (premultiplied off); ink keeps this path's flags and brings its own strength
+  if (ink.on) return { on: true, opacity: ink.opacity, singleCasing: false };
+  if (!v2 || v2.theme || w.__RAW_DISABLE_WIND_SPEED_PREMUL__ === true || ink.glow) return { on: false, opacity: 0, singleCasing: false };
   const themes = typeof w.__RAW_WIND_PREMUL_THEMES__ === 'string' ? w.__RAW_WIND_PREMUL_THEMES__.split(',') : V2_SPEED_PREMUL.themes;
   const on = themes.includes(theme), op = w.__RAW_WIND_PREMUL_OPACITY__;
   const opacity = (typeof op === 'number' && op >= 0.1 && op <= 1) ? op : (V2_SPEED_PREMUL.opacity[theme] || 0.8);
@@ -662,3 +673,4 @@ export function windBoundsContain(a, b) {
 export function bindWindPointReg(gl, prog, baseGrid, fineGrid, win) {
   return [setGridPointRegUniform(gl, prog, 'u_base_reg', baseGrid, win), setGridPointRegUniform(gl, prog, 'u_fine_reg', fineGrid, win)];
 }
+export { resolveWindSpeedRef } from './windSpeedRef'; // the advection's fixed speed reference (Jacobian lens, 2026-10-19)

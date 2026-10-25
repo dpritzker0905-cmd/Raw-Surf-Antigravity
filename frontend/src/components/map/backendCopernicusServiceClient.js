@@ -21,6 +21,7 @@ import { BoundedPointCache } from './BoundedPointCache';
 import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
 import { arrayMax } from './marineControllerUtils';
+import { staticEligible, tryStaticWorldGrid } from './staticFrames';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -380,7 +381,12 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
   const url = `${GRID_URL}?model=EURO&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
-    const res = await fetch(url, { signal });
+    // STATIC FRAMES (seam A, as fetchBackendMarineGrid; 2026-10-22): a world EURO waves box is answered from the pinned CDN
+    // frame (staticFrames.js); any miss or error returns null and /grid is fetched exactly as before.
+    const surfNow = getSurfModeFlag();
+    const staticJson = staticEligible({ model: 'EURO', layer, bbox: clampedBbox, surf: surfNow })
+      ? await tryStaticWorldGrid({ model: 'EURO', layer, validTimeStr, clampedBbox, surf: surfNow, signal }) : null;
+    const res = staticJson ? { ok: true, status: 200 } : await fetch(url, { signal });
     if (!res.ok) {
       let reason = `Backend returned HTTP ${res.status}`;
       try {
@@ -393,7 +399,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       } catch (e) {}
       throw new Error(reason);
     }
-    const json = await res.json();
+    const json = staticJson || await res.json();
     const result = mapNormalizedCopernicusGridToWebGL(json, clampedBbox, hourOffset, layer);
 
     updateCopernicusDiagnostics('grid', {

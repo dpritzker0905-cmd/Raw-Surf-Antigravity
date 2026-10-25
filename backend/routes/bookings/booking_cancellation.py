@@ -36,7 +36,7 @@ async def cancel_booking(
     - 24-48 hours before session: 50% refund
     - <24 hours before session: 0% refund (no refund)
     """
-    from routes.notifications.push import notify_booking
+    from routes.notifications.push_payloads import notify_booking
 
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)

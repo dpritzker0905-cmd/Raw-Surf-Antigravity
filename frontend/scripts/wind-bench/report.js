@@ -60,7 +60,8 @@ function summaryLines(results, control) {
     ? `${seeds} seeds: numbers are seed means; art counts only shapes that recur in a majority of seeds.`
     : 'ONE seed: 1-4 block clusters at the null floor come and go between seeds. Quote artifact counts from --seeds 3.');
   identicalVariantPairs(results).forEach(([a, b]) => out.push(
-    `⚠ ${a} and ${b} rendered IDENTICALLY in every view: this engine reads none of the levers that tell them apart.`));
+    `⚠ ${a} and ${b} read IDENTICALLY on every number in every view. Either this engine reads none of the levers that tell them apart,`
+    + ' or the levers move only a mark\'s hue or saturation (every number here is read from max(R,G,B)): compare their images in the contact sheet.'));
   if (control) out.push('', formatControl(control));
   return out;
 }

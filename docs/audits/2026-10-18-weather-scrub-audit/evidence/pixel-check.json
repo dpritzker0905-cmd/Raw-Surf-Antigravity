@@ -1,0 +1,8 @@
+{
+  "what": "scn_pixel_check.js: presentation check of the off-lattice mislabel (hour 27 settled, ArrowLeft to 26, screenshot 150 ms later). Mean |RGB diff| over a 600x400 map clip; particles are live so two shots of the same settled hour give the noise floor.",
+  "runs": [
+    {"cpu": 1, "earlyEngineHour": 27, "earlyLabel": "+26 hours", "exactAfterMs": 1795, "noise_27_27": 1.826, "noise_26_26": 1.835, "early_vs_27": 0.592, "early_vs_26": 5.231, "d_27_26": 5.268},
+    {"cpu": 4, "earlyEngineHour": 27, "earlyLabel": "+26 hours", "exactAfterMs": 3005, "noise_27_27": 1.796, "noise_26_26": 2.062, "early_vs_27": 3.447, "early_vs_26": 5.421, "d_27_26": 3.666}
+  ],
+  "reading": "cpu 1: the frame on screen 150 ms after selecting +26 h is hour 27 (diff to 27 below the noise floor, diff to 26 equal to the 27-vs-26 difference). cpu 4x: same direction, noisier."
+}

@@ -80,15 +80,22 @@ jobs:
           SURF_REQUESTED_HORIZON: '0' # Dark: request-scoped spot forecast work
           COPERNICUS_TERMINAL_TIME_GUARD: '0' # Dark: fail once for dataset-wide temporal bounds
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: unique acknowledged manifest snapshots
+          MANIFEST_PUBLISH_ONE_STEP: '1' # ENABLED 2026-10-17 on the owner's explicit word (#350): read-merge-CAS in one step; ALL manifest writers together (forecast-ingest, pilots, precompute, sim-parity-monitor); NOT Render. Kill: set '0' in all four.
           SURF_PARTITIONS: '0'          # DECLARED AT DEFAULT (2026-07-30) so the lane-parity guard can see it: spectral trains now reach the RATING (level moves on 50% of spot-hours measured) and 4x the marine resolutions — flip ONLY together with precompute.yml AND Render env, never one lane.
           ECMWF_PERIOD_BANDS: '0'          # DECLARED AT DEFAULT (2026-08-02) so the lane-parity guard can see it. Adds ECMWF's six period-band heights (h1012..h2530, 10-12 s through 25-30 s) to the wave request — the ONLY way EURO can decompose its own sea, since ecmwf_wam025 publishes no spectral partitions on ANY path. Gated on a MEASUREMENT: the band-closure probe over 20,494 live ocean cells returned BANDS_CLOSE (sqrt(sum(band^2))/swh p50 0.5549, max 1.0012, 0.0% exceeding tolerance), so the residual wind-sea reconstruction is sound. ⚠️ THE FLAG GATES THE FETCH, not just the emit — six extra global fields per cycle on a 1-CPU box with a melt history is the binding constraint (the SURF_PARTITIONS-costs-4x lesson). At '0' the fetcher is byte-identical to before. The COMPOSITION half is NOT wired yet, so flipping this today changes NO rating — it only makes the data present. Flip ONLY together with precompute.yml.
+          ECMWF_WAVE_LAND_CENTRE_BLOCK: ${{ vars.ECMWF_WAVE_LAND_CENTRE_BLOCK || '0' }}  # DARK (2026-10-23, #480): EURO's own block values at land-centre nodes (dir/period from the height's block). ONE repo variable read by forecast-ingest.yml AND forecast-ingest-pilots.yml (10-deg EURO here, 2-deg global_mid in pilots), so one `gh variable set` flips both lanes together. Flip only on the owner's word (D-001).
+          ECMWF_WAVE_LAND_CENTRE_REACH: ${{ vars.ECMWF_WAVE_LAND_CENTRE_REACH || '4' }}  # native cells from the centre to ECMWF sea; 4 = the whole 2-deg block (842 of 868 masked GFS-sea nodes; 2 = 575). Inert while the flag above is '0'. Same repo variable in both lanes.
           SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'  # DECLARED AT ITS LIVE VALUE (2026-08-02) — twin in precompute.yml, Render env is the third lane. The shore normal borrows a gate-passed neighbour's bearing out to 3 km; the BREAK DEPTH deliberately does NOT (it stays at 1 km, MATCH_RADIUS_KM) because the two quantities have different spatial correlation lengths: borrowed at 3 km the bearing is p50 4.3° off but the depth is 25.7% off with 7.6% wrong by >2x. Measured against the LIVE catalogue (`sim_forecast.fetch_catalog()`, n=1773): 91 spots gain a fine bearing (89 coarse + 2 none), coarse share 22.1% -> 17.1%, and 0 lost / 0 depths changed / 0 already-covered spots reshuffled. OSM-graded (independent of ETOPO, n=113) coarse p50 38.7° -> 12.6°, better 73.5%. ⚠️ A LEVEL MOVE ON 40.8% OF EVALUATIONS — a product event, not a deploy. Kill: '1.0' in ALL FOUR lanes together (here, precompute.yml, sim-parity-monitor.yml, Render), never one, or the same spot becomes two different beaches. ⚠️ CORRECTED 2026-08-02 (audit v5 F2): the original comment said "229 of 779 coarse" and "38.0%" from a census taken on `dev.db`, which dates to 2026-07-12 and whose coordinate drift against production is p90 3.470 km — LARGER than the 3 km effect it was measuring. It over-counted the population 2.5x. NEVER size this work off `dev.db`.
           RATING_OBS_GATE: '1'          # 2026-07-30 FLIP (owner approved) — twin of precompute.yml, and Render env is the third lane. Both ingest lanes write spot ratings, so both must carry it or they produce inconsistent frames. Model-only scores cap at fair_good unless >=2 models agree or a fresh report confirms. Kill: '0'.
           # ✅ FLIPPED TO 1 on 2026-08-01 (owner decision) — see the twin comment in precompute.yml
           # for the measured go/no-go. Both lanes write spot ratings, so both flip together or the
           # frames disagree. ⚠️ TO REVERT: '0' in ALL THREE lanes together, never one.
           CONSENSUS_INGEST: '1'         # ARMED by the owner's merge of the arming PR (D-009; declared '0' by #164). '1' builds the equal GFS/EURO/ICON mean as the SHADOW model CONSENSUS in the pilots lane (consensus_ingest.py) and adds the `raw_surf:CONSENSUS` lane to the skill ledger that forecast-ingest.yml and precompute.yml run. Serves nothing either way. ARM ALL THREE TOGETHER: forecast-ingest-pilots.yml, forecast-ingest.yml, precompute.yml.
-          SAMPLER_SCALAR_HEIGHT: '0'    # DECLARED AT DEFAULT (2026-09-30, dark): '1' interpolates a MARINE height as the scalar it is (the corners' weighted mean) instead of sqrt(u^2+v^2) of their vector mean, which shrinks it wherever the corners' directions diverge (islands, headlands: NDBC 51202 served 0.98 m, scalar 1.45, same-model cell 1.44, buoy 2.0; 11% of rated spots read > 5% low). Direction keeps the vector mean; wind is untouched. See sampler.scalar_marine_height_enabled. Moves served heights on every surface: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
+          SAMPLER_SCALAR_HEIGHT: '1'    # FLIPPED 2026-10-17 on the owner's word, GFS first (SAMPLER_SCALAR_HEIGHT_MODELS; evidence: ledger 1345, gate YES; declared dark at default 2026-09-30): '1' interpolates a MARINE height as the scalar it is (the corners' weighted mean) instead of sqrt(u^2+v^2) of their vector mean, which shrinks it wherever the corners' directions diverge (islands, headlands: NDBC 51202 served 0.98 m, scalar 1.45, same-model cell 1.44, buoy 2.0; 11% of rated spots read > 5% low). Direction keeps the vector mean; wind is untouched. See sampler.scalar_marine_height_enabled. Moves served heights on every surface: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
+          SAMPLER_SCALAR_HEIGHT_MODELS: 'GFS'  # DECLARED AT DEFAULT (2026-10-17, dark): which models SAMPLER_SCALAR_HEIGHT applies to once it is flipped (comma list; '*' = every model; empty = none). GFS first: its scalar lane is the only one graded; ICON and EURO join only after their own shadow lanes are read. No effect while SAMPLER_SCALAR_HEIGHT is '0'. Same value in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env.
+          COPERNICUS_PEAK_PERIOD: '0'   # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches CMEMS VTPK (spectral PEAK period, what surf_transform/period_quality are written for) as the total wave_period instead of VTM10 (energy period, kept as wave_period_tm10). services/cmems_period_map.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
+          ICON_PEAK_PERIOD: '0'         # DECLARED AT DEFAULT (2026-10-20, dark; served periods): '1' fetches DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and serves a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py. Moves served heights and ratings: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml AND precompute.yml together (not a Render flag).
+          ICON_PEAK_PERIOD_SHARPNESS: '2'  # DECLARED AT DEFAULT (2026-10-20): blend exponent for ICON_PEAK_PERIOD (w ~ (H^2 Tp)^p). Inert while ICON_PEAK_PERIOD is '0'. Same value in all three lanes.
           SAMPLER_SCALAR_LEDGER: '1'    # ARMED (2026-09-30, serves nothing): the skill ledger grades a `raw_surf:GFS_SCALAR` lane, the served GFS product sampled with a SCALAR height (sampler.force_scalar_height), on the same buoys, hours and leads as `raw_surf`, so the SAMPLER_SCALAR_HEIGHT flip is decided on paired buoy truth. Retires itself once that switch serves. Its rows fit because PENDING_MAX_ENTRIES was raised to 54,000 in the same PR (it had bound at 29,477 of 30,000). Both ledger lanes carry it: forecast-ingest.yml and precompute.yml. Kill: '0'.
           CONSENSUS_SERVE: '0'          # DECLARED AT DEFAULT (2026-09-29, dark): '1' SERVES the equal GFS/EURO/ICON mean in place of GFS marine waves on every surface (consensus_serve.ServedStore; D-009's flip), with GFS kept where a cell was not blended; the ledger adds a raw_surf:GFS_RAW baseline lane. FLIP ONLY TOGETHER: forecast-ingest.yml, precompute.yml AND the live service's env, on the owner's word and the shadow's evidence.
           CONSENSUS_SERVE_KEEP_GFS: ''  # DECLARED AT DEFAULT (2026-09-30, dark): regional-tile region_ids that keep GFS while CONSENSUS_SERVE is '1' ('' = none, D-006's global equal mean). Recommended 'hawaii' (ledger seq 215: out of sample the equal mean loses to GFS only there; hawaii-only -1.9% vs equal, -16% vs GFS). Amends D-006: the owner's word, set TOGETHER with CONSENSUS_SERVE here, in the other rating lane AND the live service's env.
@@ -112,3 +119,39 @@ jobs:
           WAVES_ANIM_DOMINANT_SWELL: ${{ vars.WAVES_ANIM_DOMINANT_SWELL || '0' }}
           WAVES_ANIM_SWELL_MIN_FRAC: ${{ vars.WAVES_ANIM_SWELL_MIN_FRAC || '0.35' }}
         run: python scripts/ingest_forecast_ci.py
+
+      # STATIC WIND FRAMES, THE HRRR LANE'S WINDOW (2026-10-23, the wind instant scrub's PR B): right after the ingest above
+      # publishes a new HRRR lane (wind_lane_ingest), rebuild only the GFS wind frames inside the old or the new lane's window
+      # (~18 of 113: one L2 product download each, the new lane applied, the parity gate) and name the new index in the public
+      # lane pointer (weather-frames v1/wind_lane.json `frames`). Frames outside both windows keep their bytes. latest.json is
+      # never written here: the pilots lane owns it. A no-op when the published index already carries the lane. Without it the
+      # client sends the new lane's window (the next ~48 h) to /grid until the pilots lane republishes (~40% of the day).
+      # Never fails the cycle. Off: repository variable WIND_LANE_FRAMES_REBUILD = '0'.
+      - name: Rebuild the lane-window static wind frames
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WIND_LANE_FRAMES_REBUILD: ${{ vars.WIND_LANE_FRAMES_REBUILD || '1' }}
+        run: python scripts/publish_frame_images.py --wind-lane-rebuild
+
+      # MODEL SPREAD DATA (2026-10-19, dark, data only): per-node GFS/EURO/ICON mean/min/max/spread/cv of the world
+      # (global_mid) wave field at GFS leads 0, 24, 48 ... h, for each frame whose three member runs are new, written to
+      # the PRIVATE weather-products bucket under model_spread/global_mid/ (gzip JSON + index.json; never the manifest).
+      # Serves nothing: no route or client reads it. It collects the distribution a confidence layer's thresholds will
+      # be set from. Products the ingest step just wrote are read from this runner's disk cache, the rest from L2; the
+      # decile report lands in this run's step summary. Can never fail the ingest cycle (continue-on-error).
+      # ON: repository variable MODEL_SPREAD_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
+      # Knobs (code defaults): MODEL_SPREAD_LEAD_STEP_H 24, MODEL_SPREAD_MAX_FRAMES 8, MODEL_SPREAD_RETAIN_DAYS 21.
+      - name: Collect GFS/EURO/ICON wave-height spread (dark data)
+        if: ${{ success() && vars.MODEL_SPREAD_PUBLISH == '1' }}
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/publish_model_spread.py

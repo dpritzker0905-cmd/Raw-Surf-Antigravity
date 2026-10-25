@@ -58,10 +58,13 @@ const useSurferGalleryActions = ({
 
   const fetchAiSessions = async () => {
     try {
-      const response = await apiClient.get(`/surfer-gallery-review/ai-sessions?surfer_id=${user.id}`);
+      const response = await apiClient.get(`/surfer-gallery/ai-sessions?surfer_id=${encodeURIComponent(user.id)}`);
       setAiSessions(response.data.sessions || []);
     } catch (error) {
       logger.debug('AI sessions not available:', error);
+      toast.error(error.response?.status === 403
+        ? 'You do not have access to these sessions.'
+        : 'Could not load session matches. Please try again.');
     }
   };
 

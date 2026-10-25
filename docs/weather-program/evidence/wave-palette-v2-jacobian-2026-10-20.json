@@ -1,0 +1,343 @@
+{
+ "at": "2026-10-20T12:23:31.014Z",
+ "command": "node frontend/scripts/wind-color/wave-jacobian.mjs",
+ "space": "CAM16-UCS (coloraide.everything, delta_e cam16)",
+ "units": "nuisances in legend steps (ramp length / anchor segments); texel in CAM16-UCS dE; levels = sum(step / max(2, swell texture))",
+ "refs": "ColorBrewer YlGnBu, BuPu (7-class); viridis, magma reversed (7 samples); laid on A anchors through the same wash",
+ "measured": {
+  "v1": {
+   "light": {
+    "length": 141.2211,
+    "even": 0.5733,
+    "seg_len": [
+     22.841,
+     25.952,
+     24.114,
+     28.475,
+     39.839
+    ],
+    "light": 0.6927,
+    "light_mono": false,
+    "cvd": 0.7238,
+    "zoom_mean": 0.1654,
+    "zoom_max": 0.2754,
+    "swell_mean": 0.0662,
+    "swell_max": 0.1255,
+    "water": 0.0382,
+    "texel": 1.8383,
+    "levels": 55.4595,
+    "step": 28.2442
+   },
+   "beach": {
+    "length": 143.6397,
+    "even": 0.3147,
+    "seg_len": [
+     15.942,
+     30.69,
+     20.598,
+     25.76,
+     50.651
+    ],
+    "light": 0.8739,
+    "light_mono": false,
+    "cvd": 0.8895,
+    "zoom_mean": 0.1924,
+    "zoom_max": 0.3212,
+    "swell_mean": 0.0695,
+    "swell_max": 0.1441,
+    "water": 0.0365,
+    "texel": 2.8061,
+    "levels": 53.503,
+    "step": 28.7279
+   }
+  },
+  "A": {
+   "light": {
+    "length": 74.164,
+    "even": 0.7463,
+    "seg_len": [
+     12.319,
+     12.686,
+     13.92,
+     13.915,
+     10.935,
+     10.388
+    ],
+    "light": 0.628,
+    "light_mono": true,
+    "cvd": 0.7772,
+    "zoom_mean": 0.3117,
+    "zoom_max": 0.6568,
+    "swell_mean": 0.1718,
+    "swell_max": 0.2899,
+    "water": 0.0863,
+    "texel": 1.1431,
+    "levels": 29.4072,
+    "step": 12.3607
+   },
+   "beach": {
+    "length": 58.7571,
+    "even": 0.6393,
+    "seg_len": [
+     8.207,
+     8.568,
+     12.799,
+     12.164,
+     8.182,
+     8.836
+    ],
+    "light": 0.7255,
+    "light_mono": true,
+    "cvd": 0.7623,
+    "zoom_mean": 0.2975,
+    "zoom_max": 0.6716,
+    "swell_mean": 0.2155,
+    "swell_max": 0.3631,
+    "water": 0.1016,
+    "texel": 0.625,
+    "levels": 23.0237,
+    "step": 9.7929
+   }
+  },
+  "B": {
+   "light": {
+    "length": 69.0154,
+    "even": 0.6074,
+    "seg_len": [
+     10.893,
+     15.27,
+     13.331,
+     9.275,
+     9.679,
+     10.567
+    ],
+    "light": 0.7205,
+    "light_mono": true,
+    "cvd": 0.7526,
+    "zoom_mean": 0.4203,
+    "zoom_max": 0.8078,
+    "swell_mean": 0.1938,
+    "swell_max": 0.3298,
+    "water": 0.0958,
+    "texel": 1.0725,
+    "levels": 27.3067,
+    "step": 11.5026
+   },
+   "beach": {
+    "length": 69.3041,
+    "even": 0.5849,
+    "seg_len": [
+     9.249,
+     9.645,
+     15.006,
+     15.812,
+     9.581,
+     10.012
+    ],
+    "light": 0.6184,
+    "light_mono": true,
+    "cvd": 0.7865,
+    "zoom_mean": 0.3125,
+    "zoom_max": 0.639,
+    "swell_mean": 0.1927,
+    "swell_max": 0.3343,
+    "water": 0.0884,
+    "texel": 0.7089,
+    "levels": 26.3744,
+    "step": 11.5507
+   }
+  },
+  "YlGnBu (Brewer)": {
+   "light": {
+    "length": 62.9288,
+    "even": 0.5986,
+    "seg_len": [
+     7.707,
+     11.429,
+     8.701,
+     10.035,
+     12.876,
+     12.18
+    ],
+    "light": 0.8667,
+    "light_mono": true,
+    "cvd": 0.8229,
+    "zoom_mean": 0.3447,
+    "zoom_max": 0.7534,
+    "swell_mean": 0.2026,
+    "swell_max": 0.3404,
+    "water": 0.1015,
+    "texel": 0.7648,
+    "levels": 24.0565,
+    "step": 10.4881
+   },
+   "beach": {
+    "length": 62.8302,
+    "even": 0.5909,
+    "seg_len": [
+     7.632,
+     11.303,
+     8.613,
+     10.104,
+     12.916,
+     12.264
+    ],
+    "light": 0.8541,
+    "light_mono": true,
+    "cvd": 0.8223,
+    "zoom_mean": 0.3164,
+    "zoom_max": 0.6826,
+    "swell_mean": 0.205,
+    "swell_max": 0.3436,
+    "water": 0.0956,
+    "texel": 0.7589,
+    "levels": 23.8445,
+    "step": 10.4717
+   }
+  },
+  "BuPu (Brewer)": {
+   "light": {
+    "length": 58.7137,
+    "even": 0.3733,
+    "seg_len": [
+     8.47,
+     5.464,
+     8.566,
+     11.345,
+     10.231,
+     14.639
+    ],
+    "light": 0.9383,
+    "light_mono": true,
+    "cvd": 0.8302,
+    "zoom_mean": 0.3985,
+    "zoom_max": 0.8506,
+    "swell_mean": 0.2182,
+    "swell_max": 0.3712,
+    "water": 0.1111,
+    "texel": 0.5463,
+    "levels": 21.6009,
+    "step": 9.7856
+   },
+   "beach": {
+    "length": 59.1913,
+    "even": 0.3714,
+    "seg_len": [
+     8.552,
+     5.499,
+     8.619,
+     11.364,
+     10.352,
+     14.805
+    ],
+    "light": 0.9213,
+    "light_mono": true,
+    "cvd": 0.8356,
+    "zoom_mean": 0.386,
+    "zoom_max": 0.7973,
+    "swell_mean": 0.2187,
+    "swell_max": 0.3706,
+    "water": 0.1027,
+    "texel": 0.5518,
+    "levels": 21.6435,
+    "step": 9.8652
+   }
+  },
+  "viridis (reversed)": {
+   "light": {
+    "length": 86.4822,
+    "even": 0.8402,
+    "seg_len": [
+     14.203,
+     15.877,
+     13.501,
+     13.341,
+     14.532,
+     15.028
+    ],
+    "light": 0.5993,
+    "light_mono": true,
+    "cvd": 0.7707,
+    "zoom_mean": 0.3493,
+    "zoom_max": 0.6557,
+    "swell_mean": 0.1547,
+    "swell_max": 0.259,
+    "water": 0.0761,
+    "texel": 1.1002,
+    "levels": 33.1627,
+    "step": 14.4137
+   },
+   "beach": {
+    "length": 86.2362,
+    "even": 0.8415,
+    "seg_len": [
+     14.1,
+     15.82,
+     13.614,
+     13.313,
+     14.37,
+     15.018
+    ],
+    "light": 0.5932,
+    "light_mono": true,
+    "cvd": 0.7616,
+    "zoom_mean": 0.3221,
+    "zoom_max": 0.6157,
+    "swell_mean": 0.1566,
+    "swell_max": 0.2606,
+    "water": 0.0727,
+    "texel": 1.0958,
+    "levels": 32.9335,
+    "step": 14.3727
+   }
+  },
+  "magma (reversed)": {
+   "light": {
+    "length": 99.0754,
+    "even": 0.639,
+    "seg_len": [
+     18.296,
+     19.371,
+     16.869,
+     13.654,
+     12.378,
+     18.507
+    ],
+    "light": 0.6605,
+    "light_mono": true,
+    "cvd": 0.8178,
+    "zoom_mean": 0.4258,
+    "zoom_max": 0.66,
+    "swell_mean": 0.1395,
+    "swell_max": 0.2465,
+    "water": 0.0672,
+    "texel": 1.2749,
+    "levels": 38.373,
+    "step": 16.5126
+   },
+   "beach": {
+    "length": 99.9714,
+    "even": 0.6189,
+    "seg_len": [
+     18.573,
+     19.81,
+     17.187,
+     13.707,
+     12.26,
+     18.435
+    ],
+    "light": 0.645,
+    "light_mono": true,
+    "cvd": 0.8142,
+    "zoom_mean": 0.4142,
+    "zoom_max": 0.604,
+    "swell_mean": 0.1395,
+    "swell_max": 0.2444,
+    "water": 0.0643,
+    "texel": 1.306,
+    "levels": 38.687,
+    "step": 16.6619
+   }
+  }
+ }
+}

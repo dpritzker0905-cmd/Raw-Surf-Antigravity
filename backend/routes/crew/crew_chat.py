@@ -81,7 +81,7 @@ async def create_system_message(booking_id: str, content: str, system_data: dict
 @router.get("/crew-chat/{booking_id}/messages")
 async def get_crew_chat_messages(
     booking_id: str,
-    user_id: str,
+    user_id: Optional[str] = None,
     limit: int = 50,
     before: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
@@ -91,8 +91,9 @@ async def get_crew_chat_messages(
     Get chat message history for a booking.
     Supports pagination with 'before' cursor (message ID).
     """
-    if user_id != current_user_id:
+    if user_id is not None and user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot read another user's crew chat")
+    user_id = current_user_id
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:
@@ -107,11 +108,16 @@ async def get_crew_chat_messages(
     # Pagination cursor
     if before:
         before_msg = await db.execute(
-            select(CrewChatMessage).where(CrewChatMessage.id == before)
+            select(CrewChatMessage).where(
+                CrewChatMessage.id == before,
+                CrewChatMessage.booking_id == booking_id,
+                CrewChatMessage.is_deleted.is_(False),
+            )
         )
         before_msg = before_msg.scalar_one_or_none()
-        if before_msg:
-            query = query.where(CrewChatMessage.created_at < before_msg.created_at)
+        if before_msg is None:
+            raise HTTPException(status_code=400, detail="Invalid message cursor")
+        query = query.where(CrewChatMessage.created_at < before_msg.created_at)
     
     query = query.order_by(CrewChatMessage.created_at.desc()).limit(limit)
     
@@ -135,7 +141,11 @@ async def get_crew_chat_messages(
     reply_messages = {}
     if reply_to_ids:
         reply_result = await db.execute(
-            select(CrewChatMessage).where(CrewChatMessage.id.in_(reply_to_ids))
+            select(CrewChatMessage).where(
+                CrewChatMessage.id.in_(reply_to_ids),
+                CrewChatMessage.booking_id == booking_id,
+                CrewChatMessage.is_deleted.is_(False)
+            )
             .options(selectinload(CrewChatMessage.sender))
         )
         for reply_msg in reply_result.scalars().all():
@@ -183,8 +193,8 @@ async def get_crew_chat_messages(
 @router.post("/crew-chat/{booking_id}/send")
 async def send_crew_chat_message(
     booking_id: str,
-    user_id: str,
     data: SendCrewChatMessageRequest,
+    user_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user_id: str = Depends(get_current_user_id),
 ):
@@ -193,8 +203,9 @@ async def send_crew_chat_message(
     Supports @mentions and threaded replies.
     Broadcasts to all connected WebSocket clients.
     """
-    if user_id != current_user_id:
+    if user_id is not None and user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot send a crew-chat message for another user")
+    user_id = current_user_id
     if parse_private_media_ref(data.media_url):
         raise HTTPException(status_code=400, detail="Private media must be sent through the crew-chat upload endpoints")
 
@@ -219,17 +230,22 @@ async def send_crew_chat_message(
     reply_to_data = None
     if data.reply_to_id:
         reply_msg_result = await db.execute(
-            select(CrewChatMessage).where(CrewChatMessage.id == data.reply_to_id)
+            select(CrewChatMessage).where(
+                CrewChatMessage.id == data.reply_to_id,
+                CrewChatMessage.booking_id == booking_id,
+                CrewChatMessage.is_deleted.is_(False)
+            )
             .options(selectinload(CrewChatMessage.sender))
         )
         reply_msg = reply_msg_result.scalar_one_or_none()
-        if reply_msg:
-            reply_to_data = {
-                "id": reply_msg.id,
-                "sender_name": reply_msg.sender.full_name if reply_msg.sender else "Unknown",
-                "content": reply_msg.content[:100] + ("..." if len(reply_msg.content) > 100 else ""),
-                "message_type": reply_msg.message_type
-            }
+        if not reply_msg:
+            raise HTTPException(status_code=404, detail="Reply message not found")
+        reply_to_data = {
+            "id": reply_msg.id,
+            "sender_name": reply_msg.sender.full_name if reply_msg.sender else "Unknown",
+            "content": reply_msg.content[:100] + ("..." if len(reply_msg.content) > 100 else ""),
+            "message_type": reply_msg.message_type
+        }
     
     # Create message
     message = CrewChatMessage(
@@ -327,7 +343,7 @@ async def send_crew_chat_message(
 @router.post("/crew-chat/{booking_id}/mark-read")
 async def mark_messages_read(
     booking_id: str,
-    user_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Mark all messages in the chat as read by this user"""
@@ -364,18 +380,19 @@ async def mark_messages_read(
 @router.get("/mentions/search")
 async def search_mentions(
     query: str,
-    user_id: str,
+    user_id: Optional[str] = None,
     context: str = "crew_chat",
     context_id: Optional[str] = None,
     limit: int = 10,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Search for users to @mention.
     
     Args:
         query: Search query (partial username or name)
-        user_id: Current user ID
+        user_id: Optional legacy selector, which must match the verified JWT subject
         context: 'crew_chat', 'dm', 'comment', 'post'
         context_id: booking_id, conversation_id, etc.
         limit: Max results
@@ -385,9 +402,17 @@ async def search_mentions(
     2. Users the current user follows
     3. All public profiles matching query
     """
+    if user_id is not None and user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot search mentions as another user")
+    # Booking priority reveals private participation, even when profile names are public.
+    if context == "crew_chat" and context_id:
+        booking, _ = await verify_chat_access(context_id, current_user_id, db)
+        if not booking:
+            raise HTTPException(status_code=403, detail="You don't have access to this chat")
+
     results = await mentions_service.search_mentionable_users(
         query=query,
-        current_user_id=user_id,
+        current_user_id=current_user_id,
         context=context,
         context_id=context_id,
         db=db,

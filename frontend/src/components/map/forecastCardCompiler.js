@@ -9,6 +9,7 @@ import { energyFluxKwM, energyBand, formatEnergy, isCoarseTier } from './surfEne
 // the production path the only path. (`heightUnit` is still a PROP — it is state, not behaviour.)
 import { formatHeightFromMeters } from './heightUnits';
 import { marineValueValidityEnabled } from './marinePointValues';
+import { modelDisplayName } from './modelDisplayName';
 
 export const STATUS_RENDERS = {
   ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
@@ -389,7 +390,7 @@ export function compileForecastCards({
 
   if (activeLayer === 'swell_1') {
     if (!swell1Supported) {
-      const modelLabel1 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
+      const modelLabel1 = modelDisplayName(activeModel);
       // Same name as the data path below — the no-data card and the data card describe the SAME
       // quantity, and two names for one quantity is the defect this arc is closing.
       cards.push({ icon: Waves, label: 'Primary Swell', value: 'N/A', color: 'text-cyan-400' });
@@ -496,7 +497,7 @@ export function compileForecastCards({
 
   if (activeLayer === 'swell_2') {
     if (swell2ModelUnavailable) {
-      const modelLabel2 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
+      const modelLabel2 = modelDisplayName(activeModel);
       cards.push({ icon: Waves, label: 'Secondary Swell', value: 'N/A', color: 'text-purple-400' });
       cards.push({ icon: Waves, label: modelLabel2, value: 'No data', color: 'text-gray-400' });
     } else {
@@ -594,7 +595,7 @@ export function compileForecastCards({
 
   if (activeLayer === 'wind_waves') {
     if (!windWavesSupported) {
-      const modelLabelWw = activeModel === 'EURO' ? 'ECMWF' : activeModel;
+      const modelLabelWw = modelDisplayName(activeModel);
       cards.push({ icon: Wind, label: 'Wind Waves', value: 'N/A', color: 'text-emerald-400' });
       cards.push({ icon: Wind, label: modelLabelWw, value: 'No data', color: 'text-gray-400' });
     } else {

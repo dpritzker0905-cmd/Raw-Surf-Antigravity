@@ -16,11 +16,21 @@ import { v2SpeedPremul, V2_SPEED_PREMUL, v2FieldTint, V2_FIELD_TINT, resolveWind
 import { DRAW_FS, HEATMAP_FS } from './WebGLWindShaders';
 
 const v2 = resolveWindParticlesV2({});
+// These are the marks BEFORE glow (windInk.js). Glow is the default in light and beach since 2026-10-10 (D-019) and stands this
+// composite down, so the tests of it run with glow's kill switch set.
+const NO_GLOW = { __RAW_DISABLE_WIND_GLOW__: true };
+// Since 2026-10-11 (D-020) dark's rules draw light and beach when NO lever is set, with dark's streak method. Glow's kill above is an
+// older kill and still draws the marks before; the plain default is read with dark's rules' own kill.
+const RULES_OFF = { __RAW_DISABLE_WIND_DARK_RULES__: true };
 
 describe('speed-coloured premultiplied marks', () => {
   it('light 1.0 and beach 0.6 with the double casing; dark untouched', () => {
-    expect(v2SpeedPremul(v2, 'light', {})).toEqual({ on: true, opacity: 1.0, singleCasing: false });
-    expect(v2SpeedPremul(v2, 'beach', {})).toEqual({ on: true, opacity: 0.6, singleCasing: false });
+    expect(v2SpeedPremul(v2, 'light', NO_GLOW)).toEqual({ on: true, opacity: 1.0, singleCasing: false });
+    expect(v2SpeedPremul(v2, 'beach', NO_GLOW)).toEqual({ on: true, opacity: 0.6, singleCasing: false });
+    expect(v2SpeedPremul(v2, 'beach', RULES_OFF)).toEqual({ on: true, opacity: 0.6, singleCasing: false });  // beach came off glow too (the owner's word)
+    for (const theme of ['light', 'beach']) expect(v2SpeedPremul(v2, theme, {})).toEqual({ on: false, opacity: 0, singleCasing: false });   // dark's rules draw by default (D-020)
+    expect(v2SpeedPremul(v2, 'beach', { __RAW_WIND_GLOW__: true })).toEqual({ on: false, opacity: 0, singleCasing: false });   // its lever still stands this down
+    expect(v2SpeedPremul(v2, 'light', RULES_OFF)).toEqual({ on: true, opacity: 1.0, singleCasing: false });  // light came off glow (it washed out live)
     expect(v2SpeedPremul(v2, 'dark', {})).toEqual({ on: false, opacity: 0, singleCasing: false });
     expect(V2_SPEED_PREMUL.themes).toEqual(['light', 'beach']);
   });
@@ -30,9 +40,9 @@ describe('speed-coloured premultiplied marks', () => {
   });
   it('bench levers: theme list, opacity (clamped), single casing', () => {
     expect(v2SpeedPremul(v2, 'dark', { __RAW_WIND_PREMUL_THEMES__: 'dark' }).on).toBe(true);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 0.5 }).opacity).toBe(0.5);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_PREMUL_OPACITY__: 7 }).opacity).toBe(1.0);
-    expect(v2SpeedPremul(v2, 'light', { __RAW_WIND_SINGLE_CASING__: true }).singleCasing).toBe(true);
+    expect(v2SpeedPremul(v2, 'light', { ...NO_GLOW, __RAW_WIND_PREMUL_OPACITY__: 0.5 }).opacity).toBe(0.5);
+    expect(v2SpeedPremul(v2, 'light', { ...NO_GLOW, __RAW_WIND_PREMUL_OPACITY__: 7 }).opacity).toBe(1.0);
+    expect(v2SpeedPremul(v2, 'light', { ...NO_GLOW, __RAW_WIND_SINGLE_CASING__: true }).singleCasing).toBe(true);
   });
 });
 
@@ -67,13 +77,13 @@ describe('wiring', () => {
     expect(HEATMAP_FS).toContain('gl_FragColor = u_field_tint > 0.0 ? vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0) : vec4(fieldRgb * alpha, alpha);');
   });
   it('the field pass multiplies (keeping the destination alpha) only when tinting', () => {
-    expect(src).toContain('if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');
+    expect(src).toContain('if (_ft > 0) gl.blendFuncSeparate(gl.DST_COLOR, gl.ZERO, gl.ZERO, gl.ONE); else blendIntoMap(gl, gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);');   // untinted: the colour's blend as before, the canvas's alpha kept too (windCanvasAlpha.js, D-027)
     expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_tint'), _ft);");
   });
   it('every premultiplied site follows _premul (the fade, the composite blend, the clean-buffer flip), never _v2.theme alone', () => {
     expect(src).toContain('if (this._v2Premul !== _premul) { this._v2Premul = _premul;');
     expect(src).toContain("gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_premul'), _premul ? 1 : 0)");
-    expect(src).toContain("gl.blendFunc(_premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);");
+    expect(src).toContain("blendIntoMap(gl, _premul ? gl.ONE : gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_premul'), _premul ? 1 : 0);");
     expect(src).toContain("_v2.theme ? _v2.composite : (_pm.on ? _pm.opacity : finalOpacity) * windCloseLandFactor(effectiveTheme, z))");
     expect(src).not.toMatch(/u_premul'\), _v2\.theme \?/);
   });

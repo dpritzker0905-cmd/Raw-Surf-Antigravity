@@ -24,16 +24,21 @@ const EngineModule = require('wind-bench-engine');
 const { windLayerBeforeId, windCoastlineLayer } = require('wind-bench-utils');
 const { gridFromFixture, worldBase } = require('../eye');
 const { mulberry32 } = require('../scanner');
-const { resolveThemeRamp, sampleRamp } = require('wind-bench-ramp');
+const RAMP = require('wind-bench-ramp'), { sampleRamp } = RAMP;
+// The legend as the BAR draws it (light's follows its field onto light's path); a tree before that has only the particle ramp.
+const resolveThemeRamp = (theme) => (RAMP.resolveLegendRamp || RAMP.resolveThemeRamp)(theme);
 const { syncWindBasemapMute } = require('wind-bench-mute');
 const { labTable, binOf, binImage, binMask, stylePalette, frameMetrics, coastMetrics, colourEdges, warpDiff, hueFidelity, labOf } = require('../ambiguity');
-const { sampleSpeed } = require('../field');
+const { sampleSpeed, sampleWind } = require('../field');
+const { flowAlignment, turned } = require('../flow');
+const { markStyle } = require('../style');
 const { latOf, mercY, TILE_PX } = require('../camera');
 // The colour parser always comes from the working tree (a --ref build may predate it); it only reads the style.
 const { parseColor } = require('../../../src/components/map/windBasemapMute');
 
 const Engine = EngineModule.default || EngineModule.WebGLWindEngine || EngineModule;
 const CSS_W = 897, CSS_H = 914, DPR = 2, FRAME_MS = 1000 / 60, THUMB = 448;
+let VIEW_W = CSS_W, VIEW_H = CSS_H;   // the map's CSS size: the bench's pane (the owner's desktop map), or a phone's (init { css: [w, h] }; the runners' --css WxH)
 const STYLES = { light: 'navigation-day-v1', beach: 'outdoors-v11', dark: 'navigation-night-v1' };
 const WIND_ID = 'bench-wind';
 const realNow = performance.now.bind(performance);
@@ -53,10 +58,64 @@ function transformRequest(url) {   // mirrors mapUtils.mapboxTransformRequest (t
   return { url: url.replace('mapbox://', 'https://api.mapbox.com/v4/') + '.json?secure&' + t };
 }
 
+// OFFLINE BASEMAP (`map-run.js --offline`, 2026-10-10: a cloud session with no REACT_APP_MAPBOX_TOKEN). A synthetic style: each
+// theme's measured land and water (check.mjs MODEL, windFieldLut.test.js; dark's land is the bench's own), a rough Gulf and Atlantic
+// coast, a lattice of road lines on the land, and the 'admin-' anchor the wind layer is placed before. The rest of map mode runs as on
+// the real styles: the mute (background and fill), the water mask, the style columns, the crops. No labels, no coastline stroke (a
+// GeoJSON fill has no source-layer), no terrain: compare arms WITHIN it, not its numbers with a Mapbox run.
+const OFFLINE = {
+  light: { land: 'rgb(236, 236, 232)', water: 'rgb(168, 214, 222)', road: 'rgb(165, 165, 162)', border: 'hsl(250, 90%, 85%)' },
+  beach: { land: 'rgb(222, 208, 180)', water: 'rgb(150, 190, 200)', road: 'rgb(155, 146, 126)', border: 'hsl(230, 8%, 62%)' },
+  dark: { land: 'rgb(18, 20, 26)', water: 'rgb(93, 117, 126)', road: 'rgb(77, 87, 102)', border: 'hsl(250, 10%, 70%)' },
+};
+const { GULF, ATLANTIC } = require('./offline-coast');   // shared with the runner: the engine's land mask reads the same coast
+function offlineStyle(theme) {
+  const c = OFFLINE[theme] || OFFLINE.light, feats = [];
+  const poly = (ring) => feats.push({ type: 'Feature', properties: { kind: 'water' }, geometry: { type: 'Polygon', coordinates: [ring] } });
+  const line = (pts, kind) => feats.push({ type: 'Feature', properties: { kind }, geometry: { type: 'LineString', coordinates: pts } });
+  poly(GULF); poly(ATLANTIC);
+  for (let lat = 31; lat <= 38; lat += 0.5) line([[-98, lat], [-81.6, lat]], 'road');
+  for (let lng = -97.5; lng <= -82; lng += 0.5) line([[lng, 30.9], [lng, 38]], 'road');
+  line([[-88.45, 30.9], [-88.45, 35]], 'admin');
+  return {
+    version: 8, sources: { bench: { type: 'geojson', data: { type: 'FeatureCollection', features: feats } } },
+    layers: [
+      { id: 'land', type: 'background', paint: { 'background-color': c.land } },
+      { id: 'water', type: 'fill', source: 'bench', filter: ['==', ['get', 'kind'], 'water'], paint: { 'fill-color': c.water } },
+      { id: 'road', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'road'], paint: { 'line-color': c.road, 'line-width': 1.5 } },
+      { id: 'admin-1-boundary-bg', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'admin'], paint: { 'line-color': c.road, 'line-width': 1 } },
+      // the state line itself, in each real style's own colour at zoom 7 and its own width (2026-10-12): what the border ink restyles
+      { id: 'admin-1-boundary', type: 'line', source: 'bench', filter: ['==', ['get', 'kind'], 'admin'], paint: { 'line-color': c.border, 'line-width': 0.75 } },
+    ],
+  };
+}
+
 let GRIDS = null;
-const state = { map: null, theme: null, gl: null, engine: null, active: false, res: 384, levers: {} };
+const state = { map: null, theme: null, gl: null, engine: null, rng: null, active: false, res: 384, levers: {}, crop: null, cropAt: null, offline: false, dpr: DPR, page: null };
+// THE PAGE BEHIND THE MAP (../page-colour.js): every frame saved here is the map's canvas laid over the page the app lays behind it, so it is
+// what the screen shows whatever alpha the wind left in the canvas. state.page is a run's own page (`--behind`); null is the app's for the theme.
+const { pageOf, alphaOf, foldAlpha } = require('../page-colour');
+const { forceUniforms } = require('../force-uniforms');   // one variable at a time: a run's forced uniforms (truth mode's arms)
+const { cropRect, rowsFromTop } = require('../crops');     // where a crop is: the screen's and the trail buffer's are the same pixels
+/** A 2D canvas of w x h already filled with the page behind the map: draw the map's canvas onto it and it is what the screen shows. */
+function pageCanvas(w, h) {
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const x = t.getContext('2d'); x.fillStyle = state.page || pageOf(state.theme); x.fillRect(0, 0, w, h);
+  return t;
+}
 
 function clearLevers() { Object.keys(window).filter((k) => k.startsWith('__RAW_')).forEach((k) => { delete window[k]; }); }
+
+/**
+ * The copies of the world the particles are drawn in, as the app's layer computes them (WebGLWindLayer.js): [0] for
+ * every view away from the date line, [0, 360] or [-360, 0] astride it, three copies when zoomed far out.
+ */
+function worldOffsets(centerLng, canvasWidth, zoom) {
+  const span = (canvasWidth * 360) / (256 * Math.pow(2, zoom)), pad = zoom < 3.5 ? 180 : 10, out = [];
+  const lo = Math.floor((centerLng - span / 2 - pad + 180) / 360) * 360, hi = Math.ceil((centerLng + span / 2 + pad - 180) / 360) * 360;
+  for (let o = lo; o <= hi; o += 360) out.push(o);
+  return out.length ? out : [0];
+}
 
 function windLayer() {
   return {
@@ -66,7 +125,14 @@ function windLayer() {
       if (!state.active || !state.engine) return;
       const matrix = (args && args.length >= 16) ? args : (args.defaultProjectionData?.mainMatrix || args.mercatorMatrix || args.mainMatrix);
       const map = state.map, b = map.getBounds(), c = map.getCanvas();
-      state.engine.render(gl, matrix, c.width, c.height, map.getZoom(), state.theme, [0], [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+      // THE ENGINE'S RANDOM STREAM IS ITS OWN. The engine draws from Math.random every frame (the respawn seed) and
+      // MapLibre draws from it too (an id per worker request), so a tile that happened to load mid-run shifted every
+      // later respawn: the same seed laid different ink depending on which run came before (found 2026-10-10, flow
+      // mode's null control). The seeded stream is swapped in for the engine's frame only.
+      Math.random = state.rng || realRandom;
+      try {
+        state.engine.render(gl, matrix, c.width, c.height, map.getZoom(), state.theme, worldOffsets(map.getCenter().lng, c.width, map.getZoom()), [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()]);
+      } finally { Math.random = realRandom; }
     },
     onRemove() {},
   };
@@ -78,10 +144,11 @@ async function idle(map) { if (!map.loaded() || !map.areTilesLoaded()) await onc
 async function ensureMap(theme) {
   if (state.map && state.theme === theme) return state.map;
   if (state.map) { disposeEngine(); state.map.remove(); state.map = null; }
+  delete window.__WIND_LAND_MASK__;   // the land mask's load state belongs to a map's GL context: the last map's is not this one's
   state.theme = theme;
   const map = new maplibregl.Map({
-    container: 'map', style: `mapbox://styles/mapbox/${STYLES[theme]}`, transformRequest, center: [-88, 30.5], zoom: 6,
-    pixelRatio: DPR, fadeDuration: 0, interactive: false, attributionControl: false,
+    container: 'map', style: state.offline ? offlineStyle(theme) : `mapbox://styles/mapbox/${STYLES[theme]}`, transformRequest, center: [-88, 30.5], zoom: 6,
+    pixelRatio: state.dpr, fadeDuration: 0, interactive: false, attributionControl: false,
     canvasContextAttributes: { antialias: false, preserveDrawingBuffer: true },
   });
   state.map = map;
@@ -122,27 +189,72 @@ function disposeEngine() {
 
 function newEngine(res, seed) {
   disposeEngine();
-  Math.random = mulberry32(seed);
-  const e = new Engine();
-  e.particleRes = res;
-  e.init(state.gl);
-  e.setWindData(state.gl, GRIDS.world);
-  e.setWindData(state.gl, GRIDS.fine);
-  state.engine = e;
+  state.rng = mulberry32(seed);
+  Math.random = state.rng;
+  try {
+    const e = new Engine();
+    e.particleRes = res;
+    e.init(state.gl);
+    e.setWindData(state.gl, GRIDS.world);
+    e.setWindData(state.gl, GRIDS.fine);
+    state.engine = e;
+  } finally { Math.random = realRandom; }
+}
+
+/**
+ * Dark's rules pick each mark's streak row by a land mask that loads OFF the frame (src/components/map/windLandMask.js; its state is
+ * window.__WIND_LAND_MASK__). Wait until it has settled, so a sample never mixes land rows and sea rows by the luck of the load.
+ * Returns 'ready' | 'failed' | 'loading' (timed out) | 'off' (nothing on this map has asked for it yet: dark, the kill, or an engine
+ * before the mask). It is the FILE's state on this map; whether a shot's marks read it is landMaskOn (the shader's own answer).
+ */
+async function landMaskSettled() {
+  const t0 = realNow(), m = () => window.__WIND_LAND_MASK__;
+  while (m() && m().status === 'loading' && realNow() - t0 < 20000) await new Promise((resolve) => setTimeout(resolve, 50));
+  return m() ? m().status : 'off';
+}
+/** What the mark shader was told on the last frame: 1 = it reads the mask (sea rows over the sea), 0 = every mark draws its land row. */
+function landMaskOn() {
+  const gl = state.gl, p = state.engine && state.engine.drawProgram, loc = p ? gl.getUniformLocation(p, 'u_land_on') : null;
+  return loc ? gl.getUniform(p, loc) : null;
 }
 
 function readCanvas(map) {
   const gl = state.gl, W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, px = new Uint8Array(W * H * 4);
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
-  return { px, W, H };
+  return { px, W, H, alpha: alphaOf(px) };   // alpha: the canvas's own, least and mean; under 1 the page behind the map shows on screen
 }
 
 function thumb(map) {
-  const t = document.createElement('canvas');
-  t.width = THUMB; t.height = Math.round(THUMB * CSS_H / CSS_W);
+  const t = pageCanvas(THUMB, Math.round(THUMB * VIEW_H / VIEW_W));
   t.getContext('2d').drawImage(map.getCanvas(), 0, 0, t.width, t.height);
   return t.toDataURL('image/jpeg', 0.82);
+}
+
+/** A crop at DEVICE resolution (what the screen shows, pixel for pixel; the centre, or centred at state.cropAt = [fx, fy] of the canvas), as a PNG data URL; null when no crop is asked for. */
+function cropShot(map, centre) {
+  if (!state.crop) return null;
+  const c = map.getCanvas(), r = cropRect(c.width, c.height, state.crop, centre || state.cropAt), t = pageCanvas(r.w, r.h);
+  t.getContext('2d').drawImage(c, r.x, r.y, r.w, r.h, 0, 0, r.w, r.h);
+  return state.crop[2] === 'jpeg' ? t.toDataURL('image/jpeg', 0.92) : t.toDataURL('image/png');
+}
+
+/**
+ * The SAME crop of the engine's own trail buffer (the ink this frame laid on the map, before it met the map), as a PNG data URL:
+ * truth mode fits the composite's law from it (../truth.js lawFit). A still camera reads the buffer one to one (windTrailAnchor.js),
+ * so a texel is the screen pixel under it. Rows are turned to run from the top, as the canvas's do; the alpha is written opaque
+ * (the composite reads the buffer's colour only).
+ */
+function trailShot(centre) {
+  const gl = state.gl, e = state.engine;
+  if (!state.crop || !e || !e.screenB) return null;
+  const r = cropRect(e._screenW, e._screenH, state.crop, centre || state.cropAt), px = new Uint8Array(r.w * r.h * 4), prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, e.screenB.fbo);
+  gl.readPixels(r.x, r.glY, r.w, r.h, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prev);
+  const t = document.createElement('canvas'); t.width = r.w; t.height = r.h;
+  t.getContext('2d').putImageData(new ImageData(rowsFromTop(px, r.w, r.h), r.w, r.h), 0, 0);
+  return t.toDataURL('image/png');
 }
 
 /** Render `frames` engine frames on a virtual 60 Hz clock, then read the canvas back. */
@@ -155,8 +267,29 @@ async function animate(map, frames) {
       map.triggerRepaint();
       await once(map, 'render');
     }
-    return { ...readCanvas(map), shot: thumb(map) };
+    return { ...readCanvas(map), shot: thumb(map), crop: cropShot(map) };
   } finally { delete performance.now; }
+}
+
+/** Render `frames` engine frames on ONE virtual 60 Hz clock, calling each(i) after every one (the canvas is readable there). */
+async function animateEach(map, frames, each) {
+  let vms = realNow();
+  performance.now = () => vms;
+  try { for (let i = 0; i < frames; i++) { vms += FRAME_MS; map.triggerRepaint(); await once(map, 'render'); if (each) each(i); } } finally { delete performance.now; }
+}
+
+/**
+ * The coastline stroke as the app would add it NOW: a bench map is made once a theme, before any run's levers exist, and the app
+ * reads the stroke's levers and kills when it adds the layer (WebGLWindLayer.js, on a style load). Called when a run's levers are
+ * set and again when they are cleared, so an arm's coast is the one its levers ask for and nothing outlives the arm.
+ */
+function coastSync(map, theme) {
+  const id = 'wind-coastline';
+  if (!map.getLayer(id)) return null;
+  const spec = windCoastlineLayer(map.getStyle().layers.filter((l) => l.id !== id), theme, true, window);
+  map.setLayoutProperty(id, 'visibility', spec ? 'visible' : 'none');
+  if (spec) for (const k of Object.keys(spec.paint)) map.setPaintProperty(id, k, spec.paint[k]);
+  return spec ? spec.paint : null;
 }
 
 /** Water mask from the style itself: everything hidden but the 'water' fill, painted white. */
@@ -284,8 +417,13 @@ function particleSignal(full, field, mask) {
 
 const SAMPLES = 5, SAMPLE_GAP = 12;   // the full layer is scored at 5 moments 0.2 s apart; medians are reported
 
-/** cfg: {theme, z, lng, lat, frames, res, seed, levers}. Returns metrics plus three thumbnails. */
+/**
+ * cfg: {theme, z, lng, lat, frames, res, seed, levers, crop: [w, h] device px, sync}. Returns metrics plus three thumbnails (and crops).
+ * sync: the map under the wind is restyled as the app restyles it while the wind is on (windBasemapMute.js: the mute, the border ink);
+ * the `off` frame stays the theme's own map. Off by default: the numbers of the runs before it were taken without.
+ */
 async function shoot(cfg) {
+  state.crop = Array.isArray(cfg.crop) ? cfg.crop : null;
   const map = await ensureMap(cfg.theme);
   map.jumpTo({ center: [cfg.lng, cfg.lat], zoom: cfg.z });
   state.active = false;
@@ -294,15 +432,19 @@ async function shoot(cfg) {
   const offRaw = await animate(map, 0);
   clearLevers(); Object.assign(window, cfg.levers || {});
   try {
+    if (cfg.sync) { syncWindBasemapMute(map, cfg.theme, true, WIND_ID); await idle(map); }
     state.active = true;
     newEngine(2, cfg.seed);
     const fieldRaw = await animate(map, cfg.frames);
+    const landMask = await landMaskSettled();               // asked for on the field pass's first frame; settled before any mark is scored
     const { W, H } = offRaw, mask = cssMask(maskDev, W, H);
     const off = cssImage(offRaw.px, W, H), field = cssImage(fieldRaw.px, W, H), edges = edgeSet(off, mask);
     const fieldLines = lineSurvival(off, field, edges);
     newEngine(cfg.res, cfg.seed);
     let fullRaw = await animate(map, cfg.frames);
-    const shotFull = fullRaw.shot, samples = [];
+    const shotFull = fullRaw.shot, cropFull = fullRaw.crop, samples = [];
+    const style = markStyle(fullRaw.px, fieldRaw.px, maskDev);   // the marks against the field under them, at device resolution (../style.js)
+    const landOn = landMaskOn();
     for (let s = 0; s < SAMPLES; s++) {
       if (s) fullRaw = await animate(map, SAMPLE_GAP);
       const full = cssImage(fullRaw.px, W, H);
@@ -322,12 +464,17 @@ async function shoot(cfg) {
     };
     let wet = 0; for (let i = 0; i < mask.length; i++) wet += mask[i];
     return {
-      theme: cfg.theme, z: cfg.z, waterShare: +(wet / mask.length).toFixed(3), land: surf(0), water: surf(1),
+      theme: cfg.theme, z: cfg.z, waterShare: +(wet / mask.length).toFixed(3), land: surf(0), water: surf(1), style: { land: style[0], water: style[1] },
+      landMask: { status: landMask, on: landOn },
       glError: state.gl.getError() || 0, shots: { off: offRaw.shot, field: fieldRaw.shot, full: shotFull },
+      crops: state.crop ? { off: offRaw.crop, field: fieldRaw.crop, full: cropFull } : null,
+      page: pageOf(cfg.theme, state.page), canvasAlpha: foldAlpha(foldAlpha(null, fieldRaw.alpha), fullRaw.alpha),   // the field pass and the last full frame
     };
   } finally {
     Math.random = realRandom;
     clearLevers();
+    state.crop = null;
+    if (cfg.sync) syncWindBasemapMute(map, cfg.theme, false, WIND_ID);
   }
 }
 
@@ -351,21 +498,20 @@ const OPACITY_PROPS = { fill: ['fill-opacity'], line: ['line-opacity'], symbol: 
   circle: ['circle-opacity', 'circle-stroke-opacity'], raster: ['raster-opacity'], heatmap: ['heatmap-opacity'], hillshade: ['hillshade-exaggeration'] };
 
 function smallShot(map, width = 300) {
-  const t = document.createElement('canvas');
-  t.width = width; t.height = Math.round(width * CSS_H / CSS_W);
+  const t = pageCanvas(width, Math.round(width * VIEW_H / VIEW_W));
   t.getContext('2d').drawImage(map.getCanvas(), 0, 0, t.width, t.height);
   return t.toDataURL('image/jpeg', 0.8);
 }
 
-const camOf = (f) => ({ center: [f.lng, f.lat], zoom: f.z });
+const camOf = (f) => ({ center: [f.lng, f.lat], zoom: f.z, bearing: f.bearing || 0, pitch: f.pitch || 0 });
 
 /** The served speed (kn) under every analysis pixel (row 0 = screen bottom): the fine grid inside it, else the world base. */
 function speedsAt(cam, w, h) {
   const k = 1 / (TILE_PX * Math.pow(2, cam.z)), cx = (cam.lng + 180) / 360, cy = mercY(cam.lat), px = ANALYSIS / DPR, out = new Float32Array(w * h);
   for (let r = 0; r < h; r++) {
-    const lat = latOf(cy + (CSS_H / 2 - (r + 0.5) * px) * k);
+    const lat = latOf(cy + (VIEW_H / 2 - (r + 0.5) * px) * k);
     for (let x = 0; x < w; x++) {
-      const lng = (cx + ((x + 0.5) * px - CSS_W / 2) * k) * 360 - 180, v = sampleSpeed(GRIDS.fine, lng, lat);
+      const lng = (cx + ((x + 0.5) * px - VIEW_W / 2) * k) * 360 - 180, v = sampleSpeed(GRIDS.fine, lng, lat);
       out[r * w + x] = v == null ? (sampleSpeed(GRIDS.world, lng, lat) ?? NaN) : v;
     }
   }
@@ -468,24 +614,28 @@ async function pathRun(cfg) {
     ref.set(i, { orig: binImage(o.px, o.W, o.H, ANALYSIS), wet: binMask(maskDev, o.W, o.H, ANALYSIS), lines: lineRef(oCss, cssMask(maskDev, o.W, o.H)) });
   }
   const legend = legendBins(theme), legendAt = legendLab(theme), rows = [];
+  let alpha = null;   // the canvas's own alpha over every sampled frame (../page-colour.js)
   map.jumpTo(camOf(cfg.frames[0]));
   const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
   await idle(map);
   state.active = true;
   newEngine(cfg.fieldOnly ? 2 : cfg.res, cfg.seed);
-  const geom = { cssW: CSS_W, cssH: CSS_H, px: ANALYSIS / DPR };
-  let prev = null;
+  const geom = { cssW: VIEW_W, cssH: VIEW_H, px: ANALYSIS / DPR };
+  let prev = null, landMask = 'off';
   let vms = realNow();
   performance.now = () => vms;
   const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
   try {
-    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); }
+    // The land mask (dark's rules) is asked for on the first frame: wait for it there, rendering nothing extra, so an older engine's
+    // run is frame for frame what it was and the warm-up's later frames lay their trail with the mask settled.
+    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); if (!i) landMask = await landMaskSettled(); }
     for (let i = 0; i < cfg.frames.length; i++) {
       map.jumpTo(camOf(cfg.frames[i]));
       vms += FRAME_MS;
       await frame();
       if (!S.has(i)) continue;
       const tiles = map.areTilesLoaded(), compRaw = readCanvas(map), shot = cfg.shots ? smallShot(map, cfg.shotWidth) : null;
+      alpha = foldAlpha(alpha, compRaw.alpha);
       state.active = false;
       await frame();                                    // same camera, wind layer skipped, clock not advanced
       const offRaw = readCanvas(map);
@@ -509,7 +659,7 @@ async function pathRun(cfg) {
         retLand: r(lines[0].retain), retWater: r(lines[1].retain),
         warp: warp && Object.fromEntries(Object.entries(warp).map(([k, v]) => [k, r(v, 3)])), shot });
     }
-    return { theme, mute, stylePal: stylePal.length, rows, glError: state.gl.getError() || 0 };
+    return { theme, mute, landMask: { status: landMask, on: landMaskOn() }, stylePal: stylePal.length, rows, glError: state.gl.getError() || 0, page: pageOf(theme, state.page), canvasAlpha: alpha };
   } finally {
     delete performance.now;
     state.active = false;
@@ -517,6 +667,106 @@ async function pathRun(cfg) {
     syncWindBasemapMute(map, theme, false, WIND_ID);
     Math.random = realRandom;
     clearLevers();
+  }
+}
+
+/**
+ * FLOW mode (2026-10-10): do the wind's streaks still run along the wind while the camera moves? The path is flown once
+ * at a virtual 60 Hz; at each sample the same camera is captured twice without advancing the engine (map + wind, the map
+ * alone) and ../flow.js scores the ink between them against the served wind direction.
+ * cfg: {theme, frames: [{lng, lat, z, bearing?, pitch?}], samples: [frame index], res, seed, levers, warm, shots, shotWidth,
+ * hashBefore: samples before this frame also carry a hash of the engine's trail buffer}.
+ * A turned map is scored (flow.js `turned`); a TILTED one is drawn and captured but not scored (its ground is in perspective).
+ * shotCrop: [w, h, fmt] device px (and shotAt: [fx, fy]) makes each shot a crop at device resolution instead of the whole canvas
+ * scaled down: a thin line keeps its pixels. Off the bench's own pixel ratio (init { pixelRatio }) the frames are drawn and kept but
+ * not scored: the scoring image is built for 2 device px a CSS px.
+ * shotAts: [[fx, fy], ...] takes SEVERAL crops of each frame (row.shot is then a list, in that order): the same particles read at
+ * several places. trailShots: each crop also carries the engine's own trail buffer under it (row.trail, as row.shot). sink: the name
+ * of a function the runner exposed; each sample's { i, shot, trail } is handed to it as it is taken and left out of the rows (a run
+ * of lossless crops does not fit one reply). force: uniforms held at a value for the run (../force-uniforms.js); the result's
+ * `forced` counts how often each was.
+ */
+/**
+ * FNV-1a over the engine's own trail buffer (the ink, before it meets the map): two runs laid the same ink exactly when
+ * this agrees. The canvas is not used for this: the basemap under it (label placement, tile arrival) is not bit-stable
+ * from one run to the next.
+ */
+function trailHash() {
+  const gl = state.gl, e = state.engine;
+  if (!e || !e.screenB) return null;
+  const W = e._screenW, H = e._screenH, px = new Uint8Array(W * H * 4), prev = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, e.screenB.fbo);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, prev);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < px.length; i++) { h ^= px[i]; h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16);
+}
+
+async function flowRun(cfg) {
+  const map = await ensureMap(cfg.theme), theme = cfg.theme, S = new Set(cfg.samples);
+  state.active = false;
+  state.crop = Array.isArray(cfg.shotCrop) ? cfg.shotCrop : null; state.cropAt = cfg.shotAt || null; state.page = cfg.page || null;   // null: the app's own page for the theme
+  if (cfg.page && !(window.CSS && CSS.supports('color', cfg.page))) throw new Error('not a CSS colour for the page behind the map: ' + cfg.page);
+  clearLevers(); Object.assign(window, cfg.levers || {});
+  coastSync(map, theme);
+  map.jumpTo(camOf(cfg.frames[0]));
+  const mute = syncWindBasemapMute(map, theme, true, WIND_ID);
+  await idle(map);
+  for (let n = 0; n < cfg.samples.length; n += 4) { map.jumpTo(camOf(cfg.frames[cfg.samples[n]])); await idle(map); }   // warm the tile cache along the path
+  map.jumpTo(camOf(cfg.frames[0])); await idle(map);
+  state.active = true;
+  newEngine(cfg.res, cfg.seed);
+  delete window.__WIND_TRAIL_ANCHOR__;
+  const rows = [], ats = Array.isArray(cfg.shotAts) && cfg.shotAts.length ? cfg.shotAts : null;
+  const forced = cfg.force && Object.keys(cfg.force).length ? forceUniforms(state.gl, state.engine, cfg.force) : null;
+  let landMask = 'off', alpha = null;
+  let vms = realNow();
+  performance.now = () => vms;
+  const frame = async () => { map.triggerRepaint(); await once(map, 'render'); };
+  try {
+    // The land mask (dark's rules) is asked for on the first frame: wait for it there, rendering nothing extra, so an older engine's
+    // run is frame for frame what it was and the warm-up's later frames lay their trail with the mask settled.
+    for (let i = 0; i < (cfg.warm || 120); i++) { vms += FRAME_MS; await frame(); if (!i) landMask = await landMaskSettled(); }
+    for (let i = 0; i < cfg.frames.length; i++) {
+      const cam = cfg.frames[i];
+      map.jumpTo(camOf(cam));
+      vms += FRAME_MS;
+      await frame();
+      if (!S.has(i)) continue;
+      const tiles = map.areTilesLoaded(), compRaw = readCanvas(map);
+      let shot = cfg.shots ? (state.crop ? (ats ? ats.map((a) => cropShot(map, a)) : cropShot(map)) : smallShot(map, cfg.shotWidth)) : null;
+      const trail = cfg.trailShots && state.crop ? (ats ? ats.map((a) => trailShot(a)) : trailShot()) : null;
+      alpha = foldAlpha(alpha, compRaw.alpha);
+      if (cfg.sink) { await window[cfg.sink]({ i, shot, trail }); shot = null; }
+      const hash = i < (cfg.hashBefore || 0) ? trailHash() : null;
+      state.active = false;
+      await frame();                                    // same camera, wind layer skipped, clock not advanced
+      const offRaw = readCanvas(map);
+      state.active = true;
+      const comp = cssImage(compRaw.px, compRaw.W, compRaw.H), off = cssImage(offRaw.px, offRaw.W, offRaw.H);
+      const k = 1 / (TILE_PX * Math.pow(2, cam.z)), cx = (cam.lng + 180) / 360, cy = mercY(cam.lat);
+      const t = turned(cam.bearing || 0);   // image rows run from the screen's bottom, so +row is up the screen
+      const windAt = (x, y) => {
+        const [east, north] = t.toGround(x - VIEW_W / 2, y - VIEW_H / 2), lng = ((((cx + east * k) * 360) % 360) + 360) % 360 - 180, lat = latOf(cy - north * k);
+        const uv = sampleWind(GRIDS.fine, lng, lat) || sampleWind(GRIDS.world, lng, lat);
+        return uv && t.toScreen(uv[0], uv[1]);
+      };
+      const f = cam.pitch || state.dpr !== DPR ? { flow: null, blocks: 0, ink: 0 } : flowAlignment(comp, off, windAt);
+      rows.push({ i, z: cam.z, bearing: cam.bearing || 0, tiles, flow: f.flow == null ? null : +f.flow.toFixed(4), blocks: f.blocks, ink: +f.ink.toFixed(2), hash, shot, trail: cfg.sink ? null : trail });
+    }
+    return { theme, mute, ink: window.__WIND_BORDER_INK__ || null, landMask: { status: landMask, on: landMaskOn() }, rows, anchor: window.__WIND_TRAIL_ANCHOR__ || null, glError: state.gl.getError() || 0,
+      page: pageOf(theme, state.page), canvasAlpha: alpha, forced: forced ? forced.hits : null };   // the page laid behind every saved frame, and the map canvas's own alpha over every sampled frame
+  } finally {
+    if (forced) forced.restore();
+    delete performance.now;
+    state.active = false;
+    disposeEngine();
+    syncWindBasemapMute(map, theme, false, WIND_ID);
+    Math.random = realRandom;
+    clearLevers();
+    coastSync(map, theme);
+    state.crop = null; state.cropAt = null; state.page = null;
   }
 }
 
@@ -572,14 +822,50 @@ async function muteImagery(cfg) {
   return { staleOff, on, staleOn, staleShown, shown, shownMaxDE: max, staleHidden, hidden };
 }
 
-/** fixtures: {fine, scale}. scale multiplies u and v (1 = as served; 2.3 puts Mobile Bay's median at ~30 kn, the owner's case). */
+/**
+ * fixtures: {fine, scale, pixelRatio}. scale multiplies u and v (1 = as served; 2.3 puts Mobile Bay's median at ~30 kn, the owner's
+ * case). pixelRatio: the map's device pixels a CSS pixel (default 2, which every scored column assumes; the owner's laptop is 1.5,
+ * for pictures and for border mode, which scores at device resolution).
+ */
 function init(fixtures) {
   state.bare = fixtures.bare === true;
+  state.offline = fixtures.offline === true;
+  state.dpr = fixtures.pixelRatio > 0 ? fixtures.pixelRatio : DPR;
+  // css: [w, h]: the map's size in CSS px (a phone held upright is about 390 x 844 at a pixel ratio of 3). Set before any map is made.
+  if (Array.isArray(fixtures.css) && fixtures.css[0] > 0 && fixtures.css[1] > 0) { VIEW_W = Math.round(fixtures.css[0]); VIEW_H = Math.round(fixtures.css[1]); }
+  const pane = typeof document !== 'undefined' ? document.getElementById('map') : null;
+  if (pane) { pane.style.width = `${VIEW_W}px`; pane.style.height = `${VIEW_H}px`; }
   const k = fixtures.scale || 1, fx = { ...fixtures.fine, u: fixtures.fine.u.map((u) => u * k), v: fixtures.fine.v.map((v) => v * k) };
   const fine = gridFromFixture(fx, 'served_fine');
   GRIDS = { fine, world: worldBase([fine]) };
   return { fine: `${fine.cols}x${fine.rows}`, bounds: fixtures.fine.bounds };
 }
 
-window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
+/** The served speed (kn) at a place as the engine draws it: the fine grid inside its box, else the 2-degree world base. */
+const speedAt = (lng, lat) => { const v = sampleSpeed(GRIDS.fine, lng, lat); return v == null ? (sampleSpeed(GRIDS.world, lng, lat) ?? null) : v; };
+
+// BORDER mode (2026-10-12, ./border-probe.js): the political borders and place names alone, against the ground under them.
+const borderRun = require('./border-probe')({ state, ensureMap, idle, readCanvas, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, settledWaterMask, sync: syncWindBasemapMute, coastSync, WIND_ID, speedAt });
+
+// GROUND mode (2026-10-12, ./ground-probe.js): the map the wind is laid on: the area layers under it, and the land and the sea as drawn.
+const groundRun = require('./ground-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, animateEach, readCanvas, coastSync, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
+
+// ANATOMY mode (2026-10-12, ./anatomy-probe.js): a streak's colour, size and amount by wind speed, on a speed ramp.
+const anatomyRun = require('./anatomy-probe')({ state, ensureMap, idle, newEngine, disposeEngine, clearLevers, landMaskSettled, animate, animateEach, readCanvas, coastSync, settledWaterMask, WIND_ID, mute: require('wind-bench-mute'), speedAt });
+
+// SWITCH mode (2026-10-12, ./switch-probe.js): the app's own theme-change sequence (setStyle with a diff) on the real library.
+const addWind = (map, theme) => {   // as the app's layer re-adds itself after a rebuilt style: the wind and its coastline, in their slot
+  const layers = map.getStyle().layers, before = windLayerBeforeId(layers, theme, {}), coast = windCoastlineLayer(layers, theme, true, {});
+  map.addLayer(windLayer(), before);
+  if (coast && !map.getLayer(coast.id)) map.addLayer(coast, before);
+};
+const addCoast = (map, theme) => {   // as the app's layer puts the coastline back when a diffed theme change has dropped it (WebGLWindLayer.js handleStyleData)
+  const layers = map.getStyle().layers, coast = windCoastlineLayer(layers, theme, true, {});
+  if (!coast || map.getLayer(coast.id)) return false;
+  map.addLayer(coast, windLayerBeforeId(layers, theme, {}));
+  return true;
+};
+const switchRun = require('./switch-probe')({ state, ensureMap, idle, clearLevers, WIND_ID, STYLES, addWind, addCoast, mute: require('wind-bench-mute') });
+
+window.__MAP_BENCH__ = { ready: true, init, shoot, pathRun, flowRun, borderRun, switchRun, groundRun, anatomyRun, worldOffsets, muteRoundTrip, muteImagery, maplibre: maplibregl.getVersion ? maplibregl.getVersion() : maplibregl.version };
 document.getElementById('status').textContent = 'ready';

@@ -5,8 +5,9 @@ for tritan. (culori's Machado filter mis-rendered a textbook red/green pair -- 1
 give ~6 -- so it is not used for CVD.) Reads the JSON that `node check.mjs --json <file>` writes.
 
 Usage:  .venv/Scripts/python cvd_check.py <check.json> [--strict]
-Checks, per theme: adjacent LEGEND stops (the particle ramp) and adjacent TINT composites over water, each pair
->= 5 dE2000 apart under protan, deutan and tritan simulation (the windFieldLut design floor is 4.9).
+Checks, per theme: adjacent LEGEND stops (the particle ramp) and adjacent TINT composites over water and (multiply themes) land, each
+pair >= 5 dE2000 apart under protan, deutan and tritan simulation (the windFieldLut design floor is 4.9). A look with its own mark
+colours (check.mjs --look) adds a watch line for them.
 """
 import json
 import sys
@@ -42,13 +43,35 @@ def main():
         bad = d < FLOOR
         red += bad
         print(f"[{'RED ' if bad else ' ok '}] {theme} legend, colour-blind: weakest neighbours {label} ({kind}) at {d:.1f} dE00 (floor {FLOOR})")
-        tints = t.get("tintStops", {}).get("water")
-        if tints:
-            pairs = [(f"{a['kn']}-{b['kn']} kn", a["rgb"], b["rgb"]) for a, b in zip(tints, tints[1:])]
-            d, label, kind = worst_pair(pairs)
-            bad = d < FLOOR
-            red += bad
-            print(f"[{'RED ' if bad else ' ok '}] {theme} tint over water, colour-blind: weakest neighbours {label} ({kind}) at {d:.1f} dE00 (floor {FLOOR})")
+        for surface in ("water", "land"):   # the land since 2026-10-10: the muted ground is two grounds (light's look A/B)
+            tints = t.get("tintStops", {}).get(surface)
+            if tints:
+                pairs = [(f"{a['kn']}-{b['kn']} kn", a["rgb"], b["rgb"]) for a, b in zip(tints, tints[1:])]
+                d, label, kind = worst_pair(pairs)
+                bad = d < FLOOR
+                red += bad
+                print(f"[{'RED ' if bad else ' ok '}] {theme} tint over {surface}, colour-blind: weakest neighbours {label} ({kind}) at {d:.1f} dE00 (floor {FLOOR})")
+            ups = t.get("tintUploaded", {}).get(surface)
+            if ups:   # --as-uploaded: the same pairs through the engine's 8-bit texture, at every maximum of the sweep; the weakest of all
+                worst, each = None, []
+                for u in ups:
+                    pairs = [(f"{a['kn']}-{b['kn']} kn", a["rgb"], b["rgb"]) for a, b in zip(u["stops"], u["stops"][1:])]
+                    if not pairs:
+                        continue
+                    d, label, kind = worst_pair(pairs)
+                    each.append(d)
+                    if worst is None or d < worst[0]:
+                        worst = (d, label, kind, u["max"])
+                if worst:
+                    bar = float(t.get("uploadedFloor", FLOOR))   # check.mjs --as-uploaded-floor: the as-drawn bar (the owner has not set one; 5.0 unless asked)
+                    under = sum(1 for d in each if d < bar)
+                    bad = worst[0] < bar
+                    red += bad
+                    print(f"[{'RED ' if bad else ' ok '}] {theme} tint over {surface}, AS UPLOADED, colour-blind: weakest neighbours {worst[1]} ({worst[2]}) at {worst[0]:.2f} dE00 at a {worst[3]:g} kn maximum (floor {bar:g}; under it at {under} of {len(ups)} maxima)")
+        marks = t["stops"].get("marks")
+        if marks:   # a look's own streak colours as drawn (ink over the water): a watch line, never red (never a gate)
+            d, label, kind = worst_pair([(f"{a[0]}-{b[0]} kn", a[1:4], b[1:4]) for a, b in zip(marks, marks[1:])])
+            print(f"[{'warn' if d < FLOOR else ' ok '}] {theme} marks (the look's own colours), colour-blind: weakest neighbours {label} ({kind}) at {d:.1f} dE00 (watch below {FLOOR})")
     print(f"{red} red colour-blind line(s).")
     return 1 if ("--strict" in sys.argv and red) else 0
 

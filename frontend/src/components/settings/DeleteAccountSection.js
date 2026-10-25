@@ -2,27 +2,37 @@
  * DeleteAccountSection -- GDPR Article 17 self-service data deletion.
  * Shows in Settings page. Requires confirmation before proceeding.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
+import { useAuth } from '../../contexts/AuthContext';
 
 const DeleteAccountSection = ({ onDeleted }) => {
   const [step, setStep] = useState('idle');
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { logout } = useAuth();
+  const redirectTimer = useRef(null);
+
+  // Leaving the page (logout sends a signed-out visitor to /auth) must not leave a hard redirect pending.
+  useEffect(() => () => clearTimeout(redirectTimer.current), []);
 
   const handleDelete = async () => {
     if (confirmText !== 'DELETE') return;
     setLoading(true);
     setError(null);
     try {
-      await apiClient.post('/api/compliance/delete-my-data');
+      // The client's base URL already ends in /api: a leading '/api' here made this /api/api/... and it always 404ed.
+      await apiClient.post('/compliance/delete-my-data');
       setStep('done');
-      // Clear local auth state after a short delay
-      setTimeout(() => {
-        localStorage.removeItem('raw-surf-user');
-        localStorage.removeItem('raw-surf-token');
+      toast.success('Your account data was deleted.');
+      // End the session now: the token belongs to the deleted account, and logout also clears this device's
+      // per-account caches. ProtectedRoute then sends the signed-out visitor to /auth.
+      logout();
+      localStorage.removeItem('raw-surf-token');
+      redirectTimer.current = setTimeout(() => {
         window.location.href = '/auth';
       }, 3000);
     } catch (err) {
@@ -34,7 +44,7 @@ const DeleteAccountSection = ({ onDeleted }) => {
 
   if (step === 'done') {
     return (
-      <div style={{
+      <div role="status" style={{
         padding: 24,
         textAlign: 'center',
         background: 'rgba(239,68,68,0.05)',
@@ -103,7 +113,7 @@ const DeleteAccountSection = ({ onDeleted }) => {
             This will permanently delete your posts, comments, follows, check-ins, and reviews.
             Your profile will be anonymized. Type <strong>DELETE</strong> to confirm.
           </div>
-          <input aria-label="Text input"
+          <input aria-label="Type DELETE to confirm account deletion"
             type="text"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
@@ -119,7 +129,7 @@ const DeleteAccountSection = ({ onDeleted }) => {
             }}
           />
           {error && (
-            <p style={{ margin: 0, color: '#ef4444', fontSize: 12 }}>{error}</p>
+            <p role="alert" style={{ margin: 0, color: '#ef4444', fontSize: 12 }}>{error}</p>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <button

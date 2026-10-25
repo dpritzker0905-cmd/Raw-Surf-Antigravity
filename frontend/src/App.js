@@ -76,7 +76,7 @@ const SearchPage                  = React.lazy(() => import('./pages/SearchPage'
 const SurfLog                     = React.lazy(() => import('./components/SurfLog'));
 const CreatePost                  = React.lazy(() => import('./components/CreatePost').then(m => ({ default: m.CreatePost })));
 const DispatchLobby               = React.lazy(() => import('./components/DispatchLobby').then(m => ({ default: m.DispatchLobby })));
-const PostSessionSummary          = React.lazy(() => import('./components/gallery/PostSessionSummary').then(m => ({ default: m.PostSessionSummary })));
+const SessionRecapPage            = React.lazy(() => import('./pages/SessionRecapPage'));
 const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
 const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
 const CareerPage = React.lazy(() => import('./components/CareerPage'));
@@ -213,7 +213,7 @@ function App() {
             <Route path="/dispatch/success" element={<ProtectedRoute><Lazy><DispatchPaymentSuccess /></Lazy></ProtectedRoute>} />
             <Route path="/dispatch/:dispatchId/lobby" element={<ProtectedRoute><AppLayout hideTopNav={false}><Lazy><DispatchLobby /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/bookings/:bookingId/chat" element={<ProtectedRoute><Lazy><CrewChat /></Lazy></ProtectedRoute>} />
-            <Route path="/session-recap/:sessionId" element={<ProtectedRoute><AppLayout><Lazy><PostSessionSummary /></Lazy></AppLayout></ProtectedRoute>} />
+            <Route path="/session-recap/:sessionId" element={<ProtectedRoute><AppLayout><Lazy><SessionRecapPage /></Lazy></AppLayout></ProtectedRoute>} />
 
             {/* Fallback */}
             <Route path="*" element={<Home />} />

@@ -30,10 +30,48 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    "COPERNICUS_PEAK_PERIOD": ("0", "CMEMS (MFWAM) total wave_period from VTPK, the spectral PEAK period the surf chain is written for, instead of VTM10 (energy period Tm-1,0, kept as wave_period_tm10); CMEMS partitions keep VTM01 (no partition peak exists). services/cmems_period_map.py",
+                               "forecast-ingest, forecast-ingest-pilots and precompute workflow env AND Render env together (Render serves the native CMEMS /point)"),
+    "ICON_PEAK_PERIOD": ("0", "DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py",
+                         "forecast-ingest, forecast-ingest-pilots and precompute workflow env together; NOT Render (no GWAM fetch on the box)"),
+    "ICON_PEAK_PERIOD_SHARPNESS": ("2", "Exponent p of the ICON_PEAK_PERIOD blend w_i ~ (H_i^2 Tp_i)^p (1 = energy-weighted, larger -> toward the dominant peak; never a hard switch). Inert while ICON_PEAK_PERIOD is 0",
+                                   "same lanes as ICON_PEAK_PERIOD, same value"),
+    "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
+                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
+    "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),
+    "MID_RES_EXACT_TIME_ESTIMATE": ("0", "Prefer near-exact mid estimates over distant native frames using the shared time policy", "Local serving env; hosted lanes require owner approval"),
+    "LATTICE_FILL_AFTER_PILOTS": ("0", "Run one lattice pass after all selected core and pilot producers", "Local ingestion env; hosted lanes require owner approval"),
+    "LATTICE_REGIONAL_WIND_FILL": ("0", "Fill bounded regional wind gaps from verified native same-cycle brackets", "Local ingestion env; hosted lanes require owner approval"),
+    "EURO_MARINE_FALLBACK_CACHE_REUSE": ("0", "Reuse same-cycle NOAA cache for estimated EURO components when Copernicus is unavailable", "Local ingestion env; hosted lanes require owner approval"),
+    "MARINE_EMPTY_FRAME_FALLBACK": ("0", "Recover empty regional GFS frames from exact-time coarser stored GFS data with estimated provenance", "Local ingestion env; hosted lanes require owner approval"),
+    "NOAA_WAVE_INDEX_RETRY": ("0", "Bounded retry of transient or incomplete NOAA wave indexes before declaring a failed step", "Local ingestion env; hosted lanes require owner approval"),
+    "EURO_MARINE_LATTICE_VALIDATION": ("0", "Validate bounded EURO interpolation against matching native brackets", "Local ingestion env; hosted lanes require owner approval"),
     "SAMPLER_EXACT_VALIDITY": ("0", "Honor validity before exact corner point success", "Render env"),
     "SIM_FORECAST_SERVED_GATE": ("0", "Bind real forecast rating gate to the served hour", "MCP process env"),
     "GRID_SERIES_RESPONSE_BOUNDS": ("0", "Per-process bounded series build/encoding/gzip and late-output refusal", "Render env"),
+    "GRID_SERIES_PAGE_MEMO": ("0", "Series page memo + shared in-flight builds on the tile-snapped bbox, cleared per manifest "
+                              "write; off-loop direct encode with gzip GRID_SERIES_GZIP_LEVEL (W-4)", "Render env"),
+    # SERVE-BOX COST, not physics (2026-10-20): which kept page answers, never what a page holds. A kept page is served
+    # only while every input its build read is unchanged; relabelled bytes equal a fresh encode (tests/test_series_memo_run_keys.py).
+    "GRID_SERIES_MEMO_RUN_KEYS": ("0", "With GRID_SERIES_PAGE_MEMO: pages keyed on valid times (relabelled across anchor hours), "
+                                       "stored-only pages kept 1 h and through manifest writes to models they did not read, "
+                                       "regional 2-deg pages kept; dynamic index, HRRR cycle and clock re-checked per hit",
+                                  "Render env"),
+    # SAME BYTES (tests/test_products_response.py): /products encoded once per manifest version off the event loop, with an ETag.
+    "PRODUCTS_RESPONSE_CACHE": ("1", "/api/weather/products body encoded once per manifest version in a worker thread, "
+                                     "ETag + If-None-Match 304, ?fields=compact; 0 = FastAPI encodes the manifest per call on the loop",
+                                "Render env"),
+    # WHERE A FIELD IS DRAWN, never which cells or values (tests/test_series_thin_node_bounds.py): a thinned world frame
+    # kept the ORIGINAL bounds, so the client drew it up to 4 deg too far north; on, it carries the bounds of the cells it kept.
+    "SERIES_THIN_NODE_BOUNDS": ("0", "A thinned series frame carries the bounds of the cells it kept, so the client draws it "
+                                     "where its cells are (off: up to 4 deg too far north on a thinned world frame)", "Render env"),
     "MANIFEST_IMMUTABLE_PUBLICATION": ("0", "Publish unique create-only manifest copies only after durable upload acknowledgment", "Render env + ingestion/precompute/monitor together"),
+    # WHAT THE MANIFEST HOLDS, not how it is computed: the L2 writers read the head, merge and compare-and-swap in ONE step
+    # on the manifest executor (services/weather_pipeline/manifest_publish_step.py), so one writer's snapshot can no longer erase
+    # another's registrations (2026-10-16, 14 EURO wind frames). Only the L2 WRITERS read it; Render serves and never writes.
+    "MANIFEST_PUBLISH_ONE_STEP": ("0", "Manifest writers merge against the head they will compare-and-swap from, in one retried "
+                                       "coalesced step; an unmerged snapshot is never published over a moved head",
+                                  "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the L2 writers); NOT Render"),
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
     "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),
@@ -45,11 +83,45 @@ _RATING_FLAGS = {
     "POINT_PRODUCT_IDENTITY": ("0", "Discard point hints from another model/domain; re-resolve automatically", "Render env"),
     "WIND_GRID_GFS_GLOBAL": ("0", "GFS wind grids ask Open-Meteo for gfs_global, not gfs_seamless (HRRR inside its domain): "
                                   "one model under the GFS label, so a zoom cannot swap the eye's model", "Render env"),
+    # SERVED NUMBER, DARK (2026-10-22; owner's call, DECISIONS draft): default '1' keeps today's world /grid for EURO/ICON marine.
+    # tests/test_coarse_gulf_fill_mid.py pins both values; /capabilities reports it (EURO/ICON marine rows, `gulf_fill_mid`).
+    "MARINE_GULF_FILL_MID": ("1", "coarse_gulf_fill runs on the 2-deg global_mid world clip too (EURO/ICON marine, served span >= 350 deg): "
+                                  "masked coast/land/ice cells within 8 deg of a GFS 10-deg ocean cell get GFS values; 0 = the fill keeps to "
+                                  "the 10-deg coarse tier it was built for and the world grid is served as stored (static frames then match it)",
+                             "Render env"),
+    # SERVED NUMBER, DARK (2026-10-23; the owner's decision 09:56 EDT: build it dark, show the before/after before switching on).
+    # tests/test_coarse_gulf_fill_targeted.py pins both values; /capabilities reports `gulf_fill_mid_mode`.
+    # The single zoom 7-9 source inside a GFS pilot box (2026-10-23, dark; the owner 18:13 EDT: "make the stored NOAA GFS tile the single
+    # zoom 7-9 source inside the pilot boxes ... flip both together after live parity passes"). Flip WITH the client's
+    # __RAW_ENABLE_REGIONAL_BUNDLES__ default, never alone.
+    "MARINE_REGIONAL_TILE_FIRST": ("0", "GFS marine waves/swell_1/swell_2/wind_waves: a viewport a stored pilot tile FULLY covers (the "
+                                        "client's rule: smallest containing tile, snapped box inside the data, margin-0 cover) is served "
+                                        "from that tile, never the dynamic Open-Meteo cache or the live series lane; 0 = today's path. "
+                                        "While '0', MARINE_TILE_FIRST_DIFF_SAMPLE (0.05) / _MAX_PER_HOUR (30) log tile vs dynamic",
+                                   "Render env (together with the client's regional bundle default)"),
+    "MARINE_GULF_FILL_MID_TARGETED": ("0", "on the 2-deg global_mid world clip (EURO/ICON marine), fill a masked cell ONLY from the "
+                                           "same-layer GFS 2-deg value at the same node, and only where that GFS node is sea; 0 = "
+                                           "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "
+                                           "MARINE_GULF_FILL_MID=0 wins (no 2-deg fill); the 10-deg tier is unchanged either way",
+                                      "Render env"),
+    # Per-node provenance of that fill (2026-10-23, dark): WHICH cells came from GFS, so a client can mark them (series frames too).
+    "MARINE_FILL_PROVENANCE_NODES": ("0", "add filled_idx (indices into the response's own grid.vectors, at most "
+                                          "MARINE_FILL_PROVENANCE_MAX, default 4096) to the Gulf fill's coarse_fill stamp, and carry "
+                                          "the stamp on /grid_series frames (re-pointed when a frame is decimated); 0 = the stamp "
+                                          "and every frame as before. Metadata only: no served value changes",
+                                     "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
     "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
                             "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
                        "Render env"),
+    # SERVE-BOX COST, not physics (2026-10-10): no wind number moves (tests/test_wind_bg_build_bounded.py pins the
+    # vectors equal, on vs off). Off, a fresh wind box builds all ~385 hourly steps in the background with a full
+    # gc.collect() each (0.42 s on the event loop) and a new box cancels the task a request may be waiting on.
+    "WIND_BG_BUILD_BOUNDED": ("0", "Wind background build: only the hours a request waits for plus a +-6 h window, a short "
+                                   "linger for late waiters, young-generation GC per hour, and a new box no longer cancels "
+                                   "a task that has a waiter (serve-box CPU and event-loop time; no served number moves)",
+                              "Render env"),
     "SIM_SERVED_TIME_MATCH": ("0", "Match sim tide/quality to actual baseline hour and model", "MCP process env"),
     "SIM_STRICT_INPUTS": ("0", "Refuse missing/non-finite sim forecast fields; preserve measured zero", "MCP process env"),
     # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the
@@ -230,6 +302,21 @@ _RATING_FLAGS = {
     # to something other than its code default without this column naming that workflow. It said
     # "Render env" while BOTH ingest lanes had already set it to '1' since 2026-07-18, so a reader of
     # this table could not learn the precomputed frames' true state.
+    # SERVED NUMBER, DARK (2026-10-23; the owner: "queue the EURO own-values fix (block-sampled direction/period) dark").
+    # Read by the INGEST runner (ecmwf_opendata_fetcher), not Render: EURO marine global_mid is a pilots-lane job and the
+    # 10-deg EURO marine global a core-lane one. tests/test_ecmwf_land_centre_block.py pins both values.
+    "ECMWF_WAVE_LAND_CENTRE_BLOCK": ("0", "EURO wave nodes (2 deg, 10 deg) whose own native cell is land take direction and period from "
+                                         "the block the height already uses (E-weighted circular mean / E-weighted mean), so they "
+                                         "carry ECMWF's own sea values instead of being dropped and filled from GFS (only within "
+                                         "ECMWF_WAVE_LAND_CENTRE_REACH native cells of ECMWF sea, default 4 = the whole block); 0 = point samples",
+                                     "repo variable ECMWF_WAVE_LAND_CENTRE_BLOCK, read by forecast-ingest-pilots.yml AND "
+                                     "forecast-ingest.yml env (one variable, both lanes together)"),
+    # The reach of the rule above (2026-10-23): native 0.25-deg cells (Chebyshev) from the land centre to the nearest ECMWF sea cell.
+    # 4 = the whole 8x8 block (within-cell regridding); inert while ECMWF_WAVE_LAND_CENTRE_BLOCK is '0'.
+    "ECMWF_WAVE_LAND_CENTRE_REACH": ("4", "How near the land centre (native 0.25-deg cells) an ECMWF sea cell must be for ECMWF_WAVE_LAND_CENTRE_BLOCK to validate the node: 4 = the whole 2-deg block, 2 = 0.5 deg (575 vs 842 of 868 "
+                                         "EURO-masked GFS-sea nodes, cycle 2026-10-23 00Z)",
+                                     "repo variable ECMWF_WAVE_LAND_CENTRE_REACH, read by forecast-ingest-pilots.yml AND "
+                                     "forecast-ingest.yml env (one variable, both lanes together)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this
@@ -335,7 +422,17 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     except Exception as e:
         blobs["grid_size_climatology"] = {"error": str(e)}
 
-    return {"flags": flags, "blobs": blobs, "now": datetime.now(timezone.utc).isoformat()}
+    try:   # MARINE_REGIONAL_TILE_FIRST's decisions and its dark-period diff counters (process-local)
+        from services.weather_pipeline.regional_tile_first import tile_first_stats
+        tile_first = tile_first_stats()
+    except Exception as e:
+        tile_first = {"error": str(e)}
+    try:   # the targeted 2-deg Gulf fill's counters (process-local; the dark-deploy baseline and the flip watch read them here)
+        from services.weather_pipeline.coarse_gulf_fill import targeted_fill_stats
+        gulf_fill = targeted_fill_stats()
+    except Exception as e:
+        gulf_fill = {"error": str(e)}
+    return {"flags": flags, "blobs": blobs, "gulf_fill_targeted": gulf_fill, "regional_tile_first": tile_first, "now": datetime.now(timezone.utc).isoformat()}
 
 
 @router.post("/admin/surf-forecast/size-reference")

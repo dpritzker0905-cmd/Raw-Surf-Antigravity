@@ -3,7 +3,7 @@
  * Extracted from GalleryPage.js.
  */
 import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -13,11 +13,12 @@ import {
   CheckCircle, Send, UserPlus, RotateCcw, Radio
 } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
+import { ImageVisionPanel } from '../vision/ImageVisionPanel';
 
 export const TagAssignModal = ({
   showTagAssignModal, setShowTagAssignModal,
-  selectedGallery, selectedItems, galleryItems,
-  participantsLoading, participants, aiAutoTagLoading, handleAiAutoTag,
+  selectedGallery, selectedItems, setSelectedItems, galleryItems,
+  participantsLoading, participants,
   batchTagLoading, distributeLoading, handleBatchTagToSurfer,
   distributeAllLoading, handleDistributeAll, sessionInfo,
   manualSurferSearch, setManualSurferSearch, handleSearchSurfers,
@@ -29,18 +30,18 @@ export const TagAssignModal = ({
           <Dialog open={showTagAssignModal} onOpenChange={setShowTagAssignModal}>
             <DialogContent className="max-w-xl bg-background border-border max-h-[90vh] overflow-hidden flex flex-col">
               <DialogHeader>
-                <DialogTitle className="text-foreground flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
+                <DialogTitle className="text-foreground flex items-center gap-2 pr-8">
+                  <Sparkles className="w-5 h-5 text-purple-400 shrink-0" />
                   Tag & Assign -- {selectedGallery?.title || 'Gallery'}
                 </DialogTitle>
-                <p className="text-xs text-muted-foreground">
+                <DialogDescription className="text-xs text-muted-foreground">
                   {selectedItems.size > 0 
                     ? `Tagging ${selectedItems.size} selected items` 
                     : `Tagging all ${galleryItems.length} items in this folder`}
-                </p>
+                </DialogDescription>
               </DialogHeader>
               
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              <div className="modal-body space-y-4 px-4 py-3">
  {/* GG Item Preview Strip GG */}
                 <div className="rounded-lg p-2.5" style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)' }}>
                   <div className="flex items-center gap-2 mb-2">
@@ -75,6 +76,12 @@ export const TagAssignModal = ({
                   </div>
                 </div>
     
+                <ImageVisionPanel key={selectedGallery?.id || 'gallery'} includeBoardClues
+                  onReviewPhoto={setSelectedItems ? id => setSelectedItems(new Set([id])) : undefined} images={
+                  galleryItems.filter(item => item.media_type !== 'video' && (selectedItems.size === 0 || selectedItems.has(item.id)))
+                    .map(item => ({ id: item.id, url: item.preview_url || item.original_url, label: item.title }))
+                } />
+
  {/* GG Session Participants Section GG */}
                 {participantsLoading ? (
                   <div className="flex items-center justify-center py-8">
@@ -88,12 +95,6 @@ export const TagAssignModal = ({
                         <Users className="w-4 h-4 text-purple-400" />
                         Session Participants ({participants.length})
                       </h3>
-                      {/* AI Auto-tag shortcut */}
-                      <Button aria-label="Sparkles" size="sm" variant="ghost" className="text-xs text-cyan-400 hover:text-cyan-300 h-7 px-2"
-                        onClick={() => { setShowTagAssignModal(false); handleAiAutoTag(); }}
-                        disabled={aiAutoTagLoading}>
-                        <Sparkles className="w-3 h-3 mr-1" /> AI Match All
-                      </Button>
                     </div>
                     
                     {participants.map((p) => {
@@ -172,7 +173,7 @@ export const TagAssignModal = ({
                                 Done
                               </Badge>
                             ) : (
-                              <Button aria-label="Loader2" size="sm"
+                              <Button aria-label={`Tag & Send to ${p.full_name || p.username || 'surfer'}`} size="sm"
                                 className="bg-purple-500 hover:bg-purple-600 text-white text-xs h-9 px-3 flex-shrink-0 shadow-sm"
                                 onClick={() => handleBatchTagToSurfer(p.surfer_id, p.full_name || p.username)}
                                 disabled={isLoading || galleryItems.length === 0}>
@@ -193,7 +194,7 @@ export const TagAssignModal = ({
                     
                     {/* Distribute All shortcut */}
                     {participants.length > 1 && participants.some(p => p.items_distributed < galleryItems.length) && (
-                      <Button aria-label="Loader2" size="sm" variant="outline"
+                      <Button aria-label="Tag all items to all participants" size="sm" variant="outline"
                         className="w-full border-emerald-600 text-emerald-400 hover:bg-emerald-500/10 text-xs h-9 mt-1"
                         onClick={handleDistributeAll}
                         disabled={distributeAllLoading || galleryItems.length === 0}>
@@ -261,7 +262,7 @@ export const TagAssignModal = ({
                               <p className="text-sm font-medium text-foreground truncate">{surfer.full_name || surfer.username}</p>
                               {surfer.username && <p className="text-[10px] text-muted-foreground">@{surfer.username}</p>}
                             </div>
-                            <Button aria-label="Loader2" size="sm"
+                            <Button aria-label={`Tag & Send to ${surfer.full_name || surfer.username || 'surfer'}`} size="sm"
                               className="bg-amber-500 hover:bg-amber-600 text-black text-xs h-8 flex-shrink-0"
                               onClick={() => handleBatchTagToSurfer(surfer.id, surfer.full_name || surfer.username)}
                               disabled={isLoading}>

@@ -134,7 +134,7 @@ async def heal_gallery_item_urls(
     
     # Try to import Supabase upload function
     try:
-        from routes.uploads import upload_to_supabase_storage, UPLOAD_DIR
+        from routes.uploads.core import upload_to_supabase_storage, UPLOAD_DIR
     except ImportError:
         raise HTTPException(status_code=500, detail="Supabase upload not available")
     

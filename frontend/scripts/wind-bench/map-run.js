@@ -10,6 +10,15 @@
  *
  * Needs REACT_APP_MAPBOX_TOKEN (the app's public token) in the environment or in frontend/.env. The runner passes it to
  * the page in memory; it is never written to disk or printed. Tiles come from Mapbox (a few hundred requests per run).
+ * --offline: no token and no network; a synthetic basemap (each theme's measured land and water, a rough coast, a road lattice;
+ * map-entry.js OFFLINE). Compare arms within one offline run, not its numbers with a Mapbox run.
+ * --app-sync: the map under the wind is restyled as the APP restyles it while the wind is on (windBasemapMute.js: the mute and the
+ * border ink); the `off` shot stays the theme's own map. Without it map mode draws the wind over the style's own colours, as it
+ * always has: its earlier numbers were taken that way. The borders alone are read by border-run.js.
+ * The land mask (dark's rules: a mark picks its streak row by the land under it, windLandMask.js) reads the land file this runner
+ * serves: the app's Natural Earth file on the real basemaps, the offline basemap's own coast with --offline. --no-land-file serves
+ * none, so the mask fails and every mark draws its land row: the control for the mask. The MARKS table ends with what the mark shader
+ * was told (`mask 1` = it read the mask).
  * View: Mobile Bay (the owner's 2026-10-09 report), ~300 km north of the 15Z Gulf eye; the grid is the served GFS
  * native product (fixtures/eye-2026-10-09-gfs-native.json, 0.25 deg, -90..-78 / 25..32) over a 2-deg world base.
  *
@@ -26,6 +35,8 @@ const fs = require('fs');
 const path = require('path');
 const { FRONTEND, engineSource, buildBench } = require('./build');
 const { serveDir, gpuArgs } = require('./serve');
+const { alphaWarning } = require('./page-colour');
+const { styleCell, STYLE_HEADER } = require('./style');
 
 const VIEW = { lng: -88.05, lat: 30.45 };
 
@@ -53,6 +64,12 @@ function parseArgs(argv) {
     else if (a === '--tag') opts.tag = val().replace(/[^a-z0-9-]/gi, '');
     else if (a === '--arms') opts.arms = JSON.parse(val());
     else if (a === '--sheet') opts.sheet = path.resolve(val());
+    else if (a === '--crop') { const [size, fmt] = val().split(':'); opts.crop = [...size.split('x').map(Number), fmt === 'jpeg' ? 'jpeg' : 'png']; }   // WxH[:jpeg] device px: a centre crop of every shot, pixel for pixel
+    else if (a === '--lng') opts.lng = Number(val());
+    else if (a === '--lat') opts.lat = Number(val());
+    else if (a === '--offline') opts.offline = true;
+    else if (a === '--app-sync') opts.appSync = true;
+    else if (a === '--no-land-file') opts.noLandFile = true;
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
@@ -70,6 +87,12 @@ function row(r) {
   return `${c(r.land)} | ${c(r.water)}`;
 }
 
+/** What the mark shader was told on the shot's last frame (1 = it read the land mask), and why not when a file was asked for and is not there. */
+function maskCell(m) {
+  if (!m || m.on == null) return 'mask -';
+  return `mask ${m.on}${m.on ? '' : (m.status === 'failed' ? ' (land file failed)' : (m.status === 'loading' ? ' (still loading)' : ''))}`;
+}
+
 function sheet(results, opts, label) {
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const cells = results.map((r) => `<figure><figcaption>${esc(`${r.theme} z${r.z} · ${r.arm}`)} · land line loss to particles ${f3(r.land.pLoss)} · 3:1 kept ${f3(r.land.full.wcag)} · mark signal ${r.land.sal.toFixed(2)}</figcaption>`
@@ -82,12 +105,13 @@ figure{margin:0 16px 14px}figure img{width:448px;margin-right:4px}figcaption{mar
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const token = readToken();
-  if (!token) throw new Error('REACT_APP_MAPBOX_TOKEN not found (environment or frontend/.env)');
+  const token = opts.offline ? '' : readToken();
+  if (!token && !opts.offline) throw new Error('REACT_APP_MAPBOX_TOKEN not found (environment or frontend/.env); --offline runs on a synthetic basemap');
   const source = engineSource(opts.ref, path.join(opts.out, 'cache'));
   const built = await buildBench({ srcRoot: source.srcRoot, outDir: path.join(opts.out, opts.tag), page: 'map' });
   console.log(`engine: ${source.label} · bundle ${(built.bytes / 1024).toFixed(0)} KiB · arms ${Object.keys(opts.arms).join(', ')}`);
-  const server = await serveDir(opts.out);
+  const land = opts.noLandFile ? 'none' : (opts.offline ? 'offline' : 'app');   // answered by this run's server, never left in out/
+  const server = await serveDir(opts.out, undefined, { land });
   const { chromium } = require(path.join(FRONTEND, 'node_modules', 'playwright'));
   const browser = await chromium.launch({ headless: !opts.headed, args: gpuArgs(opts.gl) });
   const results = [];
@@ -98,20 +122,29 @@ async function main() {
     await page.goto(`http://127.0.0.1:${server.address().port}/${opts.tag}/map.html`);
     await page.waitForFunction(() => window.__MAP_BENCH__ && window.__MAP_BENCH__.ready);
     const fine = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'eye-2026-10-09-gfs-native.json'), 'utf8'));
-    const info = await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale }), { fine, scale: opts.scale });
-    console.log(`maplibre ${await page.evaluate(() => window.__MAP_BENCH__.maplibre)} · served grid ${info.fine} x${opts.scale} · view ${VIEW.lng},${VIEW.lat}\n`);
+    const info = await page.evaluate((fx) => window.__MAP_BENCH__.init({ fine: fx.fine, scale: fx.scale, offline: fx.offline }), { fine, scale: opts.scale, offline: !!opts.offline });
+    console.log(`maplibre ${await page.evaluate(() => window.__MAP_BENCH__.maplibre)} · served grid ${info.fine} x${opts.scale} · view ${VIEW.lng},${VIEW.lat}${opts.offline ? ' · OFFLINE synthetic basemap' : ''} · land file: ${land}\n`);
     console.log('theme  z    arm    | LAND retF  retP  pLoss lostP 3:1F  3:1P  gsP    sal | WATER retF retP  pLoss lostP 3:1F  3:1P  gsP    sal');
     for (const theme of opts.themes) {
       for (const z of opts.zooms) {
         for (const [arm, levers] of Object.entries(opts.arms)) {
-          const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: VIEW.lng, lat: VIEW.lat, frames: opts.frames, res: 384, seed: opts.seed, levers });
+          const r = await page.evaluate((c) => window.__MAP_BENCH__.shoot(c), { theme, z, lng: opts.lng == null ? VIEW.lng : opts.lng, lat: opts.lat == null ? VIEW.lat : opts.lat, frames: opts.frames, res: 384, seed: opts.seed, levers, crop: opts.crop, sync: !!opts.appSync });
           if (r.glError) throw new Error(`GL error ${r.glError} at ${theme} z${z} ${arm}`);
+          { const w = alphaWarning(r.canvasAlpha, theme, `z${z} ${arm}`); if (w) console.warn(w); }
           r.arm = arm;
+          if (r.crops) {
+            const dir = path.join(opts.out, `${opts.tag}-crops`);
+            fs.mkdirSync(dir, { recursive: true });
+            for (const [kind, url] of Object.entries(r.crops)) if (url) fs.writeFileSync(path.join(dir, `${theme}-z${z}-${arm}-${kind}.${opts.crop[2] === 'jpeg' ? 'jpg' : 'png'}`), Buffer.from(url.split(',')[1], 'base64'));
+            delete r.crops;
+          }
           console.log(`${theme.padEnd(6)} ${String(z).padEnd(4)} ${arm.padEnd(6)} | ${row(r)}`);
           results.push(r);
         }
       }
     }
+    console.log(`\nMARKS against the field under them (style.js; dL: + = lighter than the ground)\ntheme  z    arm      | LAND  ${STYLE_HEADER} | WATER ${STYLE_HEADER}`);
+    for (const r of results) if (r.style) console.log(`${r.theme.padEnd(6)} ${String(r.z).padEnd(4)} ${r.arm.padEnd(8)} | ${styleCell(r.style.land)} | ${styleCell(r.style.water)} | ${maskCell(r.landMask)}`);
     const sheetPath = opts.sheet || path.join(opts.out, 'map-sheet.html');
     fs.writeFileSync(sheetPath, sheet(results, opts, `Wind map bench · ${source.label} · Mobile Bay · served GFS 2026-10-09 15Z`));
     console.log(`\ncontact sheet: ${sheetPath}`);

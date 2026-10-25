@@ -77,7 +77,12 @@ def _grid_span(product):
 
 def pick_mid_item(mid_auth, mid_est):
     """Authoritative mid first (native hours); else estimated mid (the mirror's blend/tail hours).
-    Within a class, smallest time-diff wins."""
+    Within a class, smallest time-diff wins. The local opt-in uses the shared
+    near-exact estimate policy while retaining native priority at native hours.
+    """
+    if os.environ.get("MID_RES_EXACT_TIME_ESTIMATE", "0") == "1":
+        from services.weather_pipeline.product_selection import select_best_candidate
+        return select_best_candidate(mid_auth, mid_est)
     for cands in (mid_auth, mid_est):
         if cands:
             return min(cands, key=lambda pair: pair[1])[0]
@@ -136,7 +141,8 @@ def _stride_clipped_grid(product, stride: int, mode: str = "stride") -> bool:
     `mode` is `thinning_mode(layer, domain)`, the SAME value grid_series passes: this is where the world
     page's far-zoom frames are thinned, so 'max' here is what keeps the Florida swell on an 8-deg lattice.
     """
-    from services.weather_pipeline.series_vector_budget import decimate_vectors
+    from services.weather_pipeline.series_vector_budget import (
+        decimate_vectors, node_extent_bounds, thin_node_bounds_enabled)
     grid = getattr(product, "grid", None)
     if grid is None:
         return False
@@ -147,6 +153,14 @@ def _stride_clipped_grid(product, stride: int, mode: str = "stride") -> bool:
     diagnostics = dict(grid.diagnostics or {})
     diagnostics["load_stride"] = stride
     grid.diagnostics = diagnostics
+    if thin_node_bounds_enabled() and getattr(grid, "bounds", None) is not None:
+        # SERIES_THIN_NODE_BOUNDS: the kept cells' own extents, and the product's served coverage/bbox follow them,
+        # exactly as _apply_identity_clip writes them, so the strided read and this path stay identical.
+        bounds = node_extent_bounds(grid.vectors, grid.bounds)
+        if bounds is not grid.bounds:
+            grid.bounds = bounds
+            product.coverage = bounds
+            product.served_bbox = f"{bounds.west:.4f},{bounds.south:.4f},{bounds.east:.4f},{bounds.north:.4f}"
     return True
 
 
@@ -216,6 +230,11 @@ def _identity_clip_bounds(product, clip, stride):
                 or (grid.cols, grid.rows) != (len(range(0, cols, stride)), len(range(0, rows, stride)))
                 or len(grid.vectors or []) != grid.cols * grid.rows):
             return None
+        from services.weather_pipeline.series_vector_budget import thin_node_bounds_enabled
+        if thin_node_bounds_enabled():
+            # SERIES_THIN_NODE_BOUNDS: the strided grid keeps lattice cells 0, s, 2s, ... so its extents are those of
+            # lats[::stride] / lons[::stride], not the whole lattice's (north 80, not 84, for a 181 x 83 world).
+            lats, lons = lats[::stride], lons[::stride]
         return CoverageBounds(west=min(lons), south=min(lats), east=max(lons), north=max(lats))
     except Exception:
         return None
@@ -387,6 +406,14 @@ async def try_serve_mid_res_tier(
 
     mid_item = pick_mid_item(mid_auth, mid_est)
     if mid_item is None:
+        return None
+    if (os.environ.get("MID_RES_EXACT_TIME_ESTIMATE", "0") == "1"
+            and current_product is not None and current_product.is_estimated
+            and target_dt is not None
+            and abs((current_product.valid_time - target_dt).total_seconds()) <= 1800
+            and abs((mid_item.valid_time_start - target_dt).total_seconds()) > 1800):
+        # Spatial refinement must not replace the selected near-exact estimate
+        # with a neighbouring mid frame (including the last native mid hour).
         return None
 
     # LOAD GUARDS (2026-07-05, the 18:56Z Render OOM during a timeline scrub): a grid_series request

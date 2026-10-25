@@ -2,6 +2,7 @@ import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { alignedCoverFrac } from './marineZoomThresholds';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -77,6 +78,13 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
                                (activeMarineLayer === 'waves' || isGridEstimated));
 
     const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer) || hasCopernicusGrid;
+    // IS_VALID CARRIED (2026-10-22): this explicit field list dropped `is_valid`, and the encoder reads land for a non-waves layer
+    // only from the vector's top level (it consults a `waves` sub-record for waves alone). So a FLAT frame (a series page, a static
+    // frame) of swell_1 / swell_2 / wind_waves drew its land as ocean: the static-frames session measured 4,850 land cells of
+    // 15,023 in a real frame, and marineFramePack.parity.test.js shows the two lanes' bytes apart from the first coastal cell.
+    // A cell the layer's record (or the vector) marks invalid now leaves here invalid; the waves layer's bytes are unchanged (its
+    // land already came from that same record). Kill: window.__RAW_DISABLE_CONFORM_IS_VALID__ = true.
+    const carryValid = typeof window === 'undefined' || window.__RAW_DISABLE_CONFORM_IS_VALID__ !== true;
     const vectors = marineData.grid.vectors.map(v => {
       // Only fall back to 'waves' if the model's GRID natively supports this layer.
       // For unsupported grid layers (EURO swell/wind_waves), use the layer's own data
@@ -113,6 +121,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         height: layerData?.height !== undefined ? layerData.height : (layerData?.speed || 0),
         direction: layerData?.direction !== undefined ? layerData.direction : undefined,
         isOcean: v.isOcean,
+        is_valid: carryValid && ((layerData && layerData.is_valid === false) || (v && v.is_valid === false)) ? false : undefined,
         dirConfidence,
         // §0e anim-phys: this conform is the LAST rebuild before the engine (explicit field
         // list — the known flag-eating mirror), so the honest height must be carried here too.
@@ -147,6 +156,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       source_dataset: marineData?.source_dataset || marineData?.grid?.source_dataset || null,
       estimate_basis: marineData?.estimate_basis || marineData?.grid?.estimate_basis || null,
       productId: marineData.grid.productId || marineData.productId || null,
+      // The STORED product a series frame came from (marineSeriesFrame: __servedProductId), carried under its own name for the frame
+      // store's regional show (marineFrameStoreRegional.findRegionalFrame); nothing else reads it (2026-10-24).
+      __storedProductId: marineData.grid.__servedProductId || marineData.served_product_id || null,
       is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,
       coverage_scope: marineData.grid.coverage_scope || null,
       // Rating-mode flag (2026-07-12): this conform is an EXPLICIT field list — the known
@@ -267,7 +279,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
             // z5-7, and nulling them here cleared the heatmap until the global recovery re-committed
             // the 10° coarse. Same lever + kill as the gate: __RAW_DOWNGRADE_COVER_FRAC__ /
             // __RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__.
-            const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+            const _coverFrac = alignedCoverFrac();   // the gate's own 0.6 (marineZoomThresholds)
             const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
             const _zoomedOutReject = _coverAlignOff
               ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)

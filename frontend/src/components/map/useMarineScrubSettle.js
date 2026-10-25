@@ -1,11 +1,16 @@
 import { useRef, useCallback, useEffect } from 'react';
-import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
+import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries'; import { settleSeriesReloadNeeded } from './marineSettleReloadGuard';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { isTerminalNoCoverage } from './marineControllerCache';
-import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+// The backstop's watchdogs live in marineSettleWatchdogs.js (800-LOC cap); re-exported for existing importers.
+import { MARINE_PENDING_LEASE_MS, STRANDED_PENDING_RECORD_MS, evaluateStrandedPending, MARKER_WEDGE_LEASE_MS, evaluateMarkerWedge,
+  recordMarineFreeze, CLAMP_CAP_REARM_MS, evaluateClampCapProbe } from './marineSettleWatchdogs';
+import { runSettleCheckLive, settleArmKey } from './marineSettleLiveMap';   // SETTLE_LIVE_MAP / SETTLE_ARM_ON_ACTIVATE
+import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
 import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
 import { frameServesSelectedHour } from './marineHourInstant';
+import { paintSeriesWhilePending, useSeriesPaintWhilePending } from './marineSeriesWhilePending';   // SERIES_PAINT_WHILE_PENDING (request diet)
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -113,7 +118,7 @@ export function isRetainedRegionalZoomedOut(eng, mapInstance) {
     // it here would loop the §2b recovery + blank-backstop refetching a global frame that never
     // commits (the fetch path returns the covering mid again). Only a NON-covering retained regional
     // (the gate hides it → blank) is display-equivalent to empty. Same lever as the gate/guard:
-    // __RAW_DOWNGRADE_COVER_FRAC__ (default 0.8).
+    // __RAW_DOWNGRADE_COVER_FRAC__ (default 0.6 since 2026-10-22: marineZoomThresholds.alignedCoverFrac).
     const vWest = b.getWest(), vEast0 = b.getEast(), vSouth = b.getSouth(), vNorth = b.getNorth();
     const vEast = (vEast0 < vWest) ? vEast0 + 360 : vEast0;
     let gWest = egb.west, gEast = egb.east;
@@ -122,96 +127,13 @@ export function isRetainedRegionalZoomedOut(eng, mapInstance) {
     const iy = Math.max(0, Math.min(egb.north, vNorth) - Math.max(egb.south, vSouth));
     const vpArea = Math.max(1e-9, (vEast - vWest) * (vNorth - vSouth));
     const frac = (ix * iy) / vpArea;
-    const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    const minFrac = alignedCoverFrac();
     return frac < minFrac;
   } catch (e) { return false; }
 }
 
-// How long a marine fetch-PENDING flag may persist with no live fetch backing it before we treat it as
-// STRANDED. Symmetric to MARINE_FETCH_LEASE_MS (the isFetching lease in useMarineDataFetcherCore) but for
-// the wedge the isFetching-gated watchdog CANNOT see: __MARINE_FETCH_PENDING__ stuck non-null while
-// locks.isFetching is false and the governor is idle. Slightly longer than the isFetching lease because
-// this path only clears a window flag (no controller to abort), so we want zero chance of clobbering a
-// just-queued fetch that hasn't registered in the governor yet (the governor registers a real fetch in ms).
-export const MARINE_PENDING_LEASE_MS = 6000;
-// Snapshot the freeze state earlier than we act, so a single organic repro is fully diagnosable even if the
-// auto-recovery's trigger turns out to be slightly off.
-export const STRANDED_PENDING_RECORD_MS = 3000;
-
-/**
- * Decide whether a marine fetch-PENDING is STRANDED. A stranded pending wedges BOTH frontend recovery
- * paths — runScrubSettleCheck bypasses on a matching pending (see "isAlreadyFetchingCurrentHour"), and the
- * blank-heatmap backstop requires `!pending` — while the isFetching-gated releaseStaleMarineLock stays
- * silent (isFetching is false). Net result: the heatmap freezes near a region that HAS data until a manual
- * layer toggle clears pending. This is the symmetric sibling of releaseStaleMarineLock for that case; the
- * govIdle + age + !isFetching guards make a false positive (clobbering a real in-flight fetch) effectively
- * impossible. Pure + unit-testable (no I/O). `record` requests a forensic snapshot before we act.
- */
-export function evaluateStrandedPending({ hasPending, pendingAgeMs, govIdle, isFetching,
-  leaseMs = MARINE_PENDING_LEASE_MS, recordMs = STRANDED_PENDING_RECORD_MS }) {
-  if (!hasPending) return { record: false, stranded: false };
-  // Record whatever is stuck (govIdle / isFetching captured in the payload by the caller) once a single
-  // pending has out-lived a normal fetch — that alone is abnormal and worth a snapshot.
-  const record = pendingAgeMs > recordMs;
-  // Only treat as STRANDED (safe to clear + re-drive) when provably dead: idle + not isFetching + past lease.
-  const stranded = !!govIdle && !isFetching && pendingAgeMs > leaseMs;
-  return { record, stranded };
-}
-
-// Marker-wedge predicate (chip task_59bcc036), pure + exported for tests: isFetching=true with
-// NO lease start stamp is the strand releaseStaleMarineLock cannot heal (its lease math bails
-// on fetchStartedAt=0) — every fetch dedup-blocks with zero network activity. A HEALTHY fetch
-// stamps the lease in the same tick it sets the marker, so tracking begins only on the
-// abnormal combination, and stranded requires it sustained (default 10s) under an idle governor.
-export const MARKER_WEDGE_LEASE_MS = 10 * 1000;
-export function evaluateMarkerWedge({ isFetching, hasStartStamp, govIdle, ageMs, leaseMs = MARKER_WEDGE_LEASE_MS }) {
-  const tracking = !!isFetching && !hasStartStamp;
-  const stranded = tracking && !!govIdle && ageMs > leaseMs;
-  return { tracking, stranded };
-}
-
-/**
- * Ring-buffer recorder for the "froze, needed a manual toggle" wedge (rating plan §8 #1). Read-only telemetry
- * — captures the lock/governor/pending state at the moment of a suspected freeze so the NEXT organic repro is
- * diagnosable in one shot (instrument-then-fix, not guess). Keeps the last ~20 snapshots + per-reason counts.
- */
-function recordMarineFreeze(reason, payload) {
-  if (typeof window === 'undefined') return;
-  const store = window.__MARINE_FREEZE_DIAG__ || { counts: {}, recent: [] };
-  store.counts[reason] = (store.counts[reason] || 0) + 1;
-  store.recent.push({ ts: Date.now(), reason, ...payload });
-  if (store.recent.length > 20) store.recent.shift();
-  store.last = store.recent[store.recent.length - 1];
-  window.__MARINE_FREEZE_DIAG__ = store;
-}
-
-// How often a CAPPED no-progress clamp may fire a slow PROBE re-drive. The cap itself is right (it
-// breaks the ~6s re-commit/particle-reset churn), but its reset signature is the ENGINE grid bounds —
-// for a held coarse_global grid those are always ±180/±85, so no pan ever resets the interval's cap
-// and an idle user got PERMANENT silence: with the series coarse-reval budget also exhausted, nothing
-// re-fetched until a moveend (the Venice "world grid resident for minutes" wedge, 2026-07-04). A probe
-// every ~45s re-runs checkScrubSettle: if the backend's regional build finished meanwhile, the series
-// force-fetch pulls it and the sharpen commits (event-driven via marine_series_revalidated); if not,
-// it costs one bounded background fetch — no commit, so no particle-reset churn.
-export const CLAMP_CAP_REARM_MS = 45000;
-
-/**
- * Decide whether a no-progress-capped clamp should fire a slow probe re-drive. Pure + unit-testable.
- * `noProgress` = consecutive backstop passes with an unchanged engine-grid signature;
- * `sinceLastProbeMs` = elapsed since the cap engaged or the last probe fired;
- * `probesFired` = slow probes already fired for THIS clamp signature.
- * §7h.3 TERMINAL STATE (2026-07-13, the non-pilot forever-probe wedge): each probe forces one
- * bounded series fetch — when the best-available tier genuinely IS the resident (non-pilot mid
- * ceiling, or a dynamic tile the clamp classifier still dislikes), probes can never progress, so
- * they stop after `probeMax` (~3 min at the 45 s cadence). Recovery stays intact WITHOUT probes:
- * a landed regional frame fires `marine_series_revalidated` (event-driven sharpen), and any
- * viewport/grid change resets the signature and re-arms everything.
- */
-export function evaluateClampCapProbe({ noProgress, sinceLastProbeMs, probesFired = 0, threshold = 3, rearmMs = CLAMP_CAP_REARM_MS, probeMax = 4 }) {
-  if (noProgress < threshold) return { capped: false, probe: false, terminal: false };
-  if (probesFired >= probeMax) return { capped: true, probe: false, terminal: true };
-  return { capped: true, probe: sinceLastProbeMs >= rearmMs, terminal: false };
-}
+export { MARINE_PENDING_LEASE_MS, STRANDED_PENDING_RECORD_MS, evaluateStrandedPending, MARKER_WEDGE_LEASE_MS, evaluateMarkerWedge,
+  CLAMP_CAP_REARM_MS, evaluateClampCapProbe };   // moved to marineSettleWatchdogs.js; the names stay importable from here
 
 // Fallback revision sequence for callers (tests/legacy) that don't wire the shared marineRevision ref.
 const _fallbackRevision = { current: 0 };
@@ -331,7 +253,7 @@ export function runScrubSettleCheck(ctx) {
         // engine stayed on the stale non-covering grid — the regional_too_small clamp (2026-07-01).
         setMarineData(stampSeriesCommit(frame, marineRevision, 'series_sharpen'));
         recordSettleCommitSig(lastCommittedSigRef, frame, layer);
-      } else {
+      } else if (settleSeriesReloadNeeded(!!(frame && fw < 340 && frameCovers), { model, layer, hour: currentHour, vb: clampVb })) {   // budgeted with a covering frame (marineSettleReloadGuard.js)
         // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
         // tick sharpens. FORCE past the TTL dedup (#8 root, 2026-07-01): after a pan beyond the warmed
         // tiles the cache holds only NON-covering frames for earlier viewports, and the normal TTL dedup
@@ -441,6 +363,7 @@ export function runScrubSettleCheck(ctx) {
       pending.layer === (activeMarineLayerRef.current || 'waves');
 
     if (isAlreadyFetchingCurrentHour) {
+      if (paintSeriesWhilePending({ ...ctx, currentHour, commit: (sf, l) => { setMarineData(stampSeriesCommit(sf, marineRevision, 'series_pending')); recordSettleCommitSig(lastCommittedSigRef, sf, l); } })) return;
       console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
       return;
     }
@@ -499,14 +422,18 @@ export function useMarineScrubSettle({
   // Caps the dedup-bypassing "upgrade" fetch when a coarse/small grid is held while zoomed in, so a
   // region that only has the coarse product can't turn the clamp-resharpen into a refetch storm.
   const clampRefetchRef = useRef({ key: '', count: 0 });
+  // SETTLE_LIVE_MAP (marineSettleLiveMap.js): the check below is memoised on marineData, so it reads the map of THIS render here.
+  const mapLiveRef = useRef(mapInstance);
+  mapLiveRef.current = mapInstance;
+  const settleArm = settleArmKey(activeMarineLayersRef);   // SETTLE_ARM_ON_ACTIVATE: switching a marine layer on re-arms the listeners
 
   const checkScrubSettle = useCallback(() => {
-    runScrubSettleCheck({
+    runSettleCheckLive(runScrubSettleCheck, {
       marineData, mapInstance, setMarineData,
       timeOffsetRef, activeModelRef, activeMarineLayerRef,
       safetyNetRetryRef, clampRefetchRef, marineFetchLocksRef, updateMarineGridRef,
       marineRevision, lastCommittedSigRef,
-    });
+    }, mapLiveRef);
   }, [marineData]);
 
   // Live ref to the latest checkScrubSettle so the blank-backstop interval can call it without taking
@@ -515,6 +442,7 @@ export function useMarineScrubSettle({
   const checkScrubSettleRef = useRef(checkScrubSettle);
   checkScrubSettleRef.current = checkScrubSettle;
   useMarineExactUpgrade(marineData, checkScrubSettleRef, timeOffsetRef);   // re-drives the check shortly after a thinned world frame lands
+  useSeriesPaintWhilePending(checkScrubSettleRef, activeMarineLayerRef);   // a series landing while a /grid is pending re-runs the check
   useMarineWorldWarmOnSettle({ marineData, mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef });   // F-21: the base follows the selected hour
 
   // Drive checkScrubSettle when scrubbing ends.
@@ -559,7 +487,7 @@ export function useMarineScrubSettle({
       clearTimeout(scrubSettleTimerRef.current);
       clearTimeout(moveTimer); clearTimeout(moveTimer2);
     };
-  }, [mapInstance, marineData, checkScrubSettle]);
+  }, [mapInstance, marineData, checkScrubSettle, settleArm]);
 
   // Blank-heatmap backstop — OWN effect, keyed on mapInstance. When a layer is active but the WebGL
   // engine has NO wave data (or a coarse-global grid is held while zoomed in) AND no fetch is pending

@@ -84,7 +84,12 @@ async def _auto_heal_report_media(report: ConditionReport, db) -> bool:
                     select(GalleryItem).where(
                         GalleryItem.photographer_id == report.photographer_id,
                         GalleryItem.is_deleted == False,
-                        GalleryItem.original_url.ilike(f"%{base_pattern.split('/')[-1]}%")
+                        # The exact preview first: since 2026-10-17 an original's name shares
+                        # nothing with its preview's, so the filename pattern only finds older items.
+                        or_(
+                            GalleryItem.preview_url == report.media_url,
+                            GalleryItem.original_url.ilike(f"%{base_pattern.split('/')[-1]}%"),
+                        )
                     ).limit(1)
                 )
                 item = item_result.scalar_one_or_none()

@@ -98,6 +98,28 @@ export function wheelDragCommitDue(nowMs, lastCommitMs, win) {
   return (now - last) >= ms;
 }
 
+/**
+ * Must the wheel FINISH an open gesture now, because its animation is about to be cancelled? (pure; exported for tests)
+ *
+ * ⚠️ T-01 (scrub audit 2026-10-18). The canvas effect's cleanup used to cancel the coast/settle rAF and nothing else. That
+ * cleanup runs on UNMOUNT (the mobile sheet collapses, the active layer goes off) and whenever `draw` changes (a model switch
+ * changes `max`, a theme or radar flip changes the colours/pitch). `finish()` — the final commit plus `onScrubEnd` — then
+ * never ran: the label kept the last previewed hour, the heatmap the last in-drag commit, and `window.isScrubbingTimeline`
+ * stayed TRUE. Every pan/zoom/moveend marine fetch drops while that flag is set (useMarineDataFetcherCore), as do wind moveend,
+ * autoplay ticks and the scrub-settle net, and the only writers that clear it are the wheel's own scrub-end handlers: the map
+ * stayed frozen until the user dragged the wheel again.
+ *
+ * `unmounting`: a live DRAG is also open (the pointer is down when the sheet closes). A redraw mid-drag is not: the handlers are
+ * re-bound and the drag carries on, so only a running coast/settle animation is finished then.
+ * Kill: window.__RAW_DISABLE_WHEEL_FINISH_ON_CANCEL__ = true restores cancel-only.
+ */
+export function wheelGestureNeedsFinish(state, unmounting, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_WHEEL_FINISH_ON_CANCEL__ === true || !state) return false;
+  if (state.coasting || state.settling) return true;
+  return !!(unmounting && state.dragging);
+}
+
 /** Classic-slider escape hatch (pure; exported for tests). */
 export function shouldUseClassicScrubber(win) {
   const w = win || (typeof window !== 'undefined' ? window : {});
@@ -149,9 +171,11 @@ const THEME_COLORS = {
 const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScrubStart, onScrubEnd }) => {
   const boxRef = useRef(null);
   const canvasRef = useRef(null);
-  const s = useRef({ hour: value || 0, vel: 0, dragging: false, coasting: false,
+  const s = useRef({ hour: value || 0, vel: 0, dragging: false, coasting: false, settling: false,
                      lastX: 0, lastT: 0, raf: null, lastCommitted: null,
                      lastDragCommitT: null }).current;
+  // The latest commit/onScrubEnd, for the cleanups below (they run with a stale closure). See wheelGestureNeedsFinish.
+  const latest = useRef({});
   const reduced = typeof window !== 'undefined' && window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -213,8 +237,9 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
 
   const settle = useCallback(() => {
     const target = wheelSettleTarget(s.hour, max);
-    const finish = () => { s.coasting = false; setHour(target, { doCommit: true }); if (onScrubEnd) onScrubEnd(); };
+    const finish = () => { s.coasting = false; s.settling = false; setHour(target, { doCommit: true }); if (onScrubEnd) onScrubEnd(); };
     if (reduced) { finish(); return; }
+    s.settling = true;
     const step = () => {
       const d = target - s.hour;
       if (Math.abs(d) < SETTLE_EPS) { finish(); return; }
@@ -244,7 +269,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     s.dragging = true; s.vel = 0; s.lastDragCommitT = null;
     s.lastX = e.clientX; s.lastT = performance.now();
     if (s.raf) cancelAnimationFrame(s.raf);
-    s.coasting = false;
+    s.coasting = false; s.settling = false;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* older browsers */ }
     if (onScrubStart) onScrubStart();
     commit(s.hour);   // leading commit — the map starts responding immediately
@@ -289,6 +314,20 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     }
   }, [max, isRadar, setHour, s]);
 
+  latest.current = { commit, onScrubEnd };
+  // Commit the nearest detent and end the scrub when the animation (or the component) is going away mid-gesture.
+  // Reads only refs, so a cleanup's stale closure still reaches the current parent callbacks.
+  // `cbs`: the callbacks of the render the gesture ran under (a redraw passes its own effect's snapshot, so a radar flip
+  // mid-coast does not commit a forecast hour through the radar handler); default = the latest.
+  const finishOpenGesture = (unmounting, cbs) => {
+    const open = wheelGestureNeedsFinish(s, unmounting);
+    if (s.raf) { cancelAnimationFrame(s.raf); s.raf = null; }
+    if (!open) return;
+    s.dragging = false; s.coasting = false; s.settling = false; s.vel = 0;
+    const L = cbs || latest.current;
+    try { if (L.commit) L.commit(s.hour); } finally { if (L.onScrubEnd) L.onScrubEnd(); }
+  };
+
   // Follow external value changes (autoplay, model resets) while the user isn't driving.
   useEffect(() => {
     if (!s.dragging && !s.coasting && typeof value === 'number' && wheelSettleTarget(s.hour, max) !== value) {
@@ -303,6 +342,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     const box = boxRef.current;
     const cv = canvasRef.current;
     if (!box || !cv) return undefined;
+    const gestureCbs = latest.current;   // this render's callbacks, for finishing a coast this cleanup cancels
     const resize = () => {
       const r = box.getBoundingClientRect();
       const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
@@ -318,8 +358,11 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
       ro = new ResizeObserver(resize);
       ro.observe(box);
     }
-    return () => { if (ro) ro.disconnect(); if (s.raf) cancelAnimationFrame(s.raf); };
+    return () => { if (ro) ro.disconnect(); finishOpenGesture(false, gestureCbs); };
   }, [draw, s]);
+
+  // Unmount: finish whatever gesture is open, a held drag included (T-01, wheelGestureNeedsFinish).
+  useEffect(() => () => finishOpenGesture(true), []);
 
   const edgeFade = theme === 'light' ? 'rgba(255,255,255,0.9)' : (theme === 'beach' ? 'rgba(3,17,15,0.9)' : 'rgba(24,24,27,0.9)');
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { MessageSquare, Heart, UserPlus, Camera, CalendarCheck,
   DollarSign, Mail, VolumeX, Volume2, Activity, Clock
 } from 'lucide-react';
+import { PushDeviceRow } from './PushDeviceRow';
 
 /**
  * NotificationSection -- Extracted from Settings.js
@@ -59,7 +60,9 @@ export const NotificationSection = ({
         <Volume2 className="w-4 h-4 text-cyan-400" />
         <span className={`text-sm font-medium ${textSecondaryClass}`}>Push Notifications</span>
       </div>
-      
+
+      <PushDeviceRow textPrimaryClass={textPrimaryClass} textSecondaryClass={textSecondaryClass} borderClass={borderClass} />
+
       <NotifRow icon={MessageSquare} label="Messages" description="New messages from other users" prefKey="push_messages" testId="toggle-push-messages" />
       <NotifRow icon={Heart} label="Reactions" description="When someone reacts to your posts" prefKey="push_reactions" testId="toggle-push-reactions" />
       <NotifRow icon={UserPlus} label="New Followers" description="When someone follows you" prefKey="push_follows" testId="toggle-push-follows" />

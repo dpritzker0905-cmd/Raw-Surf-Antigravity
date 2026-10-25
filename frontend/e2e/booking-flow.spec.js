@@ -24,8 +24,9 @@
  * loading rather than "you are anonymous, on a different page, using a selector that does not
  * exist". ⇒ A SETUP ASSERTION MUST PIN WHERE IT LANDED, not merely that something rendered.
  */
-const { test, expect } = require('@playwright/test');
-const { stubSeededMessageBadge } = require('./seededMessageBadge');
+// test/expect carry the in-runner weather backend route (offlineWeather.js): no weather request reaches the live box.
+const { test, expect } = require('./offlineWeather');
+const { stubSeededUiBadges } = require('./seededUiBadges');
 
 // The same stub the weather spec uses. Measured sufficient to pass the route guard.
 const standardUser = {
@@ -39,7 +40,7 @@ const standardUser = {
 };
 
 async function signIn(page) {
-  const badgeRequests = await stubSeededMessageBadge(page, [standardUser.id]);
+  const badgeRequests = await stubSeededUiBadges(page, [standardUser.id]);
   await page.goto('/auth', { waitUntil: 'domcontentloaded' });
   // Wait for the real access-code verification before leaving this document. In Safari trace
   // 34515311331, navigating early cancelled verification and the gate cleared its stored code.
@@ -91,7 +92,7 @@ test.describe('Anonymous access control', () => {
 });
 
 test.describe('Explore', () => {
-  // This seeded-user journey needs its incidental badge fixture to own the request.
+  // This seeded-user journey needs its incidental badge fixtures to own the request.
   // Service workers can bypass page.route; anonymous journeys keep service workers enabled.
   test.use({ serviceWorkers: 'block' });
   test.beforeEach(async ({ page }) => {
@@ -102,7 +103,7 @@ test.describe('Explore', () => {
     await expect(page).toHaveURL(/\/explore/, { timeout: 15000 });
     await expect(page.locator('[data-testid="explore-page"]')).toBeVisible({ timeout: 60000 });
     await expect.poll(badgeRequests, {
-      message: 'the seeded identity message badge used its declared UI fixture', timeout: 15000,
+      message: 'the seeded identity navigation badges used its declared UI fixture', timeout: 15000,
     }).toBeGreaterThan(0);
   });
 
@@ -134,12 +135,81 @@ test.describe('Explore', () => {
   // the binding constraint was this per-ASSERTION budget, which the enclosing timeout never reaches.
   // ⛔ The real fix is ordering: gate the e2e job on the backend being up, not just the frontend.
   // Until then these budgets must not be tighter than the client the app itself ships.
-  test('clicking a spot opens its spot hub', async ({ page }) => {
-    await page.locator('[data-testid^="trending-spot-"]').first().click();
-    // ⚠️ Measured: this NAVIGATES to /spot-hub/<uuid>. It is not a drawer or a [role=dialog].
-    await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
-    await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 60000 });
-  });
+  for (const injectUnavailable of [false, true]) {
+    const title = injectUnavailable
+      ? 'a spot opens after one explicit recovery from an unavailable detail response'
+      : 'clicking a spot opens its spot hub';
+    test(title, async ({ page }, testInfo) => {
+      // A live transport failure has a manual recovery contract, not an endless skeleton.
+      // Run38836406336 retained that error screen while this test waited for a success-only
+      // selector. Keep the real API and final success assertion; record and exercise at most
+      // one visible recovery, only after an observed transport fault. No whole-test retry.
+      const card = page.locator('[data-testid^="trending-spot-"]').first();
+      const spotId = (await card.getAttribute('data-testid')).slice('trending-spot-'.length);
+      const origin = new URL(process.env.REACT_APP_BACKEND_URL || 'https://raw-surf-antigravity.onrender.com').origin;
+      const detailPath = `/api/explore/spot-details/${spotId}`;
+      if (injectUnavailable) {
+        let attempts = 0;
+        await page.route(url => url.origin === origin && url.pathname === detailPath, route => {
+          if (route.request().method() !== 'GET') return route.fallback();
+          if (attempts++ === 0) return route.fulfill({ status: 503, json: { detail: 'Controlled unavailable response' } });
+          // Recovery still loads real backend data, never a successful synthetic spot.
+          return route.fallback();
+        });
+      }
+      const requests = [];
+      const pending = new Map();
+      const isDetail = request => {
+        const url = new URL(request.url());
+        return url.origin === origin && url.pathname === detailPath;
+      };
+      page.on('request', request => {
+        if (!isDetail(request)) return;
+        const row = { startedAt: Date.now(), status: null, failed: false };
+        pending.set(request, row);
+        requests.push(row);
+      });
+      page.on('response', response => {
+        const row = pending.get(response.request());
+        if (row) { row.status = response.status(); row.durationMs = Date.now() - row.startedAt; }
+      });
+      page.on('requestfailed', request => {
+        const row = pending.get(request);
+        if (row) { row.failed = true; row.durationMs = Date.now() - row.startedAt; }
+      });
+      let manualRecoveryUsed = false;
+      try {
+        await card.click();
+        await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
+        const loaded = page.getByTestId('close-spothub-btn');
+        const unavailable = page.getByRole('heading', { name: 'Unable to load this spot', exact: true });
+        await expect(loaded.or(unavailable)).toBeVisible({ timeout: 60000 });
+        if (await unavailable.isVisible()) {
+          // A valid HTTP response with bad application data is not a transport recovery.
+          await expect.poll(() => requests.some(r => r.failed || [502, 503, 504].includes(r.status)), {
+            message: 'manual recovery requires an observed live transport failure', timeout: 5000,
+          }).toBe(true);
+          await expect(page.getByText('Spot Not Found', { exact: true })).toHaveCount(0);
+          manualRecoveryUsed = true;
+          await page.getByRole('button', { name: 'Try again', exact: true }).click();
+        }
+        await expect(loaded).toBeVisible({ timeout: 60000 });
+        await expect(page).toHaveURL(/\/spot-hub\//);
+        if (injectUnavailable) {
+          expect(manualRecoveryUsed).toBe(true);
+          expect(requests).toHaveLength(2);
+          expect(requests.map(r => r.status)).toEqual([503, 200]);
+        }
+      } finally {
+        // No URLs, query strings, response bodies, headers or browser storage in this receipt.
+        const observation = { injected503: injectUnavailable, manualRecoveryUsed, requests };
+        console.log('[SPOT HUB NAVIGATION]', JSON.stringify(observation));
+        await testInfo.attach('live-spot-navigation', {
+          contentType: 'application/json', body: Buffer.from(JSON.stringify(observation)),
+        });
+      }
+    });
+  }
 
   test('navigation is present, and it is the RIGHT nav for the viewport', async ({ page, isMobile }) => {
     // ⛔ I BROKE THIS MYSELF AND THE OLD NAME IS WHY. The original was `bottom nav is visible on

@@ -72,3 +72,6 @@ pygrib==2.1.8
 # ECMWF Open Data direct (EURO wind + pressure off open-meteo) — free IFS 0.25° GRIB (10u/10v/msl).
 # Pure-Python client (resolves the latest cycle + byte-range .index downloads); pygrib decodes the GRIB.
 ecmwf-opendata==0.3.34
+pydantic-ai-slim[anthropic]==1.60.0
+logfire[fastapi,system-metrics]==5.2.0
+anthropic==0.78.0

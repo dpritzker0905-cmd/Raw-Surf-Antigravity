@@ -24,7 +24,7 @@ from deps.admin_auth import get_current_admin
 from models import (
     Profile, TosViolation, TosAcknowledgement, FraudAlert, Notification
 )
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
@@ -296,9 +296,12 @@ async def create_tos_violation(
 @router.get("/violations/user/{user_id}")
 async def get_user_violations(
     user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all violations for a user"""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(TosViolation)
         .where(TosViolation.user_id == user_id)

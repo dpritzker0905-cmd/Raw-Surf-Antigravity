@@ -1,0 +1,183 @@
+{
+  "at": "2026-10-15T03:00:26.089094+00:00",
+  "immutableBaseline": "a3f1a00c84b45c09ce31314fe0079a7d3c068048",
+  "branch": "codex/master-plan-recap-connection-2026-10-15",
+  "sourceFiles": [
+    {
+      "path": "frontend/src/components/GalleryPage.js",
+      "rawSha256": "0ce271ebca61cbbf303cf57b3d38ad16f18c910e309fda650672b5af28bc839e",
+      "gitLfSha256": "0ce271ebca61cbbf303cf57b3d38ad16f18c910e309fda650672b5af28bc839e",
+      "lines": 792
+    },
+    {
+      "path": "frontend/src/components/GalleryPage.recap.test.js",
+      "rawSha256": "1bdf51d214583609bc98973058afe64ef86a397f3a55a6b6802ee035451f7fe3",
+      "gitLfSha256": "1bdf51d214583609bc98973058afe64ef86a397f3a55a6b6802ee035451f7fe3",
+      "lines": 81
+    },
+    {
+      "path": "frontend/src/components/gallery/GalleryModals.js",
+      "rawSha256": "b6acbbfcfb17050982abf06ad49c5b996fda3531f00a7e1f76f2b8a180fda533",
+      "gitLfSha256": "b6acbbfcfb17050982abf06ad49c5b996fda3531f00a7e1f76f2b8a180fda533",
+      "lines": 513
+    },
+    {
+      "path": "frontend/src/components/gallery/GalleryPricingCard.js",
+      "rawSha256": "6104c9b43d667ea63043288e0305d004586e6fa9d4836d6cb829eea8de533ec5",
+      "gitLfSha256": "6104c9b43d667ea63043288e0305d004586e6fa9d4836d6cb829eea8de533ec5",
+      "lines": 348
+    },
+    {
+      "path": "frontend/src/components/gallery/PostSessionSummary.js",
+      "rawSha256": "2fa9243fc33109471dc9270d99143d1a795a6495c80b8aae4ac98ebdd1c5243e",
+      "gitLfSha256": "2fa9243fc33109471dc9270d99143d1a795a6495c80b8aae4ac98ebdd1c5243e",
+      "lines": 196
+    },
+    {
+      "path": "frontend/src/components/gallery/ProStudioManager.js",
+      "rawSha256": "6596b25e7deef98876ec552f43e1f7fd6d587969d2cb5a9bbfd05ea8754f267d",
+      "gitLfSha256": "6596b25e7deef98876ec552f43e1f7fd6d587969d2cb5a9bbfd05ea8754f267d",
+      "lines": 625
+    },
+    {
+      "path": "frontend/scripts/session-recap-browser.cjs",
+      "rawSha256": "104ec2e2dc9837b6f01d4e40cff55f3d02158ccc7d1254b6b0d9aa3b2e287293",
+      "gitLfSha256": "3eb32760b73a84af08067ed55c0e6add250a7c71fdae703057761f614e14a9cd",
+      "lines": 194
+    }
+  ],
+  "realBrowserDependencyFilesMatched": 40,
+  "before": {
+    "cases": 48,
+    "failedChecks": {
+      "no page horizontal overflow": 24,
+      "manual action opens tag/assign dialog": 9
+    },
+    "narrowWidths": {
+      "light": 575,
+      "dark": 580,
+      "beach": 580
+    }
+  },
+  "after": {
+    "cases": 51,
+    "checks": 222,
+    "failed": 0,
+    "unexpectedFixtureEndpoints": 0,
+    "uncaughtPageErrors": 0,
+    "consoleWarnings": 0,
+    "expectedNegativeHttpConsoleErrors": 12,
+    "narrowWidths": {
+      "light": 320,
+      "dark": 320,
+      "beach": 320
+    },
+    "browser": "154.0.8037.100",
+    "node": "v24.21.0"
+  },
+  "focused": {
+    "suites": 2,
+    "passed": 12,
+    "failed": 0
+  },
+  "productionBuild": {
+    "exit": 0,
+    "privateEslintCacheOverride": true,
+    "sameRepositoryCompilerAndLintPlugin": true,
+    "changedUiSourceMapsMatched": 5,
+    "normalization": "leading BOM removed by parser and CRLF normalized to LF"
+  },
+  "lint": {
+    "files": 1313,
+    "existingErrors": 86,
+    "existingWarnings": 917,
+    "baselineIncreases": 0
+  },
+  "loc": {
+    "grandfathered": 12,
+    "new": 0,
+    "regressed": 0
+  },
+  "artifacts": [
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/before-browser-results.json.gz",
+      "uncompressedSha256": "9df505ab00631c5a4ad1074f9200af55d12178daa88c7d77e258aad60981dca9"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/final-browser-results.json.gz",
+      "uncompressedSha256": "60b088776c3a49da6f1eebf0d5ad2042daf32846b81e8af7b1ef534af0c694a7"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/focused.log.gz",
+      "uncompressedSha256": "58fcebfb50b7b38a6630e7bf070feb0a069c23e8d3af4adab688a35a5c988179"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/build.log.gz",
+      "uncompressedSha256": "d01847feb309f8e216ee27afe41c11c441f8be608503ff7441b9fe0f63fa1148"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/lint.log.gz",
+      "uncompressedSha256": "a0349347769c7ed60650d77c38e9f7a08614478af9c22d50898f8a79a86cc899"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/loc.log.gz",
+      "uncompressedSha256": "89587637ad9262faf2dc30731bf31d2cc495fb4943f3f0d20b68ea328029e058"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/production-source-maps.json.gz",
+      "uncompressedSha256": "40300fee5c00c35418781cb07ba8ce35e4b99a2e56d9dbb3b59ae50233fe5942"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/light-before.png",
+      "sha256": "08f436e15943bac61c0a1ad60ee748250b0c1bc28f1bbea6708a31df529cda8d"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/light-after.png",
+      "sha256": "1e782b7feecb9b81184edbdb0a715164b365e83cfe6dc96077582ef16bbd8786"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/light-manual.png",
+      "sha256": "cc6e7a40de9161d4f44ec8b3d258e2a50bb35f9a82a0056abf1e981df6abd347"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/dark-before.png",
+      "sha256": "5afaadc2582e7d01dd06d3391cec5bd99137d91410a1d5fad1807f1b62030ddb"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/dark-after.png",
+      "sha256": "62af03eb7f937c2e87afcb95673f1ac05088f1c8784456ae6a23fae16a83b8fa"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/dark-manual.png",
+      "sha256": "67dae712a5b24267d0abcdb73ad945240f30bb915c9ce50150717d4f3c3689aa"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/beach-before.png",
+      "sha256": "23e282b48fbc8efa2cd93028de5fbaf2d94f1d2ef7129b9c85b6c547463b8f40"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/beach-after.png",
+      "sha256": "435a8afcb389bf2f19ad70ed76172579cd30ae1706b7853647d35c48c5366eea"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/beach-manual.png",
+      "sha256": "8526ca22adcb3f9b98b89a5081f035387d429543d691126ede499017f8dbbab1"
+    }
+  ],
+  "excluded": [
+    "initial fileDependencies directory-hashing setup error: zero cases",
+    "sandbox loopback navigation denied: zero cases",
+    "initial fixture omitted block-level content wrapper: excluded from product geometry evidence",
+    "first build blocked by shared dependency ESLint cache; fixed using private wrapper without changing repository config",
+    "source-map inspection normalized a parser-stripped leading BOM, not a source mismatch"
+  ],
+  "unrun": [
+    "real mounted API authorization/private media/provider journeys",
+    "native iOS/Android/Safari, physical-device acceptance",
+    "App shell/navigation/serviceworker/deployed acceptance",
+    "branded remote fonts"
+  ],
+  "wholeAppAcceptance": false,
+  "release": "HELD for explicit weather-owner safe window and combined-head qualification; no push/merge/deploy",
+  "rawCaptures": "Complete before/after captures remain under task-4/recap-browser-a3f1a00c-baseline and recap-browser-qualified-final; manifests and nine selected PNGs retained here"
+}

@@ -1,0 +1,1072 @@
+# 2026-10-12 · Wind: beach's lightness against dark's logic (beach's own colours)
+
+Session branch `claude/wind-beach-lightness`, cut from `origin/dev` at `ec8f46a2` (#314's merge). Times are UTC. One writer: this
+session. **State at the last entry: a candidate built behind a kill and FILMED beside dark, waiting on the owner's eye. Nothing is
+pushed, no PR is open, no ledger line, STATE entry, DECISIONS or LESSONS entry has been written** (the ledger pen is `wind-border-ink`'s
+and #315's; this branch takes the next free ids at PR time).
+
+## 03:50Z · The direction, and what was checked first
+
+The owner, first-hand in the lead session's chat, 2026-10-12 02:48Z (relayed in this session's brief; D-022 carries the earlier line):
+"you need to double check all this. The light and beach modes need to make sense logically. It could be the way it is, or it could not
+be. It all has to make sense to match dark mode, but it their colors and maps"; and 2026-10-11 23:45Z: "beach can use improvement, just
+a little milder".
+
+**Before, reproduced from the code at `ec8f46a2` before any edit (03:56Z):**
+- `node frontend/scripts/wind-color/mirror-model.mjs`, beach over its muted land, L*: calm 67.4, 3 kn 63.6, 6 kn 56.8, **10 kn 46.7**,
+  16 kn 53.0, 21 kn 54.2, 27 kn 70.8, 33 kn 67.5, 40 kn 63.1, 47 kn 49.0, 55 kn 44.7, 63 kn 44.1, 75 kn 45.5.
+- `node check.mjs --strict`: exit 1, two red lines, both beach's colour-blind lines: 3.1 (water) and 3.2 (land), 16-21 kn, protan.
+  `--theme beach --today`: 5.1 / 5.2.
+- FNV of the drawn tables (marks row 0, marks row 1, field): beach 50 kn `6e75db94 72b4bd7f 7c248d5f`, 75 kn `be558fd8 cd4835ed
+  b9db3bb2` (equal to `windWhiteStreak.test.js` WATCHED.beach); light and dark recorded in `windBeachPath.test.js` BEFORE.
+- The colour-blind replica (`light-path-lib.mjs`, taken byte for byte from the local branch `claude/wind-light-path`): `--verify`
+  agrees with coloraide to 2.3e-12 over 4,000 pairs.
+
+**What already follows dark's logic (kept, byte for byte):** beach's hue ORDER (to the aqua at 6 kn, then one way round the wheel: the
+whole turn back is 0.5 degrees); calm and 3 kn; 33 to 47 kn; 63 kn.
+
+**What does not (instrument: `beach-path-solve.mjs --audit`):**
+- Lightness through the green band runs both ways: the whole climb back from 10 kn is 7.5 L* over land, 6.2 over the sea.
+- **Four** pairs are under the colour-blind bar, not one (the checker prints only the weakest): 16-21 kn 3.2 / 3.1 (protan; deutan 4.7
+  over the sea), 27-33 kn 3.6 / 3.6 (deutan), 47-55 kn 4.6 (sea, tritan), 63-75 kn 4.6 (sea, protan).
+- Why: the dusk factor of dark's rules pushes rows to the edge of what a tint can lay. The red channel is 0.000 from 8 to 15 kn and the
+  blue from 19 to 24 kn; 21 kn keeps C* 32.7 where the factor alone would leave about 40. Before dark's rules every pair read 5.1 or more.
+- Dark's own steepest knot, by the engine's law (field x alpha squared + map x (1 - alpha); read in `WebGLWindShaders.js` HEATMAP_FS and
+  `WebGLWindEngine.js`'s blend, as the light-path session found): 8.9 dE00. Beach's own is 3.9 (39-40 kn). The brief's 11.0 was the
+  plain "over" reading.
+
+## 04:20Z · A rule or a table: a table
+
+Dark's rules dim every band by ONE factor in linear light. One factor cannot change the order of two bands, and the 10 kn dip is in
+beach's own field stops (before dark's rules, over land: 6 kn 69.6, 10 kn 56.9, 16 kn 65.2). The name guard acts on yellow and orange
+grounds only and the ceiling on the lightest everyday band only. A factor a band is a table. So: a solved table for the field beach
+DRAWS (a row a knot, laid over the solver's field), gated on the white streak. `BEACH_FIELD_RAMP` is not touched, so every kill that
+restores it still restores it.
+
+## 04:30Z to 05:20Z · The solve, with the floor as a constraint (`frontend/scripts/wind-color/beach-path-solve.mjs`)
+
+Unknowns: the field's colour over the muted land (L*, C*, hue) at the Beaufort stops that are freed. Bars (hard): every neighbouring
+pair from 3 kn at 5.0 dE2000 or more for protan, deutan and tritan, land AND sea; lightness never rising over 0-21 kn and over 29-75 kn,
+knot by knot, both grounds; each stop within a hue tolerance of what beach draws, and beach's order kept as a WHOLE turn back of 0.6
+degrees at most; no knot harder than dark's 8.9; no changed knot under C* 12; the tint 14 dE00 or more off the bare ground from 6 kn;
+every row a tint the app can lay; the chroma line no further from one rise and one fall than today's. Aim: the floor (credit to 5.1
+only), then the LEAST change from what beach draws.
+
+Findings, in the order they were found:
+1. **The three faults decouple at every kept stop**, so they were solved apart and joined.
+   - 27-33 kn: moving 27 kn alone costs 3.1 dE00 (summed over both grounds); moving 33 kn alone costs 10.0. Taken: 27 kn, 0.9 L* lighter.
+   - 47-75 kn: moving 55 and 75 kn costs 4.4 in all (0.6 and 2.5 dE00 over land); 63 to 75 kn no longer rises.
+2. **The green band has two basins, and one corner that cannot be had.** Deep AND colourful does not exist under a multiply tint at
+   0.60 strength: over beach's land C* 33 needs L* 54 or lighter; at L* 49 the most is about 20; at 46 about 14. So one-way lightness
+   through 10, 16 and 21 kn is paid for in one of three coins:
+   - **A, level** (built): 10 kn lifted to the level of 16 and 21 kn (L* 55), which keep their colour. Moved 37.0 in all.
+   - **B, step**: 6 and 10 kn at L* 57, 16 and 21 kn at L* 50, 10 kn's colour kept, 16 and 21 kn a third and a fifth less colourful
+     (C* 22.0 and 26.2 against 33.6 and 32.7). Moved 50.3 in all. Floor 5.10 on both grounds.
+   - **deep** (not filmed): 6 kn kept exactly; 16 and 21 kn at L* 46 with C* 14 to 15. Moved about 60.
+3. **The hue tolerance is 8 degrees.** At 4 degrees no solve holds the floor with 6 kn's ground at today's depth (best 4.4 to 4.9). With
+   6 kn kept EXACTLY the level basin is not reachable (only the deep one, 60 moved): 6 kn's aqua must go 8 degrees bluer (170 to 178).
+4. **A loophole found and closed in the instrument:** a hue bar read a knot at a time let 10 kn (148) sit BEHIND 16 kn (151): beach's
+   order turned back by 2.9 degrees over six knots at under 0.6 a knot. The bar is now the whole turn back. Every number below is after it.
+5. **How the rows between stops are laid:** inside the green band (6 to 21 kn) on straight lines between the stops; everywhere else as
+   the colour beach drew at that knot, moved by what its two stops moved. Straight lines everywhere lifted 22 to 26 kn by up to 4 L*
+   (the eased climb into the gale band became a ramp): not wanted, not built.
+
+## 05:25Z · The candidate, built (local commit `98c50e3b` and the one after it; kill `window.__RAW_DISABLE_WIND_BEACH_PATH__ = true`)
+
+`frontend/src/components/map/windBeachPath.js` (`BEACH_PATH.field`: 56 rows, knots 4-32, 48-62, 64-75), wired in `WindColorRamp.js`
+(`windBeachPathOn`, `darkRulesTables`, the look key: beach reads `white+path|dark-rules`). ON only where the white streak draws.
+The streaks' two rows are NOT touched.
+
+| kn | land now (L* / C* / hue) | land before | sea now | moved (dE00, land) |
+|---|---|---|---|---|
+| 6 | 57.8 / 17.6 / 178 | 56.8 / 21.6 / 170 | 47.2 / 15.4 / 185 | 3.2 |
+| 10 | 55.2 / 14.1 / 151 | 46.7 / 18.2 / 156 | 44.9 / 12.0 / 161 | 9.0 |
+| 16 | 55.0 / 32.7 / 152 | 53.0 / 33.6 / 146 | 44.8 / 27.3 / 155 | 2.7 |
+| 21 | 54.8 / 33.9 / 125 | 54.2 / 32.7 / 124 | 44.6 / 28.3 / 129 | 0.8 |
+| 27 | 71.7 / 40.3 / 123 | 70.8 / 44.0 / 122 | 58.7 / 33.5 / 127 | 1.5 |
+| 55 | 44.4 / 13.6 / 23 | 44.7 / 14.3 / 24 | 35.6 / 9.2 / 16 | 0.6 |
+| 75 | 43.6 / 11.5 / 297 | 45.5 / 10.7 / 305 | 35.2 / 11.1 / 289 | 2.5 |
+
+Read back (instruments named):
+- `node check.mjs --strict`: **exit 0, no red line** (it was exit 1, two red). Beach's colour-blind lines: water 5.0 (5.02, 3-6 kn,
+  protan), land 5.1 (5.12, 27-33 kn, deutan). Warn lines: the three it printed before, light's marks line as before, and beach's marks
+  line now names 6-10 kn tritan 1.9 (it named 3-6 kn deutan 2.0; a watch line, the streaks never carried the bands).
+  Control: `node check.mjs --strict --before-path` prints the before run's text line for line and the same JSON.
+- Table hashes: beach's field `e7b904ad` (50 kn) / `949f2ec6` (75 kn); its two streak rows, light and dark as before. Under the kill
+  beach's field is `7c248d5f` / `b9db3bb2`: the before.
+- `beach-path-solve.mjs --score beach-path.json --mono 0-21,29-75`: violation 0.000; lightness climbs back 0.0; hue's whole turn back
+  0.6; steepest knot 3.9 (unchanged); weakest C* 3-40 kn 13.5 / 11.8 (unchanged, 3 kn's).
+
+**What it costs (measured):**
+- Table model (`windBeachPath.test.js`): the head of a streak steps 20.6 L* off its ground at 10 kn over land (24.8 before; dark's own
+  is about 22) and 17.6 at its weakest from 6 kn (8 kn over land; 19.6 before). From 7 to 15 kn only.
+- **GPU bench, the real engine on the real basemaps, device pixel ratio 1.5, 180 frames a run, Mobile Bay, the served-wind fixture**
+  (`motion-run.js` then `mirror-run.js --at`; the streaks' LIFT against dark's own at the same zoom):
+
+  | | zoom 4 | zoom 6 | zoom 9 |
+  |---|---|---|---|
+  | over LAND (`--at 0.5,0.12`): today | 0.86 | 1.03 | 0.74 |
+  | A, level (built) | 0.80 | 0.82 | **0.45** |
+  | B, step | 0.89 | 0.82 | 0.59 |
+  | over the SEA (`--at 0.5,0.9`): today | 1.35 | 0.94 | 0.89 |
+  | A, level (built) | 1.28 | 0.93 | 0.90 |
+  | B, step | 1.31 | 0.95 | 0.89 |
+
+  Over the sea neither candidate moves the lift by more than 0.07. Over the land both lose it where the 7 to 13 kn ground is lifted
+  (the land's ground reads L* 57.1 to 61.4 at zoom 6 and 51.5 to 57.1 at zoom 9); A loses more at zoom 9 because its 12 to 15 kn stays
+  at the lifted level where B has already stepped down.
+- The sea's floor is AT the bar (5.02); the four pairs of the green band all sit within 0.1 of it over the sea. B holds 5.10.
+- The gale band is 0.6 L* paler at its peak (73.5 at 29 kn against 72.9).
+
+## 05:40Z · The gale band, both ways (the owner's call; nothing chosen here)
+
+- **Kept pale (what is built):** one-way to 21 kn, a 16.9 L* climb to 27 kn, then one way down. Cost: the peak above, and the pair
+  27-33 kn bought with 0.9 L* at 27 kn.
+- **Deepened so the whole line runs one way (solved, NOT built):** in beach's own hues (8 degrees) the floor stops at **4.99**: it does
+  not hold 5. 27 kn goes from L* 70.8 / C* 44.0 to 57.3 / 22.0, 33 kn from 67.5 / 44.5 to 51.8 / 24.1, 40 kn from 63.1 / 30.3 to 51.6 /
+  20.1, 75 kn to a near-black grey (C* 2.0): the yellows and oranges go olive and brown, 12 to 16 dE00 a band, 160 moved in all (37 for
+  A). Allowed 20 degrees of hue it holds 5.10 at 137 to 168 moved, with 6 kn's ground lifted to L* 62 to 63.
+
+## 05:55Z · Shown to the owner (sent from this session; verdict pending)
+
+- `frontend/scripts/wind-bench/out/videos/beach-path-sheet.png` (`beach-path-sheet.mjs`): dark by the engine's law, beach today, A, B and
+  the deepened gale band at the 13 Beaufort speeds over land and sea, the colour-blind distance between each pair, and the lightness line.
+- `.../beach-path-side-by-side.webm` (`compose-video.js`): dark | beach today | A | B at zooms 4, 6 and 9, 3 s at real speed, twice.
+  B was filmed from a local side commit (`c2d59fa5`, branch `claude/wind-beach-path-alt-b`, never pushed) through `motion-run.js --ref`.
+- **This session's reading (not the owner's):** A is the smaller change and keeps the greens' colour; B keeps more of the streaks' lift
+  over land, has the floor margin and keeps 10 kn's colour. If the streaks over land weigh most, B; if the colours weigh most, A.
+
+## Instruments added on this branch
+
+- `scripts/wind-color/beach-path-solve.mjs` (`--audit`, the solve, `--score file --emit rows`), `beach-path.json` (the built
+  candidate's stops), `beach-path-sheet.mjs`, and `light-path-lib.mjs` (copied unchanged from `claude/wind-light-path`).
+- `check.mjs` and `mirror-model.mjs` take `--before-path` and load `windBeachPath.js` (any other loader that reads `WindColorRamp.js`
+  as text must hand `BEACH_PATH` and `beachPathRows` in). `mirror-model.mjs drawnField(theme, levers)` takes levers (the same one-line
+  change `claude/wind-light-path` makes).
+
+## Not done, said plainly
+
+- **Nothing has been seen in the app.** The clip is the bench (the real engine and basemaps, a still camera), not the deployed build.
+- The legend has not moved and did not need to: the field stays within 30 degrees of the legend's hue at every band (the checker's line).
+- The streaks' rows were not re-solved for the new ground (one visual variable). Re-solving them is the obvious next lever for the
+  land's lost lift, and it is a second variable.
+- Gates run locally at 06:00Z: see the next entry. No PR: the brief stops here for the owner's eye.
+- Overdue commitments printed by `memory_audit.py --docs-only` at session start (13, the oldest seq 149) are not this lane's and were
+  not touched.
+
+## 06:00Z · Gates run locally on the candidate (before the owner's verdict; the PR's own gates are still owed)
+
+(This header first read 06:10Z, an estimate ahead of the clock (LESSONS L-P10); `memory_audit.py` caught it and it was set to the
+clock's reading before the commit left this machine. No other session had read it.)
+
+- Jest, from `frontend/`, `--testMatch` (a `.claude/worktrees` checkout): `**/src/components/map/**/*.test.js` 284 suites, 3829 tests
+  passed; `**/src/tests/**/*.test.{js,jsx}` 23 suites, 254 tests passed. New: `windBeachPath.test.js`, 23 tests, each bar with the
+  table before as its positive control. Twelve pins of the old default moved with it, in three files (`windWhiteStreak.test.js`,
+  `windDarkWhite.test.js`, `windDarkRules.test.js`): beach's default field hash and its look key. Those files now read the tables
+  D-021 and D-022 drew through the path's kill, so they still pin what they pinned; the kill is classified in `windDarkRules.test.js`.
+- `node scripts/check_eslint.js`: exit 0. `python scripts/loc_ratchet.py`: new 0, regressed 0 (`WindColorRamp.js` is 779 lines).
+- `node check.mjs --strict`: exit 0 (before: exit 1, two red lines; every red and warn line is listed in the 05:25Z entry).
+- **NOT run:** `npm run build`, an independent read-only review, `memory_audit.py` and `action_ledger.py verify` after the shared
+  records are written. They belong to the PR, which waits for the owner's verdict on A, B, or neither.
+
+## 06:20Z · CORRECTION to the 05:25Z entry, and what three notes from the other lanes changed
+
+**The correction (my error).** The 05:25Z table's SEA rows, and the sentence "Over the sea neither candidate moves the lift by more than
+0.07", were read on the bench's default scene. That scene is a HURRICANE (found by the lead session and the simplification lane, read in
+the bench's fixture): at zoom 6 its sea crop holds about 41 kn (quartiles 36 and 47), a band this change does not touch. So those sea
+numbers say nothing about everyday winds; the LAND rows (about 8 kn at scale 1) stand. Re-read at everyday winds (`motion-run.js` with
+`scale` 0.2 and 0.4, which put the sea crop near 8 and 17 kn; zoom 6, pixel ratio 1.5, dev's sea white 0.77, `mirror-run.js --size 360`;
+ONE run each, no replicate), lift against dark's:
+
+| | sea, about 8 kn | sea, about 17 kn | land at scale 0.2 | land at scale 0.4 |
+|---|---|---|---|---|
+| today | 1.41 (ground L* 42.0) | 1.28 (45.2) | 0.19 | 0.35 |
+| A, level (built) | 1.23 (46.8) | 1.24 (47.3) | 0.33 | 0.42 |
+| B, step | 1.21 (47.2) | 1.30 (44.7) | 0.34 | 0.44 |
+
+- Over the sea at about 8 kn both candidates bring the lift 0.18 to 0.20 nearer dark's (the ground is 4.8 to 5.2 L* lighter). That is on
+  dev's 0.77; #315's 0.55 scales every arm down, and a lighter ground then reads UNDER dark's. The field and the strength must be read together.
+- The land rows at these scales are calm air (ground L* 65 to 67, lifts of 1.6 to 4.3 L*): the arms differ by about 1 L* where the tables
+  barely differ, so read them as one run's noise, not as a gain.
+- The bench's `--dpr` sets the page's pixel ratio only (the map is drawn at 2 unless `--map-dpr`, a flag on #316's branch).
+
+**An older kill keeps its meaning (the rule the review of #318 applied; relayed by the light lane).** D-022's kill
+(`__RAW_DISABLE_WIND_DARK_WHITE__`) is documented to draw #313's picture pixel for pixel, so beach's path now stands down under it:
+`windBeachPathOn` reads it, `windBeachPath.test.js` pins the field captured before under it, and `windDarkWhite.test.js` is back to
+asserting #313's tables under its own kill. Four test files re-run: 165 passed.
+
+**Ids assigned by the lead (not yet written anywhere):** DECISIONS D-025, LESSONS L-V63 up. `pr_merge #314` is not this branch's.
+
+**The streak's ground first (the light lane relays the owner's choice for LIGHT: "option 2, give the streaks their ground back"; the
+lead's frame: the SHAPE of the ground along speed sets how far one white strength can lift at every speed).** Two more solves, stills only:
+- **How little the ground must be lifted, against the hue tolerance** (`--aim deep`): at 8 degrees the 6 to 21 kn ground is lifted 6.8 L*
+  at best; at 12 degrees 2.5; at 16 and 20 degrees 2.1 to 2.6. The looser hue match is what keeps the depth, as it was for light.
+  **C, the ground kept** (12 degrees): 10 kn 49.2 / C* 18.0, 16 kn 49.1 / 17.9, 21 kn 41.9 / 14.5 over land; floor 5.11; moved 65.7; the
+  greens go grey-green and 21 kn sits 29 L* under the pale 27 kn.
+- **E, the gale band under a ceiling** (`--ceilgale 60`, beach's own hues within 8 degrees): 27, 33 and 40 kn at L* 59.9, 59.9 and 59.6
+  (70.8, 67.5, 63.1 today), C* 23.9, 35.0, 27.7 (44.0, 44.5, 30.3); 16 and 21 kn at 46.4 and 46.3 with C* 16.0 and 19.1; floor 5.12; moved
+  107.6. Unlike D (the whole line one way, 4.99) it HOLDS the floor in beach's own hues.
+- **How flat the ground is from 6 to 40 kn** (lightest minus deepest, L*, land / sea; `beach-path-ground.mjs`): dark 7.4 / 7.2; beach
+  today 26.2 / 21.7; A 18.7 / 15.5; B 23.4 / 19.4; C 31.0 / 25.8; **E 13.7 / 11.4**. From 6 to 21 kn only: dark 7.3 / 6.8; today
+  10.0 / 8.5; A 3.0 / 2.6; B 6.7 / 5.8; C 14.3 / 12.1; E 11.3 / 9.6.
+- The lead's speed ramp (zoom 6, sea white 0.55) reads beach's lift at 0.60 to 0.68 of dark's over the sea and 0.38 to 0.53 over land
+  from about 26 to 38 kn, where even full white only just reaches dark's: the pale band is where beach falls furthest short, and A and B
+  leave it as it is. E is the only option here that acts on it.
+- The per-knot grounds (dark by the engine's law, today, A, B, C, E; land and sea) are in the shared notes for the lead:
+  `wind-beach-path-ground-per-knot.md`. A caution carried there: the models' beach land is L* 83.9, the border lane measured 91.4 rendered.
+
+**This session's reading now (not the owner's):** by "the streak's ground first" neither A nor B is the best field: both lift the 7 to
+13 kn ground and leave the pale band. E follows the lead's frame best and holds every bar, at three times A's change and about half the
+16 to 27 kn colour; it has not been filmed. The owner has the first sheet and clip (A and B); a second sheet with C, E and D is sent.
+
+## 06:44Z · A lab lever for the options, at the lead's request (bench and preview only; default A, byte for byte)
+
+The lead, 06:39Z by its note: show the owner A and E MOVING on a speed ramp beside dark with every lane merged, not as sheets (the pale
+band is seen in motion at 26 to 38 kn, not on a swatch); it asked for the options behind a lever whose name starts with `__RAW_`.
+- `window.__RAW_WIND_BEACH_PATH__ = 'B' | 'C' | 'E'` lays that option's field where the path draws (`BEACH_PATH_OPTIONS`,
+  `beachPathPick` in `windBeachPath.js`; picked in `WindColorRamp.js` `darkRulesTables`). Any other value, or none, draws A: the
+  default's hashes are unchanged (`e7b904ad` / `949f2ec6`). The look key carries the pick (`white+path-E|dark-rules`). Every kill
+  and hold still wins over it. The streak rows, light and dark do not move under it.
+- Read through the palette checker (`node check.mjs --theme beach --strict --beach-option X`): B, C and E each exit 0 with no red
+  line; colour-blind lines water / land: B 5.1 / 5.1, C 5.1 / 5.1, E 5.1 / 5.3. `windBeachPath.test.js` pins each option's floor
+  (5.10, 5.11, 5.12), its one-way lightness from calm to 21 kn, and its ground's span over land. Four wind table test files: 173 passed.
+- The options not picked leave with the PR; this lever is not a product switch.
+
+**For the merge (the lead's finding, proven in its combined preview):** this branch and #318 collide in `WindColorRamp.js` in three
+places, and a careless resolution drops `windBeachPathOn`'s definition while keeping a reference (the page dies). Keep both imports,
+both switches (`windLightPathOn`, then `windBeachPathOn`) with ONE declaration after them (`var SOLVED = {}, PATH_TABLES = null;`),
+and one look-key entry for both. The same holds for `check.mjs`, `mirror-model.mjs` and the three test files (keep every entry of
+the ORTHOGONAL list). #318 will very likely merge first: rebase onto it, not onto dev. #315 edits `windDarkWhite.test.js` too.
+
+**Worth a line to the owner (the lead's point):** the palette checker has been red on dev since D-020 (four beach pairs under the bar,
+the weakest 3.1); with A, or with any of B, C and E, it exits 0.
+
+## 06:58Z · A on the lead's speed ramps at sea white 0.55 (measured by the lead session, relayed 06:58Z; these REPLACE my scaled-hurricane read)
+
+Not measured here. The lead session captured A (this branch at `c80f680f`) with every lane merged (#318's option 2, the border ink,
+#315) and this branch's kill as the control in the same capture: wind due north, speed rising with longitude (low ramp 2 to 30 kn across
+the zoom 6 view, high ramp 7 to 61 kn), `motion-run.js --dpr 1.5` (map at 2), 120 frames, `mirror-run.js --size 110`, lift against
+dark's at the same crop. Starred speeds are the high ramp.
+
+| SEA, kn | 5 | 9 | 12 | 15 | 18 | 22 | 25 | 13* | 19* | 26* | 32* | 39* | 45* | 51* |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| before | 0.88 | 0.99 | 1.04 | 0.98 | 0.97 | 0.91 | 0.72 | 0.97 | 0.93 | 0.68 | 0.60 | 0.62 | 0.85 | 0.93 |
+| A | 0.88 | 0.93 | 0.93 | 0.93 | 0.93 | 0.90 | 0.70 | 0.92 | 0.91 | 0.65 | 0.59 | 0.62 | 0.85 | 0.93 |
+
+| LAND, kn | 5 | 9 | 12 | 15 | 18 | 22 | 25 | 13* | 19* | 26* | 32* | 39* | 45* | 51* |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| before | 0.78 | 0.86 | 0.91 | 0.88 | 0.82 | 0.75 | 0.46 | 0.92 | 0.82 | 0.38 | 0.52 | 0.49 | 0.81 | 0.97 |
+| A | 0.73 | 0.64 | 0.65 | 0.76 | 0.76 | 0.73 | 0.43 | 0.76 | 0.78 | 0.37 | 0.52 | 0.49 | 0.81 | 0.97 |
+
+Rendered ground L*, before to A: sea 42.9 to 47.4 (9 kn), 41.4 to 47.1 (12), 44.9 to 47.4 (15), 46.3 to 47.6 (18); land 54.5 to 60.6
+(9 kn), 53.6 to 60.3 (12), 56.9 to 59.9 (15), 58.5 to 59.8 (18). Dark's own lift, sea / land L*: 7.5 / 10.5 at 9 kn, 8.6 / 11.8 at 15,
+11.0 / 12.9 at 32.
+
+The lead's reading, which this session shares:
+- **Sea:** A makes the 9 to 18 kn sea ground level (47.1 to 47.6) and the lift level with it: 0.93 at each of those speeds, where it
+  wandered 0.97 to 1.04. That is 0.04 to 0.11 under today's and 7% under dark's; a level ground is what one strength can match (about
+  0.60 in place of 0.55 would read 1.0 across 9 to 18 kn; the lead's number to move, and only if the owner takes A).
+- **Land:** A costs 0.22 to 0.26 of the lift at 9 to 12 kn and 0.12 to 0.16 at 13 to 15 kn, on a land already at full white: no
+  strength gives it back. Only a deeper land under the wind could (the map's term; not built; the owner's call).
+- **The pale band is untouched by A:** sea 0.59 to 0.70 and land 0.37 to 0.52 from 25 to 39 kn, the largest gap to dark in beach. E is
+  the only option here that acts on it.
+- A caution the lead gives for the land rows: along a ramp the place changes with the speed, so compare the two arms at the same crop.
+
+Next, the lead's: A, C and E through the same capture (the lever is on this branch at `7d4ecffe`), cut into one clip beside dark.
+
+## 07:33Z · A, C and E on the lead's speed ramps (measured by the lead session, relayed 07:23Z), and the pair it asked about (F)
+
+Not measured here. The lead captured this branch's options through the lab lever at `7aa11c10`, every lane merged, sea white 0.55,
+this branch's kill as the control in the same capture (the method of the entry above). Lift against dark's; starred speeds are the
+high ramp. A clip (dark | today | A | C | E) went to the owner from the lead session.
+
+| SEA, kn | 9 | 12 | 15 | 18 | 13* | 26* | 32* | 39* | 45* |
+|---|---|---|---|---|---|---|---|---|---|
+| before | 0.99 | 1.04 | 0.98 | 0.97 | 0.97 | 0.68 | 0.60 | 0.62 | 0.85 |
+| A | 0.93 | 0.93 | 0.93 | 0.93 | 0.92 | 0.65 | 0.59 | 0.62 | 0.85 |
+| C | 0.97 | 1.04 | 1.05 | 1.07 | 1.02 | 0.71 | 0.61 | 0.62 | 0.85 |
+| E | 0.93 | 0.95 | 1.05 | 1.09 | 0.98 | 0.86 | 0.82 | 0.76 | 0.84 |
+
+| LAND, kn | 9 | 12 | 15 | 18 | 13* | 26* | 32* | 39* | 45* |
+|---|---|---|---|---|---|---|---|---|---|
+| before | 0.86 | 0.91 | 0.88 | 0.81 | 0.92 | 0.38 | 0.52 | 0.49 | 0.81 |
+| A | 0.64 | 0.65 | 0.76 | 0.76 | 0.76 | 0.37 | 0.52 | 0.49 | 0.81 |
+| C | 0.80 | 0.88 | 0.97 | 1.06 | 0.98 | 0.39 | 0.51 | 0.49 | 0.81 |
+| E | 0.69 | 0.77 | 1.01 | 1.05 | 0.94 | 0.61 | 0.61 | 0.63 | 0.81 |
+
+The lead's reading, shared here:
+- **E is the only option that moves the pale band, and it moves it about half way:** sea 0.60-0.68 to 0.76-0.86, land 0.38-0.52 to
+  0.61-0.63, on a rendered sea ground 4 to 7 L* deeper and a land ground 3 to 4 deeper. It stays UNDER dark's there (my caution to the
+  lead expected over: wrong). The rendered land is still plainly pale in E (L* 68 to 72 against dark's 34 to 39): the rest of that gap
+  is the map's, not the palette's.
+- **E's gain is all above 15 kn and its cost all below it:** at 15 to 18 kn E and C read 1.01 to 1.09 on both grounds (today's land
+  0.81 to 0.88); at 9 to 12 kn E costs like A over land (0.69 / 0.77 against 0.86 / 0.91).
+- **C** keeps everyday lift, improves the 15 to 18 kn land, and does nothing for the pale band. **A** is level and under.
+- By eye the options are hard to tell apart in a still at this scale.
+
+**The pair the lead asked about ("E with C's ground at 9 to 12 kn, if a solve can hold both"): it holds. Option F.**
+`beach-path-solve.mjs --ceilgale 60 --aim deep --tol 12` (three seeds agree to 0.1): the gale band under L* 60 as in E (27 / 33 / 40 kn
+at 60.0 / 60.0 / 59.9 over land) AND no everyday ground more than **4.3 L*** lighter than today (E 6.7, A 8.5, B 10.2, C 2.5). 10 kn sits
+at L* 51.0 (46.7 today), 16 and 21 kn at 44.5 with C* 14.1 and 16.4; hue within 12 degrees; colour-blind floor 5.10; the 6 to 40 kn ground
+spans 15.5 L* over land and 13.0 over the sea (E 13.7 / 11.4; today 26.2 / 21.7; dark 7.4 / 7.2). Cost: 110 moved in all, the greens grey-green
+(as in C). It is drawable as `window.__RAW_WIND_BEACH_PATH__ = 'F'`; the palette checker exits 0 on it (water 5.1, land 5.1). Stills
+and tables only: NOT filmed, not measured on a ramp.
+
+## 07:52Z · F on the lead's speed ramps (measured by the lead session, relayed 07:51Z)
+
+Not measured here. The lead captured F from this branch at `e2587c88` at sea white 0.55, every lane merged, with E and this branch's
+kill in the same capture as controls (both reproduced its earlier rows to the digit). The method is the entry above's. A clip of
+dark | today | E | F went to the owner from the lead session, which recommends F. Lift against dark's; starred speeds are the high ramp.
+
+| SEA, kn | 9 | 12 | 15 | 18 | 13* | 26* | 32* | 39* | 45* |
+|---|---|---|---|---|---|---|---|---|---|
+| before | 0.99 | 1.04 | 0.98 | 0.97 | 0.97 | 0.68 | 0.60 | 0.62 | 0.85 |
+| E | 0.93 | 0.95 | 1.05 | 1.09 | 0.98 | 0.86 | 0.82 | 0.76 | 0.84 |
+| F | 0.95 | 1.01 | 1.09 | 1.12 | 1.02 | 0.86 | 0.82 | 0.75 | 0.84 |
+
+| LAND, kn | 9 | 12 | 15 | 18 | 13* | 26* | 32* | 39* | 45* |
+|---|---|---|---|---|---|---|---|---|---|
+| before | 0.86 | 0.91 | 0.88 | 0.82 | 0.92 | 0.38 | 0.52 | 0.49 | 0.81 |
+| E | 0.69 | 0.77 | 1.01 | 1.06 | 0.94 | 0.61 | 0.61 | 0.63 | 0.81 |
+| F | 0.74 | 0.86 | 1.08 | 1.12 | 1.03 | 0.63 | 0.60 | 0.62 | 0.81 |
+
+Rendered ground L* under F, sea: 45.4, 42.2, 39.3, 38.6 at 9 / 12 / 15 / 18 kn and 52.7, 56.1, 54.4 at 26 / 32 / 39 kn; land: 57.8, 54.5,
+51.2, 50.0 and 68.1, 71.9, 69.7.
+
+The lead's reading, shared here:
+- F keeps E's whole gain in the pale band (sea 0.75 to 0.86 from 0.60 to 0.68; land 0.60 to 0.63 from 0.38 to 0.52) and gives back about
+  half of E's everyday cost over land (0.74 / 0.86 at 9 / 12 kn against E's 0.69 / 0.77 and today's 0.86 / 0.91).
+- At 15 to 18 kn F reads 8 to 12% OVER dark's on both grounds: its 16 and 21 kn grounds are the deepest of the set. Over the sea that is
+  the lead's to trim with the strength if the owner takes F; one number cannot flatten 0.95 at 9 kn to 1.12 at 18 kn.
+- Over land F is the first beach arm to reach dark's lift anywhere below 45 kn. The land's pale band is still pale (L* 68 to 72): the
+  rest of that gap is the map's.
+
+**What F still owes, if the owner takes it** (none of it done): it becomes the default in place of A (`BEACH_PATH.field`, the test
+pins, the header's numbers); its hue tolerance is 12 degrees, not the 8 this log states for A, and its greens are C* 14 to 16; the
+legend's 30 degree line and every bar are re-read for it as the default; the lab lever and the options not picked leave; then the PR's
+own gates, records (D-025, L-V63 up) and the rebase onto #318.
+
+## 12:07Z · The owner picked F; F is the default; the branch for the PR
+
+**The pick (relayed, not first-hand here).** The lead session, 11:52Z: the owner said to it at 11:50Z, in full, "merge #316 and go
+with F and the deeper land and open the pr". Checked against GitHub before acting: #316 reads MERGED at 2026-10-12T11:52:11Z and
+`origin/dev` is `74417b5a`. The lead had recommended F with its ramp rows and a clip (dark | today | E | F). "The deeper land" is the
+lead's own change (D-026), not this branch's. DECISIONS D-025 records the pick and whose words they are.
+
+**What was done.**
+- A new branch `claude/wind-beach-path` from `origin/dev` at `74417b5a`, with the eight local commits of `claude/wind-beach-lightness`
+  squashed onto it (they were never pushed). The squash merged cleanly; `windDarkRules.test.js` keeps #316's entry and this one's
+  in the ORTHOGONAL list.
+- **F is what beach draws by default.** `BEACH_PATH.field` is F's 70 rows. The default's field hashes, `682f16ac` (50 kn) and
+  `4026fb5f` (75 kn), equal the bytes read through the lab lever at `35b99ac5` (the same table as at `e2587c88`, the head the lead
+  captured), read BEFORE the swap. Under the kill beach's field is `7c248d5f` / `b9db3bb2`: the before.
+- **The lab lever and the options not taken are gone from the app** (`BEACH_PATH_OPTIONS`, `beachPathPick`,
+  `window.__RAW_WIND_BEACH_PATH__`, `check.mjs --beach-option`): the look key is `white+path|dark-rules` again, which is also the
+  form the lead's merge recipe for #318 expects. A, B, C and E remain as numbers in this log only.
+- `beach-path.json` holds F's stops; `node beach-path-solve.mjs --score beach-path.json --mono 0-21,33-75 --tol 12 --ceilgale 60`
+  reads violation 0.000: floor 5.10 (27-33 kn, protan, sea), lightness climbs back 0.0 over 0-21 and 33-75 kn, the hue's whole
+  turn back 0.2 degrees, steepest knot 3.1 dE00 (3.9 before; dark's own 8.9), weakest C* from 3 to 40 kn 13.5 / 11.8 (3 kn's, as
+  before), the everyday ground lifted 4.3 L* at most, the 6 to 40 kn ground spanning 15.5 L* over land.
+
+**Gates, on the branch at `d7f597c2` (the feature commit):**
+- `node check.mjs --strict`: exit 0, no red line (on `dev`: exit 1, two red lines). Beach's colour-blind lines: water 5.1 (27-33 kn,
+  protan), land 5.1 (33-40 kn, deutan). "Speeds whose tint sits more than 30 degrees off the legend's own hue": none, on both
+  grounds, so the legend does not move. Warn lines: the two marks lines it printed before (3-6 kn 6.3 over land, 21-27 kn 1.7 over
+  the sea), dark's water-hue line, light's marks line, and beach's marks colour-blind watch line (now 27-33 kn deutan 2.0; it
+  named 3-6 kn deutan 2.0). `--before-path` prints the before.
+- Jest from `frontend/` with `--testMatch`: the map tree 284 suites, 3872 tests passed; `src/tests` 23 suites, 254 tests passed.
+  `windBeachPath.test.js` re-pinned for F (each bar with the table before as its control); `windWhiteStreak.test.js`,
+  `windDarkWhite.test.js` and `windDarkRules.test.js` read D-021's and D-022's tables through this kill and pin F's hash as the
+  default.
+- `node scripts/check_eslint.js` exit 0; `python scripts/loc_ratchet.py` new 0, regressed 0 (`WindColorRamp.js` 782 lines).
+- The build: `npm run build` cannot run from this Windows shell (its script sets `NODE_OPTIONS=...` in POSIX form), so the same
+  command was run in Git Bash as Netlify runs it, `CI=false NODE_OPTIONS=--openssl-legacy-provider npx craco build`: "Compiled
+  with warnings", exit 0. With `CI=true` it fails on 587 lint warnings in files this change does not touch, as `dev` does. The
+  build's version stamp touched two tracked files; they were restored and are not in the commit.
+- An independent read-only review of the diff was run before the push: its findings and what was done about each are in the next entry.
+
+**This change moves no served number** (client only: a colour table), so it adds no SCOREBOARD row.
+
+**Owed after it:** the read-back on the deployed build once the owner merges (the look key, the kill flipping it with no reload,
+the owner's eye); the sea strength re-read on F's ground and the land re-read under the deeper land (both the lead's).
+
+## 12:30Z · The independent review, and what was done about each finding (before the push)
+
+A read-only reviewer (a subagent given the diff and the rules, not this session's conclusions) compared `origin/dev`'s module with
+this branch's over 103,840 lever cases (every one of the 111 `__RAW_*WIND*__` names at 14 values, all pairs at `true`, string levers
+against every other lever, 6,000 random sets of 3 to 6 levers; both call shapes; 50 and 75 kn in full): **beach's tables differ from
+dev's exactly when `windBeachPathOn` is true, with no exception; light, dark, both streak rows, the mark model and the white strength
+never moved; no cache or aliasing fault; the look key carries `path` exactly when the tables change.** It did not run `check.mjs`
+(no coloraide in its view) or anything on the GPU. Its findings, most severe first:
+
+1. **The measured gain is for a white strength this branch does not ship.** The lead's rows were taken at beach's sea white 0.55
+   (#315, OPEN); this branch and `dev` hold 0.77. No capture of F exists at 0.77, and at 0.77 the sea already read 1.28 to 1.41 times
+   dark's at 8 to 17 kn before the path; F then deepens the sea ground at 16 and 21 kn by 7 to 8 L*. Merged before #315, a zoomed-out
+   beach sea at 15 to 18 kn would lift well beyond the "8 to 12% over dark's" quoted. **Done:** said in the PR description as a merge
+   order (#315 before or with this), in the file's header, in D-025's amendment and in STATE. Nothing in code ties the two together.
+2. **A bar of D-021 was moved off the default, and is crossed there.** `windWhiteStreak.test.js` now reads beach through the path's
+   kill, so its bar "from a light breeze up the head of a streak stands 19.5 L* or more off its ground" ran only on the kill arm; on
+   the field beach now draws it reads 18.6 at 8 kn over land (19.2 at 7 kn; 18.8 and 19.3 over the sea). **Done:**
+   `windBeachPath.test.js` runs D-021's four per-knot bars on the path's field: three hold, the fourth is asserted as CROSSED at
+   exactly those four places, with the table before as the control. The header lists it as a cost.
+3. **D-022's kill now moves a table in beach, and four places still said it does not.** Its bytes equal dev's, so the rule (an older
+   kill draws its old picture) is met; the consequence is that the kill can no longer A/B the white strength ALONE on the path's
+   field. **Done:** the test title and comment in `windDarkWhite.test.js`, the comment in `windDarkRules.test.js` and the bench's
+   `matrix.js` say so; a `before-path` bench variant was added with its test. `windDarkWhite.test.js`'s per-knot section reads the
+   field its strengths were solved on (through the path's kill), so its `was` arm is again a picture the app can draw.
+   **Not done:** `windDarkRules.js`'s own header still says of D-022 "No table moves" (true of D-022's change; that file is #315's
+   to edit, and this branch does not touch it).
+4. **Header claims that were too wide, and costs that were missing.** "Within 12 degrees" is the LAND's (over the sea 10 kn moves
+   13.5 degrees and 16 kn 16.7). Over the sea the field at 16 kn sits 29.8 degrees off the legend's hue (13.1 before), 0.2 inside
+   the checker's 30. A normal eye tells the everyday neighbours apart about half as well (6-10 kn 6.3 / 5.2 dE00 over land / sea
+   from 10.8 / 8.5; 10-16 kn 6.8 / 5.2 from 10.0 / 8.8). The floor is 5.10 / 5.11 on the table and 5.01 at the least once quantised
+   into the 8-bit texture. **Done:** each is in the header and pinned in `windBeachPath.test.js` (this session's model reproduced
+   every number the reviewer gave).
+5. **Assertions that could not fail.** The legend test compared nothing; a control compared two literals; the hue-order bar had no
+   control. **Done:** the legend bar is compared with and without the kill on the real window; the control reads the tables; the
+   hue-order bar is shown to fail on a table with 10 and 16 kn exchanged.
+6. **Informational:** the path draws under every lever that leaves the white streak drawing (the mark sub-levers, a light look,
+   `__RAW_WIND_DARK_RULES__ = 'beach'`), as #313's precedent has it.
+
+After the fixes: the four wind table files 170 passed; both trees, the ratchets and the checker re-run before the push (read from the
+PR's own checks, and below if they differ).
+
+## 13:11Z · After the PR opened: F's colour beside dark's, and F over the deeper land of #320 (model readings; the lead's questions)
+
+**Relayed by the lead at 13:09Z (not first-hand here).** The owner, 12:28Z, on the deployed build (`74417b5a`: #314 and #316 only, so
+NOT F): "I just did a visual check for wind on beach and light modes, and I still do not visually see the improvements yet.... notate
+that"; 12:36Z: "you need to also compare the amount and density of the animations from beach and light mode to dark mode. And colors,
+how slower color wind is more transparent than faster color wind ... Study your research and best practices more". The lead's
+comparison on speed ramps (its log, #320): beach's ground is dark's equal in colour from 4.5 to 12 kn and nearly twice as colourful
+from 15 to 32 kn. It asked what F does to that, and what F reads over the deeper land its PR #320 lays (D-026: the land's lightness
+times 0.85 in beach).
+
+**F's ground chroma over the SEA (C*), by the model** (the palette checker's composite for beach; dark by the engine's law; a scratch
+script, not committed):
+
+| kn | 9 | 12 | 15 | 18 | 21 | 26 | 32 | 39 |
+|---|---|---|---|---|---|---|---|---|
+| beach before | 16.7 | 19.6 | 26.0 | 30.1 | 27.2 | 35.7 | 35.6 | 23.0 |
+| F | 14.0 | 13.1 | 12.3 | 12.6 | 13.3 | 19.4 | 26.8 | 21.3 |
+| dark | 20.9 | 22.8 | 22.3 | 22.4 | 23.2 | 22.2 | 16.4 | 11.9 |
+
+So F takes beach's sea from MORE colourful than dark at 15 to 26 kn to about HALF dark's colour at 12 to 21 kn (12 to 13 against 22
+to 23). That is the price of the depth in one line, and it is larger than "grey-green" says. (The lead reads dark at 23, 24, 26 and 22
+at 15, 18, 26 and 32 kn in motion; its capture of F in the combined build will give the measured row.)
+
+**F's colour-blind line over LAND as the land gets deeper (model: the app's own mute with the land's lightness multiplied by the factor):**
+
+| land factor | land L* | before | F |
+|---|---|---|---|
+| 1 (today) | 83.9 | 3.17 (16-21 kn, protan) | 5.11 (33-40 kn, deutan) |
+| 0.95 | 78.8 | 3.09 | 4.98 |
+| 0.90 | 74.1 | 3.00 | 4.85 |
+| 0.85 (#320, beach) | 68.9 | 2.90 | **4.69** |
+| 0.81 | 64.8 | 2.86 | 4.52 (10-16 kn, deutan) |
+
+**So #319 and #320 do not both hold the bar as they are:** F was solved on today's land, and over #320's deeper land its land line
+reads 4.7 by the model (far above the 2.9 today's rows would read there, and under 5). Any factor below about 0.955 takes it under.
+The definitive read is `node check.mjs --theme beach --strict` on a tree with both changes. Ways out, none taken here: re-solve F's
+rows with the deep land as the constraint ground (this lane's; the default would then no longer be the bytes that were filmed); a
+gentler land factor for beach; or accept 4.7 over land, said plainly. The owner's call with the lead's.
+
+**For the merge with #320 (the lead's note):** it adds an import under the `windDarkRules` import in `WindColorRamp.js`, changes
+`windWhiteStrength`'s return line and adds a `setWindLandDepthGate(...)` line after that function; `check.mjs` and
+`mirror-model.mjs` hand `windLandWhite` and `setWindLandDepthGate` to the ramp source. Keep every import, its line, then the
+switches, then one declaration of `SOLVED`.
+
+## 14:17Z · The step that remains at 21 to 27 kn is F's own gale band (the lead's question), and what its canvas finding means here
+
+**Relayed by the lead at 14:17Z.** It found why light never matched its samples in the app (a see-through canvas over a near-white
+page; D-027 on its branch). Beach is NOT affected: the app lays a black page behind beach, and beach's frames are byte-identical with
+and without that fix, so this lane's samples and numbers are what the app draws. It also found the mirror probe reads dark's ground
+3.4 to 5.5 L* low, so "lift against dark's" in every table above overstates dark: against the field alone, in its preview with F
+and sea white 0.55, beach lifts the sea 8.4 / 9.7 / 10.4 L* at 11.8 / 15.3 / 18.5 kn where dark lifts it 5.1 / 5.2 / 5.4. The
+ratios in this log (and in #319's description) are therefore ratios to an overstated dark; the strength is the lead's to retune.
+
+**Its question:** in that preview beach's ground over the sea reads L* 38 at 18.5 kn and 53 to 57 from 25.6 to 38.5 kn with F. Is
+that step F's intended gale band or a remainder of the pale band?
+
+**Answer: it is F's own band, by design, and the step is what F could not remove in beach's own hues.**
+- F puts the gale band under a ceiling (L* 60 over the model's land, about 49 over its sea) AND deepens 16 and 21 kn. By the model
+  the sea reads 36.0 / 35.9 at 16 / 21 kn and 48.9 / 48.6 / 48.4 at 27 / 33 / 40 kn; before F, 43.2 / 44.1 and 57.9 / 54.9 / 51.0.
+  So the whole 16 to 40 kn range came down 3 to 9 L*, and the step from 21 to 27 kn is 13.0 L* over the sea where it was 13.8
+  (15.5 over land, from 16.6). The band is no longer as light as calm; the step into it is as tall as it was.
+- Why the step stays: 21 kn and 27 kn are the SAME hue in beach (123 degrees; palm green and palm gold-green). What tells them
+  apart, for every viewer, is lightness and colour. The solver holds that pair above the colour-blind bar with lightness.
+- What removing it costs: the solve allowed 20 degrees of hue (06:20Z entry, "D" at 20 degrees) laid 21 and 27 kn LEVEL (L* 61.8 and
+  61.5 over land) by turning 27 kn's hue 20 degrees toward yellow (to 102) and 6 kn's 20 degrees toward cyan. So a flat ground from
+  16 to 40 kn exists, at 20 degrees of hue instead of 12 and with the everyday ground lifted to L* 62 to 63. Not built.
+- The rendered sea is lighter than the model's (the lead's 53 to 57 against the model's 48 to 49; its rendered muted sea is L* 72.5
+  against the model's 68.8), so the rendered step is 15 to 19 L* where the model says 13.
+
+**The merge order the lead is recommending to the owner:** the canvas fix, #320, #319, #315, #318, #317. With #320 before #319, F's
+land line reads 4.7 over the deeper land by the model (13:11Z entry): #319 needs F re-solved on that land, a gentler land factor, or
+4.7 accepted, BEFORE it merges second. And with #319 before #315 the sea is over-lifted until #315 lands.
+
+## 14:36Z · F re-solved for the deeper land of #320: a CANDIDATE behind a lever (local branch `claude/wind-beach-path-deep-land`; #319's default does not move)
+
+**Asked for by the lead at 14:26Z** (relayed): way out (a), as a candidate only, to be filmed (dark | F as shown | F on the deep land)
+before anything about #319's default changes. #320's head is `ff7bbf39`; beach's land factor there is 0.85.
+
+**The authority's read first** (`check.mjs` now takes `--land-l`: the land's lightness times that factor, by the app's own mute):
+`node check.mjs --theme beach --strict --land-l 0.85` on F exits 1 with ONE red line, beach's tint over land at 4.7 (33-40 kn,
+deutan); the sea reads 5.1. So the model's 4.69 stands by coloraide. Over that land F's ground is all but the sea's (the land comes to
+L* 68.9, the sea is 68.8), and five pairs sit a little under: 6-10 kn 4.98, 10-16 kn 4.9, 16-21 kn 4.7, 27-33 kn 4.8, 33-40 kn 4.7.
+
+**The solve** (`beach-path-solve.mjs --ref built --land-l 0.85 --free 6,10,16,21,27,33,40 --mono 0-21,33-75 --tol 5 --ceilgale 49.6
+--straight 6-10,...,40-47`; the reference is F itself, the aim the least change from it; three seeds at 3 and at 5 degrees all hold):
+the bar is held over the deeper land AND the sea by moving no knot of F more than **0.4 dE00** and no hue more than **1.8 degrees**.
+
+| kn | sea, F (L* / C* / hue) | sea, option | deep land, F | deep land, option | moved (dE00) |
+|---|---|---|---|---|---|
+| 6 | 46.7 / 15.3 / 182 | 47.0 / 15.3 / 184 | 46.6 / 14.8 / 174 | 46.9 / 14.8 / 176 | 0.4 |
+| 10 | 41.5 / 13.6 / 176 | 41.9 / 13.5 / 177 | 41.4 / 13.3 / 167 | 41.8 / 13.2 / 168 | 0.4 |
+| 16 | 36.0 / 12.0 / 166 | 36.3 / 12.2 / 168 | 36.0 / 11.9 / 157 | 36.2 / 12.0 / 159 | 0.3 |
+| 21 | 35.9 / 13.3 / 131 | 36.1 / 13.6 / 130 | 36.0 / 13.9 / 122 | 36.1 / 14.1 / 122 | 0.2 |
+| 27 | 48.9 / 20.7 / 129 | 48.9 / 20.3 / 130 | 48.9 / 21.3 / 122 | 49.0 / 20.9 / 123 | 0.2 |
+| 33 | 48.6 / 28.0 / 97 | 48.7 / 28.1 / 97 | 48.9 / 29.6 / 92 | 49.0 / 29.7 / 92 | 0.1 |
+| 40 | 48.4 / 20.4 / 51 | 48.4 / 19.8 / 50 | 48.9 / 24.1 / 50 | 48.9 / 23.5 / 50 | 0.3 |
+
+Every other stop is F's, byte for byte. The 21 to 27 kn step: sea 13.0 to 12.8 L*, deep land 12.9 to 12.9. Lightness still never rises
+from calm to 21 kn nor from 33 to 75 kn.
+
+**The two colour-blind lines, by the palette checker** (water / land):
+
+| | today's land | the deeper land (0.85) |
+|---|---|---|
+| F as shown (#319's default) | 5.1 / 5.1, exit 0 | 5.1 / **4.7**, exit 1 |
+| the option | 5.0 / 5.3, exit 0 | 5.0 / 5.0, exit 0 |
+
+So the option holds the bar on EITHER land, whichever of #319 and #320 merges first; its price is the sea's margin (5.0, at 3-6 kn
+protan, where F reads 5.1).
+
+**How it is drawn:** `window.__RAW_WIND_BEACH_PATH__ = 'deep-land'` (`BEACH_PATH_LAB`, `beachPathPick` in `windBeachPath.js`: 43
+rows, 4 to 46 kn, laid over F's). Anything else, or nothing, draws F byte for byte (`682f16ac` / `4026fb5f`); the option's field
+hashes are `e434f0bf` (50 kn) and `cbfec18a` (75 kn); the look key reads `white+path-deep-land|dark-rules`; every kill and hold
+wins over it. `check.mjs --beach-option deep-land` reads it. `windBeachPath.test.js` pins the control (F over the deeper land:
+4.69) and the option (5.0 or more on both grounds, within 0.5 dE00 of F at every knot). Four wind table files: 173 passed.
+**Not on #319:** this is a local branch stacked on it, not pushed. Not filmed here: the lead films it in the combined build.
+
+## 14:44Z · The deep-land option filmed beside F and dark (measured by the lead session, relayed 14:44Z); held for the owner's word
+
+Not measured here. The lead's local preview (never pushed): dev `74417b5a` + #320 + #315 + #318 + this branch at `584cfa62`, with
+`WindColorRamp.js` resolved by hand. Two speed ramps at zoom 6 (2 to 30 kn and 6.85 to 60.6 kn), page and map at pixel ratio 1.5,
+90 frames, beach each time the second run after dark so the two arms sit at the same run position. No page error; the lever took.
+The deep land drawn, the white at 0.55. A clip (dark | F as shown | the option) went to the owner from the lead session.
+
+F as shown against the lever `'deep-land'`:
+- **Frame for frame** (CIE76 a pixel on JPEG frames, every third frame and pixel; not the dE00 at the knots of the entry above): mean
+  0.92 on the low ramp and 0.61 on the high ramp; 42% and 28% of pixels differ by more than 1, 10.5% and 6.3% by more than 2. The null
+  control (dark against dark across the same two invocations): mean 0.07, 3% over 1.
+- **The mirror probe**, 110 px crops, F to the option: sea at 11.8 kn ground L* 44.0 to 44.2, lift 8.7 to 8.7, a streak's core 65.0 to
+  65.1; sea at 18.5 kn 41.4 to 41.5, 10.0 to 10.0, 64.6 to 64.8; land at 11.8 kn 46.1 to 46.5, 9.5 to 9.4, 66.7 to 66.8; land at
+  18.5 kn 42.9 to 43.0, 10.5 to 10.5, 67.1 to 67.1. Cover within 0.002 and flicker within 0.007 everywhere.
+
+The lead's reading, shared here: a real, small, even shift of the FIELD (about what the table above says) and nothing in the streaks.
+It has told the owner the option holds the bar on either land and asked for their word to take it. **#319 stays as it is until then.**
+
+## 15:10Z · CORRECTION (relayed by the lead, 15:10Z): every bench frame saved before today is darker than the screen at bright streak cores
+
+**What was found (the independent review of the lead's #321; its measurements, one scene, the offline basemap).** A frame saved from
+the bare canvas is un-premultiplied by the encoder and laid over black, so wherever a channel was brighter than the alpha the wind had
+left, the saved pixel held the smaller of the two. Under dev's blends beach had 11.5% to 25.6% of pixels with a clamped channel, 3.1
+to 3.6 L* darker each on average and up to 10.9; dark 6.1% to 8.6%, 2.0 to 2.8 L*; light 21% to 26%, 1.7 to 2.0 L*. A real screenshot
+shows the canvas's own colour. The bench is fixed on the lead's branch (`claude/wind-opaque-canvas`, #321): film and measure from
+that bench only.
+
+**What this corrects in THIS log.** This supersedes the lead's earlier note (14:17Z entry) that beach's saved frames were exactly what
+the app draws.
+- **Stands, because no frame is read:** every field number (the solver's tables, the ground per knot, the spans), the palette
+  checker's lines for F and for the deep-land option on either land, the table hashes, every Jest pin.
+- **Read low at the cores, and not to be quoted as measured:** every `mirror-run` number here (05:25Z, 06:20Z, and the lead's relayed
+  rows at 06:58Z, 07:23Z, 07:51Z and 14:44Z: lift, a streak's core, "of dark's"), dark's own bar included, and so every ratio to dark.
+  The two clips this session sent the owner at 05:55Z show beach's cores darker and less coloured than the app draws them.
+- **What the lead has re-measured so far on corrected frames** (dev's engine plus its fix, the hurricane at x0.4, zoom 6, one sea and
+  one land crop; the picture minus the same crop with the field alone): dark adds 8.5 L* over the sea and 3.3 over land; beach on dev
+  (sea white 0.77) adds 16.3 and 4.1. So beach's streak is not weaker than dark's by added light; dark's differs in kind (its marks
+  take a pixel BELOW the field beside the core, which beach's never do).
+- **So the "what it buys" rows in D-025, in STATE and in #319's description are under review:** the direction they claim for the gale
+  band (a deeper ground gives the streak more to stand on) rests on the field, which stands; the SIZES do not. The lead is
+  re-measuring every open change by speed and will send the corrected table; the rows are replaced then, not before.
+
+## 15:38Z · The corrected by-speed table (measured by the lead session on true frames, relayed 15:36Z), and what it withdraws here
+
+Not measured here. The lead's local preview: dev `74417b5a` + #320 + #315 + #318 + this lane's branch + #321's corrected bench; speed
+ramps, zoom 6, page and map at pixel ratio 1.5, 110 px crops. "Added" is the mean picture minus the SAME crop drawn with the colour
+field alone. The probe's own lift (the mean minus each pixel's darkest moment) reads dark high and beach low at once, so **no "x of
+dark's lift" from before stands** (the lead's L-V73).
+
+Light the streaks add (L*), beach on F with the sea white at 0.55, at 3.2 / 5.9 / 8.6 / 11.8 / 15.3 / 18.5 / 25.6 / 38.5 kn:
+
+| | 3.2 | 5.9 | 8.6 | 11.8 | 15.3 | 18.5 | 25.6 | 38.5 |
+|---|---|---|---|---|---|---|---|---|
+| sea, dark | 1.1 | 3.4 | 3.0 | 6.7 | 7.7 | 8.2 | 14.3 | 14.9 |
+| sea, beach | 2.4 | 5.3 | 5.5 | 10.3 | 12.3 | 13.3 | 17.9 | 15.5 |
+| sea, beach against dark | x 2.18 | 1.56 | 1.83 | 1.54 | 1.60 | 1.62 | 1.25 | 1.04 |
+| land with #320, dark | 2.3 | 5.0 | 4.4 | 7.9 | 10.4 | 10.8 | 15.2 | 17.5 |
+| land with #320, beach | 2.4 | 4.9 | 5.3 | 8.9 | 11.5 | 13.4 | 15.6 | 15.9 |
+| land with #320, beach against dark | x 1.04 | 0.98 | 1.20 | 1.13 | 1.11 | 1.24 | 1.03 | 0.91 |
+| land with #320 killed (pale land, white 1), beach against dark | x 1.26 | 1.32 | 1.73 | 1.62 | 1.63 | 1.84 | 1.41 | 1.15 |
+
+- A core's height over the field, sea: dark 4.5, 14.7, 14.7, 20.8, 22.2, 22.7, 25.0, 26.0; beach 4.3, 14.1, 15.9, 22.6, 25.3, 26.5,
+  26.6, 23.5. The cores match dark's.
+- A pixel's darkest moment against the field, sea: dark sits 2.3 to 3.9 L* UNDER its field up to 18.5 kn; beach sits 1.0 to 1.8 under
+  up to 8.6 kn, then 1.6, 2.5, 3.3, 8.9 and 7.5 OVER it from 11.8 kn up. Beach's trails linger; dark's return to the field.
+- Flicker against dark's: sea 0.65 to 0.90; land with #320 0.58 to 0.87.
+- F's own field over the sea in those crops (rendered L*): 54.7, 49.7, 46.0, 42.4, 39.1, 38.1, 47.7, 50.7.
+- The deep-land option against F on true frames, frame for frame: mean dE76 0.92 and 0.62 (null 0.08), as on the old frames.
+
+**The lead's reading, shared here:** the gap to dark is not strength. With every open change beach's cores stand as high as dark's and
+its streaks add as much light over the deeper land and more over the sea; what dark has and beach lacks is that its streaks come back
+to the field between cores. A retune of the strengths, or of how tails fade, is the lead's later step.
+
+**WHAT THIS WITHDRAWS IN THIS LANE'S RECORDS (corrected in the same commit):**
+- D-025's "what it buys, measured" rows, STATE's "Measured" rows, #319's description and the header of `windBeachPath.js` quoted
+  before-to-now lifts "against dark's" for the gale band and for everyday winds. Those sizes were read on frames that under-read the
+  cores and against a dark that was read high. **They are withdrawn. No corrected before-and-after of F ALONE exists**: the table
+  above is F with every open change, against dark, not against beach before F.
+- Two costs were stated from the same rows and are withdrawn with them: "the land at 9 to 12 kn loses lift (0.74 and 0.86 of dark's)"
+  and "at 15 to 18 kn the streaks lift 8 to 12% further than dark's". What the true frames say instead: over the sea beach's streaks
+  add 1.5 to 1.8 times the light dark's do from 6 to 18 kn at white 0.55 (F's ground there is the deepest beach draws).
+- **What F rests on now is the field, which no frame touches:** lightness one way through the green band; the gale band under a
+  ceiling (the ground from 6 to 40 kn spanning 15.5 L* over land where it spanned 26.2); the colour-blind lines back above 5; and its
+  costs in colour. The claim that a deeper gale band gives the streak more to stand on is a direction, not a measured size.
+
+## 15:54Z · The owner took the re-solved F; it is #319's default (step 1 of the lead's two)
+
+**The pick (relayed, not first-hand here).** The lead session, 15:41Z: the owner said to it at 15:38Z, first-hand, "merge #321 and #320 and take the re-solved F" and "and merge anything else needed as well". The lead asked
+for two steps: this one now (the option becomes the default on #319's branch, pushed, not rebased), and a merge of `origin/dev` into
+the branch on its signal once #321, #320 and #315 are on dev. At the time of this entry GitHub shows those three still open.
+
+**What was done on `claude/wind-beach-path`.**
+- The 43 rows of the deep-land option (4 to 46 kn) replace F's in `BEACH_PATH.field` (70 rows in all, as before). The lab lever and
+  its plumbing (`BEACH_PATH_LAB`, `beachPathPick`, `window.__RAW_WIND_BEACH_PATH__`, `check.mjs --beach-option`) are gone; the look
+  key is `white+path|dark-rules`. The lever's commit never reaches the PR's history (squashed away before the push).
+- **The default is the bytes that were filmed:** field hashes `e434f0bf` (50 kn) and `cbfec18a` (75 kn), read through the lever at
+  `584cfa62` BEFORE the swap and equal after it. Under the kill beach's field is `7c248d5f` / `b9db3bb2`, the before. Beach's two
+  streak rows, light and dark are byte for byte.
+- Kept as instruments: `check.mjs --land-l` (a deeper land), `beach-path-solve.mjs --ref built` and `--land-l`, `mirror-model.mjs`
+  `groundAt`. `beach-path.json` still holds F's stops as first solved; what is built is read with `--audit --ref built`.
+
+**The palette checker (coloraide), water / land:** today's land 5.0 / 5.3, exit 0; `--land-l 0.85` 5.0 / 5.0, exit 0; the control
+`--before-path --land-l 0.85` 3.1 / 2.9, exit 1. One NEW watch line with the option: over the sea the field sits more than 30 degrees
+off the legend's hue across 1 kn (15.5 to 16 kn; 31.2 degrees at 16 kn where F read 29.8). Not red (2 kn would be).
+
+**What the re-pin found that the candidate's own entry (14:36Z) did not say** (all pinned in `windBeachPath.test.js`):
+- As uploaded (the 256-entry 8-bit texture) the sea's weakest pair reads 5.01 at a 75 kn maximum and **4.98 at a 50 kn maximum**;
+  the table reads 5.05. F read 5.01 at the least. The bar is the checker's, on the table, and it holds; as drawn at 50 kn it is 0.02 under.
+- Hue from what beach drew before: up to 13.5 degrees over land (16 kn; 12.6 at 10 kn) and 18.2 over the sea (16 kn; 14.2 at 10 kn).
+  The option's "1.8 degrees" was from F; F itself sat 12.0 and 16.7 from the before.
+- The everyday ground is lifted 4.7 L* at most over land and 4.0 over the sea (F: 4.3 and 3.6); the head of a streak stands 18.5 L*
+  off its ground at the least (F 18.6; before 19.6), under D-021's 19.5 at 7 and 8 kn on both grounds, as with F.
+
+**Gates on the new default:** Jest from `frontend/` with `--testMatch`: map tree 284 suites / 3876 tests, `src/tests` 23 / 254, 0
+failed (the four wind table files 171). `check_eslint.js` exit 0; `loc_ratchet.py` new 0, regressed 0 (`WindColorRamp.js` 781 lines).
+The build was not re-run for this step (a table and comments changed; it ran on `d7f597c2`); it runs again in step 2.
+
+**The lead's filmed read of the two, for the record** (corrected bench, frame for frame, F as picked against the option): mean dE76
+0.92 on the 2 to 30 kn ramp and 0.62 on the 7 to 60 kn ramp, null control 0.08; the probe's ground L* moves 0.1 to 0.4 at four crops;
+the streak numbers the same.
+
+## 17:10Z · Dev merged into #319's branch (#321, #320 and #315 are on dev); what the field draws now that the deeper land is the default
+
+**Why now.** The owner, 2026-10-12 15:38Z, to the session leading this work, first-hand there and relayed here: "merge #321 and
+#320 and take the re-solved F" and "and merge anything else needed as well". The lead read "anything else needed" as the open
+changes its re-filmed combined clip showed: #315, #319 and #318. Its signal came at 17:05Z: #315 merged into dev as `89f0dc33` at
+2026-10-12T17:04:44Z (the lead's facts, read back here with `gh pr view 315`: MERGED, the same time and commit), after a GitHub incident held
+#315's checks for 35 minutes (the lead's account). #319 had conflicted with dev since #320 merged at 16:10Z. This is step 2 of the
+lead's two. The lead merges #319 when hosted CI is green; this session does not.
+
+**A trial first (16:11Z to 16:30Z, the lead's ask).** On a local branch that was never pushed (`scratch/beach-path-trial`) this
+branch's head `e00534d1` was merged with `eb0382b8` (dev `9061ad1d` plus #315), every conflict resolved and every gate run, before
+`claude/wind-beach-path` was touched. The merge here repeats those resolutions on `origin/dev` at `89f0dc33`.
+
+**The nine conflicts.**
+- `WindColorRamp.js`: both imports (`windBeachPath`, and `setWindLandDepthGate`, `windLandWhite` from `windBasemapMute`); dev's
+  `setWindLandDepthGate(...)` line stays under `windWhiteStrength`, then `windBeachPathOn`. 783 lines (the ratchet's bar is 800).
+- `windDarkRules.test.js`: the list of kills that leave dark's rules alone keeps every entry (D-022's, the land depth's, the path's).
+- `check.mjs`, `mirror-model.mjs`: dev's loaders (the mute first; `windLandWhite` and `setWindLandDepthGate` handed to the ramp's
+  source) plus `BEACH_PATH` and `beachPathRows`. **There is one `--land-l` now, dev's lever** (`__RAW_WIND_BASEMAP_LAND_L__`); this
+  lane's own constant is gone. `--before-path` sits beside dev's `--before-depth`. `mirror-model.mjs` keeps `groundAt` and
+  `drawnField(theme, levers)`, which the solver uses.
+- `scripts/wind-color/README.md`: both usage lines.
+- `DECISIONS.md`: D-025, then D-026 and D-027. `LESSONS.md`: number order (dev's L-V50 to L-V62, L-V63 to L-V67, dev's L-V70 up).
+  `STATE.md`: both sides, dev's newer entries first.
+- `ACTIONS.jsonl`: dev's file, then this lane's eight lines re-appended after dev's head (the write protocol: a later merge
+  re-chains). They were seq 1075 to 1082 on the branch and are seq 1099 to 1106 now, each with its first time as
+  `acted_at`; the correction's `corrects` text moved to the new numbers. The tool is the lead session's `reappend.py`, read before it
+  was run. `pr_merge #315` is seq 1107 (the lead's facts; this session did not see the merge happen), and the correction for the land
+  numbers (the next section) is seq 1108.
+
+**What the merge changes in what DRAWS: the land.** With #320 (D-026) the land under the wind is laid at the sea's depth by default
+(beach: the land's lightness times 0.85), so every land number this lane recorded before now is the land's BEFORE #320. By the
+composite model on the merged tree (`beach-path-solve.mjs --audit --ref built`, and `--audit` for the before):
+
+| | Over the land as drawn (D-026) | Over the sea | Over the land before #320 (`--before-depth`) |
+| --- | --- | --- | --- |
+| The bare muted ground, L* | 68.9 | 68.8 | 83.9 |
+| The gale band's peak, L* (before the path) | 49.0 (59.7) | 48.9 (59.6) | 60.1 (72.9) |
+| The ground's span from 6 to 40 kn, L* (before) | 12.9 (21.9) | 12.9 (21.7) | 15.4 (26.2) |
+| The 10 kn ground is lifted by, L* | 4.0 | 4.0 | 4.7 |
+| The colour-blind floor (before) | 5.02 (2.90) | 5.05 (3.1) | 5.31 (3.2) |
+
+The field on screen over the land as drawn, L* / C* / hue (before the path): 6 kn 46.9 / 14.8 / 176 (46.2 / 18.2 / 169), 10 kn 41.8 /
+13.2 / 168 (37.8 / 15.4 / 156), 16 kn 36.2 / 12.0 / 159 (43.0 / 28.2 / 146), 21 kn 36.1 / 14.1 / 122 (44.1 / 27.5 / 124), 27 kn 49.0 /
+20.9 / 123 (57.9 / 37.0 / 121), 33 kn 49.0 / 29.7 / 92 (55.2 / 37.5 / 92), 40 kn 48.9 / 23.5 / 50 (51.5 / 25.6 / 51). In lightness it
+reads as it does over the sea, within 0.5 L* at every Beaufort stop. "A gale band under a ceiling of L* 60 over the land" was the
+solve's bar on the land before #320; as drawn it is L* 49.
+
+**The palette checker on the merged tree (coloraide), water / land.** `--strict`: exit 0, 5.0 / 5.0. `--before-depth` and
+`--land-l 1`: exit 0, 5.0 / 5.3. `--land-l 0.85`: the default (beach's `landL` is 0.85). `--before-path`: exit 1, 3.1 / 2.9, which is
+what dev draws from #320's merge until #319's. `--before-path --before-depth`: exit 1, 3.1 / 3.2. The watch line is unchanged
+(over the sea the field sits more than 30 degrees off the legend's hue across 1 kn, 15.5 to 16 kn).
+
+**Wording corrected, because "today's land" stopped being true** (comments and prose; no table, switch or test value moved): the
+header of `windBeachPath.js` (which land its first table is on, and a second table for the deeper land), the README's path
+paragraph (`--before-depth` reads the other land now, not `--land-l 0.85`), one comment in `beach-path-solve.mjs`. DECISIONS D-025
+carries an amendment with the table above; STATE's "What draws", "Measured" and "What it costs" lines name both lands.
+
+**Gates on the merged tree.** Jest from `frontend/` with `--testMatch`: map tree 288 suites / 4056 tests, `src/tests` 23 suites / 254 tests, 0 failed.
+`check_eslint.js` exit 0 (new 0, regressed 0). `loc_ratchet.py` exit 0. The production build (`CI=false
+NODE_OPTIONS=--openssl-legacy-provider npx craco build`) exit 0. `action_ledger.py verify` OK; `memory_audit.py --docs-only` 0 FAIL.
+
+**Unchanged.** The default field's bytes (`e434f0bf` at a 50 kn maximum, `cbfec18a` at 75 kn; pinned, passing). No margin over the
+sea (5.05 on the table; as uploaded 5.01 at a 75 kn maximum and 4.98 at a 50 kn maximum). Nothing of `DARK_WHITE`,
+`windWhiteStrength` or the `u_white` shader lines is touched by this lane or by the resolutions.
+
+**Not done, not verified.** No frame was taken of the merged tree by this session (the lead's combined-build captures stand for the
+motion). Nothing of this build has been seen in the app. The read-back on the deployed build is still owed (the commitment,
+due 2026-10-19).
+
+## 17:23Z · FOUND after the push: as uploaded, the deeper land's colour-blind line is under the bar (the table holds it)
+
+**What prompted it.** A message from the lead (written before it had this lane's reply) repeated the sea's as-uploaded numbers for
+its report to the owner. Re-reading the test that pins them: its land read ("the land holds 5.2") is taken on the land the mute alone
+leaves, which stopped being the default when #320 merged. The read had never been taken on the deeper land. The entry above and the
+message that reported the merge said "5.0 over land" with no such caveat, while giving one for the sea. That was an omission of
+this lane's, in the trial and in the merge.
+
+**Measured** (the method of the pinned sea read: `buildFieldRampTexture` at a given maximum, the 256 texels read back as 8-bit,
+linear between texels, each Beaufort stop composed over the land times 0.85 by beach's law, then the three colour-blind views and
+CIEDE2000):
+
+| | The weakest neighbouring pair |
+| --- | --- |
+| The table (what the palette checker reads) | 5.02 (33-40 kn, deutan); no pair under 5 |
+| As uploaded, 50 kn maximum | 4.89 (16-21 kn, protan); also under 5: 27-33 kn protan 4.95, 6-10 kn deutan 4.99 |
+| As uploaded, 75 kn maximum | 4.87 (16-21 kn, protan); also 6-10 kn deutan 4.94, 27-33 kn protan 4.95, 10-16 kn deutan 4.98 |
+| As uploaded, maxima from 20 to 100 kn | 5.00, 4.95, 4.98, 4.88, 4.95, 4.88, 4.89, 4.96, 4.96, 4.79, 4.91, 4.87, 4.94, 4.83, 4.88 (20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 90, 100 kn) |
+| Control: beach before its path, as uploaded at 50 kn, the same land | 2.84 (16-21 kn, protan) |
+
+For comparison, already recorded: the sea reads 5.05 on the table and 5.01 / 4.98 as uploaded (75 / 50 kn); the land before #320
+reads 5.31 on the table and over 5.2 as uploaded.
+
+**Why the land more than the sea.** The re-solve for the deeper land put five of the land's pairs on the bar at once (5.0x each on
+the table: 6-10, 10-16, 16-21, 27-33, 33-40 kn), so 8-bit rounding tips several under. The sea has one pair near the bar.
+
+**What it means.** The gate of record, the palette checker on the table, holds (exit 0, 5.0 / 5.0). As drawn on screen the land's
+line goes from 2.8 to about 4.9: up to 0.2 under the owner's bar of 5. A difference of 0.1 to 0.2 dE00 is not one an eye can see,
+but the bar is the owner's and the number is under it, so it is said.
+
+**Done here** (no table, switch or default moved): `windBeachPath.test.js` pins the numbers above with the control (30 tests; the
+older as-uploaded test's title now says its land is the land before #320); the source header, the README, STATE, D-025 (a dated
+line in today's amendment) and #319's description say it; LESSONS L-V68; a ledger correction. The lead session was told at once and
+asked to hold the merge until this is pushed.
+
+**Not done.** A re-solve with margin (the table at about 5.2 on both lands) would put the uploaded read over 5. It moves the bytes
+the owner picked from the film, by a little per knot, and costs a little more depth or colour. Not built; the owner's call, through
+the lead. No instrument reads the uploaded texture outside the Jest file; `check.mjs` does not.
+
+## 18:06Z · After the merge: the as-drawn read settled against a GPU, and a margin option behind a lever (LOCAL branch, not pushed, no PR)
+
+**Where this stands.** #319 merged into dev as `11fb734d` at 2026-10-12T17:46:09Z (read with `gh pr view 319`; the lead session
+merged it, on the owner's relayed "and merge anything else needed as well"). This entry is on the local branch
+`claude/wind-beach-path-margin`, cut from dev at `11fb734d`. Nothing here is on dev. The lead asked for it (17:29Z): a version with
+margin behind a lever, default off, every kill and hold winning, for the owner to SEE before any PR; and an as-uploaded read in
+`check.mjs`. The lead's words to the owner, as it relayed them: "A version with margin is being prepared for you to see."
+
+### 1. What "as uploaded" was missing: the lookup (CORRECTION of the numbers in the two entries above and in #319's records)
+
+The numbers pinned at `732d6ebe` (4.89 / 4.87 over the deeper land, 4.98 / 5.01 over the sea) were read at the table's own index,
+255 x speed / maximum. The engine does not read there. `WebGLWindShaders.js` samples `texture2D(ramp, vec2(speed / max, 0.5))` with
+LINEAR filtering, texel centres sit at half-integers, so the GPU reads position 256 t - 0.5: up to half a texel from the index the
+texture was filled by (`generateRampData`: texel i holds the table at i / 255 x the maximum). **Read back from a GPU**
+(`scripts/wind-color/lut-lookup-gpu.cjs`: a 256-texel texture that encodes its own position, the engine's own lookup line): on an
+AMD Radeon 890M (ANGLE, D3D11) the rule fits to 0.9 of 255 and the index misses by 126.6 of 255; on SwiftShader 0.5 and 126.6. So
+the engine draws the colour of speed x 256/255 - maximum/510 kn: at an 80 kn maximum, 0.16 kn slow at calm and 0.16 kn fast at
+the top. Every theme, for as long as the ramp has been 256 texels.
+
+Two more things the earlier read had wrong: the maximum is the data's strongest wind clamped to **10..80 kn** (`WebGLWindEngine.js`),
+so 90 and 100 kn cannot happen and 10 to 20 kn can; and a pair is drawn at a maximum only when both its stops are at or under it.
+
+**By the GPU's lookup** (`check.mjs --as-uploaded 10-80:0.25`, coloraide, 281 maxima; `--index255` reproduces the earlier read):
+
+| Colour-blind line as drawn | Lowest | At which maximum, pair | Under 5 at | By the index (the earlier read) |
+| --- | --- | --- | --- | --- |
+| beach, the sea | 4.65 | 79.5 kn, 3-6 kn protan | 265 of 281 maxima | 4.89 |
+| beach, the land as drawn | 4.68 | 79.5 kn, 3-6 kn protan | 270 of 281 | 4.76 |
+| beach, the land before #320 | 4.90 | 79.5 kn, 3-6 kn protan | 48 of 281 | 5.14 |
+| beach before its path (what dev drew until 17:46Z): sea / land | 2.93 / 2.78 | 21 kn, 16-21 kn protan | 240 / 239 | 2.93 / 2.78 |
+| light, the water | 5.17 | 78 kn, 21-27 kn protan | 0 | 5.24 |
+| light, the land | 4.96 | 73.75 kn, 40-47 kn deutan | 8 of 281 | 4.93 |
+| dark, the water | 4.97 | 73.5 kn, 27-33 kn deutan | 1 of 281 | 4.99 |
+
+At a 50 kn maximum beach reads 4.87 over the land and 4.85 over the sea; at 75 kn 4.79 and 4.77. The weakest pair is 3 to 6 kn
+when a storm sets the scale: 3 kn is a stop the path keeps, and the lookup pulls both colours toward calm. **No theme holds 5.0 as
+drawn at every maximum.** The table, which is the gate of record, holds 5.0 in all three. `cvd_check.py`'s docstring names "the
+windFieldLut design floor" as 4.9; no test pins that.
+
+**Not modelled, still:** the canvas is 8-bit too, so the composite over the map is rounded once more; and no pixel of the wind
+layer itself was read. The lookup law was.
+
+**Two causes, two fixes.** (a) The lookup offset is the engine's, in every theme: sampling at `(t * 255.0 + 0.5) / 256.0` would
+read the texture at the table's index. It is the lead's lane and was not touched. (b) Rounding is the table's: margin.
+
+### 2. The instruments (in this branch)
+
+- `check.mjs --as-uploaded [10-80:1]`: one line a theme and ground, the weakest colour-blind pair over the sweep through the
+  texture and the GPU's lookup; red under 5.0 with `--strict`. **Without the flag the checker is unchanged** (`--strict` exits 0).
+  `--index255` reads at the table's index. `--beach-option margin` reads the lab option.
+- `beach-path-solve.mjs`: `--uploaded [10-80:0.25]` prints the same read for a candidate over the land as drawn, the sea and the
+  land before #320; `--upfloor 5.10 --upsweep 20-80:10` holds it as a bar during a solve; `--from-ref` starts the search from the
+  reference itself. Checked first: with `--index255` it reproduces the Jest pins of `732d6ebe` exactly (4.89 / 4.87, 4.98 / 5.01,
+  5.23 / 5.26, 2.84 before).
+- `lut-lookup-gpu.cjs`: the readback above.
+
+### 3. The margin option (a CANDIDATE: `window.__RAW_WIND_BEACH_PATH__ = 'margin'`, default off)
+
+**The solve.** Reference: what is built. Free: 6, 10, 16, 21, 27, 33, 40 and 55 kn (the pairs 3-6 and 47-55 kn dip under too, so
+6 and 55 kn move; 3, 47, 63 and 75 kn stay the path's). Bars: every bar of the path (lightness one way from calm to 21 kn and from
+33 to 75 kn, the gale band's ceiling, the hue order, hue within 5 degrees of the path), the table's floor, and the floor AS DRAWN
+at 5.10 on seven maxima (20 to 80 kn). The aim: the least change from the path. Nine seeds at three margins; a uniform floor on
+the table alone stalls at 5.21 (the kept stops bound it) and moved knots further, so the as-drawn read is in the solve. Each
+candidate was then checked on **1401 maxima, 10 to 80 kn every 0.05 kn**; the one taken moves least among those that hold.
+
+**What it holds** (the option / the path as built):
+
+| | The land as drawn | The sea | The land before #320 |
+| --- | --- | --- | --- |
+| The table (the checker's line) | 5.15 / 5.02 | 5.12 / 5.05 | over 5.3 / 5.31 |
+| As drawn, lowest over 1401 maxima | **5.04** / 4.67 | **5.04** / 4.64 | **5.46** / 4.89 |
+| As drawn at a 50 kn maximum | 5.21 / 4.87 | 5.19 / 4.85 | 5.70 / 5.10 |
+| As drawn at a 75 kn maximum | 5.11 / 4.79 | 5.12 / 4.77 | 5.64 / 5.02 |
+
+By coloraide (`check.mjs --theme beach --strict --beach-option margin --as-uploaded 10-80:0.25`): exit 0; the table 5.1 and 5.1;
+as drawn 5.04 over water and 5.06 over land, under the bar at 0 of 281 maxima. The margin is 0.04: it is a floor, not a cushion.
+
+**What it moves against the bytes on dev** (L* / C* / hue on screen, built -> option, and dE00):
+
+| kn | The land as drawn | moved | The sea | moved |
+| --- | --- | --- | --- | --- |
+| 6 | 46.9 / 14.8 / 176 -> 47.1 / 14.6 / 180 | 1.0 | 47.0 / 15.3 / 184 -> 47.3 / 15.2 / 189 | 1.0 |
+| 10 | 41.8 / 13.2 / 168 -> 42.4 / 12.2 / 164 | 1.2 | 41.9 / 13.5 / 177 -> 42.5 / 12.6 / 174 | 1.1 |
+| 16 | 36.2 / 12.0 / 159 -> 36.5 / 12.2 / 160 | 0.3 | 36.3 / 12.2 / 168 -> 36.6 / 12.3 / 168 | 0.3 |
+| 21 | 36.1 / 14.1 / 122 -> 36.3 / 14.4 / 121 | 0.3 | 36.1 / 13.6 / 130 -> 36.3 / 13.8 / 129 | 0.3 |
+| 27 | 49.0 / 20.9 / 123 -> 48.7 / 19.9 / 122 | 0.7 | 48.9 / 20.3 / 130 -> 48.7 / 19.3 / 129 | 0.6 |
+| 33 | 49.0 / 29.7 / 92 -> 49.1 / 29.4 / 92 | 0.2 | 48.7 / 28.1 / 97 -> 48.8 / 27.8 / 97 | 0.2 |
+| 40 | 48.9 / 23.5 / 50 -> 48.3 / 22.9 / 49 | 0.7 | 48.4 / 19.8 / 50 -> 47.9 / 19.2 / 49 | 0.7 |
+| 55 | 35.9 / 11.5 / 24 -> 35.9 / 11.3 / 24 | 0.1 | 35.6 / 9.2 / 16 -> 35.6 / 9.1 / 15 | 0.2 |
+
+No knot from calm to 75 kn moves more than 1.2 dE00 over the land (1.1 over the sea), both at 10 kn. The largest hue move is 4.9
+degrees (6 kn, toward the aqua). The everyday ground is lifted 0.7 L* at most (10 kn). **The 21 to 27 kn step: 12.9 -> 12.4 L*** on
+both grounds. The ground from 6 to 40 kn spans 12.7 L* over land and 12.5 over the sea (12.9 and 12.9). The gale band's peak:
+49.1 over land (49.0). 10 kn gives up 1.0 C* and 27 kn 1.0 C*. The legend's watch line is as it was (over the sea, 15.5 to 16 kn).
+
+**How it is drawn.** `BEACH_PATH_LAB.margin` in `windBeachPath.js`: 58 rows (4 to 46 and 48 to 62 kn; 57 differ, 48 kn rounds to
+the path's own row), laid over the path's where the path draws. With the lever unset, or set to anything else, beach draws the
+path byte for byte (`e434f0bf` / `cbfec18a`). Under the path's kill, D-022's, the white streak's, dark's rules' and every hold the
+lever changes nothing. The look key reads `white+path-margin|dark-rules`. Light, dark and beach's streak rows are byte for byte.
+
+**Tests** (`windBeachPath.test.js`, 36): the two as-drawn tests now read by the GPU's lookup and pin 4.87 / 4.79 / 4.68 over the
+deeper land, 4.85 / 4.77 / 4.65 over the sea and 5.10 / 5.02 / 4.90 over the land before #320, with the before as control (2.78,
+2.93); six tests for the option (default byte for byte, one visual variable, every kill winning, the as-drawn floor on three
+grounds with the path as control, the table's bars, what it moves).
+
+**Gates on this branch:** Jest map tree 288 suites / 4063 tests, `src/tests` 23 / 254, 0 failed; `check_eslint.js` exit 0 (new 0,
+regressed 0); `loc_ratchet.py` exit 0 (`WindColorRamp.js` 785 of 800); `check.mjs --strict` exit 0 with the lever unset (5.0 / 5.0,
+the gate unchanged); the production build exit 0.
+
+**Owed when this goes to a PR, whatever the owner picks** (not done here, so that nothing on dev is claimed early): a ledger
+correction for the as-drawn numbers in #319's records; D-025's amendment and STATE's line corrected to the GPU's read; the PR.
+If the owner declines the margin, the option's rows leave and the instruments, the re-pinned tests and the correction go alone.
+
+**Not verified.** No frame was taken: the lead films it on #321's bench (dark | on dev | with margin). At 1.2 dE00 a knot at
+most, I do not expect an eye to tell the two fields apart in motion; that is a prediction, not a measurement.
+
+## 18:20Z · #319 on the deployed build: the STATIC half of the read-back (commitment seq 1103); the live half is still owed
+
+**The commitment's check, as written:** the dev site's bundle carries the merge SHA (a static read); then ONE live map load at
+most, on a warm box, for `window.__WIND_ENGINE__._lookKey` in beach and its flip under the kill; whether #315 was on dev at that
+moment; and the owner's verdict in their words.
+
+**Read (static files only; no map was loaded and the backend was asked for one health line):**
+- 18:10:35Z: `https://dev--rawsurf.netlify.app/service-worker.js` reads `BUILD_VERSION = '11fb734d'`, #319's squash on dev.
+- The deployed chunk `/static/js/7419.886e5d95.chunk.js` (1,476,510 bytes; found by searching all 101 JS files of the asset
+  manifest) carries the switch as built: `"beach"===e&&!0!==n.__RAW_DISABLE_WIND_BEACH_PATH__&&!0!==n.__RAW_DISABLE_WIND_DARK_WHITE__&&qt(e,n)`,
+  and the path's own rows once each (`[6,.119,.49,.421]`, `[27,.396,.534,.21]`, `[40,.807,.384,.214]`: the re-solved F's bytes).
+  The same chunk carries #320's and #321's kills. The lab lever of the margin branch (`__RAW_WIND_BEACH_PATH__`) is not in it,
+  as it should not be.
+- **#315 (beach's sea white at 0.55) WAS on dev at that moment:** dev `11fb734d` sits on `89f0dc33`.
+- 18:17Z: `/api/health` answered in 0.49 s, healthy, version ending `11fb734d...`, uptime 28 min 41 s (the box restarted with the
+  merge and is warm).
+
+**A slip in the reading, caught:** my first search of the chunks found no kill at all, the older ones included. The site sends
+the files gzip-encoded and a shell pipe into grep read the bytes as they came; decoding them first found all five names in one
+chunk. A search that finds nothing is checked against a string that must be there before it is believed.
+
+**NOT read, still owed (due 2026-10-19):** `_lookKey` on a live map in beach and its flip under the kill (it needs a signed-in
+browser on the dev site; this session has none and was not asked to use the owner's), and the owner's verdict on the gale band
+and on 9 to 18 kn over the sea, in their words. Nothing of this build has been seen in the app by this session.
+
+## 19:19Z · Two options by the LARGEST move at a knot: A (as drawn at or over 5.0) and B (at or over 4.9); the first margin option is replaced
+
+**Asked by the lead (18:09Z and 18:10Z, two messages):** solve both against the GPU's lookup as it is today, every maximum from 10
+to 80 kn, both lands; report each one's cost; keep `--as-uploaded` opt-in; do not touch the shader (the lookup offset is a finding
+for the owner, not on this path). The lead's recommendation to the owner, as it relayed it: hold the as-drawn line to what dark
+itself meets, 4.9, with the table's 5.0 kept as the checker's gate. The owner has not set that bar.
+
+**The first margin option minimised the wrong thing.** It took the least SUMMED move, which put 1.2 dE00 on 10 kn and 1.0 on 6 kn.
+The lead's measure is the largest move at any knot, so the solve was posed again: cap the largest move (`--maxmove`), then reach
+the highest as-drawn line inside the cap.
+
+**A slip in that second solve, caught by a test.** With the as-drawn target set out of reach, every other bar of the path became
+something the search could trade against it, and a 0.4-cap solve gave up 0.14 L* of one-way lightness between 16 and 21 kn for
+0.02 of floor. The new lab test (lightness one way, read over the option's own rows) failed on it. The solver now makes every
+other bar hard against the floor when a cap is set, and each candidate below is scored again with no target at all: its own
+violation is 0.000.
+
+**What a cap buys** (every bar of the path held; the lowest colour-blind pair AS DRAWN over 1401 maxima, land as drawn / sea):
+
+| Largest move at a knot (dE00) | Lowest as drawn | |
+| --- | --- | --- |
+| 0 (what is on dev) | 4.67 / 4.64 | |
+| 0.4 | 4.83 / 4.82 | under 4.9 at 117 and 22 of the 1401 maxima: B is not held |
+| **0.5** | **4.91 / 4.92** | **B held** (under 4.9 at none) |
+| 0.8 | 4.96 / 5.02 at best | under 5.0 at 8 maxima over the land |
+| 0.9 | 5.01 / 5.06 in one solve, 4.94 to 4.98 in the others | no margin where it holds |
+| **1.0** | **5.03 / 5.04** | **A held** |
+| (the first option, least summed move: 1.2) | 5.04 / 5.04 | replaced by the row above |
+
+**The two options as built** (`BEACH_PATH_LAB` in `windBeachPath.js`; the lever `window.__RAW_WIND_BEACH_PATH__`, default off):
+
+| | A: `'margin'` | B: `'margin-b'` | On dev (the lever unset) |
+| --- | --- | --- | --- |
+| Field hashes, 50 / 75 kn maximum | `e9b485ad` / `1678a7b8` | `30410531` / `6f962260` | `e434f0bf` / `cbfec18a` |
+| Rows laid | 58 (4 to 46, 48 to 62 kn) | 43 (4 to 46 kn) | |
+| Largest move at any knot, land / sea (dE00) | 1.0 / 1.0 (6 kn) | 0.5 / 0.5 (6 kn) | |
+| Moved at 6, 10, 16, 21, 27, 33, 40, 55 kn (land) | 1.0, 0.7, 0.2, 0.3, 0.4, 0.1, 0.3, 0.1 | 0.5, 0.2, 0.1, 0.2, 0.4, 0.0, 0.2, 0.0 | |
+| Largest hue move | 4.9 degrees (6 kn) | 2.5 degrees (6 kn) | |
+| Everyday ground (6 to 21 kn) lifted by at most | 0.3 L* (10 kn) | 0.1 L* | |
+| The 21 to 27 kn step, L* | 12.9 | 13.1 | 12.9 |
+| The ground's span, 6 to 40 kn, land / sea | 12.9 / 12.9 | 13.1 / 13.1 | 12.9 / 12.9 |
+| The gale band's peak over land (the solve's ceiling is 49.6) | 49.2 | 49.3 | 49.0 |
+| The table (the checker's lines), water / land | 5.1 / 5.1 | 5.1 / 5.0 | 5.0 / 5.0 |
+| As drawn, lowest over 1401 maxima: land / sea / land before #320 | 5.03 / 5.04 / 5.39 | 4.91 / 4.92 / 5.20 | 4.67 / 4.64 / 4.89 |
+| As drawn at a 50 kn maximum: land / sea | 5.15 / 5.20 | 5.10 / 5.14 | 4.87 / 4.85 |
+| Maxima under 5.0 (of 1401): land / sea | 0 / 0 | 302 / 52 | nearly all |
+| Maxima under 4.9 (of 1401): land / sea | 0 / 0 | 0 / 0 | most |
+| By coloraide, 281 maxima, as drawn: water / land | 5.07 / 5.05 | 4.92 / 4.91 | 4.65 / 4.68 |
+| `check.mjs --strict --as-uploaded 10-80:0.25`, bar 5.0 | exit 0 | exit 1 (land under at 58, water at 9 of 281) | exit 1 |
+| the same with `--as-uploaded-floor 4.9` | exit 0 | exit 0 | exit 1 |
+
+On screen, built to option, L* / C* / hue over the land as drawn (the sea is within 0.1 of each move):
+- A: 6 kn 46.9 / 14.8 / 176 to 47.1 / 14.6 / 180; 10 kn 41.8 / 13.2 / 168 to 42.1 / 12.4 / 167; 16 kn 36.2 / 12.0 / 159 to 36.3 /
+  12.1 / 160; 21 kn 36.1 / 14.1 / 122 to 36.3 / 14.4 / 123; 27 kn 49.0 / 20.9 / 123 to 49.2 / 20.1 / 123; 33 kn 49.0 / 29.7 / 92 to
+  49.1 / 29.7 / 91; 40 kn 48.9 / 23.5 / 50 to 48.8 / 23.1 / 49; 55 kn 35.9 / 11.5 / 24 to 35.9 / 11.3 / 24.
+- B: 6 kn to 46.9 / 14.7 / 178; 10 kn to 41.8 / 12.9 / 168; 16 kn unchanged to the first decimal; 21 kn to 36.2 / 14.3 / 123;
+  27 kn to 49.3 / 20.6 / 123; 33 kn to 49.0 / 29.6 / 92; 40 kn to 48.8 / 23.1 / 49; 55 kn not moved.
+
+**Does 3 kn have to move? No, in neither.** 3 kn is a stop the path keeps; 6 kn carries the largest part of both, because when a
+storm sets the scale the lookup pulls 3 and 6 kn toward calm and that pair reads lowest (4.65 on dev). Moving 3 kn as well would
+share the move; it was not solved, because 3 kn is beach's own colour kept byte for byte.
+
+**B is not a 5.0 option and says so:** as drawn it is under 5.0 at about a fifth of the maxima over the land and at a few over the
+sea. It holds what dark (4.97) and light (4.96) hold by the same read. B's step from 21 to 27 kn is 0.2 L* larger than the path's.
+
+**With both, as before:** the lever unset, or set to anything else, draws the path byte for byte; every kill and hold wins; light,
+dark and beach's streak rows are byte for byte; the look key reads `white+path-margin|dark-rules` or `white+path-margin-b|dark-rules`.
+
+**Instruments added since the last entry:** `beach-path-solve.mjs --maxmove 0.5` (the cap; bars hard against the floor);
+`check.mjs --as-uploaded-floor 4.9` (a bar for the as-drawn lines only; the table's lines keep 5.0); `--uploaded` now prints how
+many maxima sit under 5.0 and under 4.9. The plain checker, with no flag, is as it was (exit 0, beach 5.0 / 5.0).
+
+**Tests:** `windBeachPath.test.js`, 39. The lab describe covers both options (default byte for byte, one visual variable, every
+kill winning, A at or over 5.0 and B at or over 4.9 as drawn on three grounds with the path as control, what each moves, the
+table's bars with one-way lightness read over the option's own rows). The index read stays as one test, named as the computation
+it is.
+
+**Gates:** Jest map tree 288 suites / 4066 tests, `src/tests` 23 suites / 254 tests, 0 failed; `check_eslint.js` exit 0; `loc_ratchet.py` exit 0 (`WindColorRamp.js` 785 of
+800); `check.mjs --strict` exit 0 with the lever unset; the production build exit 0.
+
+**Not verified.** No frame of either option was taken; the lead films them (dark | on dev | A | B). At 1.0 and 0.5 dE00 a knot I do
+not expect an eye to tell either from what is on dev in motion: a prediction. The canvas's own 8-bit rounding is not modelled.
+
+## 19:40Z · The owner took the margin; it is beach's default (a PR against dev; the lead merges)
+
+**The three entries above this one were written on a local branch and reach dev with this change.** They are kept as written,
+times and all: the correction of the as-drawn numbers, the static half of #319's read-back, and the two capped options.
+
+**The pick (relayed, not first-hand here).** The lead session, 19:21Z: the owner said to it at 19:01Z, first-hand, "take the margin and merge it". What
+the owner saw is the lead's clip of the lever `'margin'` at `957d4ed5` beside what dev drew (field hashes `67bfe560` at a 50 kn
+maximum and `b0931ff3` at 75). So THOSE bytes are the default: the first margin option, the least summed move, not the capped
+variants solved afterwards. The owner was told (the lead's words to them, as relayed) that the two beach panes measure as
+near-identical and that the option holds the as-drawn line at 5.04 at every maximum from 10 to 80 kn where dev reads 4.64 to 5.0.
+
+**The lead's film of it, as relayed** (the corrected bench of #321, its preview worktree at dev `11fb734d` plus this lane's three
+commits; two speed ramps at zoom 6, 2 to 30 kn and 6.85 to 60.6 kn; page and map at 1.5; 90 frames; beach the second run after dark
+in its own invocation; the canvas's alpha 1 / 1 in every run; no page error). Beach on dev against the lever:
+- frame for frame, CIE76 a pixel (every third frame and pixel): mean 1.13 on the low ramp and 0.89 on the high ramp; 54% and 43% of
+  pixels differ by more than 1, 14% and 9.5% by more than 2. Null control (dark against dark across the two invocations): 0.023
+  mean, 0.9% over 1;
+- the mirror probe, 110 px crops on the low ramp, dev to margin: sea at 11.8 kn ground L* 44.2 to 44.8, a core 65.1 to 65.4, cover
+  0.777 to 0.772, flicker 1.357 to 1.344; sea at 18.5 kn 41.5 to 41.7, 64.8 to 64.9, 0.781 to 0.778, 1.554 to 1.549; land at
+  11.8 kn 46.5 to 47.0, 66.9 to 67.1, 0.750 to 0.744, 1.434 to 1.420; land at 18.5 kn 43.0 to 43.3, 67.1 to 67.3, 0.802 to 0.800,
+  1.697 to 1.688.
+The lead's reading: an even shift of the field, nothing in the streaks. None of this was measured here.
+
+**What was built** (branch `claude/wind-beach-margin`, from dev `b764797b`, which holds #318):
+- `windBeachPath.js`: `BEACH_PATH.field` takes the margin's 58 rows at 4 to 46 and 48 to 62 kn (57 differ; 48 kn rounds to the row
+  it had). 64 to 75 kn, and the stops the path keeps, are as #319 laid them. The default's field hashes are `67bfe560` / `b0931ff3`,
+  read through the lever at `957d4ed5` BEFORE the swap and equal after it. Under the kill beach's field is `7c248d5f` / `b9db3bb2`,
+  as before. The lever (`window.__RAW_WIND_BEACH_PATH__`) and its lab plumbing are NOT in this change: the look key is
+  `white+path|dark-rules`.
+- `WindColorRamp.js` is not touched (796 of 800 lines on dev). `mirror-model.mjs` is not touched.
+- The capped options of the entry above (A at 1.0 dE00, B at 0.5) are NOT in it. They stay on the local branch
+  `claude/wind-beach-path-margin-capped` (`8e89a099`); the lead knows. If either is wanted it is its own choice for the owner.
+- Kept: `check.mjs --as-uploaded` (opt-in; `--as-uploaded-floor`, `--index255`), `lut-lookup-gpu.cjs`, the solver's as-drawn read
+  (`--uploaded`, `--upfloor`, `--maxmove`, `--from-ref`). `check.mjs --beach-option` left with the lever.
+
+**The palette checker on this branch (coloraide), water / land:**
+- `--strict` (the gate, the table): exit 0, 5.1 / 5.1 (5.12 and 5.15). `--before-depth`: 5.1 / 5.7.
+- `--theme beach --strict --as-uploaded 10-80:0.25`: exit 0; as drawn 5.04 over water and 5.06 over land, under 5.0 at 0 of 281
+  maxima; with `--before-depth` 5.04 / 5.47. By the solver on 1401 maxima: 5.04 / 5.04 / 5.46 (land as drawn / sea / land before #320).
+- The same read on dev's other tables, for the record: light 4.93 over water and 4.85 over land (its path of #318; under 5.0 at
+  32 and 123 of 281 maxima), dark 4.97 (1 of 281). So with the flag and `--strict` the checker is red for light and dark: it is
+  an opt-in read, not the gate, until the owner sets an as-drawn bar.
+
+**What the margin moves in the path's own numbers** (the tests of `windBeachPath.test.js`, re-read; #319's field in brackets):
+- on the table: the sea 5.12 (5.05), the land as drawn 5.15 (5.02), the land before #320 5.73 (5.31);
+- no knot more than 1.2 dE00 from #319's field (10 kn; 6 kn 1.0; 27 and 40 kn 0.7); hue within 4.9 degrees of it (6 kn, toward
+  the aqua);
+- the 10 kn ground is 0.7 L* lighter than #319's: 5.5 L* lighter than before the path over the land before #320 (4.7), 4.6 over
+  the land as drawn and over the sea (4.0);
+- hue from what beach drew before the path: up to 14.4 degrees over land (13.5) and 18.9 over the sea (18.2), both at 16 kn;
+- the legend's watch line: over the sea the field at 16 kn sits 32.0 degrees off the legend's hue (31.2); still 1 kn wide;
+- the head of a streak stands 18.3 L* off its ground at the least (18.5): D-021's 19.5 is crossed at 7 and 8 kn, as it was;
+- 10 kn and 27 kn give up 1.0 C* each over the land as drawn;
+- and three small gains: the 21 to 27 kn step is 12.4 L* (12.9); a normal eye tells 6-10 kn apart at 6.6 dE00 over land and 5.6
+  over the sea (6.2 and 5.2); the gale band over the land before #320 peaks at 60.1 as it did.
+
+**Tests.** `windBeachPath.test.js` (32): every pin of the path re-read on the new default; the as-drawn reads by the GPU's lookup
+(5.07 / 5.05 / 5.47 at the least on a half-knot sweep, 5.21 and 5.11 over the land as drawn at 50 and 75 kn); **the field before
+the margin kept row for row as the control** (its hash is #319's `e434f0bf` / `cbfec18a`; it reads 4.68 / 4.65 / 4.90); the index
+read kept as the computation it is; what the margin moved. `windWhiteStreak.test.js`: beach's default hashes.
+
+**Gates:** Jest map tree 289 suites / 4127 tests, `src/tests` 23 suites / 255 tests, 0 failed; `check_eslint.js` exit 0; `loc_ratchet.py` exit 0; `check.mjs
+--strict` exit 0; `check.mjs --theme beach --strict --as-uploaded 10-80:0.25` exit 0; the production build exit 0.
+
+**Not verified.** No frame was taken here. No pixel of the wind layer was read from a GPU: the texture's lookup law was, the
+composite over the map and the canvas's own 8-bit rounding were not. Nothing of this build has been seen in the app. The live half
+of #319's read-back (`_lookKey` in a signed-in browser, with and without the kill) is still owed; this change does not move the
+look key.

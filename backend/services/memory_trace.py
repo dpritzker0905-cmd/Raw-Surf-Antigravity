@@ -197,8 +197,8 @@ def register_default_gauges() -> None:
 
     def _negative_cache() -> Optional[int]:
         try:
-            from services.weather_pipeline.viewport_service import viewport_service
-            return len(getattr(viewport_service, "NEGATIVE_CACHE", {}) or {})
+            from services.weather_pipeline.viewport_service import ViewportService
+            return len(getattr(ViewportService, "NEGATIVE_CACHE", {}) or {})
         except Exception:
             return None
     register_gauge("negative_cache", _negative_cache)
@@ -207,8 +207,8 @@ def register_default_gauges() -> None:
         # 6 `.add()` sites across 4 modules against ONE `.discard()` — an asymmetry worth watching
         # even though a set of short keys cannot by itself account for hundreds of MB.
         try:
-            from services.weather_pipeline.viewport_service import viewport_service
-            return len(getattr(viewport_service, "ACTIVE_REVALIDATIONS", ()) or ())
+            from services.weather_pipeline.viewport_service import ViewportService
+            return len(getattr(ViewportService, "ACTIVE_REVALIDATIONS", ()) or ())
         except Exception:
             return None
     register_gauge("active_revalidations", _active_revalidations)

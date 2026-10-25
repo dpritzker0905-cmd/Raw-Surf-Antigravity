@@ -16,6 +16,8 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id
+from .ownership import require_gallery_photographer
 from models import (
     Profile, GalleryItem, Gallery, LiveSession, LiveSessionParticipant,
     SurferGalleryItem, Notification
@@ -35,6 +37,7 @@ async def tag_single_item_to_surfer(
     gallery_id: str,
     photographer_id: str,
     data: TagItemToSurferRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -53,8 +56,7 @@ async def tag_single_item_to_surfer(
     gallery = result.scalar_one_or_none()
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     # Verify item belongs to gallery
     item_result = await db.execute(
@@ -195,6 +197,7 @@ async def get_surfer_tagged_items(
     gallery_id: str,
     surfer_id: str,
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -206,8 +209,7 @@ async def get_surfer_tagged_items(
     gallery = result.scalar_one_or_none()
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     # Get all gallery items for this gallery
     items_result = await db.execute(
@@ -266,6 +268,7 @@ async def untag_item_from_surfer(
     gallery_id: str,
     photographer_id: str,
     data: UntagItemRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -278,8 +281,7 @@ async def untag_item_from_surfer(
     gallery = result.scalar_one_or_none()
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     # Find the SurferGalleryItem
     sgi_result = await db.execute(
@@ -343,6 +345,7 @@ async def untag_item_from_surfer(
 async def get_gallery_distribution_status(
     gallery_id: str,
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -356,8 +359,7 @@ async def get_gallery_distribution_status(
     
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     # Get all items with their distribution counts
     items_result = await db.execute(
@@ -445,6 +447,7 @@ async def publish_gallery_to_public(
     gallery_id: str,
     photographer_id: str,
     data: PublishGalleryRequest = PublishGalleryRequest(),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -456,8 +459,7 @@ async def publish_gallery_to_public(
     gallery = result.scalar_one_or_none()
     if not gallery:
         raise HTTPException(status_code=404, detail="Gallery not found")
-    if gallery.photographer_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Not authorized")
+    require_gallery_photographer(current_user_id, gallery.photographer_id, photographer_id)
     
     gallery.is_public = data.is_published
     gallery.is_featured = data.is_published  # Mark as featured when published

@@ -15,13 +15,13 @@
  * CALM as vivid magenta (0.90, 0.00, 1.00), and magenta on the stale legend sat at the far-right
  * HURRICANE end. These tests make the legend structurally incapable of disagreeing with the ramp.
  */
-import { THEME_RAMPS, resolveThemeRamp, windLegendGradientCSS, windLegendStops } from '../components/map/WindColorRamp';
+import { THEME_RAMPS, resolveThemeRamp, resolveLegendRamp, windLegendGradientCSS, windLegendStops, huePathStops } from '../components/map/WindColorRamp';
 
 const THEMES = ['dark', 'light', 'beach'];
 
 describe('wind legend is derived from the shipped ramp', () => {
   it.each(THEMES)('%s: every ramp stop appears in the gradient, at its value-proportional position', (theme) => {
-    const ramp = resolveThemeRamp(theme);
+    const ramp = resolveLegendRamp(theme);   // the ramp the BAR draws: the particle ramp, except light on light's path (windLightPath.js, D-024)
     const css = windLegendGradientCSS(theme);
     const max = ramp[ramp.length - 1][0];
     for (const s of ramp) {
@@ -29,8 +29,19 @@ describe('wind legend is derived from the shipped ramp', () => {
       const pct = `${((s[0] / max) * 100).toFixed(1)}%`;
       expect(css).toContain(`${rgba} ${pct}`);
     }
-    // one CSS stop per ramp stop — no invented colours, none dropped
+    // one CSS stop per ramp stop, none dropped: no segment of any bar runs through grey today
     expect(css.split('rgba(').length - 1).toBe(ramp.length);
+    expect(huePathStops(ramp).filter((s) => !ramp.includes(s))).toEqual([]);
+    if (theme !== 'light') expect(ramp).toEqual(resolveThemeRamp(theme));   // beach's and dark's bars ARE their particle ramps
+  });
+
+  it('light before its path (the kill): the bar is the particle ramp, with the HUE PATH\'s 1 kn waypoints from 11 to 15 kn', () => {
+    const w = { __RAW_DISABLE_WIND_LIGHT_PATH__: true }, ramp = resolveThemeRamp('light'), css = windLegendGradientCSS('light', w), max = ramp[ramp.length - 1][0];
+    expect(resolveLegendRamp('light', w)).toEqual(ramp);
+    expect(resolveLegendRamp('light', {})).not.toEqual(ramp);                                // on its path the bar's 3 to 27 kn rows are the field's hues
+    for (const s of ramp) expect(css).toContain(`rgba(${Math.round(s[1] * 255)},${Math.round(s[2] * 255)},${Math.round(s[3] * 255)},${s[4]}) ${((s[0] / max) * 100).toFixed(1)}%`);
+    expect(css.split('rgba(').length - 1).toBe(ramp.length + 5);                             // where its violet-to-green segment would run through grey
+    expect(huePathStops(ramp).filter((s) => !ramp.includes(s)).map((s) => s[0])).toEqual([11, 12, 13, 14, 15]);
   });
 
   it.each(THEMES)('%s: the legend covers the ramp\'s full range, not the legacy 50 kn cap', (theme) => {

@@ -12,6 +12,8 @@
  * `WebGLMarineMaskRenderer` re-exports every symbol here, so importers are unchanged.
  */
 import { makeMaskProjector } from './marineMaskProjection';
+import { releaseWaveLakes } from './waveLakes';
+import { stampVerdict } from './maskFastPaths';
 
 // ── SHELTERED-WATER CLASSIFIER ──────────────────────────────────────────────────────────────────
 // Pure grid core (exported for tests): given a binary water grid, mark water pixels that cannot
@@ -428,6 +430,11 @@ export function suppressShelteredWater(canvas, bounds, opts) {
     _shelterCacheStat('miss');
   }
 
+  // A lake a wave model carries (waveLakes.js) lies wholly inside the canvas, so it cannot reach the border: release it (on a copy).
+  if (count) {
+    const proj = makeMaskProjector(bounds, canvas.width, canvas.height);
+    ({ sheltered, count } = releaseWaveLakes(sheltered, dsW, dsH, count, (lng, lat) => { const [x, y] = proj(lng, lat); return [x * scale, y * scale]; }));
+  }
   if (!count) {
     // Stash the ALL-OPEN verdict too: a crisp canvas inside this region must prefer "nothing
     // sheltered here" over a coarser stale entry that might still contain it.
@@ -443,7 +450,7 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const prevSmooth = ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(ds, 0, 0, canvas.width, canvas.height);
+  stampVerdict(ctx, ds, sheltered, dsW, dsH, canvas.width, canvas.height);   // = drawImage(ds, 0, 0, W, H): maskFastPaths.js
   ctx.imageSmoothingEnabled = prevSmooth;
   // Stash the verdict canvas (sheltered = gray, open = transparent) for crisp deep-zoom canvases.
   if (doStash) stashBasinVerdict({ bounds: { ...bounds }, mPerPx: Math.round(mPerPx), ds, dsW, dsH, count });

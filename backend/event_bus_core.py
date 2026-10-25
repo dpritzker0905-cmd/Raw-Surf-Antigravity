@@ -186,7 +186,8 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
         import httpx
         import threading
         
-        INTERNAL_TOKEN = os.environ.get("INTERNAL_BROADCAST_TOKEN", "super_secret_internal_token_123")
+        # No default: the endpoint refuses every request while the secret is unset, so there is nothing to send.
+        INTERNAL_TOKEN = os.environ.get("INTERNAL_BROADCAST_TOKEN")
         BACKEND_URL = os.environ.get("BACKEND_URL", "http://localhost:8001")
         
         message = {
@@ -222,7 +223,8 @@ def publish_event(event_type, payload, correlation_id=None, source_mcp=None, use
                 sys.stderr.write(f"Warning: WebSocket broadcast webhook failed: {str(e)}\n")
                 sys.stderr.flush()
                 
-        threading.Thread(target=push_to_websocket_webhook, daemon=True).start()
+        if INTERNAL_TOKEN:
+            threading.Thread(target=push_to_websocket_webhook, daemon=True).start()
     except Exception:
         pass
     

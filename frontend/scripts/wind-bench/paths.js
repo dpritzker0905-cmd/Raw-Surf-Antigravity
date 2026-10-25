@@ -11,6 +11,11 @@
  *   erratic  a seeded random walk: bursts of pan (to 2500 css px/s) and zoom (to 4 z/s), pauses, and one-frame jumps
  *            (a trackpad flick), bounded to the Gulf coast so the served grid stays in view.
  * Every path holds still before and after, so the trails settle and the first and last samples are at rest.
+ *
+ * FLOW mode only (flow.js scores a turned map; the colour metrics assume north-up):
+ *   turn     a two-finger turn of the map, 70 degrees there and back, with a slow drift (frames carry `bearing`);
+ *   dateline a steady drag east across the 180th meridian at z5, off Fiji. The view centre WRAPS there (frames carry
+ *            the wrapped longitude, as the map itself reports it), so the map's matrix jumps one world in one frame.
  */
 const { mercY, latOf, TILE_PX } = require('./camera');
 const { mulberry32 } = require('./scanner');
@@ -28,14 +33,14 @@ const smooth = (t) => t * t * (3 - 2 * t);
 function track(lng, lat, z) {
   const m = merc(lng, lat), frames = [];
   const cam = {
-    x: m.x, y: m.y, z,
+    x: m.x, y: m.y, z, bearing: 0,
     pan(dxPx, dyPx) { cam.x += dxPx * perPx(cam.z); cam.y += dyPx * perPx(cam.z); },
     /** Zoom to z2 keeping the point at css offset (fx, fy) from the centre fixed on screen. */
     zoomAbout(z2, fx = 0, fy = 0) {
       const px = cam.x + fx * perPx(cam.z), py = cam.y + fy * perPx(cam.z);
       cam.z = z2; cam.x = px - fx * perPx(z2); cam.y = py - fy * perPx(z2);
     },
-    emit() { frames.push({ lng: cam.x * 360 - 180, lat: latOf(cam.y), z: +cam.z.toFixed(5) }); },
+    emit() { const b = +cam.bearing.toFixed(3); frames.push({ lng: cam.x * 360 - 180, lat: latOf(cam.y), z: +cam.z.toFixed(5), ...(b ? { bearing: b } : {}) }); },
     hold(n) { for (let i = 0; i < n; i++) cam.emit(); },
     frames,
   };
@@ -119,11 +124,28 @@ const PATHS = {
   },
 };
 
-const PATH_NAMES = Object.keys(PATHS);
+PATHS.turn = function turn() {
+  const c = track(START.lng, START.lat, 8);
+  c.hold(20);
+  for (let i = 1; i <= 120; i++) { c.bearing = i < 120 ? 70 * Math.sin(Math.PI * i / 120) : 0; c.pan(1, -0.5); c.emit(); }
+  c.hold(30);
+  return c.frames;
+};
+
+PATHS.dateline = function dateline() {
+  const c = track(178.6, -17.5, 5), wrapLng = (f) => ({ ...f, lng: ((f.lng + 540) % 360) - 180 });
+  c.hold(20);
+  for (let i = 0; i < 90; i++) { c.pan(700 / 90, 0); c.emit(); }
+  c.hold(30);
+  return c.frames.map(wrapLng);
+};
+
+const FLOW_PATH_NAMES = ['turn', 'dateline'];                 // scored by flow mode only
+const PATH_NAMES = Object.keys(PATHS).filter((n) => !FLOW_PATH_NAMES.includes(n));
 
 /** Frames for a named path (seed only matters for erratic). */
 function pathFrames(name, seed = 1) {
-  if (!PATHS[name]) throw new Error(`unknown path ${name} (${PATH_NAMES.join(', ')})`);
+  if (!PATHS[name]) throw new Error(`unknown path ${name} (${PATH_NAMES.concat(FLOW_PATH_NAMES).join(', ')})`);
   return PATHS[name](seed);
 }
 
@@ -135,4 +157,4 @@ function sampleIndexes(n, every) {
   return out;
 }
 
-module.exports = { FPS, START, BOX, Z_MIN, Z_MAX, PATH_NAMES, pathFrames, sampleIndexes, perPx };
+module.exports = { FPS, START, BOX, Z_MIN, Z_MAX, PATH_NAMES, FLOW_PATH_NAMES, pathFrames, sampleIndexes, perPx };

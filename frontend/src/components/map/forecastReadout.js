@@ -33,8 +33,36 @@ export function displayedForecastTime(hour, layer, model) {
   return { ms, requestedMs, snapped: ms !== requestedMs };
 }
 
-function formatInstant(ms, timeZone) {
+// CACHED FORMATTERS (kill: window.__RAW_DISABLE_INTL_FORMAT_CACHE__ = true). toLocale*String builds a new Intl.DateTimeFormat
+// on every call, and this runs on every scrubber render (the 2026-10-20 stall profile, PR #400: 75-220 ms of main-thread stall
+// per erratic run). One pair per timeZone is kept instead. Same strings: with a field given (weekday / hour) neither
+// toLocaleDateString nor toLocaleTimeString adds default fields, so each is Intl.DateTimeFormat with the same options
+// (pinned by forecastReadout.formatCache.test.js). An invalid timeZone still throws the same RangeError, and is not cached.
+const formatterCache = new Map();
+const FORMATTER_CACHE_MAX = 16;
+
+function formattersFor(timeZone) {
+  const key = timeZone || '';
+  let f = formatterCache.get(key);
+  if (!f) {
+    const opts = timeZone ? { timeZone } : {};
+    f = {
+      day: new Intl.DateTimeFormat('en-US', { weekday: 'short', ...opts }),
+      hour: new Intl.DateTimeFormat('en-US', { hour: 'numeric', ...opts }),
+    };
+    if (formatterCache.size >= FORMATTER_CACHE_MAX) formatterCache.clear();
+    formatterCache.set(key, f);
+  }
+  return f;
+}
+
+export function formatInstant(ms, timeZone) {
   const d = new Date(ms);
+  // An Invalid Date takes the toLocale path: it returns 'Invalid Date' where Intl's format() throws.
+  if (!Number.isNaN(d.getTime()) && (typeof window === 'undefined' || window.__RAW_DISABLE_INTL_FORMAT_CACHE__ !== true)) {
+    const f = formattersFor(timeZone);
+    return `${f.day.format(d)} ${f.hour.format(d)}`;
+  }
   const opts = timeZone ? { timeZone } : {};
   return `${d.toLocaleDateString('en-US', { weekday: 'short', ...opts })} ${d.toLocaleTimeString('en-US', { hour: 'numeric', ...opts })}`;
 }

@@ -118,13 +118,19 @@ class CrewPayRequest(BaseModel):
 async def crew_member_pay(
     booking_id: str,
     data: CrewPayRequest,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Crew member pays their share of the booking
     Deducts from credits and updates payment status
+
+    LA-PAY-08: acts only as the token's subject, and only for the share the booking records for them.
     """
-    from routes.notifications.push import notify_crew_payment_received
+    if data.participant_id != user_id:
+        raise HTTPException(status_code=403, detail="You can only pay your own share")
+
+    from routes.notifications.push_payloads import notify_crew_payment_received
     
     # Get booking with participants
     result = await db.execute(
@@ -155,6 +161,11 @@ async def crew_member_pay(
     
     if participant.payment_status == 'Paid':
         raise HTTPException(status_code=400, detail="Already paid")
+
+    recorded_share = participant.share_amount if participant.share_amount > 0 else (
+        booking.total_price / max(len(booking.participants or []), 1))
+    if abs(data.amount - recorded_share) > 0.01:
+        raise HTTPException(status_code=400, detail="Amount does not match your share")
     
     # Get payer profile
     payer_result = await db.execute(select(Profile).where(Profile.id == data.participant_id))
@@ -257,12 +268,16 @@ class UpdateParticipantSelfieRequest(BaseModel):
 async def update_participant_selfie(
     booking_id: str,
     data: UpdateParticipantSelfieRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update a booking participant's selfie for photographer identification.
     This helps photographers identify surfers in their photos.
+    A participant sets their OWN selfie; the (booking, participant) lookup below then refuses non-members.
     """
+    if data.participant_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Find participant record
     result = await db.execute(
         select(BookingParticipant)

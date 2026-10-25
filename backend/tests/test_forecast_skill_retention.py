@@ -5,7 +5,7 @@ providers are fake. Captured storage enforces create-only conflicts.
 """
 import asyncio
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -33,6 +33,10 @@ SUPABASE_NO_SUCH_KEY = {"statusCode": "404", "code": "NoSuchKey", "error": "not_
 SUPABASE_NO_SUCH_BUCKET = {"statusCode": "404", "code": "NoSuchBucket", "error": "Bucket not found",
                            "message": "Bucket not found"}
 SUPABASE_INVALID_JWT = {"statusCode": "400", "code": "InvalidJWT", "message": "Invalid JWT"}
+# Verbatim from the production log of 2026-10-16 11:38Z (precompute run 38889203908): what Storage answers
+# when an object would exceed the 50 MiB limit. 49 of 57 ledger passes from 2026-10-13 died on this.
+SUPABASE_ENTITY_TOO_LARGE = {"statusCode": "413", "error": "Payload too large",
+                             "message": "The object exceeded the maximum allowed size", "code": "EntityTooLarge"}
 
 
 @pytest.fixture(autouse=True)
@@ -52,7 +56,8 @@ def row(buoy="new", target="2026-09-01T00:00:00Z"):
 def wire(monkeypatch):
     objects = {PENDING: [row()], MONTH: [{**row("old"), "obs_hs_m": 1.5,
                                         "obs_time": NOW.isoformat(), "err_m": .1}]}
-    state = SimpleNamespace(objects=objects, reads=[], writes=[], read_modes={}, write_modes={}, conflict_status=409)
+    state = SimpleNamespace(objects=objects, reads=[], writes=[], read_modes={}, write_modes={}, conflict_status=409,
+                            max_bytes=None)   # set to model Storage's per-object limit
     monkeypatch.setenv("SUPABASE_URL", "https://offline-retention.invalid")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "offline-test-only")
     monkeypatch.setenv("FORECAST_SKILL", "1")
@@ -104,6 +109,8 @@ def wire(monkeypatch):
         key = object_key(url)
         payload = json.loads(data)  # the real upload_calibration_l2 serializer produced these bytes
         state.writes.append((key, deepcopy(payload), headers["x-upsert"]))
+        if state.max_bytes is not None and len(data) > state.max_bytes:
+            return response(400, SUPABASE_ENTITY_TOO_LARGE)
         mode = state.write_modes.get(key)
         if mode == "timeout":
             raise requests.Timeout("synthetic timeout")
@@ -120,11 +127,11 @@ def wire(monkeypatch):
     monkeypatch.setattr(requests, "post", post)
     state.store = storage.ProductStore.__new__(storage.ProductStore)
 
-    def run():
-        report = {"spots": [{"buoy_id": bid, "buoy_time": NOW.isoformat(),
+    def run(now=NOW):
+        report = {"spots": [{"buoy_id": bid, "buoy_time": now.isoformat(),
                               "residual": {"buoy_wvht_m": 1.5, "buoy_dpd_s": 12.0}}
                              for bid in ("new", "prior")]}
-        return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=NOW))
+        return asyncio.run(fs.run_skill_ledger(state.store, None, [], "GFS", report, now=now))
     state.run = run
     return state
 
@@ -294,6 +301,136 @@ def test_legacy_upload_failure_stays_best_effort(wire):
 def test_legacy_read_failure_stays_optional(wire):
     wire.read_modes[MONTH] = "503"
     assert bc.load_calibration_l2(MONTH) is None
+
+
+# ---------------------------------------------------------------------------------------------------------
+# DAY SEGMENTS (2026-10-16). From October the scored archive is one object per UTC day and the monthly object
+# that hit Storage's 50 MiB limit is FROZEN: read, never written. See skill_scored_archive.py. Every case above
+# is dated September, which stays on monthly objects, so none of them changes meaning.
+# ---------------------------------------------------------------------------------------------------------
+OCT_NOW = datetime(2026, 10, 16, 14, 15, tzinfo=timezone.utc)
+OCT_TARGET = "2026-10-16T14:00:00Z"
+OCT_MONTH = fs.SKILL_SCORED_PREFIX + "2026-10.json"      # the frozen monthly object
+OCT_DAY = fs.SKILL_SCORED_PREFIX + "2026-10-16.json"
+OCT_NEXT_DAY = fs.SKILL_SCORED_PREFIX + "2026-10-17.json"
+
+
+def scored_row(buoy, target):
+    """A row as the ledger archives it once scored."""
+    return {**row(buoy, target), "obs_hs_m": 1.5, "obs_time": target, "err_m": .1}
+
+
+def rows_filling(n_bytes):
+    """Scored rows whose archive serializes to exactly `n_bytes` (the bytes upload_calibration_l2 sends)."""
+    rows = [{"source": fs.SOURCE_OURS, "buoy_id": "f%05d" % i, "target_time": "2026-10-10T00:00:00Z",
+             "lead_h": 24, "pad": ""} for i in range(2000)]
+    size = len(json.dumps(rows, separators=(",", ":")))
+    rows[-1]["pad"] = "x" * (n_bytes - size)
+    assert len(json.dumps(rows, separators=(",", ":"))) == n_bytes
+    return rows
+
+
+@pytest.fixture
+def october(wire):
+    """October: a pending row for the 14:00Z target, the monthly object, and no day object yet."""
+    wire.objects.clear()
+    wire.objects[PENDING] = [row("new", OCT_TARGET)]
+    wire.objects[OCT_MONTH] = [scored_row("old", "2026-10-10T00:00:00Z")]
+    return wire
+
+
+def test_a_month_object_at_the_storage_ceiling_does_not_stop_the_ledger(october):
+    """THE INCIDENT. The frozen monthly object sits 100 B under Storage's limit; appending one scored row to it
+    is what failed 49 passes. The row must land in the day's own (tiny) object instead."""
+    october.max_bytes = 400_000
+    october.objects[OCT_MONTH] = rows_filling(october.max_bytes - 100)
+    frozen = deepcopy(october.objects[OCT_MONTH])
+    result = october.run(OCT_NOW)
+    assert result["scored"] == 1
+    assert [r["buoy_id"] for r in october.objects[OCT_DAY]] == ["new"]
+    assert october.objects[OCT_MONTH] == frozen
+    assert october.objects[PENDING] == []
+    assert OCT_MONTH not in [key for key, _, _ in october.writes]
+
+
+def test_a_row_already_in_the_frozen_month_object_is_not_written_again(october):
+    """A pass that archived a row but lost its pending write leaves the row in BOTH places. The retry must not
+    copy it into the day object: the frozen month is still part of the archive, so it still dedupes."""
+    october.objects[OCT_MONTH] = [scored_row("new", OCT_TARGET)]
+    october.run(OCT_NOW)
+    assert october.objects[PENDING] == []
+    assert OCT_DAY not in october.objects
+    assert OCT_MONTH not in [key for key, _, _ in october.writes]
+
+
+def test_a_new_day_object_is_created_before_pending_is_consumed(october):
+    result = october.run(OCT_NOW)
+    assert result["scored"] == 1
+    assert [(key, upsert) for key, _, upsert in october.writes] == [(OCT_DAY, "false"), (PENDING, "true")]
+
+
+def test_a_later_pass_appends_to_the_same_day_object_and_never_to_the_month(october):
+    october.run(OCT_NOW)
+    october.objects[PENDING] = [row("prior", OCT_TARGET)]
+    october.run(OCT_NOW + timedelta(minutes=30))
+    assert sorted(r["buoy_id"] for r in october.objects[OCT_DAY]) == ["new", "prior"]
+    assert [upsert for key, _, upsert in october.writes if key == OCT_DAY] == ["false", "true"]
+    assert OCT_MONTH not in [key for key, _, _ in october.writes]
+
+
+@pytest.mark.parametrize("key", [PENDING, OCT_MONTH, OCT_DAY])
+@pytest.mark.parametrize("mode", ["503", "timeout", "supabase_InvalidJWT"])
+def test_an_unreadable_october_object_aborts_without_any_write(october, key, mode):
+    """Fail closed for every object a pass depends on, the day object included: an unread archive is never an
+    empty one, so a pass that could not read today's rows must not write them back as the whole day."""
+    october.objects[OCT_DAY] = [scored_row("earlier", "2026-10-16T09:00:00Z")]
+    before = deepcopy(october.objects)
+    october.read_modes[key] = mode
+    with pytest.raises(RuntimeError):
+        october.run(OCT_NOW)
+    assert october.writes == []
+    assert october.objects == before
+
+
+def test_a_segmented_month_with_no_monthly_object_scores_into_its_day(october):
+    """From November there is no monthly object at all; its absence is normal, not a blind archive."""
+    november = datetime(2026, 11, 2, 14, 15, tzinfo=timezone.utc)
+    october.objects.clear()
+    october.objects[PENDING] = [row("new", "2026-11-02T14:00:00Z")]
+    october.run(november)
+    assert [(key, upsert) for key, _, upsert in october.writes] == [
+        (fs.SKILL_SCORED_PREFIX + "2026-11-02.json", "false"), (PENDING, "true")]
+
+
+def test_a_pass_spanning_midnight_writes_both_days_only_after_reading_both(october):
+    """Tolerance is 90 min either side, so one pass can score rows of two UTC days. Both day objects are read
+    before the first is written: a failed read of the SECOND day must leave the first untouched."""
+    late = datetime(2026, 10, 16, 23, 45, tzinfo=timezone.utc)
+    october.objects[PENDING] = [row("new", "2026-10-16T23:00:00Z"), row("prior", "2026-10-17T00:30:00Z")]
+    october.objects[OCT_NEXT_DAY] = [scored_row("earlier", "2026-10-17T00:00:00Z")]
+    october.read_modes[OCT_NEXT_DAY] = "503"
+    before = deepcopy(october.objects)
+    with pytest.raises(RuntimeError):
+        october.run(late)
+    assert october.writes == [] and october.objects == before
+    october.read_modes.clear()
+    october.run(late)
+    assert [key for key, _, _ in october.writes] == [OCT_DAY, OCT_NEXT_DAY, PENDING]
+    assert len(october.objects[OCT_NEXT_DAY]) == 2
+
+
+def test_the_mos_history_reads_the_frozen_month_and_every_day_object():
+    objects = {fs.SKILL_SCORED_PREFIX + "2026-09.json": [{"id": "sept"}], OCT_MONTH: [{"id": "frozen"}],
+               fs.SKILL_SCORED_PREFIX + "2026-10-15.json": [{"id": "d15"}]}
+    reads = []
+
+    def load(key):
+        reads.append(key)
+        return (list(objects[key]), True) if key in objects else ([], False)
+
+    history = fs.mos_history_rows(OCT_NOW, [(OCT_DAY, [{"id": "d16"}], True)], load)
+    assert [r["id"] for r in history] == ["sept", "frozen", "d15", "d16"]
+    assert OCT_DAY not in reads          # this pass just wrote it: taken from `archives`, not read back
 
 
 def residual(buoy, when="2026-09-01T00:00:00Z"):

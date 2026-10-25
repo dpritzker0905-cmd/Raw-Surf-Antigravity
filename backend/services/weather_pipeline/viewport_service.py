@@ -3,6 +3,7 @@ import asyncio
 import logging
 import math
 import gc
+import weakref
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 
@@ -31,6 +32,8 @@ from services.weather_pipeline.wind_gates import (  # noqa: F401
 )
 # Native-upstream background recovery for failed wind dynamic-lane fetches (2026-07-19, queue #5).
 from services.weather_pipeline.wind_native_recovery import maybe_spawn_native_wind_recovery
+# Bounded wind background build (WIND_BG_BUILD_BOUNDED, default off): see wind_bg_build.py.
+from services.weather_pipeline.wind_bg_build import keeps_task, wind_bg_bounded
 
 
 class FetchContext:
@@ -54,6 +57,11 @@ class ViewportService:
     IN_FLIGHT_LOCK = asyncio.Lock()
 
     ACTIVE_BG_TASKS: Dict[str, asyncio.Task] = {}
+    # The context each slot's task is serving, weakly: the raw 16-day list must not outlive its task.
+    ACTIVE_BG_CONTEXTS: Dict[str, "weakref.ref[FetchContext]"] = {}
+    # Tasks a newer box replaced in the slot but did not cancel (WIND_BG_BUILD_BOUNDED: a request waits on them).
+    # asyncio holds tasks weakly, so the set is what keeps them alive until they finish.
+    KEPT_BG_TASKS: set = set()
 
     ACTIVE_REVALIDATIONS = set()
 
@@ -460,8 +468,15 @@ class ViewportService:
             bg_key = f"{model.lower()}_{domain.lower()}"
             old_task = self.ACTIVE_BG_TASKS.get(bg_key)
             if old_task and not old_task.done():
-                logger.info(f"[Dynamic Viewport] Canceling stale background task for {bg_key}")
-                old_task.cancel()
+                if wind_bg_bounded(domain) and keeps_task(self.ACTIVE_BG_TASKS, self.ACTIVE_BG_CONTEXTS, bg_key):
+                    # Cancelling it fails the hour a request is still waiting on, and that request then
+                    # refetches the old box and cancels THIS box's task in turn.
+                    logger.info(f"[Dynamic Viewport] Keeping background task for {bg_key}: a request is waiting on it")
+                    self.KEPT_BG_TASKS.add(old_task)
+                    old_task.add_done_callback(self.KEPT_BG_TASKS.discard)
+                else:
+                    logger.info(f"[Dynamic Viewport] Canceling stale background task for {bg_key}")
+                    old_task.cancel()
 
             from services.weather_pipeline.viewport_helper import bg_process_remaining_hours_helper
             task = asyncio.create_task(bg_process_remaining_hours_helper(
@@ -485,8 +500,14 @@ class ViewportService:
                 bbox_key_str=bbox_key_str
             ))
             self.ACTIVE_BG_TASKS[bg_key] = task
+            self.ACTIVE_BG_CONTEXTS[bg_key] = weakref.ref(context)
 
-            gc.collect()
+            # A full collection walks the whole serve heap (0.42 s measured) and this one runs BEFORE the fetcher
+            # returns its hour: the bounded build leaves the full pass to the task's own `finally`.
+            if wind_bg_bounded(domain):
+                gc.collect(1)
+            else:
+                gc.collect()
             if target_normalized_product and _is_oversized_grid(target_normalized_product):
                 raise ValueError(
                     f"Freshly normalized product {target_normalized_product.product_id} is oversized: "

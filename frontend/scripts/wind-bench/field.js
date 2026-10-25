@@ -73,8 +73,8 @@ function benchGrids(opts) {
   };
 }
 
-/** Bilinear wind SPEED from a point-registered grid; null outside it. */
-function sampleSpeed(grid, lng, lat) {
+/** Bilinear wind VECTOR [u, v] (knots) from a point-registered grid; null outside it. */
+function sampleWind(grid, lng, lat) {
   const b = grid.bounds;
   const fx = (lng - b.west) / (b.east - b.west) * (grid.cols - 1);
   const fy = (lat - b.south) / (b.north - b.south) * (grid.rows - 1);
@@ -86,7 +86,13 @@ function sampleSpeed(grid, lng, lat) {
     const q = grid.vectors[(j0 + dj) * grid.cols + i0 + di];
     u += q.u * w; v += q.v * w;
   }
-  return Math.hypot(u, v);
+  return [u, v];
 }
 
-module.exports = { HURRICANE, windAt, buildGrid, benchGrids, sampleSpeed };
+/** Bilinear wind SPEED from a point-registered grid; null outside it. */
+function sampleSpeed(grid, lng, lat) {
+  const uv = sampleWind(grid, lng, lat);
+  return uv ? Math.hypot(uv[0], uv[1]) : null;
+}
+
+module.exports = { HURRICANE, windAt, buildGrid, benchGrids, sampleSpeed, sampleWind };

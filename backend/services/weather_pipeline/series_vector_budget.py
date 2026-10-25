@@ -43,6 +43,7 @@ for Florida is missing at the further-out zoom"). `SERIES_DECIMATE_MODE=max` thi
 by block MAXIMUM on the SAME lattice instead -- see the section below `decimate_vectors`. Off by default.
 """
 import logging
+import math
 import os
 
 logger = logging.getLogger(__name__)
@@ -250,6 +251,61 @@ def decimate_vectors(vectors, cols, rows, stride, mode="stride"):
     return out, len(kept_cols), len(kept_rows)
 
 
+def thin_node_bounds_enabled() -> bool:
+    """SERIES_THIN_NODE_BOUNDS, DEFAULT OFF, read at call time. A thinned frame then carries the bounds of the cells it
+    kept. It moves where a served field is DRAWN (never which cells or values), so it ships dark."""
+    return os.environ.get("SERIES_THIN_NODE_BOUNDS", "0") == "1"
+
+
+def _coord(v, key):
+    value = v.get(key) if isinstance(v, dict) else getattr(v, key, None)
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return float(value)
+
+
+def node_extent_bounds(vectors, fallback):
+    """The bounds of the cells in `vectors`: west/east = min/max lng, south/north = min/max lat. PURE.
+
+    WHY (2026-10-16). Grids are served point-registered: `bounds` are the extents of the SAMPLES, which the client draws
+    from (gridPointRegistration.js: sample i of n at south + i * (north - south) / (n - 1)). Thinning keeps cells
+    0, s, 2s, ... but leaves the ORIGINAL bounds, so a 181 x 83 world frame (lat -80..84) thinned by 4 keeps rows
+    -80..80 and still says north = 84: the client draws every feature up to 4 deg too far north. The kept cells carry
+    their own true lat/lng, so their extent is the answer, with no need for the original dimensions.
+
+    Returns `fallback` ITSELF (identity) whenever this cannot be proven: no cells, any cell without a finite position,
+    a window that crosses the antimeridian (west > east), or a cell outside the original bounds. The result has the
+    type of `fallback` (a dict, or a CoverageBounds-like model).
+    """
+    try:
+        if not vectors:
+            return fallback
+        if isinstance(fallback, dict):
+            w0, s0, e0, n0 = (fallback.get(k) for k in ("west", "south", "east", "north"))
+        else:
+            w0, s0, e0, n0 = (getattr(fallback, k, None) for k in ("west", "south", "east", "north"))
+        if any(not isinstance(x, (int, float)) or isinstance(x, bool) or not math.isfinite(x) for x in (w0, s0, e0, n0)):
+            return fallback
+        if w0 > e0:
+            return fallback
+        lats, lngs = [], []
+        for v in vectors:
+            lat, lng = _coord(v, "lat"), _coord(v, "lng")
+            if lat is None or lng is None:
+                return fallback
+            lats.append(lat)
+            lngs.append(lng)
+        eps = 1e-6
+        if (min(lngs) < w0 - eps or max(lngs) > e0 + eps or min(lats) < s0 - eps or max(lats) > n0 + eps):
+            return fallback
+        west, south, east, north = min(lngs), min(lats), max(lngs), max(lats)
+        if isinstance(fallback, dict):
+            return {**fallback, "west": west, "south": south, "east": east, "north": north}
+        return type(fallback)(west=west, south=south, east=east, north=north)
+    except Exception:
+        return fallback
+
+
 def _decimate_frame(frame: dict, stride: int, mode: str = "stride") -> bool:
     """Thin a frame's rectangular vector grid in place. Returns True if it was rewritten.
 
@@ -263,6 +319,8 @@ def _decimate_frame(frame: dict, stride: int, mode: str = "stride") -> bool:
         return False
     frame["vectors"], frame["cols"], frame["rows"] = out
     frame["decimated_stride"] = stride
+    if thin_node_bounds_enabled() and frame.get("bounds") is not None:
+        frame["bounds"] = node_extent_bounds(frame["vectors"], frame["bounds"])
     return True
 
 
@@ -429,6 +487,8 @@ def stride_raw_grid_dicts(data, stride: int) -> bool:
         return False
     lattice = global_lattice(grid, data.get("resolution"))   # needs every cell: read BEFORE they are discarded
     grid["vectors"], grid["cols"], grid["rows"] = out
+    if thin_node_bounds_enabled() and grid.get("bounds") is not None:
+        grid["bounds"] = node_extent_bounds(grid["vectors"], grid["bounds"])
     # ⚠️ STAMP IT, because the caller CANNOT tell by looking. grid_series applies its own stride to
     # every hour as it lands; without this marker it re-strides an already-strided grid and the
     # frame comes back stride^2 too coarse (measured: 966 cells -> 72, a 13.9x materialisation

@@ -14,6 +14,8 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_optional_user_id
+from .ownership import verified_viewer
 from models import (
     Profile, GalleryItem, GalleryPurchase,
     Gallery, LiveSession, LiveSessionParticipant,
@@ -28,6 +30,7 @@ router = APIRouter()
 async def get_gallery_item_pricing(
     item_id: str,
     viewer_id: Optional[str] = None,
+    token_user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get pricing tiers for a gallery item (SmugMug-style) with Live Session Override
@@ -40,6 +43,7 @@ async def get_gallery_item_pricing(
 
     This ensures On-Demand rates persist even if photographer changes settings later.
     """
+    viewer_id = verified_viewer(viewer_id, token_user_id)  # a query claim alone is anonymous
     result = await db.execute(
         select(GalleryItem)
         .where(GalleryItem.id == item_id)

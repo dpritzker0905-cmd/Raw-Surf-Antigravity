@@ -39,6 +39,7 @@ AI assistants must proactively query and call tools from the active MCP suite be
 * **Recommendation Engine & Dynamic Matching** $\rightarrow$ Call `recommendation-engine-mcp` (`recommend_surf_spots`, `recommend_surf_boards`) to dynamically match surfers to beaches and equipment using multi-factor scores, geographic distance checks, and vector semantic similarity.
 * **Geospatial & Mapping Enhancements** $\rightarrow$ Call `google-maps-mcp` (`nearby_surf_spots`, `calculate_travel_time`, `find_nearby_instructors`, `parking_lookup`, `reverse_geocode`, `get_weather_overlay`) to locate beaches/instructors, estimate multi-modal routing, look up parking limits, reverse geocode addresses, and format MapLibre overlay scopes.
 * **Workflow Automation & Connection Orchestrations** $\rightarrow$ Call `n8n-mcp` (`create_workflow`, `trigger_workflow`, `get_workflow_executions`, `get_monitoring_dashboard`, `configure_retry_policy`) to design custom newsletter/alerts triggers, coordinate multi-node triggers (Supabase, Stripe, WooCommerce, Twilio, Weather APIs), enforce recovery retry metrics, and monitor visual dashboard states.
+* **Verified orphan checkout candidate (2026-10-15; published, not adopted/deployed):** Code46a1d1b8 on `codex/orphan-checkout-intent`, source publication0cc72995, persists scheduled/live purchase identity and frozen provider parameters before SDK creation. Recovery reuses one purchase/key; receipt attachment is validated and durable before fulfillment. Fresh bounded152 passed; prior actual PG74 passed/0 skipped and two real sandbox lost-response identities recovered. Wider2 inherited failures plus hosted/runtime/schema/UI/operator gates remain open. DEV holds records only; preserve Claude wind work and coordinated rollout. Evidence: `docs/audits/2026-10-15-orphan-checkout-repair.md`.
 * **Financial Checkout & Billing Splits** $\rightarrow$ Call `stripe-mcp` (`create_checkout_session`, `create_subscription`, `refund_payment`, `transfer_payout`, `create_invoice`, `get_customer_payments`, `simulate_webhook`) to construct secure checkout sessions, activate plan memberships, trigger payout disbursements, split coach/photographer commissions (80% to coach, 20% to platform), process refunds, and route webhook events.
 * **Marketplace Catalog & Seller Splits** $\rightarrow$ Call `woocommerce-mcp` (`create_product`, `update_product`, `update_variation`, `sync_inventory`, `moderate_listing`, `attach_gallery_images`) to manage surfboard/equipment catalogs, map variable size/color/fin attributes, synchronize stock levels, enforce strict admin moderation queues, and bundle picture-in-picture variation overlays.
 * **Google Calendar Scheduling & Booking** $\rightarrow$ Call `google-calendar-mcp` (`check_availability`, `create_booking`, `cancel_booking`, `reschedule_booking`, `get_provider_schedule`) to verify instructor/photographer slots, manage timezone offsets, prevent conflicts, and trigger automated reminders.
@@ -232,6 +233,16 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
   (`Ledger head: seq N, sha256 H`); CI (`weather-program-ledger.yml`) runs `action_ledger.py selftest` and `verify`
   and, on a pull request, requires the base branch's ledger to be a byte-exact prefix. Editing, deleting,
   reordering or truncating history fails CI. There is no "fix the ledger" — there is only a new correction line.
+* **A PR records its lines in its own FRAGMENT, and only the fold writes the ledger** (owner, 2026-10-22 23:11 EDT:
+  "Yes: build the per-PR ledger fragments (ledger.d/<pr>.jsonl folded into ACTIONS.jsonl in merge order) so PRs stop
+  colliding and auto-merge runs unattended. Keep the hash chain intact."; DECISIONS D-0XX). `action_ledger.py append`
+  writes `docs/weather-program/ledger.d/<branch-slug>.jsonl`: every field above, no `seq`/`prev`/`at`. A PR never
+  edits ACTIONS.jsonl or moves the STATE anchor, and never edits or deletes a merged fragment. The lead's
+  `action_ledger.py fold-pr` appends every merged fragment to ACTIONS.jsonl in MERGE ORDER with the normal chain,
+  verifies it, moves the anchor, checks every fragment line is now in the ledger and only then deletes the folded
+  files, in one PR. `check-pr` in the ledger workflow fails a PR that writes the ledger directly unless it is that
+  fold (recomputed from dev, line for line) or was opened before the fragments landed. Until folded, cite a line as
+  `ledger.d/<name>.jsonl:N` and reference it as `@frag:N` or `@frag:<name>:N`, never by a guessed seq.
 * **Authorization before irreversible or outward-facing actions.** Merge only the PRs the owner names, only with
   every check green and the hosted test counts matching the projection. Never flip a served number without the
   owner's word (D-001). When the next step is genuinely the owner's call, ask once, with a recommendation.

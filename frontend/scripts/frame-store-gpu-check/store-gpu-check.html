@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame store GPU check</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #111; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #111; --fg: #eee; } }
+  body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 14px/1.4 system-ui, sans-serif; }
+  pre { white-space: pre-wrap; font: 12px/1.35 ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<h1>Frame store GPU check</h1>
+<p>Loads the app's own <code>marineFrameStoreGpu.js</code> and checks it on this GPU: byte-exact layer copies into a 2D texture,
+  GL state restored around every call, pooling and eviction, and the WebGL1 fallback.</p>
+<pre id="log" aria-live="polite"></pre>
+<script type="module" src="store-gpu-check.js"></script>
+</body>
+</html>

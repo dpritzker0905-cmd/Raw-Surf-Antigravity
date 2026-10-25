@@ -10,6 +10,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 import httpx
 import logging
+import asyncio
 
 from database import get_db
 from models import Profile, SurfSpot, Post, SurfReport
@@ -32,12 +33,16 @@ logger = logging.getLogger(__name__)
 
 OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 
+# Opt-in metadata-first clients leave room for queries under their 15s request budget.
+SPOT_FORECAST_TIMEOUT_SECONDS = 8
+
 
 @router.get("/explore/spot-details/{spot_id}")
 async def get_spot_details(
     spot_id: str,
     subscription_tier: str = "free",
     model: str = Query("GFS", pattern="^(GFS|ICON|EURO)$"),
+    allow_partial_forecast: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -81,18 +86,27 @@ async def get_spot_details(
         "best_swell": getattr(spot, 'best_swell', None),
         "current_conditions": None,
         "forecast": [],
+        "forecast_status": "unavailable",
         "forecast_days_allowed": forecast_days_after_today
     }
     
     # Fetch real-time conditions and forecast using unified service
     try:
-        conditions_data = await point_resolution_service.resolve_spot_conditions(
+        forecast_request = point_resolution_service.resolve_spot_conditions(
             model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
             spot_id=spot.id
         )
+        # Older clients (including the locked production frontend) retain their existing wait.
+        # Only clients that can present partial forecast availability opt into this contract.
+        conditions_data = (await asyncio.wait_for(forecast_request, SPOT_FORECAST_TIMEOUT_SECONDS)
+                           if allow_partial_forecast else await forecast_request)
         if conditions_data:
             spot_data["current_conditions"] = conditions_data.get("current_conditions")
             spot_data["forecast"] = conditions_data.get("forecast", [])
+            if spot_data["current_conditions"] is not None or spot_data["forecast"]:
+                spot_data["forecast_status"] = "ready"
+    except TimeoutError:
+        logger.warning("Forecast deadline exceeded for spot %s; returning known metadata", spot.id)
     except Exception as e:
         logger.error(f"Error fetching conditions for {spot.name} via service: {e}")
     

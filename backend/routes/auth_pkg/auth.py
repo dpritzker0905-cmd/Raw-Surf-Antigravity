@@ -30,6 +30,31 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def normalize_email(email: str) -> str:
     return email.strip().lower()
 
+
+# Roles a visitor may pick for themselves at sign-up: exactly what the sign-up screen offers
+# (frontend/src/components/Auth.js ROLE_CONFIG) plus Grom Parent, which carries no extra authority.
+# ⛔ NOT in this set, on purpose: ADMIN (a label that unlocks admin-looking UI and role-name gates), PRO and
+# COMP_SURFER (each has its own verification flow under /verification/*), WAVE_POOL and DESTINATION (no sign-up
+# path exists for them). The audit of 2026-10-18 got 200 for role "Admin" and "Approved Pro" on a bare sign-up.
+# APPROVED_PRO stays because the screen offers it and the handler files a pending verification request for it;
+# whether it should stay "Photographer" until that request is approved is an owner decision, not made here.
+SELF_SERVE_SIGNUP_ROLES = frozenset({
+    RoleEnum.GROM, RoleEnum.SURFER, RoleEnum.GROM_PARENT,
+    RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO,
+    RoleEnum.SCHOOL, RoleEnum.COACH, RoleEnum.SHOP, RoleEnum.SHAPER, RoleEnum.RESORT,
+})
+
+
+def signup_role(requested: str) -> RoleEnum:
+    """The RoleEnum a sign-up may create, or an HTTP 400. Same name normalisation the handler always used."""
+    try:
+        role = RoleEnum[requested.upper().replace(" ", "_")]
+    except KeyError:
+        raise HTTPException(status_code=400, detail="Unknown account type")
+    if role not in SELF_SERVE_SIGNUP_ROLES:
+        raise HTTPException(status_code=400, detail="This account type cannot be created at sign-up")
+    return role
+
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str
@@ -153,7 +178,7 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
                     username = candidate
                     break
         
-        role_enum = RoleEnum[data.role.upper().replace(" ", "_")]
+        role_enum = signup_role(data.role)
         
         parent_id = None
         guardian_code = None
@@ -374,16 +399,22 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     
-    # Verify password (allow login if no password set for legacy accounts)
-    if profile.password_hash:
-        try:
-            password_valid = verify_password(data.password, profile.password_hash)
-        except Exception:
-            logger.exception("Password verification failed for profile %s", profile.id)
-            raise HTTPException(status_code=401, detail="Invalid password")
+    # A password sign-in needs a stored password to check. Accounts without one (legacy and seeded
+    # rows) used to be let in on any password; they now create one through forgot-password, the same
+    # path change-password already points them to.
+    if not profile.password_hash:
+        raise HTTPException(
+            status_code=401,
+            detail="No password is set on this account. Use 'Forgot password' to create one.",
+        )
+    try:
+        password_valid = verify_password(data.password, profile.password_hash)
+    except Exception:
+        logger.exception("Password verification failed for profile %s", profile.id)
+        raise HTTPException(status_code=401, detail="Invalid password")
 
-        if not password_valid:
-            raise HTTPException(status_code=401, detail="Invalid password")
+    if not password_valid:
+        raise HTTPException(status_code=401, detail="Invalid password")
     
     # Check if suspended
     if profile.is_suspended:

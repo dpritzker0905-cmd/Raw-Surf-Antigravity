@@ -1,0 +1,524 @@
+{
+  "baseDev": "1dbb0bbd475738a1e764be6dd380dff55090846a",
+  "branch": "codex/master-plan-qualified-dev-batch-2026-10-15",
+  "worktree": "C:\\Users\\David\\Documents\\Codex\\2026-10-14\\task-4\\raw-surf",
+  "lanes": {
+    "commerce": "b220a2e89fad9224b89974724446d975348cf05c",
+    "wave": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+    "recap": "b43384a9359ec1c19c6c790a8dba10c57d37b238"
+  },
+  "files": [
+    {
+      "path": "docs/audits/2026-10-14-commerce-connection-repairs.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "422ea6f61a55cb17ff8830887fea5d147d7a234ddafb94e610efb3a0ba80d3ec"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/browser-results.json",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "1afff69a2707bc92365d593cd4cfeb3852f1222462ba14ec158dd617fd32f067"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/drawer-beach-pending.png",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "7083170d42bad11efbcb6e854be999eabd5e5cfb1aeb44696baf55c2fef18c6e"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/drawer-dark-pending.png",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "6291e01b11463e2b318528fa641dc84b68b3854ba4499f8177db28738b152808"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/drawer-light-pending.png",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "43fa0e1498bae6108fb99c52600097243c11825774327788f70dd40aacbbee42"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/hub-beach-pending.png",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "7083170d42bad11efbcb6e854be999eabd5e5cfb1aeb44696baf55c2fef18c6e"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/hub-dark-pending.png",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "6291e01b11463e2b318528fa641dc84b68b3854ba4499f8177db28738b152808"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/hub-light-pending.png",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "43fa0e1498bae6108fb99c52600097243c11825774327788f70dd40aacbbee42"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/screenshot-results.json",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "36124fe5503dda2c6a93cbcad2d602b63a1f3972625ac7909700ac128d930e53"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/verification.json",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "56f87b16824dab49406dff76b9b324dfc092c24b6826fc7860312ddb37368a27"
+    },
+    {
+      "path": "docs/weather-program/log/2026-10-14-master-plan-commerce.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "46fa2c1376d2a905f48d2ffca431bcbb4fa99de122e2b5555be4770fff42521b"
+    },
+    {
+      "path": "frontend/scripts/commerce-checkout-browser.cjs",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "86ecda3193e642eec4945c4e24abaab0e4613892f3f01688ccfbfdd6f8900a0e"
+    },
+    {
+      "path": "frontend/src/components/booking/LiveSessionCheckoutPending.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "ed74edc1990e3cc54c18f2ac51fd31dc383784dcf5b485921dc597da700b9667"
+    },
+    {
+      "path": "frontend/src/components/spot-drawer/JumpInFlow.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "4ed7c674b9814333c860ff26df4a06d0c53f7334d513123cc8a83cb51fa2ff58"
+    },
+    {
+      "path": "frontend/src/components/spot-hub/JumpInFlow.checkout.test.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "154cf03fe258e0133c10ec6e56d7bf2a992019e82c9bce4f5a6fc56b1f40341c"
+    },
+    {
+      "path": "frontend/src/components/spot-hub/JumpInFlow.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "ed0b757d8b24186bef2d46f5a82a8fe3d66476b486dda9832eee74e414654d7c"
+    },
+    {
+      "path": "frontend/src/hooks/galleryRouteConnections.test.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "608f19b5991732951bb8845b91825f974264fb370009d33ed1055a8bceaf00a2"
+    },
+    {
+      "path": "frontend/src/hooks/usePublicGalleryActions.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "0a2679be123ccaad60e9a97c9583f3bbc80b02ca15e965d71d1cd3bfb5257259"
+    },
+    {
+      "path": "frontend/src/hooks/useSurferGalleryActions.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "c0baa66028fb235ea64c1846bea4b08625508dab78a10a0f00b907eab5d419f6"
+    },
+    {
+      "path": "frontend/src/utils/liveSessionCheckout.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "94fa03727fbb845e43cdf1ca0384f74ac33461290d7efd169cebb80d783b5a73"
+    },
+    {
+      "path": "frontend/src/utils/liveSessionJoin.js",
+      "lane": "commerce",
+      "sourceRef": "b220a2e89fad9224b89974724446d975348cf05c",
+      "sha256": "b7aef12be9d8bf64bf7bf47b070ae308f974a02219a6556e2da1d369991a04e1"
+    },
+    {
+      "path": "docs/weather-program/log/2026-10-15-wave-palette-clarity.md",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "64fb9ae03c7aae29d5fc310984708f209116e33b9cf4670e379fa2015c7d7751"
+    },
+    {
+      "path": "docs/weather-program/log/2026-10-15-wave-palette-ledger-proposal.json",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "8d5e1f12db9a63fa53e87dd06056c8592e760e89b23f352134f794b950ac7c54"
+    },
+    {
+      "path": "docs/weather-program/wave-palette-clarity-2026-10-15.json",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "2dcb0cc77f1fdc3800c0ceb0f8b77ad6d2eb681b7a7ab9bad9dd76a0140296cd"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/README.md",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "d3c1013fa8929e9d9e801b2c0069b20e978929dbe519606f733c6e77d37c2fe8"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/app-check.cjs",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "17e5c145295f5b4c5a3e250bded0719ed30f1cda508f2eb137ea4ffe6ec2021e"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/candidate.py",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "86c8c71fbce2546995cb0b485f781f05965370ec6195487f420ac22fbe2f1644"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/cvd-swatches.py",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "95e717e67ac7fe3c3944922193d96375e8b77c85bfb0251872fe34a4511fa1bf"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/measure.cjs",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "8dea0a5ea13c6f75d21c3446d16a57e87cc84349c8e61b7a16f450643533df36"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/metrics.py",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "388d6dbd828567eacc5ccf75c84d7c49dc7547db0cefe0bd7e6c5d598621636c"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/review.cjs",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "3826d65e90c0ff40e4192bbe7b2807254c0a2683afa0333db4ce93915e50f067"
+    },
+    {
+      "path": "frontend/scripts/wave-palette/serve-review.cjs",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "7e7f9adcd89f73bbf42cf32f56541a58c0ea8e86c5a9bd5552f0cb03c5cf289d"
+    },
+    {
+      "path": "frontend/src/components/map/MapWeatherControls.js",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "f6b8cdbf0a61e1e9fcaa5d6b3889193ed7edeb9199f9cb62eeb1cc35fa200709"
+    },
+    {
+      "path": "frontend/src/components/map/WebGLMarineShaders.js",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "f9662c16b477b00904c197e7782a7247f2a5d0817e243da898140d19674f06b3"
+    },
+    {
+      "path": "frontend/src/components/map/colorScales.js",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "2b274213420b7c404d0b2743f251e56a202244e97e552f5d09be4f95fdb6f720"
+    },
+    {
+      "path": "frontend/src/components/map/marineWavePalette.js",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "11bf134e8fb1a51d66160e26976c3a4c65aaca07e48034b4f35ecdbebcd64c4e"
+    },
+    {
+      "path": "frontend/src/components/map/marineWavePalette.test.js",
+      "lane": "wave",
+      "sourceRef": "ee6631796ec3d5abf7c6043662ac64da432b5e0d",
+      "sha256": "362a7758240ae87463fd0cb46396d3954eb725d494e0c33752139de3e05de4f9"
+    },
+    {
+      "path": "docs/audits/2026-10-15-coordinated-repair-batch-plan.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "6351a8cb9023a8702b8cc7687bd6bd458db332bb8238d95c428d90dd2b8f1097"
+    },
+    {
+      "path": "docs/audits/2026-10-15-g02-checkout-intent-preparation.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "71265dc50a29cd01a8bdc0d994d09e9745e4e09f59df2ab9e5c85d7ff86b6d1c"
+    },
+    {
+      "path": "docs/audits/2026-10-15-session-recap-browser-followup.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "35a1708494c20d863987bb78bb8feb8409f8c8083010229480b393e8a871b2a3"
+    },
+    {
+      "path": "docs/audits/2026-10-15-session-recap-connection-repair.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "09cbd7e52f07f8d630453915f8f20527704e54e58a04d0f6b74f43ee05fb630d"
+    },
+    {
+      "path": "docs/audits/2026-10-15-storm-zoom-evidence-handoff.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "ee7e26f5b7c0eae8307d8e4b9f0d69fec380353eb20ccefe9a795b837311a923"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-14-commerce-connections/final-head-qualification.json",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "99837e7c9c88fc69d48acc9fcc579a359ff8b167973e7a1287a97a02cd4f3455"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-g02-preparation/source-contracts.json",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "87ee16c6b2ecd858dd4b53136f8fdbe60348f1a932157f1a3ad3be68f7ace926"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/after-capture-manifest.json",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "db1902d6555f6daf9bfbe02a67388958506c832f6a86a667a6b40ec8355abfd5"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/beach-after.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "435a8afcb389bf2f19ad70ed76172579cd30ae1706b7853647d35c48c5366eea"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/beach-before.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "23e282b48fbc8efa2cd93028de5fbaf2d94f1d2ef7129b9c85b6c547463b8f40"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/beach-manual.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "8526ca22adcb3f9b98b89a5081f035387d429543d691126ede499017f8dbbab1"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/before-browser-results.json.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "5a9d813f891f9e82274f093d8b2b03c32cd0a37281cb022b70517dd5f1dd516e"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/before-capture-manifest.json",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "7bb8022a3f639fee8b633e7dc677448aa6356beaf432c6531e2943f069ee8f01"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/build.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "2eb2792225f4282eaa713a99b6abaeb0f9f2fc71ebba1fff2df27daf7f40e84f"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/dark-after.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "62af03eb7f937c2e87afcb95673f1ac05088f1c8784456ae6a23fae16a83b8fa"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/dark-before.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "5afaadc2582e7d01dd06d3391cec5bd99137d91410a1d5fad1807f1b62030ddb"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/dark-manual.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "67dae712a5b24267d0abcdb73ad945240f30bb915c9ce50150717d4f3c3689aa"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/final-browser-results.json.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "f8f9ebf590b70d847cb6c3eb5f3ee011558e7f2f3e729685732a03c832a27044"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/focused.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "2b9d59bdde50a107b44ef0cfe639b740d9f37007540117cf4089a192daea4d85"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/light-after.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "1e782b7feecb9b81184edbdb0a715164b365e83cfe6dc96077582ef16bbd8786"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/light-before.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "08f436e15943bac61c0a1ad60ee748250b0c1bc28f1bbea6708a31df529cda8d"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/light-manual.png",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "cc6e7a40de9161d4f44ec8b3d258e2a50bb35f9a82a0056abf1e981df6abd347"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/lint.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "272e82ee7597dcb74231b2b623430432935588b1a49f5bb7a643ef9b6cdece0c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/loc.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "b25b429bf6d4bcf961e721c66d05b660fd34970163be89c77b74c10308ee2691"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/production-source-maps.json.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "0597d45314f0294f23f59df050bd0500ffc84ff38ac776f0966b20e550309d9c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap-browser/verification.json",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "e135e946c8ff0d84c6f72b53957d1403376a7fe7e7182a6bdcc0e3160abe1f9c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-consumer-before-write-guard-v2.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "129117121779697006933b393daf1559b7b45ed3233a8eb61056c45dbbcf6214"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-focused-final-v4.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "9d550c92fca73223d16f81574d40f43622356a81d42f91812217660519c41936"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-lint-ratchet.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "272e82ee7597dcb74231b2b623430432935588b1a49f5bb7a643ef9b6cdece0c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-loc-ratchet.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "b25b429bf6d4bcf961e721c66d05b660fd34970163be89c77b74c10308ee2691"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-production-build-final.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "8b7545adbba658758ef16c8a553798944555070da20a10a682411640f054378d"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/recap-route-before-v2.log.gz",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "fb26534bf25dc24fcca08ad0b7f9fde3b487e44bb1ff1b4d0a0f550cd9261a79"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-15-session-recap/verification.json",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "864d41c975613d6170e11a175b5b580d0ddfda78dacad239555bbc6fb7758275"
+    },
+    {
+      "path": "docs/weather-program/log/2026-10-15-master-plan-commerce.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "e38a8f6b6366d7762b5476de0feab563356b4fb5ac0fd92adb7e3f864bfb3f19"
+    },
+    {
+      "path": "docs/weather-program/log/2026-10-15-recap-route-repair.md",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "5593c968f8c9e3cd2facdc596590ac2687b646791dccf5edeff837d15b36a141"
+    },
+    {
+      "path": "frontend/scripts/session-recap-browser.cjs",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "3eb32760b73a84af08067ed55c0e6add250a7c71fdae703057761f614e14a9cd"
+    },
+    {
+      "path": "frontend/src/App.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "21591df54ff462cbc332d41e3b0aaa94e86a53185a9c12bdca2da7bb0419c42c"
+    },
+    {
+      "path": "frontend/src/components/GalleryPage.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "0ce271ebca61cbbf303cf57b3d38ad16f18c910e309fda650672b5af28bc839e"
+    },
+    {
+      "path": "frontend/src/components/GalleryPage.recap.test.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "1bdf51d214583609bc98973058afe64ef86a397f3a55a6b6802ee035451f7fe3"
+    },
+    {
+      "path": "frontend/src/components/gallery/GalleryModals.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "b6acbbfcfb17050982abf06ad49c5b996fda3531f00a7e1f76f2b8a180fda533"
+    },
+    {
+      "path": "frontend/src/components/gallery/GalleryPricingCard.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "6104c9b43d667ea63043288e0305d004586e6fa9d4836d6cb829eea8de533ec5"
+    },
+    {
+      "path": "frontend/src/components/gallery/PostSessionSummary.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "2fa9243fc33109471dc9270d99143d1a795a6495c80b8aae4ac98ebdd1c5243e"
+    },
+    {
+      "path": "frontend/src/components/gallery/ProStudioManager.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "6596b25e7deef98876ec552f43e1f7fd6d587969d2cb5a9bbfd05ea8754f267d"
+    },
+    {
+      "path": "frontend/src/pages/SessionRecapPage.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "f6fb08247b2880e0a9af306ae32e3a6c6c3577cc7dc819c43738f7f2fe7234c2"
+    },
+    {
+      "path": "frontend/src/pages/SessionRecapPage.route.test.js",
+      "lane": "recap",
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sha256": "a07c5fd060513ec0eb534ef0f244cb7b071ee0e8489f69f1309e675bee60d0f1"
+    }
+  ],
+  "sameOwnerDocOverrides": [
+    {
+      "path": "docs/audits/2026-10-14-commerce-connection-repairs.md",
+      "priorLane": "commerce",
+      "chosenLane": "recap",
+      "reason": "Latest master-owned historical documentation supersedes same-owner earlier receipt; application blobs disjoint"
+    },
+    {
+      "path": "docs/weather-program/log/2026-10-14-master-plan-commerce.md",
+      "priorLane": "commerce",
+      "chosenLane": "recap",
+      "reason": "Latest master-owned historical documentation supersedes same-owner earlier receipt; application blobs disjoint"
+    }
+  ],
+  "excluded": [
+    "active weather/F2 runtime",
+    "payment runtime/migrations/orphan work",
+    "private raw console logs",
+    "shared lane STATE/ACTIONS copies; rebuild one append-only chain from DEV prefix"
+  ]
+}

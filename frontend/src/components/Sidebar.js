@@ -4,12 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePersona, getExpandedRoleInfo } from '../contexts/PersonaContext';
 import { Home, Compass, MapPin, MessageCircle, Bell, User, Settings, LogOut, Shield, ShoppingBag, Sun, Moon, Waves, Eye, Lock, Plus, Radio } from 'lucide-react';
-import apiClient from '../lib/apiClient';
-import { getUnreadCount } from '../services/notificationService';
 import { SurfPassport } from './SurfPassport';
 import { GlobalSearchBar } from './GlobalSearchBar';
 import useActiveSession from '../hooks/useActiveSession';
-import logger from '../utils/logger';
+import useUnreadCounts from '../hooks/useUnreadCounts';
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
 import useRoutePreloader from '../hooks/useRoutePreloader';
@@ -21,8 +19,8 @@ export const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const preload = useRoutePreloader();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState(0);
+  // Badge counts come from ONE poller shared with TopNav and BottomNav (all three are mounted together).
+  const { notifications: unreadCount, messages: unreadMessages } = useUnreadCounts(user?.id);
   const [passportOpen, setPassportOpen] = useState(false);
   const [logoSpinning, setLogoSpinning] = useState(false);
   const { activeSession } = useActiveSession();
@@ -85,23 +83,13 @@ export const Sidebar = () => {
 
   useEffect(() => {
     if (user?.id) {
-      fetchUnreadCount();
-      fetchUnreadMessages();
-      // Poll every 30 seconds for new notifications and messages (sidebar badges)
-      const notifInterval = setInterval(() => {
-        fetchUnreadCount();
-        fetchUnreadMessages();
-      }, 30000);
-      // Auto-refresh feed every 60 seconds when on /feed (Twitter/Instagram pattern)
+      // Auto-refresh feed every 60 seconds when on /feed and the tab is visible (Twitter/Instagram pattern)
       const feedInterval = setInterval(() => {
-        if (window.location.pathname === '/feed') {
+        if (window.location.pathname === '/feed' && document.visibilityState !== 'hidden') {
           window.dispatchEvent(new CustomEvent('feed:refresh', { detail: { silent: true } }));
         }
       }, 60000);
-      return () => {
-        clearInterval(notifInterval);
-        clearInterval(feedInterval);
-      };
+      return () => clearInterval(feedInterval);
     }
   }, [user?.id]);
 
@@ -115,26 +103,6 @@ export const Sidebar = () => {
       window.removeEventListener('open-passport', handleOpenPassport);
     };
   }, []);
-
-  const fetchUnreadCount = async () => {
-    try {
-      const response = await getUnreadCount(user.id);
-      setUnreadCount(response.data.unread_count || 0);
-    } catch (error) {
-      logger.error('Failed to fetch notification count:', error);
-    }
-  };
-
-  const fetchUnreadMessages = async () => {
-    try {
-      // Use the lightweight unread-counts endpoint instead of downloading
-      // the full conversation list (which eagerly loads all messages).
-      const response = await apiClient.get(`/messages/unread-counts/${user.id}`);
-      setUnreadMessages(response.data.total || 0);
-    } catch (error) {
-      logger.error('Failed to fetch message count:', error);
-    }
-  };
 
   const handleLogout = () => {
     logout();

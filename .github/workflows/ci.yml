@@ -13,11 +13,41 @@ on:
   #   skips is reported MISSING, not passing, and blocks the branch permanently. `loc-check.yml`
   #   HAS such a filter and is therefore NOT required — see its header.
   push:
-    branches: [dev, main]
+    branches: [dev, main, codex/reconcile-euro-dev-20261019]
   pull_request:
     branches: [dev, main]
 
 jobs:
+  openai-budget-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: budget_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d budget_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+      - name: Verify real PostgreSQL budget races, persistence and private migration
+        working-directory: backend
+        env:
+          OPENAI_BUDGET_POSTGRES_TEST: '1'
+        run: python -m pytest tests/test_openai_budget.py -q --timeout=60
+
   lint-and-build:
     runs-on: ubuntu-latest
 
@@ -129,7 +159,13 @@ jobs:
             // Truth cadence/lifecycle adds1suite13tests; exact-source hosted qualification required.
             // Whole-callback/mask CPU timing: +2 suites/31 controls; own hosted confirmation required.
             // Minimum-span and active-zone cache: +22 public engine/painter controls; own hosted required.
-            const MIN_SUITES = 377, MIN_TESTS = 4177;
+            // Regional z7-9 bundle client: dev's hosted receipt (run 39994928838 at abd70891, suites 514/514 tests 6737/6737)
+            // + staticRegional.test.js (+1 suite / +16 tests): hosted 515/6753 at b482566c (run 40005823797). The review's guards add
+            // marineGridSeries.regional.test.js (8) and 14 staticRegional tests (+1 suite / +22 tests).
+            // Regional client dark by default (2026-10-23 evening, the live parity failed): +1 test.
+            // Frame store regional show (2026-10-24): marineFrameStoreRegional.test.js, +1 suite / +39 tests (27 real-frame encoder parity
+            // cases, 2 identity, 10 runtime). Raised by exactly its own count from the floor above; confirm against the hosted receipt.
+            const MIN_SUITES = 517, MIN_TESTS = 6815;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -831,7 +867,84 @@ jobs:
           # files selector-verified into this lane -- test_wind_hrrr_grid (20), test_noaa_hrrr_wind_fetcher (14),
           # test_wind_hrrr_lane (33), test_wind_hrrr_lane_ingest (9) = 76; hosted reading on dev db037eaf (CI 37971676215:
           # 190 files, 2565 passed) -> projected 2641/194; 2641 - 6 = 2635. This PR must read 194 files / 2641.
-          MIN_FILES, MIN_PASSED = 194, 2635
+          # ⬆ 194/2635 → 195/2652 on 2026-10-10, IN THE SAME COMMIT THAT CAUSES IT (a fresh wind box builds the hours
+          # asked for, dark): tests/test_wind_bg_build_bounded.py (17), selector-verified into this lane; hosted reading
+          # on dev 9e11676c (CI 38013820511: 194 files, 2641 passed, 67 skipped) -> projected 2658/195; 2658 - 6 = 2652.
+          # This PR must read 195 files / 2658.
+          # Spot-details deadline/legacy compatibility adds11 guards cases: projected2669/196, margin6.
+          # ⬆ 196/2663 → 196/2668 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (the accuracy monitor reads the
+          # skill ledger's scored day objects): five cases in test_forecast_accuracy_monitor.py, an existing guards file;
+          # hosted reading on dev db453937 (CI 38844443190: 196 files, 2669 passed, 67 skipped) -> projected 2674/196;
+          # 2674 - 6 = 2668. This PR must read 196 files / 2674.
+          # ⬆ 196/2668 → 197/2688 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (thinned series frames carry the bounds
+          # of the cells they kept, dark): tests/test_series_thin_node_bounds.py (20), a new file selector-verified into
+          # this lane; hosted reading on #342's head 56bf81dda, a tree identical to dev 66a320e5 (CI 38913422185: 196 files,
+          # 2674 passed, 67 skipped) -> projected 2694/197; 2694 - 6 = 2688. This PR must read 197 files / 2694.
+          # ⬆ 197/2688 → 197/2698 in the same PR, after the independent review: +10 cases in the SAME file (the east edge
+          # when the width does not divide the stride, all four sites; flag OFF at all four sites; the strided read's
+          # longitudes); hosted reading on this PR's head dcc46b733 (CI 38928415298: 197 files, collected 2761, 2694 passed,
+          # 67 skipped) -> projected 2704/197; 2704 - 6 = 2698. This PR must read 197 files / 2704.
+          # ⬆ 197/2698 → 198/2821 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (manifest publication in one step, dark):
+          # tests/test_manifest_one_step_publish.py (123 collected, all passing, no xfail), a new file selector-verified into this
+          # lane; hosted reading on dev (backend unchanged since #343, CI 38934795577: 197 files, collected 2771, 2704 passed,
+          # 67 skipped) -> projected 2827/198; 2827 - 6 = 2821. This PR must read 198 files / 2827.
+          # ⬆ 198/2821 → 204/2886 in the same PR, after review 3 and round 4: the one test file was split (new files over 800
+          # lines fail File Size Governance) and grew to 188 cases in 7 files (tests/test_manifest_one_step_{absorb,coalescing,
+          # exit,pointer,publish,retention,sites}.py, all claimed by this lane; tests/_manifest_chain_harness.py is a helper with
+          # no tests); the same dev reading (2704 / 197 files) -> projected 2892/204; 2892 - 6 = 2886. This PR must read 204 files / 2892.
+          # ⬆ 204/2886 → 206/2950 in the same PR, after review 4 and round 5 (default-off lane): 252 cases in 9 files, the two new files
+          # being tests/test_manifest_one_step_recovery.py (17) and tests/test_manifest_one_step_table.py (38), the rest grown in place;
+          # hosted reading on the previous head c02e809e2 (CI 38970054995: 204 files, 2892 passed, 66 skipped, 1 xfailed) plus 64
+          # -> projected 2956/206; 2956 - 6 = 2950. This PR must read 206 files / 2956.
+          # ⬆ 206/2950 → 206/3037 in the same PR, after review 5 and round 6 (default-off lane): +87 cases in the same nine files
+          # (no new file); hosted reading on the round-5 head a00d69b8e (CI 38981909208: 2956 passed, 66 skipped, 1 xfailed, as projected)
+          # plus 87 -> projected 3043/206; 3043 - 6 = 3037. This PR must read 206 files / 3043.
+          # ⬆ 197/2698 → 197/2741 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the monitor grades the built consensus shadow
+          # against its own definition at every lead, WARN only): +43 cases in the existing tests/test_forecast_accuracy_monitor.py
+          # (44 -> 87, no new file); the dev reading is 2704 -> projected 2747; 2747 - 6 = 2741. This PR must read 197 files / 2747.
+          # (The one-step manifest PR #350 also moves this lane: whichever merges second re-derives.)
+          # ⬆ 206/3037 → 206/3104 in the same PR, after review 6 and round 7, on top of #360 (the monitor's consensus check, +43 in this
+          # lane): +24 cases in the same nine files (no new file; 339 -> 363); the dev reading after #360 is 2747 -> projected 3110;
+          # 3110 - 6 = 3104. This PR must read 206 files / 3110.
+          # ⬆ 206/3104 → 207/3125 in the same PR, after review 7 and round 8 (default-off lane): +21 cases and ONE new file,
+          # tests/test_manifest_one_step_head.py (19, claimed by this lane; keeps test_manifest_one_step_recovery.py under 800 lines);
+          # 384 cases in 10 files; the dev reading after #360 is 2747 -> projected 3131/207; 3131 - 6 = 3125. This PR must read
+          # 207 files / 3131.
+          # ⬆ 207/3125 → 207/3126 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the manifest lane ENABLED in the four writer
+          # workflows, owner's explicit word): +1 case in the existing tests/test_manifest_one_step_sites.py (the four workflows carry
+          # the flag equally); hosted reading on dev after #350 (CI 38999853463 on the branch head: 3131 passed) -> projected 3132;
+          # 3132 - 6 = 3126. This PR must read 207 files / 3132.
+          # ⬆ 207/3126 → 207/3128 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the one-step lane's retention lists NEWEST first;
+          # the first production reading showed it blind to its own copies): +2 cases in the existing
+          # tests/test_manifest_one_step_retention.py (23 -> 25, no new file); the dev reading after #364 is 3132 -> projected 3134;
+          # 3134 - 6 = 3128. This PR must read 207 files / 3134.
+          # ⬆ 207/3128 → 207/3130 in the same PR, after its independent review: +2 more cases in the same file (25 -> 27: a 204 answer to
+          # the delete, and no delete request when nothing is eligible); 3132 + 4 = projected 3136; 3136 - 6 = 3130. This PR must read
+          # 207 files / 3136.
+          # Marine contributor health: +54 guards from dev3136 ->3190; same207files and margin6.
+          # Final PR378 review: +28 malformed-cycle/identity health controls; 3190 ->3218, margin6 unchanged.
+          # W-4 series page memo (test_series_page_memo.py, new guards file): +37 guards. Hosted run 39259510389 read
+          # 3248 / 208 with the first 30 (= 3218 + 30, the projection); 3218 + 37 = 3255 projected; margin 6.
+          # ⬆ 208/3249 → 209/3281 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (GRID_SERIES_MEMO_RUN_KEYS, dark):
+          # tests/test_series_memo_run_keys.py (32, a new file selector-verified into this lane: --lane guards 208 -> 209);
+          # the first hosted run read 3285 with 30 of them (= 3255 + 30); +2 after review -> 3287 projected; 3287 - 6 = 3281.
+          # ⬆ 209/3281 → 210/3287 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (MARINE_GULF_FILL_MID, dark): one new guards
+          # file (tests/test_coarse_gulf_fill_mid.py, matched by tests/test_coarse_*.py) adds 6 tests to the 3287 / 209 read of dev
+          # CI 39861554298 @ 57632973b: projected 3293 / 210; 3293 - 6 = 3287. _FLOOR_SET_FROM["guards"] -> 3293.
+          # ⬆ 210/3287 → 210/3291 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the box keeps its HRRR lane fresh, and says
+          # which it holds): +4 tests in tests/test_wind_hrrr_lane.py (an existing guards file) on dev CI 39896720617 @ b88b5ca32's
+          # 3293 / 210 = 3297 / 210 projected; 3297 - 6 = 3291. _FLOOR_SET_FROM["guards"] -> 3297.
+          # ⬆ 210/3291 → 211/3302 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (the targeted 2-deg Gulf fill, dark):
+          # tests/test_coarse_gulf_fill_targeted.py (+1 real-store case in tests/test_coarse_fill_shared_vectors.py) (11, a new file selector-verified into this lane: --lane guards 210 -> 211); dev hosted
+          # read dev's hosted guards 3297/210 (set-from on dev 891c815b7) + 11 -> projected 3308/211; 3308 - 6 = 3302. This PR must read 211 files / 3308.
+          # +8 (2026-10-23, the second review: the donor's read path, refusals, staleness, the production lattice) -> 3316/211;
+          # 3316 - 6 = 3310. This PR must read 211 files / 3316.
+          # +1 (2026-10-23, targeted_fill_stats on /admin/surf-forecast/status) -> 3317/211; 3317 - 6 = 3311.
+          # ⬆ 3291→3311 on 2026-10-23 (rederive_floor.py, rm-gulf-fill-targeted): dev run 39994928838 read 3297 / 210 files; dev's map 3297;
+          #   base 3297 (hosted read) + 20 new test(s) = 3317, files 211; floor 3317 - 6 = 3311. This PR must read 3317 passed.
+          # ⬆ 3311→3314 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 3317 / 211 files; dev's map 3317;
+          #   base 3317 (hosted read) + 3 new test(s) = 3320, files 211; floor 3320 - 6 = 3314. This PR must read 3320 passed.
+          MIN_FILES, MIN_PASSED = 211, 3314
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1384,7 +1497,64 @@ jobs:
           # pooled fetcher noaa_hrrr_wind_fetcher.py joins POOLED_FETCHERS in test_fetcher_http_pooling.py (2 parametrized
           # cases); hosted reading on dev db037eaf (CI 37971676215: 163 files, 2442 passed) -> projected 2444/163;
           # 2444 - 6 = 2438. This PR must read 163 files / 2444.
-          MIN_FILES, MIN_PASSED = 163, 2438
+          # ⬆ 163/2438 → 164/2467 on 2026-10-16, IN THE SAME COMMIT THAT CAUSES IT (the skill ledger's scored archive moves
+          # to one object per UTC day after scored-2026-10.json hit Storage's 50 MiB limit): tests/test_skill_scored_archive.py
+          # (13, a new file selector-verified into this lane) plus 16 in test_forecast_skill_retention.py; hosted reading on
+          # dev db453937 (CI 38844443190: 163 files, 2444 passed) -> projected 2473/164; 2473 - 6 = 2467.
+          # This PR must read 164 files / 2473.
+          # ⬆ 164/2467 → 165/2511 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the one-off, read-only scored-rows gate for the
+          # scalar-height flip, commitment 1335): tests/test_scored_rows_gate.py (44, a new file selector-verified into this lane);
+          # the same dev reading (CI 38844443190: 163 files, 2444 passed, then the #342 delta) -> projected 2517/165; 2517 - 6 = 2511.
+          # This PR must read 165 files / 2517. The file leaves with the gate: remove it and move this floor back in that PR.
+          # ⬆ 165/2511 → 166/2652 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the surf-zone gate on the nearshore judge's
+          # report; #357 merged first, so this re-derives on top of it): tests/test_nearshore_gate.py (141, a new file
+          # selector-verified into this lane); 2517 (the dev reading after #357) + 141 -> projected 2658/166; 2658 - 6 = 2652.
+          # This PR must read 166 files / 2658.
+          # ⬆ 166/2652 → 166/2695 on 2026-10-17, IN THE SAME COMMIT THAT CAUSES IT (the model-scoped scalar marine height switch,
+          # dark): +43 cases in the existing tests/test_sampler_scalar_marine_height.py (12 -> 55, no new file); the dev reading after
+          # the surf-zone gate is projected 2658 -> 2701; 2701 - 6 = 2695. This PR must read 166 files / 2701.
+          # Dark coherent marine trends: +20 chain controls from dev2701 ->2721; same166files and margin6.
+          # Final PR378 review: +12 empty-identity/UTC-overflow refusal controls; 2721 ->2733, margin6 unchanged.
+          # ⬆ 169/2803 → 170/2817 on 2026-10-19, IN THE SAME COMMIT THAT CAUSES IT (the GFS/EURO/ICON model-spread data
+          # collector, dark): tests/test_model_spread.py (14, a new file selector-verified into this lane: --lane chain 169 -> 170);
+          # the floor-staleness projection 2809 + 14 -> projected 2823/170; 2823 - 6 = 2817. This PR must read 170 files / 2823.
+          # ⬆ 170/2817 → 171/2820 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (CMEMS source labels: MFWAM, not ECMWF):
+          # tests/test_cmems_source_labels.py (3, a new file selector-verified into this lane: --lane chain 170 -> 171);
+          # dev 11d19ef0 hosted read 2823/170 (CI 39364732468) + 3 -> projected 2826/171; 2826 - 6 = 2820. This PR must read 171 files / 2826.
+          # ⬆ 171/2820 → 172/2836 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (COPERNICUS_PEAK_PERIOD + ICON_PEAK_PERIOD, dark):
+          # tests/test_peak_period_flags.py (16, a new file selector-verified into this lane: --lane chain 171 -> 172), re-derived after
+          # #407: its hosted read 2826/171 (CI 39379941948) + 16 -> projected 2842/172; 2842 - 6 = 2836. This PR must read 172 files / 2842.
+          # +1 (2026-10-20, review fix in #412: the flag-on CMEMS window guard in test_peak_period_flags.py) -> 2843/172; 2843 - 6 = 2837.
+          # ⬆ 172/2837 → 173/2849 on 2026-10-20, IN THE SAME COMMIT THAT CAUSES IT (/products encoded once per manifest version):
+          # tests/test_products_response.py (12, a new file selector-verified into this lane: --lane chain 172 -> 173);
+          # 2843 + 12 = 2855 projected; 2855 - 6 = 2849. This PR must read 173 files / 2855.
+          # ⬆ 173/2849 → 174/2856 on 2026-10-22, IN THE SAME COMMIT THAT CAUSES IT (static GFS wind frames):
+          # tests/test_frame_set_wind.py (7, a new file selector-verified into this lane: --lane chain 173 -> 174); dev 57632973b
+          # hosted read 2855/173 (CI 39861554298) + 10 (7, then 3 from the publisher review) -> projected 2865/174; 2865 - 6 = 2859.
+          # This PR must read 174 files / 2865.
+          # ⬆ 174/2859 → 175/2867 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (regional static frame bundles):
+          # tests/test_frame_set_bundle.py (8, a new file selector-verified into this lane: --lane chain 174 -> 175); dev b88b5ca32
+          # hosted read 2865/174 (CI 39896720617) + 8 -> projected 2873/175; 2873 - 6 = 2867. This PR must read 175 files / 2873.
+          # ⬆ 175/2867 → 176/2876 on 2026-10-23, IN THE SAME COMMIT THAT CAUSES IT (raster static frames, GFS pressure):
+          # tests/test_frame_set_raster.py (9, a new file selector-verified into this lane: --lane chain 175 -> 176); dev hosted
+          # read dev's hosted chain 2873/175 (set-from on dev 891c815b7) + 9 -> projected 2882/176; 2882 - 6 = 2876. This PR must read 176 files / 2882.
+          # ⬆ 2867→2876 on 2026-10-23 (rederive_floor.py, rm-pressure-raster-frames): dev run 39994928838 read 2873 / 175 files; dev's map 2873;
+          #   base 2873 (hosted read) + 9 new test(s) = 2882, files 176; floor 2882 - 6 = 2876. This PR must read 2882 passed.
+          # ⬆ 2876→2885 on 2026-10-23 (rederive_floor.py, rm480): dev run 40005013863 read 2873 / 175 files; dev's map 2882;
+          #   base 2882 (dev's map) + 9 new test(s) = 2891, files 177; floor 2891 - 6 = 2885. This PR must read 2891 passed.
+          # ⬆ 2885→2890 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 2891 / 177 files; dev's map 2891;
+          #   base 2891 (hosted read) + 5 new test(s) = 2896, files 177; floor 2896 - 6 = 2890. This PR must read 2896 passed.
+          # ⬆ 2890→2903 on 2026-10-24 (rederive_floor.py, claude/regional-tile-first): dev run 40041246053 read 2891 / 177 files; dev's map 2896;
+          #   base 2896 (dev's map) + 13 new test(s) = 2909, files 178; floor 2909 - 6 = 2903. This PR must read 2909 passed.
+          # ⬆ 2903→2912 on 2026-10-24 (rederive_floor.py, claude/fill-provenance-nodes): dev run 40045304524 read 2896 / 177 files; dev's map 2909;
+          #   base 2909 (dev's map) + 9 new test(s) = 2918, files 179; floor 2918 - 6 = 2912. This PR must read 2918 passed.
+          # ⬆ 2912→2918 on 2026-10-24 (rederive_floor.py, claude/regional-explicit-empty): dev run 40051472495 read 2918 / 179 files; dev's map 2918;
+          #   base 2918 (hosted read) + 6 new test(s) = 2924, files 179; floor 2924 - 6 = 2918. This PR must read 2924 passed.
+          # ⬆ 2918→2926 on 2026-10-24 (rederive_floor.py, lead-fix-515): dev run 40078270428 read 2924 / 179 files; dev's map 2924;
+          #   base 2924 (hosted read) + 8 new test(s) and 0 new file(s) = 2932, files 179; floor 2932 - 6 = 2926. This PR must read 2932 passed.
+          # ⬆ 2926→2927 on 2026-10-24 (rederive_floor.py, claude/raster-pressure-publishers): dev run 40091748867 read 2932 / 179 files; dev's map 2932;
+          #   base 2932 (hosted read) + 1 new test(s) and 0 new file(s) = 2933, files 179; floor 2933 - 6 = 2927. This PR must read 2933 passed.
+          MIN_FILES, MIN_PASSED = 179, 2927
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -1785,7 +1955,110 @@ jobs:
           # ⬆ 1542→1543 on 2026-10-09, IN THE SAME COMMIT THAT CAUSES IT (the HRRR wind lane, D-017): the new spawned
           # fetcher noaa_hrrr_wind_fetcher.py adds one parametrized case to test_fetcher_script_imports.py; hosted 1544 on
           # dev db037eaf (CI 37971676215) -> projected 1545; 1545 - 2 = 1543. This PR must read 306 files / 1545.
-          MIN_PASSED = 1543
+          # Reflection review fixes add34 offline AI ownership/availability cases to projected1545.
+          # Selector-owned estate file; projected1579, preserving margin2. Hosted CI must confirm.
+          # Budget contracts add32 executed estate cases: projected1650, margin2.
+          # One private-migration case runs in openai-budget-postgres, not SQLite estate.
+          # Saved-board clue contracts add24 executed estate cases: projected1674, margin2.
+          # Surf-zone gate workflow pins add 5 executed estate cases to test_nearshore_workflow_eligibility.py (an existing
+          # estate file): projected 1679, margin 2.
+          # ⬆ 1677→1762 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (Phase 0 containment): the new estate file
+          # tests/test_phase0_containment.py adds 85 executed tests to the hosted 1679 read on dev 5cfec8f55
+          # (CI 39036512940: 310 selected, 1679 passed): projected 1764; 1764 - 2 = 1762, margin 2.
+          # This PR must read 311 files / 1764.
+          # ⬆ 1762→1779 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (LA-PAY-08, stacked on Phase 0): two new
+          # estate files, tests/test_lazy_import_resolution.py (5) and tests/test_pay08_crew_pay.py (12), add 17
+          # executed tests to the 1764 projected for Phase 0 (hosted read of Phase 0 confirmed: 311 files / 1764, CI 39058995687):
+          # projected 1781; 1781 - 2 = 1779, margin 2. This PR must read 313 files / 1781.
+          # ⬆ 1779→1832 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (LA-UPL-01): the new estate file
+          # tests/test_upl01_upload_identity.py adds 53 executed tests to the hosted 1781 read of PR 369
+          # (CI: 313 files selected, 1781 passed): projected 1834; 1834 - 2 = 1832, margin 2.
+          # This PR must read 314 files / 1834.
+          # ⬆ 1832→1845 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (LA-SEC-02): the new estate file
+          # tests/test_sec02_crew_chat_socket.py adds 13 executed tests to the hosted 1834 read of PR 370
+          # (CI: 314 files selected, 1834 passed): projected 1847; 1847 - 2 = 1845, margin 2.
+          # This PR must read 315 files / 1847.
+          # ⬆ 1845→2186 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (crew HTTP authority, ported from Codex's
+          # unpushed branches): seven new estate files add 341 executed tests (history cursor 68, http authority
+          # 35, info 44, jwt consumer 41, mentions 38, reply scope 46, dm mentions 69) to the hosted 1847 read of
+          # PR 371 (CI: 315 files selected, 1847 passed): projected 2188; 2188 - 2 = 2186, margin 2.
+          # This PR must read 322 files / 2188.
+          # ⬆ 2186→2255 on 2026-10-17, IN THE SAME PR THAT CAUSES IT (actor-route binding, batch 3): the existing
+          # binding file adds 69 executed tests (23 routes x 3) to the hosted 2188 read of PR 372
+          # (CI: 322 files selected, 2188 passed): projected 2257; 2257 - 2 = 2255, margin 2.
+          # This PR must read 322 files / 2257.
+          # PR381 reconciliation: dev CI39142012113 (62d94f5f) observed2262 passed.
+          # Preserve the estate margin2; paired _FLOOR_SET_FROM moves to2262.
+          # ⬆ 2260→2278 on 2026-10-18, IN THE SAME PR THAT CAUSES IT (default-deny route identity guard): one new
+          # estate file adds 18 executed tests (tests/test_route_identity_default_deny.py) to the hosted 2262 read
+          # of dev CI39142012113: projected 2280; 2280 - 2 = 2278, margin 2. _FLOOR_SET_FROM["estate"] -> 2280.
+          # This PR must read 2280 passed; the files-selected count is read from the hosted run, not predicted.
+          # ⬆ 2278→2293 on 2026-10-18, IN THE SAME PR THAT CAUSES IT (admin events socket + internal broadcast
+          # secret), STACKED on the default-deny guard PR: one new estate file adds 15 executed tests
+          # (tests/test_ws_admin_events_internal_token.py) to that PR's projected 2280: 2295; 2295 - 2 = 2293.
+          # _FLOOR_SET_FROM["estate"] -> 2295. Re-read from the hosted run of whichever PR merges second.
+          # ⬆ 2298→2303 on 2026-10-19, owed by #398 (e2e_backend_ready --same-backend added estate tests and did not move
+          # the floor): hosted dev CI 39331532690 @ 88e762fe observed 2305 passed; 2305 - 2 = 2303, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2305. Carried in #389 because its floor-staleness check caught it.
+          # ⬆ 2303→2310 on 2026-10-19, IN THE SAME PR THAT CAUSES IT (one-field frame-image proof): one new estate file
+          # adds 7 executed tests (tests/test_frame_image.py) to the 2305 read of dev CI 39331532690: projected 2312;
+          # 2312 - 2 = 2310, margin 2. _FLOOR_SET_FROM["estate"] -> 2312. This PR must read 2312 passed.
+          # ⬆ 2310→2315 on 2026-10-21, IN THE SAME PR THAT CAUSES IT (Logfire setup never stops boot): one new estate
+          # file adds 5 executed tests (tests/test_logfire_setup.py) to the 2312 read of dev CI 39594047204 (744775c86):
+          # projected 2317; 2317 - 2 = 2315, margin 2. _FLOOR_SET_FROM["estate"] -> 2317. This PR must read 2317 passed.
+          # ⬆ 2310→2330 on 2026-10-20, IN THE SAME PR THAT CAUSES IT (static forecast frames, step 2b, dark): two new estate
+          # files add 20 executed tests (tests/test_frame_binary.py 10, tests/test_publish_frame_sets.py 10) to the 2312 read
+          # of dev CI 39474436878 @ da40c3c5 (327 files): projected 2332 / 329 files; 2332 - 2 = 2330, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2332. This PR must read 2332 passed.
+          # ⬆ 2330→2333 in the same PR after its review fixes: +3 tests in tests/test_publish_frame_sets.py (23 in the two
+          # files) on the 2312 read of dev CI 39594047204 @ 744775c8 (327 files): projected 2335 / 329 files; margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2335. This PR must read 2335 passed.
+          # ⬆ 2315→2338 when #422 stacks on #432 (Logfire, +5): #422's two estate files carry 23 tests on top of #432's
+          # projected 2317: 2340 / 330 files; 2340 - 2 = 2338, margin 2. _FLOOR_SET_FROM["estate"] -> 2340.
+          # This PR must read 2340 passed.
+          # ⬆ 2338→2341 on 2026-10-22, IN THE SAME PR THAT CAUSES IT (static frames for more world sets): +3 tests in the
+          # existing tests/test_publish_frame_sets.py on the 2340 read of dev CI 39732086620 @ eb3e4bcf: projected 2343,
+          # no new file; 2343 - 2 = 2341, margin 2. _FLOOR_SET_FROM["estate"] -> 2343. This PR must read 2343 passed.
+          # ⬆ 2341→2390 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (per-PR ledger fragments, D-0XX): one new estate file
+          # adds 49 executed tests (tests/test_ledger_fragments.py) to the 2343 / 330 files read of dev CI 39896720617
+          # @ b88b5ca32: projected 2392 / 331 files; 2392 - 2 = 2390, margin 2. _FLOOR_SET_FROM["estate"] -> 2392.
+          # This PR must read 2392 passed.
+          # ⬆ 2390→2395 on 2026-10-23 (#470, re-derived by the lead after #472 landed): +5 tests in the existing
+          # tests/test_audit_push_authority.py on #472's projected 2392 -> 2397; 2397 - 2 = 2395, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2397. This PR must read 2397 passed.
+          # ⬆ 2395→2409 on 2026-10-23, IN THE SAME PR THAT CAUSES IT (completeness sees squash merges, re-derived after
+          # #470): one new estate file adds 14 executed tests (tests/test_ledger_merges.py) to the 2397 / 331 files #470
+          # read on hosted CI (run 39979894860): projected 2411 / 332 files; 2411 - 2 = 2409, margin 2.
+          # _FLOOR_SET_FROM["estate"] -> 2411. This PR must read 2411 passed.
+          # ⬆ 2409→2427 on 2026-10-23 (rederive_floor.py, claude/floor-map-lanes): dev run 39994928838 read 2411; dev's map 2411;
+          #   base 2411 (hosted read) + 18 new test(s) = 2429; floor 2429 - 2 = 2427. This PR must read 2429 passed.
+          # ⬆ 2427→2429 on 2026-10-23 (rederive_floor.py, claude/rederive-add-auto): dev run 39994928838 read 2411; dev's map 2429;
+          #   base 2429 (dev's map) + 2 new test(s) = 2431; floor 2431 - 2 = 2429. This PR must read 2431 passed.
+          # ⬆ 2429→2503 on 2026-10-23 (rederive_floor.py, HEAD): dev run 40019272331 read 2431; dev's map 2431;
+          #   base 2431 (hosted read) + 74 new test(s) = 2505; floor 2505 - 2 = 2503. This PR must read 2505 passed.
+          # ⬆ 2503→2504 on 2026-10-23 (rederive_floor.py, claude/fold-point-race): dev run 40034067551 read 2505; dev's map 2505;
+          #   base 2505 (hosted read) + 1 new test(s) = 2506; floor 2506 - 2 = 2504. This PR must read 2506 passed.
+          # ⬆ 2528→2554 on 2026-10-23 (rederive_floor.py, HEAD): dev run 40039022786 read 2506; dev's map 2530;
+          #   base 2530 (dev's map) + 26 new test(s) = 2556; floor 2556 - 2 = 2554. This PR must read 2556 passed.
+          # ⬆ 2554→2571 on 2026-10-24 (rederive_floor.py, claude/frame-parity-tolerance): dev run 40045304524 read 2556; dev's map 2556;
+          #   base 2556 (hosted read) + 17 new test(s) = 2573; floor 2573 - 2 = 2571. This PR must read 2573 passed.
+          # ⬆ 2571→2683 on 2026-10-24 (rederive_floor.py, claude/beautiful-cerf-d9f949): dev run 40051472495 read 2573; dev's map 2573;
+          #   base 2573 (hosted read) + 112 new test(s) = 2685; floor 2685 - 2 = 2683. This PR must read 2685 passed.
+          # ⬆ 2683→2685 on 2026-10-24 (rederive_floor.py, claude/rederive-auto-note): dev run 40064519384 read 2685; dev's map 2685;
+          #   base 2685 (hosted read) + 2 new test(s) = 2687; floor 2687 - 2 = 2685. This PR must read 2687 passed.
+          # ⬆ 2685→2714 on 2026-10-24 (rederive_floor.py, HEAD): dev run 40078270428 read 2687; dev's map 2687;
+          #   base 2687 (hosted read) + 29 new test(s) = 2716; floor 2716 - 2 = 2714. This PR must read 2716 passed.
+          # ⬆ 2714→2720 on 2026-10-24 (rederive_floor.py, lead-fix-522): dev run 40085884605 read 2716; dev's map 2716;
+          #   base 2716 (hosted read) + 6 new test(s) = 2722; floor 2722 - 2 = 2720. This PR must read 2722 passed.
+          # ⬆ 2720→2727 on 2026-10-24 (rederive_floor.py, claude/frame-error-report): dev run 40086759509 read 2716; dev's map 2722;
+          #   base 2722 (dev's map) + 7 new test(s) = 2729; floor 2729 - 2 = 2727. This PR must read 2729 passed.
+          # ⬆ 2727→2738 on 2026-10-24 (rederive_floor.py, claude/raster-pressure-publishers): dev run 40091748867 read 2729; dev's map 2729;
+          #   base 2729 (hosted read) + 11 new test(s) = 2740; floor 2740 - 2 = 2738. This PR must read 2740 passed.
+          # ⬆ 2738→2760 on 2026-10-24 (rederive_floor.py, HEAD): dev run 40095124912 read 2740; dev's map 2740;
+          #   base 2740 (hosted read) + 22 new test(s) = 2762; floor 2762 - 2 = 2760. This PR must read 2762 passed.
+          # ⬆ 2760→2795 on 2026-10-24 (rederive_floor.py, claude/dispute-transaction-check): dev run 40095124912 read 2740; dev's map 2762;
+          #   base 2762 (dev's map) + 35 new test(s) = 2797; floor 2797 - 2 = 2795. This PR must read 2797 passed.
+          MIN_PASSED = 2795
 
           try:
               root = ET.parse('estate.xml').getroot()
@@ -1881,4 +2154,10 @@ jobs:
         working-directory: backend
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python scripts/ci_floor_staleness.py
+        run: |
+          if [ "$GITHUB_REF_NAME" = "codex/reconcile-euro-dev-20261019" ]; then
+            # Explicit comparison to this integration branch's dev base; never an implicit fallback.
+            python scripts/ci_floor_staleness.py --branch dev
+          else
+            python scripts/ci_floor_staleness.py
+          fi

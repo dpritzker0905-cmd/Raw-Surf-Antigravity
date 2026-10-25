@@ -46,8 +46,30 @@ const CONTROL_VARIANTS = Object.freeze({
   controlShipped: { label: 'shipped, dark palette pinned (positive control)', levers: { ...VARIANTS.shipped.levers, ...PIN } },
   controlCandidate: { label: 'engine as written, dark palette pinned (positive control)', levers: { ...VARIANTS.candidate.levers, ...PIN } },
 });
-/** Every variant a configuration may name (the matrix's own, then the control's). */
-const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS });
+// Default-off candidates a run may NAME (--variants candidate,glow,ink); the default matrix stays shipped + candidate.
+// windInk.js: dark's wind look for the light grounds. A lever that changes how the trail is laid must pass --seeds 3
+// against the engine as written before it becomes a default (LESSONS L-V16).
+const LEVER_VARIANTS = Object.freeze({
+  glow: { label: 'glow (dark\'s pipeline on the light grounds)', levers: { __RAW_WIND_GLOW__: true } },
+  ink: { label: 'ink (the mirror: multiplied into the map)', levers: { __RAW_WIND_INK__: true } },
+  // Light's look A/B (WindColorRamp.js windLightLook): light only; the other themes draw as the engine is written.
+  'light-moderate': { label: 'light look A, moderate (deeper field + dark\'s streak method)', levers: { __RAW_WIND_LIGHT_LOOK__: 'moderate' } },
+  'light-deep': { label: 'light look A, deep', levers: { __RAW_WIND_LIGHT_LOOK__: 'deep' } },
+  'light-ink': { label: 'light look B (ink, own warm colours, cover cap)', levers: { __RAW_WIND_LIGHT_LOOK__: 'ink' } },
+  // Dark's rules are the DEFAULT in light and beach since 2026-10-11 (D-020), so `candidate` draws them. This is their kill: the
+  // marks and tables before them, the arm to scan the default against.
+  'before-rules': { label: 'the tables before dark\'s rules (their kill)', levers: { __RAW_DISABLE_WIND_DARK_RULES__: true } },
+  'before-white': { label: 'dark\'s rules before the white streak (its kill)', levers: { __RAW_DISABLE_WIND_WHITE_STREAK__: true } },
+  // Dark's white, ground by ground (D-022): its kill lays the white at full strength over the sea too. The scanner's own page serves
+  // no land file, so every mark reads as land and in light this arm equals `candidate` there: scan it in map or motion mode, with a
+  // land file. In BEACH the kill also stands beach's path down (windBeachPathOn), so there this arm is two things at once: the white
+  // at full strength AND the field before the path. It is not an A/B of the white strength alone on the path's field.
+  'full-white': { label: 'the white streak at full strength on both grounds (D-022\'s kill)', levers: { __RAW_DISABLE_WIND_DARK_WHITE__: true } },
+  // Light's path (D-024) and beach's path (D-025): each kill draws its own theme as before its path (the other theme and dark do not read it).
+  'before-path': { label: 'light and beach, each before its path (the kills of D-024 and D-025)', levers: { __RAW_DISABLE_WIND_LIGHT_PATH__: true, __RAW_DISABLE_WIND_BEACH_PATH__: true } },
+});
+/** Every variant a configuration may name (the matrix's own, the control's, then the named candidates). */
+const ALL_VARIANTS = Object.freeze({ ...VARIANTS, ...CONTROL_VARIANTS, ...LEVER_VARIANTS });
 
 /**
  * POSITIVE CONTROL: a bench that cannot see a known defect proves nothing when it sees none.

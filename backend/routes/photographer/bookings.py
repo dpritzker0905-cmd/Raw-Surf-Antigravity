@@ -310,7 +310,7 @@ async def update_booking_details(
     current_user_id: str = Depends(get_current_user_id)
 ):
     """Update booking details (location, date, duration, etc.)"""
-    from routes.notifications.push import notify_booking
+    from routes.notifications.push_payloads import notify_booking
     
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
