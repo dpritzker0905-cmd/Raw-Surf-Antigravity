@@ -6,6 +6,7 @@ Every guard asserted here was mutated (removed) once to confirm its test goes re
 """
 import asyncio
 import hashlib
+import sqlite3
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
@@ -22,6 +23,8 @@ from database import get_db
 from models import MfaChallenge, MfaRecoveryCode, Notification, Profile, RoleEnum, UserMfa
 from routes.auth_pkg import auth as auth_routes
 from routes.auth_pkg import mfa as mfa_routes
+
+svc_module = mfa_routes.svc  # the service module, reached through the route so patches hit the code path under test
 
 PASSWORD = "fixture-correct-pw"
 PASSWORD_HASH = auth_routes.hash_password(PASSWORD)  # bcrypt is slow: once per module
@@ -78,7 +81,7 @@ async def h(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = dependency
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app),
                                  base_url="http://fixture.invalid") as client:
-        yield SimpleNamespace(client=client, maker=maker)
+        yield SimpleNamespace(client=client, maker=maker, path=str(tmp_path / "mfa.sqlite"))
     await engine.dispose()
 
 
@@ -199,13 +202,29 @@ async def test_five_wrong_codes_kill_the_challenge_even_for_the_right_code(h, cl
     assert (await answer(h, fresh, current_code(user, clock))).status_code == 200
 
 
-async def test_attempt_limit_holds_under_parallel_guesses(h, clock):
+async def test_attempt_limit_holds_under_parallel_guesses(h, clock, monkeypatch):
+    await enrol(h, clock)
+    token = await challenge(h)
+    checked = []
+
+    async def slow_miss(db, user_id, code):  # slow enough that all twelve are in flight before any answer returns
+        checked.append(code)
+        await asyncio.sleep(0.3)
+
+    monkeypatch.setattr(mfa_routes.svc, "check_factor", slow_miss)
+    results = await asyncio.gather(*[answer(h, token, "000000") for _ in range(12)])
+    assert all(r.status_code == 401 for r in results)
+    assert len(checked) == 5  # an attempt is reserved BEFORE the check, so only five guesses were ever evaluated
+    assert (await rows(h, MfaChallenge))[0].attempts == 5
+
+
+async def test_a_dead_challenge_does_not_spend_a_recovery_code(h, clock):
     user = await enrol(h, clock)
     token = await challenge(h)
-    bad = wrong_code(user, clock)
-    results = await asyncio.gather(*[answer(h, token, bad) for _ in range(12)])
-    assert [r.status_code for r in results].count(401) == 12
-    assert (await rows(h, MfaChallenge))[0].attempts == 5  # never more than five were spent on checking
+    assert (await answer(h, token, current_code(user, clock))).status_code == 200  # now consumed
+    dead = await answer(h, token, user.codes[0])
+    assert dead.status_code == 401 and "access_token" not in dead.text
+    assert (await answer(h, await challenge(h), user.codes[0])).status_code == 200  # the code was not burnt
 
 
 async def test_expired_challenge_is_refused(h, clock):
@@ -255,6 +274,30 @@ async def test_the_same_recovery_code_on_two_challenges_at_once_makes_one_sessio
     first, second = await challenge(h), await challenge(h)
     results = await asyncio.gather(answer(h, first, user.codes[0]), answer(h, second, user.codes[0]))
     assert sorted(r.status_code for r in results) == [200, 401]
+
+
+async def test_a_recovery_code_spent_by_a_concurrent_request_is_refused(h, clock, monkeypatch):
+    """The race made deterministic: between this request reading the unused codes and spending one, another request
+    spends the same code. Only the conditional UPDATE (used_at IS NULL) stands between that and two sessions."""
+    user = await enrol(h, clock)
+    token = await challenge(h)
+    real_match = svc_module.recovery_code_matches
+    state = {"raced": False}
+
+    def racing_match(code, stored_hash):
+        result = real_match(code, stored_hash)
+        if result and not state["raced"]:
+            state["raced"] = True
+            connection = sqlite3.connect(h.path)
+            connection.execute("update mfa_recovery_codes set used_at = ? where code_hash = ?",
+                               (datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f"), stored_hash))
+            connection.commit()
+            connection.close()
+        return result
+
+    monkeypatch.setattr(svc_module, "recovery_code_matches", racing_match)
+    response = await answer(h, token, user.codes[0])
+    assert state["raced"] and response.status_code == 401 and "access_token" not in response.text
 
 
 async def test_unknown_and_garbage_challenges_are_refused(h):
