@@ -5,8 +5,9 @@
  * The packing (frameWindowOf, packWindow, the LRU) is marineFrameStoreCrop.js; this module is the runtime half.
  */
 import { cropAheadChains, cropAheadCount, cropAheadOrder, cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';
-import { loadFrameParsed } from './staticFrames';
-import { frameMeta } from './staticFrameCodec';
+import { getPinnedRegionalIndexSync, loadFrameParsed, pinnedRegionalKeys } from './staticFrames';
+import { frameMeta, pickIndexFrame } from './staticFrameCodec';
+import { findRegionalFrame, regionalInfoOf, regionalShowOn } from './marineFrameStoreRegional';   // regional tiles at z7-9 (2026-10-24)
 import { packSignature, validityDiff } from './marineFramePack';
 import { uploadBytesTo2D } from './marineFrameStoreGpu';
 import { publishMarineDrawn } from './marineDrawnFrame';
@@ -30,6 +31,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     const w = crop.window;
     if (!w || !cropShowOn() || !info) return null;
     if (w.setKey === info.key) return w;
+    if (w.regional || info.regional) return null;       // a regional window shows only its own tile's frames, and no world set takes one
     const g = info.index && info.index.grid;
     return w.lattice && g && g.cols === w.lattice.cols && g.rows === w.lattice.rows && nearL(g.bounds, w.lattice.bounds) ? w : null;
   }
@@ -78,7 +80,10 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     if (at === undefined) return;
     const fills = !idleFillBlocker();
     const ahead = cropAheadCount({ tier: store().tier, fills });
-    const stored = info.validTimes.filter((v) => { const e = store().entry(info.key, v); return !!(e && e.pack); });
+    // A regional tile's frames are not in the store: its whole run is one bundle already in memory (the page needed it), so every
+    // built frame is a candidate and the build costs CPU in idle time, no request.
+    const stored = info.regional ? info.validTimes.filter((v) => !!(info.byVt.get(v) || {}).path)
+      : info.validTimes.filter((v) => { const e = store().entry(info.key, v); return !!(e && e.pack); });
     const winKey = crop.window && crop.window.key;
     const q = (crop.queue = { setKey: info.key, winKey, list: cropAheadOrder(stored, (v) => idx.get(v), at).slice(0, ahead) });
     const next = () => {
@@ -131,7 +136,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
       return false;
     }
     const fresh = !(crop.window && crop.window.key === win.key && crop.window.setKey === info.key);
-    crop.window = { ...win, setKey: info.key };
+    crop.window = { ...win, setKey: info.key, regional: !!info.regional };
     crop.pending = { setKey: info.key, validTime, winKey: win.key };
     if (crop.packs.get(info.key, validTime, win.key, packSignature())) resolveCropPending(info, validTime);
     else buildCrop(info, validTime, 'high');
@@ -154,8 +159,8 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     const p = crop.packs.get(info.key, validTime, w.key, packSignature());
     if (!p) return;
     crop.pending = null;
-    const r = { setKey: info.key, crop: true, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key }, bounds: { ...p.bounds },
-      validityHash: p.validityHash, validityBits: p.validityBits || null, cols: p.cols, rows: p.rows, signature: p.signature };
+    const r = { setKey: info.key, crop: true, regional: !!info.regional, staticKey: info.staticKey, window: { c0: w.c0, r0: w.r0, cols: w.cols, rows: w.rows, key: w.key },
+      bounds: { ...p.bounds }, validityHash: p.validityHash, validityBits: p.validityBits || null, cols: p.cols, rows: p.rows, signature: p.signature };
     if (!engineHolds(r)) { crop.resident = null; rt.commits.crop_not_resident = (rt.commits.crop_not_resident || 0) + 1; return; }
     crop.resident = r;
   }
@@ -282,8 +287,57 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   }
 
 
+  // ── THE REGIONAL RESIDENT (2026-10-24, marineFrameStoreRegional.js): the z7-9 clip of a pilot tile's stored frame ─────────────────
+  // The same crop show over another lattice: the tile's pinned index stands in for the world set (its frames are slices of one
+  // bundle in memory, not store entries), and the resident is recognised by the committed grid's product id.
+  const regInfos = new WeakMap();                                      // pinned regional index -> its crop-show info
+  function regionalInfo(staticKey) {
+    let idx = null;
+    try { idx = getPinnedRegionalIndexSync(staticKey); } catch (e) { idx = null; }
+    if (!idx) return null;
+    let info = regInfos.get(idx);
+    if (!info) { info = regionalInfoOf(staticKey, idx); regInfos.set(idx, info); }
+    return info;
+  }
+  const isGfsWaves = (model, layer) => String(model || 'GFS').toUpperCase() === 'GFS' && String(layer || 'waves').toLowerCase() === 'waves';
+
+  // After a normal commit: is this grid a window of a pinned tile's stored frame? Then it is the regional resident (true).
+  function noteRegionalCommitted(grid, model, layer) {
+    if (!grid || grid.ratingMode || !regionalShowOn() || !cropShowOn() || !isGfsWaves(model, layer)) return false;
+    let keys = [];
+    try { keys = pinnedRegionalKeys('GFS', 'waves'); } catch (e) { keys = []; }
+    const hit = findRegionalFrame(keys.map(regionalInfo).filter(Boolean), grid);
+    return !!hit && noteCropCommitted(hit.info, hit.validTime, grid);
+  }
+
+  // tryShowStoredFrame's first question for GFS waves: does the engine hold a clip of a tile? Returns that tile's info, else null
+  // (checked against the engine at every step; a re-pinned run, a killed set or another model ends it).
+  function regionalResident(model, layer) {
+    const r = crop.resident;
+    if (!r || !r.regional || !regionalShowOn() || !cropShowOn() || !isGfsWaves(model, layer)) return null;
+    if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return null; }
+    const info = regionalInfo(r.staticKey);
+    return info && info.key === r.setKey ? info : null;
+  }
+
+  function showRegional(info, args, t0) {
+    const frame = pickIndexFrame(info.index, Date.parse(args.requestedValidTime));
+    if (!frame) return miss('no_frame_in_window');
+    if (!frame.path) return miss('unbuilt_frame');
+    const ok = showCropFrame(info, info.index, frame, args, t0);
+    if (ok) rt.shows.regional = (rt.shows.regional || 0) + 1;
+    return ok;
+  }
+
+  // A tile frame the shared loader just parsed (the page's bundle slices, this module's builds): its window pack, while a window is resident.
+  function regionalParsed(staticKey, frame, parsed) {
+    const info = regionalInfo(staticKey);
+    if (info) cropFromParsed(info, frame.valid_time, parsed);
+  }
+
   return {
     crop, cropFromParsed, buildCrop, noteCropCommitted, noteForeignCommit, cropResidentFor, showCropFrame, cropResidentOther, showCropSwitch,
+    noteRegionalCommitted, regionalResident, showRegional, regionalParsed,
     telemetry: () => ({ on: cropShowOn(), window: crop.window, resident: crop.resident && { ...crop.resident, validityBits: undefined },
       packs: crop.packs.size(), built: crop.built, shows: crop.shows, ahead: crop.ahead, queued: crop.queue ? crop.queue.list.length : 0, pending: crop.pending }),
     reset: () => Object.assign(crop, { packs: createCropPacks(), window: null, pending: null, resident: null, building: new Set(), built: 0, shows: 0, ahead: 0, queue: null }),

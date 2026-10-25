@@ -32,8 +32,11 @@ import {
 import { buildTruthTag } from './weatherTruthTracker';
 // MID-ZOOM CROPS (2026-10-22): a viewport box the resolver answers from global_mid is served as a crop of the same frame.
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
-import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, setRegionalLatestProbes, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
+import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
+import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
+import { serveTimeFillAtWorld } from './staticWorldFillGuard';
+export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
 export const LATEST_PATH = 'v1/latest.json';
@@ -218,6 +221,11 @@ export const STATIC_SETS = [
   // GFS mean-sea-level pressure (2026-10-23, the raster layers' own frames from free NOAA GRIB): read only by ownRasterFrames.js,
   // behind window.__RAW_RASTER_OWN_FRAMES__ (default off). Not a waves set, so the marine frame store never takes it.
   'GFS/weather/pressure/global_0p5',
+  // Per-model pressure (2026-10-24): EURO from ECMWF open data, ICON from DWD (frame_set_raster_sources). Raster sets: the marine
+  // frame store never takes them (not waves).
+  'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
+  // GFS 2 m air temperature (2026-10-24, #515's set): read only by ownRasterFrames.js, behind the same lever (default off).
+  'GFS/weather/temperature/global_0p5',
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
@@ -351,6 +359,10 @@ export function getPinnedIndexSync(key) {
   return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
 }
 
+// The frame store's regional crop show (2026-10-24): the pinned REGIONAL waves index of a set key (null unless pinned, fresh, enabled; so only while the bundles' gate is open), and the pinned regional keys of a model x layer. No I/O.
+export const getPinnedRegionalIndexSync = (key) => { const pin = _state.pins.get(key); return isRegionalSetKey(key) && key.split('/')[2] === 'waves' && pin && !pin.stale && staticSetEnabled(key) ? pin.index : null; };
+export const pinnedRegionalKeys = (model, layer) => [..._state.pins.keys()].filter((k) => isRegionalSetKey(k) && k.startsWith(`${model}/marine/${layer}/`));
+
 function sharedParsedLoad(key, frame, priority) {
   const controller = new AbortController();
   const promise = (async () => {
@@ -476,42 +488,6 @@ export function staticEligible({ model, layer, bbox, surf }) {
   return isMidCropBox({ model, layer, bbox });
 }
 
-/**
- * A WORLD-span /grid (and /grid_series frame) of this set is NOT the stored product (2026-10-22): the route runs
- * coarse_gulf_fill.fill_coarse_enclosed_sea_from_gfs_served on EURO and ICON marine grids whose served span is 350 deg or more,
- * which includes the whole global_mid clip a world request gets. It rewrites every masked cell (land too) that has a valid GFS
- * coarse cell within 8 deg with GFS values (offline, the real function on a EURO global_mid with simulated land: 1,757 of 2,066
- * masked cells rewritten at world span; 0 on a 50-deg crop). A static frame of the stored product would differ there, so a world
- * box of these sets asks /grid; their viewport crops (span < 350, no fill) stay static. It lifts by itself when the server
- * reports the fill off for global_mid (MARINE_GULF_FILL_MID=0, the owner's call: serverFillsWorldMid), because /grid then serves
- * the stored world grid these frames encode.
- * Kill (serve these world boxes from frames anyway, the pre-fix behaviour): window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true.
- */
-export function serveTimeFillAtWorld(model, layer) {
-  if (typeof window !== 'undefined' && window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ === true) return false;
-  const m = String(model || 'GFS').toUpperCase();
-  if (!((m === 'EURO' || m === 'ICON') && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(String(layer || 'waves').toLowerCase()))) return false;
-  return serverFillsWorldMid(m);
-}
-
-/**
- * Does the server still run the Gulf fill on this model's 2-deg world grid? /capabilities says so on its EURO/ICON marine rows
- * (`gulf_fill_mid`, from MARINE_GULF_FILL_MID; LayerAccessResolver keeps the matrix in window.__WEATHER_CAPABILITIES__). Only an
- * explicit `false` lifts the guard: not loaded yet, an older server without the field, or an unreadable matrix all keep it,
- * because then /grid may differ from the stored frame. Read per call, so a matrix that loads later takes effect at once.
- */
-function serverFillsWorldMid(model) {
-  try {
-    const rows = typeof window !== 'undefined' ? window.__WEATHER_CAPABILITIES__ : null;
-    if (!Array.isArray(rows)) return true;
-    const row = rows.find((r) => r && String(r.domain).toLowerCase() === 'marine' && String(r.model).toUpperCase() === model
-      && Object.prototype.hasOwnProperty.call(r, 'gulf_fill_mid'));
-    return !row || row.gulf_fill_mid !== false;
-  } catch (e) {
-    return true;
-  }
-}
-
 /** The regional tile Step 3 serves this box from (staticRegional.pickRegionalTile), or null. `param` = the seam's bbox format. */
 function regionalTileFor({ model, layer, bbox, surf, param }) {
   if (surf || !bbox || spanOf(bbox) >= WORLD_MIN_SPAN) return null;
@@ -525,8 +501,10 @@ export function staticSetKeyForBox({ model, layer, bbox, surf }) {
 }
 
 /** The set is listed in the latest.json already read (synchronous; false before the first read). */
-export const isSetListed = (key) => !!(_state.latest && _state.latest.sets && _state.latest.sets[key] && _state.latest.sets[key].index);
-setRegionalLatestProbes({ listed: isSetListed, read: () => !!_state.latest });   // the pre-manifest tile pick (staticRegional)
+export const isSetListed = (key) => setIsListed(_state.latest, key);
+/** The set is an explicit empty in the latest.json already read (#514; regionalLatestSets.js). */
+export const isSetEmpty = (key) => setIsEmpty(_state.latest, key);
+registerLatestProbes(() => _state.latest);   // the pre-manifest tile pick (staticRegional)
 
 /** The pinned regional index and this ask's frame and Step 3 window, or null with the miss recorded (the caller asks /grid). */
 async function regionalPick({ tile, model, askMs, bboxStr }) {

@@ -11,7 +11,9 @@ from datetime import datetime
 
 from database import get_db
 from models import Profile, Post, PostLike, Comment, PostReaction
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_optional_user_id, get_user_id_from_jwt_or_query
+from services.blocks import assert_not_blocked, assert_visible_to, excluded_user_ids, not_in_ids
+from services.parental_controls import assert_grom_may, assert_profile_may
 from .schemas import CommentCreate, CommentUpdate, CommentResponse, ReactionCreate, ReactionData, VALID_REACTIONS
 from pydantic import BaseModel, ConfigDict
 from models import CommentReaction
@@ -23,11 +25,14 @@ logger = logging.getLogger(__name__)
 @router.post("/posts/{post_id}/like")
 async def toggle_like_post(post_id: str, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Toggle like on a post - if already liked, unlike it; if not liked, like it"""
+    await assert_grom_may(db, user_id, "react")  # view-only Groms cannot react (audit F-09)
     # Get the post
     result = await db.execute(select(Post).where(Post.id == post_id))
     post = result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    # BLOCKS (audit F-09): no likes across a block.
+    await assert_not_blocked(db, user_id, post.author_id)
     
     # Cross-table cleanup: if user has a PostReaction, remove it first
     # to prevent double-counting across the two reaction systems
@@ -178,12 +183,21 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+
+    # BLOCKS (audit F-09): neither side of a block can comment on the other's post.
+    await assert_not_blocked(db, user_id, post.author_id)
     
     # Verify user has either content or media
     content_val = data.content.strip() if data.content else ""
     if not content_val and not data.media_url:
         raise HTTPException(status_code=400, detail="Comment cannot be completely empty. Provide text or a media attachment.")
-        
+
+    # PARENTAL CONTROLS (audit F-09): a Grom whose guardian turned commenting off (or set view-only) cannot comment.
+    assert_profile_may(user, "comment")
+    # COMMENT LOCK (audit F-09): the post's owner closed comments; the owner may still comment on their own post.
+    if post.comments_disabled and post.author_id != user_id:
+        raise HTTPException(status_code=403, detail="Comments are turned off for this post.")
+
     # If this is a reply, verify parent comment exists
     if data.parent_id:
         parent_result = await db.execute(select(Comment).where(Comment.id == data.parent_id))
@@ -192,6 +206,8 @@ async def create_comment(post_id: str, data: CommentCreate, user_id: str = Depen
             raise HTTPException(status_code=404, detail="Parent comment not found")
         if parent.post_id != post_id:
             raise HTTPException(status_code=400, detail="Parent comment belongs to different post")
+        # BLOCKS (audit F-09): nor can they reply to each other's comments on a third party's post.
+        await assert_not_blocked(db, user_id, parent.author_id)
     
     # Create comment
     comment = Comment(
@@ -278,6 +294,7 @@ async def get_comments(
     post_id: str, 
     limit: int = 50, 
     viewer_id: Optional[str] = None,
+    auth_viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all comments for a post with reaction counts and nested replies"""
@@ -288,6 +305,10 @@ async def get_comments(
     post = post_result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    # BLOCKS (audit F-09): a viewer the post's author blocked gets 404; for everyone else the comments of
+    # users on either side of a block with the (token-authenticated) viewer are left out.
+    await assert_visible_to(db, post.author_id, auth_viewer_id, "Post not found")
+    hidden_authors = await excluded_user_ids(db, auth_viewer_id)
     
     # Get top-level comments (parent_id is null) with authors, reactions, and replies
     result = await db.execute(
@@ -299,6 +320,7 @@ async def get_comments(
             selectinload(Comment.replies).selectinload(Comment.reactions)
         )
         .where(Comment.post_id == post_id, Comment.parent_id.is_(None))
+        .where(not_in_ids(Comment.author_id, hidden_authors))
         .order_by(Comment.created_at.asc())
         .limit(limit)
     )
@@ -338,9 +360,14 @@ async def get_comments(
         }
         
         # Include replies if requested
-        if include_replies and hasattr(c, 'replies') and c.replies:
-            comment_data["replies"] = [format_comment(r, include_replies=False) for r in sorted(c.replies, key=lambda x: x.created_at)]
-            comment_data["reply_count"] = len(c.replies)
+        # (replies are only loaded for top-level comments: never touch c.replies on a reply)
+        visible_replies = (
+            [r for r in (getattr(c, 'replies', None) or []) if r.author_id not in hidden_authors]
+            if include_replies else []
+        )
+        if include_replies and visible_replies:
+            comment_data["replies"] = [format_comment(r, include_replies=False) for r in sorted(visible_replies, key=lambda x: x.created_at)]
+            comment_data["reply_count"] = len(visible_replies)
         else:
             comment_data["reply_count"] = 0
         
@@ -469,6 +496,7 @@ async def toggle_comment_reaction(
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle a reaction on a comment - like/unlike"""
+    await assert_grom_may(db, user_id, "react")  # view-only Groms cannot react (audit F-09)
     from models import CommentReaction, Comment
     
     # Validate emoji
@@ -480,6 +508,8 @@ async def toggle_comment_reaction(
     comment = comment_result.scalar_one_or_none()
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
+    # BLOCKS (audit F-09): no reactions across a block.
+    await assert_not_blocked(db, user_id, comment.author_id)
     
     # Verify user exists
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -563,6 +593,7 @@ async def get_comment_reactions(
 @router.post("/posts/{post_id}/reactions")
 async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     """Toggle a reaction on a post - one reaction per user. If same emoji, remove it. If different, replace it."""
+    await assert_grom_may(db, user_id, "react")  # view-only Groms cannot react (audit F-09)
     # Validate emoji
     if data.emoji not in VALID_REACTIONS:
         raise HTTPException(status_code=400, detail=f"Invalid reaction. Use one of: {VALID_REACTIONS}")
@@ -572,6 +603,8 @@ async def toggle_reaction(post_id: str, data: ReactionCreate, user_id: str = Dep
     post = post_result.scalar_one_or_none()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+    # BLOCKS (audit F-09): no reactions across a block.
+    await assert_not_blocked(db, user_id, post.author_id)
     
     # Verify user exists
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))

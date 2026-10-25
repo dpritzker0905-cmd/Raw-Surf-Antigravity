@@ -328,6 +328,11 @@ def test_the_download_cap_and_a_failed_download_leave_entries_to_grid(tmp_path):
     assert (src2.stats["download_failed"], stats2["not_local"], stats2["built"]) == (3, 3, 4)
 
 
+def test_tails_come_from_the_bucket_the_store_writes():
+    from services.weather_pipeline.store import WEATHER_BUCKET
+    assert pub.PRODUCTS_BUCKET == WEATHER_BUCKET
+
+
 def test_main_wraps_the_source_only_with_the_flag(tmp_path, monkeypatch, capsys):
     disk, bucket = _stores(tmp_path)
     monkeypatch.setenv("FRAME_SETS", fs.set_key(ICON))

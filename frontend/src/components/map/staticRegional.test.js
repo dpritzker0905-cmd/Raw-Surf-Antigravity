@@ -499,3 +499,72 @@ describe('a viewed regional page fills every hour while its box is small', () =>
     delete window.__RAW_DISABLE_REGIONAL_FULL_PAGE__;
   });
 });
+
+// An explicit-empty regional set (#514, 2026-10-24): latest.json writes sets[key] = {"empty": true, "reason", "written_at", "writer"} (no index,
+// no bundle) for a box with no stored product for that layer: today GFS swell_2 us_west_coast_socal. The client answers "no tile, don't
+// wait" with its own reason ('empty'), distinct from 'manifest_not_loaded_unlisted' (a set simply not listed yet), keyed on `empty === true`.
+describe('explicit-empty regional sets (#514)', () => {
+  const SOCAL = '-122,32,-118,35';                                              // inside us_west_coast_socal
+  const SOCALBOX = { west: -122, south: 32, east: -118, north: 35 };
+  const EMPTY_KEY = regionalSetKey('GFS', 'swell_2', 'us_west_coast_socal');
+  const FL_KEY = regionalSetKey('GFS', 'waves', 'florida_east_coast');
+  const FL = '-83,26,-80,28.5'; const FLBOX = { west: -83, south: 26, east: -80, north: 28.5 };
+  const EMPTY = { empty: true, reason: 'no stored product for this layer in this box', written_at: '2026-10-24T04:00:00Z', writer: 'publisher' };
+  const withLatest = (sets) => {
+    global.fetch = jest.fn(async (url) => (url === BASE + 'v1/latest.json'
+      ? { ok: true, status: 200, json: async () => ({ version: 1, sets }) } : { ok: false, status: 404, json: async () => ({}) }));
+  };
+  const lastPick = () => window.__RAW_STATIC_REGIONAL_TRACE__[window.__RAW_STATIC_REGIONAL_TRACE__.length - 1];
+  beforeEach(() => { window.__RAW_STATIC_REGIONAL_TRACE__ = []; setCachedManifest(null); _resetProductsManifestFetchForTest(); });
+  afterEach(() => { delete window.__RAW_STATIC_REGIONAL_TRACE__; });
+
+  it('before the manifest: the empty set picks no tile with its own reason and never waits; a listed set still picks its box and an unlisted one keeps its reason', async () => {
+    withLatest({ [EMPTY_KEY]: EMPTY, [FL_KEY]: { index: 'v1/fl.json', run: 'r' } });
+    expect(regionalManifestPending({ model: 'GFS', layer: 'swell_2', bbox: SOCALBOX })).toBe(true);        // latest.json not read yet: it waits
+    expect(await getPinnedIndex('GFS/marine/waves/global_mid')).toBeNull();                                // reads latest.json
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_2', bboxStr: SOCAL })).toBeNull();
+    expect(lastPick()).toMatchObject({ pick: 'empty', key: EMPTY_KEY });
+    expect(regionalManifestPending({ model: 'GFS', layer: 'swell_2', bbox: SOCALBOX })).toBe(false);
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: FL })).toMatchObject({ id: 'florida_east_coast', provisional: true });
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_1', bboxStr: FL })).toBeNull();
+    expect(lastPick()).toMatchObject({ pick: 'manifest_not_loaded_unlisted' });                              // not listed, not empty
+  });
+
+  it('the pilot-fallback kill no longer makes an empty set wait for the manifest; a non-empty one still does', async () => {
+    withLatest({ [EMPTY_KEY]: EMPTY, [FL_KEY]: { index: 'v1/fl.json', run: 'r' } });
+    await getPinnedIndex('GFS/marine/waves/global_mid');
+    window.__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ = true;
+    expect(regionalManifestPending({ model: 'GFS', layer: 'swell_2', bbox: SOCALBOX })).toBe(false);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: FLBOX })).toBe(true);
+  });
+
+  it('once the manifest has loaded and lists no tile for the set, the reason is empty (not outside)', async () => {
+    withLatest({ [EMPTY_KEY]: EMPTY });
+    await getPinnedIndex('GFS/marine/waves/global_mid');
+    setCachedManifest(MANIFEST);                                                                            // no swell_2 / socal tile in it
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_2', bboxStr: SOCAL })).toBeNull();
+    expect(lastPick()).toMatchObject({ pick: 'empty' });
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_2', bboxStr: '-130,10,-120,20' })).toBeNull();     // in no pilot box: still outside
+    expect(lastPick()).toMatchObject({ pick: 'no_matching_products' });                                     // the manifest's own reason, not 'empty'
+  });
+
+  it('keys on empty === true and an index always wins: the reason text decides nothing, and a set that gained products reads normally', async () => {
+    withLatest({ [EMPTY_KEY]: { reason: EMPTY.reason }, [FL_KEY]: { empty: true, index: 'v1/fl.json', run: 'r' } });   // no empty flag; and empty WITH an index
+    await getPinnedIndex('GFS/marine/waves/global_mid');
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_2', bboxStr: SOCAL })).toBeNull();
+    expect(lastPick()).toMatchObject({ pick: 'manifest_not_loaded_unlisted' });                              // text alone is not an empty
+    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: FL })).toMatchObject({ id: 'florida_east_coast' });   // the index wins
+  });
+
+  it('empty -> normal on the next latest.json read: the set is picked from its box again', async () => {
+    withLatest({ [EMPTY_KEY]: EMPTY });
+    await getPinnedIndex('GFS/marine/waves/global_mid');
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_2', bboxStr: SOCAL })).toBeNull();
+    expect(lastPick()).toMatchObject({ pick: 'empty' });
+    _resetStaticFramesForTest();                                                                           // a later page load reads the new latest.json
+    window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
+    withLatest({ [EMPTY_KEY]: { index: 'v1/socal-s2.json', run: 'r' } });                                   // the set gained products: the empty key is gone
+    await getPinnedIndex('GFS/marine/waves/global_mid');
+    expect(pickRegionalTile({ model: 'GFS', layer: 'swell_2', bboxStr: SOCAL })).toMatchObject({ id: 'us_west_coast_socal', key: EMPTY_KEY });
+  });
+});

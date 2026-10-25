@@ -37,6 +37,9 @@ const SETTLE = +(process.env.SETTLE || 15000);
 const ZOOMS = (process.env.ZOOMS || '2,3.9,4.4,6,9').split(',').map(Number);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
 const VIEW = process.env.VIEW || 'owner';
+// MODEL=ICON|EURO: the model chip is clicked before the toggle (the pan diet's every-model arm, L-P41); the base/expected checks
+// then compare against that model's /grid world response.
+const MODEL = process.env.MODEL || 'GFS';
 const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, owner: { width: 844, height: 390, dpr: 2 }, phone: { width: 390, height: 844, dpr: 3 } };
 const LAT_SERIES = +(process.env.LAT_SERIES || 0); const LAT_GRID = +(process.env.LAT_GRID || 0); const CDN_LAT = +(process.env.CDN_LAT || 0);
 // The live box builds a series page frame by frame (~0.25 s each for a 48-frame world page): LAT_SERIES_FRAME ms per asked hour.
@@ -130,7 +133,7 @@ const PROBE = () => {
     if (W && W.armed && !W.done && W.tLast != null && t >= W.tLast) {
       const { base, fine } = P.snap(); const rel = t - W.tLast;
       const bd = dataMs(base); const fd = dataMs(fine);
-      const fullBase = !!(base && base.cols >= 150 && (base.source || 'GFS') === 'GFS' && span(base.bounds) >= 350);
+      const fullBase = !!(base && base.cols >= 150 && (base.source || 'GFS') === (window.__WT_MODEL__ || 'GFS') && span(base.bounds) >= 350);
       const baseOk = fullBase && bd === W.expectedMs;
       const fineOk = !fine || (fd === W.expectedMs);
       if (W.base == null && baseOk) W.base = W.already ? 0 : rel;
@@ -186,7 +189,7 @@ async function expectedFor(anchor, hours) {
   const out = {};
   for (const h of hours) {
     const ask = new Date(anchor + h * 3600000).toISOString();
-    const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=GFS&domain=wind&layer=wind&valid_time=${encodeURIComponent(ask)}&bbox=-180,-80,180,85`)).json();
+    const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=${MODEL}&domain=wind&layer=wind&valid_time=${encodeURIComponent(ask)}&bbox=-180,-80,180,85`)).json();
     const m = /_(\d{8}T\d{6}Z)(_estimated)?\.json$/.exec(j.product_id || '');
     out[h] = m ? Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')) : (j.served_valid_time ? Date.parse(j.served_valid_time) : null);
   }
@@ -213,13 +216,14 @@ async function session(arm, zoom) {
   pageRef = page;
   const counts = {}; let counting = false;
   page.on('console', (m) => { if (!counting) return; const t = m.text(); for (const [k, p] of Object.entries(LOG_PATTERNS)) if (t.includes(p)) counts[k] = (counts[k] || 0) + 1; });
-  await page.addInitScript(({ arm, base }) => {
+  await page.addInitScript(({ arm, base, model }) => {
+    window.__WT_MODEL__ = model;          // the in-page watcher's model (MODEL is a Node variable: never read it in page code)
     localStorage.removeItem('__RAW_STATIC_FRAMES__');
     window.__RAW_STATIC_FRAMES_BASE__ = base;
     if (arm.endsWith('grid')) window.__RAW_DISABLE_STATIC_FRAMES__ = true;
     if (arm.endsWith('nowind')) window.__RAW_DISABLE_WIND_STATIC_FRAMES__ = true;
     if (arm.endsWith('noprefetch')) window.__RAW_DISABLE_WIND_PREFETCH__ = true;
-  }, { arm, base: `http://127.0.0.1:${arm.endsWith('-alt') ? CDN_PORT2 : CDN_PORT}/` });
+  }, { arm, base: `http://127.0.0.1:${arm.endsWith('-alt') ? CDN_PORT2 : CDN_PORT}/`, model: MODEL });
   await page.addInitScript(PROBE);
   const out = { arm, zoom, view: VIEW };
   const cdnStart = cdnLog.bytes; const cdnStartN = cdnLog.requests;   // the counters are process-wide: per session = deltas
@@ -232,6 +236,7 @@ async function session(arm, zoom) {
     } else await L.openMap(page);
     await L.jump(page, CLNG, CLAT, zoom);
     await clickExact(page, 'Waves');
+    if (MODEL !== 'GFS') { await clickExact(page, MODEL); await sleep(3000); }
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
     await sleep(SETTLE);
     // The app's hour 0 is now ROUNDED to the hour (seriesAnchor), so it rolls at every half hour: the expected frame is read at
@@ -241,6 +246,9 @@ async function session(arm, zoom) {
     const expected = await expectedFor(anchor, [0]);
     out.vp = await page.evaluate(() => { const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds(); return { z: +m.getZoom().toFixed(2), w: +b.getWest().toFixed(2), s: +b.getSouth().toFixed(2), e: +b.getEast().toFixed(2), n: +b.getNorth().toFixed(2) }; });
     out.beforeToggle = await page.evaluate(() => window.__WT__.counters());
+    // SNIPPET=<console snippet .js>: the live-read console snippet runs as a person would paste it (before the toggle) and its
+    // __LIVE_READ_WIND__() result lands in out.snippet: proves the snippet against a known run before a signed-in live read.
+    if (process.env.SNIPPET) await page.evaluate(fs.readFileSync(process.env.SNIPPET, 'utf8'));
     const cdn0 = JSON.parse(JSON.stringify(cdnLog));
     // THE TOGGLE: Waves -> Wind (layers are exclusive), at hour 0.
     const window0 = async (t0, r0) => {
@@ -301,6 +309,16 @@ async function session(arm, zoom) {
     counting = false;
     if (Math.round(Date.now() / 3600000) * 3600000 !== anchor) out.anchorRolled = true;
     out.after = await page.evaluate(() => window.__WT__.counters());
+    if (process.env.SNIPPET) out.snippet = await page.evaluate(() => (window.__LIVE_READ_WIND__ ? window.__LIVE_READ_WIND__() : null));
+    // REPEAT FACTOR (the worldwide matrix's amplification class, L-O8): identical backend asks (path + every parameter) from the
+    // toggle on; `repeat` is the most any one was sent, `dupes` the asks sent more than once.
+    { const seen = {}; const when = {};
+      for (const x of log.requests.slice(r0)) {
+        const k = `${x.path}?${JSON.stringify(x.q || {})}`; seen[k] = (seen[k] || 0) + 1;
+        (when[k] = when[k] || []).push({ t: x.t - (log.requests[r0] ? log.requests[r0].t : 0), ms: x.ms, status: x.status });
+      }
+      const dupes = Object.entries(seen).filter(([, n]) => n > 1).map(([k, n]) => ({ n, ask: k.slice(0, 220), at: when[k] }));
+      out.repeat = { asks: Object.keys(seen).length, max: Math.max(0, ...Object.values(seen)), dupes: dupes.slice(0, 10) }; }
     out.cdn = { requests: cdnLog.requests - cdn0.requests, bytes: cdnLog.bytes - cdn0.bytes, beforeToggleBytes: cdn0.bytes - cdnStart,
       beforeToggleRequests: cdn0.requests - cdnStartN };
     out.errors = log.errors.slice(0, 5);
@@ -313,6 +331,20 @@ const median = (a) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
 const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.ceil(p * s.length) - 1)] : null; };
 
 (async () => {
+  // THE BACKEND IS OURS (2026-10-24): on a machine where several sessions run offline backends, a port can be held by another
+  // session's process and every cell would then measure ITS store. serve_synthetic.py answers GET /__harness/identity with its
+  // resolved store path; EXPECT_STORE names the store this run started, and anything else refuses before the first cell.
+  {
+    const want = process.env.EXPECT_STORE;
+    if (!want) throw Error(`EXPECT_STORE is required: the --dir of the serve_synthetic.py this run started on port ${PORT}`);
+    let id = null;
+    try { id = await (await fetch(`http://127.0.0.1:${PORT}/__harness/identity`)).json(); } catch (e) { id = null; }
+    const norm = (p) => require('path').resolve(String(p || '')).toLowerCase();
+    if (!id || norm(id.store) !== norm(want)) {
+      throw Error(`port ${PORT} is not the backend this run started: it answers ${JSON.stringify(id)}, expected store ${want}`);
+    }
+    console.log(`[harness] backend on ${PORT} is ours: store ${id.store}, pid ${id.pid}, nonce ${id.nonce}`);
+  }
   await new Promise((r) => cdn.listen(CDN_PORT, '127.0.0.1', r));
   if (cdn2) await new Promise((r) => cdn2.listen(CDN_PORT2, '127.0.0.1', r));
   const sessions = [];

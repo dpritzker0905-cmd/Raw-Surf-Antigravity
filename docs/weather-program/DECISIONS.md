@@ -1726,3 +1726,28 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What flips:** repo env `ECMWF_WAVE_LAND_CENTRE_BLOCK='1'` in forecast-ingest-pilots.yml (EURO marine global_mid) AND
   forecast-ingest.yml (EURO marine global, 10 deg), together; products change from the next ingest. With it on, the targeted fill
   finds almost nothing left to fill for EURO, and the GFS donor retires for EURO at 2 deg. Rollback: '0' (the next ingest).
+
+
+### D-050 · EURO shows its own values at land-centre nodes, and the Gulf fill only fills from a GFS sea value at the same node (both ON, 2026-10-24)
+
+- **The owner, 2026-10-23 17:33 EDT:** "Yes: at 9 AM EDT tomorrow switch on EURO's own values first (verify on the next ingest), then the targeted fill to stop the land painting, with the baseline, Reflection's rollback triggers and a scoreboard row." Lakes, 17:47 EDT: "actually yes, lakes should show as lakes. Do what is best to
+  be state of the art" (all ECMWF lake nodes are kept, with no sea-fraction gate; the lakes render client-side through #521 and #528).
+- **Step A, EURO's own values (the evidence is in the D-0XX entry above, "EURO's own wave values at land-centre nodes", #480/#497; the targeted fill's is in "The targeted 2-deg Gulf fill", #476):** the repo variable `ECMWF_WAVE_LAND_CENTRE_BLOCK` went
+  0 -> 1 at 2026-10-24 13:01:39Z (REACH default 4, the whole 2-deg block). It is read by both ingest lanes. Verified on pilots run
+  40096388879 (its job started 13:33Z with the variable at 1; published 14:26:57Z): valid nodes 10,334 -> 11,284, newly valid
+  **950 = 842 sea / 62 land-lake-coast / 46 ice** (the cycle measurement exactly), 0 went masked, inland Texas 0 and Mississippi 0
+  (Georgia 1 = a node GFS's own 2-deg grid calls sea). On the served world /grid at 14:04Z: `landCentreBlockNodes` 948, and the
+  legacy fill dropped from 2,465 to 1,674 filled cells (masked 4,689 -> 3,739).
+- **Step B, the targeted fill:** Render `MARINE_GULF_FILL_MID_TARGETED` went 0 -> 1 at 15:14:13Z (deploy of 749080841, nothing else;
+  live 15:17:48Z). On the 2-deg EURO/ICON world clip, a masked cell is filled only from the same-layer GFS 2-deg value at the same
+  node, and only where that GFS node is sea. The served world EURO waves frame then filled **25 cells of 3,739 masked** (was 1,674):
+  about 1,650 painted coast/land/ice cells stopped. Inland TX/MS 0/0. Donor cache: one build, 53 ms.
+- **Watch (Reflection's triggers, operationalised in side-session-notes gulf-switch-on-2026-10-24/):** baseline memory peak 901 MB
+  (trigger 1,126 MB of a 2,048 MB limit), CPU 1-27% outside ingest-end bursts, edge 5xx 0-5 per 5 min with no app error. After the
+  flip (window opened 15:42Z, 15 min after an unrelated deploy, #525 at 15:27Z): weather-route err_5xx 0, edge 500s 0-4 per 5 min,
+  memory 650-706 MB, CPU at most 0.26, probe health 0.5-0.8 s and world grid 0.85-1.5 s. No trigger fired.
+- **Rollback:** Render `MARINE_GULF_FILL_MID_TARGETED=0` (redeploys; the legacy fill returns), and/or the repo variable
+  `ECMWF_WAVE_LAND_CENTRE_BLOCK=0` then re-dispatch forecast-ingest-pilots.yml (the next ingest writes the old products).
+- **Still open:** ICON keeps the GFS donor for its own masked sea cells (its own values and rim extrapolation come later); EURO/ICON
+  world static frames get the fill baked in by the same code (static-frames); the legacy 8-deg fill retires once nothing selects it;
+  per-node provenance (`MARINE_FILL_PROVENANCE_NODES`, #502) stays dark.
