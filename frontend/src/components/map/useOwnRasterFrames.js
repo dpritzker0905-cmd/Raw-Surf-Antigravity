@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
+  CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
 } from './ownRasterLayer';
 import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
@@ -27,7 +28,7 @@ export const ownLayerId = (layer) => `own-raster-${layer}`;
 // The colour scale the .om path draws for each layer, theme applied (the same object openMeteoProtocol hands the library).
 // Air temperature has no app override: the .om path draws the tile library's own 'temperature' scale (not theme-varied), read
 // from the settings openMeteoProtocol registered (window.__OM_PROTOCOL_SETTINGS__), else from the library itself (step 3).
-const LIB_SCALE = { temperature: 'temperature' };
+const LIB_SCALE = { temperature: 'temperature', satellite: 'cloud_cover' };
 const registeredScale = (name) => {
   const s = typeof window !== 'undefined' ? window.__OM_PROTOCOL_SETTINGS__ : null;
   return (s && s.colorScales && s.colorScales[name]) || null;
@@ -35,10 +36,12 @@ const registeredScale = (name) => {
 const SCALES = {
   pressure: (theme) => { applyThemePressureScale(theme); return CUSTOM_COLOR_SCALES.pressure_msl; },
   temperature: () => registeredScale(LIB_SCALE.temperature),
+  // cloud cover has light / dark colour sets: resolved per theme as the .om URL's dark=true does (scaleForTheme)
+  satellite: (theme) => scaleForTheme(registeredScale(LIB_SCALE.satellite), theme),
 };
-const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT };
+const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT };
 // Each layer's .om slot ramp ('raster-opacity' over zoom in MapWebGL; pinned by ownRasterLayer.test.js).
-const OPACITY = { pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS };
+const OPACITY = { pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS, satellite: SATELLITE_OPACITY_STOPS };
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
 
@@ -169,7 +172,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     if (scale || !LIB_SCALE[layer]) apply(scale);
     else {
       import('@openmeteo/weather-map-layer')
-        .then((m) => apply(m.defaultOmProtocolSettings && m.defaultOmProtocolSettings.colorScales[LIB_SCALE[layer]]))
+        .then((m) => apply(scaleForTheme(m.defaultOmProtocolSettings && m.defaultOmProtocolSettings.colorScales[LIB_SCALE[layer]], theme)))
         .catch(() => apply(null));
     }
     if (layer === 'pressure') L.setIsobarColor(ISO_INK[theme] || ISO_INK.dark);
