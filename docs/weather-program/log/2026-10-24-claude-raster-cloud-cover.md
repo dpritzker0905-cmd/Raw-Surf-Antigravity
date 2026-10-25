@@ -34,3 +34,20 @@ wide (`own-satellite-GFS-{on,off}-dark.png`). The .om field's edges are smooth. 
 because the runs differ (our frames are shifted). A 0.25° set (about 0.45 MB a frame gzipped, from 0.11 now) would halve the
 step; the owner decides.
 **Owed:** a same-run point parity row against the .om values (needs one live .om read of a run we also publish locally).
+
+## Same-run point parity (live read, 2026-10-24 ~23:40Z)
+Same read as air temperature (8 points; GFS 18Z f006 and f009; ours is TCDC instantaneous entire atmosphere, sampled as the
+shader does; .om is ncep_gfs013 cloud_cover read with `omfiles`). Units: points of percentage.
+- 00Z: 6 of 8 points within 1; Denver −3.1, Fiji −7.2.
+- 03Z: Zermatt, High Atlas, Paris and N. Atlantic within 2. The other four differ:
+
+| point | ours / .om at 03Z | ours minus .om |
+|---|---|---|
+| Sahara | 6 / 38 % | −32 |
+| S. Ocean | 98 / 79 % | +19 |
+| Fiji | 95 / 81 % | +14 |
+| Denver | 78 / 100 % | −22 |
+
+Flat points should not differ like that from resolution alone. The likely cause (not concluded, n = 8): Open-Meteo's ncep_gfs013
+cloud_cover comes from GFS's 13 km flux files, a different and possibly time-averaged field, while ours is the 0p25 instantaneous
+message. Before any flip, a wider read (more points and hours) should establish whether the two fields differ by definition.
