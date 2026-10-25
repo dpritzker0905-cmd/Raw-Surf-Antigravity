@@ -1565,7 +1565,7 @@ jobs:
           #   base 2955 (hosted read) + 12 new test(s) and 1 new file(s) = 2967, files 181; floor 2967 - 6 = 2961. This PR must read 2967 passed.
           # ⬆ 2961→2966 on 2026-10-25 (rederive_floor.py, claude/pilot-whole-degree-edges): dev run 40207735443 read 2955 / 180 files; dev's map 2967;
           #   base 2967 (dev's map) + 5 new test(s) and 1 new file(s) = 2972, files 182; floor 2972 - 6 = 2966. This PR must read 2972 passed.
-          # ⬆ 2966→2967 on 2026-10-25 (rederive_floor.py, claude/raster-cloud-0p25): dev run 40216022882 read 2972 / 182 files; dev's map 2972;
+          # ⬆ 2966→2967 on 2026-10-25 (rederive_floor.py, claude/raster-cloud-0p25): dev run 40230182184 read 2972 / 182 files; dev's map 2972;
           #   base 2972 (hosted read) + 1 new test(s) and 0 new file(s) = 2973, files 182; floor 2973 - 6 = 2967. This PR must read 2973 passed.
           MIN_FILES, MIN_PASSED = 182, 2967
           try:
