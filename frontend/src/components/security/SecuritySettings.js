@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, ShieldOff } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, ShieldOff, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { mfaApi, mfaErrorMessage } from '../../lib/mfaApi';
+import { PasskeyManager } from './PasskeyManager';
 import { RecoveryCodesPanel } from './RecoveryCodesPanel';
 import { StepUpForm } from './StepUpForm';
 import { TotpEnrolment } from './TotpEnrolment';
@@ -45,7 +46,8 @@ export const SecuritySettings = () => {
   } else if (!status) {
     body = <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />Loading...</p>;
   } else if (view === 'enrol') {
-    body = <TotpEnrolment onEnrolled={(res) => showCodes(res.recovery_codes)} onCancel={backToOverview} />;
+    body = <TotpEnrolment onCancel={backToOverview}
+      onEnrolled={(res) => { if (res.recovery_codes?.length) showCodes(res.recovery_codes); else { toast.success('Authenticator app added'); backToOverview(); } }} />;
   } else if (view === 'codes') {
     body = <RecoveryCodesPanel codes={codes} onDone={() => { toast.success('Two-step verification is on'); backToOverview(); }} />;
   } else if (view === 'regenerate') {
@@ -72,7 +74,7 @@ export const SecuritySettings = () => {
           <div className="text-sm">
             <p className="font-semibold">{status.enabled ? 'Two-step verification is ON' : 'Two-step verification is OFF'}</p>
             <p>{status.enabled
-              ? 'Signing in needs your password and a code from your authenticator app.'
+              ? 'Signing in needs your password and a second step: your authenticator app or a passkey.'
               : 'Signing in needs only your password. Turn it on so a stolen password alone can\'t open your account.'}</p>
           </div>
         </div>
@@ -81,24 +83,32 @@ export const SecuritySettings = () => {
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />Your account type is required to use two-step verification.
           </p>
         )}
-        {status.enabled ? (
-          <>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Authenticator app</dt><dd className="flex items-center gap-1 text-foreground"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Set up</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-muted-foreground">Recovery codes left</dt><dd className="text-foreground" data-testid="recovery-remaining">{status.recovery_codes_remaining} of 10</dd></div>
-            </dl>
+        {!status.enrolment_available && !status.enabled && (
+          <p role="note" className={`rounded-lg border p-3 text-sm ${tone.warn}`}>Two-step verification isn't available yet. Please check back soon.</p>
+        )}
+        {(status.enrolment_available || status.enabled) && (
+          <section aria-labelledby="totp-title" className="space-y-2">
+            <h3 id="totp-title" className="flex items-center gap-2 text-base font-semibold text-foreground"><Smartphone className="h-4 w-4" aria-hidden="true" />Authenticator app</h3>
+            {status.totp
+              ? <p className="flex items-center gap-1 text-sm text-foreground"><CheckCircle2 className="h-4 w-4" aria-hidden="true" />Set up</p>
+              : <p className="text-sm text-muted-foreground">Not set up.</p>}
+            {!status.totp && status.enrolment_available && (
+              <Button type="button" variant={status.enabled ? 'outline' : 'default'} onClick={() => setView('enrol')} data-testid="start-enrol"><ShieldCheck aria-hidden="true" />Set up authenticator app</Button>
+            )}
+          </section>
+        )}
+        {status.passkeys_available && <PasskeyManager onCodes={showCodes} onChanged={load} />}
+        {status.enabled && (
+          <section aria-labelledby="recovery-title" className="space-y-2">
+            <h3 id="recovery-title" className="text-base font-semibold text-foreground">Recovery codes</h3>
+            <p className="text-sm text-foreground">Left: <span data-testid="recovery-remaining">{status.recovery_codes_remaining} of 10</span></p>
             {low && <p role="note" className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${tone.warn}`}><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />You're running low on recovery codes. Get new ones.</p>}
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => setView('regenerate')}>Get new recovery codes</Button>
               <Button type="button" variant="destructive" onClick={() => setView('disable')}>Turn off</Button>
             </div>
-          </>
-        ) : status.enrolment_available ? (
-          <Button type="button" onClick={() => setView('enrol')} data-testid="start-enrol"><ShieldCheck aria-hidden="true" />Set up authenticator app</Button>
-        ) : (
-          <p role="note" className={`rounded-lg border p-3 text-sm ${tone.warn}`}>Two-step verification isn't available yet. Please check back soon.</p>
-        )}
-      </div>
+          </section>
+        )}      </div>
     );
   }
 

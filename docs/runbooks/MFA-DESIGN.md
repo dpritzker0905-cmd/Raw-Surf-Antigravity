@@ -69,7 +69,8 @@ in, and only the MFA routes opt in. Every other route, including WebSockets, the
   enrolment.
 - Recovery codes: 10, 50 bits each, shown ONCE. Stored as HMAC-SHA256 keyed from `MFA_ENCRYPTION_KEY` (a database leak
   alone cannot be brute-forced offline); each is single-use. Regenerating replaces all of them.
-- Passkeys (PR B): WebAuthn via py_webauthn on the server and @simplewebauthn/browser in the client. A passkey works as a
+- Passkeys (PR B): WebAuthn via py_webauthn (2.2.0, the newest that installs beside the pinned cryptography) on the server
+  and @simplewebauthn/browser (13.3.0) in the client. A passkey works as a
   first factor (usernameless sign-in, phishing-resistant, user verification required) and as the second factor in the
   challenge step. Attestation is "none". Sign-count regression is refused when the authenticator reports counters.
 
