@@ -12,6 +12,7 @@ import {
   windBoxKind, windIndex, readLanePointer, windStaticEnabled, windViewportNeedsGrid,
 } from './windStaticFrames';
 import { _resetStaticFramesForTest, STATIC_SETS } from './staticFrames';
+import { computeJsDataHash } from './weatherTruthTracker';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { REAL_GFS_WIND_FRAME_GZ_BASE64, REAL_GFS_WIND_FRAME_VALID as VT } from './windStaticFrames.realFrame.fixture';
 
@@ -103,6 +104,29 @@ describe('static GFS wind frames', () => {
     expect([j.grid.cols, j.grid.rows, j.grid.bounds]).toEqual([181, 83, { west: -180, south: -80, east: 180, north: 84 }]);
     expect(j.grid.vectors).toHaveLength(15023);
     expect(window.__RAW_WIND_STATIC__.hits).toBe(1);
+  });
+
+  test('the truth tag names a content-addressed frame by its sha256 (+ crop), not by hashing 15k vectors; the kill hashes them', async () => {
+    const vectorHash = (j) => computeJsDataHash([...j.grid.vectors], 'wind');     // a copy: no cached key, the full walk
+    FRAME.sha256 = 'ab'.repeat(32);
+    try {
+      const world = await ask(WORLD);
+      const clip = await ask({ west: -104, south: 8, east: -54, north: 50 });
+      expect(world.truthTag && world.truthTag.traceId).toBeTruthy();
+      expect(world.grid.vectors.__jsDataHash_wind).toMatch(/^[0-9a-f]{8}$/);
+      expect(world.grid.vectors.__jsDataHash_wind).not.toBe(vectorHash(world));
+      expect(clip.grid.vectors.__jsDataHash_wind).not.toBe(world.grid.vectors.__jsDataHash_wind);
+      FRAME.sha256 = 'cd'.repeat(32);                                             // other bytes: another hash
+      _resetStaticFramesForTest(); _resetWindStaticForTest(); _setBoxLaneForTest(HELD);
+      expect((await ask(WORLD)).grid.vectors.__jsDataHash_wind).not.toBe(world.grid.vectors.__jsDataHash_wind);
+      window.__RAW_DISABLE_WIND_FRAME_HASH_SEED__ = true;
+      _resetStaticFramesForTest(); _resetWindStaticForTest(); _setBoxLaneForTest(HELD);
+      const killed = await ask(WORLD);
+      expect(killed.grid.vectors.__jsDataHash_wind).toBe(vectorHash(killed));
+    } finally {
+      delete FRAME.sha256;
+      delete window.__RAW_DISABLE_WIND_FRAME_HASH_SEED__;
+    }
   });
 
   test('a mid-zoom clip over CONUS is the resolver clip, with the lane stamp counted on the clip (golden: the real resolver)', async () => {
