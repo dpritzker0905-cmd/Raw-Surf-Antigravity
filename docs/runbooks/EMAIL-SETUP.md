@@ -27,7 +27,7 @@ and the apex SPF record. **Do not touch, replace or merge the apex SPF record.**
 | `EMAIL_PROVIDER` | `resend` to send for real, `console` for local dev, unset = disabled | `resend` |
 | `EMAIL_API_KEY` | Resend API key (a "sending access" key is enough) | Resend's key |
 | `EMAIL_FROM` | sender shown to recipients, on the subdomain | `Raw Surf <no-reply@notify.raw.surf>` |
-| `REPLY_TO` | optional; a mailbox a human reads (point it at a SiteGround mailbox). Unset = no Reply-To header | `help@raw.surf` |
+| `REPLY_TO` | optional; **must be a monitored mailbox** (a SiteGround mailbox someone reads: guardians will reply to invites). Unset = no Reply-To header | `help@raw.surf` |
 | `FRONTEND_URL` | base of every emailed link; must be `https://` | the app's public URL |
 | `EMAIL_WEBHOOK_SECRET` | signing secret of the bounce/complaint webhook | Resend's `whsec_...` secret |
 | `EMAIL_DAILY_CAP` | sends per UTC day the budget guard plans around; default `100` (Resend free plan). Raise it only after upgrading | `100` |
@@ -178,9 +178,10 @@ The app already sends some mail by other routes. None of it goes through this se
 
 - `routes/auth_pkg/password_reset.py`, `scheduler/grom.py`, `scheduler/financial.py` and `services/admin_notifications.py`
   use the `resend` SDK keyed on **`RESEND_API_KEY`**, and the reset email is sent **From `noreply@raw.surf` (the apex)**.
-  Resend only sends from a verified domain, so with `notify.raw.surf` as the only verified domain those calls will be
-  rejected until their From is moved to the subdomain. Check whether `RESEND_API_KEY` already exists in Render, and
-  whether an apex domain was verified in Resend earlier, before assuming nothing sends today.
+  **Owner decision (2026-10-25): these stay as they are, on `noreply@raw.surf`; their From addresses are not changed
+  by this work.** The new mailer sends from `notify.raw.surf` only. Resend sends only from a verified domain, so whether
+  those existing calls deliver depends on whether the apex is (or becomes) verified in Resend, which is the owner's
+  call and is not part of this PR.
 - `services/email_service.py` is a SendGrid helper (`SENDGRID_API_KEY`) used for photographer session recaps.
 - This service uses `EMAIL_*` variables so it can be switched on and off independently. Moving the existing senders onto
   it (one place for suppression, rate limits and the daily budget, and one From identity) is a follow-up, as is retiring
