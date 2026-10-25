@@ -48,6 +48,7 @@ const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 // Two builds in one run, alternated per session: an arm "old:<flags>" opens OLD_BASE, anything else AB_BASE (the default build).
 const OLD_BASE = process.env.OLD_BASE || null;
 const GESTURE = process.env.GESTURE !== '0';
+const QUICK_STEP_MS = process.env.QUICK_STEP_MS == null ? -1 : +process.env.QUICK_STEP_MS;   // see the toggle block in session()
 // HELD KEY (the lead's contract: a drag or a held key needs <= 33 ms per step): after the steps, HOLD presses of ArrowRight HOLD_GAP
 // ms apart from hour 0, dispatched in the page; per press, the ms until the wind base holds that hour (null = not within the gap).
 const HOLD = +(process.env.HOLD || 12); const HOLD_GAP = +(process.env.HOLD_GAP || 40);   // after the toggle: zoom +0.5, back, pan 200 px (the owner zoomed while it loaded)
@@ -327,6 +328,31 @@ async function session(arm, zoom) {
         window.addEventListener('click', mark, { capture: true });
       });
     }
+    // QUICK_STEP_MS (2026-10-25, the lead's INP question on #570): does work deferred past the toggle's first paint land on the
+    // NEXT interaction? Click Wind, wait QUICK_STEP_MS, click the timeline's "+1h" button (mouse input through the browser's input
+    // queue, like a user), and report that second interaction's Event Timing (worst entry by interactionId: duration = its INP,
+    // input delay, processing). The session ends there: the toggle and step measures assume hour 0.
+    if (QUICK_STEP_MS >= 0) {
+      const plus = page.locator('button').filter({ hasText: /^\s*\+1h\s*$/ }).filter({ visible: true }).first();
+      const bb = await plus.boundingBox();
+      if (!bb) throw Error('QUICK_STEP_MS: no visible "+1h" button');
+      await page.evaluate(() => {
+        window.__WT_EVENTS__ = [];
+        new PerformanceObserver((l) => { for (const en of l.getEntries()) {
+          if (en.interactionId) window.__WT_EVENTS__.push({ id: en.interactionId, name: en.name, t: Math.round(en.startTime), d: Math.round(en.duration),
+            delay: Math.round(en.processingStart - en.startTime), proc: Math.round(en.processingEnd - en.processingStart) });
+        } }).observe({ type: 'event', durationThreshold: 16 });
+      });
+      await clickExact(page, 'Wind');
+      if (QUICK_STEP_MS > 0) await sleep(QUICK_STEP_MS);
+      await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2);
+      await sleep(2000);
+      const evs = await page.evaluate(() => window.__WT_EVENTS__);
+      const ids = [...new Set(evs.map((e) => e.id))];
+      const worst = (id) => evs.filter((e) => e.id === id).sort((a, b) => b.d - a.d)[0] || null;
+      out.quick = { afterMs: QUICK_STEP_MS, toggle: ids[0] != null ? worst(ids[0]) : null, next: ids[1] != null ? worst(ids[1]) : null, interactions: ids.length };
+      return out;
+    }
     await clickExact(page, 'Wind');
     const tg = await window0(t0, r0);
     if (cdp) {
@@ -427,6 +453,11 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         for (const arm of (i % 2 === 0 ? ARMS : [...ARMS].reverse())) {
           const s = await session(arm, zoom);
           sessions.push(s);
+          if (s.quick) {
+            console.log(`z${zoom} ${arm} quick +${s.quick.afterMs} ms: toggle ${JSON.stringify(s.quick.toggle)} next ${JSON.stringify(s.quick.next)}`);
+            if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
+            continue;
+          }
           console.log(`z${zoom} ${arm} toggle base/view ${s.toggle.baseMs}/${s.toggle.viewMs} via ${s.toggle.via} gridH0 ${s.toggle.gridH0} logs ${JSON.stringify(s.toggle.logs)} gesture ${JSON.stringify(s.gesture || null)}`,
             'steps', JSON.stringify(s.steps.map((x) => [x.target, x.viewMs, x.via, x.mislabel, x.thin, (x.reqs['/grid'] || 0) + (x.reqs['/grid_series'] || 0)])), 'cdn', JSON.stringify(s.cdn));
           if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
@@ -434,6 +465,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
       }
     }
     const summary = {};
+    if (QUICK_STEP_MS >= 0) return;   // quick sessions carry no toggle/step measures (the file holds every session's `quick`)
     for (const arm of ARMS) {
       for (const zoom of ZOOMS) {
         const ss = sessions.filter((s) => s.arm === arm && s.zoom === zoom);
