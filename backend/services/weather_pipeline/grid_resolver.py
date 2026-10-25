@@ -250,6 +250,13 @@ async def resolve_grid(
                 filename, product = replacement
                 product.product_id = filename
                 product.is_dynamic_viewport_product = False
+            elif domain.lower() == "marine" and (getattr(product, "is_dynamic_viewport_product", False)
+                                                 or getattr(product, "coverage_mode", None) == "viewport"):
+                # FAR_EDGE_HOLD_BEFORE_UPSTREAM (dark) covers a CACHED upstream fetch too: measured offline 2026-10-24, the
+                # 19x9 world fetch one process cached was served here, ahead of Step 4's hold. Same rails (past the tail only).
+                from services.weather_pipeline.far_edge_hold import hold_before_upstream
+                product = await hold_before_upstream(store, model, domain, layer, target_dt,
+                                                     req_w, req_s, req_e, req_n) or product
 
         # RESOLUTION-ADEQUACY GUARD (2026-07-15, root A — the "ICON coarse / wave-direction wrong when
         # the rating band is on" report): a STALE COARSE dynamic-viewport product (e.g. a 0.44°/cell
@@ -410,6 +417,13 @@ async def resolve_grid(
         )
         if _mid_product is not None:
             product = _mid_product
+
+    # DAY-14 END (dark, FAR_EDGE_HOLD_BEFORE_UPSTREAM): past the stored tail, a held 2-deg frame beats both the 10-deg preview
+    # below (measured offline: the tail's coarse frame from 10 h earlier, labelled authoritative) and an upstream fetch coarser
+    # than it (a world box fetched 19x9 points). far_edge_hold.hold_before_upstream keeps the hold's rails.
+    if not product and bbox and domain.lower() == "marine":
+        from services.weather_pipeline.far_edge_hold import hold_before_upstream
+        product = await hold_before_upstream(store, model, domain, layer, target_dt, req_w, req_s, req_e, req_n)
 
     # Step 3.7: Instant coarse preview for marine (SWR). On a cold viewport (Step 1&2 cache
     # miss) the response would otherwise BLOCK on the slow upstream fetch — notably EURO's

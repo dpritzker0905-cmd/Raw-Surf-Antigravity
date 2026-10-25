@@ -50,6 +50,42 @@ def gfs_mid_forecast_days(is_test_env: bool) -> int:
     return int(os.environ.get("GFS_MID_RES_FORECAST_DAYS", "2" if is_test_env else "14"))
 
 
+GFS_NATIVE_DAYS = 16          # GFS-Wave runs to f384 (noaa_gfs_wave_fetcher caps max_f at 384)
+
+
+def gfs_world_fetch_days(days: int) -> int:
+    """GFS_WORLD_FULL_HORIZON (DARK, default '0', 2026-10-24): the NOAA-direct fetch of the GFS WORLD tiers (2-deg global_mid,
+    10-deg global_coarse) asks GFS-Wave's whole native run, 16 d (f384), instead of `days`.
+
+    WHY: the scrubber ends at NOW + 336 h (/capabilities), the stored run at RUN + 336 h, so the last hours of day 14 (run age
+    plus publication lag, ~5-20 h) had no stored GFS frame and /grid answered a world box with a 19x9-point on-demand fetch
+    (measured live 2026-10-24: 171 vectors where the stored frame has 15,023). With the whole run stored the world view keeps
+    real native data to the scrubber's end. Only the world tiers move: regional tiles keep their own horizons (the shared
+    pilot pass trims them back, trim_points_to_days), the Open-Meteo fallbacks keep `days` (they bill a request past 14 d as
+    extra calls), and the ICON/EURO estimated tails keep their run + 336 h ceilings (the locked blends are untouched).
+    Moves served numbers at those hours: flip ONLY on the owner's word, in forecast-ingest.yml AND forecast-ingest-pilots.yml
+    together."""
+    if os.environ.get("GFS_WORLD_FULL_HORIZON", "0") != "1":
+        return days
+    return max(int(days), GFS_NATIVE_DAYS)
+
+
+def trim_points_to_days(points, days: int):
+    """Open-Meteo-shaped NOAA points cut back to `days` of 3-hourly steps (f000..f{24*days}): what a fetch of `days` returns.
+    The fetcher emits one time per step in f-hour order (failed steps included, so the axes stay aligned), which makes the
+    first 8*days+1 entries exactly that horizon. Points are copied, never edited (a pass shares them across regions)."""
+    keep = int(days) * 8 + 1
+    out = []
+    for p in points or []:
+        hourly = p.get("hourly") or {}
+        n = len(hourly.get("time") or [])
+        if n <= keep:
+            out.append(p)
+            continue
+        out.append(dict(p, hourly={k: (v[:keep] if isinstance(v, list) and len(v) == n else v) for k, v in hourly.items()}))
+    return out
+
+
 def gfs_mid_folds_into_pilot() -> bool:
     """Does the 2° global_mid tile ride the flagship pilot's multi-bbox pass instead of running its
     own job and re-downloading the identical f000-f336 set?
@@ -137,7 +173,7 @@ async def ingest_gfs_marine_global_mid_impl(scheduler) -> bool:
     if noaa_direct:
         try:
             from services.noaa_marine_service import fetch_gfs_marine_global_coarse
-            results = await fetch_gfs_marine_global_coarse(_GLOBAL_REGION, resolution, forecast_days)
+            results = await fetch_gfs_marine_global_coarse(_GLOBAL_REGION, resolution, gfs_world_fetch_days(forecast_days))
             if results:
                 from_noaa = True
                 logger.info(f"[Pipeline Scheduler] GFS-Wave mid-res NOAA-direct OK: {len(results)} points.")
