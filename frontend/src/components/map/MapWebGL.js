@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useCallback, useDeferredValue } from 'react';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
@@ -318,14 +318,24 @@ const MapWebGL = ({
     [surfMode, spotClusters, spotRatings, supercluster]
   );
   // FCE: Field Composition Engine — Single Source of Truth
+  // BUILT IN A DEFERRED RENDER (2026-10-25, the wind toggle's click task): nothing the map DRAWS reads this field by default
+  // (RenderPlanDispatcher's wind upload needs __ALLOW_FCE_WIND_UPLOAD__, its marine upload __ALLOW_FCE_MARINE_UPLOAD__; the HUD
+  // and debug tools read it), yet its rebuild ran inside the click's urgent render: 58 ms at z2 on a Waves -> Wind toggle, where
+  // the active marine layer flips and the whole field is rebuilt on the wind grid. All its inputs go through ONE deferred value,
+  // so the urgent render keeps the previous inputs (the memo holds) and React rebuilds the field in a background render after
+  // the wind commits. Kill: window.__RAW_DISABLE_SIM_FIELD_DEFER__ = true (read per render: the urgent inputs, as before).
+  const simInputs = useMemo(() => ({ windData, marineData, activeModel, timeOffsetHours, activeMarineLayer }),
+    [windData, marineData, activeModel, timeOffsetHours, activeMarineLayer]);
+  const deferredSimInputs = useDeferredValue(simInputs);
+  const simIn = (typeof window !== 'undefined' && window.__RAW_DISABLE_SIM_FIELD_DEFER__ === true) ? simInputs : deferredSimInputs;
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
-    windData,
-    marineData,
+    windData: simIn.windData,
+    marineData: simIn.marineData,
     pressureData: null,
-    activeModel,
-    timeOffsetHours: timeOffsetHours,
+    activeModel: simIn.activeModel,
+    timeOffsetHours: simIn.timeOffsetHours,
     enableLogging: typeof window !== 'undefined' && localStorage.getItem('debug-fce') === 'true',
-    activeMarineLayer,
+    activeMarineLayer: simIn.activeMarineLayer,
   });
 
   // Live simulation bridge — drives RK4 physics independently of React

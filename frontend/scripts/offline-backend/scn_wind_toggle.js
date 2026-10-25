@@ -126,6 +126,16 @@ const PROBE = () => {
       const s = Math.round((en.startTime - W.tLast) * 10) / 10; if (s > -50 && s <= 1500) W.trace.push(['long', s, Math.round(en.duration)]);
     } }).observe({ type: 'longtask', buffered: false });
   } catch (e) { /* no longtask support */ }
+  // INP for the toggle (2026-10-25, the lead's measure for the click-task split): Event Timing entries of the click's own events
+  // (pointerdown / pointerup / click) after the press; `inp` = the longest duration (input -> the next paint), `inpDelay` = how
+  // long its handler waited to start. Recorded for the byClick window only.
+  try {
+    new PerformanceObserver((l) => { for (const en of l.getEntries()) {
+      const W = P.w; if (!W || !W.byClick || W.tLast == null) continue;
+      if (!/^(pointerdown|pointerup|click|mousedown|mouseup)$/.test(en.name) || en.startTime < W.tLast - 5) continue;
+      if (W.inp == null || en.duration > W.inp) { W.inp = Math.round(en.duration); W.inpDelay = Math.round(en.processingStart - en.startTime); W.inpName = en.name; }
+    } }).observe({ type: 'event', durationThreshold: 16, buffered: false });
+  } catch (e) { /* no Event Timing */ }
   const patchMap = () => {
     const m = window.map;
     if (!m || m.__wtPatched || typeof m.triggerRepaint !== 'function') return;
@@ -328,6 +338,7 @@ async function session(arm, zoom) {
     const gridH0 = tg.q.filter((x) => x.path === '/grid' && x.q && x.q.domain === 'wind').length;
     out.toggle = { baseMs: tg.r.base == null ? null : Math.round(tg.r.base), viewMs: tg.r.view == null ? null : Math.round(tg.r.view), via: tg.r.viewVia,
       drawnMs: tg.r.drawn == null ? null : Math.round(tg.r.drawn),
+      inpMs: tg.r.inp == null ? null : tg.r.inp, inpDelayMs: tg.r.inpDelay == null ? null : tg.r.inpDelay, inpEvent: tg.r.inpName || null,
       fineMs: tg.r.fine == null ? null : Math.round(tg.r.fine), mislabel: tg.r.mislabel, thin: tg.r.thin, regress: tg.r.regress, commits: tg.r.commits,
       dims: tg.r.dims, reqs: tg.by, gridH0, logs: { ...counts }, end: tg.r.end, trace: tg.r.trace || undefined,
       windowMs: Date.now() - t0 };

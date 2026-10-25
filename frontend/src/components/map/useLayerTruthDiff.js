@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { marineEmptyVerdict } from './marineEmptyGrace';
+import { afterNextPaintCb } from './afterNextPaint';
 
 function groupBy(arr, keyFn) {
   return arr.reduce((acc, item) => {
@@ -252,11 +253,16 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
     mapInstance.on("idle", onIdle);
     mapInstance.on("moveend", onMoveEnd);
 
-    // Initial capture
-    captureSnapshot("mount/update");
+    // Initial capture. AFTER the next paint (2026-10-25, the wind toggle's click task): this is a diagnostic (the HUD's raster
+    // truth and violation list) and it serialises the whole style (getStyle), so it no longer runs inside the click's task ahead
+    // of the first wind draw. Kill: window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__ = true (capture in the effect, as before).
+    const cancelInitial = (typeof window !== 'undefined' && window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__ === true)
+      ? (captureSnapshot("mount/update"), null)
+      : afterNextPaintCb(() => captureSnapshot("mount/update"));
 
     return () => {
       disposed = true;
+      if (cancelInitial) cancelInitial();
       cancelFrameCheck();
       if (moveEndTimer !== null) clearTimeout(moveEndTimer);
       mapInstance.off("render", onRender);
