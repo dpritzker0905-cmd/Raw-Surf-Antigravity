@@ -204,7 +204,9 @@ def test_live_chat_is_commenting(client, user):
 
 def test_the_gate_lets_a_permitted_grom_and_every_adult_through():
     """The allowed side, without calling LiveKit/Mux: the pure decision."""
-    grom = {name: type('P', (), {'role': RoleEnum.GROM, 'parental_controls': controls})()
+    # a confirmed link (guardian level L1+) so the switches, not the L0 lock, decide; an L0 child is tested below
+    grom = {name: type('P', (), {'role': RoleEnum.GROM, 'parental_controls': controls, 'birthdate': None,
+                                 'parent_id': 'parent', 'parent_link_approved': True})()
             for name, controls in GROMS.items()}
     assert refusal_for(grom['grom_on'], 'stream') is None
     assert refusal_for(grom['grom_on'], 'comment') is None

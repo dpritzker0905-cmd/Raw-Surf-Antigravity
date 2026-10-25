@@ -141,7 +141,21 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         # Validate password length
         if len(data.password) < 8:
             raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-        
+
+        # GUARDIAN PROGRAM: a child under 13 never self-registers. Answered before ANY query or write, so nothing
+        # about the child is stored. Only the parent-first flow (feature-flagged hook, services/guardian_policy.py)
+        # may create an under-13 profile.
+        if data.birthdate:
+            try:
+                _stated_birthdate = date.fromisoformat(data.birthdate)
+            except ValueError:
+                _stated_birthdate = None  # the Grom branch below reports a malformed date
+            from services.guardian_levels import age_on
+            from services.guardian_policy import under_13_signup_refusal
+            _refusal = under_13_signup_refusal(age_on(_stated_birthdate))
+            if _refusal:
+                raise HTTPException(status_code=403, detail=_refusal)
+
         # Validate email uniqueness
         result = await db.execute(select(Profile).where(Profile.email == data.email))
         existing = result.scalar_one_or_none()
@@ -196,7 +210,10 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
                     birthdate_parsed = date.fromisoformat(data.birthdate)
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Invalid birthdate format. Use YYYY-MM-DD")
-            
+            else:
+                # no birthdate = no age band: a Grom account is not created blind
+                raise HTTPException(status_code=400, detail="A birthdate is required to create a Grom account.")
+
             # Require parent/guardian email OR username
             if not data.parent_email and not data.parent_username:
                 raise HTTPException(status_code=400, detail="Parent/Guardian email or username required for Grom accounts")
@@ -297,6 +314,7 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
             guardian_code=guardian_code,
             parent_link_approved=parent_link_approved,
             parental_controls=parental_controls,
+            is_private=(role_enum == RoleEnum.GROM),  # a child's profile starts private (public needs the level)
             company_name=data.company_name if role_enum in business_roles else None,
             accepts_donations=role_enum == RoleEnum.HOBBYIST
         )

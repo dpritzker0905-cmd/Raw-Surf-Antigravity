@@ -14,6 +14,7 @@ from models import Profile, RoleEnum
 from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from services import guardian_links
 from services.guardian_levels import guardian_level, has_confirmed_link, is_confirmed_guardian
+from services.guardian_policy import unlocked
 
 from .schemas import ToggleCompetitionRequest
 router = APIRouter()
@@ -128,6 +129,7 @@ async def get_linked_groms(
             "linked_at": grom.created_at.isoformat() if grom.created_at else None,
             "guardian_level": standing.level,
             "age_band": standing.band,
+            "unlocked": unlocked(standing),
         }
         groms_data.append(grom_data)
 
@@ -265,6 +267,7 @@ async def get_grom_status(
         "guardian_code": None,
         "guardian_level": standing.level,
         "age_band": standing.band,
+        "unlocked": unlocked(standing),
         "parent_info": parent_info,
         "parental_controls": grom.parental_controls or {
             "can_post": False,
