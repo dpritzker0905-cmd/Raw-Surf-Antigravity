@@ -7,6 +7,7 @@ jest.mock('./marineGridSeries', () => ({
   ensureMarineSeries: jest.fn(() => Promise.resolve()),
   ensureMarineSeriesHour0: jest.fn(() => Promise.resolve()),
   isMarineSeriesPageWarm: jest.fn(() => false),
+  marineSeriesPageForHour: (h) => Math.floor(Math.max(0, h) / 48),
 }));
 jest.mock('./marineSeriesLimiter', () => ({ _seriesLimiterState: jest.fn() }));
 jest.mock('./marineSeriesStatic', () => ({ staticOwnsWorldPage: jest.fn(() => false) }));
@@ -16,8 +17,8 @@ import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm } f
 import { _seriesLimiterState } from './marineSeriesLimiter';
 import { staticOwnsWorldPage } from './marineSeriesStatic';
 import {
-  SIBLING_PAGE_MAX_WAIT_MS, SIBLING_PAGE_POLL_MS, SIBLING_QUIET_MS, _resetSiblingWarmForTest, _siblingWarmState, seriesLanesQuiet, siblingPageMayStart,
-  warmSiblingLayer,
+  SIBLING_ASK_TTL_MS, SIBLING_PAGE_MAX_WAIT_MS, SIBLING_PAGE_POLL_MS, SIBLING_QUIET_MS, _resetSiblingWarmForTest, _siblingWarmState, seriesLanesQuiet,
+  siblingAskKey, siblingPageMayStart, warmSiblingLayer,
 } from './marineSiblingWarm';
 
 const BOUNDS = { west: -81.65, south: 27.6, east: -79.58, north: 28.5 };
@@ -51,7 +52,75 @@ describe('marineSiblingWarm: static first, else the mini now and the page in idl
   });
   afterEach(() => {
     _resetSiblingWarmForTest(); jest.useRealTimers();
-    for (const k of ['isScrubbingTimeline', '__RAW_DISABLE_SIBLING_IDLE_PAGES__', '__SURF_MODE__', '__RAW_DISABLE_SIBLING_SURF_GATE__']) delete window[k];
+    for (const k of ['isScrubbingTimeline', '__RAW_DISABLE_SIBLING_IDLE_PAGES__', '__SURF_MODE__', '__RAW_DISABLE_SIBLING_SURF_GATE__',
+      '__RAW_DISABLE_SIBLING_ASK_ONCE__']) delete window[k];
+  });
+
+  // ASKED ONCE (2026-10-24): the z8 Lake Michigan replay asked GFS swell_1 / swell_2 / wind_waves minis 13 / 13 / 12 times and their
+  // pages 5 / 4 / 3 times: each visible /grid re-ran the warm, and a sibling whose answer gave no frame to cache stayed "not ready".
+  it('ASKED ONCE: a mini answered without a usable frame is not asked again for the same view, layer and hour', async () => {
+    const noFrame = () => jest.fn(() => false);
+    warm('swell_1', { cache: noFrame() });
+    await flush();
+    const again = noFrame();
+    warm('swell_1', { cache: again }); warm('swell_1', { cache: noFrame() });
+    await flush();
+    expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(1);
+    expect(window.__RAW_SIBLING_WARM__.askedOnce).toBe(2);
+    expect(again).toHaveBeenCalledTimes(1);                                  // a held warm re-caches from the series cache, no request
+    // another hour, another layer, another (snapped) box: each its own ask
+    warmSiblingLayer({ model: 'GFS', layer: 'swell_1', bounds: BOUNDS, hourOffset: 3, visibleLayer: 'waves', frameReady: false, cache: noFrame() });
+    warm('swell_2', { cache: noFrame() });
+    warmSiblingLayer({ model: 'GFS', layer: 'swell_1', bounds: { ...BOUNDS, west: BOUNDS.west + 3, east: BOUNDS.east + 3 }, hourOffset: 0,
+      visibleLayer: 'waves', frameReady: false, cache: noFrame() });
+    await flush();
+    expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(4);
+  });
+
+  it('ASKED ONCE: a page answered without a usable frame is not queued again within the TTL; after it, the view is asked again', async () => {
+    warm('swell_1', { cache: jest.fn(() => false) });
+    await flush(); await settle();
+    expect(pagesOf()).toEqual(['swell_1']);
+    warm('swell_1', { cache: jest.fn(() => false) });
+    await flush(); await settle(); await settle();
+    expect(pagesOf()).toEqual(['swell_1']);
+    expect(_siblingWarmState().queued).toEqual([]);
+    jest.advanceTimersByTime(SIBLING_ASK_TTL_MS);
+    warm('swell_1', { cache: jest.fn(() => false) });
+    await flush(); await settle();
+    expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(2);
+    expect(pagesOf()).toEqual(['swell_1', 'swell_1']);
+  });
+
+  it('ASKED ONCE: an aborted ask (the view moved on) does not count as answered', async () => {
+    let done;
+    ensureMarineSeriesHour0.mockImplementationOnce(() => new Promise((r) => { done = r; }));
+    const ac = new AbortController();
+    warm('swell_1', { signal: ac.signal, cache: jest.fn(() => false) });
+    await flush();
+    ac.abort(); done(); await flush();
+    warm('swell_1', { cache: jest.fn(() => false) });
+    await flush();
+    expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(2);
+  });
+
+  it('ASKED ONCE keys: per hour for a mini, per page for a page, per flavour and snapped box', () => {
+    const a = { model: 'GFS', layer: 'swell_1', bounds: BOUNDS, hourOffset: 3 };
+    expect(siblingAskKey('mini', a)).not.toBe(siblingAskKey('mini', { ...a, hourOffset: 6 }));
+    expect(siblingAskKey('page', a)).toBe(siblingAskKey('page', { ...a, hourOffset: 6 }));            // one 48-hour page
+    expect(siblingAskKey('page', a)).not.toBe(siblingAskKey('page', { ...a, hourOffset: 51 }));
+    expect(siblingAskKey('mini', a)).toBe(siblingAskKey('mini', { ...a, bounds: { ...BOUNDS, west: BOUNDS.west + 0.1 } }));   // same 1-deg box
+    window.__SURF_MODE__ = true;
+    expect(siblingAskKey('mini', a)).toMatch(/\|surf\|/);
+  });
+
+  it('positive control: with __RAW_DISABLE_SIBLING_ASK_ONCE__ every warm asks the mini again, as before', async () => {
+    window.__RAW_DISABLE_SIBLING_ASK_ONCE__ = true;
+    warm('swell_1', { cache: jest.fn(() => false) });
+    await flush();
+    warm('swell_1', { cache: jest.fn(() => false) });
+    await flush();
+    expect(ensureMarineSeriesHour0).toHaveBeenCalledTimes(2);
   });
 
   it('surf mode: no sibling warm at all (a surf page is the rating chain per node), not even from a static source', async () => {
