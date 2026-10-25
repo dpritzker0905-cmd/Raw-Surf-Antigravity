@@ -90,6 +90,55 @@ describe('AuthContext', () => {
         password: 'secret',
       });
     });
+
+    it('stores NO session when a second factor is owed, and returns the challenge untouched', async () => {
+      const challenge = { mfa_required: true, challenge_token: 'chal', methods: ['totp'] };
+      apiClient.post.mockResolvedValue({ data: challenge });
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      let returned;
+      await act(async () => { returned = await result.current.login('a@b.c', 'pw'); });
+
+      expect(returned).toEqual(challenge);
+      expect(result.current.user).toBeNull();
+      expect(localStorage.getItem('raw-surf-user')).toBeNull();
+    });
+
+    it('stores NO session for a required-setup sign-in either (the enrol-only token is never persisted)', async () => {
+      const step = { mfa_setup_required: true, setup_token: 'setup-only' };
+      apiClient.post.mockResolvedValue({ data: step });
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => { await result.current.login('a@b.c', 'pw'); });
+
+      expect(result.current.user).toBeNull();
+      expect(localStorage.getItem('raw-surf-user')).toBeNull();
+    });
+
+    it('completeMfaLogin trades the challenge + code for the session and stores it', async () => {
+      apiClient.post.mockResolvedValue({ data: { id: 'u1', access_token: 'mfa.session', mfa_method: 'totp' } });
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => { await result.current.completeMfaLogin('chal', '123456'); });
+
+      expect(apiClient.post).toHaveBeenCalledWith('/auth/login/mfa', { challenge_token: 'chal', code: '123456' });
+      expect(result.current.user?.access_token).toBe('mfa.session');
+      expect(JSON.parse(localStorage.getItem('raw-surf-user')).access_token).toBe('mfa.session');
+    });
+
+    it('a wrong second-factor code stores nothing', async () => {
+      apiClient.post.mockRejectedValue(new Error('401'));
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () => { await result.current.completeMfaLogin('chal', '000000').catch(() => {}); });
+
+      expect(result.current.user).toBeNull();
+      expect(localStorage.getItem('raw-surf-user')).toBeNull();
+    });
   });
 
  // Signup 

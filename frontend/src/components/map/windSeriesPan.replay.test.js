@@ -188,9 +188,15 @@ describe('wind series lane under the live pan session (offline replay, no networ
 
   // The true predecessor: the single-controller wiring AND the previous prefetch (idle callback, no
   // abort guards), which is what the kill switch restores.
+  // (2026-10-25) The baseline also runs with series pages planned in the request's own task, as that dev did: planning after the
+  // next paint (windGridSeries, __RAW_DISABLE_WIND_SERIES_AFTER_PAINT__) moves one view's page 0 into the next view's row on
+  // this virtual clock, which is a timing shift of the baseline, not a behaviour this file pins. The AFTER runs keep the default.
   const runBefore = async () => {
     window.__RAW_DISABLE_WIND_SERIES_SUPERSEDE__ = true;
-    try { return await runPanSession({ wire: legacyWiring }); } finally { delete window.__RAW_DISABLE_WIND_SERIES_SUPERSEDE__; }
+    window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__ = true;
+    try { return await runPanSession({ wire: legacyWiring }); } finally {
+      delete window.__RAW_DISABLE_WIND_SERIES_SUPERSEDE__; delete window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__;
+    }
   };
 
   it('before vs after the same six views: fewer requests, far-hour frames and wasted frames', async () => {
@@ -240,7 +246,9 @@ describe('wind series lane under the live pan session (offline replay, no networ
     const before = await runBefore();
     _resetWindSeriesForTest();
     window.__RAW_DISABLE_WIND_SERIES_SUPERSEDE__ = true;
-    const killed = await runPanSession({ wire: newWiring });
+    window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__ = true;   // the same planning timing as the baseline (runBefore)
+    let killed;
+    try { killed = await runPanSession({ wire: newWiring }); } finally { delete window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__; }
     expect(killed.totals).toEqual(before.totals);
     expect(killed.rows).toEqual(before.rows);
   });

@@ -250,11 +250,62 @@ def get_gfs_marine_pilot_regions() -> dict:
     WORLDWIDE_COASTAL=0 / test env -> flagship-only; GFS_MARINE_EXTRA_REGIONS=0 drops only the extras."""
     regions = get_all_pilot_regions()
     if len(regions) == len(REGIONAL_CONFIGS):      # flagship-only (test env or WORLDWIDE_COASTAL=0)
-        return regions
+        return whole_degree_regions(regions)
     stage_b = GFS_MARINE_STAGE_B_REGIONS if stage_b_enabled() else {}
     if os.environ.get("GFS_MARINE_EXTRA_REGIONS", "1") == "0":
-        return {**regions, **stage_b}
-    return {**regions, **GFS_MARINE_EXTRA_REGIONS, **stage_b}
+        return whole_degree_regions({**regions, **stage_b})
+    return whole_degree_regions({**regions, **GFS_MARINE_EXTRA_REGIONS, **stage_b})
+
+
+# ── WHOLE-DEGREE TILE EDGES (2026-10-25, DARK: GFS_PILOT_WHOLE_DEGREE_BOUNDS, default '0') ─────────────────────────────────────
+# Four GFS pilot boxes have fractional edges (us_southeast_midatlantic east -74.4, azores -29.8 / 40.1, us_northeast -76.1 / 44.6,
+# france_biscay 42.5 / 48.8). The server's dynamic cache and MARINE_REGIONAL_TILE_FIRST both work on the 1-deg SNAPPED box, so a
+# z7-9 view whose snapped box reaches past a fractional edge (e.g. any view north of 48.0 in Biscay: snapped north 49 > 48.8) is
+# never covered by the tile even though the view is inside the box: tile-first declines it, and each hour is then answered by the
+# dynamic cache when it holds the box and by the stored tile when it does not -- two sources in one session (mid-zoom's clean-store
+# matrix, 2026-10-24: Biscay north edge 7 regional/stored + 7 viewport/dyn). The client's snapped-box rule declines the same boxes.
+# With the flag, the GFS pass fetches and stores each tile out to the next whole degree on every fractional edge, so every snapped
+# box inside the padded tile is covered (one source: the stored tile). An edge whose padding would overlap another pilot box's
+# interior is left as it is (the shared 37.5 N edge of us_southeast_midatlantic / us_northeast): overlapping tiles would make
+# the tile pick ambiguous. ONE repo variable read by forecast-ingest.yml AND forecast-ingest-pilots.yml (both lanes write the GFS
+# tiles), and the box's own env for regional_tile_first.inside_pilot_box. ICON / EURO pilots (get_all_pilot_regions) are unchanged.
+def whole_degree_enabled() -> bool:
+    return os.environ.get("GFS_PILOT_WHOLE_DEGREE_BOUNDS", "0") == "1"
+
+
+def _overlaps_interior(a: dict, b: dict) -> bool:
+    return a["west"] < b["east"] and a["east"] > b["west"] and a["south"] < b["north"] and a["north"] > b["south"]
+
+
+def pad_whole_degree(regions: dict, neighbours: dict = None) -> dict:
+    """Copies of `regions` with each fractional edge moved OUTWARD to the next whole degree, unless that would overlap the interior
+    of another box (in `neighbours`, default every GFS pilot box, or of a box already padded here). PURE; the flag is not read."""
+    import math
+    others = dict(neighbours if neighbours is not None else all_gfs_pilot_boxes())
+    out = {}
+    for rid, r in regions.items():
+        pad = dict(r)
+        for edge, fn in (("west", math.floor), ("south", math.floor), ("east", math.ceil), ("north", math.ceil)):
+            v = float(r[edge])
+            w = float(fn(v))
+            if abs(w - v) < 1e-9:
+                continue
+            trial = dict(pad, **{edge: w})
+            clash = [oid for oid, o in {**others, **out}.items() if oid != rid and _overlaps_interior(trial, o)]
+            if not clash:
+                pad[edge] = w
+        out[rid] = pad
+    return out
+
+
+def whole_degree_regions(regions: dict) -> dict:
+    """`regions` padded to whole degrees when GFS_PILOT_WHOLE_DEGREE_BOUNDS=1, else unchanged (the same dict)."""
+    return pad_whole_degree(regions) if whole_degree_enabled() else regions
+
+
+def all_gfs_pilot_boxes() -> dict:
+    """Every GFS pilot box as configured (all four groups, whatever the ingest gates say)."""
+    return {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS, **GFS_MARINE_STAGE_B_REGIONS}
 
 
 def get_all_pilot_regions() -> dict:

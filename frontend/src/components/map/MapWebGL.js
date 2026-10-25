@@ -1,4 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import { useDeferredSimField } from './useDeferredSimField';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
@@ -252,10 +253,13 @@ const MapWebGL = ({
   usePressureIsobars({ mapInstance, engaged: ownPressure, theme, beforeId: omSlotsBeforeId });   // isobars + H/L over it (same lever)
   // Air temperature (2026-10-24, dark, GFS only: with EURO or ICON picked it stays on the .om path for that model).
   const ownTemperature = useOwnRasterFrames({ mapInstance, layer: 'temperature', model: activeModel, active: (activeLayers || []).includes('temperature'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  // Cloud cover, the 'satellite' layer (2026-10-24, dark, GFS only, as air temperature).
+  const ownSatellite = useOwnRasterFrames({ mapInstance, layer: 'satellite', model: activeModel, active: (activeLayers || []).includes('satellite'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
   const omLayers = useMemo(() => {
-    if (!ownPressure && !ownTemperature) return activeLayers;
-    return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature));
-  }, [ownPressure, ownTemperature, activeLayers]);
+    if (!ownPressure && !ownTemperature && !ownSatellite) return activeLayers;
+    return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature)
+      && !(l === 'satellite' && ownSatellite));
+  }, [ownPressure, ownTemperature, ownSatellite, activeLayers]);
 
   // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers: omLayers, mapInstance, activeModel, theme });
@@ -314,15 +318,17 @@ const MapWebGL = ({
     () => (surfMode ? computeClusterRatings(spotClusters, spotRatings, supercluster) : {}),
     [surfMode, spotClusters, spotRatings, supercluster]
   );
-  // FCE: Field Composition Engine — Single Source of Truth
+  // FCE: Field Composition Engine — Single Source of Truth. Built from DEFERRED inputs (useDeferredSimField.js: nothing drawn
+  // reads it by default, so it rebuilds after the wind commits; kill __RAW_DISABLE_SIM_FIELD_DEFER__).
+  const simIn = useDeferredSimField({ windData, marineData, activeModel, timeOffsetHours, activeMarineLayer });
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
-    windData,
-    marineData,
+    windData: simIn.windData,
+    marineData: simIn.marineData,
     pressureData: null,
-    activeModel,
-    timeOffsetHours: timeOffsetHours,
+    activeModel: simIn.activeModel,
+    timeOffsetHours: simIn.timeOffsetHours,
     enableLogging: typeof window !== 'undefined' && localStorage.getItem('debug-fce') === 'true',
-    activeMarineLayer,
+    activeMarineLayer: simIn.activeMarineLayer,
   });
 
   // Live simulation bridge — drives RK4 physics independently of React

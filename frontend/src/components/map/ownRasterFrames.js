@@ -25,6 +25,7 @@ import { isHandheldDevice } from './deviceTier';
 
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
+export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -39,6 +40,12 @@ export const OWN_RASTER_SETS = {
   temperature: {
     models: { GFS: 'GFS/weather/temperature/global_0p5' },
     fallback: null, field: TEMP_FIELD, unit: '°C',
+  },
+  // CLOUD COVER (2026-10-24): the app's 'satellite' layer draws forecast total cloud cover (Satellite IR was discontinued,
+  // useWeatherState). GFS TCDC, the instantaneous entire-atmosphere message (#515's set). GFS only, as air temperature.
+  satellite: {
+    models: { GFS: 'GFS/weather/cloud_cover/global_0p5' },
+    fallback: null, field: CLOUD_FIELD, unit: '%',
   },
 };
 // Who the frames come from, for the legend credit and the status line.

@@ -223,17 +223,37 @@ async function session(arm, round) {
   const regional = arm.includes('-regional');            // the regional bundle client (dark by default) opted in
   const dims = phone ? { width: 390, height: 844, dpr: 2 } : VIEW === 'owner' ? { width: 844, height: 390, dpr: 2 } : {};
   const { browser, page, log } = await L.launch({ port: PORT, hashTextureUploads: false, ...dims });
-  await page.addInitScript(({ base, theme, killToggle, phone, noLakes, regional }) => {
+  // SURF=1: surf mode from the start; FLAGS=<comma list>: window flags set true (kill switches for a control arm on the same build)
+  await page.addInitScript(({ base, theme, killToggle, phone, noLakes, regional, surf, flags }) => {
     if (noLakes) window.__RAW_DISABLE_WAVE_LAKES__ = true;
     if (regional) window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;
+    if (surf) window.__SURF_MODE__ = true;
+    for (const f of flags) window[f] = true;
     localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base;
     localStorage.setItem('raw-surf-theme', theme);
     if (killToggle) window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true;
     if (phone) window.__RAW_FRAME_STORE_TIER__ = 'handheld';
-  }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone, noLakes, regional });
+  }, { base: `http://127.0.0.1:${CDN_PORT}/`, theme, killToggle, phone, noLakes, regional, surf: process.env.SURF === '1',
+    flags: (process.env.FLAGS || '').split(',').filter(Boolean) });
   await page.addInitScript(PROBE, { bytesCheck: !killToggle, minCols: MIN_COLS, clip: CLIP, clipMax: CLIP_MAX });
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e && e.message || e).slice(0, 200)));
+  // CONLOG=1: the fetcher's own console lines on the reqlog's clock (which source asked: '[SWR] ... retry #N', '[Release] ... source=').
+  const conlog = []; const marks = []; const answers = [];
+  if (process.env.CONLOG === '1') {
+    page.on('console', (m) => { const s = m.text(); if (/^\[(SWR|Release|Abort-Gate|Marine|Series|Settle|Scrub|Sibling)/.test(s)) conlog.push({ t: Date.now() - log.t0, s: s.slice(0, 220) }); });
+    // what each /grid and /grid_series answer WAS: product, stale flag, grid size, frames (an ask repeated over a fresh answer is the client's)
+    page.on('response', async (r) => {
+      const u = r.url(); if (!/\/api\/weather\/grid(_series)?\?/.test(u)) return;
+      const t = Date.now() - log.t0; const q = Object.fromEntries(new URL(u).searchParams);
+      try {
+        const j = await r.json(); const g = j.grid || {};
+        answers.push({ t, path: /grid_series/.test(u) ? '/grid_series' : '/grid', q, pid: j.product_id || null, stale: !!(j.stale || g.stale), cols: g.cols, rows: g.rows,
+          frames: Array.isArray(j.frames) ? j.frames.length : undefined, fcols: Array.isArray(j.frames) && j.frames[0] ? j.frames[0].cols : undefined,
+          fvec: Array.isArray(j.frames) && j.frames[0] && j.frames[0].vectors ? j.frames[0].vectors.length : undefined, warming: j.warming || undefined });
+      } catch (e) { answers.push({ t, q, err: String(e && e.message || e).slice(0, 60) }); }
+    });
+  }
   const clicks = []; const cdn0 = { ...cdnLog };
   try {
     await L.openMap(page); await L.jump(page, CLNG, CLAT, phone && ZOOM === 3.2 ? 1.6 : ZOOM);
@@ -264,6 +284,7 @@ async function session(arm, round) {
     for (const step of PLAN) {
       const hour = await wheelNow();
       if (step[0] === 'WHEEL') {
+        marks.push({ t: Date.now() - log.t0, what: `WHEEL:${step[1]}` });
         const wheel = page.locator(WHEEL).filter({ visible: true }).first(); await wheel.focus(); await page.keyboard.press(step[1]);
         await sleep(1500); warmMs = await settle();
         continue;
@@ -272,6 +293,7 @@ async function session(arm, round) {
       const exp = await expect(target, hour);
       await page.evaluate(({ m, e }) => window.__MT__.arm(m, e), { m: target, e: exp });
       const ringT0 = await page.evaluate(() => Date.now());
+      marks.push({ t: Date.now() - log.t0, what: `click:${target}` });
       await clickExact(page, target);
       const t0 = Date.now(); let r;
       do { await sleep(50); r = await page.evaluate(() => window.__MT__.read()); } while (r.exact == null && Date.now() - t0 < WIN);
@@ -306,7 +328,7 @@ async function session(arm, round) {
       return { store: t ? { tier: t.tier, shows: t.shows, switches: t.switches, aux: t.aux, prefetch: t.prefetch, gpu: t.gpu, crop: t.crop,
         sets: (t.sets || []).map((s) => ({ key: s.key, frames: s.frames, packed: s.packed, resident: s.resident, absent: s.absent })) } : null, pairs: P.pairs,
         litLake: P.lit, waveLakes: window.__RAW_WAVE_LAKES__ || null }; });
-    return { arm, round, theme, phone, clicks, backendRequests: byPath, reqlog, cdn: { requests: cdnLog.requests - cdn0.requests, frames: cdnLog.frames - cdn0.frames, bytes: cdnLog.bytes - cdn0.bytes },
+    return { arm, round, theme, phone, clicks, backendRequests: byPath, reqlog, marks, conlog: process.env.CONLOG === '1' ? conlog : undefined, answers: process.env.CONLOG === '1' ? answers : undefined, cdn: { requests: cdnLog.requests - cdn0.requests, frames: cdnLog.frames - cdn0.frames, bytes: cdnLog.bytes - cdn0.bytes },
       errors: [...errors, ...log.errors.slice(0, 5)], ...tail };
   } finally { await browser.close(); }
 }
