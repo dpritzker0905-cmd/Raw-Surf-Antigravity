@@ -565,6 +565,16 @@ async def test_waiting_notices_for_one_recipient_go_out_as_one_email(factory):
     assert await _status(factory, security.outbox_id) == "queued"   # security mail is never merged
 
 
+def test_a_message_is_never_built_from_rows_of_different_recipients():
+    def row(hash_, key):
+        return EmailOutbox(template="dispute_opened", recipient_hash=hash_, recipient_address=f"{hash_}@example.test",
+                           payload=DISPUTE, priority="low", idempotency_key=key)
+    with pytest.raises(outbox_mod.TemplateError, match="recipient_mismatch"):
+        outbox_mod._build_message([row("h1", "k1"), row("h2", "k2")])
+    message, _ = outbox_mod._build_message([row("h1", "k1"), row("h1", "k2")])
+    assert message.to == "h1@example.test" and message.template == "notice_digest"
+
+
 async def test_each_digest_has_its_own_provider_idempotency_key(factory):
     """The provider replays an earlier send for a reused key, so two digests must never share one."""
     provider = FakeProvider()

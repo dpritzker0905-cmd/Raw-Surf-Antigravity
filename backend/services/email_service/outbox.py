@@ -245,6 +245,10 @@ async def _gather_digest_mates(db, row) -> List:
 def _build_message(group) -> tuple:
     """(EmailMessage, provider idempotency key) for one row, or one digest of several."""
     primary = group[0]
+    # Defence in depth behind the recipient-scoped query in _gather_digest_mates: one email never carries
+    # another recipient's notices, whatever got into the group.
+    if any(g.recipient_hash != primary.recipient_hash for g in group):
+        raise TemplateError("recipient_mismatch")
     if len(group) == 1:
         rendered = render(primary.template, primary.payload or {})
         key = primary.idempotency_key
