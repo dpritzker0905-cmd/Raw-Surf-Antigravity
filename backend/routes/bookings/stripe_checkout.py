@@ -93,8 +93,10 @@ async def create_booking_with_stripe(
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0
     duration_multipliers = {60: 1, 120: 1.8, 180: 2.5, 240: 3, 480: 5}
     multiplier = duration_multipliers.get(data.duration, data.duration / 60)
-    total_price = hourly_rate * multiplier
-    
+    total_price = round(hourly_rate * multiplier, 2)
+    if not math.isfinite(total_price) or total_price <= 0:
+        raise HTTPException(status_code=400, detail="This booking has no valid price")
+
     credits_applied = 0
     remaining_credits = user.credit_balance or 0
     
