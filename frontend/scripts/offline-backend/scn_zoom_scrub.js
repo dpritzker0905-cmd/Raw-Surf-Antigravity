@@ -111,6 +111,19 @@ const PROBE = () => {
       if (W.exact == null && ok) { W.exact = W.already ? 0 : rel; W.via = s.store ? 'store' : (s.series ? 'series' : 'grid'); W.pid = s.pid; }
       else if (W.exact != null && !ok) W.regress += 1;
       const dm = dataMs(s, W);
+      // STALE FRAME (2026-10-24): the drawn product's OWN valid time (from its product id) against the label hour (anchor + hour). A product id is
+      // present on stored, regional and viewport products (a series-page frame has none and is skipped: its data hour is its label). Showing the nearest
+      // 3-hourly stored frame is at most 1.5 h off by design; MORE than that is a stale frame. Counted silent when the status line says nothing about
+      // loading / nearest / estimated. Independent of the expected-product comparison above.
+      const own = s.pid ? stampMs(s.pid) : null;
+      if (own != null && s.layer === 'waves' && s.hour != null) {
+        const lag = (W.anchor + s.hour * 3600000 - own) / 3600000;
+        if (Math.abs(lag) > 1.5) {
+          W.stale = (W.stale || 0) + 1; W.maxStaleH = Math.max(W.maxStaleH || 0, Math.abs(lag));
+          const st2 = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160);
+          if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(st2)) { W.staleSilent = (W.staleSilent || 0) + 1; if (!W.staleEx) W.staleEx = { rel: Math.round(rel), hour: s.hour, lagH: +lag.toFixed(2), pid: (s.pid || '').slice(-44), status: st2 }; }
+        }
+      }
       if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') {
         W.mislabel += 1;
         // Does the status line SAY the field is not yet this hour (loading / nearest / estimated)? A mislabel with no such word is the
@@ -250,7 +263,7 @@ async function session(arm, zoom) {
       await page.evaluate(() => { window.__ZS__.w.done = true; });
       const q = log.requests.slice(r0); const by = {}; for (const x of q) by[x.path] = (by[x.path] || 0) + 1;
       steps.push({ key, target, exactMs: r.exact == null ? null : Math.round(r.exact), labelMs: r.label == null ? null : Math.round(r.label),
-        via: r.via, already: r.already, regress: r.regress, mislabel: r.mislabel, mislabelSilent: r.mislabelSilent || 0, commits: r.commits, dims: r.dims, reqs: by,
+        via: r.via, already: r.already, regress: r.regress, mislabel: r.mislabel, mislabelSilent: r.mislabelSilent || 0, stale: r.stale || 0, staleSilent: r.staleSilent || 0, maxStaleH: +(r.maxStaleH || 0).toFixed(2), staleEx: r.staleEx || null, commits: r.commits, dims: r.dims, reqs: by,
         ...(REQLOG ? { reqDetail: reqLog.slice(q0) } : {}),
         end: { h: r.end.hour, cols: r.end.cols, rows: r.end.rows, span: r.end.span, stride: r.end.stride, store: r.end.store, series: r.end.series, pid: r.end.pid, served: r.end.served },
         mid: r.mid || null });
@@ -301,7 +314,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         const steps = st.length;
         const grids = st.reduce((a, x) => a + (x.reqs['/grid'] || 0), 0); const series = st.reduce((a, x) => a + (x.reqs['/grid_series'] || 0), 0);
         summary[`${arm}@z${zoom}`] = { steps, exact_missed: ex.filter((x) => x == null).length, exact_ms_p50: median(ex), exact_ms_p95: pct(ex, 0.95),
-          label_ms_p50: median(st.map((x) => x.labelMs)), mislabel_frames: st.reduce((a, x) => a + x.mislabel, 0), mislabel_silent_frames: st.reduce((a, x) => a + (x.mislabelSilent || 0), 0),
+          label_ms_p50: median(st.map((x) => x.labelMs)), mislabel_frames: st.reduce((a, x) => a + x.mislabel, 0), mislabel_silent_frames: st.reduce((a, x) => a + (x.mislabelSilent || 0), 0), stale_frames: st.reduce((a, x) => a + (x.stale || 0), 0), stale_silent_frames: st.reduce((a, x) => a + (x.staleSilent || 0), 0), max_stale_h: Math.max(0, ...st.map((x) => x.maxStaleH || 0)),
           grid_per_step: +(grids / Math.max(1, steps)).toFixed(2), series_per_step: +(series / Math.max(1, steps)).toFixed(2),
           via: st.reduce((a, x) => { a[x.via || 'none'] = (a[x.via || 'none'] || 0) + 1; return a; }, {}),
           resident_dims: [...new Set(st.map((x) => `${x.end.cols}x${x.end.rows}`))],

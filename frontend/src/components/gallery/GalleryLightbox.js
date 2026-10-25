@@ -132,7 +132,10 @@ export const GalleryLightbox = ({
     if (!onPurchase) return;
     setPurchasing(true);
     try {
-      await onPurchase(item.id, 'high');
+      const purchased = await onPurchase(item.id, 'high');
+      // The parent reports a refused purchase (not enough credits, already bought...) as `false` after toasting
+      // the reason; playing "Unlocked!" and swapping in the original on a failure would be a lie.
+      if (purchased === false) return;
       setUnlocking(true);
       setTimeout(() => {
         setUnlocked(true);

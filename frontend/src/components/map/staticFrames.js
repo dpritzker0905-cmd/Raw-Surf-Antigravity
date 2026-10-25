@@ -226,6 +226,8 @@ export const STATIC_SETS = [
   'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
   // GFS 2 m air temperature (2026-10-24, #515's set): read only by ownRasterFrames.js, behind the same lever (default off).
   'GFS/weather/temperature/global_0p5',
+  // GFS total cloud cover (2026-10-24, the 'satellite' layer; #515's set): read only by ownRasterFrames.js, same lever.
+  'GFS/weather/cloud_cover/global_0p5',
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or

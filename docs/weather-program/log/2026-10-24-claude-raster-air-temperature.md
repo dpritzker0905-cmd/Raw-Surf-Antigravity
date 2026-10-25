@@ -53,3 +53,21 @@ also publish locally, after the 12:45-16:00Z no-live window.
 - Jest: `src/components/map src/tests src/__tests__`: 484 suites, 6,468 tests, all pass.
 - eslint ratchet: pass. LOC ratchet: 0 new.
 - Build: OK.
+
+## Same-run point parity (live read, 2026-10-24 ~23:40Z, after the no-live window)
+GFS 2026-10-24 18Z, f006 and f009 (valid 25 Oct 00Z and 03Z), 8 points.
+Requests: 8 to NODD and 138 small Open-Meteo .om range requests.
+- Ours: the 0p25 TMP 2 m at every second point, quantised to the frame code and sampled bilinearly as the shader does.
+- .om: data_spatial/ncep_gfs013 for the same run and hour, read with Open-Meteo's `omfiles`, bilinear.
+- Script and data: shared notes `raster-resolution-2026-10-24/`.
+
+| point | ours minus .om, 00Z / 03Z |
+|---|---|
+| N. Atlantic, Sahara, Fiji (179.5 E), S. Ocean | 0.00 to 0.02 °C |
+| Paris | −0.23 / −0.21 °C |
+| Zermatt (Alps) | +1.75 / +1.21 °C |
+| High Atlas | +2.38 / +2.34 °C |
+| Denver (Rockies edge) | −1.23 / −1.95 °C |
+
+On flat ground and at sea the two arms agree to the quantisation. Over terrain the 0.5° grid smooths the mountains by 1-2.4 °C,
+which is the resolution row above, now measured. Stills for the owner: shared notes `air-temp-resolution-{alps,atlas}.png`.
