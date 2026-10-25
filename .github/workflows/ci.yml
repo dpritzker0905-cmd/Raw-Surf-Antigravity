@@ -2062,7 +2062,9 @@ jobs:
           #   base 2762 (dev's map) + 35 new test(s) = 2797; floor 2797 - 2 = 2795. This PR must read 2797 passed.
           # ⬆ 2795→2809 on 2026-10-25 (rederive_floor.py, fix/forgot-password-dev-token): dev run 40139317894 read 2797; dev's map 2797;
           #   base 2797 (hosted read) + 14 new test(s) = 2811; floor 2811 - 2 = 2809. This PR must read 2811 passed.
-          MIN_PASSED = 2809
+          # ⬆ 2809→2889 on 2026-10-25 (rederive_floor.py, claude/mfa-totp): dev run 40171438269 read 2811; dev's map 2811;
+          #   base 2811 (hosted read) + 80 new test(s) = 2891; floor 2891 - 2 = 2889. This PR must read 2891 passed.
+          MIN_PASSED = 2889
 
           try:
               root = ET.parse('estate.xml').getroot()
