@@ -1,13 +1,13 @@
-// OWNER A/B CLIPS for wind between 3-hourly frames (2026-10-24, the lead's queue; both arms OPT-IN, default off). Offline only.
-//   CLIP=A  window.__RAW_WIND_NEAREST_WORDS__: the status line names the nearest stored frame ("Showing Sat 3 AM: the nearest
-//           stored forecast") where today it says nothing while the map draws 3 AM under a 2 AM selection.
+// OWNER A/B CLIPS for wind between 3-hourly frames (2026-10-24, the lead's queue; OPT-IN, default off). Offline only.
+//   Clip A (the status line names the nearest stored frame) shipped as #560's LABEL INSTANT and is the default, so the "off" arm
+//   now shows it; there is no A flag.
 //   CLIP=B  window.__RAW_WIND_TIME_BLEND__: hours between frames draw a speed + direction blend of the two, labelled
 //           "Estimated forecast: interpolated between ... and ...".
 // One fresh browser per arm (off, on), the SAME script: wind on at hour 0, then ArrowRight once every STEP_MS for STEPS hours.
 // Each arm is recorded (Playwright recordVideo) with a corner label naming the arm, and the status line's text is read at every
 // step; `clips.html` in OUT_DIR plays the two recordings side by side, in sync, with the per-step lines under them.
 //
-//   EXPECT_STORE=<store> PORT=4196 CDN_DIR=<frames> AB_BASE=http://127.0.0.1:<spa> CLIP=A OUT_DIR=<dir> node scn_wind_clips.js
+//   EXPECT_STORE=<store> PORT=4196 CDN_DIR=<frames> AB_BASE=http://127.0.0.1:<spa> CLIP=B OUT_DIR=<dir> node scn_wind_clips.js
 // Env: CENTER (-79.5,28.6), ZOOM (3.9), STEPS (7), STEP_MS (2500), WIDTH/HEIGHT (1280x800), CDN_PORT (4194).
 const fs = require('fs');
 const http = require('http');
@@ -18,16 +18,16 @@ if (process.env.AB_LIVE === '1') throw Error('scn_wind_clips is offline only');
 const PORT = +(process.env.PORT || 4100);
 const CDN_DIR = process.env.CDN_DIR || '';
 const CDN_PORT = +(process.env.CDN_PORT || 4194);
-const CLIP = (process.env.CLIP || 'A').toUpperCase();
+const CLIP = (process.env.CLIP || 'B').toUpperCase();
 const OUT_DIR = path.resolve(process.env.OUT_DIR || `wind-clips-${CLIP}`);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
 const ZOOM = +(process.env.ZOOM || 3.9);
 const STEPS = +(process.env.STEPS || 7);
 const STEP_MS = +(process.env.STEP_MS || 2500);
 const W = +(process.env.WIDTH || 1280); const H = +(process.env.HEIGHT || 800);
-const FLAG = { A: '__RAW_WIND_NEAREST_WORDS__', B: '__RAW_WIND_TIME_BLEND__' }[CLIP];
-if (!FLAG) throw Error(`CLIP must be A or B, got ${CLIP}`);
-const WHAT = { A: 'the nearest-frame line', B: 'the labelled time blend' }[CLIP];
+const FLAG = { B: '__RAW_WIND_TIME_BLEND__' }[CLIP];
+if (!FLAG) throw Error(`CLIP must be B (clip A shipped as #560's default), got ${CLIP}`);
+const WHAT = { B: 'the labelled time blend' }[CLIP];
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
