@@ -87,3 +87,22 @@ export function evaluateClampCapProbe({ noProgress, sinceLastProbeMs, probesFire
   if (probesFired >= probeMax) return { capped: true, probe: false, terminal: true };
   return { capped: true, probe: sinceLastProbeMs >= rearmMs, terminal: false };
 }
+
+/**
+ * ALTERNATING RESIDENTS (2026-10-24; the follow-up recorded 2026-10-23 in log/2026-10-23-claude-z8-steps-after-pans.md). The
+ * no-progress cap compared the engine grid's signature with the LAST one only, so two residents taking turns changed it on every
+ * pass and the cap never engaged: the /grid tile and a series frame (13 x 13 and 17 x 13) in the 2026-10-23 reload-loop samples,
+ * a stale 5 x 3 preview and the 13 x 9 viewport grid in the 2026-10-24 Lake Michigan replay. #505 ended the network loop that
+ * allowed; the re-drive churn stayed possible. Progress is now a resident this clamp EPISODE (one view: model, layer, hour and
+ * viewport) has not held before; a return to an earlier one is no progress. A new view, or the clamp clearing, starts a new episode.
+ * Pure: `state` = { episode, seen } is the caller's (mutated here). Kill: window.__RAW_DISABLE_CLAMP_SEEN_SIGS__ = true (the last
+ * signature only, as before). Returns whether this pass made progress.
+ */
+export function clampMadeProgress(state, { sig, lastSig, episode }, win) {
+  if (state.episode !== episode || !state.seen) { state.episode = episode; state.seen = new Set(); }
+  const seenOn = !(win && win.__RAW_DISABLE_CLAMP_SEEN_SIGS__ === true);
+  const progress = sig !== lastSig && !(seenOn && state.seen.has(sig));
+  state.seen.add(sig);
+  if (state.seen.size > 16) state.seen.delete(state.seen.values().next().value);
+  return progress;
+}

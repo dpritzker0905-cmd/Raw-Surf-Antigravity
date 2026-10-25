@@ -250,6 +250,47 @@ def test_apply_fill_never_writes_its_input(tmp_path):
     assert n > 0 and json.dumps(product) == json.dumps(json.loads(raw)) and out["grid"]["vectors"] is not product["grid"]["vectors"]
 
 
+def test_the_tail_downloads_feed_the_filled_set_once_and_carry_it_until_the_donor_changes(tmp_path, monkeypatch):
+    """#548's TailDownloads hands both EURO sets the estimated tails: one download per tail per run (the filled set reuses the plain
+    set's), the filled tail frames built through the same fill, carried while donor and product are unchanged, and rebuilt (with
+    the tail fetched again, the plain frame being carried) when the GFS donor run changes."""
+    tails = ["2026-11-03T03:00:00Z", "2026-11-03T06:00:00Z"]
+    disk, bucket = tmp_path / "disk", tmp_path / "bucket"
+
+    def stores(gfs_run):
+        _write(disk, gfs_valids=VALIDS + tails, gfs_run=gfs_run)       # EURO authoritative + every GFS donor on the runner's disk
+        bucket.mkdir(exist_ok=True)
+        manifest = json.loads((disk / "manifest.json").read_text())
+        for vt in tails:                                                # the EURO tail: only in the products bucket
+            name = _name("EURO", "waves", vt).replace(".json", "_estimated.json")
+            prod = _product("EURO", vt, RUN, lambda r, c: not _euro_masked(r, c), 2.0)
+            prod.update(is_estimated=True, is_forecast_authoritative=False, provider="estimated")
+            (bucket / name).write_text(json.dumps(prod))
+            manifest["products"].append({"model": "EURO", "domain": "marine", "layer": "waves", "region_id": "global_mid",
+                                         "resolution": 2.0, "filename": name, "valid_time_start": vt, "model_run_time": RUN,
+                                         "run_time": RUN, "ingested_at": None, "is_estimated": True})
+        (disk / "manifest.json").write_text(json.dumps(manifest))
+
+    def run():
+        src = pub.TailDownloads(pub.LocalCache(disk), pub.local_product_fetcher(bucket), log=lambda *_: None)
+        rep = pub.publish_frame_sets(src, pub.LocalSink(tmp_path / "out"), sets=[EURO_PLAIN, EURO_FILLED], log=lambda *_: None)
+        return src, rep[fs.set_key(EURO_PLAIN)], rep[fs.set_key(EURO_FILLED)]
+
+    stores(GFS_RUN)
+    src, plain, filled = run()
+    assert src.stats["downloaded"] == 2 and (plain["tail_downloaded"], filled["tail_downloaded"]) == (2, 0)   # fetched once
+    assert (plain["built"], filled["built"], filled["not_local"]) == (4, 4, 0)
+    latest = json.loads((tmp_path / "out" / fs.LATEST).read_text())["sets"][fs.set_key(EURO_FILLED)]
+    index = json.loads((tmp_path / "out" / latest["index"]).read_text())
+    tail_frames = [f for f in index["frames"] if f["is_estimated"]]
+    assert len(tail_frames) == 2 and all(f["path"] and f["meta"]["coarse_fill"]["mode"] == "targeted" for f in tail_frames)
+    src, plain, filled = run()                                          # same products, same donor: everything carried
+    assert src.stats["downloaded"] == 0 and (plain["carried"], filled["carried"]) == (4, 4)
+    stores("2026-10-24T12:00:00Z")                                      # a new GFS run: the donor of every filled frame changes
+    src, plain, filled = run()
+    assert (plain["carried"], filled["built"], filled["not_local"]) == (4, 4, 0) and src.stats["downloaded"] == 2
+
+
 def test_the_plain_set_keys_and_selection_are_unchanged():
     assert fs.set_key(EURO_PLAIN) == "EURO/marine/waves/global_mid" and fs.set_prefix(EURO_PLAIN) == "v1/euro/marine/waves/global_mid"
     products = [{"model": "EURO", "domain": "marine", "layer": "waves", "region_id": "global_mid", "filename": "a.json",

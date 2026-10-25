@@ -24,6 +24,7 @@ import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 
 export const PRESSURE_FIELD = 6;
+export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -31,6 +32,13 @@ export const OWN_RASTER_SETS = {
   pressure: {
     models: { GFS: 'GFS/weather/pressure/global_0p5', EURO: 'EURO/weather/pressure/global_0p5', ICON: 'ICON/weather/pressure/global_0p5' },
     fallback: 'GFS', field: PRESSURE_FIELD, unit: 'hPa',
+  },
+  // AIR TEMPERATURE (2026-10-24, the lead's order after per-model pressure): GFS TMP 2 m only (#515's set, f000-f336 every 3 h).
+  // EURO and ICON have no own set yet, so with those picked the layer stays on the .om path, which draws that model as before
+  // (no GFS frames under a EURO or ICON label, and so no stand-in tail either).
+  temperature: {
+    models: { GFS: 'GFS/weather/temperature/global_0p5' },
+    fallback: null, field: TEMP_FIELD, unit: '°C',
   },
 };
 // Who the frames come from, for the legend credit and the status line.
@@ -41,7 +49,10 @@ export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
   return (set && set.models[up(model)]) || null;
 }
-export const MISSING = -9999;     // what a no-data node becomes in the uploaded field (every real value is positive)
+// What a no-data node becomes in the uploaded field: far below every real value of every layer (air temperatures are negative,
+// so the shader's no-data test is `< NO_DATA_BELOW`, never `< 0`).
+export const MISSING = -9999;
+export const NO_DATA_BELOW = -9000;
 const LRU_MAX = 6;                // the desktop window (4) plus the last two shown
 const STEPS_KEPT = 400;
 
@@ -54,11 +65,20 @@ export function ownFramesOn(layer, model = 'GFS') {
   if (!key) return false;
   const w = W();
   if (w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true) return false;
-  let on = w.__RAW_RASTER_OWN_FRAMES__ === true;
-  if (!on) {
-    try { on = !!w.localStorage && w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') === 'true'; } catch (e) { on = false; }
+  if (w[`__RAW_DISABLE_RASTER_OWN_${String(layer).toUpperCase()}__`] === true) return false;
+  let lever = w.__RAW_RASTER_OWN_FRAMES__;
+  if (lever === undefined || lever === null || lever === false) {
+    try { lever = w.localStorage ? w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') : null; } catch (e) { lever = null; }
   }
-  return on && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
+  return leverCovers(lever, layer) && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
+}
+
+/** The lever's value covers a layer: true / 'true' = every own layer; a comma list ('pressure,temperature') = those layers.
+ *  Each layer is its own owner decision, so a flip can name exactly the layers it means. */
+export function leverCovers(lever, layer) {
+  if (lever === true || lever === 'true') return true;
+  if (typeof lever !== 'string') return false;
+  return lever.split(',').map((s) => s.trim()).includes(layer);
 }
 
 export function tel() {

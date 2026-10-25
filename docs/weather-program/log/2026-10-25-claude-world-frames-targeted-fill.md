@@ -66,6 +66,17 @@ donor run as /grid, mode stamped in the index), so the client's world-frame guar
 - **Client tests.** `staticWorldFilled.test.js` (3), with 4 of 4 mutants caught. The full `src/components/map` and `src/tests`
   trees: 409 suites, 5,877 tests passed. The ESLint ratchet passes.
 
+## Merged with dev at c1309243c (#548's tail frames)
+
+- **The interaction.** #548's `TailDownloads` hands every ICON/EURO `global_mid` set the estimated tails, and the filled sets use
+  the same `region_id`. Two fixes in `TailDownloads.prefetch`:
+  - A tail the plain set already fetched this run is not fetched again.
+  - The carried check uses the filled frame's full identity, including `fill_donor`.
+- **Without them.** Every run would download each tail twice and refetch tails whose filled frame is carried.
+- **Test.** `test_the_tail_downloads_feed_the_filled_set_once_and_carry_it_until_the_donor_changes` (both mutants caught).
+- **Totals.** The new file holds 12 tests. The chain floor was re-derived on dev run 40171438269: 2955 + 12 = 2967 passed
+  (MIN_PASSED 2949 → 2961), 180 → 181 files.
+
 ## What turns it on (not done here)
 
 - **Two switches, both needed.** The repository variable MARINE_GULF_FILL_MID_TARGETED=1 makes the pilots lane publish the

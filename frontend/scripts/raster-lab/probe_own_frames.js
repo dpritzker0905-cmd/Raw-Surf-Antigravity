@@ -10,6 +10,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const OUT = process.env.OUT || '.';
 const THEMES = (process.env.THEMES || 'dark,light,beach').split(',');
 const ON = process.env.OWN !== '0';
+// LAYER (2026-10-24): which own-frames layer to toggle (pressure | temperature; the app shows one weather layer at a time).
+const LAYER = process.env.LAYER || 'pressure';
 
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
@@ -44,7 +46,7 @@ const ON = process.env.OWN !== '0';
     await L.jump(page, VIEW[0], VIEW[1], VIEW[2]);
     await sleep(1500);
     const t0 = Date.now();
-    if (process.env.NOLAYER !== '1') await page.evaluate(() => window.toggleLayer('pressure'));   // NOLAYER=1: the bare map (a control)
+    if (process.env.NOLAYER !== '1') await page.evaluate((l) => window.toggleLayer(l), LAYER);   // NOLAYER=1: the bare map (a control)
     let firstMs = null;
     for (let i = 0; i < (ON ? 200 : 0); i++) {
       const sh = await page.evaluate(() => (window.__RAW_OWN_RASTER__ || {}).shown || null);
@@ -52,7 +54,7 @@ const ON = process.env.OWN !== '0';
       await sleep(25);
     }
     await sleep(+(process.env.SETTLE_MS || 1500));
-    await page.screenshot({ path: path.join(OUT, `own-${process.env.MODEL || 'GFS'}-${ON ? 'on' : 'off'}${process.env.ISO_OFF === '1' ? '-noiso' : ''}${process.env.TAG ? '-' + process.env.TAG : ''}-${theme}.png`) });
+    await page.screenshot({ path: path.join(OUT, `own-${LAYER === 'pressure' ? '' : LAYER + '-'}${process.env.MODEL || 'GFS'}-${ON ? 'on' : 'off'}${process.env.ISO_OFF === '1' ? '-noiso' : ''}${process.env.TAG ? '-' + process.env.TAG : ''}-${theme}.png`) });
     const credit = await page.evaluate(() => [...document.querySelectorAll('[data-testid="layer-data-credit"]')].map((a) => a.textContent));
     const steps = [];
     for (const h of (ON ? HOURS : [])) {
@@ -72,10 +74,10 @@ const ON = process.env.OWN !== '0';
       steps.push({ h, ms, said });
     }
     const tel = await page.evaluate(() => { const t = window.__RAW_OWN_RASTER__ || {}; return { loads: t.loads, bytes: t.bytes, misses: t.misses, decodeMs: t.decodeMs, pin: t.pin && { run: t.pin.run, frames: t.pin.frames } }; });
-    const layers = await page.evaluate(() => window.__MAP_INSTANCE__.getStyle().layers.filter((l) => /pressure/.test(l.id)).map((l) => `${l.id}:${l.type}:${(l.layout || {}).visibility || 'visible'}`));
+    const layers = await page.evaluate((ly) => window.__MAP_INSTANCE__.getStyle().layers.filter((x) => x.id.includes(ly) || /isobar/.test(x.id)).map((x) => `${x.id}:${x.type}:${(x.layout || {}).visibility || 'visible'}`), LAYER);
     rows.push({ theme, on: ON, firstMs, steps, credit, openMeteoRequests: om.length, tel, layers, errors });
     console.log(JSON.stringify(rows[rows.length - 1]));
     await browser.close();
   }
-  fs.writeFileSync(path.join(OUT, `probe-own-${ON ? 'on' : 'off'}.json`), JSON.stringify(rows, null, 1));
+  fs.writeFileSync(path.join(OUT, `probe-own-${LAYER === 'pressure' ? '' : LAYER + '-'}${ON ? 'on' : 'off'}.json`), JSON.stringify(rows, null, 1));
 })();

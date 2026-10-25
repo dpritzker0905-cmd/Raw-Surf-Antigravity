@@ -108,7 +108,7 @@ describe('static frames loader', () => {
     } finally {
       delete window.__WEATHER_CAPABILITIES__;
     }
-    expect(STATIC_SETS).toHaveLength(16);   // the eight marine sets + GFS wind (windStaticFrames.js) + GFS/EURO/ICON pressure (ownRasterFrames.js), which marine never serves, + the four filled EURO/ICON world sets (staticWorldFilled.test.js)
+    expect(STATIC_SETS).toHaveLength(17);   // the eight marine sets + GFS wind (windStaticFrames.js) + GFS/EURO/ICON pressure + GFS air temperature (ownRasterFrames.js), which marine never serves, + the four filled EURO/ICON world sets (staticWorldFilled.test.js)
     expect(staticEligible({ model: 'GFS', layer: 'wind', bbox: WORLD })).toBe(false);
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD, surf: true })).toBe(false);
     expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: WORLD })).toBe(false);

@@ -20,16 +20,39 @@
  * budget per {model, layer, hour, view}: SETTLE_RELOAD_QUICK at once, then one per SETTLE_RELOAD_GAP_MS, SETTLE_RELOAD_MAX in all.
  * The capped fuller-tile /grid upgrade just below it (clamp_resharpen, 2 per view and hour) is unchanged.
  * Kill: window.__RAW_DISABLE_SETTLE_RELOAD_GUARD__ = true (reload on every tick, as before).
+ *
+ * PER PAGE, NOT PER HOUR (2026-10-24, SETTLE_RELOAD_PAGE_KEY). The reload asks for a PAGE (16 or 48 hours), but the budget was kept
+ * per hour: every wheel step inside the page opened a fresh budget for the same request. Replayed at z8 Lake Michigan (GFS <-> EURO
+ * with a +1 h step and back after each click, scn_model_toggle.js, the backend fresh): one GFS 48-frame page asked 5-6 times and one
+ * EURO page 4-6 times in 260 s, every answer the same fresh page. The budget is now per page request: model, layer, flavour, page and
+ * the snapped request box (marineSeriesPanGuard.seriesIdentityBounds: a pan inside the 1-deg box is the same request).
+ * Kill: window.__RAW_DISABLE_SETTLE_RELOAD_PAGE_KEY__ = true (the per-hour key).
  */
+import { marineSeriesPageForHour } from './marineGridSeries';
+import { seriesIdentityBounds } from './marineSeriesPanGuard';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
+
 export const SETTLE_RELOAD_QUICK = 2;
 export const SETTLE_RELOAD_GAP_MS = 30000;
 export const SETTLE_RELOAD_MAX = 5;
 
 const _reloads = new Map();   // key -> { count, lastAt }
 
-/** The budget key: model, layer, hour and the view rounded to 0.5 deg (a pan to another view is another ask). */
+/**
+ * The budget key: the page request (model, layer, flavour, page, snapped box); killed, the hour and the view rounded to 0.5 deg.
+ * A pan to another box, another page or the other flavour is another ask.
+ */
 export function settleReloadKey({ model, layer, hour, vb }) {
   const r = (v) => (Math.round(Number(v) * 2) / 2).toFixed(1);
+  if (vb && !(typeof window !== 'undefined' && window.__RAW_DISABLE_SETTLE_RELOAD_PAGE_KEY__ === true)) {
+    try {
+      const b = seriesIdentityBounds(vb);
+      const page = marineSeriesPageForHour(hour, model);
+      if (b && Number.isFinite(page)) {
+        return `${model}_${layer}_${getSurfModeFlag() ? 'surf' : 'swell'}_p${page}_${r(b.west)}_${r(b.south)}_${r(b.east)}_${r(b.north)}`;
+      }
+    } catch (e) { /* the per-hour key below */ }
+  }
   return vb ? `${model}_${layer}_${hour}_${r(vb.west)}_${r(vb.south)}_${r(vb.east)}_${r(vb.north)}` : `${model}_${layer}_${hour}`;
 }
 
