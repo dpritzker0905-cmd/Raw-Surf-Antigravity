@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from core import mfa_limits, mfa_policy, mfa_secrets, security, totp as totp_core
 from database import get_db
-from models import MfaChallenge, MfaRecoveryCode, Notification, Profile, RoleEnum, UserMfa
+from models import MfaChallenge, MfaRecoveryCode, Notification, Profile, RoleEnum, UserMfa, WebauthnCredential
 from routes.auth_pkg import auth as auth_routes
 from routes.auth_pkg import mfa as mfa_routes
 
@@ -54,7 +54,7 @@ async def h(tmp_path, monkeypatch):
 
     def create_tables(sync_connection):
         # Only what these routes touch (SQLite does not enforce the foreign keys to tables left out).
-        for model in (Profile, UserMfa, MfaRecoveryCode, MfaChallenge, Notification):
+        for model in (Profile, UserMfa, MfaRecoveryCode, MfaChallenge, Notification, WebauthnCredential):
             model.__table__.create(sync_connection, checkfirst=True)
 
     async with engine.begin() as connection:
@@ -476,7 +476,8 @@ async def test_status_reports_the_account(h, clock):
     session = (await password_login(h, "plain")).json()["access_token"]
     before = (await h.client.get("/api/auth/mfa/status", headers=bearer(session))).json()
     assert before == {"enabled": False, "totp": False, "passkeys": 0, "recovery_codes_remaining": 0,
-                      "enrolment_available": True, "required": False, "setup_only": False}
+                      "enrolment_available": True, "passkeys_available": False, "required": False,
+                      "setup_only": False}
     user = await enrol(h, clock)
     after = (await h.client.get("/api/auth/mfa/status", headers=bearer(user.session))).json()
     assert after["enabled"] and after["totp"] and after["recovery_codes_remaining"] == 10
