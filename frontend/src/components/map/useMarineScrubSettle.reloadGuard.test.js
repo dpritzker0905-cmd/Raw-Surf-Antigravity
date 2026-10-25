@@ -89,6 +89,27 @@ describe('the settle check does not force-reload a page it holds a covering fram
     expect(settleSeriesReloadNeeded(true, a, 6 + 9 * SETTLE_RELOAD_GAP_MS)).toBe(true);
   });
 
+  // PER PAGE (2026-10-24): the budget was per hour, so each wheel step inside one page opened a fresh budget for the same request
+  // (the z8 Lake Michigan replay: one GFS 48-frame page asked 5-6 times, one EURO page 4-6 times in 260 s, every answer the same).
+  it('per PAGE: two hours of one page share the budget; another page or flavour has its own; the kill restores per hour', () => {
+    const h0 = { model: 'GFS', layer: 'waves', hour: 0, vb: VIEW };
+    const h1 = { ...h0, hour: 1 };
+    const next = { ...h0, hour: 150 };                                                            // the next GFS swell page (144 h each)
+    expect(settleReloadKey(h0)).toBe(settleReloadKey(h1));
+    expect(settleReloadKey(h0)).not.toBe(settleReloadKey(next));
+    expect(settleReloadKey(h0)).toBe(settleReloadKey({ ...h0, vb: { ...VIEW, west: VIEW.west + 0.1 } }));   // same snapped request box
+    expect([0, 1].map((t) => settleSeriesReloadNeeded(true, t === 0 ? h0 : h1, t))).toEqual([true, true]);
+    expect(settleSeriesReloadNeeded(true, h1, 2)).toBe(false);                                      // the page's budget, not the hour's
+    expect(settleSeriesReloadNeeded(true, next, 2)).toBe(true);
+    const swellKey = settleReloadKey(h0);
+    window.__SURF_MODE__ = true;                                                                  // the surf page is another request
+    expect(settleReloadKey(h0)).not.toBe(swellKey);
+    delete window.__SURF_MODE__;
+    window.__RAW_DISABLE_SETTLE_RELOAD_PAGE_KEY__ = true;
+    expect(settleReloadKey(h0)).not.toBe(settleReloadKey(h1));                                    // killed: per hour, as before
+    delete window.__RAW_DISABLE_SETTLE_RELOAD_PAGE_KEY__;
+  });
+
   it('wiring: the clamp branch asks the guard with the covering-regional-frame test', () => {
     const src = fs.readFileSync(path.join(__dirname, 'useMarineScrubSettle.js'), 'utf8');
     expect(src).toMatch(/\} else if \(settleSeriesReloadNeeded\(!!\(frame && fw < 340 && frameCovers\), \{ model, layer, hour: currentHour, vb: clampVb \}\)\) \{/);
