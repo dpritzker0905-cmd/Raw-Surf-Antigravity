@@ -471,7 +471,7 @@ async def lifespan(app: FastAPI):
     if not is_testing:
         asyncio.create_task(run_startup_tasks())
         # Re-drives due queued email; a no-op while EMAIL_PROVIDER is unset (docs/runbooks/EMAIL-SETUP.md).
-        from services.email_service.sweeper import start_sweeper
+        from services.mailer.sweeper import start_sweeper
         email_sweeper = start_sweeper()
 
     yield

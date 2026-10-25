@@ -151,7 +151,7 @@ cap: re-check [Resend's pricing](https://resend.com/pricing) before launch). The
 
 ## How it behaves (for the next developer)
 
-- API: `from services.email_service import enqueue_email, deliver_outbox_entry`. Inside the request, in the same
+- API: `from services.mailer import enqueue_email, deliver_outbox_entry`. Inside the request, in the same
   transaction as the data change, call `result = await enqueue_email(db, template, to, params, idempotency_key)`, commit,
   then `background_tasks.add_task(deliver_outbox_entry, result.outbox_id)` if `result.queued`. Statuses: `queued`,
   `duplicate` (same key already accepted: nothing new is sent), `suppressed`, `rate_limited`, `not_configured`,
@@ -168,5 +168,20 @@ cap: re-check [Resend's pricing](https://resend.com/pricing) before launch). The
   app's beach theme.
 - Tables are created by the startup self-heal (`ensure_database_tables`); the Alembic revision `e1a0c5f2b7d4` exists so a
   migrated database matches.
-- The package is `services/email_service`, **not** `services/email`: fetchers run by path with `services/` first on
-  `sys.path`, and a package named `email` there would shadow the standard library and break them. A test guards this.
+- The package is `services/mailer`, **not** `services/email` (fetchers run by path with `services/` first on `sys.path`,
+  so it would shadow the standard library) and **not** `services/email_service` (that module already exists: the SendGrid
+  session-recap helper). Tests guard both, and that the tests stay out of the forecast-chain CI lane.
+
+## Existing email code this PR does not touch (read before turning anything on)
+
+The app already sends some mail by other routes. None of it goes through this service yet:
+
+- `routes/auth_pkg/password_reset.py`, `scheduler/grom.py`, `scheduler/financial.py` and `services/admin_notifications.py`
+  use the `resend` SDK keyed on **`RESEND_API_KEY`**, and the reset email is sent **From `noreply@raw.surf` (the apex)**.
+  Resend only sends from a verified domain, so with `notify.raw.surf` as the only verified domain those calls will be
+  rejected until their From is moved to the subdomain. Check whether `RESEND_API_KEY` already exists in Render, and
+  whether an apex domain was verified in Resend earlier, before assuming nothing sends today.
+- `services/email_service.py` is a SendGrid helper (`SENDGRID_API_KEY`) used for photographer session recaps.
+- This service uses `EMAIL_*` variables so it can be switched on and off independently. Moving the existing senders onto
+  it (one place for suppression, rate limits and the daily budget, and one From identity) is a follow-up, as is retiring
+  `RESEND_API_KEY` once nothing reads it.

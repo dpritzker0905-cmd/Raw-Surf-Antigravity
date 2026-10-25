@@ -16,10 +16,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from database import get_db
 from models.email_outbox import EmailOutbox, EmailSuppression
 from routes.email_webhook import router as webhook_router
-from services.email_service import templates
-from services.email_service.base import address_hash
-from services.email_service.templates import TEMPLATES, TemplateError, build_link, clean, render
-from services.email_service.webhook import sign, verify
+from services.mailer import templates
+from services.mailer.base import address_hash
+from services.mailer.templates import TEMPLATES, TemplateError, build_link, clean, render
+from services.mailer.webhook import sign, verify
 
 BACKEND = Path(__file__).resolve().parent.parent
 TOKEN = "tok_" + "x" * 32  # obviously fake and low entropy, so secret scanners stay quiet
@@ -293,7 +293,7 @@ async def test_webhook_logs_a_hash_reference_never_the_address(hook, monkeypatch
     monkeypatch.setenv("EMAIL_WEBHOOK_SECRET", SECRET)
     body, headers = _signed(_event())
     await hook.post("/api/email/webhook", content=body, headers=headers)
-    logged = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith(("routes.", "services.email_service")))
+    logged = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith(("routes.", "services.mailer")))
     assert "suppressed to_ref=" in logged
     assert "bounced.person" not in logged.lower() and "example.test" not in logged
 
@@ -310,7 +310,26 @@ def test_the_package_cannot_shadow_the_standard_library_email_module():
     """Fetchers run as `python backend/services/x.py`, putting services/ at sys.path[0]; a services/email
     package would replace stdlib `email` there and break http.client/urllib."""
     assert not (BACKEND / "services" / "email").exists()
-    assert (BACKEND / "services" / "email_service" / "__init__.py").exists()
+    assert (BACKEND / "services" / "mailer" / "__init__.py").exists()
+
+
+def test_the_existing_email_service_module_is_not_shadowed():
+    """`services/email_service.py` (the SendGrid session-recap helper) predates this package; a directory of the
+    same name would hide it and break routes/photographer/sessions.py."""
+    import importlib
+    legacy = importlib.import_module("services.email_service")
+    assert hasattr(legacy, "send_session_recap_email") and not (BACKEND / "services" / "email_service").is_dir()
+
+
+def test_these_tests_stay_out_of_the_forecast_chain_ci_lane():
+    """ci_test_lanes sends any test importing `services.<x>_service` / `*fetcher*` / `weather_pipeline` to the chain
+    lane (own floors, 20-minute timeout). The email tests belong to the estate lane."""
+    from scripts.ci_test_lanes import CHAIN_IMPORTS
+    here = Path(__file__).resolve().parent
+    for name in ("test_email_service.py", "test_email_templates_and_webhook.py"):
+        assert not CHAIN_IMPORTS.search((here / name).read_text(encoding="utf-8")), name
+    for module in (BACKEND / "services" / "mailer").glob("*.py"):
+        assert not CHAIN_IMPORTS.search(module.read_text(encoding="utf-8")), module.name
 
 
 def test_the_webhook_is_listed_as_a_public_write_with_a_reason():

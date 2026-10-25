@@ -17,12 +17,12 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from models.email_outbox import EmailOutbox, EmailSuppression
-from services.email_service import outbox as outbox_mod
-from services.email_service.base import address_hash, is_valid_address
-from services.email_service.outbox import (
+from services.mailer import outbox as outbox_mod
+from services.mailer.base import address_hash, is_valid_address
+from services.mailer.outbox import (
     deliver_outbox_entry, enqueue_email, suppress_address, sweep_queued,
 )
-from services.email_service.senders import (
+from services.mailer.senders import (
     CONSOLE, ConsoleSender, DisabledSender, ResendSender, build_sender,
 )
 
@@ -453,7 +453,7 @@ async def test_no_address_or_token_in_logs_on_any_path(factory, caplog, monkeypa
     c = await _enqueue(factory, None, key="console", to="other.person@example.test")
     await deliver_outbox_entry(c.outbox_id, session_factory=factory)
     # Only OUR loggers: aiosqlite's DEBUG logger prints SQL parameters, and is never on in production.
-    logged = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith("services.email_service"))
+    logged = "\n".join(r.getMessage() for r in caplog.records if r.name.startswith("services.mailer"))
     assert logged.count("[email") >= 5  # the paths above really logged
     for secret in (ADDRESS, ADDRESS.lower(), "parent.person", "other.person", "example.test", TOKEN, "test-key-not-real"):
         assert secret not in logged, secret
@@ -506,7 +506,7 @@ async def _status(factory, outbox_id):
 
 
 def test_templates_are_classed_security_or_low():
-    from services.email_service.templates import TEMPLATES, priority_of
+    from services.mailer.templates import TEMPLATES, priority_of
     for name in ("guardian_invite", "guardian_confirmed", "login_new_device", "account_lockout_notice",
                  "password_reset"):
         assert priority_of(name) == "security", name
@@ -720,7 +720,7 @@ class _Stop(Exception):
 
 
 async def test_sweeper_only_sweeps_when_a_provider_is_configured_and_survives_a_bad_pass(caplog):
-    from services.email_service.sweeper import sweep_forever
+    from services.mailer.sweeper import sweep_forever
     caplog.set_level(logging.ERROR)
     calls, naps = [], []
 

@@ -11,10 +11,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from services.email_service import config
-from services.email_service.base import is_valid_address, log_ref, normalize_address
-from services.email_service.outbox import suppress_address
-from services.email_service.webhook import verify
+from services.mailer import config
+from services.mailer.base import is_valid_address, log_ref, normalize_address
+from services.mailer.outbox import suppress_address
+from services.mailer.webhook import verify
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
