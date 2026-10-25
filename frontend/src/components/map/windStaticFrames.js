@@ -28,7 +28,7 @@ import {
 import { buildWindVectors, frameMeta, gridJsonFromFrame, parseFrame, pickIndexFrame } from './staticFrameCodec';
 import { cropGridJson, cropVectors, gridBboxParam, midClipWindow, parseBboxString } from './staticFrameCrop';
 import { clampViewportBbox, getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
-import { buildTruthTag } from './weatherTruthTracker';
+import { buildTruthTag, seedJsDataHash } from './weatherTruthTracker';
 import { BACKEND_URL } from '../../lib/apiClient';
 
 export const WIND_SET_KEY = 'GFS/wind/wind/global_mid';
@@ -69,13 +69,39 @@ const iso = (t) => new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
 // ── the pinned index, mirrored synchronously ─────────────────────────────────────────────────────────────────────────────────
 const _s = { index: null, indexAt: 0, pinLoad: null, ptr: null, ptrAt: 0, ptrLoad: null, ptrFails: 0, raw: new Map(), built: new Map(),
-  box: null, boxAt: 0, boxLoad: null, boxFails: 0 };
+  box: null, boxAt: 0, boxLoad: null, boxFails: 0, rebuilt: null };
 
-/** The pinned wind index (async; staticFrames' pin rules: one index per scrub session, re-pinned when idle). */
+/**
+ * The lane-window rebuild the lane pointer names (`frames`: {index, run, lane}; backend frame_set_wind_rebuild.py, written by
+ * the core lane right after a new HRRR lane), when it is the SAME run as the published index and carries the pointer's lane
+ * where the published index does not. Else null. The rebuilt index is immutable: fetched once per path.
+ * Kill: window.__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__ = true (the published index only; lane hours then wait for the pilots).
+ */
+async function rebuiltIndexFor(idx) {
+  const ptr = _s.ptr; const f = ptr && ptr.frames;
+  if (!idx || !f || !f.index || f.lane !== ptr.key || f.run !== idx.run) return null;
+  if ((idx.wind_lane || {}).key === ptr.key || W().__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__ === true) return null;
+  if (_s.rebuilt && _s.rebuilt.path === f.index) return _s.rebuilt;
+  try {
+    const r = await fetch(staticFramesBase() + f.index, { credentials: 'omit' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    if (!j || !Array.isArray(j.frames) || j.run !== idx.run || (j.wind_lane || {}).key !== ptr.key) return null;
+    j.path = j.path || f.index;
+    _s.rebuilt = j;
+    return j;
+  } catch (e) {
+    return null;
+  }
+}
+
+/** The pinned wind index (async; staticFrames' pin rules: one index per scrub session, re-pinned when idle), or the pointer's
+ * lane-window rebuild of that same run (rebuiltIndexFor). */
 export async function windIndex() {
   if (!windStaticEnabled()) return null;
   try {
-    const idx = await getPinnedIndex(WIND_SET_KEY);
+    let idx = await getPinnedIndex(WIND_SET_KEY);
+    idx = (await rebuiltIndexFor(idx)) || idx;
     if (idx && idx !== _s.index) {
       _s.index = idx;
       _s.indexAt = nowMs();
@@ -295,6 +321,11 @@ function build(index, frame, buffer, stamp, { askIso, bbox, kind }) {
     json.wind_lane = cropStamp(stamp, laneW, vectors, grid.cols, win);
     tel().crops += 1;
   }
+  // The frame is content-addressed: its sha256 (+ the crop window) names these vectors, so the truth tag's data hash takes
+  // that instead of string-hashing every vector (weatherTruthTracker.seedJsDataHash). Kill: __RAW_DISABLE_WIND_FRAME_HASH_SEED__.
+  if (frame.sha256 && W().__RAW_DISABLE_WIND_FRAME_HASH_SEED__ !== true) {
+    seedJsDataHash(json.grid && json.grid.vectors, json.layer, `${frame.sha256}|${kind === 'crop' ? gridBboxParam(bbox) : 'world'}`);
+  }
   try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
   if (t0) { const b = tel().buildMs; b.push(Math.round((performance.now() - t0) * 10) / 10); if (b.length > 64) b.shift(); }
   _s.built.set(key, json);
@@ -367,7 +398,7 @@ export function staticWindCovers(askIsos, model = 'GFS') {
 /** Test hook. */
 export function _resetWindStaticForTest() {
   _s.index = null; _s.indexAt = 0; _s.pinLoad = null; _s.ptr = null; _s.ptrAt = 0; _s.ptrLoad = null; _s.ptrFails = 0;
-  _s.box = null; _s.boxAt = 0; _s.boxLoad = null; _s.boxFails = 0;
+  _s.box = null; _s.boxAt = 0; _s.boxLoad = null; _s.boxFails = 0; _s.rebuilt = null;
   _s.raw.clear(); _s.built.clear();
   if (typeof window !== 'undefined') delete window.__RAW_WIND_STATIC__;
 }

@@ -1,6 +1,6 @@
 /**
  * ownRasterLayer.js — a MapLibre custom layer that draws one raster field from our own frames (ownRasterFrames.js), in
- * MapLibre's shared GL context (2026-10-23; phase 1: GFS pressure, dark).
+ * MapLibre's shared GL context (2026-10-23; phase 1: GFS pressure, dark; 2026-10-24: per-model pressure, GFS air temperature).
  *
  * HOW IT DRAWS. Each decoded frame is ONE resident R32F texture (720 x 361 x 4 B = 1 MB; at most RESIDENT_MAX). A scrub step
  * only rebinds a different texture: a hard cut on the first frame the wanted field is resident, nothing in between (no
@@ -34,6 +34,22 @@ export function colorAtValue(scale, v) {
 }
 
 export const PRESSURE_LUT = { min: 870, step: 0.1, n: 2200 };   // 870-1090 hPa at the frame's 0.1 hPa codes
+// Air temperature: the tile library's own 'temperature' breakpoint scale (-80..50 deg C, 46 colours, NOT theme-varied; the .om
+// path draws it through the library's getColor, which is exactly colorAtValue: 0 mismatches over -95..60 in 0.01 steps,
+// 2026-10-24). Every breakpoint is a multiple of 0.5, so a 0.5 deg C step is exact at every boundary (pinned by a test);
+// below -80 clamps to the first colour and above 50 to the last, as the library does.
+export const TEMPERATURE_LUT = { min: -80, step: 0.5, n: 261 };
+// Cloud cover: the tile library's own 'cloud_cover' breakpoint scale (0..90 % every 10, straight alpha), with a light and a dark
+// colour set. Every breakpoint is a multiple of 10, so a 10 % step is exact at each boundary (pinned by a test).
+export const CLOUD_LUT = { min: 0, step: 10, n: 10 };
+
+/** The colours the .om path uses for a theme: a scale with light / dark variants resolves as the tile library does
+ *  (resolveColorScale), with `dark` = the URL's dark=true, which useOpenMeteoTileUrls sets for the dark AND beach themes. */
+export function scaleForTheme(scale, theme) {
+  const c = scale && scale.colors;
+  if (!c || Array.isArray(c) || !c.dark || !c.light) return scale;
+  return { ...scale, colors: (theme === 'dark' || theme === 'beach') ? c.dark : c.light };
+}
 
 /** RGBA8 (straight alpha) LUT: entry k = the colour of value min + k * step. */
 export function buildStepLut(scale, { min, step, n } = PRESSURE_LUT) {
@@ -48,6 +64,10 @@ export function buildStepLut(scale, { min, step, n } = PRESSURE_LUT) {
 
 // MapWebGL's pressure slot ramp ('raster-opacity' interpolate linear over zoom; pinned by ownRasterLayer.test.js).
 export const PRESSURE_OPACITY_STOPS = [[2, 0.35], [5, 0.42], [8, 0.48], [12, 0.55]];
+export const TEMPERATURE_OPACITY_STOPS = [[2, 0.38], [5, 0.44], [8, 0.49], [12, 0.53]];
+export const SATELLITE_OPACITY_STOPS = [[2, 0.55], [5, 0.60], [8, 0.65], [12, 0.70]];
+// The no-data test: ownRasterFrames.MISSING (-9999) is below it, every real value of every layer above (pinned by a test).
+export const NO_DATA_BELOW_GLSL = '-9000.0';
 export function opacityAtZoom(stops, z) {
   if (z <= stops[0][0]) return stops[0][1];
   for (let i = 1; i < stops.length; i++) {
@@ -93,8 +113,12 @@ void main() {
   float fy = clamp((lat - u_grid.y) / u_grid.w, 0.0, u_size.y - 1.0);
   int c0; int c1; float tx;
   if (u_size.z > 0.5) {
+    // INTEGER wrap (2026-10-24, matrix cell 6 at Fiji): float mod(720.0, 720.0) can round to 720, and a texelFetch past the last
+    // column reads 0 -> a violet one-cell stripe on the antimeridian. Integer modulo is exact.
     float x0 = floor(fx); tx = fx - x0;
-    c0 = int(mod(x0, u_size.x)); c1 = int(mod(x0 + 1.0, u_size.x));
+    int n = int(u_size.x);
+    c0 = int(x0) % n; if (c0 < 0) c0 += n;
+    c1 = c0 + 1; if (c1 >= n) c1 = 0;
   } else {
     if (fx < 0.0 || fx > u_size.x - 1.0) discard;
     float x0 = min(floor(fx), u_size.x - 2.0); tx = fx - x0;
@@ -103,7 +127,7 @@ void main() {
   float y0 = min(floor(fy), u_size.y - 2.0); float ty = fy - y0;
   int r0 = int(y0); int r1 = r0 + 1;
   float a = node(c0, r0); float b = node(c1, r0); float c = node(c0, r1); float d = node(c1, r1);
-  if (min(min(a, b), min(c, d)) < 0.0) discard;
+  if (min(min(a, b), min(c, d)) < ${NO_DATA_BELOW_GLSL}) discard;
   float v = mix(mix(a, b, tx), mix(c, d, tx), ty);
   float k = clamp(floor((v - u_lutMap.x) / u_lutMap.y + 1e-3), 0.0, u_lutMap.z - 1.0);
   vec4 col = texelFetch(u_lut, ivec2(int(k), 0), 0);
@@ -127,10 +151,10 @@ function compile(gl, type, src) {
 }
 
 /**
- * createOwnRasterLayer({ id, opacityStops, isobarColor(theme) }) -> a MapLibre custom layer with:
+ * createOwnRasterLayer({ id, opacityStops, lutMap, onFail, shaderIsobars }) -> a MapLibre custom layer with:
  *   setLut(Uint8Array, lutMap), offerField(path, field), want(path), isResident(path), shownPath(), onShown(fn), disposed.
  */
-export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS, lutMap = PRESSURE_LUT, onFail = null } = {}) {
+export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS, lutMap = PRESSURE_LUT, onFail = null, shaderIsobars = true } = {}) {
   const st = {
     map: null, gl: null, canvas: null, lost: false, ready: false, failed: false,
     prog: null, vao: null, buf: null, loc: null, lutTex: null, lut: null, lutDirty: false, lutMap,
@@ -276,7 +300,8 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
       const f = r.field;
       const dLon = (f.bounds.east - f.bounds.west) / (f.cols - 1);
       const dLat = (f.bounds.north - f.bounds.south) / (f.rows - 1);
-      const iso = typeof window !== 'undefined' ? Number(window.__RAW_OWN_RASTER_ISOBARS__) || 0 : 0;
+      // The shader's isoline lever is pressure's only (shaderIsobars): it would draw isotherms through air temperature.
+      const iso = shaderIsobars && typeof window !== 'undefined' ? Number(window.__RAW_OWN_RASTER_ISOBARS__) || 0 : 0;
       gl.useProgram(st.prog);
       gl.bindVertexArray(st.vao);
       gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, r.tex);

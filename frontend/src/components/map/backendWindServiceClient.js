@@ -26,6 +26,41 @@ import { tryStaticWindGrid, staticWindGridSync, windBoxKind, windStaticEnabled }
 export const windPointCache = new BoundedPointCache(50, 30000);
 
 const inFlightWindRequests = new Map();
+
+// THE SAME WIND /grid ASK IS ANSWERED ONCE (2026-10-24, the wind pan diet; the worldwide matrix's cell 7): the in-flight dedupe
+// above lives only while a request is pending, so every zoom / pan re-entry of the hour-0 fetch after it completed re-asked the
+// identical close-zoom sharpen (measured offline at Norway z5: one box and hour asked 3x, ~5 s apart, ~3 s of the box each). A
+// completed, non-stale answer is kept 2 min (windController's own TTL) under its full URL (model, valid_time, bbox, lane switch),
+// 16 entries. A stale answer is never kept (the SWR re-ask owns it). Kill: window.__RAW_DISABLE_WIND_GRID_RESPONSE_CACHE__.
+const WIND_GRID_RESPONSE_TTL_MS = 120000;
+const WIND_GRID_RESPONSE_MAX = 16;
+const windGridResponses = new Map();   // url -> { result, at }
+function windGridResponseCacheOn() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_GRID_RESPONSE_CACHE__ === true);
+}
+function windGridResponseCacheGet(url) {
+  if (!windGridResponseCacheOn()) return null;
+  const e = windGridResponses.get(url);
+  if (!e) return null;
+  if (Date.now() - e.at > WIND_GRID_RESPONSE_TTL_MS) { windGridResponses.delete(url); return null; }
+  if (typeof window !== 'undefined') {
+    const d = (window.__RAW_WIND_GRID_CACHE__ = window.__RAW_WIND_GRID_CACHE__ || { hits: 0, puts: 0 });
+    d.hits += 1;
+  }
+  return e.result;
+}
+function windGridResponseCachePut(url, result) {
+  if (!windGridResponseCacheOn() || !result || result.stale || !result.renderable) return;
+  windGridResponses.delete(url);
+  windGridResponses.set(url, { result, at: Date.now() });
+  while (windGridResponses.size > WIND_GRID_RESPONSE_MAX) windGridResponses.delete(windGridResponses.keys().next().value);
+  if (typeof window !== 'undefined') {
+    const d = (window.__RAW_WIND_GRID_CACHE__ = window.__RAW_WIND_GRID_CACHE__ || { hits: 0, puts: 0 });
+    d.puts += 1;
+  }
+}
+/** Tests only. */
+export function _resetWindGridResponseCacheForTest() { windGridResponses.clear(); }
 const inFlightWindPointRequests = new Map();
 
 /**
@@ -483,6 +518,9 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     if (sj) return staticWindResult(sj, { clampedBbox, hourOffset, model, actualBounds, actualSource, start, validTimeStr, clampResult });
   }
 
+  const _hit = windGridResponseCacheGet(url);
+  if (_hit) return { ..._hit, hourOffset };   // the same ask answered < 2 min ago (an hour can share a frame: its own label)
+
   const _inFlight = inFlightWindRequests.get(url);
   if (_inFlight) {
     // STRANDED-DEDUP GUARD (2026-07-20 — the marine stranded fetch-lock lesson, wind edition;
@@ -592,6 +630,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
         coverage_scope: json.coverage_scope || null
       });
 
+      windGridResponseCachePut(url, result);
       return result;
     } catch (err) {
       const errorDetails = {

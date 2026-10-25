@@ -15,7 +15,7 @@ Black Sea 5, Winnipeg and Victoria 6. GFS and ICON carry none of these lakes.
 
 | Piece | File | What it does |
 |---|---|---|
-| Asset | `frontend/public/wave_lakes.json` (95 KB), built by `frontend/scripts/build_wave_lakes.py` | Superior, Michigan, Huron, Erie, Ontario, Winnipeg, Victoria: NE 50 m and 10 m outlines (10 m simplified at 0.01 deg), bbox, 3 interior anchors |
+| Asset | `frontend/public/wave_lakes.json` (98 KB), built by `frontend/scripts/build_wave_lakes.py` | Superior, Michigan, Huron, Erie, Ontario, Winnipeg, Victoria, Taihu, Lagoa Mirim (the last two added 2026-10-24: valid EURO inland nodes; Lagoa Mirim has no 50 m outline in NE, so its g50 is the 10 m one simplified at 0.03 deg): NE 50 m and 10 m outlines (10 m simplified at 0.01 deg), bbox, 3 interior anchors |
 | Allow-list | `waveLakes.js` `lakesCarried(grid)` | A lake is cut only when the grid's model is in `LAKE_MODELS` (`['EURO']`) and a VALID node's cell touches the lake. Lakes near an ocean (Ladoga, Nicaragua) and Okeechobee and Salton are not in the asset, so no model lights them |
 | Land variant | `waveLakes.js` `withWaveLakes(land, grid, bounds, engine)` | The carried lakes that touch the mask bounds are cut as holes in their containing NE polygon (the lake ring winds against the land; its islands wind with it, nonzero fill). One memoised object per (land, lake set, resolution), so every identity-keyed mask cache holds across hours |
 | Encoder | `WebGLMarineTextureEncoder.js` | The rebuild and the coarse-base wash both take the variant. When the resident mask's lake set differs from this commit's, the "retain the resident while the basemap loads" shortcuts are withdrawn for this commit |

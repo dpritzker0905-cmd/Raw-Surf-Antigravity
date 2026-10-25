@@ -240,26 +240,44 @@ function frameToWindData(frame, model) {
 // by the box in ~10-25 s). When every hour of the page can be served statically right now (pinned run, lane check passed), the
 // page is not asked for: the scrub paths read the static frame first. Kill: window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__.
 export async function staticOwnsWindPage(model, bounds, page) {
+  const uncovered = await staticUncoveredHours(model, bounds, page);
+  return !!uncovered && uncovered.length === 0;
+}
+
+// THE PAGE ASKS ONLY WHAT THE FRAMES CANNOT SERVE (2026-10-24, the wind pan diet; the worldwide matrix's "stray world page"):
+// GFS wind scrubs to +384 h, the static frames end at their run's f336, so the LAST world page (hours 288-384, 33 frames) was
+// asked whole in every session for its few tail hours, re-building ~15-20 hours the CDN already serves (10-25 s of the box per
+// page). The page now asks only its hours with no static frame; a frame the box serves is the same per hour either way (the
+// series route resolves each hour on its own), so no served number moves. Kill: window.__RAW_DISABLE_WIND_SERIES_TRIM__.
+export function windSeriesTrimEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_TRIM__ === true);
+}
+
+/** The page's hours the static frames cannot serve right now ([] = the page is owned), or null when static frames do not
+ * apply to this view (not the world key, another model, the kills). */
+export async function staticUncoveredHours(model, bounds, page) {
   try {
-    if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__ === true) return false;
-    if (!windStaticEnabled() || windLaneDisabled() || String(model || 'GFS').toUpperCase() !== 'GFS') return false;
-    if (viewportKey(bounds) !== 'global') return false;
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__ === true) return null;
+    if (!windStaticEnabled() || windLaneDisabled() || String(model || 'GFS').toUpperCase() !== 'GFS') return null;
+    if (viewportKey(bounds) !== 'global') return null;
     await Promise.all([windIndex(), readLanePointer(false)]);
-    const asks = buildPageHours(page).map((h) => getSharedValidTime(h, 'wind', 'GFS', { readOnly: true }));
-    const owned = staticWindCovers(asks, model);
-    if (owned && typeof window !== 'undefined') {
+    const hours = buildPageHours(page);
+    const uncovered = hours.filter((h) => !staticWindCovers([getSharedValidTime(h, 'wind', 'GFS', { readOnly: true })], model));
+    if (typeof window !== 'undefined') {
       const dg = (window.__WIND_SERIES_DIAG__ = window.__WIND_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
-      dg.staticSkips = (dg.staticSkips || 0) + 1;
+      if (!uncovered.length) dg.staticSkips = (dg.staticSkips || 0) + 1;
+      else if (uncovered.length < hours.length) dg.staticTrims = (dg.staticTrims || 0) + 1;
     }
-    return owned;
+    return uncovered;
   } catch (e) {
-    return false;
+    return null;
   }
 }
 
 async function loadSeriesPage(model, bounds, page, signal) {
   if (!isWindSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
-  if (await staticOwnsWindPage(model, bounds, page)) return;
+  const uncovered = await staticUncoveredHours(model, bounds, page);
+  if (uncovered && uncovered.length === 0) return;      // the static frames own every hour of the page
   // A view that has already been superseded asks for nothing: addEventListener('abort') below never
   // fires for a signal that is aborted before it is attached, so without this the fetch went out.
   if (callerAborted(signal)) return;
@@ -268,7 +286,7 @@ async function loadSeriesPage(model, bounds, page, signal) {
   if (existing && Date.now() - existing.ts < SERIES_TTL_MS) return;
   if (_inFlight.has(key)) return;
 
-  const hours = buildPageHours(page);
+  const hours = uncovered && windSeriesTrimEnabled() ? uncovered : buildPageHours(page);
   if (hours.length === 0) return;
   const reqBox = normalizeRequestBbox(bounds);
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`

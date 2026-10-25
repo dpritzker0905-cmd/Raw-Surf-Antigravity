@@ -24,6 +24,8 @@ import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 
 export const PRESSURE_FIELD = 6;
+export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
+export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -31,6 +33,19 @@ export const OWN_RASTER_SETS = {
   pressure: {
     models: { GFS: 'GFS/weather/pressure/global_0p5', EURO: 'EURO/weather/pressure/global_0p5', ICON: 'ICON/weather/pressure/global_0p5' },
     fallback: 'GFS', field: PRESSURE_FIELD, unit: 'hPa',
+  },
+  // AIR TEMPERATURE (2026-10-24, the lead's order after per-model pressure): GFS TMP 2 m only (#515's set, f000-f336 every 3 h).
+  // EURO and ICON have no own set yet, so with those picked the layer stays on the .om path, which draws that model as before
+  // (no GFS frames under a EURO or ICON label, and so no stand-in tail either).
+  temperature: {
+    models: { GFS: 'GFS/weather/temperature/global_0p5' },
+    fallback: null, field: TEMP_FIELD, unit: '°C',
+  },
+  // CLOUD COVER (2026-10-24): the app's 'satellite' layer draws forecast total cloud cover (Satellite IR was discontinued,
+  // useWeatherState). GFS TCDC, the instantaneous entire-atmosphere message (#515's set). GFS only, as air temperature.
+  satellite: {
+    models: { GFS: 'GFS/weather/cloud_cover/global_0p5' },
+    fallback: null, field: CLOUD_FIELD, unit: '%',
   },
 };
 // Who the frames come from, for the legend credit and the status line.
@@ -41,7 +56,10 @@ export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
   return (set && set.models[up(model)]) || null;
 }
-export const MISSING = -9999;     // what a no-data node becomes in the uploaded field (every real value is positive)
+// What a no-data node becomes in the uploaded field: far below every real value of every layer (air temperatures are negative,
+// so the shader's no-data test is `< NO_DATA_BELOW`, never `< 0`).
+export const MISSING = -9999;
+export const NO_DATA_BELOW = -9000;
 const LRU_MAX = 6;                // the desktop window (4) plus the last two shown
 const STEPS_KEPT = 400;
 
@@ -54,11 +72,20 @@ export function ownFramesOn(layer, model = 'GFS') {
   if (!key) return false;
   const w = W();
   if (w.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true) return false;
-  let on = w.__RAW_RASTER_OWN_FRAMES__ === true;
-  if (!on) {
-    try { on = !!w.localStorage && w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') === 'true'; } catch (e) { on = false; }
+  if (w[`__RAW_DISABLE_RASTER_OWN_${String(layer).toUpperCase()}__`] === true) return false;
+  let lever = w.__RAW_RASTER_OWN_FRAMES__;
+  if (lever === undefined || lever === null || lever === false) {
+    try { lever = w.localStorage ? w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') : null; } catch (e) { lever = null; }
   }
-  return on && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
+  return leverCovers(lever, layer) && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
+}
+
+/** The lever's value covers a layer: true / 'true' = every own layer; a comma list ('pressure,temperature') = those layers.
+ *  Each layer is its own owner decision, so a flip can name exactly the layers it means. */
+export function leverCovers(lever, layer) {
+  if (lever === true || lever === 'true') return true;
+  if (typeof lever !== 'string') return false;
+  return lever.split(',').map((s) => s.trim()).includes(layer);
 }
 
 export function tel() {
@@ -241,6 +268,19 @@ export function setEngaged(layer, on) {
 export const getEngaged = () => _engaged;
 export function subscribeEngaged(fn) { _engagedSubs.add(fn); return () => _engagedSubs.delete(fn); }
 
+// ── the frame on screen, per layer (the isobar layer follows the colour field's cut exactly) ─────────────────────────────
+// `shown` fires INSIDE MapLibre's render, the moment the field cuts (subscribers may only flip layer visibility there); `want`
+// fires when a step picks its frame (before the cut), so the next frame's isobars can be prepared in a hidden buffer.
+const _shown = {}; const _want = {};
+const _shownSubs = new Set();
+const _emit = (kind, layer, path) => { for (const fn of _shownSubs) { try { fn(kind, layer, path || null); } catch (e) { /* a subscriber's own */ } } };
+export function emitOwnShown(layer, path) { _shown[layer] = path || null; _emit('shown', layer, path); }
+export function emitOwnWant(layer, path) { _want[layer] = path || null; _emit('want', layer, path); }
+export const getOwnShown = (layer) => _shown[layer] || null;
+export const getOwnWant = (layer) => _want[layer] || null;
+/** fn(kind: 'shown' | 'want', layer, path) */
+export function onOwnShown(fn) { _shownSubs.add(fn); return () => _shownSubs.delete(fn); }
+
 /** Record one scrub step for the hit-rate-vs-velocity read: was the wanted frame already decoded when asked? */
 export function noteStep(path, hit, at = Date.now()) {
   const s = tel().steps;
@@ -253,6 +293,9 @@ export function _resetOwnRasterFramesForTest() {
   _inflight.clear();
   _pump.layer = null; _pump.wanted = []; _pump.onField = null;
   _engaged = Object.freeze({});
+  for (const k of Object.keys(_shown)) delete _shown[k];
+  for (const k of Object.keys(_want)) delete _want[k];
+  _shownSubs.clear();
   for (const k of Object.keys(_lastIndex)) delete _lastIndex[k];
   const w = W();
   delete w.__RAW_OWN_RASTER__;

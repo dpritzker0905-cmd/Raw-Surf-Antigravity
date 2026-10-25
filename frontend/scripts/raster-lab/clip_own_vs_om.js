@@ -19,7 +19,8 @@ const STEPS = +(process.env.STEPS || 24);
 const KEY_MS = +(process.env.KEY_MS || 300);
 const HOLD_MS = +(process.env.HOLD_MS || 4000);
 const VIEW = (process.env.VIEW || '-55,38,3.2').split(',').map(Number);
-const OUT = path.join(process.env.OUT || '.', `${ARM}-${THEME}`);
+const MODEL = process.env.MODEL || null;                // GFS | EURO | ICON (the model selector); unset = the default
+const OUT = path.join(process.env.OUT || '.', MODEL ? `${ARM}-${MODEL}-${THEME}` : `${ARM}-${THEME}`);
 
 (async () => {
   fs.mkdirSync(path.join(OUT, 'frames'), { recursive: true });
@@ -35,6 +36,7 @@ const OUT = path.join(process.env.OUT || '.', `${ARM}-${THEME}`);
   await sleep(2500);
   // Close the offline backend's spots toast so it does not sit over both clips.
   await page.evaluate(() => { for (const b of document.querySelectorAll('button')) if (/close|dismiss/i.test(b.getAttribute('aria-label') || '')) b.click(); });
+  if (MODEL) await page.evaluate((m) => window.setActiveModel && window.setActiveModel(m), MODEL);
   await L.jump(page, VIEW[0], VIEW[1], VIEW[2]);
   await sleep(1500);
   await page.evaluate(() => window.toggleLayer('pressure'));
@@ -70,7 +72,7 @@ const OUT = path.join(process.env.OUT || '.', `${ARM}-${THEME}`);
   await sleep(300);
   const tel = await page.evaluate(() => { const t = window.__RAW_OWN_RASTER__ || {}; return { loads: t.loads || 0, bytes: t.bytes || 0 }; });
   const net = rr.window(keys[0] - 600, Date.now());
-  fs.writeFileSync(path.join(OUT, 'meta.json'), JSON.stringify({ arm: ARM, theme: THEME, view: VIEW, steps: STEPS, keyMs: KEY_MS, keys, frames, tel,
+  fs.writeFileSync(path.join(OUT, 'meta.json'), JSON.stringify({ arm: ARM, model: MODEL, theme: THEME, view: VIEW, steps: STEPS, keyMs: KEY_MS, keys, frames, tel,
     openMeteo: { requests: net.n, bytes: net.bytes, live: net.live } }, null, 1));
   console.log(`${ARM} ${THEME}: ${frames.length} frames, ${keys.length} keys, open-meteo ${net.n} req ${(net.bytes / 1e6).toFixed(2)} MB (${net.live} live)`);
   await browser.close();

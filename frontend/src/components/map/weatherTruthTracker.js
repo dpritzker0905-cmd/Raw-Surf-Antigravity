@@ -18,6 +18,18 @@ function fnv1a_32(str) {
   return h.toString(16).padStart(8, '0');
 }
 
+/**
+ * CONTENT-ADDRESSED DATA HASH (2026-10-24, wind toggle first draw). computeJsDataHash string-formats every vector (~15k on a
+ * world wind frame: 11-15 ms on the toggle's critical path, profiled). A caller whose vectors are a pure function of a
+ * content-addressed object (a static frame's sha256, plus its crop window) seeds the cache with a hash of that identity
+ * instead; the hash still changes exactly when the data does. Diagnostic only: no served number reads it.
+ */
+export function seedJsDataHash(vectors, layer, identity) {
+  if (!vectors || !vectors.length || !identity) return false;
+  vectors[`__jsDataHash_${layer}`] = fnv1a_32(`content:${identity}`);
+  return true;
+}
+
 export function computeJsDataHash(vectors, layer = 'waves') {
   if (!vectors || !vectors.length) return fnv1a_32("");
   const cacheKey = `__jsDataHash_${layer}`;

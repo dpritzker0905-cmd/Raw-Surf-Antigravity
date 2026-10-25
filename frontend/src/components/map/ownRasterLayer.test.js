@@ -2,20 +2,25 @@ import fs from 'fs';
 import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
+  TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
 } from './ownRasterLayer';
+import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
 
 // A recording WebGL2 stand-in: every call is logged; creators return fresh objects; the link always succeeds.
 function fakeGl() {
   const calls = [];
+  const u2 = [];      // uniform2f arguments: [uniform name, x, y]
   let n = 0;
   const consts = new Proxy({}, { get: (t, k) => (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k) ? `GL_${k}` : undefined) });
   const gl = new Proxy({}, {
     get(t, k) {
       if (k === '__calls') return calls;
+      if (k === '__u2') return u2;
       if (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k)) return consts[k];
       return (...args) => {
         calls.push(k);
+        if (k === 'uniform2f') u2.push([args[0] && args[0].u, args[1], args[2]]);
         if (/^create/.test(k)) { n += 1; return { kind: k, n }; }
         if (k === 'getProgramParameter') return true;
         if (k === 'getUniformLocation') return { u: args[1] };
@@ -162,4 +167,102 @@ test('a device that cannot draw it reports once, so the caller hands the layer b
   L.prerender(webgl1, args); L.render(webgl1, args);
   expect(why).toEqual(['webgl1']);
   expect(L.failed()).toBe(true);
+});
+
+describe('air temperature (2026-10-24): the library scale, its slot ramp, below-zero values', () => {
+  // The .om path colours air temperature with the tile library's own 'temperature' scale through its getColor.
+  const { defaultOmProtocolSettings, getColor } = require('@openmeteo/weather-map-layer');
+  const scale = defaultOmProtocolSettings.colorScales.temperature;
+  test('every breakpoint sits on the LUT step and inside its range (so the step LUT is exact at each boundary)', () => {
+    const { min, step, n } = TEMPERATURE_LUT;
+    for (const b of scale.breakpoints) {
+      expect(Math.abs((b - min) / step - Math.round((b - min) / step))).toBeLessThan(1e-9);
+      expect(b).toBeGreaterThanOrEqual(min);
+      expect(b).toBeLessThanOrEqual(min + (n - 1) * step);
+    }
+  });
+  test("the LUT, read as the shader reads it, is the library's own colour at every 0.05 deg C from -95 to 60", () => {
+    const lut = buildStepLut(scale, TEMPERATURE_LUT);
+    const { min, step, n } = TEMPERATURE_LUT;
+    let checked = 0;
+    for (let i = -1900; i <= 1200; i++) {
+      const v = i / 20;
+      const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+      const lib = getColor(scale, v);
+      expect(colorAtValue(scale, v)).toBe(lib);
+      expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]]).toEqual([lib[0], lib[1], lib[2], Math.round(lib[3] * 255)]);
+      checked += 1;
+    }
+    expect(checked).toBe(3101);
+  });
+  test('pinned to the ramp MapWebGL paints the temperature slots with', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8');
+    for (const [z, o] of TEMPERATURE_OPACITY_STOPS) {
+      expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' .* : layerKey === 'temperature' \\? ${o.toFixed(2)} :`));
+    }
+  });
+  test('no data is the MISSING sentinel only: a below-zero value is drawn', () => {
+    expect(Number(NO_DATA_BELOW_GLSL)).toBe(NO_DATA_BELOW);
+    expect(MISSING).toBeLessThan(NO_DATA_BELOW);
+    expect(FS).toContain(`< ${NO_DATA_BELOW_GLSL}) discard`);
+    expect(FS).not.toMatch(/< 0\.0\) discard/);
+  });
+  test("the shader's isoline lever is pressure's only (shaderIsobars: false keeps it off)", () => {
+    window.__RAW_OWN_RASTER_ISOBARS__ = 4;
+    try {
+      const isoOf = (opts) => {
+        const gl = fakeGl(); const L = createOwnRasterLayer({ id: 'x', ...opts });
+        L.onAdd(fakeMap(), gl); L.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+        L.offerField('a', field(-12)); L.want('a'); L.prerender(gl, args); L.render(gl, args);
+        return gl.__u2.filter((u) => u[0] === 'u_iso').map((u) => u[1]);
+      };
+      expect(isoOf({})).toEqual([4]);
+      expect(isoOf({ lutMap: TEMPERATURE_LUT, opacityStops: TEMPERATURE_OPACITY_STOPS, shaderIsobars: false })).toEqual([0]);
+    } finally { delete window.__RAW_OWN_RASTER_ISOBARS__; }
+  });
+});
+
+test('the antimeridian wrap uses integer columns (a float mod drew a violet stripe at 180, matrix cell 6)', () => {
+  const { FS } = require('./ownRasterLayer');
+  expect(FS).toMatch(/c0 = int\(x0\) % n; if \(c0 < 0\) c0 \+= n;/);
+  expect(FS).toMatch(/c1 = c0 \+ 1; if \(c1 >= n\) c1 = 0;/);
+  expect(FS).not.toMatch(/int\(mod\(x0 \+ 1\.0, u_size\.x\)\)/);
+});
+
+describe('cloud cover, the satellite layer (2026-10-24): the library scale per theme, its slot ramp', () => {
+  const { defaultOmProtocolSettings, getColor, resolveColorScale } = require('@openmeteo/weather-map-layer');
+  const scale = defaultOmProtocolSettings.colorScales.cloud_cover;
+  test('every breakpoint sits on the LUT step and inside its range', () => {
+    const { min, step, n } = CLOUD_LUT;
+    for (const b of scale.breakpoints) {
+      expect(Math.abs((b - min) / step - Math.round((b - min) / step))).toBeLessThan(1e-9);
+      expect(b).toBeLessThanOrEqual(min + (n - 1) * step);
+    }
+  });
+  test.each([['dark', true], ['beach', true], ['light', false]])(
+    "%s: the LUT, read as the shader reads it, is the library's own colour (dark=%p) at every 0.05 %% from 0 to 100", (theme, dark) => {
+      const lib = resolveColorScale(scale, dark);
+      const lut = buildStepLut(scaleForTheme(scale, theme), CLOUD_LUT);
+      const { min, step, n } = CLOUD_LUT;
+      for (let i = 0; i <= 2000; i++) {
+        const v = i / 20;
+        const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+        const c = getColor(lib, v);
+        expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]]).toEqual([c[0], c[1], c[2], Math.round(c[3] * 255)]);
+      }
+    });
+  test("dark AND beach take the dark colours: the same rule as the .om URL's dark=true", () => {
+    const src = fs.readFileSync(path.join(__dirname, 'useOpenMeteoTileUrls.js'), 'utf8');
+    expect(src).toContain("const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';");
+    expect(scaleForTheme(scale, 'beach').colors).toBe(scale.colors.dark);
+    expect(scaleForTheme(scale, 'light').colors).toBe(scale.colors.light);
+    const plain = { breakpoints: [0], colors: [[1, 2, 3, 1]] };
+    expect(scaleForTheme(plain, 'dark')).toBe(plain);
+  });
+  test('pinned to the ramp MapWebGL paints the satellite slots with', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8');
+    for (const [z, o] of SATELLITE_OPACITY_STOPS) {
+      expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' \\? ${o.toFixed(2)} :`));
+    }
+  });
 });

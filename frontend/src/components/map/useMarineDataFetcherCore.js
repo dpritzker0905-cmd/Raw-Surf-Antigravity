@@ -27,7 +27,7 @@ import {
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { claimEnqueueSlot } from './marineEnqueueSlot';
 import { marineErrorOwnsDisplay } from './marineSeekIdentity';
-import { keepSwrRetryCount } from './marineRequestDiet';
+import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -269,6 +269,9 @@ export function useMarineDataFetcherCore({
       let bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineData?.stale || marineData?.grid?.stale);
 
       if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
+      // SWR_KEY_LADDER (marineRequestDiet.js): the ladder's re-ask of THIS very ask (box, model, layer, hour, flavour) is scheduled - wait for it.
+      if (swrReaskScheduledFor({ source, key: viewportHash, timerKey: swrTimerRef.askKey, timerPending: !!swrTimerRef.current })) {
+        noteRequestDiet('swr_key_hold', { source }); recordMarineEvent('swr_key_hold', { source, hour: timeOffset }); return; }
       if (locks.lastHash !== viewportHash) {
         consecutiveFailuresRef.current = 0;
         resetRetryCounts();
@@ -276,11 +279,8 @@ export function useMarineDataFetcherCore({
         locks.lastTime = 0; // Prevent 1200ms rate-limiter from blocking the fetch on layer/viewport switch
       }
 
-      if (source !== 'swr_revalidation') {
-        if (swrTimerRef.current) {
-          clearTimeout(swrTimerRef.current);
-          swrTimerRef.current = null;
-        }
+      if (source !== 'swr_revalidation') {   // a new ask supersedes a pending re-ask (a re-drive of the same one was held just above)
+        if (swrTimerRef.current) { clearTimeout(swrTimerRef.current); swrTimerRef.current = null; }
         swrRetryCountRef.current = 0;
       }
       updateMarineGridRef.current = updateMarineGrid;

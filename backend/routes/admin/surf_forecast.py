@@ -382,6 +382,19 @@ _RATING_FLAGS = {
                                          "with cross-shelf friction off); OFF = legacy seam. ⚠️ "
                                          "FLIP ALL LANES TOGETHER (precomputed frames bake heights)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # THE DAY-14 END (2026-10-24, all three DARK). The scrubber ends at now + 336 h, every stored lane at run + 336 h; measured
+    # live at now + 336: GFS world /grid = a 19x9 upstream fetch (171 vectors vs the stored 15,023), ICON/EURO = the far-edge
+    # hold of the 10-deg coarse frame although a 2-deg mid frame of the same hour was stored.
+    "FAR_EDGE_HOLD_PREFER_MID": ("0", "Far-edge hold (past a marine lane's stored tail, bounded FAR_EDGE_HOLD_MAX_H) serves the "
+                                      "newest 2-deg global_mid frame inside the bound before any 10-deg global_coarse one "
+                                      "(far_edge_hold.py)", "Render env"),
+    "FAR_EDGE_HOLD_BEFORE_UPSTREAM": ("0", "Past a marine lane's stored tail, try the far-edge hold BEFORE /grid's on-demand "
+                                           "upstream fetch when that fetch would be coarser than FAR_EDGE_HOLD_UPSTREAM_MIN_RES "
+                                           "(default 2 deg; a world box is fetched at 20 deg)", "Render env"),
+    "GFS_WORLD_FULL_HORIZON": ("0", "GFS world tiers (global_coarse, global_mid) fetched NOAA-direct to f384 (16 d) instead of 14 d, "
+                                    "so stored GFS reaches the scrubber's end; regional tiles trimmed to their own horizons, "
+                                    "ICON/EURO tails keep their run+336 h ceilings (marine_mid_res_ingestion.gfs_world_fetch_days)",
+                               "repo variable GFS_WORLD_FULL_HORIZON (read by forecast-ingest.yml AND forecast-ingest-pilots.yml)"),
 }
 
 

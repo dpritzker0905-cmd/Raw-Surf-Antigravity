@@ -98,7 +98,8 @@ class WeatherPipelineScheduler:
             flagship_pilot_days, get_gfs_marine_pilot_regions)
         from services.weather_pipeline.marine_mid_res_ingestion import (
             _GLOBAL_REGION, _save_marine_regional, gfs_mid_folds_into_pilot,
-            gfs_mid_forecast_days, gfs_mid_resolution, save_gfs_marine_global_mid)
+            gfs_mid_forecast_days, gfs_mid_resolution, gfs_world_fetch_days, save_gfs_marine_global_mid,
+            trim_points_to_days)
 
         def _layers_for(region_id: str) -> list:
             # SoCal swell_2 was left out by the June 6H.2 pilot (c2816a0f5: "GFS swell_2 only florida"), a scoping choice, not
@@ -157,10 +158,13 @@ class WeatherPipelineScheduler:
                 # off the map so it keeps the scalar — their payloads, and their tiles, stay
                 # byte-identical to before the fold.
                 res_map = {"global_mid": mid_res} if "global_mid" in group else None
+                # GFS_WORLD_FULL_HORIZON (dark): a pass carrying the world tile downloads GFS-Wave's whole run and every
+                # regional tile in it is trimmed back to `days` below, so the fold never splits into a second pass.
+                fetch_days = gfs_world_fetch_days(days) if "global_mid" in group else days
                 multi = None
                 try:
                     from services.noaa_marine_service import fetch_gfs_marine_regions
-                    multi = await fetch_gfs_marine_regions(group, 0.25, days, resolutions=res_map)
+                    multi = await fetch_gfs_marine_regions(group, 0.25, fetch_days, resolutions=res_map)
                 except Exception as _me:
                     logger.error(f"[Pipeline Scheduler] GFS-Wave multi-region fetch errored "
                                  f"({days}d, {len(group)} regions): {_me}")
@@ -181,6 +185,8 @@ class WeatherPipelineScheduler:
                         mid_saved += await save_gfs_marine_global_mid(
                             self, env, run_time, results, mid_res, 1)
                     else:
+                        if fetch_days > days:
+                            results = trim_points_to_days(results, days)
                         multi_saved += await _save_marine_regional(
                             self, env, run_time, "GFS", _layers_for(region_id),
                             region_id, region, results, 1, "GFS")
@@ -322,7 +328,9 @@ class WeatherPipelineScheduler:
         if noaa_direct:
             try:
                 from services.noaa_marine_service import fetch_gfs_marine_global_coarse
-                results = await fetch_gfs_marine_global_coarse(global_region, resolution, forecast_days)
+                from services.weather_pipeline.marine_mid_res_ingestion import gfs_world_fetch_days
+                # GFS_WORLD_FULL_HORIZON (dark): the 10-deg world tier to f384 too; the open-meteo fallback keeps 14 d.
+                results = await fetch_gfs_marine_global_coarse(global_region, resolution, gfs_world_fetch_days(forecast_days))
                 if results:
                     from_noaa = True
                     logger.info(f"[Pipeline Scheduler] GFS-Wave NOAA-direct OK: {len(results)} points (off open-meteo).")
