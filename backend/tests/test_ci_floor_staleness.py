@@ -491,11 +491,11 @@ _FLOOR_SET_FROM = {
     # guards: set from 3320 = max(dev run 40024668374 read 3317, dev's map 3317) + 3 (claude/euro-own-values-wire, 2026-10-23); floor 3314, margin 6.
     "guards": 3320,
 
-    # chain: set from 2955 = max(dev run 40139317894 read 2933, dev's map 2933) + 22 (claude/lucid-spence-be3ff0, 2026-10-25); floor 2949, margin 6.
-    "chain": 2955,
+    # chain: set from 2972 = max(dev run 40207735443 read 2955, dev's map 2967) + 5 (claude/pilot-whole-degree-edges, 2026-10-25); floor 2966, margin 6.
+    "chain": 2972,
 
-    # estate: set from 2903 = max(dev run 40178049431 read 2852, dev's map 2852) + 51 (guardian/pr1-links-and-levels, 2026-10-25); floor 2901, margin 2.
-    "estate": 2903,
+    # estate: set from 2983 = max(dev run 40219219571 read 2932, dev's map 2932) + 51 (guardian/pr1-links-and-levels, 2026-10-25); floor 2981, margin 2.
+    "estate": 2983,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

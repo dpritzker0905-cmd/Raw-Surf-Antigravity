@@ -359,6 +359,56 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+def session_payload(profile: Profile, token: str) -> dict:
+    """The sign-in response: the profile as a flat dict plus the signed token.
+
+    The frontend stores the whole object in localStorage; the token is in the access_token field. Shared by the
+    password login and the second-factor login so both return exactly the same shape.
+    """
+    profile_data = ProfileResponse(
+        id=profile.id,
+        user_id=profile.user_id,
+        email=profile.email,
+        full_name=profile.full_name,
+        username=profile.username,
+        role=profile.role.value,
+        subscription_tier=profile.subscription_tier,
+        is_ad_supported=profile.is_ad_supported if profile.is_ad_supported is not None else True,
+        credit_balance=profile.credit_balance or 0.0,
+        bio=profile.bio,
+        avatar_url=profile.avatar_url,
+        is_verified=profile.is_verified or False,
+        is_live=profile.is_live or False,
+        is_private=profile.is_private or False,
+        is_approved_pro=profile.is_approved_pro or False,
+        is_admin=profile.is_admin or False,
+        location=profile.location,
+        company_name=profile.company_name,
+        portfolio_url=profile.portfolio_url,
+        instagram_url=profile.instagram_url,
+        website_url=profile.website_url,
+        hourly_rate=profile.hourly_rate,
+        session_price=profile.session_price,
+        accepts_donations=profile.accepts_donations or False,
+        skill_level=profile.skill_level,
+        stance=profile.stance,
+        home_break=profile.home_break,
+        surf_mode=profile.surf_mode or 'casual',
+        is_grom_parent=profile.is_grom_parent or (profile.role == RoleEnum.GROM_PARENT),
+        home_latitude=profile.home_latitude,
+        home_longitude=profile.home_longitude,
+        home_location_name=profile.home_location_name,
+        created_at=profile.created_at,
+        parent_id=profile.parent_id,
+        parent_link_approved=profile.parent_link_approved,
+        parental_controls=profile.parental_controls
+    )
+
+    # Return profile data + signed token as a flat dict
+    # Frontend stores the whole object in localStorage; token is in access_token field
+    return {**profile_data.model_dump(), "access_token": token, "token_type": "bearer"}
+
+
 def _login_refusal(profile, retry_after: int = 0) -> HTTPException:
     """The refusal an ordinary wrong guess earns for THIS account, so a throttled caller sees nothing different
     (status and body) from an unthrottled one; only Retry-After says to slow down."""
@@ -419,50 +469,14 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     if profile.is_suspended:
         raise HTTPException(status_code=403, detail="Account suspended")
 
+    # A second factor is owed (or must be set up) before any session token exists: see routes/auth_pkg/mfa.py.
+    from routes.auth_pkg.mfa import mfa_login_gate
+    gated = await mfa_login_gate(db, profile)
+    if gated is not None:
+        return gated
+
     token = create_access_token({"sub": profile.id, "role": profile.role.value})
-
-    profile_data = ProfileResponse(
-        id=profile.id,
-        user_id=profile.user_id,
-        email=profile.email,
-        full_name=profile.full_name,
-        username=profile.username,
-        role=profile.role.value,
-        subscription_tier=profile.subscription_tier,
-        is_ad_supported=profile.is_ad_supported if profile.is_ad_supported is not None else True,
-        credit_balance=profile.credit_balance or 0.0,
-        bio=profile.bio,
-        avatar_url=profile.avatar_url,
-        is_verified=profile.is_verified or False,
-        is_live=profile.is_live or False,
-        is_private=profile.is_private or False,
-        is_approved_pro=profile.is_approved_pro or False,
-        is_admin=profile.is_admin or False,
-        location=profile.location,
-        company_name=profile.company_name,
-        portfolio_url=profile.portfolio_url,
-        instagram_url=profile.instagram_url,
-        website_url=profile.website_url,
-        hourly_rate=profile.hourly_rate,
-        session_price=profile.session_price,
-        accepts_donations=profile.accepts_donations or False,
-        skill_level=profile.skill_level,
-        stance=profile.stance,
-        home_break=profile.home_break,
-        surf_mode=profile.surf_mode or 'casual',
-        is_grom_parent=profile.is_grom_parent or (profile.role == RoleEnum.GROM_PARENT),
-        home_latitude=profile.home_latitude,
-        home_longitude=profile.home_longitude,
-        home_location_name=profile.home_location_name,
-        created_at=profile.created_at,
-        parent_id=profile.parent_id,
-        parent_link_approved=profile.parent_link_approved,
-        parental_controls=profile.parental_controls
-    )
-
-    # Return profile data + signed token as a flat dict
-    # Frontend stores the whole object in localStorage; token is in access_token field
-    return {**profile_data.model_dump(), "access_token": token, "token_type": "bearer"}
+    return session_payload(profile, token)
 
 
 
