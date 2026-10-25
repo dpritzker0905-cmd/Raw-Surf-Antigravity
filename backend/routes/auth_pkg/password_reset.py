@@ -55,27 +55,14 @@ def password_reset_response() -> dict:
     }
 
 
-def include_dev_reset_details(response: dict, token: str, reset_link: str) -> None:
-    env = (
-        os.environ.get("ENVIRONMENT")
-        or os.environ.get("ENV")
-        or os.environ.get("NODE_ENV")
-        or ""
-    ).lower()
-    if env not in {"production", "prod"}:
-        response["_dev_token"] = token
-        response["_dev_reset_link"] = reset_link
-
-
 async def send_password_reset_email(email: str, reset_link: str, user_name: str = None) -> bool:
     """Send password reset email via Resend"""
     if not RESEND_API_KEY:
         logger.warning("RESEND_API_KEY not set, skipping email send")
         return False
     
-    # DEBUG: Log the exact reset_link being used
-    logger.info("[EMAIL_DEBUG] Sending reset email to %s with link: %s", email, reset_link)
-    
+    # Neither the link (it IS the credential) nor the recipient address is ever logged.
+
     try:
         display_name = user_name or email.split('@')[0]
         
@@ -136,11 +123,12 @@ If you didn't request this reset, you can safely ignore this email.
         }
         
         response = resend.Emails.send(params)
-        logger.info(f"Password reset email sent to {email}, ID: {response.get('id', 'unknown')}")
+        logger.info("Password reset email sent, ID: %s", response.get('id', 'unknown'))
         return True
         
     except Exception as e:
-        logger.error(f"Failed to send password reset email to {email}: {str(e)}")
+        # Class name only: a provider's message can quote the recipient, and the link must never reach a log.
+        logger.error("Failed to send password reset email (%s)", type(e).__name__)
         return False
 
 
@@ -207,15 +195,14 @@ async def request_password_reset(request: Request, data: ForgotPasswordRequest, 
         # Build reset link and send email
         app_url = get_app_url()
         reset_link = f"{app_url}/reset-password?token={token}"
-        email_sent = await send_password_reset_email(
+        # The token and link travel by email ONLY. Nothing about them, or about whether the send worked, goes in the
+        # response: it is identical for every address, so it can neither hand out an account nor tell a caller that
+        # an address is registered (audit 2026-10-24, T-04). A failed send is logged by the sender.
+        await send_password_reset_email(
             email=user.email,
             reset_link=reset_link,
             user_name=user.full_name
         )
-
-        include_dev_reset_details(response, token, reset_link)
-        if not email_sent:
-            response["_dev_note"] = "Email service unavailable, check logs"
 
         return response
     except Exception:

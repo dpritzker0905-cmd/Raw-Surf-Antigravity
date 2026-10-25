@@ -14,21 +14,16 @@ export const ForgotPassword = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [devToken, setDevToken] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await apiClient.post(`/auth/forgot-password`, { email });
+      await apiClient.post(`/auth/forgot-password`, { email });
       setSent(true);
       toast.success('Reset link sent! Check your email.');
       
-      // DEV: Show token for testing (remove in production)
-      if (response.data._dev_token) {
-        setDevToken(response.data._dev_token);
-      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Something went wrong');
     } finally {
@@ -90,19 +85,6 @@ export const ForgotPassword = () => {
                 you'll receive a password reset link shortly.
               </p>
               
-              {/* DEV ONLY - Token display for testing */}
-              {devToken && (
-                <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                  <p className="text-yellow-400 text-xs font-medium mb-2">DEV MODE - Reset Link:</p>
-                  <button
-                    onClick={() => navigate(`/reset-password?token=${devToken}`)}
-                    className="text-yellow-400 hover:text-yellow-300 text-sm underline break-all"
-                  >
-                    Click here to reset password
-                  </button>
-                </div>
-              )}
-
               <Button
                 onClick={() => navigate('/auth?tab=login')}
                 variant="outline"

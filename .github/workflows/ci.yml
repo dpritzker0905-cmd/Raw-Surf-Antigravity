@@ -2058,9 +2058,11 @@ jobs:
           #   base 2740 (hosted read) + 22 new test(s) = 2762; floor 2762 - 2 = 2760. This PR must read 2762 passed.
           # ⬆ 2760→2795 on 2026-10-24 (rederive_floor.py, claude/dispute-transaction-check): dev run 40095124912 read 2740; dev's map 2762;
           #   base 2762 (dev's map) + 35 new test(s) = 2797; floor 2797 - 2 = 2795. This PR must read 2797 passed.
-          # ⬆ 2795→2836 on 2026-10-24 (rederive_floor.py, fix/audit-10-18-backend-defects): dev run 40129453371 read 2797; dev's map 2797;
-          #   base 2797 (hosted read) + 41 new test(s) = 2838; floor 2838 - 2 = 2836. This PR must read 2838 passed.
-          MIN_PASSED = 2836
+          # ⬆ 2795→2809 on 2026-10-25 (rederive_floor.py, fix/forgot-password-dev-token): dev run 40139317894 read 2797; dev's map 2797;
+          #   base 2797 (hosted read) + 14 new test(s) = 2811; floor 2811 - 2 = 2809. This PR must read 2811 passed.
+          # ⬆ 2809→2850 on 2026-10-25 (rederive_floor.py, fix/audit-10-18-backend-defects): dev run 40165987327 read 2811; dev's map 2811;
+          #   base 2811 (hosted read) + 41 new test(s) = 2852; floor 2852 - 2 = 2850. This PR must read 2852 passed.
+          MIN_PASSED = 2850
 
           try:
               root = ET.parse('estate.xml').getroot()
