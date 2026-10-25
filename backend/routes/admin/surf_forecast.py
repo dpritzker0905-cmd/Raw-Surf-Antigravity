@@ -317,6 +317,15 @@ _RATING_FLAGS = {
                                          "EURO-masked GFS-sea nodes, cycle 2026-10-23 00Z)",
                                      "repo variable ECMWF_WAVE_LAND_CENTRE_REACH, read by forecast-ingest-pilots.yml AND "
                                      "forecast-ingest.yml env (one variable, both lanes together)"),
+    # SERVED NUMBER, DARK (2026-10-25; the lead, mid-zoom's tile-edge finding): the GFS pilot tiles stored out to whole degrees on
+    # their fractional edges (pilot_regions.whole_degree_regions), so a z7-9 snapped box inside the padded tile is served from the
+    # tile instead of alternating between the dynamic cache and the tile. Cells in the padded band change source. Both ingest lanes
+    # write GFS tiles (one repo variable); the box reads it for regional_tile_first.inside_pilot_box (the series lane skip).
+    "GFS_PILOT_WHOLE_DEGREE_BOUNDS": ("0", "GFS pilot tiles fetched and stored out to the next whole degree on every fractional edge "
+                                          "(us_southeast_midatlantic E, azores W/N, us_northeast W/N, france_biscay S/N; never into another "
+                                          "box), so a 1-deg snapped z7-9 box inside the padded tile is covered: one source at the edge",
+                                      "repo variable GFS_PILOT_WHOLE_DEGREE_BOUNDS, read by forecast-ingest-pilots.yml AND "
+                                      "forecast-ingest.yml env (one variable, both lanes together), and Render env (the series lane skip)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this
