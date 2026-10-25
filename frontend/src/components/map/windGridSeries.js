@@ -26,6 +26,7 @@ import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
 import { windLaneParam, windLaneTag, windLaneDisabled } from './windLane';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 import { readLanePointer, staticWindCovers, windIndex, windStaticEnabled } from './windStaticFrames';
+import { afterNextPaint } from './afterNextPaint';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -276,6 +277,14 @@ export async function staticUncoveredHours(model, bounds, page) {
 
 async function loadSeriesPage(model, bounds, page, signal) {
   if (!isWindSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
+  // PAGES ARE PLANNED AFTER THE NEXT PAINT (2026-10-25, the wind toggle's click task): planning a page (staticUncoveredHours:
+  // ~49 snapped hours per page, 14-29 ms profiled on the toggle) ran inside the click's task, ahead of the first wind draw. The
+  // first draw never waits on a page (the static frame, or the hour-0 mini, which is not deferred), and a page the box builds
+  // in seconds loses one frame (up to the 100 ms hidden-tab floor). Kill: window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__ = true.
+  if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__ === true)) {
+    await afterNextPaint();
+    if (callerAborted(signal)) return;
+  }
   const uncovered = await staticUncoveredHours(model, bounds, page);
   if (uncovered && uncovered.length === 0) return;      // the static frames own every hour of the page
   // A view that has already been superseded asks for nothing: addEventListener('abort') below never
