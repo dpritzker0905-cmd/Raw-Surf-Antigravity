@@ -91,3 +91,17 @@ carried TWO held paths, so they are now one rule:
 - **#578's tests:** drawnFrameHold.test.js passes unchanged except a fixed clock (`nowMs`), so its undated text stays deterministic
   whatever day the suite runs. Joined by this branch's: an older answer stays "Loading", the alias, and a far-edge hold that is not
   the answer to this selection reads "Loading".
+
+## Why #578 alone never fired (evidence for the lead, 2026-10-26)
+#578 keyed its words on `estimate_basis.type === 'far_edge_hold'`. The owner's day-14 path never produces that type:
+- `far_edge_hold.try_far_edge_hold` writes that basis only when the held product has NONE.
+- ICON's and EURO's stored tails carry their own basis (icon_marine_extension.py; `gfs_estimated_fallback` from
+  euro_marine_coarse_ingestion.py), so their holds keep it.
+- The ICON world view past 240 h is a CLIENT blend (`icon_extended_blend`).
+
+Measured: the same offline tail scenario (scratchpad `tail/scn_tail_ring.js`: ICON and EURO, world z3.2 and z6, PageUp to 336, 15
+steps back) on a build of #578's head (8f139a8ae) gave **0 "Holding" lines at +336 h**. ICON read "Estimated forecast: estimated" and
+once "Showing Mon 1 AM: the nearest stored forecast (estimated)"; EURO read "Loading Mon 1 AM… still showing Sun 7 AM" for the answer to
+336 itself. The same scenario on this branch: "Holding Sun, Nov 8, 7 AM’s ICON forecast: …" and "Holding Sun, Nov 8, 7 AM’s EURO
+forecast: GFS stand-in …" on the answer to 336, every frame `ok`. Review note: shared notes
+`owner-manual-test-2026-10-25/REVIEW-578-held-words-2026-10-26.md`.
