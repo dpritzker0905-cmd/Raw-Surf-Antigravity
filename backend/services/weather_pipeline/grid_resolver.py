@@ -418,6 +418,12 @@ async def resolve_grid(
         if _mid_product is not None:
             product = _mid_product
 
+    # FAR_EDGE_BRIDGE (dark): past an ICON/EURO 2-deg blend's end, its last departure from GFS decays onto the stored GFS 2-deg
+    # field (far_edge_bridge.py). It replaces only a world-span product (EURO's 10-deg fill), never a regional or clipped one.
+    if domain.lower() == "marine" and model.upper() in ("ICON", "EURO"):
+        from services.weather_pipeline.far_edge_bridge import try_far_edge_bridge
+        product = await try_far_edge_bridge(store, model, domain, layer, target_dt, current_product=product) or product
+
     # DAY-14 END (dark, FAR_EDGE_HOLD_BEFORE_UPSTREAM): past the stored tail, a held 2-deg frame beats both the 10-deg preview
     # below (measured offline: the tail's coarse frame from 10 h earlier, labelled authoritative) and an upstream fetch coarser
     # than it (a world box fetched 19x9 points). far_edge_hold.hold_before_upstream keeps the hold's rails.
