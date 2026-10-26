@@ -170,7 +170,9 @@ jobs:
             // against the hosted receipt.
             // Load-dependent regional tests (2026-10-25): marineFrameStoreRegional.test.js's chained 'ends it' test becomes three, +2 tests / +0
             // suites. Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 517, MIN_TESTS = 6819;
+            // Rating band holds off on coarse / edge-cut grids (2026-10-25): marineRatingBandRes.test.js (+1 suite / +13 tests) and 6 tests in
+            // ForecastTimeStatus.test.js. Raised by exactly that from the floor above; confirm against the hosted receipt.
+            const MIN_SUITES = 518, MIN_TESTS = 6838;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
