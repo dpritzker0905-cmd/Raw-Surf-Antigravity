@@ -1580,7 +1580,9 @@ jobs:
           #   base 2967 (dev's map) + 5 new test(s) and 1 new file(s) = 2972, files 182; floor 2972 - 6 = 2966. This PR must read 2972 passed.
           # ⬆ 2966→2967 on 2026-10-25 (rederive_floor.py, claude/raster-cloud-0p25): dev run 40230182184 read 2972 / 182 files; dev's map 2972;
           #   base 2972 (hosted read) + 1 new test(s) and 0 new file(s) = 2973, files 182; floor 2973 - 6 = 2967. This PR must read 2973 passed.
-          MIN_FILES, MIN_PASSED = 182, 2967
+          # ⬆ 2967→2969 on 2026-10-26 (rederive_floor.py, claude/tail-frames-ask-parity): dev run 40368017005 read 2973 / 182 files; dev's map 2973;
+          #   base 2973 (hosted read) + 2 new test(s) and 0 new file(s) = 2975, files 182; floor 2975 - 6 = 2969. This PR must read 2975 passed.
+          MIN_FILES, MIN_PASSED = 182, 2969
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
