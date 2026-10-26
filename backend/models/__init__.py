@@ -24,6 +24,7 @@ from .enums import (  # noqa: F401
 # Domain models
 from .profile import Profile, PasswordResetToken, UsernameHistory  # noqa: F401
 from .grom_privacy import GromGuardian  # noqa: F401
+from .guardian_links import GuardianLinkCode  # noqa: F401
 from .strava_oauth import StravaOAuthState  # noqa: F401
 from .mfa import UserMfa, MfaRecoveryCode, MfaChallenge  # noqa: F401
 from .passkeys import WebauthnCredential, WebauthnCeremony  # noqa: F401
@@ -106,3 +107,5 @@ from .admin_ops import (  # noqa: F401
     AutomatedReport, APIKey, ChangelogEntry, PlatformMetrics,
     PlatformSettings,
 )
+
+from .email_outbox import EmailOutbox, EmailSuppression  # noqa: F401

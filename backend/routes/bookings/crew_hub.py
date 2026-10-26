@@ -20,7 +20,10 @@ from models import (
 from utils.credits import deduct_credits, add_credits, refund_credits
 from websocket_manager import broadcast_earnings_update
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
-from .split_lock import enforce_paid_shares
+from .split_lock import check_splits, enforce_paid_shares
+from utils.booking_payout import (
+    CLAIMABLE_STATUSES, PayoutError, claim_confirmation, confirm_and_pay, funded_cents, pay_photographer, to_cents,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -151,18 +154,17 @@ async def update_crew_hub_splits(
     if booking.creator_id != data.captain_id:
         raise HTTPException(status_code=403, detail="Only the session captain can update splits")
     
-    # Paid members keep the share they paid; nobody is set below what they already paid
+    # Same shape rules as the legacy editor (split_lock.check_splits): still awaiting payment, each member once,
+    # finite non-negative amounts, every non-captain member named, and splits + captain_share (counted once)
+    # equal to the booking price in whole cents. Unknown ids, duplicates, offsetting negatives and NaN used to
+    # pass, which let a booking fund less than its price and still pay the photographer 0.80 x the price.
     members = {str(p.participant_id): p for p in booking.participants or []}
-    enforce_paid_shares(members, [sp for sp in data.splits if sp.participant_id in members])
+    check_splits(booking, members, data.splits, captain_share=data.captain_share,
+                 required={pid for pid in members if pid != str(booking.creator_id)})
 
-    # Validate total equals booking price
-    total_splits = sum(s.share_amount for s in data.splits) + data.captain_share
-    if abs(total_splits - booking.total_price) > 0.01:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Split total (${total_splits:.2f}) must equal booking price (${booking.total_price:.2f})"
-        )
-    
+    # Paid members keep the share they paid; nobody is set below what they already paid
+    enforce_paid_shares(members, data.splits)
+
     # Update each participant's share
     for split in data.splits:
         for p in booking.participants or []:
@@ -350,7 +352,12 @@ async def captain_cover_remaining(
     
     if booking.creator_id != data.captain_id:
         raise HTTPException(status_code=403, detail="Only the session captain can cover remaining balance")
-    
+
+    # Covering confirms the booking and pays the photographer, so it only applies while the booking is still
+    # waiting for money (a Cancelled booking used to be revived and its captain charged the full price).
+    if booking.status not in CLAIMABLE_STATUSES:
+        raise HTTPException(status_code=400, detail="This booking is not awaiting payment")
+
     # Calculate remaining
     total_paid = sum(p.paid_amount for p in booking.participants or [])
     remaining = booking.total_price - total_paid
@@ -367,7 +374,12 @@ async def captain_cover_remaining(
     
     if not captain:
         raise HTTPException(status_code=404, detail="Captain not found")
-    
+
+    # Claim the confirmation BEFORE any money moves: a replay or a concurrent cover loses the claim here and the
+    # captain is charged once (a refused debit below rolls the claim back with everything else).
+    if not await claim_confirmation(db, booking.id):
+        raise HTTPException(status_code=409, detail="This booking is no longer awaiting payment")
+
     # Deduct credits from captain
     success, new_balance, error = await deduct_credits(
         user_id=data.captain_id,
@@ -383,17 +395,14 @@ async def captain_cover_remaining(
     if not success:
         raise HTTPException(status_code=400, detail=error)
     
-    # Credit photographer (80% after platform fee)
-    await add_credits(
-        user_id=booking.photographer_id,
-        amount=remaining * 0.80,
-        transaction_type='booking_earning',
-        db=db,
-        description=f"Booking payment from {captain.full_name} (crew coverage)",
-        reference_type='booking',
-        reference_id=booking_id,
-        counterparty_id=data.captain_id
-    )
+    # Credit the photographer floor(0.80 x funded): what the crew already paid PLUS what the captain just covered,
+    # exactly once (this call won the claim above). Before, only 0.80 x the covered part was paid.
+    try:
+        await pay_photographer(
+            db, booking, funded_cents(booking, to_cents(remaining)),
+            f"Booking payment from {captain.full_name} (crew coverage)", counterparty_id=data.captain_id)
+    except PayoutError as exc:
+        raise HTTPException(status_code=500, detail="Could not credit the photographer; nothing was charged") from exc
     
     # Mark all unpaid participants as covered
     for p in booking.participants or []:
@@ -472,10 +481,15 @@ async def handle_payment_window_expiry(
     remaining = booking.total_price - total_paid
     
     if remaining <= 0:
-        # All paid - confirm booking
-        booking.status = "Confirmed"
+        # All paid - confirm booking (one conditional claim; the winner pays the photographer on the funded basis)
+        try:
+            confirmed = await confirm_and_pay(db, booking, f"Booking payment for session at {booking.location}",
+                                              counterparty_id=booking.creator_id)
+        except PayoutError as exc:
+            raise HTTPException(status_code=500, detail="Could not credit the photographer") from exc
         await db.commit()
-        return {"message": "All payments received, booking confirmed"}
+        return {"message": "All payments received, booking confirmed" if confirmed
+                else "All payments received; the booking was already settled"}
     
     # Notify captain about expiry
     captain_id = booking.creator_id

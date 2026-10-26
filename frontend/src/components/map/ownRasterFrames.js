@@ -44,7 +44,9 @@ export const OWN_RASTER_SETS = {
   // CLOUD COVER (2026-10-24): the app's 'satellite' layer draws forecast total cloud cover (Satellite IR was discontinued,
   // useWeatherState). GFS TCDC, the instantaneous entire-atmosphere message (#515's set). GFS only, as air temperature.
   satellite: {
-    models: { GFS: 'GFS/weather/cloud_cover/global_0p5' },
+    // 0.25 deg (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): 1440 x 721, so cloud
+    // edges are not one-cell 0.5-degree steps. The shader and the wrap test take the grid from each frame.
+    models: { GFS: 'GFS/weather/cloud_cover/global_0p25' },
     fallback: null, field: CLOUD_FIELD, unit: '%',
   },
 };

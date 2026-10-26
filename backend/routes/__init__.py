@@ -114,12 +114,14 @@ from .copernicus_marine import router as copernicus_marine_router
 from .weather import router as weather_router
 # AFTER .weather: this module imports its item model and point resolver (A15-05(b)).
 from .weather_point_rating import router as weather_point_rating_router
+from .email_webhook import router as email_webhook_router
 
 api_router.include_router(health_router, tags=["Health"])
 api_router.include_router(strava_router, prefix="/strava", tags=["Strava"])
 api_router.include_router(copernicus_marine_router, tags=["Copernicus Marine"])
 api_router.include_router(weather_router, tags=["Weather Service"])
 api_router.include_router(weather_point_rating_router, tags=["Weather Service"])
+api_router.include_router(email_webhook_router, tags=["Email"])
 
 
 @api_router.get("/")

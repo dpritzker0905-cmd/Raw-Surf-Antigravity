@@ -380,3 +380,30 @@ describe('MfaSetupStep (a required role signing in without a factor)', () => {
     expect(onSuccess).toHaveBeenCalledWith(session);
   });
 });
+
+
+describe('adding another way when two-step verification is already on', () => {
+  it('TotpEnrolment asks for a current code, keeps Set up locked until given, and sends it', async () => {
+    mockPost.mockResolvedValueOnce({ data: SETUP });
+    render(<TotpEnrolment needsCode onEnrolled={jest.fn()} />);
+    type('Confirm your password', 'pw');
+    const start = screen.getByRole('button', { name: /Set up authenticator app/ });
+    expect(start).toBeDisabled();
+    expect(screen.getByLabelText('Current code or recovery code')).toHaveAccessibleDescription(/already have two-step verification/);
+    type('Current code or recovery code', ' ABCDE-FGH23 ');
+    expect(start).toBeEnabled();
+    fireEvent.click(start);
+    await screen.findByRole('img', { name: /QR code/ });
+    expect(mockPost).toHaveBeenCalledWith('/auth/mfa/totp/begin', { password: 'pw', code: 'ABCDE-FGH23' }, undefined);
+  });
+
+  it('the first factor does not ask for one', () => {
+    render(<TotpEnrolment onEnrolled={jest.fn()} />);
+    expect(screen.queryByLabelText('Current code or recovery code')).toBeNull();
+  });
+
+  it('the enrol-only sign-in never asks for one', () => {
+    render(<TotpEnrolment needsCode setupToken="t" onEnrolled={jest.fn()} />);
+    expect(screen.queryByLabelText('Current code or recovery code')).toBeNull();
+  });
+});
