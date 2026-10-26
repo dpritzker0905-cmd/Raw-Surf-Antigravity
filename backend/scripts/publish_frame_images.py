@@ -125,12 +125,13 @@ class TailDownloads:
     that is not on disk is downloaded from the private products bucket, the same stored product /grid serves, and then goes
     through publish_set unchanged: the run check (a copy of another run than the manifest names is `stale_local`) and the
     node-by-node parity gate. Nothing authoritative is ever downloaded, a frame already published for the same product is
-    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 240) are fetched per run.
+    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 320: every core cycle re-bakes the
+    whole tail, 232 products at run + 348 h, D-053) are fetched per run.
     COST, measured not assumed: a tail product is 2.2 MB of JSON and Supabase serves JSON brotli-compressed (an index here: 199,705
     bytes as 10,028 on the wire), so ~170 tail products per publish cost about 10-20 MB; `stats` reports the wire bytes.
     `fetch(filename) -> (bytes or None, wire_bytes)`; offline, a second ProductStore dir stands in for the bucket."""
 
-    def __init__(self, local, fetch, cap=240, log=print):
+    def __init__(self, local, fetch, cap=320, log=print):
         self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
         self._got = {}
         self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0}
@@ -200,9 +201,9 @@ def tail_downloads_enabled():
 
 def tail_cap():
     try:
-        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "240")))
+        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "320")))
     except ValueError:
-        return 240
+        return 320
 
 
 def supabase_product_fetcher():

@@ -96,7 +96,8 @@ def fetch(args):
     icon_native = [f for f in indices["ICON"]["frames"] if f.get("path") and not f.get("is_estimated")]
     icon_anchor = max(parse(f["valid_time"]) for f in icon_native)
     want = {
-        "GFS": lambda vt: vt >= euro_anchor - timedelta(hours=3) or vt == icon_anchor,
+        # GFS from ICON's last native frame on (2026-10-26, `asks`): the ICON job's targets for the WHOLE tail, not only EURO's.
+        "GFS": lambda vt: vt >= min(euro_anchor - timedelta(hours=3), icon_anchor),
         "ICON": lambda vt: vt >= now + timedelta(hours=args.from_hour) or vt == icon_anchor,
         "EURO": lambda vt: vt >= euro_anchor - timedelta(hours=12),
     }
@@ -250,6 +251,9 @@ def build(args):
     from services.weather_pipeline.store import ProductStore
     from services.weather_pipeline.scheduler_helpers import ingest_euro_marine_extended_estimates_impl
     os.environ["EURO_MARINE_EXTEND"] = "1"
+    # The live tails' ceiling (D-053, 2026-10-26: MARINE_EXT_CEILING_MARGIN_H=12 on core + pilots); the trim below still ends the
+    # baked lane where the real index's entries end.
+    os.environ["MARINE_EXT_CEILING_MARGIN_H"] = args.ceiling_margin
     ok = asyncio.run(ingest_euro_marine_extended_estimates_impl(SimpleNamespace(store=ProductStore(cache_dir=store))))
     manifest = json.loads((store / "manifest.json").read_text(encoding="utf-8"))
     tails = sorted(p["valid_time_start"] for p in manifest["products"]
@@ -507,6 +511,90 @@ def run_publish(args):
     print(json.dumps({"runs": out["runs"], "parity_summary": summary}, indent=1))
 
 
+def pick_index_frame(frames, ask_s):
+    """staticFrameCodec.pickIndexFrame, line for line: authoritative frames first, the nearest within +-3 h (inclusive), the first
+    of equal distances in index order; else the estimated frames likewise. `asks` writes every pick to asks_picks.json so
+    day14_pick_check.mjs can replay the CLIENT's own function on the same index and show the two agree."""
+    for estimated in (False, True):
+        best, best_d = None, None
+        for f in frames:
+            if bool(f.get("is_estimated")) != estimated:
+                continue
+            d = abs(parse(f["valid_time"]).timestamp() - ask_s)
+            if d <= 3 * 3600 and (best_d is None or d < best_d):
+                best, best_d = f, d
+        if best is not None:
+            return best
+    return None
+
+
+def run_asks(args):
+    """FRAME_TAIL_DOWNLOAD readiness (2026-10-26, the lead): the CLIENT's view. `publish` grades each built estimated frame
+    against /grid at the frame's OWN valid time, so the first EURO tail frame (15Z) read as a mismatch: /grid at 15Z serves the
+    native 12Z (authoritative first). The client never shows that frame at 15Z: pickIndexFrame is authoritative-first too.
+    What matters is per ASK: at every whole hour across each ICON/EURO world tail (the last native frame - 6 h to the lane's
+    end + 3 h), the frame the client picks from the FRAME_TAIL_DOWNLOAD=1 index against what /grid serves for that ask, node
+    by node (frame_binary.parity). A pick with no frame (none in the window, or an unbuilt entry) is not compared: the client
+    asks /grid for that hour itself. Run after `publish` (it reads <store>/../cdn_tail1)."""
+    _offline_process()
+    os.environ.update({"MARINE_GULF_FILL_MID_TARGETED": "1", "FAR_EDGE_HOLD_PREFER_MID": "1"})
+    store = Path(args.store)
+    cdn = store.parent / "cdn_tail1"
+    latest = json.loads((cdn / "v1" / "latest.json").read_text(encoding="utf-8"))
+    from fastapi.testclient import TestClient
+    from server import app
+    from routes import weather
+    from services import frame_binary as fb
+    from services.weather_pipeline.store import ProductStore
+    weather.store = ProductStore(cache_dir=store)
+    client = TestClient(app)
+    out = {"rows": [], "summary": {}, "picks": {}}
+    for key in TAIL_SETS:
+        entry = (latest.get("sets") or {}).get(key)
+        if not entry:
+            out["summary"][key] = "no set"
+            continue
+        index = json.loads((cdn / entry["index"]).read_text(encoding="utf-8"))
+        frames = index["frames"]
+        model, filled = key.split("/")[0], key.endswith("_filled")
+        os.environ["MARINE_GULF_FILL_MID"] = "1" if filled else "0"
+        native_end = max(parse(f["valid_time"]) for f in frames if not f.get("is_estimated"))
+        lane_end = max(parse(f["valid_time"]) for f in frames)
+        s = {"native_end": iso(native_end), "lane_end": iso(lane_end), "asks": 0, "static": 0, "to_grid": {}, "bad_asks": 0,
+             "nodes": 0, "bad_nodes": 0, "time_mismatch": 0, "picked_estimated": 0}
+        picks = []
+        ask = native_end - timedelta(hours=6)
+        while ask <= lane_end + timedelta(hours=3):
+            s["asks"] += 1
+            f = pick_index_frame(frames, ask.timestamp())
+            picks.append({"ask": iso(ask), "pick": f["valid_time"] if f else None})
+            if f is None or not f.get("path"):
+                why = "no_frame" if f is None else f"unbuilt:{f.get('unbuilt')}"
+                s["to_grid"][why] = s["to_grid"].get(why, 0) + 1
+            else:
+                dec = fb.decode_frame((cdn / f["path"]).read_bytes())
+                body = client.get("/api/weather/grid", params={"model": model, "domain": "marine", "layer": "waves",
+                                                               "valid_time": iso(ask), "bbox": WORLD_BBOX}).json()
+                chk = fb.parity(body, dec)
+                same_time = (body.get("served_valid_time") or "")[:19] == f["valid_time"][:19]
+                s["static"] += 1
+                s["nodes"] += chk["nodes"]
+                s["bad_nodes"] += chk["bad"]
+                s["bad_asks"] += 1 if chk["bad"] else 0
+                s["time_mismatch"] += 0 if same_time else 1
+                s["picked_estimated"] += 1 if f.get("is_estimated") else 0
+                out["rows"].append({"set": key, "ask": iso(ask), "pick": f["valid_time"], "pick_estimated": bool(f.get("is_estimated")),
+                                    "served_valid_time": body.get("served_valid_time"), "served_estimated": body.get("is_estimated"),
+                                    "nodes": chk["nodes"], "bad": chk["bad"], "max_abs_err": chk["max_abs_err"]})
+            ask += timedelta(hours=1)
+        out["summary"][key] = s
+        out["picks"][key] = {"index": str(cdn / entry["index"]), "picks": picks}
+    os.environ.pop("MARINE_GULF_FILL_MID", None)
+    Path(args.out).write_text(json.dumps(out, indent=1, default=str), encoding="utf-8")
+    (Path(args.out).parent / "asks_picks.json").write_text(json.dumps(out["picks"], indent=1), encoding="utf-8")
+    print(json.dumps(out["summary"], indent=1))
+
+
 def run_seam(args):
     """ARM 3's seam: how a GFS stand-in past the tail sits next to the model's last stored frame, against each model's own
     3-hour step (node by node over nodes valid in both; world and the Gulf box). Height in metres."""
@@ -559,16 +647,17 @@ def main(argv=None):
     b = sub.add_parser("build")
     b.add_argument("--copy", required=True)
     b.add_argument("--store", required=True)
+    b.add_argument("--ceiling-margin", default="12", help="MARINE_EXT_CEILING_MARGIN_H for the baked tails (live: 12, D-053)")
     a = sub.add_parser("arm")
     a.add_argument("arm", choices=sorted(ARM_ENV))
     a.add_argument("--store", required=True)
     a.add_argument("--out", required=True)
-    for name in ("publish", "seam"):
+    for name in ("publish", "seam", "asks"):
         s = sub.add_parser(name)
         s.add_argument("--store", required=True)
         s.add_argument("--out", required=True)
     args = ap.parse_args(argv)
-    {"fetch": fetch, "build": build, "arm": run_arm, "publish": run_publish, "seam": run_seam}[args.cmd](args)
+    {"fetch": fetch, "build": build, "arm": run_arm, "publish": run_publish, "seam": run_seam, "asks": run_asks}[args.cmd](args)
 
 
 if __name__ == "__main__":
