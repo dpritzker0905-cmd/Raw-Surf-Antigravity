@@ -13,6 +13,7 @@ from core.security import get_current_user_id
 from deps.admin_auth import get_current_admin
 from services.grom_media_policy import approval_status_for_grom_media, is_verified_guardian, normalize_controls
 from services.private_media import parse_private_media_ref
+from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 
 router = APIRouter()
 
@@ -128,6 +129,7 @@ async def create_story(
     
     visibility = data.visibility
     guardian_approval_status = None
+    grom_standing = await assert_level_allows(db, author, "photo")  # guardian level for the child's age band
     if author.role == RoleEnum.GROM:
         private_ref = parse_private_media_ref(data.media_url)
         if not private_ref or private_ref.bucket != 'grom_media':
@@ -194,6 +196,9 @@ async def create_story(
     )
     
     db.add(story)
+    await notify_guardian_of_teen_activity(
+        db, author, grom_standing, "Your 16-17 year old added a story",
+        f"{author.full_name or 'Your child'} shared a story. You can review it in Grom HQ.")
     await db.commit()
     await db.refresh(story)
     

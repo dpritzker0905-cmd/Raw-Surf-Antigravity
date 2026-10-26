@@ -369,3 +369,40 @@ describe('SecuritySettings with passkeys', () => {
     expect(await screen.findByRole('list', { name: 'Recovery codes' })).toBeInTheDocument();
   });
 });
+
+
+describe('PasskeyManager step-up when another way already exists', () => {
+  it('asks for a current code, locks Add until given, and sends it with the password', async () => {
+    mockPost.mockResolvedValueOnce({ data: { ceremony_id: 'cer', options: OPTIONS } })
+      .mockResolvedValueOnce({ data: { passkey: { id: 'p3' }, recovery_codes: [] } });
+    mockStartRegistration.mockResolvedValue(CREDENTIAL);
+    render(<PasskeyManager needsCode onChanged={jest.fn()} />);
+    fireEvent.click(await screen.findByTestId('add-passkey'));
+    type('Password', 'pw');
+    const submit = screen.getByRole('button', { name: 'Add passkey' });
+    expect(submit).toBeDisabled();
+    expect(screen.getByLabelText('Current code or recovery code')).toHaveAccessibleDescription(/like turning two-step verification off/);
+    type('Current code or recovery code', ' 123456 ');
+    expect(submit).toBeEnabled();
+    fireEvent.click(submit);
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(2));
+    expect(mockPost).toHaveBeenNthCalledWith(1, '/auth/passkeys/register/options', { password: 'pw', code: '123456' }, undefined);
+  });
+
+  it('shows the server\'s refusal of a wrong code and does not open the browser prompt', async () => {
+    mockPost.mockRejectedValueOnce(reject(403, 'That code is not valid'));
+    render(<PasskeyManager needsCode />);
+    fireEvent.click(await screen.findByTestId('add-passkey'));
+    type('Password', 'pw');
+    type('Current code or recovery code', '000000');
+    fireEvent.click(screen.getByRole('button', { name: 'Add passkey' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('That code is not valid');
+    expect(mockStartRegistration).not.toHaveBeenCalled();
+  });
+
+  it('the first passkey asks for no code', async () => {
+    render(<PasskeyManager />);
+    fireEvent.click(await screen.findByTestId('add-passkey'));
+    expect(screen.queryByLabelText('Current code or recovery code')).toBeNull();
+  });
+});

@@ -16,6 +16,7 @@ from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
 from services.grom_media_policy import approval_status_for_grom_post, is_verified_guardian, normalize_controls
 from services.private_media import parse_private_media_ref
 from services.parental_controls import assert_profile_may
+from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 from .schemas import (
     PostCreate, PostResponse, CommentResponse, ReactionData, CollaboratorData, SpotData
 )
@@ -45,7 +46,9 @@ async def create_post(
         raise HTTPException(status_code=404, detail="Profile not found")
     # PARENTAL CONTROLS (audit F-09): a view-only Grom cannot create posts (can_post keeps its approval-pipeline job).
     assert_profile_may(profile, "post")
-        
+    # GUARDIAN LEVEL: a post shows the child, so it needs the photo level for their age band (13-15: verified parent).
+    grom_standing = await assert_level_allows(db, profile, "photo")
+
     visibility = data.visibility
     guardian_approval_status = None
     if profile.role == RoleEnum.GROM:
@@ -112,7 +115,10 @@ async def create_post(
     
     db.add(post)
     await db.flush()
-    
+    await notify_guardian_of_teen_activity(
+        db, profile, grom_standing, "Your 16-17 year old posted",
+        f"{profile.full_name or 'Your child'} shared a post. You can review it in Grom HQ.")
+
     # Send mention notifications
     if data.mentions:
         from models import Notification
