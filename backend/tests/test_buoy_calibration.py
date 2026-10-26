@@ -389,11 +389,14 @@ def test_a_model_zero_is_a_coverage_hole_and_is_not_archived():
 def test_rerunning_within_the_same_buoy_hour_is_not_new_evidence():
     """CI runs more often than NDBC reports (~hourly). The same observation seen twice must not
     count twice, or the series inflates without gaining information."""
+    # `now` is pinned: with the wall clock, the 90-day age prune dropped these 2026-07-28 rows from 2026-10-26T01Z on
+    # and the test read 0 == 1 (a date bomb, not a regression).
+    now = datetime(2026, 7, 28, 3, tzinfo=timezone.utc)
     a = _report([("41113", "2026-07-28T01:00:00+00:00", 0.3, 0.54)])
-    merged = merge_residual_archive(archive_rows_from_report(a), archive_rows_from_report(a))
+    merged = merge_residual_archive(archive_rows_from_report(a), archive_rows_from_report(a), now=now)
     assert len(merged) == 1
     later = _report([("41113", "2026-07-28T02:00:00+00:00", 0.4, 0.55)])
-    merged = merge_residual_archive(merged, archive_rows_from_report(later))
+    merged = merge_residual_archive(merged, archive_rows_from_report(later), now=now)
     assert len(merged) == 2          # a NEW observation time is new evidence
 
 
