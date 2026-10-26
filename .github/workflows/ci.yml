@@ -2085,9 +2085,9 @@ jobs:
           #   base 3033 (hosted read) + 73 new test(s) = 3106; floor 3106 - 2 = 3104. This PR must read 3106 passed.
           # ⬆ 3104→3239 on 2026-10-25 (rederive_floor.py, feat/email-service-foundation): dev run 40240234272 read 3106; dev's map 3106;
           #   base 3106 (hosted read) + 135 new test(s) = 3241; floor 3241 - 2 = 3239. This PR must read 3241 passed.
-          # ⬆ 3239→3247 on 2026-10-26 (rederive_floor.py, claude/raster-temp-downscale): dev run 40245738513 read 3241; dev's map 3241;
-          #   base 3241 (hosted read) + 8 new test(s) = 3249; floor 3249 - 2 = 3247. This PR must read 3249 passed.
-          MIN_PASSED = 3247
+          # ⬆ 3239→3244 on 2026-10-26 (rederive_floor.py, claude/mfa-add-factor-stepup): dev run 40245738513 read 3241; dev's map 3241;
+          #   base 3241 (hosted read) + 5 new test(s) = 3246; floor 3246 - 2 = 3244. This PR must read 3246 passed.
+          MIN_PASSED = 3244
 
           try:
               root = ET.parse('estate.xml').getroot()
