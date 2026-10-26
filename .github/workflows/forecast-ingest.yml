@@ -60,6 +60,8 @@ jobs:
       - name: Run forecast ingestion -> Supabase L2
         working-directory: backend
         env:
+          # DARK (2026-10-26): '1' = a prune that removes a manifest registration never deletes a storage object a RETAINED registration still names (prune_object_protection.py, WI-04). Off, the cycle-end duplicate sweep deletes the object its surviving twin names: 51-54 EURO global_coarse estimates per cycle listed but absent (#590 log, storage logs 2026-10-25). ONE repo variable read by forecast-ingest, forecast-ingest-pilots, precompute and sim-parity-monitor; Render env set together. Owner's word.
+          INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS: ${{ vars.INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS || '0' }}
           NODE_ENV: production          # real ingestion, not the test mock
           RENDER: 'true'                # match the production grid resolution + fetch paths
           FORECAST_JOB_STAGGER_SEC: '0' # runner has no 1-CPU contention -> skip the inter-job staggers

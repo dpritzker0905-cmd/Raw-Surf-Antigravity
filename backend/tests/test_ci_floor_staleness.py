@@ -491,8 +491,8 @@ _FLOOR_SET_FROM = {
     # guards: set from 3341 = max(dev run 40277485849 read 3331, dev's map 3337) + 4 (claude/wind-gfs-hourly, 2026-10-26); floor 3335, margin 6.
     "guards": 3341,
 
-    # chain: set from 2973 = max(dev run 40230182184 read 2972, dev's map 2972) + 1 (claude/raster-cloud-0p25, 2026-10-25); floor 2967, margin 6.
-    "chain": 2973,
+    # chain: set from 2974 = max(dev run 40398047789 read 2973, dev's map 2973) + 1 (claude/prune-protect-wiring, 2026-10-26); floor 2968, margin 6.
+    "chain": 2974,
 
     # estate: set from 3372 = max(dev run 40298598402 read 3355, dev's map 3355) + 17 (claude/lineup-socket-auth, 2026-10-26); floor 3370, margin 2.
     "estate": 3372,
