@@ -953,7 +953,9 @@ jobs:
           #   base 3320 (hosted read) + 11 new test(s) and 1 new file(s) = 3331, files 212; floor 3331 - 6 = 3325. This PR must read 3331 passed.
           # ⬆ 3325→3331 on 2026-10-26 (rederive_floor.py, claude/fill-donor-served-time): dev run 40274472907 read 3331 / 212 files; dev's map 3331;
           #   base 3331 (hosted read) + 6 new test(s) and 0 new file(s) = 3337, files 212; floor 3337 - 6 = 3331. This PR must read 3337 passed.
-          MIN_FILES, MIN_PASSED = 212, 3331
+          # ⬆ 3331→3335 on 2026-10-26 (rederive_floor.py, claude/wind-gfs-hourly): dev run 40277485849 read 3331 / 212 files; dev's map 3337;
+          #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
+          MIN_FILES, MIN_PASSED = 212, 3335
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

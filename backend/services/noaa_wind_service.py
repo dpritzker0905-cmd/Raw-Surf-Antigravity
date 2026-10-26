@@ -18,15 +18,22 @@ async def fetch_gfs_wind_global_coarse(
     forecast_days: int = 14,
     timeout_sec: Optional[int] = None,
     valid_window: Optional[dict] = None,
+    hourly_until: Optional[int] = None,
 ) -> Optional[List[dict]]:
     """BACKGROUND-ONLY: coarse GLOBAL GFS 10 m wind grid direct from NOAA AWS Open Data (byte-range
     GRIB2). Slow (~3-6 min, low CPU/mem) — scheduler ingestion or the wind native-recovery lane
     ONLY (never the serve path). ``timeout_sec`` bounds the subprocess (recovery passes ~900s;
     unset keeps the scheduler's 1800s default). ``valid_window`` ({"start", "end"} ISO) keeps only
-    the steps inside it — the recovery's bound (services/_fetch_window.py). None in test env."""
+    the steps inside it — the recovery's bound (services/_fetch_window.py). ``hourly_until`` (hours)
+    adds every hour up to it, capped at f120 (noaa_gfs_wind_fetcher.forecast_hours). None in test env."""
     kwargs = {"timeout": int(timeout_sec)} if timeout_sec else {}
+    extra = {}
     if valid_window:
-        kwargs["extra_payload"] = {"valid_window": valid_window}
+        extra["valid_window"] = valid_window
+    if hourly_until:
+        extra["hourly_until"] = int(hourly_until)
+    if extra:
+        kwargs["extra_payload"] = extra
     return await run_fetcher_subprocess(
         "noaa_gfs_wind_fetcher.py", bbox, resolution, forecast_days,
         log_tag="NOAA GFS-Wind", out_prefix="gfswind_global", **kwargs,

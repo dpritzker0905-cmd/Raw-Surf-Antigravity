@@ -124,6 +124,10 @@ jobs:
           # EURO marine 0.25° regional pilot (2026-07-13 — the EURO rating-band resolution fix,
           # free ECMWF wave stream, no CMEMS). No-commit kill: set EURO_MARINE_PILOT_INGEST=0.
           EURO_MARINE_PILOT_INGEST: ${{ vars.EURO_MARINE_PILOT_INGEST || '1' }}
+          # HOURLY GFS wind f000-f120 for the global_mid tier (2026-10-25; DARK: a served-number change, /grid wind between
+          # 3-hourly steps). '1' stores every hour to f120 (wind_mid_res_ingestion.gfs_wind_hourly_until), so the static
+          # wind frames and /grid both carry real hourly wind there. ON: repository variable FRAME_WIND_GFS_HOURLY = '1'.
+          FRAME_WIND_GFS_HOURLY: ${{ vars.FRAME_WIND_GFS_HOURLY || '0' }}
         run: python scripts/ingest_forecast_ci.py
 
       # STATIC FORECAST FRAMES (step 2b, 2026-10-20; client ON since 2026-10-21): every stored product of each world set in
