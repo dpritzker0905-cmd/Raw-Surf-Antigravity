@@ -2109,7 +2109,9 @@ jobs:
           #   base 3318 (hosted read) + 9 new test(s) = 3327; floor 3327 - 2 = 3325. This PR must read 3327 passed.
           # ⬆ 3325→3353 on 2026-10-26 (rederive_floor.py, claude/phase0-integrity): dev run 40277485849 read 3327; dev's map 3327;
           #   base 3327 (hosted read) + 28 new test(s) = 3355; floor 3355 - 2 = 3353. This PR must read 3355 passed.
-          MIN_PASSED = 3353
+          # ⬆ 3353→3370 on 2026-10-26 (rederive_floor.py, claude/lineup-socket-auth): dev run 40298598402 read 3355; dev's map 3355;
+          #   base 3355 (hosted read) + 17 new test(s) = 3372; floor 3372 - 2 = 3370. This PR must read 3372 passed.
+          MIN_PASSED = 3370
 
           try:
               root = ET.parse('estate.xml').getroot()
