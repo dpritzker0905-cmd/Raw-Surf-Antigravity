@@ -34,6 +34,12 @@ _CEILING_HOURS = 336.0
 _LAYERS = ("waves", "swell_1", "wind_waves")  # GWAM's native set; swell_2 stays a client blend
 
 
+def icon_tail_ceiling(run_time):
+    """run_time + 336 h, plus MARINE_EXT_CEILING_MARGIN_H when set (scheduler_helpers.marine_ext_ceiling_hours: the day-14 end)."""
+    from services.weather_pipeline.scheduler_helpers import marine_ext_ceiling_hours
+    return run_time + timedelta(hours=marine_ext_ceiling_hours(_CEILING_HOURS))
+
+
 def _gfs_regions_for(tier):
     """The manifest region_ids that belong to a global TIER. global_coarse products were historically
     also stamped 'global'/None; global_mid is strict."""
@@ -93,7 +99,7 @@ async def ingest_icon_marine_extended_estimates_impl(scheduler) -> bool:
                 continue
 
             run_time = getattr(icon_anchor, "run_time", None) or anchor_time
-            ceiling = run_time + timedelta(hours=_CEILING_HOURS)
+            ceiling = icon_tail_ceiling(run_time)
             gfs_targets = sorted(
                 (p for p in manifest.products
                  if p.model == "GFS" and p.domain == "marine" and p.layer == layer

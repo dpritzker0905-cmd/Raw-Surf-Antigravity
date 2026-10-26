@@ -2,9 +2,39 @@
 Credit system utilities - 1 Credit = $1
 Handles all credit transactions with proper logging and balance updates
 """
+import logging
+import math
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update, func
 from models import Profile, CreditTransaction
+
+logger = logging.getLogger(__name__)
+
+
+def clean_amount(amount):
+    """The amount as whole cents (a float rounded to 2 places), or None when it is not a usable amount.
+
+    Not usable = not a number, not finite, or negative. A negative "debit" is a credit, and NaN passes every
+    `<` / `>` comparison, so both must be refused HERE, where every caller's money goes through. A refund is an
+    explicit positive add_credits, never a negative deduction. Zero is allowed (a no-op row, as before).
+    """
+    try:
+        value = float(amount)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or value < 0:
+        return None
+    return round(value, 2)
+
+
+async def _balance_row(user_id: str, db: AsyncSession):
+    """The Profile re-read from the database inside this transaction, REFRESHING an already-loaded copy.
+
+    Without populate_existing the ORM hands back the instance the caller loaded earlier, with its stale balance.
+    """
+    result = await db.execute(select(Profile).where(Profile.id == user_id).execution_options(populate_existing=True))
+    return result.scalar_one_or_none()
 
 
 async def get_balance(user_id: str, db: AsyncSession) -> float:
@@ -33,20 +63,31 @@ async def deduct_credits(
     """
     Deduct credits from user's balance.
     Returns: (success: bool, new_balance: float, error_message: str)
+
+    The check and the subtraction are ONE statement (UPDATE ... WHERE credit_balance >= :amount), so two
+    concurrent debits cannot both pass a stale check and overdraw: the second one's WHERE fails. Amounts must be
+    finite and non-negative (see clean_amount).
     """
-    result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update())
-    user = result.scalar_one_or_none()
-    
-    if not user:
+    cents = clean_amount(amount)
+    if cents is None:
+        logger.warning("deduct_credits refused a non-finite or negative amount for user %s", user_id)
+        return False, 0, "Invalid amount"
+    amount = cents
+
+    claimed = await db.execute(
+        update(Profile)
+        .where(Profile.id == user_id, func.coalesce(Profile.credit_balance, 0) >= amount)
+        .values(credit_balance=func.coalesce(Profile.credit_balance, 0) - amount)
+        .execution_options(synchronize_session=False))
+    user = await _balance_row(user_id, db)
+    if user is None:
         return False, 0, "User not found"
-    
-    if user.credit_balance < amount:
+    if claimed.rowcount == 0:
         return False, user.credit_balance, f"Insufficient credits. Need {amount:.2f}, have {user.credit_balance:.2f}"
-    
-    balance_before = user.credit_balance
-    user.credit_balance -= amount
+
     balance_after = user.credit_balance
-    
+    balance_before = balance_after + amount
+
     # Log the transaction
     transaction = CreditTransaction(
         user_id=user_id,
@@ -77,17 +118,29 @@ async def add_credits(
     """
     Add credits to user's balance.
     Returns: (success: bool, new_balance: float, error_message: str)
+
+    One UPDATE adds to the stored balance (a concurrent credit is not overwritten by a stale absolute value).
+    Amounts must be finite and non-negative (see clean_amount).
     """
-    result = await db.execute(select(Profile).where(Profile.id == user_id).with_for_update())
-    user = result.scalar_one_or_none()
-    
-    if not user:
+    cents = clean_amount(amount)
+    if cents is None:
+        logger.warning("add_credits refused a non-finite or negative amount for user %s", user_id)
+        return False, 0, "Invalid amount"
+    amount = cents
+
+    granted = await db.execute(
+        update(Profile).where(Profile.id == user_id)
+        .values(credit_balance=func.coalesce(Profile.credit_balance, 0) + amount)
+        .execution_options(synchronize_session=False))
+    if granted.rowcount == 0:
         return False, 0, "User not found"
-    
-    balance_before = user.credit_balance
-    user.credit_balance += amount
+    user = await _balance_row(user_id, db)
+    if user is None:
+        return False, 0, "User not found"
+
     balance_after = user.credit_balance
-    
+    balance_before = balance_after - amount
+
     # Log the transaction
     transaction = CreditTransaction(
         user_id=user_id,

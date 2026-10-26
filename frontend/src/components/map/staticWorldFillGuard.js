@@ -56,6 +56,22 @@ export function preloadFilledIndexes(latest, load, enabled = () => true) {
   return started;
 }
 
+/**
+ * THE GPU FRAME STORE AND THE FILLED SET (2026-10-25, the lead: "Accept a EURO/ICON world set only when its index's fill_mode equals
+ * /capabilities gulf_fill_mid_mode. Otherwise keep excluding it (fail closed)"). The store held no EURO/ICON frame at all, so a world
+ * model toggle waited for the normal path. It may take a pinned FILLED world index only while filledWorldSetKey still names it (the
+ * server and the latest.json record both say 'targeted') AND the index itself was baked in the server's mode (index.fill.mode): a pin
+ * from another mode never passes. The store shows a filled frame only as a WORLD-sized resident (its dims and bounds checks), never as
+ * a crop window (marineFrameStoreCropShow refuses filled sets: /grid does not fill a viewport crop).
+ * Kill (the store takes no EURO/ICON frame again): window.__RAW_DISABLE_FILLED_WORLD_STORE__ = true.
+ */
+export const filledStoreOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_FILLED_WORLD_STORE__ === true);
+export function filledStoreAccepts(model, layer, key, index, latest) {
+  if (!filledStoreOn() || String(layer || '').toLowerCase() !== 'waves' || filledWorldSetKey(model, layer, latest) !== key) return false;
+  const mode = serverFillModeOf(String(model || '').toUpperCase());
+  return !!mode && !!(index && index.fill) && index.fill.mode === mode;
+}
+
 /** Could a filled world set serve this guarded model x layer right now (not killed, the server in the targeted mode)? It does not
  *  look at latest.json: staticFrames uses it to decide whether that read is worth starting. */
 export function filledWorldPossible(model, layer) {
