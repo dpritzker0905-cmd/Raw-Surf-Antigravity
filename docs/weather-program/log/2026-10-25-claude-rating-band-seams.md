@@ -42,3 +42,15 @@ Offline proof (built branch, Florida, bundles ON, 10 s settle): the 9x8 1-deg gr
 and the red coastal band the kill arm paints from it is gone (screenshots: scratchpad cells/band2/shots1 on-z7.8 vs nofix-z7.8); 0.5 and 0.25 deg
 grids: fade 1, no line. The EDGE leg is pinned by Jest only (coverage was always full in these runs); the edge case in a browser, the three
 themes in a browser, and the live build are NOT verified.
+
+## 4. Browser checks, 2026-10-26 (the lead's condition before merging)
+`scn_rating_band_edge.js` (new): settle on a Florida z8 view, delay the surf asks 6.5 s, jump away so the resident covers only part of the view;
+stills and telemetry before/after, fix on vs killed, dark/light/beach, desktop 1280x800 and phone 390x844 dpr 3. The stills and a table are in the lead's
+notes folder `rating-band-edge-stills-2026-10-26/`.
+- EDGE leg, desktop, all three themes: resident coverage 63.5 % -> edgeFade 0, bandMult 0, status line shown; killed: band at full strength with a seam.
+- Phone (expanded weather sheet), all three themes: coverage 44.8 % -> held with the line; when the covering grid lands (cov 1.0) the band returns (fade 1).
+- Phone layout finding: the expanded sheet's last row sits under the bottom nav (nav top 768 CSS px; the held line measured at 772-804, off screen). The line is
+  now FIRST in the ForecastTimeStatus block (measured 736-768). It pushes the time readout down while held.
+- Stuck desktop state (present with the fix killed): `reject_downgrade` 17x17 resident (63.5 % cover) vs the covering 11x9 rated grid, by the cell-size rule
+  of `shouldRejectResolutionDowngrade` with the 0.6 cover floor. See the README there. Not changed.
+- Light theme RESOLUTION leg and mobile collapsed float: not exercised (the light-theme browser checks above are the EDGE leg).

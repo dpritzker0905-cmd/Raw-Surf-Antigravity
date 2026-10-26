@@ -71,6 +71,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
 
   const tone = theme === 'light' ? 'text-amber-800' : 'text-amber-200';
   const quiet = theme === 'light' ? 'text-slate-600' : 'text-slate-300';
+  // FIRST in the block: the phone's expanded sheet ends under the bottom nav, so a line after the time readout was off screen (measured 2026-10-26).
   const heldText = !isRaster ? ratingBandHeldText(heldBy) : null;
   const heldLine = heldText ? (
     <div role="status" aria-live="polite" data-rating-band-held={heldBy}
@@ -79,6 +80,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   if (readout) {
     return (
       <>
+      {heldLine}
       <div role="status" aria-live="polite" data-drawn-state={readout.state} aria-busy={readout.state === 'pending' ? true : undefined}
         data-hold-indicator={longPending ? 'on' : undefined}
         className={`mt-1 text-xs ${readout.state === 'pending' ? tone : quiet}`}>
@@ -88,7 +90,6 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
         )}
         {readout.text}
       </div>
-      {heldLine}
       </>
     );
   }
@@ -97,10 +98,10 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   if (!mismatch && status !== 'render_time_unverified') return heldLine;
   return (
     <>
+      {heldLine}
       <div role="status" aria-live="polite" className={`mt-1 text-xs ${tone}`}>
         {mismatch ? 'Forecast time does not match this selection.' : 'Verifying displayed forecast time.'}
       </div>
-      {heldLine}
     </>
   );
 }

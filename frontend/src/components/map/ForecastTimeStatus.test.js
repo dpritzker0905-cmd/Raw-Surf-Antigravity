@@ -67,7 +67,10 @@ describe('the rating band held off (marineRatingBandRes.js): said in words, neve
   it('it sits beside the time-mismatch line instead of replacing it, and no line without a hold', () => {
     window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'resolution' } };
     render(<ForecastTimeStatus model="GFS" layer="waves" hour={0} theme="dark" />);
-    expect(screen.getAllByRole('status')).toHaveLength(2);
+    const lines = screen.getAllByRole('status');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toHaveAttribute('data-rating-band-held', 'resolution');   // FIRST: the phone sheet's last line sits under the bottom nav
+    expect(lines[1]).toHaveTextContent(/forecast time.*does not match/i);
   });
   it('no hold, no line (the usual case)', () => {
     window.__RAW_GPU__ = { ratingBandFade: { heldBy: null } };
