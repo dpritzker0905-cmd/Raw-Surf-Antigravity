@@ -74,7 +74,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   const heldText = !isRaster ? ratingBandHeldText(heldBy) : null;
   const heldLine = heldText ? (
     <div role="status" aria-live="polite" data-rating-band-held={heldBy}
-      className={`mt-1 text-xs ${theme === 'light' || theme === 'beach' ? 'text-amber-800' : 'text-amber-200'}`}>{heldText}</div>
+      className={`mt-1 text-xs ${tone}`}>{heldText}</div>
   ) : null;
   if (readout) {
     return (
