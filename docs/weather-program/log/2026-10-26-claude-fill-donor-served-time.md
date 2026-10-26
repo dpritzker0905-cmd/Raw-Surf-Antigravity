@@ -27,12 +27,12 @@ GFS has a frame at almost every asked hour, so the mix happens wherever a frame 
 A frame served at its own ask is identical either way.
 
 ## Evidence
-- `tests/test_coarse_gulf_fill_targeted.py` adds 5 tests (guards lane):
+- `tests/test_coarse_gulf_fill_targeted.py` adds 6 tests (guards lane):
   - the helper's order, both ways, and a missing served time;
   - the flag-off CONTROL (a held 2-deg frame filled from the asked hour, as today);
   - flag on: the 2-deg fill takes the frame's own hour (its donor's values and file);
   - flag on: the 10-deg fill takes it too;
-  - an exact frame unchanged.
+  - a frame served at its own ask BYTE-IDENTICAL with the flag off and on, on both tiers (the lead's ask).
   - Code mutants 5 of 5 caught: the flag ignored, the served time always taken, either path left on the old order, None
     under the flag.
 - Offline on real CDN fields (the #584 harness, run 2026-10-25T12Z, NOW 2026-10-26T02Z, `FAR_EDGE_HOLD_PREFER_MID=1`,
@@ -49,8 +49,8 @@ A frame served at its own ask is identical either way.
   - flag off: 135 bad nodes at +330 h and 134 at +336 h (heights up to 0.53 m apart);
   - flag on: **0 bad at both**.
 - The fill, lane-parity and day-14 suites (117) pass; lint gate clean; file sizes under 800.
-- Guards floor by `rederive_floor.py --add 5`, re-derived after dev moved (#577, #578, #584, #585): dev run 40272745631 read
-  3320 and dev's map is 3331, so this PR must read **3336**, floor 3325 -> 3330.
+- Guards floor by `rederive_floor.py --add 6`, re-derived after dev moved: dev run 40274472907 read 3331 (212 files), so this
+  PR must read **3337**, floor 3325 -> 3331.
 
 ## Not done
 - The flip (owner's word).

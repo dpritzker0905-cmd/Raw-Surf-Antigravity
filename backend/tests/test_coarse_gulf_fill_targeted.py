@@ -423,10 +423,15 @@ def test_flag_on_moves_the_10deg_fill_to_the_frame_s_own_hour_too(monkeypatch):
     assert _by_node(on)[SEA_GULF].speed == 3.0 and on.coarse_fill["cells_filled"] == off.coarse_fill["cells_filled"]
 
 
-def test_a_frame_served_at_its_own_ask_is_unchanged_by_the_flag(monkeypatch):
-    """Not held, not substituted (served == asked): the same donor either way, so the flag moves only mixed-instant frames."""
+@pytest.mark.parametrize("region", ["global_mid", "global_coarse"])
+def test_a_frame_served_at_its_own_ask_is_byte_identical_under_the_flag(monkeypatch, region):
+    """Not held, not substituted (served == asked): the served product is BYTE-IDENTICAL with the flag off and on, on both
+    tiers, so the flag moves only mixed-instant frames."""
     monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
-    exact = lambda: _held(served="2026-11-09T02:00:00Z")   # noqa: E731
-    before = _by_node(_fill(exact(), _TwoInstants()))[SEA_GULF].speed
+    exact = lambda: _held(region, served="2026-11-09T02:00:00Z")   # noqa: E731
+    before = _fill(exact(), _TwoInstants())
+    gf._DONOR_LRU.clear()
     monkeypatch.setenv("MARINE_GULF_FILL_DONOR_SERVED_TIME", "1")
-    assert _by_node(_fill(exact(), _TwoInstants()))[SEA_GULF].speed == before == 4.0
+    after = _fill(exact(), _TwoInstants())
+    assert after.model_dump_json() == before.model_dump_json()
+    assert _by_node(after)[SEA_GULF].speed == (4.0 if region == "global_mid" else 5.0)    # the ask's own donor, filled
