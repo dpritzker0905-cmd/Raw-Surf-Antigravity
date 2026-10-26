@@ -39,6 +39,8 @@ export function publishMarineDrawn(grid, fallback = {}) {
     dataMs: Date.parse(served || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
     estimated: !!(grid.is_estimated || grid.isEstimated),
     basisType: basis && basis.type ? basis.type : null,
+    // A far-edge hold's held frame time (estimate_basis.held_from): the status line names it even when no served time arrived.
+    heldFromMs: basis && basis.held_from ? (Date.parse(basis.held_from) || null) : null,
     provider: grid.__gridProvider || grid.provider || null,
     store: !!grid.__fromFrameStore,   // the GPU frame store put it there (field telemetry's hit/miss)
     ts: Date.now(),
