@@ -1,5 +1,6 @@
 import {
-  loadDownscale, validDescriptor, downscaleKilled, setDownscaled, getDownscaled, subscribeDownscaled, DZ_DESCRIPTOR,
+  loadDownscale, validDescriptor, downscaleKilled, setDownscaled, getDownscaled, subscribeDownscaled, DZ_DESCRIPTOR, DZ_DESCRIPTOR_LO,
+  preferredVariant,
   _resetDownscaleForTest,
 } from './ownRasterDownscale';
 import { fetchFrameBytes, staticFramesBase } from './staticFrames';
@@ -69,4 +70,20 @@ test('the terrain-adjusted store notifies subscribers on change only', () => {
   setDownscaled('temperature', false);
   expect(fn).toHaveBeenCalledTimes(2);
   off();
+});
+
+test('the 1/8 fallback: a small device asks for it; it loads from its own descriptor and is cached apart', async () => {
+  const had = Object.getOwnPropertyDescriptor(navigator, 'deviceMemory');
+  Object.defineProperty(navigator, 'deviceMemory', { value: 2, configurable: true });
+  expect(preferredVariant()).toBe('lo');
+  Object.defineProperty(navigator, 'deviceMemory', { value: 8, configurable: true });
+  expect(preferredVariant()).toBe('hi');
+  if (had) Object.defineProperty(navigator, 'deviceMemory', had); else delete navigator.deviceMemory;
+  global.fetch = okFetch(desc);
+  const lo = await loadDownscale('lo');
+  const hi = await loadDownscale('hi');
+  expect(global.fetch.mock.calls.map((c) => c[0])).toEqual([`https://cdn.example/${DZ_DESCRIPTOR_LO}`, `https://cdn.example/${DZ_DESCRIPTOR}`]);
+  expect(lo.variant).toBe('lo');
+  expect(hi.variant).toBe('hi');
+  expect(lo).not.toBe(hi);
 });

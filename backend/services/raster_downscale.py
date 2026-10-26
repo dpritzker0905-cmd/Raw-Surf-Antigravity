@@ -32,6 +32,11 @@ import math
 import re
 
 DESCRIPTOR_PATH = "v1/gfs/weather/temperature/static/elevation_dz_v1.json"
+# The FALLBACK (the lead's conditions, 2026-10-25): the same terrain at 2/15 deg (a 2 x 2 box mean of the 1/15 DEM), in tiles of
+# at most 2048 columns, for a device that cannot hold the full asset (navigator.deviceMemory <= 2, a GL allocation error, or a
+# MAX_TEXTURE_SIZE below the full tiles' width). The full descriptor names it ("fallback").
+DESCRIPTOR_PATH_LO = "v1/gfs/weather/temperature/static/elevation_dz_v1_lo.json"
+MAX_TILE_COLS_LO = 2048
 TILE_PREFIX = "v1/gfs/weather/temperature/static/elevation_dz_v1"
 LAPSE_K_PER_M = -0.0065
 STEP_M = 25.0
@@ -127,7 +132,16 @@ def tiles(q, max_cols=MAX_TILE_COLS):
     return out
 
 
-def build(dem, lat, lon, zs, built_at, terrain_source, max_cols=MAX_TILE_COLS):
+def coarsen(dem, lat, lon, k=2):
+    """(dem, lat, lon) box-averaged over k x k blocks (rows and columns trimmed to multiples of k); each block's centre."""
+    import numpy as np
+    dem = np.asarray(dem, dtype=float)
+    ny, nx = (dem.shape[0] // k) * k, (dem.shape[1] // k) * k
+    d = dem[:ny, :nx].reshape(ny // k, k, nx // k, k).mean(axis=(1, 3))
+    return d, np.asarray(lat, dtype=float)[:ny].reshape(-1, k).mean(axis=1), np.asarray(lon, dtype=float)[:nx].reshape(-1, k).mean(axis=1)
+
+
+def build(dem, lat, lon, zs, built_at, terrain_source, max_cols=MAX_TILE_COLS, variant="hi"):
     """(descriptor dict, [(path, gzip bytes)]) for a DEM on a regular lattice (lat ascending from the south, lon ascending
     from 180W; a repeated 180E column is dropped) and the model terrain zs (361 x 720 frame lattice)."""
     import numpy as np
@@ -145,14 +159,15 @@ def build(dem, lat, lon, zs, built_at, terrain_source, max_cols=MAX_TILE_COLS):
     for i, (c0, t) in enumerate(tiles(q, max_cols)):
         gz = gzip.compress(t.tobytes(), 9)
         sha = hashlib.sha256(t.tobytes()).hexdigest()
-        path = f"{TILE_PREFIX}/tile-{i}-{sha[:12]}.bin"
+        path = f"{TILE_PREFIX}/{variant}-tile-{i}-{sha[:12]}.bin"
         files.append((path, gz))
         entries.append({"path": path, "col0": int(c0), "cols": int(t.shape[1]), "rows": int(t.shape[0]), "sha256": sha,
                         "bytes": len(gz)})
     land = dem > 0
     dz_m = dequantise(q)
     descriptor = {
-        "version": 1, "kind": "elevation_dz", "model": "GFS", "layer": "temperature", "lapse_K_per_m": LAPSE_K_PER_M,
+        "version": 1, "kind": "elevation_dz", "variant": variant, "model": "GFS", "layer": "temperature",
+        "lapse_K_per_m": LAPSE_K_PER_M,
         "lattice": {"south": float(lat[0]), "west": float(lon[0]), "dlat": dlat, "dlon": dlon, "rows": int(q.shape[0]),
                     "cols": int(q.shape[1]), "row0": "south", "col0": "west", "wrap": True},
         "encoding": {"dtype": "uint8", "offset": OFFSET, "step_m": STEP_M, "gzip": True, "overlap_cols": 1},

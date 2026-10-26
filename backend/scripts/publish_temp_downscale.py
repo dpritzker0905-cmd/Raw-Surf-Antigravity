@@ -50,14 +50,16 @@ def fetch_terrain(source=None, now=None):
 
 
 def up_to_date(sink, stride):
-    raw = sink.read(rd.DESCRIPTOR_PATH)
-    if not raw:
-        return False
-    try:
-        d = json.loads(raw)
-    except ValueError:
-        return False
-    return d.get("version") == 1 and d.get("stride") == stride
+    """Both descriptors present, version 1, built at this stride."""
+    for path in (rd.DESCRIPTOR_PATH_LO, rd.DESCRIPTOR_PATH):
+        raw = sink.read(path)
+        try:
+            d = json.loads(raw) if raw else None
+        except ValueError:
+            d = None
+        if not d or d.get("version") != 1 or d.get("stride") != stride:
+            return False
+    return True
 
 
 def publish(sink, stride=rd.STRIDE, force=False, dem=None, terrain=None, log=print):
@@ -69,12 +71,16 @@ def publish(sink, stride=rd.STRIDE, force=False, dem=None, terrain=None, log=pri
     built_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     source = f"gfs.pgrb2.0p25 HGT surface, cycle {cycle:%Y-%m-%dT%HZ} f000, every second point, bilinear"
     descriptor, files = rd.build(vals, lat, lon, zs, built_at, source)
-    descriptor["stride"] = stride
-    for path, gz in files:                                     # tiles first, the descriptor last (a reader never sees a
-        sink.write(path, gz, fs.FRAME_TYPE, fs.IMMUTABLE)       # descriptor naming a tile that is not there)
+    lo_d, lo_files = rd.build(*rd.coarsen(vals, lat, lon, 2), zs, built_at, source, rd.MAX_TILE_COLS_LO, "lo")
+    descriptor["stride"] = lo_d["stride"] = stride
+    descriptor["fallback"] = rd.DESCRIPTOR_PATH_LO
+    for path, gz in files + lo_files:                          # tiles first, then the fallback's descriptor, the full one
+        sink.write(path, gz, fs.FRAME_TYPE, fs.IMMUTABLE)       # LAST (a reader never sees a descriptor naming a missing tile)
+    sink.write(rd.DESCRIPTOR_PATH_LO, rd.descriptor_bytes(lo_d), fs.JSON_TYPE, DESCRIPTOR_CACHE)
     sink.write(rd.DESCRIPTOR_PATH, rd.descriptor_bytes(descriptor), fs.JSON_TYPE, DESCRIPTOR_CACHE)
-    report = {"status": "published", "tiles": [{k: t[k] for k in ("path", "cols", "rows", "bytes")} for t in descriptor["tiles"]],
-              "bytes": sum(len(gz) for _p, gz in files), "lattice": descriptor["lattice"], "stats": descriptor["stats"]}
+    report = {"status": "published", "bytes": sum(len(gz) for _p, gz in files), "bytes_lo": sum(len(gz) for _p, gz in lo_files),
+              "tiles": [{k: t[k] for k in ("path", "cols", "rows", "bytes")} for t in descriptor["tiles"] + lo_d["tiles"]],
+              "lattice": descriptor["lattice"], "lattice_lo": lo_d["lattice"], "stats": descriptor["stats"]}
     log(json.dumps(report, indent=1))
     return report
 

@@ -118,12 +118,26 @@ def test_the_script_writes_tiles_before_the_descriptor_skips_when_current_and_is
     sink.ensure_bucket()
     rep = script.publish(sink, stride=16, dem=(dem, lat, lon), terrain=terrain, log=lambda *_: None)
     assert rep["status"] == "published"
-    assert sink.order[-1] == rd.DESCRIPTOR_PATH and all(p.startswith(rd.TILE_PREFIX) for p in sink.order[:-1])
+    assert sink.order[-2:] == [rd.DESCRIPTOR_PATH_LO, rd.DESCRIPTOR_PATH]                   # the full descriptor last
+    assert all(p.startswith(rd.TILE_PREFIX) for p in sink.order[:-2])
+    assert {p.split("/")[-1].split("-")[0] for p in sink.order[:-2]} == {"hi", "lo"}
     assert sink.headers[rd.DESCRIPTOR_PATH]["cache-control"] == "no-cache"
-    assert all(sink.headers[p]["cache-control"].endswith("immutable") for p in sink.order[:-1])
+    assert all(sink.headers[p]["cache-control"].endswith("immutable") for p in sink.order[:-2])
     d = json.loads(sink.read(rd.DESCRIPTOR_PATH))
-    assert d["stride"] == 16 and "cycle 2026-10-25T12Z" in d["model_terrain"]
+    lo = json.loads(sink.read(rd.DESCRIPTOR_PATH_LO))
+    assert d["stride"] == lo["stride"] == 16 and "cycle 2026-10-25T12Z" in d["model_terrain"]
+    assert d["variant"] == "hi" and lo["variant"] == "lo" and d["fallback"] == rd.DESCRIPTOR_PATH_LO
+    assert (lo["lattice"]["rows"], lo["lattice"]["cols"]) == (15, 30) and lo["lattice"]["dlon"] == pytest.approx(12.0)
+    assert all(t["cols"] <= rd.MAX_TILE_COLS_LO for t in lo["tiles"])
     assert script.publish(sink, stride=16, dem=(dem, lat, lon), terrain=terrain, log=lambda *_: None)["status"] == "current"
     assert script.publish(sink, stride=32, dem=(dem, lat, lon), terrain=terrain, log=lambda *_: None)["status"] == "published"
     monkeypatch.delenv("FRAME_RASTER_TEMP_DZ", raising=False)
     assert script.main([]) == 0 and "off" in capsys.readouterr().out
+
+
+def test_the_fallback_is_a_2x2_box_mean_at_block_centres():
+    dem = np.arange(24, dtype=float).reshape(4, 6)
+    d, lat, lon = rd.coarsen(dem, np.array([0.0, 1.0, 2.0, 3.0]), np.array([0, 1, 2, 3, 4, 5.0]))
+    assert d.tolist() == [[3.5, 5.5, 7.5], [15.5, 17.5, 19.5]] and lat.tolist() == [0.5, 2.5] and lon.tolist() == [0.5, 2.5, 4.5]
+    d3, _la, _lo = rd.coarsen(np.ones((5, 7)), np.arange(5.0), np.arange(7.0))
+    assert d3.shape == (2, 3)                                            # trimmed to whole blocks

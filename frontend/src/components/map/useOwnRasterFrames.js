@@ -134,6 +134,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         if (mapInstance.getLayer(id)) return;
         st.layerObj = createOwnRasterLayer({
           id, lutMap: LUTS[layer], opacityStops: OPACITY[layer], shaderIsobars: layer === 'pressure',
+          // the full elevation asset cannot be held on this device: the 1/8-deg fallback (ownRasterDownscale.js)
+          onDownscaleFail: (why) => { noteMiss(`dz_${why}`); st.dzVariant = 'lo'; setGen((g) => g + 1); },
           onFail: (why) => { noteMiss(`gl_${why}`); setFailed(true); },
         });
         st.layerObj.onShown((path, field) => {
@@ -188,7 +190,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const L = ref.current.layerObj;
     if (!engaged || !L || !DOWNSCALED[layer]) return undefined;
     let alive = true;
-    loadDownscale().then((asset) => {
+    loadDownscale(ref.current.dzVariant).then((asset) => {
       if (!alive || ref.current.layerObj !== L || !asset) return;
       if (L.setDownscale(asset)) setDownscaled(layer, true);
     });

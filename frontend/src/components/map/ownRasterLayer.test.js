@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
-  TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
+  TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
@@ -13,6 +13,7 @@ function fakeGl() {
   const u2 = [];      // uniform2f arguments: [uniform name, x, y]
   const u4 = [];      // uniform4f arguments: [uniform name, x, y, z, w]
   const tex = [];     // texImage2D: [internal format, width, height]
+  const ctl = { maxTex: 16384, failError: false };   // MAX_TEXTURE_SIZE; the next getError reports an error
   let n = 0;
   const consts = new Proxy({}, { get: (t, k) => (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k) ? `GL_${k}` : undefined) });
   const gl = new Proxy({}, {
@@ -21,6 +22,7 @@ function fakeGl() {
       if (k === '__u2') return u2;
       if (k === '__u4') return u4;
       if (k === '__tex') return tex;
+      if (k === '__ctl') return ctl;
       if (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k)) return consts[k];
       return (...args) => {
         calls.push(k);
@@ -31,6 +33,8 @@ function fakeGl() {
         if (k === 'getProgramParameter') return true;
         if (k === 'getUniformLocation') return { u: args[1] };
         if (k === 'isContextLost') return false;
+        if (k === 'getParameter') return args[0] === 'GL_MAX_TEXTURE_SIZE' ? ctl.maxTex : undefined;
+        if (k === 'getError') { const e = ctl.failError ? 'GL_OUT_OF_MEMORY' : 'GL_NO_ERROR'; ctl.failError = false; return e; }
         return undefined;
       };
     },
@@ -293,16 +297,18 @@ describe('air temperature elevation downscale (2026-10-25): T + lapse * dz from 
   });
 
   test('the shader adds lapse * dz BEFORE the colour lookup, sampling level 0 of the right tile', () => {
-    const i = FS.indexOf('v = v + u_dzCode.z * (code * 255.0 - u_dzCode.x) * u_dzCode.y;');
+    const i = FS.indexOf('v = v + u_dzLat.w * u_dzCode.z * (code * 255.0 - u_dzCode.x) * u_dzCode.y;');
     expect(i).toBeGreaterThan(0);
     expect(i).toBeLessThan(FS.indexOf('float k = clamp(floor((v - u_lutMap.x)'));
+    expect(FS).toContain('if (u_dzLat.w > 0.0) {');
     expect(FS).toContain('textureLod(u_dz0,');
     expect(FS).toContain('gx < u_dzLon.w');
   });
 
-  test('one tile uploads per frame (R8); the downscale switches on only once every tile is resident; context loss re-uploads', () => {
+  test('one tile uploads per frame (R8); never half a downscale; the correction fades in over DZ_FADE_MS; context loss re-uploads', () => {
     const gl = fakeGl(); const map = fakeMap();
-    const Lr = createOwnRasterLayer({ id: 't', lutMap: TEMPERATURE_LUT, opacityStops: TEMPERATURE_OPACITY_STOPS, shaderIsobars: false });
+    let clock = 1000;
+    const Lr = createOwnRasterLayer({ id: 't', lutMap: TEMPERATURE_LUT, opacityStops: TEMPERATURE_OPACITY_STOPS, shaderIsobars: false, now: () => clock });
     Lr.onAdd(map, gl); Lr.setLut(buildStepLut({ breakpoints: [-80], colors: [[1, 2, 3, 1]] }, TEMPERATURE_LUT));
     Lr.offerField('a', field(5)); Lr.want('a');
     expect(Lr.setDownscale(asset)).toBe(true);
@@ -312,7 +318,10 @@ describe('air temperature elevation downscale (2026-10-25): T + lapse * dz from 
     expect(on()).toEqual([0]);                                              // one tile of two: drawn as is
     Lr.prerender(gl, args); Lr.render(gl, args);
     expect(gl.__tex.filter((t) => t[0] === 'GL_R8').length).toBe(2);
-    expect(on()).toEqual([0, 1]);
+    expect(on()).toEqual([0, 0]);                                           // every tile resident: the fade starts at 0
+    clock += DZ_FADE_MS / 2; Lr.render(gl, args);
+    clock += DZ_FADE_MS; Lr.render(gl, args);
+    expect(on()).toEqual([0, 0, 0.5, 1]);
     expect(gl.__u4.filter((u) => u[0] === 'u_dzLon').pop()).toEqual(['u_dzLon', -180, 60, 6, 3]);
     expect(gl.__u4.filter((u) => u[0] === 'u_dzCode').pop()).toEqual(['u_dzCode', 128, 25, -0.0065, 4]);
     expect(Lr.downscaleReady()).toBe(true);
@@ -321,6 +330,19 @@ describe('air temperature elevation downscale (2026-10-25): T + lapse * dz from 
     map.listeners.webglcontextrestored();
     Lr.prerender(gl, args); Lr.prerender(gl, args);
     expect(Lr.downscaleReady()).toBe(true);
+  });
+
+  test('tiles this GPU cannot hold, or a GL error on upload, drop the asset ONCE and ask for the 1/8 fallback', () => {
+    for (const [setup, why] of [[(gl) => { gl.__ctl.maxTex = 3; }, 'too_large'], [(gl) => { gl.__ctl.failError = true; }, 'gl_error']]) {
+      const gl = fakeGl(); const fails = [];
+      const Lr = createOwnRasterLayer({ id: 'f', onDownscaleFail: (w) => fails.push(w) });
+      Lr.onAdd(fakeMap(), gl); Lr.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+      setup(gl);
+      Lr.setDownscale(asset);
+      Lr.prerender(gl, args); Lr.prerender(gl, args); Lr.prerender(gl, args);
+      expect(fails).toEqual([why]);
+      expect(Lr.downscaleReady()).toBe(false);
+    }
   });
 
   test('more tiles than the shader takes, or none, is refused: the field draws as is', () => {

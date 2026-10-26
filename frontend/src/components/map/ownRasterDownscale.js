@@ -15,6 +15,15 @@
 import { fetchFrameBytes, staticFramesBase } from './staticFrames';
 
 export const DZ_DESCRIPTOR = 'v1/gfs/weather/temperature/static/elevation_dz_v1.json';
+// The 1/8-deg FALLBACK (0.49 MB, tiles <= 2048 columns): for navigator.deviceMemory <= 2, or when the layer cannot hold the
+// full tiles (a GL error, or MAX_TEXTURE_SIZE below their width). Paired bootstrap at stations >= 300 m off the model
+// terrain: 1/16 beats 1/8 by 0.77 C, 95% CI [-1.13, -0.41] per station-hour, [-1.41, -0.18] by station.
+export const DZ_DESCRIPTOR_LO = 'v1/gfs/weather/temperature/static/elevation_dz_v1_lo.json';
+/** 'lo' on a small device (navigator.deviceMemory <= 2, where the browser reports it), else 'hi'. */
+export function preferredVariant() {
+  const nav = typeof navigator !== 'undefined' ? navigator : {};
+  return typeof nav.deviceMemory === 'number' && nav.deviceMemory <= 2 ? 'lo' : 'hi';
+}
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const downscaleKilled = () => W().__RAW_DISABLE_RASTER_TEMP_DOWNSCALE__ === true;
 
@@ -36,17 +45,19 @@ export function validDescriptor(d) {
   return inner === L.cols && d.tiles.every((t) => t.rows === L.rows && typeof t.path === 'string');
 }
 
-let _asset = null;
-/** The decoded asset ({ lattice, offset, step, lapse, tiles: [{ col0, cols, rows, data }] }), or null (killed, no CDN, not
- *  published, a bad tile). One load per page, shared; a failure is retried on the next call. */
-export function loadDownscale() {
+const _asset = { hi: null, lo: null };
+/** The decoded asset ({ lattice, offset, step, lapse, variant, tiles: [{ col0, cols, rows, data }] }), or null (killed, no CDN,
+ *  not published, a bad tile). `variant`: 'hi' (1/16 deg) or 'lo' (the 1/8 fallback). One load per page and variant, shared;
+ *  a failure is retried on the next call. */
+export function loadDownscale(variant = preferredVariant()) {
   if (downscaleKilled()) return Promise.resolve(null);
-  if (_asset) return _asset;
+  const v = variant === 'lo' ? 'lo' : 'hi';
+  if (_asset[v]) return _asset[v];
   const base = staticFramesBase();
   if (!base) return Promise.resolve(null);
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
-  _asset = (async () => {
-    const res = await fetch(base + DZ_DESCRIPTOR, { cache: 'no-cache', credentials: 'omit' });
+  _asset[v] = (async () => {
+    const res = await fetch(base + (v === 'lo' ? DZ_DESCRIPTOR_LO : DZ_DESCRIPTOR), { cache: 'no-cache', credentials: 'omit' });
     if (!res.ok) { miss(res.status === 404 || res.status === 400 ? 'not_published' : `http_${res.status}`); return null; }
     const d = await res.json();
     if (!validDescriptor(d)) { miss('bad_descriptor'); return null; }
@@ -59,13 +70,14 @@ export function loadDownscale() {
       wire += got.wire || 0;
       return { col0: t.col0, cols: t.cols, rows: t.rows, data };
     }));
-    const asset = { lattice: d.lattice, offset: d.encoding.offset, step: d.encoding.step_m, lapse: d.lapse_K_per_m, tiles, credit: d.credit };
-    tel().downscale = { ms: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0), wire,
+    const asset = { lattice: d.lattice, offset: d.encoding.offset, step: d.encoding.step_m, lapse: d.lapse_K_per_m, tiles, credit: d.credit,
+      variant: v };
+    tel().downscale = { variant: v, ms: Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0), wire,
       tiles: tiles.map((t) => [t.cols, t.rows]) };
     return asset;
   })().catch(() => { miss('load_failed'); return null; })
-    .then((asset) => { if (!asset) _asset = null; return asset; });   // only a loaded asset is kept: a miss retries next time
-  return _asset;
+    .then((asset) => { if (!asset) _asset[v] = null; return asset; });   // only a loaded asset is kept: a miss retries next time
+  return _asset[v];
 }
 
 // ── which layers are drawn terrain-adjusted right now (the legend credit names the elevation source while one is) ──────────
@@ -79,4 +91,4 @@ export function setDownscaled(layer, on) {
 export const getDownscaled = () => _on;
 export function subscribeDownscaled(fn) { _subs.add(fn); return () => _subs.delete(fn); }
 
-export function _resetDownscaleForTest() { _asset = null; _on = Object.freeze({}); _subs.clear(); }
+export function _resetDownscaleForTest() { _asset.hi = null; _asset.lo = null; _on = Object.freeze({}); _subs.clear(); }
