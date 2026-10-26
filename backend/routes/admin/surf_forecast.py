@@ -334,6 +334,14 @@ _RATING_FLAGS = {
                                           "box), so a 1-deg snapped z7-9 box inside the padded tile is covered: one source at the edge",
                                       "repo variable GFS_PILOT_WHOLE_DEGREE_BOUNDS, read by forecast-ingest-pilots.yml AND "
                                       "forecast-ingest.yml env (one variable, both lanes together), and Render env (the series lane skip)"),
+    # SERVED NUMBER, DARK (2026-10-25; the owner's manual test, ICON day 14 "showing Saturday on Sunday with holes in Gulf data"):
+    # the ICON / EURO marine estimated tails baked this many hours past run + 336, so the 2-deg tier reaches now + 336 between
+    # bakes instead of falling to the 10-deg tail and the far-edge hold (scheduler_helpers.marine_ext_ceiling_hours).
+    "MARINE_EXT_CEILING_MARGIN_H": ("0", "Hours (0..48) the ICON and EURO marine estimated tails are baked past the anchor's run + 336 h, so the "
+                                        "2-deg tail still covers the scrubber's now + 336 h until the next bake (same blend, labelled estimated; "
+                                        "GFS targets past f336 need GFS_WORLD_FULL_HORIZON=1)",
+                                    "repo variable MARINE_EXT_CEILING_MARGIN_H, read by forecast-ingest.yml AND forecast-ingest-pilots.yml env "
+                                    "(both lanes bake tails: the 10-deg in core, the 2-deg ICON in pilots)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this

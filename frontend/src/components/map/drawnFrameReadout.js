@@ -70,6 +70,16 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
   const drawnLabel = byInstant ? formatInstant(drawn.dataMs)
     : (labelOn && Number.isFinite(drawn.hour) && Number.isFinite(requested.hour)   // one clock in one sentence
       ? formatInstant(requested.labelMs + (drawn.hour - requested.hour) * 3600000) : formatForecastHour(drawn.hour, nowMs));
+  // FAR-EDGE HOLD (2026-10-25, the owner's day-14 test: "the ICON data is showing Saturday 13th day on the Sunday 14th day"). Past a
+  // model's stored 14-day estimate the server holds its LAST frame (estimate_basis.type far_edge_hold, up to 24 h back). That frame
+  // never "loads": the old words ("Loading Sun 5 AM… still showing Sat 6 PM", or with no served time "Estimated forecast: estimated")
+  // promised a frame that does not exist. Say what is held, from the held frame's own time.
+  // Kill: window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ = true (the previous words).
+  if (drawn.basisType === 'far_edge_hold' && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ === true)) {
+    const heldMs = Number.isFinite(drawn.heldFromMs) ? drawn.heldFromMs : (byInstant ? drawn.dataMs : null);
+    const heldLabel = Number.isFinite(heldMs) ? formatInstant(heldMs) : 'the last stored';
+    return { state: 'held', text: `Holding ${heldLabel}’s ${model(drawn.model || requested.model)} forecast: the 14-day estimate ends there` };
+  }
   if (dh !== 0) {
     if (Math.abs(dh) <= (Number.isFinite(requested.nearestMaxHours) ? requested.nearestMaxHours : NEAREST_MAX_HOURS)) {   // caller may pass its lattice's half-step
       return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest stored forecast${est ? ` (${est})` : ''}` };
