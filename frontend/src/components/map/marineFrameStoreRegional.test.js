@@ -18,6 +18,7 @@ const mockSF = { enabled: true, world: null, regional: {}, hooks: new Set(), loa
 jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => mockSF.enabled,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
+  storeSetKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,   // the plain set (no filled set in these mocks)
   getPinnedIndexSync: (k) => (/global_mid$/.test(k) ? mockSF.world : null),            // as the real one: regional keys stay out
   getPinnedRegionalIndexSync: (k) => mockSF.regional[k] || null,
   pinnedRegionalKeys: () => Object.keys(mockSF.regional),
