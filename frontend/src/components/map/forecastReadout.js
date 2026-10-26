@@ -12,7 +12,7 @@
 
 import { getSharedValidTime, getSeriesAnchorMs } from './backendWeatherServiceClient';
 import { windIndexSync } from './windStaticFrames';
-import { blendBracket, windTimeBlendOn } from './windTimeBlend';
+import { blendBracket, indexRunMs, windTimeBlendOn } from './windTimeBlend';
 
 const MANIFEST_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves', 'wind']);
 const HOUR_MS = 3600000;
@@ -25,12 +25,13 @@ export function displayedForecastTime(hour, layer, model) {
   if (!Number.isFinite(anchorMs)) anchorMs = Math.round(Date.now() / HOUR_MS) * HOUR_MS;
   const requestedMs = anchorMs + h * HOUR_MS;
   let ms = requestedMs;
-  // Wind clip B (windTimeBlend.js, opt-in): between two built static frames the field drawn IS valid at the requested instant
-  // (a labelled blend), so the readout names that instant, not the snapped frame. While the frames' bytes are still loading the
-  // nearest frame is drawn instead, and the wind status line under the timeline names it in the same frame.
+  // The wind f120+ tail blend (windTimeBlend.js, opt-in): between two built static frames at or past f120 the field drawn IS
+  // valid at the requested instant (a labelled PCHIP estimate), so the readout names that instant, not the snapped frame. The
+  // same bracket rule as the seam (run + 120 h), so the readout never names a blend the map does not draw. While the frames'
+  // bytes are still loading the nearest frame is drawn instead, and the wind status line names it in the same frame.
   if (layer === 'wind' && windTimeBlendOn() && String(model || 'GFS').toUpperCase() === 'GFS') {
     let br = null;
-    try { const idx = windIndexSync(); br = idx ? blendBracket(idx.frames, requestedMs) : null; } catch (e) { br = null; }
+    try { const idx = windIndexSync(); br = idx ? blendBracket(idx.frames, requestedMs, indexRunMs(idx)) : null; } catch (e) { br = null; }
     if (br) return { ms: requestedMs, requestedMs, snapped: false, blend: br };
   }
   if (MANIFEST_LAYERS.has(layer)) {

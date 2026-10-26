@@ -1,14 +1,17 @@
 // OWNER A/B CLIPS for wind between 3-hourly frames (2026-10-24, the lead's queue; OPT-IN, default off). Offline only.
 //   Clip A (the status line names the nearest stored frame) shipped as #560's LABEL INSTANT and is the default, so the "off" arm
 //   now shows it; there is no A flag.
-//   CLIP=B  window.__RAW_WIND_TIME_BLEND__: hours between frames draw a speed + direction blend of the two, labelled
+//   CLIP=B  window.__RAW_WIND_TIME_BLEND__: in the f120+ tail (3-hourly; before f120 the frames are hourly, #580), hours between
+//           frames draw a PCHIP-on-u/v blend of the frames t-3..t+6 (the hold-out's pick, SCOREBOARD S23), labelled
 //           "Estimated forecast: interpolated between ... and ...".
-// One fresh browser per arm (off, on), the SAME script: wind on at hour 0, then ArrowRight once every STEP_MS for STEPS hours.
+// One fresh browser per arm (off, on), the SAME script: wind on, the wheel moved to START_HOUR (default 124: past f120 of the run
+// even when the series anchor IS the run), then ArrowRight once every STEP_MS for STEPS hours. CDN_DIR must hold the wind set's
+// frames out that far.
 // Each arm is recorded (Playwright recordVideo) with a corner label naming the arm, and the status line's text is read at every
 // step; `clips.html` in OUT_DIR plays the two recordings side by side, in sync, with the per-step lines under them.
 //
 //   EXPECT_STORE=<store> PORT=4196 CDN_DIR=<frames> AB_BASE=http://127.0.0.1:<spa> CLIP=B OUT_DIR=<dir> node scn_wind_clips.js
-// Env: CENTER (-79.5,28.6), ZOOM (3.9), STEPS (7), STEP_MS (2500), WIDTH/HEIGHT (1280x800), CDN_PORT (4194).
+// Env: CENTER (-79.5,28.6), ZOOM (3.9), START_HOUR (124), STEPS (7), STEP_MS (2500), WIDTH/HEIGHT (1280x800), CDN_PORT (4194).
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -22,12 +25,13 @@ const CLIP = (process.env.CLIP || 'B').toUpperCase();
 const OUT_DIR = path.resolve(process.env.OUT_DIR || `wind-clips-${CLIP}`);
 const [CLNG, CLAT] = (process.env.CENTER || '-79.5,28.6').split(',').map(Number);
 const ZOOM = +(process.env.ZOOM || 3.9);
+const START_HOUR = +(process.env.START_HOUR || 124);
 const STEPS = +(process.env.STEPS || 7);
 const STEP_MS = +(process.env.STEP_MS || 2500);
 const W = +(process.env.WIDTH || 1280); const H = +(process.env.HEIGHT || 800);
 const FLAG = { B: '__RAW_WIND_TIME_BLEND__' }[CLIP];
 if (!FLAG) throw Error(`CLIP must be B (clip A shipped as #560's default), got ${CLIP}`);
-const WHAT = { B: 'the labelled time blend' }[CLIP];
+const WHAT = { B: 'the labelled f120+ tail blend (PCHIP u/v)' }[CLIP];
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -90,11 +94,13 @@ async function session(arm) {
         drawnHour: d && d.hour, drawnMs: d && d.dataMs, estimated: d && d.estimated, blend: d && d.blendText,
         selected: window.__RAW_SELECTED_WIND__ || null, blends: (window.__RAW_WIND_STATIC__ || {}).blends || 0 };
     });
-    out.steps.push({ hour: 0, ...(await read()) });
+    for (let i = 0; i < START_HOUR; i++) { await page.keyboard.press('ArrowRight'); await sleep(30); }   // to the tail
+    await sleep(STEP_MS * 2);
+    out.steps.push({ hour: START_HOUR, ...(await read()) });
     for (let i = 1; i <= STEPS; i++) {
       await page.keyboard.press('ArrowRight');
       await sleep(STEP_MS);
-      out.steps.push({ hour: i, ...(await read()) });
+      out.steps.push({ hour: START_HOUR + i, ...(await read()) });
     }
   } finally {
     const video = page.video();
@@ -124,7 +130,7 @@ h1{font-size:20px;margin:0 0 4px}p{color:var(--mut);margin:0 0 12px}button{font:
 table{border-collapse:collapse;width:100%;margin-top:12px}td,th{border-top:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
 </style></head><body>
 <h1>Wind clip ${CLIP}: ${WHAT}</h1>
-<p>Left: today (off). Right: ${WHAT} (on, opt-in). Same build, same data, same keys: wind on, then +1 hour every ${STEP_MS / 1000} s.</p>
+<p>Left: today (off). Right: ${WHAT} (on, opt-in). Same build, same data, same keys: wind on, the timeline moved to +${START_HOUR} h, then +1 hour every ${STEP_MS / 1000} s.</p>
 <button id="play" type="button">Play both from the start</button>
 <div class="grid"><figure style="margin:0"><video id="a" src="${off.video}" muted playsinline controls></video><figcaption>Off (today)</figcaption></figure>
 <figure style="margin:0"><video id="b" src="${on.video}" muted playsinline controls></video><figcaption>On: ${WHAT}</figcaption></figure></div>
