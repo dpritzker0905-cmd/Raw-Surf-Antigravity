@@ -62,7 +62,7 @@ import {
   // needs no local binding). Importing it as well is an unused-import warning, not a no-op.
   shouldRejectMaskShrink, shouldKeepResidentOnNullEncode, isMagnifiedCoarseField,
   trimDeadEdges, applySharpenOpacityEase, resolveColdVeil, resolveCoarseCrestControls,
-  resolveAnimValue, coarseBaseKey,
+  resolveAnimValue, coarseBaseKey, edgeUncoveredMs,
 } from './marineEngineDecisions';
 import { setHeatmapGateUniforms, resolveWashOverlayMode, resolveOverlayTruthUv, setOverlayTruthUniforms } from './marineCoverageContract';
 
@@ -1036,14 +1036,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       _ratingBandFade = resolveRatingBandFade(
         _vpSpanForFade, isRating && _surfFlagOn, blendEngaged,
         (typeof window !== 'undefined') ? window : undefined,
-        { coverFrac: (_residentCoverFrac === null) ? undefined : _residentCoverFrac, zoom: z });
+        { coverFrac: (_residentCoverFrac === null) ? undefined : _residentCoverFrac, zoom: z, cellDeg: gridCellDeg(_gridForBlend) || undefined, uncoveredMs: edgeUncoveredMs(_residentCoverFrac) });
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.ratingBandFade = {
           span: _vpSpanForFade, washEngaged: blendEngaged,
           fade: _ratingBandFade.fade, bandMult: _ratingBandFade.bandMult,
           washStrength: _ratingBandFade.washStrength,
           covFrac: _residentCoverFrac, covFade: _ratingBandFade.covFade,
-          spanFade: _ratingBandFade.spanFade,
+          spanFade: _ratingBandFade.spanFade, resFade: _ratingBandFade.resFade, edgeFade: _ratingBandFade.edgeFade, heldBy: _ratingBandFade.heldBy || null, cellDeg: gridCellDeg(_gridForBlend),
         };
       }
       // Forensic: record fade TRANSITIONS only (decile buckets), never per-frame — the ring must
