@@ -199,6 +199,20 @@ jobs:
           FRAME_RASTER_TEMPERATURE: ${{ vars.FRAME_RASTER_TEMPERATURE }}
         run: python scripts/publish_raster_frames.py --set temperature
 
+      # Air temperature's elevation downscale (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"):
+      # the static elevation-difference asset (NOAA ETOPO 2022 minus GFS terrain, services/raster_downscale.py). Built once; the
+      # script exits at once when the published descriptor is current. Off unless FRAME_RASTER_TEMP_DZ=1 (the client is dark).
+      - name: Publish the temperature downscale asset (off unless FRAME_RASTER_TEMP_DZ=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMP_DZ == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_TEMP_DZ: ${{ vars.FRAME_RASTER_TEMP_DZ }}
+        run: python scripts/publish_temp_downscale.py
+
       - name: Publish raster static frames (cloud cover; off unless FRAME_RASTER_CLOUD=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD == '1' }}
         continue-on-error: true
