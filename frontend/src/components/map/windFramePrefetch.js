@@ -18,6 +18,7 @@ import { createPrefetcher, nearestFirst, WINDOW_SLOW } from './marineFramePrefet
 import { resolveTier } from './marineFrameStore';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
 import { windLaneDisabled } from './windLane';
+import { afterNextPaintCb } from './afterNextPaint';
 import {
   WIND_SET_KEY, fetchWindFrame, hasRaw, laneVerdict, readLanePointer, windIndex, windIndexSync, windStaticEnabled,
 } from './windStaticFrames';
@@ -144,16 +145,28 @@ export function stopWindPrefetch() {
   rt.prefetcher = null; rt.timer = null; rt.onVis = null; rt.opened = false; rt.entries.clear(); rt.index = null;
 }
 
-/** The wind layer was shown / hidden, or the timeline moved: re-plan (cheap; nothing starts before the run is pinned). */
+// PR D (2026-10-26): the replan a toggle or a wheel step asks for runs AFTER the next paint, not inside the task that draws the new
+// layer or hour: it walks every frame of the run (the lane check per frame; 113 frames today, 193 with hourly f000-f120, #580) for
+// a prefetch nobody waits on this frame. One pending replan absorbs a burst of scrub steps, and it plans from the cursor current
+// when it runs. Kill: window.__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__ = true (replan inline, as before).
+let _replanPending = false;
+function replanSoon() {
+  if (W().__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__ === true) { replan(); return; }
+  if (_replanPending) return;
+  _replanPending = true;
+  afterNextPaintCb(() => { _replanPending = false; replan(); });
+}
+
+/** The wind layer was shown / hidden, or the timeline moved: re-plan after the next paint (nothing starts before the run is pinned). */
 export function noteWind({ windActive, cursorMs } = {}) {
   if (typeof windActive === 'boolean' && windActive !== rt.windActive) {
     rt.windActive = windActive;
     if (windActive) {
-      Promise.all([windIndex(), readLanePointer(false)]).then(([, ptr]) => { _laneRef = ptr; replan(); }).catch(() => replan());
+      Promise.all([windIndex(), readLanePointer(false)]).then(([, ptr]) => { _laneRef = ptr; replanSoon(); }).catch(() => replanSoon());
     }
   }
   if (Number.isFinite(cursorMs)) rt.cursorMs = cursorMs;
-  replan();
+  replanSoon();
 }
 
-export function _resetWindPrefetchForTest() { stopWindPrefetch(); rt.windActive = false; rt.cursorMs = null; rt.startedAt = 0; _laneRef = null; }
+export function _resetWindPrefetchForTest() { stopWindPrefetch(); rt.windActive = false; rt.cursorMs = null; rt.startedAt = 0; _laneRef = null; _replanPending = false; }

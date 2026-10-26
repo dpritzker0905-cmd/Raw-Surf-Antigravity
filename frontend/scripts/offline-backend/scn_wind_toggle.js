@@ -19,7 +19,8 @@
 //   python frontend/scripts/offline-backend/serve_synthetic.py --dir <store> --models GFS --layers waves,wind --dynamic 1 --port 4100
 //   node frontend/scripts/offline-backend/serve_spa.js <build> 3100
 //   CDN_DIR=<frames dir> PORT=4100 VIEW=owner ZOOMS=2,3.9,4.4,6,9 OUT=wind.json node frontend/scripts/offline-backend/scn_wind_toggle.js
-// Env: ARMS (cur; nowind = window.__RAW_DISABLE_WIND_STATIC_FRAMES__; grid = window.__RAW_DISABLE_STATIC_FRAMES__), ROUNDS (1),
+// Env: ARMS (cur; nowind = window.__RAW_DISABLE_WIND_STATIC_FRAMES__; grid = window.__RAW_DISABLE_STATIC_FRAMES__; prdoff = PR D's
+// two kills), ROUNDS (1),
 // SETTLE (15000), WIN (8000), CENTER (-79.5,28.6), VIEW (desktop | owner | phone), CDN_PORT (4192), CDN_LAT, LAT_SERIES,
 // LAT_SERIES_FRAME, LAT_GRID (ms added per backend response: a stand-in for the live box).
 const fs = require('fs');
@@ -265,6 +266,8 @@ async function session(arm, zoom) {
     if (arm.endsWith('grid')) window.__RAW_DISABLE_STATIC_FRAMES__ = true;
     if (arm.endsWith('nowind')) window.__RAW_DISABLE_WIND_STATIC_FRAMES__ = true;
     if (arm.endsWith('noprefetch')) window.__RAW_DISABLE_WIND_PREFETCH__ = true;
+    // PR D's kills (2026-10-26): the prefetch replan inline and the truth tag's census eager, as before PR D
+    if (arm.endsWith('prdoff')) { window.__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__ = true; window.__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__ = true; }
   }, { arm, base: `http://127.0.0.1:${arm.endsWith('-alt') ? CDN_PORT2 : CDN_PORT}/`, model: MODEL, trace: process.env.TRACE === '1' });
   await page.addInitScript(PROBE);
   const out = { arm, zoom, view: VIEW };
