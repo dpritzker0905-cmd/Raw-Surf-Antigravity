@@ -202,7 +202,8 @@ f000-f120 dark behind a repo variable, and pick the f120+ tail method by a hold-
     against our own stored products: max |du|, |dv| 0.00014 kn over 629 points.
   - Method: hide every non-frame hour (f001-f119 not on the 3 h grid) and rebuild it from the 3-hourly frames. Score on a
     1 degree grid, area-weighted.
-  - Results for f073-119. Columns: vector RMSE / speed MAE (kn) / direction MAE (deg) / 12 h trajectory mean / p95 (km).
+  - Results for f073-119, the mean of the 3 runs. Columns: vector RMSE / speed MAE (**m/s**; x1.944 for knots) / direction
+    MAE (deg) / 12 h trajectory mean / p95 (km, pooled over the runs).
     - nearest: 1.187 / 0.420 / 5.44 / 5.33 / 15.73
     - linear u/v: 0.897 / 0.317 / 3.90 / 5.66 / 17.12
     - polar (#564 option B): 0.950 / 0.311 / 4.10 / 6.86 / 20.70
