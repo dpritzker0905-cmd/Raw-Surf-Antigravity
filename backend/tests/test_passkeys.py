@@ -150,11 +150,13 @@ async def session(h, who="plain"):
     return (await password_login(h, who)).json()["access_token"]
 
 
-async def add_passkey(h, who="plain", auth=None, origin=APP, name="Phone", token=None):
-    """Real registration through the API with the software authenticator. Returns (authenticator, response)."""
+async def add_passkey(h, who="plain", auth=None, origin=APP, name="Phone", token=None, code=None):
+    """Real registration through the API with the software authenticator. Returns (authenticator, response).
+    `code`: a current authenticator / recovery code - required once the account already has a second factor."""
     auth = auth or SoftAuthenticator()
     token = token or await session(h, who)
-    opts = await h.client.post("/api/auth/passkeys/register/options", json={"password": PASSWORD},
+    opts = await h.client.post("/api/auth/passkeys/register/options",
+                               json={"password": PASSWORD, **({"code": code} if code else {})},
                                headers=bearer(token, origin))
     assert opts.status_code == 200, opts.text
     body = opts.json()
@@ -329,15 +331,16 @@ async def test_the_same_authenticator_cannot_be_registered_twice(h):
     token = await session(h)
     auth, first = await add_passkey(h, token=token)
     assert first.status_code == 200
-    _, second = await add_passkey(h, auth=auth, token=token)
+    _, second = await add_passkey(h, auth=auth, token=token, code=first.json()["recovery_codes"][0])
     assert second.status_code in (400, 409)
     assert len(await rows(h, WebauthnCredential)) == 1
 
 
 async def test_options_exclude_passkeys_already_registered_and_require_uv_and_no_attestation(h):
     token = await session(h)
-    await add_passkey(h, token=token)
-    body = (await h.client.post("/api/auth/passkeys/register/options", json={"password": PASSWORD},
+    _, first = await add_passkey(h, token=token)
+    body = (await h.client.post("/api/auth/passkeys/register/options",
+                                json={"password": PASSWORD, "code": first.json()["recovery_codes"][0]},
                                 headers=bearer(token))).json()["options"]
     assert len(body["excludeCredentials"]) == 1
     assert body["authenticatorSelection"]["userVerification"] == "required"
@@ -533,8 +536,8 @@ async def test_a_passkey_second_factor_needs_a_passkey_for_this_site(h):
 
 async def test_a_passkey_second_factor_works_alongside_an_authenticator_app(h):
     token = await session(h)
-    secret, _ = await totp_enrol(h, token)
-    auth, added = await add_passkey(h, token=token)
+    secret, enrolled = await totp_enrol(h, token)
+    auth, added = await add_passkey(h, token=token, code=enrolled["recovery_codes"][0])
     assert added.json()["recovery_codes"] == []  # the codes saved with the first factor stay valid
     challenge = await mfa_challenge(h)
     assert challenge["methods"] == ["totp", "passkey", "recovery"]
@@ -576,8 +579,8 @@ async def test_the_last_second_factor_cannot_be_removed(h):
 
 async def test_removal_needs_the_password(h):
     token = await session(h)
-    await totp_enrol(h, token)
-    _, added = await add_passkey(h, token=token)
+    _, enrolled = await totp_enrol(h, token)
+    _, added = await add_passkey(h, token=token, code=enrolled["recovery_codes"][0])
     pid = added.json()["passkey"]["id"]
     r = await h.client.post(f"/api/auth/passkeys/{pid}/remove", json={"password": "wrong"}, headers=bearer(token))
     assert r.status_code == 403
@@ -586,13 +589,14 @@ async def test_removal_needs_the_password(h):
 
 async def test_a_passkey_can_be_removed_when_another_factor_remains(h):
     token = await session(h)
-    await totp_enrol(h, token)
-    _, added = await add_passkey(h, token=token)
+    _, enrolled = await totp_enrol(h, token)
+    codes = enrolled["recovery_codes"]
+    _, added = await add_passkey(h, token=token, code=codes[0])
     r = await h.client.post(f"/api/auth/passkeys/{added.json()['passkey']['id']}/remove",
                             json={"password": PASSWORD}, headers=bearer(token))
     assert r.status_code == 200 and await rows(h, WebauthnCredential) == []
-    two = await add_passkey(h, token=token, name="A")
-    three = await add_passkey(h, token=token, name="B")
+    two = await add_passkey(h, token=token, name="A", code=codes[1])
+    three = await add_passkey(h, token=token, name="B", code=codes[2])
     assert (await h.client.post(f"/api/auth/passkeys/{two[1].json()['passkey']['id']}/remove",
                                 json={"password": PASSWORD}, headers=bearer(token))).status_code == 200
     assert len(await rows(h, WebauthnCredential)) == 1 and three
@@ -601,7 +605,7 @@ async def test_a_passkey_can_be_removed_when_another_factor_remains(h):
 async def test_turning_two_step_off_removes_passkeys_too(h):
     token = await session(h)
     secret, enrolled = await totp_enrol(h, token)
-    await add_passkey(h, token=token)
+    await add_passkey(h, token=token, code=enrolled["recovery_codes"][1])
     code = enrolled["recovery_codes"][0]
     r = await h.client.post("/api/auth/mfa/disable", json={"password": PASSWORD, "code": code}, headers=bearer(token))
     assert r.status_code == 200
@@ -680,3 +684,71 @@ async def test_a_second_factor_ceremony_cannot_be_used_to_register_a_passkey(h):
     r = await h.client.post("/api/auth/passkeys/register/verify", headers=bearer(token),
                             json={"ceremony_id": opts["ceremony_id"], "credential": forged})
     assert r.status_code == 400 and len(await rows(h, WebauthnCredential)) == 1  # purpose_confusion
+
+# ── adding a second factor needs a CURRENT factor, like turning MFA off does ──
+# A passkey is a first-factor sign-in that skips the password AND the second step, so an attacker holding a session and
+# the password must not be able to enrol one (or an authenticator of their own) with the password alone.
+
+async def totp_step_up_code(secret, ahead=1):
+    return totp_core.totp_at(secret, __import__("time").time() + 30 * ahead)
+
+
+async def test_adding_a_passkey_to_an_account_with_an_authenticator_needs_a_current_code(h):
+    token = await session(h)
+    secret, enrolled = await totp_enrol(h, token)
+    url = "/api/auth/passkeys/register/options"
+    for body in ({"password": PASSWORD}, {"password": PASSWORD, "code": "000000"},
+                 {"password": PASSWORD, "code": "ABCDE-FGH23"}, {"password": "wrong", "code": enrolled["recovery_codes"][0]}):
+        r = await h.client.post(url, json=body, headers=bearer(token))
+        assert r.status_code == 403, (body, r.text)  # 403, never 401
+    assert await rows(h, WebauthnCeremony) == []  # no ceremony was ever opened
+    ok = await h.client.post(url, json={"password": PASSWORD, "code": await totp_step_up_code(secret)},
+                             headers=bearer(token))
+    assert ok.status_code == 200, ok.text
+
+
+async def test_adding_a_second_passkey_needs_a_current_code(h):
+    token = await session(h)
+    _, first = await add_passkey(h, token=token)
+    codes = first.json()["recovery_codes"]
+    r = await h.client.post("/api/auth/passkeys/register/options", json={"password": PASSWORD}, headers=bearer(token))
+    assert r.status_code == 403 and len(await rows(h, WebauthnCredential)) == 1
+    _, second = await add_passkey(h, token=token, code=codes[0], name="Second")
+    assert second.status_code == 200 and len(await rows(h, WebauthnCredential)) == 2
+    # the recovery code that authorised it is spent
+    again = await h.client.post("/api/auth/passkeys/register/options", json={"password": PASSWORD, "code": codes[0]},
+                                headers=bearer(token))
+    assert again.status_code == 403
+
+
+async def test_a_session_and_password_cannot_add_an_authenticator_app_to_a_passkey_account(h):
+    token = await session(h)
+    _, first = await add_passkey(h, token=token)
+    codes = first.json()["recovery_codes"]
+    url = "/api/auth/mfa/totp/begin"
+    assert (await h.client.post(url, json={"password": PASSWORD}, headers=bearer(token))).status_code == 403
+    assert (await h.client.post(url, json={"password": PASSWORD, "code": "ZZZZZ-ZZZZZ"}, headers=bearer(token))).status_code == 403
+    assert await rows(h, UserMfa) == []  # no pending secret was created for the attacker
+    ok = await h.client.post(url, json={"password": PASSWORD, "code": codes[0]}, headers=bearer(token))
+    assert ok.status_code == 200 and ok.json()["secret"]
+
+
+async def test_the_first_factor_still_needs_only_the_password(h):
+    token = await session(h)
+    assert (await h.client.post("/api/auth/passkeys/register/options", json={"password": PASSWORD},
+                                headers=bearer(token))).status_code == 200
+    other = await session(h, "other")
+    assert (await h.client.post("/api/auth/mfa/totp/begin", json={"password": PASSWORD},
+                                headers=bearer(other))).status_code == 200
+
+
+async def test_a_wrong_step_up_code_counts_against_the_account_not_just_the_request(h):
+    token = await session(h)
+    _, first = await add_passkey(h, token=token)
+    for _ in range(mfa_limits.MAX_FAILURES):
+        await h.client.post("/api/auth/passkeys/register/options", json={"password": PASSWORD, "code": "QQQQQ-QQQQQ"},
+                            headers=bearer(token))
+    blocked = await h.client.post("/api/auth/passkeys/register/options",
+                                  json={"password": PASSWORD, "code": first.json()["recovery_codes"][0]},
+                                  headers=bearer(token))
+    assert blocked.status_code == 429

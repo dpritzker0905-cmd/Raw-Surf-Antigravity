@@ -12,10 +12,11 @@ const groupKey = (secret) => (secret || '').replace(/(.{4})/g, '$1 ').trim();
  * Set up an authenticator app: (password, unless this is the enrol-only sign-in) -> QR code + typed setup key ->
  * confirm with a live 6-digit code. Calls onEnrolled(response) with the recovery codes; the caller shows them.
  */
-export const TotpEnrolment = ({ setupToken, onEnrolled, onCancel }) => {
+export const TotpEnrolment = ({ setupToken, needsCode = false, onEnrolled, onCancel }) => {
   const tone = useSecurityTone();
   const [phase, setPhase] = useState('start');
   const [password, setPassword] = useState('');
+  const [stepUpCode, setStepUpCode] = useState('');
   const [setup, setSetup] = useState(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -31,8 +32,8 @@ export const TotpEnrolment = ({ setupToken, onEnrolled, onCancel }) => {
     event.preventDefault();
     setBusy(true); setError('');
     try {
-      setSetup(await mfaApi.beginTotp(password, setupToken));
-      setPassword('');
+      setSetup(await mfaApi.beginTotp(password, setupToken, needsCode ? stepUpCode.trim() : undefined));
+      setPassword(''); setStepUpCode('');
       setPhase('scan');
     } catch (err) {
       setError(mfaErrorMessage(err, "Couldn't start setup."));
@@ -75,9 +76,16 @@ export const TotpEnrolment = ({ setupToken, onEnrolled, onCancel }) => {
             <Input id="totp-password" ref={firstRef} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
         )}
+        {needsCode && !setupToken && (
+          <div className="space-y-1.5">
+            <label htmlFor="totp-stepup-code" className="text-sm font-medium text-foreground">Current code or recovery code</label>
+            <Input id="totp-stepup-code" autoComplete="one-time-code" required value={stepUpCode} onChange={(e) => setStepUpCode(e.target.value)} aria-describedby="totp-stepup-hint" />
+            <p id="totp-stepup-hint" className="text-xs text-muted-foreground">You already have two-step verification, so adding another way needs a code from it (or one of your recovery codes).</p>
+          </div>
+        )}
         {errorBox}
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={busy || (!setupToken && !password)} ref={setupToken ? firstRef : undefined}>
+          <Button type="submit" disabled={busy || (!setupToken && !password) || (needsCode && !setupToken && !stepUpCode.trim())} ref={setupToken ? firstRef : undefined}>
             {busy ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Smartphone aria-hidden="true" />}
             Set up authenticator app
           </Button>
