@@ -1795,3 +1795,17 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `2026-10-26-claude-lead-flag-flips.md`.
 - **Rollback:** delete either repo variable (the next publish reverts that half); the cloud kill switch; reverting this PR restores
   the dark default.
+
+### D-053 · The Gulf fill takes its GFS donor at the served frame's hour, and the ICON/EURO tails bake 12 h past run + 336 so the 2-deg tier reaches the scrubber's day-14 end (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 12:04Z (08:04 EDT):** "Flip both: set MARINE_GULF_FILL_DONOR_SERVED_TIME=1 on Render (read back one held ICON /grid past the tail: donor = the served hour's GFS), then MARINE_EXT_CEILING_MARGIN_H=12 as a repo variable, dispatch both ingest lanes and read back the 2-deg tails at now+336. Watch one cycle."
+- **Donor (#588):** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME` 0 -> 1 at 12:12:22Z. That triggered a deploy of dev 4e0044461, which had no backend diff against the running 7d059314e; live 12:16:24Z.
+  - Paired live read, ICON world asked at 2026-11-09T12Z, served the 09Z frame (offset -3) both times. The donor went from GFS 12Z (the asked hour) to GFS 09Z (the served hour).
+  - Of 15,023 nodes, height changed at 124 (max 0.42 m) and direction at 132: only the fill's footprint.
+  - Note: an ask inside the tail (08Z, served 09Z) can't discriminate, because the nearest GFS is the served hour.
+- **Margin (#577):** repo variable `MARINE_EXT_CEILING_MARGIN_H` 0 -> 12 at 12:23:06Z. Core 40322129759 and pilots 40322134819 were dispatched at 12:23Z; both succeeded (13:58Z / 13:41Z).
+  - Read-back at now+336 (2026-11-09T14Z): ICON serves `icon_marine_waves_global_mid_20261109T150000Z_estimated`, EURO serves `euro_marine_waves_global_mid_20261109T150000Z_estimated`. Both are 2-deg global_mid at their own 3-h step (offset +1), not a hold, with the Gulf filled from GFS 15Z.
+  - EURO's last hours were the 10-deg GFS-ext estimate before (#576).
+  - Health before and after: err_5xx 0.
+- **Context:** `FAR_EDGE_HOLD_PREFER_MID` has been ON since 01:13:06Z (#576, the owner via the slice-2 session), so the donor defect was live on held ICON frames until 12:16Z.
+- **Rollback:** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME=0`; delete the repo variable (the next bakes return to run + 336).

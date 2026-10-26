@@ -9,13 +9,16 @@ import { _resetMarineDrawnForTest, getMarineDrawn, publishMarineDrawn } from './
 const SUN_5AM = Date.parse('2026-11-08T05:00:00Z');
 const SAT_6PM = Date.parse('2026-11-07T18:00:00Z');
 const req = { model: 'ICON', layer: 'waves', hour: 336, labelMs: SUN_5AM, instantMs: SUN_5AM };
+// Migrated 2026-10-26 (the one held rule, drawnFrameReadout HELD): a fixed clock two days before the selection, so the held time stays
+// undated (it is within a day of the selection and the selection is under six days out) whatever day the suite runs.
+const NOW = SUN_5AM - 2 * 24 * 3600000;
 const fmt = (ms) => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric' });
 
 describe('far-edge hold words', () => {
   afterEach(() => { delete window.__RAW_DISABLE_DRAWN_HOLD_WORDS__; _resetMarineDrawnForTest(); });
 
   test('a held frame with its served time says Holding <held time>, not Loading', () => {
-    const r = describeDrawnFrame(req, { model: 'ICON', layer: 'waves', hour: 336, dataMs: SAT_6PM, estimated: true, basisType: 'far_edge_hold' });
+    const r = describeDrawnFrame(req, { model: 'ICON', layer: 'waves', hour: 336, dataMs: SAT_6PM, estimated: true, basisType: 'far_edge_hold' }, { nowMs: NOW });
     expect(r.state).toBe('held');
     expect(r.text).toBe(`Holding ${fmt(SAT_6PM)}’s ICON forecast: the 14-day estimate ends there`);
     expect(r.text).not.toMatch(/Loading/);
@@ -27,17 +30,17 @@ describe('far-edge hold words', () => {
     const drawn = getMarineDrawn();
     expect(drawn.heldFromMs).toBe(SAT_6PM);
     expect(drawn.dataMs).toBe(null);                                    // the label path: before, this read "Estimated forecast: estimated"
-    const r = describeDrawnFrame(req, drawn);
+    const r = describeDrawnFrame(req, drawn, { nowMs: NOW });
     expect(r).toEqual({ state: 'held', text: `Holding ${fmt(SAT_6PM)}’s ICON forecast: the 14-day estimate ends there` });
   });
 
   test('the kill restores the previous words; other estimates are untouched', () => {
     window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ = true;
-    const killed = describeDrawnFrame(req, { model: 'ICON', layer: 'waves', hour: 336, dataMs: SAT_6PM, estimated: true, basisType: 'far_edge_hold' });
+    const killed = describeDrawnFrame(req, { model: 'ICON', layer: 'waves', hour: 336, dataMs: SAT_6PM, estimated: true, basisType: 'far_edge_hold' }, { nowMs: NOW });
     expect(killed.state).toBe('pending');
     expect(killed.text).toMatch(/^Loading /);
     delete window.__RAW_DISABLE_DRAWN_HOLD_WORDS__;
-    const blend = describeDrawnFrame(req, { model: 'ICON', layer: 'waves', hour: 336, dataMs: SUN_5AM, estimated: true, basisType: 'icon_persistence_gfs_blend' });
+    const blend = describeDrawnFrame(req, { model: 'ICON', layer: 'waves', hour: 336, dataMs: SUN_5AM, estimated: true, basisType: 'icon_persistence_gfs_blend' }, { nowMs: NOW });
     expect(blend).toEqual({ state: 'estimated', text: 'Estimated forecast: beyond ICON’s native range' });
   });
 });
