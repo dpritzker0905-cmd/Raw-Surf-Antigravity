@@ -42,7 +42,8 @@ MARINE_EXT_CEILING_MARGIN_H=12 (to 11-10T00Z, run + 348 h, as live). The publish
 - `day14_pick_check.mjs` replays the client's own `pickIndexFrame` on all 664 asks: 0 disagreements with the harness.
 - **The filled differences are /grid's own fill, not the frames.** In all 14 asks the client and /grid show the same frame. The
   route-level fill picks its GFS donor at the ASKED hour (e.g. 02Z asks a 00Z frame filled from GFS 03Z), while the baked frame
-  uses the frame's hour (#584 finding 3; #588's dark MARINE_GULF_FILL_DONOR_SERVED_TIME fixes /grid).
+  uses the frame's hour (#584 finding 3). #588's MARINE_GULF_FILL_DONOR_SERVED_TIME fixes /grid and has been ON since 12:16Z
+  (D-053), so the "with the flag" arm is what the box serves now.
 - 4 of the 14 are NATIVE picks (EURO 11-04T20-22Z, 11-05T02-03Z), so today's published filled frames already differ from /grid
   this way at off-lattice asks. The tails add the same case at more hours.
 - Frame-time grading (`publish`, as #584) reproduces the one mismatch per set at the first tail hour.
@@ -71,9 +72,8 @@ MARINE_EXT_CEILING_MARGIN_H=12 (to 11-10T00Z, run + 348 h, as live). The publish
 
 ## For the lead / owner
 
-- FRAME_TAIL_DOWNLOAD=1 is speed only. Plain frames equal /grid at every ask; filled frames equal /grid once
-  MARINE_GULF_FILL_DONOR_SERVED_TIME=1 (that flag moves /grid's filled cells to the frame's own hour). Flip the donor flag first
-  or together, or accept the same off-lattice filled-cell differences today's native frames already carry.
+- FRAME_TAIL_DOWNLOAD=1 is speed only. Plain frames equal /grid at every ask. Filled frames equal /grid with
+  MARINE_GULF_FILL_DONOR_SERVED_TIME=1, which is ALREADY LIVE (D-053, Render 12:16Z), so the live arm is the 0-bad one.
 - Merge this PR before the flip, so the budget and cap follow the flag. Then read back one dispatched run:
   - `__tail_downloads__` downloaded ~232, capped 0;
   - no `skipped_budget`;
