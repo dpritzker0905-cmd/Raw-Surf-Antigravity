@@ -1,0 +1,32 @@
+# 2026-10-26 · lead (claude, session local_d6b521eb) · D-052 flips: targeted fill repo variable + cloud 0.25 deg
+
+## The owner's word
+2026-10-26 ~02:30Z (23:02 EDT 10-25): "Flip both: the MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var,
+then the client key after one publish). Watch one ingest cycle."
+
+## Actions (ledger.d/claude--cloud-0p25-on.jsonl)
+- 01:31:33Z repo variable MARINE_GULF_FILL_MID_TARGETED -> 1 (read back by gh variable list).
+- 01:31:52Z repo variable FRAME_RASTER_CLOUD_0P25 -> 1 (read back by gh variable list).
+- 02:05:21Z dispatched forecast-ingest-pilots.yml on dev (run 40257358504); the 03:45Z scheduled slot queues behind it.
+- Client PR (this branch): DEFAULT_ON_LAYERS = ['satellite'], kill __RAW_DISABLE_RASTER_OWN_SATELLITE__. Merged only after the
+  read-back below passes.
+
+## Checks before the PR
+- Jest src/components/map + src/tests: 413 suites, 5,941 tests pass. src/__tests__: 77 suites, 590 tests pass.
+- eslint ratchet: pass (counts only fall).
+
+## Read-back (after run 40257358504)
+- Run 40257358504: completed success at ~03:37Z. Steps: pilot ingestion success; "Publish static forecast frames" success;
+  "cloud cover 0.25 deg" success; the other raster steps skipped (their variables are off).
+- v1/latest.json (written 03:36:23Z):
+  - EURO/marine/waves/global_mid_filled: fill_mode **targeted**, 66 frames, run 10-25 12Z.
+  - ICON/marine/waves/global_mid_filled: fill_mode **targeted**, 114 frames; ICON swell_1 and wind_waves filled: **targeted**,
+    56 frames each.
+  - GFS/weather/cloud_cover/global_0p25: 113 frames, run 10-25 18Z; its index grid is 1440 x 721, bounds -180..179.75 /
+    -90..90, south row first, no wrap column.
+- /api/weather/capabilities (1 GET): gulf_fill_mid true, gulf_fill_mid_mode **targeted** on every marine record, so the published
+  mode now EQUALS the box's and the client may serve the filled sets.
+- /api/health (1 GET): healthy, uptime 17 min (a deploy restarted the box at ~03:23Z, not this lead's action), err_5xx 0 of 601,
+  p50 25 ms, p95 250 ms. (Wall times of 18-23 s for those two GETs were this PC's shell, which was timing out on local commands at
+  the time; the box's own telemetry is the number.)
+- Verdict: both flips took. The client key (DEFAULT_ON_LAYERS) merges on green CI.

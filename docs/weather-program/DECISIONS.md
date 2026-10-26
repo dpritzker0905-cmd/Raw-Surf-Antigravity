@@ -1776,3 +1776,22 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Known misses, with owners:** tile EDGES (fractional extents) still wait on /grid and the server mixes regional and viewport
   products there; the client's snapped-box rule declines those boxes (static-frames: pad the stored extent, draft #563). Model
   toggles at z7-9 are not from the store yet (instant-scrub).
+
+### D-052 · The published EURO/ICON filled world sets use the box's targeted Gulf fill, and cloud cover draws from our own 0.25-degree GFS frames (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 ~02:30Z (23:02 EDT 10-25):** "Flip both: the MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish). Watch one ingest cycle." He had declined the first half at ~18:30Z 10-25 ("not right now"); the lead put it to him once more with the evidence below.
+- **Gulf fill (speed only, no served number):** repo variable `MARINE_GULF_FILL_MID_TARGETED` -> 1 at 01:31:33Z, so the publisher's
+  filled EURO/ICON world sets (#555, preloaded by #571) match Render's D-050 setting. The workflow comment: the two must be EQUAL, a
+  mismatch "costs speed, never a number" (the client serves a filled set only while /capabilities reports the same mode). Offline
+  evidence (world-frames-targeted-fill-2026-10-25): targeted filled sets vs /grid with the box targeted, 7 sets, 2,418,703 nodes,
+  161 comparisons, **0 bad** (max direction error 1.2e-5); positive control, the plain EURO/ICON sets, **3,082 bad** each.
+- **Cloud 0.25 deg (visual, ships ON with a kill switch):** repo variable `FRAME_RASTER_CLOUD_0P25` -> 1 at 01:31:52Z (#574's
+  opt-in pilots step, NCEP's full 1440 x 721 grid); the client's `DEFAULT_ON_LAYERS = ['satellite']` (this PR) draws the cloud
+  layer from `GFS/weather/cloud_cover/global_0p25` with no lever. Kill: `__RAW_DISABLE_RASTER_OWN_SATELLITE__` (or
+  `__RAW_DISABLE_RASTER_OWN_FRAMES__`); a miss falls back to the .om path; EURO/ICON keep the .om path (no cloud set). Measured
+  (#574, paired builds): per frame 0.111 -> 0.397 MB, toggle 290 -> 386 ms, steps p50/p95 unchanged (32/44 ms), GPU 4.2 MB per
+  resident frame, 0 Open-Meteo requests.
+- **Watch:** one pilots ingest (run 40257358504, dispatched 02:05:21Z). Read-back: see the log
+  `2026-10-26-claude-lead-flag-flips.md`.
+- **Rollback:** delete either repo variable (the next publish reverts that half); the cloud kill switch; reverting this PR restores
+  the dark default.
