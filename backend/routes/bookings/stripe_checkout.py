@@ -27,7 +27,7 @@ from models import (
 from utils.credits import deduct_credits, add_credits
 from core.security import get_current_user_id
 
-from .split_lock import enforce_paid_shares, locked_share
+from .split_lock import check_splits, enforce_paid_shares, locked_share
 from .crud import (
     CreateBookingWithStripeRequest,
     check_time_slot_conflict,
@@ -513,30 +513,13 @@ async def update_payment_splits(
         raise HTTPException(status_code=404, detail="Booking not found")
     _require_captain(booking, current_user_id)
 
-    # Every figure must be a real, non-negative amount for a distinct member of THIS booking. A NaN would
-    # sail through the total check below (abs(nan - x) > 0.01 is False) and a stranger's id would be ignored
-    # while its amount still counted toward the total.
+    # Booking still awaiting payment; every figure a real non-negative amount for a distinct member of THIS booking
+    # (a NaN used to pass the old total check, a stranger's id was ignored while its amount still counted); every
+    # member named, so none keeps a stale share; the total equal to the price in whole cents (split_lock.py).
     members = {str(p.participant_id): p for p in booking.participants or []}
-    seen = set()
-    for split in data.splits:
-        if not math.isfinite(split.share_amount) or split.share_amount < 0:
-            raise HTTPException(status_code=400, detail="Split amounts must be non-negative numbers")
-        if split.participant_id not in members or split.participant_id in seen:
-            raise HTTPException(status_code=400, detail="Splits must name each crew member of this booking once")
-        seen.add(split.participant_id)
-    # The new shares replace the old ones as a set, so together they are the whole booking price. Leaving a
-    # member out would keep a stale share and push the real total away from the booking price.
-    if seen != set(members):
-        raise HTTPException(status_code=400, detail="Splits must name each crew member of this booking once")
+    check_splits(booking, members, data.splits, required=set(members))
 
     enforce_paid_shares(members, data.splits)
-
-    total_splits = sum(s.share_amount for s in data.splits)
-    if abs(total_splits - booking.total_price) > 0.01:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Split total (${total_splits:.2f}) must equal booking price (${booking.total_price:.2f})"
-        )
 
     for split in data.splits:
         members[split.participant_id].share_amount = split.share_amount
