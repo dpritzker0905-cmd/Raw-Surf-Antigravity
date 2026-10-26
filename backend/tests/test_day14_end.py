@@ -363,7 +363,25 @@ def test_the_publish_step_declares_the_tail_download_dark():
     wf = _wf("forecast-ingest-pilots.yml")
     step = wf[wf.index("- name: Publish static forecast frames (dark)"):wf.index("run: python scripts/publish_frame_images.py")]
     assert "FRAME_TAIL_DOWNLOAD: ${{ vars.FRAME_TAIL_DOWNLOAD || '0' }}" in step
-    assert "FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '240' }}" in step
+    assert "FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '320' }}" in step
+
+
+def test_the_publish_budget_follows_the_tail_download_and_the_step_has_room():
+    """2026-10-26: the budget is read before each set and the regional bundle sets run last, so the tails' ~5 extra minutes at
+    600 s would skip every regional set every run. Off, the budget stays 600 s; on, 960 s inside a 22-minute step."""
+    wf = _wf("forecast-ingest-pilots.yml")
+    step = wf[wf.index("- name: Publish static forecast frames (dark)"):wf.index("run: python scripts/publish_frame_images.py")]
+    assert "FRAME_PUBLISH_BUDGET_S: ${{ vars.FRAME_TAIL_DOWNLOAD == '1' && '960' || '600' }}" in step
+    minutes = int(re.search(r"timeout-minutes: (\d+)", step).group(1))
+    assert minutes * 60 >= 960 + 300          # the last set started at the budget still finishes, then latest.json + retention
+
+
+def test_the_tail_cap_covers_a_whole_cycle_at_the_d053_ceiling(monkeypatch):
+    """Every core cycle re-bakes the whole tail: ICON 3 layers x (348 - 168) / 3 and EURO waves x (348 - 240) / 3, plus the
+    boundary entries the live index lists (64 and 40 measured 2026-10-26). The default cap must take them all."""
+    monkeypatch.delenv("FRAME_TAIL_DOWNLOAD_MAX", raising=False)
+    assert pub.tail_cap() >= 3 * 64 + 40
+    assert pub.TailDownloads(None, None).cap == pub.tail_cap()
 
 
 def test_the_serve_flags_are_registered_dark():

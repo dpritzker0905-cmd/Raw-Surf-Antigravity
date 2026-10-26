@@ -6,6 +6,7 @@ import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceCl
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
 import { ratingBandHeldText } from './marineRatingBandRes';
+import { ratingBandLoadingText } from './marineFlavorToggle';
 
 // What the map DRAWS against what the user SELECTED, in words, in the same frame (W-1, scrub audit 2026-10-18): the
 // drawn-frame record is published by WebGLMarineLayer at the upload (marineDrawnFrame.js), so this line no longer waits
@@ -53,7 +54,12 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   const [status, setStatus] = useState(readStatus);
   // The rating band HOLDS OFF on a grid coarser than the regional one or one that ends in view (marineRatingBandRes.js): the words, so the
   // state is never colour alone. The engine publishes heldBy with its band-fade telemetry; polled with the coverage check below.
-  const readHeldBy = () => (typeof window !== 'undefined' && window.__RAW_GPU__ && window.__RAW_GPU__.ratingBandFade && window.__RAW_GPU__.ratingBandFade.heldBy) || null;
+  const readHeldBy = () => {
+    if (typeof window === 'undefined' || !window.__RAW_GPU__) return null;
+    const rf = window.__RAW_GPU__.ratingBandFade; const rb = window.__RAW_GPU__.ratingBand;
+    if (rf && rf.heldBy && rf.heldBy !== 'off') return rf.heldBy;   // 'off' (the instant hide) is silent: the band is simply gone
+    return ratingBandLoadingText(rb && rb.forcedOff, window.__RAW_BAND_TOGGLE_AT__) ? 'loading' : null;   // just switched ON, the rating grid still on its way
+  };
   const [heldBy, setHeldBy] = useState(readHeldBy);
   const pendingKey = readout && readout.state === 'pending' ? readout.text : null;
   const [longPending, setLongPending] = useState(false);

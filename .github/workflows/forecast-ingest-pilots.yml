@@ -157,16 +157,24 @@ jobs:
       - name: Publish static forecast frames (dark)
         if: ${{ success() && vars.FRAME_IMAGES_PUBLISH == '1' }}
         continue-on-error: true
-        timeout-minutes: 15
+        # 22 (was 15, 2026-10-26): the tails add ~464 frames (232 plain + 232 filled at 0.24-0.38 s each, measured offline) and
+        # 232 downloads to a step that already runs ~600 s (run 40322134819: 603 s). Today's runs end where they did.
+        timeout-minutes: 22
         working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # The stagger budget follows the tail download (2026-10-26). The budget is read before each set and the regional bundle
+          # sets run last, so ~5 more minutes of tails at 600 s would skip ALL of them EVERY run (published once, never refreshed).
+          # Off: 600 s, as before.
+          FRAME_PUBLISH_BUDGET_S: ${{ vars.FRAME_TAIL_DOWNLOAD == '1' && '960' || '600' }}
           # DARK (2026-10-24): '1' downloads the ICON/EURO world estimated tails the core lane bakes (not on this disk) so they
           # become frames too, parity-gated like every frame; changed ones only, at most FRAME_TAIL_DOWNLOAD_MAX per run, wire
           # bytes in the step summary (__tail_downloads__). Off: /grid serves those hours, as before. No served number moves.
           FRAME_TAIL_DOWNLOAD: ${{ vars.FRAME_TAIL_DOWNLOAD || '0' }}
-          FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '240' }}
+          # 320 (was 240, 2026-10-26): a cycle re-bakes every tail product (new identity), and at run + 348 h (D-053) that is
+          # 232 a run (ICON 64 x waves/swell_1/wind_waves + EURO 40 waves); 240 left 8 spare.
+          FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '320' }}
           # The EURO/ICON world sets with the targeted Gulf fill baked in (services/frame_set_fill.py) publish only while the mode
           # read from these two is 'targeted', the way the box reads them. Keep them EQUAL to the Render env (the box's mode): the
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
