@@ -2097,7 +2097,9 @@ jobs:
           #   base 3276 (dev's map) + 42 new test(s) = 3318; floor 3318 - 2 = 3316. This PR must read 3318 passed.
           # ⬆ 3316→3325 on 2026-10-26 (rederive_floor.py, claude/raster-temp-downscale): dev run 40270844413 read 3318; dev's map 3318;
           #   base 3318 (hosted read) + 9 new test(s) = 3327; floor 3327 - 2 = 3325. This PR must read 3327 passed.
-          MIN_PASSED = 3325
+          # ⬆ 3325→3353 on 2026-10-26 (rederive_floor.py, claude/phase0-integrity): dev run 40277485849 read 3327; dev's map 3327;
+          #   base 3327 (hosted read) + 28 new test(s) = 3355; floor 3355 - 2 = 3353. This PR must read 3355 passed.
+          MIN_PASSED = 3353
 
           try:
               root = ET.parse('estate.xml').getroot()
