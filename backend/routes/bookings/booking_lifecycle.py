@@ -387,14 +387,16 @@ async def complete_booking(
                     type='gallery_ready',
                     title='Your Session Photos Are Ready! 📸',
                     body=f'{photographer_name} has completed your booked session. Your gallery is ready!',
-                    action_url=f'/gallery/{gallery_id}',
-                    metadata={
+                    # The Notification model has no action_url / metadata columns (passing them raised TypeError);
+                    # everything rides in the JSON-text `data` the client already reads.
+                    data=json.dumps({
+                        'action_url': f'/gallery/{gallery_id}',
                         'gallery_id': gallery_id,
                         'booking_id': booking_id,
                         'photographer_id': booking.photographer_id,
                         'photographer_name': photographer_name,
                         'session_type': 'booking'
-                    }
+                    })
                 )
                 db.add(notification)
 

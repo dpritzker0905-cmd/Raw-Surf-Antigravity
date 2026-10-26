@@ -1,5 +1,5 @@
 {
- "count": 48,
+ "count": 46,
  "note": "sha256('METHOD path')[:16] of each write route with no identity dependency; see check_route_identity.py. Shrink only.",
  "hashes": [
   "00cd6f19c12e1de4",
@@ -45,8 +45,6 @@
   "bd21ed5d9de7cbb2",
   "cf25a3b854b9c36e",
   "df255091d0784029",
-  "e18beacc230f6133",
-  "e2db92e9da3b6c93",
   "e3b8d457b3aff809",
   "f1f4dd21cad5aa0a",
   "f2c1b5abd42bdedf"
