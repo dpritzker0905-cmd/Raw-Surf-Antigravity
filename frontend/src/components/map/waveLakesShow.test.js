@@ -17,6 +17,7 @@ const mockSF = { byKey: {}, hooks: new Set(), loads: [] };
 jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => true,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
+  storeSetKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,   // the plain set (no filled set in these mocks)
   getPinnedIndexSync: (k) => mockSF.byKey[k] || null,
   getPinnedIndex: async (k) => mockSF.byKey[k] || null,
   staticEligible: ({ model }) => String(model).toUpperCase() === 'GFS',

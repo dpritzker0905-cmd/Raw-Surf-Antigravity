@@ -1,0 +1,549 @@
+{
+ "what": "EURO world model toggle, click -> exact frame, with the GPU frame store taking the filled EURO/ICON world set (fix) vs not (kill: __RAW_DISABLE_FILLED_WORLD_STORE__)",
+ "build": "dev 2b419ac80 + claude/euro-icon-world-store (one build, both arms)",
+ "store": "serve_synthetic GFS/ICON/EURO waves, --land-mask 1, --dynamic 1; frames published with MARINE_GULF_FILL_MID_TARGETED=1; backend run with the same flag",
+ "order": "ABBA: fix, kill, kill, fix; plan per session EURO, GFS, EURO, GFS, EURO, GFS",
+ "summary": {
+  "fix_to_EURO": {
+   "n": 6,
+   "p50": 6,
+   "p95": 9,
+   "via_store": 6,
+   "floor_p50": 431,
+   "floor_range": [
+    417,
+    464
+   ],
+   "silent": 0
+  },
+  "kill_to_EURO": {
+   "n": 6,
+   "p50": 455,
+   "p95": 682,
+   "via_store": 0,
+   "floor_p50": 444,
+   "floor_range": [
+    432,
+    647
+   ],
+   "silent": 0
+  },
+  "fix_to_GFS": {
+   "n": 6,
+   "p50": 6,
+   "p95": 8,
+   "via_store": 6,
+   "floor_p50": 425,
+   "floor_range": [
+    418,
+    444
+   ],
+   "silent": 0
+  },
+  "kill_to_GFS": {
+   "n": 6,
+   "p50": 4,
+   "p95": 7,
+   "via_store": 6,
+   "floor_p50": 437,
+   "floor_range": [
+    432,
+    465
+   ],
+   "silent": 0
+  }
+ },
+ "publisher_filled_sets": {
+  "EURO/marine/waves/global_mid_filled": {
+   "entries": 99,
+   "built": 99,
+   "parity_bad": 0,
+   "fill_mode": "targeted",
+   "cells_filled": 0
+  },
+  "ICON/marine/waves/global_mid_filled": {
+   "entries": 115,
+   "built": 115,
+   "parity_bad": 0,
+   "fill_mode": "targeted",
+   "cells_filled": 0
+  }
+ },
+ "caveat": "cells_filled 0 in this synthetic store: the run proves timing and the acceptance path, not filled values (that is #555's parity gate on live data). No idle two-rAF read by this scenario.",
+ "world_sessions": [
+  {
+   "file": "s1-fix.json",
+   "arm": "fix",
+   "view": "desktop 1280x800",
+   "zoom": 3.2,
+   "clicks": [
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 5,
+     "via_store": true,
+     "coalesce_floor_ms": 463,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 5,
+     "via_store": true,
+     "coalesce_floor_ms": 433,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 6,
+     "via_store": true,
+     "coalesce_floor_ms": 464,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 3,
+     "via_store": true,
+     "coalesce_floor_ms": 425,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 5,
+     "via_store": true,
+     "coalesce_floor_ms": 442,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 8,
+     "via_store": true,
+     "coalesce_floor_ms": 424,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    }
+   ],
+   "show_vs_commit_textures": [
+    {
+     "pid": "euro_marine_waves_global_mid_20261025T180000Z.json",
+     "model": "EURO",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 534,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    },
+    {
+     "pid": "gfs_marine_waves_global_mid_20261025T180000Z.json",
+     "model": "GFS",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 434,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    }
+   ],
+   "crop": {
+    "window": null,
+    "shows": 0
+   }
+  },
+  {
+   "file": "s2-kill.json",
+   "arm": "kill",
+   "view": "desktop 1280x800",
+   "zoom": 3.2,
+   "clicks": [
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 535,
+     "via_store": false,
+     "coalesce_floor_ms": 462,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 5,
+     "via_store": true,
+     "coalesce_floor_ms": 465,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 435,
+     "via_store": false,
+     "coalesce_floor_ms": 435,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 0,
+     "via_store": true,
+     "coalesce_floor_ms": 448,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 455,
+     "via_store": false,
+     "coalesce_floor_ms": 444,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 4,
+     "via_store": true,
+     "coalesce_floor_ms": 432,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    }
+   ],
+   "show_vs_commit_textures": [
+    {
+     "pid": "gfs_marine_waves_global_mid_20261025T180000Z.json",
+     "model": "GFS",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 467,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    }
+   ],
+   "crop": {
+    "window": null,
+    "shows": 0
+   }
+  },
+  {
+   "file": "s3-kill.json",
+   "arm": "kill",
+   "view": "desktop 1280x800",
+   "zoom": 3.2,
+   "clicks": [
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 682,
+     "via_store": false,
+     "coalesce_floor_ms": 647,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 6,
+     "via_store": true,
+     "coalesce_floor_ms": 456,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 427,
+     "via_store": false,
+     "coalesce_floor_ms": 432,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 7,
+     "via_store": true,
+     "coalesce_floor_ms": 433,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 468,
+     "via_store": false,
+     "coalesce_floor_ms": 470,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 3,
+     "via_store": true,
+     "coalesce_floor_ms": 437,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    }
+   ],
+   "show_vs_commit_textures": [
+    {
+     "pid": "gfs_marine_waves_global_mid_20261025T180000Z.json",
+     "model": "GFS",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 434,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    }
+   ],
+   "crop": {
+    "window": null,
+    "shows": 0
+   }
+  },
+  {
+   "file": "s4-fix.json",
+   "arm": "fix",
+   "view": "desktop 1280x800",
+   "zoom": 3.2,
+   "clicks": [
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 9,
+     "via_store": true,
+     "coalesce_floor_ms": 431,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 6,
+     "via_store": true,
+     "coalesce_floor_ms": 444,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 7,
+     "via_store": true,
+     "coalesce_floor_ms": 424,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 6,
+     "via_store": true,
+     "coalesce_floor_ms": 429,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 7,
+     "via_store": true,
+     "coalesce_floor_ms": 417,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 7,
+     "via_store": true,
+     "coalesce_floor_ms": 418,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    }
+   ],
+   "show_vs_commit_textures": [
+    {
+     "pid": "euro_marine_waves_global_mid_20261025T180000Z.json",
+     "model": "EURO",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 529,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    },
+    {
+     "pid": "gfs_marine_waves_global_mid_20261025T180000Z.json",
+     "model": "GFS",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 417,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    }
+   ],
+   "crop": {
+    "window": null,
+    "shows": 0
+   }
+  }
+ ],
+ "other_views": [
+  {
+   "file": "m1-fix.json",
+   "arm": "fix",
+   "view": "desktop 1280x800",
+   "zoom": 4.5,
+   "clicks": [
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 3,
+     "via_store": true,
+     "coalesce_floor_ms": 482,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 12,
+     "via_store": true,
+     "coalesce_floor_ms": 482,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 7,
+     "via_store": true,
+     "coalesce_floor_ms": 428,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 15,
+     "via_store": true,
+     "coalesce_floor_ms": 484,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    }
+   ],
+   "show_vs_commit_textures": [
+    {
+     "pid": "euro_marine_waves_global_mid_20261025T210000Z.json",
+     "model": "EURO",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 550,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    },
+    {
+     "pid": "gfs_marine_waves_global_mid_20261025T210000Z.json",
+     "model": "GFS",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 501,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    }
+   ],
+   "crop": {
+    "window": null,
+    "shows": 0
+   }
+  },
+  {
+   "file": "c1-fix.json",
+   "arm": "fix",
+   "view": "owner 844x390 dpr2",
+   "zoom": 4.2,
+   "clicks": [
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 4,
+     "via_store": true,
+     "coalesce_floor_ms": 453,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 15,
+     "via_store": true,
+     "coalesce_floor_ms": 503,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "GFS",
+     "to": "EURO",
+     "click_to_exact_ms": 4,
+     "via_store": true,
+     "coalesce_floor_ms": 458,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    },
+    {
+     "from": "EURO",
+     "to": "GFS",
+     "click_to_exact_ms": 6,
+     "via_store": true,
+     "coalesce_floor_ms": 432,
+     "silent_new_chip_frames": 0,
+     "wrong_silent": 0
+    }
+   ],
+   "show_vs_commit_textures": [
+    {
+     "pid": "euro_marine_waves_global_mid_20261025T210000Z.json",
+     "model": "EURO",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 551,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    },
+    {
+     "pid": "gfs_marine_waves_global_mid_20261025T210000Z.json",
+     "model": "GFS",
+     "wave": true,
+     "chl": true,
+     "bath": true,
+     "afterMs": 451,
+     "dimsShow": "181x83",
+     "dimsCommit": "181x83"
+    }
+   ],
+   "crop": {
+    "window": null,
+    "shows": 0
+   }
+  }
+ ]
+}

@@ -45,7 +45,7 @@
  * Lever: window.__RAW_FRAME_WARM_REST_MS__ (500): how long the wheel must rest before the other models' warm frames follow it.
  * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
  */
-import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, setKeyFor, staticEligible } from './staticFrames';
+import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, storeSetKeyFor, staticEligible } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
 import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
@@ -175,7 +175,8 @@ function setFor(key, index) {
   const [model, , layer] = key.split('/');
   const runId = (index && (index.model_run_time || index.run || index.path)) || 'unknown';
   const signature = packSignature();
-  const desc = { model, layer, domain: 'world', modelRunTime: runId, signature };
+  const filled = key.endsWith('/global_mid_filled');   // a filled EURO/ICON world set: its own store key, never a crop source
+  const desc = { model, layer, domain: filled ? 'world_filled' : 'world', modelRunTime: runId, signature };
   const sk = setKeyOf(desc);
   let info = rt.sets.get(sk);
   if (!info) {
@@ -185,7 +186,7 @@ function setFor(key, index) {
     const byVt = new Map((index.frames || []).map((f) => [f.valid_time, f]));
     const byPid = new Map((index.frames || []).filter((f) => f.meta && f.meta.product_id).map((f) => [f.meta.product_id, f.valid_time]));
     const byPath = new Map((index.frames || []).filter((f) => f.path).map((f) => [f.path, f]));
-    info = { key: s.key, staticKey: key, index, validTimes, byVt, byPid, byPath, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
+    info = { key: s.key, staticKey: key, filled, index, validTimes, byVt, byPid, byPath, layerOf: new Map(validTimes.map((v, i) => [v, i])) };
     rt.sets.set(sk, info);
     // A new run or signature retires the old sets of the same model x layer (theme change, kill switch, re-pin).
     const keep = new Set([...rt.sets.values()].filter((x) => x.staticKey !== key || x.key === s.key).map((x) => x.key));
@@ -289,7 +290,7 @@ function warmPlan(info, layer, requestedValidTime) {
   const askMs = Date.parse(requestedValidTime);
   const out = [];
   for (const m of WARM_MODELS) {
-    const k = setKeyFor(m, layer);
+    const k = storeSetKeyFor(m, layer);
     if (k === info.staticKey || !staticEligible({ model: m, layer, bbox: WORLD_BBOX, surf: false })) continue;
     const idx = getPinnedIndexSync(k);
     if (!idx) { pinWarm(k); continue; }
@@ -406,7 +407,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   const why = (r) => { rt.commits[r] = (rt.commits[r] || 0) + 1; };
   if (!frameStoreOn() || !grid) return;
   if (CS.noteRegionalCommitted(grid, model || grid.__sourceModel, layer || grid.__componentLayer)) { publishTelemetry(); return why('resident_crop_regional'); }   // a pilot tile's window (z7-9)
-  const key = setKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
+  const key = storeSetKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
   const index = getPinnedIndexSync(key);
   if (!index) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index'); }
   if (grid.ratingMode) return why('rating');
@@ -440,7 +441,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
 export function noteStep({ model, layer, requestedValidTime, commit = false } = {}) {
   if (!frameStoreOn() || W().__RAW_DISABLE_FRAME_PREFETCH__ === true || !rt.target) return;
   ensureInit();
-  const key = setKeyFor(model, layer);
+  const key = storeSetKeyFor(model, layer);
   const index = getPinnedIndexSync(key);
   if (!index) return;
   const info = setFor(key, index);
@@ -528,7 +529,7 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
     // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
     if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
-    const key = setKeyFor(model, layer);
+    const key = storeSetKeyFor(model, layer);
     const index = getPinnedIndexSync(key);
     if (!index) return miss('no_index');
     const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
