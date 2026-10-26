@@ -49,7 +49,8 @@ A frame served at its own ask is identical either way.
   - flag off: 135 bad nodes at +330 h and 134 at +336 h (heights up to 0.53 m apart);
   - flag on: **0 bad at both**.
 - The fill, lane-parity and day-14 suites (117) pass; lint gate clean; file sizes under 800.
-- Guards floor by `rederive_floor.py --add 5`: dev run 40270844413 read 3320; this PR must read 3325, floor 3314 -> 3319.
+- Guards floor by `rederive_floor.py --add 5`, re-derived after dev moved (#577, #578, #584, #585): dev run 40272745631 read
+  3320 and dev's map is 3331, so this PR must read **3336**, floor 3325 -> 3330.
 
 ## Not done
 - The flip (owner's word).
