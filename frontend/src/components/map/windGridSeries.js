@@ -24,7 +24,7 @@ import { buildTruthTag } from './weatherTruthTracker';
 import { normalizeRequestBbox } from './marineBboxGeometry';
 import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
 import { windLaneParam, windLaneTag, windLaneDisabled } from './windLane';
-import { getSharedValidTime } from './backendWeatherServiceClient';
+import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { readLanePointer, staticWindCovers, windIndex, windStaticEnabled } from './windStaticFrames';
 import { afterNextPaint } from './afterNextPaint';
 
@@ -374,6 +374,22 @@ async function loadSeriesPage(model, bounds, page, signal) {
 // supersedes it. Deliberately BYPASSES the 2-slot wind queue for the same reason marine does --
 // the point is not to queue behind the very page it exists to beat.
 // Kill: __RAW_DISABLE_HOUR0_FIRST__ (shared with marine). Telemetry: __WIND_SERIES_DIAG__.h0Loads.
+// THE STORED STEP, NOT A FIXED 3 (2026-10-25, hourly GFS wind f000-f120 behind FRAME_WIND_GFS_HOURLY): the hour-0 mini
+// asked the hour rounded to a multiple of 3, so with hourly products stored it would ask the 3-hourly hour under an
+// hourly selection. It now asks the nearest STORED product's hour (getSharedValidTime against the manifest, the same
+// snap /grid and the static frames use): on today's 3-hourly store that is the same hour as before. Kill:
+// window.__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__ = true (the fixed 3-hour snap).
+export function windSeriesSnapHour(model, hourOffset) {
+  const fixed = Math.max(0, Math.round(hourOffset / 3) * 3);
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__ === true) return fixed;
+  try {
+    const ms = Date.parse(getSharedValidTime(hourOffset, 'wind', model || 'GFS', { readOnly: true }));
+    const h = Math.round((ms - getSeriesAnchorMs()) / 3600000);
+    if (Number.isFinite(h) && h >= 0 && Math.abs(h - hourOffset) <= 3) return h;
+  } catch (e) { /* the fixed snap below */ }
+  return fixed;
+}
+
 async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isWindSeriesEnabled() || !bounds) return;
@@ -383,7 +399,7 @@ async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
   const h0key = `${pageKey(model, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
   if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
-  const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the frame grid, as the page does
+  const h = windSeriesSnapHour(model, hourOffset);
   const reqBox = normalizeRequestBbox(bounds);
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=wind&layer=wind`
