@@ -239,9 +239,11 @@ async function session(arm, round) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(String(e && e.message || e).slice(0, 200)));
   // CONLOG=1: the fetcher's own console lines on the reqlog's clock (which source asked: '[SWR] ... retry #N', '[Release] ... source=').
+  // '[MODEL]' (2026-10-25): the orchestrator's coalesced switch body logs "[MODEL] [Marine] Active model changed to X" when its
+  // SWITCH_FETCH_COALESCE_MS window ends: the click -> that line is the floor every switch the store does not show waits out.
   const conlog = []; const marks = []; const answers = [];
   if (process.env.CONLOG === '1') {
-    page.on('console', (m) => { const s = m.text(); if (/^\[(SWR|Release|Abort-Gate|Marine|Series|Settle|Scrub|Sibling)/.test(s)) conlog.push({ t: Date.now() - log.t0, s: s.slice(0, 220) }); });
+    page.on('console', (m) => { const s = m.text(); if (/^\[(SWR|Release|Abort-Gate|Marine|Series|Settle|Scrub|Sibling|MODEL)/.test(s)) conlog.push({ t: Date.now() - log.t0, s: s.slice(0, 220) }); });
     // what each /grid and /grid_series answer WAS: product, stale flag, grid size, frames (an ask repeated over a fresh answer is the client's)
     page.on('response', async (r) => {
       const u = r.url(); if (!/\/api\/weather\/grid(_series)?\?/.test(u)) return;

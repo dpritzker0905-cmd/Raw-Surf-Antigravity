@@ -21,7 +21,7 @@ from database import get_db
 from routes.auth_pkg.auth import session_payload
 from routes.auth_pkg.mfa import (
     EXPIRED, UNAVAILABLE, MfaCaller, _check_password, _manage_limit, _profile, finish_second_step,
-    full_session_caller, mfa_caller, reject_attempt,
+    full_session_caller, mfa_caller, reject_attempt, require_current_factor_if_enrolled,
 )
 from services import mfa_factors as svc
 from services import passkey_factors as pk
@@ -58,6 +58,7 @@ def _public(row, rp: Optional[RpContext] = None) -> dict:
 
 class RegisterOptionsBody(BaseModel):
     password: Optional[str] = Field(default=None, max_length=256)
+    code: Optional[str] = Field(default=None, max_length=64)  # a current factor, required once one is enrolled
 
 
 class RegisterVerifyBody(BaseModel):
@@ -76,6 +77,7 @@ async def register_options(request: Request, data: RegisterOptionsBody, caller: 
     profile = await _profile(db, caller.user_id)
     if not caller.setup_only:  # the enrol-only token was itself issued for a correct password a moment ago
         _check_password(profile, data.password or "")
+        await require_current_factor_if_enrolled(db, profile, data.code)
     try:
         ceremony, options = await pk.registration_options(db, profile, rp)
     except pk.TooManyPasskeys:

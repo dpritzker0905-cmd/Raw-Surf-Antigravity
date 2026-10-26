@@ -949,7 +949,9 @@ jobs:
           #   base 3297 (hosted read) + 20 new test(s) = 3317, files 211; floor 3317 - 6 = 3311. This PR must read 3317 passed.
           # ⬆ 3311→3314 on 2026-10-23 (rederive_floor.py, claude/euro-own-values-wire): dev run 40024668374 read 3317 / 211 files; dev's map 3317;
           #   base 3317 (hosted read) + 3 new test(s) = 3320, files 211; floor 3320 - 6 = 3314. This PR must read 3320 passed.
-          MIN_FILES, MIN_PASSED = 211, 3314
+          # ⬆ 3314→3325 on 2026-10-26 (rederive_floor.py, claude/marine-tail-ceiling-margin): dev run 40245738513 read 3320 / 211 files; dev's map 3320;
+          #   base 3320 (hosted read) + 11 new test(s) and 1 new file(s) = 3331, files 212; floor 3331 - 6 = 3325. This PR must read 3331 passed.
+          MIN_FILES, MIN_PASSED = 212, 3325
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -2085,7 +2087,15 @@ jobs:
           #   base 3033 (hosted read) + 73 new test(s) = 3106; floor 3106 - 2 = 3104. This PR must read 3106 passed.
           # ⬆ 3104→3239 on 2026-10-25 (rederive_floor.py, feat/email-service-foundation): dev run 40240234272 read 3106; dev's map 3106;
           #   base 3106 (hosted read) + 135 new test(s) = 3241; floor 3241 - 2 = 3239. This PR must read 3241 passed.
-          MIN_PASSED = 3239
+          # ⬆ 3239→3244 on 2026-10-26 (rederive_floor.py, claude/mfa-add-factor-stepup): dev run 40245738513 read 3241; dev's map 3241;
+          #   base 3241 (hosted read) + 5 new test(s) = 3246; floor 3246 - 2 = 3244. This PR must read 3246 passed.
+          # ⬆ 3244→3274 on 2026-10-26 (rederive_floor.py, claude/funded-basis-payout): dev run 40262573445 read 3241; dev's map 3246;
+          #   base 3246 (dev's map) + 30 new test(s) = 3276; floor 3276 - 2 = 3274. This PR must read 3276 passed.
+          # ⬆ 3274→3316 on 2026-10-26 (rederive_floor.py, claude/credit-debit-guards): dev run 40265100790 read 3246; dev's map 3276;
+          #   base 3276 (dev's map) + 42 new test(s) = 3318; floor 3318 - 2 = 3316. This PR must read 3318 passed.
+          # ⬆ 3316→3325 on 2026-10-26 (rederive_floor.py, claude/raster-temp-downscale): dev run 40270844413 read 3318; dev's map 3318;
+          #   base 3318 (hosted read) + 9 new test(s) = 3327; floor 3327 - 2 = 3325. This PR must read 3327 passed.
+          MIN_PASSED = 3325
 
           try:
               root = ET.parse('estate.xml').getroot()

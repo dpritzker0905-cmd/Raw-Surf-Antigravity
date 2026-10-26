@@ -68,6 +68,30 @@ export const TEMPERATURE_OPACITY_STOPS = [[2, 0.38], [5, 0.44], [8, 0.49], [12, 
 export const SATELLITE_OPACITY_STOPS = [[2, 0.55], [5, 0.60], [8, 0.65], [12, 0.70]];
 // The no-data test: ownRasterFrames.MISSING (-9999) is below it, every real value of every layer above (pinned by a test).
 export const NO_DATA_BELOW_GLSL = '-9000.0';
+
+// ── the elevation downscale (2026-10-25; the owner: "Go with your recommendation if that is state of the art") ───────────────
+// Air temperature is drawn as T + lapse * dz, where dz = real ground (NOAA ETOPO 2022) - the model's 0.5-degree terrain, from a
+// static asset of at most DZ_TILES_MAX longitude tiles (backend/services/raster_downscale.py). Against METAR 2 m temperature at
+// 31 airports the standard lapse rate cut the mountain MAE from 2.87 to 2.07 C (log 2026-10-25-claude-raster-temp-downscale).
+// Each tile carries one overlap column, so linear filtering never seams; codes are uint8 = round(dz / step) + offset.
+export const DZ_TILES_MAX = 2;
+// THE INSTANT CONTRACT (the lead, 2026-10-25): the first paint never waits for the asset. The field draws uncorrected, and
+// once every tile is resident the correction FADES in over DZ_FADE_MS (no step change on screen).
+export const DZ_FADE_MS = 400;
+/** dz (m) at (lon, lat) from a decoded asset, exactly as the shader samples it (bilinear between codes, inside one tile). */
+export function downscaleAt(asset, lon, lat) {
+  const L = asset.lattice;
+  let gx = (lon - L.west) / L.dlon;
+  gx = ((gx % L.cols) + L.cols) % L.cols;
+  const gy = Math.min(Math.max((lat - L.south) / L.dlat, 0), L.rows - 1);
+  const t = asset.tiles.length > 1 && gx >= asset.tiles[1].col0 ? asset.tiles[1] : asset.tiles[0];
+  const x = gx - t.col0;
+  const x0 = Math.min(Math.floor(x), t.cols - 2); const tx = x - x0;
+  const y0 = Math.min(Math.floor(gy), t.rows - 2); const ty = gy - y0;
+  const at = (c, r) => t.data[r * t.cols + c];
+  const code = (at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx) * (1 - ty) + (at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx) * ty;
+  return (code - asset.offset) * asset.step;
+}
 export function opacityAtZoom(stops, z) {
   if (z <= stops[0][0]) return stops[0][1];
   for (let i = 1; i < stops.length; i++) {
@@ -102,6 +126,12 @@ uniform vec3 u_size;      // cols, rows, wraps (1 = columns wrap at the antimeri
 uniform vec3 u_lutMap;    // min, step, n
 uniform float u_opacity;
 uniform vec2 u_iso;       // interval (0 = off), line width px
+uniform sampler2D u_dz0;  // the elevation-difference tiles (R8, linear), air temperature only
+uniform sampler2D u_dz1;
+uniform vec4 u_dzLat;     // south, dlat, rows, the correction's weight (0 = off, rising to 1 over DZ_FADE_MS)
+uniform vec4 u_dzLon;     // west, dlon, cols (the whole lattice), the second tile's first column (= cols with one tile)
+uniform vec4 u_dzCode;    // offset, step (m), lapse (K/m), the first tile's columns (with its overlap)
+uniform float u_dzCols1;  // the second tile's columns (with its overlap)
 uniform vec4 u_isoColor;  // straight rgba
 out vec4 fragColor;
 const float PI = 3.141592653589793;
@@ -129,6 +159,14 @@ void main() {
   float a = node(c0, r0); float b = node(c1, r0); float c = node(c0, r1); float d = node(c1, r1);
   if (min(min(a, b), min(c, d)) < ${NO_DATA_BELOW_GLSL}) discard;
   float v = mix(mix(a, b, tx), mix(c, d, tx), ty);
+  if (u_dzLat.w > 0.0) {
+    float gx = mod((lon - u_dzLon.x) / u_dzLon.y, u_dzLon.z);
+    float gy = clamp((lat - u_dzLat.x) / u_dzLat.y, 0.0, u_dzLat.z - 1.0);
+    float code = gx < u_dzLon.w
+      ? textureLod(u_dz0, vec2((gx + 0.5) / u_dzCode.w, (gy + 0.5) / u_dzLat.z), 0.0).r
+      : textureLod(u_dz1, vec2((gx - u_dzLon.w + 0.5) / u_dzCols1, (gy + 0.5) / u_dzLat.z), 0.0).r;
+    v = v + u_dzLat.w * u_dzCode.z * (code * 255.0 - u_dzCode.x) * u_dzCode.y;
+  }
   float k = clamp(floor((v - u_lutMap.x) / u_lutMap.y + 1e-3), 0.0, u_lutMap.z - 1.0);
   vec4 col = texelFetch(u_lut, ivec2(int(k), 0), 0);
   float alpha = col.a * u_opacity;
@@ -154,7 +192,10 @@ function compile(gl, type, src) {
  * createOwnRasterLayer({ id, opacityStops, lutMap, onFail, shaderIsobars }) -> a MapLibre custom layer with:
  *   setLut(Uint8Array, lutMap), offerField(path, field), want(path), isResident(path), shownPath(), onShown(fn), disposed.
  */
-export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS, lutMap = PRESSURE_LUT, onFail = null, shaderIsobars = true } = {}) {
+export function createOwnRasterLayer({
+  id, opacityStops = PRESSURE_OPACITY_STOPS, lutMap = PRESSURE_LUT, onFail = null, shaderIsobars = true,
+  onDownscaleFail = null, now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+} = {}) {
   const st = {
     map: null, gl: null, canvas: null, lost: false, ready: false, failed: false,
     prog: null, vao: null, buf: null, loc: null, lutTex: null, lut: null, lutDirty: false, lutMap,
@@ -162,12 +203,15 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
     pending: new Map(),        // path -> field waiting for upload
     wantPath: null, shown: null, onShown: null,
     isoColor: [1, 1, 1, 0.55],
+    dz: null, dzTex: [], dzNext: 0,   // the elevation downscale: the decoded asset, its textures, the next tile to upload
+    dzReadyAt: null, maxTex: null,    // when the last tile landed (the fade's start); MAX_TEXTURE_SIZE, read once
   };
 
   const dropGl = () => {
     st.ready = false; st.prog = null; st.vao = null; st.buf = null; st.loc = null; st.lutTex = null; st.lutDirty = !!st.lut;
     for (const [p, r] of st.resident) st.pending.set(p, r.field);   // re-upload from the CPU copy after a restore
     st.resident.clear();
+    st.dzTex = []; st.dzNext = 0; st.dzReadyAt = null;   // the dz tiles re-upload from the CPU copy too
   };
   const onLost = (e) => { st.lost = true; dropGl(); if (e && e.preventDefault) e.preventDefault(); };
   const onRestored = () => { st.lost = false; };
@@ -189,7 +233,8 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { fail('link'); return false; }
     st.prog = prog;
     st.loc = {};
-    for (const u of ['u_matrix', 'u_field', 'u_lut', 'u_grid', 'u_size', 'u_lutMap', 'u_opacity', 'u_iso', 'u_isoColor']) {
+    for (const u of ['u_matrix', 'u_field', 'u_lut', 'u_grid', 'u_size', 'u_lutMap', 'u_opacity', 'u_iso', 'u_isoColor',
+      'u_dz0', 'u_dz1', 'u_dzLat', 'u_dzLon', 'u_dzCode', 'u_dzCols1']) {
       st.loc[u] = gl.getUniformLocation(prog, u);
     }
     st.vao = gl.createVertexArray();
@@ -234,6 +279,35 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
     st.resident.set(path, { tex, field });
   }
 
+  // One dz tile per call (each is up to 4096 x 2701 bytes): R8 with LINEAR filtering, so the GPU blends between codes.
+  // The asset cannot be held here: drop it, draw the field as is, and tell the caller ONCE (it loads the 1/8 fallback).
+  function dzFail(gl, why) {
+    for (const t of st.dzTex) if (t) gl.deleteTexture(t);
+    st.dz = null; st.dzTex = []; st.dzNext = 0; st.dzReadyAt = null;
+    if (onDownscaleFail) { try { onDownscaleFail(why); } catch (e) { /* the caller's */ } }
+  }
+  function uploadDzTile(gl) {
+    // Two synchronous reads per asset, never per frame: the texture size limit (once per layer) and the error after each tile.
+    if (st.maxTex === null) st.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+    const t = st.dz.tiles[st.dzNext];
+    if (t.cols > st.maxTex || t.rows > st.maxTex) { dzFail(gl, 'too_large'); return; }
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, t.cols, t.rows, 0, gl.RED, gl.UNSIGNED_BYTE, t.data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    st.dzTex[st.dzNext] = tex;
+    st.dzNext += 1;
+    if (gl.getError() !== gl.NO_ERROR) { dzFail(gl, 'gl_error'); return; }
+    if (st.dzNext === st.dz.tiles.length) st.dzReadyAt = now();
+  }
+  const dzReady = () => !!(st.dz && st.dzTex.length === st.dz.tiles.length && st.dzTex.every(Boolean));
+
   // The least useful resident texture: never the shown or the wanted one; the oldest otherwise (Map order = upload order).
   function evictOne() {
     for (const [p, r] of st.resident) {
@@ -258,6 +332,7 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
       if (gl && !st.lost) {
         for (const r of st.resident.values()) gl.deleteTexture(r.tex);
         if (st.lutTex) gl.deleteTexture(st.lutTex);
+        for (const t of st.dzTex) if (t) gl.deleteTexture(t);
         if (st.buf) gl.deleteBuffer(st.buf);
         if (st.vao) gl.deleteVertexArray(st.vao);
         if (st.prog) gl.deleteProgram(st.prog);
@@ -273,6 +348,7 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
         if (!ok) return;
       }
       if (st.lutDirty && st.lut) uploadLut(gl);
+      if (st.dz && st.dzNext < st.dz.tiles.length) { uploadDzTile(gl); if (st.map) st.map.triggerRepaint(); }
       // The wanted frame first, then the rest in offer order.
       let budget = UPLOADS_PER_FRAME;
       const order = st.pending.has(st.wantPath) ? [st.wantPath, ...[...st.pending.keys()].filter((p) => p !== st.wantPath)] : [...st.pending.keys()];
@@ -315,6 +391,22 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
       gl.uniform1f(st.loc.u_opacity, opacityAtZoom(opacityStops, st.map ? st.map.getZoom() : 2));
       gl.uniform2f(st.loc.u_iso, iso, 1.2);
       gl.uniform4f(st.loc.u_isoColor, st.isoColor[0], st.isoColor[1], st.isoColor[2], st.isoColor[3]);
+      // The elevation downscale, once every tile is resident (until then the field draws as is: never half a downscale).
+      const dzOn = dzReady();
+      const mix = dzOn && st.dzReadyAt !== null ? Math.min(1, Math.max(0, (now() - st.dzReadyAt) / DZ_FADE_MS)) : 0;
+      if (dzOn && mix < 1 && st.map) st.map.triggerRepaint();          // the fade's frames
+      if (dzOn) {
+        const L = st.dz.lattice; const t0 = st.dz.tiles[0]; const t1 = st.dz.tiles[1];
+        gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, st.dzTex[0]);
+        gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, st.dzTex[1] || st.dzTex[0]);
+        gl.uniform1i(st.loc.u_dz0, 2); gl.uniform1i(st.loc.u_dz1, 3);
+        gl.uniform4f(st.loc.u_dzLat, L.south, L.dlat, L.rows, mix);
+        gl.uniform4f(st.loc.u_dzLon, L.west, L.dlon, L.cols, t1 ? t1.col0 : L.cols);
+        gl.uniform4f(st.loc.u_dzCode, st.dz.offset, st.dz.step, st.dz.lapse, t0.cols);
+        gl.uniform1f(st.loc.u_dzCols1, t1 ? t1.cols : t0.cols);
+      } else {
+        gl.uniform4f(st.loc.u_dzLat, 0, 1, 1, 0);
+      }
       // MapLibre set premultiplied alpha blending for the translucent pass (colorModeForRenderPass); keep it.
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
       gl.bindVertexArray(null);
@@ -322,6 +414,17 @@ export function createOwnRasterLayer({ id, opacityStops = PRESSURE_OPACITY_STOPS
 
     setLut(lut, map = lutMap) { st.lut = lut; st.lutMap = map; st.lutDirty = true; if (st.map) st.map.triggerRepaint(); },
     setIsobarColor(rgba) { st.isoColor = rgba; if (st.map) st.map.triggerRepaint(); },
+    /** The elevation downscale's decoded asset ({ lattice, offset, step, lapse, tiles: [{ col0, cols, rows, data }] }), or null
+     *  to draw the field as is. At most DZ_TILES_MAX tiles; anything else is refused (the field draws as is). */
+    setDownscale(asset) {
+      const gl = st.gl;
+      if (gl && !st.lost) for (const t of st.dzTex) if (t) gl.deleteTexture(t);
+      st.dzTex = []; st.dzNext = 0; st.dzReadyAt = null;
+      st.dz = asset && Array.isArray(asset.tiles) && asset.tiles.length >= 1 && asset.tiles.length <= DZ_TILES_MAX ? asset : null;
+      if (st.map) st.map.triggerRepaint();
+      return !!st.dz;
+    },
+    downscaleReady() { return dzReady(); },
     offerField(path, field) {
       if (!path || !field || st.resident.has(path)) return;
       st.pending.set(path, field);
