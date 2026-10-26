@@ -78,3 +78,16 @@ date. Details and a proposed reader fix: shared notes `owner-manual-test-2026-10
   said "Loading", honestly) although the server held a mid frame. It did not recur in the later runs (timing-dependent). Recorded,
   not fixed.
 - **Live:** not read.
+
+## Unified with #578 (2026-10-26, the lead: "make it ONE held path")
+#578 (static-frames: far_edge_hold words) merged first, as 9e7ecd470. dev was merged into this branch with no textual conflict, but it
+carried TWO held paths, so they are now one rule:
+- **Trigger:** this branch's, for every source. The frame answering THIS selection is an estimate whose data lies outside the
+  nearest-frame rule. #578's branch fired on any drawn far_edge_hold frame, even while another hour loaded; it is gone.
+- **Data time:** the served time, else #578's `heldFromMs` (`estimate_basis.held_from`), else the client blend's readout time.
+- **Words:** "Holding <time>’s <model> forecast: <why>" (#578's possessive), with #578's "the 14-day estimate ends there" as the
+  far_edge_hold reason; dated per the rule above.
+- **One kill:** `__RAW_DISABLE_DRAWN_HELD_WORDS__`; #578's documented `__RAW_DISABLE_DRAWN_HOLD_WORDS__` is honoured as an alias.
+- **#578's tests:** drawnFrameHold.test.js passes unchanged except a fixed clock (`nowMs`), so its undated text stays deterministic
+  whatever day the suite runs. Joined by this branch's: an older answer stays "Loading", the alias, and a far-edge hold that is not
+  the answer to this selection reads "Loading".

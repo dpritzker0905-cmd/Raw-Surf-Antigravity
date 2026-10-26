@@ -17,21 +17,27 @@ const NOW = A - 336 * H;                              // the session is 14 days 
 const say = (s, x) => describeDrawnFrame(s, x, { nowMs: NOW });
 const sel = (model = 'ICON', hour = 336) => ({ model, layer: 'waves', hour, labelMs: A, instantMs: A, nearestMaxHours: 1 });
 const drawn = (over = {}) => ({ model: 'ICON', layer: 'waves', hour: 336, dataMs: DATA, estimated: true, basisType: 'icon_extended_blend', ...over });
-afterEach(() => { delete window.__RAW_DISABLE_DRAWN_HELD_WORDS__; delete window.__RAW_DISABLE_BLEND_SERVED_TIME__; delete window.__RAW_DISABLE_DRAWN_DATED_LABEL__; });
+afterEach(() => { delete window.__RAW_DISABLE_DRAWN_HELD_WORDS__; delete window.__RAW_DISABLE_DRAWN_HOLD_WORDS__; delete window.__RAW_DISABLE_BLEND_SERVED_TIME__; delete window.__RAW_DISABLE_DRAWN_DATED_LABEL__; });
 
 describe('the held line: what the field IS, never "Loading" for a frame that is not coming', () => {
-  it('the ICON blend past the tail (the owner\'s case): "Holding <data time> ICON forecast: blended from GFS and EURO beyond ICON\'s range"', () => {
+  it('the ICON blend past the tail (the owner\'s case): "Holding <data time>’s ICON forecast: blended from GFS and EURO beyond ICON\'s range"', () => {
     const r = say(sel(), drawn());
     expect(r.state).toBe('held');
-    expect(r.text).toBe(`Holding ${formatInstant(DATA, true)} ICON forecast: blended from GFS and EURO beyond ICON’s range`);
+    expect(r.text).toBe(`Holding ${formatInstant(DATA, true)}’s ICON forecast: blended from GFS and EURO beyond ICON’s range`);
   });
 
-  it('the server\'s far-edge hold and its GFS stand-in say why in their own words', () => {
+  it('the server\'s far-edge hold (#578\'s words) and its GFS stand-in say why in their own words', () => {
     expect(say(sel('EURO'), drawn({ model: 'EURO', basisType: 'far_edge_hold' })).text)
-      .toBe(`Holding ${formatInstant(DATA, true)} EURO forecast: beyond EURO’s range`);
+      .toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: the 14-day estimate ends there`);
     expect(say(sel('EURO'), drawn({ model: 'EURO', basisType: 'gfs_estimated_fallback' })).text)
-      .toBe(`Holding ${formatInstant(DATA, true)} EURO forecast: GFS stand-in beyond EURO’s range`);
-    expect(say(sel(), drawn({ basisType: 'something_new' })).text).toBe(`Holding ${formatInstant(DATA, true)} ICON forecast: beyond ICON’s range`);
+      .toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: GFS stand-in beyond EURO’s range`);
+    expect(say(sel(), drawn({ basisType: 'something_new' })).text).toBe(`Holding ${formatInstant(DATA, true)}’s ICON forecast: beyond ICON’s range`);
+  });
+
+  it('ONE held path: a far-edge hold that is NOT the answer to this selection reads "Loading" (no "ends there" over a loading hour)', () => {
+    const r = say(sel('EURO', 330), drawn({ model: 'EURO', basisType: 'far_edge_hold' }));
+    expect(r.state).toBe('pending');
+    expect(r.text).toMatch(/^Loading .* still showing /);
   });
 
   it('still "Loading" when an OLDER answer is on screen (the selected hour has not been answered yet)', () => {
@@ -59,9 +65,13 @@ describe('the held line: what the field IS, never "Loading" for a frame that is 
     expect(say(sel(), { ...drawn(), hour: 0, dataMs: old, estimated: false }).text).toBe(`Loading ${formatInstant(A)}… still showing ${formatInstant(old)}`);
   });
 
-  it('positive control: the kill brings back the "Loading" line', () => {
+  it('positive control: the kill, or #578\'s documented alias, brings back the "Loading" line', () => {
     window.__RAW_DISABLE_DRAWN_HELD_WORDS__ = true;
     expect(say(sel(), drawn()).state).toBe('pending');
+    delete window.__RAW_DISABLE_DRAWN_HELD_WORDS__;
+    window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ = true;
+    expect(say(sel(), drawn()).state).toBe('pending');
+    expect(say(sel('EURO'), drawn({ model: 'EURO', basisType: 'far_edge_hold' })).state).toBe('pending');
   });
 });
 

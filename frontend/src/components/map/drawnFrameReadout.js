@@ -29,20 +29,26 @@ export const ESTIMATE_WORDS = {
 };
 
 /**
- * HELD (2026-10-25, the owner's day-14 test: Saturday's ICON field under the Sunday label, with no words). When the frame answering
- * THIS selection (drawn.hour === requested.hour) is an ESTIMATE whose data is further from the selection than the nearest-frame rule
- * allows, nothing newer is coming: past a model's stored tail the server holds its last frame (far_edge_hold) and the client blends
- * held inputs. "Loading" would promise a frame that never arrives, so the line says what the field IS, on the same clock:
- * "Holding <data time> <model> forecast: <why>". Kill: window.__RAW_DISABLE_DRAWN_HELD_WORDS__ = true (the "Loading" line again).
+ * HELD: ONE rule for every held frame (2026-10-25/26, the owner's day-14 test: "the ICON data is showing Saturday 13th day on the
+ * Sunday 14th day", with no words; #578 worded the far_edge_hold basis, #587 every source, unified here at the lead's request).
+ * When the frame answering THIS selection (drawn.hour === requested.hour) is an ESTIMATE whose data is further from the selection
+ * than the nearest-frame rule allows, nothing newer is coming: past a model's stored tail the server holds its last frame (its own
+ * basis, or far_edge_hold when it had none), and the client blends held inputs (icon_extended_blend). "Loading" would promise a frame
+ * that never arrives, so the line says what the field IS: "Holding <data time>’s <model> forecast: <why>", the time dated when it is
+ * a day or more from the selection or the selection is six or more days out. An OLDER answer still on screen (another hour) stays
+ * "Loading"; so does a non-estimate (a stale answer the server refreshes). The data time is the served time, else the hold's own
+ * estimate_basis.held_from (marineDrawnFrame heldFromMs), else a client blend's readout time (heldFrameTime.js).
+ * Kill: window.__RAW_DISABLE_DRAWN_HELD_WORDS__ = true, or #578's documented alias window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ = true.
  */
 const HOLD_WHY = {
-  far_edge_hold: (m) => `beyond ${m}’s range`,
+  far_edge_hold: () => 'the 14-day estimate ends there',        // #578's words, as shipped
   icon_extended_blend: () => 'blended from GFS and EURO beyond ICON’s range',
   icon_persistence_gfs_blend: () => 'beyond ICON’s native range',
   icon_trend_extrapolation: () => 'beyond ICON’s native range',
   gfs_estimated_fallback: (m) => `GFS stand-in beyond ${m}’s range`,
 };
-const heldWordsOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_HELD_WORDS__ === true);
+const heldWordsOn = () => !(typeof window !== 'undefined'
+  && (window.__RAW_DISABLE_DRAWN_HELD_WORDS__ === true || window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ === true));
 
 export function formatForecastHour(hour, nowMs = Date.now()) {
   if (!Number.isFinite(hour)) return '';
@@ -88,23 +94,15 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
   // Kill: window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ = true (compare with the snapped ask, word the hour from now).
   const labelOn = Number.isFinite(requested.labelMs) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ === true);
   const selectedMs = labelOn ? requested.labelMs : requested.instantMs;
-  const byInstant = Number.isFinite(selectedMs) && Number.isFinite(drawn.dataMs);
-  const dh = byInstant ? Math.round((drawn.dataMs - selectedMs) / 3600000)
+  // The frame's DATA time: its served time, else a far-edge hold's own held_from (#578: the hold path with no served time).
+  const dataMs = Number.isFinite(drawn.dataMs) ? drawn.dataMs : (Number.isFinite(drawn.heldFromMs) ? drawn.heldFromMs : null);
+  const byInstant = Number.isFinite(selectedMs) && Number.isFinite(dataMs);
+  const dh = byInstant ? Math.round((dataMs - selectedMs) / 3600000)
     : (Number.isFinite(drawn.hour) && Number.isFinite(requested.hour) ? drawn.hour - requested.hour : 0);
-  const dated = byInstant && datedPair(drawn.dataMs, selectedMs, nowMs);
-  const drawnLabel = byInstant ? formatInstant(drawn.dataMs, dated)
+  const dated = byInstant && datedPair(dataMs, selectedMs, nowMs);
+  const drawnLabel = byInstant ? formatInstant(dataMs, dated)
     : (labelOn && Number.isFinite(drawn.hour) && Number.isFinite(requested.hour)   // one clock in one sentence
       ? formatInstant(requested.labelMs + (drawn.hour - requested.hour) * 3600000) : formatForecastHour(drawn.hour, nowMs));
-  // FAR-EDGE HOLD (2026-10-25, the owner's day-14 test: "the ICON data is showing Saturday 13th day on the Sunday 14th day"). Past a
-  // model's stored 14-day estimate the server holds its LAST frame (estimate_basis.type far_edge_hold, up to 24 h back). That frame
-  // never "loads": the old words ("Loading Sun 5 AM… still showing Sat 6 PM", or with no served time "Estimated forecast: estimated")
-  // promised a frame that does not exist. Say what is held, from the held frame's own time.
-  // Kill: window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ = true (the previous words).
-  if (drawn.basisType === 'far_edge_hold' && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ === true)) {
-    const heldMs = Number.isFinite(drawn.heldFromMs) ? drawn.heldFromMs : (byInstant ? drawn.dataMs : null);
-    const heldLabel = Number.isFinite(heldMs) ? formatInstant(heldMs) : 'the last stored';
-    return { state: 'held', text: `Holding ${heldLabel}’s ${model(drawn.model || requested.model)} forecast: the 14-day estimate ends there` };
-  }
   if (dh !== 0) {
     if (Math.abs(dh) <= (Number.isFinite(requested.nearestMaxHours) ? requested.nearestMaxHours : NEAREST_MAX_HOURS)) {   // caller may pass its lattice's half-step
       return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest stored forecast${est ? ` (${est})` : ''}` };
@@ -112,7 +110,7 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
     if (heldWordsOn() && drawn.estimated && byInstant && Number.isFinite(drawn.hour) && drawn.hour === requested.hour) {
       const m = model(drawn.model || requested.model);
       const why = HOLD_WHY[drawn.basisType] ? HOLD_WHY[drawn.basisType](m) : `beyond ${m}’s range`;
-      return { state: 'held', text: `Holding ${drawnLabel} ${m} forecast: ${why}` };
+      return { state: 'held', text: `Holding ${drawnLabel}’s ${m} forecast: ${why}` };
     }
     const selectedLabel = labelOn ? formatInstant(requested.labelMs, dated) : formatForecastHour(requested.hour, nowMs);
     return { state: 'pending', text: `Loading ${selectedLabel}… still showing ${drawnLabel}` };
