@@ -83,7 +83,8 @@ def _by_node(product):
 
 @pytest.fixture(autouse=True)
 def _flags(monkeypatch):
-    for k in ("MARINE_GULF_FILL_MID", "MARINE_GULF_FILL_MID_TARGETED", "MARINE_COARSE_GULF_FILL", "MARINE_TARGETED_DONOR_CACHE"):
+    for k in ("MARINE_GULF_FILL_MID", "MARINE_GULF_FILL_MID_TARGETED", "MARINE_COARSE_GULF_FILL", "MARINE_TARGETED_DONOR_CACHE",
+              "MARINE_GULF_FILL_DONOR_SERVED_TIME"):
         monkeypatch.delenv(k, raising=False)
     gf._DONOR_LRU.clear()
     gf.TARGETED_NO_FILL.clear()
@@ -350,3 +351,82 @@ def test_the_stats_report_hits_builds_and_no_fill_reasons(monkeypatch, tmp_path)
     assert s["mode"] == "targeted" and s["donor_lru"]["builds"] == 1 and s["donor_lru"]["hits"] == 2
     assert s["donor_lru"]["size"] == 1 and s["donor_lru"]["capacity"] >= 96 and s["donor_lru"]["build_ms_mean"] is not None
     assert s["no_fill"] == {"EURO/waves/missing": 1}
+
+
+# -- THE DONOR TIME (MARINE_GULF_FILL_DONOR_SERVED_TIME, 2026-10-26, dark) ---------------------------------------------------------
+# The fill runs in the route AFTER resolve_grid set valid_time to the ASK (the echo contract) and recorded the frame's own instant
+# in served_valid_time (stamp_frame_honesty), so a HELD frame was filled from GFS at the asked hour. Measured offline on real CDN
+# fields (log/2026-10-25-claude-day14-evidence.md): ICON 11-08T18Z held for an ask at 11-09T02Z, filled from GFS 03Z, 9 h apart.
+_HELD, _ASK = "2026-11-08T18:00:00Z", "2026-11-09T02:00:00Z"
+_HELD_DT, _ASK_DT = datetime(2026, 11, 8, 18, tzinfo=timezone.utc), datetime(2026, 11, 9, 2, tzinfo=timezone.utc)
+
+
+class _TwoInstants(_Store):
+    """GFS donors at the held frame's own hour (speed 1.25 at 2 deg, 3.0 at 10 deg) and at the ask's nearest hour (4.0 / 5.0)."""
+
+    def __init__(self):
+        super().__init__(mid_vt=_HELD)
+        self.items = [i for i in self.items if not (i.region_id == "global_coarse")]
+        for name in [n for n in self.products if "global_coarse" in n]:
+            coarse = self.products.pop(name)
+            held = f"gfs_marine_{coarse.layer}_global_coarse_held.json"
+            self.products[held] = coarse
+            self.items.append(types.SimpleNamespace(model="GFS", domain="marine", layer=coarse.layer, region_id="global_coarse",
+                                                    valid_time_start=_HELD, filename=held))
+        for region, speed, cols in (("global_mid", 4.0, 181), ("global_coarse", 5.0, 37)):
+            vecs = ([_vec(SEA_GULF, speed, direction=222.0, period=12.0), _vec(INLAND_TX, 0, False), _vec((28.0, -84.0), speed),
+                     _vec(COAST_NEAR, 0, False)] if region == "global_mid"
+                    else [_vec((25.0, -90.0), speed), _vec((30.0, -95.0), speed), _vec((30.0, -85.0), speed)])
+            name = f"gfs_marine_waves_{region}_ask.json"
+            self.products[name] = _product("GFS", region, "waves", vecs, cols, name)
+            self.items.append(types.SimpleNamespace(model="GFS", domain="marine", layer="waves", region_id=region,
+                                                    valid_time_start="2026-11-09T03:00:00Z", filename=name))
+
+
+def _held(region="global_mid", served=_HELD):
+    """A frame as resolve_grid hands it to the route: valid_time = the ASK, served_valid_time = the frame's own instant."""
+    p = _recipient("ICON", "waves", region)
+    p.valid_time = _ASK_DT
+    p.served_valid_time = served
+    return p
+
+
+def test_the_donor_time_is_the_ask_by_default_and_the_frame_s_own_instant_under_the_flag(monkeypatch):
+    held = _held()
+    assert gf.donor_time(held) == _ASK_DT                      # today's order: valid_time (the ask) first
+    monkeypatch.setenv("MARINE_GULF_FILL_DONOR_SERVED_TIME", "1")
+    assert gf.donor_time(held) == _HELD
+    assert gf.donor_time(_held(served=None)) == _ASK_DT        # no served time recorded: the ask, never None
+
+
+def test_flag_off_keeps_today_s_asked_hour_donor_the_control(monkeypatch):
+    """The control: with the flag off a held 2-deg frame is filled from GFS at the ASKED hour, as it is served today."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    out = _fill(_held(), _TwoInstants())
+    assert _by_node(out)[SEA_GULF].speed == 4.0 and out.coarse_fill["donor_product"] == "gfs_marine_waves_global_mid_ask.json"
+
+
+def test_flag_on_fills_a_held_2deg_frame_from_gfs_at_the_frame_s_own_hour(monkeypatch):
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    monkeypatch.setenv("MARINE_GULF_FILL_DONOR_SERVED_TIME", "1")
+    out = _fill(_held(), _TwoInstants())
+    gulf = _by_node(out)[SEA_GULF]
+    assert (gulf.speed, gulf.direction, gulf.period) == (1.25, 111.0, 7.5)       # the 18Z donor's own values
+    assert out.coarse_fill["donor_product"] == "gfs_marine_waves_global_mid.json"
+
+
+def test_flag_on_moves_the_10deg_fill_to_the_frame_s_own_hour_too(monkeypatch):
+    off = _fill(_held("global_coarse"), _TwoInstants())
+    assert _by_node(off)[SEA_GULF].speed == 5.0                                   # the 03Z coarse donor (control)
+    monkeypatch.setenv("MARINE_GULF_FILL_DONOR_SERVED_TIME", "1")
+    on = _fill(_held("global_coarse"), _TwoInstants())
+    assert _by_node(on)[SEA_GULF].speed == 3.0 and on.coarse_fill["cells_filled"] == off.coarse_fill["cells_filled"]
+
+
+def test_a_frame_served_at_its_own_ask_is_unchanged_by_the_flag(monkeypatch):
+    """Not held, not substituted (served == asked): the same donor either way, so the flag moves only mixed-instant frames."""
+    monkeypatch.setenv("MARINE_GULF_FILL_MID_TARGETED", "1")
+    exact = lambda: _held(served="2026-11-09T02:00:00Z")   # noqa: E731
+    before = _by_node(_fill(exact(), _TwoInstants()))[SEA_GULF].speed
+    monkeypatch.setenv("MARINE_GULF_FILL_DONOR_SERVED_TIME", "1")
+    assert _by_node(_fill(exact(), _TwoInstants()))[SEA_GULF].speed == before == 4.0

@@ -104,6 +104,14 @@ _RATING_FLAGS = {
                                            "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "
                                            "MARINE_GULF_FILL_MID=0 wins (no 2-deg fill); the 10-deg tier is unchanged either way",
                                       "Render env"),
+    # The fill's DONOR TIME (2026-10-26, dark; log/2026-10-25-claude-day14-evidence.md): the route-level fill runs after resolve_grid
+    # set valid_time to the ask, so a held or nearest-substituted frame was filled from GFS at the ASKED hour (live-shaped offline:
+    # ICON 18Z filled from GFS 03Z, 9 h apart, 131 cells).
+    "MARINE_GULF_FILL_DONOR_SERVED_TIME": ("0", "both EURO/ICON world Gulf fills (10-deg and the targeted 2-deg) look the GFS donor "
+                                                "up at the frame's own instant (served_valid_time) instead of the asked hour; 0 = "
+                                                "today's order (the ask, else the served time). Matches the static filled frames, "
+                                                "which use the frame's own hour (frame_set_fill)",
+                                           "Render env"),
     # Per-node provenance of that fill (2026-10-23, dark): WHICH cells came from GFS, so a client can mark them (series frames too).
     "MARINE_FILL_PROVENANCE_NODES": ("0", "add filled_idx (indices into the response's own grid.vectors, at most "
                                           "MARINE_FILL_PROVENANCE_MAX, default 4096) to the Gulf fill's coarse_fill stamp, and carry "
